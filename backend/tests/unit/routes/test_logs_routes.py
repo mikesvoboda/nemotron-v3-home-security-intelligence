@@ -51,10 +51,10 @@ async def test_list_logs_empty_database() -> None:
         db=db,
     )
 
-    assert result["count"] == 0
-    assert result["logs"] == []
-    assert result["limit"] == 100
-    assert result["offset"] == 0
+    assert result.count == 0
+    assert result.logs == []
+    assert result.limit == 100
+    assert result.offset == 0
 
 
 @pytest.mark.asyncio
@@ -103,8 +103,8 @@ async def test_list_logs_with_results() -> None:
         db=db,
     )
 
-    assert result["count"] == 2
-    assert len(result["logs"]) == 2
+    assert result.count == 2
+    assert len(result.logs) == 2
 
 
 @pytest.mark.asyncio
@@ -138,8 +138,8 @@ async def test_list_logs_filter_by_level() -> None:
         db=db,
     )
 
-    assert result["count"] == 1
-    assert len(result["logs"]) == 1
+    assert result.count == 1
+    assert len(result.logs) == 1
 
 
 @pytest.mark.asyncio
@@ -173,7 +173,7 @@ async def test_list_logs_filter_by_component() -> None:
         db=db,
     )
 
-    assert result["count"] == 1
+    assert result.count == 1
 
 
 @pytest.mark.asyncio
@@ -207,7 +207,7 @@ async def test_list_logs_filter_by_camera_id() -> None:
         db=db,
     )
 
-    assert result["count"] == 1
+    assert result.count == 1
 
 
 @pytest.mark.asyncio
@@ -241,7 +241,7 @@ async def test_list_logs_filter_by_source() -> None:
         db=db,
     )
 
-    assert result["count"] == 1
+    assert result.count == 1
 
 
 @pytest.mark.asyncio
@@ -275,7 +275,7 @@ async def test_list_logs_filter_by_search() -> None:
         db=db,
     )
 
-    assert result["count"] == 1
+    assert result.count == 1
 
 
 @pytest.mark.asyncio
@@ -311,7 +311,7 @@ async def test_list_logs_filter_by_start_date() -> None:
         db=db,
     )
 
-    assert result["count"] == 1
+    assert result.count == 1
 
 
 @pytest.mark.asyncio
@@ -347,7 +347,7 @@ async def test_list_logs_filter_by_end_date() -> None:
         db=db,
     )
 
-    assert result["count"] == 1
+    assert result.count == 1
 
 
 @pytest.mark.asyncio
@@ -383,7 +383,7 @@ async def test_list_logs_filter_by_date_range() -> None:
         db=db,
     )
 
-    assert result["count"] == 1
+    assert result.count == 1
 
 
 @pytest.mark.asyncio
@@ -421,9 +421,9 @@ async def test_list_logs_with_all_filters() -> None:
         db=db,
     )
 
-    assert result["count"] == 1
-    assert result["limit"] == 50
-    assert result["offset"] == 10
+    assert result.count == 1
+    assert result.limit == 50
+    assert result.offset == 10
 
 
 @pytest.mark.asyncio
@@ -458,10 +458,10 @@ async def test_list_logs_pagination() -> None:
         db=db,
     )
 
-    assert result["count"] == 15
-    assert len(result["logs"]) == 5
-    assert result["limit"] == 5
-    assert result["offset"] == 10
+    assert result.count == 15
+    assert len(result.logs) == 5
+    assert result.limit == 5
+    assert result.offset == 10
 
 
 @pytest.mark.asyncio
@@ -491,7 +491,7 @@ async def test_list_logs_null_count() -> None:
         db=db,
     )
 
-    assert result["count"] == 0  # Should default to 0 when None
+    assert result.count == 0  # Should default to 0 when None
 
 
 # =============================================================================
@@ -551,12 +551,12 @@ async def test_get_log_stats_empty_database() -> None:
 
     result = await logs_routes.get_log_stats(db=db)
 
-    assert result["total_today"] == 0
-    assert result["errors_today"] == 0
-    assert result["warnings_today"] == 0
-    assert result["by_component"] == {}
-    assert result["by_level"] == {}
-    assert result["top_component"] is None
+    assert result.total_today == 0
+    assert result.errors_today == 0
+    assert result.warnings_today == 0
+    assert result.by_component == {}
+    assert result.by_level == {}
+    assert result.top_component is None
 
 
 @pytest.mark.asyncio
@@ -576,16 +576,16 @@ async def test_get_log_stats_with_data() -> None:
 
     result = await logs_routes.get_log_stats(db=db)
 
-    assert result["total_today"] == 150
-    assert result["errors_today"] == 10
-    assert result["warnings_today"] == 25
-    assert result["by_component"]["file_watcher"] == 80
-    assert result["by_component"]["api"] == 50
-    assert result["by_component"]["detector"] == 20
-    assert result["by_level"]["INFO"] == 115
-    assert result["by_level"]["WARNING"] == 25
-    assert result["by_level"]["ERROR"] == 10
-    assert result["top_component"] == "file_watcher"
+    assert result.total_today == 150
+    assert result.errors_today == 10
+    assert result.warnings_today == 25
+    assert result.by_component["file_watcher"] == 80
+    assert result.by_component["api"] == 50
+    assert result.by_component["detector"] == 20
+    assert result.by_level["INFO"] == 115
+    assert result.by_level["WARNING"] == 25
+    assert result.by_level["ERROR"] == 10
+    assert result.top_component == "file_watcher"
 
 
 @pytest.mark.asyncio
@@ -601,10 +601,10 @@ async def test_get_log_stats_null_values() -> None:
 
     result = await logs_routes.get_log_stats(db=db)
 
-    assert result["total_today"] == 0
-    assert result["errors_today"] == 0
-    assert result["warnings_today"] == 0
-    assert result["top_component"] is None
+    assert result.total_today == 0
+    assert result.errors_today == 0
+    assert result.warnings_today == 0
+    assert result.top_component is None
 
 
 @pytest.mark.asyncio
@@ -622,8 +622,8 @@ async def test_get_log_stats_single_component() -> None:
 
     result = await logs_routes.get_log_stats(db=db)
 
-    assert result["top_component"] == "api"
-    assert result["by_component"]["api"] == 50
+    assert result.top_component == "api"
+    assert result.by_component["api"] == 50
 
 
 @pytest.mark.asyncio
@@ -643,8 +643,8 @@ async def test_get_log_stats_component_sorting() -> None:
     result = await logs_routes.get_log_stats(db=db)
 
     # Should be sorted by count descending
-    assert result["top_component"] == "detector"
-    component_keys = list(result["by_component"].keys())
+    assert result.top_component == "detector"
+    component_keys = list(result.by_component.keys())
     assert component_keys == ["detector", "file_watcher", "api"]
 
 
