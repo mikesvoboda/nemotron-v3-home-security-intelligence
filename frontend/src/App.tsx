@@ -61,6 +61,9 @@ const SystemMonitoringPage = lazy(() =>
 // Settings
 const SettingsPage = lazy(() => import('./components/settings/SettingsPage'));
 
+// Trash (soft-deleted events)
+const TrashPage = lazy(() => import('./pages/TrashPage'));
+
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -86,6 +89,7 @@ export default function App() {
                       <Route path="/ai-audit" element={<AIAuditPage />} />
                       <Route path="/system" element={<SystemMonitoringPage />} />
                       <Route path="/settings" element={<SettingsPage />} />
+                      <Route path="/trash" element={<TrashPage />} />
                     </Routes>
                   </PageTransition>
                 </Suspense>

@@ -13,9 +13,9 @@
 
 import { AlertCircle, Info, Trash2 } from 'lucide-react';
 
-import DeletedEventCard from '../components/events/DeletedEventCard';
 import EmptyState from '../components/common/EmptyState';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import DeletedEventCard from '../components/events/DeletedEventCard';
 import {
   useDeletedEventsQuery,
   useRestoreEventMutation,
@@ -30,20 +30,12 @@ export default function TrashPage() {
   const restoreMutation = useRestoreEventMutation();
   const permanentDeleteMutation = usePermanentDeleteMutation();
 
-  const handleRestore = async (eventId: number) => {
-    try {
-      await restoreMutation.mutateAsync(eventId);
-    } catch {
-      // Error is already tracked in mutation state
-    }
+  const handleRestore = (eventId: number) => {
+    restoreMutation.mutate(eventId);
   };
 
-  const handlePermanentDelete = async (eventId: number) => {
-    try {
-      await permanentDeleteMutation.mutateAsync(eventId);
-    } catch {
-      // Error is already tracked in mutation state
-    }
+  const handlePermanentDelete = (eventId: number) => {
+    permanentDeleteMutation.mutate(eventId);
   };
 
   // Loading state
@@ -66,7 +58,7 @@ export default function TrashPage() {
           </div>
           <p className="mt-2 text-sm text-red-300">{error.message}</p>
           <button
-            onClick={() => refetch()}
+            onClick={() => void refetch()}
             className="mt-3 rounded bg-red-500/20 px-3 py-1 text-sm text-red-300 hover:bg-red-500/30"
           >
             Try Again

@@ -1,4 +1,4 @@
-import { Home, Clock, BarChart3, Users, Bell, Settings, ScrollText, Server, Shield, X, Brain, ClipboardCheck } from 'lucide-react';
+import { Home, Clock, BarChart3, Users, Bell, Settings, ScrollText, Server, Shield, X, Brain, ClipboardCheck, Trash2 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 
 import { useSidebarContext } from '../../hooks/useSidebarContext';
@@ -24,6 +24,7 @@ const navItems: NavItem[] = [
   { id: 'ai', label: 'AI Performance', icon: Brain, path: '/ai' },
   { id: 'ai-audit', label: 'AI Audit', icon: ClipboardCheck, path: '/ai-audit' },
   { id: 'system', label: 'System', icon: Server, path: '/system' },
+  { id: 'trash', label: 'Trash', icon: Trash2, path: '/trash' },
   { id: 'settings', label: 'Settings', icon: Settings, path: '/settings', dataTour: 'settings-link' },
 ];
 
