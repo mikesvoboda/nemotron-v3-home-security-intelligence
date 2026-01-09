@@ -41,6 +41,7 @@ import {
   cameraEndpoint,
   eventEndpoint,
   detectionEndpoint,
+  enrichmentEndpoint,
   zoneEndpoint,
   alertRuleEndpoint,
 } from './api-endpoints';
@@ -134,9 +135,9 @@ describe('API Endpoint Template Literal Types', () => {
     });
 
     it('defines enrichment endpoints correctly', () => {
-      const enrichment: EnrichmentEndpoint = '/api/enrichment/456';
+      const enrichment: EnrichmentEndpoint = '/api/detections/456/enrichment';
 
-      expect(enrichment).toBe('/api/enrichment/456');
+      expect(enrichment).toBe('/api/detections/456/enrichment');
     });
 
     it('defines alert rule endpoints correctly', () => {
@@ -183,7 +184,7 @@ describe('API Endpoint Template Literal Types', () => {
         '/api/system/health',
         '/api/system/gpu',
         '/api/detections/stats',
-        '/api/enrichment/456',
+        '/api/detections/456/enrichment',
         '/api/alerts/rules',
         '/api/audit',
       ];
@@ -302,6 +303,7 @@ describe('Endpoint Validation', () => {
       expect(isValidEndpoint('/api/detections/stats')).toBe(true);
       expect(isValidEndpoint('/api/detections/123/image')).toBe(true);
       expect(isValidEndpoint('/api/detections/123/video')).toBe(true);
+      expect(isValidEndpoint('/api/detections/123/enrichment')).toBe(true);
     });
 
     it('returns false for invalid endpoints', () => {
@@ -412,6 +414,17 @@ describe('Endpoint Validation', () => {
       });
     });
 
+    it('parses enrichment endpoint', () => {
+      const parsed = parseEndpoint('/api/detections/123/enrichment');
+      expect(parsed).toEqual({
+        resource: 'detections',
+        action: 'enrichment',
+        id: '123',
+        subResource: undefined,
+        subId: undefined,
+      });
+    });
+
     it('returns null for invalid endpoints', () => {
       expect(parseEndpoint('/invalid')).toBeNull();
       expect(parseEndpoint('')).toBeNull();
@@ -496,6 +509,18 @@ describe('Endpoint Builders', () => {
     it('builds detection video endpoint', () => {
       const endpoint = detectionEndpoint(123, 'video');
       expect(endpoint).toBe('/api/detections/123/video');
+    });
+
+    it('builds detection enrichment endpoint', () => {
+      const endpoint = detectionEndpoint(123, 'enrichment');
+      expect(endpoint).toBe('/api/detections/123/enrichment');
+    });
+  });
+
+  describe('enrichmentEndpoint', () => {
+    it('builds enrichment endpoint for a detection', () => {
+      const endpoint = enrichmentEndpoint(456);
+      expect(endpoint).toBe('/api/detections/456/enrichment');
     });
   });
 

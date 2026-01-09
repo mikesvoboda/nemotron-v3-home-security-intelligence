@@ -205,7 +205,7 @@ class TestSeedCameras:
 
         response = client.post("/api/admin/seed/cameras", json={})
 
-        assert response.status_code == 200
+        assert response.status_code == 201
         data = response.json()
         assert "created" in data
         assert "cleared" in data
@@ -219,7 +219,7 @@ class TestSeedCameras:
 
         response = client.post("/api/admin/seed/cameras", json={"count": 3})
 
-        assert response.status_code == 200
+        assert response.status_code == 201
         data = response.json()
         assert data["created"] == 3
 
@@ -248,7 +248,7 @@ class TestSeedCameras:
 
         response = client.post("/api/admin/seed/cameras", json={"count": 2, "clear_existing": True})
 
-        assert response.status_code == 200
+        assert response.status_code == 201
         data = response.json()
         assert data["cleared"] == 1
 
@@ -266,7 +266,7 @@ class TestSeedCameras:
 
         response = client.post("/api/admin/seed/cameras", json={"count": 1})
 
-        assert response.status_code == 200
+        assert response.status_code == 201
         data = response.json()
         # Should create 0 since the camera already exists
         assert data["created"] == 0
@@ -316,7 +316,7 @@ class TestSeedEvents:
 
         response = client.post("/api/admin/seed/events", json={"count": 5})
 
-        assert response.status_code == 200
+        assert response.status_code == 201
         data = response.json()
         assert data["events_created"] == 5
         assert "detections_created" in data
@@ -331,7 +331,7 @@ class TestSeedEvents:
 
         response = client.post("/api/admin/seed/events", json={})
 
-        assert response.status_code == 200
+        assert response.status_code == 201
         data = response.json()
         assert data["events_created"] == 15  # Default count
 

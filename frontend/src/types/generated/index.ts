@@ -9,9 +9,56 @@
  * DO NOT modify this file manually. Update the backend schemas and regenerate.
  *
  * @see ./api.ts - Full auto-generated types from openapi-typescript
+ * @see ./websocket.ts - Auto-generated WebSocket types from generate-ws-types.py
  */
 
 export type { paths, components, operations } from './api';
+
+// Re-export WebSocket types (generated from backend Pydantic schemas)
+// These are not covered by OpenAPI, so they have their own generator
+export type {
+  // Enums and constants
+  RiskLevel,
+  WebSocketMessageType,
+  WebSocketServiceStatus,
+  WebSocketErrorCodeType,
+  // Data payload interfaces
+  WebSocketEventData,
+  WebSocketServiceStatusData,
+  WebSocketSceneChangeData,
+  // Message envelope interfaces
+  WebSocketPingMessage,
+  WebSocketPongResponse,
+  WebSocketSubscribeMessage,
+  WebSocketUnsubscribeMessage,
+  WebSocketErrorResponse,
+  WebSocketEventMessage,
+  WebSocketServiceStatusMessage,
+  WebSocketSceneChangeMessage,
+  WebSocketMessage,
+  // Discriminated union types
+  WebSocketServerMessage,
+  WebSocketClientMessage,
+  AnyWebSocketMessage,
+  MessageByType,
+  MessageHandler,
+  MessageHandlerMap,
+} from './websocket';
+
+export {
+  // Error code constants
+  WebSocketErrorCode,
+  // Type guards
+  isEventMessage,
+  isServiceStatusMessage,
+  isSceneChangeMessage,
+  isPingMessage,
+  isPongMessage,
+  isErrorMessage,
+  // Utilities
+  createMessageDispatcher,
+  assertNever,
+} from './websocket';
 
 // Re-export component schemas for convenient access
 // These match the backend Pydantic schemas in backend/api/schemas/
