@@ -16,6 +16,10 @@ import {
 import { CameraCardSkeleton, StatsCardSkeleton, Skeleton } from '../common';
 import ActivityFeed, { type ActivityEvent } from './ActivityFeed';
 import CameraGrid, { type CameraStatus } from './CameraGrid';
+import DashboardLayout from './DashboardLayout';
+import GpuStats from './GpuStats';
+import PipelineQueues from './PipelineQueues';
+import PipelineTelemetry from './PipelineTelemetry';
 import StatsRow from './StatsRow';
 
 /**
@@ -33,18 +37,18 @@ const WEBSOCKET_THROTTLE_INTERVAL = 500;
  * - Top row: StatsRow with risk sparkline
  * - Bottom: CameraGrid (full width)
  *
- * Note: GPU Statistics and Pipeline Telemetry are available on the System page
- * which provides better context with RT-DETRv2/Nemotron model cards and pipeline metrics.
- * Live Activity feed is available on the Timeline page.
+ * Now with customizable widget layout via DashboardLayout.
+ * GPU Statistics and Pipeline Telemetry can be enabled via the Configure button.
  *
  * Features:
  * - Real-time updates via WebSocket
  * - Loading skeletons while data loads
  * - Error boundaries for failed components
  * - NVIDIA dark theme (bg-[#121212])
+ * - Customizable widget visibility and order
  */
 export default function DashboardPage() {
-// Navigation hook for camera card clicks
+  // Navigation hook for camera card clicks
   const navigate = useNavigate();
 
   // State for REST API data
@@ -210,6 +214,48 @@ export default function DashboardPage() {
     [navigate]
   );
 
+  // Render loading skeleton
+  const renderLoadingSkeleton = useCallback(
+    () => (
+      <>
+        {/* Header skeleton */}
+        <div className="mb-6 md:mb-8">
+          <Skeleton variant="text" width={256} height={40} className="mb-2" />
+          <Skeleton variant="text" width={320} height={20} />
+        </div>
+
+        {/* Stats Row skeleton */}
+        <div className="mb-6 md:mb-8">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {Array.from({ length: 4 }, (_, i) => (
+              <StatsCardSkeleton key={i} />
+            ))}
+          </div>
+        </div>
+
+        {/* 2-Column Layout skeleton */}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[2fr,1fr] xl:grid-cols-[2.5fr,1fr]">
+          {/* Camera grid skeleton */}
+          <div>
+            <Skeleton variant="text" width={192} height={32} className="mb-4" />
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {Array.from({ length: 6 }, (_, i) => (
+                <CameraCardSkeleton key={i} />
+              ))}
+            </div>
+          </div>
+
+          {/* Activity feed skeleton */}
+          <div>
+            <Skeleton variant="text" width={192} height={32} className="mb-4" />
+            <Skeleton variant="rectangular" width="100%" height={600} className="rounded-lg" />
+          </div>
+        </div>
+      </>
+    ),
+    []
+  );
+
   // Error state
   if (error && !loading) {
     return (
@@ -228,95 +274,119 @@ export default function DashboardPage() {
     );
   }
 
-  // Loading state with skeleton loaders
+  // Loading state with skeleton loaders (legacy wrapper for test compatibility)
   if (loading) {
     return (
       <div data-testid="dashboard-container" className="min-h-screen bg-[#121212] p-4 md:p-8">
-        <div className="mx-auto max-w-[1920px]">
-          {/* Header skeleton */}
-          <div className="mb-6 md:mb-8">
-            <Skeleton variant="text" width={256} height={40} className="mb-2" />
-            <Skeleton variant="text" width={320} height={20} />
-          </div>
-
-          {/* Stats Row skeleton */}
-          <div className="mb-6 md:mb-8">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {Array.from({ length: 4 }, (_, i) => (
-                <StatsCardSkeleton key={i} />
-              ))}
-            </div>
-          </div>
-
-          {/* 2-Column Layout skeleton */}
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[2fr,1fr] xl:grid-cols-[2.5fr,1fr]">
-            {/* Camera grid skeleton */}
-            <div>
-              <Skeleton variant="text" width={192} height={32} className="mb-4" />
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {Array.from({ length: 6 }, (_, i) => (
-                  <CameraCardSkeleton key={i} />
-                ))}
-              </div>
-            </div>
-
-            {/* Activity feed skeleton */}
-            <div>
-              <Skeleton variant="text" width={192} height={32} className="mb-4" />
-              <Skeleton variant="rectangular" width="100%" height={600} className="rounded-lg" />
-            </div>
-          </div>
-        </div>
+        <div className="mx-auto max-w-[1920px]">{renderLoadingSkeleton()}</div>
       </div>
     );
   }
 
-  // Main dashboard
+  // Disconnected indicator for header
+  const disconnectedIndicator =
+    !eventsConnected && !systemConnected ? (
+      <span className="ml-2 text-yellow-500">(Disconnected)</span>
+    ) : null;
+
+  // Main dashboard with customizable layout
   return (
-    <div data-testid="dashboard-container" className="min-h-screen bg-[#121212] p-4 md:p-8">
-      <div className="mx-auto max-w-[1920px]">
-        {/* Header */}
-        <div className="mb-6 md:mb-8">
-          <h1 className="text-page-title">Security Dashboard</h1>
-          <p className="text-body-sm mt-1 sm:mt-2">
-            Real-time AI-powered home security monitoring
-            {!eventsConnected && !systemConnected && (
-              <span className="ml-2 text-yellow-500">(Disconnected)</span>
+    <div data-testid="dashboard-container">
+      <DashboardLayout
+        isLoading={loading}
+        renderLoadingSkeleton={renderLoadingSkeleton}
+        widgetProps={{
+          statsRow: {
+            activeCameras: activeCamerasCount,
+            eventsToday: eventsToday,
+            currentRiskScore: currentRiskScore,
+            systemStatus: systemHealth,
+            riskHistory: riskHistory.length > 0 ? riskHistory : undefined,
+          },
+          cameraGrid: {
+            cameras: cameraStatuses,
+            onCameraClick: handleCameraClick,
+          },
+          activityFeed: {
+            events: activityEvents,
+            maxItems: 10,
+            onEventClick: handleEventClick,
+            className: 'h-[600px] lg:h-[700px]',
+          },
+          gpuStats: {
+            gpuName: 'NVIDIA RTX A5500', // GPU name from system config
+            utilization: throttledSystemStatus?.gpu_utilization ?? null,
+            memoryUsed: throttledSystemStatus?.gpu_memory_used ?? null,
+            memoryTotal: throttledSystemStatus?.gpu_memory_total ?? null,
+            temperature: throttledSystemStatus?.gpu_temperature ?? null,
+            powerUsage: null, // Power not available in current WebSocket data
+            inferenceFps: throttledSystemStatus?.inference_fps ?? null,
+          },
+          pipelineTelemetry: {
+            pollingInterval: 5000,
+            queueWarningThreshold: 10,
+            latencyWarningThreshold: 10000,
+          },
+          pipelineQueues: {
+            detectionQueue: 0, // Would come from telemetry API
+            analysisQueue: 0, // Would come from telemetry API
+            warningThreshold: 10,
+          },
+        }}
+        renderStatsRow={(props) => (
+          <>
+            {disconnectedIndicator && (
+              <div className="mb-2 text-sm text-yellow-500">{disconnectedIndicator}</div>
             )}
-          </p>
-        </div>
-
-        {/* Stats Row with integrated risk sparkline */}
-        <div className="mb-6 md:mb-8">
-          <StatsRow
-            activeCameras={activeCamerasCount}
-            eventsToday={eventsToday}
-            currentRiskScore={currentRiskScore}
-            systemStatus={systemHealth}
-            riskHistory={riskHistory.length > 0 ? riskHistory : undefined}
-          />
-        </div>
-
-        {/* 2-Column Layout: Camera Grid + Activity Feed */}
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[2fr,1fr] xl:grid-cols-[2.5fr,1fr]">
-          {/* Left Column: Camera Grid */}
-          <div>
-            <h2 className="text-section-title mb-3 md:mb-4">Camera Status</h2>
-            <CameraGrid cameras={cameraStatuses} onCameraClick={handleCameraClick} />
-          </div>
-
-          {/* Right Column: Live Activity Feed */}
-          <div>
-            <h2 className="text-section-title mb-3 md:mb-4">Live Activity</h2>
+            <StatsRow {...props} />
+          </>
+        )}
+        renderCameraGrid={(props) =>
+          props ? <CameraGrid cameras={props.cameras} onCameraClick={props.onCameraClick} /> : null
+        }
+        renderActivityFeed={(props) =>
+          props ? (
             <ActivityFeed
-              events={activityEvents}
-              maxItems={10}
-              onEventClick={handleEventClick}
-              className="h-[600px] lg:h-[700px]"
+              events={props.events}
+              maxItems={props.maxItems}
+              onEventClick={props.onEventClick}
+              className={props.className}
             />
-          </div>
-        </div>
-      </div>
+          ) : null
+        }
+        renderGpuStats={(props) =>
+          props ? (
+            <GpuStats
+              gpuName={props.gpuName}
+              utilization={props.utilization}
+              memoryUsed={props.memoryUsed}
+              memoryTotal={props.memoryTotal}
+              temperature={props.temperature}
+              powerUsage={props.powerUsage}
+              inferenceFps={props.inferenceFps}
+            />
+          ) : null
+        }
+        renderPipelineTelemetry={(props) =>
+          props ? (
+            <PipelineTelemetry
+              pollingInterval={props.pollingInterval}
+              queueWarningThreshold={props.queueWarningThreshold}
+              latencyWarningThreshold={props.latencyWarningThreshold}
+            />
+          ) : null
+        }
+        renderPipelineQueues={(props) =>
+          props ? (
+            <PipelineQueues
+              detectionQueue={props.detectionQueue}
+              analysisQueue={props.analysisQueue}
+              warningThreshold={props.warningThreshold}
+              className={props.className}
+            />
+          ) : null
+        }
+      />
     </div>
   );
 }

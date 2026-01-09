@@ -49,6 +49,7 @@ from backend.core.database import escape_ilike_pattern, get_db
 from backend.core.logging import get_logger, sanitize_log_value
 from backend.core.metrics import record_event_reviewed
 from backend.core.sanitization import sanitize_error_for_response
+from backend.core.telemetry import get_trace_id
 from backend.models.audit import AuditAction
 from backend.models.camera import Camera
 from backend.models.detection import Detection
@@ -254,6 +255,19 @@ async def list_events(  # noqa: PLR0912
         HTTPException: 400 if cursor is invalid
         HTTPException: 400 if invalid fields are requested
     """
+    # NEM-1503: Include trace_id in logs for distributed tracing correlation
+    trace_id = get_trace_id()
+    if trace_id:
+        logger.debug(
+            "Listing events",
+            extra={
+                "trace_id": trace_id,
+                "camera_id": camera_id,
+                "risk_level": risk_level,
+                "limit": limit,
+            },
+        )
+
     # Validate date range
     validate_date_range(start_date, end_date)
 

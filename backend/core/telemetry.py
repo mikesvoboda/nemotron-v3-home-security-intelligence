@@ -26,14 +26,34 @@ Usage:
     with tracer.start_as_current_span("my_operation"):
         # ... operation code
 
+    # Using the trace_span context manager
+    from backend.core.telemetry import trace_span
+    with trace_span("process_detection", camera_id=camera_id) as span:
+        span.set_attribute("detection_count", len(detections))
+
+    # Using the trace_function decorator
+    from backend.core.telemetry import trace_function
+    @trace_function("analyze_batch")
+    async def analyze_batch(batch_id: str) -> Result:
+        ...
+
+    # Getting trace IDs for log correlation
+    from backend.core.telemetry import get_trace_id, get_span_id
+    logger.info("Processing", extra={"trace_id": get_trace_id()})
+
     # In app shutdown
     shutdown_telemetry()
+
+NEM-1503: Added trace_span context manager, trace_function decorator, and trace ID utilities.
 """
 
 from __future__ import annotations
 
+import functools
 import logging
-from typing import TYPE_CHECKING, Protocol, runtime_checkable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
+from typing import TYPE_CHECKING, ParamSpec, Protocol, TypeVar, runtime_checkable
 
 if TYPE_CHECKING:
     from types import TracebackType
@@ -366,3 +386,201 @@ class _NoOpTracer:
     def start_span(self, name: str, **kwargs: object) -> _NoOpSpan:  # noqa: ARG002
         """Return a no-op span."""
         return _NoOpSpan()
+
+
+# =============================================================================
+# Trace ID and Span ID Utilities (NEM-1503)
+# =============================================================================
+
+
+def get_trace_id() -> str | None:
+    """Get the current trace ID as a hex string for log correlation.
+
+    The trace ID is a 32-character lowercase hex string that uniquely identifies
+    the entire request/transaction across all services. Include this in logs
+    to correlate log entries with distributed traces.
+
+    Returns:
+        32-character lowercase hex string trace ID, or None if no trace is active
+        or OpenTelemetry is not enabled.
+
+    Example:
+        >>> from backend.core.telemetry import get_trace_id
+        >>> logger.info("Processing request", extra={"trace_id": get_trace_id()})
+    """
+    try:
+        span = get_current_span()
+        # Check if span has get_span_context method (real OTel span)
+        if hasattr(span, "get_span_context"):
+            span_context = span.get_span_context()
+            if span_context and span_context.is_valid:
+                return format(span_context.trace_id, "032x")
+    except Exception:  # noqa: S110 - intentional silent catch for non-critical utility
+        # Silently return None if anything fails - trace_id is optional debugging info
+        pass
+    return None
+
+
+def get_span_id() -> str | None:
+    """Get the current span ID as a hex string.
+
+    The span ID is a 16-character lowercase hex string that uniquely identifies
+    the current operation within a trace.
+
+    Returns:
+        16-character lowercase hex string span ID, or None if no span is active
+        or OpenTelemetry is not enabled.
+
+    Example:
+        >>> from backend.core.telemetry import get_span_id
+        >>> span_id = get_span_id()
+    """
+    try:
+        span = get_current_span()
+        if hasattr(span, "get_span_context"):
+            span_context = span.get_span_context()
+            if span_context and span_context.is_valid:
+                return format(span_context.span_id, "016x")
+    except Exception:  # noqa: S110 - intentional silent catch for non-critical utility
+        # Silently return None if anything fails - span_id is optional debugging info
+        pass
+    return None
+
+
+def get_trace_context() -> dict[str, str | None]:
+    """Get the current trace context for log enrichment.
+
+    Returns a dictionary with trace_id and span_id that can be merged
+    into log extra fields for correlation.
+
+    Returns:
+        Dictionary with trace_id and span_id keys (values may be None)
+
+    Example:
+        >>> from backend.core.telemetry import get_trace_context
+        >>> logger.info("Operation complete", extra={**get_trace_context(), "result": "success"})
+    """
+    return {
+        "trace_id": get_trace_id(),
+        "span_id": get_span_id(),
+    }
+
+
+# =============================================================================
+# trace_span Context Manager (NEM-1503)
+# =============================================================================
+
+
+@contextmanager
+def trace_span(
+    name: str,
+    record_exception_on_error: bool = True,
+    **attributes: str | int | float | bool,
+) -> Iterator[SpanProtocol]:
+    """Context manager for creating a traced span with automatic exception recording.
+
+    This provides a convenient way to create spans with attributes and automatic
+    exception handling. The span is set as the current span in context.
+
+    Args:
+        name: Name of the span (e.g., "detect_objects", "analyze_batch")
+        record_exception_on_error: If True, automatically record exceptions on the span
+        **attributes: Key-value pairs to set as span attributes
+
+    Yields:
+        The created Span object (SpanProtocol compatible)
+
+    Example:
+        >>> from backend.core.telemetry import trace_span
+        >>> with trace_span("detect_objects", camera_id="front_door") as span:
+        ...     results = await detector.detect(image_path)
+        ...     span.set_attribute("detection_count", len(results))
+
+        >>> # With exception handling
+        >>> with trace_span("risky_operation") as span:
+        ...     result = perform_risky_operation()  # Exceptions auto-recorded
+    """
+    tracer = get_tracer("trace_span")
+    span = tracer.start_as_current_span(name)
+
+    # Set initial attributes
+    for key, value in attributes.items():
+        span.set_attribute(key, value)
+
+    try:
+        with span:
+            yield span
+    except Exception as e:
+        if record_exception_on_error:
+            record_exception(e)
+        raise
+
+
+# =============================================================================
+# trace_function Decorator (NEM-1503)
+# =============================================================================
+
+P = ParamSpec("P")
+R = TypeVar("R")
+
+
+def trace_function(
+    name: str | None = None,
+    **static_attributes: str | int | float | bool,
+) -> Callable[[Callable[P, R]], Callable[P, R]]:
+    """Decorator to trace a function execution with automatic span management.
+
+    Creates a span around the decorated function, capturing execution time
+    and optionally recording exceptions. Works with both sync and async functions.
+
+    Args:
+        name: Optional span name (defaults to function name)
+        **static_attributes: Attributes to add to every span created by this decorator
+
+    Returns:
+        A decorator function
+
+    Example:
+        >>> from backend.core.telemetry import trace_function
+        >>>
+        >>> @trace_function("rtdetr_detection")
+        ... async def detect_objects(image_path: str) -> list[Detection]:
+        ...     return await client.detect(image_path)
+        >>>
+        >>> @trace_function(service="nemotron")
+        ... async def analyze_batch(batch: Batch) -> AnalysisResult:
+        ...     return await analyzer.analyze(batch)
+        >>>
+        >>> # Sync functions also work
+        >>> @trace_function("compute_risk")
+        ... def compute_risk_score(detections: list) -> int:
+        ...     return sum(d.confidence for d in detections)
+    """
+    import asyncio
+
+    # Convert static_attributes for use in trace_span
+    attrs: dict[str, str | int | float | bool] = dict(static_attributes)
+
+    def decorator(func: Callable[P, R]) -> Callable[P, R]:
+        span_name = name or func.__name__
+
+        @functools.wraps(func)
+        async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+            with trace_span(span_name, record_exception_on_error=True, **attrs):
+                result = func(*args, **kwargs)
+                # Await if coroutine
+                if asyncio.iscoroutine(result):
+                    return await result  # type: ignore[return-value,no-any-return]
+                return result  # type: ignore[return-value]
+
+        @functools.wraps(func)
+        def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+            with trace_span(span_name, record_exception_on_error=True, **attrs):
+                return func(*args, **kwargs)
+
+        # Check if the function is async
+        if asyncio.iscoroutinefunction(func):
+            return async_wrapper  # type: ignore[return-value]
+        return sync_wrapper  # type: ignore[return-value]
+
+    return decorator
