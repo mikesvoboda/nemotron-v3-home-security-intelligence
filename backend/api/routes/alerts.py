@@ -249,7 +249,15 @@ def _apply_rule_updates(rule: AlertRule, rule_data: AlertRuleUpdate, update_dict
         )
 
 
-@router.put("/{rule_id}", response_model=AlertRuleResponse)
+@router.put(
+    "/{rule_id}",
+    response_model=AlertRuleResponse,
+    responses={
+        404: {"description": "Alert rule not found"},
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def update_rule(
     rule_id: str,
     rule_data: AlertRuleUpdate,

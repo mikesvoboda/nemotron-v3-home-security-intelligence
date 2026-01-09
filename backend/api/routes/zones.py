@@ -20,7 +20,14 @@ from backend.models.zone import Zone
 router = APIRouter(prefix="/api/cameras", tags=["zones"])
 
 
-@router.get("/{camera_id}/zones", response_model=ZoneListResponse)
+@router.get(
+    "/{camera_id}/zones",
+    response_model=ZoneListResponse,
+    responses={
+        404: {"description": "Camera not found"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def list_zones(
     camera_id: str,
     enabled: bool | None = Query(None, description="Filter by enabled status"),
@@ -58,6 +65,11 @@ async def list_zones(
     "/{camera_id}/zones",
     response_model=ZoneResponse,
     status_code=status.HTTP_201_CREATED,
+    responses={
+        404: {"description": "Camera not found"},
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
 )
 async def create_zone(
     camera_id: str,
@@ -97,7 +109,14 @@ async def create_zone(
     return zone
 
 
-@router.get("/{camera_id}/zones/{zone_id}", response_model=ZoneResponse)
+@router.get(
+    "/{camera_id}/zones/{zone_id}",
+    response_model=ZoneResponse,
+    responses={
+        404: {"description": "Camera or zone not found"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_zone(
     camera_id: str,
     zone_id: str,
@@ -122,7 +141,15 @@ async def get_zone(
     return await get_zone_or_404(zone_id, db, camera_id=camera_id)
 
 
-@router.put("/{camera_id}/zones/{zone_id}", response_model=ZoneResponse)
+@router.put(
+    "/{camera_id}/zones/{zone_id}",
+    response_model=ZoneResponse,
+    responses={
+        404: {"description": "Camera or zone not found"},
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def update_zone(
     camera_id: str,
     zone_id: str,
@@ -162,6 +189,10 @@ async def update_zone(
 @router.delete(
     "/{camera_id}/zones/{zone_id}",
     status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        404: {"description": "Camera or zone not found"},
+        500: {"description": "Internal server error"},
+    },
 )
 async def delete_zone(
     camera_id: str,

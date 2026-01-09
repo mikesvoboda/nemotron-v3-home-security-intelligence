@@ -6,7 +6,7 @@ import json
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -38,6 +38,7 @@ from backend.api.schemas.events import (
 )
 from backend.api.schemas.hateoas import build_event_links
 from backend.api.schemas.search import SearchResponse as SearchResponseSchema
+from backend.api.utils.cache_headers import CacheStrategy, set_cache_headers
 from backend.api.utils.field_filter import (
     FieldFilterError,
     filter_fields,
@@ -204,7 +205,14 @@ def sanitize_csv_value(value: str | None) -> str:
     return value
 
 
-@router.get("", response_model=EventListResponse)
+@router.get(
+    "",
+    response_model=EventListResponse,
+    responses={
+        400: {"description": "Invalid request parameters (cursor, date range, or fields)"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def list_events(  # noqa: PLR0912
     camera_id: str | None = Query(None, description="Filter by camera ID"),
     risk_level: str | None = Query(
@@ -219,10 +227,37 @@ async def list_events(  # noqa: PLR0912
     cursor: str | None = Query(None, description="Pagination cursor from previous response"),
     fields: str | None = Query(
         None,
-        description="Comma-separated list of fields to include in response (sparse fieldsets). "
-        "Valid fields: id, camera_id, started_at, ended_at, risk_score, risk_level, summary, "
-        "reasoning, reviewed, detection_count, detection_ids, thumbnail_url",
+        description=(
+            "Comma-separated list of fields to include in response (sparse fieldsets). "
+            "Use this to reduce payload size by requesting only the fields you need. "
+            "If omitted, all fields are returned. "
+            "Valid fields: id, camera_id, started_at, ended_at, risk_score, risk_level, "
+            "summary, reasoning, reviewed, detection_count, detection_ids, thumbnail_url. "
+            "Example: fields=id,camera_id,risk_level,summary,reviewed"
+        ),
+        examples=["id,camera_id,risk_level,summary,reviewed", "id,started_at,risk_score"],
+        openapi_examples={
+            "dashboard_view": {
+                "summary": "Dashboard minimal fields",
+                "description": "Fields commonly needed for dashboard event lists",
+                "value": "id,camera_id,risk_level,summary,reviewed",
+            },
+            "timeline_view": {
+                "summary": "Timeline view fields",
+                "description": "Fields needed for event timeline display",
+                "value": "id,camera_id,started_at,ended_at,risk_score,thumbnail_url",
+            },
+            "full_details": {
+                "summary": "All fields (default)",
+                "description": "Omit the fields parameter to get all available fields",
+                "value": None,
+            },
+        },
     ),
+    include_deleted: bool = Query(
+        False, description="Include soft-deleted events (for admin/trash views)"
+    ),
+    response: Response = None,  # type: ignore[assignment]
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """List events with optional filtering and cursor-based pagination.
@@ -230,9 +265,52 @@ async def list_events(  # noqa: PLR0912
     Supports both cursor-based pagination (recommended) and offset pagination (deprecated).
     Cursor-based pagination offers better performance for large datasets.
 
-    Sparse Fieldsets (NEM-1434):
-    Use the `fields` parameter to request only specific fields in the response,
-    reducing payload size. Example: ?fields=id,camera_id,risk_level,summary,reviewed
+    ## Sparse Fieldsets (NEM-1434)
+
+    Use the `fields` query parameter to request only specific fields in the response,
+    reducing payload size and bandwidth usage. This is particularly useful for:
+
+    - Dashboard views that only need summary information
+    - Mobile clients with limited bandwidth
+    - High-frequency polling scenarios
+
+    **Format:** Comma-separated list of field names (case-insensitive, whitespace ignored)
+
+    **Example Request:**
+    ```
+    GET /api/events?fields=id,camera_id,risk_level,summary,reviewed
+    ```
+
+    **Example Response (with fields filter):**
+    ```json
+    {
+      "events": [
+        {
+          "id": 123,
+          "camera_id": "front_door",
+          "risk_level": "medium",
+          "summary": "Person detected near entrance",
+          "reviewed": false
+        }
+      ],
+      "count": 1,
+      ...
+    }
+    ```
+
+    **Available Fields:**
+    - `id` - Event identifier
+    - `camera_id` - Camera that captured the event
+    - `started_at` - Event start timestamp
+    - `ended_at` - Event end timestamp
+    - `risk_score` - Numeric risk score (0-100)
+    - `risk_level` - Risk level (low, medium, high, critical)
+    - `summary` - AI-generated event summary
+    - `reasoning` - AI reasoning for risk assessment
+    - `reviewed` - Whether event has been reviewed
+    - `detection_count` - Number of detections in event
+    - `detection_ids` - List of detection IDs
+    - `thumbnail_url` - URL to event thumbnail image
 
     Args:
         camera_id: Optional camera ID to filter by
@@ -255,6 +333,10 @@ async def list_events(  # noqa: PLR0912
         HTTPException: 400 if cursor is invalid
         HTTPException: 400 if invalid fields are requested
     """
+    # Set cache headers: events list is dynamic, use no-cache (NEM-2085)
+    if response is not None:
+        set_cache_headers(response, CacheStrategy.DYNAMIC)
+
     # NEM-1503: Include trace_id in logs for distributed tracing correlation
     trace_id = get_trace_id()
     if trace_id:
@@ -293,7 +375,16 @@ async def list_events(  # noqa: PLR0912
             ) from e
 
     # Build base query with eager loading for camera relationship (NEM-1619)
-    query = select(Event).options(joinedload(Event.camera))
+    # NEM-1954: Join with Camera table to filter events from soft-deleted cameras
+    query = (
+        select(Event).join(Camera, Event.camera_id == Camera.id).options(joinedload(Event.camera))
+    )
+
+    # NEM-1954: Filter out soft-deleted events by default
+    # Also filter out events from soft-deleted cameras for referential integrity
+    if not include_deleted:
+        query = query.where(Event.deleted_at.is_(None))
+        query = query.where(Camera.deleted_at.is_(None))
 
     # Apply filters
     if camera_id:
@@ -417,8 +508,16 @@ async def list_events(  # noqa: PLR0912
     }
 
 
-@router.get("/stats", response_model=EventStatsResponse)
+@router.get(
+    "/stats",
+    response_model=EventStatsResponse,
+    responses={
+        400: {"description": "Invalid date range"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_event_stats(
+    response: Response,
     start_date: datetime | None = Query(None, description="Filter by start date (ISO format)"),
     end_date: datetime | None = Query(None, description="Filter by end date (ISO format)"),
     db: AsyncSession = Depends(get_db),
@@ -435,6 +534,7 @@ async def get_event_stats(
     and generate cache hit metrics.
 
     Args:
+        response: FastAPI Response for setting cache headers
         start_date: Optional start date for date range filter
         end_date: Optional end date for date range filter
         db: Database session
@@ -446,6 +546,9 @@ async def get_event_stats(
     Raises:
         HTTPException: 400 if start_date is after end_date
     """
+    # Set cache headers: stats are computed data, cache for 60 seconds (NEM-2085)
+    set_cache_headers(response, CacheStrategy.STATS)
+
     # Validate date range
     validate_date_range(start_date, end_date)
 
@@ -465,25 +568,37 @@ async def get_event_stats(
     except Exception as e:
         logger.warning(f"Cache read failed, falling back to database: {e}")
 
-    # Build date filter conditions (reused across queries)
-    date_filters = []
+    # Build filter conditions (reused across queries)
+    # NEM-1954: Always filter out soft-deleted events and events from soft-deleted cameras
+    event_filters: list[Any] = [Event.deleted_at.is_(None)]
+    camera_filter = Camera.deleted_at.is_(None)
     if start_date:
-        date_filters.append(Event.started_at >= start_date)
+        event_filters.append(Event.started_at >= start_date)
     if end_date:
-        date_filters.append(Event.started_at <= end_date)
+        event_filters.append(Event.started_at <= end_date)
 
-    # Get total count using database aggregation
-    total_count_query = select(func.count()).select_from(Event)
-    for condition in date_filters:
+    # Get total count using database aggregation (join with Camera for soft-delete filter)
+    # NEM-1954: Join with Camera to exclude events from soft-deleted cameras
+    total_count_query = (
+        select(func.count())
+        .select_from(Event)
+        .join(Camera, Event.camera_id == Camera.id)
+        .where(camera_filter)
+    )
+    for condition in event_filters:
         total_count_query = total_count_query.where(condition)
     total_count_result = await db.execute(total_count_query)
     total_events = total_count_result.scalar() or 0
 
     # Get events by risk level using SQL GROUP BY
-    risk_level_query = select(Event.risk_level, func.count().label("count")).group_by(
-        Event.risk_level
+    # NEM-1954: Join with Camera to exclude events from soft-deleted cameras
+    risk_level_query = (
+        select(Event.risk_level, func.count().label("count"))
+        .join(Camera, Event.camera_id == Camera.id)
+        .where(camera_filter)
+        .group_by(Event.risk_level)
     )
-    for condition in date_filters:
+    for condition in event_filters:
         risk_level_query = risk_level_query.where(condition)
     risk_level_result = await db.execute(risk_level_query)
     risk_level_rows = risk_level_result.all()
@@ -500,13 +615,15 @@ async def get_event_stats(
             risk_level_counts[risk_level] = count
 
     # Get events by camera using SQL GROUP BY with JOIN to get camera names
+    # NEM-1954: Inner join excludes events from soft-deleted cameras
     camera_stats_query = (
         select(Event.camera_id, Camera.name.label("camera_name"), func.count().label("event_count"))
-        .join(Camera, Event.camera_id == Camera.id, isouter=True)
+        .join(Camera, Event.camera_id == Camera.id)
+        .where(camera_filter)
         .group_by(Event.camera_id, Camera.name)
         .order_by(func.count().desc())
     )
-    for condition in date_filters:
+    for condition in event_filters:
         camera_stats_query = camera_stats_query.where(condition)
     camera_stats_result = await db.execute(camera_stats_query)
     camera_stats_rows = camera_stats_result.all()
@@ -521,7 +638,7 @@ async def get_event_stats(
         for camera_id, camera_name, event_count in camera_stats_rows
     ]
 
-    response = {
+    result = {
         "total_events": total_events,
         "events_by_risk_level": risk_level_counts,
         "events_by_camera": events_by_camera,
@@ -529,15 +646,23 @@ async def get_event_stats(
 
     # Cache the result
     try:
-        await cache.set(cache_key, response, ttl=SHORT_TTL)
+        await cache.set(cache_key, result, ttl=SHORT_TTL)
     except Exception as e:
         logger.warning(f"Cache write failed: {e}")
 
-    return response
+    return result
 
 
-@router.get("/search", response_model=SearchResponseSchema)
+@router.get(
+    "/search",
+    response_model=SearchResponseSchema,
+    responses={
+        400: {"description": "Invalid search parameters (severity, date range)"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def search_events_endpoint(
+    response: Response,
     q: str = Query(..., min_length=1, description="Search query string"),
     camera_id: str | None = Query(
         None, description="Filter by camera ID (comma-separated for multiple)"
@@ -592,6 +717,9 @@ async def search_events_endpoint(
         HTTPException: 400 if any severity value is invalid
         HTTPException: 400 if start_date is after end_date
     """
+    # Set cache headers: search results are dynamic, use no-cache (NEM-2085)
+    set_cache_headers(response, CacheStrategy.DYNAMIC)
+
     # Validate date range
     validate_date_range(start_date, end_date)
 
@@ -649,7 +777,14 @@ async def search_events_endpoint(
     }
 
 
-@router.get("/export")
+@router.get(
+    "/export",
+    responses={
+        400: {"description": "Invalid date range"},
+        429: {"description": "Rate limit exceeded"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def export_events(
     request: Request,
     camera_id: str | None = Query(None, description="Filter by camera ID"),
@@ -692,8 +827,12 @@ async def export_events(
     # Validate date range
     validate_date_range(start_date, end_date)
 
-    # Build base query
-    query = select(Event)
+    # Build base query with join to filter events from soft-deleted cameras
+    query = select(Event).join(Camera, Event.camera_id == Camera.id)
+
+    # NEM-1954: Filter out soft-deleted events and events from soft-deleted cameras
+    query = query.where(Event.deleted_at.is_(None))
+    query = query.where(Camera.deleted_at.is_(None))
 
     # Apply filters
     if camera_id:
@@ -810,10 +949,18 @@ async def export_events(
     )
 
 
-@router.get("/{event_id}", response_model=EventResponse)
+@router.get(
+    "/{event_id}",
+    response_model=EventResponse,
+    responses={
+        404: {"description": "Event not found"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_event(
     event_id: int,
     request: Request,
+    response: Response,
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Get a specific event by ID with HATEOAS links.
@@ -821,6 +968,7 @@ async def get_event(
     Args:
         event_id: Event ID
         request: FastAPI request object for building HATEOAS links
+        response: FastAPI Response for setting cache headers
         db: Database session
 
     Returns:
@@ -829,6 +977,8 @@ async def get_event(
     Raises:
         HTTPException: 404 if event not found
     """
+    # Set cache headers: single event is immutable after creation, cache for 1 hour (NEM-2085)
+    set_cache_headers(response, CacheStrategy.IMMUTABLE)
     event = await get_event_or_404(event_id, db)
 
     # Parse detection_ids and calculate count
@@ -858,7 +1008,15 @@ async def get_event(
     }
 
 
-@router.patch("/{event_id}", response_model=EventResponse)
+@router.patch(
+    "/{event_id}",
+    response_model=EventResponse,
+    responses={
+        404: {"description": "Event not found"},
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def update_event(
     event_id: int,
     update_data: EventUpdate,
@@ -976,9 +1134,17 @@ async def update_event(
     }
 
 
-@router.get("/{event_id}/detections", response_model=DetectionListResponse)
+@router.get(
+    "/{event_id}/detections",
+    response_model=DetectionListResponse,
+    responses={
+        404: {"description": "Event not found"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_event_detections(
     event_id: int,
+    response: Response,
     limit: int = Query(50, ge=1, le=1000, description="Maximum number of results"),
     offset: int = Query(0, ge=0, description="Number of results to skip"),
     db: AsyncSession = Depends(get_db),
@@ -987,6 +1153,7 @@ async def get_event_detections(
 
     Args:
         event_id: Event ID
+        response: FastAPI Response for setting cache headers
         limit: Maximum number of results to return (1-1000, default 50)
         offset: Number of results to skip for pagination (default 0)
         db: Database session
@@ -997,6 +1164,8 @@ async def get_event_detections(
     Raises:
         HTTPException: 404 if event not found
     """
+    # Set cache headers: detections for an event are immutable, cache for 1 hour (NEM-2085)
+    set_cache_headers(response, CacheStrategy.IMMUTABLE)
     event = await get_event_or_404(event_id, db)
 
     # Parse detection_ids using helper function
@@ -1037,9 +1206,17 @@ async def get_event_detections(
     }
 
 
-@router.get("/{event_id}/enrichments", response_model=EventEnrichmentsResponse)
+@router.get(
+    "/{event_id}/enrichments",
+    response_model=EventEnrichmentsResponse,
+    responses={
+        404: {"description": "Event not found"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_event_enrichments(
     event_id: int,
+    response: Response,
     limit: int = Query(50, ge=1, le=200, description="Maximum number of enrichments to return"),
     offset: int = Query(0, ge=0, description="Number of enrichments to skip"),
     db: AsyncSession = Depends(get_db),
@@ -1058,6 +1235,7 @@ async def get_event_enrichments(
 
     Args:
         event_id: Event ID
+        response: FastAPI Response for setting cache headers
         limit: Maximum number of enrichments to return (1-200, default 50)
         offset: Number of enrichments to skip (default 0)
         db: Database session
@@ -1068,6 +1246,8 @@ async def get_event_enrichments(
     Raises:
         HTTPException: 404 if event not found
     """
+    # Set cache headers: enrichments for an event are immutable, cache for 1 hour (NEM-2085)
+    set_cache_headers(response, CacheStrategy.IMMUTABLE)
     # Import transform function from detections route
     from backend.api.routes.detections import _transform_enrichment_data
 
@@ -1133,9 +1313,17 @@ async def get_event_enrichments(
     }
 
 
-@router.get("/{event_id}/clip", response_model=ClipInfoResponse)
+@router.get(
+    "/{event_id}/clip",
+    response_model=ClipInfoResponse,
+    responses={
+        404: {"description": "Event not found"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_event_clip(
     event_id: int,
+    response: Response,
     db: AsyncSession = Depends(get_db),
 ) -> ClipInfoResponse:
     """Get clip information for a specific event.
@@ -1145,6 +1333,7 @@ async def get_event_clip(
 
     Args:
         event_id: Event ID
+        response: FastAPI Response for setting cache headers
         db: Database session
 
     Returns:
@@ -1153,6 +1342,8 @@ async def get_event_clip(
     Raises:
         HTTPException: 404 if event not found
     """
+    # Set cache headers: clip info is immutable once generated, cache for 1 hour (NEM-2085)
+    set_cache_headers(response, CacheStrategy.IMMUTABLE)
     from pathlib import Path
 
     event = await get_event_or_404(event_id, db)
@@ -1205,7 +1396,15 @@ async def get_event_clip(
     )
 
 
-@router.post("/{event_id}/clip/generate", response_model=ClipGenerateResponse)
+@router.post(
+    "/{event_id}/clip/generate",
+    response_model=ClipGenerateResponse,
+    responses={
+        400: {"description": "Cannot generate clip (no detections or images)"},
+        404: {"description": "Event not found"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def generate_event_clip(
     event_id: int,
     request: ClipGenerateRequest,
@@ -1330,7 +1529,12 @@ async def generate_event_clip(
         )
 
 
-@router.get("/analyze/{batch_id}/stream")
+@router.get(
+    "/analyze/{batch_id}/stream",
+    responses={
+        500: {"description": "Internal server error"},
+    },
+)
 async def analyze_batch_streaming(
     batch_id: str,
     camera_id: str | None = Query(None, description="Camera ID for the batch"),

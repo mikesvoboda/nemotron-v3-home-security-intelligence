@@ -259,7 +259,13 @@ def _build_search_query(tsquery_str: str, query: str) -> tuple:
     The query includes an ILIKE fallback for events with NULL search_vector.
     This handles events created before the FTS trigger was added, or events
     that were never updated after the trigger was created.
+
+    NEM-1954: Uses inner join with Camera and filters out soft-deleted cameras.
+    Events from soft-deleted cameras are excluded from search results.
     """
+    # NEM-1954: Filter to exclude events from soft-deleted cameras
+    camera_soft_delete_filter = Camera.deleted_at.is_(None)
+
     if tsquery_str:
         has_operators = any(op in tsquery_str for op in ["&", "|", "!", "<->"])
         if has_operators:
@@ -290,26 +296,36 @@ def _build_search_query(tsquery_str: str, query: str) -> tuple:
             ),
         )
 
+        # NEM-1954: Inner join excludes events from soft-deleted cameras
         return (
             select(Event, rank.label("relevance_score"), Camera.name.label("camera_name"))
-            .outerjoin(Camera, Event.camera_id == Camera.id)
-            .where(search_condition),
+            .join(Camera, Event.camera_id == Camera.id)
+            .where(search_condition)
+            .where(camera_soft_delete_filter),
             True,
         )
     else:
+        # NEM-1954: Inner join excludes events from soft-deleted cameras
         return (
             select(
                 Event,
                 cast(0.0, Float).label("relevance_score"),
                 Camera.name.label("camera_name"),
-            ).outerjoin(Camera, Event.camera_id == Camera.id),
+            )
+            .join(Camera, Event.camera_id == Camera.id)
+            .where(camera_soft_delete_filter),
             False,
         )
 
 
 def _build_filter_conditions(filters: SearchFilters) -> list:
-    """Build filter conditions from SearchFilters."""
-    conditions = []
+    """Build filter conditions from SearchFilters.
+
+    NEM-1954: Always filters out soft-deleted events by default.
+    Camera soft-delete filtering is handled in _build_search_query via inner join.
+    """
+    # NEM-1954: Always exclude soft-deleted events from search results
+    conditions: list[Any] = [Event.deleted_at.is_(None)]
 
     if filters.start_date:
         conditions.append(Event.started_at >= filters.start_date)

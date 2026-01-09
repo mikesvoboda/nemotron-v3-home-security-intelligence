@@ -84,6 +84,7 @@ from backend.api.schemas.system import (
     WebSocketHealthResponse,
     WorkerStatus,
 )
+from backend.api.utils.cache_headers import CacheStrategy, set_cache_headers
 from backend.core import get_db, get_settings
 from backend.core.config import Settings
 from backend.core.constants import ANALYSIS_QUEUE, DETECTION_QUEUE
@@ -823,6 +824,9 @@ async def get_health(
         HealthResponse with overall status and individual service statuses.
         HTTP 200 if healthy, 503 if degraded or unhealthy.
     """
+    # Set cache headers: health checks should never be cached (NEM-2085)
+    set_cache_headers(response, CacheStrategy.REALTIME)
+
     # Check all services with timeout protection
     try:
         db_status = await asyncio.wait_for(
@@ -1043,6 +1047,11 @@ async def get_readiness(
     response_model=WebSocketHealthResponse,
     summary="Get WebSocket Health Status",
     description="Health status of WebSocket broadcasters and their circuit breakers for real-time event distribution.",
+    responses={
+        200: {"description": "WebSocket health status retrieved successfully"},
+        429: {"description": "Rate limit exceeded"},
+        500: {"description": "Internal server error"},
+    },
 )
 async def get_websocket_health(
     _rate_limit: None = Depends(RateLimiter(tier=RateLimitTier.DEFAULT)),
@@ -1114,6 +1123,10 @@ async def get_websocket_health(
     response_model=GPUStatsResponse,
     summary="Get Current GPU Statistics",
     description="Latest GPU metrics including utilization, memory usage, temperature, and inference performance.",
+    responses={
+        200: {"description": "GPU statistics retrieved successfully"},
+        500: {"description": "Internal server error"},
+    },
 )
 async def get_gpu_stats(db: AsyncSession = Depends(get_db)) -> GPUStatsResponse:
     """Get current GPU statistics.
@@ -1159,6 +1172,11 @@ async def get_gpu_stats(db: AsyncSession = Depends(get_db)) -> GPUStatsResponse:
     response_model=GPUStatsHistoryResponse,
     summary="Get GPU Statistics History",
     description="Time-series GPU metrics for charting historical utilization, memory, and temperature trends.",
+    responses={
+        200: {"description": "GPU history retrieved successfully"},
+        422: {"description": "Validation error - invalid pagination parameters"},
+        500: {"description": "Internal server error"},
+    },
 )
 async def get_gpu_stats_history(
     since: datetime | None = Query(
@@ -1226,6 +1244,10 @@ async def get_gpu_stats_history(
     response_model=ConfigResponse,
     summary="Get System Configuration",
     description="Public configuration settings including retention period, batch processing, and detection thresholds.",
+    responses={
+        200: {"description": "Configuration retrieved successfully"},
+        500: {"description": "Internal server error"},
+    },
 )
 async def get_config() -> ConfigResponse:
     """Get public configuration settings.
@@ -1560,6 +1582,10 @@ async def update_anomaly_config(
     response_model=SystemStatsResponse,
     summary="Get System Statistics",
     description="Aggregate statistics including camera count, event count, detection count, and application uptime.",
+    responses={
+        200: {"description": "Statistics retrieved successfully"},
+        500: {"description": "Internal server error"},
+    },
 )
 async def get_stats(db: AsyncSession = Depends(get_db)) -> SystemStatsResponse:
     """Get system statistics.
@@ -1747,6 +1773,10 @@ async def get_latency_stats(redis: RedisClient) -> PipelineLatencies | None:
     response_model=TelemetryResponse,
     summary="Get Pipeline Telemetry",
     description="Real-time metrics for AI pipeline monitoring including queue depths and stage latencies.",
+    responses={
+        200: {"description": "Telemetry data retrieved successfully"},
+        500: {"description": "Internal server error"},
+    },
 )
 async def get_telemetry(
     redis: RedisClient = Depends(get_redis),
@@ -1826,6 +1856,11 @@ def _stats_to_schema(stats: Mapping[str, Any]) -> PipelineStageLatency | None:
     response_model=PipelineLatencyResponse,
     summary="Get Pipeline Latency Metrics",
     description="Latency statistics with percentiles for each stage transition in the AI processing pipeline.",
+    responses={
+        200: {"description": "Pipeline latency metrics retrieved successfully"},
+        422: {"description": "Validation error - invalid window parameter"},
+        500: {"description": "Internal server error"},
+    },
 )
 async def get_pipeline_latency(
     window_minutes: int = Query(
@@ -1878,6 +1913,11 @@ async def get_pipeline_latency(
     response_model=PipelineLatencyHistoryResponse,
     summary="Get Pipeline Latency History",
     description="Time-series latency data grouped into buckets for charting pipeline performance trends.",
+    responses={
+        200: {"description": "Pipeline latency history retrieved successfully"},
+        422: {"description": "Validation error - invalid time range parameters"},
+        500: {"description": "Internal server error"},
+    },
 )
 async def get_pipeline_latency_history(
     since: int = Query(
@@ -2084,8 +2124,12 @@ async def trigger_cleanup(
     response_model=SeverityMetadataResponse,
     summary="Get Severity Metadata",
     description="Severity level definitions, risk score thresholds, and color codes for UI display.",
+    responses={
+        200: {"description": "Severity metadata retrieved successfully"},
+        500: {"description": "Internal server error"},
+    },
 )
-async def get_severity_metadata() -> SeverityMetadataResponse:
+async def get_severity_metadata(response: Response) -> SeverityMetadataResponse:
     """Get severity level definitions and thresholds.
 
     Returns complete information about the severity taxonomy including:
@@ -2100,9 +2144,14 @@ async def get_severity_metadata() -> SeverityMetadataResponse:
     - Validate severity-related user inputs
     - Map risk scores to severity levels client-side
 
+    Args:
+        response: FastAPI Response for setting cache headers
+
     Returns:
         SeverityMetadataResponse with all severity definitions and current thresholds
     """
+    # Set cache headers: severity definitions rarely change, cache for 5 minutes (NEM-2085)
+    set_cache_headers(response, CacheStrategy.STATIC_CONFIG)
     from backend.services.severity import get_severity_service
 
     service = get_severity_service()
@@ -2316,6 +2365,10 @@ def _get_directory_stats(directory: Path) -> tuple[int, int]:
     response_model=StorageStatsResponse,
     summary="Get Storage Statistics",
     description="Disk usage, storage breakdown by category, and database record counts for capacity planning.",
+    responses={
+        200: {"description": "Storage statistics retrieved successfully"},
+        500: {"description": "Internal server error"},
+    },
 )
 async def get_storage_stats(db: AsyncSession = Depends(get_db)) -> StorageStatsResponse:
     """Get storage statistics and disk usage metrics.
@@ -2426,6 +2479,10 @@ async def get_storage_stats(db: AsyncSession = Depends(get_db)) -> StorageStatsR
     response_model=CircuitBreakersResponse,
     summary="Get Circuit Breakers Status",
     description="Current state and metrics for all circuit breakers protecting external services from cascading failures.",
+    responses={
+        200: {"description": "Circuit breaker status retrieved successfully"},
+        500: {"description": "Internal server error"},
+    },
 )
 async def get_circuit_breakers() -> CircuitBreakersResponse:
     """Get status of all circuit breakers in the system.
@@ -2581,6 +2638,10 @@ async def reset_circuit_breaker(name: str) -> CircuitBreakerResetResponse:
     response_model=CleanupStatusResponse,
     summary="Get Cleanup Service Status",
     description="Current status of the automated cleanup service including retention settings and next scheduled run.",
+    responses={
+        200: {"description": "Cleanup service status retrieved successfully"},
+        500: {"description": "Internal server error"},
+    },
 )
 async def get_cleanup_status() -> CleanupStatusResponse:
     """Get current status of the cleanup service.
@@ -2801,6 +2862,10 @@ def _get_degradation_status() -> DegradationStatusResponse | None:
     response_model=PipelineStatusResponse,
     summary="Get Pipeline Status",
     description="Combined status of all AI pipeline operations including FileWatcher, BatchAggregator, and DegradationManager.",
+    responses={
+        200: {"description": "Pipeline status retrieved successfully"},
+        500: {"description": "Internal server error"},
+    },
 )
 async def get_pipeline_status(
     redis: RedisClient | None = Depends(get_redis_optional),
@@ -2936,6 +3001,10 @@ def _model_config_to_status(
     "/models",
     response_model=ModelRegistryResponse,
     summary="Get Model Zoo Registry",
+    responses={
+        200: {"description": "Model registry retrieved successfully"},
+        500: {"description": "Internal server error"},
+    },
 )
 async def get_models() -> ModelRegistryResponse:
     """Get the current status of all models in the Model Zoo.
@@ -2994,6 +3063,11 @@ async def get_models() -> ModelRegistryResponse:
     "/models/{model_name}",
     response_model=ModelStatusResponse,
     summary="Get Model Status",
+    responses={
+        200: {"description": "Model status retrieved successfully"},
+        404: {"description": "Model not found in registry"},
+        500: {"description": "Internal server error"},
+    },
 )
 async def get_model(model_name: str) -> ModelStatusResponse:
     """Get detailed status information for a specific model.
@@ -3077,6 +3151,10 @@ def _get_model_category(model_name: str) -> str:
     "/model-zoo/status",
     response_model=ModelZooStatusResponse,
     summary="Get Model Zoo Status",
+    responses={
+        200: {"description": "Model zoo status retrieved successfully"},
+        500: {"description": "Internal server error"},
+    },
 )
 async def get_model_zoo_status() -> ModelZooStatusResponse:
     """Get status information for all Model Zoo models.
@@ -3156,6 +3234,12 @@ async def get_model_zoo_status() -> ModelZooStatusResponse:
     "/model-zoo/latency/history",
     response_model=ModelLatencyHistoryResponse,
     summary="Get Model Zoo Latency History",
+    responses={
+        200: {"description": "Model latency history retrieved successfully"},
+        404: {"description": "Model not found in registry"},
+        422: {"description": "Validation error - invalid time range parameters"},
+        500: {"description": "Internal server error"},
+    },
 )
 async def get_model_zoo_latency_history(
     model: str = Query(

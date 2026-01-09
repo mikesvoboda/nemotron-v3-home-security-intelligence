@@ -32,6 +32,7 @@ from backend.api.schemas.detections import (
     VehicleEnrichmentData,
 )
 from backend.api.schemas.enrichment import EnrichmentResponse
+from backend.api.utils.cache_headers import CacheStrategy, set_cache_headers
 from backend.api.utils.field_filter import (
     FieldFilterError,
     filter_fields,
@@ -145,7 +146,14 @@ thumbnail_generator = ThumbnailGenerator()
 video_processor = VideoProcessor()
 
 
-@router.get("", response_model=DetectionListResponse)
+@router.get(
+    "",
+    response_model=DetectionListResponse,
+    responses={
+        400: {"description": "Invalid request parameters (cursor, date range, or fields)"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def list_detections(  # noqa: PLR0912
     camera_id: str | None = Query(None, description="Filter by camera ID"),
     object_type: str | None = Query(None, description="Filter by object type"),
@@ -159,11 +167,43 @@ async def list_detections(  # noqa: PLR0912
     cursor: str | None = Query(None, description="Pagination cursor from previous response"),
     fields: str | None = Query(
         None,
-        description="Comma-separated list of fields to include in response (sparse fieldsets). "
-        "Valid fields: id, camera_id, file_path, file_type, detected_at, object_type, confidence, "
-        "bbox_x, bbox_y, bbox_width, bbox_height, thumbnail_path, media_type, duration, "
-        "video_codec, video_width, video_height, enrichment_data",
+        description=(
+            "Comma-separated list of fields to include in response (sparse fieldsets). "
+            "Use this to reduce payload size by requesting only the fields you need. "
+            "If omitted, all fields are returned. "
+            "Valid fields: id, camera_id, file_path, file_type, detected_at, object_type, "
+            "confidence, bbox_x, bbox_y, bbox_width, bbox_height, thumbnail_path, media_type, "
+            "duration, video_codec, video_width, video_height, enrichment_data. "
+            "Example: fields=id,camera_id,object_type,confidence"
+        ),
+        examples=[
+            "id,camera_id,object_type,confidence",
+            "id,detected_at,object_type,bbox_x,bbox_y,bbox_width,bbox_height",
+        ],
+        openapi_examples={
+            "summary_view": {
+                "summary": "Summary view",
+                "description": "Minimal fields for detection list summaries",
+                "value": "id,camera_id,object_type,confidence,detected_at",
+            },
+            "bounding_box_view": {
+                "summary": "Bounding box data",
+                "description": "Fields needed for drawing bounding boxes on images",
+                "value": "id,object_type,confidence,bbox_x,bbox_y,bbox_width,bbox_height",
+            },
+            "video_metadata": {
+                "summary": "Video detections",
+                "description": "Fields for video detection playback",
+                "value": "id,camera_id,detected_at,media_type,duration,video_codec",
+            },
+            "full_details": {
+                "summary": "All fields (default)",
+                "description": "Omit the fields parameter to get all available fields",
+                "value": None,
+            },
+        },
     ),
+    response: Response = None,  # type: ignore[assignment]
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """List detections with optional filtering and cursor-based pagination.
@@ -171,9 +211,54 @@ async def list_detections(  # noqa: PLR0912
     Supports both cursor-based pagination (recommended) and offset pagination (deprecated).
     Cursor-based pagination offers better performance for large datasets.
 
-    Sparse Fieldsets (NEM-1434):
-    Use the `fields` parameter to request only specific fields in the response,
-    reducing payload size. Example: ?fields=id,camera_id,object_type,confidence
+    ## Sparse Fieldsets (NEM-1434)
+
+    Use the `fields` query parameter to request only specific fields in the response,
+    reducing payload size and bandwidth usage. This is particularly useful for:
+
+    - List views that only need summary information
+    - Mobile clients with limited bandwidth
+    - Canvas/overlay rendering that only needs bounding box data
+
+    **Format:** Comma-separated list of field names (case-insensitive, whitespace ignored)
+
+    **Example Request:**
+    ```
+    GET /api/detections?fields=id,camera_id,object_type,confidence
+    ```
+
+    **Example Response (with fields filter):**
+    ```json
+    {
+      "detections": [
+        {
+          "id": 42,
+          "camera_id": "front_door",
+          "object_type": "person",
+          "confidence": 0.95
+        }
+      ],
+      "count": 1,
+      ...
+    }
+    ```
+
+    **Available Fields:**
+    - `id` - Detection identifier
+    - `camera_id` - Camera that captured the detection
+    - `file_path` - Path to source image/video file
+    - `file_type` - MIME type of source file
+    - `detected_at` - Detection timestamp
+    - `object_type` - Detected object class (person, car, truck, etc.)
+    - `confidence` - Detection confidence score (0.0-1.0)
+    - `bbox_x`, `bbox_y` - Bounding box top-left coordinates
+    - `bbox_width`, `bbox_height` - Bounding box dimensions
+    - `thumbnail_path` - Path to generated thumbnail
+    - `media_type` - Media type (image or video)
+    - `duration` - Video duration in seconds (video only)
+    - `video_codec` - Video codec (video only)
+    - `video_width`, `video_height` - Video dimensions (video only)
+    - `enrichment_data` - AI enrichment results (faces, plates, clothing, etc.)
 
     Args:
         camera_id: Optional camera ID to filter by
@@ -195,6 +280,10 @@ async def list_detections(  # noqa: PLR0912
         HTTPException: 400 if cursor is invalid
         HTTPException: 400 if invalid fields are requested
     """
+    # Set cache headers: detections list is dynamic, use no-cache (NEM-2085)
+    if response is not None:
+        set_cache_headers(response, CacheStrategy.DYNAMIC)
+
     # Validate date range
     validate_date_range(start_date, end_date)
 
@@ -326,8 +415,15 @@ async def list_detections(  # noqa: PLR0912
     }
 
 
-@router.get("/stats", response_model=DetectionStatsResponse)
+@router.get(
+    "/stats",
+    response_model=DetectionStatsResponse,
+    responses={
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_detection_stats(
+    response: Response,
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Get aggregate detection statistics including class distribution.
@@ -346,11 +442,14 @@ async def get_detection_stats(
     - Per-class avg confidence, then combined using weighted average formula
 
     Args:
+        response: FastAPI Response for setting cache headers
         db: Database session
 
     Returns:
         DetectionStatsResponse with aggregate detection statistics
     """
+    # Set cache headers: stats are computed data, cache for 60 seconds (NEM-2085)
+    set_cache_headers(response, CacheStrategy.STATS)
     # Use a single query with window functions to get all stats at once
     # This replaces 3 separate queries with 1 optimized query
     #
@@ -405,15 +504,24 @@ async def get_detection_stats(
     }
 
 
-@router.get("/{detection_id}", response_model=DetectionResponse)
+@router.get(
+    "/{detection_id}",
+    response_model=DetectionResponse,
+    responses={
+        404: {"description": "Detection not found"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_detection(
     detection_id: int,
+    response: Response,
     db: AsyncSession = Depends(get_db),
 ) -> Detection:
     """Get a specific detection by ID.
 
     Args:
         detection_id: Detection ID
+        response: FastAPI Response for setting cache headers
         db: Database session
 
     Returns:
@@ -422,6 +530,8 @@ async def get_detection(
     Raises:
         HTTPException: 404 if detection not found
     """
+    # Set cache headers: single detection is immutable, cache for 1 hour (NEM-2085)
+    set_cache_headers(response, CacheStrategy.IMMUTABLE)
     return await get_detection_or_404(detection_id, db)
 
 
@@ -778,7 +888,14 @@ def _transform_enrichment_data(
     }
 
 
-@router.get("/{detection_id}/enrichment", response_model=EnrichmentResponse)
+@router.get(
+    "/{detection_id}/enrichment",
+    response_model=EnrichmentResponse,
+    responses={
+        404: {"description": "Detection not found"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_detection_enrichment(
     detection_id: int,
     db: AsyncSession = Depends(get_db),

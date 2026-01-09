@@ -4,8 +4,10 @@ import ssl
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
+from brotli_asgi import BrotliMiddleware
 from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.gzip import GZipMiddleware
 
 from backend.api.exception_handlers import register_exception_handlers
 from backend.api.middleware import (
@@ -604,6 +606,17 @@ app.add_middleware(SecurityHeadersMiddleware, hsts_preload=get_settings().hsts_p
 # Add body size limit middleware to prevent DoS attacks (NEM-1614)
 # Default: 10MB limit for request bodies
 app.add_middleware(BodySizeLimitMiddleware, max_body_size=10 * 1024 * 1024)
+
+# HTTP Response Compression (NEM-2087)
+# Compression middleware should be outermost (added last) so it compresses the final response.
+# Order: BrotliMiddleware (preferred) -> GZipMiddleware (fallback)
+# The middleware respects Accept-Encoding header and only compresses when:
+# - Response body is >= minimum_size bytes
+# - Client accepts the compression encoding
+# - Content-Type is compressible (text, JSON, etc.)
+# Note: Images, videos, and already-compressed content are not re-compressed.
+app.add_middleware(GZipMiddleware, minimum_size=500, compresslevel=6)
+app.add_middleware(BrotliMiddleware, minimum_size=500, quality=4)
 
 # Register global exception handlers for consistent error responses
 register_exception_handlers(app)

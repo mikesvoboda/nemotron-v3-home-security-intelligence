@@ -60,6 +60,7 @@ dependencies = [
     "opentelemetry-instrumentation-sqlalchemy>=0.44b0",
     "opentelemetry-instrumentation-redis>=0.44b0",
     "urllib3==2.6.3",
+    "brotli-asgi>=1.6.0",
 ]
 
 [project.optional-dependencies]

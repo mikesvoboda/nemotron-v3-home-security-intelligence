@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
-from fastapi import HTTPException, status
+from fastapi import HTTPException, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.routes.events import (
@@ -18,6 +18,13 @@ from backend.api.routes.events import (
     sanitize_csv_value,
 )
 from backend.models.event import Event
+
+
+def _mock_response() -> MagicMock:
+    """Create a mock FastAPI Response object for cache header tests."""
+    mock = MagicMock(spec=Response)
+    mock.headers = {}
+    return mock
 
 
 class TestParseDetectionIds:
@@ -215,6 +222,7 @@ class TestGetEventStatsRoute:
 
         with pytest.raises(HTTPException) as exc_info:
             await get_event_stats(
+                response=_mock_response(),
                 start_date=datetime(2025, 12, 25, 0, 0, 0, tzinfo=UTC),
                 end_date=datetime(2025, 12, 23, 0, 0, 0, tzinfo=UTC),
                 db=mock_db,
@@ -239,6 +247,7 @@ class TestGetEventStatsRoute:
         mock_cache.get = AsyncMock(return_value=cached_stats)
 
         result = await get_event_stats(
+            response=_mock_response(),
             start_date=None,
             end_date=None,
             db=mock_db,
@@ -275,6 +284,7 @@ class TestGetEventStatsRoute:
         )
 
         result = await get_event_stats(
+            response=_mock_response(),
             start_date=None,
             end_date=None,
             db=mock_db,
@@ -314,6 +324,7 @@ class TestGetEventStatsRoute:
 
         # Should not raise, should fall back to database
         result = await get_event_stats(
+            response=_mock_response(),
             start_date=None,
             end_date=None,
             db=mock_db,
@@ -335,6 +346,7 @@ class TestSearchEventsRoute:
 
         with pytest.raises(HTTPException) as exc_info:
             await search_events_endpoint(
+                response=_mock_response(),
                 q="person",
                 camera_id=None,
                 start_date=datetime(2025, 12, 25, 0, 0, 0, tzinfo=UTC),
@@ -358,6 +370,7 @@ class TestSearchEventsRoute:
 
         with pytest.raises(HTTPException) as exc_info:
             await search_events_endpoint(
+                response=_mock_response(),
                 q="person",
                 camera_id=None,
                 start_date=None,
@@ -767,6 +780,7 @@ class TestGetEventStatsRouteComprehensive:
         )
 
         result = await get_event_stats(
+            response=_mock_response(),
             start_date=datetime(2025, 12, 1, 0, 0, 0, tzinfo=UTC),
             end_date=datetime(2025, 12, 31, 0, 0, 0, tzinfo=UTC),
             db=mock_db,
@@ -805,7 +819,13 @@ class TestGetEventStatsRouteComprehensive:
         )
 
         # Should not raise even with cache write failure
-        result = await get_event_stats(start_date=None, end_date=None, db=mock_db, cache=mock_cache)
+        result = await get_event_stats(
+            response=_mock_response(),
+            start_date=None,
+            end_date=None,
+            db=mock_db,
+            cache=mock_cache,
+        )
 
         assert result["total_events"] == 25
 
@@ -825,6 +845,7 @@ class TestSearchEventsRouteComprehensive:
             mock_search.return_value = AsyncMock(results=[], total_count=0, limit=50, offset=0)
 
             await search_events_endpoint(
+                response=_mock_response(),
                 q="test",
                 camera_id=None,
                 start_date=None,
@@ -854,6 +875,7 @@ class TestSearchEventsRouteComprehensive:
             mock_search.return_value = AsyncMock(results=[], total_count=0, limit=50, offset=0)
 
             await search_events_endpoint(
+                response=_mock_response(),
                 q="test",
                 camera_id="cam1,cam2,cam3",
                 start_date=None,

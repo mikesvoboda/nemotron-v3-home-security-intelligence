@@ -132,23 +132,34 @@ async def get_orchestrator(request: Request) -> ContainerOrchestrator:
 async def get_camera_or_404(
     camera_id: str,
     db: AsyncSession,
+    include_deleted: bool = False,
 ) -> Camera:
     """Get a camera by ID or raise 404 if not found.
 
     This utility function queries the database for a camera with the given ID
     and raises an HTTPException with status 404 if not found.
 
+    By default, soft-deleted cameras (with non-null deleted_at) are excluded.
+    Use include_deleted=True to include them (e.g., for admin/trash views).
+
     Args:
         camera_id: The camera ID to look up
         db: Database session
+        include_deleted: If True, include soft-deleted cameras (default: False)
 
     Returns:
         Camera object if found
 
     Raises:
-        HTTPException: 404 if camera not found
+        HTTPException: 404 if camera not found or soft-deleted (when include_deleted=False)
     """
-    result = await db.execute(select(Camera).where(Camera.id == camera_id))
+    query = select(Camera).where(Camera.id == camera_id)
+
+    # Filter out soft-deleted records unless explicitly requested
+    if not include_deleted:
+        query = query.where(Camera.deleted_at.is_(None))
+
+    result = await db.execute(query)
     camera = result.scalar_one_or_none()
 
     if not camera:
@@ -163,23 +174,34 @@ async def get_camera_or_404(
 async def get_event_or_404(
     event_id: int,
     db: AsyncSession,
+    include_deleted: bool = False,
 ) -> Event:
     """Get an event by ID or raise 404 if not found.
 
     This utility function queries the database for an event with the given ID
     and raises an HTTPException with status 404 if not found.
 
+    By default, soft-deleted events (with non-null deleted_at) are excluded.
+    Use include_deleted=True to include them (e.g., for admin/trash views).
+
     Args:
         event_id: The event ID to look up
         db: Database session
+        include_deleted: If True, include soft-deleted events (default: False)
 
     Returns:
         Event object if found
 
     Raises:
-        HTTPException: 404 if event not found
+        HTTPException: 404 if event not found or soft-deleted (when include_deleted=False)
     """
-    result = await db.execute(select(Event).where(Event.id == event_id))
+    query = select(Event).where(Event.id == event_id)
+
+    # Filter out soft-deleted records unless explicitly requested
+    if not include_deleted:
+        query = query.where(Event.deleted_at.is_(None))
+
+    result = await db.execute(query)
     event = result.scalar_one_or_none()
 
     if not event:

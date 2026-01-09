@@ -18,8 +18,16 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from fastapi import Response
 
 from backend.models.camera import Camera
+
+
+def _mock_response() -> MagicMock:
+    """Create a mock FastAPI Response object for cache header tests."""
+    mock = MagicMock(spec=Response)
+    mock.headers = {}
+    return mock
 
 
 class TestListCameras:
@@ -49,7 +57,9 @@ class TestListCameras:
         }
         mock_cache.get.return_value = cached_data
 
-        result = await list_cameras(status_filter=None, db=mock_db, cache=mock_cache)
+        result = await list_cameras(
+            response=_mock_response(), status_filter=None, db=mock_db, cache=mock_cache
+        )
 
         assert result == cached_data
         mock_cache.get.assert_called_once()
@@ -79,7 +89,9 @@ class TestListCameras:
         mock_result.scalars.return_value.all.return_value = [mock_camera]
         mock_db.execute.return_value = mock_result
 
-        result = await list_cameras(status_filter=None, db=mock_db, cache=mock_cache)
+        result = await list_cameras(
+            response=_mock_response(), status_filter=None, db=mock_db, cache=mock_cache
+        )
 
         assert result["count"] == 1
         assert len(result["cameras"]) == 1
@@ -111,7 +123,9 @@ class TestListCameras:
         mock_result.scalars.return_value.all.return_value = [mock_camera]
         mock_db.execute.return_value = mock_result
 
-        result = await list_cameras(status_filter="online", db=mock_db, cache=mock_cache)
+        result = await list_cameras(
+            response=_mock_response(), status_filter="online", db=mock_db, cache=mock_cache
+        )
 
         assert result["count"] == 1
         assert result["cameras"][0]["status"] == "online"
@@ -132,7 +146,9 @@ class TestListCameras:
         mock_result.scalars.return_value.all.return_value = []
         mock_db.execute.return_value = mock_result
 
-        result = await list_cameras(status_filter=None, db=mock_db, cache=mock_cache)
+        result = await list_cameras(
+            response=_mock_response(), status_filter=None, db=mock_db, cache=mock_cache
+        )
 
         assert result["count"] == 0
         assert result["cameras"] == []
@@ -161,7 +177,9 @@ class TestListCameras:
         mock_result.scalars.return_value.all.return_value = [mock_camera]
         mock_db.execute.return_value = mock_result
 
-        result = await list_cameras(status_filter=None, db=mock_db, cache=mock_cache)
+        result = await list_cameras(
+            response=_mock_response(), status_filter=None, db=mock_db, cache=mock_cache
+        )
 
         assert result["count"] == 1
         assert result["cameras"][0]["id"] == "backyard"
@@ -193,7 +211,9 @@ class TestListCameras:
         mock_db.execute.return_value = mock_result
 
         # Should not raise exception, just log warning
-        result = await list_cameras(status_filter=None, db=mock_db, cache=mock_cache)
+        result = await list_cameras(
+            response=_mock_response(), status_filter=None, db=mock_db, cache=mock_cache
+        )
 
         assert result["count"] == 1
         assert result["cameras"][0]["id"] == "garage"
@@ -217,7 +237,7 @@ class TestGetCamera:
         mock_camera.status = "online"
 
         with patch("backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera):
-            result = await get_camera("front_door", db=mock_db)
+            result = await get_camera("front_door", response=_mock_response(), db=mock_db)
 
         assert result == mock_camera
 
@@ -236,7 +256,7 @@ class TestGetCamera:
             side_effect=HTTPException(status_code=404, detail="Camera not found"),
         ):
             with pytest.raises(HTTPException) as exc_info:
-                await get_camera("nonexistent", db=mock_db)
+                await get_camera("nonexistent", response=_mock_response(), db=mock_db)
 
             assert exc_info.value.status_code == 404
 
@@ -996,7 +1016,7 @@ class TestValidateCameraPaths:
 
                 mock_path.side_effect = path_constructor
 
-                result = await validate_camera_paths(db=mock_db)
+                result = await validate_camera_paths(response=_mock_response(), db=mock_db)
 
         assert result["total_cameras"] == 1
         assert result["valid_count"] == 1
@@ -1038,7 +1058,7 @@ class TestValidateCameraPaths:
 
                 mock_path.side_effect = path_constructor
 
-                result = await validate_camera_paths(db=mock_db)
+                result = await validate_camera_paths(response=_mock_response(), db=mock_db)
 
         assert result["total_cameras"] == 1
         assert result["valid_count"] == 0
@@ -1076,7 +1096,7 @@ class TestValidateCameraPaths:
 
                 mock_path.side_effect = path_constructor
 
-                result = await validate_camera_paths(db=mock_db)
+                result = await validate_camera_paths(response=_mock_response(), db=mock_db)
 
         assert result["invalid_count"] == 1
         assert "does not exist" in result["invalid_cameras"][0]["issues"][0]
@@ -1115,7 +1135,7 @@ class TestValidateCameraPaths:
 
                 mock_path.side_effect = path_constructor
 
-                result = await validate_camera_paths(db=mock_db)
+                result = await validate_camera_paths(response=_mock_response(), db=mock_db)
 
         assert result["invalid_count"] == 1
         assert "no image files found" in result["invalid_cameras"][0]["issues"][0]

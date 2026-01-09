@@ -4,7 +4,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,6 +31,7 @@ from backend.api.schemas.scene_change import (
     SceneChangeListResponse,
     SceneChangeResponse,
 )
+from backend.api.utils.cache_headers import CacheStrategy, set_cache_headers
 from backend.api.utils.field_filter import (
     FieldFilterError,
     filter_fields,
@@ -78,13 +79,47 @@ _SNAPSHOT_TYPES = {
 }
 
 
-@router.get("", response_model=CameraListResponse)
+@router.get(
+    "",
+    response_model=CameraListResponse,
+    responses={
+        400: {"description": "Invalid fields parameter"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def list_cameras(
+    response: Response,
     status_filter: str | None = Query(None, alias="status", description="Filter by camera status"),
+    include_deleted: bool = Query(
+        False, description="Include soft-deleted cameras (for admin/trash views)"
+    ),
     fields: str | None = Query(
         None,
-        description="Comma-separated list of fields to include in response (sparse fieldsets). "
-        "Valid fields: id, name, folder_path, status, created_at, last_seen_at",
+        description=(
+            "Comma-separated list of fields to include in response (sparse fieldsets). "
+            "Use this to reduce payload size by requesting only the fields you need. "
+            "If omitted, all fields are returned. "
+            "Valid fields: id, name, folder_path, status, created_at, last_seen_at. "
+            "Example: fields=id,name,status"
+        ),
+        examples=["id,name,status", "id,name,status,last_seen_at"],
+        openapi_examples={
+            "status_only": {
+                "summary": "Status monitoring",
+                "description": "Minimal fields for camera status checks",
+                "value": "id,name,status",
+            },
+            "with_timestamps": {
+                "summary": "Status with timestamps",
+                "description": "Status check with activity timestamps",
+                "value": "id,name,status,last_seen_at",
+            },
+            "full_details": {
+                "summary": "All fields (default)",
+                "description": "Omit the fields parameter to get all available fields",
+                "value": None,
+            },
+        },
     ),
     db: AsyncSession = Depends(get_db),
     cache: CacheService = Depends(get_cache_service_dep),
@@ -94,11 +129,42 @@ async def list_cameras(
     Uses Redis cache with cache-aside pattern to improve performance
     and generate cache hit metrics.
 
-    Sparse Fieldsets (NEM-1434):
-    Use the `fields` parameter to request only specific fields in the response,
-    reducing payload size. Example: ?fields=id,name,status
+    ## Sparse Fieldsets (NEM-1434)
+
+    Use the `fields` query parameter to request only specific fields in the response,
+    reducing payload size and bandwidth usage.
+
+    **Format:** Comma-separated list of field names (case-insensitive, whitespace ignored)
+
+    **Example Request:**
+    ```
+    GET /api/cameras?fields=id,name,status
+    ```
+
+    **Example Response (with fields filter):**
+    ```json
+    {
+      "cameras": [
+        {
+          "id": "front_door",
+          "name": "Front Door Camera",
+          "status": "online"
+        }
+      ],
+      "count": 1
+    }
+    ```
+
+    **Available Fields:**
+    - `id` - Camera identifier
+    - `name` - Human-readable camera name
+    - `folder_path` - Path to camera image storage folder
+    - `status` - Camera status (online, offline, error)
+    - `created_at` - Camera creation timestamp
+    - `last_seen_at` - Timestamp of last detected activity
 
     Args:
+        response: FastAPI Response for setting cache headers
         status_filter: Optional status to filter cameras by (online, offline, error)
         fields: Comma-separated list of fields to include (sparse fieldsets)
         db: Database session
@@ -110,6 +176,8 @@ async def list_cameras(
     Raises:
         HTTPException: 400 if invalid fields are requested
     """
+    # Set cache headers: camera list can be cached for 60 seconds (NEM-2085)
+    set_cache_headers(response, CacheStrategy.STABLE)
     # Parse and validate fields parameter for sparse fieldsets (NEM-1434)
     requested_fields = parse_fields_param(fields)
     try:
@@ -120,8 +188,10 @@ async def list_cameras(
             detail=str(e),
         ) from e
 
-    # Generate cache key based on filter
-    cache_key = CacheKeys.cameras_list_by_status(status_filter)
+    # Generate cache key based on filters
+    # NEM-1954: Include include_deleted flag in cache key
+    deleted_suffix = "_with_deleted" if include_deleted else ""
+    cache_key = CacheKeys.cameras_list_by_status(status_filter) + deleted_suffix
 
     try:
         cached_data = await cache.get(cache_key)
@@ -144,6 +214,10 @@ async def list_cameras(
     # Cache miss - query database
     query = select(Camera)
 
+    # NEM-1954: Filter out soft-deleted cameras unless explicitly requested
+    if not include_deleted:
+        query = query.where(Camera.deleted_at.is_(None))
+
     # Apply status filter if provided
     if status_filter:
         query = query.where(Camera.status == status_filter)
@@ -164,34 +238,43 @@ async def list_cameras(
         for c in cameras
     ]
 
-    response = {
+    response_data = {
         "cameras": cameras_data,
         "count": len(cameras_data),
     }
 
     # Cache the result (cache full data, filter on retrieval)
     try:
-        await cache.set(cache_key, response, ttl=SHORT_TTL)
+        await cache.set(cache_key, response_data, ttl=SHORT_TTL)
     except Exception as e:
         logger.warning(f"Cache write failed: {e}")
 
     # Apply field filtering before returning (NEM-1434)
     if validated_fields is not None:
         # cameras_data is known to be a list of dicts from the code above
-        response["cameras"] = [filter_fields(c, validated_fields) for c in cameras_data]
+        response_data["cameras"] = [filter_fields(c, validated_fields) for c in cameras_data]
 
-    return response
+    return response_data
 
 
-@router.get("/{camera_id}", response_model=CameraResponse)
+@router.get(
+    "/{camera_id}",
+    response_model=CameraResponse,
+    responses={
+        404: {"description": "Camera not found"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_camera(
     camera_id: str,
+    response: Response,
     db: AsyncSession = Depends(get_db),
 ) -> Camera:
     """Get a specific camera by ID.
 
     Args:
         camera_id: Normalized camera ID (e.g., "front_door", "backyard")
+        response: FastAPI Response for setting cache headers
         db: Database session
 
     Returns:
@@ -200,10 +283,21 @@ async def get_camera(
     Raises:
         HTTPException: 404 if camera not found
     """
+    # Set cache headers: single camera can be cached for 60 seconds (NEM-2085)
+    set_cache_headers(response, CacheStrategy.STABLE)
     return await get_camera_or_404(camera_id, db)
 
 
-@router.post("", response_model=CameraResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=CameraResponse,
+    status_code=status.HTTP_201_CREATED,
+    responses={
+        409: {"description": "Camera with same name or folder_path already exists"},
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def create_camera(
     camera_data: CameraCreate,
     request: Request,
@@ -297,7 +391,15 @@ async def create_camera(
     return camera
 
 
-@router.patch("/{camera_id}", response_model=CameraResponse)
+@router.patch(
+    "/{camera_id}",
+    response_model=CameraResponse,
+    responses={
+        404: {"description": "Camera not found"},
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def update_camera(
     camera_id: str,
     camera_data: CameraUpdate,
@@ -376,7 +478,14 @@ async def update_camera(
     return camera
 
 
-@router.delete("/{camera_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{camera_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        404: {"description": "Camera not found"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def delete_camera(
     camera_id: str,
     request: Request,
@@ -577,11 +686,23 @@ async def get_camera_snapshot(
     latest = max(candidates, key=lambda p: p.stat().st_mtime)
     media_type = _SNAPSHOT_TYPES.get(latest.suffix.lower(), "application/octet-stream")
 
-    return FileResponse(path=str(latest), media_type=media_type, filename=latest.name)
+    # Set cache headers for media: 1 hour, CDN-cacheable (NEM-2085)
+    return FileResponse(
+        path=str(latest),
+        media_type=media_type,
+        filename=latest.name,
+        headers={"Cache-Control": CacheStrategy.MEDIA.value},
+    )
 
 
-@router.get("/validation/paths")
+@router.get(
+    "/validation/paths",
+    responses={
+        500: {"description": "Internal server error"},
+    },
+)
 async def validate_camera_paths(
+    response: Response,
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Validate all camera folder paths against the configured base path.
@@ -593,9 +714,15 @@ async def validate_camera_paths(
 
     Use this to diagnose cameras that show "No snapshot available" errors.
 
+    Args:
+        response: FastAPI Response for setting cache headers
+        db: Database session
+
     Returns:
         Dictionary with validation results for all cameras
     """
+    # Set cache headers: validation data is dynamic, use no-cache (NEM-2085)
+    set_cache_headers(response, CacheStrategy.DYNAMIC)
     settings = get_settings()
     base_root = Path(settings.foscam_base_path).resolve()
 
@@ -653,9 +780,17 @@ async def validate_camera_paths(
     }
 
 
-@router.get("/{camera_id}/baseline", response_model=BaselineSummaryResponse)
+@router.get(
+    "/{camera_id}/baseline",
+    response_model=BaselineSummaryResponse,
+    responses={
+        404: {"description": "Camera not found"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_camera_baseline(
     camera_id: str,
+    response: Response,
     db: AsyncSession = Depends(get_db),
 ) -> BaselineSummaryResponse:
     """Get baseline activity data for a camera.
@@ -668,6 +803,7 @@ async def get_camera_baseline(
 
     Args:
         camera_id: ID of the camera
+        response: FastAPI Response for setting cache headers
         db: Database session
 
     Returns:
@@ -676,6 +812,8 @@ async def get_camera_baseline(
     Raises:
         HTTPException: 404 if camera not found
     """
+    # Set cache headers: baseline data is computed stats, cache for 60 seconds (NEM-2085)
+    set_cache_headers(response, CacheStrategy.STATS)
     camera = await get_camera_or_404(camera_id, db)
 
     # Get baseline service and fetch data
@@ -706,9 +844,18 @@ async def get_camera_baseline(
     )
 
 
-@router.get("/{camera_id}/baseline/anomalies", response_model=AnomalyListResponse)
+@router.get(
+    "/{camera_id}/baseline/anomalies",
+    response_model=AnomalyListResponse,
+    responses={
+        404: {"description": "Camera not found"},
+        422: {"description": "Validation error - invalid days parameter"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_camera_baseline_anomalies(
     camera_id: str,
+    response: Response,
     days: int = Query(default=7, ge=1, le=90, description="Number of days to look back"),
     db: AsyncSession = Depends(get_db),
 ) -> AnomalyListResponse:
@@ -720,6 +867,7 @@ async def get_camera_baseline_anomalies(
 
     Args:
         camera_id: ID of the camera
+        response: FastAPI Response for setting cache headers
         days: Number of days to look back (default: 7, max: 90)
         db: Database session
 
@@ -729,6 +877,8 @@ async def get_camera_baseline_anomalies(
     Raises:
         HTTPException: 404 if camera not found
     """
+    # Set cache headers: anomaly data is computed stats, cache for 60 seconds (NEM-2085)
+    set_cache_headers(response, CacheStrategy.STATS)
     await get_camera_or_404(camera_id, db)
 
     # Get baseline service and fetch anomalies
@@ -743,9 +893,17 @@ async def get_camera_baseline_anomalies(
     )
 
 
-@router.get("/{camera_id}/baseline/activity", response_model=ActivityBaselineResponse)
+@router.get(
+    "/{camera_id}/baseline/activity",
+    response_model=ActivityBaselineResponse,
+    responses={
+        404: {"description": "Camera not found"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_camera_activity_baseline(
     camera_id: str,
+    response: Response,
     db: AsyncSession = Depends(get_db),
 ) -> ActivityBaselineResponse:
     """Get raw activity baseline data for a camera.
@@ -756,6 +914,7 @@ async def get_camera_activity_baseline(
 
     Args:
         camera_id: ID of the camera
+        response: FastAPI Response for setting cache headers
         db: Database session
 
     Returns:
@@ -764,6 +923,8 @@ async def get_camera_activity_baseline(
     Raises:
         HTTPException: 404 if camera not found
     """
+    # Set cache headers: baseline data is computed stats, cache for 60 seconds (NEM-2085)
+    set_cache_headers(response, CacheStrategy.STATS)
     await get_camera_or_404(camera_id, db)
 
     # Get baseline service and fetch raw activity baselines
@@ -816,9 +977,17 @@ async def get_camera_activity_baseline(
     )
 
 
-@router.get("/{camera_id}/baseline/classes", response_model=ClassBaselineResponse)
+@router.get(
+    "/{camera_id}/baseline/classes",
+    response_model=ClassBaselineResponse,
+    responses={
+        404: {"description": "Camera not found"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_camera_class_baseline(
     camera_id: str,
+    response: Response,
     db: AsyncSession = Depends(get_db),
 ) -> ClassBaselineResponse:
     """Get class frequency baseline data for a camera.
@@ -828,6 +997,7 @@ async def get_camera_class_baseline(
 
     Args:
         camera_id: ID of the camera
+        response: FastAPI Response for setting cache headers
         db: Database session
 
     Returns:
@@ -836,6 +1006,8 @@ async def get_camera_class_baseline(
     Raises:
         HTTPException: 404 if camera not found
     """
+    # Set cache headers: baseline data is computed stats, cache for 60 seconds (NEM-2085)
+    set_cache_headers(response, CacheStrategy.STATS)
     await get_camera_or_404(camera_id, db)
 
     # Get baseline service and fetch raw class baselines
@@ -877,9 +1049,18 @@ async def get_camera_class_baseline(
     )
 
 
-@router.get("/{camera_id}/scene-changes", response_model=SceneChangeListResponse)
+@router.get(
+    "/{camera_id}/scene-changes",
+    response_model=SceneChangeListResponse,
+    responses={
+        404: {"description": "Camera not found"},
+        422: {"description": "Validation error - invalid pagination parameters"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_camera_scene_changes(
     camera_id: str,
+    response: Response,
     acknowledged: bool | None = Query(default=None, description="Filter by acknowledgement status"),
     limit: int = Query(default=50, ge=1, le=100, description="Maximum number of results"),
     cursor: datetime | None = Query(
@@ -895,6 +1076,7 @@ async def get_camera_scene_changes(
 
     Args:
         camera_id: ID of the camera
+        response: FastAPI Response for setting cache headers
         acknowledged: Filter by acknowledgement status (None = all)
         limit: Maximum number of results (default: 50, max: 100)
         cursor: Cursor for pagination (detected_at timestamp from previous response)
@@ -906,6 +1088,8 @@ async def get_camera_scene_changes(
     Raises:
         HTTPException: 404 if camera not found
     """
+    # Set cache headers: scene changes are dynamic, use no-cache (NEM-2085)
+    set_cache_headers(response, CacheStrategy.DYNAMIC)
     # Optimized: Build query for scene changes with eager-loaded camera relationship
     # This enables single query when results exist (NEM-1060)
     query = (
@@ -977,6 +1161,10 @@ async def get_camera_scene_changes(
 @router.post(
     "/{camera_id}/scene-changes/{scene_change_id}/acknowledge",
     response_model=SceneChangeAcknowledgeResponse,
+    responses={
+        404: {"description": "Camera or scene change not found"},
+        500: {"description": "Internal server error"},
+    },
 )
 async def acknowledge_scene_change(
     camera_id: str,
