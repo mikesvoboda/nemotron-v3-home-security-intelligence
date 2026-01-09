@@ -51,6 +51,7 @@ from backend.api.routes import (
 from backend.api.routes.logs import router as logs_router
 from backend.api.routes.system import register_workers
 from backend.core import close_db, get_settings, init_db
+from backend.core.config_validation import log_config_summary, validate_config
 from backend.core.docker_client import DockerClient
 from backend.core.logging import redact_url, setup_logging
 from backend.core.redis import close_redis, init_redis
@@ -412,6 +413,17 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:  # noqa: PLR0912 - Co
 
     # Startup
     settings = get_settings()
+
+    # Validate configuration and log summary (NEM-2026)
+    # This provides visibility into configuration status at startup
+    config_result = validate_config(settings)
+    log_config_summary(config_result)
+    if not config_result.valid:
+        # Log critical errors but don't fail startup - let individual services fail gracefully
+        print(
+            f"WARNING: Configuration validation found {len(config_result.errors)} error(s). "
+            "Check logs for details."
+        )
 
     # Initialize OpenTelemetry tracing (NEM-1629)
     # Must be done early, before other services are initialized

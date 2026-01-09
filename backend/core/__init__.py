@@ -1,6 +1,12 @@
 """Core infrastructure components."""
 
 from backend.core.config import Settings, get_settings
+from backend.core.config_validation import (
+    ConfigValidationResult,
+    ValidationItem,
+    log_config_summary,
+    validate_config,
+)
 from backend.core.container import (
     CircularDependencyError,
     Container,
@@ -128,6 +134,7 @@ __all__ = [
     "CertificateNotFoundError",
     "CertificateValidationError",
     "CircularDependencyError",
+    "ConfigValidationResult",
     "Container",
     "HealthCheckableProtocol",
     "InputT",
@@ -148,6 +155,7 @@ __all__ = [
     "TLSConfigurationError",
     "TLSError",
     "TLSMode",
+    "ValidationItem",
     # Functions
     "close_db",
     "close_redis",
@@ -183,6 +191,7 @@ __all__ = [
     "is_tls_enabled",
     "is_video_mime_type",
     "load_certificate_paths",
+    "log_config_summary",
     "log_context",
     "log_exception_with_context",
     "normalize_file_type",
@@ -203,6 +212,7 @@ __all__ = [
     "setup_logging",
     "validate_certificate",
     "validate_certificate_files",
+    "validate_config",
     "wire_services",
     "with_session",
 ]

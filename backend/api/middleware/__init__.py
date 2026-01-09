@@ -1,5 +1,11 @@
 """API middleware components."""
 
+from .accept_header import (
+    SUPPORTED_MEDIA_TYPES,
+    AcceptHeaderMiddleware,
+    parse_accept_header,
+    select_best_media_type,
+)
 from .auth import AuthMiddleware, authenticate_websocket, validate_websocket_api_key
 from .body_limit import BodySizeLimitMiddleware
 from .content_type_validator import ContentTypeValidationMiddleware
@@ -49,6 +55,8 @@ from .websocket_auth import validate_websocket_token
 __all__ = [
     "DEPRECATED_CALLS_TOTAL",
     "MAGIC_SIGNATURES",
+    "SUPPORTED_MEDIA_TYPES",
+    "AcceptHeaderMiddleware",
     "AuthMiddleware",
     "BodySizeLimitMiddleware",
     "ContentTypeValidationMiddleware",
@@ -66,17 +74,21 @@ __all__ = [
     "check_websocket_rate_limit",
     "create_safe_error_message",
     "detect_mime_type",
+    "format_http_date",
     "format_request_log",
+    "format_unix_timestamp",
     "get_client_ip",
     "get_correlation_headers",
     "get_correlation_id",
     "load_recording",
     "merge_headers_with_correlation",
+    "parse_accept_header",
     "rate_limit_default",
     "rate_limit_media",
     "rate_limit_search",
     "record_deprecated_call",
     "redact_request_body",
+    "select_best_media_type",
     "set_correlation_id",
     "validate_file_magic",
     "validate_file_magic_sync",
