@@ -991,7 +991,7 @@ class TestValidateCameraPaths:
                 mock_camera_path.relative_to.return_value = Path("front_door")
                 mock_camera_path.rglob.return_value = [MagicMock()]  # Has images
 
-                def path_constructor(path_str):
+                def path_constructor(_path_str):
                     return mock_camera_path
 
                 mock_path.side_effect = path_constructor
@@ -1033,7 +1033,7 @@ class TestValidateCameraPaths:
                 # Empty image list to trigger "no images" issue
                 mock_camera_path.rglob.return_value = []
 
-                def path_constructor(path_str):
+                def path_constructor(_path_str):
                     return mock_camera_path
 
                 mock_path.side_effect = path_constructor
@@ -1071,7 +1071,7 @@ class TestValidateCameraPaths:
                 mock_camera_path = MagicMock()
                 mock_camera_path.exists.return_value = False
 
-                def path_constructor(path_str):
+                def path_constructor(_path_str):
                     return mock_camera_path
 
                 mock_path.side_effect = path_constructor
@@ -1110,7 +1110,7 @@ class TestValidateCameraPaths:
                 # No images found
                 mock_camera_path.rglob.return_value = []
 
-                def path_constructor(path_str):
+                def path_constructor(_path_str):
                     return mock_camera_path
 
                 mock_path.side_effect = path_constructor

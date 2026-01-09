@@ -571,14 +571,19 @@ class TestGetRedisClient:
         """Test _get_redis_client with empty generator (no yields)."""
         from backend.api.routes.entities import _get_redis_client
 
-        async def mock_get_redis():
-            # Generator that doesn't yield anything
-            return
-            yield  # pragma: no cover
+        # Create an empty async generator using a class
+        class EmptyAsyncGenerator:
+            """Async generator that yields nothing."""
+
+            def __aiter__(self):
+                return self
+
+            async def __anext__(self):
+                raise StopAsyncIteration
 
         with patch(
             "backend.api.routes.entities.get_redis_optional",
-            return_value=mock_get_redis(),
+            return_value=EmptyAsyncGenerator(),
         ):
             result = await _get_redis_client()
 
