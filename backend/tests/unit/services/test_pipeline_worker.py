@@ -65,6 +65,29 @@ def _create_empty_async_generator():
     return _generator()
 
 
+def _create_mock_pipeline():
+    """Create a mock Redis pipeline that works as an async context manager."""
+    mock_pipe = MagicMock()
+    mock_pipe.set = MagicMock(return_value=mock_pipe)
+    mock_pipe.expire = MagicMock(return_value=mock_pipe)
+    mock_pipe.execute = AsyncMock(return_value=[True, True, True, True])
+
+    return mock_pipe
+
+
+class AsyncContextManagerMock:
+    """Helper to create an async context manager mock for Redis pipeline."""
+
+    def __init__(self, pipeline_mock):
+        self.pipeline_mock = pipeline_mock
+
+    async def __aenter__(self):
+        return self.pipeline_mock
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        return False
+
+
 @pytest.fixture
 def mock_redis_client():
     """Create a mock RedisClient with all necessary methods.
@@ -85,6 +108,9 @@ def mock_redis_client():
     mock_internal.expire = AsyncMock(return_value=True)
     # llen is used for batch size checking (NEM-1726)
     mock_internal.llen = AsyncMock(return_value=0)
+    # Pipeline must support async context manager for _create_batch_metadata_atomic
+    mock_pipe = _create_mock_pipeline()
+    mock_internal.pipeline = MagicMock(return_value=AsyncContextManagerMock(mock_pipe))
     mock_client._client = mock_internal
 
     # High-level operations

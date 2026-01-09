@@ -419,7 +419,9 @@ async def test_get_detection_success(mock_db_session: AsyncMock, mock_detection:
     mock_result.scalar_one_or_none.return_value = mock_detection
     mock_db_session.execute = AsyncMock(return_value=mock_result)
 
-    result = await detections_routes.get_detection(detection_id=1, db=mock_db_session)
+    result = await detections_routes.get_detection(
+        detection_id=1, response=MagicMock(), db=mock_db_session
+    )
 
     assert result == mock_detection
     assert result.id == 1
@@ -433,7 +435,9 @@ async def test_get_detection_not_found(mock_db_session: AsyncMock) -> None:
     mock_db_session.execute = AsyncMock(return_value=mock_result)
 
     with pytest.raises(HTTPException) as exc_info:
-        await detections_routes.get_detection(detection_id=999, db=mock_db_session)
+        await detections_routes.get_detection(
+            detection_id=999, response=MagicMock(), db=mock_db_session
+        )
 
     assert exc_info.value.status_code == 404
     assert "Detection with id 999 not found" in exc_info.value.detail
@@ -452,7 +456,7 @@ async def test_get_detection_various_ids(
     for detection_id in [1, 10, 100, 1000]:
         mock_detection.id = detection_id
         result = await detections_routes.get_detection(
-            detection_id=detection_id, db=mock_db_session
+            detection_id=detection_id, response=MagicMock(), db=mock_db_session
         )
         assert result.id == detection_id
 
@@ -524,12 +528,11 @@ async def test_get_detection_image_generate_thumbnail_on_fly(
         return path == generated_thumbnail_path
 
     with (
-        patch.object(detections_routes, "thumbnail_generator", mock_thumbnail_gen),
         patch("os.path.exists", side_effect=path_exists),
         patch("builtins.open", mock_open(read_data=image_data)),
     ):
         result = await detections_routes.get_detection_image(
-            detection_id=2, full=False, db=mock_db_session
+            detection_id=2, full=False, db=mock_db_session, thumbnail_generator=mock_thumbnail_gen
         )
 
     assert result.status_code == 200
@@ -581,11 +584,12 @@ async def test_get_detection_image_thumbnail_generation_fails(
         return path == mock_detection_no_thumbnail.file_path
 
     with (
-        patch.object(detections_routes, "thumbnail_generator", mock_thumbnail_gen),
         patch("os.path.exists", side_effect=path_exists),
         pytest.raises(HTTPException) as exc_info,
     ):
-        await detections_routes.get_detection_image(detection_id=2, full=False, db=mock_db_session)
+        await detections_routes.get_detection_image(
+            detection_id=2, full=False, db=mock_db_session, thumbnail_generator=mock_thumbnail_gen
+        )
 
     assert exc_info.value.status_code == 500
     assert "Failed to generate thumbnail image" in exc_info.value.detail
@@ -642,12 +646,11 @@ async def test_get_detection_image_thumbnail_path_exists_but_file_missing(
         return path == generated_thumbnail_path
 
     with (
-        patch.object(detections_routes, "thumbnail_generator", mock_thumbnail_gen),
         patch("os.path.exists", side_effect=path_exists),
         patch("builtins.open", mock_open(read_data=image_data)),
     ):
         result = await detections_routes.get_detection_image(
-            detection_id=1, full=False, db=mock_db_session
+            detection_id=1, full=False, db=mock_db_session, thumbnail_generator=mock_thumbnail_gen
         )
 
     assert result.status_code == 200
@@ -677,11 +680,12 @@ async def test_get_detection_image_verifies_detection_data_for_thumbnail(
         return path == generated_thumbnail_path
 
     with (
-        patch.object(detections_routes, "thumbnail_generator", mock_thumbnail_gen),
         patch("os.path.exists", side_effect=path_exists),
         patch("builtins.open", mock_open(read_data=image_data)),
     ):
-        await detections_routes.get_detection_image(detection_id=2, full=False, db=mock_db_session)
+        await detections_routes.get_detection_image(
+            detection_id=2, full=False, db=mock_db_session, thumbnail_generator=mock_thumbnail_gen
+        )
 
     # Verify detection data passed to thumbnail generator
     call_kwargs = mock_thumbnail_gen.generate_thumbnail.call_args.kwargs
@@ -860,11 +864,12 @@ async def test_get_detection_image_with_none_thumbnail_path(mock_db_session: Asy
         return path == generated_path
 
     with (
-        patch.object(detections_routes, "thumbnail_generator", mock_thumbnail_gen),
         patch("os.path.exists", side_effect=path_exists),
         patch("builtins.open", mock_open(read_data=image_data)),
     ):
-        result = await detections_routes.get_detection_image(detection_id=3, db=mock_db_session)
+        result = await detections_routes.get_detection_image(
+            detection_id=3, db=mock_db_session, thumbnail_generator=mock_thumbnail_gen
+        )
 
     assert result.status_code == 200
 
@@ -1028,17 +1033,6 @@ async def test_list_detections_equal_dates_is_valid(
 
 
 # =============================================================================
-# Integration with Module-Level Variables
-# =============================================================================
-
-
-def test_thumbnail_generator_initialized() -> None:
-    """Test that thumbnail_generator is initialized at module level."""
-    assert detections_routes.thumbnail_generator is not None
-    assert hasattr(detections_routes.thumbnail_generator, "generate_thumbnail")
-
-
-# =============================================================================
 # Full Image Parameter Tests (NEM-1261)
 # =============================================================================
 
@@ -1089,12 +1083,11 @@ async def test_get_detection_image_full_skips_thumbnail_generation(
     mock_thumbnail_gen = MagicMock()
 
     with (
-        patch.object(detections_routes, "thumbnail_generator", mock_thumbnail_gen),
         patch("os.path.exists", return_value=True),
         patch("builtins.open", mock_open(read_data=original_image_data)),
     ):
         result = await detections_routes.get_detection_image(
-            detection_id=2, full=True, db=mock_db_session
+            detection_id=2, full=True, db=mock_db_session, thumbnail_generator=mock_thumbnail_gen
         )
 
     # Thumbnail generator should NOT be called when full=true

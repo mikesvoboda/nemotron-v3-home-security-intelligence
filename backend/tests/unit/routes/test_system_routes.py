@@ -1194,7 +1194,7 @@ async def test_get_gpu_stats_history_returns_samples() -> None:
     mock_result.scalars.return_value = mock_scalars
     db.execute = AsyncMock(return_value=mock_result)
 
-    response = await system_routes.get_gpu_stats_history(db=db)  # type: ignore[arg-type]
+    response = await system_routes.get_gpu_stats_history(since=None, limit=300, db=db)  # type: ignore[arg-type]
 
     assert isinstance(response, GPUStatsHistoryResponse)
     assert response.count == 2
@@ -1227,7 +1227,7 @@ async def test_get_gpu_stats_history_with_since_filter() -> None:
     db.execute = AsyncMock(return_value=mock_result)
 
     since_time = datetime(2025, 12, 27, 9, 0, 0)
-    response = await system_routes.get_gpu_stats_history(since=since_time, db=db)  # type: ignore[arg-type]
+    response = await system_routes.get_gpu_stats_history(since=since_time, limit=300, db=db)  # type: ignore[arg-type]
 
     assert isinstance(response, GPUStatsHistoryResponse)
     assert response.count == 1
@@ -1245,15 +1245,15 @@ async def test_get_gpu_stats_history_limit_clamping() -> None:
     db.execute = AsyncMock(return_value=mock_result)
 
     # Test that limit of 0 is clamped to 1
-    response = await system_routes.get_gpu_stats_history(limit=0, db=db)  # type: ignore[arg-type]
+    response = await system_routes.get_gpu_stats_history(since=None, limit=0, db=db)  # type: ignore[arg-type]
     assert response.limit == 1
 
     # Test that negative limit is clamped to 1
-    response = await system_routes.get_gpu_stats_history(limit=-5, db=db)  # type: ignore[arg-type]
+    response = await system_routes.get_gpu_stats_history(since=None, limit=-5, db=db)  # type: ignore[arg-type]
     assert response.limit == 1
 
     # Test that limit over 5000 is clamped to 5000
-    response = await system_routes.get_gpu_stats_history(limit=10000, db=db)  # type: ignore[arg-type]
+    response = await system_routes.get_gpu_stats_history(since=None, limit=10000, db=db)  # type: ignore[arg-type]
     assert response.limit == 5000
 
 
@@ -1268,7 +1268,7 @@ async def test_get_gpu_stats_history_empty_result() -> None:
     mock_result.scalars.return_value = mock_scalars
     db.execute = AsyncMock(return_value=mock_result)
 
-    response = await system_routes.get_gpu_stats_history(db=db)  # type: ignore[arg-type]
+    response = await system_routes.get_gpu_stats_history(since=None, limit=300, db=db)  # type: ignore[arg-type]
 
     assert isinstance(response, GPUStatsHistoryResponse)
     assert response.count == 0
@@ -2348,7 +2348,7 @@ async def test_trigger_cleanup_success() -> None:
             return_value=mock_cleanup_service,
         ),
     ):
-        response = await system_routes.trigger_cleanup()
+        response = await system_routes.trigger_cleanup(dry_run=False)
 
     assert isinstance(response, CleanupResponse)
     assert response.events_deleted == 10
@@ -2387,7 +2387,7 @@ async def test_trigger_cleanup_uses_retention_from_settings() -> None:
             return_value=mock_cleanup_service,
         ) as mock_cleanup_class,
     ):
-        response = await system_routes.trigger_cleanup()
+        response = await system_routes.trigger_cleanup(dry_run=False)
 
     # Verify CleanupService was instantiated with correct retention_days
     mock_cleanup_class.assert_called_once_with(
@@ -2423,7 +2423,7 @@ async def test_trigger_cleanup_zero_deletions() -> None:
             return_value=mock_cleanup_service,
         ),
     ):
-        response = await system_routes.trigger_cleanup()
+        response = await system_routes.trigger_cleanup(dry_run=False)
 
     assert isinstance(response, CleanupResponse)
     assert response.events_deleted == 0
@@ -2452,7 +2452,7 @@ async def test_trigger_cleanup_exception_propagates() -> None:
         ),
         pytest.raises(RuntimeError, match="Database connection failed"),
     ):
-        await system_routes.trigger_cleanup()
+        await system_routes.trigger_cleanup(dry_run=False)
 
 
 @pytest.mark.asyncio
@@ -2480,7 +2480,7 @@ async def test_trigger_cleanup_does_not_delete_images_by_default() -> None:
             return_value=mock_cleanup_service,
         ) as mock_cleanup_class,
     ):
-        response = await system_routes.trigger_cleanup()
+        response = await system_routes.trigger_cleanup(dry_run=False)
 
     # Verify delete_images=False
     mock_cleanup_class.assert_called_once()
@@ -2515,7 +2515,7 @@ async def test_trigger_cleanup_logs_operation() -> None:
         ),
         patch.object(system_routes.logger, "info") as mock_logger,
     ):
-        await system_routes.trigger_cleanup()
+        await system_routes.trigger_cleanup(dry_run=False)
 
     # Verify logging calls
     log_messages = [call[0][0] for call in mock_logger.call_args_list]
@@ -3245,7 +3245,11 @@ async def test_trigger_cleanup_dry_run_false_performs_actual_deletion() -> None:
 
 @pytest.mark.asyncio
 async def test_trigger_cleanup_default_dry_run_is_false() -> None:
-    """Test trigger_cleanup defaults dry_run to False."""
+    """Test trigger_cleanup defaults dry_run to False.
+
+    Note: When calling the function directly without FastAPI, we must pass
+    dry_run=False explicitly because Query() defaults don't apply outside FastAPI.
+    """
     mock_stats = MagicMock()
     mock_stats.events_deleted = 5
     mock_stats.detections_deleted = 20
@@ -3268,8 +3272,8 @@ async def test_trigger_cleanup_default_dry_run_is_false() -> None:
             return_value=mock_cleanup_service,
         ),
     ):
-        # Call without specifying dry_run
-        response = await system_routes.trigger_cleanup()
+        # Pass dry_run=False explicitly (FastAPI would inject this default)
+        response = await system_routes.trigger_cleanup(dry_run=False)
 
     assert response.dry_run is False
     # Verify run_cleanup was called (actual deletion)

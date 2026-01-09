@@ -1115,7 +1115,7 @@ async def test_get_event_stats_returns_empty_stats_when_no_events() -> None:
     db.execute = AsyncMock(side_effect=[total_count_result, risk_level_result, camera_stats_result])
 
     # Pass cache directly via DI pattern (NEM-1659)
-    response = await events_routes.get_event_stats(db=db, cache=mock_cache)
+    response = await events_routes.get_event_stats(response=MagicMock(), db=db, cache=mock_cache)
 
     assert response["total_events"] == 0
     assert response["events_by_risk_level"]["critical"] == 0
@@ -1151,7 +1151,7 @@ async def test_get_event_stats_counts_events_by_risk_level() -> None:
     db.execute = AsyncMock(side_effect=[total_count_result, risk_level_result, camera_stats_result])
 
     # Pass cache directly via DI pattern (NEM-1659)
-    response = await events_routes.get_event_stats(db=db, cache=mock_cache)
+    response = await events_routes.get_event_stats(response=MagicMock(), db=db, cache=mock_cache)
 
     assert response["total_events"] == 7
     assert response["events_by_risk_level"]["critical"] == 2
@@ -1185,7 +1185,7 @@ async def test_get_event_stats_counts_events_by_camera() -> None:
     db.execute = AsyncMock(side_effect=[total_count_result, risk_level_result, camera_stats_result])
 
     # Pass cache directly via DI pattern (NEM-1659)
-    response = await events_routes.get_event_stats(db=db, cache=mock_cache)
+    response = await events_routes.get_event_stats(response=MagicMock(), db=db, cache=mock_cache)
 
     assert len(response["events_by_camera"]) == 2
     # Results should be sorted by event count descending (from SQL ORDER BY)
@@ -1217,7 +1217,7 @@ async def test_get_event_stats_with_unknown_camera() -> None:
     db.execute = AsyncMock(side_effect=[total_count_result, risk_level_result, camera_stats_result])
 
     # Pass cache directly via DI pattern (NEM-1659)
-    response = await events_routes.get_event_stats(db=db, cache=mock_cache)
+    response = await events_routes.get_event_stats(response=MagicMock(), db=db, cache=mock_cache)
 
     assert len(response["events_by_camera"]) == 1
     assert response["events_by_camera"][0]["camera_name"] == "Unknown"
@@ -1250,7 +1250,7 @@ async def test_get_event_stats_with_date_filters() -> None:
 
     # Pass cache directly via DI pattern (NEM-1659)
     response = await events_routes.get_event_stats(
-        start_date=start, end_date=end, db=db, cache=mock_cache
+        response=MagicMock(), start_date=start, end_date=end, db=db, cache=mock_cache
     )
 
     assert response["total_events"] == 1
@@ -1282,7 +1282,7 @@ async def test_get_event_stats_ignores_invalid_risk_levels() -> None:
     db.execute = AsyncMock(side_effect=[total_count_result, risk_level_result, camera_stats_result])
 
     # Pass cache directly via DI pattern (NEM-1659)
-    response = await events_routes.get_event_stats(db=db, cache=mock_cache)
+    response = await events_routes.get_event_stats(response=MagicMock(), db=db, cache=mock_cache)
 
     assert response["total_events"] == 3
     assert response["events_by_risk_level"]["high"] == 1
@@ -1318,7 +1318,9 @@ async def test_get_event_returns_event_by_id() -> None:
     result.scalar_one_or_none.return_value = mock_event
     db.execute = AsyncMock(return_value=result)
 
-    response = await events_routes.get_event(event_id=42, request=mock_request, db=db)
+    response = await events_routes.get_event(
+        event_id=42, request=mock_request, response=MagicMock(), db=db
+    )
 
     assert response["id"] == 42
     assert response["camera_id"] == "cam-001"
@@ -1342,7 +1344,9 @@ async def test_get_event_returns_404_when_not_found() -> None:
     db.execute = AsyncMock(return_value=result)
 
     with pytest.raises(Exception) as exc_info:
-        await events_routes.get_event(event_id=999, request=mock_request, db=db)
+        await events_routes.get_event(
+            event_id=999, request=mock_request, response=MagicMock(), db=db
+        )
 
     # Check that it's an HTTPException with 404 status
     assert exc_info.value.status_code == 404
@@ -1361,7 +1365,9 @@ async def test_get_event_with_no_detection_ids() -> None:
     result.scalar_one_or_none.return_value = mock_event
     db.execute = AsyncMock(return_value=result)
 
-    response = await events_routes.get_event(event_id=1, request=mock_request, db=db)
+    response = await events_routes.get_event(
+        event_id=1, request=mock_request, response=MagicMock(), db=db
+    )
 
     assert response["detection_count"] == 0
     assert response["detection_ids"] == []
@@ -1379,7 +1385,9 @@ async def test_get_event_with_empty_detection_ids() -> None:
     result.scalar_one_or_none.return_value = mock_event
     db.execute = AsyncMock(return_value=result)
 
-    response = await events_routes.get_event(event_id=1, request=mock_request, db=db)
+    response = await events_routes.get_event(
+        event_id=1, request=mock_request, response=MagicMock(), db=db
+    )
 
     assert response["detection_count"] == 0
     assert response["detection_ids"] == []
@@ -1411,7 +1419,9 @@ async def test_get_event_includes_all_fields() -> None:
     result.scalar_one_or_none.return_value = mock_event
     db.execute = AsyncMock(return_value=result)
 
-    response = await events_routes.get_event(event_id=1, request=mock_request, db=db)
+    response = await events_routes.get_event(
+        event_id=1, request=mock_request, response=MagicMock(), db=db
+    )
 
     assert "id" in response
     assert "camera_id" in response
@@ -1445,7 +1455,9 @@ async def test_get_event_returns_reasoning_field() -> None:
     result.scalar_one_or_none.return_value = mock_event
     db.execute = AsyncMock(return_value=result)
 
-    response = await events_routes.get_event(event_id=42, request=mock_request, db=db)
+    response = await events_routes.get_event(
+        event_id=42, request=mock_request, response=MagicMock(), db=db
+    )
 
     assert response["reasoning"] == "Person detected at unusual hour near restricted area"
 
@@ -1465,7 +1477,9 @@ async def test_get_event_returns_none_reasoning_when_not_set() -> None:
     result.scalar_one_or_none.return_value = mock_event
     db.execute = AsyncMock(return_value=result)
 
-    response = await events_routes.get_event(event_id=1, request=mock_request, db=db)
+    response = await events_routes.get_event(
+        event_id=1, request=mock_request, response=MagicMock(), db=db
+    )
 
     assert response["reasoning"] is None
 
@@ -1733,7 +1747,9 @@ async def test_get_event_detections_returns_detections() -> None:
 
     db.execute = AsyncMock(side_effect=[event_result, count_result, detections_result])
 
-    response = await events_routes.get_event_detections(event_id=1, limit=50, offset=0, db=db)
+    response = await events_routes.get_event_detections(
+        event_id=1, response=MagicMock(), limit=50, offset=0, db=db
+    )
 
     assert len(response["detections"]) == 3
     assert response["count"] == 3
@@ -1751,7 +1767,9 @@ async def test_get_event_detections_returns_404_when_event_not_found() -> None:
     db.execute = AsyncMock(return_value=result)
 
     with pytest.raises(Exception) as exc_info:
-        await events_routes.get_event_detections(event_id=999, limit=50, offset=0, db=db)
+        await events_routes.get_event_detections(
+            event_id=999, response=MagicMock(), limit=50, offset=0, db=db
+        )
 
     assert exc_info.value.status_code == 404
     assert "999" in str(exc_info.value.detail)
@@ -1768,7 +1786,9 @@ async def test_get_event_detections_returns_empty_list_when_no_detections() -> N
     event_result.scalar_one_or_none.return_value = mock_event
     db.execute = AsyncMock(return_value=event_result)
 
-    response = await events_routes.get_event_detections(event_id=1, limit=50, offset=0, db=db)
+    response = await events_routes.get_event_detections(
+        event_id=1, response=MagicMock(), limit=50, offset=0, db=db
+    )
 
     assert response["detections"] == []
     assert response["count"] == 0
@@ -1785,7 +1805,9 @@ async def test_get_event_detections_returns_empty_list_when_empty_string() -> No
     event_result.scalar_one_or_none.return_value = mock_event
     db.execute = AsyncMock(return_value=event_result)
 
-    response = await events_routes.get_event_detections(event_id=1, limit=50, offset=0, db=db)
+    response = await events_routes.get_event_detections(
+        event_id=1, response=MagicMock(), limit=50, offset=0, db=db
+    )
 
     assert response["detections"] == []
     assert response["count"] == 0
@@ -1817,7 +1839,9 @@ async def test_get_event_detections_with_pagination() -> None:
 
     db.execute = AsyncMock(side_effect=[event_result, count_result, detections_result])
 
-    response = await events_routes.get_event_detections(event_id=1, limit=2, offset=2, db=db)
+    response = await events_routes.get_event_detections(
+        event_id=1, response=MagicMock(), limit=2, offset=2, db=db
+    )
 
     assert len(response["detections"]) == 2
     assert response["count"] == 5
@@ -1852,7 +1876,9 @@ async def test_get_event_detections_handles_whitespace_in_detection_ids() -> Non
 
     db.execute = AsyncMock(side_effect=[event_result, count_result, detections_result])
 
-    response = await events_routes.get_event_detections(event_id=1, limit=50, offset=0, db=db)
+    response = await events_routes.get_event_detections(
+        event_id=1, response=MagicMock(), limit=50, offset=0, db=db
+    )
 
     assert len(response["detections"]) == 3
     assert response["count"] == 3
@@ -1881,7 +1907,9 @@ async def test_get_event_detections_custom_limit() -> None:
 
     db.execute = AsyncMock(side_effect=[event_result, count_result, detections_result])
 
-    response = await events_routes.get_event_detections(event_id=1, limit=5, offset=0, db=db)
+    response = await events_routes.get_event_detections(
+        event_id=1, response=MagicMock(), limit=5, offset=0, db=db
+    )
 
     assert len(response["detections"]) == 5
     assert response["limit"] == 5
@@ -1955,7 +1983,7 @@ async def test_get_event_stats_empty_camera_list() -> None:
     db.execute = AsyncMock(side_effect=[total_count_result, risk_level_result, camera_stats_result])
 
     # Pass cache directly via DI pattern (NEM-1659)
-    response = await events_routes.get_event_stats(db=db, cache=mock_cache)
+    response = await events_routes.get_event_stats(response=MagicMock(), db=db, cache=mock_cache)
 
     assert response["total_events"] == 1
     assert response["events_by_camera"][0]["camera_name"] == "Unknown"
@@ -2014,7 +2042,9 @@ async def test_get_event_detections_count_returns_zero_on_none() -> None:
 
     db.execute = AsyncMock(side_effect=[event_result, count_result, detections_result])
 
-    response = await events_routes.get_event_detections(event_id=1, limit=50, offset=0, db=db)
+    response = await events_routes.get_event_detections(
+        event_id=1, response=MagicMock(), limit=50, offset=0, db=db
+    )
 
     assert response["count"] == 0
 
@@ -2466,6 +2496,7 @@ async def test_get_event_stats_invalid_date_range_returns_400() -> None:
     with pytest.raises(HTTPException) as exc_info:
         # Pass cache directly via DI pattern (NEM-1659)
         await events_routes.get_event_stats(
+            response=MagicMock(),
             start_date=start_date,
             end_date=end_date,
             db=db,
