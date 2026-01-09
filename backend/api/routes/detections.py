@@ -11,7 +11,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.api.dependencies import get_detection_or_404
+from backend.api.dependencies import get_cache_service_dep, get_detection_or_404
 from backend.api.middleware import RateLimiter, RateLimitTier
 from backend.api.pagination import CursorData, decode_cursor, encode_cursor, get_deprecation_warning
 from backend.api.schemas.bulk import (
@@ -45,6 +45,7 @@ from backend.core.logging import get_logger
 from backend.core.mime_types import DEFAULT_VIDEO_MIME, normalize_file_type
 from backend.models.camera import Camera
 from backend.models.detection import Detection
+from backend.services.cache_service import CacheService
 from backend.services.thumbnail_generator import ThumbnailGenerator
 from backend.services.video_processor import VideoProcessor
 
@@ -1238,6 +1239,7 @@ async def get_video_thumbnail(
 async def bulk_create_detections(
     request: DetectionBulkCreateRequest,
     db: AsyncSession = Depends(get_db),
+    cache: CacheService = Depends(get_cache_service_dep),
 ) -> DetectionBulkCreateResponse:
     """Create multiple detections in a single request.
 
@@ -1249,6 +1251,7 @@ async def bulk_create_detections(
     Args:
         request: Bulk create request with up to 100 detections
         db: Database session
+        cache: Cache service for invalidation (NEM-1951)
 
     Returns:
         DetectionBulkCreateResponse with per-item results
@@ -1320,6 +1323,13 @@ async def bulk_create_detections(
     if succeeded > 0:
         try:
             await db.commit()
+            # Invalidate detection-related caches after successful bulk create (NEM-1951)
+            try:
+                await cache.invalidate_detections(reason="detection_created")
+                await cache.invalidate_event_stats(reason="detection_created")
+            except Exception as e:
+                # Cache invalidation is non-critical - log but don't fail the request
+                logger.warning(f"Cache invalidation failed after bulk create: {e}")
         except Exception as e:
             logger.error(f"Bulk create commit failed: {e}")
             await db.rollback()
@@ -1354,6 +1364,7 @@ async def bulk_create_detections(
 async def bulk_update_detections(
     request: DetectionBulkUpdateRequest,
     db: AsyncSession = Depends(get_db),
+    cache: CacheService = Depends(get_cache_service_dep),
 ) -> BulkOperationResponse:
     """Update multiple detections in a single request.
 
@@ -1365,6 +1376,7 @@ async def bulk_update_detections(
     Args:
         request: Bulk update request with up to 100 detection updates
         db: Database session
+        cache: Cache service for invalidation (NEM-1951)
 
     Returns:
         BulkOperationResponse with per-item results
@@ -1428,6 +1440,13 @@ async def bulk_update_detections(
     if succeeded > 0:
         try:
             await db.commit()
+            # Invalidate detection-related caches after successful bulk update (NEM-1951)
+            try:
+                await cache.invalidate_detections(reason="detection_updated")
+                await cache.invalidate_event_stats(reason="detection_updated")
+            except Exception as e:
+                # Cache invalidation is non-critical - log but don't fail the request
+                logger.warning(f"Cache invalidation failed after bulk update: {e}")
         except Exception as e:
             logger.error(f"Bulk update commit failed: {e}")
             await db.rollback()
@@ -1462,6 +1481,7 @@ async def bulk_update_detections(
 async def bulk_delete_detections(
     request: DetectionBulkDeleteRequest,
     db: AsyncSession = Depends(get_db),
+    cache: CacheService = Depends(get_cache_service_dep),
 ) -> BulkOperationResponse:
     """Delete multiple detections in a single request.
 
@@ -1476,6 +1496,7 @@ async def bulk_delete_detections(
     Args:
         request: Bulk delete request with up to 100 detection IDs
         db: Database session
+        cache: Cache service for invalidation (NEM-1951)
 
     Returns:
         BulkOperationResponse with per-item results
@@ -1533,6 +1554,13 @@ async def bulk_delete_detections(
     if succeeded > 0:
         try:
             await db.commit()
+            # Invalidate detection-related caches after successful bulk delete (NEM-1951)
+            try:
+                await cache.invalidate_detections(reason="detection_deleted")
+                await cache.invalidate_event_stats(reason="detection_deleted")
+            except Exception as e:
+                # Cache invalidation is non-critical - log but don't fail the request
+                logger.warning(f"Cache invalidation failed after bulk delete: {e}")
         except Exception as e:
             logger.error(f"Bulk delete commit failed: {e}")
             await db.rollback()

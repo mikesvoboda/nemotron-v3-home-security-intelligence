@@ -19,7 +19,7 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.api.dependencies import get_alert_rule_or_404
+from backend.api.dependencies import get_alert_rule_or_404, get_cache_service_dep
 from backend.api.schemas.alerts import (
     AlertRuleCreate,
     AlertRuleListResponse,
@@ -31,9 +31,13 @@ from backend.api.schemas.alerts import (
 )
 from backend.api.schemas.pagination import PaginationMeta
 from backend.core.database import get_db
+from backend.core.logging import get_logger
 from backend.models import AlertRule, Event
 from backend.models import AlertSeverity as ModelAlertSeverity
 from backend.services.alert_engine import AlertRuleEngine
+from backend.services.cache_service import CacheService
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/alerts/rules", tags=["alert-rules"])
 
@@ -137,12 +141,14 @@ async def list_rules(
 async def create_rule(
     rule_data: AlertRuleCreate,
     db: AsyncSession = Depends(get_db),
+    cache: CacheService = Depends(get_cache_service_dep),
 ) -> AlertRuleResponse:
     """Create a new alert rule.
 
     Args:
         rule_data: Rule creation data
         db: Database session
+        cache: Cache service for cache invalidation (NEM-1952)
 
     Returns:
         Created AlertRule
@@ -180,6 +186,13 @@ async def create_rule(
     db.add(rule)
     await db.commit()
     await db.refresh(rule)
+
+    # Invalidate alert-related caches after successful create (NEM-1952)
+    try:
+        await cache.invalidate_alerts(reason="alert_rule_created")
+    except Exception as e:
+        # Cache invalidation is non-critical - log but don't fail the request
+        logger.warning(f"Cache invalidation failed after alert rule create: {e}")
 
     return AlertRuleResponse(**_rule_to_response(rule))
 
@@ -258,6 +271,7 @@ async def update_rule(
     rule_id: str,
     rule_data: AlertRuleUpdate,
     db: AsyncSession = Depends(get_db),
+    cache: CacheService = Depends(get_cache_service_dep),
 ) -> AlertRuleResponse:
     """Update an existing alert rule.
 
@@ -265,6 +279,7 @@ async def update_rule(
         rule_id: Rule UUID
         rule_data: Rule update data
         db: Database session
+        cache: Cache service for cache invalidation (NEM-1952)
 
     Returns:
         Updated AlertRule
@@ -281,6 +296,13 @@ async def update_rule(
     await db.commit()
     await db.refresh(rule)
 
+    # Invalidate alert-related caches after successful update (NEM-1952)
+    try:
+        await cache.invalidate_alerts(reason="alert_rule_updated")
+    except Exception as e:
+        # Cache invalidation is non-critical - log but don't fail the request
+        logger.warning(f"Cache invalidation failed after alert rule update: {e}")
+
     return AlertRuleResponse(**_rule_to_response(rule))
 
 
@@ -295,12 +317,14 @@ async def update_rule(
 async def delete_rule(
     rule_id: str,
     db: AsyncSession = Depends(get_db),
+    cache: CacheService = Depends(get_cache_service_dep),
 ) -> None:
     """Delete an alert rule.
 
     Args:
         rule_id: Rule UUID
         db: Database session
+        cache: Cache service for cache invalidation (NEM-1952)
 
     Raises:
         HTTPException: 404 if rule not found
@@ -308,6 +332,13 @@ async def delete_rule(
     rule = await get_alert_rule_or_404(rule_id, db)
     await db.delete(rule)
     await db.commit()
+
+    # Invalidate alert-related caches after successful delete (NEM-1952)
+    try:
+        await cache.invalidate_alerts(reason="alert_rule_deleted")
+    except Exception as e:
+        # Cache invalidation is non-critical - log but don't fail the request
+        logger.warning(f"Cache invalidation failed after alert rule delete: {e}")
 
 
 @router.post(

@@ -612,3 +612,140 @@ class TestApplyRuleUpdates:
         _apply_rule_updates(sample_rule, update_data, update_dict)
 
         assert sample_rule.conditions is not None
+
+
+# =============================================================================
+# Cache Invalidation Tests (NEM-1952)
+# =============================================================================
+
+
+class TestCacheInvalidation:
+    """Tests for cache invalidation on alert rule mutation endpoints."""
+
+    @pytest.fixture
+    def mock_cache_service(self) -> AsyncMock:
+        """Create a mock cache service."""
+        cache = AsyncMock()
+        cache.invalidate_alerts = AsyncMock(return_value=1)
+        return cache
+
+    @pytest.fixture
+    def client_with_cache(
+        self, mock_db_session: AsyncMock, mock_cache_service: AsyncMock
+    ) -> TestClient:
+        """Create a test client with mocked dependencies including cache."""
+        from backend.api.dependencies import get_cache_service_dep
+
+        app = FastAPI()
+        app.include_router(router)
+
+        async def override_get_db():
+            yield mock_db_session
+
+        async def override_get_cache():
+            yield mock_cache_service
+
+        app.dependency_overrides[get_db] = override_get_db
+        app.dependency_overrides[get_cache_service_dep] = override_get_cache
+
+        with TestClient(app) as test_client:
+            yield test_client
+
+    def test_create_rule_invalidates_cache(
+        self,
+        client_with_cache: TestClient,
+        mock_db_session: AsyncMock,
+        mock_cache_service: AsyncMock,
+    ) -> None:
+        """Test that creating a rule invalidates alert caches."""
+
+        async def mock_refresh(rule):
+            rule.id = str(uuid.uuid4())
+            rule.created_at = datetime(2025, 12, 23, 10, 0, 0)
+            rule.updated_at = datetime(2025, 12, 23, 10, 0, 0)
+            rule.dedup_key_template = rule.dedup_key_template or "default"
+
+        mock_db_session.refresh = mock_refresh
+
+        rule_data = {
+            "name": "Test Rule",
+            "severity": "high",
+            "risk_threshold": 70,
+            "enabled": True,
+        }
+
+        response = client_with_cache.post("/api/alerts/rules", json=rule_data)
+
+        assert response.status_code == 201
+        # Verify cache invalidation was called
+        mock_cache_service.invalidate_alerts.assert_called_once_with(reason="alert_rule_created")
+
+    def test_update_rule_invalidates_cache(
+        self,
+        client_with_cache: TestClient,
+        mock_db_session: AsyncMock,
+        mock_cache_service: AsyncMock,
+        sample_rule: AlertRule,
+    ) -> None:
+        """Test that updating a rule invalidates alert caches."""
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = sample_rule
+        mock_db_session.execute.return_value = mock_result
+
+        response = client_with_cache.put(
+            f"/api/alerts/rules/{sample_rule.id}",
+            json={"name": "Updated Name"},
+        )
+
+        assert response.status_code == 200
+        # Verify cache invalidation was called
+        mock_cache_service.invalidate_alerts.assert_called_once_with(reason="alert_rule_updated")
+
+    def test_delete_rule_invalidates_cache(
+        self,
+        client_with_cache: TestClient,
+        mock_db_session: AsyncMock,
+        mock_cache_service: AsyncMock,
+        sample_rule: AlertRule,
+    ) -> None:
+        """Test that deleting a rule invalidates alert caches."""
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = sample_rule
+        mock_db_session.execute.return_value = mock_result
+
+        response = client_with_cache.delete(f"/api/alerts/rules/{sample_rule.id}")
+
+        assert response.status_code == 204
+        # Verify cache invalidation was called
+        mock_cache_service.invalidate_alerts.assert_called_once_with(reason="alert_rule_deleted")
+
+    def test_cache_invalidation_failure_does_not_fail_request(
+        self,
+        client_with_cache: TestClient,
+        mock_db_session: AsyncMock,
+        mock_cache_service: AsyncMock,
+    ) -> None:
+        """Test that cache invalidation failure does not cause the request to fail."""
+
+        async def mock_refresh(rule):
+            rule.id = str(uuid.uuid4())
+            rule.created_at = datetime(2025, 12, 23, 10, 0, 0)
+            rule.updated_at = datetime(2025, 12, 23, 10, 0, 0)
+            rule.dedup_key_template = rule.dedup_key_template or "default"
+
+        mock_db_session.refresh = mock_refresh
+
+        # Make cache invalidation fail
+        mock_cache_service.invalidate_alerts.side_effect = Exception("Redis connection error")
+
+        rule_data = {
+            "name": "Test Rule",
+            "severity": "high",
+            "risk_threshold": 70,
+            "enabled": True,
+        }
+
+        # Request should still succeed even if cache invalidation fails
+        response = client_with_cache.post("/api/alerts/rules", json=rule_data)
+
+        assert response.status_code == 201
