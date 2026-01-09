@@ -459,6 +459,7 @@ class TestJobTrackerThreadSafety:
         assert job is not None
         # Final progress should be one of the valid values
         assert 0 <= job["progress"] <= 100
+<<<<<<< HEAD
 
 
 class TestJobTrackerMessageField:
@@ -503,3 +504,5 @@ class TestJobTrackerMessageField:
         job = job_tracker.get_job(job_id)
         assert job is not None
         assert job["message"] == "Failed: Connection timeout"
+=======
+>>>>>>> ee6cb0f94 (feat(websocket): add job events for background job completion (NEM-1983))

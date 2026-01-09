@@ -3,12 +3,15 @@
 This module provides tracking and WebSocket broadcasting for background jobs.
 Jobs go through states: PENDING -> RUNNING -> COMPLETED/FAILED
 
+<<<<<<< HEAD
 Features:
 - In-memory tracking with optional Redis persistence
 - WebSocket broadcast for job progress updates (throttled to 10% increments)
 - Job completion and failure notifications
 - TTL-based auto-cleanup of completed jobs in Redis
 
+=======
+>>>>>>> ee6cb0f94 (feat(websocket): add job events for background job completion (NEM-1983))
 WebSocket events are broadcast for:
 - Job progress updates (throttled to 10% increments)
 - Job completion
@@ -23,6 +26,7 @@ import uuid
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from enum import StrEnum, auto
+<<<<<<< HEAD
 from typing import TYPE_CHECKING, Any, TypedDict
 
 from backend.core.logging import get_logger
@@ -30,17 +34,26 @@ from backend.core.logging import get_logger
 if TYPE_CHECKING:
     from backend.core.redis import RedisClient
 
+=======
+from typing import Any, TypedDict
+
+from backend.core.logging import get_logger
+
+>>>>>>> ee6cb0f94 (feat(websocket): add job events for background job completion (NEM-1983))
 logger = get_logger(__name__)
 
 # Progress updates are throttled to broadcast only on 10% increments
 PROGRESS_THROTTLE_INCREMENT = 10
 
+<<<<<<< HEAD
 # Redis key prefix for job storage
 REDIS_JOB_KEY_PREFIX = "job:"
 
 # TTL for completed/failed jobs in Redis (1 hour)
 REDIS_JOB_TTL_SECONDS = 3600
 
+=======
+>>>>>>> ee6cb0f94 (feat(websocket): add job events for background job completion (NEM-1983))
 # Type alias for broadcast callback
 # Can be sync (returns None) or async (returns Awaitable)
 BroadcastCallback = Callable[[str, dict[str, Any]], None | Awaitable[None]]
@@ -70,7 +83,10 @@ class JobInfo(TypedDict):
     job_type: str
     status: JobStatus
     progress: int
+<<<<<<< HEAD
     message: str | None
+=======
+>>>>>>> ee6cb0f94 (feat(websocket): add job events for background job completion (NEM-1983))
     created_at: str
     started_at: str | None
     completed_at: str | None
@@ -111,6 +127,7 @@ class JobTracker:
 
     The broadcast callback can be either sync or async. When async, it will
     be scheduled on the current event loop if available.
+<<<<<<< HEAD
 
     Optionally supports Redis persistence for job state, enabling:
     - Job status retrieval via API endpoints
@@ -123,17 +140,27 @@ class JobTracker:
         broadcast_callback: BroadcastCallback | None = None,
         redis_client: RedisClient | None = None,
     ) -> None:
+=======
+    """
+
+    def __init__(self, broadcast_callback: BroadcastCallback | None = None) -> None:
+>>>>>>> ee6cb0f94 (feat(websocket): add job events for background job completion (NEM-1983))
         """Initialize the job tracker.
 
         Args:
             broadcast_callback: Optional callback for broadcasting events.
                               Signature: (event_type: str, data: dict) -> None | Awaitable
                               If None, events will be logged but not broadcast.
+<<<<<<< HEAD
             redis_client: Optional Redis client for job persistence.
                          If None, jobs are only tracked in memory.
         """
         self._broadcast_callback = broadcast_callback
         self._redis_client = redis_client
+=======
+        """
+        self._broadcast_callback = broadcast_callback
+>>>>>>> ee6cb0f94 (feat(websocket): add job events for background job completion (NEM-1983))
         self._jobs: dict[str, JobInfo] = {}
         self._last_broadcast_progress: dict[str, int] = {}
         self._lock = threading.Lock()
@@ -162,6 +189,7 @@ class JobTracker:
                 extra={"event_type": event_type, "error": str(e)},
             )
 
+<<<<<<< HEAD
     def _get_redis_key(self, job_id: str) -> str:
         """Get the Redis key for a job.
 
@@ -263,6 +291,8 @@ class JobTracker:
 
         return None
 
+=======
+>>>>>>> ee6cb0f94 (feat(websocket): add job events for background job completion (NEM-1983))
     def create_job(self, job_type: str, job_id: str | None = None) -> str:
         """Create a new job and return its ID.
 
@@ -284,7 +314,10 @@ class JobTracker:
                 job_type=job_type,
                 status=JobStatus.PENDING,
                 progress=0,
+<<<<<<< HEAD
                 message=None,
+=======
+>>>>>>> ee6cb0f94 (feat(websocket): add job events for background job completion (NEM-1983))
                 created_at=now,
                 started_at=None,
                 completed_at=None,
@@ -297,6 +330,7 @@ class JobTracker:
             "Job created",
             extra={"job_id": job_id, "job_type": job_type},
         )
+<<<<<<< HEAD
 
         # Persist to Redis (fire-and-forget)
         self._schedule_persist(job_id)
@@ -304,11 +338,19 @@ class JobTracker:
         return job_id
 
     def start_job(self, job_id: str, message: str | None = None) -> None:
+=======
+        return job_id
+
+    def start_job(self, job_id: str) -> None:
+>>>>>>> ee6cb0f94 (feat(websocket): add job events for background job completion (NEM-1983))
         """Mark a job as started/running.
 
         Args:
             job_id: The job ID to start.
+<<<<<<< HEAD
             message: Optional status message.
+=======
+>>>>>>> ee6cb0f94 (feat(websocket): add job events for background job completion (NEM-1983))
 
         Raises:
             KeyError: If the job ID is not found.
@@ -321,6 +363,7 @@ class JobTracker:
 
             self._jobs[job_id]["status"] = JobStatus.RUNNING
             self._jobs[job_id]["started_at"] = now
+<<<<<<< HEAD
             if message is not None:
                 self._jobs[job_id]["message"] = message
 
@@ -330,6 +373,12 @@ class JobTracker:
         self._schedule_persist(job_id)
 
     def update_progress(self, job_id: str, progress: int, message: str | None = None) -> None:
+=======
+
+        logger.info("Job started", extra={"job_id": job_id})
+
+    def update_progress(self, job_id: str, progress: int) -> None:
+>>>>>>> ee6cb0f94 (feat(websocket): add job events for background job completion (NEM-1983))
         """Update job progress and optionally broadcast.
 
         Progress is clamped to 0-100 range. Broadcasts are throttled to
@@ -338,7 +387,10 @@ class JobTracker:
         Args:
             job_id: The job ID to update.
             progress: New progress value (0-100).
+<<<<<<< HEAD
             message: Optional status message describing current progress.
+=======
+>>>>>>> ee6cb0f94 (feat(websocket): add job events for background job completion (NEM-1983))
 
         Raises:
             KeyError: If the job ID is not found.
@@ -350,8 +402,11 @@ class JobTracker:
                 raise KeyError(f"Job not found: {job_id}")
 
             self._jobs[job_id]["progress"] = progress
+<<<<<<< HEAD
             if message is not None:
                 self._jobs[job_id]["message"] = message
+=======
+>>>>>>> ee6cb0f94 (feat(websocket): add job events for background job completion (NEM-1983))
 
             should_broadcast = self._should_broadcast_progress(job_id, progress)
             if should_broadcast:
@@ -359,8 +414,11 @@ class JobTracker:
 
         if should_broadcast:
             self._broadcast_progress(job_id)
+<<<<<<< HEAD
             # Persist to Redis on broadcast threshold
             self._schedule_persist(job_id)
+=======
+>>>>>>> ee6cb0f94 (feat(websocket): add job events for background job completion (NEM-1983))
 
     def _should_broadcast_progress(self, job_id: str, progress: int) -> bool:
         """Determine if progress update should be broadcast.
@@ -424,7 +482,10 @@ class JobTracker:
             self._jobs[job_id]["progress"] = 100
             self._jobs[job_id]["completed_at"] = now
             self._jobs[job_id]["result"] = result
+<<<<<<< HEAD
             self._jobs[job_id]["message"] = "Completed successfully"
+=======
+>>>>>>> ee6cb0f94 (feat(websocket): add job events for background job completion (NEM-1983))
 
             job = self._jobs[job_id]
 
@@ -433,9 +494,12 @@ class JobTracker:
             extra={"job_id": job_id, "job_type": job["job_type"]},
         )
 
+<<<<<<< HEAD
         # Persist to Redis with TTL (completed jobs expire after 1 hour)
         self._schedule_persist(job_id, ttl=REDIS_JOB_TTL_SECONDS)
 
+=======
+>>>>>>> ee6cb0f94 (feat(websocket): add job events for background job completion (NEM-1983))
         data = JobCompletedData(
             job_id=job_id,
             job_type=job["job_type"],
@@ -466,7 +530,10 @@ class JobTracker:
             self._jobs[job_id]["status"] = JobStatus.FAILED
             self._jobs[job_id]["completed_at"] = now
             self._jobs[job_id]["error"] = error
+<<<<<<< HEAD
             self._jobs[job_id]["message"] = f"Failed: {error}"
+=======
+>>>>>>> ee6cb0f94 (feat(websocket): add job events for background job completion (NEM-1983))
 
             job = self._jobs[job_id]
 
@@ -475,9 +542,12 @@ class JobTracker:
             extra={"job_id": job_id, "job_type": job["job_type"], "error": error},
         )
 
+<<<<<<< HEAD
         # Persist to Redis with TTL (failed jobs expire after 1 hour)
         self._schedule_persist(job_id, ttl=REDIS_JOB_TTL_SECONDS)
 
+=======
+>>>>>>> ee6cb0f94 (feat(websocket): add job events for background job completion (NEM-1983))
         data = JobFailedData(
             job_id=job_id,
             job_type=job["job_type"],
@@ -542,22 +612,32 @@ _job_tracker: JobTracker | None = None
 
 def get_job_tracker(
     broadcast_callback: BroadcastCallback | None = None,
+<<<<<<< HEAD
     redis_client: RedisClient | None = None,
+=======
+>>>>>>> ee6cb0f94 (feat(websocket): add job events for background job completion (NEM-1983))
 ) -> JobTracker:
     """Get or create the singleton job tracker instance.
 
     Args:
         broadcast_callback: Optional callback for broadcasting events.
                           Only used when creating the singleton for the first time.
+<<<<<<< HEAD
         redis_client: Optional Redis client for job persistence.
                      Only used when creating the singleton for the first time.
+=======
+>>>>>>> ee6cb0f94 (feat(websocket): add job events for background job completion (NEM-1983))
 
     Returns:
         The job tracker singleton.
     """
     global _job_tracker  # noqa: PLW0603
     if _job_tracker is None:
+<<<<<<< HEAD
         _job_tracker = JobTracker(broadcast_callback, redis_client)
+=======
+        _job_tracker = JobTracker(broadcast_callback)
+>>>>>>> ee6cb0f94 (feat(websocket): add job events for background job completion (NEM-1983))
     return _job_tracker
 
 
