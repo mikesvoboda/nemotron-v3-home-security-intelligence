@@ -245,7 +245,14 @@ class TestGetEventStatsRoute:
             cache=mock_cache,
         )
 
-        assert result == cached_stats
+        # Result should be EventStatsResponse with cached values
+        assert result.total_events == 100
+        assert result.events_by_risk_level.low == 20
+        assert result.events_by_risk_level.medium == 50
+        assert result.events_by_risk_level.high == 25
+        assert result.events_by_risk_level.critical == 5
+        assert len(result.events_by_camera) == 1
+        assert result.events_by_camera[0].camera_id == "cam1"
         # Database should not be queried when cache hit occurs
         mock_db.execute.assert_not_called()
 
@@ -281,9 +288,9 @@ class TestGetEventStatsRoute:
             cache=mock_cache,
         )
 
-        assert result["total_events"] == 100
-        assert result["events_by_risk_level"]["high"] == 50
-        assert len(result["events_by_camera"]) == 1
+        assert result.total_events == 100
+        assert result.events_by_risk_level.high == 50
+        assert len(result.events_by_camera) == 1
         # Should set cache
         mock_cache.set.assert_called_once()
 
@@ -320,7 +327,7 @@ class TestGetEventStatsRoute:
             cache=mock_cache,
         )
 
-        assert result["total_events"] == 50
+        assert result.total_events == 50
 
 
 class TestSearchEventsRoute:
@@ -429,10 +436,10 @@ class TestGetEventRoute:
         with patch("backend.api.routes.events.get_event_or_404", return_value=mock_event):
             result = await get_event(event_id=1, request=mock_request, db=mock_db)
 
-        assert result["id"] == 1
-        assert result["detection_count"] == 3
-        assert result["detection_ids"] == [1, 2, 3]
-        assert result["thumbnail_url"] == "/api/media/detections/1"
+        assert result.id == 1
+        assert result.detection_count == 3
+        assert result.detection_ids == [1, 2, 3]
+        assert result.thumbnail_url == "/api/media/detections/1"
 
 
 class TestUpdateEventRoute:
@@ -470,7 +477,7 @@ class TestUpdateEventRoute:
                     event_id=1, update_data=update_data, request=mock_request, db=mock_db
                 )
 
-        assert result["id"] == 1
+        assert result.id == 1
         assert mock_event.reviewed is True
 
 
@@ -492,8 +499,8 @@ class TestGetEventDetectionsRoute:
         with patch("backend.api.routes.events.get_event_or_404", return_value=mock_event):
             result = await get_event_detections(event_id=1, limit=50, offset=0, db=mock_db)
 
-        assert result["detections"] == []
-        assert result["count"] == 0
+        assert result.detections == []
+        assert result.count == 0
 
 
 class TestGetEventEnrichmentsRoute:
@@ -515,10 +522,10 @@ class TestGetEventEnrichmentsRoute:
         with patch("backend.api.routes.events.get_event_or_404", return_value=mock_event):
             result = await get_event_enrichments(event_id=1, limit=50, offset=0, db=mock_db)
 
-        assert result["event_id"] == 1
-        assert result["enrichments"] == []
-        assert result["total"] == 0
-        assert result["has_more"] is False
+        assert result.event_id == 1
+        assert result.enrichments == []
+        assert result.total == 0
+        assert result.has_more is False
 
     @pytest.mark.asyncio
     async def test_get_event_enrichments_offset_beyond_detections(self):
@@ -536,10 +543,10 @@ class TestGetEventEnrichmentsRoute:
         with patch("backend.api.routes.events.get_event_or_404", return_value=mock_event):
             result = await get_event_enrichments(event_id=1, limit=50, offset=100, db=mock_db)
 
-        assert result["event_id"] == 1
-        assert result["enrichments"] == []
-        assert result["total"] == 3
-        assert result["has_more"] is False
+        assert result.event_id == 1
+        assert result.enrichments == []
+        assert result.total == 3
+        assert result.has_more is False
 
 
 class TestGetEventClipRoute:
@@ -703,11 +710,11 @@ class TestListEventsRouteComprehensive:
             db=mock_db,
         )
 
-        assert result["count"] == 10
-        assert len(result["events"]) == 1
-        assert result["events"][0]["id"] == 1
-        assert result["events"][0]["detection_count"] == 3
-        assert result["has_more"] is False
+        assert result.count == 10
+        assert len(result.events) == 1
+        assert result.events[0].id == 1
+        assert result.events[0].detection_count == 3
+        assert result.has_more is False
 
     @pytest.mark.asyncio
     async def test_list_events_with_object_type_filter(self):
@@ -737,8 +744,8 @@ class TestListEventsRouteComprehensive:
             db=mock_db,
         )
 
-        assert result["count"] == 0
-        assert result["events"] == []
+        assert result.count == 0
+        assert result.events == []
 
 
 class TestGetEventStatsRouteComprehensive:
@@ -779,12 +786,12 @@ class TestGetEventStatsRouteComprehensive:
             cache=mock_cache,
         )
 
-        assert result["total_events"] == 50
-        assert result["events_by_risk_level"]["high"] == 30
-        assert result["events_by_risk_level"]["medium"] == 15
-        assert result["events_by_risk_level"]["low"] == 5
-        assert result["events_by_risk_level"]["critical"] == 0
-        assert len(result["events_by_camera"]) == 2
+        assert result.total_events == 50
+        assert result.events_by_risk_level.high == 30
+        assert result.events_by_risk_level.medium == 15
+        assert result.events_by_risk_level.low == 5
+        assert result.events_by_risk_level.critical == 0
+        assert len(result.events_by_camera) == 2
 
     @pytest.mark.asyncio
     async def test_get_event_stats_cache_write_failure_continues(self):
@@ -813,7 +820,7 @@ class TestGetEventStatsRouteComprehensive:
         # Should not raise even with cache write failure
         result = await get_event_stats(start_date=None, end_date=None, db=mock_db, cache=mock_cache)
 
-        assert result["total_events"] == 25
+        assert result.total_events == 25
 
 
 class TestSearchEventsRouteComprehensive:
@@ -922,7 +929,7 @@ class TestUpdateEventRouteComprehensive:
         # Event should still be updated despite audit failure
         assert mock_event.reviewed is True
         assert mock_event.notes == "Test note"
-        assert result["id"] == 1
+        assert result.id == 1
 
     @pytest.mark.asyncio
     async def test_update_event_notes_only_no_metric(self):
@@ -1047,6 +1054,6 @@ class TestGetEventDetectionsRouteComprehensive:
         with patch("backend.api.routes.events.get_event_or_404", return_value=mock_event):
             result = await get_event_detections(event_id=1, limit=2, offset=1, db=mock_db)
 
-        assert result["count"] == 5
-        assert result["limit"] == 2
-        assert result["offset"] == 1
+        assert result.count == 5
+        assert result.limit == 2
+        assert result.offset == 1
