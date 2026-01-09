@@ -14,11 +14,11 @@ Security:
 
 import csv
 import io
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Protocol
+from typing import Any
 
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
@@ -212,7 +212,7 @@ def parse_accept_header(accept_header: str | None) -> ExportFormat:
             return ACCEPT_HEADER_MAPPING[mime_type]
 
         # Check for wildcards
-        if mime_type == "*/*" or mime_type == "text/*":
+        if mime_type in {"*/*", "text/*"}:
             return ExportFormat.CSV
 
     # Default to CSV if no match
@@ -254,7 +254,7 @@ def events_to_csv(
 def events_to_csv_streaming(
     events: Sequence[EventExportRow],
     columns: list[tuple[str, str]] | None = None,
-) -> AsyncIterator[str]:
+) -> Iterator[str]:
     """Generate CSV content as an async iterator for streaming.
 
     This is memory-efficient for large exports as it yields
@@ -483,7 +483,7 @@ def get_export_service() -> ExportService:
     Returns:
         ExportService singleton instance
     """
-    global _export_service
+    global _export_service  # noqa: PLW0603
     if _export_service is None:
         _export_service = ExportService()
     return _export_service
@@ -491,5 +491,5 @@ def get_export_service() -> ExportService:
 
 def reset_export_service() -> None:
     """Reset the global ExportService instance (for testing)."""
-    global _export_service
+    global _export_service  # noqa: PLW0603
     _export_service = None

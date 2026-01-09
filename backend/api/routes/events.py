@@ -823,9 +823,9 @@ async def export_events(
         )
     else:
         # CSV format - return as streaming response
-        content = events_to_csv(export_rows)
+        csv_content = events_to_csv(export_rows)
         return StreamingResponse(
-            iter([content]),
+            iter([csv_content]),
             media_type=content_type,
             headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
