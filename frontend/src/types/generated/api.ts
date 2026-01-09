@@ -5339,6 +5339,29 @@ export interface components {
         /**
          * AllPromptsResponse
          * @description Response containing prompts for all models.
+         * @example {
+         *       "prompts": {
+         *         "florence2": {
+         *           "config": {
+         *             "vqa_queries": [
+         *               "What is this?"
+         *             ]
+         *           },
+         *           "model_name": "florence2",
+         *           "updated_at": "2026-01-01T08:00:00Z",
+         *           "version": 1
+         *         },
+         *         "nemotron": {
+         *           "config": {
+         *             "system_prompt": "...",
+         *             "temperature": 0.7
+         *           },
+         *           "model_name": "nemotron",
+         *           "updated_at": "2026-01-03T10:30:00Z",
+         *           "version": 3
+         *         }
+         *       }
+         *     }
          */
         AllPromptsResponse: {
             /**
@@ -5695,6 +5718,34 @@ export interface components {
         /**
          * AuditStatsResponse
          * @description Aggregate audit statistics.
+         * @example {
+         *       "audited_events": 1100,
+         *       "audits_by_day": [
+         *         {
+         *           "count": 45,
+         *           "date": "2026-01-01"
+         *         },
+         *         {
+         *           "count": 52,
+         *           "date": "2026-01-02"
+         *         },
+         *         {
+         *           "count": 38,
+         *           "date": "2026-01-03"
+         *         }
+         *       ],
+         *       "avg_consistency_rate": 0.92,
+         *       "avg_enrichment_utilization": 0.78,
+         *       "avg_quality_score": 4.1,
+         *       "fully_evaluated_events": 950,
+         *       "model_contribution_rates": {
+         *         "clothing": 0.72,
+         *         "florence": 0.85,
+         *         "rtdetr": 0.98,
+         *         "weather": 0.95
+         *       },
+         *       "total_events": 1250
+         *     }
          */
         AuditStatsResponse: {
             /** Audited Events */
@@ -5856,6 +5907,11 @@ export interface components {
         /**
          * BatchAuditRequest
          * @description Request for batch audit processing.
+         * @example {
+         *       "force_reevaluate": false,
+         *       "limit": 100,
+         *       "min_risk_score": 50
+         *     }
          */
         BatchAuditRequest: {
             /**
@@ -5874,6 +5930,10 @@ export interface components {
         /**
          * BatchAuditResponse
          * @description Response for batch audit request.
+         * @example {
+         *       "message": "Queued 75 events for audit processing",
+         *       "queued_count": 75
+         *     }
          */
         BatchAuditResponse: {
             /** Message */
@@ -7054,6 +7114,13 @@ export interface components {
          *
          *     This is used for A/B testing in the Prompt Playground - testing a
          *     modified prompt without persisting results to the database.
+         * @example {
+         *       "custom_prompt": "You are a home security AI with enhanced context...",
+         *       "event_id": 12345,
+         *       "max_tokens": 2048,
+         *       "model": "nemotron",
+         *       "temperature": 0.7
+         *     }
          */
         CustomTestPromptRequest: {
             /**
@@ -7090,6 +7157,22 @@ export interface components {
          * @description Response from testing a custom prompt against an event.
          *
          *     Results are NOT persisted - this is for A/B testing only.
+         * @example {
+         *       "entities": [
+         *         {
+         *           "confidence": 0.95,
+         *           "type": "person"
+         *         }
+         *       ],
+         *       "flags": [],
+         *       "processing_time_ms": 1250,
+         *       "reasoning": "The detected person matches the expected delivery pattern based on time and approach direction.",
+         *       "recommended_action": "No action required",
+         *       "risk_level": "low",
+         *       "risk_score": 45,
+         *       "summary": "Delivery person detected at front door during expected hours",
+         *       "tokens_used": 512
+         *     }
          */
         CustomTestPromptResponse: {
             /**
@@ -8621,6 +8704,48 @@ export interface components {
         /**
          * EventAuditResponse
          * @description Full audit response for a single event.
+         * @example {
+         *       "audited_at": "2026-01-03T10:30:00Z",
+         *       "consistency_diff": 3,
+         *       "consistency_risk_score": 62,
+         *       "contributions": {
+         *         "baseline": false,
+         *         "clip": false,
+         *         "clothing": true,
+         *         "cross_camera": false,
+         *         "florence": true,
+         *         "image_quality": true,
+         *         "pet": false,
+         *         "rtdetr": true,
+         *         "vehicle": false,
+         *         "violence": false,
+         *         "weather": true,
+         *         "zones": true
+         *       },
+         *       "enrichment_utilization": 0.85,
+         *       "event_id": 12345,
+         *       "id": 456,
+         *       "improvements": {
+         *         "confusing_sections": [],
+         *         "format_suggestions": [],
+         *         "missing_context": [
+         *           "Time since last motion event"
+         *         ],
+         *         "model_gaps": [],
+         *         "unused_data": []
+         *       },
+         *       "is_fully_evaluated": true,
+         *       "prompt_length": 2048,
+         *       "prompt_token_estimate": 512,
+         *       "scores": {
+         *         "consistency": 4,
+         *         "context_usage": 4.2,
+         *         "overall": 4.1,
+         *         "reasoning_coherence": 4.5,
+         *         "risk_justification": 3.8
+         *       },
+         *       "self_eval_critique": "More historical context would improve analysis."
+         *     }
          */
         EventAuditResponse: {
             /**
@@ -9815,6 +9940,23 @@ export interface components {
         /**
          * LeaderboardResponse
          * @description Model leaderboard response.
+         * @example {
+         *       "entries": [
+         *         {
+         *           "contribution_rate": 0.98,
+         *           "event_count": 1200,
+         *           "model_name": "rtdetr",
+         *           "quality_correlation": 0.85
+         *         },
+         *         {
+         *           "contribution_rate": 0.85,
+         *           "event_count": 1050,
+         *           "model_name": "florence",
+         *           "quality_correlation": 0.72
+         *         }
+         *       ],
+         *       "period_days": 30
+         *     }
          */
         LeaderboardResponse: {
             /** Entries */
@@ -10132,6 +10274,20 @@ export interface components {
         /**
          * ModelContributions
          * @description Model contribution flags.
+         * @example {
+         *       "baseline": false,
+         *       "clip": false,
+         *       "clothing": true,
+         *       "cross_camera": false,
+         *       "florence": true,
+         *       "image_quality": true,
+         *       "pet": false,
+         *       "rtdetr": true,
+         *       "vehicle": false,
+         *       "violence": false,
+         *       "weather": true,
+         *       "zones": true
+         *     }
          */
         ModelContributions: {
             /**
@@ -10313,6 +10469,12 @@ export interface components {
         /**
          * ModelLeaderboardEntry
          * @description Single entry in model leaderboard.
+         * @example {
+         *       "contribution_rate": 0.85,
+         *       "event_count": 1050,
+         *       "model_name": "florence",
+         *       "quality_correlation": 0.72
+         *     }
          */
         ModelLeaderboardEntry: {
             /** Contribution Rate */
@@ -10327,6 +10489,16 @@ export interface components {
         /**
          * ModelPromptResponse
          * @description Response for a single model's prompt configuration.
+         * @example {
+         *       "config": {
+         *         "max_tokens": 2048,
+         *         "system_prompt": "You are a home security AI...",
+         *         "temperature": 0.7
+         *       },
+         *       "model_name": "nemotron",
+         *       "updated_at": "2026-01-03T10:30:00Z",
+         *       "version": 3
+         *     }
          */
         ModelPromptResponse: {
             /**
@@ -11334,6 +11506,11 @@ export interface components {
          *
          *     Used by the Prompt Playground "Save" functionality to persist
          *     prompt configurations to the database.
+         * @example {
+         *       "maxTokens": 2048,
+         *       "systemPrompt": "You are a home security AI assistant...",
+         *       "temperature": 0.7
+         *     }
          */
         PromptConfigRequest: {
             /**
@@ -11359,6 +11536,14 @@ export interface components {
          * @description Response containing a model's prompt configuration (database-backed).
          *
          *     Returned when retrieving or updating prompt configurations.
+         * @example {
+         *       "maxTokens": 2048,
+         *       "model": "nemotron",
+         *       "systemPrompt": "You are a home security AI assistant...",
+         *       "temperature": 0.7,
+         *       "updatedAt": "2026-01-03T10:30:00Z",
+         *       "version": 3
+         *     }
          */
         PromptConfigResponse: {
             /**
@@ -11396,6 +11581,22 @@ export interface components {
         /**
          * PromptExportResponse
          * @description Response containing all prompt configurations for export.
+         * @example {
+         *       "exported_at": "2026-01-03T10:30:00Z",
+         *       "prompts": {
+         *         "florence2": {
+         *           "vqa_queries": [
+         *             "What is this person wearing?"
+         *           ]
+         *         },
+         *         "nemotron": {
+         *           "max_tokens": 2048,
+         *           "system_prompt": "You are a home security AI...",
+         *           "temperature": 0.7
+         *         }
+         *       },
+         *       "version": "1.0"
+         *     }
          */
         PromptExportResponse: {
             /**
@@ -11423,6 +11624,17 @@ export interface components {
         /**
          * PromptHistoryEntry
          * @description A single entry in prompt version history.
+         * @example {
+         *       "config": {
+         *         "max_tokens": 2048,
+         *         "system_prompt": "Previous version of prompt...",
+         *         "temperature": 0.7
+         *       },
+         *       "created_at": "2026-01-02T14:00:00Z",
+         *       "created_by": "admin",
+         *       "description": "Initial prompt configuration",
+         *       "version": 2
+         *     }
          */
         PromptHistoryEntry: {
             /**
@@ -11458,6 +11670,32 @@ export interface components {
         /**
          * PromptHistoryResponse
          * @description Response containing version history for a model's prompts.
+         * @example {
+         *       "model_name": "nemotron",
+         *       "total_versions": 3,
+         *       "versions": [
+         *         {
+         *           "config": {
+         *             "system_prompt": "...",
+         *             "temperature": 0.8
+         *           },
+         *           "created_at": "2026-01-03T10:30:00Z",
+         *           "created_by": "admin",
+         *           "description": "Added weather context",
+         *           "version": 3
+         *         },
+         *         {
+         *           "config": {
+         *             "system_prompt": "...",
+         *             "temperature": 0.7
+         *           },
+         *           "created_at": "2026-01-02T14:00:00Z",
+         *           "created_by": "system",
+         *           "description": "Initial configuration",
+         *           "version": 2
+         *         }
+         *       ]
+         *     }
          */
         PromptHistoryResponse: {
             /** Model Name */
@@ -11470,6 +11708,16 @@ export interface components {
         /**
          * PromptImportRequest
          * @description Request to import prompt configurations.
+         * @example {
+         *       "overwrite": true,
+         *       "prompts": {
+         *         "nemotron": {
+         *           "max_tokens": 2048,
+         *           "system_prompt": "Imported system prompt...",
+         *           "temperature": 0.7
+         *         }
+         *       }
+         *     }
          */
         PromptImportRequest: {
             /**
@@ -11491,6 +11739,12 @@ export interface components {
         /**
          * PromptImportResponse
          * @description Response after importing prompt configurations.
+         * @example {
+         *       "errors": [],
+         *       "imported_count": 3,
+         *       "message": "Successfully imported 3 prompt configurations",
+         *       "skipped_count": 1
+         *     }
          */
         PromptImportResponse: {
             /**
@@ -11514,6 +11768,24 @@ export interface components {
         /**
          * PromptImprovements
          * @description Prompt improvement suggestions from self-evaluation.
+         * @example {
+         *       "confusing_sections": [
+         *         "Zone overlap handling unclear"
+         *       ],
+         *       "format_suggestions": [
+         *         "Add structured detection summary"
+         *       ],
+         *       "missing_context": [
+         *         "Time since last motion event",
+         *         "Weather conditions"
+         *       ],
+         *       "model_gaps": [
+         *         "Pet detection model not active"
+         *       ],
+         *       "unused_data": [
+         *         "Vehicle color data not utilized"
+         *       ]
+         *     }
          */
         PromptImprovements: {
             /** Confusing Sections */
@@ -11530,6 +11802,9 @@ export interface components {
         /**
          * PromptRestoreRequest
          * @description Request to restore a specific version of a prompt.
+         * @example {
+         *       "description": "Restoring to version 2 due to regression in analysis quality"
+         *     }
          */
         PromptRestoreRequest: {
             /**
@@ -11541,6 +11816,12 @@ export interface components {
         /**
          * PromptRestoreResponse
          * @description Response after restoring a prompt version.
+         * @example {
+         *       "message": "Successfully restored version 2 as new version 4",
+         *       "model_name": "nemotron",
+         *       "new_version": 4,
+         *       "restored_version": 2
+         *     }
          */
         PromptRestoreResponse: {
             /** Message */
@@ -11555,6 +11836,15 @@ export interface components {
         /**
          * PromptTestRequest
          * @description Request to test a modified prompt against an event.
+         * @example {
+         *       "config": {
+         *         "max_tokens": 2048,
+         *         "system_prompt": "Modified prompt for testing...",
+         *         "temperature": 0.7
+         *       },
+         *       "event_id": 12345,
+         *       "model": "nemotron"
+         *     }
          */
         PromptTestRequest: {
             /**
@@ -11578,6 +11868,20 @@ export interface components {
         /**
          * PromptTestResponse
          * @description Response from testing a modified prompt.
+         * @example {
+         *       "after": {
+         *         "risk_level": "low",
+         *         "score": 45,
+         *         "summary": "Regular visitor detected - matches known delivery pattern"
+         *       },
+         *       "before": {
+         *         "risk_level": "medium",
+         *         "score": 65,
+         *         "summary": "Person detected at front door during evening hours"
+         *       },
+         *       "improved": true,
+         *       "inference_time_ms": 1250
+         *     }
          */
         PromptTestResponse: {
             /** @description Results from modified prompt */
@@ -11598,6 +11902,11 @@ export interface components {
         /**
          * PromptTestResultAfter
          * @description Result from the modified prompt.
+         * @example {
+         *       "risk_level": "low",
+         *       "score": 45,
+         *       "summary": "Regular visitor detected - matches known delivery pattern"
+         *     }
          */
         PromptTestResultAfter: {
             /**
@@ -11619,6 +11928,11 @@ export interface components {
         /**
          * PromptTestResultBefore
          * @description Result from the original (current) prompt.
+         * @example {
+         *       "risk_level": "medium",
+         *       "score": 65,
+         *       "summary": "Person detected at front door during evening hours"
+         *     }
          */
         PromptTestResultBefore: {
             /**
@@ -11640,6 +11954,14 @@ export interface components {
         /**
          * PromptUpdateRequest
          * @description Request to update a model's prompt configuration.
+         * @example {
+         *       "config": {
+         *         "max_tokens": 2048,
+         *         "system_prompt": "Updated system prompt with new context...",
+         *         "temperature": 0.8
+         *       },
+         *       "description": "Added weather context to improve analysis"
+         *     }
          */
         PromptUpdateRequest: {
             /**
@@ -11658,6 +11980,16 @@ export interface components {
         /**
          * PromptUpdateResponse
          * @description Response after updating a model's prompt.
+         * @example {
+         *       "config": {
+         *         "max_tokens": 2048,
+         *         "system_prompt": "Updated system prompt...",
+         *         "temperature": 0.8
+         *       },
+         *       "message": "Prompt configuration updated successfully",
+         *       "model_name": "nemotron",
+         *       "version": 4
+         *     }
          */
         PromptUpdateResponse: {
             /** Config */
@@ -11674,6 +12006,13 @@ export interface components {
         /**
          * QualityScores
          * @description Self-evaluation quality scores (1-5 scale).
+         * @example {
+         *       "consistency": 4,
+         *       "context_usage": 4.2,
+         *       "overall": 4.1,
+         *       "reasoning_coherence": 4.5,
+         *       "risk_justification": 3.8
+         *     }
          */
         QualityScores: {
             /** Consistency */
@@ -12022,6 +12361,12 @@ export interface components {
         /**
          * RecommendationItem
          * @description Single recommendation item.
+         * @example {
+         *       "category": "missing_context",
+         *       "frequency": 25,
+         *       "priority": "high",
+         *       "suggestion": "Add time since last motion event to prompt"
+         *     }
          */
         RecommendationItem: {
             /** Category */
@@ -12036,6 +12381,23 @@ export interface components {
         /**
          * RecommendationsResponse
          * @description Aggregated recommendations response.
+         * @example {
+         *       "recommendations": [
+         *         {
+         *           "category": "missing_context",
+         *           "frequency": 25,
+         *           "priority": "high",
+         *           "suggestion": "Add time since last motion event"
+         *         },
+         *         {
+         *           "category": "model_gaps",
+         *           "frequency": 12,
+         *           "priority": "medium",
+         *           "suggestion": "Enable pet detection model"
+         *         }
+         *       ],
+         *       "total_events_analyzed": 500
+         *     }
          */
         RecommendationsResponse: {
             /** Recommendations */
