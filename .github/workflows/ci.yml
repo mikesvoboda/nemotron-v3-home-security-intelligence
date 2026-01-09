@@ -167,8 +167,9 @@ jobs:
         # Generate XML and check 85% threshold for unit tests
         # Note: --rcfile=/dev/null ignores pyproject.toml's fail_under=95 setting
         # We use 85% for unit tests alone; combined coverage (unit+integration) should reach 95%
+        # IMPORTANT: coverage xml also reads fail_under from pyproject.toml, so add --rcfile=/dev/null
         run: |
-          uv run coverage xml -o coverage-unit.xml
+          uv run coverage xml -o coverage-unit.xml --rcfile=/dev/null
           uv run coverage report --fail-under=85 --rcfile=/dev/null
 
       - name: Upload unit test results
