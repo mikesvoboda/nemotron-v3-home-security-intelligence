@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.api.dependencies import get_event_audit_or_404, get_event_or_404
 from backend.api.schemas.ai_audit import (
     AllPromptsResponse,
     AuditStatsResponse,
@@ -177,24 +178,10 @@ async def get_event_audit(
         HTTPException: 404 if event or audit not found
     """
     # Check if event exists
-    event_result = await db.execute(select(Event).where(Event.id == event_id))
-    event = event_result.scalar_one_or_none()
-
-    if not event:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Event {event_id} not found",
-        )
+    await get_event_or_404(event_id, db)
 
     # Get audit for event
-    audit_result = await db.execute(select(EventAudit).where(EventAudit.event_id == event_id))
-    audit = audit_result.scalar_one_or_none()
-
-    if not audit:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"No audit found for event {event_id}",
-        )
+    audit = await get_event_audit_or_404(event_id, db)
 
     return _audit_to_response(audit)
 
@@ -224,24 +211,10 @@ async def evaluate_event(
         HTTPException: 404 if event or audit not found
     """
     # Check if event exists
-    event_result = await db.execute(select(Event).where(Event.id == event_id))
-    event = event_result.scalar_one_or_none()
-
-    if not event:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Event {event_id} not found",
-        )
+    event = await get_event_or_404(event_id, db)
 
     # Get audit for event
-    audit_result = await db.execute(select(EventAudit).where(EventAudit.event_id == event_id))
-    audit = audit_result.scalar_one_or_none()
-
-    if not audit:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"No audit found for event {event_id}",
-        )
+    audit = await get_event_audit_or_404(event_id, db)
 
     # Skip if already evaluated and not forcing
     if audit.is_fully_evaluated and not force:
@@ -547,14 +520,7 @@ async def test_custom_prompt(
         )
 
     # Fetch the event
-    event_result = await db.execute(select(Event).where(Event.id == request.event_id))
-    event = event_result.scalar_one_or_none()
-
-    if not event:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Event {request.event_id} not found",
-        )
+    event = await get_event_or_404(request.event_id, db)
 
     # Record start time for processing_time_ms
     start_time = time.perf_counter()
@@ -653,14 +619,7 @@ async def test_prompt(
     _validate_model_name(request.model)
 
     # Verify the event exists
-    event_result = await db.execute(select(Event).where(Event.id == request.event_id))
-    event = event_result.scalar_one_or_none()
-
-    if not event:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Event {request.event_id} not found",
-        )
+    await get_event_or_404(request.event_id, db)
 
     storage = get_prompt_storage()
 

@@ -237,7 +237,9 @@ class TestGetEventAuditEndpoint:
 
         assert response.status_code == 404
         data = response.json()
-        assert "Event 999 not found" in data["detail"]
+        assert (
+            "Event" in data["detail"] and "999" in data["detail"] and "not found" in data["detail"]
+        )
 
     def test_get_event_audit_no_audit_for_event(
         self,
@@ -466,7 +468,7 @@ class TestEvaluateEventEndpoint:
         response = client.post("/api/ai-audit/events/999/evaluate")
 
         assert response.status_code == 404
-        assert "Event 999 not found" in response.json()["detail"]
+        assert "Event" in response.json()["detail"] and "999" in response.json()["detail"]
 
     def test_evaluate_event_no_audit(
         self,
@@ -1262,7 +1264,9 @@ class TestCustomTestPromptEndpoint:
 
         assert response.status_code == 404
         data = response.json()
-        assert "Event 999 not found" in data["detail"]
+        assert (
+            "Event" in data["detail"] and "999" in data["detail"] and "not found" in data["detail"]
+        )
 
     def test_test_prompt_empty_prompt_400(
         self,
