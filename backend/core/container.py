@@ -445,11 +445,21 @@ async def wire_services(container: Container) -> None:
     - EnrichmentPipeline (async singleton, depends on Redis)
     - NemotronAnalyzer (async singleton, depends on Redis, ContextEnricher, EnrichmentPipeline)
     - DetectorClient (singleton)
+    - FaceDetectorService (singleton) - AI service for face detection
+    - PlateDetectorService (singleton) - AI service for license plate detection
+    - OCRService (singleton) - AI service for plate text recognition
+    - YOLOWorldService (singleton) - AI service for open-vocabulary detection
 
     Args:
         container: Container to wire services into
     """
     from backend.core.redis import RedisClient
+    from backend.services.ai_services import (
+        FaceDetectorService,
+        OCRService,
+        PlateDetectorService,
+        YOLOWorldService,
+    )
     from backend.services.context_enricher import ContextEnricher
     from backend.services.detector_client import DetectorClient
     from backend.services.enrichment_pipeline import EnrichmentPipeline
@@ -488,5 +498,21 @@ async def wire_services(container: Container) -> None:
 
     # DetectorClient - sync singleton (no dependencies that need injection)
     container.register_singleton("detector_client", DetectorClient)
+
+    # AI Services - sync singletons (no external dependencies)
+    # These services wrap AI detection functionality and can accept models
+    # either at construction time or per-call.
+
+    # FaceDetectorService - wraps face detection functionality
+    container.register_singleton("face_detector_service", FaceDetectorService)
+
+    # PlateDetectorService - wraps license plate detection functionality
+    container.register_singleton("plate_detector_service", PlateDetectorService)
+
+    # OCRService - wraps PaddleOCR plate text recognition
+    container.register_singleton("ocr_service", OCRService)
+
+    # YOLOWorldService - wraps YOLO-World open-vocabulary detection
+    container.register_singleton("yolo_world_service", YOLOWorldService)
 
     logger.info("All services wired in container")
