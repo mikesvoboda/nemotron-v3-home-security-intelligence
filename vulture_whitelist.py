@@ -26,6 +26,11 @@ _.temp_foscam_dir
 _.temp_thumbnail_dir
 _.reset_redis_global_state
 _.reset_semaphore
+_.clean_data
+_.test_events
+_.cleanup_cache
+_.reader_id
+_.clean_soft_delete_tables
 
 # Test mock fixtures
 _.mock_pil_image
