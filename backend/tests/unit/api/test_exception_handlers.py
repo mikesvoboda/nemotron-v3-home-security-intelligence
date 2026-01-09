@@ -919,6 +919,7 @@ class TestDatabaseRedisExceptionHandlersIntegration:
 
         body = response.json()
         assert body["error"]["code"] == "CACHE_UNAVAILABLE"
+
     @patch("backend.api.exception_handlers.datetime")
     def test_build_error_response_includes_timestamp(self, mock_datetime: Mock) -> None:
         """Test that error response includes ISO timestamp."""

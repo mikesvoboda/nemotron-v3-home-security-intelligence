@@ -5,11 +5,11 @@
 # Performance Notes:
 # -----------------
 # Pre-commit runs fast linting/formatting checks (ruff, eslint, prettier, mypy).
-# Pre-push runs unit tests with 95% coverage enforcement to catch failures before CI/CD.
+# Pre-push runs unit tests with 85% coverage enforcement to catch failures before CI/CD.
 #
 # Test Strategy:
 #   - pre-commit: Linting, formatting, type-checking only (~10-30 seconds)
-#   - pre-push: Unit tests with 95% coverage enforcement (~2-3 minutes)
+#   - pre-push: Unit tests with 85% coverage enforcement (~2-3 minutes)
 #   - CI: Full test suite (unit + integration + E2E)
 #   - Local dev: Use ./scripts/validate.sh for full validation before PRs
 #
@@ -154,12 +154,12 @@ repos:
         stages: [pre-push]
 
       # Unit tests with coverage enforcement - runs before push to catch failures early
-      # Enforces 95% coverage threshold (same as CI/CD)
+      # Enforces 85% coverage for unit tests alone (95% is for combined unit+integration, verified in CI)
       # Uses parallel execution for speed (~2-3 min)
       # Skip with: SKIP=fast-test git push
       - id: fast-test
         name: Quick Backend Tests (Unit Only)
-        entry: bash -c 'redis-cli -n 15 FLUSHDB > /dev/null 2>&1; uv run pytest backend/tests/unit/ -m "not slow and not integration" --cov=backend --cov-report=term-missing:skip-covered --cov-fail-under=95 -q --tb=short -n auto --dist=worksteal'
+        entry: bash -c 'redis-cli -n 15 FLUSHDB > /dev/null 2>&1; uv run pytest backend/tests/unit/ -m "not slow and not integration" --cov=backend --cov-report=term-missing:skip-covered --cov-fail-under=85 -q --tb=short -n auto --dist=worksteal'
         language: system
         pass_filenames: false
         stages: [pre-push]
