@@ -312,7 +312,7 @@ class TestEventsCursorPagination:
 
         # Verify both requests return identical results
         assert data2["items"] == data3["items"]
-        assert data2["next_cursor"] == data3["next_cursor"]
+        assert data2["pagination"]["next_cursor"] == data3["pagination"]["next_cursor"]
         assert data2["pagination"]["has_more"] == data3["pagination"]["has_more"]
 
     @pytest.mark.asyncio
@@ -333,7 +333,7 @@ class TestEventsCursorPagination:
 
         assert len(data2["items"]) == 1
         assert data2["pagination"]["has_more"] is False
-        assert data2["next_cursor"] is None
+        assert data2["pagination"]["next_cursor"] is None
 
     @pytest.mark.asyncio
     async def test_cursor_with_filters(self, client: AsyncClient, test_events: list[Event]):
