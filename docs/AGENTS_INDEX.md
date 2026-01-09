@@ -279,9 +279,8 @@ Technical reference materials, API documentation, and design plans.
 
 | Path                                                                                     | Description                                                   |
 | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
-| [`/docs/api-reference/AGENTS.md`](/docs/api-reference/AGENTS.md)                         | Complete REST API documentation (canonical location)          |
+| [`/docs/api-reference/AGENTS.md`](/docs/api-reference/AGENTS.md)                         | Complete REST API documentation                               |
 | [`/docs/reference/AGENTS.md`](/docs/reference/AGENTS.md)                                 | Reference documentation root: glossary, stability definitions |
-| [`/docs/reference/api/AGENTS.md`](/docs/reference/api/AGENTS.md)                         | API endpoint reference (alternate format)                     |
 | [`/docs/reference/config/AGENTS.md`](/docs/reference/config/AGENTS.md)                   | Configuration reference: environment variables, risk levels   |
 | [`/docs/reference/troubleshooting/AGENTS.md`](/docs/reference/troubleshooting/AGENTS.md) | Problem-solving guides: AI, network, database, GPU issues     |
 

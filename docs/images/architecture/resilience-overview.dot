@@ -1,0 +1,91 @@
+digraph ResilienceArchitecture {
+    // Graph settings
+    rankdir=TB;
+    bgcolor="#121212";
+    fontname="Helvetica";
+    fontcolor="white";
+    node [fontname="Helvetica", fontcolor="white", style="filled,rounded", shape=box];
+    edge [fontname="Helvetica", fontcolor="white", color="#666666", penwidth=1.5];
+
+    // Subgraph: Input Layer
+    subgraph cluster_input {
+        label="Incoming Request";
+        style="rounded,dashed";
+        color="#3B82F6";
+        fontcolor="#3B82F6";
+
+        REQ [label="Service Call", fillcolor="#3B82F6"];
+    }
+
+    // Subgraph: Circuit Breaker Layer
+    subgraph cluster_circuit {
+        label="Circuit Breaker Layer";
+        style="rounded,dashed";
+        color="#FFB800";
+        fontcolor="#FFB800";
+
+        CB [label="Circuit\nState?", shape=diamond, fillcolor="#1F1F1F", width=1.5];
+        CLOSED [label="CLOSED\nNormal Operation", fillcolor="#76B900"];
+        OPEN [label="OPEN\nFast Fail", fillcolor="#E74856"];
+        HALF [label="HALF_OPEN\nTest Recovery", fillcolor="#FFB800", fontcolor="black"];
+    }
+
+    // Subgraph: Retry Layer
+    subgraph cluster_retry {
+        label="Retry Layer";
+        style="rounded,dashed";
+        color="#A855F7";
+        fontcolor="#A855F7";
+
+        RT [label="Retry\nAttempt?", shape=diamond, fillcolor="#1F1F1F", width=1.5];
+        BACKOFF [label="Exponential\nBackoff", fillcolor="#A855F7"];
+        EXEC [label="Execute\nOperation", fillcolor="#3B82F6"];
+    }
+
+    // Subgraph: Outcome Handling
+    subgraph cluster_outcome {
+        label="Outcome Handling";
+        style="rounded,dashed";
+        color="#76B900";
+        fontcolor="#76B900";
+
+        SUCCESS [label="Success\nReset Counters", fillcolor="#76B900"];
+        FAIL [label="Failure\nIncrement Counter", fillcolor="#E74856"];
+        DLQ [label="Dead Letter\nQueue", fillcolor="#A855F7"];
+    }
+
+    // Subgraph: Recovery Services
+    subgraph cluster_recovery {
+        label="Recovery Services";
+        style="rounded,dashed";
+        color="#3B82F6";
+        fontcolor="#3B82F6";
+
+        HM [label="Health\nMonitor", fillcolor="#3B82F6"];
+        AUTO [label="Auto\nRestart", fillcolor="#76B900"];
+    }
+
+    // Edges - Main Flow
+    REQ -> CB;
+    CB -> CLOSED [label="Closed", fontcolor="#76B900", color="#76B900"];
+    CB -> OPEN [label="Open", fontcolor="#E74856", color="#E74856"];
+    CB -> HALF [label="Half-Open", fontcolor="#FFB800", color="#FFB800"];
+
+    CLOSED -> RT;
+    HALF -> RT;
+    OPEN -> FAIL;
+
+    RT -> BACKOFF [label="Yes", fontcolor="#A855F7", color="#A855F7"];
+    RT -> DLQ [label="Max Retries", fontcolor="#E74856", color="#E74856"];
+
+    BACKOFF -> EXEC;
+    EXEC -> SUCCESS [label="OK", fontcolor="#76B900", color="#76B900"];
+    EXEC -> FAIL [label="Error", fontcolor="#E74856", color="#E74856"];
+
+    FAIL -> OPEN [label="Threshold Met", fontcolor="#E74856", color="#E74856", style="dashed"];
+    SUCCESS -> CLOSED [style="dashed", color="#76B900"];
+
+    // Recovery connections
+    HM -> AUTO [label="Unhealthy", fontcolor="#E74856", color="#E74856"];
+    AUTO -> HM [label="Restart", fontcolor="#76B900", color="#76B900"];
+}

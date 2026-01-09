@@ -2,11 +2,23 @@
 
 > A practical operator guide for choosing a deployment mode and setting `RTDETR_URL` / `NEMOTRON_URL` / `FLORENCE_URL` / `CLIP_URL` / `ENRICHMENT_URL` correctly.
 
-If you’re seeing “AI services unreachable” in health checks, **it’s almost always a networking mode mismatch**: the backend is trying to reach the AI services using the wrong hostname.
+If you're seeing "AI services unreachable" in health checks, **it's almost always a networking mode mismatch**: the backend is trying to reach the AI services using the wrong hostname.
+
+---
+
+## Deployment Topology Overview
+
+![Deployment topology diagram showing the four deployment modes: Production (all containers), All-host development (no containers), Backend container with host AI, and Remote AI host configurations with their respective networking paths](../images/architecture/deployment-topology.png)
+
+_Visual overview of deployment topologies and AI service connectivity options._
 
 ---
 
 ## Decision Table (pick one)
+
+![Deployment Mode Decision Tree](../images/architecture/deployment-modes-graphviz.png)
+
+_Decision flowchart for choosing between Production (recommended), Development, and Hybrid deployment modes._
 
 | Mode                            | When to choose                                                          | Backend runs                              | AI runs                            | What URLs should look like                                                             |
 | ------------------------------- | ----------------------------------------------------------------------- | ----------------------------------------- | ---------------------------------- | -------------------------------------------------------------------------------------- |

@@ -33,9 +33,9 @@ If all services show "healthy" and containers are running, proceed to the specif
 
 Use this when you're not sure where to start.
 
-![Troubleshooting Decision Tree](../../images/troubleshooting-decision-tree.png)
+![Troubleshooting Decision Tree showing diagnostic flow: Start with system health check, branch based on failing component (database, Redis, AI services, backend, frontend), follow specific remediation steps for each failure type including restart commands and configuration checks](../../images/troubleshooting-decision-tree.png)
 
-_Decision tree for diagnosing system health issues: Start with health check, follow the path based on which services are failing._
+_Decision tree for diagnosing system health issues: Start with the health check endpoint, then follow the path based on which services are failing to quickly identify and resolve problems._
 
 ---
 

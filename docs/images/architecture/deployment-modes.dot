@@ -1,0 +1,78 @@
+digraph DeploymentModes {
+    // Graph settings
+    rankdir=TB;
+    bgcolor="#121212";
+    fontname="Helvetica";
+    fontcolor="white";
+    node [fontname="Helvetica", fontcolor="white", style="filled,rounded", shape=box];
+    edge [fontname="Helvetica", fontcolor="white", color="#666666", penwidth=1.5];
+
+    // Title
+    labelloc="t";
+    label="Deployment Mode Options";
+    fontsize=18;
+
+    // Decision node
+    START [label="Choose Deployment Mode", fillcolor="#3B82F6", shape=ellipse];
+
+    // Mode 1: Production
+    subgraph cluster_prod {
+        label="Production Mode";
+        style="rounded,filled";
+        color="#76B900";
+        fillcolor="#1a2e1a";
+        fontcolor="#76B900";
+
+        PROD [label="All Services\nContainerized", fillcolor="#76B900"];
+        PROD_FE [label="Frontend\nContainer", fillcolor="#3B82F6"];
+        PROD_BE [label="Backend\nContainer", fillcolor="#3B82F6"];
+        PROD_AI [label="AI Services\nContainers", fillcolor="#A855F7"];
+        PROD_DB [label="PostgreSQL\nRedis", fillcolor="#FFB800", fontcolor="black"];
+    }
+
+    // Mode 2: Development
+    subgraph cluster_dev {
+        label="Development Mode";
+        style="rounded,filled";
+        color="#FFB800";
+        fillcolor="#2e2a1a";
+        fontcolor="#FFB800";
+
+        DEV [label="Services on\nHost Machine", fillcolor="#FFB800", fontcolor="black"];
+        DEV_FE [label="npm run dev\nPort 5173", fillcolor="#3B82F6"];
+        DEV_BE [label="uvicorn\nPort 8000", fillcolor="#3B82F6"];
+        DEV_AI [label="AI on Host\nPorts 8090/8091", fillcolor="#A855F7"];
+        DEV_DB [label="Containers\nDB/Redis", fillcolor="#76B900"];
+    }
+
+    // Mode 3: Hybrid
+    subgraph cluster_hybrid {
+        label="Hybrid Mode";
+        style="rounded,filled";
+        color="#A855F7";
+        fillcolor="#1f1a2e";
+        fontcolor="#A855F7";
+
+        HYB [label="Mixed\nDeployment", fillcolor="#A855F7"];
+        HYB_APP [label="App Containers\nFE + BE", fillcolor="#3B82F6"];
+        HYB_AI [label="AI on Host\nGPU Access", fillcolor="#76B900"];
+    }
+
+    // Connections
+    START -> PROD [label="Recommended", fontcolor="#76B900", color="#76B900"];
+    START -> DEV [label="Local Dev", fontcolor="#FFB800", color="#FFB800"];
+    START -> HYB [label="GPU Issues", fontcolor="#A855F7", color="#A855F7"];
+
+    PROD -> PROD_FE;
+    PROD -> PROD_BE;
+    PROD -> PROD_AI;
+    PROD -> PROD_DB;
+
+    DEV -> DEV_FE;
+    DEV -> DEV_BE;
+    DEV -> DEV_AI;
+    DEV -> DEV_DB;
+
+    HYB -> HYB_APP;
+    HYB -> HYB_AI;
+}
