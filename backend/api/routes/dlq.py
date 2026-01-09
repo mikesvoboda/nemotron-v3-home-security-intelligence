@@ -103,7 +103,13 @@ class DLQName(str, Enum):
         }[self]
 
 
-@router.get("/stats", response_model=DLQStatsResponse)
+@router.get(
+    "/stats",
+    response_model=DLQStatsResponse,
+    responses={
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_dlq_stats(
     redis: RedisClient = Depends(get_redis),
 ) -> DLQStatsResponse:
@@ -124,7 +130,14 @@ async def get_dlq_stats(
     )
 
 
-@router.get("/jobs/{queue_name}", response_model=DLQJobsResponse)
+@router.get(
+    "/jobs/{queue_name}",
+    response_model=DLQJobsResponse,
+    responses={
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_dlq_jobs(
     queue_name: DLQName,
     start: int = Query(0, ge=0, description="Start index (0-based)"),
@@ -182,7 +195,15 @@ async def get_dlq_jobs(
     )
 
 
-@router.post("/requeue/{queue_name}", response_model=DLQRequeueResponse)
+@router.post(
+    "/requeue/{queue_name}",
+    response_model=DLQRequeueResponse,
+    responses={
+        401: {"description": "Unauthorized - API key required"},
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def requeue_dlq_job(
     queue_name: DLQName,
     redis: RedisClient = Depends(get_redis),
@@ -227,7 +248,15 @@ async def requeue_dlq_job(
     )
 
 
-@router.post("/requeue-all/{queue_name}", response_model=DLQRequeueResponse)
+@router.post(
+    "/requeue-all/{queue_name}",
+    response_model=DLQRequeueResponse,
+    responses={
+        401: {"description": "Unauthorized - API key required"},
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def requeue_all_dlq_jobs(
     queue_name: DLQName,
     redis: RedisClient = Depends(get_redis),
@@ -297,7 +326,15 @@ async def requeue_all_dlq_jobs(
     )
 
 
-@router.delete("/{queue_name}", response_model=DLQClearResponse)
+@router.delete(
+    "/{queue_name}",
+    response_model=DLQClearResponse,
+    responses={
+        401: {"description": "Unauthorized - API key required"},
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def clear_dlq(
     queue_name: DLQName,
     redis: RedisClient = Depends(get_redis),

@@ -11,10 +11,17 @@
 #   - NVIDIA GPU with CUDA support required for AI services
 #   - nvidia-container-toolkit must be installed
 #
-# Environment Variables (Required):
+# Credential Management (Choose One Approach):
+#
+#   OPTION 1: Environment Variables (Default)
 #   - POSTGRES_PASSWORD: Database password (REQUIRED - no default for security)
 #     Generate with: openssl rand -base64 32
-#     Or use Docker secrets (see secrets section below)
+#
+#   OPTION 2: Docker Secrets (Recommended for Production)
+#   - Enhanced security: secrets stored separately from environment variables
+#   - Credentials not visible in 'docker inspect' output
+#   - Easier credential rotation without image rebuild
+#   - See DOCKER_SECRETS_SETUP section below for setup instructions
 #
 # Environment Variables (Optional):
 #   - AI_MODELS_PATH: Base path for AI models (default: /export/ai_models)
@@ -23,11 +30,8 @@
 #   - GPU_LAYERS: Number of GPU layers for LLM (default: 35)
 #   - CTX_SIZE: LLM context window size (default: 131072)
 #   - HF_CACHE: HuggingFace cache directory (default: ~/.cache/huggingface)
-#
-# Docker Secrets Support:
-#   For enhanced security, you can use Docker secrets instead of environment variables.
-#   Create secrets/postgres_password.txt with your password, then uncomment the secrets
-#   sections below. The container will read the password from /run/secrets/postgres_password.
+#   - REDIS_PASSWORD: Redis authentication password (optional, for production use)
+#   - GF_ADMIN_PASSWORD: Grafana admin password (required if monitoring profile is used)
 
 version: '3.8'
 
@@ -606,14 +610,75 @@ volumes:
 networks:
   security-net:
     driver: bridge
-# Docker Secrets (optional - for enhanced security)
-# Uncomment to use file-based secrets instead of environment variables.
-# Create the secrets directory and files first:
-#   mkdir -p secrets
-#   openssl rand -base64 32 > secrets/postgres_password.txt
-#   chmod 600 secrets/postgres_password.txt
+# ============================================================================
+# DOCKER SECRETS SETUP (Optional - Recommended for Production)
+# ============================================================================
 #
-# Then uncomment the secrets section in the postgres service above.
+# Docker Secrets provide enhanced security for credential management:
+#   - Credentials stored separately from environment variables
+#   - Not visible in 'docker inspect' output
+#   - Easier credential rotation without image rebuild
+#   - Secrets mounted read-only in /run/secrets/ inside containers
+#
+# SETUP INSTRUCTIONS:
+# ==================
+#
+# 1. Create secrets directory and files:
+#    mkdir -p secrets
+#    chmod 700 secrets
+#
+# 2. Generate strong passwords:
+#    openssl rand -base64 32 > secrets/postgres_password.txt
+#    openssl rand -base64 32 > secrets/redis_password.txt
+#    openssl rand -base64 32 > secrets/grafana_admin_password.txt
+#    chmod 600 secrets/*.txt
+#
+# 3. Add secret values to the files (or use commands above to generate):
+#    echo "your_postgres_password" > secrets/postgres_password.txt
+#    echo "your_redis_password" > secrets/redis_password.txt
+#    echo "your_grafana_password" > secrets/grafana_admin_password.txt
+#
+# 4. Enable Docker secrets by uncommenting the sections below
+#
+# 5. Validate configuration:
+#    docker compose -f docker-compose.prod.yml config
+#
+# 6. Start services with secrets:
+#    docker compose -f docker-compose.prod.yml up -d
+#
+# 7. Verify secrets are mounted in containers:
+#    docker compose -f docker-compose.prod.yml exec postgres ls -la /run/secrets/
+#
+# ROTATION PROCEDURE (Zero-Downtime):
+# ===================================
+#
+# 1. Update secret file:
+#    echo "new_password" > secrets/postgres_password.txt
+#
+# 2. Restart affected service:
+#    docker compose -f docker-compose.prod.yml restart postgres
+#
+# 3. Update dependent services if needed:
+#    docker compose -f docker-compose.prod.yml restart backend redis-exporter
+#
+# IMPORTANT NOTES:
+# ================
+#
+# - Docker Secrets work with Docker Swarm and standalone Docker/Podman
+# - Secrets are NOT encrypted at rest in standalone Docker (use full-disk encryption)
+# - Never commit secrets/ directory to version control
+# - Add secrets/ to .gitignore (already configured)
+# - When using secrets, REMOVE corresponding environment variables from .env
+# - Ensure file paths are relative to docker-compose.prod.yml location
+#
+# ============================================================================
+
+# Uncomment the entire sections below to enable Docker Secrets
+#
 # secrets:
 #   postgres_password:
 #     file: ./secrets/postgres_password.txt
+#   redis_password:
+#     file: ./secrets/redis_password.txt
+#   grafana_admin_password:
+#     file: ./secrets/grafana_admin_password.txt

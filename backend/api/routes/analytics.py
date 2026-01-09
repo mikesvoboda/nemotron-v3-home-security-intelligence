@@ -27,7 +27,15 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/api/analytics", tags=["analytics"])
 
 
-@router.get("/detection-trends", response_model=DetectionTrendsResponse)
+@router.get(
+    "/detection-trends",
+    response_model=DetectionTrendsResponse,
+    responses={
+        400: {"description": "Bad request - Invalid date range"},
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_detection_trends(
     start_date: Date = Query(..., description="Start date for analytics (ISO format)"),
     end_date: Date = Query(..., description="End date for analytics (ISO format)"),
@@ -96,7 +104,15 @@ async def get_detection_trends(
     )
 
 
-@router.get("/risk-history", response_model=RiskHistoryResponse)
+@router.get(
+    "/risk-history",
+    response_model=RiskHistoryResponse,
+    responses={
+        400: {"description": "Bad request - Invalid date range"},
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_risk_history(
     start_date: Date = Query(..., description="Start date for analytics (ISO format)"),
     end_date: Date = Query(..., description="End date for analytics (ISO format)"),
@@ -172,7 +188,15 @@ async def get_risk_history(
     return RiskHistoryResponse(data_points=data_points, start_date=start_date, end_date=end_date)
 
 
-@router.get("/camera-uptime", response_model=CameraUptimeResponse)
+@router.get(
+    "/camera-uptime",
+    response_model=CameraUptimeResponse,
+    responses={
+        400: {"description": "Bad request - Invalid date range"},
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_camera_uptime(
     start_date: Date = Query(..., description="Start date for analytics (ISO format)"),
     end_date: Date = Query(..., description="End date for analytics (ISO format)"),
@@ -243,7 +267,15 @@ async def get_camera_uptime(
     return CameraUptimeResponse(cameras=cameras, start_date=start_date, end_date=end_date)
 
 
-@router.get("/object-distribution", response_model=ObjectDistributionResponse)
+@router.get(
+    "/object-distribution",
+    response_model=ObjectDistributionResponse,
+    responses={
+        400: {"description": "Bad request - Invalid date range"},
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_object_distribution(
     start_date: Date = Query(..., description="Start date for analytics (ISO format)"),
     end_date: Date = Query(..., description="End date for analytics (ISO format)"),

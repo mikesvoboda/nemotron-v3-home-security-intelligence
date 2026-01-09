@@ -173,9 +173,9 @@ export default function EmptyState({
       </div>
 
       {/* Actions */}
-      {actions && actions.length > 0 && (
+      {(actions?.length ?? 0) > 0 && (
         <div className="mt-4 flex flex-wrap items-center justify-center gap-3 md:mt-6">
-          {actions.map((action, index) => (
+          {actions?.map((action, index) => (
             <button
               key={index}
               onClick={action.onClick}

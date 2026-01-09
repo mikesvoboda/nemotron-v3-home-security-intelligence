@@ -467,8 +467,8 @@ export default function AlertRulesSettings() {
   const formatSchedule = (schedule: AlertRuleSchedule | null | undefined): string => {
     if (!schedule) return 'Always active';
     const days =
-      schedule.days && schedule.days.length > 0
-        ? schedule.days.map((d) => d.charAt(0).toUpperCase() + d.slice(1, 3)).join(', ')
+      (schedule.days?.length ?? 0) > 0
+        ? (schedule.days?.map((d) => d.charAt(0).toUpperCase() + d.slice(1, 3)).join(', ') ?? 'All days')
         : 'All days';
     const times =
       schedule.start_time && schedule.end_time
