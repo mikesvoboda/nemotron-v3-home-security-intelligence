@@ -15523,13 +15523,6 @@ export interface operations {
                     "application/json": components["schemas"]["ZoneListResponse"];
                 };
             };
-            /** @description Camera not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -15538,13 +15531,6 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
-            };
-            /** @description Internal server error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
         };
     };
