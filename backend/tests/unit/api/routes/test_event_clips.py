@@ -35,7 +35,7 @@ class TestGetEventClip:
         mock_db.execute.return_value = mock_result
 
         with pytest.raises(Exception) as exc_info:
-            await get_event_clip(event_id=99999, db=mock_db)
+            await get_event_clip(event_id=99999, response=MagicMock(), db=mock_db)
 
         assert exc_info.value.status_code == 404
         assert "not found" in str(exc_info.value.detail).lower()
@@ -57,7 +57,7 @@ class TestGetEventClip:
         mock_event_result.scalar_one_or_none.return_value = mock_event
         mock_db.execute.return_value = mock_event_result
 
-        result = await get_event_clip(event_id=123, db=mock_db)
+        result = await get_event_clip(event_id=123, response=MagicMock(), db=mock_db)
 
         assert isinstance(result, ClipInfoResponse)
         assert result.event_id == 123
@@ -95,7 +95,7 @@ class TestGetEventClip:
         mock_path_instance.stat.return_value = mock_stat
 
         with patch("pathlib.Path", return_value=mock_path_instance):
-            result = await get_event_clip(event_id=456, db=mock_db)
+            result = await get_event_clip(event_id=456, response=MagicMock(), db=mock_db)
 
         assert isinstance(result, ClipInfoResponse)
         assert result.event_id == 456
@@ -126,7 +126,7 @@ class TestGetEventClip:
         mock_path_instance.exists.return_value = False
 
         with patch("pathlib.Path", return_value=mock_path_instance):
-            result = await get_event_clip(event_id=789, db=mock_db)
+            result = await get_event_clip(event_id=789, response=MagicMock(), db=mock_db)
 
         # Should return not available since file doesn't exist
         assert isinstance(result, ClipInfoResponse)
@@ -246,18 +246,16 @@ class TestGenerateEventClip:
         mock_generator.generate_clip_from_images = AsyncMock(return_value=mock_clip_path)
 
         # Mock batch_fetch_file_paths to return detection image paths
-        with (
-            patch(
-                "backend.services.clip_generator.get_clip_generator",
-                return_value=mock_generator,
-            ),
-            patch(
-                "backend.api.routes.events.batch_fetch_file_paths",
-                return_value=["/path/to/image1.jpg", "/path/to/image2.jpg", "/path/to/image3.jpg"],
-            ),
+        with patch(
+            "backend.api.routes.events.batch_fetch_file_paths",
+            return_value=["/path/to/image1.jpg", "/path/to/image2.jpg", "/path/to/image3.jpg"],
         ):
             result = await generate_event_clip(
-                event_id=456, request=request, response=mock_response, db=mock_db
+                event_id=456,
+                request=request,
+                response=mock_response,
+                db=mock_db,
+                clip_generator=mock_generator,
             )
 
         assert isinstance(result, ClipGenerateResponse)
@@ -306,18 +304,16 @@ class TestGenerateEventClip:
         mock_generator.delete_clip = MagicMock(return_value=True)
 
         # Mock batch_fetch_file_paths to return detection image paths
-        with (
-            patch(
-                "backend.services.clip_generator.get_clip_generator",
-                return_value=mock_generator,
-            ),
-            patch(
-                "backend.api.routes.events.batch_fetch_file_paths",
-                return_value=["/path/to/image1.jpg", "/path/to/image2.jpg"],
-            ),
+        with patch(
+            "backend.api.routes.events.batch_fetch_file_paths",
+            return_value=["/path/to/image1.jpg", "/path/to/image2.jpg"],
         ):
             result = await generate_event_clip(
-                event_id=789, request=request, response=mock_response, db=mock_db
+                event_id=789,
+                request=request,
+                response=mock_response,
+                db=mock_db,
+                clip_generator=mock_generator,
             )
 
         # Should trigger regeneration

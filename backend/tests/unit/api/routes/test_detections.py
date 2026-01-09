@@ -784,7 +784,7 @@ class TestGetDetectionStats:
 
         mock_db_session.execute.return_value = mock_result
 
-        result = await get_detection_stats(db=mock_db_session)
+        result = await get_detection_stats(response=MagicMock(), db=mock_db_session)
 
         assert result.total_detections == 100
         assert result.detections_by_class["person"] == 50
@@ -800,7 +800,7 @@ class TestGetDetectionStats:
 
         mock_db_session.execute.return_value = mock_result
 
-        result = await get_detection_stats(db=mock_db_session)
+        result = await get_detection_stats(response=MagicMock(), db=mock_db_session)
 
         assert result.total_detections == 0
         assert result.detections_by_class == {}
@@ -819,7 +819,7 @@ class TestGetDetection:
             "backend.api.routes.detections.get_detection_or_404",
             return_value=detection,
         ):
-            result = await get_detection(detection_id=1, db=mock_db_session)
+            result = await get_detection(detection_id=1, response=MagicMock(), db=mock_db_session)
 
         assert result.id == 1
         assert result.object_type == "person"
@@ -832,7 +832,7 @@ class TestGetDetection:
             side_effect=HTTPException(status_code=404, detail="Not found"),
         ):
             with pytest.raises(HTTPException) as exc_info:
-                await get_detection(detection_id=999, db=mock_db_session)
+                await get_detection(detection_id=999, response=MagicMock(), db=mock_db_session)
 
             assert exc_info.value.status_code == 404
 

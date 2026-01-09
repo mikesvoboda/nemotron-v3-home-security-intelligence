@@ -434,7 +434,9 @@ class TestGetEventRoute:
         mock_event.detection_ids = "[1, 2, 3]"
 
         with patch("backend.api.routes.events.get_event_or_404", return_value=mock_event):
-            result = await get_event(event_id=1, request=mock_request, db=mock_db)
+            result = await get_event(
+                event_id=1, request=mock_request, response=MagicMock(), db=mock_db
+            )
 
         assert result.id == 1
         assert result.detection_count == 3
@@ -497,7 +499,9 @@ class TestGetEventDetectionsRoute:
         mock_event.detection_ids = None
 
         with patch("backend.api.routes.events.get_event_or_404", return_value=mock_event):
-            result = await get_event_detections(event_id=1, limit=50, offset=0, db=mock_db)
+            result = await get_event_detections(
+                event_id=1, response=MagicMock(), limit=50, offset=0, db=mock_db
+            )
 
         assert result.detections == []
         assert result.count == 0
@@ -520,7 +524,9 @@ class TestGetEventEnrichmentsRoute:
         mock_event.detection_ids = None
 
         with patch("backend.api.routes.events.get_event_or_404", return_value=mock_event):
-            result = await get_event_enrichments(event_id=1, limit=50, offset=0, db=mock_db)
+            result = await get_event_enrichments(
+                event_id=1, response=MagicMock(), limit=50, offset=0, db=mock_db
+            )
 
         assert result.event_id == 1
         assert result.enrichments == []
@@ -541,7 +547,9 @@ class TestGetEventEnrichmentsRoute:
         mock_event.detection_ids = "[1, 2, 3]"
 
         with patch("backend.api.routes.events.get_event_or_404", return_value=mock_event):
-            result = await get_event_enrichments(event_id=1, limit=50, offset=100, db=mock_db)
+            result = await get_event_enrichments(
+                event_id=1, response=MagicMock(), limit=50, offset=100, db=mock_db
+            )
 
         assert result.event_id == 1
         assert result.enrichments == []
@@ -565,7 +573,7 @@ class TestGetEventClipRoute:
         mock_event.clip_path = None
 
         with patch("backend.api.routes.events.get_event_or_404", return_value=mock_event):
-            result = await get_event_clip(event_id=1, db=mock_db)
+            result = await get_event_clip(event_id=1, response=MagicMock(), db=mock_db)
 
         assert result.clip_available is False
         assert result.clip_url is None
@@ -583,7 +591,7 @@ class TestGetEventClipRoute:
         mock_event.clip_path = "/nonexistent/clip.mp4"
 
         with patch("backend.api.routes.events.get_event_or_404", return_value=mock_event):
-            result = await get_event_clip(event_id=1, db=mock_db)
+            result = await get_event_clip(event_id=1, response=MagicMock(), db=mock_db)
 
         assert result.clip_available is False
         assert result.clip_url is None
@@ -1052,7 +1060,9 @@ class TestGetEventDetectionsRouteComprehensive:
         mock_db.execute = AsyncMock(side_effect=[mock_count_result, mock_detections_result])
 
         with patch("backend.api.routes.events.get_event_or_404", return_value=mock_event):
-            result = await get_event_detections(event_id=1, limit=2, offset=1, db=mock_db)
+            result = await get_event_detections(
+                event_id=1, response=MagicMock(), limit=2, offset=1, db=mock_db
+            )
 
         assert result.count == 5
         assert result.limit == 2

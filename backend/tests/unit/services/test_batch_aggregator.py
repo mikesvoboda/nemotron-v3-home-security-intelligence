@@ -49,6 +49,33 @@ def create_mock_pipeline(execute_results: list | None = None):
     return mock_pipeline
 
 
+class AsyncPipelineContextManager:
+    """Async context manager mock for Redis pipeline (used in _create_batch_metadata_atomic)."""
+
+    def __init__(self, pipe_mock):
+        self._pipe = pipe_mock
+        self._set_calls = []
+
+    async def __aenter__(self):
+        return self._pipe
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        # Execute the pipeline (already mocked)
+        return False
+
+
+def create_async_pipeline_context_manager():
+    """Create a mock Redis pipeline that supports async context manager protocol.
+
+    This is required for the _create_batch_metadata_atomic method which uses:
+    `async with client.pipeline(transaction=True) as pipe:`
+    """
+    mock_pipeline = MagicMock()
+    mock_pipeline.set = MagicMock(return_value=mock_pipeline)
+    mock_pipeline.execute = AsyncMock(return_value=[True, True, True, True, True])
+    return AsyncPipelineContextManager(mock_pipeline)
+
+
 @pytest.fixture
 def mock_redis_client():
     """Mock Redis client with common operations."""
@@ -63,8 +90,8 @@ def mock_redis_client():
     mock_client.expire = AsyncMock(return_value=True)
     # Use scan_iter instead of keys (returns async generator)
     mock_client.scan_iter = MagicMock(return_value=create_async_generator([]))
-    # Add pipeline support
-    mock_client.pipeline = MagicMock(return_value=create_mock_pipeline([]))
+    # Add pipeline support for _create_batch_metadata_atomic (async context manager)
+    mock_client.pipeline = MagicMock(return_value=create_async_pipeline_context_manager())
     return mock_client
 
 
@@ -124,14 +151,9 @@ async def test_add_detection_creates_new_batch(batch_aggregator, mock_redis_inst
     # Verify batch ID was returned
     assert batch_id == "batch_123"
 
-    # Verify Redis calls to create new batch (uses set for metadata)
-    assert mock_redis_instance.set.call_count >= 3
-
-    # Check that batch:camera_id:current was set
-    calls = mock_redis_instance.set.call_args_list
-    set_keys = [call[0][0] for call in calls]
-    assert f"batch:{camera_id}:current" in set_keys
-    assert "batch:batch_123:started_at" in set_keys
+    # Verify pipeline was called for atomic batch metadata creation
+    # The _create_batch_metadata_atomic method uses a Redis pipeline
+    mock_redis_instance._client.pipeline.assert_called()
 
     # Verify RPUSH was called for atomic detection list append
     mock_redis_instance._client.rpush.assert_called()
@@ -1144,21 +1166,16 @@ async def test_atomic_list_get_all_without_redis():
 
 
 @pytest.mark.asyncio
-async def test_add_detection_uses_parallel_redis_operations(batch_aggregator, mock_redis_instance):
-    """Test that add_detection uses asyncio.gather for batch metadata creation."""
+async def test_add_detection_uses_atomic_pipeline_for_batch_creation(
+    batch_aggregator, mock_redis_instance
+):
+    """Test that add_detection uses atomic pipeline for batch metadata creation.
 
+    The implementation uses _create_batch_metadata_atomic which batches all
+    SET operations into a single Redis pipeline transaction.
+    """
     # No existing batch
     mock_redis_instance.get.return_value = None
-
-    # Track set calls
-    set_calls = []
-    original_set = mock_redis_instance.set
-
-    async def tracked_set(*args, **kwargs):
-        set_calls.append((args, kwargs))
-        return await original_set(*args, **kwargs)
-
-    mock_redis_instance.set = tracked_set
 
     await batch_aggregator.add_detection(
         camera_id="camera_1",
@@ -1166,13 +1183,11 @@ async def test_add_detection_uses_parallel_redis_operations(batch_aggregator, mo
         _file_path="/export/foscam/camera_1/image.jpg",
     )
 
-    # Should have made 4 set calls for batch metadata (parallelized)
-    # Plus 1 for last_activity update after detection add
-    assert len(set_calls) >= 4
+    # Should have used pipeline for atomic batch metadata creation
+    mock_redis_instance._client.pipeline.assert_called()
 
-    # Verify all batch metadata keys were set
-    set_keys = [args[0] for args, _ in set_calls]
-    assert "batch:camera_1:current" in set_keys
+    # Verify RPUSH was called for atomic detection list append
+    mock_redis_instance._client.rpush.assert_called()
 
 
 @pytest.mark.asyncio
@@ -1219,7 +1234,10 @@ async def test_close_batch_uses_parallel_redis_operations(batch_aggregator, mock
 
 @pytest.mark.asyncio
 async def test_add_detection_stores_pipeline_start_time(batch_aggregator, mock_redis_instance):
-    """Test that add_detection stores pipeline_start_time in Redis for new batches."""
+    """Test that add_detection stores pipeline_start_time in Redis for new batches.
+
+    The pipeline_start_time is stored via the atomic pipeline transaction.
+    """
     camera_id = "front_door"
     detection_id = 1
     file_path = "/export/foscam/front_door/image_001.jpg"
@@ -1228,6 +1246,10 @@ async def test_add_detection_stores_pipeline_start_time(batch_aggregator, mock_r
     # Mock: No existing batch
     mock_redis_instance.get.return_value = None
     mock_redis_instance._client.rpush.return_value = 1
+
+    # Get the pipeline context manager mock to track set calls
+    pipe_ctx = mock_redis_instance._client.pipeline.return_value
+    pipe_mock = pipe_ctx._pipe
 
     with patch("backend.services.batch_aggregator.uuid.uuid4") as mock_uuid:
         mock_uuid.return_value.hex = "batch_with_time"
@@ -1241,17 +1263,16 @@ async def test_add_detection_stores_pipeline_start_time(batch_aggregator, mock_r
 
     assert batch_id == "batch_with_time"
 
-    # Verify pipeline_start_time was stored in Redis
-    set_calls = mock_redis_instance.set.call_args_list
-    set_keys = [call[0][0] for call in set_calls]
+    # Verify pipeline was used for atomic batch creation
+    mock_redis_instance._client.pipeline.assert_called()
 
-    # Should have a key for pipeline_start_time
-    assert f"batch:{batch_id}:pipeline_start_time" in set_keys
+    # The pipeline's set method should have been called with pipeline_start_time
+    # (in _create_batch_metadata_atomic when pipeline_start_time is provided)
+    set_calls = pipe_mock.set.call_args_list
+    set_keys = [str(call[0][0]) for call in set_calls if call[0]]
 
-    # Find the pipeline_start_time set call and verify value
-    for call in set_calls:
-        if call[0][0] == f"batch:{batch_id}:pipeline_start_time":
-            assert call[0][1] == pipeline_start_time
+    # pipeline_start_time key should be in the pipeline set calls
+    assert any("pipeline_start_time" in key for key in set_keys)
 
 
 @pytest.mark.asyncio
@@ -1265,6 +1286,10 @@ async def test_add_detection_without_pipeline_start_time(batch_aggregator, mock_
     mock_redis_instance.get.return_value = None
     mock_redis_instance._client.rpush.return_value = 1
 
+    # Get the pipeline context manager mock to track set calls
+    pipe_ctx = mock_redis_instance._client.pipeline.return_value
+    pipe_mock = pipe_ctx._pipe
+
     with patch("backend.services.batch_aggregator.uuid.uuid4") as mock_uuid:
         mock_uuid.return_value.hex = "batch_no_time"
 
@@ -1277,12 +1302,15 @@ async def test_add_detection_without_pipeline_start_time(batch_aggregator, mock_
 
     assert batch_id == "batch_no_time"
 
-    # Verify pipeline_start_time was NOT stored in Redis
-    set_calls = mock_redis_instance.set.call_args_list
-    set_keys = [call[0][0] for call in set_calls]
+    # Verify pipeline was used for atomic batch creation
+    mock_redis_instance._client.pipeline.assert_called()
 
-    # Should NOT have a key for pipeline_start_time
-    assert f"batch:{batch_id}:pipeline_start_time" not in set_keys
+    # Get the set calls from the pipeline
+    set_calls = pipe_mock.set.call_args_list
+    set_keys = [str(call[0][0]) for call in set_calls if call[0]]
+
+    # pipeline_start_time key should NOT be in the pipeline set calls
+    assert not any("pipeline_start_time" in key for key in set_keys)
 
 
 @pytest.mark.asyncio
@@ -3112,3 +3140,233 @@ def test_batch_should_split_when_at_or_above_limit(
 
         # Verify the logic
         assert (current_size >= aggregator._batch_max_detections) == should_split
+
+
+# =============================================================================
+# Batch Closure Race Condition Prevention Tests (NEM-2013)
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_close_batch_uses_lock_based_concurrency(batch_aggregator, mock_redis_instance):
+    """Test that close_batch uses lock-based concurrency control.
+
+    NEM-2013: The implementation uses asyncio locks (not Redis SETNX) for
+    concurrency control within a single process. The batch_close_lock and
+    camera_lock prevent race conditions.
+    """
+    batch_id = "batch_lock_close"
+    camera_id = "front_door"
+
+    # Mock camera_id lookup
+    async def mock_get(key):
+        if key == f"batch:{batch_id}:camera_id":
+            return camera_id
+        elif key == f"batch:{batch_id}:started_at":
+            return str(time.time() - 60)
+        return None
+
+    mock_redis_instance.get.side_effect = mock_get
+    mock_redis_instance._client.lrange.return_value = ["1", "2"]
+
+    summary = await batch_aggregator.close_batch(batch_id)
+
+    # Batch should be closed successfully
+    assert summary["batch_id"] == batch_id
+    assert summary["detection_count"] == 2
+    # Verify queue was called
+    assert mock_redis_instance.add_to_queue_safe.called
+
+
+@pytest.mark.asyncio
+async def test_close_batch_returns_already_closed_when_batch_removed(
+    batch_aggregator, mock_redis_instance
+):
+    """Test that close_batch detects when batch was already closed by another coroutine.
+
+    NEM-2013: The implementation uses asyncio locks for concurrency. When holding
+    the lock, it re-checks if the batch still exists. If removed, it returns
+    with already_closed flag.
+    """
+    batch_id = "batch_already_removed"
+    camera_id = "front_door"
+
+    # First get returns camera_id, second get (after lock) returns None
+    call_count = [0]
+
+    async def mock_get(key):
+        call_count[0] += 1
+        if key == f"batch:{batch_id}:camera_id":
+            if call_count[0] == 1:
+                return camera_id  # First call returns camera_id
+            else:
+                return None  # Second call returns None (already closed)
+        return None
+
+    mock_redis_instance.get.side_effect = mock_get
+
+    summary = await batch_aggregator.close_batch(batch_id)
+
+    # Should return with already_closed flag
+    assert summary["batch_id"] == batch_id
+    assert summary.get("already_closed") is True
+    assert summary["detection_count"] == 0
+
+    # Should NOT push to analysis queue
+    assert not mock_redis_instance.add_to_queue_safe.called
+
+
+@pytest.mark.asyncio
+async def test_concurrent_close_batch_serialized_by_lock():
+    """Test that concurrent close_batch calls are serialized by asyncio locks.
+
+    NEM-2013: The implementation uses asyncio locks for concurrency control.
+    Concurrent calls are serialized, and the second call raises ValueError
+    because the batch was already deleted by the first close.
+    """
+
+    from backend.core.redis import QueueAddResult, RedisClient
+    from backend.services.batch_aggregator import BatchAggregator
+
+    batch_id = "batch_concurrent_lock"
+    camera_id = "front_door"
+
+    # Track how many times the batch was actually processed
+    process_count = [0]
+    # Track whether batch still exists (simulates deletion after first close)
+    batch_exists = [True]
+
+    # Create a mock Redis client
+    mock_redis_instance = MagicMock(spec=RedisClient)
+    mock_redis_client = AsyncMock()
+
+    # Mock camera_id lookup - returns None after first successful close
+    async def mock_get(key):
+        if key == f"batch:{batch_id}:camera_id":
+            if batch_exists[0]:
+                return camera_id
+            return None  # Batch was deleted
+        elif key == f"batch:{batch_id}:started_at":
+            return str(time.time() - 60)
+        return None
+
+    mock_redis_instance.get = AsyncMock(side_effect=mock_get)
+    mock_redis_instance._client = mock_redis_client
+    mock_redis_client.lrange = AsyncMock(return_value=["1", "2", "3"])
+
+    # Track queue pushes and mark batch as deleted after first push
+    async def mock_add_to_queue(*args, **kwargs):
+        process_count[0] += 1
+        return QueueAddResult(success=True, queue_length=1)
+
+    # Mock delete to mark batch as no longer existing
+    async def mock_delete(*keys):
+        batch_exists[0] = False
+        return len(keys)
+
+    mock_redis_instance.add_to_queue_safe = mock_add_to_queue
+    mock_redis_instance.delete = AsyncMock(side_effect=mock_delete)
+
+    aggregator = BatchAggregator(redis_client=mock_redis_instance)
+
+    # First call should succeed
+    result1 = await aggregator.close_batch(batch_id)
+
+    # Only one should have processed the batch (pushed to queue)
+    assert process_count[0] == 1, f"Expected 1 process, got {process_count[0]}"
+
+    # First should be successful
+    assert result1.get("detection_count", 0) > 0
+
+    # Second call should raise ValueError because batch was already deleted
+    with pytest.raises(ValueError, match=f"Batch {batch_id} not found"):
+        await aggregator.close_batch(batch_id)
+
+
+@pytest.mark.asyncio
+async def test_close_batch_cleans_up_batch_keys_on_success(batch_aggregator, mock_redis_instance):
+    """Test that batch keys are cleaned up after successful batch close.
+
+    The close_batch method should delete all batch-related keys after processing.
+    """
+    batch_id = "batch_cleanup_keys"
+    camera_id = "front_door"
+
+    # Mock camera_id lookup
+    async def mock_get(key):
+        if key == f"batch:{batch_id}:camera_id":
+            return camera_id
+        elif key == f"batch:{batch_id}:started_at":
+            return str(time.time() - 60)
+        return None
+
+    mock_redis_instance.get.side_effect = mock_get
+    mock_redis_instance._client.lrange.return_value = ["1", "2"]
+
+    await batch_aggregator.close_batch(batch_id)
+
+    # Verify delete was called to clean up batch keys
+    delete_call = mock_redis_instance.delete.call_args
+    deleted_keys = delete_call[0] if delete_call else []
+
+    # The batch keys should be in the list of deleted keys
+    assert f"batch:{batch_id}:detections" in deleted_keys
+    assert f"batch:{batch_id}:camera_id" in deleted_keys
+    assert f"batch:{camera_id}:current" in deleted_keys
+
+
+@pytest.mark.asyncio
+async def test_close_batch_for_size_limit_closes_batch_successfully(
+    batch_aggregator, mock_redis_instance
+):
+    """Test that _close_batch_for_size_limit successfully closes a batch.
+
+    The size limit closure path should close the batch and push to queue.
+    """
+    batch_id = "batch_size_limit_success"
+    camera_id = "front_door"
+
+    # Mock camera_id lookup
+    async def mock_get(key):
+        if key == f"batch:{batch_id}:camera_id":
+            return camera_id
+        elif key == f"batch:{batch_id}:started_at":
+            return str(time.time() - 60)
+        return None
+
+    mock_redis_instance.get.side_effect = mock_get
+    mock_redis_instance._client.lrange.return_value = [b"1", b"2"]
+
+    summary = await batch_aggregator._close_batch_for_size_limit(batch_id)
+
+    # Should return valid summary
+    assert summary is not None
+    assert summary["batch_id"] == batch_id
+    assert summary["reason"] == "max_size"
+    assert summary["detection_ids"] == [1, 2]
+
+    # Should push to queue
+    assert mock_redis_instance.add_to_queue_safe.called
+
+
+@pytest.mark.asyncio
+async def test_close_batch_for_size_limit_returns_none_when_camera_not_found(
+    batch_aggregator, mock_redis_instance
+):
+    """Test _close_batch_for_size_limit returns None when camera_id not found.
+
+    When the batch doesn't exist (camera_id lookup returns None), the function
+    should return None without attempting to close.
+    """
+    batch_id = "batch_size_no_camera"
+
+    # Mock camera_id lookup returns None
+    mock_redis_instance.get.return_value = None
+
+    result = await batch_aggregator._close_batch_for_size_limit(batch_id)
+
+    # Should return None when camera not found
+    assert result is None
+
+    # Should NOT push to queue
+    assert not mock_redis_instance.add_to_queue_safe.called

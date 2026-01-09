@@ -42,7 +42,12 @@ class TestGetCameraSceneChanges:
 
         with pytest.raises(Exception) as exc_info:
             await get_camera_scene_changes(
-                "nonexistent_camera", acknowledged=None, limit=50, cursor=None, db=mock_db
+                "nonexistent_camera",
+                response=MagicMock(),
+                acknowledged=None,
+                limit=50,
+                cursor=None,
+                db=mock_db,
             )
 
         assert exc_info.value.status_code == 404
@@ -69,7 +74,12 @@ class TestGetCameraSceneChanges:
         mock_db.execute.side_effect = [mock_changes_result, mock_camera_result]
 
         result = await get_camera_scene_changes(
-            "test_camera", acknowledged=None, limit=50, cursor=None, db=mock_db
+            "test_camera",
+            response=MagicMock(),
+            acknowledged=None,
+            limit=50,
+            cursor=None,
+            db=mock_db,
         )
 
         assert isinstance(result, SceneChangeListResponse)
@@ -118,7 +128,7 @@ class TestGetCameraSceneChanges:
         mock_db.execute.return_value = mock_changes_result
 
         result = await get_camera_scene_changes(
-            "front_door", acknowledged=None, limit=50, cursor=None, db=mock_db
+            "front_door", response=MagicMock(), acknowledged=None, limit=50, cursor=None, db=mock_db
         )
 
         assert isinstance(result, SceneChangeListResponse)
@@ -162,7 +172,12 @@ class TestGetCameraSceneChanges:
         mock_db.execute.return_value = mock_changes_result
 
         result = await get_camera_scene_changes(
-            "test_camera", acknowledged=False, limit=50, cursor=None, db=mock_db
+            "test_camera",
+            response=MagicMock(),
+            acknowledged=False,
+            limit=50,
+            cursor=None,
+            db=mock_db,
         )
 
         assert isinstance(result, SceneChangeListResponse)
@@ -198,7 +213,7 @@ class TestGetCameraSceneChanges:
         mock_db.execute.return_value = mock_changes_result
 
         result = await get_camera_scene_changes(
-            "test_camera", acknowledged=None, limit=2, cursor=None, db=mock_db
+            "test_camera", response=MagicMock(), acknowledged=None, limit=2, cursor=None, db=mock_db
         )
 
         assert isinstance(result, SceneChangeListResponse)
@@ -236,7 +251,7 @@ class TestGetCameraSceneChanges:
         mock_db.execute.return_value = mock_changes_result
 
         result = await get_camera_scene_changes(
-            "test_camera", acknowledged=None, limit=5, cursor=None, db=mock_db
+            "test_camera", response=MagicMock(), acknowledged=None, limit=5, cursor=None, db=mock_db
         )
 
         assert isinstance(result, SceneChangeListResponse)
@@ -273,7 +288,12 @@ class TestGetCameraSceneChanges:
         # Pass a cursor timestamp
         cursor_time = now - timedelta(hours=1)
         result = await get_camera_scene_changes(
-            "test_camera", acknowledged=None, limit=50, cursor=cursor_time, db=mock_db
+            "test_camera",
+            response=MagicMock(),
+            acknowledged=None,
+            limit=50,
+            cursor=cursor_time,
+            db=mock_db,
         )
 
         assert isinstance(result, SceneChangeListResponse)

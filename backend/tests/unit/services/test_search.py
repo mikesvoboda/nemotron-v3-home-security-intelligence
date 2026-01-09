@@ -361,58 +361,70 @@ class TestJoinQueryParts:
 
 
 class TestBuildFilterConditions:
-    """Tests for _build_filter_conditions function (lines 284-300)."""
+    """Tests for _build_filter_conditions function (lines 284-300).
+
+    Note: NEM-1954 introduced automatic soft-delete filtering (Event.deleted_at.is_(None))
+    which is always added as the first condition. All count assertions account for this.
+    """
 
     def test_empty_filters(self):
-        """Empty filters return empty conditions list."""
+        """Empty filters return only soft-delete condition (NEM-1954)."""
         filters = SearchFilters()
         conditions = _build_filter_conditions(filters)
-        assert conditions == []
+        # NEM-1954: Always includes soft-delete filter
+        assert len(conditions) == 1
 
     def test_start_date_filter(self):
-        """Start date filter creates condition."""
+        """Start date filter creates condition (+ soft-delete filter)."""
         filters = SearchFilters(start_date=datetime(2025, 1, 1))
         conditions = _build_filter_conditions(filters)
-        assert len(conditions) == 1
+        # 1 soft-delete + 1 start_date
+        assert len(conditions) == 2
 
     def test_end_date_filter(self):
-        """End date filter creates condition."""
+        """End date filter creates condition (+ soft-delete filter)."""
         filters = SearchFilters(end_date=datetime(2025, 12, 31))
         conditions = _build_filter_conditions(filters)
-        assert len(conditions) == 1
+        # 1 soft-delete + 1 end_date
+        assert len(conditions) == 2
 
     def test_camera_ids_filter(self):
-        """Camera IDs filter creates condition."""
+        """Camera IDs filter creates condition (+ soft-delete filter)."""
         filters = SearchFilters(camera_ids=["cam1", "cam2"])
         conditions = _build_filter_conditions(filters)
-        assert len(conditions) == 1
+        # 1 soft-delete + 1 camera_ids
+        assert len(conditions) == 2
 
     def test_severity_filter(self):
-        """Severity filter creates condition."""
+        """Severity filter creates condition (+ soft-delete filter)."""
         filters = SearchFilters(severity=["high", "critical"])
         conditions = _build_filter_conditions(filters)
-        assert len(conditions) == 1
+        # 1 soft-delete + 1 severity
+        assert len(conditions) == 2
 
     def test_reviewed_true_filter(self):
-        """Reviewed=True filter creates condition."""
+        """Reviewed=True filter creates condition (+ soft-delete filter)."""
         filters = SearchFilters(reviewed=True)
         conditions = _build_filter_conditions(filters)
-        assert len(conditions) == 1
+        # 1 soft-delete + 1 reviewed
+        assert len(conditions) == 2
 
     def test_reviewed_false_filter(self):
-        """Reviewed=False filter creates condition."""
+        """Reviewed=False filter creates condition (+ soft-delete filter)."""
         filters = SearchFilters(reviewed=False)
         conditions = _build_filter_conditions(filters)
-        assert len(conditions) == 1
+        # 1 soft-delete + 1 reviewed
+        assert len(conditions) == 2
 
     def test_object_types_filter(self):
-        """Object types filter creates OR condition."""
+        """Object types filter creates OR condition (+ soft-delete filter)."""
         filters = SearchFilters(object_types=["person", "vehicle"])
         conditions = _build_filter_conditions(filters)
-        assert len(conditions) == 1  # Single OR condition
+        # 1 soft-delete + 1 object_types OR condition
+        assert len(conditions) == 2
 
     def test_all_filters_combined(self):
-        """All filters combined creates multiple conditions."""
+        """All filters combined creates multiple conditions (+ soft-delete filter)."""
         filters = SearchFilters(
             start_date=datetime(2025, 1, 1),
             end_date=datetime(2025, 12, 31),
@@ -422,7 +434,8 @@ class TestBuildFilterConditions:
             reviewed=False,
         )
         conditions = _build_filter_conditions(filters)
-        assert len(conditions) == 6
+        # 1 soft-delete + 6 filters = 7
+        assert len(conditions) == 7
 
 
 class TestBuildSearchQuery:
@@ -1231,7 +1244,7 @@ class TestSearchQueryParsingProperties:
         num_severities: int,
         num_object_types: int,
     ) -> None:
-        """Property: Number of filter conditions matches expected."""
+        """Property: Number of filter conditions matches expected (+ soft-delete)."""
         camera_ids = [f"cam{i}" for i in range(num_cameras)]
         severities = ["low", "medium", "high", "critical"][:num_severities]
         object_types = [f"obj{i}" for i in range(num_object_types)]
@@ -1243,7 +1256,8 @@ class TestSearchQueryParsingProperties:
         )
         conditions = _build_filter_conditions(filters)
 
-        expected_count = 0
+        # NEM-1954: Always includes soft-delete filter as base
+        expected_count = 1  # soft-delete filter
         if camera_ids:
             expected_count += 1
         if severities:
@@ -1256,10 +1270,11 @@ class TestSearchQueryParsingProperties:
     @given(reviewed=st.booleans())
     @hypothesis_settings(max_examples=10)
     def test_reviewed_filter_always_produces_condition(self, reviewed: bool) -> None:
-        """Property: Setting reviewed always produces exactly one condition."""
+        """Property: Setting reviewed always produces condition (+ soft-delete)."""
         filters = SearchFilters(reviewed=reviewed)
         conditions = _build_filter_conditions(filters)
-        assert len(conditions) == 1
+        # 1 soft-delete filter + 1 reviewed filter = 2
+        assert len(conditions) == 2
 
 
 class TestDetectionIdsParsingProperties:
