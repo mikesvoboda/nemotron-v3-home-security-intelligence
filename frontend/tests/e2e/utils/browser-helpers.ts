@@ -330,29 +330,44 @@ export async function clearStorage(
 ): Promise<void> {
   const { preserveCookies = [], preserveLocalStorage = [] } = options;
 
-  // Clear localStorage and sessionStorage
-  await page.evaluate(
-    (keysToPreserve) => {
-      // Save values to preserve
-      const savedValues: Record<string, string> = {};
-      keysToPreserve.forEach((key) => {
-        const value = localStorage.getItem(key);
-        if (value !== null) {
-          savedValues[key] = value;
-        }
-      });
+  // Check if we're on a valid page (not about:blank)
+  const url = page.url();
+  if (url === 'about:blank' || url === '') {
+    // Skip storage clearing - page hasn't navigated yet
+    // Only clear cookies which don't require page context
+  } else {
+    // Clear localStorage and sessionStorage - wrap in try-catch for security restrictions
+    try {
+      await page.evaluate(
+        (keysToPreserve) => {
+          try {
+            // Save values to preserve
+            const savedValues: Record<string, string> = {};
+            keysToPreserve.forEach((key) => {
+              const value = localStorage.getItem(key);
+              if (value !== null) {
+                savedValues[key] = value;
+              }
+            });
 
-      // Clear all storage
-      localStorage.clear();
-      sessionStorage.clear();
+            // Clear all storage
+            localStorage.clear();
+            sessionStorage.clear();
 
-      // Restore preserved values
-      Object.entries(savedValues).forEach(([key, value]) => {
-        localStorage.setItem(key, value);
-      });
-    },
-    preserveLocalStorage
-  );
+            // Restore preserved values
+            Object.entries(savedValues).forEach(([key, value]) => {
+              localStorage.setItem(key, value);
+            });
+          } catch {
+            // Ignore security errors (e.g., cross-origin frames)
+          }
+        },
+        preserveLocalStorage
+      );
+    } catch {
+      // Ignore evaluate errors (page context issues)
+    }
+  }
 
   // Clear cookies
   const allCookies = await page.context().cookies();
