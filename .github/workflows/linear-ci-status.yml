@@ -3,7 +3,8 @@ name: Linear CI Status Sync
 # This workflow automatically updates Linear issue status based on CI/CD events.
 # - When a PR passes all CI checks -> Move linked issue to "In Review"
 # - When a PR is merged to main -> Move linked issue to "Done"
-# - When CI fails -> Add a comment to the Linear issue
+# - When CI fails on a PR -> Add a comment to the Linear issue
+# - When CI fails on main branch -> Create a new Linear issue to track the failure
 
 on:
   # Triggered when CI workflow completes on a PR
@@ -383,6 +384,256 @@ jobs:
               fi
             else
               echo "Skipping $ISSUE_ID - already in terminal state: $CURRENT_STATE"
+            fi
+          done
+
+  # Handle CI failures on main branch - create Linear issue
+  main-branch-failure:
+    name: Create Linear Issue on Main CI Failure
+    runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.conclusion == 'failure'
+    permissions:
+      contents: read
+      actions: read
+
+    steps:
+      - name: Get failed jobs information
+        id: failed-jobs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          WORKFLOW_RUN_ID="${{ github.event.workflow_run.id }}"
+          REPO="${{ github.repository }}"
+
+          echo "Fetching failed jobs for workflow run $WORKFLOW_RUN_ID..."
+
+          # Get all jobs from the workflow run
+          JOBS_DATA=$(gh api "repos/$REPO/actions/runs/$WORKFLOW_RUN_ID/jobs" --jq '.jobs')
+
+          # Extract failed job names
+          FAILED_JOBS=$(echo "$JOBS_DATA" | jq -r '[.[] | select(.conclusion == "failure") | .name] | join(", ")')
+
+          if [ -z "$FAILED_JOBS" ]; then
+            echo "No failed jobs found"
+            echo "has_failures=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Failed jobs: $FAILED_JOBS"
+          echo "has_failures=true" >> "$GITHUB_OUTPUT"
+          echo "failed_jobs=$FAILED_JOBS" >> "$GITHUB_OUTPUT"
+
+          # Get the first failed job's URL for detailed link
+          FIRST_FAILED_JOB_URL=$(echo "$JOBS_DATA" | jq -r '[.[] | select(.conclusion == "failure")][0].html_url // empty')
+          echo "job_url=$FIRST_FAILED_JOB_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Check for existing open CI failure issue
+        id: check-existing
+        if: steps.failed-jobs.outputs.has_failures == 'true'
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        run: |
+          # Search for existing open CI failure issues to avoid duplicates
+          SEARCH_RESULT=$(curl -s -X POST https://api.linear.app/graphql \
+            -H "Content-Type: application/json" \
+            -H "Authorization: $LINEAR_API_KEY" \
+            -d '{
+              "query": "query SearchIssues($filter: IssueFilter) { issues(filter: $filter) { nodes { id identifier title state { name } } } }",
+              "variables": {
+                "filter": {
+                  "team": { "key": { "eq": "NEM" } },
+                  "title": { "contains": "[CI] Main branch" },
+                  "state": { "type": { "nin": ["completed", "canceled"] } }
+                }
+              }
+            }')
+
+          EXISTING_ISSUE=$(echo "$SEARCH_RESULT" | jq -r '.data.issues.nodes[0].identifier // empty')
+
+          if [ -n "$EXISTING_ISSUE" ]; then
+            echo "Found existing open CI failure issue: $EXISTING_ISSUE"
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "issue_id=$EXISTING_ISSUE" >> "$GITHUB_OUTPUT"
+            ISSUE_UUID=$(echo "$SEARCH_RESULT" | jq -r '.data.issues.nodes[0].id')
+            echo "issue_uuid=$ISSUE_UUID" >> "$GITHUB_OUTPUT"
+          else
+            echo "No existing open CI failure issue found"
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Update existing issue with new failure
+        if: steps.failed-jobs.outputs.has_failures == 'true' && steps.check-existing.outputs.exists == 'true'
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        run: |
+          ISSUE_UUID="${{ steps.check-existing.outputs.issue_uuid }}"
+          ISSUE_ID="${{ steps.check-existing.outputs.issue_id }}"
+          FAILED_JOBS="${{ steps.failed-jobs.outputs.failed_jobs }}"
+          WORKFLOW_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}"
+          COMMIT_SHA="${{ github.event.workflow_run.head_sha }}"
+          COMMIT_SHORT="${COMMIT_SHA:0:7}"
+
+          echo "Adding comment to existing issue $ISSUE_ID..."
+
+          COMMENT="**New CI Failure** on main branch\n\n**Commit:** [\`$COMMIT_SHORT\`](https://github.com/${{ github.repository }}/commit/$COMMIT_SHA)\n**Failed Jobs:** $FAILED_JOBS\n**Workflow Run:** [View logs]($WORKFLOW_URL)\n**Time:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+
+          curl -s -X POST https://api.linear.app/graphql \
+            -H "Content-Type: application/json" \
+            -H "Authorization: $LINEAR_API_KEY" \
+            -d '{
+              "query": "mutation CreateComment($input: CommentCreateInput!) { commentCreate(input: $input) { success } }",
+              "variables": {
+                "input": {
+                  "issueId": "'"$ISSUE_UUID"'",
+                  "body": "'"$COMMENT"'"
+                }
+              }
+            }'
+
+          echo "Added failure comment to $ISSUE_ID"
+
+      - name: Create new Linear issue for CI failure
+        if: steps.failed-jobs.outputs.has_failures == 'true' && steps.check-existing.outputs.exists == 'false'
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        run: |
+          FAILED_JOBS="${{ steps.failed-jobs.outputs.failed_jobs }}"
+          WORKFLOW_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}"
+          JOB_URL="${{ steps.failed-jobs.outputs.job_url }}"
+          COMMIT_SHA="${{ github.event.workflow_run.head_sha }}"
+          COMMIT_SHORT="${COMMIT_SHA:0:7}"
+          COMMIT_MSG="${{ github.event.workflow_run.display_title }}"
+
+          echo "Creating new Linear issue for CI failure..."
+
+          # Create issue title
+          TITLE="[CI] Main branch failing: $FAILED_JOBS"
+
+          # Truncate title if too long (Linear has a limit)
+          if [ ${#TITLE} -gt 200 ]; then
+            TITLE="${TITLE:0:197}..."
+          fi
+
+          # Create issue description
+          DESCRIPTION="## CI Failure on Main Branch\n\n**Status:** 🔴 Blocking container publish to GHCR\n\n### Details\n\n| Field | Value |\n|-------|-------|\n| **Failed Jobs** | $FAILED_JOBS |\n| **Commit** | [\`$COMMIT_SHORT\`](https://github.com/${{ github.repository }}/commit/$COMMIT_SHA) |\n| **Commit Message** | $COMMIT_MSG |\n| **Workflow Run** | [View logs]($WORKFLOW_URL) |\n| **Detected** | $(date -u '+%Y-%m-%d %H:%M:%S UTC') |\n\n### Impact\n\n- Container images are not being published to GHCR\n- Deployments are blocked until this is resolved\n\n### Resolution\n\nFix the failing CI job(s) and merge to main. This issue will be automatically closed when CI passes.\n\n---\n*Auto-generated by Linear CI Status Sync*"
+
+          # Create the issue via Linear API
+          RESULT=$(curl -s -X POST https://api.linear.app/graphql \
+            -H "Content-Type: application/json" \
+            -H "Authorization: $LINEAR_API_KEY" \
+            -d '{
+              "query": "mutation CreateIssue($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { identifier url } } }",
+              "variables": {
+                "input": {
+                  "teamId": "'"$LINEAR_TEAM_ID"'",
+                  "title": "'"$TITLE"'",
+                  "description": "'"$DESCRIPTION"'",
+                  "priority": 1,
+                  "labelIds": []
+                }
+              }
+            }')
+
+          SUCCESS=$(echo "$RESULT" | jq -r '.data.issueCreate.success // false')
+          ISSUE_ID=$(echo "$RESULT" | jq -r '.data.issueCreate.issue.identifier // empty')
+          ISSUE_URL=$(echo "$RESULT" | jq -r '.data.issueCreate.issue.url // empty')
+
+          if [ "$SUCCESS" = "true" ]; then
+            echo "✅ Created Linear issue: $ISSUE_ID"
+            echo "   URL: $ISSUE_URL"
+          else
+            echo "❌ Failed to create Linear issue"
+            echo "Response: $RESULT"
+            exit 1
+          fi
+
+  # Handle CI success on main branch - close any open CI failure issues
+  main-branch-success:
+    name: Close Linear Issue on Main CI Success
+    runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.conclusion == 'success'
+    permissions:
+      contents: read
+
+    steps:
+      - name: Find and close open CI failure issues
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        run: |
+          echo "CI passed on main - checking for open CI failure issues to close..."
+
+          # Search for open CI failure issues
+          SEARCH_RESULT=$(curl -s -X POST https://api.linear.app/graphql \
+            -H "Content-Type: application/json" \
+            -H "Authorization: $LINEAR_API_KEY" \
+            -d '{
+              "query": "query SearchIssues($filter: IssueFilter) { issues(filter: $filter) { nodes { id identifier title } } }",
+              "variables": {
+                "filter": {
+                  "team": { "key": { "eq": "NEM" } },
+                  "title": { "contains": "[CI] Main branch" },
+                  "state": { "type": { "nin": ["completed", "canceled"] } }
+                }
+              }
+            }')
+
+          ISSUES=$(echo "$SEARCH_RESULT" | jq -r '.data.issues.nodes')
+          ISSUE_COUNT=$(echo "$ISSUES" | jq 'length')
+
+          if [ "$ISSUE_COUNT" = "0" ]; then
+            echo "No open CI failure issues found"
+            exit 0
+          fi
+
+          echo "Found $ISSUE_COUNT open CI failure issue(s) to close"
+
+          # Close each issue
+          echo "$ISSUES" | jq -c '.[]' | while read -r issue; do
+            ISSUE_UUID=$(echo "$issue" | jq -r '.id')
+            ISSUE_ID=$(echo "$issue" | jq -r '.identifier')
+
+            echo "Closing $ISSUE_ID..."
+
+            # Add a comment before closing
+            WORKFLOW_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}"
+            COMMENT="**CI Passed** ✅\n\nMain branch CI is now passing. Closing this issue.\n\n[View successful workflow run]($WORKFLOW_URL)"
+
+            curl -s -X POST https://api.linear.app/graphql \
+              -H "Content-Type: application/json" \
+              -H "Authorization: $LINEAR_API_KEY" \
+              -d '{
+                "query": "mutation CreateComment($input: CommentCreateInput!) { commentCreate(input: $input) { success } }",
+                "variables": {
+                  "input": {
+                    "issueId": "'"$ISSUE_UUID"'",
+                    "body": "'"$COMMENT"'"
+                  }
+                }
+              }'
+
+            # Move to Done state
+            RESULT=$(curl -s -X POST https://api.linear.app/graphql \
+              -H "Content-Type: application/json" \
+              -H "Authorization: $LINEAR_API_KEY" \
+              -d '{
+                "query": "mutation UpdateIssue($id: String!, $input: IssueUpdateInput!) { issueUpdate(id: $id, input: $input) { success } }",
+                "variables": {
+                  "id": "'"$ISSUE_UUID"'",
+                  "input": { "stateId": "'"$LINEAR_STATE_DONE"'" }
+                }
+              }')
+
+            SUCCESS=$(echo "$RESULT" | jq -r '.data.issueUpdate.success // false')
+            if [ "$SUCCESS" = "true" ]; then
+              echo "✅ Closed $ISSUE_ID"
+            else
+              echo "⚠️ Failed to close $ISSUE_ID"
             fi
           done
 
