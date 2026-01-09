@@ -2851,6 +2851,7 @@ export interface paths {
          *         update_data: Update data (reviewed field)
          *         request: FastAPI request for audit logging
          *         db: Database session
+         *         cache: Cache service for cache invalidation (NEM-1938)
          *
          *     Returns:
          *         Updated event object
