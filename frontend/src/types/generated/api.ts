@@ -947,9 +947,12 @@ export interface paths {
         };
         /**
          * List Audit Logs
-         * @description List audit logs with optional filtering and pagination.
+         * @description List audit logs with optional filtering and cursor-based pagination.
          *
          *     This endpoint is intended for admin use to review security-sensitive operations.
+         *
+         *     Supports both cursor-based pagination (recommended) and offset pagination (deprecated).
+         *     Cursor-based pagination offers better performance for large datasets.
          *
          *     Args:
          *         action: Optional action type to filter by
@@ -960,7 +963,8 @@ export interface paths {
          *         start_date: Optional start date for date range filter
          *         end_date: Optional end date for date range filter
          *         limit: Maximum number of results to return (1-1000, default 100)
-         *         offset: Number of results to skip for pagination (default 0)
+         *         offset: Number of results to skip (deprecated, use cursor instead)
+         *         cursor: Pagination cursor from previous response's next_cursor field
          *         db: Database session
          *
          *     Returns:
@@ -968,6 +972,7 @@ export interface paths {
          *
          *     Raises:
          *         HTTPException: 400 if start_date is after end_date
+         *         HTTPException: 400 if cursor is invalid
          */
         get: operations["list_audit_logs_api_audit_get"];
         put?: never;
@@ -2716,10 +2721,30 @@ export interface paths {
         };
         /**
          * List Logs
-         * @description List logs with optional filtering and pagination.
+         * @description List logs with optional filtering and cursor-based pagination.
+         *
+         *     Supports both cursor-based pagination (recommended) and offset pagination (deprecated).
+         *     Cursor-based pagination offers better performance for large datasets.
+         *
+         *     Args:
+         *         level: Optional log level to filter by (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+         *         component: Optional component name to filter by
+         *         camera_id: Optional camera ID to filter by
+         *         source: Optional source to filter by (backend, frontend)
+         *         search: Optional search term for message text
+         *         start_date: Optional start date for date range filter
+         *         end_date: Optional end date for date range filter
+         *         limit: Maximum number of results to return (1-1000, default 100)
+         *         offset: Number of results to skip (deprecated, use cursor instead)
+         *         cursor: Pagination cursor from previous response's next_cursor field
+         *         db: Database session
+         *
+         *     Returns:
+         *         LogsResponse containing filtered logs and pagination info
          *
          *     Raises:
          *         HTTPException: 400 if start_date is after end_date
+         *         HTTPException: 400 if cursor is invalid
          */
         get: operations["list_logs_api_logs_get"];
         put?: never;
@@ -5018,8 +5043,12 @@ export interface components {
         /**
          * AuditLogListResponse
          * @description Schema for paginated audit log response.
+         *
+         *     Supports both cursor-based pagination (recommended) and offset pagination (deprecated).
+         *     Cursor-based pagination offers better performance for large datasets.
          * @example {
          *       "count": 1,
+         *       "has_more": false,
          *       "limit": 50,
          *       "logs": [
          *         {
@@ -5033,6 +5062,7 @@ export interface components {
          *           "timestamp": "2026-01-03T10:30:00Z"
          *         }
          *       ],
+         *       "next_cursor": "eyJpZCI6IDEsICJjcmVhdGVkX2F0IjogIjIwMjYtMDEtMDNUMTA6MzA6MDBaIn0=", // pragma: allowlist secret
          *       "offset": 0
          *     }
          */
@@ -5042,6 +5072,17 @@ export interface components {
              * @description Total count matching filters
              */
             count: number;
+            /**
+             * Deprecation Warning
+             * @description Warning when using deprecated offset pagination
+             */
+            deprecation_warning?: string | null;
+            /**
+             * Has More
+             * @description Whether more results are available
+             * @default false
+             */
+            has_more: boolean;
             /**
              * Limit
              * @description Page size (1-1000)
@@ -5053,8 +5094,13 @@ export interface components {
              */
             logs: components["schemas"]["AuditLogResponse"][];
             /**
+             * Next Cursor
+             * @description Cursor for next page (use this instead of offset)
+             */
+            next_cursor?: string | null;
+            /**
              * Offset
-             * @description Page offset (0-based)
+             * @description Page offset (0-based, deprecated)
              */
             offset: number;
         };
@@ -9051,8 +9097,12 @@ export interface components {
         /**
          * LogsResponse
          * @description Schema for paginated logs response.
+         *
+         *     Supports both cursor-based pagination (recommended) and offset pagination (deprecated).
+         *     Cursor-based pagination offers better performance for large datasets.
          * @example {
          *       "count": 1,
+         *       "has_more": false,
          *       "limit": 50,
          *       "logs": [
          *         {
@@ -9068,6 +9118,7 @@ export interface components {
          *           "timestamp": "2026-01-03T10:30:00Z"
          *         }
          *       ],
+         *       "next_cursor": "eyJpZCI6IDEsICJjcmVhdGVkX2F0IjogIjIwMjYtMDEtMDNUMTA6MzA6MDBaIn0=", // pragma: allowlist secret
          *       "offset": 0
          *     }
          */
@@ -9077,6 +9128,17 @@ export interface components {
              * @description Total count matching filters
              */
             count: number;
+            /**
+             * Deprecation Warning
+             * @description Warning when using deprecated offset pagination
+             */
+            deprecation_warning?: string | null;
+            /**
+             * Has More
+             * @description Whether more results are available
+             * @default false
+             */
+            has_more: boolean;
             /**
              * Limit
              * @description Page size (1-1000)
@@ -9088,8 +9150,13 @@ export interface components {
              */
             logs: components["schemas"]["LogEntry"][];
             /**
+             * Next Cursor
+             * @description Cursor for next page (use this instead of offset)
+             */
+            next_cursor?: string | null;
+            /**
              * Offset
-             * @description Page offset (0-based)
+             * @description Page offset (0-based, deprecated)
              */
             offset: number;
         };
@@ -13973,8 +14040,10 @@ export interface operations {
                 end_date?: string | null;
                 /** @description Page size */
                 limit?: number;
-                /** @description Page offset */
+                /** @description Number of results to skip (deprecated, use cursor) */
                 offset?: number;
+                /** @description Pagination cursor from previous response */
+                cursor?: string | null;
             };
             header?: never;
             path?: never;
@@ -15853,8 +15922,10 @@ export interface operations {
                 end_date?: string | null;
                 /** @description Page size */
                 limit?: number;
-                /** @description Page offset */
+                /** @description Number of results to skip (deprecated, use cursor) */
                 offset?: number;
+                /** @description Pagination cursor from previous response */
+                cursor?: string | null;
             };
             header?: never;
             path?: never;

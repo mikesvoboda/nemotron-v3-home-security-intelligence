@@ -241,10 +241,10 @@ class TestLogLevelEndpoint:
 
             assert response.status_code == 400
             data = response.json()
-            # Exception handlers return standardized error format
-            assert "error" in data
-            assert "message" in data["error"]
-            assert "invalid" in data["error"]["message"].lower()
+            # Exception handlers return RFC 7807 Problem Details format
+            assert data["status"] == 400
+            assert data["title"] == "Bad Request"
+            assert "invalid" in data["detail"].lower()
 
     @pytest.mark.asyncio
     async def test_set_log_level_case_insensitive(self, debug_settings: Settings) -> None:

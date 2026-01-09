@@ -257,6 +257,7 @@ const mockLogsResponse: LogsResponse = {
   count: 1,
   limit: 50,
   offset: 0,
+  has_more: false,
 };
 
 // Helper to create mock fetch response

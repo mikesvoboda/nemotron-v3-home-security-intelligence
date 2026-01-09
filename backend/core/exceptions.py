@@ -5,11 +5,57 @@ This module provides a comprehensive exception hierarchy that:
 2. Supports automatic HTTP status code mapping
 3. Enables structured error responses
 4. Facilitates error tracking and monitoring
+
+NEM-1446: Adds ServiceRequestContext for operational debugging context.
 """
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from typing import Any
+
+
+@dataclass(frozen=True, slots=True)
+class ServiceRequestContext:
+    """Operational context for service unavailable exceptions.
+
+    This dataclass captures debugging information about failed service requests,
+    including timing, retry attempts, and circuit breaker state. It enables
+    structured logging and easier debugging of transient service failures.
+
+    Attributes:
+        service_name: Name of the service (e.g., "rtdetr", "nemotron", "enrichment")
+        endpoint: API endpoint that was called (e.g., "/detect", "/completion")
+        method: HTTP method used (e.g., "POST", "GET")
+        duration_ms: Total duration of the request in milliseconds
+        attempt_number: Current attempt number (1-indexed)
+        max_attempts: Maximum number of retry attempts configured
+        circuit_state: Current circuit breaker state (e.g., "closed", "open", "half_open")
+    """
+
+    service_name: str
+    endpoint: str
+    method: str
+    duration_ms: float
+    attempt_number: int
+    max_attempts: int
+    circuit_state: str | None = field(default=None)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert context to dictionary for structured logging.
+
+        Returns:
+            Dictionary containing all context fields
+        """
+        return {
+            "service_name": self.service_name,
+            "endpoint": self.endpoint,
+            "method": self.method,
+            "duration_ms": self.duration_ms,
+            "attempt_number": self.attempt_number,
+            "max_attempts": self.max_attempts,
+            "circuit_state": self.circuit_state,
+        }
 
 
 class SecurityIntelligenceError(Exception):
@@ -290,6 +336,8 @@ class DetectorUnavailableError(AIServiceError):
 
     This exception signals that the operation should be retried later,
     as the failure is transient and not due to invalid input.
+
+    NEM-1446: Supports ServiceRequestContext for operational debugging.
     """
 
     default_message = "Object detection service temporarily unavailable"
@@ -300,6 +348,7 @@ class DetectorUnavailableError(AIServiceError):
         message: str | None = None,
         *,
         original_error: Exception | None = None,
+        context: ServiceRequestContext | None = None,
         **kwargs: Any,
     ) -> None:
         """Initialize the error.
@@ -307,10 +356,33 @@ class DetectorUnavailableError(AIServiceError):
         Args:
             message: Human-readable error description
             original_error: The underlying exception that caused this error
+            context: ServiceRequestContext with operational debugging info (NEM-1446)
             **kwargs: Additional keyword arguments passed to parent
         """
         self.original_error = original_error
+        self.context = context
         super().__init__(message, service_name="rtdetr", **kwargs)
+
+    def to_log_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for structured logging.
+
+        Returns:
+            Dictionary containing exception details, context, and original error info
+        """
+        result: dict[str, Any] = {
+            "error_code": self.error_code,
+            "message": self.message,
+            "service_name": self.service_name,
+            "status_code": self.status_code,
+            "context": self.context.to_dict() if self.context else None,
+            "original_error": None,
+        }
+        if self.original_error:
+            result["original_error"] = {
+                "type": type(self.original_error).__name__,
+                "message": str(self.original_error),
+            }
+        return result
 
 
 class AnalyzerUnavailableError(AIServiceError):
@@ -323,6 +395,8 @@ class AnalyzerUnavailableError(AIServiceError):
 
     This exception signals that the operation should be retried later,
     as the failure is transient and not due to invalid input.
+
+    NEM-1446: Supports ServiceRequestContext for operational debugging.
     """
 
     default_message = "Risk analysis service temporarily unavailable"
@@ -333,6 +407,7 @@ class AnalyzerUnavailableError(AIServiceError):
         message: str | None = None,
         *,
         original_error: Exception | None = None,
+        context: ServiceRequestContext | None = None,
         **kwargs: Any,
     ) -> None:
         """Initialize the error.
@@ -340,10 +415,33 @@ class AnalyzerUnavailableError(AIServiceError):
         Args:
             message: Human-readable error description
             original_error: The underlying exception that caused this error
+            context: ServiceRequestContext with operational debugging info (NEM-1446)
             **kwargs: Additional keyword arguments passed to parent
         """
         self.original_error = original_error
+        self.context = context
         super().__init__(message, service_name="nemotron", **kwargs)
+
+    def to_log_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for structured logging.
+
+        Returns:
+            Dictionary containing exception details, context, and original error info
+        """
+        result: dict[str, Any] = {
+            "error_code": self.error_code,
+            "message": self.message,
+            "service_name": self.service_name,
+            "status_code": self.status_code,
+            "context": self.context.to_dict() if self.context else None,
+            "original_error": None,
+        }
+        if self.original_error:
+            result["original_error"] = {
+                "type": type(self.original_error).__name__,
+                "message": str(self.original_error),
+            }
+        return result
 
 
 class EnrichmentUnavailableError(AIServiceError):
@@ -356,6 +454,8 @@ class EnrichmentUnavailableError(AIServiceError):
 
     This exception signals that the operation should be retried later,
     as the failure is transient and not due to invalid input.
+
+    NEM-1446: Supports ServiceRequestContext for operational debugging.
     """
 
     default_message = "Enrichment service temporarily unavailable"
@@ -366,6 +466,7 @@ class EnrichmentUnavailableError(AIServiceError):
         message: str | None = None,
         *,
         original_error: Exception | None = None,
+        context: ServiceRequestContext | None = None,
         **kwargs: Any,
     ) -> None:
         """Initialize the error.
@@ -373,10 +474,33 @@ class EnrichmentUnavailableError(AIServiceError):
         Args:
             message: Human-readable error description
             original_error: The underlying exception that caused this error
+            context: ServiceRequestContext with operational debugging info (NEM-1446)
             **kwargs: Additional keyword arguments passed to parent
         """
         self.original_error = original_error
+        self.context = context
         super().__init__(message, service_name="enrichment", **kwargs)
+
+    def to_log_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for structured logging.
+
+        Returns:
+            Dictionary containing exception details, context, and original error info
+        """
+        result: dict[str, Any] = {
+            "error_code": self.error_code,
+            "message": self.message,
+            "service_name": self.service_name,
+            "status_code": self.status_code,
+            "context": self.context.to_dict() if self.context else None,
+            "original_error": None,
+        }
+        if self.original_error:
+            result["original_error"] = {
+                "type": type(self.original_error).__name__,
+                "message": str(self.original_error),
+            }
+        return result
 
 
 class DatabaseError(ExternalServiceError):

@@ -239,10 +239,22 @@ Print-Success "All required prerequisites are installed"
 
 Print-Header "Step 2: Setting Up Backend"
 
+# Check for uv (mandatory)
+Print-Step "Checking for uv package manager..."
+if (Test-Command "uv") {
+    $UvVersion = uv --version
+    Print-Success "uv found: $UvVersion"
+} else {
+    Print-Error "uv is required but not installed."
+    Print-Info "Install with: irm https://astral.sh/uv/install.ps1 | iex"
+    Print-Info "Or with Scoop: scoop install uv"
+    exit 1
+}
+
 # Create virtual environment
 Print-Step "Creating Python virtual environment..."
 if (-not (Test-Path ".venv")) {
-    python -m venv .venv
+    uv venv .venv
     Print-Success "Virtual environment created"
 } else {
     Print-Info "Virtual environment already exists"
@@ -260,25 +272,11 @@ if (Test-Path $ActivateScript) {
     exit 1
 }
 
-# Upgrade pip
-Print-Step "Upgrading pip..."
-python -m pip install --upgrade pip --quiet
-Print-Success "pip upgraded"
-
-# Install backend dependencies
+# Install backend dependencies using uv sync
+# uv sync installs all dependencies from pyproject.toml including dev extras
 Print-Step "Installing backend dependencies..."
-if (Test-Path "backend\requirements.txt") {
-    pip install -r backend\requirements.txt --quiet
-    Print-Success "Backend dependencies installed"
-} else {
-    Print-Error "backend\requirements.txt not found"
-    exit 1
-}
-
-# Install development tools
-Print-Step "Installing development tools (pre-commit, ruff, mypy)..."
-pip install pre-commit ruff mypy --quiet
-Print-Success "Development tools installed"
+uv sync --extra dev
+Print-Success "Backend dependencies installed (includes pre-commit, ruff, mypy)"
 
 # Create .env file if it doesn't exist
 Print-Step "Setting up environment configuration..."
