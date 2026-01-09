@@ -141,12 +141,12 @@ export default function EnrichmentPanel({
           <div className="space-y-1">
             <DetailRow label="Type" value={enrichment_data.vehicle.type} />
             <DetailRow label="Color" value={enrichment_data.vehicle.color} />
-            {enrichment_data.vehicle.damage && enrichment_data.vehicle.damage.length > 0 && (
+            {(enrichment_data.vehicle.damage?.length ?? 0) > 0 && (
               <DetailRow
                 label="Damage"
                 value={
                   <div className="flex flex-wrap gap-1 justify-end">
-                    {enrichment_data.vehicle.damage.map((d, i) => (
+                    {enrichment_data.vehicle.damage?.map((d, i) => (
                       <span
                         key={i}
                         className="rounded bg-red-500/20 px-1.5 py-0.5 text-xs text-red-400"
