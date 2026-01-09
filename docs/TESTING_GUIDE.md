@@ -69,6 +69,10 @@ frontend/
 
 ## Test Organization
 
+![Test Suite Organization](images/architecture/test-suite-organization.png)
+
+_Test suite organization diagram showing the relationship between unit, integration, and E2E test layers._
+
 ### Test Types
 
 | Test Type                | Location                      | Framework                      | Purpose                          |

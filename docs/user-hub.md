@@ -31,15 +31,15 @@ These guides help you understand what you see when you open the app.
 
 | Guide                                                            | Description                                      | Time    |
 | ---------------------------------------------------------------- | ------------------------------------------------ | ------- |
-| [Dashboard Basics](user/dashboard-basics.md)                     | Layout, header, sidebar, quick stats             | ~8 min  |
+| [Dashboard Basics](user-guide/dashboard-basics.md)               | Layout, header, sidebar, quick stats             | ~8 min  |
 | [Dashboard Customization](user-guide/dashboard-customization.md) | Widgets, heatmaps, and analytics charts          | ~15 min |
-| [Viewing Events](user/viewing-events.md)                         | Activity feed, timeline, event details           | ~10 min |
-| [AI Enrichment Data](user/ai-enrichment.md)                      | Advanced AI analysis in event details            | ~8 min  |
-| [AI Audit Dashboard](user/ai-audit.md)                           | AI quality metrics and recommendations           | ~8 min  |
+| [Viewing Events](user-guide/viewing-events.md)                   | Activity feed, timeline, event details           | ~10 min |
+| [AI Enrichment Data](user-guide/ai-enrichment.md)                | Advanced AI analysis in event details            | ~8 min  |
+| [AI Audit Dashboard](user-guide/ai-audit.md)                     | AI quality metrics and recommendations           | ~8 min  |
 | [Prompt Playground](user-guide/prompt-playground.md)             | Edit, test, and A/B test AI prompts              | ~15 min |
-| [Understanding Alerts](user/understanding-alerts.md)             | Risk levels and how to respond                   | ~8 min  |
-| [Dashboard Settings](user/dashboard-settings.md)                 | Configuration and quick reference                | ~5 min  |
-| [System Monitoring](user/system-monitoring.md)                   | System health, circuit breakers, troubleshooting | ~12 min |
+| [Understanding Alerts](user-guide/understanding-alerts.md)       | Risk levels and how to respond                   | ~8 min  |
+| [Dashboard Settings](user-guide/dashboard-settings.md)           | Configuration and quick reference                | ~5 min  |
+| [System Monitoring](user-guide/system-monitoring.md)             | System health, circuit breakers, troubleshooting | ~12 min |
 
 ---
 
@@ -276,9 +276,9 @@ Complete list of guides for using the system:
 | [Accessibility Features](user-guide/accessibility.md)            | Screen readers, keyboard-only, WCAG     |
 | [Event Investigation](user-guide/event-investigation.md)         | Video clips, entity tracking, deep dive |
 | [Settings](user-guide/settings.md)                               | Configuring the system                  |
-| [AI Audit Dashboard](user/ai-audit.md)                           | AI quality metrics and auditing         |
+| [AI Audit Dashboard](user-guide/ai-audit.md)                     | AI quality metrics and auditing         |
 | [Prompt Playground](user-guide/prompt-playground.md)             | Edit, test, and A/B test AI prompts     |
-| [System Monitoring](user/system-monitoring.md)                   | System health and circuit breakers      |
+| [System Monitoring](user-guide/system-monitoring.md)             | System health and circuit breakers      |
 | [Risk Levels Reference](reference/config/risk-levels.md)         | Official risk score definitions         |
 
 ---

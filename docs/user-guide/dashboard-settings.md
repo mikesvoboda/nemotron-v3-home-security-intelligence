@@ -119,7 +119,7 @@ _Caption: The Notifications tab shows your notification channel configuration an
 
 **Note:** Notification settings are configured by your system administrator via environment variables. This tab displays current configuration but cannot change it.
 
-For detailed notification documentation, see the [Alerts & Notifications Guide](../user-guide/alerts-notifications.md).
+For detailed notification documentation, see the [Alerts & Notifications Guide](alerts-notifications.md).
 
 ---
 

@@ -181,6 +181,10 @@ The setup script enforces these security guidelines:
 
 ## Authentication
 
+![Authentication Flow](../images/architecture/authentication-flow.png)
+
+_Authentication flow diagram showing API key validation and protected endpoint access._
+
 ### API Key Authentication
 
 Enable API key authentication for protected access:

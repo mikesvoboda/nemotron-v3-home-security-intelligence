@@ -115,6 +115,10 @@ Default pool configuration (tunable in `backend/core/database.py`):
 
 ## Migrations
 
+![Database Migration Timeline](../images/architecture/database-migration-timeline.png)
+
+_Database migration timeline showing Alembic version history and upgrade/downgrade paths._
+
 ### Common Commands
 
 ```bash

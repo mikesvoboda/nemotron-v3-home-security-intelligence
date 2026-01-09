@@ -655,6 +655,10 @@ matches = re.findall(json_pattern, text, re.DOTALL)
 
 ## Error Handling
 
+![Event Feedback Loop](../images/architecture/event-feedback-loop.png)
+
+_Event feedback loop showing how user reviews and dismissed events inform future risk assessments._
+
 The pipeline is designed for graceful degradation - failures at any stage should not crash the system.
 
 ### Detection Errors Diagram

@@ -11,6 +11,10 @@
 
 The alert system notifies users when security events match configured rule conditions:
 
+![Alert Engine Pipeline](../images/architecture/alert-engine.png)
+
+_Alert engine pipeline showing events flowing through rule evaluation, deduplication, and notification delivery._
+
 ```
 Events --> [Alert Rules] --> [Alert Engine] --> [Dedup] --> [Notification]
 ```
