@@ -3,10 +3,11 @@
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.api.dependencies import get_camera_or_404, get_zone_or_404
 from backend.api.schemas.zone import (
     ZoneCreate,
     ZoneListResponse,
@@ -14,73 +15,12 @@ from backend.api.schemas.zone import (
     ZoneUpdate,
 )
 from backend.core.database import get_db
-from backend.models.camera import Camera
 from backend.models.zone import Zone
 
 router = APIRouter(prefix="/api/cameras", tags=["zones"])
 
 
-async def _get_camera_or_404(camera_id: str, db: AsyncSession) -> Camera:
-    """Get a camera by ID or raise 404.
-
-    Args:
-        camera_id: The camera ID to look up
-        db: Database session
-
-    Returns:
-        Camera object
-
-    Raises:
-        HTTPException: 404 if camera not found
-    """
-    result = await db.execute(select(Camera).where(Camera.id == camera_id))
-    camera = result.scalar_one_or_none()
-
-    if not camera:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Camera with id {camera_id} not found",
-        )
-
-    # Type is already narrowed by the None check above
-    return camera
-
-
-async def _get_zone_or_404(zone_id: str, camera_id: str, db: AsyncSession) -> Zone:
-    """Get a zone by ID and camera ID or raise 404.
-
-    Args:
-        zone_id: The zone ID to look up
-        camera_id: The camera ID the zone belongs to
-        db: Database session
-
-    Returns:
-        Zone object
-
-    Raises:
-        HTTPException: 404 if zone not found or doesn't belong to camera
-    """
-    result = await db.execute(select(Zone).where(Zone.id == zone_id, Zone.camera_id == camera_id))
-    zone = result.scalar_one_or_none()
-
-    if not zone:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Zone with id {zone_id} not found for camera {camera_id}",
-        )
-
-    # Type is already narrowed by the None check above
-    return zone
-
-
-@router.get(
-    "/{camera_id}/zones",
-    response_model=ZoneListResponse,
-    responses={
-        404: {"description": "Camera not found"},
-        500: {"description": "Internal server error"},
-    },
-)
+@router.get("/{camera_id}/zones", response_model=ZoneListResponse)
 async def list_zones(
     camera_id: str,
     enabled: bool | None = Query(None, description="Filter by enabled status"),
@@ -97,7 +37,7 @@ async def list_zones(
         ZoneListResponse containing list of zones and total count
     """
     # Verify camera exists
-    await _get_camera_or_404(camera_id, db)
+    await get_camera_or_404(camera_id, db)
 
     query = select(Zone).where(Zone.camera_id == camera_id).order_by(Zone.priority.desc())
 
@@ -135,7 +75,7 @@ async def create_zone(
         Created zone object with generated ID
     """
     # Verify camera exists
-    await _get_camera_or_404(camera_id, db)
+    await get_camera_or_404(camera_id, db)
 
     # Create zone with generated UUID
     zone = Zone(
@@ -177,9 +117,9 @@ async def get_zone(
         HTTPException: 404 if zone not found
     """
     # Verify camera exists
-    await _get_camera_or_404(camera_id, db)
+    await get_camera_or_404(camera_id, db)
 
-    return await _get_zone_or_404(zone_id, camera_id, db)
+    return await get_zone_or_404(zone_id, db, camera_id=camera_id)
 
 
 @router.put("/{camera_id}/zones/{zone_id}", response_model=ZoneResponse)
@@ -204,9 +144,9 @@ async def update_zone(
         HTTPException: 404 if zone not found
     """
     # Verify camera exists
-    await _get_camera_or_404(camera_id, db)
+    await get_camera_or_404(camera_id, db)
 
-    zone = await _get_zone_or_404(zone_id, camera_id, db)
+    zone = await get_zone_or_404(zone_id, db, camera_id=camera_id)
 
     # Update only provided fields
     update_data = zone_data.model_dump(exclude_unset=True)
@@ -239,9 +179,9 @@ async def delete_zone(
         HTTPException: 404 if zone not found
     """
     # Verify camera exists
-    await _get_camera_or_404(camera_id, db)
+    await get_camera_or_404(camera_id, db)
 
-    zone = await _get_zone_or_404(zone_id, camera_id, db)
+    zone = await get_zone_or_404(zone_id, db, camera_id=camera_id)
 
     await db.delete(zone)
     await db.commit()

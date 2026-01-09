@@ -58,9 +58,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.redis import RedisClient, get_redis
+from backend.models.alert import AlertRule
 from backend.models.camera import Camera
 from backend.models.detection import Detection
 from backend.models.event import Event
+from backend.models.event_audit import EventAudit
+from backend.models.prompt_version import PromptVersion
+from backend.models.zone import Zone
 from backend.services.cache_service import CacheService
 
 if TYPE_CHECKING:
@@ -202,6 +206,142 @@ async def get_detection_or_404(
         )
 
     return detection
+
+
+async def get_alert_rule_or_404(
+    rule_id: str,
+    db: AsyncSession,
+) -> AlertRule:
+    """Get an alert rule by ID or raise 404 if not found.
+
+    This utility function queries the database for an alert rule with the given ID
+    and raises an HTTPException with status 404 if not found.
+
+    Args:
+        rule_id: The alert rule ID (UUID string) to look up
+        db: Database session
+
+    Returns:
+        AlertRule object if found
+
+    Raises:
+        HTTPException: 404 if alert rule not found
+    """
+    result = await db.execute(select(AlertRule).where(AlertRule.id == rule_id))
+    rule = result.scalar_one_or_none()
+
+    if not rule:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Alert rule with id {rule_id} not found",
+        )
+
+    return rule
+
+
+async def get_zone_or_404(
+    zone_id: str,
+    db: AsyncSession,
+    camera_id: str | None = None,
+) -> Zone:
+    """Get a zone by ID or raise 404 if not found.
+
+    This utility function queries the database for a zone with the given ID
+    and raises an HTTPException with status 404 if not found.
+
+    Args:
+        zone_id: The zone ID to look up
+        db: Database session
+        camera_id: Optional camera ID to filter by (if provided, zone must belong to this camera)
+
+    Returns:
+        Zone object if found
+
+    Raises:
+        HTTPException: 404 if zone not found or doesn't belong to specified camera
+    """
+    query = select(Zone).where(Zone.id == zone_id)
+
+    if camera_id is not None:
+        query = query.where(Zone.camera_id == camera_id)
+
+    result = await db.execute(query)
+    zone = result.scalar_one_or_none()
+
+    if not zone:
+        if camera_id is not None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Zone with id {zone_id} not found for camera {camera_id}",
+            )
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Zone with id {zone_id} not found",
+        )
+
+    return zone
+
+
+async def get_prompt_version_or_404(
+    version_id: int,
+    db: AsyncSession,
+) -> PromptVersion:
+    """Get a prompt version by ID or raise 404 if not found.
+
+    This utility function queries the database for a prompt version with the given ID
+    and raises an HTTPException with status 404 if not found.
+
+    Args:
+        version_id: The prompt version ID to look up
+        db: Database session
+
+    Returns:
+        PromptVersion object if found
+
+    Raises:
+        HTTPException: 404 if prompt version not found
+    """
+    result = await db.execute(select(PromptVersion).where(PromptVersion.id == version_id))
+    version = result.scalar_one_or_none()
+
+    if not version:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Prompt version with id {version_id} not found",
+        )
+
+    return version
+
+
+async def get_event_audit_or_404(
+    event_id: int,
+    db: AsyncSession,
+) -> EventAudit:
+    """Get an event audit by event ID or raise 404 if not found.
+
+    This utility function queries the database for an event audit record associated
+    with the given event ID and raises an HTTPException with status 404 if not found.
+
+    Args:
+        event_id: The event ID whose audit to look up
+        db: Database session
+
+    Returns:
+        EventAudit object if found
+
+    Raises:
+        HTTPException: 404 if event audit not found
+    """
+    result = await db.execute(select(EventAudit).where(EventAudit.event_id == event_id))
+    audit = result.scalar_one_or_none()
+
+    if not audit:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No audit found for event {event_id}",
+        )
+
+    return audit
 
 
 # =============================================================================

@@ -555,3 +555,347 @@ class TestBuildErrorResponse:
         )
 
         assert response.headers.get("Retry-After") == "60"
+
+
+# =============================================================================
+# SQLAlchemy Exception Handler Tests (NEM-1442)
+# =============================================================================
+
+
+class TestSQLAlchemyExceptionHandler:
+    """Tests for sqlalchemy_exception_handler function."""
+
+    @pytest.mark.asyncio
+    async def test_database_error_returns_503(self, mock_request: MagicMock):
+        """Test that SQLAlchemyError returns 503 Service Unavailable."""
+        from sqlalchemy.exc import SQLAlchemyError
+
+        from backend.api.exception_handlers import sqlalchemy_exception_handler
+
+        exc = SQLAlchemyError("Connection refused")
+
+        response = await sqlalchemy_exception_handler(mock_request, exc)
+
+        assert response.status_code == 503
+
+        import json
+
+        body = json.loads(response.body.decode())
+
+        assert body["error"]["code"] == "DATABASE_UNAVAILABLE"
+        assert "database" in body["error"]["message"].lower()
+        assert body["error"]["request_id"] == "test-request-id-123"
+
+    @pytest.mark.asyncio
+    async def test_operational_error_returns_503(self, mock_request: MagicMock):
+        """Test that OperationalError returns 503 with appropriate message."""
+        from sqlalchemy.exc import OperationalError
+
+        from backend.api.exception_handlers import sqlalchemy_exception_handler
+
+        # OperationalError requires statement, params, orig
+        exc = OperationalError(
+            statement="SELECT 1",
+            params={},
+            orig=Exception("Connection timed out"),
+        )
+
+        response = await sqlalchemy_exception_handler(mock_request, exc)
+
+        assert response.status_code == 503
+
+        import json
+
+        body = json.loads(response.body.decode())
+
+        assert body["error"]["code"] == "DATABASE_UNAVAILABLE"
+        assert "request_id" in body["error"]
+
+    @pytest.mark.asyncio
+    async def test_integrity_error_returns_409(self, mock_request: MagicMock):
+        """Test that IntegrityError returns 409 Conflict."""
+        from sqlalchemy.exc import IntegrityError
+
+        from backend.api.exception_handlers import sqlalchemy_exception_handler
+
+        exc = IntegrityError(
+            statement="INSERT INTO cameras",
+            params={},
+            orig=Exception("duplicate key"),
+        )
+
+        response = await sqlalchemy_exception_handler(mock_request, exc)
+
+        assert response.status_code == 409
+
+        import json
+
+        body = json.loads(response.body.decode())
+
+        assert body["error"]["code"] == "DATABASE_CONFLICT"
+        assert "request_id" in body["error"]
+
+    @pytest.mark.asyncio
+    async def test_no_sensitive_data_leaked(self, mock_request: MagicMock):
+        """Test that sensitive data is not leaked in error response."""
+        from sqlalchemy.exc import SQLAlchemyError
+
+        from backend.api.exception_handlers import sqlalchemy_exception_handler
+
+        # Error message containing sensitive info (test credentials only)
+        exc = SQLAlchemyError(
+            "Connection to postgresql://user:password123@localhost:5432/db failed"  # pragma: allowlist secret
+        )
+
+        response = await sqlalchemy_exception_handler(mock_request, exc)
+
+        import json
+
+        body = json.loads(response.body.decode())
+
+        # Should not contain the password or full connection string
+        assert "password123" not in body["error"]["message"]
+        assert "user:" not in body["error"]["message"]
+
+    @pytest.mark.asyncio
+    async def test_includes_timestamp(self, mock_request: MagicMock):
+        """Test that error response includes timestamp."""
+        from sqlalchemy.exc import SQLAlchemyError
+
+        from backend.api.exception_handlers import sqlalchemy_exception_handler
+
+        exc = SQLAlchemyError("Connection refused")
+
+        response = await sqlalchemy_exception_handler(mock_request, exc)
+
+        import json
+
+        body = json.loads(response.body.decode())
+
+        assert "timestamp" in body["error"]
+
+
+# =============================================================================
+# Redis Exception Handler Tests (NEM-1442)
+# =============================================================================
+
+
+class TestRedisExceptionHandler:
+    """Tests for redis_exception_handler function."""
+
+    @pytest.mark.asyncio
+    async def test_redis_error_returns_503(self, mock_request: MagicMock):
+        """Test that RedisError returns 503 Service Unavailable."""
+        from redis.exceptions import RedisError
+
+        from backend.api.exception_handlers import redis_exception_handler
+
+        exc = RedisError("Connection refused")
+
+        response = await redis_exception_handler(mock_request, exc)
+
+        assert response.status_code == 503
+
+        import json
+
+        body = json.loads(response.body.decode())
+
+        assert body["error"]["code"] == "CACHE_UNAVAILABLE"
+        assert (
+            "cache" in body["error"]["message"].lower()
+            or "redis" in body["error"]["message"].lower()
+        )
+        assert body["error"]["request_id"] == "test-request-id-123"
+
+    @pytest.mark.asyncio
+    async def test_connection_error_returns_503(self, mock_request: MagicMock):
+        """Test that ConnectionError returns 503."""
+        from redis.exceptions import ConnectionError as RedisConnectionError
+
+        from backend.api.exception_handlers import redis_exception_handler
+
+        exc = RedisConnectionError("Connection refused")
+
+        response = await redis_exception_handler(mock_request, exc)
+
+        assert response.status_code == 503
+
+        import json
+
+        body = json.loads(response.body.decode())
+
+        assert body["error"]["code"] == "CACHE_UNAVAILABLE"
+
+    @pytest.mark.asyncio
+    async def test_timeout_error_returns_503(self, mock_request: MagicMock):
+        """Test that TimeoutError returns 503."""
+        from redis.exceptions import TimeoutError as RedisTimeoutError
+
+        from backend.api.exception_handlers import redis_exception_handler
+
+        exc = RedisTimeoutError("Operation timed out")
+
+        response = await redis_exception_handler(mock_request, exc)
+
+        assert response.status_code == 503
+
+        import json
+
+        body = json.loads(response.body.decode())
+
+        assert body["error"]["code"] == "CACHE_UNAVAILABLE"
+
+    @pytest.mark.asyncio
+    async def test_no_sensitive_data_leaked(self, mock_request: MagicMock):
+        """Test that sensitive data is not leaked in error response."""
+        from redis.exceptions import RedisError
+
+        from backend.api.exception_handlers import redis_exception_handler
+
+        # Error message containing sensitive info
+        exc = RedisError("Connection to redis://:secretpassword@localhost:6379/0 failed")
+
+        response = await redis_exception_handler(mock_request, exc)
+
+        import json
+
+        body = json.loads(response.body.decode())
+
+        # Should not contain the password
+        assert "secretpassword" not in body["error"]["message"]
+
+    @pytest.mark.asyncio
+    async def test_includes_timestamp(self, mock_request: MagicMock):
+        """Test that error response includes timestamp."""
+        from redis.exceptions import RedisError
+
+        from backend.api.exception_handlers import redis_exception_handler
+
+        exc = RedisError("Connection refused")
+
+        response = await redis_exception_handler(mock_request, exc)
+
+        import json
+
+        body = json.loads(response.body.decode())
+
+        assert "timestamp" in body["error"]
+
+    @pytest.mark.asyncio
+    async def test_request_id_from_header_fallback(self, mock_request_no_id: MagicMock):
+        """Test that request ID falls back to header when not in state."""
+        from redis.exceptions import RedisError
+
+        from backend.api.exception_handlers import redis_exception_handler
+
+        mock_request_no_id.headers = {"X-Request-ID": "header-id-456"}
+        exc = RedisError("Connection refused")
+
+        response = await redis_exception_handler(mock_request_no_id, exc)
+
+        import json
+
+        body = json.loads(response.body.decode())
+
+        assert body["error"]["request_id"] == "header-id-456"
+
+
+# =============================================================================
+# Integration Tests for Database/Redis Exception Handlers (NEM-1442)
+# =============================================================================
+
+
+class TestDatabaseRedisExceptionHandlersIntegration:
+    """Integration tests for database and Redis exception handlers via HTTP."""
+
+    @pytest.fixture
+    def db_redis_test_app(self) -> FastAPI:
+        """Create a test app with routes that raise database/Redis errors."""
+        from redis.exceptions import ConnectionError as RedisConnectionError
+        from redis.exceptions import RedisError
+        from sqlalchemy.exc import IntegrityError, OperationalError, SQLAlchemyError
+
+        app = FastAPI()
+        register_exception_handlers(app)
+
+        @app.get("/test/db-error")
+        async def raise_db_error():
+            raise SQLAlchemyError("Database connection failed")
+
+        @app.get("/test/db-operational")
+        async def raise_db_operational():
+            raise OperationalError(
+                statement="SELECT 1",
+                params={},
+                orig=Exception("Connection pool exhausted"),
+            )
+
+        @app.get("/test/db-integrity")
+        async def raise_db_integrity():
+            raise IntegrityError(
+                statement="INSERT INTO table",
+                params={},
+                orig=Exception("Unique constraint violated"),
+            )
+
+        @app.get("/test/redis-error")
+        async def raise_redis_error():
+            raise RedisError("Redis connection failed")
+
+        @app.get("/test/redis-connection")
+        async def raise_redis_connection():
+            raise RedisConnectionError("Connection refused")
+
+        return app
+
+    @pytest.fixture
+    def db_redis_client(self, db_redis_test_app: FastAPI) -> TestClient:
+        """Create test client for database/Redis tests."""
+        return TestClient(db_redis_test_app)
+
+    def test_sqlalchemy_error_via_http(self, db_redis_client: TestClient):
+        """Test SQLAlchemyError returns proper response via HTTP."""
+        response = db_redis_client.get("/test/db-error")
+
+        assert response.status_code == 503
+
+        body = response.json()
+        assert body["error"]["code"] == "DATABASE_UNAVAILABLE"
+        assert "timestamp" in body["error"]
+
+    def test_operational_error_via_http(self, db_redis_client: TestClient):
+        """Test OperationalError returns 503 via HTTP."""
+        response = db_redis_client.get("/test/db-operational")
+
+        assert response.status_code == 503
+
+        body = response.json()
+        assert body["error"]["code"] == "DATABASE_UNAVAILABLE"
+
+    def test_integrity_error_via_http(self, db_redis_client: TestClient):
+        """Test IntegrityError returns 409 via HTTP."""
+        response = db_redis_client.get("/test/db-integrity")
+
+        assert response.status_code == 409
+
+        body = response.json()
+        assert body["error"]["code"] == "DATABASE_CONFLICT"
+
+    def test_redis_error_via_http(self, db_redis_client: TestClient):
+        """Test RedisError returns proper response via HTTP."""
+        response = db_redis_client.get("/test/redis-error")
+
+        assert response.status_code == 503
+
+        body = response.json()
+        assert body["error"]["code"] == "CACHE_UNAVAILABLE"
+        assert "timestamp" in body["error"]
+
+    def test_redis_connection_error_via_http(self, db_redis_client: TestClient):
+        """Test Redis ConnectionError returns 503 via HTTP."""
+        response = db_redis_client.get("/test/redis-connection")
+
+        assert response.status_code == 503
+
+        body = response.json()
+        assert body["error"]["code"] == "CACHE_UNAVAILABLE"

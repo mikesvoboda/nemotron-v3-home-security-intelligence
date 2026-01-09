@@ -443,6 +443,58 @@ NEMOTRON_TOKEN_COST_USD = Counter(
 )
 
 # =============================================================================
+# LLM Inference Cost Tracking Metrics (NEM-1673)
+# =============================================================================
+
+GPU_SECONDS_TOTAL = Counter(
+    "hsi_gpu_seconds_total",
+    "Total GPU time consumed by AI model inference in seconds",
+    labelnames=["model"],
+    registry=_registry,
+)
+
+ESTIMATED_COST_USD_TOTAL = Counter(
+    "hsi_estimated_cost_usd_total",
+    "Total estimated cost based on cloud equivalents in USD",
+    labelnames=["service"],
+    registry=_registry,
+)
+
+EVENT_ANALYSIS_COST_USD = Counter(
+    "hsi_event_analysis_cost_usd_total",
+    "Total estimated cost per event analysis in USD",
+    labelnames=["camera_id"],
+    registry=_registry,
+)
+
+# Budget tracking gauges
+DAILY_COST_USD = Gauge(
+    "hsi_daily_cost_usd",
+    "Current daily estimated cost in USD",
+    registry=_registry,
+)
+
+MONTHLY_COST_USD = Gauge(
+    "hsi_monthly_cost_usd",
+    "Current monthly estimated cost in USD",
+    registry=_registry,
+)
+
+BUDGET_UTILIZATION_RATIO = Gauge(
+    "hsi_budget_utilization_ratio",
+    "Current budget utilization as a ratio (0.0 to 1.0+)",
+    labelnames=["period"],  # daily, monthly
+    registry=_registry,
+)
+
+BUDGET_EXCEEDED_TOTAL = Counter(
+    "hsi_budget_exceeded_total",
+    "Total number of times budget threshold was exceeded",
+    labelnames=["period"],  # daily, monthly
+    registry=_registry,
+)
+
+# =============================================================================
 # MetricsService Class (NEM-1327)
 # =============================================================================
 
@@ -786,6 +838,74 @@ class MetricsService:
                 cost += (output_tokens / 1000.0) * output_cost_per_1k
             if cost > 0:
                 NEMOTRON_TOKEN_COST_USD.labels(camera_id=safe_camera_id).inc(cost)
+
+    # -------------------------------------------------------------------------
+    # LLM Inference Cost Tracking Metrics (NEM-1673)
+    # -------------------------------------------------------------------------
+
+    def record_gpu_seconds(self, model: str, duration_seconds: float) -> None:
+        """Record GPU time consumed by AI model inference.
+
+        Args:
+            model: Model identifier (e.g., 'nemotron', 'rtdetr', 'florence')
+            duration_seconds: Duration of inference in seconds
+        """
+        if duration_seconds > 0:
+            GPU_SECONDS_TOTAL.labels(model=model).inc(duration_seconds)
+
+    def record_estimated_cost(self, service: str, cost_usd: float) -> None:
+        """Record estimated cost based on cloud equivalents.
+
+        Args:
+            service: Service identifier (e.g., 'nemotron', 'rtdetr', 'enrichment')
+            cost_usd: Estimated cost in USD
+        """
+        if cost_usd > 0:
+            ESTIMATED_COST_USD_TOTAL.labels(service=service).inc(cost_usd)
+
+    def record_event_analysis_cost(self, camera_id: str, cost_usd: float) -> None:
+        """Record cost for a single event analysis.
+
+        Args:
+            camera_id: Camera identifier
+            cost_usd: Total cost for the event analysis in USD
+        """
+        safe_camera_id = sanitize_camera_id(camera_id)
+        if cost_usd > 0:
+            EVENT_ANALYSIS_COST_USD.labels(camera_id=safe_camera_id).inc(cost_usd)
+
+    def set_daily_cost(self, cost_usd: float) -> None:
+        """Set the current daily cost gauge.
+
+        Args:
+            cost_usd: Current daily cost in USD
+        """
+        DAILY_COST_USD.set(cost_usd)
+
+    def set_monthly_cost(self, cost_usd: float) -> None:
+        """Set the current monthly cost gauge.
+
+        Args:
+            cost_usd: Current monthly cost in USD
+        """
+        MONTHLY_COST_USD.set(cost_usd)
+
+    def set_budget_utilization(self, period: str, ratio: float) -> None:
+        """Set budget utilization ratio for a period.
+
+        Args:
+            period: Budget period ('daily' or 'monthly')
+            ratio: Utilization ratio (0.0 to 1.0+, >1.0 indicates over budget)
+        """
+        BUDGET_UTILIZATION_RATIO.labels(period=period).set(ratio)
+
+    def record_budget_exceeded(self, period: str) -> None:
+        """Record that budget threshold was exceeded.
+
+        Args:
+            period: Budget period ('daily' or 'monthly')
+        """
+        BUDGET_EXCEEDED_TOTAL.labels(period=period).inc()
 
 
 # Global singleton instance for MetricsService
