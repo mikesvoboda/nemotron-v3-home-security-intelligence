@@ -17,9 +17,18 @@ vi.mock('react-router-dom', async () => {
 });
 
 // Mock the API and hooks
-vi.mock('../../services/api');
-vi.mock('../../hooks/useEventStream');
-vi.mock('../../hooks/useSystemStatus');
+vi.mock('../../services/api', () => ({
+  fetchCameras: vi.fn(),
+  fetchEvents: vi.fn(),
+  fetchEventStats: vi.fn(),
+  getCameraSnapshotUrl: vi.fn(),
+}));
+vi.mock('../../hooks/useEventStream', () => ({
+  useEventStream: vi.fn(),
+}));
+vi.mock('../../hooks/useSystemStatus', () => ({
+  useSystemStatus: vi.fn(),
+}));
 
 // Mock child components
 vi.mock('./StatsRow', () => ({
@@ -98,6 +107,100 @@ vi.mock('./ActivityFeed', () => ({
       ))}
     </div>
   ),
+}));
+
+// Mock DashboardLayout to pass through to child components for existing test compatibility
+vi.mock('./DashboardLayout', () => ({
+  default: ({
+    widgetProps,
+    renderStatsRow,
+    renderCameraGrid,
+    renderActivityFeed,
+    isLoading,
+    renderLoadingSkeleton,
+  }: {
+    widgetProps: {
+      statsRow?: {
+        activeCameras: number;
+        eventsToday: number;
+        currentRiskScore: number;
+        systemStatus: string;
+        riskHistory?: number[];
+      };
+      cameraGrid?: {
+        cameras: Array<{ id: string; name: string; thumbnail_url?: string }>;
+        onCameraClick?: (cameraId: string) => void;
+      };
+      activityFeed?: {
+        events: Array<{ id: string; camera_name: string }>;
+        maxItems?: number;
+        onEventClick?: (eventId: string) => void;
+        className?: string;
+      };
+    };
+    renderStatsRow: (props: unknown) => React.ReactNode;
+    renderCameraGrid: (props: unknown) => React.ReactNode;
+    renderActivityFeed: (props: unknown) => React.ReactNode;
+    isLoading?: boolean;
+    renderLoadingSkeleton?: () => React.ReactNode;
+  }) => {
+    if (isLoading && renderLoadingSkeleton) {
+      return (
+        <div className="min-h-screen bg-[#121212] p-4 md:p-8">
+          <div className="mx-auto max-w-[1920px]">{renderLoadingSkeleton()}</div>
+        </div>
+      );
+    }
+
+    return (
+      <div data-testid="dashboard-layout" className="min-h-screen bg-[#121212] p-4 md:p-8">
+        <div className="mx-auto max-w-[1920px]">
+          {/* Header */}
+          <div className="mb-6 md:mb-8">
+            <h1>Security Dashboard</h1>
+            <p>Real-time AI-powered home security monitoring</p>
+          </div>
+
+          {/* Stats Row */}
+          {widgetProps.statsRow && (
+            <div className="mb-6 md:mb-8">{renderStatsRow(widgetProps.statsRow)}</div>
+          )}
+
+          {/* 2-Column Layout */}
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[2fr,1fr] xl:grid-cols-[2.5fr,1fr]">
+            {/* Camera Grid */}
+            {widgetProps.cameraGrid && (
+              <div>
+                <h2>Camera Status</h2>
+                {renderCameraGrid(widgetProps.cameraGrid)}
+              </div>
+            )}
+
+            {/* Activity Feed */}
+            {widgetProps.activityFeed && (
+              <div>
+                <h2>Live Activity</h2>
+                {renderActivityFeed(widgetProps.activityFeed)}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  },
+}));
+
+// Mock GpuStats, PipelineTelemetry, and PipelineQueues (not rendered by default)
+vi.mock('./GpuStats', () => ({
+  default: () => <div data-testid="gpu-stats">GPU Stats</div>,
+}));
+
+vi.mock('./PipelineTelemetry', () => ({
+  default: () => <div data-testid="pipeline-telemetry">Pipeline Telemetry</div>,
+}));
+
+vi.mock('./PipelineQueues', () => ({
+  default: () => <div data-testid="pipeline-queues">Pipeline Queues</div>,
 }));
 
 describe('DashboardPage', () => {
