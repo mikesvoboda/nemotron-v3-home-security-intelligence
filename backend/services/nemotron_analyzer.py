@@ -68,7 +68,6 @@ from backend.core.telemetry import add_span_attributes, get_tracer, record_excep
 from backend.models.camera import Camera
 from backend.models.detection import Detection
 from backend.models.event import Event
-from backend.models.event_detection import EventDetection
 from backend.services.batch_fetch import batch_fetch_detections
 from backend.services.cache_service import get_cache_service
 from backend.services.context_enricher import ContextEnricher, EnrichedContext, get_context_enricher
@@ -852,14 +851,22 @@ class NemotronAnalyzer:
             await session.commit()
             await session.refresh(event)
 
-            # Populate event_detections junction table (NEM-1592)
-            # This creates the normalized many-to-many relationships
+            # Populate event_detections junction table (NEM-1592, NEM-1998)
+            # Uses ON CONFLICT DO NOTHING to prevent race conditions when
+            # concurrent requests try to create the same junction records.
+            # This is safe because the composite primary key (event_id, detection_id)
+            # enforces uniqueness at the database level.
+            from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+            from backend.models.event_detection import event_detections
+
             for detection_id in int_detection_ids:
-                event_detection = EventDetection(
-                    event_id=event.id,
-                    detection_id=detection_id,
+                stmt = (
+                    pg_insert(event_detections)
+                    .values(event_id=event.id, detection_id=detection_id)
+                    .on_conflict_do_nothing(index_elements=["event_id", "detection_id"])
                 )
-                session.add(event_detection)
+                await session.execute(stmt)
             await session.commit()
 
             # Store idempotency key (NEM-1725) to prevent duplicates on retry
@@ -1110,13 +1117,20 @@ class NemotronAnalyzer:
             await session.commit()
             await session.refresh(event)
 
-            # Populate event_detections junction table (NEM-1592)
-            # Fast path has only one detection
-            event_detection = EventDetection(
-                event_id=event.id,
-                detection_id=detection_id_int,
+            # Populate event_detections junction table (NEM-1592, NEM-1998)
+            # Fast path has only one detection. Uses ON CONFLICT DO NOTHING
+            # to prevent race conditions when concurrent requests try to create
+            # the same junction records.
+            from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+            from backend.models.event_detection import event_detections
+
+            stmt = (
+                pg_insert(event_detections)
+                .values(event_id=event.id, detection_id=detection_id_int)
+                .on_conflict_do_nothing(index_elements=["event_id", "detection_id"])
             )
-            session.add(event_detection)
+            await session.execute(stmt)
             await session.commit()
 
             # Store idempotency key (NEM-1725) to prevent duplicates on retry
