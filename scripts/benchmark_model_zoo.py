@@ -73,7 +73,7 @@ def get_gpu_memory_mb() -> float:
     """Get current GPU memory usage in MB using nvidia-smi."""
     try:
         result = subprocess.run(
-            ["nvidia-smi", "--query-gpu=memory.used", "--format=csv,noheader,nounits"],  # noqa: S607
+            ["nvidia-smi", "--query-gpu=memory.used", "--format=csv,noheader,nounits"],
             capture_output=True,
             text=True,
             check=True,
@@ -91,7 +91,7 @@ def get_gpu_name() -> str:
     """Get GPU name using nvidia-smi."""
     try:
         result = subprocess.run(
-            ["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"],  # noqa: S607
+            ["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"],
             capture_output=True,
             text=True,
             check=True,

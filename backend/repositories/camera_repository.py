@@ -15,7 +15,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from backend.models import Camera
 from backend.repositories.base import Repository
@@ -144,3 +144,75 @@ class CameraRepository(Repository[Camera]):
         await self.session.flush()
         await self.session.refresh(camera)
         return camera
+
+    async def update_status_optimistic(
+        self,
+        camera_id: str,
+        new_status: str,
+        new_last_seen: datetime,
+    ) -> tuple[bool, Camera | None]:
+        """Update camera status using optimistic concurrency control.
+
+        This method only updates the camera if the provided timestamp is newer
+        than the existing last_seen_at timestamp, preventing concurrent updates
+        from overwriting newer data with stale data.
+
+        Args:
+            camera_id: The ID of the camera to update.
+            new_status: The new status to set (e.g., "online", "offline").
+            new_last_seen: The timestamp of the update. Update only occurs
+                if this is newer than the existing last_seen_at.
+
+        Returns:
+            A tuple of (updated: bool, camera: Camera | None):
+            - (True, Camera) if the update was applied (timestamp was newer)
+            - (False, Camera) if the update was skipped (existing timestamp is newer)
+            - (False, None) if the camera doesn't exist
+
+        Example:
+            # Two concurrent updates - only the newer one will be applied
+            update1_time = datetime.now(UTC)
+            update2_time = update1_time + timedelta(seconds=1)
+
+            # If update2 arrives first
+            updated, camera = await repo.update_status_optimistic(
+                "front_door", "online", update2_time
+            )
+            assert updated is True
+
+            # Then update1 arrives (stale data)
+            updated, camera = await repo.update_status_optimistic(
+                "front_door", "offline", update1_time
+            )
+            assert updated is False  # Skipped because update2_time > update1_time
+
+        Note:
+            Uses a single atomic UPDATE statement with a WHERE clause to prevent
+            race conditions. This is more efficient than SELECT-then-UPDATE
+            and guarantees consistency even under concurrent access.
+        """
+        # Single atomic UPDATE with optimistic locking condition
+        stmt = (
+            update(Camera)
+            .where(
+                Camera.id == camera_id,
+                # Only update if existing last_seen_at is NULL or older
+                (Camera.last_seen_at.is_(None)) | (Camera.last_seen_at < new_last_seen),
+            )
+            .values(status=new_status, last_seen_at=new_last_seen)
+            .returning(Camera)
+        )
+        result = await self.session.execute(stmt)
+        updated_camera = result.scalar_one_or_none()
+
+        if updated_camera is not None:
+            # Update was applied
+            return True, updated_camera
+
+        # Update was not applied - either camera doesn't exist or timestamp was older
+        camera = await self.get_by_id(camera_id)
+        if camera is None:
+            return False, None
+
+        # Camera exists but our timestamp was older - return current state
+        return False, camera

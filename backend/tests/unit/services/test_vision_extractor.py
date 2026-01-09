@@ -73,7 +73,7 @@ class TestVehicleAttributes:
             caption="Red SUV",
         )
 
-        with pytest.raises(Exception):  # noqa: B017  # FrozenInstanceError
+        with pytest.raises(Exception):  # FrozenInstanceError
             attrs.color = "blue"  # type: ignore[misc]
 
 
@@ -117,7 +117,7 @@ class TestPersonAttributes:
             caption="Person standing",
         )
 
-        with pytest.raises(Exception):  # noqa: B017
+        with pytest.raises(Exception):
             attrs.action = "running"  # type: ignore[misc]
 
 
@@ -189,7 +189,7 @@ class TestEnvironmentContext:
             weather="cloudy",
         )
 
-        with pytest.raises(Exception):  # noqa: B017
+        with pytest.raises(Exception):
             env.time_of_day = "night"  # type: ignore[misc]
 
 

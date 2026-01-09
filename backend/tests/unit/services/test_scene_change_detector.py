@@ -496,5 +496,5 @@ class TestEdgeCases:
         """Test SceneChangeResult is immutable."""
         result = detector.detect_changes("camera1", sample_frame)
 
-        with pytest.raises(Exception):  # noqa: B017  # FrozenInstanceError
+        with pytest.raises(Exception):  # FrozenInstanceError
             result.change_detected = True  # type: ignore[misc]

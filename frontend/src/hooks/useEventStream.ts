@@ -1,3 +1,4 @@
+import { LRUCache } from 'lru-cache';
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 
 import { useWebSocket } from './useWebSocket';
@@ -25,6 +26,11 @@ export interface UseEventStreamReturn {
 
 const MAX_EVENTS = 100;
 
+// NEM-2020: LRU cache configuration for deduplication
+// Prevents unbounded memory growth over long sessions
+const MAX_SEEN_IDS = 10000;
+const SEEN_IDS_TTL_MS = 1000 * 60 * 60; // 1 hour
+
 /**
  * Get a unique identifier for an event for deduplication purposes.
  * Uses event_id if available, falls back to id.
@@ -41,7 +47,13 @@ export function useEventStream(): UseEventStreamReturn {
   const isMountedRef = useRef(true);
 
   // Track seen event IDs to prevent duplicate events (wa0t.34)
-  const seenEventIdsRef = useRef<Set<string>>(new Set());
+  // NEM-2020: Use LRU cache instead of Set to prevent unbounded memory growth
+  const seenEventIdsRef = useRef<LRUCache<string, true>>(
+    new LRUCache<string, true>({
+      max: MAX_SEEN_IDS,
+      ttl: SEEN_IDS_TTL_MS,
+    })
+  );
 
   // Set mounted state on mount and cleanup on unmount
   useEffect(() => {
@@ -69,8 +81,8 @@ export function useEventStream(): UseEventStreamReturn {
         return;
       }
 
-      // Mark event as seen
-      seenEventIdsRef.current.add(eventKey);
+      // Mark event as seen (NEM-2020: use .set() for LRU cache)
+      seenEventIdsRef.current.set(eventKey, true);
 
       setEvents((prevEvents) => {
         // Add new event to the beginning of the array
@@ -130,7 +142,7 @@ export function useEventStream(): UseEventStreamReturn {
       return;
     }
     setEvents([]);
-    // Also clear the seen event IDs set when events are cleared
+    // Also clear the seen event IDs cache when events are cleared
     seenEventIdsRef.current.clear();
   }, []);
 

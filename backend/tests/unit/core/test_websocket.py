@@ -104,7 +104,7 @@ class MockEventBroadcaster:
             try:
                 await connection.send_json(event_data)
                 count += 1
-            except Exception:  # noqa: S110 - Intentionally ignore send failures
+            except Exception:
                 pass
         return count
 
@@ -127,7 +127,7 @@ class MockEventBroadcaster:
             try:
                 await connection.send_json(status_data)
                 count += 1
-            except Exception:  # noqa: S110 - Intentionally ignore send failures
+            except Exception:
                 pass
 
         return count
@@ -211,7 +211,7 @@ class MockEventBroadcaster:
             try:
                 await connection.send_json(scene_change_data)
                 count += 1
-            except Exception:  # noqa: S110 - Intentionally ignore send failures
+            except Exception:
                 pass
         return count
 
@@ -226,7 +226,7 @@ class MockEventBroadcaster:
             try:
                 await connection.send_json(message)
                 count += 1
-            except Exception:  # noqa: S110 - Intentionally ignore send failures
+            except Exception:
                 pass
         return count
 
@@ -239,7 +239,7 @@ class MockEventBroadcaster:
             try:
                 await connection.send_json(message)
                 count += 1
-            except Exception:  # noqa: S110 - Intentionally ignore send failures
+            except Exception:
                 pass
         return count
 
@@ -442,7 +442,7 @@ class MockSystemBroadcaster:
             try:
                 await connection.send_json(message)
                 count += 1
-            except Exception:  # noqa: S110 - Intentionally ignore send failures
+            except Exception:
                 pass
         return count
 
@@ -459,7 +459,7 @@ class MockSystemBroadcaster:
             try:
                 await connection.send_json(message)
                 count += 1
-            except Exception:  # noqa: S110 - Intentionally ignore send failures
+            except Exception:
                 pass
         return count
 

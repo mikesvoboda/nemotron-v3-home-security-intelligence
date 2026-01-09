@@ -510,7 +510,7 @@ def output_prometheus(
     workflow_metrics: dict[str, WorkflowMetrics],
     bottlenecks: list[tuple[str, float]],
     dora: DORAMetrics,
-    days: int,  # noqa: ARG001 - kept for signature consistency with other output functions
+    days: int,
 ) -> None:
     """Output metrics in Prometheus format."""
     lines = [

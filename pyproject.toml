@@ -211,6 +211,7 @@ select = [
     "RUF",    # Ruff-specific rules
     "ASYNC",  # flake8-async
     "S",      # flake8-bandit (security)
+    "T20",    # flake8-print - disallow print() in production code
 ]
 ignore = [
     "E501",   # line too long (handled by formatter)
@@ -246,12 +247,18 @@ ignore = [
     "PTH101", # os.chmod is necessary for permission tests
     "S110",   # try-except-pass ok in test cleanup blocks
     "B017",   # assert Exception is ok when testing generic error handling
+    "T201",   # print() ok in tests for debugging output
 ]
 "backend/examples/**/*.py" = [
     "ERA001", # commented code ok in examples
+    "T201",   # print() ok in examples for demonstration output
+]
+"backend/main.py" = [
+    "T201",   # print() ok for startup/shutdown banners
 ]
 "ai/**/*.py" = [
     "ASYNC230", # blocking I/O in async ok for example clients
+    "T201",   # print() ok in AI example clients
 ]
 "scripts/**/*.py" = [
     "SIM102",  # nested ifs more readable in utility scripts
@@ -259,6 +266,10 @@ ignore = [
     "S607",    # partial executable paths ok in CI scripts (uv, npm, pytest)
     "ARG001",  # unused arguments reserved for future use
     "F841",    # unused variables reserved for future use (e.g., OpenAPI fields)
+    "T201",    # print() ok in utility scripts for CLI output
+]
+"backend/scripts/**/*.py" = [
+    "T201",   # print() ok in benchmark/utility scripts for CLI output
 ]
 
 [tool.ruff.format]

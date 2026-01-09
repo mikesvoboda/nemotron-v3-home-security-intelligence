@@ -48,7 +48,7 @@ async def clean_events(integration_db):
             await conn.execute(text("DELETE FROM detections"))  # nosemgrep: avoid-sqlalchemy-text
             await conn.execute(text("DELETE FROM events"))  # nosemgrep: avoid-sqlalchemy-text
             await conn.execute(text("DELETE FROM cameras"))  # nosemgrep: avoid-sqlalchemy-text
-    except Exception:  # noqa: S110 - ignore cleanup errors
+    except Exception:
         pass
 
 

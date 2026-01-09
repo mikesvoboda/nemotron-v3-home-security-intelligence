@@ -52,7 +52,7 @@ async def clean_data(integration_db, db_session: AsyncSession):
         await db_session.execute(text("DELETE FROM events"))  # nosemgrep: avoid-sqlalchemy-text
         await db_session.execute(text("DELETE FROM cameras"))  # nosemgrep: avoid-sqlalchemy-text
         await db_session.commit()
-    except Exception:  # noqa: S110
+    except Exception:
         pass
 
 

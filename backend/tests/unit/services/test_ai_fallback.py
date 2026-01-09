@@ -558,7 +558,7 @@ class TestHealthChecks:
         for _ in range(5):
             try:
                 await cb.call(AsyncMock(side_effect=Exception("Fail")))
-            except Exception:  # noqa: S110 - intentionally forcing circuit open
+            except Exception:
                 pass
 
         fallback_service.register_circuit_breaker(AIService.RTDETR, cb)
