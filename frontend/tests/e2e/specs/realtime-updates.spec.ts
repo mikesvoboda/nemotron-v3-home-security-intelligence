@@ -178,14 +178,20 @@ test.describe('Real-time Dashboard Updates - Stats Counters', () => {
 
     await wsMock.sendSecurityEvent(newEvent);
 
-    // Wait for processing
-    await waitForWSProcessing(page, browserName);
-
-    // Verify the counter incremented
-    const updatedCountText = await page.getByTestId('events-today-count').textContent();
-    const updatedCount = parseInt(updatedCountText ?? '0', 10);
-
-    expect(updatedCount).toBe(initialCount + 1);
+    // Wait for counter to increment using poll (more reliable than fixed timeout)
+    await expect
+      .poll(
+        async () => {
+          const text = await page.getByTestId('events-today-count').textContent();
+          return parseInt(text ?? '0', 10);
+        },
+        {
+          timeout: 10000,
+          intervals: [100, 200, 500, 1000],
+          message: `Events Today counter should increment from ${initialCount} to ${initialCount + 1}`,
+        }
+      )
+      .toBe(initialCount + 1);
   });
 
   test('Events Today counter increments multiple times', async ({ page, browserName }) => {
@@ -217,14 +223,20 @@ test.describe('Real-time Dashboard Updates - Stats Counters', () => {
       );
     }
 
-    // Wait for all to process
-    await waitForWSProcessing(page, browserName);
-
-    // Verify counter incremented by 3
-    const finalCountText = await page.getByTestId('events-today-count').textContent();
-    const finalCount = parseInt(finalCountText ?? '0', 10);
-
-    expect(finalCount).toBe(initialCount + 3);
+    // Wait for counter to increment to expected value using poll
+    await expect
+      .poll(
+        async () => {
+          const text = await page.getByTestId('events-today-count').textContent();
+          return parseInt(text ?? '0', 10);
+        },
+        {
+          timeout: 15000,
+          intervals: [100, 200, 500, 1000],
+          message: `Events Today counter should increment from ${initialCount} to ${initialCount + 3}`,
+        }
+      )
+      .toBe(initialCount + 3);
   });
 });
 
