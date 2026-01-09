@@ -111,7 +111,7 @@ export default function ActivityFeed({
   };
 
   return (
-    <div className={clsx('flex h-full flex-col rounded-lg bg-gray-900 shadow-lg', className)}>
+    <div className={clsx('flex h-full flex-col rounded-lg bg-gray-900 shadow-lg', className)} data-testid="activity-feed">
       {/* Header */}
       {showHeader && (
         <div className="flex items-center justify-between border-b border-gray-800 px-4 py-3">
@@ -172,10 +172,10 @@ export default function ActivityFeed({
                     }
                   }}
                   aria-label={`Event from ${event.camera_name} at ${formatTimestamp(event.timestamp)}, risk level ${riskLevel}`}
-                  data-testid={`activity-item-${event.id}`}
+                  data-testid={`detection-card-${event.id}`}
                 >
                   {/* Thumbnail */}
-                  <div className="flex-shrink-0">
+                  <div className="flex-shrink-0" data-testid="card-thumbnail">
                     {event.thumbnail_url ? (
                       <img
                         src={event.thumbnail_url}
@@ -203,7 +203,7 @@ export default function ActivityFeed({
                   <div className="min-w-0 flex-1">
                     {/* Top Row: Camera Name + Risk Badge */}
                     <div className="mb-1.5 flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 text-sm">
+                      <div className="flex items-center gap-2 text-sm" data-testid="card-camera">
                         <Camera className="h-3.5 w-3.5 text-text-muted" />
                         <span className="font-medium text-white">{event.camera_name}</span>
                       </div>
@@ -214,7 +214,7 @@ export default function ActivityFeed({
                     <p className="mb-1.5 line-clamp-2 text-sm text-text-secondary">{event.summary}</p>
 
                     {/* Timestamp */}
-                    <div className="flex items-center gap-1.5 text-xs text-text-muted">
+                    <div className="flex items-center gap-1.5 text-xs text-text-muted" data-testid="card-timestamp">
                       <Clock className="h-3 w-3" />
                       <time dateTime={event.timestamp}>{formatTimestamp(event.timestamp)}</time>
                     </div>
