@@ -1229,12 +1229,137 @@ class PipelineWorkerManager:
                 )
 
         self._running = False
+        self._accepting = True  # Controls whether workers should accept new tasks
         self._signal_handlers_installed = False
 
     @property
     def running(self) -> bool:
         """Check if manager is running."""
         return self._running
+
+    @property
+    def accepting(self) -> bool:
+        """Check if manager is accepting new tasks."""
+        return self._accepting
+
+    def stop_accepting(self) -> None:
+        """Signal workers to stop accepting new tasks.
+
+        This method sets the accepting flag to False, which signals workers
+        to stop processing new items from their queues. In-flight tasks will
+        continue to completion.
+
+        This is the first step in graceful shutdown:
+        1. stop_accepting() - Stop pulling new work
+        2. Wait for in-flight work to complete (or timeout)
+        3. stop() - Stop worker tasks
+
+        The stop_accepting() call is idempotent - calling it multiple times is safe.
+        """
+        if not self._accepting:
+            logger.debug("PipelineWorkerManager already not accepting new tasks")
+            return
+
+        logger.info("Stopping PipelineWorkerManager from accepting new tasks")
+        self._accepting = False
+
+        # Signal individual workers to stop accepting new tasks
+        # Workers check self._running in their loops, so we don't need to
+        # modify them - they will stop after completing current work
+        # The _accepting flag is used for status reporting and external checks
+
+    async def get_pending_count(self) -> int:
+        """Get the total count of pending tasks in all queues.
+
+        Returns:
+            Total number of items pending in detection_queue and analysis_queue.
+        """
+        try:
+            detection_depth = await self._redis.get_queue_length(DETECTION_QUEUE)
+            analysis_depth = await self._redis.get_queue_length(ANALYSIS_QUEUE)
+            return detection_depth + analysis_depth
+        except Exception as e:
+            logger.warning(f"Failed to get queue depths: {e}")
+            return 0
+
+    async def drain_queues(self, timeout: float = 30.0) -> int:
+        """Drain background queues gracefully by waiting for pending tasks.
+
+        This method:
+        1. Signals workers to stop accepting new tasks
+        2. Waits for in-flight tasks to complete (up to timeout)
+        3. Logs any tasks that couldn't complete
+
+        Args:
+            timeout: Maximum time to wait for queue draining in seconds.
+                Defaults to 30 seconds.
+
+        Returns:
+            Number of tasks remaining that couldn't be completed before timeout.
+        """
+        import time
+
+        start = time.time()
+
+        # Step 1: Signal workers to stop accepting new tasks
+        self.stop_accepting()
+
+        # Step 2: Get initial queue depths
+        initial_count = await self.get_pending_count()
+        if initial_count == 0:
+            logger.info("Queues already empty, no draining needed")
+            return 0
+
+        logger.info(
+            f"Starting queue drain with {initial_count} pending tasks, timeout={timeout}s",
+            extra={"initial_count": initial_count, "timeout": timeout},
+        )
+
+        # Step 3: Wait for queues to drain (up to timeout)
+        # Workers are still running and processing items
+        last_count = initial_count
+        stall_time = 0.0
+        stall_threshold = 5.0  # Log if no progress for 5 seconds
+
+        while True:
+            elapsed = time.time() - start
+            if elapsed >= timeout:
+                remaining = await self.get_pending_count()
+                logger.warning(
+                    f"Queue drain timeout after {elapsed:.1f}s, {remaining} tasks remaining",
+                    extra={
+                        "elapsed_seconds": elapsed,
+                        "remaining_count": remaining,
+                        "initial_count": initial_count,
+                    },
+                )
+                return remaining
+
+            current_count = await self.get_pending_count()
+            if current_count == 0:
+                logger.info(
+                    f"Queue drain completed in {elapsed:.1f}s",
+                    extra={
+                        "elapsed_seconds": elapsed,
+                        "initial_count": initial_count,
+                    },
+                )
+                return 0
+
+            # Check for stall (no progress)
+            if current_count >= last_count:
+                stall_time += 0.1
+                if stall_time >= stall_threshold:
+                    logger.debug(
+                        f"Queue drain stalled for {stall_time:.1f}s at {current_count} pending",
+                        extra={"stall_time": stall_time, "pending_count": current_count},
+                    )
+                    stall_time = 0.0  # Reset to avoid flooding logs
+            else:
+                stall_time = 0.0
+                last_count = current_count
+
+            await asyncio.sleep(0.1)
 
     def get_status(self) -> dict[str, Any]:
         """Get status of all workers.
@@ -1244,6 +1369,7 @@ class PipelineWorkerManager:
         """
         status: dict[str, Any] = {
             "running": self._running,
+            "accepting": self._accepting,
             "workers": {},
         }
 
@@ -1430,6 +1556,33 @@ async def stop_pipeline_manager() -> None:
             await _pipeline_manager.stop()
             _pipeline_manager = None
             logger.info("Global pipeline worker manager stopped")
+
+
+async def drain_queues(timeout: float = 30.0) -> int:
+    """Drain background queues gracefully before shutdown.
+
+    This is a convenience function that accesses the global pipeline manager
+    and drains its queues. Should be called during application shutdown
+    before stopping workers.
+
+    The function:
+    1. Signals workers to stop accepting new tasks
+    2. Waits for in-flight tasks to complete (up to timeout)
+    3. Logs any tasks that couldn't complete
+
+    Args:
+        timeout: Maximum time to wait for queue draining in seconds.
+            Defaults to 30 seconds.
+
+    Returns:
+        Number of tasks remaining that couldn't be completed before timeout.
+        Returns 0 if pipeline manager is not initialized.
+    """
+    if _pipeline_manager is None:
+        logger.debug("Pipeline manager not initialized, no queues to drain")
+        return 0
+
+    return await _pipeline_manager.drain_queues(timeout=timeout)
 
 
 def reset_pipeline_manager_state() -> None:

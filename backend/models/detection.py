@@ -101,6 +101,15 @@ class Detection(Base):
             "detected_at",
             postgresql_using="brin",
         ),
+        # GIN trigram index for efficient LIKE/ILIKE queries on object_type
+        # Enables pattern matching like '%person%' without full table scans
+        # Uses pg_trgm extension's gin_trgm_ops operator class
+        Index(
+            "idx_detections_object_type_trgm",
+            "object_type",
+            postgresql_using="gin",
+            postgresql_ops={"object_type": "gin_trgm_ops"},
+        ),
         # CHECK constraints for enum-like columns and business rules
         CheckConstraint(
             "media_type IS NULL OR media_type IN ('image', 'video')",

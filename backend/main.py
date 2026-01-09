@@ -68,7 +68,11 @@ from backend.services.gpu_monitor import GPUMonitor
 from backend.services.health_monitor import ServiceHealthMonitor
 from backend.services.performance_collector import PerformanceCollector
 from backend.services.pipeline_quality_audit_service import get_audit_service
-from backend.services.pipeline_workers import get_pipeline_manager, stop_pipeline_manager
+from backend.services.pipeline_workers import (
+    drain_queues,
+    get_pipeline_manager,
+    stop_pipeline_manager,
+)
 from backend.services.service_managers import ServiceConfig, ShellServiceManager
 from backend.services.system_broadcaster import get_system_broadcaster, stop_system_broadcaster
 
@@ -649,7 +653,15 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:  # noqa: PLR0912 - Co
     await gpu_monitor.stop()
     print("GPU monitor stopped")
 
-    # Stop pipeline workers (before file watcher to allow queue draining)
+    # Drain queues gracefully before stopping workers (NEM-2006)
+    # This ensures in-flight tasks complete and logs any tasks that couldn't finish
+    remaining_tasks = await drain_queues(timeout=30.0)
+    if remaining_tasks > 0:
+        print(f"Queue drain timeout: {remaining_tasks} tasks remaining")
+    else:
+        print("Queue drain completed successfully")
+
+    # Stop pipeline workers (after queue draining)
     await stop_pipeline_manager()
     print("Pipeline workers stopped")
 

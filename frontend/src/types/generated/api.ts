@@ -700,6 +700,7 @@ export interface paths {
          *     Args:
          *         rule_data: Rule creation data
          *         db: Database session
+         *         cache: Cache service for cache invalidation (NEM-1952)
          *
          *     Returns:
          *         Created AlertRule
@@ -741,6 +742,7 @@ export interface paths {
          *         rule_id: Rule UUID
          *         rule_data: Rule update data
          *         db: Database session
+         *         cache: Cache service for cache invalidation (NEM-1952)
          *
          *     Returns:
          *         Updated AlertRule
@@ -757,6 +759,7 @@ export interface paths {
          *     Args:
          *         rule_id: Rule UUID
          *         db: Database session
+         *         cache: Cache service for cache invalidation (NEM-1952)
          *
          *     Raises:
          *         HTTPException: 404 if rule not found
@@ -2035,6 +2038,7 @@ export interface paths {
          *     Args:
          *         request: Bulk create request with up to 100 detections
          *         db: Database session
+         *         cache: Cache service for invalidation (NEM-1951)
          *
          *     Returns:
          *         DetectionBulkCreateResponse with per-item results
@@ -2055,6 +2059,7 @@ export interface paths {
          *     Args:
          *         request: Bulk delete request with up to 100 detection IDs
          *         db: Database session
+         *         cache: Cache service for invalidation (NEM-1951)
          *
          *     Returns:
          *         BulkOperationResponse with per-item results
@@ -2074,6 +2079,7 @@ export interface paths {
          *     Args:
          *         request: Bulk update request with up to 100 detection updates
          *         db: Database session
+         *         cache: Cache service for invalidation (NEM-1951)
          *
          *     Returns:
          *         BulkOperationResponse with per-item results
@@ -4643,6 +4649,53 @@ export interface paths {
          *         TelemetryResponse with queue depths and latency statistics
          */
         get: operations["get_telemetry_api_system_telemetry_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/system/websocket/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Websocket Event Types
+         * @description List all available WebSocket event types with schemas.
+         *
+         *     Returns the complete registry of WebSocket event types supported by the system,
+         *     including their descriptions, payload schemas, and example payloads. This
+         *     endpoint enables frontend developers and API consumers to discover and
+         *     understand all available real-time event types.
+         *
+         *     Event types follow a hierarchical naming convention: {domain}.{action}
+         *     For example: detection.new, event.created, camera.status_changed
+         *
+         *     Channels group related events:
+         *     - detections: AI detection pipeline events
+         *     - events: Security event lifecycle events
+         *     - alerts: Alert notifications and state changes
+         *     - cameras: Camera status and configuration changes
+         *     - jobs: Background job lifecycle events
+         *     - system: System health and status events
+         *
+         *     Note: Some event types are marked as deprecated with suggested replacements.
+         *     These remain available for backward compatibility but should be avoided in
+         *     new implementations.
+         *
+         *     Returns:
+         *         EventRegistryResponse containing:
+         *         - event_types: List of all event types with schemas and examples
+         *         - channels: List of available WebSocket channels
+         *         - total_count: Total number of event types
+         *         - deprecated_count: Number of deprecated event types
+         */
+        get: operations["list_websocket_event_types_api_system_websocket_events_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -9042,6 +9095,45 @@ export interface components {
             pagination: components["schemas"]["PaginationMeta"];
         };
         /**
+         * EventRegistryResponse
+         * @description Response containing the complete WebSocket event registry.
+         * @example {
+         *       "channels": [
+         *         "detections",
+         *         "events",
+         *         "alerts",
+         *         "cameras",
+         *         "jobs",
+         *         "system"
+         *       ],
+         *       "deprecated_count": 3,
+         *       "event_types": [],
+         *       "total_count": 25
+         *     }
+         */
+        EventRegistryResponse: {
+            /**
+             * Channels
+             * @description List of all available WebSocket channels
+             */
+            channels: string[];
+            /**
+             * Deprecated Count
+             * @description Number of deprecated event types
+             */
+            deprecated_count: number;
+            /**
+             * Event Types
+             * @description List of all available event types
+             */
+            event_types: components["schemas"]["EventTypeInfo"][];
+            /**
+             * Total Count
+             * @description Total number of event types
+             */
+            total_count: number;
+        };
+        /**
          * EventResponse
          * @description Schema for event response.
          * @example {
@@ -9193,6 +9285,75 @@ export interface components {
              * @description Total number of events
              */
             total_events: number;
+        };
+        /**
+         * EventTypeInfo
+         * @description Information about a single WebSocket event type.
+         * @example {
+         *       "channel": "detections",
+         *       "deprecated": false,
+         *       "description": "New detection from AI pipeline",
+         *       "example": {
+         *         "confidence": 0.95,
+         *         "detection_id": "123",
+         *         "label": "person"
+         *       },
+         *       "payload_schema": {
+         *         "confidence": {
+         *           "type": "number"
+         *         },
+         *         "detection_id": {
+         *           "format": "uuid",
+         *           "type": "string"
+         *         },
+         *         "label": {
+         *           "type": "string"
+         *         }
+         *       },
+         *       "type": "detection.new"
+         *     }
+         */
+        EventTypeInfo: {
+            /**
+             * Channel
+             * @description WebSocket channel this event is broadcast on
+             */
+            channel?: string | null;
+            /**
+             * Deprecated
+             * @description Whether this event type is deprecated
+             * @default false
+             */
+            deprecated: boolean;
+            /**
+             * Description
+             * @description Human-readable description
+             */
+            description: string;
+            /**
+             * Example
+             * @description Example payload
+             */
+            example?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Payload Schema
+             * @description JSON Schema for the event payload
+             */
+            payload_schema: {
+                [key: string]: unknown;
+            };
+            /**
+             * Replacement
+             * @description Replacement event type if deprecated
+             */
+            replacement?: string | null;
+            /**
+             * Type
+             * @description Event type identifier
+             */
+            type: string;
         };
         /**
          * EventUpdate
@@ -20357,6 +20518,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TelemetryResponse"];
+                };
+            };
+        };
+    };
+    list_websocket_event_types_api_system_websocket_events_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventRegistryResponse"];
                 };
             };
         };
