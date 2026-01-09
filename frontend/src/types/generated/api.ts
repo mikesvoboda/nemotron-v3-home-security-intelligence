@@ -2789,7 +2789,12 @@ export interface paths {
         };
         /**
          * Export Events
-         * @description Export events as CSV file for external analysis or record-keeping.
+         * @description Export events as CSV or Excel file for external analysis or record-keeping.
+         *
+         *     Supports content negotiation via HTTP Accept header:
+         *     - `Accept: text/csv` or `Accept: application/csv` - CSV format (default)
+         *     - `Accept: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` - Excel (XLSX)
+         *     - `Accept: application/vnd.ms-excel` or `Accept: application/xlsx` - Excel (XLSX)
          *
          *     This endpoint is rate-limited to 10 requests per minute per client IP
          *     to prevent abuse and protect against data exfiltration attacks.
@@ -2800,7 +2805,7 @@ export interface paths {
          *     - Detection count, reviewed status
          *
          *     Args:
-         *         request: FastAPI request object
+         *         request: FastAPI request object (includes Accept header for format selection)
          *         camera_id: Optional camera ID to filter by
          *         risk_level: Optional risk level to filter by (low, medium, high, critical)
          *         start_date: Optional start date for date range filter
@@ -2810,7 +2815,7 @@ export interface paths {
          *         _rate_limit: Rate limiter dependency (10 req/min, no burst)
          *
          *     Returns:
-         *         StreamingResponse with CSV file containing exported events
+         *         StreamingResponse with CSV or Response with Excel file containing exported events
          *
          *     Raises:
          *         HTTPException: 429 if rate limit exceeded
@@ -18142,13 +18147,16 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Successful Response */
+            /** @description Exported events file */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": unknown;
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": string;
+                    /** @example event_id,camera_name,started_at,... */
+                    "text/csv": string;
                 };
             };
             /** @description Validation Error */
@@ -18159,6 +18167,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+            /** @description Rate limit exceeded */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
