@@ -503,6 +503,44 @@ export async function setupApiMocks(
     });
   });
 
+  // Event Detections endpoint (BEFORE /api/events)
+  // Returns detections for a specific event - used by EventDetailModal
+  await page.route('**/api/events/*/detections*', async (route) => {
+    // Extract event ID from URL
+    const url = new URL(route.request().url());
+    const pathParts = url.pathname.split('/');
+    const eventIdIndex = pathParts.indexOf('events') + 1;
+    const eventId = parseInt(pathParts[eventIdIndex], 10);
+
+    // Find the event and return its detections
+    const events = mergedConfig.events || [];
+    const event = events.find((e) => e.id === eventId);
+    const detections = event?.detections || [];
+
+    // Transform detections to API format with required fields
+    const apiDetections = detections.map((d, idx) => ({
+      id: idx + 1,
+      event_id: eventId,
+      label: d.label,
+      confidence: d.confidence,
+      bbox: d.bbox || null,
+      image_path: null,
+      created_at: new Date().toISOString(),
+    }));
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        detections: apiDetections,
+        count: apiDetections.length,
+        limit: 100,
+        offset: 0,
+        has_more: false,
+      }),
+    });
+  });
+
   // Events endpoint
   await page.route('**/api/events*', async (route) => {
     if (mergedConfig.eventsError) {

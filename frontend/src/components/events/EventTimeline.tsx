@@ -117,6 +117,15 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
       // Show filters panel when coming with URL parameters
       setShowFilters(true);
     }
+
+    // Open event detail modal if event ID is in URL (e.g., from dashboard click)
+    const eventParam = searchParams.get('event');
+    if (eventParam) {
+      const eventId = parseInt(eventParam, 10);
+      if (!isNaN(eventId)) {
+        setSelectedEventForModal(eventId);
+      }
+    }
   }, [searchParams]);
 
   // Create a memoized camera name lookup map that updates when cameras change
@@ -528,7 +537,8 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
       risk_score: event.risk_score || 0,
       risk_label: event.risk_level || getRiskLevel(event.risk_score || 0),
       summary: event.summary || 'No summary available',
-      detections: [], // Detections will be loaded by the modal
+      reasoning: event.reasoning ?? undefined,
+      detections: [], // Detections fetched by modal via API
       started_at: event.started_at,
       ended_at: event.ended_at,
       reviewed: event.reviewed,
@@ -537,7 +547,7 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
   };
 
   return (
-    <div className={`flex flex-col ${className}`}>
+    <div className={`flex flex-col ${className}`} data-testid="timeline-page">
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-white">Event Timeline</h1>
