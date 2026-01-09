@@ -1,0 +1,29 @@
+digraph CircuitBreakerStateMachine {
+    // Graph settings
+    rankdir=LR;
+    bgcolor="#121212";
+    fontname="Helvetica";
+    fontcolor="white";
+    node [fontname="Helvetica", fontcolor="white", style="filled", shape=circle, width=2, fixedsize=true];
+    edge [fontname="Helvetica", fontcolor="white", color="#666666", penwidth=2];
+
+    // States
+    CLOSED [label="CLOSED\n\nNormal\nOperation", fillcolor="#76B900"];
+    OPEN [label="OPEN\n\nCircuit\nTripped", fillcolor="#E74856"];
+    HALF_OPEN [label="HALF\nOPEN\n\nTesting", fillcolor="#FFB800", fontcolor="black"];
+
+    // Initial state indicator
+    init [shape=point, width=0.2, fillcolor="white"];
+
+    // Transitions
+    init -> CLOSED [label="Initial State", fontcolor="#76B900", color="#76B900"];
+
+    CLOSED -> OPEN [label="failures >= threshold", fontcolor="#E74856", color="#E74856"];
+    OPEN -> HALF_OPEN [label="recovery_timeout\nelapsed", fontcolor="#FFB800", color="#FFB800"];
+    HALF_OPEN -> CLOSED [label="success_threshold\nmet", fontcolor="#76B900", color="#76B900"];
+    HALF_OPEN -> OPEN [label="any failure", fontcolor="#E74856", color="#E74856"];
+
+    // Self-loops for state descriptions
+    CLOSED -> CLOSED [label="calls pass\nthrough", fontcolor="#76B900", color="#76B900", style="dashed"];
+    OPEN -> OPEN [label="calls rejected\nimmediately", fontcolor="#E74856", color="#E74856", style="dashed"];
+}

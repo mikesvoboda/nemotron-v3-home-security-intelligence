@@ -302,7 +302,6 @@ This provides:
 ## Related Documentation
 
 - **docs/AGENTS.md:** Documentation directory overview
-- **docs/reference/api/:** Alternative API reference (historical)
 - **docs/reference/config/env-reference.md:** API configuration variables
 - **docs/reference/glossary.md:** API terminology
 - **backend/api/routes/AGENTS.md:** Route implementation details

@@ -36,7 +36,7 @@ The system stores several types of data that grow over time:
 
 The [`CleanupService`](../../backend/services/cleanup_service.py:85) runs daily to enforce retention policies and reclaim disk space.
 
-![Retention Policies](../images/admin/retention-policies.png)
+![Retention Policies Diagram showing data lifecycle: Database records (events, detections, GPU stats, logs) and file storage (thumbnails, original images) with configurable retention periods flowing through the CleanupService scheduled daily at 03:00, with dry run preview option before permanent deletion](../images/admin/retention-policies.png)
 
 _Retention policies showing data sources (events, detections, GPU stats, logs) and file storage (thumbnails, original images) flowing through the CleanupService (daily at 03:00) with dry run preview capability, targeting PostgreSQL and filesystem storage._
 

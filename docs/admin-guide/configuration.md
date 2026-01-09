@@ -31,9 +31,9 @@ The application loads configuration in this order (later sources override earlie
 
 See [`get_settings()`](../../backend/core/config.py:618) for the loading implementation.
 
-![Configuration Hierarchy](../images/admin/configuration-hierarchy.png)
+![Configuration Hierarchy Diagram showing four layers of configuration precedence: Layer 1 (lowest priority) - Default values in config.py, Layer 2 - .env file in project root, Layer 3 - runtime.env for dynamic overrides, Layer 4 (highest priority) - Environment variables, all merging into final Settings object](../images/admin/configuration-hierarchy.png)
 
-_Configuration loading order: Default values (config.py) are overridden by .env file, then runtime.env, then environment variables (highest priority), resulting in the final Settings object._
+_Configuration loading order: Default values (config.py) are overridden by .env file, then runtime.env, then environment variables (highest priority), resulting in the final Settings object used by the application._
 
 ---
 

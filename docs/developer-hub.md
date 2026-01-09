@@ -98,7 +98,7 @@ Dashboard ← WebSocket ← Events ← Nemotron ← analysis_queue ← BatchAggr
 | ------------------------------------------------- | -------------------------------------------------------- |
 | [Local Setup](development/setup.md)               | Development environment, dependencies, IDE configuration |
 | [Testing Guide](development/testing.md)           | Unit tests, integration tests, coverage requirements     |
-| [Pre-commit Hooks](developer/hooks.md)            | Ruff, MyPy, ESLint, Prettier - code quality enforcement  |
+| [Pre-commit Hooks](development/hooks.md)          | Ruff, MyPy, ESLint, Prettier - code quality enforcement  |
 | [Code Patterns](development/patterns.md)          | Async patterns, dependency injection, error handling     |
 | [Backend Patterns](developer/backend-patterns.md) | Repository pattern, Result types, RFC 7807 errors        |
 

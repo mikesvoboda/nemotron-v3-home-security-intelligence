@@ -107,13 +107,15 @@ All activity detected by your cameras is saved for 30 days. These guides help yo
 
 Customize how the system works for you.
 
-| Guide                              | Description                                          | Time   |
-| ---------------------------------- | ---------------------------------------------------- | ------ |
-| [Settings](user-guide/settings.md) | Camera management, processing options, notifications | ~7 min |
+| Guide                                  | Description                                          | Time    |
+| -------------------------------------- | ---------------------------------------------------- | ------- |
+| [Settings](user-guide/settings.md)     | Camera management, processing options, notifications | ~7 min  |
+| [Detection Zones](user-guide/zones.md) | Focus AI analysis on specific areas in camera views  | ~10 min |
 
 ### What You Can Configure
 
 - **Cameras** - Add, edit, or remove cameras from monitoring
+- **Detection Zones** - Define areas to focus AI analysis (entry points, driveways, etc.)
 - **Processing** - Adjust how sensitive the detection is
 - **Notifications** - Set up email or webhook alerts
 - **Retention** - How long events are kept (default: 30 days)
@@ -276,6 +278,7 @@ Complete list of guides for using the system:
 | [Accessibility Features](user-guide/accessibility.md)            | Screen readers, keyboard-only, WCAG     |
 | [Event Investigation](user-guide/event-investigation.md)         | Video clips, entity tracking, deep dive |
 | [Settings](user-guide/settings.md)                               | Configuring the system                  |
+| [Detection Zones](user-guide/zones.md)                           | Focus AI analysis on specific areas     |
 | [AI Audit Dashboard](user-guide/ai-audit.md)                     | AI quality metrics and auditing         |
 | [Prompt Playground](user-guide/prompt-playground.md)             | Edit, test, and A/B test AI prompts     |
 | [System Monitoring](user-guide/system-monitoring.md)             | System health and circuit breakers      |

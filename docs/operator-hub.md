@@ -788,5 +788,5 @@ docker compose -f docker-compose.prod.yml logs --tail=100 backend
 
 - [User Hub](user-hub.md) - End-user documentation
 - [Developer Hub](developer-hub.md) - Development and contribution
-- [API Reference](reference/api/overview.md) - REST and WebSocket API documentation
+- [API Reference](api-reference/overview.md) - REST and WebSocket API documentation
 - [Architecture Overview](architecture/overview.md) - System design and components

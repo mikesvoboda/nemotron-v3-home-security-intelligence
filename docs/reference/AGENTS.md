@@ -51,24 +51,6 @@ reference/
 
 ## Subdirectories
 
-### api/
-
-**Purpose:** Complete REST and WebSocket API documentation.
-
-> **Note:** The `docs/api-reference/` directory is the **canonical/authoritative location** for API documentation. The `docs/reference/api/` directory is maintained for historical compatibility, but `docs/api-reference/` should be treated as the source of truth for all API documentation.
-
-See `api/AGENTS.md` for detailed information.
-
-**Key Files:**
-
-- `overview.md` - Base URL, authentication, rate limiting
-- `alerts.md` - Alert rule CRUD operations
-- `cameras.md` - Camera management
-- `detections.md` - Object detection results
-- `events.md` - Security event queries
-- `system.md` - Health, config, monitoring
-- `websocket.md` - Real-time streaming
-
 ### config/
 
 **Purpose:** Configuration reference for environment variables and settings.

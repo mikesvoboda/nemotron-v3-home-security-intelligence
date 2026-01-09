@@ -29,6 +29,14 @@ no text overlays"
 
 ## Choose Your Deployment Mode
 
+Use this decision tree to determine the best deployment path for your setup:
+
+![Quickstart Decision Tree showing deployment path selection: Do you have NVIDIA Container Toolkit installed? If yes, use Production Mode with all services in containers. If no or prefer native AI for development, use Development Mode with host-run AI servers and containerized application services](../images/quickstart-decision-tree.png)
+
+_Quickstart decision tree: Choose Production Mode for simplest setup with everything containerized, or Development Mode for faster AI iteration with native GPU access._
+
+---
+
 There are two deployment paths. Choose the one that fits your setup:
 
 | Mode           | AI Services       | Use Case                                 | Docker Compose File       |

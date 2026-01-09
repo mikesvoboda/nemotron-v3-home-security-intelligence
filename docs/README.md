@@ -118,7 +118,7 @@ For a quick overview of the project and getting started instructions, see the [m
 | [Local Setup](developer/local-setup.md)                       | Development environment setup        |
 | [Codebase Tour](developer/codebase-tour.md)                   | Directory structure walkthrough      |
 | [Code Patterns](development/patterns.md)                      | Async patterns and best practices    |
-| [Pre-commit Hooks](developer/hooks.md)                        | Code quality enforcement             |
+| [Pre-commit Hooks](development/hooks.md)                      | Code quality enforcement             |
 | [Contributing Guide](development/contributing.md)             | PR process and conventions           |
 | [Git Worktree Workflow](development/git-worktree-workflow.md) | Parallel development workflow        |
 | [Agent Coordination](development/AGENT_COORDINATION.md)       | AI agent development patterns        |
@@ -165,6 +165,7 @@ For a quick overview of the project and getting started instructions, see the [m
 | [Event Investigation](user-guide/event-investigation.md)       | Deep-dive event analysis           |
 | [Search](user-guide/search.md)                                 | Full-text event search             |
 | [Settings](user-guide/settings.md)                             | System configuration               |
+| [Detection Zones](user-guide/zones.md)                         | Zone-based detection configuration |
 | [Keyboard Shortcuts](user-guide/keyboard-shortcuts.md)         | Command palette and navigation     |
 | [Mobile PWA](user-guide/mobile-pwa.md)                         | Mobile app and push notifications  |
 | [Accessibility](user-guide/accessibility.md)                   | Screen readers and WCAG compliance |
@@ -185,7 +186,7 @@ For a quick overview of the project and getting started instructions, see the [m
 | [Video Processing](developer/video.md)                            | FTP uploads and frame extraction      |
 | [Clip Generation](developer/clip-generation.md)                   | Event video clips                     |
 | [Entity Tracking](developer/entity-tracking.md)                   | Cross-camera re-identification        |
-| [Frontend Hooks](developer/hooks.md)                              | React hook patterns                   |
+| [Frontend Hooks](architecture/frontend-hooks.md)                  | React hook patterns                   |
 | [Backend Patterns](developer/backend-patterns.md)                 | Repository pattern and error handling |
 | [Resilience Patterns](developer/resilience-patterns.md)           | Circuit breakers and retries          |
 | [UX Patterns](developer/ux-patterns.md)                           | Toast notifications and transitions   |
