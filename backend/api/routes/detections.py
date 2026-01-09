@@ -165,7 +165,7 @@ async def list_detections(  # noqa: PLR0912
         "video_codec, video_width, video_height, enrichment_data",
     ),
     db: AsyncSession = Depends(get_db),
-) -> dict[str, Any]:
+) -> DetectionListResponse:
     """List detections with optional filtering and cursor-based pagination.
 
     Supports both cursor-based pagination (recommended) and offset pagination (deprecated).
@@ -315,21 +315,21 @@ async def list_detections(  # noqa: PLR0912
         # No field filtering - return ORM objects directly (Pydantic will serialize)
         detections_output = detections
 
-    return {
-        "detections": detections_output,
-        "count": total_count,
-        "limit": limit,
-        "offset": offset,
-        "next_cursor": next_cursor,
-        "has_more": has_more,
-        "deprecation_warning": deprecation_warning,
-    }
+    return DetectionListResponse(
+        detections=detections_output,
+        count=total_count,
+        limit=limit,
+        offset=offset,
+        next_cursor=next_cursor,
+        has_more=has_more,
+        deprecation_warning=deprecation_warning,
+    )
 
 
 @router.get("/stats", response_model=DetectionStatsResponse)
 async def get_detection_stats(
     db: AsyncSession = Depends(get_db),
-) -> dict[str, Any]:
+) -> DetectionStatsResponse:
     """Get aggregate detection statistics including class distribution.
 
     Returns:
@@ -380,11 +380,11 @@ async def get_detection_stats(
 
     # If no rows, there are no typed detections
     if not rows:
-        return {
-            "total_detections": 0,
-            "detections_by_class": {},
-            "average_confidence": None,
-        }
+        return DetectionStatsResponse(
+            total_detections=0,
+            detections_by_class={},
+            average_confidence=None,
+        )
 
     # Extract total count and average confidence from first row
     # (window function values are same across all grouped rows)
@@ -398,11 +398,11 @@ async def get_detection_stats(
         if row.object_type:
             detections_by_class[row.object_type] = row.class_count
 
-    return {
-        "total_detections": total_detections,
-        "detections_by_class": detections_by_class,
-        "average_confidence": float(avg_confidence) if avg_confidence else None,
-    }
+    return DetectionStatsResponse(
+        total_detections=total_detections,
+        detections_by_class=detections_by_class,
+        average_confidence=float(avg_confidence) if avg_confidence else None,
+    )
 
 
 @router.get("/{detection_id}", response_model=DetectionResponse)
@@ -782,7 +782,7 @@ def _transform_enrichment_data(
 async def get_detection_enrichment(
     detection_id: int,
     db: AsyncSession = Depends(get_db),
-) -> dict[str, Any]:
+) -> EnrichmentResponse:
     """Get structured enrichment data for a detection.
 
     Returns results from the 18+ vision models run during the enrichment pipeline:
@@ -805,10 +805,12 @@ async def get_detection_enrichment(
         HTTPException: 404 if detection not found
     """
     detection = await get_detection_or_404(detection_id, db)
-    return _transform_enrichment_data(
-        detection_id=detection.id,
-        enrichment_data=detection.enrichment_data,
-        detected_at=detection.detected_at,
+    return EnrichmentResponse(
+        **_transform_enrichment_data(
+            detection_id=detection.id,
+            enrichment_data=detection.enrichment_data,
+            detected_at=detection.detected_at,
+        )
     )
 
 
@@ -1233,7 +1235,7 @@ async def get_video_thumbnail(
 async def bulk_create_detections(
     request: DetectionBulkCreateRequest,
     db: AsyncSession = Depends(get_db),
-) -> dict[str, Any]:
+) -> DetectionBulkCreateResponse:
     """Create multiple detections in a single request.
 
     Supports partial success - some detections may succeed while others fail.
@@ -1326,13 +1328,13 @@ async def bulk_create_detections(
                     succeeded -= 1
                     failed += 1
 
-    return {
-        "total": len(request.detections),
-        "succeeded": succeeded,
-        "failed": failed,
-        "skipped": 0,
-        "results": results,
-    }
+    return DetectionBulkCreateResponse(
+        total=len(request.detections),
+        succeeded=succeeded,
+        failed=failed,
+        skipped=0,
+        results=results,
+    )
 
 
 @router.patch(
@@ -1349,7 +1351,7 @@ async def bulk_create_detections(
 async def bulk_update_detections(
     request: DetectionBulkUpdateRequest,
     db: AsyncSession = Depends(get_db),
-) -> dict[str, Any]:
+) -> BulkOperationResponse:
     """Update multiple detections in a single request.
 
     Supports partial success - some updates may succeed while others fail.
@@ -1434,13 +1436,13 @@ async def bulk_update_detections(
                     succeeded -= 1
                     failed += 1
 
-    return {
-        "total": len(request.detections),
-        "succeeded": succeeded,
-        "failed": failed,
-        "skipped": 0,
-        "results": results,
-    }
+    return BulkOperationResponse(
+        total=len(request.detections),
+        succeeded=succeeded,
+        failed=failed,
+        skipped=0,
+        results=results,
+    )
 
 
 @router.delete(
@@ -1457,7 +1459,7 @@ async def bulk_update_detections(
 async def bulk_delete_detections(
     request: DetectionBulkDeleteRequest,
     db: AsyncSession = Depends(get_db),
-) -> dict[str, Any]:
+) -> BulkOperationResponse:
     """Delete multiple detections in a single request.
 
     Supports partial success - some deletions may succeed while others fail.
@@ -1539,10 +1541,10 @@ async def bulk_delete_detections(
                     succeeded -= 1
                     failed += 1
 
-    return {
-        "total": len(request.detection_ids),
-        "succeeded": succeeded,
-        "failed": failed,
-        "skipped": 0,
-        "results": results,
-    }
+    return BulkOperationResponse(
+        total=len(request.detection_ids),
+        succeeded=succeeded,
+        failed=failed,
+        skipped=0,
+        results=results,
+    )
