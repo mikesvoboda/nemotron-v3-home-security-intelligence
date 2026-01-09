@@ -15,10 +15,11 @@ Endpoints:
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.api.dependencies import get_alert_rule_or_404
 from backend.api.schemas.alerts import (
     AlertRuleCreate,
     AlertRuleListResponse,
@@ -181,15 +182,7 @@ async def get_rule(
     Raises:
         HTTPException: 404 if rule not found
     """
-    result = await db.execute(select(AlertRule).where(AlertRule.id == rule_id))
-    rule = result.scalar_one_or_none()
-
-    if not rule:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Alert rule with id {rule_id} not found",
-        )
-
+    rule = await get_alert_rule_or_404(rule_id, db)
     return _rule_to_response(rule)
 
 
@@ -253,14 +246,7 @@ async def update_rule(
     Raises:
         HTTPException: 404 if rule not found
     """
-    result = await db.execute(select(AlertRule).where(AlertRule.id == rule_id))
-    rule = result.scalar_one_or_none()
-
-    if not rule:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Alert rule with id {rule_id} not found",
-        )
+    rule = await get_alert_rule_or_404(rule_id, db)
 
     # Update fields if provided
     update_dict = rule_data.model_dump(exclude_unset=True)
@@ -286,15 +272,7 @@ async def delete_rule(
     Raises:
         HTTPException: 404 if rule not found
     """
-    result = await db.execute(select(AlertRule).where(AlertRule.id == rule_id))
-    rule = result.scalar_one_or_none()
-
-    if not rule:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Alert rule with id {rule_id} not found",
-        )
-
+    rule = await get_alert_rule_or_404(rule_id, db)
     await db.delete(rule)
     await db.commit()
 
@@ -321,15 +299,7 @@ async def test_rule(
     Raises:
         HTTPException: 404 if rule not found
     """
-    # Get the rule
-    result = await db.execute(select(AlertRule).where(AlertRule.id == rule_id))
-    rule = result.scalar_one_or_none()
-
-    if not rule:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Alert rule with id {rule_id} not found",
-        )
+    rule = await get_alert_rule_or_404(rule_id, db)
 
     # Get events to test against
     if test_data.event_ids:

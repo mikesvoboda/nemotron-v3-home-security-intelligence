@@ -1238,10 +1238,14 @@ class TestRestoreVersionEndpoint:
     def test_restore_version_not_found(
         self,
         client: TestClient,
+        mock_db_session: MagicMock,
         mock_prompt_service: MagicMock,
     ) -> None:
         """Test 404 when version doesn't exist."""
-        mock_prompt_service.restore_version.side_effect = ValueError("Version 999 not found")
+        # Mock the database query to return None (version not found)
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_db_session.execute.return_value = mock_result
 
         response = client.post("/api/ai-audit/prompts/history/999")
 

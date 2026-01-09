@@ -1,7 +1,7 @@
-"""Unit tests for DetectionRepository.
+"""Integration tests for DetectionRepository.
 
 Tests follow TDD approach - these tests are written BEFORE the implementation.
-Run with: uv run pytest backend/tests/unit/repositories/test_detection_repository.py -v
+Run with: uv run pytest backend/tests/integration/repositories/test_detection_repository.py -v
 """
 
 from __future__ import annotations
