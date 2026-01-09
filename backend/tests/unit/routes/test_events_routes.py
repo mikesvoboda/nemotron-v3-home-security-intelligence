@@ -1406,6 +1406,7 @@ async def test_get_event_includes_all_fields() -> None:
 async def test_get_event_returns_reasoning_field() -> None:
     """Test that get_event returns the reasoning field."""
     db = AsyncMock()
+    mock_request = MagicMock()
 
     mock_event = create_mock_event(
         event_id=42,
@@ -1418,7 +1419,7 @@ async def test_get_event_returns_reasoning_field() -> None:
     result.scalar_one_or_none.return_value = mock_event
     db.execute = AsyncMock(return_value=result)
 
-    response = await events_routes.get_event(event_id=42, db=db)
+    response = await events_routes.get_event(event_id=42, request=mock_request, db=db)
 
     assert response["reasoning"] == "Person detected at unusual hour near restricted area"
 
