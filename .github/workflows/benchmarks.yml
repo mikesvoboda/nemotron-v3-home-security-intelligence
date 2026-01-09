@@ -3,11 +3,17 @@ name: Benchmarks
 # Performance benchmarks for regression detection.
 # Runs pytest-benchmark on backend tests and fails on >20% regression from baseline.
 #
-# Runs on merge to main only (not PRs) to save runner capacity.
-# Creates Linear issue on failure for main branch pushes to ensure follow-up.
+# PR Gate: Runs on PRs and BLOCKS merges if performance regresses >20%
+# Main: Runs post-merge to update baseline and track trends
+# Creates Linear issue on failure for tracking and follow-up.
 
 on:
   push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/benchmarks.yml'
+  pull_request:
     branches: [main]
     paths:
       - 'backend/**'
@@ -41,8 +47,8 @@ jobs:
   benchmarks:
     name: Performance Benchmarks
     runs-on: ubuntu-latest
-    # Non-blocking: benchmark variance can cause false failures
-    continue-on-error: true
+    # PR Gate: Block PRs on >20% regression, non-blocking on main (informational)
+    continue-on-error: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     timeout-minutes: 15
 
     services:
@@ -285,3 +291,152 @@ jobs:
                 }
               }
             }'
+
+  # ============================================================================
+  # Memory Profiling (Linux only - pytest-memray)
+  # ============================================================================
+  memory-profiling:
+    name: Memory Profiling
+    runs-on: ubuntu-latest
+    # PR Gate: Block PRs on memory threshold violations
+    continue-on-error: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres # pragma: allowlist secret
+          POSTGRES_DB: security_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
+      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
+      REDIS_URL: redis://localhost:6379
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv sync --extra dev --frozen
+
+      - name: Run memory profiling tests
+        id: memory_tests
+        run: |
+          mkdir -p memory-results
+
+          # Run memray tests with memory limit enforcement
+          # pytest-memray is Linux-only, which is why this job only runs on ubuntu
+          uv run pytest backend/tests/benchmarks/test_memory.py \
+            --memray \
+            -v \
+            --timeout=120 \
+            -n0 \
+            2>&1 | tee memory-results/memory-output.txt || echo "exit_code=$?" >> $GITHUB_OUTPUT
+
+      - name: Generate memory profiling summary
+        if: always()
+        run: |
+          echo "## Memory Profiling Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f "memory-results/memory-output.txt" ]; then
+            echo "### Test Output" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '<details><summary>Full memory profiling output</summary>' >> $GITHUB_STEP_SUMMARY
+            echo '' >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            tail -100 memory-results/memory-output.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo '</details>' >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload memory profiling results
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: memory-profiling-results
+          path: memory-results/
+          retention-days: 14
+
+  # ============================================================================
+  # CI Gate - Performance Testing Summary
+  # ============================================================================
+  performance-gate:
+    name: Performance Gate (Required Check)
+    runs-on: ubuntu-latest
+    needs: [benchmarks, memory-profiling]
+    if: always() && github.event_name == 'pull_request'
+    steps:
+      - name: Check performance test results
+        run: |
+          echo "## Performance Gate Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          FAILED=false
+
+          # Check benchmarks
+          if [ "${{ needs.benchmarks.result }}" == "failure" ]; then
+            echo "- Benchmarks: FAILED (>20% regression detected)" >> $GITHUB_STEP_SUMMARY
+            FAILED=true
+          elif [ "${{ needs.benchmarks.result }}" == "success" ]; then
+            echo "- Benchmarks: PASSED" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- Benchmarks: ${{ needs.benchmarks.result }}" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Check memory profiling
+          if [ "${{ needs.memory-profiling.result }}" == "failure" ]; then
+            echo "- Memory Profiling: FAILED (memory limit exceeded)" >> $GITHUB_STEP_SUMMARY
+            FAILED=true
+          elif [ "${{ needs.memory-profiling.result }}" == "success" ]; then
+            echo "- Memory Profiling: PASSED" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- Memory Profiling: ${{ needs.memory-profiling.result }}" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$FAILED" == "true" ]; then
+            echo "**Status: BLOCKED** - One or more performance checks failed" >> $GITHUB_STEP_SUMMARY
+            echo ""
+            echo "To run locally:"
+            echo "  uv run pytest backend/tests/benchmarks/ --benchmark-only -v"
+            echo "  uv run pytest backend/tests/benchmarks/test_memory.py --memray -v"
+            exit 1
+          else
+            echo "**Status: PASSED** - All performance checks passed" >> $GITHUB_STEP_SUMMARY
+          fi

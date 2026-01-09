@@ -277,23 +277,20 @@ class TestSecretsExposurePrevention:
 
     Secrets include: DATABASE_URL passwords, ADMIN_API_KEY, API keys, Redis passwords.
 
-    NOTE: These tests document CURRENT BEHAVIOR and identify gaps in secret protection.
-    Pydantic Settings does NOT automatically redact secrets in str()/repr() output.
-    Production code must use backend.core.logging.redact_url() and redact_sensitive_value()
-    utilities when logging configuration values.
+    NOTE: Settings.__repr__ automatically redacts sensitive fields containing patterns
+    like 'password', 'secret', 'key', 'token', 'credential'. This provides protection
+    when logging settings objects directly.
+
+    However, logging raw attribute values (e.g., settings.redis_url) bypasses this.
+    Production code should use backend.core.logging.redact_url() and redact_sensitive_value()
+    utilities when logging individual configuration values.
     """
 
     def test_database_url_contains_password_in_repr(self, clean_env):
-        """Test that DATABASE_URL password IS exposed in Settings repr/str (CURRENT BEHAVIOR).
+        """Test that DATABASE_URL password IS properly redacted in Settings repr/str.
 
-        This test documents that Pydantic does NOT automatically redact secrets.
-
-        SECURITY REQUIREMENT: Code must use backend.core.logging.redact_url() before
-        logging database URLs. Never log settings object directly.
-
-        Example:
-            from backend.core.logging import redact_url
-            logger.info(f"DB URL: {redact_url(settings.database_url)}")
+        Settings.__repr__ automatically redacts sensitive URL fields using redact_url().
+        This prevents accidental exposure of secrets when logging settings objects.
         """
         # Set DATABASE_URL with password
         clean_env.setenv(
@@ -306,9 +303,10 @@ class TestSecretsExposurePrevention:
         # Convert to string (simulates logging)
         settings_str = str(settings)
 
-        # CURRENT BEHAVIOR: Password IS in string representation
-        # This is a known limitation - developers must use redact_url()
-        assert "secret_password" in settings_str  # pragma: allowlist secret
+        # SECURE BEHAVIOR: Password is redacted in repr/str output
+        assert "secret_password" not in settings_str  # pragma: allowlist secret
+        assert "[REDACTED]" in settings_str
+        # But the actual attribute still has the real password
         test_url = "postgresql+asyncpg://user:secret_password@localhost:5432/db"  # pragma: allowlist secret
         assert settings.database_url == test_url
 
@@ -338,10 +336,10 @@ class TestSecretsExposurePrevention:
         assert "my_redis_password" in log_text
 
     def test_admin_api_key_exposed_in_repr(self, clean_env):
-        """Test that ADMIN_API_KEY IS exposed in settings representation (CURRENT BEHAVIOR).
+        """Test that ADMIN_API_KEY IS properly redacted in settings representation.
 
-        SECURITY REQUIREMENT: Never log settings object directly.
-        Use backend.core.logging.redact_sensitive_value() for sensitive fields.
+        Settings.__repr__ automatically redacts fields containing 'key', 'secret', etc.
+        This prevents accidental exposure when logging settings objects.
         """
         clean_env.setenv("ADMIN_API_KEY", "super_secret_admin_key")  # pragma: allowlist secret
         get_settings.cache_clear()
@@ -349,8 +347,10 @@ class TestSecretsExposurePrevention:
 
         settings_str = str(settings)
 
-        # CURRENT BEHAVIOR: API key IS in string representation
-        assert "super_secret_admin_key" in settings_str
+        # SECURE BEHAVIOR: API key is redacted in repr/str output
+        assert "super_secret_admin_key" not in settings_str
+        assert "[REDACTED]" in settings_str
+        # But the actual attribute still has the real key
         assert settings.admin_api_key == "super_secret_admin_key"  # pragma: allowlist secret
 
     def test_validation_error_exposes_secrets(self, clean_env):
