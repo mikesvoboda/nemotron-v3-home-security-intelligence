@@ -3,6 +3,7 @@ import { cleanup } from '@testing-library/react';
 import { afterAll, afterEach, beforeAll, vi } from 'vitest';
 
 import { server } from '../mocks/server';
+import { resetCounter } from './factories';
 
 /**
  * Fix HeadlessUI focus issue with jsdom
@@ -96,6 +97,9 @@ afterEach(() => {
 
   // Unstub all global mocks (fetch, WebSocket, etc.)
   vi.unstubAllGlobals();
+
+  // Reset factory counter to ensure unique IDs across tests
+  resetCounter();
 });
 
 /**
