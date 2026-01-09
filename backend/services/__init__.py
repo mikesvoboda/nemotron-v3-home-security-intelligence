@@ -95,11 +95,24 @@ from .evaluation_queue import (
     reset_evaluation_queue,
 )
 from .event_broadcaster import EventBroadcaster, get_broadcaster, stop_broadcaster
+from .event_service import (
+    EventService,
+    get_event_service,
+    reset_event_service,
+)
 from .face_detector import (
     FaceDetection,
     PersonDetection,
     detect_faces,
     is_person_class,
+)
+from .file_service import (
+    DEFAULT_DELETION_DELAY_SECONDS,
+    FILE_DELETION_QUEUE,
+    FileDeletionJob,
+    FileService,
+    get_file_service,
+    reset_file_service,
 )
 from .file_watcher import (
     MIN_IMAGE_FILE_SIZE,
@@ -258,6 +271,8 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "SEVERITY_PRIORITY",
     "SHORT_TTL",
     "VEHICLE_CLASSES",
+    "DEFAULT_DELETION_DELAY_SECONDS",
+    "FILE_DELETION_QUEUE",
     # Classes - AI Services
     "FaceDetectorService",
     "OCRService",
@@ -315,6 +330,9 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "EvaluationQueue",
     "EvaluationResult",
     "EventBroadcaster",
+    "EventService",
+    "FileDeletionJob",
+    "FileService",
     "FaceDetection",
     "FaceResult",
     "FileWatcher",
@@ -390,6 +408,8 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "get_enabled_models",
     "get_enrichment_pipeline",
     "get_evaluation_queue",
+    "get_event_service",
+    "get_file_service",
     "get_florence_extractor",
     "get_highest_priority_zone",
     "get_job_tracker",
@@ -429,6 +449,8 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "reset_degradation_manager",
     "reset_enrichment_pipeline",
     "reset_evaluation_queue",
+    "reset_event_service",
+    "reset_file_service",
     "reset_florence_extractor",
     "reset_job_tracker",
     "reset_model_manager",
