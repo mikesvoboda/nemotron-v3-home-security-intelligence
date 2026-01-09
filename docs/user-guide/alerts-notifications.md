@@ -253,6 +253,16 @@ See the Alert Rules documentation for configuration details.
 
 ---
 
+## Alert Delivery Pipeline
+
+Understanding how alerts flow from detection to your notification channels:
+
+![Alert Delivery Pipeline showing the flow from event detection through risk scoring, alert rule evaluation, deduplication check, and final delivery to configured channels (email SMTP, webhooks) with retry logic for failed deliveries](../images/admin/alert-delivery-pipeline.png)
+
+_Alert delivery pipeline: Events are scored, evaluated against rules, deduplicated, and delivered to configured notification channels with automatic retry on failure._
+
+---
+
 ## Notification System
 
 <!-- SCREENSHOT: Notification Settings Tab

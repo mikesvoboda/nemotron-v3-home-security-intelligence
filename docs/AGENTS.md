@@ -354,7 +354,7 @@ See `admin-guide/AGENTS.md` for detailed information.
 
 REST and WebSocket API documentation (**canonical location**).
 
-See `api-reference/AGENTS.md` for detailed information. A second copy exists at `reference/api/` (historical/alternate format); prefer `api-reference/` to avoid drift.
+See `api-reference/AGENTS.md` for detailed information.
 
 ### architecture/
 
@@ -418,7 +418,6 @@ See `reference/AGENTS.md` for detailed information.
 
 **Subdirectories:**
 
-- `reference/api/` - API endpoint reference (alternate format)
 - `reference/config/` - Configuration reference
 - `reference/troubleshooting/` - Problem-solving guides
 
@@ -479,7 +478,7 @@ See `testing/AGENTS.md` for detailed information.
 **Docs are source of truth for:**
 
 - Architecture decisions (design spec, ADRs)
-- API contracts (reference/api/)
+- API contracts (api-reference/)
 - Database schema (architecture/data-model.md)
 - Environment configuration (reference/config/env-reference.md)
 - Deployment procedures (AI_SETUP.md, DOCKER_DEPLOYMENT.md)
@@ -506,7 +505,7 @@ See `testing/AGENTS.md` for detailed information.
 | ------------------- | ------------------------------------ |
 | System architecture | `architecture/overview.md`           |
 | AI pipeline         | `architecture/ai-pipeline.md`        |
-| API integration     | `reference/api/overview.md`          |
+| API integration     | `api-reference/overview.md`          |
 | Configuration       | `reference/config/env-reference.md`  |
 | Stability / WIP     | `reference/stability.md`             |
 | Troubleshooting     | `reference/troubleshooting/index.md` |
@@ -568,7 +567,6 @@ All 19 AGENTS.md files in the docs directory:
 | `docs/operator/AGENTS.md`                  | Operator docs directory        |
 | `docs/plans/AGENTS.md`                     | Plans directory                |
 | `docs/reference/AGENTS.md`                 | Reference root directory       |
-| `docs/reference/api/AGENTS.md`             | Reference API subdirectory     |
 | `docs/reference/config/AGENTS.md`          | Configuration reference        |
 | `docs/reference/troubleshooting/AGENTS.md` | Troubleshooting guides         |
 | `docs/testing/AGENTS.md`                   | Testing guides directory       |

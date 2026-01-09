@@ -35,6 +35,7 @@ user-guide/
   understanding-alerts.md     # Risk levels and alert interpretation
   using-the-dashboard.md      # Comprehensive dashboard guide
   viewing-events.md           # Activity feed, timeline, event details (from user/)
+  zones.md                    # Detection zones configuration guide
 ```
 
 ## Key Files
@@ -267,6 +268,24 @@ user-guide/
 - System preferences
 
 **When to use:** Configuring the system, adjusting preferences.
+
+### zones.md
+
+**Purpose:** Guide to configuring detection zones within camera views.
+
+**Target Audience:** Users who want to focus AI analysis on specific areas.
+
+**Topics Covered:**
+
+- Zone types (entry point, driveway, restricted, etc.)
+- Creating and editing zones
+- Zone shapes (rectangle, polygon)
+- Zone priority and overlapping zones
+- Coordinate system explanation
+- Example zone configurations by camera type
+- Troubleshooting zone issues
+
+**When to use:** Setting up detection zones, reducing false positives, focusing on entry points.
 
 ### mobile-pwa.md
 

@@ -1,0 +1,56 @@
+digraph RetryBackoff {
+    // Graph settings
+    rankdir=TB;
+    bgcolor="#121212";
+    fontname="Helvetica";
+    fontcolor="white";
+    node [fontname="Helvetica", fontcolor="white", style="filled,rounded", shape=box];
+    edge [fontname="Helvetica", fontcolor="white", color="#666666", penwidth=1.5];
+
+    // Title
+    labelloc="t";
+    label="Exponential Backoff with Jitter";
+    fontsize=16;
+
+    // Nodes
+    START [label="Operation\nFailed", fillcolor="#E74856"];
+    CHECK [label="Retries\nExhausted?", shape=diamond, fillcolor="#1F1F1F", width=1.8, height=1];
+
+    CALC [label="Calculate Delay\nbase × 2^attempt", fillcolor="#3B82F6"];
+    JITTER [label="Add Jitter\n±25%", fillcolor="#A855F7"];
+    CAP [label="Apply Cap\nmax 60s", fillcolor="#FFB800", fontcolor="black"];
+    WAIT [label="Wait", fillcolor="#1F1F1F"];
+
+    RETRY [label="Retry\nOperation", fillcolor="#3B82F6"];
+    SUCCESS [label="Success!", fillcolor="#76B900"];
+    DLQ [label="Send to\nDead Letter Queue", fillcolor="#E74856"];
+
+    // Flow
+    START -> CHECK;
+    CHECK -> DLQ [label="Yes", fontcolor="#E74856", color="#E74856"];
+    CHECK -> CALC [label="No", fontcolor="#76B900", color="#76B900"];
+
+    CALC -> JITTER;
+    JITTER -> CAP;
+    CAP -> WAIT;
+    WAIT -> RETRY;
+
+    RETRY -> SUCCESS [label="OK", fontcolor="#76B900", color="#76B900"];
+    RETRY -> START [label="Failed", fontcolor="#E74856", color="#E74856"];
+
+    // Timing examples (as note)
+    subgraph cluster_timing {
+        label="Delay Examples";
+        style="rounded,dashed";
+        color="#666666";
+        fontcolor="#666666";
+
+        T1 [label="Attempt 1: ~1s", fillcolor="#1F1F1F", shape=plaintext];
+        T2 [label="Attempt 2: ~2s", fillcolor="#1F1F1F", shape=plaintext];
+        T3 [label="Attempt 3: ~4s", fillcolor="#1F1F1F", shape=plaintext];
+        T4 [label="Attempt 4: ~8s", fillcolor="#1F1F1F", shape=plaintext];
+        T5 [label="Attempt 5: ~16s", fillcolor="#1F1F1F", shape=plaintext];
+
+        T1 -> T2 -> T3 -> T4 -> T5 [style=invis];
+    }
+}
