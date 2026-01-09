@@ -148,6 +148,9 @@ from .services import (
     ServiceStatusEvent,
 )
 from .websocket import (
+    EVENT_REGISTRY,
+    EventRegistryResponse,
+    EventTypeInfo,
     RiskLevel,
     WebSocketErrorCode,
     WebSocketErrorResponse,
@@ -164,12 +167,16 @@ from .websocket import (
     WebSocketServiceStatusMessage,
     WebSocketSubscribeMessage,
     WebSocketUnsubscribeMessage,
+    WSEvent,
+    WSEventType,
+    get_event_registry_response,
 )
 from .zone import ZoneCreate, ZoneListResponse, ZoneResponse, ZoneUpdate
 
 __all__ = [
     # Constants (sorted separately)
     "COMMON_ERROR_RESPONSES",
+    "EVENT_REGISTRY",
     "HTTP_STATUS_PHRASES",
     "ActivityBaselineEntry",
     "ActivityBaselineResponse",
@@ -234,6 +241,8 @@ __all__ = [
     "EventBulkUpdateItem",
     "EventBulkUpdateRequest",
     "EventEnrichmentsResponse",
+    "EventRegistryResponse",
+    "EventTypeInfo",
     "ExampleImprovement",
     "FaceEnrichment",
     "FlatErrorResponse",
@@ -282,6 +291,8 @@ __all__ = [
     "VehicleEnrichment",
     "VehicleEnrichmentData",
     "ViolenceEnrichment",
+    "WSEvent",
+    "WSEventType",
     "WeatherEnrichment",
     "WebSocketErrorCode",
     "WebSocketErrorResponse",
@@ -302,12 +313,13 @@ __all__ = [
     "ZoneListResponse",
     "ZoneResponse",
     "ZoneUpdate",
-    # Functions and utilities (sorted separately)
+    # Functions and utilities
     "build_camera_links",
     "build_detection_links",
     "build_detection_video_links",
     "build_event_links",
     "build_link",
+    "get_event_registry_response",
     "get_status_phrase",
     "raise_http_error",
 ]

@@ -248,3 +248,413 @@ export function extractEventPayload<K extends WebSocketEventKey>(
   // For simple messages (like ping/pong), return the message itself
   return msg as unknown as WebSocketEventMap[K];
 }
+
+// ============================================================================
+// WebSocket Event Type Registry (NEM-1984)
+// Matches backend/api/schemas/websocket.py WSEventType enum
+// ============================================================================
+
+/**
+ * Comprehensive WebSocket event type registry.
+ *
+ * This enum defines all WebSocket event types used in the system.
+ * Event types follow a hierarchical naming convention: {domain}.{action}
+ *
+ * Domains:
+ * - detection: AI detection events from the pipeline
+ * - event: Security event lifecycle events
+ * - alert: Alert notifications and state changes
+ * - camera: Camera status and configuration changes
+ * - job: Background job lifecycle events
+ * - system: System health and status events
+ * - gpu: GPU monitoring events
+ */
+export enum WSEventType {
+  // Detection events - AI pipeline results
+  DETECTION_NEW = 'detection.new',
+  DETECTION_BATCH = 'detection.batch',
+
+  // Event events - Security event lifecycle
+  EVENT_CREATED = 'event.created',
+  EVENT_UPDATED = 'event.updated',
+  EVENT_DELETED = 'event.deleted',
+
+  // Alert events - Alert notifications
+  ALERT_CREATED = 'alert.created',
+  ALERT_ACKNOWLEDGED = 'alert.acknowledged',
+  ALERT_DISMISSED = 'alert.dismissed',
+
+  // Camera events - Camera status changes
+  CAMERA_STATUS_CHANGED = 'camera.status_changed',
+  CAMERA_ENABLED = 'camera.enabled',
+  CAMERA_DISABLED = 'camera.disabled',
+
+  // Job events - Background job lifecycle
+  JOB_STARTED = 'job.started',
+  JOB_PROGRESS = 'job.progress',
+  JOB_COMPLETED = 'job.completed',
+  JOB_FAILED = 'job.failed',
+
+  // System events - System health monitoring
+  SYSTEM_HEALTH_CHANGED = 'system.health_changed',
+  SYSTEM_STATUS = 'system.status',
+
+  // GPU events - GPU monitoring
+  GPU_STATS_UPDATED = 'gpu.stats_updated',
+
+  // Service events - Container/service status
+  SERVICE_STATUS_CHANGED = 'service.status_changed',
+
+  // Scene change events - Camera view monitoring
+  SCENE_CHANGE_DETECTED = 'scene_change.detected',
+
+  // Legacy event types for backward compatibility
+  // These map to the existing message types in the codebase
+  EVENT = 'event',
+  SERVICE_STATUS = 'service_status',
+  SCENE_CHANGE = 'scene_change',
+  PING = 'ping',
+  PONG = 'pong',
+  ERROR = 'error',
+}
+
+/**
+ * Generic WebSocket event wrapper with type, payload, and metadata.
+ * Matches backend WSEvent model.
+ */
+export interface WSEvent<T = Record<string, unknown>> {
+  /** Event type from WSEventType enum */
+  type: WSEventType;
+  /** Event-specific payload data */
+  payload: T;
+  /** ISO 8601 timestamp when the event occurred */
+  timestamp: string;
+  /** Optional channel identifier (e.g., 'events', 'system') */
+  channel?: string;
+}
+
+// ============================================================================
+// Type-Safe Payload Interfaces
+// ============================================================================
+
+/**
+ * Payload for detection.new events.
+ */
+export interface DetectionNewPayload {
+  detection_id: string;
+  event_id?: string;
+  label: string;
+  confidence: number;
+  bbox?: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+  camera_id: string;
+  timestamp?: string;
+}
+
+/**
+ * Payload for detection.batch events.
+ */
+export interface DetectionBatchPayload {
+  batch_id: string;
+  detections: DetectionNewPayload[];
+  frame_timestamp: string;
+  camera_id: string;
+}
+
+/**
+ * Payload for event.created events.
+ */
+export interface EventCreatedPayload {
+  id: number;
+  event_id: number;
+  batch_id: string;
+  camera_id: string;
+  risk_score: number;
+  risk_level: 'low' | 'medium' | 'high' | 'critical';
+  summary: string;
+  reasoning: string;
+  started_at?: string;
+}
+
+/**
+ * Payload for event.updated events.
+ */
+export interface EventUpdatedPayload {
+  id: number;
+  updated_fields: string[];
+  risk_score?: number;
+  risk_level?: 'low' | 'medium' | 'high' | 'critical';
+}
+
+/**
+ * Payload for event.deleted events.
+ */
+export interface EventDeletedPayload {
+  id: number;
+  reason?: string;
+}
+
+/**
+ * Payload for alert.created events.
+ */
+export interface AlertCreatedPayload {
+  alert_id: number;
+  event_id: number;
+  severity: 'info' | 'warning' | 'error' | 'critical';
+  message: string;
+  created_at: string;
+}
+
+/**
+ * Payload for alert.acknowledged events.
+ */
+export interface AlertAcknowledgedPayload {
+  alert_id: number;
+  acknowledged_at: string;
+}
+
+/**
+ * Payload for alert.dismissed events.
+ */
+export interface AlertDismissedPayload {
+  alert_id: number;
+  dismissed_at: string;
+  reason?: string;
+}
+
+/**
+ * Payload for camera.status_changed events.
+ */
+export interface CameraStatusChangedPayload {
+  camera_id: string;
+  status: 'online' | 'offline' | 'error' | 'unknown';
+  previous_status: 'online' | 'offline' | 'error' | 'unknown';
+  message?: string;
+}
+
+/**
+ * Payload for camera.enabled events.
+ */
+export interface CameraEnabledPayload {
+  camera_id: string;
+  enabled_at: string;
+}
+
+/**
+ * Payload for camera.disabled events.
+ */
+export interface CameraDisabledPayload {
+  camera_id: string;
+  disabled_at: string;
+  reason?: string;
+}
+
+/**
+ * Payload for job.started events.
+ */
+export interface JobStartedPayload {
+  job_id: string;
+  job_type: string;
+  started_at: string;
+  estimated_duration?: number;
+}
+
+/**
+ * Payload for job.progress events.
+ */
+export interface JobProgressPayload {
+  job_id: string;
+  progress: number;
+  message?: string;
+}
+
+/**
+ * Payload for job.completed events.
+ */
+export interface JobCompletedPayload {
+  job_id: string;
+  completed_at: string;
+  result?: Record<string, unknown>;
+}
+
+/**
+ * Payload for job.failed events.
+ */
+export interface JobFailedPayload {
+  job_id: string;
+  failed_at: string;
+  error: string;
+  retryable: boolean;
+}
+
+/**
+ * Payload for system.health_changed events.
+ */
+export interface SystemHealthChangedPayload {
+  health: 'healthy' | 'degraded' | 'unhealthy';
+  previous_health: 'healthy' | 'degraded' | 'unhealthy';
+  components: Record<string, 'healthy' | 'degraded' | 'unhealthy'>;
+}
+
+/**
+ * Payload for system.status events.
+ */
+export interface SystemStatusPayload {
+  gpu: {
+    utilization: number | null;
+    memory_used: number | null;
+    memory_total: number | null;
+    temperature: number | null;
+    inference_fps: number | null;
+  };
+  cameras: {
+    active: number;
+    total: number;
+  };
+  queue: {
+    pending: number;
+    processing: number;
+  };
+  health: 'healthy' | 'degraded' | 'unhealthy';
+}
+
+/**
+ * Payload for gpu.stats_updated events.
+ */
+export interface GpuStatsUpdatedPayload {
+  utilization: number | null;
+  memory_used: number | null;
+  memory_total: number | null;
+  temperature: number | null;
+  inference_fps: number | null;
+}
+
+/**
+ * Payload for service.status_changed events.
+ */
+export interface ServiceStatusChangedPayload {
+  service: string;
+  status: 'healthy' | 'unhealthy' | 'restarting' | 'restart_failed' | 'failed';
+  previous_status?: string;
+  message?: string;
+}
+
+/**
+ * Payload for scene_change.detected events.
+ */
+export interface SceneChangeDetectedPayload {
+  id: number;
+  camera_id: string;
+  detected_at: string;
+  change_type: 'view_blocked' | 'angle_changed' | 'view_tampered' | 'unknown';
+  similarity_score: number;
+}
+
+// ============================================================================
+// Event Registry Response Types (from API)
+// ============================================================================
+
+/**
+ * Information about a single WebSocket event type.
+ * Matches backend EventTypeInfo model.
+ */
+export interface EventTypeInfo {
+  /** Event type identifier */
+  type: string;
+  /** Human-readable description */
+  description: string;
+  /** WebSocket channel this event is broadcast on */
+  channel: string | null;
+  /** JSON Schema for the event payload */
+  payload_schema: Record<string, unknown>;
+  /** Example payload */
+  example?: Record<string, unknown>;
+  /** Whether this event type is deprecated */
+  deprecated: boolean;
+  /** Replacement event type if deprecated */
+  replacement: string | null;
+}
+
+/**
+ * Response from GET /api/system/websocket/events endpoint.
+ * Matches backend EventRegistryResponse model.
+ */
+export interface EventRegistryResponse {
+  /** List of all available event types */
+  event_types: EventTypeInfo[];
+  /** List of all available WebSocket channels */
+  channels: string[];
+  /** Total number of event types */
+  total_count: number;
+  /** Number of deprecated event types */
+  deprecated_count: number;
+}
+
+// ============================================================================
+// Typed Event Registry Map
+// ============================================================================
+
+/**
+ * Maps WSEventType values to their typed payload interfaces.
+ * Use this for type-safe event handling.
+ *
+ * @example
+ * ```ts
+ * function handleEvent<T extends WSEventType>(
+ *   type: T,
+ *   payload: WSEventPayloadMap[T]
+ * ) {
+ *   // payload is typed based on event type
+ * }
+ * ```
+ */
+export interface WSEventPayloadMap {
+  [WSEventType.DETECTION_NEW]: DetectionNewPayload;
+  [WSEventType.DETECTION_BATCH]: DetectionBatchPayload;
+  [WSEventType.EVENT_CREATED]: EventCreatedPayload;
+  [WSEventType.EVENT_UPDATED]: EventUpdatedPayload;
+  [WSEventType.EVENT_DELETED]: EventDeletedPayload;
+  [WSEventType.ALERT_CREATED]: AlertCreatedPayload;
+  [WSEventType.ALERT_ACKNOWLEDGED]: AlertAcknowledgedPayload;
+  [WSEventType.ALERT_DISMISSED]: AlertDismissedPayload;
+  [WSEventType.CAMERA_STATUS_CHANGED]: CameraStatusChangedPayload;
+  [WSEventType.CAMERA_ENABLED]: CameraEnabledPayload;
+  [WSEventType.CAMERA_DISABLED]: CameraDisabledPayload;
+  [WSEventType.JOB_STARTED]: JobStartedPayload;
+  [WSEventType.JOB_PROGRESS]: JobProgressPayload;
+  [WSEventType.JOB_COMPLETED]: JobCompletedPayload;
+  [WSEventType.JOB_FAILED]: JobFailedPayload;
+  [WSEventType.SYSTEM_HEALTH_CHANGED]: SystemHealthChangedPayload;
+  [WSEventType.SYSTEM_STATUS]: SystemStatusPayload;
+  [WSEventType.GPU_STATS_UPDATED]: GpuStatsUpdatedPayload;
+  [WSEventType.SERVICE_STATUS_CHANGED]: ServiceStatusChangedPayload;
+  [WSEventType.SCENE_CHANGE_DETECTED]: SceneChangeDetectedPayload;
+  // Legacy types
+  [WSEventType.EVENT]: SecurityEventData;
+  [WSEventType.SERVICE_STATUS]: ServiceStatusData;
+  [WSEventType.SCENE_CHANGE]: SceneChangeDetectedPayload;
+  [WSEventType.PING]: HeartbeatPayload;
+  [WSEventType.PONG]: PongPayload;
+  [WSEventType.ERROR]: WebSocketErrorPayload;
+}
+
+/**
+ * Type-safe event handler for a specific WSEventType.
+ */
+export type WSEventHandler<T extends WSEventType> = (payload: WSEventPayloadMap[T]) => void;
+
+/**
+ * All WSEventType values as an array for runtime validation.
+ */
+export const WS_EVENT_TYPES: readonly WSEventType[] = Object.values(WSEventType);
+
+/**
+ * Type guard to check if a string is a valid WSEventType.
+ */
+export function isWSEventType(value: unknown): value is WSEventType {
+  return typeof value === 'string' && WS_EVENT_TYPES.includes(value as WSEventType);
+}

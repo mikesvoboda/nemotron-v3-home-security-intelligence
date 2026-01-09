@@ -1,1 +1,1 @@
-"""Integration tests for services."""
+"""Integration tests for backend services."""
