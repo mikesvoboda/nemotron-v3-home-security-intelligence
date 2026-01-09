@@ -15,6 +15,14 @@ from sqlalchemy.orm import joinedload
 from backend.api.dependencies import get_cache_service_dep, get_event_or_404
 from backend.api.middleware.rate_limit import RateLimiter, RateLimitTier
 from backend.api.pagination import CursorData, decode_cursor, encode_cursor, get_deprecation_warning
+from backend.api.schemas.bulk import (
+    BulkOperationResponse,
+    BulkOperationStatus,
+    EventBulkCreateRequest,
+    EventBulkCreateResponse,
+    EventBulkDeleteRequest,
+    EventBulkUpdateRequest,
+)
 from backend.api.schemas.clips import (
     ClipGenerateRequest,
     ClipGenerateResponse,
@@ -28,6 +36,7 @@ from backend.api.schemas.events import (
     EventStatsResponse,
     EventUpdate,
 )
+from backend.api.schemas.hateoas import build_event_links
 from backend.api.schemas.search import SearchResponse as SearchResponseSchema
 from backend.api.validators import validate_date_range
 from backend.core.database import escape_ilike_pattern, get_db
@@ -742,16 +751,18 @@ async def export_events(
 @router.get("/{event_id}", response_model=EventResponse)
 async def get_event(
     event_id: int,
+    request: Request,
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
-    """Get a specific event by ID.
+    """Get a specific event by ID with HATEOAS links.
 
     Args:
         event_id: Event ID
+        request: FastAPI request object for building HATEOAS links
         db: Database session
 
     Returns:
-        Event object with detection count
+        Event object with detection count and HATEOAS links
 
     Raises:
         HTTPException: 404 if event not found
@@ -781,6 +792,7 @@ async def get_event(
         "detection_count": detection_count,
         "detection_ids": parsed_detection_ids,
         "thumbnail_url": thumbnail_url,
+        "links": build_event_links(request, event.id, event.camera_id),
     }
 
 
@@ -1342,3 +1354,342 @@ async def analyze_batch_streaming(
             "X-Accel-Buffering": "no",  # Disable nginx buffering for SSE
         },
     )
+
+
+# =============================================================================
+# Bulk Operations (NEM-1433)
+# =============================================================================
+# Rate limiting note: Bulk operations should be rate-limited more aggressively
+# than single-item operations. Consider implementing:
+# - RateLimiter(tier=RateLimitTier.BULK) with lower limits (e.g., 10 req/min)
+# - Per-IP rate limiting to prevent abuse
+# - Request size limits enforced at the schema level (max 100 items)
+
+
+@router.post(
+    "/bulk",
+    response_model=EventBulkCreateResponse,
+    status_code=status.HTTP_207_MULTI_STATUS,
+    summary="Bulk create events",
+    responses={
+        207: {"description": "Multi-status response with per-item results"},
+        400: {"description": "Invalid request format"},
+        422: {"description": "Validation error"},
+    },
+)
+async def bulk_create_events(
+    request: EventBulkCreateRequest,
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Create multiple events in a single request.
+
+    Supports partial success - some events may succeed while others fail.
+    Returns HTTP 207 Multi-Status with per-item results.
+
+    Rate limiting: Consider implementing RateLimitTier.BULK for production use.
+
+    Args:
+        request: Bulk create request with up to 100 events
+        db: Database session
+
+    Returns:
+        EventBulkCreateResponse with per-item results
+    """
+    results: list[dict[str, Any]] = []
+    succeeded = 0
+    failed = 0
+
+    # Validate all camera_ids exist before processing
+    camera_ids = {item.camera_id for item in request.events}
+    camera_query = select(Camera.id).where(Camera.id.in_(camera_ids))
+    camera_result = await db.execute(camera_query)
+    valid_camera_ids = {row[0] for row in camera_result.all()}
+
+    for idx, item in enumerate(request.events):
+        try:
+            # Validate camera exists
+            if item.camera_id not in valid_camera_ids:
+                results.append(
+                    {
+                        "index": idx,
+                        "status": BulkOperationStatus.FAILED,
+                        "id": None,
+                        "error": f"Camera not found: {item.camera_id}",
+                    }
+                )
+                failed += 1
+                continue
+
+            # Create event
+            event = Event(
+                camera_id=item.camera_id,
+                started_at=item.started_at,
+                ended_at=item.ended_at,
+                risk_score=item.risk_score,
+                risk_level=item.risk_level,
+                summary=item.summary,
+                reasoning=item.reasoning,
+                detection_ids=json.dumps(item.detection_ids) if item.detection_ids else None,
+            )
+            db.add(event)
+            await db.flush()  # Get the ID without committing
+
+            results.append(
+                {
+                    "index": idx,
+                    "status": BulkOperationStatus.SUCCESS,
+                    "id": event.id,
+                    "error": None,
+                }
+            )
+            succeeded += 1
+
+        except Exception as e:
+            logger.error(f"Bulk create event failed at index {idx}: {e}")
+            results.append(
+                {
+                    "index": idx,
+                    "status": BulkOperationStatus.FAILED,
+                    "id": None,
+                    "error": str(e),
+                }
+            )
+            failed += 1
+
+    # Commit all successful operations
+    if succeeded > 0:
+        try:
+            await db.commit()
+        except Exception as e:
+            logger.error(f"Bulk create commit failed: {e}")
+            await db.rollback()
+            # Mark all as failed on commit error
+            for item_result in results:
+                if item_result["status"] == BulkOperationStatus.SUCCESS:
+                    item_result["status"] = BulkOperationStatus.FAILED
+                    item_result["error"] = "Transaction commit failed"
+                    succeeded -= 1
+                    failed += 1
+
+    return {
+        "total": len(request.events),
+        "succeeded": succeeded,
+        "failed": failed,
+        "skipped": 0,
+        "results": results,
+    }
+
+
+@router.patch(
+    "/bulk",
+    response_model=BulkOperationResponse,
+    status_code=status.HTTP_207_MULTI_STATUS,
+    summary="Bulk update events",
+    responses={
+        207: {"description": "Multi-status response with per-item results"},
+        400: {"description": "Invalid request format"},
+        422: {"description": "Validation error"},
+    },
+)
+async def bulk_update_events(
+    request: EventBulkUpdateRequest,
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Update multiple events in a single request.
+
+    Supports partial success - some updates may succeed while others fail.
+    Returns HTTP 207 Multi-Status with per-item results.
+
+    Rate limiting: Consider implementing RateLimitTier.BULK for production use.
+
+    Args:
+        request: Bulk update request with up to 100 event updates
+        db: Database session
+
+    Returns:
+        BulkOperationResponse with per-item results
+    """
+    results: list[dict[str, Any]] = []
+    succeeded = 0
+    failed = 0
+
+    # Fetch all events in one query
+    event_ids = [item.id for item in request.events]
+    query = select(Event).where(Event.id.in_(event_ids))
+    result = await db.execute(query)
+    events_map = {event.id: event for event in result.scalars().all()}
+
+    for idx, item in enumerate(request.events):
+        try:
+            event = events_map.get(item.id)
+            if not event:
+                results.append(
+                    {
+                        "index": idx,
+                        "status": BulkOperationStatus.FAILED,
+                        "id": item.id,
+                        "error": f"Event not found: {item.id}",
+                    }
+                )
+                failed += 1
+                continue
+
+            # Update fields if provided
+            if item.reviewed is not None:
+                event.reviewed = item.reviewed
+            if item.notes is not None:
+                event.notes = item.notes
+
+            results.append(
+                {
+                    "index": idx,
+                    "status": BulkOperationStatus.SUCCESS,
+                    "id": event.id,
+                    "error": None,
+                }
+            )
+            succeeded += 1
+
+        except Exception as e:
+            logger.error(f"Bulk update event failed at index {idx}: {e}")
+            results.append(
+                {
+                    "index": idx,
+                    "status": BulkOperationStatus.FAILED,
+                    "id": item.id,
+                    "error": str(e),
+                }
+            )
+            failed += 1
+
+    # Commit all successful operations
+    if succeeded > 0:
+        try:
+            await db.commit()
+        except Exception as e:
+            logger.error(f"Bulk update commit failed: {e}")
+            await db.rollback()
+            # Mark all as failed on commit error
+            for item_result in results:
+                if item_result["status"] == BulkOperationStatus.SUCCESS:
+                    item_result["status"] = BulkOperationStatus.FAILED
+                    item_result["error"] = "Transaction commit failed"
+                    succeeded -= 1
+                    failed += 1
+
+    return {
+        "total": len(request.events),
+        "succeeded": succeeded,
+        "failed": failed,
+        "skipped": 0,
+        "results": results,
+    }
+
+
+@router.delete(
+    "/bulk",
+    response_model=BulkOperationResponse,
+    status_code=status.HTTP_207_MULTI_STATUS,
+    summary="Bulk delete events",
+    responses={
+        207: {"description": "Multi-status response with per-item results"},
+        400: {"description": "Invalid request format"},
+        422: {"description": "Validation error"},
+    },
+)
+async def bulk_delete_events(
+    request: EventBulkDeleteRequest,
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Delete multiple events in a single request.
+
+    Supports partial success - some deletions may succeed while others fail.
+    Returns HTTP 207 Multi-Status with per-item results.
+
+    By default uses soft delete (sets deleted_at timestamp). Use soft_delete=false
+    for permanent deletion.
+
+    Rate limiting: Consider implementing RateLimitTier.BULK for production use.
+
+    Args:
+        request: Bulk delete request with up to 100 event IDs
+        db: Database session
+
+    Returns:
+        BulkOperationResponse with per-item results
+    """
+    results: list[dict[str, Any]] = []
+    succeeded = 0
+    failed = 0
+
+    # Fetch all events in one query
+    query = select(Event).where(Event.id.in_(request.event_ids))
+    result = await db.execute(query)
+    events_map = {event.id: event for event in result.scalars().all()}
+
+    for idx, event_id in enumerate(request.event_ids):
+        try:
+            event = events_map.get(event_id)
+            if not event:
+                results.append(
+                    {
+                        "index": idx,
+                        "status": BulkOperationStatus.FAILED,
+                        "id": event_id,
+                        "error": f"Event not found: {event_id}",
+                    }
+                )
+                failed += 1
+                continue
+
+            if request.soft_delete:
+                # Soft delete - set deleted_at timestamp
+                event.deleted_at = datetime.now(UTC)
+            else:
+                # Hard delete
+                await db.delete(event)
+
+            results.append(
+                {
+                    "index": idx,
+                    "status": BulkOperationStatus.SUCCESS,
+                    "id": event_id,
+                    "error": None,
+                }
+            )
+            succeeded += 1
+
+        except Exception as e:
+            logger.error(f"Bulk delete event failed at index {idx}: {e}")
+            results.append(
+                {
+                    "index": idx,
+                    "status": BulkOperationStatus.FAILED,
+                    "id": event_id,
+                    "error": str(e),
+                }
+            )
+            failed += 1
+
+    # Commit all successful operations
+    if succeeded > 0:
+        try:
+            await db.commit()
+        except Exception as e:
+            logger.error(f"Bulk delete commit failed: {e}")
+            await db.rollback()
+            # Mark all as failed on commit error
+            for item_result in results:
+                if item_result["status"] == BulkOperationStatus.SUCCESS:
+                    item_result["status"] = BulkOperationStatus.FAILED
+                    item_result["error"] = "Transaction commit failed"
+                    succeeded -= 1
+                    failed += 1
+
+    return {
+        "total": len(request.event_ids),
+        "succeeded": succeeded,
+        "failed": failed,
+        "skipped": 0,
+        "results": results,
+    }

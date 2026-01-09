@@ -238,7 +238,16 @@ def require_admin_access(x_admin_api_key: str | None = Header(default=None)) -> 
 # --- Endpoints ---
 
 
-@router.post("/seed/cameras", response_model=SeedCamerasResponse)
+@router.post(
+    "/seed/cameras",
+    response_model=SeedCamerasResponse,
+    responses={
+        401: {"description": "Unauthorized - Admin API key required"},
+        403: {"description": "Forbidden - Debug mode or admin not enabled"},
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def seed_cameras(
     request: SeedCamerasRequest,
     db: AsyncSession = Depends(get_db),
@@ -320,7 +329,17 @@ async def seed_cameras(
     }
 
 
-@router.post("/seed/events", response_model=SeedEventsResponse)
+@router.post(
+    "/seed/events",
+    response_model=SeedEventsResponse,
+    responses={
+        400: {"description": "Bad request - No cameras found"},
+        401: {"description": "Unauthorized - Admin API key required"},
+        403: {"description": "Forbidden - Debug mode or admin not enabled"},
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def seed_events(
     request: SeedEventsRequest,
     db: AsyncSession = Depends(get_db),
@@ -458,7 +477,16 @@ async def seed_events(
     }
 
 
-@router.delete("/seed/clear", response_model=ClearDataResponse)
+@router.delete(
+    "/seed/clear",
+    response_model=ClearDataResponse,
+    responses={
+        400: {"description": "Bad request - Confirmation required"},
+        401: {"description": "Unauthorized - Admin API key required"},
+        403: {"description": "Forbidden - Debug mode or admin not enabled"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def clear_seeded_data(
     body: ClearDataRequest,
     request: Request,

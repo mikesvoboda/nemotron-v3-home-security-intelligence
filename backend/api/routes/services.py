@@ -120,7 +120,14 @@ def _build_category_summaries(services: list[ManagedServiceProtocol]) -> dict[st
     return summaries
 
 
-@router.get("", response_model=ServicesResponse)
+@router.get(
+    "",
+    response_model=ServicesResponse,
+    responses={
+        503: {"description": "Container orchestrator not available"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def list_services(
     category: ServiceCategory | None = None,
     orchestrator: Any = Depends(get_orchestrator),
@@ -145,7 +152,16 @@ async def list_services(
     )
 
 
-@router.post("/{name}/restart", response_model=ServiceActionResponse)
+@router.post(
+    "/{name}/restart",
+    response_model=ServiceActionResponse,
+    responses={
+        400: {"description": "Bad request - Service is disabled"},
+        404: {"description": "Service not found"},
+        503: {"description": "Container orchestrator not available"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def restart_service(
     name: str,
     orchestrator: Any = Depends(get_orchestrator),
@@ -181,7 +197,15 @@ async def restart_service(
     )
 
 
-@router.post("/{name}/enable", response_model=ServiceActionResponse)
+@router.post(
+    "/{name}/enable",
+    response_model=ServiceActionResponse,
+    responses={
+        404: {"description": "Service not found"},
+        503: {"description": "Container orchestrator not available"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def enable_service(
     name: str,
     orchestrator: Any = Depends(get_orchestrator),
@@ -214,7 +238,15 @@ async def enable_service(
     )
 
 
-@router.post("/{name}/disable", response_model=ServiceActionResponse)
+@router.post(
+    "/{name}/disable",
+    response_model=ServiceActionResponse,
+    responses={
+        404: {"description": "Service not found"},
+        503: {"description": "Container orchestrator not available"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def disable_service(
     name: str,
     orchestrator: Any = Depends(get_orchestrator),
@@ -247,7 +279,16 @@ async def disable_service(
     )
 
 
-@router.post("/{name}/start", response_model=ServiceActionResponse)
+@router.post(
+    "/{name}/start",
+    response_model=ServiceActionResponse,
+    responses={
+        400: {"description": "Bad request - Service already running or disabled"},
+        404: {"description": "Service not found"},
+        503: {"description": "Container orchestrator not available"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def start_service(
     name: str,
     orchestrator: Any = Depends(get_orchestrator),

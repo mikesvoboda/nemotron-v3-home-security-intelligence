@@ -62,7 +62,14 @@ def _rule_to_response(rule: AlertRule) -> dict[str, Any]:
     }
 
 
-@router.get("", response_model=AlertRuleListResponse)
+@router.get(
+    "",
+    response_model=AlertRuleListResponse,
+    responses={
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def list_rules(
     enabled: bool | None = Query(None, description="Filter by enabled status"),
     severity: str | None = Query(None, description="Filter by severity level"),
@@ -114,7 +121,15 @@ async def list_rules(
     }
 
 
-@router.post("", response_model=AlertRuleResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=AlertRuleResponse,
+    status_code=status.HTTP_201_CREATED,
+    responses={
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def create_rule(
     rule_data: AlertRuleCreate,
     db: AsyncSession = Depends(get_db),
@@ -165,7 +180,14 @@ async def create_rule(
     return _rule_to_response(rule)
 
 
-@router.get("/{rule_id}", response_model=AlertRuleResponse)
+@router.get(
+    "/{rule_id}",
+    response_model=AlertRuleResponse,
+    responses={
+        404: {"description": "Alert rule not found"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_rule(
     rule_id: str,
     db: AsyncSession = Depends(get_db),
@@ -258,7 +280,14 @@ async def update_rule(
     return _rule_to_response(rule)
 
 
-@router.delete("/{rule_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{rule_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        404: {"description": "Alert rule not found"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def delete_rule(
     rule_id: str,
     db: AsyncSession = Depends(get_db),
@@ -277,7 +306,15 @@ async def delete_rule(
     await db.commit()
 
 
-@router.post("/{rule_id}/test", response_model=RuleTestResponse)
+@router.post(
+    "/{rule_id}/test",
+    response_model=RuleTestResponse,
+    responses={
+        404: {"description": "Alert rule not found"},
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def test_rule(
     rule_id: str,
     test_data: RuleTestRequest,

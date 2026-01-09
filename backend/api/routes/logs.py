@@ -21,7 +21,15 @@ from backend.models.log import Log
 router = APIRouter(prefix="/api/logs", tags=["logs"])
 
 
-@router.get("", response_model=LogsResponse)
+@router.get(
+    "",
+    response_model=LogsResponse,
+    responses={
+        400: {"description": "Invalid date range or cursor"},
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def list_logs(  # noqa: PLR0912
     level: str | None = Query(None, description="Filter by log level"),
     component: str | None = Query(None, description="Filter by component name"),
@@ -152,7 +160,14 @@ async def list_logs(  # noqa: PLR0912
     }
 
 
-@router.get("/stats", response_model=LogStats)
+@router.get(
+    "/stats",
+    response_model=LogStats,
+    responses={
+        400: {"description": "Invalid date range"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_log_stats(
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
@@ -237,7 +252,14 @@ async def get_log_stats(
     }
 
 
-@router.get("/{log_id}", response_model=LogEntry)
+@router.get(
+    "/{log_id}",
+    response_model=LogEntry,
+    responses={
+        404: {"description": "Log entry not found"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_log(
     log_id: int,
     db: AsyncSession = Depends(get_db),
@@ -256,7 +278,14 @@ async def get_log(
     return log
 
 
-@router.post("/frontend", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/frontend",
+    status_code=status.HTTP_201_CREATED,
+    responses={
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def create_frontend_log(
     log_data: FrontendLogCreate,
     request: Request,

@@ -54,6 +54,10 @@ router = APIRouter(prefix="/api/rum", tags=["rum"])
     response_model=RUMIngestResponse,
     summary="Ingest RUM metrics",
     description="Receive Core Web Vitals metrics from the frontend for Real User Monitoring.",
+    responses={
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
 )
 async def ingest_rum_metrics(request: RUMBatchRequest) -> RUMIngestResponse:
     """Ingest Core Web Vitals metrics from the frontend.
