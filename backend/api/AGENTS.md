@@ -186,70 +186,96 @@ enrichment_response = transform_enrichment_data(
 
 ### Routes (`routes/`)
 
-Contains FastAPI routers that define HTTP endpoints:
+Contains FastAPI routers that define HTTP endpoints (24 route files):
 
-| File                   | Purpose                                             |
-| ---------------------- | --------------------------------------------------- |
-| `cameras.py`           | Camera CRUD operations and snapshot serving         |
-| `events.py`            | Security event management, queries, and statistics  |
-| `detections.py`        | Object detection listing and thumbnail serving      |
-| `logs.py`              | System and frontend log management                  |
-| `websocket.py`         | WebSocket endpoints for real-time updates           |
-| `system.py`            | System health, GPU stats, configuration, telemetry  |
-| `media.py`             | Secure file serving for images/videos               |
-| `dlq.py`               | Dead-letter queue inspection and management         |
-| `metrics.py`           | Prometheus metrics endpoint                         |
-| `alerts.py`            | Alert rules CRUD and rule testing                   |
-| `audit.py`             | Audit log listing and statistics                    |
-| `zones.py`             | Camera zone management (nested under cameras)       |
-| `notification.py`      | Notification configuration and test endpoints       |
-| `admin.py`             | Development-only seed data endpoints                |
-| `ai_audit.py`          | AI pipeline audit, quality scoring, recommendations |
-| `entities.py`          | Entity re-identification tracking across cameras    |
-| `prompt_management.py` | Prompt configuration with versioning and testing    |
+| File                          | Purpose                                                |
+| ----------------------------- | ------------------------------------------------------ |
+| `admin.py`                    | Development-only seed data endpoints (DEBUG mode)      |
+| `ai_audit.py`                 | AI pipeline audit, quality scoring, recommendations    |
+| `alerts.py`                   | Alert rules CRUD and rule testing                      |
+| `analytics.py`                | Detection trends, risk history, camera uptime, objects |
+| `audit.py`                    | Audit log listing and statistics                       |
+| `calibration.py`              | Camera calibration endpoints (placeholder)             |
+| `cameras.py`                  | Camera CRUD operations and snapshot serving            |
+| `debug.py`                    | Debug endpoints for runtime diagnostics (DEBUG mode)   |
+| `detections.py`               | Object detection listing and thumbnail serving         |
+| `dlq.py`                      | Dead-letter queue inspection and management            |
+| `entities.py`                 | Entity re-identification tracking across cameras       |
+| `events.py`                   | Security event management, queries, and statistics     |
+| `logs.py`                     | System and frontend log management                     |
+| `media.py`                    | Secure file serving for images/videos                  |
+| `metrics.py`                  | Prometheus metrics endpoint                            |
+| `notification.py`             | Notification configuration and test endpoints          |
+| `notification_preferences.py` | Global notification preferences and quiet hours        |
+| `prompt_management.py`        | Prompt configuration with versioning and testing       |
+| `rum.py`                      | Real User Monitoring - Core Web Vitals ingestion       |
+| `services.py`                 | Container orchestrator service management              |
+| `system.py`                   | System health, GPU stats, configuration, telemetry     |
+| `websocket.py`                | WebSocket endpoints for real-time updates              |
+| `zones.py`                    | Camera zone management (nested under cameras)          |
 
 ### Schemas (`schemas/`)
 
-Contains Pydantic models for request/response validation:
+Contains Pydantic models for request/response validation (37 schema files):
 
-| File                   | Purpose                                                  |
-| ---------------------- | -------------------------------------------------------- |
-| `camera.py`            | Camera data validation schemas                           |
-| `events.py`            | Event request/response and statistics schemas            |
-| `detections.py`        | Detection response and enrichment data schemas           |
-| `logs.py`              | Log entry and statistics schemas                         |
-| `system.py`            | System monitoring, config, health, and telemetry schemas |
-| `media.py`             | Media error response schemas                             |
-| `dlq.py`               | Dead-letter queue schemas                                |
-| `alerts.py`            | Alert rules and alerts CRUD schemas                      |
-| `audit.py`             | Audit log entry and statistics schemas                   |
-| `zone.py`              | Camera zone management schemas                           |
-| `websocket.py`         | WebSocket message validation schemas                     |
-| `search.py`            | Event full-text search schemas                           |
-| `notification.py`      | Notification delivery and configuration schemas          |
-| `performance.py`       | System performance metrics schemas (GPU, AI, host)       |
-| `queue.py`             | Queue message payload validation (security-focused)      |
-| `ai_audit.py`          | AI pipeline audit response schemas                       |
-| `baseline.py`          | Camera baseline activity and anomaly detection schemas   |
-| `clips.py`             | Event clip generation schemas                            |
-| `enrichment.py`        | Structured enrichment API response schemas               |
-| `enrichment_data.py`   | Enrichment JSONB field validation schemas                |
-| `entities.py`          | Entity re-identification schemas                         |
-| `llm.py`               | LLM response validation with entity/flag schemas         |
-| `llm_response.py`      | Simpler LLM response validation (risk score/level)       |
-| `prompt_management.py` | Prompt configuration and versioning schemas              |
-| `scene_change.py`      | Scene change detection schemas                           |
+| File                          | Purpose                                                    |
+| ----------------------------- | ---------------------------------------------------------- |
+| `ai_audit.py`                 | AI pipeline audit response schemas                         |
+| `alerts.py`                   | Alert rules and alerts CRUD schemas                        |
+| `analytics.py`                | Detection trends, risk history, uptime, object dist.       |
+| `audit.py`                    | Audit log entry and statistics schemas                     |
+| `baseline.py`                 | Camera baseline activity and anomaly detection schemas     |
+| `bulk.py`                     | Bulk create/update/delete operations with 207 Multi-Status |
+| `calibration.py`              | Camera calibration schemas (placeholder)                   |
+| `camera.py`                   | Camera data validation schemas                             |
+| `clips.py`                    | Event clip generation schemas                              |
+| `detections.py`               | Detection response and enrichment data schemas             |
+| `dlq.py`                      | Dead-letter queue schemas                                  |
+| `enrichment.py`               | Structured enrichment API response schemas                 |
+| `enrichment_data.py`          | Enrichment JSONB field validation schemas                  |
+| `entities.py`                 | Entity re-identification schemas                           |
+| `errors.py`                   | Standardized error response schemas (RFC 7807 compatible)  |
+| `events.py`                   | Event request/response and statistics schemas              |
+| `hateoas.py`                  | HATEOAS hypermedia links for API discoverability           |
+| `health.py`                   | Health check schemas (liveness, readiness, full health)    |
+| `llm.py`                      | LLM response validation with entity/flag schemas           |
+| `llm_response.py`             | Simpler LLM response validation (risk score/level)         |
+| `logs.py`                     | Log entry and statistics schemas                           |
+| `media.py`                    | Media error response schemas                               |
+| `notification.py`             | Notification delivery and configuration schemas            |
+| `notification_preferences.py` | Notification preferences and quiet hours schemas           |
+| `performance.py`              | System performance metrics schemas (GPU, AI, host)         |
+| `problem_details.py`          | RFC 7807 Problem Details for standardized errors           |
+| `prompt_management.py`        | Prompt configuration and versioning schemas                |
+| `queue.py`                    | Queue message payload validation (security-focused)        |
+| `rum.py`                      | Real User Monitoring (Core Web Vitals) schemas             |
+| `scene_change.py`             | Scene change detection schemas                             |
+| `search.py`                   | Event full-text search schemas                             |
+| `services.py`                 | Container orchestrator service schemas                     |
+| `streaming.py`                | SSE streaming event schemas (progress, complete, error)    |
+| `system.py`                   | System monitoring, config, health, and telemetry schemas   |
+| `websocket.py`                | WebSocket message validation schemas                       |
+| `zone.py`                     | Camera zone management schemas                             |
 
 ### Middleware (`middleware/`)
 
-HTTP middleware for cross-cutting concerns:
+HTTP middleware for cross-cutting concerns (14 middleware files):
 
-| File                  | Purpose                                           |
-| --------------------- | ------------------------------------------------- |
-| `auth.py`             | API key authentication (HTTP and WebSocket)       |
-| `request_id.py`       | Request ID generation and propagation for tracing |
-| `rate_limit.py`       | Redis-based sliding window rate limiting          |
-| `security_headers.py` | Security headers (CSP, X-Frame-Options, etc.)     |
+| File                        | Purpose                                                |
+| --------------------------- | ------------------------------------------------------ |
+| `auth.py`                   | API key authentication (HTTP and WebSocket)            |
+| `body_limit.py`             | Request body size limits for DoS protection            |
+| `content_type_validator.py` | Content-Type header validation for request bodies      |
+| `correlation.py`            | Correlation ID propagation to outgoing requests        |
+| `exception_handler.py`      | Exception handling utilities with data minimization    |
+| `file_validator.py`         | File magic number validation for upload security       |
+| `rate_limit.py`             | Redis-based sliding window rate limiting               |
+| `request_id.py`             | Request ID generation and propagation for tracing      |
+| `request_logging.py`        | Structured HTTP request/response logging               |
+| `request_recorder.py`       | Request recording for replay debugging (NEM-1646)      |
+| `request_timing.py`         | Request timing and slow request logging                |
+| `security_headers.py`       | Security headers (CSP, X-Frame-Options, etc.)          |
+| `websocket_auth.py`         | WebSocket token authentication (separate from API key) |
 
 ## Architecture Overview
 

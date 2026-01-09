@@ -1266,6 +1266,192 @@ Pydantic schemas for scene change detection and acknowledgement.
 
 ---
 
+### Analytics Schemas (`analytics.py`)
+
+Pydantic schemas for analytics endpoints - trends, risk history, uptime, and object distribution.
+
+**Schemas:**
+
+| Schema                        | Purpose                                        |
+| ----------------------------- | ---------------------------------------------- |
+| `DetectionTrendDataPoint`     | Single detection trend data point by date      |
+| `DetectionTrendsResponse`     | Detection counts aggregated by day             |
+| `RiskHistoryDataPoint`        | Risk level distribution for a single date      |
+| `RiskHistoryResponse`         | Risk score distribution over time              |
+| `CameraUptimeDataPoint`       | Uptime and detection count for a single camera |
+| `CameraUptimeResponse`        | Uptime percentage per camera                   |
+| `ObjectDistributionDataPoint` | Detection count for a single object type       |
+| `ObjectDistributionResponse`  | Detection counts by object type                |
+
+---
+
+### Bulk Operations Schemas (`bulk.py`)
+
+Pydantic schemas for bulk create, update, and delete operations with HTTP 207 Multi-Status support.
+
+**Enums:**
+
+| Enum                  | Purpose                                               |
+| --------------------- | ----------------------------------------------------- |
+| `BulkOperationStatus` | Status of individual items (success, failed, skipped) |
+
+**Schemas:**
+
+| Schema                        | Purpose                                       |
+| ----------------------------- | --------------------------------------------- |
+| `BulkItemResult`              | Result for a single item in a bulk operation  |
+| `BulkOperationResponse`       | Base response with partial success support    |
+| `EventBulkCreateItem`         | Single event in a bulk create request         |
+| `EventBulkCreateRequest`      | Request for bulk event creation (max 100)     |
+| `EventBulkCreateResponse`     | Response for bulk event creation              |
+| `EventBulkUpdateItem`         | Single event update in bulk update request    |
+| `EventBulkUpdateRequest`      | Request for bulk event updates (max 100)      |
+| `EventBulkDeleteRequest`      | Request for bulk event deletion (max 100)     |
+| `DetectionBulkCreateItem`     | Single detection in bulk create request       |
+| `DetectionBulkCreateRequest`  | Request for bulk detection creation (max 100) |
+| `DetectionBulkCreateResponse` | Response for bulk detection creation          |
+| `DetectionBulkUpdateItem`     | Single detection update in bulk request       |
+| `DetectionBulkUpdateRequest`  | Request for bulk detection updates (max 100)  |
+| `DetectionBulkDeleteRequest`  | Request for bulk detection deletion (max 100) |
+
+---
+
+### Health Check Schemas (`health.py`)
+
+Consolidated response schemas for health check endpoints (NEM-1582).
+
+**Enums:**
+
+| Enum                 | Purpose                                              |
+| -------------------- | ---------------------------------------------------- |
+| `ServiceHealthState` | Health state (healthy, unhealthy, degraded, unknown) |
+| `CircuitState`       | Circuit breaker state (closed, open, half_open)      |
+
+**Schemas:**
+
+| Schema                       | Purpose                                          |
+| ---------------------------- | ------------------------------------------------ |
+| `LivenessResponse`           | Liveness probe response (always "alive")         |
+| `CheckResult`                | Individual service health check result           |
+| `ReadinessResponse`          | Readiness probe with service checks              |
+| `SimpleReadinessResponse`    | Minimal readiness response                       |
+| `AIServiceHealthStatus`      | Health status for AI services with circuit state |
+| `InfrastructureHealthStatus` | Health status for postgres/redis                 |
+| `CircuitBreakerSummary`      | Summary of all circuit breakers                  |
+| `WorkerHealthStatus`         | Health status for background workers             |
+| `FullHealthResponse`         | Comprehensive health check response              |
+
+---
+
+### HATEOAS Schemas (`hateoas.py`)
+
+Hypermedia links for REST API discoverability.
+
+**Schemas:**
+
+| Schema    | Purpose                                        |
+| --------- | ---------------------------------------------- |
+| `Link`    | HATEOAS link with href, rel, and HTTP method   |
+| `LinkRel` | Constants for standard link relationship types |
+
+**Functions:**
+
+| Function                      | Purpose                                    |
+| ----------------------------- | ------------------------------------------ |
+| `build_link`                  | Build a HATEOAS link from request and path |
+| `build_camera_links`          | Standard links for camera resources        |
+| `build_event_links`           | Standard links for event resources         |
+| `build_detection_links`       | Standard links for detection resources     |
+| `build_detection_video_links` | Extended links for video detections        |
+
+---
+
+### Notification Preferences Schemas (`notification_preferences.py`)
+
+Pydantic schemas for notification preferences including global settings, per-camera settings, and quiet hours.
+
+**Schemas:**
+
+| Schema                                   | Purpose                                  |
+| ---------------------------------------- | ---------------------------------------- |
+| `NotificationPreferencesResponse`        | Global notification preferences response |
+| `NotificationPreferencesUpdate`          | Update global notification preferences   |
+| `CameraNotificationSettingResponse`      | Per-camera notification setting response |
+| `CameraNotificationSettingUpdate`        | Update per-camera notification settings  |
+| `CameraNotificationSettingsListResponse` | List of camera notification settings     |
+| `QuietHoursPeriodCreate`                 | Create a quiet hours period              |
+| `QuietHoursPeriodResponse`               | Quiet hours period response              |
+| `QuietHoursPeriodsListResponse`          | List of quiet hours periods              |
+
+---
+
+### Problem Details Schemas (`problem_details.py`)
+
+RFC 7807 Problem Details format for standardized API error responses.
+
+**Functions:**
+
+| Function            | Purpose                                  |
+| ------------------- | ---------------------------------------- |
+| `get_status_phrase` | Get standard HTTP status phrase for code |
+
+**Schemas:**
+
+| Schema          | Purpose                           |
+| --------------- | --------------------------------- |
+| `ProblemDetail` | RFC 7807 compliant error response |
+
+**Fields:**
+
+- `type` - URI reference identifying the problem type
+- `title` - Short, human-readable summary
+- `status` - HTTP status code
+- `detail` - Human-readable explanation
+- `instance` - URI reference for specific occurrence
+
+---
+
+### RUM Schemas (`rum.py`)
+
+Real User Monitoring schemas for Core Web Vitals ingestion.
+
+**Enums:**
+
+| Enum           | Purpose                                            |
+| -------------- | -------------------------------------------------- |
+| `WebVitalName` | Supported metrics (LCP, FID, INP, CLS, TTFB, FCP)  |
+| `RatingType`   | Performance rating (good, needs-improvement, poor) |
+
+**Schemas:**
+
+| Schema              | Purpose                                  |
+| ------------------- | ---------------------------------------- |
+| `WebVitalMetric`    | Single Core Web Vital metric measurement |
+| `RUMBatchRequest`   | Batch request for multiple metrics       |
+| `RUMIngestResponse` | Response from RUM ingestion endpoint     |
+
+---
+
+### Streaming Schemas (`streaming.py`)
+
+SSE streaming event schemas for LLM analysis responses (NEM-1665).
+
+**Enums:**
+
+| Enum                 | Purpose                            |
+| -------------------- | ---------------------------------- |
+| `StreamingErrorCode` | Error codes for streaming failures |
+
+**Schemas:**
+
+| Schema                   | Purpose                                   |
+| ------------------------ | ----------------------------------------- |
+| `StreamingProgressEvent` | Progress event with content chunk         |
+| `StreamingCompleteEvent` | Completion event with event ID and scores |
+| `StreamingErrorEvent`    | Error event with code and recoverability  |
+
+---
+
 ## Common Patterns
 
 ### Field Validation

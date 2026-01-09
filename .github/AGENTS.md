@@ -10,29 +10,54 @@ This directory contains GitHub-specific configuration files for the Home Securit
 .github/
   AGENTS.md                   # This file
   CODEOWNERS                  # Code ownership for PR reviews
-  dependabot.yml              # Automated dependency updates
   copilot-instructions.md     # GitHub Copilot context
+  dependabot.yml              # Automated dependency updates
+  pull_request_template.md    # PR template with checklist
+  release-drafter.yml         # Release notes configuration
   codeql/                     # CodeQL configuration
     AGENTS.md                 # CodeQL directory guide
     codeql-config.yml         # Query configuration and path exclusions
   prompts/                    # AI prompt templates
     AGENTS.md                 # Prompts directory guide
     code-review.prompt.md     # System prompt for AI code review
-  workflows/                  # GitHub Actions workflow definitions
+  workflows/                  # GitHub Actions workflow definitions (30 workflows)
     AGENTS.md                 # Workflows directory guide
+    # Core CI/CD
     ci.yml                    # Main CI pipeline
     deploy.yml                # Docker image build and push
     preview-deploy.yml        # PR preview container builds
-    ai-code-review.yml        # GPT-powered code review
-    linear-ci-status.yml      # Linear issue status sync from CI/CD events
-    linear-github-sync.yml    # Linear to GitHub issue sync
-    nightly.yml               # Nightly benchmarks and analysis
+    release.yml               # Release workflow
+    rollback.yml              # Deployment rollback
+    semantic-release.yml      # Semantic versioning releases
+    release-drafter.yml       # Draft release notes
+    # Testing
     gpu-tests.yml             # GPU integration tests
+    load-tests.yml            # Load and performance testing
+    mutation-testing.yml      # Mutation testing for test quality
+    benchmarks.yml            # Performance benchmarks
+    # Security
     sast.yml                  # Static Application Security Testing
     codeql.yml                # CodeQL security analysis
     gitleaks.yml              # Secret detection scanning
     trivy.yml                 # Container vulnerability scanning
+    zap-security.yml          # OWASP ZAP security scanning
+    dependency-audit.yml      # Dependency vulnerability audit
+    vulnerability-management.yml # CVE tracking and management
+    # Quality & Analysis
+    ai-code-review.yml        # GPT-powered code review
+    api-compatibility.yml     # API backward compatibility checks
+    bundle-size.yml           # Frontend bundle size tracking
+    ci-analytics.yml          # CI metrics and analytics
+    docs.yml                  # Documentation generation
+    nightly.yml               # Nightly benchmarks and analysis
     weekly-audit.yml          # Weekly security and code quality audits
+    # Frontend Quality
+    accessibility-tests.yml   # Accessibility (a11y) testing
+    lighthouse.yml            # Lighthouse performance audits
+    visual-tests.yml          # Visual regression testing
+    # Integrations
+    linear-ci-status.yml      # Linear issue status sync from CI/CD events
+    linear-github-sync.yml    # Linear to GitHub issue sync
 ```
 
 ## Key Files
@@ -174,13 +199,16 @@ This directory contains GitHub-specific configuration files for the Home Securit
 
 ### Security Workflows
 
-| Workflow         | Tool            | Trigger              | Purpose                   |
-| ---------------- | --------------- | -------------------- | ------------------------- |
-| sast.yml         | Bandit, Semgrep | Push/PR              | Python security + OWASP   |
-| codeql.yml       | CodeQL          | Push/PR/Weekly       | Deep code analysis        |
-| gitleaks.yml     | Gitleaks        | Push/PR              | Secret detection          |
-| trivy.yml        | Trivy           | Push/PR (Dockerfile) | Container vulnerabilities |
-| weekly-audit.yml | Multiple        | Weekly (Monday 9 AM) | Security + code quality   |
+| Workflow                     | Tool            | Trigger              | Purpose                       |
+| ---------------------------- | --------------- | -------------------- | ----------------------------- |
+| sast.yml                     | Bandit, Semgrep | Push/PR              | Python security + OWASP       |
+| codeql.yml                   | CodeQL          | Push/PR/Weekly       | Deep code analysis            |
+| gitleaks.yml                 | Gitleaks        | Push/PR              | Secret detection              |
+| trivy.yml                    | Trivy           | Push/PR (Dockerfile) | Container vulnerabilities     |
+| zap-security.yml             | OWASP ZAP       | Weekly/Manual        | Dynamic security testing      |
+| dependency-audit.yml         | pip-audit, npm  | Push/PR/Weekly       | Dependency vulnerability scan |
+| vulnerability-management.yml | Multiple        | Weekly               | CVE tracking and remediation  |
+| weekly-audit.yml             | Multiple        | Weekly (Monday 9 AM) | Security + code quality       |
 
 ### GPU Tests (gpu-tests.yml)
 
@@ -217,6 +245,30 @@ This directory contains GitHub-specific configuration files for the Home Securit
 1. Get PR diff (truncated to 20KB)
 2. Run through GPT-4o via GitHub Models
 3. Post review as PR comment
+
+### Additional Workflows
+
+| Workflow              | Trigger       | Purpose                                 |
+| --------------------- | ------------- | --------------------------------------- |
+| api-compatibility.yml | PR            | Check API backward compatibility        |
+| benchmarks.yml        | Push/PR/Daily | Performance benchmarks                  |
+| bundle-size.yml       | PR            | Track frontend bundle size changes      |
+| ci-analytics.yml      | Workflow runs | Collect and report CI metrics           |
+| docs.yml              | Push/PR       | Generate and deploy documentation       |
+| load-tests.yml        | Weekly/Manual | Load and stress testing                 |
+| mutation-testing.yml  | Weekly/Manual | Mutation testing to verify test quality |
+| release.yml           | Tag push      | Create releases with artifacts          |
+| rollback.yml          | Manual        | Rollback to previous deployment         |
+| semantic-release.yml  | Push to main  | Semantic versioning and changelog       |
+| release-drafter.yml   | PR merged     | Draft release notes from PR labels      |
+
+### Frontend Quality Workflows
+
+| Workflow                | Trigger   | Purpose                                  |
+| ----------------------- | --------- | ---------------------------------------- |
+| accessibility-tests.yml | PR        | Run accessibility (a11y) tests           |
+| lighthouse.yml          | PR/Weekly | Lighthouse performance and SEO audits    |
+| visual-tests.yml        | PR        | Visual regression testing with snapshots |
 
 ## Usage
 

@@ -1472,16 +1472,44 @@ now_naive = utc_now_naive()
 
 ### Purpose
 
-Secure URL validation to prevent Server-Side Request Forgery (SSRF) attacks.
+Secure URL validation to prevent Server-Side Request Forgery (SSRF) attacks. Provides comprehensive protection against various SSRF attack vectors including private IP access, cloud metadata endpoint access, and DNS rebinding attacks.
 
 ### Features
 
 - Only HTTPS allowed in production (HTTP for localhost in dev)
-- Private IP ranges blocked (10.x, 172.x, 192.168.x, 127.x)
-- Cloud metadata endpoints blocked (169.254.169.254)
-- DNS resolution to validate resolved IPs
+- Private IP ranges blocked (RFC 1918: 10.x, 172.16-31.x, 192.168.x)
+- Loopback addresses blocked (127.x.x.x)
+- Link-local addresses blocked (169.254.x.x)
+- Carrier-Grade NAT blocked (100.64.0.0/10)
+- Cloud metadata endpoints blocked (169.254.169.254, AWS ECS, Azure IMDS)
+- IPv6 private ranges blocked (::1, fe80::/10, fc00::/7)
+- DNS resolution to validate resolved IPs (prevents DNS rebinding)
+- Embedded credentials in URLs blocked
 
-### Usage
+### Key Components
+
+**Exception:**
+
+- `SSRFValidationError` - Raised when URL fails SSRF validation (does NOT inherit from ValueError to avoid accidental catching)
+
+**Blocked Network Constants:**
+
+- `BLOCKED_IP_NETWORKS` - List of ipaddress.ip_network objects for all blocked ranges
+- `BLOCKED_IPS` - Set of specific IPs to always block (cloud metadata endpoints)
+- `BLOCKED_HOSTNAMES` - Set of hostnames to block (e.g., "metadata.google.internal")
+
+**Helper Functions:**
+
+- `is_private_ip(ip_str)` - Check if IP is in private/reserved range
+- `is_blocked_ip(ip_str)` - Check if IP is specifically blocked (metadata endpoints)
+- `is_blocked_hostname(hostname)` - Check if hostname is in blocked list
+- `resolve_hostname(hostname)` - Resolve hostname to IP addresses
+
+### Main Functions
+
+**`validate_webhook_url(url, *, allow_dev_http=False, resolve_dns=True)`**
+
+Primary validation function for webhook URLs:
 
 ```python
 from backend.core.url_validation import validate_webhook_url, SSRFValidationError
@@ -1493,7 +1521,34 @@ except SSRFValidationError as e:
 
 # Dev mode allows localhost HTTP
 validate_webhook_url("http://localhost:8080/hook", allow_dev_http=True)
+
+# Skip DNS resolution (for configuration-time validation only)
+validate_webhook_url("https://example.com/hook", resolve_dns=False)
 ```
+
+**`validate_webhook_url_for_request(url, *, is_development=False)`**
+
+Stricter validation for use immediately before making HTTP requests. Always resolves DNS to prevent DNS rebinding attacks:
+
+```python
+from backend.core.url_validation import validate_webhook_url_for_request
+
+# Use at request time to catch DNS rebinding
+validated = validate_webhook_url_for_request(
+    "https://webhook.example.com/notify",
+    is_development=False
+)
+```
+
+### Security Considerations
+
+1. **DNS Rebinding Protection:** When `resolve_dns=True`, the hostname is resolved and all resolved IPs are checked against blocked ranges. Use `validate_webhook_url_for_request` at request time.
+
+2. **Embedded Credentials:** URLs with username:password@ are rejected to prevent credential leaks.
+
+3. **Scheme Validation:** Only http:// and https:// are allowed; exotic schemes like file://, gopher://, etc. are blocked.
+
+4. **IPv6 Support:** Both IPv4 and IPv6 private ranges are blocked.
 
 ## `websocket_circuit_breaker.py` - WebSocket Resilience
 

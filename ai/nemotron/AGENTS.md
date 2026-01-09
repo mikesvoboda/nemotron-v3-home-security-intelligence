@@ -9,7 +9,7 @@ Contains configuration for **NVIDIA Nemotron** language models that power AI-dri
 ## Port and Resources
 
 - **Port**: 8091
-- **Server**: llama.cpp with CUDA 12.4.1
+- **Server**: llama.cpp with CUDA 13.1.0
 - **Inference Time**: 2-5s per analysis
 - **Format**: ChatML with `<|im_start|>` / `<|im_end|>` message delimiters
 
@@ -77,13 +77,13 @@ Multi-stage build for llama.cpp with CUDA support:
 
 **Stage 1 (Builder):**
 
-- Base: `nvidia/cuda:12.4.1-devel-ubuntu22.04`
+- Base: `nvidia/cuda:13.1.0-devel-ubuntu22.04`
 - Clones llama.cpp from GitHub (commit `9496bbb80`)
 - Builds with `GGML_CUDA=ON` for GPU support
 
 **Stage 2 (Runtime):**
 
-- Base: `nvidia/cuda:12.4.1-runtime-ubuntu22.04`
+- Base: `nvidia/cuda:13.1.0-runtime-ubuntu22.04`
 - Copies compiled `llama-server` binary
 - Non-root user: `llama` for security
 - Health check with 120s start period for model loading
@@ -335,7 +335,7 @@ Configuration for `start_nemotron.sh`:
 ## Prerequisites
 
 - **llama.cpp**: `llama-server` binary must be available (built in container)
-- **CUDA**: NVIDIA CUDA 11.8+ required for GPU acceleration
+- **CUDA**: NVIDIA CUDA 13.1.0 (container uses nvidia/cuda:13.1.0 base images)
 - **VRAM**: ~3 GB (4B model) or ~14.7 GB (30B model)
 - **Disk**: ~2.5 GB (4B model) or ~18 GB (30B model)
 
