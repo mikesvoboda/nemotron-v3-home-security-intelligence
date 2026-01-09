@@ -1387,6 +1387,21 @@ export function getDetectionVideoThumbnailUrl(detectionId: number): string {
   return `${BASE_URL}/api/detections/${detectionId}/video/thumbnail`;
 }
 
+/**
+ * Get the URL for a detection's cropped thumbnail image with bounding box overlay.
+ *
+ * This is an alias for the detection thumbnail endpoint which serves the stored
+ * thumbnail or generates one on-the-fly if not available.
+ *
+ * Note: Detection media endpoints are exempt from API key authentication.
+ *
+ * @param detectionId - The detection ID
+ * @returns The full URL to the detection's thumbnail endpoint
+ */
+export function getDetectionThumbnailUrl(detectionId: number): string {
+  return `${BASE_URL}/api/detections/${detectionId}/thumbnail`;
+}
+
 // ============================================================================
 // DLQ Endpoints
 // ============================================================================

@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response, status
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -423,6 +423,103 @@ async def get_detection(
         HTTPException: 404 if detection not found
     """
     return await get_detection_or_404(detection_id, db)
+
+
+@router.get(
+    "/{detection_id}/thumbnail",
+    response_class=FileResponse,
+    summary="Get detection thumbnail",
+    description="Serve the cropped thumbnail image with bounding box overlay.",
+    responses={
+        200: {"content": {"image/jpeg": {}, "image/png": {}}},
+        404: {"description": "Detection or thumbnail not found"},
+        429: {"description": "Too many requests"},
+        500: {"description": "Failed to generate thumbnail"},
+    },
+)
+async def get_detection_thumbnail(
+    detection_id: int,
+    db: AsyncSession = Depends(get_db),
+    _rate_limit: None = Depends(detection_media_rate_limiter),
+) -> FileResponse:
+    """Serve detection thumbnail image.
+
+    This endpoint is exempt from API key authentication because:
+    1. It serves static image content accessed directly by browsers via <img> tags
+    2. Detection IDs are not predictable (integer IDs require prior knowledge)
+    3. It has rate limiting to prevent abuse
+
+    The thumbnail is a cropped image centered on the detection
+    with the bounding box drawn as an overlay.
+
+    Args:
+        detection_id: Detection ID
+        db: Database session
+
+    Returns:
+        FileResponse with the thumbnail image (JPEG or PNG)
+
+    Raises:
+        HTTPException: 404 if detection or thumbnail not found
+        HTTPException: 500 if thumbnail generation fails
+    """
+    detection = await get_detection_or_404(detection_id, db)
+
+    # Check if thumbnail exists, generate if needed
+    thumbnail_path: Path
+    if detection.thumbnail_path and os.path.exists(detection.thumbnail_path):
+        thumbnail_path = Path(detection.thumbnail_path)
+    else:
+        # Generate thumbnail on the fly
+        if not os.path.exists(detection.file_path):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Source image not found: {detection.file_path}",
+            )
+
+        # Prepare detection data for thumbnail generation
+        detection_data = {
+            "object_type": detection.object_type,
+            "confidence": detection.confidence,
+            "bbox_x": detection.bbox_x,
+            "bbox_y": detection.bbox_y,
+            "bbox_width": detection.bbox_width,
+            "bbox_height": detection.bbox_height,
+        }
+
+        # Generate thumbnail
+        generated_path = thumbnail_generator.generate_thumbnail(
+            image_path=detection.file_path,
+            detections=[detection_data],
+            detection_id=str(detection.id),
+        )
+
+        if not generated_path:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to generate thumbnail image",
+            )
+
+        thumbnail_path = Path(generated_path)
+
+        # Update detection with thumbnail path
+        detection.thumbnail_path = str(thumbnail_path)
+        await db.commit()
+
+    # Determine media type from file extension
+    suffix = thumbnail_path.suffix.lower()
+    media_type = {
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+    }.get(suffix, "image/jpeg")
+
+    return FileResponse(
+        path=thumbnail_path,
+        media_type=media_type,
+        filename=f"detection_{detection_id}_thumbnail{suffix}",
+        headers={"Cache-Control": "public, max-age=3600"},
+    )
 
 
 def _extract_clothing_from_enrichment(enrichment_data: dict[str, Any]) -> dict[str, Any] | None:
