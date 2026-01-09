@@ -74,6 +74,9 @@ coverage.json
 .mcp.json
 *.tsbuildinfo
 
+# CI temporary files
+.ci-temp/
+
 # Accidental connection string paths
 postgresql+asyncpg:*
 .mypy_cache
