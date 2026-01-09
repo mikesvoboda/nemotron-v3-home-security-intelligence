@@ -1221,6 +1221,75 @@ export async function bulkUpdateEvents(
 }
 
 // ============================================================================
+// Trash / Soft-Delete Event Endpoints
+// ============================================================================
+
+/**
+ * Soft-deleted event with deletion timestamp.
+ * Used for displaying soft-deleted events in the Trash view.
+ */
+export interface DeletedEvent extends Event {
+  /** Timestamp when the event was soft-deleted */
+  deleted_at: string;
+}
+
+/**
+ * Response from the deleted events endpoint.
+ * These events are in the "trash" and can be restored or permanently deleted.
+ */
+export interface DeletedEventsResponse {
+  /** List of soft-deleted events */
+  events: DeletedEvent[];
+  /** Total count of deleted events (named 'count' in backend, aliased to 'total' for consistency) */
+  total: number;
+}
+
+/**
+ * Fetch all soft-deleted events for the trash view.
+ * Events are ordered by deleted_at descending (most recently deleted first).
+ *
+ * @param options - Optional fetch options (timeout, abort signal)
+ * @returns List of deleted events with total count
+ */
+export async function fetchDeletedEvents(
+  options?: FetchOptions
+): Promise<DeletedEventsResponse> {
+  const response = await fetchApi<{ events: DeletedEvent[]; count: number }>(
+    '/api/events/deleted',
+    options
+  );
+  // Map 'count' to 'total' for frontend consistency
+  return {
+    events: response.events,
+    total: response.count,
+  };
+}
+
+/**
+ * Restore a soft-deleted event.
+ * This removes the event from trash and makes it visible again in the main event list.
+ *
+ * @param id - Event ID to restore
+ * @returns The restored event
+ */
+export async function restoreEvent(id: number): Promise<Event> {
+  return fetchApi<Event>(`/api/events/${id}/restore`, { method: 'POST' });
+}
+
+/**
+ * Permanently delete a soft-deleted event.
+ * This action cannot be undone - the event and all associated data are permanently removed.
+ *
+ * @param id - Event ID to permanently delete
+ */
+export async function permanentlyDeleteEvent(id: number): Promise<void> {
+  return fetchApi<void>(`/api/events/${id}`, {
+    method: 'DELETE',
+    body: JSON.stringify({ soft_delete: false }),
+  });
+}
+
+// ============================================================================
 // Detection Endpoints
 // ============================================================================
 

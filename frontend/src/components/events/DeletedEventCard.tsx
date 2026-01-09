@@ -10,13 +10,14 @@
  * @module components/events/DeletedEventCard
  */
 
-import { useState } from 'react';
 import { Clock, Eye, RotateCcw, Trash2, AlertTriangle } from 'lucide-react';
+import { useState } from 'react';
+
+import { getRiskColor, getRiskLevel } from '../../utils/risk';
+import Button from '../common/Button';
+import RiskBadge from '../common/RiskBadge';
 
 import type { DeletedEvent } from '../../services/api';
-import { getRiskColor, getRiskLevel } from '../../utils/risk';
-import RiskBadge from '../common/RiskBadge';
-import Button from '../common/Button';
 
 export interface DeletedEventCardProps {
   /** The deleted event data */

@@ -40,6 +40,7 @@ describe('Sidebar', () => {
     expect(screen.getByText('Logs')).toBeInTheDocument();
     expect(screen.getByText('Audit Log')).toBeInTheDocument();
     expect(screen.getByText('AI Performance')).toBeInTheDocument();
+    expect(screen.getByText('Trash')).toBeInTheDocument();
     expect(screen.getByText('System')).toBeInTheDocument();
     expect(screen.getByText('Settings')).toBeInTheDocument();
   });
@@ -109,10 +110,10 @@ describe('Sidebar', () => {
     expect(settingsLink).toHaveClass('bg-[#76B900]');
   });
 
-  it('renders all 11 navigation items', () => {
+  it('renders all 12 navigation items', () => {
     renderWithRouter();
     const links = screen.getAllByRole('link');
-    expect(links).toHaveLength(11);
+    expect(links).toHaveLength(12);
   });
 
   it('audit log link has correct href', () => {
