@@ -109,7 +109,7 @@ class TestListDetections:
         response = await async_client.get("/api/detections")
         assert response.status_code == 200
         data = response.json()
-        assert data["detections"] == []
+        assert data["items"] == []
         assert data["count"] == 0
 
     async def test_list_detections_with_data(self, async_client, sample_detection):
@@ -118,14 +118,14 @@ class TestListDetections:
         assert response.status_code == 200
         data = response.json()
         assert data["count"] >= 1
-        assert len(data["detections"]) >= 1
+        assert len(data["items"]) >= 1
 
     async def test_list_detections_filter_by_camera(self, async_client, sample_detection):
         """Test filtering detections by camera_id."""
         response = await async_client.get(f"/api/detections?camera_id={sample_detection.camera_id}")
         assert response.status_code == 200
         data = response.json()
-        for detection in data["detections"]:
+        for detection in data["items"]:
             assert detection["camera_id"] == sample_detection.camera_id
 
     async def test_list_detections_filter_by_object_type(self, async_client, sample_detection):
@@ -133,7 +133,7 @@ class TestListDetections:
         response = await async_client.get("/api/detections?object_type=person")
         assert response.status_code == 200
         data = response.json()
-        for detection in data["detections"]:
+        for detection in data["items"]:
             assert detection["object_type"] == "person"
 
     async def test_list_detections_filter_by_min_confidence(self, async_client, sample_detection):
@@ -141,7 +141,7 @@ class TestListDetections:
         response = await async_client.get("/api/detections?min_confidence=0.9")
         assert response.status_code == 200
         data = response.json()
-        for detection in data["detections"]:
+        for detection in data["items"]:
             assert detection["confidence"] >= 0.9
 
     async def test_list_detections_pagination(self, async_client, sample_detection):
@@ -149,8 +149,8 @@ class TestListDetections:
         response = await async_client.get("/api/detections?limit=10&offset=0")
         assert response.status_code == 200
         data = response.json()
-        assert data["limit"] == 10
-        assert data["offset"] == 0
+        assert data["pagination"]["limit"] == 10
+        assert data["pagination"]["offset"] == 0
 
     async def test_list_detections_invalid_confidence(self, async_client):
         """Test validation of confidence parameter."""

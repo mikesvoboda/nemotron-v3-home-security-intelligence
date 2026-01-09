@@ -194,7 +194,7 @@ class TestInvalidForeignKeyReferences:
         # Should return 200 with empty events list
         assert response.status_code == 200
         data = response.json()
-        assert data["events"] == []
+        assert data["items"] == []
         assert data["count"] == 0
 
     @pytest.mark.asyncio
@@ -205,7 +205,7 @@ class TestInvalidForeignKeyReferences:
         # Should return 200 with empty detections list
         assert response.status_code == 200
         data = response.json()
-        assert data["detections"] == []
+        assert data["items"] == []
         assert data["count"] == 0
 
     @pytest.mark.asyncio
@@ -518,7 +518,7 @@ class TestQueryParameterValidation:
         response = await client.get(f"/api/events?start_date={future_date}")
         assert response.status_code == 200
         data = response.json()
-        assert data["events"] == []
+        assert data["items"] == []
 
     @pytest.mark.asyncio
     async def test_events_with_inverted_date_range(self, client, mock_redis):
@@ -538,7 +538,7 @@ class TestQueryParameterValidation:
         response = await client.get("/api/events?offset=999999999")
         assert response.status_code == 200
         data = response.json()
-        assert data["events"] == []
+        assert data["items"] == []
 
     @pytest.mark.asyncio
     async def test_detections_with_boundary_confidence(self, client, mock_redis):
@@ -760,7 +760,7 @@ class TestSystemEndpointErrors:
         # Should succeed but clamp the limit
         assert response.status_code == 200
         data = response.json()
-        assert data["limit"] <= 5000  # Max allowed
+        assert data["pagination"]["limit"] <= 5000  # Max allowed
 
     @pytest.mark.asyncio
     async def test_config_patch_without_api_key(self, client, mock_redis):

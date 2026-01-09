@@ -15,51 +15,60 @@ class TestDetectionListResponseWithCursor:
     def test_detection_list_response_with_cursor_fields(self):
         """Test DetectionListResponse includes cursor pagination fields."""
         data = {
-            "detections": [],
-            "count": 100,
-            "limit": 50,
-            "offset": 0,
-            "next_cursor": "eyJpZCI6IDEwMCwgImNyZWF0ZWRfYXQiOiAiMjAyNS0xMi0yM1QxMjowMDowMFoifQ==",  # pragma: allowlist secret
-            "has_more": True,
+            "items": [],
+            "pagination": {
+                "total": 100,
+                "limit": 50,
+                "offset": 0,
+                "next_cursor": "eyJpZCI6IDEwMCwgImNyZWF0ZWRfYXQiOiAiMjAyNS0xMi0yM1QxMjowMDowMFoifQ==",  # pragma: allowlist secret
+                "has_more": True,
+            },
         }
         response = DetectionListResponse(**data)
-        assert response.next_cursor is not None
-        assert response.has_more is True
+        assert response.pagination.next_cursor is not None
+        assert response.pagination.has_more is True
 
     def test_detection_list_response_no_more_results(self):
         """Test DetectionListResponse when there are no more results."""
         data = {
-            "detections": [],
-            "count": 10,
-            "limit": 50,
-            "offset": 0,
-            "next_cursor": None,
-            "has_more": False,
+            "items": [],
+            "pagination": {
+                "total": 10,
+                "limit": 50,
+                "offset": 0,
+                "next_cursor": None,
+                "has_more": False,
+            },
         }
         response = DetectionListResponse(**data)
-        assert response.next_cursor is None
-        assert response.has_more is False
+        assert response.pagination.next_cursor is None
+        assert response.pagination.has_more is False
 
     def test_detection_list_response_backward_compatible_without_cursor(self):
-        """Test DetectionListResponse still works without cursor fields (backward compatibility)."""
+        """Test DetectionListResponse works with minimal pagination fields."""
         data = {
-            "detections": [],
-            "count": 0,
-            "limit": 50,
-            "offset": 0,
+            "items": [],
+            "pagination": {
+                "total": 0,
+                "limit": 50,
+                "has_more": False,
+            },
         }
         response = DetectionListResponse(**data)
-        # Should default to None/False for cursor fields
-        assert response.next_cursor is None
-        assert response.has_more is False
+        # Should default to None for cursor fields
+        assert response.pagination.next_cursor is None
+        assert response.pagination.has_more is False
 
     def test_detection_list_response_deprecation_warning(self):
         """Test DetectionListResponse can include deprecation warning."""
         data = {
-            "detections": [],
-            "count": 100,
-            "limit": 50,
-            "offset": 20,
+            "items": [],
+            "pagination": {
+                "total": 100,
+                "limit": 50,
+                "offset": 20,
+                "has_more": True,
+            },
             "deprecation_warning": "Offset pagination is deprecated. Please use cursor-based pagination.",
         }
         response = DetectionListResponse(**data)

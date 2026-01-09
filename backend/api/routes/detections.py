@@ -32,6 +32,7 @@ from backend.api.schemas.detections import (
     VehicleEnrichmentData,
 )
 from backend.api.schemas.enrichment import EnrichmentResponse
+from backend.api.schemas.pagination import PaginationMeta
 from backend.api.utils.field_filter import (
     FieldFilterError,
     filter_fields,
@@ -316,12 +317,14 @@ async def list_detections(  # noqa: PLR0912
         detections_output = detections
 
     return DetectionListResponse(
-        detections=detections_output,
-        count=total_count,
-        limit=limit,
-        offset=offset,
-        next_cursor=next_cursor,
-        has_more=has_more,
+        items=detections_output,
+        pagination=PaginationMeta(
+            total=total_count,
+            limit=limit,
+            offset=offset,
+            next_cursor=next_cursor,
+            has_more=has_more,
+        ),
         deprecation_warning=deprecation_warning,
     )
 

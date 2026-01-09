@@ -1108,10 +1108,13 @@ async def get_event_detections(
     # If no detections, return empty list
     if not detection_ids:
         return DetectionListResponse(
-            detections=[],
-            count=0,
-            limit=limit,
-            offset=offset,
+            items=[],
+            pagination=PaginationMeta(
+                total=0,
+                limit=limit,
+                offset=offset,
+                has_more=False,
+            ),
         )
 
     # Build query for detections
@@ -1132,11 +1135,17 @@ async def get_event_detections(
     result = await db.execute(query)
     detections = result.scalars().all()
 
+    # Calculate has_more for pagination
+    has_more = (offset + len(detections)) < total_count
+
     return DetectionListResponse(
-        detections=detections,
-        count=total_count,
-        limit=limit,
-        offset=offset,
+        items=detections,
+        pagination=PaginationMeta(
+            total=total_count,
+            limit=limit,
+            offset=offset,
+            has_more=has_more,
+        ),
     )
 
 

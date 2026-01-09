@@ -81,7 +81,7 @@ class TestDetectionListResponse:
     def test_valid_list_response(self):
         """Test creating a valid detection list response."""
         response = DetectionListResponse(
-            detections=[
+            items=[
                 DetectionResponse(
                     id=1,
                     camera_id="cam-123",
@@ -99,32 +99,38 @@ class TestDetectionListResponse:
                     confidence=0.85,
                 ),
             ],
-            count=2,
-            limit=50,
-            offset=0,
+            pagination={
+                "total": 2,
+                "limit": 50,
+                "offset": 0,
+                "has_more": False,
+            },
         )
-        assert len(response.detections) == 2
-        assert response.count == 2
-        assert response.limit == 50
-        assert response.offset == 0
+        assert len(response.items) == 2
+        assert response.pagination.total == 2
+        assert response.pagination.limit == 50
+        assert response.pagination.offset == 0
 
     def test_empty_list_response(self):
         """Test creating an empty detection list response."""
         response = DetectionListResponse(
-            detections=[],
-            count=0,
-            limit=50,
-            offset=0,
+            items=[],
+            pagination={
+                "total": 0,
+                "limit": 50,
+                "offset": 0,
+                "has_more": False,
+            },
         )
-        assert len(response.detections) == 0
-        assert response.count == 0
+        assert len(response.items) == 0
+        assert response.pagination.total == 0
 
     def test_list_response_missing_required_field(self):
         """Test that missing required fields raise validation error."""
         with pytest.raises(ValidationError):
             DetectionListResponse(
-                detections=[],
-                # missing count, limit, offset
+                items=[],
+                # missing pagination
             )
 
 

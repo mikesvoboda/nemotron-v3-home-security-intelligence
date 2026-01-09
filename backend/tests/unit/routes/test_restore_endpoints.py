@@ -215,8 +215,8 @@ class TestListDeletedEvents:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["events"] == []
-        assert data["count"] == 0
+        assert data["items"] == []
+        assert data["pagination"]["total"] == 0
 
     def test_list_deleted_events_with_data(
         self,
@@ -237,8 +237,8 @@ class TestListDeletedEvents:
 
         assert response.status_code == 200
         data = response.json()
-        assert len(data["events"]) == 3
-        assert data["count"] == 3
+        assert len(data["items"]) == 3
+        assert data["pagination"]["total"] == 3
 
     def test_list_deleted_events_ordered_by_deleted_at_desc(
         self,
@@ -268,9 +268,9 @@ class TestListDeletedEvents:
         assert response.status_code == 200
         data = response.json()
         # Most recently deleted should be first
-        assert data["events"][0]["id"] == 2
-        assert data["events"][1]["id"] == 3
-        assert data["events"][2]["id"] == 1
+        assert data["items"][0]["id"] == 2
+        assert data["items"][1]["id"] == 3
+        assert data["items"][2]["id"] == 1
 
 
 # =============================================================================
@@ -354,8 +354,8 @@ class TestListDeletedCameras:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["cameras"] == []
-        assert data["count"] == 0
+        assert data["items"] == []
+        assert data["pagination"]["total"] == 0
 
     def test_list_deleted_cameras_with_data(
         self,
@@ -375,8 +375,8 @@ class TestListDeletedCameras:
 
         assert response.status_code == 200
         data = response.json()
-        assert len(data["cameras"]) == 2
-        assert data["count"] == 2
+        assert len(data["items"]) == 2
+        assert data["pagination"]["total"] == 2
 
     def test_list_deleted_cameras_ordered_by_deleted_at_desc(
         self,
@@ -405,6 +405,6 @@ class TestListDeletedCameras:
         assert response.status_code == 200
         data = response.json()
         # Most recently deleted should be first
-        assert data["cameras"][0]["id"] == "cam2"
-        assert data["cameras"][1]["id"] == "cam3"
-        assert data["cameras"][2]["id"] == "cam1"
+        assert data["items"][0]["id"] == "cam2"
+        assert data["items"][1]["id"] == "cam3"
+        assert data["items"][2]["id"] == "cam1"

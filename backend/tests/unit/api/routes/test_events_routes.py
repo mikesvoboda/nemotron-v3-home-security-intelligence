@@ -499,8 +499,8 @@ class TestGetEventDetectionsRoute:
         with patch("backend.api.routes.events.get_event_or_404", return_value=mock_event):
             result = await get_event_detections(event_id=1, limit=50, offset=0, db=mock_db)
 
-        assert result.detections == []
-        assert result.count == 0
+        assert result.items == []
+        assert result.pagination.total == 0
 
 
 class TestGetEventEnrichmentsRoute:
@@ -1054,6 +1054,6 @@ class TestGetEventDetectionsRouteComprehensive:
         with patch("backend.api.routes.events.get_event_or_404", return_value=mock_event):
             result = await get_event_detections(event_id=1, limit=2, offset=1, db=mock_db)
 
-        assert result.count == 5
-        assert result.limit == 2
-        assert result.offset == 1
+        assert result.pagination.total == 5
+        assert result.pagination.limit == 2
+        assert result.pagination.offset == 1
