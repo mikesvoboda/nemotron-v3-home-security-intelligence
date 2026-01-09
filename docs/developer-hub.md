@@ -74,12 +74,13 @@ See [Risk Levels Reference](reference/config/risk-levels.md) for the canonical d
 
 **AI Pipeline Deep Dives:**
 
-| Document                                            | Description                               | Time    |
-| --------------------------------------------------- | ----------------------------------------- | ------- |
-| [Pipeline Overview](developer/pipeline-overview.md) | High-level flow, timing characteristics   | ~8 min  |
-| [Detection Service](developer/detection-service.md) | RT-DETRv2 API, bounding boxes, confidence | ~8 min  |
-| [Batching Logic](developer/batching-logic.md)       | Window timing, Redis keys, fast path      | ~8 min  |
-| [Risk Analysis](developer/risk-analysis.md)         | Nemotron prompts, scoring, validation     | ~10 min |
+| Document                                            | Description                                   | Time    |
+| --------------------------------------------------- | --------------------------------------------- | ------- |
+| [Pipeline Overview](developer/pipeline-overview.md) | High-level flow, timing characteristics       | ~8 min  |
+| [Detection Service](developer/detection-service.md) | RT-DETRv2 API, bounding boxes, confidence     | ~8 min  |
+| [Batching Logic](developer/batching-logic.md)       | Window timing, Redis keys, fast path          | ~8 min  |
+| [Risk Analysis](developer/risk-analysis.md)         | Nemotron prompts, scoring, validation         | ~10 min |
+| [Prompt Management](developer/prompt-management.md) | A/B testing, versioning, Prompt Playground UI | ~20 min |
 
 ### Quick Architecture Diagram
 
@@ -93,12 +94,13 @@ Dashboard ← WebSocket ← Events ← Nemotron ← analysis_queue ← BatchAggr
 
 ## Development
 
-| Document                                 | Description                                              |
-| ---------------------------------------- | -------------------------------------------------------- |
-| [Local Setup](development/setup.md)      | Development environment, dependencies, IDE configuration |
-| [Testing Guide](development/testing.md)  | Unit tests, integration tests, coverage requirements     |
-| [Pre-commit Hooks](developer/hooks.md)   | Ruff, MyPy, ESLint, Prettier - code quality enforcement  |
-| [Code Patterns](development/patterns.md) | Async patterns, dependency injection, error handling     |
+| Document                                          | Description                                              |
+| ------------------------------------------------- | -------------------------------------------------------- |
+| [Local Setup](development/setup.md)               | Development environment, dependencies, IDE configuration |
+| [Testing Guide](development/testing.md)           | Unit tests, integration tests, coverage requirements     |
+| [Pre-commit Hooks](developer/hooks.md)            | Ruff, MyPy, ESLint, Prettier - code quality enforcement  |
+| [Code Patterns](development/patterns.md)          | Async patterns, dependency injection, error handling     |
+| [Backend Patterns](developer/backend-patterns.md) | Repository pattern, Result types, RFC 7807 errors        |
 
 ### Development Commands
 
@@ -125,14 +127,21 @@ cd frontend && npm test
 
 ## Deep Dives
 
-| Document                                          | Description                                             |
-| ------------------------------------------------- | ------------------------------------------------------- |
-| [Alert System](developer/alerts.md)               | Alert rules, evaluation pipeline, notification channels |
-| [Real-time System](architecture/real-time.md)     | WebSocket channels, Redis pub/sub, EventBroadcaster     |
-| [Video Processing](developer/video.md)            | FTP uploads, file watching, ffmpeg, frame extraction    |
-| [Frontend Hooks](architecture/frontend-hooks.md)  | useWebSocket, useEventStream, useSystemStatus           |
-| [Design Decisions](architecture/decisions.md)     | ADRs - why PostgreSQL, why Redis, why batching          |
-| [Resilience Patterns](architecture/resilience.md) | Error handling, retry logic, dead-letter queues         |
+| Document                                                          | Description                                                 |
+| ----------------------------------------------------------------- | ----------------------------------------------------------- |
+| [Alert System](developer/alerts.md)                               | Alert rules, evaluation pipeline, notification channels     |
+| [Real-time System](architecture/real-time.md)                     | WebSocket channels, Redis pub/sub, EventBroadcaster         |
+| [Video Processing](developer/video.md)                            | FTP uploads, file watching, ffmpeg, frame extraction        |
+| [Clip Generation](developer/clip-generation.md)                   | Event video clips, FFmpeg integration, API endpoints        |
+| [Entity Tracking](developer/entity-tracking.md)                   | Re-identification, CLIP embeddings, cross-camera matching   |
+| [Frontend Hooks](architecture/frontend-hooks.md)                  | useWebSocket, useEventStream, useSystemStatus               |
+| [Visualization Components](developer/visualization-components.md) | Dashboard widgets, charts, heatmaps, Tremor patterns        |
+| [UX Patterns](developer/ux-patterns.md)                           | Toast notifications, page transitions, skeleton loaders     |
+| [Keyboard Patterns](developer/keyboard-patterns.md)               | Shortcuts, command palette, focus management                |
+| [Accessibility](developer/accessibility.md)                       | WCAG compliance, ARIA patterns, a11y testing                |
+| [Design Decisions](architecture/decisions.md)                     | ADRs - why PostgreSQL, why Redis, why batching              |
+| [Resilience Patterns](developer/resilience-patterns.md)           | Circuit breakers, retry logic, prompt injection prevention  |
+| [Resilience Architecture](architecture/resilience.md)             | Full resilience architecture with DLQ and health monitoring |
 
 ### WebSocket Channels
 
@@ -194,14 +203,25 @@ Scopes: cameras, events, detections, websocket, ai, frontend, etc.
 
 ### API Reference
 
-| Document                                      | Description                                    |
-| --------------------------------------------- | ---------------------------------------------- |
-| [API Overview](reference/api/overview.md)     | REST endpoints, authentication, error handling |
-| [Cameras API](api-reference/cameras.md)       | Camera CRUD, status management                 |
-| [Events API](api-reference/events.md)         | Event listing, filtering, marking reviewed     |
-| [Detections API](api-reference/detections.md) | Detection queries, thumbnails                  |
-| [System API](api-reference/system.md)         | Health checks, GPU stats, cleanup              |
-| [WebSocket API](api-reference/websocket.md)   | Real-time event and status channels            |
+| Document                                                                  | Description                                     |
+| ------------------------------------------------------------------------- | ----------------------------------------------- |
+| [API Overview](api-reference/overview.md)                                 | REST endpoints, authentication, pagination      |
+| [Cameras API](api-reference/cameras.md)                                   | Camera CRUD, status management                  |
+| [Events API](api-reference/events.md)                                     | Event listing, filtering, marking reviewed      |
+| [Detections API](api-reference/detections.md)                             | Detection queries, thumbnails                   |
+| [System API](api-reference/system.md)                                     | Health checks, GPU stats, cleanup               |
+| [WebSocket API](api-reference/websocket.md)                               | Real-time event and status channels             |
+| [Analytics API](api-reference/analytics.md)                               | Detection trends, risk history, camera uptime   |
+| [Services API](api-reference/services.md)                                 | Container orchestrator service management       |
+| [Notification Preferences API](api-reference/notification-preferences.md) | Global and per-camera notification settings     |
+| [DLQ API](api-reference/dlq.md)                                           | Dead letter queue inspection and requeue        |
+| [AI Audit API](api-reference/ai-audit.md)                                 | AI pipeline audit and quality metrics           |
+| [Prompt Management API](api-reference/prompts.md)                         | Prompt CRUD, versioning, testing, import/export |
+| [Entities API](api-reference/entities.md)                                 | Tracked entity management                       |
+| [Zones API](api-reference/zones.md)                                       | Detection zone configuration                    |
+| [Logs API](api-reference/logs.md)                                         | Application log access                          |
+| [Media API](api-reference/media.md)                                       | Image and video serving                         |
+| [Audit API](api-reference/audit.md)                                       | Audit log access                                |
 
 ### AGENTS.md Navigation
 
