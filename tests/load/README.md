@@ -109,6 +109,36 @@ Combined realistic traffic simulation:
 - 10% WebSocket
 - 10% Detections
 
+### WebSocket Scale (`websocket-scale.js`)
+
+Tests WebSocket connection scalability:
+
+- Connection limit testing (1000+ concurrent connections)
+- Connection churn and recovery
+- Long-lived connection stability
+- Scale metrics: success rate, connect time, duration
+
+```bash
+# Test with 1000 concurrent connections
+./scripts/load-test.sh websocket-scale average
+
+# Custom connection count
+k6 run -e MAX_CONNECTIONS=2000 tests/load/websocket-scale.js
+```
+
+### Redis Performance (`redis.js`)
+
+Tests Redis-backed operations:
+
+- Cache hit/miss performance
+- Cache invalidation patterns
+- Pub/sub latency via WebSocket
+
+```bash
+# Test Redis performance
+./scripts/load-test.sh redis average
+```
+
 ## Configuration
 
 ### Environment Variables
