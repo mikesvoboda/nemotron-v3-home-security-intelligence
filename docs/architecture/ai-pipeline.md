@@ -29,6 +29,10 @@ source_refs:
 
 # AI Pipeline Architecture
 
+![AI Pipeline Flow](../images/architecture/ai-pipeline-flow.png)
+
+_End-to-end AI pipeline showing FileWatcher, queues, RT-DETRv2, batch aggregation, Nemotron analysis, and event creation._
+
 This document provides comprehensive technical documentation for the AI-powered detection and analysis pipeline in the Home Security Intelligence system. It is intended for maintainers who need to debug, extend, or optimize the AI processing flow.
 
 ## Table of Contents
@@ -650,6 +654,10 @@ matches = re.findall(json_pattern, text, re.DOTALL)
 ---
 
 ## Error Handling
+
+![Event Feedback Loop](../images/architecture/event-feedback-loop.png)
+
+_Event feedback loop showing how user reviews and dismissed events inform future risk assessments._
 
 The pipeline is designed for graceful degradation - failures at any stage should not crash the system.
 

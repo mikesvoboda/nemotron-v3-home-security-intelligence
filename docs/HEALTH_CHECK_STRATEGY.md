@@ -27,6 +27,10 @@ The system implements a comprehensive health check strategy that enables:
 
 ## Health Check Architecture
 
+![Health Check Strategy](images/architecture/health-check-strategy.png)
+
+_Container health checks, liveness/readiness probes, and application-level health endpoints._
+
 ```
                                     +-------------------+
                                     |   Load Balancer   |

@@ -346,6 +346,10 @@ nvidia-smi
 ./ai/download_models.sh
 ```
 
+![Enrichment Pipeline](../images/architecture/enrichment-pipeline.png)
+
+_Context enrichment pipeline showing how detection data flows through zone analysis, baseline comparison, and cross-camera correlation._
+
 ### Service Endpoints
 
 | Service   | Endpoint                  | Purpose          |

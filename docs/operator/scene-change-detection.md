@@ -22,6 +22,10 @@ Scene Change Detection monitors camera feeds for significant visual changes that
 
 ### How It Works
 
+![Scene Change Detection](../images/architecture/scene-change-detection.png)
+
+_Scene change detection workflow showing SSIM comparison between current frames and baseline images._
+
 ```
 ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
 │  New Frame      │────▶│ SSIM Comparison │────▶│ Change Detected?│

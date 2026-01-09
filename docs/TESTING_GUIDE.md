@@ -69,6 +69,10 @@ frontend/
 
 ## Test Organization
 
+![Test Suite Organization](images/architecture/test-suite-organization.png)
+
+_Test suite organization diagram showing the relationship between unit, integration, and E2E test layers._
+
 ### Test Types
 
 | Test Type                | Location                      | Framework                      | Purpose                          |
@@ -538,14 +542,7 @@ This project follows **Test-Driven Development (TDD)** for all feature implement
 
 ### The TDD Cycle: RED-GREEN-REFACTOR
 
-```
-┌─────────┐     ┌─────────┐     ┌──────────┐
-│   RED   │ ──▶ │  GREEN  │ ──▶ │ REFACTOR │
-│  (fail) │     │ (pass)  │     │ (improve)│
-└─────────┘     └─────────┘     └──────────┘
-      ▲                               │
-      └───────────────────────────────┘
-```
+![TDD Cycle](images/architecture/tdd-cycle.png)
 
 1. **RED** - Write a failing test that defines the expected behavior
 2. **GREEN** - Write the minimum code necessary to make the test pass
@@ -860,6 +857,10 @@ await expect(element).toBeVisible({ timeout: 15000 });
 ## Performance and CI
 
 ### CI Parallelization Strategy
+
+![Test Shard Distribution](images/architecture/test-shard-matrix.png)
+
+_CI test shard distribution matrix showing parallel execution across backend and frontend test suites._
 
 | Suite                         | Parallelization               | CI Jobs             |
 | ----------------------------- | ----------------------------- | ------------------- |

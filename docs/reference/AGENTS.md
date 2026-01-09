@@ -161,5 +161,5 @@ Each reference document includes:
 - **docs/AGENTS.md:** Documentation directory overview
 - **docs/developer/:** Developer guides (how-to)
 - **docs/operator/:** Operator guides (how-to)
-- **docs/user/:** End-user documentation
+- **docs/user-guide/:** End-user documentation
 - **docs/architecture/:** Technical architecture (why decisions were made)

@@ -39,6 +39,10 @@ All WebSocket URLs are constructed via `buildWebSocketUrl()` from the API servic
 
 ## Hook Hierarchy
 
+![Frontend Hooks](../images/architecture/frontend-hooks.png)
+
+_Frontend React hooks dependency diagram showing the layered architecture from WebSocket manager to domain-specific hooks._
+
 ```mermaid
 flowchart TB
     subgraph Infrastructure["Infrastructure Layer"]

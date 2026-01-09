@@ -28,6 +28,10 @@ See [CLAUDE.md](../../CLAUDE.md:199) for the complete policy on testing requirem
 
 ## Test Architecture
 
+![Frontend Test Providers](../images/architecture/frontend-test-providers.png)
+
+_Frontend test provider tree showing the testing wrapper hierarchy for React Testing Library._
+
 ```
 flowchart TB
     subgraph "Test Pyramid"

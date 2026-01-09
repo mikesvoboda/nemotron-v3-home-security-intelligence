@@ -21,6 +21,10 @@ The prompt management system provides a complete solution for managing AI model 
 
 ## Architecture
 
+![Prompt Management Full Stack](../images/architecture/prompt-management.png)
+
+_Full-stack prompt management flow from UI to database to AI inference._
+
 ### Components
 
 ```
