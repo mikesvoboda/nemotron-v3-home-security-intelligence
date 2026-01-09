@@ -1788,6 +1788,95 @@
         "title": "BatchInfoResponse",
         "type": "object"
       },
+      "BulkItemResult": {
+        "description": "Result for a single item in a bulk operation.\n\nAttributes:\n    index: Zero-based index of the item in the request array\n    status: Operation status (success, failed, skipped)\n    id: ID of the created/updated resource (for successful operations)\n    error: Error message (for failed operations)",
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Error message for failed operations",
+            "title": "Error"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "ID of the created/updated resource",
+            "title": "Id"
+          },
+          "index": {
+            "description": "Zero-based index of the item in the request",
+            "minimum": 0.0,
+            "title": "Index",
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/BulkOperationStatus",
+            "description": "Operation status"
+          }
+        },
+        "required": ["index", "status"],
+        "title": "BulkItemResult",
+        "type": "object"
+      },
+      "BulkOperationResponse": {
+        "description": "Base response for bulk operations with partial success support.\n\nUses HTTP 207 Multi-Status when some operations succeed and others fail.\n\nAttributes:\n    total: Total number of items in the request\n    succeeded: Number of successful operations\n    failed: Number of failed operations\n    skipped: Number of skipped operations\n    results: Per-item results with status and error details",
+        "properties": {
+          "failed": {
+            "description": "Number of failed operations",
+            "minimum": 0.0,
+            "title": "Failed",
+            "type": "integer"
+          },
+          "results": {
+            "description": "Per-item results",
+            "items": {
+              "$ref": "#/components/schemas/BulkItemResult"
+            },
+            "title": "Results",
+            "type": "array"
+          },
+          "skipped": {
+            "default": 0,
+            "description": "Number of skipped operations",
+            "minimum": 0.0,
+            "title": "Skipped",
+            "type": "integer"
+          },
+          "succeeded": {
+            "description": "Number of successful operations",
+            "minimum": 0.0,
+            "title": "Succeeded",
+            "type": "integer"
+          },
+          "total": {
+            "description": "Total number of items in the request",
+            "minimum": 0.0,
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": ["total", "succeeded", "failed"],
+        "title": "BulkOperationResponse",
+        "type": "object"
+      },
+      "BulkOperationStatus": {
+        "description": "Status of individual items in a bulk operation.",
+        "enum": ["success", "failed", "skipped"],
+        "title": "BulkOperationStatus",
+        "type": "string"
+      },
       "CameraCreate": {
         "description": "Schema for creating a new camera.",
         "example": {
@@ -3818,6 +3907,246 @@
         "title": "DepthEnrichment",
         "type": "object"
       },
+      "DetectionBulkCreateItem": {
+        "description": "Schema for a single detection in a bulk create request.\n\nAttributes:\n    camera_id: Camera ID that captured this detection\n    object_type: Type of detected object (person, vehicle, etc.)\n    confidence: Detection confidence score (0.0-1.0)\n    detected_at: Detection timestamp\n    file_path: Path to the detection image\n    bbox_x: Bounding box X coordinate\n    bbox_y: Bounding box Y coordinate\n    bbox_width: Bounding box width\n    bbox_height: Bounding box height\n    enrichment_data: Optional enrichment pipeline results",
+        "properties": {
+          "bbox_height": {
+            "description": "Bounding box height",
+            "exclusiveMinimum": 0.0,
+            "title": "Bbox Height",
+            "type": "integer"
+          },
+          "bbox_width": {
+            "description": "Bounding box width",
+            "exclusiveMinimum": 0.0,
+            "title": "Bbox Width",
+            "type": "integer"
+          },
+          "bbox_x": {
+            "description": "Bounding box X coordinate",
+            "minimum": 0.0,
+            "title": "Bbox X",
+            "type": "integer"
+          },
+          "bbox_y": {
+            "description": "Bounding box Y coordinate",
+            "minimum": 0.0,
+            "title": "Bbox Y",
+            "type": "integer"
+          },
+          "camera_id": {
+            "description": "Camera ID",
+            "maxLength": 255,
+            "minLength": 1,
+            "pattern": "^[a-zA-Z0-9_-]+$",
+            "title": "Camera Id",
+            "type": "string"
+          },
+          "confidence": {
+            "description": "Confidence score (0.0-1.0)",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "detected_at": {
+            "description": "Detection timestamp",
+            "format": "date-time",
+            "title": "Detected At",
+            "type": "string"
+          },
+          "enrichment_data": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Enrichment pipeline results",
+            "title": "Enrichment Data"
+          },
+          "file_path": {
+            "description": "Image file path",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "File Path",
+            "type": "string"
+          },
+          "object_type": {
+            "description": "Object type (person, vehicle, etc.)",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Object Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "camera_id",
+          "object_type",
+          "confidence",
+          "detected_at",
+          "file_path",
+          "bbox_x",
+          "bbox_y",
+          "bbox_width",
+          "bbox_height"
+        ],
+        "title": "DetectionBulkCreateItem",
+        "type": "object"
+      },
+      "DetectionBulkCreateRequest": {
+        "description": "Request schema for bulk detection creation.\n\nAttributes:\n    detections: List of detections to create (max 100 per request)",
+        "properties": {
+          "detections": {
+            "description": "Detections to create (max 100)",
+            "items": {
+              "$ref": "#/components/schemas/DetectionBulkCreateItem"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Detections",
+            "type": "array"
+          }
+        },
+        "required": ["detections"],
+        "title": "DetectionBulkCreateRequest",
+        "type": "object"
+      },
+      "DetectionBulkCreateResponse": {
+        "description": "Response schema for bulk detection creation.\n\nExtends BulkOperationResponse with created detection IDs.",
+        "properties": {
+          "failed": {
+            "description": "Number of failed operations",
+            "minimum": 0.0,
+            "title": "Failed",
+            "type": "integer"
+          },
+          "results": {
+            "description": "Per-item results",
+            "items": {
+              "$ref": "#/components/schemas/BulkItemResult"
+            },
+            "title": "Results",
+            "type": "array"
+          },
+          "skipped": {
+            "default": 0,
+            "description": "Number of skipped operations",
+            "minimum": 0.0,
+            "title": "Skipped",
+            "type": "integer"
+          },
+          "succeeded": {
+            "description": "Number of successful operations",
+            "minimum": 0.0,
+            "title": "Succeeded",
+            "type": "integer"
+          },
+          "total": {
+            "description": "Total number of items in the request",
+            "minimum": 0.0,
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": ["total", "succeeded", "failed"],
+        "title": "DetectionBulkCreateResponse",
+        "type": "object"
+      },
+      "DetectionBulkDeleteRequest": {
+        "description": "Request schema for bulk detection deletion.\n\nNote: Detection deletion is always hard delete as detections\nare raw data and soft-delete is not supported.\n\nAttributes:\n    detection_ids: List of detection IDs to delete (max 100 per request)",
+        "properties": {
+          "detection_ids": {
+            "description": "Detection IDs to delete (max 100)",
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Detection Ids",
+            "type": "array"
+          }
+        },
+        "required": ["detection_ids"],
+        "title": "DetectionBulkDeleteRequest",
+        "type": "object"
+      },
+      "DetectionBulkUpdateItem": {
+        "description": "Schema for a single detection update in a bulk update request.\n\nAttributes:\n    id: Detection ID to update\n    object_type: Updated object type\n    confidence: Updated confidence score\n    enrichment_data: Updated enrichment data",
+        "properties": {
+          "confidence": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Confidence score",
+            "title": "Confidence"
+          },
+          "enrichment_data": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Enrichment pipeline results",
+            "title": "Enrichment Data"
+          },
+          "id": {
+            "description": "Detection ID to update",
+            "exclusiveMinimum": 0.0,
+            "title": "Id",
+            "type": "integer"
+          },
+          "object_type": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Object type",
+            "title": "Object Type"
+          }
+        },
+        "required": ["id"],
+        "title": "DetectionBulkUpdateItem",
+        "type": "object"
+      },
+      "DetectionBulkUpdateRequest": {
+        "description": "Request schema for bulk detection updates.\n\nAttributes:\n    detections: List of detection updates (max 100 per request)",
+        "properties": {
+          "detections": {
+            "description": "Detection updates (max 100)",
+            "items": {
+              "$ref": "#/components/schemas/DetectionBulkUpdateItem"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Detections",
+            "type": "array"
+          }
+        },
+        "required": ["detections"],
+        "title": "DetectionBulkUpdateRequest",
+        "type": "object"
+      },
       "DetectionListResponse": {
         "description": "Schema for detection list response with pagination.\n\nSupports both cursor-based pagination (recommended) and offset pagination (deprecated).\nUse cursor-based pagination for better performance with large datasets.",
         "example": {
@@ -4989,6 +5318,222 @@
           "improvements"
         ],
         "title": "EventAuditResponse",
+        "type": "object"
+      },
+      "EventBulkCreateItem": {
+        "description": "Schema for a single event in a bulk create request.\n\nAttributes:\n    camera_id: Camera ID that generated this event\n    started_at: Event start timestamp\n    ended_at: Optional event end timestamp\n    risk_score: Risk score from 0-100\n    risk_level: Risk level (low, medium, high, critical)\n    summary: Brief event summary\n    reasoning: Detailed reasoning from LLM analysis\n    detection_ids: List of detection IDs associated with this event",
+        "properties": {
+          "camera_id": {
+            "description": "Camera ID",
+            "maxLength": 255,
+            "minLength": 1,
+            "pattern": "^[a-zA-Z0-9_-]+$",
+            "title": "Camera Id",
+            "type": "string"
+          },
+          "detection_ids": {
+            "description": "Associated detection IDs",
+            "items": {
+              "type": "integer"
+            },
+            "title": "Detection Ids",
+            "type": "array"
+          },
+          "ended_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Event end timestamp",
+            "title": "Ended At"
+          },
+          "reasoning": {
+            "anyOf": [
+              {
+                "maxLength": 5000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "LLM reasoning",
+            "title": "Reasoning"
+          },
+          "risk_level": {
+            "description": "Risk level",
+            "pattern": "^(low|medium|high|critical)$",
+            "title": "Risk Level",
+            "type": "string"
+          },
+          "risk_score": {
+            "description": "Risk score (0-100)",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Risk Score",
+            "type": "integer"
+          },
+          "started_at": {
+            "description": "Event start timestamp",
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "summary": {
+            "description": "Event summary",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": ["camera_id", "started_at", "risk_score", "risk_level", "summary"],
+        "title": "EventBulkCreateItem",
+        "type": "object"
+      },
+      "EventBulkCreateRequest": {
+        "description": "Request schema for bulk event creation.\n\nAttributes:\n    events: List of events to create (max 100 per request)",
+        "properties": {
+          "events": {
+            "description": "Events to create (max 100)",
+            "items": {
+              "$ref": "#/components/schemas/EventBulkCreateItem"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Events",
+            "type": "array"
+          }
+        },
+        "required": ["events"],
+        "title": "EventBulkCreateRequest",
+        "type": "object"
+      },
+      "EventBulkCreateResponse": {
+        "description": "Response schema for bulk event creation.\n\nExtends BulkOperationResponse with created event IDs.",
+        "properties": {
+          "failed": {
+            "description": "Number of failed operations",
+            "minimum": 0.0,
+            "title": "Failed",
+            "type": "integer"
+          },
+          "results": {
+            "description": "Per-item results",
+            "items": {
+              "$ref": "#/components/schemas/BulkItemResult"
+            },
+            "title": "Results",
+            "type": "array"
+          },
+          "skipped": {
+            "default": 0,
+            "description": "Number of skipped operations",
+            "minimum": 0.0,
+            "title": "Skipped",
+            "type": "integer"
+          },
+          "succeeded": {
+            "description": "Number of successful operations",
+            "minimum": 0.0,
+            "title": "Succeeded",
+            "type": "integer"
+          },
+          "total": {
+            "description": "Total number of items in the request",
+            "minimum": 0.0,
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": ["total", "succeeded", "failed"],
+        "title": "EventBulkCreateResponse",
+        "type": "object"
+      },
+      "EventBulkDeleteRequest": {
+        "description": "Request schema for bulk event deletion.\n\nAttributes:\n    event_ids: List of event IDs to delete (max 100 per request)\n    soft_delete: If true, mark as deleted instead of removing",
+        "properties": {
+          "event_ids": {
+            "description": "Event IDs to delete (max 100)",
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Event Ids",
+            "type": "array"
+          },
+          "soft_delete": {
+            "default": true,
+            "description": "Soft delete (default) vs hard delete",
+            "title": "Soft Delete",
+            "type": "boolean"
+          }
+        },
+        "required": ["event_ids"],
+        "title": "EventBulkDeleteRequest",
+        "type": "object"
+      },
+      "EventBulkUpdateItem": {
+        "description": "Schema for a single event update in a bulk update request.\n\nAttributes:\n    id: Event ID to update\n    reviewed: Mark event as reviewed/dismissed\n    notes: Optional notes for the event",
+        "properties": {
+          "id": {
+            "description": "Event ID to update",
+            "exclusiveMinimum": 0.0,
+            "title": "Id",
+            "type": "integer"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Notes",
+            "title": "Notes"
+          },
+          "reviewed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Mark as reviewed",
+            "title": "Reviewed"
+          }
+        },
+        "required": ["id"],
+        "title": "EventBulkUpdateItem",
+        "type": "object"
+      },
+      "EventBulkUpdateRequest": {
+        "description": "Request schema for bulk event updates.\n\nAttributes:\n    events: List of event updates (max 100 per request)",
+        "properties": {
+          "events": {
+            "description": "Event updates (max 100)",
+            "items": {
+              "$ref": "#/components/schemas/EventBulkUpdateItem"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Events",
+            "type": "array"
+          }
+        },
+        "required": ["events"],
+        "title": "EventBulkUpdateRequest",
         "type": "object"
       },
       "EventEnrichmentsResponse": {
@@ -9387,6 +9932,76 @@
         "title": "RecommendationsResponse",
         "type": "object"
       },
+      "RecordingResponse": {
+        "description": "Response for a single recording.",
+        "properties": {
+          "body_truncated": {
+            "default": false,
+            "description": "Whether body was truncated",
+            "title": "Body Truncated",
+            "type": "boolean"
+          },
+          "duration_ms": {
+            "description": "Request duration in milliseconds",
+            "title": "Duration Ms",
+            "type": "number"
+          },
+          "method": {
+            "description": "HTTP method",
+            "title": "Method",
+            "type": "string"
+          },
+          "path": {
+            "description": "Request path",
+            "title": "Path",
+            "type": "string"
+          },
+          "recording_id": {
+            "description": "Unique recording ID",
+            "title": "Recording Id",
+            "type": "string"
+          },
+          "status_code": {
+            "description": "HTTP response status code",
+            "title": "Status Code",
+            "type": "integer"
+          },
+          "timestamp": {
+            "description": "ISO timestamp when recorded",
+            "title": "Timestamp",
+            "type": "string"
+          }
+        },
+        "required": ["recording_id", "timestamp", "method", "path", "status_code", "duration_ms"],
+        "title": "RecordingResponse",
+        "type": "object"
+      },
+      "RecordingsListResponse": {
+        "description": "Response for listing recordings.",
+        "properties": {
+          "recordings": {
+            "description": "List of recordings",
+            "items": {
+              "$ref": "#/components/schemas/RecordingResponse"
+            },
+            "title": "Recordings",
+            "type": "array"
+          },
+          "timestamp": {
+            "description": "ISO timestamp of response",
+            "title": "Timestamp",
+            "type": "string"
+          },
+          "total": {
+            "description": "Total number of recordings",
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": ["recordings", "total", "timestamp"],
+        "title": "RecordingsListResponse",
+        "type": "object"
+      },
       "RedisInfoResponse": {
         "description": "Response for Redis connection stats.",
         "properties": {
@@ -9429,6 +10044,51 @@
         },
         "required": ["status", "timestamp"],
         "title": "RedisInfoResponse",
+        "type": "object"
+      },
+      "ReplayResponse": {
+        "description": "Response for request replay.",
+        "properties": {
+          "original_status_code": {
+            "description": "Original response status code",
+            "title": "Original Status Code",
+            "type": "integer"
+          },
+          "recording_id": {
+            "description": "ID of the replayed recording",
+            "title": "Recording Id",
+            "type": "string"
+          },
+          "replay_metadata": {
+            "additionalProperties": true,
+            "description": "Metadata about the replay",
+            "title": "Replay Metadata",
+            "type": "object"
+          },
+          "replay_response": {
+            "description": "Response from replayed request",
+            "title": "Replay Response"
+          },
+          "replay_status_code": {
+            "description": "Replay response status code",
+            "title": "Replay Status Code",
+            "type": "integer"
+          },
+          "timestamp": {
+            "description": "ISO timestamp of replay",
+            "title": "Timestamp",
+            "type": "string"
+          }
+        },
+        "required": [
+          "recording_id",
+          "original_status_code",
+          "replay_status_code",
+          "replay_response",
+          "replay_metadata",
+          "timestamp"
+        ],
+        "title": "ReplayResponse",
         "type": "object"
       },
       "RiskHistoryDataPoint": {
@@ -11926,15 +12586,17 @@
             },
             "description": "Successful Response"
           },
+          "401": {
+            "description": "Unauthorized - Admin API key required"
+          },
+          "403": {
+            "description": "Forbidden - Debug mode or admin not enabled"
+          },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Seed Cameras",
@@ -11984,6 +12646,15 @@
             },
             "description": "Successful Response"
           },
+          "400": {
+            "description": "Bad request - Confirmation required"
+          },
+          "401": {
+            "description": "Unauthorized - Admin API key required"
+          },
+          "403": {
+            "description": "Forbidden - Debug mode or admin not enabled"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -11993,6 +12664,9 @@
               }
             },
             "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Clear Seeded Data",
@@ -12042,15 +12716,20 @@
             },
             "description": "Successful Response"
           },
+          "400": {
+            "description": "Bad request - No cameras found"
+          },
+          "401": {
+            "description": "Unauthorized - Admin API key required"
+          },
+          "403": {
+            "description": "Forbidden - Debug mode or admin not enabled"
+          },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Seed Events",
@@ -12083,14 +12762,10 @@
             "description": "Successful Response"
           },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Trigger Batch Audit",
@@ -12123,6 +12798,9 @@
             },
             "description": "Successful Response"
           },
+          "404": {
+            "description": "Event or audit not found"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -12132,6 +12810,9 @@
               }
             },
             "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Get Event Audit",
@@ -12176,15 +12857,14 @@
             },
             "description": "Successful Response"
           },
+          "404": {
+            "description": "Event or audit not found"
+          },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Evaluate Event",
@@ -12223,14 +12903,10 @@
             "description": "Successful Response"
           },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Get Model Leaderboard",
@@ -12341,6 +13017,9 @@
               }
             },
             "description": "Successful Response"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Get All Prompts",
@@ -12361,6 +13040,9 @@
               }
             },
             "description": "Successful Response"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Export Prompts",
@@ -12403,14 +13085,10 @@
             "description": "Successful Response"
           },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Get All Prompts History",
@@ -12470,15 +13148,14 @@
             },
             "description": "Successful Response"
           },
+          "404": {
+            "description": "Model not found"
+          },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Get Model History",
@@ -12539,15 +13216,14 @@
             },
             "description": "Successful Response"
           },
+          "404": {
+            "description": "Model or version not found"
+          },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Restore Prompt Version",
@@ -12579,15 +13255,14 @@
             },
             "description": "Successful Response"
           },
+          "400": {
+            "description": "Bad request - No prompts provided"
+          },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Import Prompts",
@@ -12619,15 +13294,17 @@
             },
             "description": "Successful Response"
           },
+          "400": {
+            "description": "Bad request - Invalid configuration"
+          },
+          "404": {
+            "description": "Model or event not found"
+          },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Test Prompt",
@@ -12660,15 +13337,14 @@
             },
             "description": "Successful Response"
           },
+          "404": {
+            "description": "Model not found"
+          },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Get Model Prompt",
@@ -12709,15 +13385,17 @@
             },
             "description": "Successful Response"
           },
+          "400": {
+            "description": "Bad request - Invalid configuration"
+          },
+          "404": {
+            "description": "Model not found"
+          },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Update Model Prompt",
@@ -12756,14 +13434,10 @@
             "description": "Successful Response"
           },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Get Recommendations",
@@ -12820,14 +13494,10 @@
             "description": "Successful Response"
           },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Get Audit Stats",
@@ -12859,15 +13529,23 @@
             },
             "description": "Successful Response"
           },
+          "400": {
+            "description": "Bad request - Invalid or too long prompt"
+          },
+          "404": {
+            "description": "Event not found"
+          },
+          "408": {
+            "description": "Request timeout"
+          },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
+          },
+          "503": {
+            "description": "AI service unavailable"
           }
         },
         "summary": "Test Custom Prompt",
@@ -12955,14 +13633,10 @@
             "description": "Successful Response"
           },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "List Rules",
@@ -12993,14 +13667,10 @@
             "description": "Successful Response"
           },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Create Rule",
@@ -13026,6 +13696,9 @@
           "204": {
             "description": "Successful Response"
           },
+          "404": {
+            "description": "Alert rule not found"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -13035,6 +13708,9 @@
               }
             },
             "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Delete Rule",
@@ -13065,6 +13741,9 @@
             },
             "description": "Successful Response"
           },
+          "404": {
+            "description": "Alert rule not found"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -13074,6 +13753,9 @@
               }
             },
             "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Get Rule",
@@ -13165,15 +13847,14 @@
             },
             "description": "Successful Response"
           },
+          "404": {
+            "description": "Alert rule not found"
+          },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Test Rule",
@@ -13221,15 +13902,14 @@
             },
             "description": "Successful Response"
           },
+          "400": {
+            "description": "Bad request - Invalid date range"
+          },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Get Camera Uptime",
@@ -13277,15 +13957,14 @@
             },
             "description": "Successful Response"
           },
+          "400": {
+            "description": "Bad request - Invalid date range"
+          },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Get Detection Trends",
@@ -13333,15 +14012,14 @@
             },
             "description": "Successful Response"
           },
+          "400": {
+            "description": "Bad request - Invalid date range"
+          },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Get Object Distribution",
@@ -13389,15 +14067,14 @@
             },
             "description": "Successful Response"
           },
+          "400": {
+            "description": "Bad request - Invalid date range"
+          },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Get Risk History",
@@ -13594,15 +14271,14 @@
             },
             "description": "Successful Response"
           },
+          "400": {
+            "description": "Invalid date range or cursor"
+          },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "List Audit Logs",
@@ -13623,6 +14299,12 @@
               }
             },
             "description": "Successful Response"
+          },
+          "400": {
+            "description": "Invalid date range"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Get Audit Stats",
@@ -13655,6 +14337,9 @@
             },
             "description": "Successful Response"
           },
+          "404": {
+            "description": "Audit log not found"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -13664,6 +14349,9 @@
               }
             },
             "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Get Audit Log",
@@ -13672,7 +14360,7 @@
     },
     "/api/cameras": {
       "get": {
-        "description": "List all cameras with optional status filter.\n\nUses Redis cache with cache-aside pattern to improve performance\nand generate cache hit metrics.\n\nArgs:\n    status_filter: Optional status to filter cameras by (online, offline, error)\n    db: Database session\n    cache: Cache service injected via FastAPI DI\n\nReturns:\n    CameraListResponse containing list of cameras and total count",
+        "description": "List all cameras with optional status filter.\n\nUses Redis cache with cache-aside pattern to improve performance\nand generate cache hit metrics.\n\nSparse Fieldsets (NEM-1434):\nUse the `fields` parameter to request only specific fields in the response,\nreducing payload size. Example: ?fields=id,name,status\n\nArgs:\n    status_filter: Optional status to filter cameras by (online, offline, error)\n    fields: Comma-separated list of fields to include (sparse fieldsets)\n    db: Database session\n    cache: Cache service injected via FastAPI DI\n\nReturns:\n    CameraListResponse containing list of cameras and total count\n\nRaises:\n    HTTPException: 400 if invalid fields are requested",
         "operationId": "list_cameras_api_cameras_get",
         "parameters": [
           {
@@ -13691,6 +14379,24 @@
               ],
               "description": "Filter by camera status",
               "title": "Status"
+            }
+          },
+          {
+            "description": "Comma-separated list of fields to include in response (sparse fieldsets). Valid fields: id, name, folder_path, status, created_at, last_seen_at",
+            "in": "query",
+            "name": "fields",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Comma-separated list of fields to include in response (sparse fieldsets). Valid fields: id, name, folder_path, status, created_at, last_seen_at",
+              "title": "Fields"
             }
           }
         ],
@@ -14533,6 +15239,12 @@
               }
             },
             "description": "Successful Response"
+          },
+          "404": {
+            "description": "Not found - Debug mode disabled"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Get Circuit Breakers",
@@ -14553,6 +15265,12 @@
               }
             },
             "description": "Successful Response"
+          },
+          "404": {
+            "description": "Not found - Debug mode disabled"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Get Config",
@@ -14573,6 +15291,12 @@
               }
             },
             "description": "Successful Response"
+          },
+          "404": {
+            "description": "Not found - Debug mode disabled"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Get Log Level",
@@ -14602,15 +15326,17 @@
             },
             "description": "Successful Response"
           },
+          "400": {
+            "description": "Bad request - Invalid log level"
+          },
+          "404": {
+            "description": "Not found - Debug mode disabled"
+          },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Set Log Level",
@@ -14631,6 +15357,12 @@
               }
             },
             "description": "Successful Response"
+          },
+          "404": {
+            "description": "Not found - Debug mode disabled"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Get Pipeline State",
@@ -14651,6 +15383,12 @@
               }
             },
             "description": "Successful Response"
+          },
+          "404": {
+            "description": "Not found - Debug mode disabled"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Start Profiling",
@@ -14671,6 +15409,12 @@
               }
             },
             "description": "Successful Response"
+          },
+          "404": {
+            "description": "Not found - Debug mode disabled"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Get Profile Stats",
@@ -14691,9 +15435,143 @@
               }
             },
             "description": "Successful Response"
+          },
+          "404": {
+            "description": "Not found - Debug mode disabled"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Stop Profiling",
+        "tags": ["debug"]
+      }
+    },
+    "/api/debug/recordings": {
+      "get": {
+        "description": "List available request recordings.\n\nReturns a list of recorded requests, sorted by timestamp (newest first).\nUse the recording_id to replay a specific request.\n\nNEM-1646: Request recording and replay for debugging\n\nArgs:\n    limit: Maximum number of recordings to return (default: 50)\n\nReturns:\n    List of recordings with metadata",
+        "operationId": "list_recordings_api_debug_recordings_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordingsListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Recordings",
+        "tags": ["debug"]
+      }
+    },
+    "/api/debug/recordings/{recording_id}": {
+      "delete": {
+        "description": "Delete a specific recording.\n\nNEM-1646: Request recording management\n\nArgs:\n    recording_id: ID of the recording to delete\n\nReturns:\n    Confirmation message\n\nRaises:\n    HTTPException: 404 if recording not found",
+        "operationId": "delete_recording_api_debug_recordings__recording_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "recording_id",
+            "required": true,
+            "schema": {
+              "title": "Recording Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Delete Recording Api Debug Recordings  Recording Id  Delete",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Recording",
+        "tags": ["debug"]
+      },
+      "get": {
+        "description": "Get details of a specific recording.\n\nReturns the full recording data including headers, body, and response.\n\nNEM-1646: Request recording and replay for debugging\n\nArgs:\n    recording_id: ID of the recording to retrieve\n\nReturns:\n    Full recording data\n\nRaises:\n    HTTPException: 404 if recording not found",
+        "operationId": "get_recording_api_debug_recordings__recording_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "recording_id",
+            "required": true,
+            "schema": {
+              "title": "Recording Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Recording Api Debug Recordings  Recording Id  Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Recording",
         "tags": ["debug"]
       }
     },
@@ -14711,9 +15589,56 @@
               }
             },
             "description": "Successful Response"
+          },
+          "404": {
+            "description": "Not found - Debug mode disabled"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Get Redis Info",
+        "tags": ["debug"]
+      }
+    },
+    "/api/debug/replay/{recording_id}": {
+      "post": {
+        "description": "Replay a recorded request for debugging.\n\nReconstructs the original request from the recording and executes it\nagainst the current application. This is useful for:\n- Reproducing production issues locally\n- Testing fixes for error scenarios\n- Debugging intermittent failures\n\nSECURITY: This endpoint is only available when debug=True and requires\nthe request to pass through the debug mode gate.\n\nNEM-1646: Request recording and replay for debugging\n\nArgs:\n    recording_id: ID of the recording to replay\n\nReturns:\n    Replay response with original and new status codes\n\nRaises:\n    HTTPException: 404 if recording not found",
+        "operationId": "replay_request_api_debug_replay__recording_id__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "recording_id",
+            "required": true,
+            "schema": {
+              "title": "Recording Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReplayResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Replay Request",
         "tags": ["debug"]
       }
     },
@@ -14731,6 +15656,12 @@
               }
             },
             "description": "Successful Response"
+          },
+          "404": {
+            "description": "Not found - Debug mode disabled"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Get Websocket Connections",
@@ -14739,7 +15670,7 @@
     },
     "/api/detections": {
       "get": {
-        "description": "List detections with optional filtering and cursor-based pagination.\n\nSupports both cursor-based pagination (recommended) and offset pagination (deprecated).\nCursor-based pagination offers better performance for large datasets.\n\nArgs:\n    camera_id: Optional camera ID to filter by\n    object_type: Optional object type to filter by (person, car, etc.)\n    start_date: Optional start date for date range filter\n    end_date: Optional end date for date range filter\n    min_confidence: Optional minimum confidence score (0-1)\n    limit: Maximum number of results to return (1-100, default 50)\n    offset: Number of results to skip (deprecated, use cursor instead)\n    cursor: Pagination cursor from previous response's next_cursor field\n    db: Database session\n\nReturns:\n    DetectionListResponse containing filtered detections and pagination info\n\nRaises:\n    HTTPException: 400 if start_date is after end_date\n    HTTPException: 400 if cursor is invalid",
+        "description": "List detections with optional filtering and cursor-based pagination.\n\nSupports both cursor-based pagination (recommended) and offset pagination (deprecated).\nCursor-based pagination offers better performance for large datasets.\n\nSparse Fieldsets (NEM-1434):\nUse the `fields` parameter to request only specific fields in the response,\nreducing payload size. Example: ?fields=id,camera_id,object_type,confidence\n\nArgs:\n    camera_id: Optional camera ID to filter by\n    object_type: Optional object type to filter by (person, car, etc.)\n    start_date: Optional start date for date range filter\n    end_date: Optional end date for date range filter\n    min_confidence: Optional minimum confidence score (0-1)\n    limit: Maximum number of results to return (1-100, default 50)\n    offset: Number of results to skip (deprecated, use cursor instead)\n    cursor: Pagination cursor from previous response's next_cursor field\n    fields: Comma-separated list of fields to include (sparse fieldsets)\n    db: Database session\n\nReturns:\n    DetectionListResponse containing filtered detections and pagination info\n\nRaises:\n    HTTPException: 400 if start_date is after end_date\n    HTTPException: 400 if cursor is invalid\n    HTTPException: 400 if invalid fields are requested",
         "operationId": "list_detections_api_detections_get",
         "parameters": [
           {
@@ -14880,6 +15811,24 @@
               "description": "Pagination cursor from previous response",
               "title": "Cursor"
             }
+          },
+          {
+            "description": "Comma-separated list of fields to include in response (sparse fieldsets). Valid fields: id, camera_id, file_path, file_type, detected_at, object_type, confidence, bbox_x, bbox_y, bbox_width, bbox_height, thumbnail_path, media_type, duration, video_codec, video_width, video_height, enrichment_data",
+            "in": "query",
+            "name": "fields",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Comma-separated list of fields to include in response (sparse fieldsets). Valid fields: id, camera_id, file_path, file_type, detected_at, object_type, confidence, bbox_x, bbox_y, bbox_width, bbox_height, thumbnail_path, media_type, duration, video_codec, video_width, video_height, enrichment_data",
+              "title": "Fields"
+            }
           }
         ],
         "responses": {
@@ -14905,6 +15854,110 @@
           }
         },
         "summary": "List Detections",
+        "tags": ["detections"]
+      }
+    },
+    "/api/detections/bulk": {
+      "delete": {
+        "description": "Delete multiple detections in a single request.\n\nSupports partial success - some deletions may succeed while others fail.\nReturns HTTP 207 Multi-Status with per-item results.\n\nNote: Detection deletion is always hard delete as detections are raw data\nand soft-delete is not supported.\n\nRate limiting: Consider implementing RateLimitTier.BULK for production use.\n\nArgs:\n    request: Bulk delete request with up to 100 detection IDs\n    db: Database session\n\nReturns:\n    BulkOperationResponse with per-item results",
+        "operationId": "bulk_delete_detections_api_detections_bulk_delete",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DetectionBulkDeleteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "207": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkOperationResponse"
+                }
+              }
+            },
+            "description": "Multi-status response with per-item results"
+          },
+          "400": {
+            "description": "Invalid request format"
+          },
+          "422": {
+            "description": "Validation error"
+          }
+        },
+        "summary": "Bulk delete detections",
+        "tags": ["detections"]
+      },
+      "patch": {
+        "description": "Update multiple detections in a single request.\n\nSupports partial success - some updates may succeed while others fail.\nReturns HTTP 207 Multi-Status with per-item results.\n\nRate limiting: Consider implementing RateLimitTier.BULK for production use.\n\nArgs:\n    request: Bulk update request with up to 100 detection updates\n    db: Database session\n\nReturns:\n    BulkOperationResponse with per-item results",
+        "operationId": "bulk_update_detections_api_detections_bulk_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DetectionBulkUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "207": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkOperationResponse"
+                }
+              }
+            },
+            "description": "Multi-status response with per-item results"
+          },
+          "400": {
+            "description": "Invalid request format"
+          },
+          "422": {
+            "description": "Validation error"
+          }
+        },
+        "summary": "Bulk update detections",
+        "tags": ["detections"]
+      },
+      "post": {
+        "description": "Create multiple detections in a single request.\n\nSupports partial success - some detections may succeed while others fail.\nReturns HTTP 207 Multi-Status with per-item results.\n\nRate limiting: Consider implementing RateLimitTier.BULK for production use.\n\nArgs:\n    request: Bulk create request with up to 100 detections\n    db: Database session\n\nReturns:\n    DetectionBulkCreateResponse with per-item results",
+        "operationId": "bulk_create_detections_api_detections_bulk_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DetectionBulkCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "207": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DetectionBulkCreateResponse"
+                }
+              }
+            },
+            "description": "Multi-status response with per-item results"
+          },
+          "400": {
+            "description": "Invalid request format"
+          },
+          "422": {
+            "description": "Validation error"
+          }
+        },
+        "summary": "Bulk create detections",
         "tags": ["detections"]
       }
     },
@@ -15062,6 +16115,53 @@
           }
         },
         "summary": "Get Detection Image",
+        "tags": ["detections"]
+      }
+    },
+    "/api/detections/{detection_id}/thumbnail": {
+      "get": {
+        "description": "Serve the cropped thumbnail image with bounding box overlay.",
+        "operationId": "get_detection_thumbnail_api_detections__detection_id__thumbnail_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "detection_id",
+            "required": true,
+            "schema": {
+              "title": "Detection Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "image/jpeg": {},
+              "image/png": {}
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Detection or thumbnail not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "description": "Too many requests"
+          },
+          "500": {
+            "description": "Failed to generate thumbnail"
+          }
+        },
+        "summary": "Get detection thumbnail",
         "tags": ["detections"]
       }
     },
@@ -15229,14 +16329,10 @@
             "description": "Successful Response"
           },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Get Dlq Jobs",
@@ -15300,15 +16396,14 @@
             },
             "description": "Successful Response"
           },
+          "401": {
+            "description": "Unauthorized - API key required"
+          },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Requeue All Dlq Jobs",
@@ -15372,15 +16467,14 @@
             },
             "description": "Successful Response"
           },
+          "401": {
+            "description": "Unauthorized - API key required"
+          },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Requeue Dlq Job",
@@ -15401,6 +16495,9 @@
               }
             },
             "description": "Successful Response"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Get Dlq Stats",
@@ -15464,15 +16561,14 @@
             },
             "description": "Successful Response"
           },
+          "401": {
+            "description": "Unauthorized - API key required"
+          },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Clear Dlq",
@@ -15579,14 +16675,10 @@
             "description": "Successful Response"
           },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "List Entities",
@@ -15619,6 +16711,9 @@
             },
             "description": "Successful Response"
           },
+          "404": {
+            "description": "Entity not found"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -15628,6 +16723,12 @@
               }
             },
             "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
+          },
+          "503": {
+            "description": "Redis service unavailable"
           }
         },
         "summary": "Get Entity",
@@ -15660,6 +16761,9 @@
             },
             "description": "Successful Response"
           },
+          "404": {
+            "description": "Entity not found"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -15669,6 +16773,12 @@
               }
             },
             "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
+          },
+          "503": {
+            "description": "Redis service unavailable"
           }
         },
         "summary": "Get Entity History",
@@ -15677,7 +16787,7 @@
     },
     "/api/events": {
       "get": {
-        "description": "List events with optional filtering and cursor-based pagination.\n\nSupports both cursor-based pagination (recommended) and offset pagination (deprecated).\nCursor-based pagination offers better performance for large datasets.\n\nArgs:\n    camera_id: Optional camera ID to filter by\n    risk_level: Optional risk level to filter by (low, medium, high, critical)\n    start_date: Optional start date for date range filter\n    end_date: Optional end date for date range filter\n    reviewed: Optional filter by reviewed status\n    object_type: Optional object type to filter by (person, vehicle, animal, etc.)\n    limit: Maximum number of results to return (1-100, default 50)\n    offset: Number of results to skip (deprecated, use cursor instead)\n    cursor: Pagination cursor from previous response's next_cursor field\n    db: Database session\n\nReturns:\n    EventListResponse containing filtered events and pagination info\n\nRaises:\n    HTTPException: 400 if start_date is after end_date\n    HTTPException: 400 if cursor is invalid",
+        "description": "List events with optional filtering and cursor-based pagination.\n\nSupports both cursor-based pagination (recommended) and offset pagination (deprecated).\nCursor-based pagination offers better performance for large datasets.\n\nSparse Fieldsets (NEM-1434):\nUse the `fields` parameter to request only specific fields in the response,\nreducing payload size. Example: ?fields=id,camera_id,risk_level,summary,reviewed\n\nArgs:\n    camera_id: Optional camera ID to filter by\n    risk_level: Optional risk level to filter by (low, medium, high, critical)\n    start_date: Optional start date for date range filter\n    end_date: Optional end date for date range filter\n    reviewed: Optional filter by reviewed status\n    object_type: Optional object type to filter by (person, vehicle, animal, etc.)\n    limit: Maximum number of results to return (1-100, default 50)\n    offset: Number of results to skip (deprecated, use cursor instead)\n    cursor: Pagination cursor from previous response's next_cursor field\n    fields: Comma-separated list of fields to include (sparse fieldsets)\n    db: Database session\n\nReturns:\n    EventListResponse containing filtered events and pagination info\n\nRaises:\n    HTTPException: 400 if start_date is after end_date\n    HTTPException: 400 if cursor is invalid\n    HTTPException: 400 if invalid fields are requested",
         "operationId": "list_events_api_events_get",
         "parameters": [
           {
@@ -15834,6 +16944,24 @@
               "description": "Pagination cursor from previous response",
               "title": "Cursor"
             }
+          },
+          {
+            "description": "Comma-separated list of fields to include in response (sparse fieldsets). Valid fields: id, camera_id, started_at, ended_at, risk_score, risk_level, summary, reasoning, reviewed, detection_count, detection_ids, thumbnail_url",
+            "in": "query",
+            "name": "fields",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Comma-separated list of fields to include in response (sparse fieldsets). Valid fields: id, camera_id, started_at, ended_at, risk_score, risk_level, summary, reasoning, reviewed, detection_count, detection_ids, thumbnail_url",
+              "title": "Fields"
+            }
           }
         ],
         "responses": {
@@ -15934,6 +17062,110 @@
           }
         },
         "summary": "Analyze Batch Streaming",
+        "tags": ["events"]
+      }
+    },
+    "/api/events/bulk": {
+      "delete": {
+        "description": "Delete multiple events in a single request.\n\nSupports partial success - some deletions may succeed while others fail.\nReturns HTTP 207 Multi-Status with per-item results.\n\nBy default uses soft delete (sets deleted_at timestamp). Use soft_delete=false\nfor permanent deletion.\n\nRate limiting: Consider implementing RateLimitTier.BULK for production use.\n\nArgs:\n    request: Bulk delete request with up to 100 event IDs\n    db: Database session\n\nReturns:\n    BulkOperationResponse with per-item results",
+        "operationId": "bulk_delete_events_api_events_bulk_delete",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventBulkDeleteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "207": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkOperationResponse"
+                }
+              }
+            },
+            "description": "Multi-status response with per-item results"
+          },
+          "400": {
+            "description": "Invalid request format"
+          },
+          "422": {
+            "description": "Validation error"
+          }
+        },
+        "summary": "Bulk delete events",
+        "tags": ["events"]
+      },
+      "patch": {
+        "description": "Update multiple events in a single request.\n\nSupports partial success - some updates may succeed while others fail.\nReturns HTTP 207 Multi-Status with per-item results.\n\nRate limiting: Consider implementing RateLimitTier.BULK for production use.\n\nArgs:\n    request: Bulk update request with up to 100 event updates\n    db: Database session\n\nReturns:\n    BulkOperationResponse with per-item results",
+        "operationId": "bulk_update_events_api_events_bulk_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventBulkUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "207": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkOperationResponse"
+                }
+              }
+            },
+            "description": "Multi-status response with per-item results"
+          },
+          "400": {
+            "description": "Invalid request format"
+          },
+          "422": {
+            "description": "Validation error"
+          }
+        },
+        "summary": "Bulk update events",
+        "tags": ["events"]
+      },
+      "post": {
+        "description": "Create multiple events in a single request.\n\nSupports partial success - some events may succeed while others fail.\nReturns HTTP 207 Multi-Status with per-item results.\n\nRate limiting: Consider implementing RateLimitTier.BULK for production use.\n\nArgs:\n    request: Bulk create request with up to 100 events\n    db: Database session\n\nReturns:\n    EventBulkCreateResponse with per-item results",
+        "operationId": "bulk_create_events_api_events_bulk_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventBulkCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "207": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventBulkCreateResponse"
+                }
+              }
+            },
+            "description": "Multi-status response with per-item results"
+          },
+          "400": {
+            "description": "Invalid request format"
+          },
+          "422": {
+            "description": "Validation error"
+          }
+        },
+        "summary": "Bulk create events",
         "tags": ["events"]
       }
     },
@@ -16330,7 +17562,7 @@
     },
     "/api/events/{event_id}": {
       "get": {
-        "description": "Get a specific event by ID.\n\nArgs:\n    event_id: Event ID\n    db: Database session\n\nReturns:\n    Event object with detection count\n\nRaises:\n    HTTPException: 404 if event not found",
+        "description": "Get a specific event by ID with HATEOAS links.\n\nArgs:\n    event_id: Event ID\n    request: FastAPI request object for building HATEOAS links\n    db: Database session\n\nReturns:\n    Event object with detection count and HATEOAS links\n\nRaises:\n    HTTPException: 404 if event not found",
         "operationId": "get_event_api_events__event_id__get",
         "parameters": [
           {
@@ -16836,15 +18068,14 @@
             },
             "description": "Successful Response"
           },
+          "400": {
+            "description": "Invalid date range or cursor"
+          },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "List Logs",
@@ -16881,14 +18112,10 @@
             "description": "Successful Response"
           },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Create Frontend Log",
@@ -16909,6 +18136,12 @@
               }
             },
             "description": "Successful Response"
+          },
+          "400": {
+            "description": "Invalid date range"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Get Log Stats",
@@ -16941,6 +18174,9 @@
             },
             "description": "Successful Response"
           },
+          "404": {
+            "description": "Log entry not found"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -16950,6 +18186,9 @@
               }
             },
             "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Get Log",
@@ -17138,7 +18377,7 @@
     },
     "/api/media/{path}": {
       "get": {
-        "description": "Compatibility route: serve media via design-spec-style /api/media/{path}.\n\nThis preserves the stricter behavior of the new routes:\n- Path traversal protection\n- Allowed file type allowlist\n- Must remain under configured base directories\n\nMapping rules:\n- `cameras/<camera_id>/<filename...>` \u2192 camera media\n- `thumbnails/<filename>` \u2192 thumbnails\n- `detections/<id>` \u2192 detection images",
+        "description": "Compatibility route: serve media via design-spec-style /api/media/{path}.\n\nThis preserves the stricter behavior of the new routes:\n- Path traversal protection\n- Allowed file type allowlist\n- Must remain under configured base directories\n\nMapping rules:\n- `cameras/<camera_id>/<filename...>` -> camera media\n- `thumbnails/<filename>` -> thumbnails\n- `detections/<id>` -> detection images",
         "operationId": "serve_media_compat_api_media__path__get",
         "parameters": [
           {
@@ -17204,7 +18443,10 @@
                 "schema": {}
               }
             },
-            "description": "Successful Response"
+            "description": "Prometheus metrics in exposition format"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Metrics",
@@ -17225,6 +18467,9 @@
               }
             },
             "description": "Successful Response"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Get Notification Preferences",
@@ -17254,15 +18499,14 @@
             },
             "description": "Successful Response"
           },
+          "400": {
+            "description": "Bad request - Invalid sound or risk level value"
+          },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Update Notification Preferences",
@@ -17283,6 +18527,9 @@
               }
             },
             "description": "Successful Response"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Get All Camera Settings",
@@ -17315,6 +18562,9 @@
             },
             "description": "Successful Response"
           },
+          "404": {
+            "description": "Camera notification setting not found"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -17324,6 +18574,9 @@
               }
             },
             "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Get Camera Setting",
@@ -17364,15 +18617,14 @@
             },
             "description": "Successful Response"
           },
+          "404": {
+            "description": "Camera not found"
+          },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Update Camera Setting",
@@ -17393,6 +18645,9 @@
               }
             },
             "description": "Successful Response"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Get Quiet Hours",
@@ -17422,15 +18677,14 @@
             },
             "description": "Successful Response"
           },
+          "400": {
+            "description": "Bad request - Invalid time range"
+          },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Create Quiet Hours Period",
@@ -17456,6 +18710,9 @@
           "204": {
             "description": "Successful Response"
           },
+          "404": {
+            "description": "Quiet hours period not found"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -17465,6 +18722,9 @@
               }
             },
             "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Delete Quiet Hours Period",
@@ -17557,14 +18817,10 @@
             "description": "Successful Response"
           },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Ingest RUM metrics",
@@ -17585,6 +18841,9 @@
               }
             },
             "description": "Successful Response"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Get Anomaly Config",
@@ -17632,15 +18891,14 @@
             },
             "description": "Successful Response"
           },
+          "401": {
+            "description": "Unauthorized - API key required"
+          },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Update Anomaly Config",
@@ -17863,15 +19121,14 @@
             },
             "description": "Successful Response"
           },
+          "401": {
+            "description": "Unauthorized - API key required"
+          },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Patch Config",
@@ -18356,6 +19613,12 @@
               }
             },
             "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
+          },
+          "503": {
+            "description": "Container orchestrator not available"
           }
         },
         "summary": "List Services",
@@ -18388,6 +19651,9 @@
             },
             "description": "Successful Response"
           },
+          "404": {
+            "description": "Service not found"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -18397,6 +19663,12 @@
               }
             },
             "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
+          },
+          "503": {
+            "description": "Container orchestrator not available"
           }
         },
         "summary": "Disable Service",
@@ -18429,6 +19701,9 @@
             },
             "description": "Successful Response"
           },
+          "404": {
+            "description": "Service not found"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -18438,6 +19713,12 @@
               }
             },
             "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
+          },
+          "503": {
+            "description": "Container orchestrator not available"
           }
         },
         "summary": "Enable Service",
@@ -18470,6 +19751,12 @@
             },
             "description": "Successful Response"
           },
+          "400": {
+            "description": "Bad request - Service is disabled"
+          },
+          "404": {
+            "description": "Service not found"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -18479,6 +19766,12 @@
               }
             },
             "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
+          },
+          "503": {
+            "description": "Container orchestrator not available"
           }
         },
         "summary": "Restart Service",
@@ -18511,6 +19804,12 @@
             },
             "description": "Successful Response"
           },
+          "400": {
+            "description": "Bad request - Service already running or disabled"
+          },
+          "404": {
+            "description": "Service not found"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -18520,6 +19819,12 @@
               }
             },
             "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
+          },
+          "503": {
+            "description": "Container orchestrator not available"
           }
         },
         "summary": "Start Service",

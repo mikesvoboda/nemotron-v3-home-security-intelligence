@@ -1360,6 +1360,41 @@ class Settings(BaseSettings):
             )
         return v
 
+    def __repr__(self) -> str:
+        """Auto-redact sensitive fields in repr output.
+
+        Prevents accidental exposure of secrets when logging settings objects.
+        Uses redact_url() for URL fields and [REDACTED] for sensitive values.
+        """
+        # Import here to avoid circular import
+        from backend.core.logging import SENSITIVE_FIELD_NAMES, redact_url
+
+        safe_dict: dict[str, Any] = {}
+        for field_name in self.__class__.model_fields:
+            value = getattr(self, field_name, None)
+            field_lower = field_name.lower()
+
+            # Check if field name matches sensitive patterns
+            is_sensitive = field_lower in SENSITIVE_FIELD_NAMES or any(
+                pattern in field_lower
+                for pattern in ("password", "secret", "key", "token", "credential")
+            )
+
+            if is_sensitive and value is not None:
+                # Use redact_url for URL fields, [REDACTED] for others
+                if "url" in field_lower and isinstance(value, str):
+                    safe_dict[field_name] = redact_url(value)
+                else:
+                    safe_dict[field_name] = "[REDACTED]"
+            else:
+                safe_dict[field_name] = value
+
+        return f"Settings({safe_dict})"
+
+    def __str__(self) -> str:
+        """Return redacted string representation."""
+        return self.__repr__()
+
 
 @cache
 def get_settings() -> Settings:

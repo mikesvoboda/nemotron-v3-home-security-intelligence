@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -51,7 +51,7 @@ def _validate_and_resolve_path(base_path: Path, requested_path: str) -> Path:
     # Check path length to prevent buffer overflow attacks and filesystem issues
     if len(requested_path) > MAX_PATH_LENGTH:
         raise HTTPException(
-            status_code=414,
+            status_code=status.HTTP_414_URI_TOO_LONG,
             detail=MediaErrorResponse(
                 error=f"Path too long. Maximum length is {MAX_PATH_LENGTH} characters.",
                 path=requested_path[:100] + "..." if len(requested_path) > 100 else requested_path,
@@ -61,7 +61,7 @@ def _validate_and_resolve_path(base_path: Path, requested_path: str) -> Path:
     # Check for path traversal attempts
     if ".." in requested_path or requested_path.startswith("/"):
         raise HTTPException(
-            status_code=403,
+            status_code=status.HTTP_403_FORBIDDEN,
             detail=MediaErrorResponse(
                 error="Path traversal detected",
                 path=requested_path,
@@ -75,7 +75,7 @@ def _validate_and_resolve_path(base_path: Path, requested_path: str) -> Path:
         # OSError: filesystem limits exceeded (e.g., path too long for OS)
         # ValueError: invalid path characters or format
         raise HTTPException(
-            status_code=400,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail=MediaErrorResponse(
                 error=f"Invalid path: {type(err).__name__}",
                 path=requested_path[:100] + "..." if len(requested_path) > 100 else requested_path,
@@ -87,7 +87,7 @@ def _validate_and_resolve_path(base_path: Path, requested_path: str) -> Path:
         full_path.relative_to(base_path.resolve())
     except ValueError as err:
         raise HTTPException(
-            status_code=403,
+            status_code=status.HTTP_403_FORBIDDEN,
             detail=MediaErrorResponse(
                 error="Access denied - path outside allowed directory",
                 path=requested_path,
@@ -97,7 +97,7 @@ def _validate_and_resolve_path(base_path: Path, requested_path: str) -> Path:
     # Check if file exists
     if not full_path.exists() or not full_path.is_file():
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail=MediaErrorResponse(
                 error="File not found",
                 path=requested_path,
@@ -108,7 +108,7 @@ def _validate_and_resolve_path(base_path: Path, requested_path: str) -> Path:
     file_ext = full_path.suffix.lower()
     if file_ext not in ALLOWED_TYPES:
         raise HTTPException(
-            status_code=403,
+            status_code=status.HTTP_403_FORBIDDEN,
             detail=MediaErrorResponse(
                 error=f"File type not allowed: {file_ext}",
                 path=requested_path,
@@ -164,9 +164,9 @@ async def serve_media_compat(
     - Must remain under configured base directories
 
     Mapping rules:
-    - `cameras/<camera_id>/<filename...>` → camera media
-    - `thumbnails/<filename>` → thumbnails
-    - `detections/<id>` → detection images
+    - `cameras/<camera_id>/<filename...>` -> camera media
+    - `thumbnails/<filename>` -> thumbnails
+    - `detections/<id>` -> detection images
     """
     # Normalize: strip any leading slashes (FastAPI path params shouldn't include it, but be safe).
     rel = path.lstrip("/")
@@ -176,7 +176,7 @@ async def serve_media_compat(
         remainder = rel.removeprefix("cameras/")
         if "/" not in remainder:
             raise HTTPException(
-                status_code=404,
+                status_code=status.HTTP_404_NOT_FOUND,
                 detail=MediaErrorResponse(
                     error="File not found",
                     path=path,
@@ -195,7 +195,7 @@ async def serve_media_compat(
             detection_id = int(detection_id_str)
         except ValueError:
             raise HTTPException(
-                status_code=404,
+                status_code=status.HTTP_404_NOT_FOUND,
                 detail=MediaErrorResponse(
                     error="Invalid detection ID",
                     path=path,
@@ -209,7 +209,7 @@ async def serve_media_compat(
                 await db.close()
         # Should never reach here, but handle edge case
         raise HTTPException(
-            status_code=500,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=MediaErrorResponse(
                 error="Database connection unavailable",
                 path=path,
@@ -221,7 +221,7 @@ async def serve_media_compat(
         return await serve_clip(filename=filename)
 
     raise HTTPException(
-        status_code=404,
+        status_code=status.HTTP_404_NOT_FOUND,
         detail=MediaErrorResponse(
             error="Unsupported media path (expected cameras/..., thumbnails/..., detections/..., or clips/...)",
             path=path,
@@ -258,7 +258,7 @@ async def serve_camera_file(
     # Additional security check on camera_id as well
     if ".." in camera_id or camera_id.startswith("/"):
         raise HTTPException(
-            status_code=403,
+            status_code=status.HTTP_403_FORBIDDEN,
             detail=MediaErrorResponse(
                 error="Invalid camera identifier",
                 path=camera_id,
@@ -344,7 +344,7 @@ async def serve_detection_image(
 
     if not detection:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail=MediaErrorResponse(
                 error="Detection not found",
                 path=f"detections/{detection_id}",
@@ -355,7 +355,7 @@ async def serve_detection_image(
     file_path = detection.file_path
     if not file_path:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail=MediaErrorResponse(
                 error="Detection has no associated file",
                 path=f"detections/{detection_id}",
@@ -377,7 +377,7 @@ async def serve_detection_image(
     # Security check: ensure path is within allowed directories
     if not _is_path_within(full_path, base_path) and not _is_path_within(full_path, data_path):
         raise HTTPException(
-            status_code=403,
+            status_code=status.HTTP_403_FORBIDDEN,
             detail=MediaErrorResponse(
                 error="Access denied - file outside allowed directory",
                 path=f"detections/{detection_id}",
@@ -393,7 +393,7 @@ async def serve_detection_image(
     # Final check if file exists
     if not full_path.exists() or not full_path.is_file():
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail=MediaErrorResponse(
                 error="File not found on disk",
                 path=f"detections/{detection_id}",
@@ -404,7 +404,7 @@ async def serve_detection_image(
     file_ext = full_path.suffix.lower()
     if file_ext not in ALLOWED_TYPES:
         raise HTTPException(
-            status_code=403,
+            status_code=status.HTTP_403_FORBIDDEN,
             detail=MediaErrorResponse(
                 error=f"File type not allowed: {file_ext}",
                 path=f"detections/{detection_id}",

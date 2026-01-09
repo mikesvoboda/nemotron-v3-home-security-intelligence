@@ -15,7 +15,17 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import httpx
-from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query, Request, Response
+from fastapi import (
+    APIRouter,
+    Body,
+    Depends,
+    Header,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+    status,
+)
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -237,7 +247,7 @@ async def verify_api_key(x_api_key: str | None = Header(None)) -> None:
     # Require API key if authentication is enabled
     if not x_api_key:
         raise HTTPException(
-            status_code=401,
+            status_code=status.HTTP_401_UNAUTHORIZED,
             detail="API key required. Provide via X-API-Key header.",
         )
 
@@ -246,7 +256,7 @@ async def verify_api_key(x_api_key: str | None = Header(None)) -> None:
     valid_hashes = {hashlib.sha256(k.encode()).hexdigest() for k in settings.api_keys}
 
     if key_hash not in valid_hashes:
-        raise HTTPException(status_code=401, detail="Invalid API key")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API key")
 
 
 # Track application start time for uptime calculation
@@ -1441,7 +1451,7 @@ async def update_anomaly_config(
         )
     except ValueError as e:
         raise HTTPException(
-            status_code=400,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
         ) from e
 
@@ -2065,7 +2075,7 @@ async def update_severity_thresholds(
     # Validate threshold ordering (must be strictly increasing)
     if not (update.low_max < update.medium_max < update.high_max):
         raise HTTPException(
-            status_code=400,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Thresholds must be strictly ordered: low_max ({update.low_max}) < "
             f"medium_max ({update.medium_max}) < high_max ({update.high_max})",
         )
@@ -2317,23 +2327,23 @@ async def get_circuit_breakers() -> CircuitBreakersResponse:
     circuit_breakers: dict[str, CircuitBreakerStatusResponse] = {}
     open_count = 0
 
-    for name, status in all_status.items():
-        state_value = status.get("state", "closed")
+    for name, cb_status in all_status.items():
+        state_value = cb_status.get("state", "closed")
         state = CircuitBreakerStateEnum(state_value)
 
         if state == CircuitBreakerStateEnum.OPEN:
             open_count += 1
 
-        config = status.get("config", {})
+        config = cb_status.get("config", {})
         circuit_breakers[name] = CircuitBreakerStatusResponse(
             name=name,
             state=state,
-            failure_count=status.get("failure_count", 0),
-            success_count=status.get("success_count", 0),
-            total_calls=status.get("total_calls", 0),
-            rejected_calls=status.get("rejected_calls", 0),
-            last_failure_time=status.get("last_failure_time"),
-            opened_at=status.get("opened_at"),
+            failure_count=cb_status.get("failure_count", 0),
+            success_count=cb_status.get("success_count", 0),
+            total_calls=cb_status.get("total_calls", 0),
+            rejected_calls=cb_status.get("rejected_calls", 0),
+            last_failure_time=cb_status.get("last_failure_time"),
+            opened_at=cb_status.get("opened_at"),
             config=CircuitBreakerConfigResponse(
                 failure_threshold=config.get("failure_threshold", 5),
                 recovery_timeout=config.get("recovery_timeout", 30.0),
@@ -2379,14 +2389,14 @@ async def reset_circuit_breaker(name: str) -> CircuitBreakerResetResponse:
     # Validate name parameter: must be non-empty and reasonable length
     if not name or len(name) > 64:
         raise HTTPException(
-            status_code=400,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid circuit breaker name: must be 1-64 characters",
         )
 
     # Only allow alphanumeric characters, underscores, and hyphens (defense in depth)
     if not all(c.isalnum() or c in "_-" for c in name):
         raise HTTPException(
-            status_code=400,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid circuit breaker name: must contain only alphanumeric characters, underscores, or hyphens",
         )
 
@@ -2397,11 +2407,11 @@ async def reset_circuit_breaker(name: str) -> CircuitBreakerResetResponse:
     if name not in valid_names:
         if not valid_names:
             raise HTTPException(
-                status_code=404,
+                status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Circuit breaker '{name}' not found. No circuit breakers are currently registered.",
             )
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Circuit breaker '{name}' not found. Valid names: {', '.join(sorted(valid_names))}",
         )
 
@@ -2410,7 +2420,7 @@ async def reset_circuit_breaker(name: str) -> CircuitBreakerResetResponse:
     # This should never be None due to the validation above, but check for safety
     if breaker is None:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Circuit breaker '{name}' not found",
         )
 
@@ -2859,7 +2869,7 @@ async def get_model(model_name: str) -> ModelStatusResponse:
     config = get_model_config(model_name)
     if config is None:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Model '{model_name}' not found in registry",
         )
 
@@ -3043,7 +3053,7 @@ async def get_model_zoo_latency_history(
     config = get_model_config(model)
     if config is None:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Model '{model}' not found in registry",
         )
 
@@ -3315,8 +3325,8 @@ def _get_circuit_breaker_summary() -> CircuitBreakerSummary:
     closed_count = 0
     breakers: dict[str, CircuitState] = {}
 
-    for name, status in all_status.items():
-        state_value = status.get("state", "closed")
+    for name, cb_status in all_status.items():
+        state_value = cb_status.get("state", "closed")
         if state_value == "open":
             state = CircuitState.OPEN
             open_count += 1
