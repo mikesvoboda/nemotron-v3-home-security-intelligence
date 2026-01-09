@@ -18853,7 +18853,7 @@
     },
     "/api/events/export": {
       "get": {
-        "description": "Export events as CSV file for external analysis or record-keeping.\n\nThis endpoint is rate-limited to 10 requests per minute per client IP\nto prevent abuse and protect against data exfiltration attacks.\n\nExports events with the following fields:\n- Event ID, camera name, timestamps\n- Risk score, risk level, summary\n- Detection count, reviewed status\n\nArgs:\n    request: FastAPI request object\n    camera_id: Optional camera ID to filter by\n    risk_level: Optional risk level to filter by (low, medium, high, critical)\n    start_date: Optional start date for date range filter\n    end_date: Optional end date for date range filter\n    reviewed: Optional filter by reviewed status\n    db: Database session\n    _rate_limit: Rate limiter dependency (10 req/min, no burst)\n\nReturns:\n    StreamingResponse with CSV file containing exported events\n\nRaises:\n    HTTPException: 429 if rate limit exceeded\n    HTTPException: 400 if start_date is after end_date",
+        "description": "Export events as CSV or Excel file for external analysis or record-keeping.\n\nSupports content negotiation via HTTP Accept header:\n- `Accept: text/csv` or `Accept: application/csv` - CSV format (default)\n- `Accept: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` - Excel (XLSX)\n- `Accept: application/vnd.ms-excel` or `Accept: application/xlsx` - Excel (XLSX)\n\nThis endpoint is rate-limited to 10 requests per minute per client IP\nto prevent abuse and protect against data exfiltration attacks.\n\nExports events with the following fields:\n- Event ID, camera name, timestamps\n- Risk score, risk level, summary\n- Detection count, reviewed status\n\nArgs:\n    request: FastAPI request object (includes Accept header for format selection)\n    camera_id: Optional camera ID to filter by\n    risk_level: Optional risk level to filter by (low, medium, high, critical)\n    start_date: Optional start date for date range filter\n    end_date: Optional end date for date range filter\n    reviewed: Optional filter by reviewed status\n    db: Database session\n    _rate_limit: Rate limiter dependency (10 req/min, no burst)\n\nReturns:\n    StreamingResponse with CSV or Response with Excel file containing exported events\n\nRaises:\n    HTTPException: 429 if rate limit exceeded\n    HTTPException: 400 if start_date is after end_date",
         "operationId": "export_events_api_events_export_get",
         "parameters": [
           {
@@ -18954,9 +18954,22 @@
             "content": {
               "application/json": {
                 "schema": {}
+              },
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "text/csv": {
+                "example": "event_id,camera_name,started_at,...",
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
               }
             },
-            "description": "Successful Response"
+            "description": "Exported events file"
           },
           "422": {
             "content": {
@@ -18967,6 +18980,9 @@
               }
             },
             "description": "Validation Error"
+          },
+          "429": {
+            "description": "Rate limit exceeded"
           }
         },
         "summary": "Export Events",
