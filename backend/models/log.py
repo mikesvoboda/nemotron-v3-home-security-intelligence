@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import CheckConstraint, DateTime, Index, Integer, String, Text, func
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .camera import Base
@@ -15,6 +15,9 @@ class Log(Base):
 
     Supports filtering by level, component, camera, and time range.
     Stores additional context in JSON extra field.
+
+    The search_vector column is a PostgreSQL TSVECTOR that enables full-text search
+    across message, component, and level. It is populated via a database trigger.
     """
 
     __tablename__ = "logs"
@@ -41,6 +44,11 @@ class Log(Base):
     source: Mapped[str] = mapped_column(String(10), default="backend", nullable=False)
     user_agent: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    # Full-text search vector (PostgreSQL TSVECTOR)
+    # This column is auto-populated by a database trigger on INSERT/UPDATE
+    # Combines: message (weight A), component (weight B), level (weight C)
+    search_vector: Mapped[Any] = mapped_column(TSVECTOR, nullable=True)
+
     # Indexes for common queries
     __table_args__ = (
         Index("idx_logs_timestamp", "timestamp"),
@@ -55,6 +63,8 @@ class Log(Base):
             "timestamp",
             postgresql_using="brin",
         ),
+        # GIN index for full-text search on search_vector
+        Index("idx_logs_search_vector", "search_vector", postgresql_using="gin"),
         # CHECK constraints for enum-like columns
         CheckConstraint(
             "level IN ('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL')",

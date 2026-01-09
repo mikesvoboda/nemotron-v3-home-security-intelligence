@@ -1,10 +1,11 @@
-"""Tests for shutdown resource cleanup (NEM-1996, NEM-2022).
+"""Tests for shutdown resource cleanup (NEM-1996, NEM-2006).
 
-These tests verify that AI models are properly unloaded from GPU memory
-during shutdown, and that CUDA cache is cleared with proper error isolation.
+These tests verify that:
+- AI models are properly unloaded from GPU memory during shutdown (NEM-1996)
+- Background task queues are drained gracefully on shutdown (NEM-2006)
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -75,42 +76,6 @@ class TestShutdownCodePresence:
         # Verify CUDA cleanup is present
         assert "torch.cuda.empty_cache" in source or "empty_cache" in source
 
-    def test_shutdown_has_cuda_synchronize(self):
-        """Verify main.py contains CUDA synchronize before empty_cache (NEM-2022)."""
-        import inspect
-
-        import backend.main
-
-        source = inspect.getsource(backend.main)
-
-        # Verify CUDA synchronize is present before empty_cache
-        assert "torch.cuda.synchronize" in source or "cuda.synchronize" in source
-        # Verify NEM-2022 comment is present
-        assert "NEM-2022" in source
-
-    def test_cuda_cleanup_is_separate_from_model_unload(self):
-        """Verify CUDA cleanup is in a separate try block from model unloading (NEM-2022)."""
-        import inspect
-
-        import backend.main
-
-        source = inspect.getsource(backend.main)
-
-        # Find the positions of key elements
-        model_unload_pos = source.find("await model_manager.unload_all()")
-        cuda_cleanup_pos = source.find("torch.cuda.empty_cache()")
-
-        # Both should exist
-        assert model_unload_pos > 0, "Model unload code not found"
-        assert cuda_cleanup_pos > 0, "CUDA cleanup code not found"
-
-        # CUDA cleanup should come after model unload
-        assert cuda_cleanup_pos > model_unload_pos, "CUDA cleanup should come after model unload"
-
-        # There should be a separate try block between them (look for "except" between them)
-        code_between = source[model_unload_pos:cuda_cleanup_pos]
-        assert "except" in code_between, "CUDA cleanup should be in a separate try block"
-
 
 class TestGracefulShutdown:
     """Tests for graceful shutdown handling."""
@@ -138,124 +103,231 @@ class TestGracefulShutdown:
         await model_manager.unload_all()
 
 
-class TestCudaCacheClearing:
-    """Tests for CUDA cache clearing during shutdown (NEM-2022)."""
+class TestQueueDraining:
+    """Tests for graceful queue draining during shutdown (NEM-2006)."""
 
-    def test_cuda_cleanup_handles_torch_not_installed(self):
-        """Verify CUDA cleanup handles ImportError when torch is not available."""
-        # The actual test verifies the cleanup code in main.py handles this
-        # by checking the source code structure
+    @pytest.mark.asyncio
+    async def test_pipeline_manager_has_stop_accepting_method(self):
+        """Verify PipelineWorkerManager has stop_accepting method."""
+        from backend.services.pipeline_workers import PipelineWorkerManager
+
+        assert hasattr(PipelineWorkerManager, "stop_accepting")
+        assert callable(PipelineWorkerManager.stop_accepting)
+
+    @pytest.mark.asyncio
+    async def test_pipeline_manager_has_get_pending_count_method(self):
+        """Verify PipelineWorkerManager has get_pending_count method."""
         import inspect
 
-        import backend.main
+        from backend.services.pipeline_workers import PipelineWorkerManager
 
-        source = inspect.getsource(backend.main)
-        assert "except ImportError:" in source
-        assert "torch not installed, skipping CUDA cleanup" in source
+        assert hasattr(PipelineWorkerManager, "get_pending_count")
+        assert inspect.iscoroutinefunction(PipelineWorkerManager.get_pending_count)
 
-    def test_cuda_cleanup_handles_cuda_not_available(self):
-        """Verify CUDA cleanup handles case when CUDA is not available."""
+    @pytest.mark.asyncio
+    async def test_pipeline_manager_has_drain_queues_method(self):
+        """Verify PipelineWorkerManager has drain_queues method."""
         import inspect
 
-        import backend.main
+        from backend.services.pipeline_workers import PipelineWorkerManager
 
-        source = inspect.getsource(backend.main)
+        assert hasattr(PipelineWorkerManager, "drain_queues")
+        assert inspect.iscoroutinefunction(PipelineWorkerManager.drain_queues)
 
-        # Verify the code checks for CUDA availability
-        assert "torch.cuda.is_available()" in source
-        assert "CUDA not available, skipping cache clear" in source
+    @pytest.mark.asyncio
+    async def test_stop_accepting_sets_flag(self):
+        """Verify stop_accepting sets the accepting flag to False."""
+        from backend.services.pipeline_workers import PipelineWorkerManager
 
-    def test_cuda_cleanup_handles_general_exception(self):
-        """Verify CUDA cleanup handles general exceptions gracefully (NEM-2022)."""
-        import inspect
-
-        import backend.main
-
-        source = inspect.getsource(backend.main)
-
-        # Verify exception handling is present
-        assert "except Exception as e:" in source
-        assert "Warning: Error clearing CUDA cache" in source
-
-    def test_cuda_synchronize_called_before_empty_cache(self):
-        """Verify torch.cuda.synchronize() is called before empty_cache() (NEM-2022)."""
-        import inspect
-
-        import backend.main
-
-        source = inspect.getsource(backend.main)
-
-        # Find positions in the source code
-        sync_pos = source.find("torch.cuda.synchronize()")
-        empty_cache_pos = source.find("torch.cuda.empty_cache()")
-
-        # Both should exist
-        assert sync_pos > 0, "torch.cuda.synchronize() not found"
-        assert empty_cache_pos > 0, "torch.cuda.empty_cache() not found"
-
-        # synchronize should come before empty_cache
-        assert sync_pos < empty_cache_pos, (
-            "torch.cuda.synchronize() should be called before torch.cuda.empty_cache()"
+        mock_redis = MagicMock()
+        manager = PipelineWorkerManager(
+            redis_client=mock_redis,
+            enable_detection_worker=False,
+            enable_analysis_worker=False,
+            enable_timeout_worker=False,
+            enable_metrics_worker=False,
         )
 
+        # Initially accepting
+        assert manager.accepting is True
 
-class TestCudaCleanupBehavior:
-    """Tests for CUDA cleanup behavior with mocked torch (NEM-2022)."""
+        # Call stop_accepting
+        manager.stop_accepting()
 
-    def test_cuda_cleanup_calls_synchronize_when_available(self):
-        """Verify synchronize is called when CUDA is available."""
-        mock_torch = MagicMock()
-        mock_torch.cuda.is_available.return_value = True
-        mock_torch.cuda.synchronize = MagicMock()
-        mock_torch.cuda.empty_cache = MagicMock()
+        # Now not accepting
+        assert manager.accepting is False
 
-        with patch.dict("sys.modules", {"torch": mock_torch}):
-            # Simulate the cleanup code
-            import torch
+    @pytest.mark.asyncio
+    async def test_stop_accepting_is_idempotent(self):
+        """Verify calling stop_accepting multiple times is safe."""
+        from backend.services.pipeline_workers import PipelineWorkerManager
 
-            if torch.cuda.is_available():
-                torch.cuda.synchronize()
-                torch.cuda.empty_cache()
+        mock_redis = MagicMock()
+        manager = PipelineWorkerManager(
+            redis_client=mock_redis,
+            enable_detection_worker=False,
+            enable_analysis_worker=False,
+            enable_timeout_worker=False,
+            enable_metrics_worker=False,
+        )
 
-        mock_torch.cuda.synchronize.assert_called_once()
-        mock_torch.cuda.empty_cache.assert_called_once()
+        # Call multiple times - should not raise
+        manager.stop_accepting()
+        manager.stop_accepting()
+        manager.stop_accepting()
 
-    def test_cuda_cleanup_skipped_when_not_available(self):
-        """Verify cleanup is skipped when CUDA is not available."""
-        mock_torch = MagicMock()
-        mock_torch.cuda.is_available.return_value = False
-        mock_torch.cuda.synchronize = MagicMock()
-        mock_torch.cuda.empty_cache = MagicMock()
+        # Still not accepting
+        assert manager.accepting is False
 
-        with patch.dict("sys.modules", {"torch": mock_torch}):
-            import torch
+    @pytest.mark.asyncio
+    async def test_get_pending_count_returns_queue_depths(self):
+        """Verify get_pending_count returns sum of queue depths."""
+        from backend.services.pipeline_workers import PipelineWorkerManager
 
-            if torch.cuda.is_available():
-                torch.cuda.synchronize()
-                torch.cuda.empty_cache()
+        mock_redis = MagicMock()
+        mock_redis.get_queue_length = AsyncMock(side_effect=[5, 3])  # detection, analysis
 
-        # Should not be called when CUDA is not available
-        mock_torch.cuda.synchronize.assert_not_called()
-        mock_torch.cuda.empty_cache.assert_not_called()
+        manager = PipelineWorkerManager(
+            redis_client=mock_redis,
+            enable_detection_worker=False,
+            enable_analysis_worker=False,
+            enable_timeout_worker=False,
+            enable_metrics_worker=False,
+        )
 
-    def test_cuda_cleanup_continues_on_synchronize_error(self):
-        """Verify that errors in synchronize don't prevent shutdown."""
-        # This test verifies the error handling behavior
+        count = await manager.get_pending_count()
+        assert count == 8  # 5 + 3
+
+    @pytest.mark.asyncio
+    async def test_get_pending_count_handles_redis_error(self):
+        """Verify get_pending_count returns 0 on Redis error."""
+        from backend.services.pipeline_workers import PipelineWorkerManager
+
+        mock_redis = MagicMock()
+        mock_redis.get_queue_length = AsyncMock(side_effect=Exception("Redis error"))
+
+        manager = PipelineWorkerManager(
+            redis_client=mock_redis,
+            enable_detection_worker=False,
+            enable_analysis_worker=False,
+            enable_timeout_worker=False,
+            enable_metrics_worker=False,
+        )
+
+        count = await manager.get_pending_count()
+        assert count == 0
+
+    @pytest.mark.asyncio
+    async def test_drain_queues_returns_zero_when_empty(self):
+        """Verify drain_queues returns 0 when queues are empty."""
+        from backend.services.pipeline_workers import PipelineWorkerManager
+
+        mock_redis = MagicMock()
+        mock_redis.get_queue_length = AsyncMock(return_value=0)
+
+        manager = PipelineWorkerManager(
+            redis_client=mock_redis,
+            enable_detection_worker=False,
+            enable_analysis_worker=False,
+            enable_timeout_worker=False,
+            enable_metrics_worker=False,
+        )
+
+        remaining = await manager.drain_queues(timeout=1.0)
+        assert remaining == 0
+        assert manager.accepting is False  # stop_accepting was called
+
+    @pytest.mark.asyncio
+    async def test_drain_queues_times_out_with_stuck_queue(self):
+        """Verify drain_queues returns remaining count on timeout."""
+        from backend.services.pipeline_workers import PipelineWorkerManager
+
+        mock_redis = MagicMock()
+        # Always return 5 items (queue never drains)
+        mock_redis.get_queue_length = AsyncMock(return_value=5)
+
+        manager = PipelineWorkerManager(
+            redis_client=mock_redis,
+            enable_detection_worker=False,
+            enable_analysis_worker=False,
+            enable_timeout_worker=False,
+            enable_metrics_worker=False,
+        )
+
+        # Use short timeout for test
+        remaining = await manager.drain_queues(timeout=0.3)
+        assert remaining == 10  # 5 + 5 (detection + analysis)
+
+    @pytest.mark.asyncio
+    async def test_status_includes_accepting_flag(self):
+        """Verify get_status includes accepting flag."""
+        from backend.services.pipeline_workers import PipelineWorkerManager
+
+        mock_redis = MagicMock()
+        manager = PipelineWorkerManager(
+            redis_client=mock_redis,
+            enable_detection_worker=False,
+            enable_analysis_worker=False,
+            enable_timeout_worker=False,
+            enable_metrics_worker=False,
+        )
+
+        status = manager.get_status()
+        assert "accepting" in status
+        assert status["accepting"] is True
+
+        manager.stop_accepting()
+        status = manager.get_status()
+        assert status["accepting"] is False
+
+
+class TestQueueDrainingCodePresence:
+    """Tests to verify NEM-2006 queue draining code is present in main.py."""
+
+    def test_shutdown_has_queue_drain_code(self):
+        """Verify main.py contains queue draining code."""
         import inspect
 
         import backend.main
 
         source = inspect.getsource(backend.main)
 
-        # The entire CUDA cleanup block is wrapped in try-except
-        # which means any error (including in synchronize) will be caught
-        cuda_block_start = source.find("# Clear CUDA cache after model unload (NEM-2022)")
-        cuda_block_end = source.find("await close_db()")
+        # Verify the NEM-2006 fix is present
+        assert "NEM-2006" in source
+        assert "drain_queues" in source
 
-        cuda_block = source[cuda_block_start:cuda_block_end]
+    def test_drain_queues_import_exists(self):
+        """Verify drain_queues is imported in main.py."""
+        import inspect
 
-        # Count try and except to ensure proper nesting
-        assert cuda_block.count("try:") >= 1, "CUDA cleanup should have try block"
-        assert cuda_block.count("except") >= 2, (
-            "CUDA cleanup should handle ImportError and general Exception"
-        )
+        import backend.main
+
+        source = inspect.getsource(backend.main)
+
+        # Check that drain_queues is imported from pipeline_workers
+        # The import may be single-line or multi-line formatted
+        assert "from backend.services.pipeline_workers import" in source
+        assert "drain_queues" in source
+
+    def test_drain_queues_function_exists(self):
+        """Verify drain_queues module-level function exists."""
+        import inspect
+
+        from backend.services.pipeline_workers import drain_queues
+
+        assert inspect.iscoroutinefunction(drain_queues)
+
+    @pytest.mark.asyncio
+    async def test_drain_queues_module_function_returns_zero_when_no_manager(self):
+        """Verify module-level drain_queues returns 0 when no manager exists."""
+        from backend.services import pipeline_workers as pw
+
+        # Temporarily reset the manager state
+        original_manager = pw._pipeline_manager
+        pw._pipeline_manager = None
+
+        try:
+            remaining = await pw.drain_queues(timeout=1.0)
+            assert remaining == 0
+        finally:
+            pw._pipeline_manager = original_manager

@@ -94,6 +94,10 @@ from backend.api.schemas.system import (
     WebSocketHealthResponse,
     WorkerStatus,
 )
+from backend.api.schemas.websocket import (
+    EventRegistryResponse,
+    get_event_registry_response,
+)
 from backend.core import get_db, get_settings
 from backend.core.config import Settings
 from backend.core.constants import ANALYSIS_QUEUE, DETECTION_QUEUE
@@ -1094,6 +1098,42 @@ async def get_websocket_health(
         system_broadcaster=system_status,
         timestamp=datetime.now(UTC),
     )
+
+
+@router.get("/websocket/events", response_model=EventRegistryResponse)
+async def list_websocket_event_types(
+    _rate_limit: None = Depends(RateLimiter(tier=RateLimitTier.DEFAULT)),
+) -> EventRegistryResponse:
+    """List all available WebSocket event types with schemas.
+
+    Returns the complete registry of WebSocket event types supported by the system,
+    including their descriptions, payload schemas, and example payloads. This
+    endpoint enables frontend developers and API consumers to discover and
+    understand all available real-time event types.
+
+    Event types follow a hierarchical naming convention: {domain}.{action}
+    For example: detection.new, event.created, camera.status_changed
+
+    Channels group related events:
+    - detections: AI detection pipeline events
+    - events: Security event lifecycle events
+    - alerts: Alert notifications and state changes
+    - cameras: Camera status and configuration changes
+    - jobs: Background job lifecycle events
+    - system: System health and status events
+
+    Note: Some event types are marked as deprecated with suggested replacements.
+    These remain available for backward compatibility but should be avoided in
+    new implementations.
+
+    Returns:
+        EventRegistryResponse containing:
+        - event_types: List of all event types with schemas and examples
+        - channels: List of available WebSocket channels
+        - total_count: Total number of event types
+        - deprecated_count: Number of deprecated event types
+    """
+    return get_event_registry_response()
 
 
 @router.get("/gpu", response_model=GPUStatsResponse)
