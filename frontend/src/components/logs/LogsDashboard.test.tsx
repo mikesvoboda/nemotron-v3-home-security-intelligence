@@ -80,6 +80,7 @@ describe('LogsDashboard', () => {
     count: 3,
     limit: 50,
     offset: 0,
+    has_more: false,
   };
 
   const mockLogStats: LogStats = {
@@ -339,6 +340,7 @@ describe('LogsDashboard', () => {
         count: 100,
         limit: 50,
         offset: 0,
+        has_more: true,
       });
 
       render(<LogsDashboard />);
@@ -393,6 +395,7 @@ describe('LogsDashboard', () => {
         count: 100,
         limit: 50,
         offset: 0,
+        has_more: true,
       });
     });
 
@@ -588,6 +591,7 @@ describe('LogsDashboard', () => {
         count: 0,
         limit: 50,
         offset: 0,
+        has_more: false,
       });
 
       render(<LogsDashboard />);
@@ -614,6 +618,7 @@ describe('LogsDashboard', () => {
         count: 0,
         limit: 50,
         offset: 0,
+        has_more: false,
       });
 
       await user.click(screen.getByText('Show Filters'));

@@ -1004,11 +1004,17 @@ class TestGeneralErrors:
 
     @pytest.mark.asyncio
     async def test_error_responses_are_json(self, client, mock_redis):
-        """Test that error responses have JSON content type."""
+        """Test that error responses have JSON content type.
+
+        RFC 7807 Problem Details responses use application/problem+json,
+        which is also a valid JSON content type.
+        """
         response = await client.get("/api/cameras/invalid-uuid-format-too-long-to-be-valid")
         # 404 for camera not found
         assert response.status_code == 404
-        assert "application/json" in response.headers.get("content-type", "")
+        content_type = response.headers.get("content-type", "")
+        # Accept both standard JSON and RFC 7807 Problem Details content types
+        assert "application/json" in content_type or "application/problem+json" in content_type
 
     @pytest.mark.asyncio
     async def test_error_response_has_detail(self, client, mock_redis):
