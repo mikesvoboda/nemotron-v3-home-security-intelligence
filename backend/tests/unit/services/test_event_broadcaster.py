@@ -2286,3 +2286,265 @@ async def test_start_records_circuit_breaker_failure_on_error() -> None:
 
     # Circuit breaker should have recorded the failure
     # (State may not change immediately, but failure should be recorded)
+
+
+# ==============================================================================
+# Tests for Camera Status Broadcasting (NEM-1982)
+# ==============================================================================
+
+
+def _create_valid_camera_status_data(
+    camera_id: str = "front_door",
+    camera_name: str = "Front Door Camera",
+    status: str = "offline",
+    previous_status: str | None = "online",
+    changed_at: str = "2026-01-09T10:30:00Z",
+    reason: str | None = None,
+) -> dict[str, Any]:
+    """Create valid camera status data for testing."""
+    return {
+        "camera_id": camera_id,
+        "camera_name": camera_name,
+        "status": status,
+        "previous_status": previous_status,
+        "changed_at": changed_at,
+        "reason": reason,
+    }
+
+
+@pytest.mark.asyncio
+async def test_broadcast_camera_status_validates_message() -> None:
+    """Test broadcast_camera_status validates message format before broadcasting.
+
+    NEM-1982: Test that valid camera status messages are validated and broadcast.
+    """
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    # Valid camera status message
+    camera_status_data = _create_valid_camera_status_data()
+
+    count = await broadcaster.broadcast_camera_status(camera_status_data)
+
+    assert count == 1
+    redis.publish.assert_awaited_once()
+    channel, published = redis.publish.await_args.args
+    assert channel == broadcaster.channel_name
+    assert published["type"] == "camera_status"
+    assert published["data"]["camera_id"] == "front_door"
+    assert published["data"]["status"] == "offline"
+
+
+@pytest.mark.asyncio
+async def test_broadcast_camera_status_wraps_missing_type() -> None:
+    """Test broadcast_camera_status wraps data without type field.
+
+    NEM-1982: When status data is passed directly without envelope, it should be wrapped.
+    """
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    # Data without type field (should be wrapped)
+    camera_status_data = _create_valid_camera_status_data()
+
+    count = await broadcaster.broadcast_camera_status(camera_status_data)
+
+    assert count == 1
+    redis.publish.assert_awaited_once()
+    _, published = redis.publish.await_args.args
+    assert published["type"] == "camera_status"
+
+
+@pytest.mark.asyncio
+async def test_broadcast_camera_status_validates_all_status_types() -> None:
+    """Test broadcast_camera_status accepts all valid camera status types.
+
+    NEM-1982: Verify all valid status values are accepted.
+    """
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    for status_type in ["online", "offline", "error", "unknown"]:
+        redis.publish.reset_mock()
+        status_data = _create_valid_camera_status_data(status=status_type)
+        count = await broadcaster.broadcast_camera_status(status_data)
+        assert count == 1
+        _, published = redis.publish.await_args.args
+        assert published["data"]["status"] == status_type
+
+
+@pytest.mark.asyncio
+async def test_broadcast_camera_status_accepts_null_previous_status() -> None:
+    """Test broadcast_camera_status accepts null previous_status.
+
+    NEM-1982: previous_status is optional and can be null for initial status reports.
+    """
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    # previous_status is nullable for initial status
+    status_data = _create_valid_camera_status_data(previous_status=None)
+
+    count = await broadcaster.broadcast_camera_status(status_data)
+
+    assert count == 1
+    redis.publish.assert_awaited_once()
+    _, published = redis.publish.await_args.args
+    assert published["data"]["previous_status"] is None
+
+
+@pytest.mark.asyncio
+async def test_broadcast_camera_status_accepts_reason() -> None:
+    """Test broadcast_camera_status includes optional reason field.
+
+    NEM-1982: reason field provides context for status changes.
+    """
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    status_data = _create_valid_camera_status_data(reason="No activity detected for 5 minutes")
+
+    count = await broadcaster.broadcast_camera_status(status_data)
+
+    assert count == 1
+    redis.publish.assert_awaited_once()
+    _, published = redis.publish.await_args.args
+    assert published["data"]["reason"] == "No activity detected for 5 minutes"
+
+
+@pytest.mark.asyncio
+async def test_broadcast_camera_status_rejects_invalid_status(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test broadcast_camera_status rejects invalid status values.
+
+    NEM-1982: Invalid status values should be rejected with appropriate error.
+    """
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    # Invalid status value
+    invalid_data = _create_valid_camera_status_data(status="invalid_status")
+
+    with pytest.raises(ValueError, match="Invalid camera status message format"):
+        await broadcaster.broadcast_camera_status(invalid_data)
+
+    assert "Camera status message validation failed" in caplog.text
+    redis.publish.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_broadcast_camera_status_rejects_missing_required_fields(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test broadcast_camera_status rejects messages missing required fields.
+
+    NEM-1982: camera_id, camera_name, status, and changed_at are required.
+    """
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    # Missing required fields
+    invalid_data = {
+        "camera_id": "front_door",
+        # Missing camera_name, status, changed_at
+    }
+
+    with pytest.raises(ValueError, match="Invalid camera status message format"):
+        await broadcaster.broadcast_camera_status(invalid_data)
+
+    redis.publish.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_broadcast_camera_status_handles_publish_error(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test broadcast_camera_status handles publish errors gracefully.
+
+    NEM-1982: Redis publish errors should be logged and re-raised.
+    """
+    redis = _FakeRedis()
+    redis.publish = AsyncMock(side_effect=RuntimeError("Redis publish failed"))
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    valid_data = _create_valid_camera_status_data()
+
+    with pytest.raises(RuntimeError, match="Redis publish failed"):
+        await broadcaster.broadcast_camera_status(valid_data)
+
+    assert "Failed to broadcast camera status" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_broadcast_camera_status_normalizes_status_case() -> None:
+    """Test broadcast_camera_status normalizes status case.
+
+    NEM-1982: Uppercase status values should be normalized to lowercase.
+    """
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    # Test with uppercase - should be normalized
+    status_data = _create_valid_camera_status_data(status="OFFLINE")
+
+    count = await broadcaster.broadcast_camera_status(status_data)
+
+    assert count == 1
+    redis.publish.assert_awaited_once()
+    _, published = redis.publish.await_args.args
+    # Should be normalized to lowercase
+    assert published["data"]["status"] == "offline"
+
+
+@pytest.mark.asyncio
+async def test_broadcast_camera_status_with_envelope() -> None:
+    """Test broadcast_camera_status with pre-wrapped envelope format.
+
+    NEM-1982: Messages already wrapped with type field should work correctly.
+    """
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    # Already wrapped with type
+    wrapped_data = {
+        "type": "camera_status",
+        "data": _create_valid_camera_status_data(),
+    }
+
+    count = await broadcaster.broadcast_camera_status(wrapped_data)
+
+    assert count == 1
+    redis.publish.assert_awaited_once()
+    _, published = redis.publish.await_args.args
+    assert published["type"] == "camera_status"
+    assert published["data"]["camera_id"] == "front_door"
+
+
+@pytest.mark.asyncio
+async def test_broadcast_camera_status_logs_debug_info(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test broadcast_camera_status logs debug information.
+
+    NEM-1982: Debug logs should include camera_id and status for troubleshooting.
+    """
+    caplog.set_level(logging.DEBUG)
+
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    status_data = _create_valid_camera_status_data(
+        camera_id="test_cam",
+        status="error",
+    )
+
+    await broadcaster.broadcast_camera_status(status_data)
+
+    # Check debug log includes relevant info
+    assert any(
+        "Camera status broadcast" in record.message
+        and "test_cam" in record.message
+        and "error" in record.message
+        for record in caplog.records
+    )

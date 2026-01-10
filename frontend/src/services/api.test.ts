@@ -2,6 +2,8 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
 import {
   ApiError,
+  type ProblemDetails,
+  isProblemDetails,
   buildWebSocketUrl,
   buildWebSocketUrlInternal,
   buildWebSocketOptions,
@@ -294,6 +296,20 @@ function createMockErrorResponse(status: number, statusText: string, detail?: st
   } as Response;
 }
 
+/**
+ * Creates a mock RFC 7807 Problem Details error response.
+ * @param problemDetails - The RFC 7807 Problem Details object
+ */
+function createMockProblemDetailsResponse(problemDetails: ProblemDetails): Response {
+  return {
+    ok: false,
+    status: problemDetails.status,
+    statusText: problemDetails.title,
+    json: () => Promise.resolve(problemDetails),
+    headers: new Headers({ 'Content-Type': 'application/problem+json' }),
+  } as Response;
+}
+
 describe('buildWebSocketUrlInternal', () => {
   describe('without VITE_WS_BASE_URL', () => {
     it('builds WS URL from window.location.host when wsBaseUrl not set', () => {
@@ -535,6 +551,75 @@ describe('getApiKey', () => {
   });
 });
 
+describe('isProblemDetails', () => {
+  it('returns true for valid RFC 7807 ProblemDetails', () => {
+    const problemDetails: ProblemDetails = {
+      type: 'about:blank',
+      title: 'Not Found',
+      status: 404,
+      detail: "Camera 'front_door' does not exist",
+      instance: '/api/cameras/front_door',
+    };
+    expect(isProblemDetails(problemDetails)).toBe(true);
+  });
+
+  it('returns true for minimal ProblemDetails (required fields only)', () => {
+    const minimal = {
+      type: 'about:blank',
+      title: 'Not Found',
+      status: 404,
+    };
+    expect(isProblemDetails(minimal)).toBe(true);
+  });
+
+  it('returns true for ProblemDetails with extension members', () => {
+    const extended = {
+      type: 'https://example.com/errors/validation',
+      title: 'Validation Error',
+      status: 422,
+      detail: 'Invalid email format',
+      instance: '/api/users',
+      errors: [{ field: 'email', message: 'Invalid format' }],
+    };
+    expect(isProblemDetails(extended)).toBe(true);
+  });
+
+  it('returns false for null', () => {
+    expect(isProblemDetails(null)).toBe(false);
+  });
+
+  it('returns false for undefined', () => {
+    expect(isProblemDetails(undefined)).toBe(false);
+  });
+
+  it('returns false for primitive values', () => {
+    expect(isProblemDetails('string')).toBe(false);
+    expect(isProblemDetails(123)).toBe(false);
+    expect(isProblemDetails(true)).toBe(false);
+  });
+
+  it('returns false for objects missing type', () => {
+    expect(isProblemDetails({ title: 'Error', status: 400 })).toBe(false);
+  });
+
+  it('returns false for objects missing title', () => {
+    expect(isProblemDetails({ type: 'about:blank', status: 400 })).toBe(false);
+  });
+
+  it('returns false for objects missing status', () => {
+    expect(isProblemDetails({ type: 'about:blank', title: 'Error' })).toBe(false);
+  });
+
+  it('returns false for objects with wrong type for status', () => {
+    expect(isProblemDetails({ type: 'about:blank', title: 'Error', status: '400' })).toBe(false);
+  });
+
+  it('returns false for legacy error format', () => {
+    expect(isProblemDetails({ detail: 'Not found' })).toBe(false);
+    expect(isProblemDetails({ error: { code: 'NOT_FOUND', message: 'Not found' } })).toBe(false);
+  });
+});
+
 describe('ApiError', () => {
   it('creates an error with status and message', () => {
     const error = new ApiError(404, 'Not Found');
@@ -550,6 +635,274 @@ describe('ApiError', () => {
     expect(error.status).toBe(400);
     expect(error.message).toBe('Bad Request');
     expect(error.data).toEqual(data);
+  });
+
+  describe('RFC 7807 ProblemDetails support', () => {
+    it('creates an error with full ProblemDetails', () => {
+      const problemDetails: ProblemDetails = {
+        type: 'about:blank',
+        title: 'Not Found',
+        status: 404,
+        detail: "Camera 'front_door' does not exist",
+        instance: '/api/cameras/front_door',
+      };
+      const error = new ApiError(404, problemDetails.detail!, problemDetails, problemDetails);
+
+      expect(error.problemDetails).toEqual(problemDetails);
+      expect(error.type).toBe('about:blank');
+      expect(error.title).toBe('Not Found');
+      expect(error.detail).toBe("Camera 'front_door' does not exist");
+      expect(error.instance).toBe('/api/cameras/front_door');
+    });
+
+    it('provides default values when no ProblemDetails', () => {
+      const error = new ApiError(500, 'Internal Server Error');
+
+      expect(error.problemDetails).toBeUndefined();
+      expect(error.type).toBe('about:blank');
+      expect(error.title).toBe('Internal Server Error'); // Falls back to message
+      expect(error.detail).toBe('Internal Server Error'); // Falls back to message
+      expect(error.instance).toBeUndefined();
+    });
+
+    it('handles ProblemDetails with extension members', () => {
+      const problemDetails: ProblemDetails = {
+        type: 'https://api.example.com/errors/validation',
+        title: 'Validation Error',
+        status: 422,
+        detail: 'Multiple validation errors',
+        instance: '/api/users',
+        errors: [
+          { field: 'email', message: 'Invalid email format' },
+          { field: 'name', message: 'Name is required' },
+        ],
+      };
+      const error = new ApiError(422, problemDetails.detail!, problemDetails, problemDetails);
+
+      expect(error.problemDetails).toEqual(problemDetails);
+      expect(error.problemDetails?.errors).toBeDefined();
+      expect((error.problemDetails as ProblemDetails & { errors: unknown[] }).errors).toHaveLength(
+        2
+      );
+    });
+
+    it('uses title when detail is not provided', () => {
+      const problemDetails: ProblemDetails = {
+        type: 'about:blank',
+        title: 'Bad Request',
+        status: 400,
+      };
+      const error = new ApiError(400, problemDetails.title, problemDetails, problemDetails);
+
+      expect(error.message).toBe('Bad Request');
+      expect(error.detail).toBe('Bad Request'); // Falls back to message since no detail
+    });
+  });
+});
+
+describe('RFC 7807 Error Handling Integration', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    clearInFlightRequests();
+  });
+
+  it('extracts full ProblemDetails from 404 response', async () => {
+    const problemDetails: ProblemDetails = {
+      type: 'about:blank',
+      title: 'Not Found',
+      status: 404,
+      detail: "Camera 'front_door' does not exist",
+      instance: '/api/cameras/front_door',
+    };
+
+    vi.mocked(fetch).mockResolvedValueOnce(createMockProblemDetailsResponse(problemDetails));
+
+    let caughtError: ApiError | null = null;
+    try {
+      await fetchCamera('front_door');
+    } catch (e) {
+      caughtError = e as ApiError;
+    }
+
+    expect(caughtError).toBeInstanceOf(ApiError);
+    expect(caughtError!.status).toBe(404);
+    expect(caughtError!.message).toBe("Camera 'front_door' does not exist");
+    expect(caughtError!.problemDetails).toBeDefined();
+    expect(caughtError!.type).toBe('about:blank');
+    expect(caughtError!.title).toBe('Not Found');
+    expect(caughtError!.detail).toBe("Camera 'front_door' does not exist");
+    expect(caughtError!.instance).toBe('/api/cameras/front_door');
+  });
+
+  it('extracts ProblemDetails from 400 validation error', async () => {
+    const problemDetails: ProblemDetails = {
+      type: 'about:blank',
+      title: 'Bad Request',
+      status: 400,
+      detail: 'Invalid camera configuration',
+      instance: '/api/cameras',
+    };
+
+    vi.mocked(fetch).mockResolvedValueOnce(createMockProblemDetailsResponse(problemDetails));
+
+    let caughtError: ApiError | null = null;
+    try {
+      await createCamera({
+        name: 'Test',
+        folder_path: '/invalid/path',
+        status: 'online',
+      });
+    } catch (e) {
+      caughtError = e as ApiError;
+    }
+
+    expect(caughtError).toBeInstanceOf(ApiError);
+    expect(caughtError!.problemDetails).toBeDefined();
+    expect(caughtError!.title).toBe('Bad Request');
+    expect(caughtError!.detail).toBe('Invalid camera configuration');
+  });
+
+  it('extracts ProblemDetails from 500 server error', async () => {
+    vi.useFakeTimers();
+
+    const problemDetails: ProblemDetails = {
+      type: 'about:blank',
+      title: 'Internal Server Error',
+      status: 500,
+      detail: 'Database connection failed',
+      instance: '/api/cameras',
+    };
+
+    vi.mocked(fetch).mockResolvedValue(createMockProblemDetailsResponse(problemDetails));
+
+    let caughtError: ApiError | null = null;
+    const promise = fetchCameras().catch((e) => {
+      caughtError = e as ApiError;
+    });
+
+    await vi.runAllTimersAsync();
+    await promise;
+
+    expect(caughtError).toBeInstanceOf(ApiError);
+    expect(caughtError!.problemDetails).toBeDefined();
+    expect(caughtError!.title).toBe('Internal Server Error');
+    expect(caughtError!.detail).toBe('Database connection failed');
+
+    vi.useRealTimers();
+  });
+
+  it('uses title when detail is not provided in response', async () => {
+    const problemDetails: ProblemDetails = {
+      type: 'about:blank',
+      title: 'Conflict',
+      status: 409,
+      instance: '/api/cameras/cam-1',
+    };
+
+    vi.mocked(fetch).mockResolvedValueOnce(createMockProblemDetailsResponse(problemDetails));
+
+    let caughtError: ApiError | null = null;
+    try {
+      await deleteCamera('cam-1');
+    } catch (e) {
+      caughtError = e as ApiError;
+    }
+
+    expect(caughtError).toBeInstanceOf(ApiError);
+    expect(caughtError!.message).toBe('Conflict'); // Uses title when no detail
+    expect(caughtError!.problemDetails).toBeDefined();
+  });
+
+  it('handles ProblemDetails with extension members', async () => {
+    interface ValidationProblemDetails extends ProblemDetails {
+      errors: Array<{ field: string; message: string; value?: unknown }>;
+    }
+
+    const problemDetails: ValidationProblemDetails = {
+      type: 'https://api.example.com/errors/validation',
+      title: 'Unprocessable Content',
+      status: 422,
+      detail: 'Validation failed',
+      instance: '/api/cameras',
+      errors: [
+        { field: 'name', message: 'Name is required' },
+        { field: 'folder_path', message: 'Invalid path format', value: '/bad path' },
+      ],
+    };
+
+    vi.mocked(fetch).mockResolvedValueOnce(
+      createMockProblemDetailsResponse(problemDetails as ProblemDetails)
+    );
+
+    let caughtError: ApiError | null = null;
+    try {
+      await createCamera({
+        name: '',
+        folder_path: '/bad path',
+        status: 'online',
+      });
+    } catch (e) {
+      caughtError = e as ApiError;
+    }
+
+    expect(caughtError).toBeInstanceOf(ApiError);
+    expect(caughtError!.problemDetails).toBeDefined();
+
+    // Extension members should be accessible
+    const pd = caughtError!.problemDetails as ValidationProblemDetails;
+    expect(pd.errors).toBeDefined();
+    expect(pd.errors).toHaveLength(2);
+    expect(pd.errors[0].field).toBe('name');
+  });
+
+  it('maintains backward compatibility with legacy error format', async () => {
+    // Legacy format: { detail: "Error message" }
+    vi.mocked(fetch).mockResolvedValueOnce(
+      createMockErrorResponse(404, 'Not Found', 'Camera not found')
+    );
+
+    let caughtError: ApiError | null = null;
+    try {
+      await fetchCamera('invalid-id');
+    } catch (e) {
+      caughtError = e as ApiError;
+    }
+
+    expect(caughtError).toBeInstanceOf(ApiError);
+    expect(caughtError!.status).toBe(404);
+    expect(caughtError!.message).toBe('Camera not found');
+    // Legacy format doesn't have ProblemDetails
+    expect(caughtError!.problemDetails).toBeUndefined();
+    // But fallback getters should still work
+    expect(caughtError!.type).toBe('about:blank');
+    expect(caughtError!.title).toBe('Camera not found'); // Falls back to message
+  });
+
+  it('handles non-JSON error responses', async () => {
+    // Non-5xx errors don't trigger retry, so we use a 4xx error to avoid retry logic
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+      statusText: 'Bad Request',
+      json: () => Promise.reject(new Error('Not JSON')),
+      headers: new Headers(),
+    } as Response);
+
+    let caughtError: ApiError | null = null;
+    try {
+      await fetchCamera('cam-1');
+    } catch (e) {
+      caughtError = e as ApiError;
+    }
+
+    expect(caughtError).toBeInstanceOf(ApiError);
+    expect(caughtError!.status).toBe(400);
+    expect(caughtError!.message).toBe('HTTP 400: Bad Request');
+    expect(caughtError!.problemDetails).toBeUndefined();
   });
 });
 

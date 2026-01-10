@@ -220,7 +220,7 @@ test.describe('Create Alert Rule', () => {
     await expect(alertRulesPage.nameError).toBeVisible();
   });
 
-  test('shows validation error for single character name', async () => {
+  test('allows single character name (backend min_length=1)', async ({ page }) => {
     await alertRulesPage.openAddRuleModal();
 
     await alertRulesPage.fillRuleForm({
@@ -228,10 +228,14 @@ test.describe('Create Alert Rule', () => {
       severity: 'medium',
     });
 
+    // Single character name is valid (backend min_length=1)
+    // Mock successful API response
+    const responsePromise = page.waitForResponse('**/api/alerts/rules');
     await alertRulesPage.submitRuleForm();
+    await responsePromise;
 
-    // Should show validation error (name must be at least 2 characters)
-    await expect(alertRulesPage.nameError).toBeVisible();
+    // Should not show validation error - form should close on success
+    await expect(alertRulesPage.ruleModal).not.toBeVisible({ timeout: 5000 });
   });
 });
 

@@ -692,9 +692,9 @@ describe('SystemMonitoringPage', () => {
         expect(screen.getByTestId('system-monitoring-page')).toBeInTheDocument();
       });
 
-      // All should be called
+      // All should be called at least once (BackgroundJobsPanel also calls fetchTelemetry)
       expect(api.fetchStats).toHaveBeenCalledTimes(1);
-      expect(api.fetchTelemetry).toHaveBeenCalledTimes(1);
+      expect(api.fetchTelemetry).toHaveBeenCalled();
       expect(api.fetchGPUStats).toHaveBeenCalledTimes(1);
     });
   });

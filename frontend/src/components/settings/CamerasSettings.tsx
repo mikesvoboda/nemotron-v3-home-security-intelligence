@@ -13,6 +13,11 @@ import {
   type CameraUpdate,
 } from '../../services/api';
 import { formatRelativeTime, isTimestampStale } from '../../utils/time';
+import {
+  validateCameraFolderPath,
+  validateCameraName,
+  VALIDATION_LIMITS,
+} from '../../utils/validation';
 import { ZoneEditor } from '../zones';
 
 /** Valid camera status values matching backend CameraStatus enum */
@@ -83,22 +88,19 @@ export default function CamerasSettings() {
   const validateForm = (data: CameraFormData): CameraFormErrors => {
     const errors: CameraFormErrors = {};
 
-    if (!data.name || data.name.trim().length < 2) {
-      errors.name = 'Name must be at least 2 characters';
+    // Validate name using centralized validation (aligned with backend)
+    const nameResult = validateCameraName(data.name);
+    if (!nameResult.isValid) {
+      errors.name = nameResult.error;
     }
 
-    if (!data.folder_path || data.folder_path.trim().length === 0) {
-      errors.folder_path = 'Folder path is required';
-    } else if (!isValidPath(data.folder_path)) {
-      errors.folder_path = 'Folder path must be a valid path format';
+    // Validate folder path using centralized validation (aligned with backend)
+    const pathResult = validateCameraFolderPath(data.folder_path);
+    if (!pathResult.isValid) {
+      errors.folder_path = pathResult.error;
     }
 
     return errors;
-  };
-
-  const isValidPath = (path: string): boolean => {
-    // Basic path validation - must start with / or contain path separators
-    return /^[/.][a-zA-Z0-9_\-/.]+$/.test(path.trim());
   };
 
   const handleOpenAddModal = () => {
@@ -463,6 +465,7 @@ export default function CamerasSettings() {
                         data-testid="camera-name-input"
                         value={formData.name}
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        maxLength={VALIDATION_LIMITS.camera.name.maxLength}
                         className={clsx(
                           'mt-1 block w-full rounded-lg border bg-card px-3 py-2 text-text-primary focus:outline-none focus:ring-2',
                           formErrors.name
@@ -489,6 +492,7 @@ export default function CamerasSettings() {
                         id="folder_path"
                         value={formData.folder_path}
                         onChange={(e) => setFormData({ ...formData, folder_path: e.target.value })}
+                        maxLength={VALIDATION_LIMITS.camera.folderPath.maxLength}
                         className={clsx(
                           'mt-1 block w-full rounded-lg border bg-card px-3 py-2 font-mono text-sm text-text-primary focus:outline-none focus:ring-2',
                           formErrors.folder_path

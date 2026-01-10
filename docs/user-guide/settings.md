@@ -94,8 +94,8 @@ All configured cameras appear in a table showing:
 
 #### Validation Rules
 
-- Name must be at least 2 characters
-- Folder path must be a valid path starting with `/` or `.`
+- Name is required (1-255 characters)
+- Folder path must be a valid path (1-500 characters, no path traversal)
 
 ### Editing a Camera
 

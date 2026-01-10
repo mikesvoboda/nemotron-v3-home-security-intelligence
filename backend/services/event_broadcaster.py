@@ -18,6 +18,8 @@ from fastapi import WebSocket
 from pydantic import ValidationError
 
 from backend.api.schemas.websocket import (
+    WebSocketCameraStatusData,
+    WebSocketCameraStatusMessage,
     WebSocketEventData,
     WebSocketEventMessage,
     WebSocketSceneChangeData,
@@ -568,6 +570,74 @@ class EventBroadcaster:
             raise
         except Exception as e:
             logger.error(f"Failed to broadcast scene change: {e}")
+            raise
+
+    async def broadcast_camera_status(self, camera_status_data: dict[str, Any]) -> int:
+        """Broadcast a camera status change message to all connected WebSocket clients via Redis pub/sub.
+
+        This method validates the camera status data against the WebSocketCameraStatusMessage schema
+        before publishing to Redis. This ensures all messages sent to clients conform
+        to the expected format for camera status updates.
+
+        Camera status change events are broadcast when:
+        - Camera comes online (status = "online")
+        - Camera goes offline (status = "offline")
+        - Camera enters error state (status = "error")
+        - Camera status is updated for any reason
+
+        Args:
+            camera_status_data: Camera status data dictionary containing status details
+
+        Returns:
+            Number of Redis subscribers that received the message
+
+        Raises:
+            ValueError: If the message fails schema validation
+
+        Example camera_status_data:
+            {
+                "type": "camera_status",
+                "data": {
+                    "camera_id": "front_door",
+                    "camera_name": "Front Door Camera",
+                    "status": "offline",
+                    "previous_status": "online",
+                    "changed_at": "2026-01-09T10:30:00Z",
+                    "reason": "No activity detected for 5 minutes"
+                }
+            }
+        """
+        try:
+            # Ensure the message has the correct structure
+            if "type" not in camera_status_data:
+                camera_status_data = {"type": "camera_status", "data": camera_status_data}
+
+            # Validate message format before broadcasting
+            # This ensures all outgoing messages conform to the WebSocketCameraStatusMessage schema
+            try:
+                # Extract the data portion and validate it
+                data_dict = camera_status_data.get("data", {})
+                validated_data = WebSocketCameraStatusData.model_validate(data_dict)
+                validated_message = WebSocketCameraStatusMessage(data=validated_data)
+                # Use the validated message for broadcasting
+                broadcast_data = validated_message.model_dump(mode="json")
+            except ValidationError as ve:
+                logger.error(f"Camera status message validation failed: {ve}")
+                raise ValueError(f"Invalid camera status message format: {ve}") from ve
+
+            # Publish validated message to Redis channel
+            subscriber_count = await self._redis.publish(self._channel_name, broadcast_data)
+            logger.debug(
+                f"Camera status broadcast to Redis: {broadcast_data.get('type')} "
+                f"(camera_id: {data_dict.get('camera_id')}, status: {data_dict.get('status')}, "
+                f"subscribers: {subscriber_count})"
+            )
+            return subscriber_count
+        except ValueError:
+            # Re-raise validation errors
+            raise
+        except Exception as e:
+            logger.error(f"Failed to broadcast camera status: {e}")
             raise
 
     def _enter_degraded_mode(self) -> None:

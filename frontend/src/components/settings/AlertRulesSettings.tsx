@@ -36,6 +36,13 @@ import {
   type RuleTestResponse,
   type SeverityMetadataResponse,
 } from '../../services/api';
+import {
+  validateAlertRuleName,
+  validateCooldownSeconds,
+  validateMinConfidence,
+  validateRiskThreshold,
+  VALIDATION_LIMITS,
+} from '../../utils/validation';
 import SeverityConfigPanel from '../system/SeverityConfigPanel';
 
 // Days of the week for schedule selector
@@ -266,20 +273,22 @@ export default function AlertRulesSettings() {
   const validateForm = (data: AlertRuleFormData): FormErrors => {
     const errors: FormErrors = {};
 
-    if (!data.name || data.name.trim().length < 2) {
-      errors.name = 'Name must be at least 2 characters';
+    // Validate name using centralized validation (aligned with backend)
+    const nameResult = validateAlertRuleName(data.name);
+    if (!nameResult.isValid) {
+      errors.name = nameResult.error;
     }
 
-    if (data.risk_threshold !== null) {
-      if (data.risk_threshold < 0 || data.risk_threshold > 100) {
-        errors.risk_threshold = 'Risk threshold must be between 0 and 100';
-      }
+    // Validate risk threshold using centralized validation (aligned with backend)
+    const riskResult = validateRiskThreshold(data.risk_threshold);
+    if (!riskResult.isValid) {
+      errors.risk_threshold = riskResult.error;
     }
 
-    if (data.min_confidence !== null) {
-      if (data.min_confidence < 0 || data.min_confidence > 1) {
-        errors.min_confidence = 'Confidence must be between 0 and 1';
-      }
+    // Validate min confidence using centralized validation (aligned with backend)
+    const confidenceResult = validateMinConfidence(data.min_confidence);
+    if (!confidenceResult.isValid) {
+      errors.min_confidence = confidenceResult.error;
     }
 
     if (data.schedule_enabled) {
@@ -288,8 +297,10 @@ export default function AlertRulesSettings() {
       }
     }
 
-    if (data.cooldown_seconds < 0) {
-      errors.cooldown_seconds = 'Cooldown cannot be negative';
+    // Validate cooldown using centralized validation (aligned with backend)
+    const cooldownResult = validateCooldownSeconds(data.cooldown_seconds);
+    if (!cooldownResult.isValid) {
+      errors.cooldown_seconds = cooldownResult.error;
     }
 
     return errors;
@@ -742,6 +753,7 @@ export default function AlertRulesSettings() {
                             id="name"
                             value={formData.name}
                             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                            maxLength={VALIDATION_LIMITS.alertRule.name.maxLength}
                             className={clsx(
                               'mt-1 block w-full rounded-lg border bg-card px-3 py-2 text-text-primary focus:outline-none focus:ring-2',
                               formErrors.name

@@ -1,6 +1,8 @@
 import { clsx } from 'clsx';
 import { useEffect, useState } from 'react';
 
+import { validateZoneColor, validateZoneName, VALIDATION_LIMITS } from '../../utils/validation';
+
 import type { ZoneShape, ZoneType } from '../../types/generated';
 
 export interface ZoneFormData {
@@ -77,7 +79,7 @@ export default function ZoneForm({
     ...DEFAULT_FORM_DATA,
     ...initialData,
   });
-  const [errors, setErrors] = useState<{ name?: string }>({});
+  const [errors, setErrors] = useState<{ name?: string; color?: string }>({});
 
   // Update form when initial data changes
   useEffect(() => {
@@ -87,12 +89,18 @@ export default function ZoneForm({
   }, [initialData]);
 
   const validateForm = (): boolean => {
-    const newErrors: { name?: string } = {};
+    const newErrors: { name?: string; color?: string } = {};
 
-    if (!formData.name.trim()) {
-      newErrors.name = 'Name is required';
-    } else if (formData.name.trim().length < 2) {
-      newErrors.name = 'Name must be at least 2 characters';
+    // Validate name using centralized validation (aligned with backend)
+    const nameResult = validateZoneName(formData.name);
+    if (!nameResult.isValid) {
+      newErrors.name = nameResult.error;
+    }
+
+    // Validate color format (aligned with backend hex color pattern)
+    const colorResult = validateZoneColor(formData.color);
+    if (!colorResult.isValid) {
+      newErrors.color = colorResult.error;
     }
 
     setErrors(newErrors);
@@ -121,6 +129,7 @@ export default function ZoneForm({
           id="zone-name"
           value={formData.name}
           onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          maxLength={VALIDATION_LIMITS.zone.name.maxLength}
           className={clsx(
             'mt-1 block w-full rounded-lg border bg-card px-3 py-2 text-text-primary focus:outline-none focus:ring-2',
             errors.name
