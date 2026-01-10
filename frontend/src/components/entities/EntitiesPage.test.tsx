@@ -364,11 +364,12 @@ describe('EntitiesPage', () => {
     it('displays entity type counts', async () => {
       renderWithRouter(<EntitiesPage />);
 
+      // Wait for stats to appear (more reliable than just waiting for loading to disappear)
       await waitFor(() => {
-        expect(screen.queryByText('Loading entities...')).not.toBeInTheDocument();
+        expect(screen.getByText('1 person')).toBeInTheDocument();
       });
 
-      // Check for counts (1 person, 1 vehicle in mock data)
+      // Both stats should be present
       expect(screen.getByText('1 person')).toBeInTheDocument();
       expect(screen.getByText('1 vehicle')).toBeInTheDocument();
     });

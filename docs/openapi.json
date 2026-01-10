@@ -228,9 +228,7 @@
       "AlertResponse": {
         "description": "Schema for alert response.",
         "example": {
-          "channels": [
-            "pushover"
-          ],
+          "channels": ["pushover"],
           "created_at": "2025-12-28T12:00:00Z",
           "dedup_key": "front_door:person:entry_zone",
           "delivered_at": "2025-12-28T12:00:30Z",
@@ -1089,12 +1087,7 @@
       },
       "AlertStatus": {
         "description": "Alert status values.",
-        "enum": [
-          "pending",
-          "delivered",
-          "acknowledged",
-          "dismissed"
-        ],
+        "enum": ["pending", "delivered", "acknowledged", "dismissed"],
         "title": "AlertStatus",
         "type": "string"
       },
@@ -14601,9 +14594,7 @@
           }
         },
         "summary": "Acknowledge Alert",
-        "tags": [
-          "alerts"
-        ]
+        "tags": ["alerts"]
       }
     },
     "/api/alerts/{alert_id}/dismiss": {
@@ -14653,9 +14644,7 @@
           }
         },
         "summary": "Dismiss Alert",
-        "tags": [
-          "alerts"
-        ]
+        "tags": ["alerts"]
       }
     },
     "/api/analytics/camera-uptime": {
