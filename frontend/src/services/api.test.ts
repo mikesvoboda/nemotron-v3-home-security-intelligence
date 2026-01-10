@@ -252,7 +252,7 @@ const mockLogStats: LogStats = {
 };
 
 const mockLogsResponse: LogsResponse = {
-  logs: [
+  items: [
     {
       id: 1,
       timestamp: '2025-01-01T10:00:00Z',
@@ -262,11 +262,14 @@ const mockLogsResponse: LogsResponse = {
       source: 'frontend',
     },
   ],
-  count: 1,
-  limit: 50,
-  offset: 0,
-  next_cursor: null,
-  has_more: false,
+  pagination: {
+    total: 1,
+    limit: 50,
+    offset: null,
+    cursor: null,
+    next_cursor: null,
+    has_more: false,
+  },
 };
 
 // Helper to create mock fetch response
@@ -1587,7 +1590,7 @@ describe('Logs API', () => {
       expect(fetch).toHaveBeenCalledWith('/api/logs', {
         headers: { 'Content-Type': 'application/json' },
       });
-      expect(result.logs).toHaveLength(1);
+      expect(result.items).toHaveLength(1);
     });
 
     it('fetches logs with all query params', async () => {

@@ -10126,15 +10126,12 @@ export interface components {
         };
         /**
          * LogsResponse
-         * @description Schema for paginated logs response.
+         * @description Schema for paginated logs response (NEM-2075 pagination envelope).
          *
-         *     Supports both cursor-based pagination (recommended) and offset pagination (deprecated).
-         *     Cursor-based pagination offers better performance for large datasets.
+         *     Uses standardized pagination envelope with 'items' and 'pagination' fields.
+         *     Supports both cursor-based pagination (recommended) and offset pagination.
          * @example {
-         *       "count": 1,
-         *       "has_more": false,
-         *       "limit": 50,
-         *       "logs": [
+         *       "items": [
          *         {
          *           "camera_id": "front_door",
          *           "component": "backend.services.detector",
@@ -10148,47 +10145,22 @@ export interface components {
          *           "timestamp": "2026-01-03T10:30:00Z"
          *         }
          *       ],
-         *       "next_cursor": "eyJpZCI6IDEsICJjcmVhdGVkX2F0IjogIjIwMjYtMDEtMDNUMTA6MzA6MDBaIn0=", // pragma: allowlist secret
-         *       "offset": 0
+         *       "pagination": {
+         *         "has_more": false,
+         *         "limit": 50,
+         *         "next_cursor": "eyJpZCI6IDEsICJjcmVhdGVkX2F0IjogIjIwMjYtMDEtMDNUMTA6MzA6MDBaIn0=", // pragma: allowlist secret
+         *         "total": 1
+         *       }
          *     }
          */
         LogsResponse: {
             /**
-             * Count
-             * @description Total count matching filters
-             */
-            count: number;
-            /**
-             * Deprecation Warning
-             * @description Warning when using deprecated offset pagination
-             */
-            deprecation_warning?: string | null;
-            /**
-             * Has More
-             * @description Whether more results are available
-             * @default false
-             */
-            has_more: boolean;
-            /**
-             * Limit
-             * @description Page size (1-1000)
-             */
-            limit: number;
-            /**
-             * Logs
+             * Items
              * @description List of log entries
              */
-            logs: components["schemas"]["LogEntry"][];
-            /**
-             * Next Cursor
-             * @description Cursor for next page (use this instead of offset)
-             */
-            next_cursor?: string | null;
-            /**
-             * Offset
-             * @description Page offset (0-based, deprecated)
-             */
-            offset: number;
+            items: components["schemas"]["LogEntry"][];
+            /** @description Pagination metadata */
+            pagination: components["schemas"]["PaginationInfo"];
         };
         /**
          * MediaErrorResponse
@@ -10945,6 +10917,43 @@ export interface components {
              * @description Total detections in date range
              */
             total_detections: number;
+        };
+        /**
+         * PaginationInfo
+         * @description Pagination metadata for list responses (NEM-2075).
+         */
+        PaginationInfo: {
+            /**
+             * Cursor
+             * @description Current cursor position
+             */
+            cursor?: string | null;
+            /**
+             * Has More
+             * @description Whether more results are available
+             * @default false
+             */
+            has_more: boolean;
+            /**
+             * Limit
+             * @description Page size (1-1000)
+             */
+            limit: number;
+            /**
+             * Next Cursor
+             * @description Cursor for next page
+             */
+            next_cursor?: string | null;
+            /**
+             * Offset
+             * @description Page offset (0-based, for offset pagination)
+             */
+            offset?: number | null;
+            /**
+             * Total
+             * @description Total count matching filters
+             */
+            total: number;
         };
         /**
          * PaginationMeta

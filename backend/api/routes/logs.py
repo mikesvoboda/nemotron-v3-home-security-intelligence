@@ -12,6 +12,7 @@ from backend.api.schemas.logs import (
     LogEntry,
     LogsResponse,
     LogStats,
+    PaginationInfo,
 )
 from backend.api.validators import validate_date_range
 from backend.core.database import escape_ilike_pattern, get_db
@@ -145,17 +146,23 @@ async def list_logs(  # noqa: PLR0912
         cursor_data_next = CursorData(id=last_log.id, created_at=last_log.timestamp)
         next_cursor = encode_cursor(cursor_data_next)
 
-    # Get deprecation warning if using offset without cursor
+    # Get deprecation warning if using offset without cursor (logged but not returned in new format)
     deprecation_warning = get_deprecation_warning(cursor, offset)
+    if deprecation_warning:
+        import logging
+
+        logging.getLogger(__name__).warning(deprecation_warning)
 
     return LogsResponse(
-        logs=logs,
-        count=total_count,
-        limit=limit,
-        offset=offset,
-        next_cursor=next_cursor,
-        has_more=has_more,
-        deprecation_warning=deprecation_warning,
+        items=logs,
+        pagination=PaginationInfo(
+            total=total_count,
+            limit=limit,
+            offset=offset if offset else None,
+            cursor=cursor,
+            next_cursor=next_cursor,
+            has_more=has_more,
+        ),
     )
 
 
