@@ -2,16 +2,20 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach, type Mock } from 'vitest';
 
 import SystemMonitoringPage from './SystemMonitoringPage';
+import * as useFullHealthQueryHook from '../../hooks/useFullHealthQuery';
 import * as useHealthStatusHook from '../../hooks/useHealthStatus';
-import * as useModelZooStatusHook from '../../hooks/useModelZooStatus';
+import * as useModelZooStatusQueryHook from '../../hooks/useModelZooStatusQuery';
 import * as usePerformanceMetricsHook from '../../hooks/usePerformanceMetrics';
 import * as api from '../../services/api';
 
 // Mock the API and hooks
 vi.mock('../../services/api');
+vi.mock('../../hooks/useFullHealthQuery');
 vi.mock('../../hooks/useHealthStatus');
 vi.mock('../../hooks/usePerformanceMetrics');
-vi.mock('../../hooks/useModelZooStatus');
+vi.mock('../../hooks/useModelZooStatusQuery');
+
+// Note: QueryClientProvider wrapper available if needed for future tests
 
 // Mock child components
 vi.mock('../dashboard/GpuStats', () => ({
@@ -171,17 +175,6 @@ describe('SystemMonitoringPage', () => {
     inference_fps: 30,
   };
 
-  const mockHealthResponse = {
-    status: 'healthy',
-    services: {
-      database: { status: 'healthy', message: 'Connected' },
-      redis: { status: 'healthy', message: 'Connected' },
-      rtdetr_server: { status: 'healthy', message: 'Running' },
-      nemotron_server: { status: 'degraded', message: 'High latency' },
-    },
-    timestamp: '2025-01-01T12:00:00Z',
-  };
-
   beforeEach(() => {
     vi.clearAllMocks();
 
@@ -230,14 +223,41 @@ describe('SystemMonitoringPage', () => {
     // SeverityConfigPanel was moved to Settings page (NEM-1142)
     // fetchSeverityMetadata mock removed
 
-
-    (useHealthStatusHook.useHealthStatus as Mock).mockReturnValue({
-      health: mockHealthResponse,
-      services: mockHealthResponse.services,
+    // Setup mock for useFullHealthQuery (replaces useHealthStatus)
+    (useFullHealthQueryHook.useFullHealthQuery as Mock).mockReturnValue({
+      data: {
+        status: 'healthy',
+        ready: true,
+        message: 'System healthy',
+        postgres: { name: 'database', status: 'healthy', message: 'Connected', details: null },
+        redis: { name: 'redis', status: 'healthy', message: 'Connected', details: null },
+        ai_services: [
+          { name: 'rtdetr', display_name: 'RT-DETR', status: 'healthy', url: 'http://localhost:8001', response_time_ms: 100, error: null, circuit_state: 'closed', last_check: '2025-01-01T12:00:00Z' },
+          { name: 'nemotron', display_name: 'Nemotron', status: 'degraded', url: 'http://localhost:8002', response_time_ms: 500, error: 'High latency', circuit_state: 'closed', last_check: '2025-01-01T12:00:00Z' },
+        ],
+        circuit_breakers: { total: 2, open: 0, half_open: 0, closed: 2, breakers: {} },
+        workers: [],
+        timestamp: '2025-01-01T12:00:00Z',
+        version: '0.1.0',
+      },
       overallStatus: 'healthy',
+      aiServices: [
+        { name: 'rtdetr', display_name: 'RT-DETR', status: 'healthy', url: 'http://localhost:8001', response_time_ms: 100, error: null, circuit_state: 'closed', last_check: '2025-01-01T12:00:00Z' },
+        { name: 'nemotron', display_name: 'Nemotron', status: 'degraded', url: 'http://localhost:8002', response_time_ms: 500, error: 'High latency', circuit_state: 'closed', last_check: '2025-01-01T12:00:00Z' },
+      ],
+      postgres: { name: 'database', status: 'healthy', message: 'Connected', details: null },
+      redis: { name: 'redis', status: 'healthy', message: 'Connected', details: null },
+      workers: [],
       isLoading: false,
+      isRefetching: false,
       error: null,
-      refresh: vi.fn(),
+      isStale: false,
+      isReady: true,
+      statusMessage: 'System healthy',
+      circuitBreakers: { total: 2, open: 0, half_open: 0, closed: 2, breakers: {} },
+      criticalUnhealthyCount: 0,
+      nonCriticalUnhealthyCount: 0,
+      refetch: vi.fn(),
     });
 
     // Setup mock for usePerformanceMetrics
@@ -271,13 +291,13 @@ describe('SystemMonitoringPage', () => {
       setTimeRange: vi.fn(),
     });
 
-    // Setup mock for useModelZooStatus
-    (useModelZooStatusHook.useModelZooStatus as Mock).mockReturnValue({
+    // Setup mock for useModelZooStatusQuery
+    (useModelZooStatusQueryHook.useModelZooStatusQuery as Mock).mockReturnValue({
       models: [],
       vramStats: null,
       isLoading: false,
       error: null,
-      refresh: vi.fn(),
+      refetch: vi.fn(),
     });
   });
 

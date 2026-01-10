@@ -3,27 +3,48 @@ import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import CamerasSettings from './CamerasSettings';
-import * as api from '../../services/api';
+import * as hooks from '../../hooks';
 
+import type { UseCameraMutationReturn } from '../../hooks';
 import type { Camera } from '../../services/api';
 
-// Mock the API module
-vi.mock('../../services/api', () => ({
-  fetchCameras: vi.fn(),
-  createCamera: vi.fn(),
-  updateCamera: vi.fn(),
-  deleteCamera: vi.fn(),
-  ApiError: class ApiError extends Error {
-    constructor(
-      public status: number,
-      message: string,
-      public data?: unknown
-    ) {
-      super(message);
-      this.name = 'ApiError';
-    }
-  },
+// Mock the hooks module
+vi.mock('../../hooks', () => ({
+  useCamerasQuery: vi.fn(),
+  useCameraMutation: vi.fn(),
 }));
+
+// Helper to create mock mutation object - uses type assertions for TanStack Query compatibility
+function createMockMutation<TData, _TError, TVariables>(overrides?: {
+  isPending?: boolean;
+  mutateAsync?: (variables: TVariables) => Promise<TData>;
+}) {
+  return {
+    mutate: vi.fn(),
+    mutateAsync: overrides?.mutateAsync ?? vi.fn().mockResolvedValue(undefined),
+    isPending: (overrides?.isPending ?? false) as false,
+    isSuccess: false as const,
+    isError: false as const,
+    isIdle: true as const,
+    data: undefined,
+    error: null,
+    reset: vi.fn(),
+    context: undefined,
+    failureCount: 0,
+    failureReason: null,
+    status: 'idle' as const,
+    variables: undefined,
+    submittedAt: 0,
+    isPaused: false,
+  };
+}
+
+// Default mock values - uses type assertion for TanStack Query mock compatibility
+const createDefaultMutationReturn = (): UseCameraMutationReturn => ({
+  createMutation: createMockMutation<Camera, Error, { name: string; folder_path: string; status: string }>() as UseCameraMutationReturn['createMutation'],
+  updateMutation: createMockMutation<Camera, Error, { id: string; data: { name?: string; folder_path?: string; status?: string } }>() as UseCameraMutationReturn['updateMutation'],
+  deleteMutation: createMockMutation<void, Error, string>() as UseCameraMutationReturn['deleteMutation'],
+});
 
 describe('CamerasSettings', () => {
   const mockCameras: Camera[] = [
@@ -45,8 +66,12 @@ describe('CamerasSettings', () => {
     },
   ];
 
+  let mockMutationReturn: UseCameraMutationReturn;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    mockMutationReturn = createDefaultMutationReturn();
+    vi.mocked(hooks.useCameraMutation).mockReturnValue(mockMutationReturn);
   });
 
   afterEach(() => {
@@ -55,16 +80,26 @@ describe('CamerasSettings', () => {
 
   describe('Initial Load', () => {
     it('should show loading state initially', () => {
-      vi.mocked(api.fetchCameras).mockImplementation(
-        () => new Promise(() => {}) // Never resolves
-      );
+      vi.mocked(hooks.useCamerasQuery).mockReturnValue({
+        cameras: [],
+        isLoading: true,
+        isRefetching: false,
+        error: null,
+        refetch: vi.fn(),
+      });
 
       render(<CamerasSettings />);
       expect(screen.getByText('Loading cameras...')).toBeInTheDocument();
     });
 
     it('should load and display cameras', async () => {
-      vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
+      vi.mocked(hooks.useCamerasQuery).mockReturnValue({
+        cameras: mockCameras,
+        isLoading: false,
+        isRefetching: false,
+        error: null,
+        refetch: vi.fn(),
+      });
 
       render(<CamerasSettings />);
 
@@ -78,7 +113,13 @@ describe('CamerasSettings', () => {
     });
 
     it('should display camera status with correct styling', async () => {
-      vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
+      vi.mocked(hooks.useCamerasQuery).mockReturnValue({
+        cameras: mockCameras,
+        isLoading: false,
+        isRefetching: false,
+        error: null,
+        refetch: vi.fn(),
+      });
 
       render(<CamerasSettings />);
 
@@ -92,7 +133,13 @@ describe('CamerasSettings', () => {
     });
 
     it('should display last seen timestamp', async () => {
-      vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
+      vi.mocked(hooks.useCamerasQuery).mockReturnValue({
+        cameras: mockCameras,
+        isLoading: false,
+        isRefetching: false,
+        error: null,
+        refetch: vi.fn(),
+      });
 
       render(<CamerasSettings />);
 
@@ -105,7 +152,13 @@ describe('CamerasSettings', () => {
     });
 
     it('should display error state when fetch fails', async () => {
-      vi.mocked(api.fetchCameras).mockRejectedValue(new Error('Network error'));
+      vi.mocked(hooks.useCamerasQuery).mockReturnValue({
+        cameras: [],
+        isLoading: false,
+        isRefetching: false,
+        error: new Error('Network error'),
+        refetch: vi.fn(),
+      });
 
       render(<CamerasSettings />);
 
@@ -118,9 +171,16 @@ describe('CamerasSettings', () => {
     });
 
     it('should retry loading cameras on error', async () => {
-      vi.mocked(api.fetchCameras)
-        .mockRejectedValueOnce(new Error('Network error'))
-        .mockResolvedValueOnce(mockCameras);
+      const mockRefetch = vi.fn().mockResolvedValue({ data: mockCameras });
+
+      // Start with error state
+      vi.mocked(hooks.useCamerasQuery).mockReturnValue({
+        cameras: [],
+        isLoading: false,
+        isRefetching: false,
+        error: new Error('Network error'),
+        refetch: mockRefetch,
+      });
 
       render(<CamerasSettings />);
 
@@ -131,13 +191,17 @@ describe('CamerasSettings', () => {
       const user = userEvent.setup();
       await user.click(screen.getByText('Try again'));
 
-      await waitFor(() => {
-        expect(screen.getByText('Front Door')).toBeInTheDocument();
-      });
+      expect(mockRefetch).toHaveBeenCalled();
     });
 
     it('should show empty state when no cameras exist', async () => {
-      vi.mocked(api.fetchCameras).mockResolvedValue([]);
+      vi.mocked(hooks.useCamerasQuery).mockReturnValue({
+        cameras: [],
+        isLoading: false,
+        isRefetching: false,
+        error: null,
+        refetch: vi.fn(),
+      });
 
       render(<CamerasSettings />);
 
@@ -151,7 +215,13 @@ describe('CamerasSettings', () => {
 
   describe('Add Camera', () => {
     beforeEach(() => {
-      vi.mocked(api.fetchCameras).mockResolvedValue([]);
+      vi.mocked(hooks.useCamerasQuery).mockReturnValue({
+        cameras: [],
+        isLoading: false,
+        isRefetching: false,
+        error: null,
+        refetch: vi.fn(),
+      });
     });
 
     it('should open add camera modal', async () => {
@@ -209,8 +279,11 @@ describe('CamerasSettings', () => {
         last_seen_at: null,
       };
 
-      vi.mocked(api.fetchCameras).mockResolvedValueOnce([]).mockResolvedValueOnce([newCamera]);
-      vi.mocked(api.createCamera).mockResolvedValue(newCamera);
+      const mockCreateMutateAsync = vi.fn().mockResolvedValue(newCamera);
+      mockMutationReturn.createMutation = createMockMutation({
+        mutateAsync: mockCreateMutateAsync,
+      });
+      vi.mocked(hooks.useCameraMutation).mockReturnValue(mockMutationReturn);
 
       render(<CamerasSettings />);
 
@@ -237,7 +310,7 @@ describe('CamerasSettings', () => {
       await user.click(submitButton);
 
       await waitFor(() => {
-        expect(api.createCamera).toHaveBeenCalledWith(
+        expect(mockCreateMutateAsync).toHaveBeenCalledWith(
           expect.objectContaining({ name: 'A' })
         );
       });
@@ -284,10 +357,23 @@ describe('CamerasSettings', () => {
         last_seen_at: null,
       };
 
-      vi.mocked(api.fetchCameras).mockResolvedValueOnce([]).mockResolvedValueOnce([newCamera]);
-      vi.mocked(api.createCamera).mockResolvedValue(newCamera);
+      const mockCreateMutateAsync = vi.fn().mockResolvedValue(newCamera);
+      mockMutationReturn.createMutation = createMockMutation({
+        mutateAsync: mockCreateMutateAsync,
+      });
+      vi.mocked(hooks.useCameraMutation).mockReturnValue(mockMutationReturn);
 
-      render(<CamerasSettings />);
+      // After successful creation, the query will return the new camera
+      let camerasState: Camera[] = [];
+      vi.mocked(hooks.useCamerasQuery).mockImplementation(() => ({
+        cameras: camerasState,
+        isLoading: false,
+        isRefetching: false,
+        error: null,
+        refetch: vi.fn(),
+      }));
+
+      const { rerender } = render(<CamerasSettings />);
 
       await waitFor(() => {
         expect(screen.getByText('No cameras configured')).toBeInTheDocument();
@@ -312,12 +398,16 @@ describe('CamerasSettings', () => {
       await user.click(submitButton);
 
       await waitFor(() => {
-        expect(api.createCamera).toHaveBeenCalledWith({
+        expect(mockCreateMutateAsync).toHaveBeenCalledWith({
           name: 'Test Camera',
           folder_path: '/export/foscam/test',
           status: 'online',
         });
       });
+
+      // Simulate cache update after mutation
+      camerasState = [newCamera];
+      rerender(<CamerasSettings />);
 
       await waitFor(() => {
         expect(screen.getByText('Test Camera')).toBeInTheDocument();
@@ -325,8 +415,11 @@ describe('CamerasSettings', () => {
     });
 
     it('should handle create error', async () => {
-      vi.mocked(api.fetchCameras).mockResolvedValue([]);
-      vi.mocked(api.createCamera).mockRejectedValue(new Error('Creation failed'));
+      const mockCreateMutateAsync = vi.fn().mockRejectedValue(new Error('Creation failed'));
+      mockMutationReturn.createMutation = createMockMutation({
+        mutateAsync: mockCreateMutateAsync,
+      });
+      vi.mocked(hooks.useCameraMutation).mockReturnValue(mockMutationReturn);
 
       render(<CamerasSettings />);
 
@@ -382,7 +475,13 @@ describe('CamerasSettings', () => {
 
   describe('Edit Camera', () => {
     beforeEach(() => {
-      vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
+      vi.mocked(hooks.useCamerasQuery).mockReturnValue({
+        cameras: mockCameras,
+        isLoading: false,
+        isRefetching: false,
+        error: null,
+        refetch: vi.fn(),
+      });
     });
 
     it('should open edit modal with camera data', async () => {
@@ -411,12 +510,23 @@ describe('CamerasSettings', () => {
         folder_path: '/export/foscam/updated',
       };
 
-      vi.mocked(api.fetchCameras)
-        .mockResolvedValueOnce(mockCameras)
-        .mockResolvedValueOnce([updatedCamera, mockCameras[1]]);
-      vi.mocked(api.updateCamera).mockResolvedValue(updatedCamera);
+      const mockUpdateMutateAsync = vi.fn().mockResolvedValue(updatedCamera);
+      mockMutationReturn.updateMutation = createMockMutation({
+        mutateAsync: mockUpdateMutateAsync,
+      });
+      vi.mocked(hooks.useCameraMutation).mockReturnValue(mockMutationReturn);
 
-      render(<CamerasSettings />);
+      // Track cameras state for cache simulation
+      let camerasState = mockCameras;
+      vi.mocked(hooks.useCamerasQuery).mockImplementation(() => ({
+        cameras: camerasState,
+        isLoading: false,
+        isRefetching: false,
+        error: null,
+        refetch: vi.fn(),
+      }));
+
+      const { rerender } = render(<CamerasSettings />);
 
       await waitFor(() => {
         expect(screen.getByText('Front Door')).toBeInTheDocument();
@@ -442,12 +552,19 @@ describe('CamerasSettings', () => {
       await user.click(submitButton);
 
       await waitFor(() => {
-        expect(api.updateCamera).toHaveBeenCalledWith('cam-1', {
-          name: 'Updated Camera',
-          folder_path: '/export/foscam/updated',
-          status: 'online',
+        expect(mockUpdateMutateAsync).toHaveBeenCalledWith({
+          id: 'cam-1',
+          data: {
+            name: 'Updated Camera',
+            folder_path: '/export/foscam/updated',
+            status: 'online',
+          },
         });
       });
+
+      // Simulate cache update after mutation
+      camerasState = [updatedCamera, mockCameras[1]];
+      rerender(<CamerasSettings />);
 
       await waitFor(() => {
         expect(screen.getByText('Updated Camera')).toBeInTheDocument();
@@ -455,7 +572,11 @@ describe('CamerasSettings', () => {
     });
 
     it('should handle update error', async () => {
-      vi.mocked(api.updateCamera).mockRejectedValue(new Error('Update failed'));
+      const mockUpdateMutateAsync = vi.fn().mockRejectedValue(new Error('Update failed'));
+      mockMutationReturn.updateMutation = createMockMutation({
+        mutateAsync: mockUpdateMutateAsync,
+      });
+      vi.mocked(hooks.useCameraMutation).mockReturnValue(mockMutationReturn);
 
       render(<CamerasSettings />);
 
@@ -486,7 +607,13 @@ describe('CamerasSettings', () => {
 
   describe('Delete Camera', () => {
     beforeEach(() => {
-      vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
+      vi.mocked(hooks.useCamerasQuery).mockReturnValue({
+        cameras: mockCameras,
+        isLoading: false,
+        isRefetching: false,
+        error: null,
+        refetch: vi.fn(),
+      });
     });
 
     it('should open delete confirmation modal', async () => {
@@ -510,12 +637,23 @@ describe('CamerasSettings', () => {
     });
 
     it('should delete camera successfully', async () => {
-      vi.mocked(api.fetchCameras)
-        .mockResolvedValueOnce(mockCameras)
-        .mockResolvedValueOnce([mockCameras[1]]);
-      vi.mocked(api.deleteCamera).mockResolvedValue(undefined);
+      const mockDeleteMutateAsync = vi.fn().mockResolvedValue(undefined);
+      mockMutationReturn.deleteMutation = createMockMutation({
+        mutateAsync: mockDeleteMutateAsync,
+      });
+      vi.mocked(hooks.useCameraMutation).mockReturnValue(mockMutationReturn);
 
-      render(<CamerasSettings />);
+      // Track cameras state for cache simulation
+      let camerasState = mockCameras;
+      vi.mocked(hooks.useCamerasQuery).mockImplementation(() => ({
+        cameras: camerasState,
+        isLoading: false,
+        isRefetching: false,
+        error: null,
+        refetch: vi.fn(),
+      }));
+
+      const { rerender } = render(<CamerasSettings />);
 
       await waitFor(() => {
         expect(screen.getByText('Front Door')).toBeInTheDocument();
@@ -533,8 +671,12 @@ describe('CamerasSettings', () => {
       await user.click(confirmButton);
 
       await waitFor(() => {
-        expect(api.deleteCamera).toHaveBeenCalledWith('cam-1');
+        expect(mockDeleteMutateAsync).toHaveBeenCalledWith('cam-1');
       });
+
+      // Simulate cache update after mutation
+      camerasState = [mockCameras[1]];
+      rerender(<CamerasSettings />);
 
       await waitFor(() => {
         expect(screen.queryByText('Front Door')).not.toBeInTheDocument();
@@ -542,7 +684,11 @@ describe('CamerasSettings', () => {
     });
 
     it('should handle delete error', async () => {
-      vi.mocked(api.deleteCamera).mockRejectedValue(new Error('Delete failed'));
+      const mockDeleteMutateAsync = vi.fn().mockRejectedValue(new Error('Delete failed'));
+      mockMutationReturn.deleteMutation = createMockMutation({
+        mutateAsync: mockDeleteMutateAsync,
+      });
+      vi.mocked(hooks.useCameraMutation).mockReturnValue(mockMutationReturn);
 
       render(<CamerasSettings />);
 
@@ -567,6 +713,12 @@ describe('CamerasSettings', () => {
     });
 
     it('should cancel delete operation', async () => {
+      const mockDeleteMutateAsync = vi.fn();
+      mockMutationReturn.deleteMutation = createMockMutation({
+        mutateAsync: mockDeleteMutateAsync,
+      });
+      vi.mocked(hooks.useCameraMutation).mockReturnValue(mockMutationReturn);
+
       render(<CamerasSettings />);
 
       await waitFor(() => {
@@ -597,13 +749,19 @@ describe('CamerasSettings', () => {
         expect(deleteHeadings).toHaveLength(0);
       });
 
-      expect(api.deleteCamera).not.toHaveBeenCalled();
+      expect(mockDeleteMutateAsync).not.toHaveBeenCalled();
     });
   });
 
   describe('Accessibility', () => {
     beforeEach(() => {
-      vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
+      vi.mocked(hooks.useCamerasQuery).mockReturnValue({
+        cameras: mockCameras,
+        isLoading: false,
+        isRefetching: false,
+        error: null,
+        refetch: vi.fn(),
+      });
     });
 
     it('should have proper aria-labels for action buttons', async () => {
@@ -723,7 +881,13 @@ describe('CamerasSettings', () => {
 
   describe('Status Handling', () => {
     it('should allow changing camera status', async () => {
-      vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
+      vi.mocked(hooks.useCamerasQuery).mockReturnValue({
+        cameras: mockCameras,
+        isLoading: false,
+        isRefetching: false,
+        error: null,
+        refetch: vi.fn(),
+      });
 
       render(<CamerasSettings />);
 

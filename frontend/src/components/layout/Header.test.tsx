@@ -3,7 +3,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
 import Header from './Header';
 import * as useConnectionStatusModule from '../../hooks/useConnectionStatus';
-import * as useHealthStatusModule from '../../hooks/useHealthStatus';
+import * as useHealthStatusQueryModule from '../../hooks/useHealthStatusQuery';
 
 import type { ChannelStatus, ConnectionState } from '../../hooks/useWebSocketStatus';
 
@@ -83,14 +83,16 @@ describe('Header', () => {
       createMockConnectionStatus('disconnected', 'disconnected', null)
     );
 
-    // Mock useHealthStatus to return loading state
-    vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
-      health: null,
+    // Mock useHealthStatusQuery to return loading state
+    vi.spyOn(useHealthStatusQueryModule, 'useHealthStatusQuery').mockReturnValue({
+      data: undefined,
       isLoading: true,
+      isRefetching: false,
       error: null,
+      isStale: false,
       overallStatus: null,
       services: {},
-      refresh: vi.fn(),
+      refetch: vi.fn().mockResolvedValue({}),
     });
   });
 
@@ -147,13 +149,15 @@ describe('Header', () => {
       createMockConnectionStatus('connected', 'connected', systemStatus)
     );
 
-    vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
-      health: null,
+    vi.spyOn(useHealthStatusQueryModule, 'useHealthStatusQuery').mockReturnValue({
+      data: undefined,
       isLoading: true,
+      isRefetching: false,
       error: null,
+      isStale: false,
       overallStatus: null,
       services: {},
-      refresh: vi.fn(),
+      refetch: vi.fn().mockResolvedValue({}),
     });
 
     render(<Header />);
@@ -182,8 +186,8 @@ describe('Header', () => {
       createMockConnectionStatus('connected', 'connected', systemStatus)
     );
 
-    vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
-      health: {
+    vi.spyOn(useHealthStatusQueryModule, 'useHealthStatusQuery').mockReturnValue({
+      data: {
         status: 'healthy',
         services: {
           database: { status: 'healthy', message: 'OK' },
@@ -191,12 +195,14 @@ describe('Header', () => {
         timestamp: '2025-12-23T10:00:00Z',
       },
       isLoading: false,
+      isRefetching: false,
       error: null,
+      isStale: false,
       overallStatus: 'healthy',
       services: {
         database: { status: 'healthy', message: 'OK' },
       },
-      refresh: vi.fn(),
+      refetch: vi.fn().mockResolvedValue({}),
     });
 
     render(<Header />);
@@ -275,13 +281,15 @@ describe('Header', () => {
       createMockConnectionStatus('connected', 'connected', systemStatus)
     );
 
-    vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
-      health: null,
+    vi.spyOn(useHealthStatusQueryModule, 'useHealthStatusQuery').mockReturnValue({
+      data: undefined,
       isLoading: false,
+      isRefetching: false,
       error: null,
+      isStale: false,
       overallStatus: 'healthy',
       services: {},
-      refresh: vi.fn(),
+      refetch: vi.fn().mockResolvedValue({}),
     });
 
     render(<Header />);
@@ -310,13 +318,15 @@ describe('Header', () => {
       createMockConnectionStatus('connected', 'connected', systemStatus)
     );
 
-    vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
-      health: null,
+    vi.spyOn(useHealthStatusQueryModule, 'useHealthStatusQuery').mockReturnValue({
+      data: undefined,
       isLoading: false,
+      isRefetching: false,
       error: null,
+      isStale: false,
       overallStatus: 'healthy',
       services: {},
-      refresh: vi.fn(),
+      refetch: vi.fn().mockResolvedValue({}),
     });
 
     render(<Header />);
@@ -345,13 +355,15 @@ describe('Header', () => {
       createMockConnectionStatus('connected', 'connected', systemStatus)
     );
 
-    vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
-      health: null,
+    vi.spyOn(useHealthStatusQueryModule, 'useHealthStatusQuery').mockReturnValue({
+      data: undefined,
       isLoading: false,
+      isRefetching: false,
       error: null,
+      isStale: false,
       overallStatus: 'healthy',
       services: {},
-      refresh: vi.fn(),
+      refetch: vi.fn().mockResolvedValue({}),
     });
 
     render(<Header />);
@@ -380,13 +392,15 @@ describe('Header', () => {
       createMockConnectionStatus('connected', 'connected', systemStatus)
     );
 
-    vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
-      health: null,
+    vi.spyOn(useHealthStatusQueryModule, 'useHealthStatusQuery').mockReturnValue({
+      data: undefined,
       isLoading: false,
+      isRefetching: false,
       error: null,
+      isStale: false,
       overallStatus: 'degraded',
       services: {},
-      refresh: vi.fn(),
+      refetch: vi.fn().mockResolvedValue({}),
     });
 
     render(<Header />);
@@ -415,13 +429,15 @@ describe('Header', () => {
       createMockConnectionStatus('connected', 'connected', systemStatus)
     );
 
-    vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
-      health: null,
+    vi.spyOn(useHealthStatusQueryModule, 'useHealthStatusQuery').mockReturnValue({
+      data: undefined,
       isLoading: false,
+      isRefetching: false,
       error: null,
+      isStale: false,
       overallStatus: 'unhealthy',
       services: {},
-      refresh: vi.fn(),
+      refetch: vi.fn().mockResolvedValue({}),
     });
 
     render(<Header />);
@@ -450,13 +466,15 @@ describe('Header', () => {
       createMockConnectionStatus('connected', 'connected', systemStatus)
     );
 
-    vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
-      health: null,
+    vi.spyOn(useHealthStatusQueryModule, 'useHealthStatusQuery').mockReturnValue({
+      data: undefined,
       isLoading: false,
+      isRefetching: false,
       error: null,
+      isStale: false,
       overallStatus: 'degraded',
       services: {},
-      refresh: vi.fn(),
+      refetch: vi.fn().mockResolvedValue({}),
     });
 
     render(<Header />);
@@ -486,13 +504,15 @@ describe('Header', () => {
       createMockConnectionStatus('connected', 'connected', systemStatus)
     );
 
-    vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
-      health: null,
+    vi.spyOn(useHealthStatusQueryModule, 'useHealthStatusQuery').mockReturnValue({
+      data: undefined,
       isLoading: false,
+      isRefetching: false,
       error: null,
+      isStale: false,
       overallStatus: 'unhealthy',
       services: {},
-      refresh: vi.fn(),
+      refetch: vi.fn().mockResolvedValue({}),
     });
 
     render(<Header />);
@@ -522,13 +542,15 @@ describe('Header', () => {
       createMockConnectionStatus('connected', 'connected', systemStatus)
     );
 
-    vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
-      health: null,
+    vi.spyOn(useHealthStatusQueryModule, 'useHealthStatusQuery').mockReturnValue({
+      data: undefined,
       isLoading: false,
+      isRefetching: false,
       error: null,
+      isStale: false,
       overallStatus: 'healthy',
       services: {},
-      refresh: vi.fn(),
+      refetch: vi.fn().mockResolvedValue({}),
     });
 
     render(<Header />);
@@ -559,8 +581,8 @@ describe('Header', () => {
         createMockConnectionStatus('connected', 'connected', systemStatus)
       );
 
-      vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
-        health: {
+      vi.spyOn(useHealthStatusQueryModule, 'useHealthStatusQuery').mockReturnValue({
+        data: {
           status: 'healthy',
           services: {
             database: { status: 'healthy', message: 'OK' },
@@ -570,14 +592,16 @@ describe('Header', () => {
           timestamp: '2025-12-23T10:00:00Z',
         },
         isLoading: false,
+        isRefetching: false,
         error: null,
+        isStale: false,
         overallStatus: 'healthy',
         services: {
           database: { status: 'healthy', message: 'OK' },
           redis: { status: 'healthy', message: 'Connected' },
           ai: { status: 'healthy', message: 'Running' },
         },
-        refresh: vi.fn(),
+        refetch: vi.fn().mockResolvedValue({}),
       });
 
       render(<Header />);
@@ -623,8 +647,8 @@ describe('Header', () => {
         createMockConnectionStatus('connected', 'connected', systemStatus)
       );
 
-      vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
-        health: {
+      vi.spyOn(useHealthStatusQueryModule, 'useHealthStatusQuery').mockReturnValue({
+        data: {
           status: 'healthy',
           services: {
             database: { status: 'healthy', message: 'OK' },
@@ -632,12 +656,14 @@ describe('Header', () => {
           timestamp: '2025-12-23T10:00:00Z',
         },
         isLoading: false,
+        isRefetching: false,
         error: null,
+        isStale: false,
         overallStatus: 'healthy',
         services: {
           database: { status: 'healthy', message: 'OK' },
         },
-        refresh: vi.fn(),
+        refetch: vi.fn().mockResolvedValue({}),
       });
 
       render(<Header />);
@@ -687,13 +713,15 @@ describe('Header', () => {
         createMockConnectionStatus('connected', 'connected', systemStatus)
       );
 
-      vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
-        health: null,
+      vi.spyOn(useHealthStatusQueryModule, 'useHealthStatusQuery').mockReturnValue({
+        data: undefined,
         isLoading: false,
+        isRefetching: false,
         error: null,
+        isStale: false,
         overallStatus: 'healthy',
         services: {},
-        refresh: vi.fn(),
+        refetch: vi.fn().mockResolvedValue({}),
       });
 
       render(<Header />);
@@ -727,8 +755,8 @@ describe('Header', () => {
         createMockConnectionStatus('connected', 'connected', systemStatus)
       );
 
-      vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
-        health: {
+      vi.spyOn(useHealthStatusQueryModule, 'useHealthStatusQuery').mockReturnValue({
+        data: {
           status: 'degraded',
           services: {
             database: { status: 'healthy', message: 'OK' },
@@ -738,14 +766,16 @@ describe('Header', () => {
           timestamp: '2025-12-23T10:00:00Z',
         },
         isLoading: false,
+        isRefetching: false,
         error: null,
+        isStale: false,
         overallStatus: 'degraded',
         services: {
           database: { status: 'healthy', message: 'OK' },
           redis: { status: 'unhealthy', message: 'Connection failed' },
           ai: { status: 'degraded', message: 'High latency' },
         },
-        refresh: vi.fn(),
+        refetch: vi.fn().mockResolvedValue({}),
       });
 
       render(<Header />);
@@ -787,13 +817,15 @@ describe('Header', () => {
         createMockConnectionStatus('connected', 'connected', systemStatus)
       );
 
-      vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
-        health: null,
+      vi.spyOn(useHealthStatusQueryModule, 'useHealthStatusQuery').mockReturnValue({
+        data: undefined,
         isLoading: false,
+        isRefetching: false,
         error: null,
+        isStale: false,
         overallStatus: 'healthy',
         services: {},
-        refresh: vi.fn(),
+        refetch: vi.fn().mockResolvedValue({}),
       });
 
       render(<Header />);
@@ -826,8 +858,8 @@ describe('Header', () => {
         createMockConnectionStatus('connected', 'connected', systemStatus)
       );
 
-      vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
-        health: {
+      vi.spyOn(useHealthStatusQueryModule, 'useHealthStatusQuery').mockReturnValue({
+        data: {
           status: 'degraded',
           services: {
             database: { status: 'unhealthy', message: 'Error' },
@@ -835,12 +867,14 @@ describe('Header', () => {
           timestamp: '2025-12-23T10:00:00Z',
         },
         isLoading: false,
+        isRefetching: false,
         error: null,
+        isStale: false,
         overallStatus: 'degraded', // API says degraded
         services: {
           database: { status: 'unhealthy', message: 'Error' },
         },
-        refresh: vi.fn(),
+        refetch: vi.fn().mockResolvedValue({}),
       });
 
       render(<Header />);
@@ -873,13 +907,15 @@ describe('Header', () => {
         createMockConnectionStatus('connected', 'connected', systemStatus)
       );
 
-      vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
-        health: null,
+      vi.spyOn(useHealthStatusQueryModule, 'useHealthStatusQuery').mockReturnValue({
+        data: undefined,
         isLoading: false,
-        error: 'Failed to fetch',
+        isRefetching: false,
+        error: new Error('Failed to fetch'),
+        isStale: false,
         overallStatus: null, // API failed
         services: {},
-        refresh: vi.fn(),
+        refetch: vi.fn().mockResolvedValue({}),
       });
 
       render(<Header />);
@@ -914,13 +950,15 @@ describe('Header', () => {
         createMockConnectionStatus('connected', 'connected', systemStatus)
       );
 
-      vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
-        health: null,
+      vi.spyOn(useHealthStatusQueryModule, 'useHealthStatusQuery').mockReturnValue({
+        data: undefined,
         isLoading: false,
+        isRefetching: false,
         error: null,
+        isStale: false,
         overallStatus: 'healthy',
         services: {},
-        refresh: vi.fn(),
+        refetch: vi.fn().mockResolvedValue({}),
       });
 
       render(<Header />);
@@ -950,13 +988,15 @@ describe('Header', () => {
         createMockConnectionStatus('connected', 'connected', systemStatus)
       );
 
-      vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
-        health: null,
+      vi.spyOn(useHealthStatusQueryModule, 'useHealthStatusQuery').mockReturnValue({
+        data: undefined,
         isLoading: false,
+        isRefetching: false,
         error: null,
+        isStale: false,
         overallStatus: 'healthy',
         services: {},
-        refresh: vi.fn(),
+        refetch: vi.fn().mockResolvedValue({}),
       });
 
       render(<Header />);
@@ -975,13 +1015,15 @@ describe('Header', () => {
         createMockConnectionStatus('disconnected', 'disconnected', null)
       );
 
-      vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
-        health: null,
+      vi.spyOn(useHealthStatusQueryModule, 'useHealthStatusQuery').mockReturnValue({
+        data: undefined,
         isLoading: false,
+        isRefetching: false,
         error: null,
+        isStale: false,
         overallStatus: null,
         services: {},
-        refresh: vi.fn(),
+        refetch: vi.fn().mockResolvedValue({}),
       });
 
       render(<Header />);
@@ -1010,13 +1052,15 @@ describe('Header', () => {
         createMockConnectionStatus('connected', 'connected', systemStatus)
       );
 
-      vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
-        health: null,
+      vi.spyOn(useHealthStatusQueryModule, 'useHealthStatusQuery').mockReturnValue({
+        data: undefined,
         isLoading: true,
+        isRefetching: false,
         error: null,
+        isStale: false,
         overallStatus: null,
         services: {},
-        refresh: vi.fn(),
+        refetch: vi.fn().mockResolvedValue({}),
       });
 
       render(<Header />);
@@ -1049,8 +1093,8 @@ describe('Header', () => {
         createMockConnectionStatus('connected', 'connected', systemStatus)
       );
 
-      vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
-        health: {
+      vi.spyOn(useHealthStatusQueryModule, 'useHealthStatusQuery').mockReturnValue({
+        data: {
           status: 'healthy',
           services: {
             database: { status: 'healthy', message: 'OK' },
@@ -1058,12 +1102,14 @@ describe('Header', () => {
           timestamp: '2025-12-23T10:00:00Z',
         },
         isLoading: false,
+        isRefetching: false,
         error: null,
+        isStale: false,
         overallStatus: 'healthy',
         services: {
           database: { status: 'healthy', message: 'OK' },
         },
-        refresh: vi.fn(),
+        refetch: vi.fn().mockResolvedValue({}),
       });
 
       render(<Header />);
@@ -1122,8 +1168,8 @@ describe('Header', () => {
         createMockConnectionStatus('connected', 'connected', systemStatus)
       );
 
-      vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
-        health: {
+      vi.spyOn(useHealthStatusQueryModule, 'useHealthStatusQuery').mockReturnValue({
+        data: {
           status: 'healthy',
           services: {
             database: { status: 'healthy', message: 'OK' },
@@ -1131,12 +1177,14 @@ describe('Header', () => {
           timestamp: '2025-12-23T10:00:00Z',
         },
         isLoading: false,
+        isRefetching: false,
         error: null,
+        isStale: false,
         overallStatus: 'healthy',
         services: {
           database: { status: 'healthy', message: 'OK' },
         },
-        refresh: vi.fn(),
+        refetch: vi.fn().mockResolvedValue({}),
       });
 
       const { unmount } = render(<Header />);
@@ -1166,13 +1214,15 @@ describe('Header', () => {
 
       vi.spyOn(useConnectionStatusModule, 'useConnectionStatus').mockReturnValue(mockStatus);
 
-      vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
-        health: null,
+      vi.spyOn(useHealthStatusQueryModule, 'useHealthStatusQuery').mockReturnValue({
+        data: undefined,
         isLoading: false,
+        isRefetching: false,
         error: null,
+        isStale: false,
         overallStatus: 'healthy',
         services: {},
-        refresh: vi.fn(),
+        refetch: vi.fn().mockResolvedValue({}),
       });
 
       render(<Header />);
@@ -1202,13 +1252,15 @@ describe('Header', () => {
         createMockConnectionStatus('connected', 'connected', systemStatus)
       );
 
-      vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
-        health: null,
+      vi.spyOn(useHealthStatusQueryModule, 'useHealthStatusQuery').mockReturnValue({
+        data: undefined,
         isLoading: false,
+        isRefetching: false,
         error: null,
+        isStale: false,
         overallStatus: 'healthy',
         services: {},
-        refresh: vi.fn(),
+        refetch: vi.fn().mockResolvedValue({}),
       });
 
       render(<Header />);
@@ -1282,8 +1334,8 @@ describe('Header', () => {
         createMockConnectionStatus('connected', 'connected', systemStatus)
       );
 
-      vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
-        health: {
+      vi.spyOn(useHealthStatusQueryModule, 'useHealthStatusQuery').mockReturnValue({
+        data: {
           status: 'healthy',
           services: {
             database: { status: 'healthy', message: 'OK' },
@@ -1291,12 +1343,14 @@ describe('Header', () => {
           timestamp: '2025-12-23T10:00:00Z',
         },
         isLoading: false,
+        isRefetching: false,
         error: null,
+        isStale: false,
         overallStatus: 'healthy',
         services: {
           database: { status: 'healthy', message: 'OK' },
         },
-        refresh: vi.fn(),
+        refetch: vi.fn().mockResolvedValue({}),
       });
 
       render(<Header />);
@@ -1334,8 +1388,8 @@ describe('Header', () => {
         createMockConnectionStatus('connected', 'connected', systemStatus)
       );
 
-      vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
-        health: {
+      vi.spyOn(useHealthStatusQueryModule, 'useHealthStatusQuery').mockReturnValue({
+        data: {
           status: 'healthy',
           services: {
             database: { status: 'healthy', message: 'OK' },
@@ -1343,12 +1397,14 @@ describe('Header', () => {
           timestamp: '2025-12-23T10:00:00Z',
         },
         isLoading: false,
+        isRefetching: false,
         error: null,
+        isStale: false,
         overallStatus: 'healthy',
         services: {
           database: { status: 'healthy', message: 'OK' },
         },
-        refresh: vi.fn(),
+        refetch: vi.fn().mockResolvedValue({}),
       });
 
       render(<Header />);

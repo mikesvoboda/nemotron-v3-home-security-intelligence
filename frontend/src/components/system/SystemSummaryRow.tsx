@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useMemo } from 'react';
 
-import { useHealthStatus } from '../../hooks/useHealthStatus';
+import { useHealthStatusQuery } from '../../hooks/useHealthStatusQuery';
 import { useModelZooStatus } from '../../hooks/useModelZooStatus';
 import { usePerformanceMetrics } from '../../hooks/usePerformanceMetrics';
 
@@ -291,7 +291,7 @@ export default function SystemSummaryRow({
 }: SystemSummaryRowProps) {
   // Hooks for real-time data
   const { current, isConnected } = usePerformanceMetrics();
-  const { services, overallStatus } = useHealthStatus({ pollingInterval: 10000 });
+  const { services, overallStatus } = useHealthStatusQuery({ refetchInterval: 10000 });
   const { models, vramStats } = useModelZooStatus({ pollingInterval: 10000 });
 
   // Scroll to section handler

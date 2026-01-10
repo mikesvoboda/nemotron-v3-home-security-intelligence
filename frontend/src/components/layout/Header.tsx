@@ -2,7 +2,7 @@ import { AlertTriangle, CheckCircle, Menu, XCircle } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import { useConnectionStatus } from '../../hooks/useConnectionStatus';
-import { useHealthStatus } from '../../hooks/useHealthStatus';
+import { useHealthStatusQuery } from '../../hooks/useHealthStatusQuery';
 import { useSidebarContext } from '../../hooks/useSidebarContext';
 import { WebSocketStatus } from '../common';
 
@@ -151,7 +151,9 @@ function HealthTooltip({ services, isVisible }: HealthTooltipProps) {
 export default function Header() {
   const { toggleMobileMenu } = useSidebarContext();
   const { summary, systemStatus, isPollingFallback, retryConnection } = useConnectionStatus();
-  const { overallStatus: apiHealth, services, isLoading: healthLoading } = useHealthStatus();
+  const { overallStatus: apiHealth, services, isLoading: healthLoading } = useHealthStatusQuery({
+    refetchInterval: 30000, // Poll every 30 seconds
+  });
 
   // Derive status and isConnected from the connection status summary
   const isConnected = summary.allConnected;
