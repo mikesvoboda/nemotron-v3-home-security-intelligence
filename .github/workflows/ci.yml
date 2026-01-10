@@ -965,19 +965,11 @@ jobs:
       - name: Install dependencies
         run: cd frontend && npm ci
 
-      - name: Cache Playwright browsers
-        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5
-        id: playwright-cache
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-chromium-${{ runner.os }}-node-${{ env.NODE_VERSION }}-${{ hashFiles('frontend/package-lock.json') }}
-
       - name: Install Playwright Chromium
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: |
           cd frontend
-          # On self-hosted runners, system deps should be pre-installed.
-          # Only install browser binaries (no sudo required).
+          # On self-hosted runners, system deps should be pre-installed on the host.
+          # Install browser binaries (no sudo required) - this is fast if already cached locally.
           npx playwright install chromium
 
       - name: Run E2E tests (Chromium shard ${{ matrix.shard }})
