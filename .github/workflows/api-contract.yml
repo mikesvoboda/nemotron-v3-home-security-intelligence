@@ -101,6 +101,52 @@ jobs:
             cp .ci-temp/spec-current.json .ci-temp/spec-base.json
           fi
 
+      - name: Convert specs to OpenAPI 3.0 compatible format
+        run: |
+          # oasdiff doesn't support OpenAPI 3.1's numeric exclusiveMinimum/exclusiveMaximum
+          # Convert to OpenAPI 3.0 boolean format for compatibility
+          # In 3.0: exclusiveMinimum: true with minimum: 0
+          # In 3.1: exclusiveMinimum: 0.0 (numeric value is the exclusive limit)
+
+          python3 << 'EOF'
+          import json
+
+          def convert_exclusive_to_3_0(obj):
+              """Recursively convert OpenAPI 3.1 numeric exclusive to 3.0 boolean format"""
+              if isinstance(obj, dict):
+                  new_obj = {}
+                  for key, value in obj.items():
+                      if key in ('exclusiveMinimum', 'exclusiveMaximum') and isinstance(value, (int, float)):
+                          # Convert numeric exclusive to boolean format
+                          # The numeric value becomes the minimum/maximum, exclusive becomes true
+                          if key == 'exclusiveMinimum':
+                              new_obj['minimum'] = value
+                              new_obj['exclusiveMinimum'] = True
+                          else:
+                              new_obj['maximum'] = value
+                              new_obj['exclusiveMaximum'] = True
+                      else:
+                          new_obj[key] = convert_exclusive_to_3_0(value)
+                  return new_obj
+              elif isinstance(obj, list):
+                  return [convert_exclusive_to_3_0(item) for item in obj]
+              return obj
+
+          for spec_file in ['.ci-temp/spec-base.json', '.ci-temp/spec-current.json']:
+              try:
+                  with open(spec_file, 'r') as f:
+                      spec = json.load(f)
+
+                  converted = convert_exclusive_to_3_0(spec)
+
+                  with open(spec_file, 'w') as f:
+                      json.dump(converted, f, indent=2)
+
+                  print(f"✓ Converted {spec_file} to OpenAPI 3.0 compatible format")
+              except Exception as e:
+                  print(f"Warning: Could not convert {spec_file}: {e}")
+          EOF
+
       - name: Run contract breaking change detection
         id: breaking-changes
         continue-on-error: true
