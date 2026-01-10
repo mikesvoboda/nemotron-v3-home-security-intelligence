@@ -268,6 +268,8 @@ ignore = [
     "ARG001",  # unused arguments reserved for future use
     "F841",    # unused variables reserved for future use (e.g., OpenAPI fields)
     "T201",    # print() ok in utility scripts for CLI output
+    "PLR0911", # many returns ok for AST parsing utilities (extract_pydantic_constraints.py)
+    "PLR0912", # many branches ok for AST parsing utilities (extract_pydantic_constraints.py)
 ]
 "backend/scripts/**/*.py" = [
     "T201",   # print() ok in benchmark/utility scripts for CLI output

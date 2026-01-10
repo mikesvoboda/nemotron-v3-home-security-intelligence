@@ -40,6 +40,12 @@ docs/
   API_COVERAGE.md                 # API coverage analysis
   WEBSOCKET_CONTRACTS.md          # WebSocket message contracts
 
+  api/                            # API governance documentation
+    AGENTS.md                     # API directory guide
+    DEPRECATION_POLICY.md         # API deprecation process and timeline
+    migrations/                   # Migration guides for deprecated endpoints
+      README.md                   # Migration guide index
+
   # Security
   METRICS_ENDPOINT_HARDENING.md   # Metrics endpoint security hardening
   PEER_DEPS_CONFLICT.md           # NPM peer dependency conflict resolution
@@ -350,6 +356,17 @@ System administrator documentation for configuring, monitoring, and maintaining 
 
 See `admin-guide/AGENTS.md` for detailed information.
 
+### api/
+
+API governance documentation including deprecation policies, migration guides, and versioning standards.
+
+See `api/AGENTS.md` for detailed information.
+
+**Contents:**
+
+- `DEPRECATION_POLICY.md` - Complete API deprecation process with timeline, OpenAPI extensions, and migration templates
+- `migrations/` - Migration guides for deprecated endpoints
+
 ### api-reference/
 
 REST and WebSocket API documentation (**canonical location**).
@@ -541,8 +558,8 @@ This documentation directory contains comprehensive coverage of the project:
 
 | Category                | Count | Description                                          |
 | ----------------------- | ----- | ---------------------------------------------------- |
-| **AGENTS.md files**     | 19    | Navigation files across 18 subdirectories + root     |
-| **Subdirectories**      | 18    | Organized by topic (18 with AGENTS.md files)         |
+| **AGENTS.md files**     | 20    | Navigation files across 19 subdirectories + root     |
+| **Subdirectories**      | 19    | Organized by topic (19 with AGENTS.md files)         |
 | **Root-level docs**     | 34    | Guides for deployment, security, testing, operations |
 | **API reference files** | 18    | Comprehensive endpoint documentation                 |
 | **Design plans**        | 32    | Date-prefixed design and implementation plans        |
@@ -550,12 +567,13 @@ This documentation directory contains comprehensive coverage of the project:
 
 ### AGENTS.md File Locations
 
-All 19 AGENTS.md files in the docs directory:
+All 20 AGENTS.md files in the docs directory:
 
 | Path                                       | Purpose                        |
 | ------------------------------------------ | ------------------------------ |
 | `docs/AGENTS.md`                           | Documentation root navigation  |
 | `docs/admin-guide/AGENTS.md`               | Admin guide directory          |
+| `docs/api/AGENTS.md`                       | API governance directory       |
 | `docs/api-reference/AGENTS.md`             | API reference directory        |
 | `docs/architecture/AGENTS.md`              | Architecture directory         |
 | `docs/benchmarks/AGENTS.md`                | Benchmarks directory           |
