@@ -329,8 +329,15 @@ export async function setupApiMocks(
           status: 200,
           contentType: 'application/json',
           body: JSON.stringify({
-            zones,
-            count: zones.length,
+            items: zones,
+            pagination: {
+              total: zones.length,
+              limit: 50,
+              offset: null,
+              cursor: null,
+              next_cursor: null,
+              has_more: false,
+            },
           }),
         });
       }
@@ -809,7 +816,7 @@ export async function setupApiMocks(
     }
   });
 
-  // Entities endpoint
+  // Entities endpoint (still uses old format with 'entities' field, not pagination envelope)
   await page.route('**/api/entities*', async (route) => {
     if (mergedConfig.entitiesError) {
       await route.fulfill({
@@ -823,15 +830,10 @@ export async function setupApiMocks(
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          items: entities,
-          pagination: {
-            total: entities.length,
-            limit: 50,
-            offset: null,
-            cursor: null,
-            next_cursor: null,
-            has_more: false,
-          },
+          entities: entities,
+          count: entities.length,
+          limit: 50,
+          offset: 0,
         }),
       });
     }
