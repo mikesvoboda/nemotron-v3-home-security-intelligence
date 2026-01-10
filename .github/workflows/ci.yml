@@ -81,7 +81,7 @@ jobs:
 
   unit-tests:
     name: Backend Unit Tests - Python ${{ matrix.python-version }}
-    runs-on: [self-hosted, linux, x64]
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
@@ -89,11 +89,6 @@ jobs:
     # Wait for lint to pass first - fail fast on code quality issues
     # This saves CI minutes by not running expensive tests when lint fails
     needs: [lint]
-    # Fork protection - only run on self-hosted for trusted sources
-    if: >
-      github.event.pull_request.head.repo.full_name == github.repository ||
-      github.event_name == 'push' ||
-      github.event_name == 'workflow_dispatch'
     services:
       postgres:
         image: postgres:16-alpine
@@ -174,7 +169,7 @@ jobs:
   # Each job runs tests for a specific domain with within-shard parallelization
   integration-tests-api:
     name: Integration Tests (API) - Python ${{ matrix.python-version }}
-    runs-on: [self-hosted, linux, x64]
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
       fail-fast: false
@@ -182,11 +177,6 @@ jobs:
         python-version: ['3.14']
     # Wait for lint to pass first - fail fast on code quality issues
     needs: [lint]
-    # Fork protection - only run on self-hosted for trusted sources
-    if: >
-      github.event.pull_request.head.repo.full_name == github.repository ||
-      github.event_name == 'push' ||
-      github.event_name == 'workflow_dispatch'
     services:
       postgres:
         image: postgres:16-alpine
@@ -267,7 +257,7 @@ jobs:
 
   integration-tests-websocket:
     name: Integration Tests (WebSocket) - Python ${{ matrix.python-version }}
-    runs-on: [self-hosted, linux, x64]
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
       fail-fast: false
@@ -275,11 +265,6 @@ jobs:
         python-version: ['3.14']
     # Wait for lint to pass first - fail fast on code quality issues
     needs: [lint]
-    # Fork protection - only run on self-hosted for trusted sources
-    if: >
-      github.event.pull_request.head.repo.full_name == github.repository ||
-      github.event_name == 'push' ||
-      github.event_name == 'workflow_dispatch'
     services:
       postgres:
         image: postgres:16-alpine
@@ -360,7 +345,7 @@ jobs:
 
   integration-tests-services:
     name: Integration Tests (Services) - Python ${{ matrix.python-version }}
-    runs-on: [self-hosted, linux, x64]
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
       fail-fast: false
@@ -368,11 +353,6 @@ jobs:
         python-version: ['3.14']
     # Wait for lint to pass first - fail fast on code quality issues
     needs: [lint]
-    # Fork protection - only run on self-hosted for trusted sources
-    if: >
-      github.event.pull_request.head.repo.full_name == github.repository ||
-      github.event_name == 'push' ||
-      github.event_name == 'workflow_dispatch'
     services:
       postgres:
         image: postgres:16-alpine
@@ -453,7 +433,7 @@ jobs:
 
   integration-tests-models:
     name: Integration Tests (Models) - Python ${{ matrix.python-version }}
-    runs-on: [self-hosted, linux, x64]
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
       fail-fast: false
@@ -461,11 +441,6 @@ jobs:
         python-version: ['3.14']
     # Wait for lint to pass first - fail fast on code quality issues
     needs: [lint]
-    # Fork protection - only run on self-hosted for trusted sources
-    if: >
-      github.event.pull_request.head.repo.full_name == github.repository ||
-      github.event_name == 'push' ||
-      github.event_name == 'workflow_dispatch'
     services:
       postgres:
         image: postgres:16-alpine
@@ -830,15 +805,10 @@ jobs:
 
   frontend-tests:
     name: Frontend Tests (Vitest ${{ matrix.shard }}/8)
-    runs-on: [self-hosted, linux, x64]
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     # Wait for lint to pass first - fail fast on code quality issues
     needs: [frontend-lint]
-    # Fork protection - only run on self-hosted for trusted sources
-    if: >
-      github.event.pull_request.head.repo.full_name == github.repository ||
-      github.event_name == 'push' ||
-      github.event_name == 'workflow_dispatch'
     strategy:
       fail-fast: false
       matrix:
@@ -936,14 +906,9 @@ jobs:
   # Uses sharding to split tests across 4 parallel runners for 4x speed
   frontend-e2e:
     name: E2E Tests (chromium ${{ matrix.shard }})
-    runs-on: [self-hosted, linux, x64]
+    runs-on: ubuntu-latest
     # Wait for lint to pass first - fail fast on code quality issues
     needs: [frontend-lint]
-    # Fork protection - only run on self-hosted for trusted sources
-    if: >
-      github.event.pull_request.head.repo.full_name == github.repository ||
-      github.event_name == 'push' ||
-      github.event_name == 'workflow_dispatch'
     continue-on-error: true
     strategy:
       fail-fast: false
@@ -965,12 +930,20 @@ jobs:
       - name: Install dependencies
         run: cd frontend && npm ci
 
+      - name: Cache Playwright browsers
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-node-${{ env.NODE_VERSION }}-${{ hashFiles('frontend/package-lock.json') }}
+
       - name: Install Playwright Chromium
-        run: |
-          cd frontend
-          # On self-hosted runners, system deps should be pre-installed on the host.
-          # Install browser binaries (no sudo required) - this is fast if already cached locally.
-          npx playwright install chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: cd frontend && npx playwright install chromium --with-deps
+
+      - name: Install Playwright deps (cached)
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: cd frontend && npx playwright install-deps chromium
 
       - name: Run E2E tests (Chromium shard ${{ matrix.shard }})
         run: cd frontend && npx playwright test --project=chromium --shard=${{ matrix.shard }}
