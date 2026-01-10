@@ -81,8 +81,8 @@ class TestListEventsEagerLoading:
 
         # Verify the function executed successfully
         assert result is not None
-        assert hasattr(result, "events")
-        assert len(result.events) == 3
+        assert hasattr(result, "items")
+        assert len(result.items) == 3
 
         # Verify that execute was called (for count and events queries)
         assert mock_db.execute.call_count == 2
@@ -159,8 +159,8 @@ class TestListEventsEagerLoading:
 
         # Verify the function executed successfully
         assert result is not None
-        assert hasattr(result, "events")
-        assert len(result.events) == 1
+        assert hasattr(result, "items")
+        assert len(result.items) == 1
 
         # Verify query was executed
         assert mock_db.execute.call_count == 1
@@ -230,8 +230,8 @@ class TestListEventsEagerLoading:
 
         # Verify the function executed successfully
         assert result is not None
-        assert hasattr(result, "events")
-        assert len(result.events) == 1
+        assert hasattr(result, "items")
+        assert len(result.items) == 1
 
         # Verify queries were executed
         assert mock_db.execute.call_count == 2
@@ -301,11 +301,11 @@ class TestListEventsEagerLoading:
 
         # Verify the response includes event data
         assert result is not None
-        assert hasattr(result, "events")
-        assert len(result.events) == 1
+        assert hasattr(result, "items")
+        assert len(result.items) == 1
 
         # Verify camera_id is in the response
-        event_data = result.events[0]
+        event_data = result.items[0]
         assert event_data.camera_id == "cam1"
 
         # Verify no additional queries were made to load camera data

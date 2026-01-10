@@ -155,8 +155,8 @@ class TestListCameras:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["cameras"] == []
-        assert data["count"] == 0
+        assert data["items"] == []
+        assert data["pagination"]["total"] == 0
 
     def test_list_cameras_with_data(
         self,
@@ -173,8 +173,8 @@ class TestListCameras:
 
         assert response.status_code == 200
         data = response.json()
-        assert len(data["cameras"]) == 3
-        assert data["count"] == 3
+        assert len(data["items"]) == 3
+        assert data["pagination"]["total"] == 3
 
     def test_list_cameras_filter_by_status_online(
         self,
@@ -193,9 +193,9 @@ class TestListCameras:
 
         assert response.status_code == 200
         data = response.json()
-        assert len(data["cameras"]) == 1
-        assert data["count"] == 1
-        assert data["cameras"][0]["status"] == "online"
+        assert len(data["items"]) == 1
+        assert data["pagination"]["total"] == 1
+        assert data["items"][0]["status"] == "online"
 
     def test_list_cameras_filter_by_status_offline(
         self,
@@ -213,9 +213,9 @@ class TestListCameras:
 
         assert response.status_code == 200
         data = response.json()
-        assert len(data["cameras"]) == 1
-        assert data["count"] == 1
-        assert data["cameras"][0]["status"] == "offline"
+        assert len(data["items"]) == 1
+        assert data["pagination"]["total"] == 1
+        assert data["items"][0]["status"] == "offline"
 
     def test_list_cameras_filter_by_status_error(
         self,
@@ -233,9 +233,9 @@ class TestListCameras:
 
         assert response.status_code == 200
         data = response.json()
-        assert len(data["cameras"]) == 1
-        assert data["count"] == 1
-        assert data["cameras"][0]["status"] == "error"
+        assert len(data["items"]) == 1
+        assert data["pagination"]["total"] == 1
+        assert data["items"][0]["status"] == "error"
 
     def test_list_cameras_filter_nonexistent_status(
         self, client: TestClient, mock_db_session: AsyncMock
@@ -249,8 +249,8 @@ class TestListCameras:
 
         assert response.status_code == 200
         data = response.json()
-        assert len(data["cameras"]) == 0
-        assert data["count"] == 0
+        assert len(data["items"]) == 0
+        assert data["pagination"]["total"] == 0
 
 
 # =============================================================================
@@ -1281,7 +1281,7 @@ class TestCameraListResponseSchema:
     def test_camera_list_response_valid(self) -> None:
         """Test CameraListResponse with valid data."""
         data = {
-            "cameras": [
+            "items": [
                 {
                     "id": "123e4567-e89b-12d3-a456-426614174000",
                     "name": "Camera 1",
@@ -1291,28 +1291,36 @@ class TestCameraListResponseSchema:
                     "last_seen_at": None,
                 }
             ],
-            "count": 1,
+            "pagination": {
+                "total": 1,
+                "limit": 1000,
+                "has_more": False,
+            },
         }
         schema = CameraListResponse(**data)
-        assert len(schema.cameras) == 1
-        assert schema.count == 1
+        assert len(schema.items) == 1
+        assert schema.pagination.total == 1
 
     def test_camera_list_response_empty(self) -> None:
         """Test CameraListResponse with empty list."""
         data = {
-            "cameras": [],
-            "count": 0,
+            "items": [],
+            "pagination": {
+                "total": 0,
+                "limit": 1000,
+                "has_more": False,
+            },
         }
         schema = CameraListResponse(**data)
-        assert schema.cameras == []
-        assert schema.count == 0
+        assert schema.items == []
+        assert schema.pagination.total == 0
 
-    def test_camera_list_response_missing_count_raises(self) -> None:
-        """Test CameraListResponse raises error when count is missing."""
+    def test_camera_list_response_missing_pagination_raises(self) -> None:
+        """Test CameraListResponse raises error when pagination is missing."""
         from pydantic import ValidationError
 
         data = {
-            "cameras": [],
+            "items": [],
         }
         with pytest.raises(ValidationError):
             CameraListResponse(**data)

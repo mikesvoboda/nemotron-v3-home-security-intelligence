@@ -213,14 +213,15 @@ class TestEventsAPIContract:
 
         assert response.status_code == 200
         data = response.json()
-        assert "events" in data
-        assert "count" in data
-        assert "limit" in data
-        assert "offset" in data
-        assert isinstance(data["events"], list)
-        assert isinstance(data["count"], int)
-        assert isinstance(data["limit"], int)
-        assert isinstance(data["offset"], int)
+        assert "items" in data
+        assert "pagination" in data
+        assert "limit" in data["pagination"]
+        assert "offset" in data["pagination"]
+        assert isinstance(data["items"], list)
+        assert isinstance(data["pagination"]["total"], int)
+        assert isinstance(data["pagination"]["limit"], int)
+        # offset can be None for cursor-based pagination
+        assert data["pagination"]["offset"] is None or isinstance(data["pagination"]["offset"], int)
 
     @pytest.mark.asyncio
     async def test_list_events_with_filters(self, client: AsyncClient, mock_session: MagicMock):
@@ -248,9 +249,10 @@ class TestEventsAPIContract:
 
         assert response.status_code == 200
         data = response.json()
-        assert "events" in data
-        assert data["limit"] == 10
-        assert data["offset"] == 0
+        assert "items" in data
+        assert data["pagination"]["limit"] == 10
+        # offset=0 may be returned as None due to cursor-based pagination preference
+        assert data["pagination"]["offset"] in (0, None)
 
     @pytest.mark.asyncio
     async def test_get_event_returns_valid_schema(
@@ -321,10 +323,10 @@ class TestCamerasAPIContract:
 
         assert response.status_code == 200
         data = response.json()
-        assert "cameras" in data
-        assert "count" in data
-        assert isinstance(data["cameras"], list)
-        assert isinstance(data["count"], int)
+        assert "items" in data
+        assert "pagination" in data
+        assert isinstance(data["items"], list)
+        assert isinstance(data["pagination"]["total"], int)
 
     @pytest.mark.asyncio
     async def test_list_cameras_with_status_filter(
@@ -342,7 +344,7 @@ class TestCamerasAPIContract:
 
         assert response.status_code == 200
         data = response.json()
-        assert "cameras" in data
+        assert "items" in data
 
     @pytest.mark.asyncio
     async def test_get_camera_returns_valid_schema(
@@ -441,11 +443,11 @@ class TestDetectionsAPIContract:
 
         assert response.status_code == 200
         data = response.json()
-        assert "detections" in data
-        assert "count" in data
-        assert "limit" in data
-        assert "offset" in data
-        assert isinstance(data["detections"], list)
+        assert "items" in data
+        assert "pagination" in data
+        assert "limit" in data["pagination"]
+        assert "offset" in data["pagination"]
+        assert isinstance(data["items"], list)
 
     @pytest.mark.asyncio
     async def test_list_detections_with_filters(self, client: AsyncClient, mock_session: MagicMock):
@@ -473,8 +475,8 @@ class TestDetectionsAPIContract:
 
         assert response.status_code == 200
         data = response.json()
-        assert "detections" in data
-        assert data["limit"] == 20
+        assert "items" in data
+        assert data["pagination"]["limit"] == 20
 
     @pytest.mark.asyncio
     async def test_get_detection_returns_valid_schema(
@@ -653,8 +655,9 @@ class TestPaginationContracts:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["limit"] == 50  # Default limit
-        assert data["offset"] == 0  # Default offset
+        assert data["pagination"]["limit"] == 50  # Default limit
+        # Default offset=0 may be returned as None due to cursor-based pagination preference
+        assert data["pagination"]["offset"] in (0, None)
 
     @pytest.mark.asyncio
     async def test_pagination_max_limit_enforced(self, client: AsyncClient):

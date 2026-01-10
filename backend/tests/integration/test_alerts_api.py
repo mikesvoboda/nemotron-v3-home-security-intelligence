@@ -213,12 +213,10 @@ async def test_list_alert_rules_success(client):
 
     assert response.status_code == 200
     data = response.json()
-    assert "rules" in data
-    assert "count" in data
-    assert "limit" in data
-    assert "offset" in data
-    assert isinstance(data["rules"], list)
-    assert data["count"] >= 2  # At least our 2 rules
+    assert "items" in data
+    assert "pagination" in data
+    assert isinstance(data["items"], list)
+    assert data["pagination"]["total"] >= 2  # At least our 2 rules
 
 
 @pytest.mark.asyncio
@@ -236,7 +234,7 @@ async def test_list_alert_rules_filter_by_enabled(client):
     assert response.status_code == 200
     data = response.json()
     # All returned rules should be enabled
-    for rule in data["rules"]:
+    for rule in data["items"]:
         assert rule["enabled"] is True
 
 
@@ -255,7 +253,7 @@ async def test_list_alert_rules_filter_by_disabled(client):
     assert response.status_code == 200
     data = response.json()
     # All returned rules should be disabled
-    for rule in data["rules"]:
+    for rule in data["items"]:
         assert rule["enabled"] is False
 
 
@@ -278,7 +276,7 @@ async def test_list_alert_rules_filter_by_severity(client):
     assert response.status_code == 200
     data = response.json()
     # All returned rules should have critical severity
-    for rule in data["rules"]:
+    for rule in data["items"]:
         assert rule["severity"] == "critical"
 
 
@@ -294,8 +292,8 @@ async def test_list_alert_rules_pagination_limit(client):
 
     assert response.status_code == 200
     data = response.json()
-    assert len(data["rules"]) == 2
-    assert data["limit"] == 2
+    assert len(data["items"]) == 2
+    assert data["pagination"]["limit"] == 2
 
 
 @pytest.mark.asyncio
@@ -305,7 +303,7 @@ async def test_list_alert_rules_pagination_offset(client):
 
     assert response.status_code == 200
     data = response.json()
-    assert data["offset"] == 0
+    assert data["pagination"]["offset"] == 0
 
 
 @pytest.mark.asyncio
@@ -726,14 +724,12 @@ async def test_alert_rule_list_response_schema(client):
     data = response.json()
 
     # Verify pagination fields
-    assert "rules" in data
-    assert "count" in data
-    assert "limit" in data
-    assert "offset" in data
-    assert isinstance(data["rules"], list)
-    assert isinstance(data["count"], int)
-    assert isinstance(data["limit"], int)
-    assert isinstance(data["offset"], int)
+    assert "items" in data
+    assert "pagination" in data
+    assert isinstance(data["items"], list)
+    assert isinstance(data["pagination"]["total"], int)
+    assert isinstance(data["pagination"]["limit"], int)
+    assert isinstance(data["pagination"]["offset"], int)
 
 
 # === Edge Cases ===
@@ -815,7 +811,7 @@ async def test_list_alert_rules_sorted_by_name(client):
     data = response.json()
 
     # Extract rule names
-    names = [rule["name"] for rule in data["rules"]]
+    names = [rule["name"] for rule in data["items"]]
     # Should be sorted
     assert names == sorted(names)
 
@@ -902,5 +898,5 @@ async def test_filter_by_severity_no_matches(client):
     assert response.status_code == 200
     data = response.json()
     # All returned rules should have critical severity
-    for rule in data["rules"]:
+    for rule in data["items"]:
         assert rule["severity"] == "critical"

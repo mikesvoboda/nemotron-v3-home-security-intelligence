@@ -135,27 +135,33 @@ describe('AlertsPage (Redesigned)', () => {
   ];
 
   const mockHighResponse: EventListResponse = {
-    events: mockHighRiskEvents,
-    count: 2,
-    limit: 20,
-    offset: 0,
-    has_more: false,
+    items: mockHighRiskEvents,
+    pagination: {
+      total: 2,
+      limit: 20,
+      offset: 0,
+      has_more: false,
+    },
   };
 
   const mockCriticalResponse: EventListResponse = {
-    events: mockCriticalRiskEvents,
-    count: 1,
-    limit: 20,
-    offset: 0,
-    has_more: false,
+    items: mockCriticalRiskEvents,
+    pagination: {
+      total: 1,
+      limit: 20,
+      offset: 0,
+      has_more: false,
+    },
   };
 
   const mockEmptyResponse: EventListResponse = {
-    events: [],
-    count: 0,
-    limit: 20,
-    offset: 0,
-    has_more: false,
+    items: [],
+    pagination: {
+      total: 0,
+      limit: 20,
+      offset: 0,
+      has_more: false,
+    },
   };
 
   beforeEach(() => {
@@ -392,7 +398,7 @@ describe('AlertsPage (Redesigned)', () => {
 
       // Mock refetch
       vi.mocked(api.fetchEvents)
-        .mockResolvedValueOnce({ ...mockHighResponse, events: [mockHighRiskEvents[1]] })
+        .mockResolvedValueOnce({ ...mockHighResponse, items: [mockHighRiskEvents[1]] })
         .mockResolvedValueOnce(mockCriticalResponse);
 
       // Click batch dismiss

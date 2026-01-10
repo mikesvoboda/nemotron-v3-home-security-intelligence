@@ -36,6 +36,7 @@ from backend.api.schemas.events import (
     EventUpdate,
 )
 from backend.api.schemas.hateoas import build_event_links
+from backend.api.schemas.pagination import PaginationMeta
 from backend.api.schemas.search import SearchResponse as SearchResponseSchema
 from backend.api.utils.field_filter import (
     FieldFilterError,
@@ -407,12 +408,15 @@ async def list_events(  # noqa: PLR0912
     deprecation_warning = get_deprecation_warning(cursor, offset)
 
     return EventListResponse(
-        events=events_with_counts,
-        count=total_count,
-        limit=limit,
-        offset=offset,
-        next_cursor=next_cursor,
-        has_more=has_more,
+        items=events_with_counts,
+        pagination=PaginationMeta(
+            total=total_count,
+            limit=limit,
+            offset=offset if offset else None,
+            cursor=cursor,
+            next_cursor=next_cursor,
+            has_more=has_more,
+        ),
         deprecation_warning=deprecation_warning,
     )
 
@@ -896,9 +900,387 @@ async def list_deleted_events(
         )
 
     return {
-        "events": events_data,
-        "count": len(events_data),
+        "items": events_data,
+        "pagination": PaginationMeta(
+            total=len(events_data),
+            limit=1000,  # No pagination limit for deleted events list
+            offset=None,
+            cursor=None,
+            next_cursor=None,
+            has_more=False,
+        ).model_dump(),
     }
+
+
+# =============================================================================
+# Bulk Operations (NEM-1433)
+# =============================================================================
+# Rate limiting note: Bulk operations should be rate-limited more aggressively
+# than single-item operations. Consider implementing:
+# - RateLimiter(tier=RateLimitTier.BULK) with lower limits (e.g., 10 req/min)
+# - Per-IP rate limiting to prevent abuse
+# - Request size limits enforced at the schema level (max 100 items)
+
+
+@router.post(
+    "/bulk",
+    response_model=EventBulkCreateResponse,
+    status_code=status.HTTP_207_MULTI_STATUS,
+    summary="Bulk create events",
+    responses={
+        207: {"description": "Multi-status response with per-item results"},
+        400: {"description": "Invalid request format"},
+        422: {"description": "Validation error"},
+    },
+)
+async def bulk_create_events(
+    request: EventBulkCreateRequest,
+    db: AsyncSession = Depends(get_db),
+    cache: CacheService = Depends(get_cache_service_dep),
+) -> EventBulkCreateResponse:
+    """Create multiple events in a single request.
+
+    Supports partial success - some events may succeed while others fail.
+    Returns HTTP 207 Multi-Status with per-item results.
+
+    Rate limiting: Consider implementing RateLimitTier.BULK for production use.
+
+    Args:
+        request: Bulk create request with up to 100 events
+        db: Database session
+
+    Returns:
+        EventBulkCreateResponse with per-item results
+    """
+    results: list[dict[str, Any]] = []
+    succeeded = 0
+    failed = 0
+
+    # Validate all camera_ids exist before processing
+    camera_ids = {item.camera_id for item in request.events}
+    camera_query = select(Camera.id).where(Camera.id.in_(camera_ids))
+    camera_result = await db.execute(camera_query)
+    valid_camera_ids = {row[0] for row in camera_result.all()}
+
+    for idx, item in enumerate(request.events):
+        try:
+            # Validate camera exists
+            if item.camera_id not in valid_camera_ids:
+                results.append(
+                    {
+                        "index": idx,
+                        "status": BulkOperationStatus.FAILED,
+                        "id": None,
+                        "error": f"Camera not found: {item.camera_id}",
+                    }
+                )
+                failed += 1
+                continue
+
+            # Create event
+            event = Event(
+                batch_id=item.batch_id,
+                camera_id=item.camera_id,
+                started_at=item.started_at,
+                ended_at=item.ended_at,
+                risk_score=item.risk_score,
+                risk_level=item.risk_level,
+                summary=item.summary,
+                reasoning=item.reasoning,
+                detection_ids=json.dumps(item.detection_ids) if item.detection_ids else None,
+            )
+            db.add(event)
+            await db.flush()  # Get the ID without committing
+
+            results.append(
+                {
+                    "index": idx,
+                    "status": BulkOperationStatus.SUCCESS,
+                    "id": event.id,
+                    "error": None,
+                }
+            )
+            succeeded += 1
+
+        except Exception as e:
+            logger.error(f"Bulk create event failed at index {idx}: {e}")
+            results.append(
+                {
+                    "index": idx,
+                    "status": BulkOperationStatus.FAILED,
+                    "id": None,
+                    "error": str(e),
+                }
+            )
+            failed += 1
+
+    # Commit all successful operations
+    if succeeded > 0:
+        try:
+            await db.commit()
+            # Invalidate event-related caches after successful bulk create (NEM-1950)
+            try:
+                await cache.invalidate_events(reason="event_created")
+                await cache.invalidate_event_stats(reason="event_created")
+            except Exception as e:
+                # Cache invalidation is non-critical - log but don't fail the request
+                logger.warning(f"Cache invalidation failed after bulk create: {e}")
+        except Exception as e:
+            logger.error(f"Bulk create commit failed: {e}")
+            await db.rollback()
+            # Mark all as failed on commit error
+            for item_result in results:
+                if item_result["status"] == BulkOperationStatus.SUCCESS:
+                    item_result["status"] = BulkOperationStatus.FAILED
+                    item_result["error"] = "Transaction commit failed"
+                    succeeded -= 1
+                    failed += 1
+
+    return EventBulkCreateResponse(
+        total=len(request.events),
+        succeeded=succeeded,
+        failed=failed,
+        skipped=0,
+        results=results,
+    )
+
+
+@router.patch(
+    "/bulk",
+    response_model=BulkOperationResponse,
+    status_code=status.HTTP_207_MULTI_STATUS,
+    summary="Bulk update events",
+    responses={
+        207: {"description": "Multi-status response with per-item results"},
+        400: {"description": "Invalid request format"},
+        422: {"description": "Validation error"},
+    },
+)
+async def bulk_update_events(
+    request: EventBulkUpdateRequest,
+    db: AsyncSession = Depends(get_db),
+    cache: CacheService = Depends(get_cache_service_dep),
+) -> BulkOperationResponse:
+    """Update multiple events in a single request.
+
+    Supports partial success - some updates may succeed while others fail.
+    Returns HTTP 207 Multi-Status with per-item results.
+
+    Rate limiting: Consider implementing RateLimitTier.BULK for production use.
+
+    Args:
+        request: Bulk update request with up to 100 event updates
+        db: Database session
+
+    Returns:
+        BulkOperationResponse with per-item results
+    """
+    results: list[dict[str, Any]] = []
+    succeeded = 0
+    failed = 0
+
+    # Fetch all events in one query
+    event_ids = [item.id for item in request.events]
+    query = select(Event).where(Event.id.in_(event_ids))
+    result = await db.execute(query)
+    events_map = {event.id: event for event in result.scalars().all()}
+
+    for idx, item in enumerate(request.events):
+        try:
+            event = events_map.get(item.id)
+            if not event:
+                results.append(
+                    {
+                        "index": idx,
+                        "status": BulkOperationStatus.FAILED,
+                        "id": item.id,
+                        "error": f"Event not found: {item.id}",
+                    }
+                )
+                failed += 1
+                continue
+
+            # Update fields if provided
+            if item.reviewed is not None:
+                event.reviewed = item.reviewed
+            if item.notes is not None:
+                event.notes = item.notes
+
+            results.append(
+                {
+                    "index": idx,
+                    "status": BulkOperationStatus.SUCCESS,
+                    "id": event.id,
+                    "error": None,
+                }
+            )
+            succeeded += 1
+
+        except Exception as e:
+            logger.error(f"Bulk update event failed at index {idx}: {e}")
+            results.append(
+                {
+                    "index": idx,
+                    "status": BulkOperationStatus.FAILED,
+                    "id": item.id,
+                    "error": str(e),
+                }
+            )
+            failed += 1
+
+    # Commit all successful operations
+    if succeeded > 0:
+        try:
+            await db.commit()
+            # Invalidate event-related caches after successful bulk update (NEM-1950)
+            try:
+                await cache.invalidate_events(reason="event_updated")
+                await cache.invalidate_event_stats(reason="event_updated")
+            except Exception as e:
+                # Cache invalidation is non-critical - log but don't fail the request
+                logger.warning(f"Cache invalidation failed after bulk update: {e}")
+        except Exception as e:
+            logger.error(f"Bulk update commit failed: {e}")
+            await db.rollback()
+            # Mark all as failed on commit error
+            for item_result in results:
+                if item_result["status"] == BulkOperationStatus.SUCCESS:
+                    item_result["status"] = BulkOperationStatus.FAILED
+                    item_result["error"] = "Transaction commit failed"
+                    succeeded -= 1
+                    failed += 1
+
+    return BulkOperationResponse(
+        total=len(request.events),
+        succeeded=succeeded,
+        failed=failed,
+        skipped=0,
+        results=results,
+    )
+
+
+@router.delete(
+    "/bulk",
+    response_model=BulkOperationResponse,
+    status_code=status.HTTP_207_MULTI_STATUS,
+    summary="Bulk delete events",
+    responses={
+        207: {"description": "Multi-status response with per-item results"},
+        400: {"description": "Invalid request format"},
+        422: {"description": "Validation error"},
+    },
+)
+async def bulk_delete_events(
+    request: EventBulkDeleteRequest,
+    db: AsyncSession = Depends(get_db),
+    cache: CacheService = Depends(get_cache_service_dep),
+) -> BulkOperationResponse:
+    """Delete multiple events in a single request.
+
+    Supports partial success - some deletions may succeed while others fail.
+    Returns HTTP 207 Multi-Status with per-item results.
+
+    By default uses soft delete (sets deleted_at timestamp) with cascade to
+    related detections. Use soft_delete=false for permanent deletion.
+    Use cascade=false to only delete the event without affecting detections.
+
+    Rate limiting: Consider implementing RateLimitTier.BULK for production use.
+
+    Args:
+        request: Bulk delete request with up to 100 event IDs
+        db: Database session
+        cache: Cache service for invalidation
+
+    Returns:
+        BulkOperationResponse with per-item results
+    """
+    results: list[dict[str, Any]] = []
+    succeeded = 0
+    failed = 0
+
+    event_service = get_event_service()
+
+    for idx, event_id in enumerate(request.event_ids):
+        try:
+            if request.soft_delete:
+                # Soft delete the event (cascade param preserved for future use)
+                await event_service.soft_delete_event(
+                    event_id=event_id,
+                    db=db,
+                    cascade=True,
+                )
+            else:
+                # Hard delete - fetch and delete directly
+                query = select(Event).where(Event.id == event_id)
+                result = await db.execute(query)
+                event = result.scalar_one_or_none()
+                if event is None:
+                    raise ValueError(f"Event not found: {event_id}")
+                await db.delete(event)
+
+            results.append(
+                {
+                    "index": idx,
+                    "status": BulkOperationStatus.SUCCESS,
+                    "id": event_id,
+                    "error": None,
+                }
+            )
+            succeeded += 1
+
+        except ValueError as e:
+            # Event not found or already deleted
+            results.append(
+                {
+                    "index": idx,
+                    "status": BulkOperationStatus.FAILED,
+                    "id": event_id,
+                    "error": str(e),
+                }
+            )
+            failed += 1
+
+        except Exception as e:
+            logger.error(f"Bulk delete event failed at index {idx}: {e}")
+            results.append(
+                {
+                    "index": idx,
+                    "status": BulkOperationStatus.FAILED,
+                    "id": event_id,
+                    "error": str(e),
+                }
+            )
+            failed += 1
+
+    # Commit all successful operations
+    if succeeded > 0:
+        try:
+            await db.commit()
+            # Invalidate event-related caches after successful bulk delete (NEM-1950)
+            try:
+                await cache.invalidate_events(reason="event_deleted")
+                await cache.invalidate_event_stats(reason="event_deleted")
+            except Exception as e:
+                # Cache invalidation is non-critical - log but don't fail the request
+                logger.warning(f"Cache invalidation failed after bulk delete: {e}")
+        except Exception as e:
+            logger.error(f"Bulk delete commit failed: {e}")
+            await db.rollback()
+            # Mark all as failed on commit error
+            for item_result in results:
+                if item_result["status"] == BulkOperationStatus.SUCCESS:
+                    item_result["status"] = BulkOperationStatus.FAILED
+                    item_result["error"] = "Transaction commit failed"
+                    succeeded -= 1
+                    failed += 1
+
+    return BulkOperationResponse(
+        total=len(request.event_ids),
+        succeeded=succeeded,
+        failed=failed,
+        skipped=0,
+        results=results,
+    )
 
 
 @router.get("/{event_id}", response_model=EventResponse)
@@ -1097,10 +1479,13 @@ async def get_event_detections(
     # If no detections, return empty list
     if not detection_ids:
         return DetectionListResponse(
-            detections=[],
-            count=0,
-            limit=limit,
-            offset=offset,
+            items=[],
+            pagination=PaginationMeta(
+                total=0,
+                limit=limit,
+                offset=offset,
+                has_more=False,
+            ),
         )
 
     # Build query for detections
@@ -1121,11 +1506,17 @@ async def get_event_detections(
     result = await db.execute(query)
     detections = result.scalars().all()
 
+    # Calculate has_more for pagination
+    has_more = (offset + len(detections)) < total_count
+
     return DetectionListResponse(
-        detections=detections,
-        count=total_count,
-        limit=limit,
-        offset=offset,
+        items=detections,
+        pagination=PaginationMeta(
+            total=total_count,
+            limit=limit,
+            offset=offset,
+            has_more=has_more,
+        ),
     )
 
 
@@ -1531,376 +1922,6 @@ async def analyze_batch_streaming(
             "Connection": "keep-alive",
             "X-Accel-Buffering": "no",  # Disable nginx buffering for SSE
         },
-    )
-
-
-# =============================================================================
-# Bulk Operations (NEM-1433)
-# =============================================================================
-# Rate limiting note: Bulk operations should be rate-limited more aggressively
-# than single-item operations. Consider implementing:
-# - RateLimiter(tier=RateLimitTier.BULK) with lower limits (e.g., 10 req/min)
-# - Per-IP rate limiting to prevent abuse
-# - Request size limits enforced at the schema level (max 100 items)
-
-
-@router.post(
-    "/bulk",
-    response_model=EventBulkCreateResponse,
-    status_code=status.HTTP_207_MULTI_STATUS,
-    summary="Bulk create events",
-    responses={
-        207: {"description": "Multi-status response with per-item results"},
-        400: {"description": "Invalid request format"},
-        422: {"description": "Validation error"},
-    },
-)
-async def bulk_create_events(
-    request: EventBulkCreateRequest,
-    db: AsyncSession = Depends(get_db),
-    cache: CacheService = Depends(get_cache_service_dep),
-) -> EventBulkCreateResponse:
-    """Create multiple events in a single request.
-
-    Supports partial success - some events may succeed while others fail.
-    Returns HTTP 207 Multi-Status with per-item results.
-
-    Rate limiting: Consider implementing RateLimitTier.BULK for production use.
-
-    Args:
-        request: Bulk create request with up to 100 events
-        db: Database session
-
-    Returns:
-        EventBulkCreateResponse with per-item results
-    """
-    results: list[dict[str, Any]] = []
-    succeeded = 0
-    failed = 0
-
-    # Validate all camera_ids exist before processing
-    camera_ids = {item.camera_id for item in request.events}
-    camera_query = select(Camera.id).where(Camera.id.in_(camera_ids))
-    camera_result = await db.execute(camera_query)
-    valid_camera_ids = {row[0] for row in camera_result.all()}
-
-    for idx, item in enumerate(request.events):
-        try:
-            # Validate camera exists
-            if item.camera_id not in valid_camera_ids:
-                results.append(
-                    {
-                        "index": idx,
-                        "status": BulkOperationStatus.FAILED,
-                        "id": None,
-                        "error": f"Camera not found: {item.camera_id}",
-                    }
-                )
-                failed += 1
-                continue
-
-            # Create event
-            event = Event(
-                camera_id=item.camera_id,
-                started_at=item.started_at,
-                ended_at=item.ended_at,
-                risk_score=item.risk_score,
-                risk_level=item.risk_level,
-                summary=item.summary,
-                reasoning=item.reasoning,
-                detection_ids=json.dumps(item.detection_ids) if item.detection_ids else None,
-            )
-            db.add(event)
-            await db.flush()  # Get the ID without committing
-
-            results.append(
-                {
-                    "index": idx,
-                    "status": BulkOperationStatus.SUCCESS,
-                    "id": event.id,
-                    "error": None,
-                }
-            )
-            succeeded += 1
-
-        except Exception as e:
-            logger.error(f"Bulk create event failed at index {idx}: {e}")
-            results.append(
-                {
-                    "index": idx,
-                    "status": BulkOperationStatus.FAILED,
-                    "id": None,
-                    "error": str(e),
-                }
-            )
-            failed += 1
-
-    # Commit all successful operations
-    if succeeded > 0:
-        try:
-            await db.commit()
-            # Invalidate event-related caches after successful bulk create (NEM-1950)
-            try:
-                await cache.invalidate_events(reason="event_created")
-                await cache.invalidate_event_stats(reason="event_created")
-            except Exception as e:
-                # Cache invalidation is non-critical - log but don't fail the request
-                logger.warning(f"Cache invalidation failed after bulk create: {e}")
-        except Exception as e:
-            logger.error(f"Bulk create commit failed: {e}")
-            await db.rollback()
-            # Mark all as failed on commit error
-            for item_result in results:
-                if item_result["status"] == BulkOperationStatus.SUCCESS:
-                    item_result["status"] = BulkOperationStatus.FAILED
-                    item_result["error"] = "Transaction commit failed"
-                    succeeded -= 1
-                    failed += 1
-
-    return EventBulkCreateResponse(
-        total=len(request.events),
-        succeeded=succeeded,
-        failed=failed,
-        skipped=0,
-        results=results,
-    )
-
-
-@router.patch(
-    "/bulk",
-    response_model=BulkOperationResponse,
-    status_code=status.HTTP_207_MULTI_STATUS,
-    summary="Bulk update events",
-    responses={
-        207: {"description": "Multi-status response with per-item results"},
-        400: {"description": "Invalid request format"},
-        422: {"description": "Validation error"},
-    },
-)
-async def bulk_update_events(
-    request: EventBulkUpdateRequest,
-    db: AsyncSession = Depends(get_db),
-    cache: CacheService = Depends(get_cache_service_dep),
-) -> BulkOperationResponse:
-    """Update multiple events in a single request.
-
-    Supports partial success - some updates may succeed while others fail.
-    Returns HTTP 207 Multi-Status with per-item results.
-
-    Rate limiting: Consider implementing RateLimitTier.BULK for production use.
-
-    Args:
-        request: Bulk update request with up to 100 event updates
-        db: Database session
-
-    Returns:
-        BulkOperationResponse with per-item results
-    """
-    results: list[dict[str, Any]] = []
-    succeeded = 0
-    failed = 0
-
-    # Fetch all events in one query
-    event_ids = [item.id for item in request.events]
-    query = select(Event).where(Event.id.in_(event_ids))
-    result = await db.execute(query)
-    events_map = {event.id: event for event in result.scalars().all()}
-
-    for idx, item in enumerate(request.events):
-        try:
-            event = events_map.get(item.id)
-            if not event:
-                results.append(
-                    {
-                        "index": idx,
-                        "status": BulkOperationStatus.FAILED,
-                        "id": item.id,
-                        "error": f"Event not found: {item.id}",
-                    }
-                )
-                failed += 1
-                continue
-
-            # Update fields if provided
-            if item.reviewed is not None:
-                event.reviewed = item.reviewed
-            if item.notes is not None:
-                event.notes = item.notes
-
-            results.append(
-                {
-                    "index": idx,
-                    "status": BulkOperationStatus.SUCCESS,
-                    "id": event.id,
-                    "error": None,
-                }
-            )
-            succeeded += 1
-
-        except Exception as e:
-            logger.error(f"Bulk update event failed at index {idx}: {e}")
-            results.append(
-                {
-                    "index": idx,
-                    "status": BulkOperationStatus.FAILED,
-                    "id": item.id,
-                    "error": str(e),
-                }
-            )
-            failed += 1
-
-    # Commit all successful operations
-    if succeeded > 0:
-        try:
-            await db.commit()
-            # Invalidate event-related caches after successful bulk update (NEM-1950)
-            try:
-                await cache.invalidate_events(reason="event_updated")
-                await cache.invalidate_event_stats(reason="event_updated")
-            except Exception as e:
-                # Cache invalidation is non-critical - log but don't fail the request
-                logger.warning(f"Cache invalidation failed after bulk update: {e}")
-        except Exception as e:
-            logger.error(f"Bulk update commit failed: {e}")
-            await db.rollback()
-            # Mark all as failed on commit error
-            for item_result in results:
-                if item_result["status"] == BulkOperationStatus.SUCCESS:
-                    item_result["status"] = BulkOperationStatus.FAILED
-                    item_result["error"] = "Transaction commit failed"
-                    succeeded -= 1
-                    failed += 1
-
-    return BulkOperationResponse(
-        total=len(request.events),
-        succeeded=succeeded,
-        failed=failed,
-        skipped=0,
-        results=results,
-    )
-
-
-@router.delete(
-    "/bulk",
-    response_model=BulkOperationResponse,
-    status_code=status.HTTP_207_MULTI_STATUS,
-    summary="Bulk delete events",
-    responses={
-        207: {"description": "Multi-status response with per-item results"},
-        400: {"description": "Invalid request format"},
-        422: {"description": "Validation error"},
-    },
-)
-async def bulk_delete_events(
-    request: EventBulkDeleteRequest,
-    db: AsyncSession = Depends(get_db),
-    cache: CacheService = Depends(get_cache_service_dep),
-) -> BulkOperationResponse:
-    """Delete multiple events in a single request.
-
-    Supports partial success - some deletions may succeed while others fail.
-    Returns HTTP 207 Multi-Status with per-item results.
-
-    By default uses soft delete (sets deleted_at timestamp) with cascade to
-    related detections. Use soft_delete=false for permanent deletion.
-    Use cascade=false to only delete the event without affecting detections.
-
-    Rate limiting: Consider implementing RateLimitTier.BULK for production use.
-
-    Args:
-        request: Bulk delete request with up to 100 event IDs
-        db: Database session
-        cache: Cache service for invalidation
-
-    Returns:
-        BulkOperationResponse with per-item results
-    """
-    results: list[dict[str, Any]] = []
-    succeeded = 0
-    failed = 0
-
-    event_service = get_event_service()
-
-    for idx, event_id in enumerate(request.event_ids):
-        try:
-            if request.soft_delete:
-                # Soft delete the event (cascade param preserved for future use)
-                await event_service.soft_delete_event(
-                    event_id=event_id,
-                    db=db,
-                    cascade=True,
-                )
-            else:
-                # Hard delete - fetch and delete directly
-                query = select(Event).where(Event.id == event_id)
-                result = await db.execute(query)
-                event = result.scalar_one_or_none()
-                if event is None:
-                    raise ValueError(f"Event not found: {event_id}")
-                await db.delete(event)
-
-            results.append(
-                {
-                    "index": idx,
-                    "status": BulkOperationStatus.SUCCESS,
-                    "id": event_id,
-                    "error": None,
-                }
-            )
-            succeeded += 1
-
-        except ValueError as e:
-            # Event not found or already deleted
-            results.append(
-                {
-                    "index": idx,
-                    "status": BulkOperationStatus.FAILED,
-                    "id": event_id,
-                    "error": str(e),
-                }
-            )
-            failed += 1
-
-        except Exception as e:
-            logger.error(f"Bulk delete event failed at index {idx}: {e}")
-            results.append(
-                {
-                    "index": idx,
-                    "status": BulkOperationStatus.FAILED,
-                    "id": event_id,
-                    "error": str(e),
-                }
-            )
-            failed += 1
-
-    # Commit all successful operations
-    if succeeded > 0:
-        try:
-            await db.commit()
-            # Invalidate event-related caches after successful bulk delete (NEM-1950)
-            try:
-                await cache.invalidate_events(reason="event_deleted")
-                await cache.invalidate_event_stats(reason="event_deleted")
-            except Exception as e:
-                # Cache invalidation is non-critical - log but don't fail the request
-                logger.warning(f"Cache invalidation failed after bulk delete: {e}")
-        except Exception as e:
-            logger.error(f"Bulk delete commit failed: {e}")
-            await db.rollback()
-            # Mark all as failed on commit error
-            for item_result in results:
-                if item_result["status"] == BulkOperationStatus.SUCCESS:
-                    item_result["status"] = BulkOperationStatus.FAILED
-                    item_result["error"] = "Transaction commit failed"
-                    succeeded -= 1
-                    failed += 1
-
-    return BulkOperationResponse(
-        total=len(request.event_ids),
-        succeeded=succeeded,
-        failed=failed,
-        skipped=0,
-        results=results,
     )
 
 

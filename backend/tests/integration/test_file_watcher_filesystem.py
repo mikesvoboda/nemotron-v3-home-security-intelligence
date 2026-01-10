@@ -145,6 +145,7 @@ class TestRealFilesystemEventDetection:
             camera_root=str(temp_camera_root),
             redis_client=mock_redis_client,
             debounce_delay=0.1,
+            stability_time=0.0,  # Disable stability check for tests (files are complete)
         )
 
         try:
@@ -188,6 +189,7 @@ class TestRealFilesystemEventDetection:
             camera_root=str(temp_camera_root),
             redis_client=mock_redis_client,
             debounce_delay=0.1,
+            stability_time=0.0,  # Disable stability check for tests (files are complete)
         )
 
         try:
@@ -232,6 +234,7 @@ class TestSymlinkHandling:
             camera_root=str(temp_camera_root),
             redis_client=mock_redis_client,
             debounce_delay=0.1,
+            stability_time=0.0,  # Disable stability check for tests (files are complete)
         )
 
         try:
@@ -273,6 +276,7 @@ class TestSymlinkHandling:
             camera_root=str(temp_camera_root),
             redis_client=mock_redis_client,
             debounce_delay=0.1,
+            stability_time=0.0,  # Disable stability check for tests (files are complete)
         )
 
         try:
@@ -309,6 +313,7 @@ class TestSymlinkHandling:
             camera_root=str(temp_camera_root),
             redis_client=mock_redis_client,
             debounce_delay=0.1,
+            stability_time=0.0,  # Disable stability check for tests (files are complete)
         )
 
         try:
@@ -360,6 +365,7 @@ class TestPermissionErrorHandling:
             camera_root=str(temp_camera_root),
             redis_client=mock_redis_client,
             debounce_delay=0.1,
+            stability_time=0.0,  # Disable stability check for tests (files are complete)
         )
 
         try:
@@ -420,6 +426,7 @@ class TestPermissionErrorHandling:
             camera_root=str(temp_camera_root),
             redis_client=mock_redis_client,
             debounce_delay=0.1,
+            stability_time=0.0,  # Disable stability check for tests (files are complete)
         )
 
         try:
@@ -479,6 +486,7 @@ class TestLargeFileHandling:
             camera_root=str(temp_camera_root),
             redis_client=mock_redis_client,
             debounce_delay=0.5,  # Longer debounce for large file writes
+            stability_time=0.0,  # Disable stability check for tests (files are complete)
         )
 
         try:
@@ -516,6 +524,7 @@ class TestLargeFileHandling:
             camera_root=str(temp_camera_root),
             redis_client=mock_redis_client,
             debounce_delay=0.5,
+            stability_time=0.0,  # Disable stability check for tests (files are complete)
         )
 
         try:
@@ -569,6 +578,7 @@ class TestConcurrentFileCreation:
             camera_root=str(temp_camera_root),
             redis_client=mock_redis_client,
             debounce_delay=0.1,
+            stability_time=0.0,  # Disable stability check for tests (files are complete)
         )
 
         try:
@@ -617,6 +627,7 @@ class TestConcurrentFileCreation:
             camera_root=str(temp_camera_root),
             redis_client=mock_redis_client,
             debounce_delay=0.1,
+            stability_time=0.0,  # Disable stability check for tests (files are complete)
         )
 
         try:
@@ -659,6 +670,7 @@ class TestConcurrentFileCreation:
             camera_root=str(temp_camera_root),
             redis_client=mock_redis_client,
             debounce_delay=0.3,  # Longer debounce to capture burst
+            stability_time=0.0,  # Disable stability check for tests (files are complete)
         )
 
         try:
@@ -709,6 +721,7 @@ class TestDirectoryEvents:
             camera_root=str(temp_camera_root),
             redis_client=mock_redis_client,
             debounce_delay=0.1,
+            stability_time=0.0,  # Disable stability check for tests (files are complete)
         )
 
         try:
@@ -743,6 +756,7 @@ class TestDirectoryEvents:
             camera_root=str(temp_camera_root),
             redis_client=mock_redis_client,
             debounce_delay=0.1,
+            stability_time=0.0,  # Disable stability check for tests (files are complete)
         )
 
         try:
@@ -796,6 +810,7 @@ class TestWatchDirectoryDeleted:
             camera_root=str(temp_camera_root),
             redis_client=mock_redis_client,
             debounce_delay=0.1,
+            stability_time=0.0,  # Disable stability check for tests (files are complete)
         )
 
         try:
@@ -840,6 +855,7 @@ class TestWatchDirectoryDeleted:
             camera_root=str(temp_camera_root),
             redis_client=mock_redis_client,
             debounce_delay=0.1,
+            stability_time=0.0,  # Disable stability check for tests (files are complete)
         )
 
         try:
@@ -900,6 +916,7 @@ class TestVideoFileDetection:
             camera_root=str(temp_camera_root),
             redis_client=mock_redis_client,
             debounce_delay=0.1,
+            stability_time=0.0,  # Disable stability check for tests (files are complete)
         )
 
         try:
@@ -937,6 +954,7 @@ class TestVideoFileDetection:
             camera_root=str(temp_camera_root),
             redis_client=mock_redis_client,
             debounce_delay=0.1,
+            stability_time=0.0,  # Disable stability check for tests (files are complete)
         )
 
         try:
@@ -973,6 +991,7 @@ class TestVideoFileDetection:
             camera_root=str(temp_camera_root),
             redis_client=mock_redis_client,
             debounce_delay=0.1,
+            stability_time=0.0,  # Disable stability check for tests (files are complete)
         )
 
         try:
@@ -1016,6 +1035,7 @@ class TestPollingMode:
             debounce_delay=0.1,
             use_polling=True,
             polling_interval=0.5,  # Fast polling for testing
+            stability_time=0.0,  # Disable stability check for tests (files are complete)
         )
 
         try:

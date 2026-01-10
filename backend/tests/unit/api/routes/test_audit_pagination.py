@@ -15,51 +15,61 @@ class TestAuditLogListResponseWithCursor:
     def test_audit_list_response_with_cursor_fields(self):
         """Test AuditLogListResponse includes cursor pagination fields."""
         data = {
-            "logs": [],
-            "count": 100,
-            "limit": 50,
-            "offset": 0,
-            "next_cursor": "eyJpZCI6IDEwMCwgImNyZWF0ZWRfYXQiOiAiMjAyNS0xMi0yM1QxMjowMDowMFoifQ==",  # pragma: allowlist secret
-            "has_more": True,
+            "items": [],
+            "pagination": {
+                "total": 100,
+                "limit": 50,
+                "offset": 0,
+                "next_cursor": "eyJpZCI6IDEwMCwgImNyZWF0ZWRfYXQiOiAiMjAyNS0xMi0yM1QxMjowMDowMFoifQ==",  # pragma: allowlist secret
+                "has_more": True,
+            },
         }
         response = AuditLogListResponse(**data)
-        assert response.next_cursor is not None
-        assert response.has_more is True
+        assert response.pagination.next_cursor is not None
+        assert response.pagination.has_more is True
 
     def test_audit_list_response_no_more_results(self):
         """Test AuditLogListResponse when there are no more results."""
         data = {
-            "logs": [],
-            "count": 10,
-            "limit": 50,
-            "offset": 0,
-            "next_cursor": None,
-            "has_more": False,
+            "items": [],
+            "pagination": {
+                "total": 10,
+                "limit": 50,
+                "offset": 0,
+                "next_cursor": None,
+                "has_more": False,
+            },
         }
         response = AuditLogListResponse(**data)
-        assert response.next_cursor is None
-        assert response.has_more is False
+        assert response.pagination.next_cursor is None
+        assert response.pagination.has_more is False
 
     def test_audit_list_response_backward_compatible_without_cursor(self):
-        """Test AuditLogListResponse still works without cursor fields (backward compatibility)."""
+        """Test AuditLogListResponse with pagination envelope."""
         data = {
-            "logs": [],
-            "count": 0,
-            "limit": 50,
-            "offset": 0,
+            "items": [],
+            "pagination": {
+                "total": 0,
+                "limit": 50,
+                "offset": 0,
+                "has_more": False,
+            },
         }
         response = AuditLogListResponse(**data)
-        # Should default to None/False for cursor fields
-        assert response.next_cursor is None
-        assert response.has_more is False
+        # Should default to None for cursor fields
+        assert response.pagination.next_cursor is None
+        assert response.pagination.has_more is False
 
     def test_audit_list_response_deprecation_warning(self):
         """Test AuditLogListResponse can include deprecation warning."""
         data = {
-            "logs": [],
-            "count": 100,
-            "limit": 50,
-            "offset": 20,
+            "items": [],
+            "pagination": {
+                "total": 100,
+                "limit": 50,
+                "offset": 20,
+                "has_more": False,
+            },
             "deprecation_warning": "Offset pagination is deprecated. Please use cursor-based pagination.",
         }
         response = AuditLogListResponse(**data)

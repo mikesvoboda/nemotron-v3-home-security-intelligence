@@ -132,8 +132,8 @@ async def test_get_camera_settings_empty(async_client: AsyncClient, integration_
     assert response.status_code == 200
 
     data = response.json()
-    assert data["settings"] == []
-    assert data["count"] == 0
+    assert data["items"] == []
+    assert data["pagination"]["total"] == 0
 
 
 @pytest.mark.asyncio
@@ -161,8 +161,8 @@ async def test_create_and_get_camera_setting(
     response = await async_client.get("/api/notification-preferences/cameras")
     assert response.status_code == 200
     data = response.json()
-    assert data["count"] == 1
-    assert data["settings"][0]["camera_id"] == sample_camera.id
+    assert data["pagination"]["total"] == 1
+    assert data["items"][0]["camera_id"] == sample_camera.id
 
 
 @pytest.mark.asyncio
@@ -252,8 +252,8 @@ async def test_get_quiet_hours_empty(async_client: AsyncClient, integration_db: 
     assert response.status_code == 200
 
     data = response.json()
-    assert data["periods"] == []
-    assert data["count"] == 0
+    assert data["items"] == []
+    assert data["pagination"]["total"] == 0
 
 
 @pytest.mark.asyncio
@@ -320,8 +320,8 @@ async def test_get_quiet_hours_after_creation(async_client: AsyncClient, integra
     assert response.status_code == 200
 
     data = response.json()
-    assert data["count"] == 2
-    assert len(data["periods"]) == 2
+    assert data["pagination"]["total"] == 2
+    assert len(data["items"]) == 2
 
 
 @pytest.mark.asyncio
@@ -346,7 +346,7 @@ async def test_delete_quiet_hours_period(async_client: AsyncClient, integration_
     # Verify deletion
     response = await async_client.get("/api/notification-preferences/quiet-hours")
     data = response.json()
-    assert data["count"] == 0
+    assert data["pagination"]["total"] == 0
 
 
 @pytest.mark.asyncio
@@ -361,14 +361,17 @@ async def test_delete_quiet_hours_period_not_found(async_client: AsyncClient, in
 async def test_create_quiet_hours_invalid_time_range(
     async_client: AsyncClient, integration_db: str
 ):
-    """Test creating quiet period with invalid time range (start >= end)."""
+    """Test creating quiet period with invalid time range (start == end).
+
+    Note: Overnight periods (start > end) are valid (e.g., 22:00 to 06:00).
+    """
     period_data = {
         "label": "Invalid",
         "start_time": "10:00:00",
-        "end_time": "08:00:00",  # Earlier than start
+        "end_time": "10:00:00",  # Same as start - invalid
     }
     response = await async_client.post(
         "/api/notification-preferences/quiet-hours", json=period_data
     )
-    # Should fail validation at database level
+    # Should fail validation (zero-length period)
     assert response.status_code in [400, 422, 500]

@@ -27,6 +27,7 @@ from backend.api.schemas.camera import (
     CameraUpdate,
     DeletedCamerasListResponse,
 )
+from backend.api.schemas.pagination import create_pagination_meta
 from backend.api.schemas.scene_change import (
     SceneChangeAcknowledgeResponse,
     SceneChangeListResponse,
@@ -134,11 +135,17 @@ async def list_cameras(
             # Cast to expected type - cache stores dict[str, Any]
             result_data = dict(cached_data)
             # Apply field filtering to cached data (NEM-1434)
+            items = result_data["cameras"]
             if validated_fields is not None:
-                result_data["cameras"] = [
-                    filter_fields(c, validated_fields) for c in result_data["cameras"]
-                ]
-            return CameraListResponse(cameras=result_data["cameras"], count=result_data["count"])
+                items = [filter_fields(c, validated_fields) for c in items]
+            return CameraListResponse(
+                items=items,
+                pagination=create_pagination_meta(
+                    total=len(result_data["cameras"]),
+                    limit=1000,  # No pagination limit for cameras list
+                    items_count=len(items),
+                ),
+            )
     except Exception as e:
         logger.warning(f"Cache read failed, falling back to database: {e}")
 
@@ -165,23 +172,30 @@ async def list_cameras(
         for c in cameras
     ]
 
-    response = {
+    cache_response = {
         "cameras": cameras_data,
         "count": len(cameras_data),
     }
 
     # Cache the result (cache full data, filter on retrieval)
     try:
-        await cache.set(cache_key, response, ttl=SHORT_TTL)
+        await cache.set(cache_key, cache_response, ttl=SHORT_TTL)
     except Exception as e:
         logger.warning(f"Cache write failed: {e}")
 
     # Apply field filtering before returning (NEM-1434)
+    items = cameras_data
     if validated_fields is not None:
-        # cameras_data is known to be a list of dicts from the code above
-        response["cameras"] = [filter_fields(c, validated_fields) for c in cameras_data]
+        items = [filter_fields(c, validated_fields) for c in cameras_data]
 
-    return CameraListResponse(cameras=response["cameras"], count=response["count"])
+    return CameraListResponse(
+        items=items,
+        pagination=create_pagination_meta(
+            total=len(cameras_data),
+            limit=1000,  # No pagination limit for cameras list
+            items_count=len(items),
+        ),
+    )
 
 
 # =============================================================================
@@ -236,8 +250,12 @@ async def list_deleted_cameras(
     ]
 
     return {
-        "cameras": cameras_data,
-        "count": len(cameras_data),
+        "items": cameras_data,
+        "pagination": create_pagination_meta(
+            total=len(cameras_data),
+            limit=1000,  # No pagination limit for deleted cameras list
+            items_count=len(cameras_data),
+        ).model_dump(),
     }
 
 

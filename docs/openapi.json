@@ -514,10 +514,7 @@
       "AlertRuleListResponse": {
         "description": "Schema for alert rule list response with pagination.",
         "example": {
-          "count": 1,
-          "limit": 50,
-          "offset": 0,
-          "rules": [
+          "items": [
             {
               "channels": [
                 "pushover"
@@ -532,38 +529,31 @@
               "name": "High Risk Alert",
               "updated_at": "2025-12-28T12:00:00Z"
             }
-          ]
+          ],
+          "pagination": {
+            "has_more": false,
+            "limit": 50,
+            "offset": 0,
+            "total": 1
+          }
         },
         "properties": {
-          "count": {
-            "description": "Total number of rules",
-            "title": "Count",
-            "type": "integer"
-          },
-          "limit": {
-            "description": "Maximum number of results returned",
-            "title": "Limit",
-            "type": "integer"
-          },
-          "offset": {
-            "description": "Number of results skipped",
-            "title": "Offset",
-            "type": "integer"
-          },
-          "rules": {
+          "items": {
             "description": "List of alert rules",
             "items": {
               "$ref": "#/components/schemas/AlertRuleResponse"
             },
-            "title": "Rules",
+            "title": "Items",
             "type": "array"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationMeta",
+            "description": "Pagination metadata"
           }
         },
         "required": [
-          "rules",
-          "count",
-          "limit",
-          "offset"
+          "items",
+          "pagination"
         ],
         "title": "AlertRuleListResponse",
         "type": "object"
@@ -1282,10 +1272,7 @@
       "AuditLogListResponse": {
         "description": "Schema for paginated audit log response.\n\nSupports both cursor-based pagination (recommended) and offset pagination (deprecated).\nCursor-based pagination offers better performance for large datasets.",
         "example": {
-          "count": 1,
-          "has_more": false,
-          "limit": 50,
-          "logs": [
+          "items": [
             {
               "action": "acknowledge",
               "actor": "admin@example.com",
@@ -1297,16 +1284,15 @@
               "timestamp": "2026-01-03T10:30:00Z"
             }
           ],
-          "next_cursor": "eyJpZCI6IDEsICJjcmVhdGVkX2F0IjogIjIwMjYtMDEtMDNUMTA6MzA6MDBaIn0=",
-          "offset": 0
+          "pagination": {
+            "has_more": false,
+            "limit": 50,
+            "next_cursor": "eyJpZCI6IDEsICJjcmVhdGVkX2F0IjogIjIwMjYtMDEtMDNUMTA6MzA6MDBaIn0=",
+            "offset": 0,
+            "total": 1
+          }
         },
         "properties": {
-          "count": {
-            "description": "Total count matching filters",
-            "minimum": 0.0,
-            "title": "Count",
-            "type": "integer"
-          },
           "deprecation_warning": {
             "anyOf": [
               {
@@ -1319,51 +1305,22 @@
             "description": "Warning when using deprecated offset pagination",
             "title": "Deprecation Warning"
           },
-          "has_more": {
-            "default": false,
-            "description": "Whether more results are available",
-            "title": "Has More",
-            "type": "boolean"
-          },
-          "limit": {
-            "description": "Page size (1-1000)",
-            "maximum": 1000.0,
-            "minimum": 1.0,
-            "title": "Limit",
-            "type": "integer"
-          },
-          "logs": {
+          "items": {
             "description": "List of audit log entries",
             "items": {
               "$ref": "#/components/schemas/AuditLogResponse"
             },
-            "title": "Logs",
+            "title": "Items",
             "type": "array"
           },
-          "next_cursor": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Cursor for next page (use this instead of offset)",
-            "title": "Next Cursor"
-          },
-          "offset": {
-            "description": "Page offset (0-based, deprecated)",
-            "minimum": 0.0,
-            "title": "Offset",
-            "type": "integer"
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationMeta",
+            "description": "Pagination metadata"
           }
         },
         "required": [
-          "logs",
-          "count",
-          "limit",
-          "offset"
+          "items",
+          "pagination"
         ],
         "title": "AuditLogListResponse",
         "type": "object"
@@ -2090,9 +2047,9 @@
         "type": "object"
       },
       "CameraListResponse": {
-        "description": "Schema for camera list response.",
+        "description": "Schema for camera list response.\n\nNEM-2075: Standardized pagination envelope with items + pagination structure.",
         "example": {
-          "cameras": [
+          "items": [
             {
               "created_at": "2025-12-23T10:00:00Z",
               "folder_path": "/export/foscam/front_door",
@@ -2102,26 +2059,30 @@
               "status": "online"
             }
           ],
-          "count": 1
+          "pagination": {
+            "has_more": false,
+            "limit": 50,
+            "offset": 0,
+            "total": 1
+          }
         },
         "properties": {
-          "cameras": {
+          "items": {
             "description": "List of cameras",
             "items": {
               "$ref": "#/components/schemas/CameraResponse"
             },
-            "title": "Cameras",
+            "title": "Items",
             "type": "array"
           },
-          "count": {
-            "description": "Total number of cameras",
-            "title": "Count",
-            "type": "integer"
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationMeta",
+            "description": "Pagination metadata"
           }
         },
         "required": [
-          "cameras",
-          "count"
+          "items",
+          "pagination"
         ],
         "title": "CameraListResponse",
         "type": "object"
@@ -2205,10 +2166,9 @@
         "type": "object"
       },
       "CameraNotificationSettingsListResponse": {
-        "description": "Schema for camera notification settings list response.",
+        "description": "Schema for camera notification settings list response with pagination.",
         "example": {
-          "count": 2,
-          "settings": [
+          "items": [
             {
               "camera_id": "front_door",
               "enabled": true,
@@ -2221,26 +2181,31 @@
               "id": "550e8400-e29b-41d4-a716-446655440001",
               "risk_threshold": 70
             }
-          ]
+          ],
+          "pagination": {
+            "has_more": false,
+            "limit": 50,
+            "offset": 0,
+            "total": 2
+          }
         },
         "properties": {
-          "count": {
-            "description": "Total number of settings",
-            "title": "Count",
-            "type": "integer"
-          },
-          "settings": {
+          "items": {
             "description": "List of camera notification settings",
             "items": {
               "$ref": "#/components/schemas/CameraNotificationSettingResponse"
             },
-            "title": "Settings",
+            "title": "Items",
             "type": "array"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationMeta",
+            "description": "Pagination metadata"
           }
         },
         "required": [
-          "settings",
-          "count"
+          "items",
+          "pagination"
         ],
         "title": "CameraNotificationSettingsListResponse",
         "type": "object"
@@ -4234,9 +4199,9 @@
         "type": "object"
       },
       "DeletedCamerasListResponse": {
-        "description": "Schema for listing soft-deleted cameras (trash view).\n\nNEM-1955: Provides a trash view of soft-deleted cameras that can be restored.\nCameras are ordered by deleted_at descending (most recently deleted first).",
+        "description": "Schema for listing soft-deleted cameras (trash view).\n\nNEM-1955: Provides a trash view of soft-deleted cameras that can be restored.\nCameras are ordered by deleted_at descending (most recently deleted first).\nNEM-2075: Standardized pagination envelope with items + pagination structure.",
         "example": {
-          "cameras": [
+          "items": [
             {
               "created_at": "2025-12-23T10:00:00Z",
               "folder_path": "/export/foscam/front_door",
@@ -4246,35 +4211,38 @@
               "status": "offline"
             }
           ],
-          "count": 1
+          "pagination": {
+            "has_more": false,
+            "limit": 50,
+            "offset": 0,
+            "total": 1
+          }
         },
         "properties": {
-          "cameras": {
+          "items": {
             "description": "List of soft-deleted cameras",
             "items": {
               "$ref": "#/components/schemas/CameraResponse"
             },
-            "title": "Cameras",
+            "title": "Items",
             "type": "array"
           },
-          "count": {
-            "description": "Total number of deleted cameras",
-            "title": "Count",
-            "type": "integer"
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationMeta",
+            "description": "Pagination metadata"
           }
         },
         "required": [
-          "cameras",
-          "count"
+          "items",
+          "pagination"
         ],
         "title": "DeletedCamerasListResponse",
         "type": "object"
       },
       "DeletedEventsListResponse": {
-        "description": "Schema for listing soft-deleted events (trash view).\n\nNEM-1955: Provides a trash view of soft-deleted events that can be restored.\nEvents are ordered by deleted_at descending (most recently deleted first).",
+        "description": "Schema for listing soft-deleted events (trash view).\n\nNEM-1955: Provides a trash view of soft-deleted events that can be restored.\nEvents are ordered by deleted_at descending (most recently deleted first).\nNEM-2075: Standardized pagination envelope with items + pagination structure.",
         "example": {
-          "count": 1,
-          "events": [
+          "items": [
             {
               "camera_id": "front_door",
               "detection_count": 5,
@@ -4295,26 +4263,31 @@
               "summary": "Person detected near front entrance",
               "thumbnail_url": "/api/media/detections/1"
             }
-          ]
+          ],
+          "pagination": {
+            "has_more": false,
+            "limit": 50,
+            "offset": 0,
+            "total": 1
+          }
         },
         "properties": {
-          "count": {
-            "description": "Total number of deleted events",
-            "title": "Count",
-            "type": "integer"
-          },
-          "events": {
+          "items": {
             "description": "List of soft-deleted events",
             "items": {
               "$ref": "#/components/schemas/EventResponse"
             },
-            "title": "Events",
+            "title": "Items",
             "type": "array"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationMeta",
+            "description": "Pagination metadata"
           }
         },
         "required": [
-          "events",
-          "count"
+          "items",
+          "pagination"
         ],
         "title": "DeletedEventsListResponse",
         "type": "object"
@@ -4610,10 +4583,9 @@
         "type": "object"
       },
       "DetectionListResponse": {
-        "description": "Schema for detection list response with pagination.\n\nSupports both cursor-based pagination (recommended) and offset pagination (deprecated).\nUse cursor-based pagination for better performance with large datasets.",
+        "description": "Schema for detection list response with standardized pagination envelope.\n\nUses the standard pagination envelope: {\"items\": [...], \"pagination\": {...}}\nSupports both cursor-based pagination (recommended) and offset pagination (deprecated).",
         "example": {
-          "count": 1,
-          "detections": [
+          "items": [
             {
               "bbox_height": 400,
               "bbox_width": 200,
@@ -4629,17 +4601,15 @@
               "thumbnail_path": "/data/thumbnails/1_thumb.jpg"
             }
           ],
-          "has_more": false,
-          "limit": 50,
-          "next_cursor": "eyJpZCI6IDEsICJjcmVhdGVkX2F0IjogIjIwMjUtMTItMjNUMTI6MDA6MDBaIn0=",
-          "offset": 0
+          "pagination": {
+            "has_more": false,
+            "limit": 50,
+            "next_cursor": "eyJpZCI6IDEsICJjcmVhdGVkX2F0IjogIjIwMjUtMTItMjNUMTI6MDA6MDBaIn0=",
+            "offset": 0,
+            "total": 1
+          }
         },
         "properties": {
-          "count": {
-            "description": "Total number of detections matching filters",
-            "title": "Count",
-            "type": "integer"
-          },
           "deprecation_warning": {
             "anyOf": [
               {
@@ -4652,48 +4622,22 @@
             "description": "Warning message when using deprecated offset pagination",
             "title": "Deprecation Warning"
           },
-          "detections": {
+          "items": {
             "description": "List of detections",
             "items": {
               "$ref": "#/components/schemas/DetectionResponse"
             },
-            "title": "Detections",
+            "title": "Items",
             "type": "array"
           },
-          "has_more": {
-            "default": false,
-            "description": "Whether there are more results available after this page",
-            "title": "Has More",
-            "type": "boolean"
-          },
-          "limit": {
-            "description": "Maximum number of results returned",
-            "title": "Limit",
-            "type": "integer"
-          },
-          "next_cursor": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Cursor for fetching the next page. Pass this as the 'cursor' parameter.",
-            "title": "Next Cursor"
-          },
-          "offset": {
-            "description": "Number of results skipped (deprecated, use cursor)",
-            "title": "Offset",
-            "type": "integer"
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationMeta",
+            "description": "Pagination metadata"
           }
         },
         "required": [
-          "detections",
-          "count",
-          "limit",
-          "offset"
+          "items",
+          "pagination"
         ],
         "title": "DetectionListResponse",
         "type": "object"
@@ -5632,10 +5576,9 @@
         "type": "object"
       },
       "EntityListResponse": {
-        "description": "Schema for paginated entity list response.",
+        "description": "Schema for paginated entity list response (NEM-2075 pagination envelope).\n\nUses standardized pagination envelope with 'items' and 'pagination' fields.",
         "example": {
-          "count": 1,
-          "entities": [
+          "items": [
             {
               "appearance_count": 5,
               "cameras_seen": [
@@ -5649,39 +5592,30 @@
               "thumbnail_url": "/api/detections/123/image"
             }
           ],
-          "limit": 50,
-          "offset": 0
+          "pagination": {
+            "has_more": false,
+            "limit": 50,
+            "offset": 0,
+            "total": 1
+          }
         },
         "properties": {
-          "count": {
-            "description": "Total number of entities matching filters",
-            "title": "Count",
-            "type": "integer"
-          },
-          "entities": {
+          "items": {
             "description": "List of tracked entities",
             "items": {
               "$ref": "#/components/schemas/EntitySummary"
             },
-            "title": "Entities",
+            "title": "Items",
             "type": "array"
           },
-          "limit": {
-            "description": "Maximum number of results returned",
-            "title": "Limit",
-            "type": "integer"
-          },
-          "offset": {
-            "description": "Number of results skipped",
-            "title": "Offset",
-            "type": "integer"
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationInfo",
+            "description": "Pagination metadata"
           }
         },
         "required": [
-          "entities",
-          "count",
-          "limit",
-          "offset"
+          "items",
+          "pagination"
         ],
         "title": "EntityListResponse",
         "type": "object"
@@ -5903,8 +5837,15 @@
         "type": "object"
       },
       "EventBulkCreateItem": {
-        "description": "Schema for a single event in a bulk create request.\n\nAttributes:\n    camera_id: Camera ID that generated this event\n    started_at: Event start timestamp\n    ended_at: Optional event end timestamp\n    risk_score: Risk score from 0-100\n    risk_level: Risk level (low, medium, high, critical)\n    summary: Brief event summary\n    reasoning: Detailed reasoning from LLM analysis\n    detection_ids: List of detection IDs associated with this event",
+        "description": "Schema for a single event in a bulk create request.\n\nAttributes:\n    batch_id: Batch ID that generated this event (tracks detection grouping)\n    camera_id: Camera ID that generated this event\n    started_at: Event start timestamp\n    ended_at: Optional event end timestamp\n    risk_score: Risk score from 0-100\n    risk_level: Risk level (low, medium, high, critical)\n    summary: Brief event summary\n    reasoning: Detailed reasoning from LLM analysis\n    detection_ids: List of detection IDs associated with this event",
         "properties": {
+          "batch_id": {
+            "description": "Batch ID that generated this event",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Batch Id",
+            "type": "string"
+          },
           "camera_id": {
             "description": "Camera ID",
             "maxLength": 255,
@@ -5975,6 +5916,7 @@
           }
         },
         "required": [
+          "batch_id",
           "camera_id",
           "started_at",
           "risk_score",
@@ -6232,10 +6174,9 @@
         "type": "object"
       },
       "EventListResponse": {
-        "description": "Schema for event list response with pagination.\n\nSupports both cursor-based pagination (recommended) and offset pagination (deprecated).\nUse cursor-based pagination for better performance with large datasets.",
+        "description": "Schema for event list response with pagination.\n\nNEM-2075: Standardized pagination envelope with items + pagination structure.\nSupports both cursor-based pagination (recommended) and offset pagination (deprecated).\nUse cursor-based pagination for better performance with large datasets.",
         "example": {
-          "count": 1,
-          "events": [
+          "items": [
             {
               "camera_id": "front_door",
               "detection_count": 5,
@@ -6248,8 +6189,7 @@
               ],
               "ended_at": "2025-12-23T12:02:30Z",
               "id": 1,
-              "llm_prompt": "<|im_start|>system\nYou are a home security risk analyzer...",
-              "reasoning": "Person approaching entrance during daytime, no suspicious behavior",
+              "reasoning": "Person approaching entrance during daytime",
               "reviewed": false,
               "risk_level": "medium",
               "risk_score": 75,
@@ -6258,17 +6198,15 @@
               "thumbnail_url": "/api/media/detections/1"
             }
           ],
-          "has_more": false,
-          "limit": 50,
-          "next_cursor": "eyJpZCI6IDEsICJjcmVhdGVkX2F0IjogIjIwMjUtMTItMjNUMTI6MDA6MDBaIn0=",
-          "offset": 0
+          "pagination": {
+            "has_more": false,
+            "limit": 50,
+            "next_cursor": "eyJpZCI6IDEsICJjcmVhdGVkX2F0IjogIjIwMjUtMTItMjNUMTI6MDA6MDBaIn0=",
+            "offset": 0,
+            "total": 1
+          }
         },
         "properties": {
-          "count": {
-            "description": "Total number of events matching filters",
-            "title": "Count",
-            "type": "integer"
-          },
           "deprecation_warning": {
             "anyOf": [
               {
@@ -6281,48 +6219,22 @@
             "description": "Warning message when using deprecated offset pagination",
             "title": "Deprecation Warning"
           },
-          "events": {
+          "items": {
             "description": "List of events",
             "items": {
               "$ref": "#/components/schemas/EventResponse"
             },
-            "title": "Events",
+            "title": "Items",
             "type": "array"
           },
-          "has_more": {
-            "default": false,
-            "description": "Whether there are more results available after this page",
-            "title": "Has More",
-            "type": "boolean"
-          },
-          "limit": {
-            "description": "Maximum number of results returned",
-            "title": "Limit",
-            "type": "integer"
-          },
-          "next_cursor": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Cursor for fetching the next page. Pass this as the 'cursor' parameter.",
-            "title": "Next Cursor"
-          },
-          "offset": {
-            "description": "Number of results skipped (deprecated, use cursor)",
-            "title": "Offset",
-            "type": "integer"
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationMeta",
+            "description": "Pagination metadata"
           }
         },
         "required": [
-          "events",
-          "count",
-          "limit",
-          "offset"
+          "items",
+          "pagination"
         ],
         "title": "EventListResponse",
         "type": "object"
@@ -7991,12 +7903,9 @@
         "type": "object"
       },
       "LogsResponse": {
-        "description": "Schema for paginated logs response.\n\nSupports both cursor-based pagination (recommended) and offset pagination (deprecated).\nCursor-based pagination offers better performance for large datasets.",
+        "description": "Schema for paginated logs response (NEM-2075 pagination envelope).\n\nUses standardized pagination envelope with 'items' and 'pagination' fields.\nSupports both cursor-based pagination (recommended) and offset pagination.",
         "example": {
-          "count": 1,
-          "has_more": false,
-          "limit": 50,
-          "logs": [
+          "items": [
             {
               "camera_id": "front_door",
               "component": "backend.services.detector",
@@ -8010,73 +7919,30 @@
               "timestamp": "2026-01-03T10:30:00Z"
             }
           ],
-          "next_cursor": "eyJpZCI6IDEsICJjcmVhdGVkX2F0IjogIjIwMjYtMDEtMDNUMTA6MzA6MDBaIn0=",
-          "offset": 0
+          "pagination": {
+            "has_more": false,
+            "limit": 50,
+            "next_cursor": "eyJpZCI6IDEsICJjcmVhdGVkX2F0IjogIjIwMjYtMDEtMDNUMTA6MzA6MDBaIn0=",
+            "total": 1
+          }
         },
         "properties": {
-          "count": {
-            "description": "Total count matching filters",
-            "minimum": 0.0,
-            "title": "Count",
-            "type": "integer"
-          },
-          "deprecation_warning": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Warning when using deprecated offset pagination",
-            "title": "Deprecation Warning"
-          },
-          "has_more": {
-            "default": false,
-            "description": "Whether more results are available",
-            "title": "Has More",
-            "type": "boolean"
-          },
-          "limit": {
-            "description": "Page size (1-1000)",
-            "maximum": 1000.0,
-            "minimum": 1.0,
-            "title": "Limit",
-            "type": "integer"
-          },
-          "logs": {
+          "items": {
             "description": "List of log entries",
             "items": {
               "$ref": "#/components/schemas/LogEntry"
             },
-            "title": "Logs",
+            "title": "Items",
             "type": "array"
           },
-          "next_cursor": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Cursor for next page (use this instead of offset)",
-            "title": "Next Cursor"
-          },
-          "offset": {
-            "description": "Page offset (0-based, deprecated)",
-            "minimum": 0.0,
-            "title": "Offset",
-            "type": "integer"
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationInfo",
+            "description": "Pagination metadata"
           }
         },
         "required": [
-          "logs",
-          "count",
-          "limit",
-          "offset"
+          "items",
+          "pagination"
         ],
         "title": "LogsResponse",
         "type": "object"
@@ -9094,6 +8960,147 @@
           "end_date"
         ],
         "title": "ObjectDistributionResponse",
+        "type": "object"
+      },
+      "PaginationInfo": {
+        "description": "Pagination metadata for list responses (NEM-2075).",
+        "properties": {
+          "cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Current cursor position",
+            "title": "Cursor"
+          },
+          "has_more": {
+            "default": false,
+            "description": "Whether more results are available",
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "limit": {
+            "description": "Page size (1-1000)",
+            "maximum": 1000.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cursor for next page",
+            "title": "Next Cursor"
+          },
+          "offset": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Page offset (0-based, for offset pagination)",
+            "title": "Offset"
+          },
+          "total": {
+            "description": "Total count matching filters",
+            "minimum": 0.0,
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "limit"
+        ],
+        "title": "PaginationInfo",
+        "type": "object"
+      },
+      "PaginationMeta": {
+        "description": "Pagination metadata for list responses.\n\nContains information about the current page and total results.\nSupports both offset-based and cursor-based pagination.",
+        "example": {
+          "has_more": true,
+          "limit": 50,
+          "next_cursor": "eyJpZCI6IDUwfQ",
+          "offset": 0,
+          "total": 150
+        },
+        "properties": {
+          "cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Current cursor position (cursor-based pagination)",
+            "title": "Cursor"
+          },
+          "has_more": {
+            "description": "Whether more items are available beyond this page",
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "limit": {
+            "description": "Maximum number of items returned per page",
+            "maximum": 1000.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cursor for the next page of results",
+            "title": "Next Cursor"
+          },
+          "offset": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Number of items skipped (offset-based pagination)",
+            "title": "Offset"
+          },
+          "total": {
+            "description": "Total number of items matching the query",
+            "minimum": 0.0,
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "limit",
+          "has_more"
+        ],
+        "title": "PaginationMeta",
         "type": "object"
       },
       "PetEnrichment": {
@@ -10763,10 +10770,9 @@
         "type": "object"
       },
       "QuietHoursPeriodsListResponse": {
-        "description": "Schema for quiet hours periods list response.",
+        "description": "Schema for quiet hours periods list response with pagination.",
         "example": {
-          "count": 1,
-          "periods": [
+          "items": [
             {
               "days": [
                 "monday",
@@ -10780,26 +10786,31 @@
               "label": "Night Time",
               "start_time": "22:00:00"
             }
-          ]
+          ],
+          "pagination": {
+            "has_more": false,
+            "limit": 50,
+            "offset": 0,
+            "total": 1
+          }
         },
         "properties": {
-          "count": {
-            "description": "Total number of periods",
-            "title": "Count",
-            "type": "integer"
-          },
-          "periods": {
+          "items": {
             "description": "List of quiet hours periods",
             "items": {
               "$ref": "#/components/schemas/QuietHoursPeriodResponse"
             },
-            "title": "Periods",
+            "title": "Items",
             "type": "array"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationMeta",
+            "description": "Pagination metadata"
           }
         },
         "required": [
-          "periods",
-          "count"
+          "items",
+          "pagination"
         ],
         "title": "QuietHoursPeriodsListResponse",
         "type": "object"
@@ -13627,8 +13638,7 @@
       "ZoneListResponse": {
         "description": "Schema for zone list response.",
         "example": {
-          "count": 1,
-          "zones": [
+          "items": [
             {
               "camera_id": "front_door",
               "color": "#3B82F6",
@@ -13659,26 +13669,31 @@
               "updated_at": "2025-12-23T12:00:00Z",
               "zone_type": "entry_point"
             }
-          ]
+          ],
+          "pagination": {
+            "has_more": false,
+            "limit": 50,
+            "offset": 0,
+            "total": 1
+          }
         },
         "properties": {
-          "count": {
-            "description": "Total number of zones",
-            "title": "Count",
-            "type": "integer"
-          },
-          "zones": {
+          "items": {
             "description": "List of zones",
             "items": {
               "$ref": "#/components/schemas/ZoneResponse"
             },
-            "title": "Zones",
+            "title": "Items",
             "type": "array"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationMeta",
+            "description": "Pagination metadata"
           }
         },
         "required": [
-          "zones",
-          "count"
+          "items",
+          "pagination"
         ],
         "title": "ZoneListResponse",
         "type": "object"
@@ -20529,7 +20544,7 @@
         ]
       },
       "post": {
-        "description": "Create a new quiet hours period.\n\nArgs:\n    period: Quiet hours period data\n\nReturns:\n    QuietHoursPeriodResponse with created period\n\nRaises:\n    HTTPException: 400 if time range is invalid",
+        "description": "Create a new quiet hours period.\n\nArgs:\n    period: Quiet hours period data\n\nReturns:\n    QuietHoursPeriodResponse with created period\n\nRaises:\n    HTTPException: 400 if start_time equals end_time (zero-length period)\n\nNote:\n    Periods can span midnight (e.g., 22:00 to 06:00).\n    If start_time > end_time, the period wraps to the next day.",
         "operationId": "create_quiet_hours_period_api_notification_preferences_quiet_hours_post",
         "requestBody": {
           "content": {

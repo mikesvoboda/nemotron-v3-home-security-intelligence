@@ -27,7 +27,7 @@ export interface UseEventsInfiniteQueryOptions {
 }
 
 export interface UseEventsInfiniteQueryReturn {
-  events: EventListResponse['events'];
+  events: EventListResponse['items'];
   pages: EventListResponse[] | undefined;
   totalCount: number;
   isLoading: boolean;
@@ -80,14 +80,14 @@ export function useEventsInfiniteQuery(
     if (!query.data?.pages) {
       return [];
     }
-    return query.data.pages.flatMap((page) => page.events);
+    return query.data.pages.flatMap((page) => page.items);
   }, [query.data?.pages]);
 
   const totalCount = useMemo(() => {
     if (!query.data?.pages?.[0]) {
       return 0;
     }
-    return query.data.pages[0].count;
+    return query.data.pages[0].pagination.total;
   }, [query.data?.pages]);
 
   return {

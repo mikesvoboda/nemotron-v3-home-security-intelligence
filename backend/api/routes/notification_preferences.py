@@ -18,6 +18,7 @@ from backend.api.schemas.notification_preferences import (
     QuietHoursPeriodResponse,
     QuietHoursPeriodsListResponse,
 )
+from backend.api.schemas.pagination import PaginationMeta
 from backend.core import get_db
 from backend.models.notification_preferences import (
     CameraNotificationSetting,
@@ -172,8 +173,13 @@ async def get_all_camera_settings(
     settings = result.scalars().all()
 
     return CameraNotificationSettingsListResponse(
-        settings=[CameraNotificationSettingResponse.model_validate(s) for s in settings],
-        count=len(settings),
+        items=[CameraNotificationSettingResponse.model_validate(s) for s in settings],
+        pagination=PaginationMeta(
+            total=len(settings),
+            limit=len(settings) or 50,
+            offset=0,
+            has_more=False,
+        ),
     )
 
 
@@ -304,8 +310,13 @@ async def get_quiet_hours(
     periods = result.scalars().all()
 
     return QuietHoursPeriodsListResponse(
-        periods=[QuietHoursPeriodResponse.model_validate(p) for p in periods],
-        count=len(periods),
+        items=[QuietHoursPeriodResponse.model_validate(p) for p in periods],
+        pagination=PaginationMeta(
+            total=len(periods),
+            limit=len(periods) or 50,
+            offset=0,
+            has_more=False,
+        ),
     )
 
 
@@ -332,13 +343,17 @@ async def create_quiet_hours_period(
         QuietHoursPeriodResponse with created period
 
     Raises:
-        HTTPException: 400 if time range is invalid
+        HTTPException: 400 if start_time equals end_time (zero-length period)
+
+    Note:
+        Periods can span midnight (e.g., 22:00 to 06:00).
+        If start_time > end_time, the period wraps to the next day.
     """
-    # Validate time range
-    if period.start_time >= period.end_time:
+    # Validate that period has non-zero length
+    if period.start_time == period.end_time:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="start_time must be less than end_time",
+            detail="start_time must not equal end_time (zero-length period)",
         )
 
     # Create new period

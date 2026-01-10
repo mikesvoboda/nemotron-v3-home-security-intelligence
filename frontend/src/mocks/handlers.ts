@@ -202,8 +202,13 @@ export const handlers = [
    */
   http.get('/api/cameras', () => {
     return HttpResponse.json({
-      cameras: mockCameras,
-      count: mockCameras.length,
+      items: mockCameras,
+      pagination: {
+        total: mockCameras.length,
+        limit: 50,
+        offset: 0,
+        has_more: false,
+      },
     });
   }),
 
@@ -264,11 +269,13 @@ export const handlers = [
     const paginatedEvents = filteredEvents.slice(offset, offset + limit);
 
     const response: EventListResponse = {
-      events: paginatedEvents,
-      count: filteredEvents.length,
-      limit,
-      offset,
-      has_more: offset + paginatedEvents.length < filteredEvents.length,
+      items: paginatedEvents,
+      pagination: {
+        total: filteredEvents.length,
+        limit,
+        offset,
+        has_more: offset + paginatedEvents.length < filteredEvents.length,
+      },
     };
 
     return HttpResponse.json(response);
@@ -317,11 +324,13 @@ export const handlers = [
     const offset = parseInt(url.searchParams.get('offset') || '0', 10);
 
     const response: DetectionListResponse = {
-      detections: [],
-      count: 0,
-      limit,
-      offset,
-      has_more: false,
+      items: [],
+      pagination: {
+        total: 0,
+        limit,
+        offset,
+        has_more: false,
+      },
     };
 
     return HttpResponse.json(response);
@@ -433,10 +442,13 @@ export const handlers = [
     const offset = parseInt(url.searchParams.get('offset') || '0', 10);
 
     return HttpResponse.json({
-      logs: [],
-      count: 0,
-      limit,
-      offset,
+      items: [],
+      pagination: {
+        total: 0,
+        limit,
+        offset,
+        has_more: false,
+      },
     });
   }),
 

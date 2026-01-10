@@ -96,13 +96,13 @@ export default function AlertsPage({ onConfigureRules, className = '' }: AlertsP
         const criticalResponse = await fetchEvents(criticalParams, { signal: controller.signal });
 
         // Combine and sort by timestamp
-        const allAlerts = [...highResponse.events, ...criticalResponse.events];
+        const allAlerts = [...highResponse.items, ...criticalResponse.items];
         allAlerts.sort(
           (a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime()
         );
 
         setEvents(allAlerts);
-        setTotalCount(highResponse.count + criticalResponse.count);
+        setTotalCount(highResponse.pagination.total + criticalResponse.pagination.total);
 
         // Initialize alert states for new alerts
         const newStates = new Map(alertStates);

@@ -29,6 +29,7 @@ from backend.api.schemas.alerts import (
     RuleTestRequest,
     RuleTestResponse,
 )
+from backend.api.schemas.pagination import PaginationMeta
 from backend.core.database import get_db
 from backend.models import AlertRule, Event
 from backend.models import AlertSeverity as ModelAlertSeverity
@@ -114,10 +115,13 @@ async def list_rules(
     rules = result.scalars().all()
 
     return AlertRuleListResponse(
-        rules=[AlertRuleResponse(**_rule_to_response(rule)) for rule in rules],
-        count=total_count,
-        limit=limit,
-        offset=offset,
+        items=[AlertRuleResponse(**_rule_to_response(rule)) for rule in rules],
+        pagination=PaginationMeta(
+            total=total_count,
+            limit=limit,
+            offset=offset,
+            has_more=total_count > offset + limit,
+        ),
     )
 
 

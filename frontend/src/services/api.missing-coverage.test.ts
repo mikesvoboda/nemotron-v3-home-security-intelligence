@@ -65,7 +65,7 @@ describe('Missing Coverage Tests', () => {
   });
 
   it('covers fetchEntities', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(mockResponse({ entities: [], count: 0, limit: 50, offset: 0 }));
+    vi.mocked(fetch).mockResolvedValueOnce(mockResponse({ items: [], pagination: { total: 0, limit: 50, offset: 0, has_more: false } }));
     const { fetchEntities } = await import('./api');
     await fetchEntities();
     expect(fetch).toHaveBeenCalled();

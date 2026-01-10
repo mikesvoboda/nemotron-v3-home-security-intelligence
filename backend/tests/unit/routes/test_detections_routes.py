@@ -108,12 +108,12 @@ async def test_list_detections_no_filters(
     )
 
     # Verify
-    assert result.count == 1
-    assert result.limit == 50
-    assert result.offset == 0
-    assert len(result.detections) == 1
-    assert result.detections[0].id == mock_detection.id
-    assert result.detections[0].camera_id == mock_detection.camera_id
+    assert result.pagination.total == 1
+    assert result.pagination.limit == 50
+    assert result.pagination.offset == 0
+    assert len(result.items) == 1
+    assert result.items[0].id == mock_detection.id
+    assert result.items[0].camera_id == mock_detection.camera_id
 
 
 @pytest.mark.asyncio
@@ -144,8 +144,8 @@ async def test_list_detections_with_camera_filter(
         db=mock_db_session,
     )
 
-    assert result.count == 1
-    assert result.detections[0].camera_id == "camera-001"
+    assert result.pagination.total == 1
+    assert result.items[0].camera_id == "camera-001"
 
 
 @pytest.mark.asyncio
@@ -176,8 +176,8 @@ async def test_list_detections_with_object_type_filter(
         db=mock_db_session,
     )
 
-    assert result.count == 1
-    assert result.detections[0].object_type == "person"
+    assert result.pagination.total == 1
+    assert result.items[0].object_type == "person"
 
 
 @pytest.mark.asyncio
@@ -211,7 +211,7 @@ async def test_list_detections_with_date_range_filter(
         db=mock_db_session,
     )
 
-    assert result.count == 1
+    assert result.pagination.total == 1
 
 
 @pytest.mark.asyncio
@@ -242,8 +242,8 @@ async def test_list_detections_with_confidence_filter(
         db=mock_db_session,
     )
 
-    assert result.count == 1
-    assert result.detections[0].confidence >= 0.9
+    assert result.pagination.total == 1
+    assert result.items[0].confidence >= 0.9
 
 
 @pytest.mark.asyncio
@@ -274,7 +274,7 @@ async def test_list_detections_with_all_filters(
         db=mock_db_session,
     )
 
-    assert result.count == 1
+    assert result.pagination.total == 1
 
 
 @pytest.mark.asyncio
@@ -305,9 +305,9 @@ async def test_list_detections_with_pagination(
         db=mock_db_session,
     )
 
-    assert result.count == 100
-    assert result.limit == 10
-    assert result.offset == 20
+    assert result.pagination.total == 100
+    assert result.pagination.limit == 10
+    assert result.pagination.offset == 20
 
 
 @pytest.mark.asyncio
@@ -336,8 +336,8 @@ async def test_list_detections_empty_result(mock_db_session: AsyncMock) -> None:
         db=mock_db_session,
     )
 
-    assert result.count == 0
-    assert result.detections == []
+    assert result.pagination.total == 0
+    assert result.items == []
 
 
 @pytest.mark.asyncio
@@ -366,7 +366,7 @@ async def test_list_detections_count_returns_none(mock_db_session: AsyncMock) ->
         db=mock_db_session,
     )
 
-    assert result.count == 0  # Should default to 0 when None
+    assert result.pagination.total == 0  # Should default to 0 when None
 
 
 @pytest.mark.asyncio
@@ -446,8 +446,8 @@ async def test_list_detections_multiple_results(mock_db_session: AsyncMock) -> N
         db=mock_db_session,
     )
 
-    assert result.count == 3
-    assert len(result.detections) == 3
+    assert result.pagination.total == 3
+    assert len(result.items) == 3
 
 
 # =============================================================================
@@ -807,7 +807,7 @@ async def test_list_detections_with_zero_confidence_filter(mock_db_session: Asyn
         db=mock_db_session,
     )
 
-    assert result.count == 0
+    assert result.pagination.total == 0
 
 
 @pytest.mark.asyncio
@@ -838,7 +838,7 @@ async def test_list_detections_with_start_date_only(
         db=mock_db_session,
     )
 
-    assert result.count == 1
+    assert result.pagination.total == 1
 
 
 @pytest.mark.asyncio
@@ -869,7 +869,7 @@ async def test_list_detections_with_end_date_only(
         db=mock_db_session,
     )
 
-    assert result.count == 1
+    assert result.pagination.total == 1
 
 
 @pytest.mark.asyncio
@@ -941,9 +941,9 @@ async def test_list_detections_large_offset(mock_db_session: AsyncMock) -> None:
         db=mock_db_session,
     )
 
-    assert result.count == 10
-    assert result.offset == 1000
-    assert result.detections == []
+    assert result.pagination.total == 10
+    assert result.pagination.offset == 1000
+    assert result.items == []
 
 
 @pytest.mark.asyncio
@@ -974,7 +974,7 @@ async def test_list_detections_max_limit(
         db=mock_db_session,
     )
 
-    assert result.limit == 1000
+    assert result.pagination.limit == 1000
 
 
 @pytest.mark.asyncio
@@ -1005,7 +1005,7 @@ async def test_list_detections_min_limit(
         db=mock_db_session,
     )
 
-    assert result.limit == 1
+    assert result.pagination.limit == 1
 
 
 # =============================================================================
@@ -1070,7 +1070,7 @@ async def test_list_detections_equal_dates_is_valid(
         db=mock_db_session,
     )
 
-    assert result.count == 1
+    assert result.pagination.total == 1
 
 
 # =============================================================================

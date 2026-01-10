@@ -499,8 +499,8 @@ class TestGetEventDetectionsRoute:
         with patch("backend.api.routes.events.get_event_or_404", return_value=mock_event):
             result = await get_event_detections(event_id=1, limit=50, offset=0, db=mock_db)
 
-        assert result.detections == []
-        assert result.count == 0
+        assert result.items == []
+        assert result.pagination.total == 0
 
 
 class TestGetEventEnrichmentsRoute:
@@ -710,11 +710,11 @@ class TestListEventsRouteComprehensive:
             db=mock_db,
         )
 
-        assert result.count == 10
-        assert len(result.events) == 1
-        assert result.events[0].id == 1
-        assert result.events[0].detection_count == 3
-        assert result.has_more is False
+        assert result.pagination.total == 10
+        assert len(result.items) == 1
+        assert result.items[0].id == 1
+        assert result.items[0].detection_count == 3
+        assert result.pagination.has_more is False
 
     @pytest.mark.asyncio
     async def test_list_events_with_object_type_filter(self):
@@ -744,8 +744,8 @@ class TestListEventsRouteComprehensive:
             db=mock_db,
         )
 
-        assert result.count == 0
-        assert result.events == []
+        assert result.pagination.total == 0
+        assert result.items == []
 
 
 class TestGetEventStatsRouteComprehensive:
@@ -1054,6 +1054,6 @@ class TestGetEventDetectionsRouteComprehensive:
         with patch("backend.api.routes.events.get_event_or_404", return_value=mock_event):
             result = await get_event_detections(event_id=1, limit=2, offset=1, db=mock_db)
 
-        assert result.count == 5
-        assert result.limit == 2
-        assert result.offset == 1
+        assert result.pagination.total == 5
+        assert result.pagination.limit == 2
+        assert result.pagination.offset == 1

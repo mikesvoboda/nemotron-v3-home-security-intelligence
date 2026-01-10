@@ -86,9 +86,9 @@ export default function AuditLogPage({ className = '' }: AuditLogPageProps) {
       setError(null);
       try {
         const response = await fetchAuditLogs(queryParams, { signal: controller.signal });
-        // Cast logs to match AuditEntry type
-        setLogs(response.logs as AuditEntry[]);
-        setTotalCount(response.count);
+        // Cast items to match AuditEntry type
+        setLogs(response.items as AuditEntry[]);
+        setTotalCount(response.pagination.total);
       } catch (err) {
         // Ignore aborted requests - user changed filters before request completed
         if (isAbortError(err)) return;

@@ -162,7 +162,7 @@ describe('AlertRulesSettings', () => {
     });
 
     it('should load and display rules', async () => {
-      vi.mocked(api.fetchAlertRules).mockResolvedValue({ rules: mockRules, count: 2, limit: 50, offset: 0 });
+      vi.mocked(api.fetchAlertRules).mockResolvedValue({ items: mockRules, pagination: { total: 2, limit: 50, offset: null, has_more: false } });
 
       render(<AlertRulesSettings />);
 
@@ -174,7 +174,7 @@ describe('AlertRulesSettings', () => {
     });
 
     it('should display rule severity with correct styling', async () => {
-      vi.mocked(api.fetchAlertRules).mockResolvedValue({ rules: mockRules, count: 2, limit: 50, offset: 0 });
+      vi.mocked(api.fetchAlertRules).mockResolvedValue({ items: mockRules, pagination: { total: 2, limit: 50, offset: null, has_more: false } });
 
       render(<AlertRulesSettings />);
 
@@ -187,7 +187,7 @@ describe('AlertRulesSettings', () => {
     });
 
     it('should display schedule information', async () => {
-      vi.mocked(api.fetchAlertRules).mockResolvedValue({ rules: mockRules, count: 2, limit: 50, offset: 0 });
+      vi.mocked(api.fetchAlertRules).mockResolvedValue({ items: mockRules, pagination: { total: 2, limit: 50, offset: null, has_more: false } });
 
       render(<AlertRulesSettings />);
 
@@ -201,7 +201,7 @@ describe('AlertRulesSettings', () => {
     });
 
     it('should display channels', async () => {
-      vi.mocked(api.fetchAlertRules).mockResolvedValue({ rules: mockRules, count: 2, limit: 50, offset: 0 });
+      vi.mocked(api.fetchAlertRules).mockResolvedValue({ items: mockRules, pagination: { total: 2, limit: 50, offset: null, has_more: false } });
 
       render(<AlertRulesSettings />);
 
@@ -230,7 +230,7 @@ describe('AlertRulesSettings', () => {
     it('should retry loading rules on error', async () => {
       vi.mocked(api.fetchAlertRules)
         .mockRejectedValueOnce(new Error('Network error'))
-        .mockResolvedValueOnce({ rules: mockRules, count: 2, limit: 50, offset: 0 });
+        .mockResolvedValueOnce({ items: mockRules, pagination: { total: 2, limit: 50, offset: null, has_more: false } });
 
       render(<AlertRulesSettings />);
 
@@ -247,7 +247,7 @@ describe('AlertRulesSettings', () => {
     });
 
     it('should show empty state when no rules exist', async () => {
-      vi.mocked(api.fetchAlertRules).mockResolvedValue({ rules: [], count: 0, limit: 50, offset: 0 });
+      vi.mocked(api.fetchAlertRules).mockResolvedValue({ items: [], pagination: { total: 0, limit: 50, offset: null, has_more: false } });
 
       render(<AlertRulesSettings />);
 
@@ -261,7 +261,7 @@ describe('AlertRulesSettings', () => {
 
   describe('Camera Fetch Error Handling', () => {
     it('should show camera error in modal when camera fetch fails but rules load', async () => {
-      vi.mocked(api.fetchAlertRules).mockResolvedValue({ rules: [], count: 0, limit: 50, offset: 0 });
+      vi.mocked(api.fetchAlertRules).mockResolvedValue({ items: [], pagination: { total: 0, limit: 50, offset: null, has_more: false } });
       vi.mocked(api.fetchCameras).mockRejectedValue(new Error('Camera API unavailable'));
 
       render(<AlertRulesSettings />);
@@ -284,7 +284,7 @@ describe('AlertRulesSettings', () => {
     });
 
     it('should retry camera fetch when retry button is clicked', async () => {
-      vi.mocked(api.fetchAlertRules).mockResolvedValue({ rules: [], count: 0, limit: 50, offset: 0 });
+      vi.mocked(api.fetchAlertRules).mockResolvedValue({ items: [], pagination: { total: 0, limit: 50, offset: null, has_more: false } });
       vi.mocked(api.fetchCameras)
         .mockRejectedValueOnce(new Error('Camera API unavailable'))
         .mockResolvedValueOnce(mockCameras);
@@ -340,8 +340,8 @@ describe('AlertRulesSettings', () => {
       };
 
       vi.mocked(api.fetchAlertRules)
-        .mockResolvedValueOnce({ rules: [], count: 0, limit: 50, offset: 0 })
-        .mockResolvedValueOnce({ rules: [newRule], count: 1, limit: 50, offset: 0 });
+        .mockResolvedValueOnce({ items: [], pagination: { total: 0, limit: 50, offset: null, has_more: false } })
+        .mockResolvedValueOnce({ items: [newRule], pagination: { total: 1, limit: 50, offset: null, has_more: false } });
       vi.mocked(api.fetchCameras).mockRejectedValue(new Error('Camera API unavailable'));
       vi.mocked(api.createAlertRule).mockResolvedValue(newRule);
 
@@ -381,7 +381,7 @@ describe('AlertRulesSettings', () => {
     });
 
     it('should show cameras after successful retry', async () => {
-      vi.mocked(api.fetchAlertRules).mockResolvedValue({ rules: mockRules, count: 2, limit: 50, offset: 0 });
+      vi.mocked(api.fetchAlertRules).mockResolvedValue({ items: mockRules, pagination: { total: 2, limit: 50, offset: null, has_more: false } });
       vi.mocked(api.fetchCameras)
         .mockRejectedValueOnce(new Error('Camera API unavailable'))
         .mockResolvedValueOnce(mockCameras);
@@ -418,15 +418,15 @@ describe('AlertRulesSettings', () => {
 
   describe('Toggle Rule', () => {
     beforeEach(() => {
-      vi.mocked(api.fetchAlertRules).mockResolvedValue({ rules: mockRules, count: 2, limit: 50, offset: 0 });
+      vi.mocked(api.fetchAlertRules).mockResolvedValue({ items: mockRules, pagination: { total: 2, limit: 50, offset: null, has_more: false } });
     });
 
     it('should toggle rule enabled state', async () => {
       const updatedRule = { ...mockRules[0], enabled: false };
       vi.mocked(api.updateAlertRule).mockResolvedValue(updatedRule);
       vi.mocked(api.fetchAlertRules)
-        .mockResolvedValueOnce({ rules: mockRules, count: 2, limit: 50, offset: 0 })
-        .mockResolvedValueOnce({ rules: [updatedRule, mockRules[1]], count: 2, limit: 50, offset: 0 });
+        .mockResolvedValueOnce({ items: mockRules, pagination: { total: 2, limit: 50, offset: null, has_more: false } })
+        .mockResolvedValueOnce({ items: [updatedRule, mockRules[1]], pagination: { total: 2, limit: 50, offset: null, has_more: false } });
 
       render(<AlertRulesSettings />);
 
@@ -447,7 +447,7 @@ describe('AlertRulesSettings', () => {
 
   describe('Add Rule', () => {
     beforeEach(() => {
-      vi.mocked(api.fetchAlertRules).mockResolvedValue({ rules: [], count: 0, limit: 50, offset: 0 });
+      vi.mocked(api.fetchAlertRules).mockResolvedValue({ items: [], pagination: { total: 0, limit: 50, offset: null, has_more: false } });
     });
 
     it('should open add rule modal', async () => {
@@ -542,8 +542,8 @@ describe('AlertRulesSettings', () => {
       };
 
       vi.mocked(api.fetchAlertRules)
-        .mockResolvedValueOnce({ rules: [], count: 0, limit: 50, offset: 0 })
-        .mockResolvedValueOnce({ rules: [newRule], count: 1, limit: 50, offset: 0 });
+        .mockResolvedValueOnce({ items: [], pagination: { total: 0, limit: 50, offset: null, has_more: false } })
+        .mockResolvedValueOnce({ items: [newRule], pagination: { total: 1, limit: 50, offset: null, has_more: false } });
       vi.mocked(api.createAlertRule).mockResolvedValue(newRule);
 
       render(<AlertRulesSettings />);
@@ -595,7 +595,7 @@ describe('AlertRulesSettings', () => {
     });
 
     it('should handle create error', async () => {
-      vi.mocked(api.fetchAlertRules).mockResolvedValue({ rules: [], count: 0, limit: 50, offset: 0 });
+      vi.mocked(api.fetchAlertRules).mockResolvedValue({ items: [], pagination: { total: 0, limit: 50, offset: null, has_more: false } });
       vi.mocked(api.createAlertRule).mockRejectedValue(new Error('Creation failed'));
 
       render(<AlertRulesSettings />);
@@ -648,7 +648,7 @@ describe('AlertRulesSettings', () => {
 
   describe('Edit Rule', () => {
     beforeEach(() => {
-      vi.mocked(api.fetchAlertRules).mockResolvedValue({ rules: mockRules, count: 2, limit: 50, offset: 0 });
+      vi.mocked(api.fetchAlertRules).mockResolvedValue({ items: mockRules, pagination: { total: 2, limit: 50, offset: null, has_more: false } });
     });
 
     it('should open edit modal with rule data', async () => {
@@ -678,8 +678,8 @@ describe('AlertRulesSettings', () => {
       };
 
       vi.mocked(api.fetchAlertRules)
-        .mockResolvedValueOnce({ rules: mockRules, count: 2, limit: 50, offset: 0 })
-        .mockResolvedValueOnce({ rules: [updatedRule, mockRules[1]], count: 2, limit: 50, offset: 0 });
+        .mockResolvedValueOnce({ items: mockRules, pagination: { total: 2, limit: 50, offset: null, has_more: false } })
+        .mockResolvedValueOnce({ items: [updatedRule, mockRules[1]], pagination: { total: 2, limit: 50, offset: null, has_more: false } });
       vi.mocked(api.updateAlertRule).mockResolvedValue(updatedRule);
 
       render(<AlertRulesSettings />);
@@ -747,7 +747,7 @@ describe('AlertRulesSettings', () => {
 
   describe('Delete Rule', () => {
     beforeEach(() => {
-      vi.mocked(api.fetchAlertRules).mockResolvedValue({ rules: mockRules, count: 2, limit: 50, offset: 0 });
+      vi.mocked(api.fetchAlertRules).mockResolvedValue({ items: mockRules, pagination: { total: 2, limit: 50, offset: null, has_more: false } });
     });
 
     it('should open delete confirmation modal', async () => {
@@ -772,8 +772,8 @@ describe('AlertRulesSettings', () => {
 
     it('should delete rule successfully', async () => {
       vi.mocked(api.fetchAlertRules)
-        .mockResolvedValueOnce({ rules: mockRules, count: 2, limit: 50, offset: 0 })
-        .mockResolvedValueOnce({ rules: [mockRules[1]], count: 1, limit: 50, offset: 0 });
+        .mockResolvedValueOnce({ items: mockRules, pagination: { total: 2, limit: 50, offset: null, has_more: false } })
+        .mockResolvedValueOnce({ items: [mockRules[1]], pagination: { total: 1, limit: 50, offset: null, has_more: false } });
       vi.mocked(api.deleteAlertRule).mockResolvedValue(undefined);
 
       render(<AlertRulesSettings />);
@@ -862,7 +862,7 @@ describe('AlertRulesSettings', () => {
 
   describe('Test Rule', () => {
     beforeEach(() => {
-      vi.mocked(api.fetchAlertRules).mockResolvedValue({ rules: mockRules, count: 2, limit: 50, offset: 0 });
+      vi.mocked(api.fetchAlertRules).mockResolvedValue({ items: mockRules, pagination: { total: 2, limit: 50, offset: null, has_more: false } });
     });
 
     it('should open test modal and show results', async () => {
@@ -959,7 +959,7 @@ describe('AlertRulesSettings', () => {
 
   describe('Schedule Selector', () => {
     beforeEach(() => {
-      vi.mocked(api.fetchAlertRules).mockResolvedValue({ rules: [], count: 0, limit: 50, offset: 0 });
+      vi.mocked(api.fetchAlertRules).mockResolvedValue({ items: [], pagination: { total: 0, limit: 50, offset: null, has_more: false } });
     });
 
     it('should toggle schedule section', async () => {
@@ -1037,7 +1037,7 @@ describe('AlertRulesSettings', () => {
 
   describe('Accessibility', () => {
     beforeEach(() => {
-      vi.mocked(api.fetchAlertRules).mockResolvedValue({ rules: mockRules, count: 2, limit: 50, offset: 0 });
+      vi.mocked(api.fetchAlertRules).mockResolvedValue({ items: mockRules, pagination: { total: 2, limit: 50, offset: null, has_more: false } });
     });
 
     it('should have proper aria-labels for action buttons', async () => {

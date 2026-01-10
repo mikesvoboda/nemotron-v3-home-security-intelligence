@@ -113,12 +113,14 @@ class TestEventBulkCreateItem:
     def test_valid_create_item(self) -> None:
         """Test creating a valid event create item."""
         item = EventBulkCreateItem(
+            batch_id="batch_123",
             camera_id="front_door",
             started_at=datetime.now(UTC),
             risk_score=75,
             risk_level="high",
             summary="Person detected at front door",
         )
+        assert item.batch_id == "batch_123"
         assert item.camera_id == "front_door"
         assert item.risk_score == 75
         assert item.risk_level == "high"
@@ -127,6 +129,7 @@ class TestEventBulkCreateItem:
         """Test that camera_id follows the required pattern."""
         # Valid patterns
         EventBulkCreateItem(
+            batch_id="batch_123",
             camera_id="front_door",
             started_at=datetime.now(UTC),
             risk_score=50,
@@ -134,6 +137,7 @@ class TestEventBulkCreateItem:
             summary="Test",
         )
         EventBulkCreateItem(
+            batch_id="batch_123",
             camera_id="camera-1",
             started_at=datetime.now(UTC),
             risk_score=50,
@@ -144,6 +148,7 @@ class TestEventBulkCreateItem:
         # Invalid pattern (spaces)
         with pytest.raises(ValidationError):
             EventBulkCreateItem(
+                batch_id="batch_123",
                 camera_id="front door",
                 started_at=datetime.now(UTC),
                 risk_score=50,
@@ -155,6 +160,7 @@ class TestEventBulkCreateItem:
         """Test that risk_score must be 0-100."""
         # Valid range
         EventBulkCreateItem(
+            batch_id="batch_123",
             camera_id="test",
             started_at=datetime.now(UTC),
             risk_score=0,
@@ -162,6 +168,7 @@ class TestEventBulkCreateItem:
             summary="Test",
         )
         EventBulkCreateItem(
+            batch_id="batch_123",
             camera_id="test",
             started_at=datetime.now(UTC),
             risk_score=100,
@@ -172,6 +179,7 @@ class TestEventBulkCreateItem:
         # Out of range
         with pytest.raises(ValidationError):
             EventBulkCreateItem(
+                batch_id="batch_123",
                 camera_id="test",
                 started_at=datetime.now(UTC),
                 risk_score=101,
@@ -180,6 +188,7 @@ class TestEventBulkCreateItem:
             )
         with pytest.raises(ValidationError):
             EventBulkCreateItem(
+                batch_id="batch_123",
                 camera_id="test",
                 started_at=datetime.now(UTC),
                 risk_score=-1,
@@ -192,6 +201,7 @@ class TestEventBulkCreateItem:
         valid_levels = ["low", "medium", "high", "critical"]
         for level in valid_levels:
             EventBulkCreateItem(
+                batch_id="batch_123",
                 camera_id="test",
                 started_at=datetime.now(UTC),
                 risk_score=50,
@@ -202,6 +212,7 @@ class TestEventBulkCreateItem:
         # Invalid level
         with pytest.raises(ValidationError):
             EventBulkCreateItem(
+                batch_id="batch_123",
                 camera_id="test",
                 started_at=datetime.now(UTC),
                 risk_score=50,
@@ -212,6 +223,7 @@ class TestEventBulkCreateItem:
     def test_detection_ids_default_empty(self) -> None:
         """Test that detection_ids defaults to empty list."""
         item = EventBulkCreateItem(
+            batch_id="batch_123",
             camera_id="test",
             started_at=datetime.now(UTC),
             risk_score=50,
@@ -229,6 +241,7 @@ class TestEventBulkCreateRequest:
         request = EventBulkCreateRequest(
             events=[
                 EventBulkCreateItem(
+                    batch_id="batch_123",
                     camera_id="front_door",
                     started_at=datetime.now(UTC),
                     risk_score=75,
@@ -236,6 +249,7 @@ class TestEventBulkCreateRequest:
                     summary="Test event 1",
                 ),
                 EventBulkCreateItem(
+                    batch_id="batch_123",
                     camera_id="back_door",
                     started_at=datetime.now(UTC),
                     risk_score=25,
@@ -255,6 +269,7 @@ class TestEventBulkCreateRequest:
         """Test that events list has max 100 items."""
         events = [
             EventBulkCreateItem(
+                batch_id="batch_123",
                 camera_id=f"camera_{i}",
                 started_at=datetime.now(UTC),
                 risk_score=50,

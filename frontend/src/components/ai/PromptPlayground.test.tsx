@@ -78,14 +78,17 @@ vi.mock('../../services/api', () => ({
   ),
   fetchEvents: vi.fn(() =>
     Promise.resolve({
-      events: [
+      items: [
         { id: 101, camera_id: 'cam1', risk_score: 45, started_at: '2024-01-01T00:00:00Z' },
         { id: 102, camera_id: 'cam2', risk_score: 55, started_at: '2024-01-01T01:00:00Z' },
         { id: 103, camera_id: 'cam1', risk_score: 65, started_at: '2024-01-01T02:00:00Z' },
       ],
-      count: 3,
-      limit: 5,
-      offset: 0,
+      pagination: {
+        total: 3,
+        limit: 5,
+        offset: 0,
+        has_more: false,
+      },
     })
   ),
   exportPrompts: vi.fn(() =>
@@ -934,7 +937,7 @@ describe('PromptPlayground A/B Testing API Integration', () => {
   it('shows error when no events available and no testEventId', async () => {
     const { fetchEvents } = await import('../../services/api');
     const mockFetchEvents = fetchEvents as ReturnType<typeof vi.fn>;
-    mockFetchEvents.mockResolvedValueOnce({ events: [], count: 0, limit: 5, offset: 0 });
+    mockFetchEvents.mockResolvedValueOnce({ items: [], pagination: { total: 0, limit: 5, offset: 0, has_more: false } });
 
     const user = userEvent.setup();
 

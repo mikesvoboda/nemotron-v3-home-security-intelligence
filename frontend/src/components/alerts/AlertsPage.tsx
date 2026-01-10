@@ -91,7 +91,7 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
         const criticalResponse = await fetchEvents(criticalParams, { signal: controller.signal });
 
         // Combine and sort by timestamp (most recent first)
-        let allAlerts = [...highResponse.events, ...criticalResponse.events];
+        let allAlerts = [...highResponse.items, ...criticalResponse.items];
         allAlerts.sort(
           (a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime()
         );
@@ -105,7 +105,7 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
         }
 
         // Handle pagination manually since we're combining two API calls
-        const totalCombined = highResponse.count + criticalResponse.count;
+        const totalCombined = highResponse.pagination.total + criticalResponse.pagination.total;
         const paginatedAlerts = allAlerts.slice(0, pagination.limit);
 
         setEvents(paginatedAlerts);

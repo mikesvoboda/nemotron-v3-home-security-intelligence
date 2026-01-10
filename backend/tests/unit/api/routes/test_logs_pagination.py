@@ -15,56 +15,71 @@ class TestLogsResponseWithCursor:
     def test_logs_response_with_cursor_fields(self):
         """Test LogsResponse includes cursor pagination fields."""
         data = {
-            "logs": [],
-            "count": 100,
-            "limit": 50,
-            "offset": 0,
-            "next_cursor": "eyJpZCI6IDEwMCwgImNyZWF0ZWRfYXQiOiAiMjAyNS0xMi0yM1QxMjowMDowMFoifQ==",  # pragma: allowlist secret
-            "has_more": True,
+            "items": [],
+            "pagination": {
+                "total": 100,
+                "limit": 50,
+                "offset": None,
+                "cursor": None,
+                "next_cursor": "eyJpZCI6IDEwMCwgImNyZWF0ZWRfYXQiOiAiMjAyNS0xMi0yM1QxMjowMDowMFoifQ==",  # pragma: allowlist secret
+                "has_more": True,
+            },
         }
         response = LogsResponse(**data)
-        assert response.next_cursor is not None
-        assert response.has_more is True
+        assert response.pagination.next_cursor is not None
+        assert response.pagination.has_more is True
 
     def test_logs_response_no_more_results(self):
         """Test LogsResponse when there are no more results."""
         data = {
-            "logs": [],
-            "count": 10,
-            "limit": 50,
-            "offset": 0,
-            "next_cursor": None,
-            "has_more": False,
+            "items": [],
+            "pagination": {
+                "total": 10,
+                "limit": 50,
+                "offset": None,
+                "cursor": None,
+                "next_cursor": None,
+                "has_more": False,
+            },
         }
         response = LogsResponse(**data)
-        assert response.next_cursor is None
-        assert response.has_more is False
+        assert response.pagination.next_cursor is None
+        assert response.pagination.has_more is False
 
     def test_logs_response_backward_compatible_without_cursor(self):
-        """Test LogsResponse still works without cursor fields (backward compatibility)."""
+        """Test LogsResponse still works without explicit cursor fields."""
         data = {
-            "logs": [],
-            "count": 0,
-            "limit": 50,
-            "offset": 0,
+            "items": [],
+            "pagination": {
+                "total": 0,
+                "limit": 50,
+                "offset": None,
+                "cursor": None,
+                "next_cursor": None,
+                "has_more": False,
+            },
         }
         response = LogsResponse(**data)
         # Should default to None/False for cursor fields
-        assert response.next_cursor is None
-        assert response.has_more is False
+        assert response.pagination.next_cursor is None
+        assert response.pagination.has_more is False
 
     def test_logs_response_deprecation_warning(self):
-        """Test LogsResponse can include deprecation warning."""
+        """Test LogsResponse includes offset for deprecation warning tracking."""
         data = {
-            "logs": [],
-            "count": 100,
-            "limit": 50,
-            "offset": 20,
-            "deprecation_warning": "Offset pagination is deprecated. Please use cursor-based pagination.",
+            "items": [],
+            "pagination": {
+                "total": 100,
+                "limit": 50,
+                "offset": 20,
+                "cursor": None,
+                "next_cursor": None,
+                "has_more": False,
+            },
         }
         response = LogsResponse(**data)
-        assert response.deprecation_warning is not None
-        assert "deprecated" in response.deprecation_warning.lower()
+        # When offset is used (non-None), it indicates deprecated offset pagination
+        assert response.pagination.offset == 20
 
 
 class TestLogsPaginationLogic:

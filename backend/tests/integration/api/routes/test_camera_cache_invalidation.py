@@ -55,7 +55,7 @@ class TestCreateCameraCacheInvalidation:
         # Get initial cameras list to populate cache
         initial_response = await client.get("/api/cameras")
         assert initial_response.status_code == 200
-        initial_camera_ids = {c["id"] for c in initial_response.json()["cameras"]}
+        initial_camera_ids = {c["id"] for c in initial_response.json()["items"]}
 
         # Create camera via API
         unique_id = _unique_id("cam")
@@ -72,7 +72,7 @@ class TestCreateCameraCacheInvalidation:
         # Verify new camera appears in list (proves cache was invalidated)
         list_response = await client.get("/api/cameras")
         assert list_response.status_code == 200
-        new_camera_ids = {c["id"] for c in list_response.json()["cameras"]}
+        new_camera_ids = {c["id"] for c in list_response.json()["items"]}
 
         assert created_camera_id in new_camera_ids
         assert created_camera_id not in initial_camera_ids
@@ -106,7 +106,7 @@ class TestCreateCameraCacheInvalidation:
         # Verify new camera appears in filtered list (proves cache was invalidated)
         filtered_response = await client.get("/api/cameras?status=online")
         assert filtered_response.status_code == 200
-        new_online_ids = {c["id"] for c in filtered_response.json()["cameras"]}
+        new_online_ids = {c["id"] for c in filtered_response.json()["items"]}
 
         assert created_camera_id in new_online_ids
 
@@ -134,7 +134,7 @@ class TestCreateCameraCacheInvalidation:
         data = list_response.json()
 
         # Verify the newly created camera is in the response
-        camera_ids = [c["id"] for c in data["cameras"]]
+        camera_ids = [c["id"] for c in data["items"]]
         assert created_camera["id"] in camera_ids
 
 
@@ -172,7 +172,7 @@ class TestUpdateCameraCacheInvalidation:
         # Verify list shows updated values (proves cache was invalidated)
         list_response = await client.get("/api/cameras")
         assert list_response.status_code == 200
-        camera = next((c for c in list_response.json()["cameras"] if c["id"] == camera_id), None)
+        camera = next((c for c in list_response.json()["items"] if c["id"] == camera_id), None)
         assert camera is not None
         assert camera["name"] == update_data["name"]
         assert camera["status"] == "offline"
@@ -197,7 +197,7 @@ class TestUpdateCameraCacheInvalidation:
 
         # Verify camera is in online list
         online_response = await client.get("/api/cameras?status=online")
-        assert camera_id in {c["id"] for c in online_response.json()["cameras"]}
+        assert camera_id in {c["id"] for c in online_response.json()["items"]}
 
         # Update camera status to offline
         update_data = {"status": "offline"}
@@ -206,11 +206,11 @@ class TestUpdateCameraCacheInvalidation:
 
         # Verify camera is no longer in online list (proves cache was invalidated)
         online_response = await client.get("/api/cameras?status=online")
-        assert camera_id not in {c["id"] for c in online_response.json()["cameras"]}
+        assert camera_id not in {c["id"] for c in online_response.json()["items"]}
 
         # Verify camera is now in offline list
         offline_response = await client.get("/api/cameras?status=offline")
-        assert camera_id in {c["id"] for c in offline_response.json()["cameras"]}
+        assert camera_id in {c["id"] for c in offline_response.json()["items"]}
 
     @pytest.mark.asyncio
     async def test_update_camera_subsequent_get_returns_fresh_data(
@@ -242,7 +242,7 @@ class TestUpdateCameraCacheInvalidation:
         data = list_response.json()
 
         # Find the updated camera in the response
-        updated_camera = next((c for c in data["cameras"] if c["id"] == camera_id), None)
+        updated_camera = next((c for c in data["items"] if c["id"] == camera_id), None)
         assert updated_camera is not None
         assert updated_camera["name"] == new_name
         assert updated_camera["status"] == "offline"
@@ -276,7 +276,7 @@ class TestDeleteCameraCacheInvalidation:
 
         # Verify camera is in list
         list_response = await client.get("/api/cameras")
-        assert camera_id in {c["id"] for c in list_response.json()["cameras"]}
+        assert camera_id in {c["id"] for c in list_response.json()["items"]}
 
         # Delete camera via API
         response = await client.delete(f"/api/cameras/{camera_id}")
@@ -284,7 +284,7 @@ class TestDeleteCameraCacheInvalidation:
 
         # Verify camera is removed from list (proves cache was invalidated)
         list_response = await client.get("/api/cameras")
-        assert camera_id not in {c["id"] for c in list_response.json()["cameras"]}
+        assert camera_id not in {c["id"] for c in list_response.json()["items"]}
 
     @pytest.mark.asyncio
     async def test_delete_camera_removes_from_filtered_list(
@@ -306,7 +306,7 @@ class TestDeleteCameraCacheInvalidation:
 
         # Verify camera is in filtered list
         filtered_response = await client.get("/api/cameras?status=online")
-        assert camera_id in {c["id"] for c in filtered_response.json()["cameras"]}
+        assert camera_id in {c["id"] for c in filtered_response.json()["items"]}
 
         # Delete camera
         response = await client.delete(f"/api/cameras/{camera_id}")
@@ -314,7 +314,7 @@ class TestDeleteCameraCacheInvalidation:
 
         # Verify camera is removed from filtered list (proves cache was invalidated)
         filtered_response = await client.get("/api/cameras?status=online")
-        assert camera_id not in {c["id"] for c in filtered_response.json()["cameras"]}
+        assert camera_id not in {c["id"] for c in filtered_response.json()["items"]}
 
     @pytest.mark.asyncio
     async def test_delete_camera_subsequent_get_returns_fresh_data(
@@ -344,7 +344,7 @@ class TestDeleteCameraCacheInvalidation:
         data = list_response.json()
 
         # Verify the deleted camera is NOT in the response
-        camera_ids = [c["id"] for c in data["cameras"]]
+        camera_ids = [c["id"] for c in data["items"]]
         assert camera_id not in camera_ids
 
 
@@ -381,7 +381,7 @@ class TestCrossEndpointCacheConsistency:
         # Verify camera appears in list with online status
         list_response = await client.get("/api/cameras")
         assert list_response.status_code == 200
-        camera = next((c for c in list_response.json()["cameras"] if c["id"] == camera_id), None)
+        camera = next((c for c in list_response.json()["items"] if c["id"] == camera_id), None)
         assert camera is not None
         assert camera["status"] == "online"
 
@@ -393,7 +393,7 @@ class TestCrossEndpointCacheConsistency:
         # Verify list shows updated status (proves cache was invalidated)
         list_response = await client.get("/api/cameras")
         assert list_response.status_code == 200
-        camera = next((c for c in list_response.json()["cameras"] if c["id"] == camera_id), None)
+        camera = next((c for c in list_response.json()["items"] if c["id"] == camera_id), None)
         assert camera is not None
         assert camera["status"] == "offline"
 
@@ -428,7 +428,7 @@ class TestCrossEndpointCacheConsistency:
         # Verify list shows updated name (proves cache was invalidated)
         list_response = await client.get("/api/cameras")
         assert list_response.status_code == 200
-        camera = next((c for c in list_response.json()["cameras"] if c["id"] == camera_id), None)
+        camera = next((c for c in list_response.json()["items"] if c["id"] == camera_id), None)
         assert camera is not None
         assert camera["name"] == new_name
         assert camera["name"] != original_name
@@ -440,7 +440,7 @@ class TestCrossEndpointCacheConsistency:
         # Verify camera no longer in list (proves cache was invalidated)
         list_response = await client.get("/api/cameras")
         assert list_response.status_code == 200
-        camera_ids = {c["id"] for c in list_response.json()["cameras"]}
+        camera_ids = {c["id"] for c in list_response.json()["items"]}
         assert camera_id not in camera_ids
 
     @pytest.mark.asyncio
@@ -472,7 +472,7 @@ class TestCrossEndpointCacheConsistency:
         # (proves cache was invalidated after each create)
         list_response = await client.get("/api/cameras")
         assert list_response.status_code == 200
-        listed_camera_ids = {c["id"] for c in list_response.json()["cameras"]}
+        listed_camera_ids = {c["id"] for c in list_response.json()["items"]}
 
         for camera_id in created_camera_ids:
             assert camera_id in listed_camera_ids, (

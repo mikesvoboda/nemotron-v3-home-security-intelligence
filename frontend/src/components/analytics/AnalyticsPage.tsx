@@ -120,7 +120,7 @@ export default function AnalyticsPage() {
       setAnomalyConfig(config);
       setEventStats(stats);
       setDetectionStats(detStats);
-      setHighRiskEvents(events.events);
+      setHighRiskEvents(events.items);
     } catch (err) {
       setError('Failed to load analytics data');
       console.error('Failed to load analytics data:', err);

@@ -983,7 +983,7 @@ export const resetCircuitBreaker = vi.fn().mockResolvedValue({ success: true });
 // Additional endpoints
 export const fetchPipelineLatency = vi.fn().mockResolvedValue({});
 export const fetchPipelineLatencyHistory = vi.fn().mockResolvedValue({ samples: [] });
-export const fetchLogs = vi.fn().mockResolvedValue({ logs: [], total: 0 });
+export const fetchLogs = vi.fn().mockResolvedValue({ items: [], pagination: { total: 0, limit: 50, offset: 0, has_more: false, next_cursor: null } });
 export const fetchLogStats = vi.fn().mockResolvedValue({});
 export const submitFrontendLog = vi.fn().mockResolvedValue({ success: true });
 export const fetchCameraActivityBaseline = vi.fn().mockResolvedValue({});
@@ -1019,13 +1019,13 @@ export const updateSeverityThresholds = vi.fn().mockResolvedValue({});
 export const fetchSceneChanges = vi.fn().mockResolvedValue({ changes: [] });
 export const acknowledgeSceneChange = vi.fn().mockResolvedValue({ success: true });
 
-// Entity endpoints
-export const fetchEntities = vi.fn().mockResolvedValue({ entities: [] });
+// Entity endpoints (NEM-2075: pagination envelope format)
+export const fetchEntities = vi.fn().mockResolvedValue({ items: [], pagination: { total: 0, limit: 50, offset: 0, has_more: false } });
 export const fetchEntity = vi.fn().mockResolvedValue({});
 export const fetchEntityHistory = vi.fn().mockResolvedValue({ history: [] });
 
 // Audit log endpoints
-export const fetchAuditLogs = vi.fn().mockResolvedValue({ logs: [], total: 0 });
+export const fetchAuditLogs = vi.fn().mockResolvedValue({ items: [], pagination: { total: 0, limit: 50, offset: 0, has_more: false, next_cursor: null } });
 export const fetchAuditStats = vi.fn().mockResolvedValue({});
 
 // AI Audit endpoints

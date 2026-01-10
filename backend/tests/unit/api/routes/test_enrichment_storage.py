@@ -332,10 +332,10 @@ class TestDetectionsAPIEnrichmentData:
 
         assert response.status_code == 200
         data = response.json()
-        assert "detections" in data
-        assert len(data["detections"]) == 1
-        assert "enrichment_data" in data["detections"][0]
-        assert data["detections"][0]["enrichment_data"] == sample_enrichment_data
+        assert "items" in data
+        assert len(data["items"]) == 1
+        assert "enrichment_data" in data["items"][0]
+        assert data["items"][0]["enrichment_data"] == sample_enrichment_data
 
 
 class TestEventDetectionsEnrichmentData:
@@ -429,7 +429,7 @@ class TestEventDetectionsEnrichmentData:
 
         assert response.status_code == 200
         data = response.json()
-        assert "detections" in data
-        assert len(data["detections"]) == 1
-        assert "enrichment_data" in data["detections"][0]
-        assert data["detections"][0]["enrichment_data"] == sample_enrichment_data
+        assert "items" in data
+        assert len(data["items"]) == 1
+        assert "enrichment_data" in data["items"][0]
+        assert data["items"][0]["enrichment_data"] == sample_enrichment_data

@@ -5,6 +5,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from backend.api.schemas.pagination import PaginationMeta
 from backend.models.enums import CameraStatus
 
 # Re-export CameraStatus for convenient imports from this module
@@ -138,12 +139,15 @@ class CameraResponse(BaseModel):
 
 
 class CameraListResponse(BaseModel):
-    """Schema for camera list response."""
+    """Schema for camera list response.
+
+    NEM-2075: Standardized pagination envelope with items + pagination structure.
+    """
 
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "cameras": [
+                "items": [
                     {
                         "id": "front_door",
                         "name": "Front Door Camera",
@@ -153,13 +157,20 @@ class CameraListResponse(BaseModel):
                         "last_seen_at": "2025-12-23T12:00:00Z",
                     }
                 ],
-                "count": 1,
+                "pagination": {
+                    "total": 1,
+                    "limit": 50,
+                    "offset": 0,
+                    "cursor": None,
+                    "next_cursor": None,
+                    "has_more": False,
+                },
             }
         }
     )
 
-    cameras: list[CameraResponse] = Field(..., description="List of cameras")
-    count: int = Field(..., description="Total number of cameras")
+    items: list[CameraResponse] = Field(..., description="List of cameras")
+    pagination: PaginationMeta = Field(..., description="Pagination metadata")
 
 
 class DeletedCamerasListResponse(BaseModel):
@@ -167,12 +178,13 @@ class DeletedCamerasListResponse(BaseModel):
 
     NEM-1955: Provides a trash view of soft-deleted cameras that can be restored.
     Cameras are ordered by deleted_at descending (most recently deleted first).
+    NEM-2075: Standardized pagination envelope with items + pagination structure.
     """
 
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "cameras": [
+                "items": [
                     {
                         "id": "front_door",
                         "name": "Front Door Camera",
@@ -182,10 +194,17 @@ class DeletedCamerasListResponse(BaseModel):
                         "last_seen_at": "2025-12-23T12:00:00Z",
                     }
                 ],
-                "count": 1,
+                "pagination": {
+                    "total": 1,
+                    "limit": 50,
+                    "offset": 0,
+                    "cursor": None,
+                    "next_cursor": None,
+                    "has_more": False,
+                },
             }
         }
     )
 
-    cameras: list[CameraResponse] = Field(..., description="List of soft-deleted cameras")
-    count: int = Field(..., description="Total number of deleted cameras")
+    items: list[CameraResponse] = Field(..., description="List of soft-deleted cameras")
+    pagination: PaginationMeta = Field(..., description="Pagination metadata")

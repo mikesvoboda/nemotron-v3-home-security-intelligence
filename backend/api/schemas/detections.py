@@ -5,6 +5,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from backend.api.schemas.pagination import PaginationMeta
+
 # ============================================================================
 # Enrichment Data Schemas (NEM-1067)
 # ============================================================================
@@ -213,16 +215,16 @@ class DetectionResponse(BaseModel):
 
 
 class DetectionListResponse(BaseModel):
-    """Schema for detection list response with pagination.
+    """Schema for detection list response with standardized pagination envelope.
 
+    Uses the standard pagination envelope: {"items": [...], "pagination": {...}}
     Supports both cursor-based pagination (recommended) and offset pagination (deprecated).
-    Use cursor-based pagination for better performance with large datasets.
     """
 
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "detections": [
+                "items": [
                     {
                         "id": 1,
                         "camera_id": "front_door",
@@ -238,26 +240,19 @@ class DetectionListResponse(BaseModel):
                         "thumbnail_path": "/data/thumbnails/1_thumb.jpg",
                     }
                 ],
-                "count": 1,
-                "limit": 50,
-                "offset": 0,
-                "next_cursor": "eyJpZCI6IDEsICJjcmVhdGVkX2F0IjogIjIwMjUtMTItMjNUMTI6MDA6MDBaIn0=",  # pragma: allowlist secret
-                "has_more": False,
+                "pagination": {
+                    "total": 1,
+                    "limit": 50,
+                    "offset": 0,
+                    "next_cursor": "eyJpZCI6IDEsICJjcmVhdGVkX2F0IjogIjIwMjUtMTItMjNUMTI6MDA6MDBaIn0=",  # pragma: allowlist secret
+                    "has_more": False,
+                },
             }
         }
     )
 
-    detections: list[DetectionResponse] = Field(..., description="List of detections")
-    count: int = Field(..., description="Total number of detections matching filters")
-    limit: int = Field(..., description="Maximum number of results returned")
-    offset: int = Field(..., description="Number of results skipped (deprecated, use cursor)")
-    next_cursor: str | None = Field(
-        default=None,
-        description="Cursor for fetching the next page. Pass this as the 'cursor' parameter.",
-    )
-    has_more: bool = Field(
-        default=False, description="Whether there are more results available after this page"
-    )
+    items: list[DetectionResponse] = Field(..., description="List of detections")
+    pagination: PaginationMeta = Field(..., description="Pagination metadata")
     deprecation_warning: str | None = Field(
         default=None,
         description="Warning message when using deprecated offset pagination",

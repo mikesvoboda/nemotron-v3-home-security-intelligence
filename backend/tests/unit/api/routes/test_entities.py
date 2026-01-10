@@ -126,8 +126,8 @@ class TestListEntities:
                 reid_service=mock_service,
             )
 
-        assert result.entities == []
-        assert result.count == 0
+        assert result.items == []
+        assert result.pagination.total == 0
 
     @pytest.mark.asyncio
     async def test_list_entities_empty(self) -> None:
@@ -150,8 +150,8 @@ class TestListEntities:
                 reid_service=mock_service,
             )
 
-        assert result.entities == []
-        assert result.count == 0
+        assert result.items == []
+        assert result.pagination.total == 0
 
     @pytest.mark.asyncio
     async def test_list_entities_with_data(self) -> None:
@@ -199,8 +199,8 @@ class TestListEntities:
                 reid_service=mock_service,
             )
 
-        assert result.count == 2
-        assert len(result.entities) == 2
+        assert result.pagination.total == 2
+        assert len(result.items) == 2
 
     @pytest.mark.asyncio
     async def test_list_entities_filter_by_type(self) -> None:
@@ -239,7 +239,7 @@ class TestListEntities:
             entity_type="person",
             camera_id=None,
         )
-        assert result.count == 1
+        assert result.pagination.total == 1
 
     @pytest.mark.asyncio
     async def test_list_entities_filter_by_camera(self) -> None:
@@ -314,8 +314,8 @@ class TestListEntities:
             )
 
         # Should only include the new embedding
-        assert result.count == 1
-        assert result.entities[0].id == "det_new"
+        assert result.pagination.total == 1
+        assert result.items[0].id == "det_new"
 
     @pytest.mark.asyncio
     async def test_list_entities_pagination(self) -> None:
@@ -356,10 +356,10 @@ class TestListEntities:
                 reid_service=mock_service,
             )
 
-        assert result.count == 5  # Total count
-        assert len(result.entities) == 2  # Paginated result
-        assert result.limit == 2
-        assert result.offset == 1
+        assert result.pagination.total == 5  # Total count
+        assert len(result.items) == 2  # Paginated result
+        assert result.pagination.limit == 2
+        assert result.pagination.offset == 1
 
 
 class TestGetEntity:
@@ -639,8 +639,8 @@ class TestListEntitiesEdgeCases:
             )
 
         # Verify sorting: newer should be first
-        assert result.entities[0].id == "det_new"
-        assert result.entities[1].id == "det_old"
+        assert result.items[0].id == "det_new"
+        assert result.items[1].id == "det_old"
 
     @pytest.mark.asyncio
     async def test_list_entities_handles_empty_entity_groups(self) -> None:
@@ -666,8 +666,8 @@ class TestListEntitiesEdgeCases:
             )
 
         # Should handle empty groups gracefully
-        assert result.count == 0
-        assert result.entities == []
+        assert result.pagination.total == 0
+        assert result.items == []
 
     @pytest.mark.asyncio
     async def test_list_entities_queries_both_types_when_no_filter(self) -> None:
@@ -717,7 +717,7 @@ class TestListEntitiesEdgeCases:
             )
 
         # Should have both entities
-        assert result.count == 2
+        assert result.pagination.total == 2
         # Verify both types were queried
         assert mock_service.get_entity_history.call_count == 2
 
@@ -757,9 +757,9 @@ class TestListEntitiesEdgeCases:
             )
 
         # Should return empty list but correct count
-        assert result.count == 1  # Total count
-        assert len(result.entities) == 0  # Paginated result is empty
-        assert result.offset == 100
+        assert result.pagination.total == 1  # Total count
+        assert len(result.items) == 0  # Paginated result is empty
+        assert result.pagination.offset == 100
 
     @pytest.mark.asyncio
     async def test_list_entities_skips_invalid_summaries(self) -> None:
@@ -814,7 +814,7 @@ class TestListEntitiesEdgeCases:
             )
 
         # Should skip the invalid entity and continue
-        assert result.count >= 0  # At least we handled the error gracefully
+        assert result.pagination.total >= 0  # At least we handled the error gracefully
 
 
 class TestGetEntityEdgeCases:

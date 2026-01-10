@@ -607,14 +607,14 @@ export default function PromptPlayground({
       } else {
         // Fetch a recent event to test against
         const eventsResponse = await fetchEvents({ limit: 5 });
-        if (!eventsResponse.events || eventsResponse.events.length === 0) {
+        if (!eventsResponse.items || eventsResponse.items.length === 0) {
           setError('No events available for A/B testing. Please enter an Event ID manually.');
           setIsRunningABTest(false);
           return;
         }
         // Pick a random event from the recent 5
-        const randomIndex = Math.floor(Math.random() * eventsResponse.events.length);
-        eventIdToTest = eventsResponse.events[randomIndex].id;
+        const randomIndex = Math.floor(Math.random() * eventsResponse.items.length);
+        eventIdToTest = eventsResponse.items[randomIndex].id;
       }
 
       // Get the original (current saved) config and the modified (edited) config

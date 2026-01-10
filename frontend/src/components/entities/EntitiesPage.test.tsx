@@ -64,12 +64,15 @@ describe('EntitiesPage', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    // Default successful response
+    // Default successful response (NEM-2075: pagination envelope format)
     mockFetchEntities.mockResolvedValue({
-      entities: mockEntities,
-      count: mockEntities.length,
-      limit: 50,
-      offset: 0,
+      items: mockEntities,
+      pagination: {
+        total: mockEntities.length,
+        limit: 50,
+        offset: 0,
+        has_more: false,
+      },
     });
     mockFetchEntity.mockResolvedValue(mockEntityDetail);
   });
@@ -127,10 +130,13 @@ describe('EntitiesPage', () => {
 
     it('displays empty state when no entities', async () => {
       mockFetchEntities.mockResolvedValue({
-        entities: [],
-        count: 0,
-        limit: 50,
-        offset: 0,
+        items: [],
+        pagination: {
+          total: 0,
+          limit: 50,
+          offset: 0,
+          has_more: false,
+        },
       });
 
       renderWithRouter(<EntitiesPage />);
@@ -142,10 +148,13 @@ describe('EntitiesPage', () => {
 
     it('displays enhanced empty state with "How it works" section', async () => {
       mockFetchEntities.mockResolvedValue({
-        entities: [],
-        count: 0,
-        limit: 50,
-        offset: 0,
+        items: [],
+        pagination: {
+          total: 0,
+          limit: 50,
+          offset: 0,
+          has_more: false,
+        },
       });
 
       renderWithRouter(<EntitiesPage />);
@@ -161,10 +170,13 @@ describe('EntitiesPage', () => {
 
     it('displays CTA button in empty state', async () => {
       mockFetchEntities.mockResolvedValue({
-        entities: [],
-        count: 0,
-        limit: 50,
-        offset: 0,
+        items: [],
+        pagination: {
+          total: 0,
+          limit: 50,
+          offset: 0,
+          has_more: false,
+        },
       });
 
       renderWithRouter(<EntitiesPage />);
@@ -180,10 +192,13 @@ describe('EntitiesPage', () => {
   describe('Filtering', () => {
     it('displays simpler empty state when filtered by person with no results', async () => {
       mockFetchEntities.mockResolvedValue({
-        entities: [],
-        count: 0,
-        limit: 50,
-        offset: 0,
+        items: [],
+        pagination: {
+          total: 0,
+          limit: 50,
+          offset: 0,
+          has_more: false,
+        },
       });
 
       const user = userEvent.setup();
@@ -206,10 +221,13 @@ describe('EntitiesPage', () => {
 
     it('displays simpler empty state when filtered by vehicle with no results', async () => {
       mockFetchEntities.mockResolvedValue({
-        entities: [],
-        count: 0,
-        limit: 50,
-        offset: 0,
+        items: [],
+        pagination: {
+          total: 0,
+          limit: 50,
+          offset: 0,
+          has_more: false,
+        },
       });
 
       const user = userEvent.setup();

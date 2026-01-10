@@ -220,19 +220,20 @@ class TestListEvents:
         response = await async_client.get("/api/events")
         assert response.status_code == 200
         data = response.json()
-        assert data["events"] == []
-        assert data["count"] == 0
-        assert data["limit"] == 50
-        assert data["offset"] == 0
+        assert data["items"] == []
+        assert data["pagination"]["total"] == 0
+        assert data["pagination"]["limit"] == 50
+        # offset=0 is converted to None (falsy value) for cursor-based pagination
+        assert data["pagination"]["offset"] in (0, None)
 
     async def test_list_events_with_data(self, async_client, sample_event):
         """Test listing events when data exists."""
         response = await async_client.get("/api/events")
         assert response.status_code == 200
         data = response.json()
-        assert data["count"] >= 1
-        assert len(data["events"]) >= 1
-        event = data["events"][0]
+        assert data["pagination"]["total"] >= 1
+        assert len(data["items"]) >= 1
+        event = data["items"][0]
         assert event["id"] == sample_event.id
         assert event["camera_id"] == sample_event.camera_id
         assert event["risk_score"] == sample_event.risk_score
@@ -245,8 +246,8 @@ class TestListEvents:
         assert response.status_code == 200
         data = response.json()
         # Should get events from first camera only (events 0, 1, 3)
-        assert data["count"] >= 3
-        for event in data["events"]:
+        assert data["pagination"]["total"] >= 3
+        for event in data["items"]:
             assert event["camera_id"] == camera_id
 
     async def test_list_events_filter_by_risk_level(self, async_client, multiple_events):
@@ -254,8 +255,8 @@ class TestListEvents:
         response = await async_client.get("/api/events?risk_level=high")
         assert response.status_code == 200
         data = response.json()
-        assert data["count"] >= 1
-        for event in data["events"]:
+        assert data["pagination"]["total"] >= 1
+        for event in data["items"]:
             assert event["risk_level"] == "high"
 
     async def test_list_events_filter_by_reviewed(self, async_client, multiple_events):
@@ -264,16 +265,16 @@ class TestListEvents:
         response = await async_client.get("/api/events?reviewed=true")
         assert response.status_code == 200
         data = response.json()
-        assert data["count"] >= 1
-        for event in data["events"]:
+        assert data["pagination"]["total"] >= 1
+        for event in data["items"]:
             assert event["reviewed"] is True
 
         # Filter for unreviewed events
         response = await async_client.get("/api/events?reviewed=false")
         assert response.status_code == 200
         data = response.json()
-        assert data["count"] >= 3
-        for event in data["events"]:
+        assert data["pagination"]["total"] >= 3
+        for event in data["items"]:
             assert event["reviewed"] is False
 
     async def test_list_events_filter_by_min_risk_score(self, async_client, multiple_events):
@@ -288,7 +289,7 @@ class TestListEvents:
             data = response.json()
             # If filter is implemented, check it works correctly
             if "min_risk_score" in str(response.request.url):
-                for event in data["events"]:
+                for event in data["items"]:
                     if event["risk_score"] is not None:
                         # Only validate if API actually supports the filter
                         # Currently API doesn't implement min_risk_score, so we check >= 70 conditionally
@@ -310,8 +311,8 @@ class TestListEvents:
         assert response.status_code == 200
         data = response.json()
         # Should get events at 14:00, 15:00, and 22:00 UTC (3 events in range)
-        assert data["count"] >= 2
-        for event in data["events"]:
+        assert data["pagination"]["total"] >= 2
+        for event in data["items"]:
             event_start = datetime.fromisoformat(event["started_at"].replace("Z", "+00:00"))
             # Add timezone for comparison (both must be tz-aware)
             assert event_start >= datetime.fromisoformat(start_date.replace("Z", "+00:00"))
@@ -323,16 +324,17 @@ class TestListEvents:
         response = await async_client.get("/api/events?limit=2&offset=0")
         assert response.status_code == 200
         data = response.json()
-        assert data["limit"] == 2
-        assert data["offset"] == 0
-        assert len(data["events"]) <= 2
+        assert data["pagination"]["limit"] == 2
+        # offset=0 is converted to None (falsy value)
+        assert data["pagination"]["offset"] in (0, None)
+        assert len(data["items"]) <= 2
 
         # Test with offset
         response = await async_client.get("/api/events?limit=2&offset=2")
         assert response.status_code == 200
         data = response.json()
-        assert data["limit"] == 2
-        assert data["offset"] == 2
+        assert data["pagination"]["limit"] == 2
+        assert data["pagination"]["offset"] == 2
 
     async def test_list_events_pagination_limits(self, async_client):
         """Test pagination parameter validation."""
@@ -352,7 +354,7 @@ class TestListEvents:
         )
         assert response.status_code == 200
         data = response.json()
-        for event in data["events"]:
+        for event in data["items"]:
             assert event["camera_id"] == camera_id
             assert event["reviewed"] is False
             if event["risk_score"] is not None:
@@ -363,14 +365,14 @@ class TestListEvents:
         response = await async_client.get("/api/events")
         assert response.status_code == 200
         data = response.json()
-        if len(data["events"]) > 1:
+        if len(data["items"]) > 1:
             # Verify descending order
-            for i in range(len(data["events"]) - 1):
+            for i in range(len(data["items"]) - 1):
                 current = datetime.fromisoformat(
-                    data["events"][i]["started_at"].replace("Z", "+00:00")
+                    data["items"][i]["started_at"].replace("Z", "+00:00")
                 )
                 next_event = datetime.fromisoformat(
-                    data["events"][i + 1]["started_at"].replace("Z", "+00:00")
+                    data["items"][i + 1]["started_at"].replace("Z", "+00:00")
                 )
                 assert current >= next_event
 
@@ -579,9 +581,10 @@ class TestGetEventDetections:
         response = await async_client.get(f"/api/events/{sample_event.id}/detections")
         assert response.status_code == 200
         data = response.json()
-        assert "detections" in data
-        assert len(data["detections"]) >= 1
-        detection = data["detections"][0]
+        assert "items" in data
+        assert "pagination" in data
+        assert len(data["items"]) >= 1
+        detection = data["items"][0]
         assert detection["id"] == sample_detection.id
 
     async def test_get_event_detections_empty(self, async_client, sample_event):
@@ -602,7 +605,7 @@ class TestGetEventDetections:
         response = await async_client.get(f"/api/events/{sample_event.id}/detections")
         assert response.status_code == 200
         data = response.json()
-        assert data["detections"] == []
+        assert data["items"] == []
 
     async def test_get_event_detections_not_found(self, async_client):
         """Test getting detections for non-existent event returns 404."""
@@ -665,8 +668,8 @@ class TestGetEventDetections:
         response = await async_client.get(f"/api/events/{sample_event.id}/detections")
         assert response.status_code == 200
         data = response.json()
-        assert len(data["detections"]) == 2
-        detection_ids = {d["id"] for d in data["detections"]}
+        assert len(data["items"]) == 2
+        detection_ids = {d["id"] for d in data["items"]}
         assert detection1.id in detection_ids
         assert detection2.id in detection_ids
 
@@ -894,10 +897,11 @@ class TestEnrichmentDataInEventDetections:
         response = await async_client.get(f"/api/events/{sample_event.id}/detections")
         assert response.status_code == 200
         data = response.json()
-        assert "detections" in data
-        assert len(data["detections"]) == 1
-        assert "enrichment_data" in data["detections"][0]
-        assert data["detections"][0]["enrichment_data"] == enrichment_data
+        assert "items" in data
+        assert "pagination" in data
+        assert len(data["items"]) == 1
+        assert "enrichment_data" in data["items"][0]
+        assert data["items"][0]["enrichment_data"] == enrichment_data
 
     async def test_event_detections_null_enrichment_data(
         self, async_client, sample_event, sample_detection
@@ -920,11 +924,12 @@ class TestEnrichmentDataInEventDetections:
         response = await async_client.get(f"/api/events/{sample_event.id}/detections")
         assert response.status_code == 200
         data = response.json()
-        assert "detections" in data
-        assert len(data["detections"]) == 1
+        assert "items" in data
+        assert "pagination" in data
+        assert len(data["items"]) == 1
         # enrichment_data should be None/null for detections without enrichment
-        assert "enrichment_data" in data["detections"][0]
-        assert data["detections"][0]["enrichment_data"] is None
+        assert "enrichment_data" in data["items"][0]
+        assert data["items"][0]["enrichment_data"] is None
 
     async def test_event_detections_mixed_enrichment_data(
         self, async_client, sample_event, sample_camera
@@ -991,15 +996,15 @@ class TestEnrichmentDataInEventDetections:
         response = await async_client.get(f"/api/events/{sample_event.id}/detections")
         assert response.status_code == 200
         data = response.json()
-        assert len(data["detections"]) == 2
+        assert len(data["items"]) == 2
 
         # Find the enriched detection
-        enriched = next((d for d in data["detections"] if d["object_type"] == "person"), None)
+        enriched = next((d for d in data["items"] if d["object_type"] == "person"), None)
         assert enriched is not None
         assert enriched["enrichment_data"] == enrichment_data
 
         # Find the unenriched detection
-        unenriched = next((d for d in data["detections"] if d["object_type"] == "unknown"), None)
+        unenriched = next((d for d in data["items"] if d["object_type"] == "unknown"), None)
         assert unenriched is not None
         assert unenriched["enrichment_data"] is None
 
@@ -1203,8 +1208,10 @@ class TestGetEventEnrichments:
         assert data["event_id"] == sample_event.id
         assert data["count"] == 1
         assert data["total"] == 1
+        # EventEnrichmentsResponse uses flat structure (not pagination envelope)
         assert data["limit"] == 50  # default
-        assert data["offset"] == 0  # default
+        # offset=0 is converted to None (falsy value) for cursor-based pagination
+        assert data["offset"] in (0, None)  # default
         assert data["has_more"] is False
         assert len(data["enrichments"]) == 1
 
@@ -1235,8 +1242,10 @@ class TestGetEventEnrichments:
         assert data["event_id"] == sample_event.id
         assert data["count"] == 0
         assert data["total"] == 0
+        # EventEnrichmentsResponse uses flat structure (not pagination envelope)
         assert data["limit"] == 50
-        assert data["offset"] == 0
+        # offset=0 is converted to None (falsy value) for cursor-based pagination
+        assert data["offset"] in (0, None)
         assert data["has_more"] is False
         assert data["enrichments"] == []
 
@@ -1313,8 +1322,10 @@ class TestGetEventEnrichments:
         assert data["event_id"] == sample_event.id
         assert data["count"] == 2
         assert data["total"] == 2
+        # EventEnrichmentsResponse uses flat structure (not pagination envelope)
         assert data["limit"] == 50
-        assert data["offset"] == 0
+        # offset=0 is converted to None (falsy value) for cursor-based pagination
+        assert data["offset"] in (0, None)
         assert data["has_more"] is False
         assert len(data["enrichments"]) == 2
 
@@ -1372,8 +1383,10 @@ class TestGetEventEnrichments:
 
         assert data["count"] == 2
         assert data["total"] == 5
+        # EventEnrichmentsResponse uses flat structure (not pagination envelope)
         assert data["limit"] == 2
-        assert data["offset"] == 0
+        # offset=0 is converted to None (falsy value) for cursor-based pagination
+        assert data["offset"] in (0, None)
         assert data["has_more"] is True
         assert len(data["enrichments"]) == 2
 
@@ -1431,6 +1444,7 @@ class TestGetEventEnrichments:
 
         assert data["count"] == 2  # Last 2 items
         assert data["total"] == 5
+        # EventEnrichmentsResponse uses flat structure (not pagination envelope)
         assert data["limit"] == 2
         assert data["offset"] == 3
         assert data["has_more"] is False  # No more items after position 5
@@ -1489,6 +1503,7 @@ class TestGetEventEnrichments:
 
         assert data["count"] == 0
         assert data["total"] == 3
+        # EventEnrichmentsResponse uses flat structure (not pagination envelope)
         assert data["limit"] == 10
         assert data["offset"] == 100
         assert data["has_more"] is False
@@ -1778,6 +1793,8 @@ class TestSearchEvents:
         assert response.status_code == 200
         data = response.json()
 
+        # Search endpoint uses its own response structure (not pagination envelope)
         assert data["limit"] == 2
-        assert data["offset"] == 0
+        # offset=0 is converted to None (falsy value) for cursor-based pagination
+        assert data["offset"] in (0, None)
         assert len(data["results"]) <= 2

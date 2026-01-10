@@ -51,7 +51,7 @@ export default function EntitiesPage() {
       }
 
       const response = await fetchEntities(params);
-      setEntities(response.entities);
+      setEntities(response.items);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load entities';
       setError(message);

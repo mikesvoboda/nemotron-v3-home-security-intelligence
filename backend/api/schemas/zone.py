@@ -4,6 +4,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from backend.api.schemas.pagination import PaginationMeta
 from backend.models.zone import ZoneShape, ZoneType
 
 # Expose validation functions for testing
@@ -280,7 +281,7 @@ class ZoneListResponse(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "zones": [
+                "items": [
                     {
                         "id": "123e4567-e89b-12d3-a456-426614174000",
                         "camera_id": "front_door",
@@ -295,10 +296,17 @@ class ZoneListResponse(BaseModel):
                         "updated_at": "2025-12-23T12:00:00Z",
                     }
                 ],
-                "count": 1,
+                "pagination": {
+                    "total": 1,
+                    "limit": 50,
+                    "offset": 0,
+                    "cursor": None,
+                    "next_cursor": None,
+                    "has_more": False,
+                },
             }
         }
     )
 
-    zones: list[ZoneResponse] = Field(..., description="List of zones")
-    count: int = Field(..., description="Total number of zones")
+    items: list[ZoneResponse] = Field(..., description="List of zones")
+    pagination: PaginationMeta = Field(..., description="Pagination metadata")

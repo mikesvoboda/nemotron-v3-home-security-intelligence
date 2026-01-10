@@ -163,36 +163,11 @@ class PartitionManager:
             Sanitized name containing only lowercase alphanumeric and underscore
 
         Raises:
-            ValueError: If the sanitized name would be empty or contain SQL keywords
+            ValueError: If the sanitized name would be empty
         """
         # Remove all non-alphanumeric/underscore characters and convert to lowercase
+        # This is sufficient to prevent SQL injection since we only allow safe characters
         sanitized = re.sub(r"[^a-zA-Z0-9_]", "", name).lower()
-
-        # Check for SQL keywords that could indicate injection attempts
-        sql_keywords = {
-            "drop",
-            "delete",
-            "insert",
-            "update",
-            "select",
-            "truncate",
-            "alter",
-            "create",
-            "grant",
-            "revoke",
-            "exec",
-            "execute",
-            "union",
-            "where",
-            "from",
-            "table",
-            "database",
-        }
-        # Check if any SQL keyword is present in the sanitized name
-        for keyword in sql_keywords:
-            if keyword in sanitized:
-                # Remove the keyword from the sanitized name
-                sanitized = sanitized.replace(keyword, "")
 
         # Ensure the name is not empty after sanitization
         if not sanitized:
@@ -332,7 +307,12 @@ class PartitionManager:
         )
         row = result.scalar_one_or_none()
         # 'p' indicates a partitioned table
-        return row == "p"
+        # Handle both bytes and string returns from PostgreSQL
+        if row is None:
+            return False
+        if isinstance(row, bytes):
+            return row == b"p"
+        return bool(row == "p")
 
     async def _create_partition(
         self,

@@ -86,10 +86,10 @@ async def test_list_logs_empty_database() -> None:
         db=db,
     )
 
-    assert result.count == 0
-    assert result.logs == []
-    assert result.limit == 100
-    assert result.offset == 0
+    assert result.pagination.total == 0
+    assert result.items == []
+    assert result.pagination.limit == 100
+    assert result.pagination.offset is None
 
 
 @pytest.mark.asyncio
@@ -125,8 +125,8 @@ async def test_list_logs_with_results() -> None:
         db=db,
     )
 
-    assert result.count == 2
-    assert len(result.logs) == 2
+    assert result.pagination.total == 2
+    assert len(result.items) == 2
 
 
 @pytest.mark.asyncio
@@ -158,8 +158,8 @@ async def test_list_logs_filter_by_level() -> None:
         db=db,
     )
 
-    assert result.count == 1
-    assert len(result.logs) == 1
+    assert result.pagination.total == 1
+    assert len(result.items) == 1
 
 
 @pytest.mark.asyncio
@@ -191,7 +191,7 @@ async def test_list_logs_filter_by_component() -> None:
         db=db,
     )
 
-    assert result.count == 1
+    assert result.pagination.total == 1
 
 
 @pytest.mark.asyncio
@@ -223,7 +223,7 @@ async def test_list_logs_filter_by_camera_id() -> None:
         db=db,
     )
 
-    assert result.count == 1
+    assert result.pagination.total == 1
 
 
 @pytest.mark.asyncio
@@ -255,7 +255,7 @@ async def test_list_logs_filter_by_source() -> None:
         db=db,
     )
 
-    assert result.count == 1
+    assert result.pagination.total == 1
 
 
 @pytest.mark.asyncio
@@ -287,7 +287,7 @@ async def test_list_logs_filter_by_search() -> None:
         db=db,
     )
 
-    assert result.count == 1
+    assert result.pagination.total == 1
 
 
 @pytest.mark.asyncio
@@ -321,7 +321,7 @@ async def test_list_logs_filter_by_start_date() -> None:
         db=db,
     )
 
-    assert result.count == 1
+    assert result.pagination.total == 1
 
 
 @pytest.mark.asyncio
@@ -355,7 +355,7 @@ async def test_list_logs_filter_by_end_date() -> None:
         db=db,
     )
 
-    assert result.count == 1
+    assert result.pagination.total == 1
 
 
 @pytest.mark.asyncio
@@ -390,7 +390,7 @@ async def test_list_logs_filter_by_date_range() -> None:
         db=db,
     )
 
-    assert result.count == 1
+    assert result.pagination.total == 1
 
 
 @pytest.mark.asyncio
@@ -429,9 +429,9 @@ async def test_list_logs_with_all_filters() -> None:
         db=db,
     )
 
-    assert result.count == 1
-    assert result.limit == 50
-    assert result.offset == 10
+    assert result.pagination.total == 1
+    assert result.pagination.limit == 50
+    assert result.pagination.offset == 10
 
 
 @pytest.mark.asyncio
@@ -464,10 +464,10 @@ async def test_list_logs_pagination() -> None:
         db=db,
     )
 
-    assert result.count == 15
-    assert len(result.logs) == 5
-    assert result.limit == 5
-    assert result.offset == 10
+    assert result.pagination.total == 15
+    assert len(result.items) == 5
+    assert result.pagination.limit == 5
+    assert result.pagination.offset == 10
 
 
 @pytest.mark.asyncio
@@ -497,7 +497,7 @@ async def test_list_logs_null_count() -> None:
         db=db,
     )
 
-    assert result.count == 0  # Should default to 0 when None
+    assert result.pagination.total == 0  # Should default to 0 when None
 
 
 # =============================================================================
@@ -989,19 +989,24 @@ class TestLogsResponseSchema:
     def test_logs_response_valid(self):
         """Test LogsResponse with valid data."""
         data = {
-            "logs": [],
-            "count": 0,
-            "limit": 100,
-            "offset": 0,
+            "items": [],
+            "pagination": {
+                "total": 0,
+                "limit": 100,
+                "offset": None,
+                "cursor": None,
+                "next_cursor": None,
+                "has_more": False,
+            },
         }
         response = LogsResponse(**data)
-        assert response.count == 0
-        assert response.limit == 100
+        assert response.pagination.total == 0
+        assert response.pagination.limit == 100
 
     def test_logs_response_with_logs(self):
         """Test LogsResponse with log entries."""
         data = {
-            "logs": [
+            "items": [
                 {
                     "id": 1,
                     "timestamp": datetime.now(UTC),
@@ -1011,13 +1016,18 @@ class TestLogsResponseSchema:
                     "source": "backend",
                 }
             ],
-            "count": 1,
-            "limit": 100,
-            "offset": 0,
+            "pagination": {
+                "total": 1,
+                "limit": 100,
+                "offset": None,
+                "cursor": None,
+                "next_cursor": None,
+                "has_more": False,
+            },
         }
         response = LogsResponse(**data)
-        assert len(response.logs) == 1
-        assert response.count == 1
+        assert len(response.items) == 1
+        assert response.pagination.total == 1
 
 
 class TestLogStatsSchema:

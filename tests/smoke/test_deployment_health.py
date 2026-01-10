@@ -115,8 +115,8 @@ class TestAPIEndpoints:
         assert response.status_code == 200, f"Cameras endpoint failed: {response.text}"
 
         data = response.json()
-        assert "cameras" in data, "Missing cameras array in response"
-        assert isinstance(data["cameras"], list), "cameras should be an array"
+        assert "items" in data, "Missing items array in response"
+        assert isinstance(data["items"], list), "items should be an array"
 
     @pytest.mark.integration
     def test_events_endpoint(self, http_client: httpx.Client, backend_url: str):
@@ -130,12 +130,12 @@ class TestAPIEndpoints:
         assert response.status_code == 200, f"Events endpoint failed: {response.text}"
 
         data = response.json()
-        assert "events" in data, "Missing events array in response"
-        assert isinstance(data["events"], list), "events should be an array"
+        assert "items" in data, "Missing items array in response"
+        assert isinstance(data["items"], list), "items should be an array"
 
         # Verify event structure if events exist
-        if data["events"]:
-            event = data["events"][0]
+        if data["items"]:
+            event = data["items"][0]
             assert "id" in event, "Event missing id field"
             assert "timestamp" in event, "Event missing timestamp field"
 
@@ -151,8 +151,8 @@ class TestAPIEndpoints:
         assert response.status_code == 200, f"Detections endpoint failed: {response.text}"
 
         data = response.json()
-        assert "detections" in data, "Missing detections array in response"
-        assert isinstance(data["detections"], list), "detections should be an array"
+        assert "items" in data, "Missing items array in response"
+        assert isinstance(data["items"], list), "items should be an array"
 
 
 class TestServiceConnectivity:
@@ -212,8 +212,8 @@ class TestDataFlow:
         data = response.json()
 
         # Should have at least the structure, even if no cameras
-        assert "cameras" in data
-        assert isinstance(data["cameras"], list)
+        assert "items" in data
+        assert isinstance(data["items"], list)
 
     @pytest.mark.integration
     @pytest.mark.slow
@@ -229,11 +229,11 @@ class TestDataFlow:
         assert response.status_code == 200
         data = response.json()
 
-        assert "events" in data
-        assert isinstance(data["events"], list)
+        assert "items" in data
+        assert isinstance(data["items"], list)
 
         # If events exist, verify they have expected structure
-        for event in data["events"]:
+        for event in data["items"]:
             assert "id" in event
             assert "timestamp" in event
 
