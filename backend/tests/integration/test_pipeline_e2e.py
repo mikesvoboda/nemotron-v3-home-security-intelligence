@@ -131,7 +131,9 @@ class MockRedisClient:
         inner_client.expire = _expire_impl
 
         # pipeline - create a pipeline for batch operations
-        def _pipeline_impl() -> MockRedisPipeline:
+        def _pipeline_impl(
+            transaction: bool = True, shard_hint: str | None = None
+        ) -> MockRedisPipeline:
             return MockRedisPipeline(parent._store)
 
         inner_client.pipeline = _pipeline_impl
@@ -276,9 +278,22 @@ class MockRedisPipeline:
         self._commands: list[tuple[str, tuple]] = []
         self._storage = storage
 
+    async def __aenter__(self) -> MockRedisPipeline:
+        """Enter async context manager."""
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+        """Exit async context manager."""
+        pass
+
     def get(self, key: str) -> MockRedisPipeline:
         """Add GET command to pipeline."""
         self._commands.append(("get", (key,)))
+        return self
+
+    def set(self, key: str, value: str, ex: int | None = None) -> MockRedisPipeline:
+        """Add SET command to pipeline."""
+        self._commands.append(("set", (key, value, ex)))
         return self
 
     async def execute(self) -> list[Any]:
@@ -294,6 +309,10 @@ class MockRedisPipeline:
                         results.append(value)
                 else:
                     results.append(value)
+            elif cmd == "set":
+                key, value, _ex = args
+                self._storage[key] = value
+                results.append(True)
         return results
 
 

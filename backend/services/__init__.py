@@ -1,5 +1,11 @@
 """Business logic and background services."""
 
+from .ai_services import (
+    FaceDetectorService,
+    OCRService,
+    PlateDetectorService,
+    YOLOWorldService,
+)
 from .alert_dedup import AlertDeduplicationService, DedupResult, build_dedup_key
 from .alert_engine import AlertRuleEngine, EvaluationResult, TriggeredRule, get_alert_engine
 from .audit import (
@@ -252,6 +258,11 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "SEVERITY_PRIORITY",
     "SHORT_TTL",
     "VEHICLE_CLASSES",
+    # Classes - AI Services
+    "FaceDetectorService",
+    "OCRService",
+    "PlateDetectorService",
+    "YOLOWorldService",
     # Classes
     "PipelineQualityAuditService",
     "AlertDeduplicationService",

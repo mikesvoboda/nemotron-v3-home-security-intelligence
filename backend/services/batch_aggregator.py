@@ -198,6 +198,66 @@ class BatchAggregator:
                 logger.warning(f"Invalid detection ID in batch list: {sanitize_log_value(item)}")
         return result
 
+    async def _create_batch_metadata_atomic(
+        self,
+        batch_key: str,
+        batch_id: str,
+        camera_id: str,
+        current_time: float,
+        ttl: int,
+        pipeline_start_time: str | None = None,
+    ) -> None:
+        """Create batch metadata atomically using Redis pipeline with MULTI/EXEC.
+
+        NEM-2014: All batch metadata keys are set in a single transaction to prevent
+        partial data if the process crashes between Redis commands.
+
+        Using pipeline(transaction=True) wraps all operations in MULTI/EXEC,
+        ensuring atomic execution - either all keys are set or none are.
+
+        Args:
+            batch_key: Key for the camera's current batch pointer
+            batch_id: Unique identifier for this batch
+            camera_id: Camera identifier
+            current_time: Unix timestamp for started_at and last_activity
+            ttl: TTL in seconds for all keys
+            pipeline_start_time: Optional ISO timestamp for pipeline latency tracking
+
+        Raises:
+            RuntimeError: If Redis client not initialized
+            Exception: If pipeline execution fails (no keys will be set)
+        """
+        if not self._redis or not self._redis._client:
+            raise RuntimeError("Redis client not initialized")
+
+        client = self._redis._client
+
+        # Use Redis pipeline with transaction=True for MULTI/EXEC atomicity
+        # If any operation fails, the entire transaction is rolled back
+        async with client.pipeline(transaction=True) as pipe:
+            # Set all batch metadata keys
+            pipe.set(batch_key, batch_id, ex=ttl)
+            pipe.set(f"batch:{batch_id}:camera_id", camera_id, ex=ttl)
+            pipe.set(f"batch:{batch_id}:started_at", str(current_time), ex=ttl)
+            pipe.set(f"batch:{batch_id}:last_activity", str(current_time), ex=ttl)
+
+            # Store pipeline_start_time only for the first detection in the batch
+            if pipeline_start_time:
+                pipe.set(f"batch:{batch_id}:pipeline_start_time", pipeline_start_time, ex=ttl)
+
+            try:
+                await pipe.execute()
+            except Exception as e:
+                logger.error(
+                    "Atomic batch metadata creation failed - transaction rolled back",
+                    extra={
+                        "batch_id": batch_id,
+                        "camera_id": camera_id,
+                        "error": str(e),
+                    },
+                )
+                raise
+
     async def add_detection(
         self,
         camera_id: str,
@@ -307,50 +367,20 @@ class BatchAggregator:
                 )
 
                 # Set batch metadata with TTL for orphan cleanup
-                # Uses asyncio.gather to parallelize Redis SET operations for performance
+                # NEM-2014: Use Redis pipeline with transaction=True for atomic operations.
+                # This wraps all SET commands in MULTI/EXEC, ensuring all-or-nothing
+                # behavior and preventing partial data if the process crashes.
                 ttl = self.BATCH_KEY_TTL_SECONDS
 
-                # Build list of Redis operations to execute in parallel
-                redis_ops = [
-                    self._redis.set(batch_key, batch_id, expire=ttl),
-                    self._redis.set(f"batch:{batch_id}:camera_id", camera_id, expire=ttl),
-                    self._redis.set(f"batch:{batch_id}:started_at", str(current_time), expire=ttl),
-                    self._redis.set(
-                        f"batch:{batch_id}:last_activity", str(current_time), expire=ttl
-                    ),
-                ]
-
-                # Store pipeline_start_time only for the first detection in the batch
-                # This captures when the first file in the batch was detected for total latency
-                if pipeline_start_time:
-                    redis_ops.append(
-                        self._redis.set(
-                            f"batch:{batch_id}:pipeline_start_time",
-                            pipeline_start_time,
-                            expire=ttl,
-                        )
-                    )
-
-                # Use TaskGroup for structured concurrency (NEM-1656)
-                # All Redis operations must succeed for batch to be valid.
-                # TaskGroup automatically cancels remaining tasks if any fails.
-                try:
-                    async with asyncio.TaskGroup() as tg:
-                        for redis_op in redis_ops:
-                            tg.create_task(redis_op)
-                except* Exception as eg:
-                    # Log all errors from the ExceptionGroup
-                    for i, exc in enumerate(eg.exceptions):
-                        logger.error(
-                            f"Redis operation {i} failed during batch creation",
-                            extra={
-                                "batch_id": batch_id,
-                                "camera_id": camera_id,
-                                "error": str(exc),
-                            },
-                        )
-                    # Re-raise the first exception to maintain compatibility
-                    raise eg.exceptions[0] from eg
+                # Build atomic transaction using Redis pipeline (MULTI/EXEC)
+                await self._create_batch_metadata_atomic(
+                    batch_key=batch_key,
+                    batch_id=batch_id,
+                    camera_id=camera_id,
+                    current_time=current_time,
+                    ttl=ttl,
+                    pipeline_start_time=pipeline_start_time,
+                )
                 # Note: No need to initialize empty list - RPUSH creates it automatically
 
             # Add detection to batch using atomic RPUSH operation
@@ -694,7 +724,7 @@ class BatchAggregator:
                         extra={"camera_id": camera_id, "batch_id": batch_id},
                     )
 
-                # Clean up Redis keys
+                # Clean up Redis keys including closure marker (NEM-2013)
                 await self._redis.delete(
                     f"batch:{camera_id}:current",
                     f"batch:{batch_id}:camera_id",
@@ -702,6 +732,7 @@ class BatchAggregator:
                     f"batch:{batch_id}:started_at",
                     f"batch:{batch_id}:last_activity",
                     f"batch:{batch_id}:pipeline_start_time",
+                    f"batch:{batch_id}:closing",
                 )
 
                 logger.debug(
@@ -809,7 +840,7 @@ class BatchAggregator:
                 extra={"camera_id": camera_id, "batch_id": batch_id},
             )
 
-        # Clean up Redis keys
+        # Clean up Redis keys including closure marker (NEM-2013)
         await self._redis.delete(
             f"batch:{camera_id}:current",
             f"batch:{batch_id}:camera_id",
@@ -817,6 +848,7 @@ class BatchAggregator:
             f"batch:{batch_id}:started_at",
             f"batch:{batch_id}:last_activity",
             f"batch:{batch_id}:pipeline_start_time",
+            f"batch:{batch_id}:closing",
         )
 
         logger.debug(

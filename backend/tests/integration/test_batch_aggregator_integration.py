@@ -115,9 +115,22 @@ def mock_redis_client():
             self._commands: list[tuple[str, tuple]] = []
             self._storage = storage_ref
 
+        async def __aenter__(self) -> MockPipeline:
+            """Enter async context manager."""
+            return self
+
+        async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+            """Exit async context manager."""
+            pass
+
         def get(self, key: str) -> MockPipeline:
             """Add GET command to pipeline."""
             self._commands.append(("get", (key,)))
+            return self
+
+        def set(self, key: str, value: str, ex: int | None = None) -> MockPipeline:
+            """Add SET command to pipeline."""
+            self._commands.append(("set", (key, value, ex)))
             return self
 
         async def execute(self) -> list:
@@ -126,9 +139,13 @@ def mock_redis_client():
             for cmd, args in self._commands:
                 if cmd == "get":
                     results.append(self._storage.get(args[0]))
+                elif cmd == "set":
+                    key, value, _ex = args
+                    self._storage[key] = value
+                    results.append(True)
             return results
 
-    def mock_pipeline() -> MockPipeline:
+    def mock_pipeline(transaction: bool = True, shard_hint: str | None = None) -> MockPipeline:
         """Create a new mock pipeline."""
         return MockPipeline(storage)
 

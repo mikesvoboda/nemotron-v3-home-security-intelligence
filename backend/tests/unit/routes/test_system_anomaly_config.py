@@ -34,11 +34,7 @@ class TestGetAnomalyConfig:
         mock_service.decay_factor = 0.1
         mock_service.window_days = 30
 
-        with patch(
-            "backend.services.baseline.get_baseline_service",
-            return_value=mock_service,
-        ):
-            result = await get_anomaly_config()
+        result = await get_anomaly_config(service=mock_service)
 
         assert isinstance(result, AnomalyConfig)
         assert result.threshold_stdev == 2.5
@@ -57,11 +53,7 @@ class TestGetAnomalyConfig:
         mock_service.decay_factor = 0.1
         mock_service.window_days = 30
 
-        with patch(
-            "backend.services.baseline.get_baseline_service",
-            return_value=mock_service,
-        ):
-            result = await get_anomaly_config()
+        result = await get_anomaly_config(service=mock_service)
 
         assert result.threshold_stdev == 2.0
         assert result.min_samples == 10
@@ -87,15 +79,9 @@ class TestUpdateAnomalyConfig:
 
         config_update = AnomalyConfigUpdate(threshold_stdev=3.0)
 
-        with (
-            patch(
-                "backend.services.baseline.get_baseline_service",
-                return_value=mock_service,
-            ),
-            patch(
-                "backend.services.audit.AuditService.log_action",
-                new_callable=AsyncMock,
-            ),
+        with patch(
+            "backend.services.audit.AuditService.log_action",
+            new_callable=AsyncMock,
         ):
             # Update the mock to return new value after update
             def update_threshold(**kwargs):
@@ -108,6 +94,7 @@ class TestUpdateAnomalyConfig:
                 config_update=config_update,
                 request=mock_request,
                 db=mock_db,
+                service=mock_service,
             )
 
         mock_service.update_config.assert_called_once()
@@ -130,15 +117,9 @@ class TestUpdateAnomalyConfig:
 
         config_update = AnomalyConfigUpdate(min_samples=20)
 
-        with (
-            patch(
-                "backend.services.baseline.get_baseline_service",
-                return_value=mock_service,
-            ),
-            patch(
-                "backend.services.audit.AuditService.log_action",
-                new_callable=AsyncMock,
-            ),
+        with patch(
+            "backend.services.audit.AuditService.log_action",
+            new_callable=AsyncMock,
         ):
             # Update the mock to return new value after update
             def update_samples(**kwargs):
@@ -151,6 +132,7 @@ class TestUpdateAnomalyConfig:
                 config_update=config_update,
                 request=mock_request,
                 db=mock_db,
+                service=mock_service,
             )
 
         mock_service.update_config.assert_called_once()
@@ -173,15 +155,9 @@ class TestUpdateAnomalyConfig:
 
         config_update = AnomalyConfigUpdate(threshold_stdev=2.5, min_samples=15)
 
-        with (
-            patch(
-                "backend.services.baseline.get_baseline_service",
-                return_value=mock_service,
-            ),
-            patch(
-                "backend.services.audit.AuditService.log_action",
-                new_callable=AsyncMock,
-            ),
+        with patch(
+            "backend.services.audit.AuditService.log_action",
+            new_callable=AsyncMock,
         ):
             # Update the mock to return new values after update
             def update_both(**kwargs):
@@ -196,6 +172,7 @@ class TestUpdateAnomalyConfig:
                 config_update=config_update,
                 request=mock_request,
                 db=mock_db,
+                service=mock_service,
             )
 
         assert result.threshold_stdev == 2.5
@@ -226,19 +203,16 @@ class TestUpdateAnomalyConfig:
         # Use a valid value that would pass schema validation but fail service validation
         config_update = AnomalyConfigUpdate(threshold_stdev=0.001)
 
-        with patch(
-            "backend.services.baseline.get_baseline_service",
-            return_value=mock_service,
-        ):
-            with pytest.raises(HTTPException) as exc_info:
-                await update_anomaly_config(
-                    config_update=config_update,
-                    request=mock_request,
-                    db=mock_db,
-                )
+        with pytest.raises(HTTPException) as exc_info:
+            await update_anomaly_config(
+                config_update=config_update,
+                request=mock_request,
+                db=mock_db,
+                service=mock_service,
+            )
 
-            assert exc_info.value.status_code == 400
-            assert "threshold_stdev" in str(exc_info.value.detail)
+        assert exc_info.value.status_code == 400
+        assert "threshold_stdev" in str(exc_info.value.detail)
 
     @pytest.mark.asyncio
     async def test_update_anomaly_config_invalid_min_samples_returns_400(self) -> None:
@@ -265,19 +239,16 @@ class TestUpdateAnomalyConfig:
         # Use a valid value that would pass schema validation but fail service validation
         config_update = AnomalyConfigUpdate(min_samples=1)
 
-        with patch(
-            "backend.services.baseline.get_baseline_service",
-            return_value=mock_service,
-        ):
-            with pytest.raises(HTTPException) as exc_info:
-                await update_anomaly_config(
-                    config_update=config_update,
-                    request=mock_request,
-                    db=mock_db,
-                )
+        with pytest.raises(HTTPException) as exc_info:
+            await update_anomaly_config(
+                config_update=config_update,
+                request=mock_request,
+                db=mock_db,
+                service=mock_service,
+            )
 
-            assert exc_info.value.status_code == 400
-            assert "min_samples" in str(exc_info.value.detail)
+        assert exc_info.value.status_code == 400
+        assert "min_samples" in str(exc_info.value.detail)
 
     @pytest.mark.asyncio
     async def test_update_anomaly_config_logs_audit_entry(self) -> None:
@@ -297,15 +268,9 @@ class TestUpdateAnomalyConfig:
         config_update = AnomalyConfigUpdate(threshold_stdev=3.0)
         mock_audit_log = AsyncMock()
 
-        with (
-            patch(
-                "backend.services.baseline.get_baseline_service",
-                return_value=mock_service,
-            ),
-            patch(
-                "backend.services.audit.AuditService.log_action",
-                mock_audit_log,
-            ),
+        with patch(
+            "backend.services.audit.AuditService.log_action",
+            mock_audit_log,
         ):
             # Update the mock to return new value after update
             def update_threshold(**kwargs):
@@ -318,6 +283,7 @@ class TestUpdateAnomalyConfig:
                 config_update=config_update,
                 request=mock_request,
                 db=mock_db,
+                service=mock_service,
             )
 
         # Verify audit log was called

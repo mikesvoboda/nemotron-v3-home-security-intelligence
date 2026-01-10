@@ -657,19 +657,16 @@ class TestServeClip:
         mock_clip_gen = MagicMock()
         mock_clip_gen.clips_directory = tmp_path
 
-        # Patch at the import location (inside the function)
+        # Pass mock service directly to route handler (DI refactor pattern)
         with patch(
-            "backend.services.clip_generator.get_clip_generator",
-            return_value=mock_clip_gen,
+            "backend.api.routes.media._validate_and_resolve_path",
+            return_value=test_file.resolve(),
         ):
-            with patch(
-                "backend.api.routes.media._validate_and_resolve_path",
-                return_value=test_file.resolve(),
-            ):
-                result = await serve_clip(
-                    filename="123_clip.mp4",
-                    _rate_limit=None,
-                )
+            result = await serve_clip(
+                filename="123_clip.mp4",
+                _rate_limit=None,
+                clip_generator=mock_clip_gen,
+            )
 
         assert isinstance(result, FileResponse)
         assert result.media_type == "video/mp4"
@@ -682,20 +679,17 @@ class TestServeClip:
         mock_clip_gen = MagicMock()
         mock_clip_gen.clips_directory = Path("/clips")
 
-        # Patch at the import location (inside the function)
+        # Pass mock service directly to route handler (DI refactor pattern)
         with patch(
-            "backend.services.clip_generator.get_clip_generator",
-            return_value=mock_clip_gen,
+            "backend.api.routes.media._validate_and_resolve_path",
+            side_effect=HTTPException(status_code=404, detail={"error": "File not found"}),
         ):
-            with patch(
-                "backend.api.routes.media._validate_and_resolve_path",
-                side_effect=HTTPException(status_code=404, detail={"error": "File not found"}),
-            ):
-                with pytest.raises(HTTPException) as exc_info:
-                    await serve_clip(
-                        filename="nonexistent.mp4",
-                        _rate_limit=None,
-                    )
+            with pytest.raises(HTTPException) as exc_info:
+                await serve_clip(
+                    filename="nonexistent.mp4",
+                    _rate_limit=None,
+                    clip_generator=mock_clip_gen,
+                )
 
         assert exc_info.value.status_code == 404
 

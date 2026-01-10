@@ -246,18 +246,16 @@ class TestGenerateEventClip:
         mock_generator.generate_clip_from_images = AsyncMock(return_value=mock_clip_path)
 
         # Mock batch_fetch_file_paths to return detection image paths
-        with (
-            patch(
-                "backend.services.clip_generator.get_clip_generator",
-                return_value=mock_generator,
-            ),
-            patch(
-                "backend.api.routes.events.batch_fetch_file_paths",
-                return_value=["/path/to/image1.jpg", "/path/to/image2.jpg", "/path/to/image3.jpg"],
-            ),
+        with patch(
+            "backend.api.routes.events.batch_fetch_file_paths",
+            return_value=["/path/to/image1.jpg", "/path/to/image2.jpg", "/path/to/image3.jpg"],
         ):
             result = await generate_event_clip(
-                event_id=456, request=request, response=mock_response, db=mock_db
+                event_id=456,
+                request=request,
+                response=mock_response,
+                db=mock_db,
+                clip_generator=mock_generator,
             )
 
         assert isinstance(result, ClipGenerateResponse)
@@ -306,18 +304,16 @@ class TestGenerateEventClip:
         mock_generator.delete_clip = MagicMock(return_value=True)
 
         # Mock batch_fetch_file_paths to return detection image paths
-        with (
-            patch(
-                "backend.services.clip_generator.get_clip_generator",
-                return_value=mock_generator,
-            ),
-            patch(
-                "backend.api.routes.events.batch_fetch_file_paths",
-                return_value=["/path/to/image1.jpg", "/path/to/image2.jpg"],
-            ),
+        with patch(
+            "backend.api.routes.events.batch_fetch_file_paths",
+            return_value=["/path/to/image1.jpg", "/path/to/image2.jpg"],
         ):
             result = await generate_event_clip(
-                event_id=789, request=request, response=mock_response, db=mock_db
+                event_id=789,
+                request=request,
+                response=mock_response,
+                db=mock_db,
+                clip_generator=mock_generator,
             )
 
         # Should trigger regeneration

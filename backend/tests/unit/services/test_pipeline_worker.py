@@ -1046,6 +1046,18 @@ class TestEdgeCases:
         """Test handling of duplicate detections in batch."""
         camera_id = "test_cam"
 
+        # Mock the pipeline for atomic batch metadata creation
+        mock_pipe = MagicMock()
+        mock_pipe.set = MagicMock(return_value=mock_pipe)
+        mock_pipe.execute = AsyncMock(return_value=[True, True, True, True])
+        mock_pipe.__aenter__ = AsyncMock(return_value=mock_pipe)
+        mock_pipe.__aexit__ = AsyncMock(return_value=None)
+        mock_redis_client._client.pipeline = MagicMock(return_value=mock_pipe)
+
+        # Mock rpush for atomic list append
+        mock_redis_client._client.rpush = AsyncMock(return_value=1)
+        mock_redis_client._client.expire = AsyncMock(return_value=True)
+
         # First add - creates new batch
         # Detection IDs must be integers (database model requirement)
         mock_redis_client.get.return_value = None
@@ -1066,6 +1078,12 @@ class TestEdgeCases:
             return None
 
         mock_redis_client.get.side_effect = mock_get
+
+        # Mock llen for batch size checking
+        mock_redis_client._client.llen = AsyncMock(return_value=1)
+
+        # Mock rpush to return 2 (after second detection added)
+        mock_redis_client._client.rpush = AsyncMock(return_value=2)
 
         batch_id2 = await batch_aggregator.add_detection(
             camera_id=camera_id,

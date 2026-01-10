@@ -38,7 +38,22 @@ from backend.api.routes.detections import (
     stream_detection_video,
     validate_enrichment_data,
 )
+from backend.services.thumbnail_generator import ThumbnailGenerator
+from backend.services.video_processor import VideoProcessor
 from backend.tests.factories import DetectionFactory
+
+
+@pytest.fixture
+def mock_thumbnail_generator():
+    """Create a mock ThumbnailGenerator for DI."""
+    return MagicMock(spec=ThumbnailGenerator)
+
+
+@pytest.fixture
+def mock_video_processor():
+    """Create a mock VideoProcessor for DI."""
+    return MagicMock(spec=VideoProcessor)
+
 
 # ============================================================================
 # Helper Function Tests
@@ -943,7 +958,9 @@ class TestGetDetectionImage:
         assert "not found" in str(exc_info.value.detail).lower()
 
     @pytest.mark.asyncio
-    async def test_get_image_generate_thumbnail_on_fly(self, mock_db_session):
+    async def test_get_image_generate_thumbnail_on_fly(
+        self, mock_db_session, mock_thumbnail_generator
+    ):
         """Test generating thumbnail on the fly when it doesn't exist."""
         detection = DetectionFactory(
             id=1,
@@ -957,6 +974,9 @@ class TestGetDetectionImage:
             bbox_height=300,
         )
 
+        # Configure mock thumbnail generator
+        mock_thumbnail_generator.generate_thumbnail.return_value = "/data/thumbnails/generated.jpg"
+
         with patch(
             "backend.api.routes.detections.get_detection_or_404",
             return_value=detection,
@@ -964,19 +984,21 @@ class TestGetDetectionImage:
             # detection.thumbnail_path is None, so os.path.exists not called on it
             # First: file_path exists check (True), second: generated thumbnail exists (True)
             with patch("backend.api.routes.detections.os.path.exists", side_effect=[True, True]):
-                with patch(
-                    "backend.api.routes.detections.thumbnail_generator.generate_thumbnail",
-                    return_value="/data/thumbnails/generated.jpg",
-                ):
-                    mock_file_data = b"generated thumbnail"
-                    with patch("builtins.open", mock_open(read_data=mock_file_data)):
-                        response = await get_detection_image(detection_id=1, db=mock_db_session)
+                mock_file_data = b"generated thumbnail"
+                with patch("builtins.open", mock_open(read_data=mock_file_data)):
+                    response = await get_detection_image(
+                        detection_id=1,
+                        db=mock_db_session,
+                        thumbnail_generator=mock_thumbnail_generator,
+                    )
 
         assert response.body == mock_file_data
         # Note: We don't assert commit because the mock may not preserve async call tracking
 
     @pytest.mark.asyncio
-    async def test_get_image_thumbnail_generation_fails(self, mock_db_session):
+    async def test_get_image_thumbnail_generation_fails(
+        self, mock_db_session, mock_thumbnail_generator
+    ):
         """Test handling thumbnail generation failure."""
         detection = DetectionFactory(
             id=1,
@@ -984,19 +1006,20 @@ class TestGetDetectionImage:
             thumbnail_path=None,
         )
 
+        # Configure mock to return None (generation failure)
+        mock_thumbnail_generator.generate_thumbnail.return_value = None
+
         with (
             patch(
                 "backend.api.routes.detections.get_detection_or_404",
                 return_value=detection,
             ),
             patch("backend.api.routes.detections.os.path.exists", side_effect=[False, True]),
-            patch(
-                "backend.api.routes.detections.thumbnail_generator.generate_thumbnail",
-                return_value=None,
-            ),
             pytest.raises(HTTPException) as exc_info,
         ):
-            await get_detection_image(detection_id=1, db=mock_db_session)
+            await get_detection_image(
+                detection_id=1, db=mock_db_session, thumbnail_generator=mock_thumbnail_generator
+            )
 
         # When thumbnail generation fails but file_path doesn't exist, returns 404
         assert exc_info.value.status_code in [404, 500]
@@ -1028,7 +1051,7 @@ class TestGetDetectionThumbnail:
     """Tests for get_detection_thumbnail endpoint (NEM-1921)."""
 
     @pytest.mark.asyncio
-    async def test_get_thumbnail_exists(self, mock_db_session):
+    async def test_get_thumbnail_exists(self, mock_db_session, mock_thumbnail_generator):
         """Test getting detection thumbnail when it exists."""
         detection = DetectionFactory(
             id=1,
@@ -1043,14 +1066,16 @@ class TestGetDetectionThumbnail:
             ),
             patch("backend.api.routes.detections.os.path.exists", return_value=True),
         ):
-            response = await get_detection_thumbnail(detection_id=1, db=mock_db_session)
+            response = await get_detection_thumbnail(
+                detection_id=1, db=mock_db_session, thumbnail_generator=mock_thumbnail_generator
+            )
 
         assert response.path == Path("/data/thumbnails/1.jpg")
         assert response.media_type == "image/jpeg"
         assert response.filename == "detection_1_thumbnail.jpg"
 
     @pytest.mark.asyncio
-    async def test_get_thumbnail_png_extension(self, mock_db_session):
+    async def test_get_thumbnail_png_extension(self, mock_db_session, mock_thumbnail_generator):
         """Test getting detection thumbnail with PNG extension."""
         detection = DetectionFactory(
             id=2,
@@ -1065,13 +1090,15 @@ class TestGetDetectionThumbnail:
             ),
             patch("backend.api.routes.detections.os.path.exists", return_value=True),
         ):
-            response = await get_detection_thumbnail(detection_id=2, db=mock_db_session)
+            response = await get_detection_thumbnail(
+                detection_id=2, db=mock_db_session, thumbnail_generator=mock_thumbnail_generator
+            )
 
         assert response.media_type == "image/png"
         assert response.filename == "detection_2_thumbnail.png"
 
     @pytest.mark.asyncio
-    async def test_get_thumbnail_generates_on_fly(self, mock_db_session):
+    async def test_get_thumbnail_generates_on_fly(self, mock_db_session, mock_thumbnail_generator):
         """Test generating thumbnail on the fly when it doesn't exist."""
         detection = DetectionFactory(
             id=3,
@@ -1085,17 +1112,20 @@ class TestGetDetectionThumbnail:
             bbox_height=300,
         )
 
+        # Configure mock thumbnail generator
+        mock_thumbnail_generator.generate_thumbnail.return_value = (
+            "/data/thumbnails/generated_3.jpg"
+        )
+
         with patch(
             "backend.api.routes.detections.get_detection_or_404",
             return_value=detection,
         ):
             # First call: source file exists check
             with patch("backend.api.routes.detections.os.path.exists", return_value=True):
-                with patch(
-                    "backend.api.routes.detections.thumbnail_generator.generate_thumbnail",
-                    return_value="/data/thumbnails/generated_3.jpg",
-                ):
-                    response = await get_detection_thumbnail(detection_id=3, db=mock_db_session)
+                response = await get_detection_thumbnail(
+                    detection_id=3, db=mock_db_session, thumbnail_generator=mock_thumbnail_generator
+                )
 
         assert response.path == Path("/data/thumbnails/generated_3.jpg")
         assert response.media_type == "image/jpeg"
@@ -1103,7 +1133,7 @@ class TestGetDetectionThumbnail:
         assert detection.thumbnail_path == "/data/thumbnails/generated_3.jpg"
 
     @pytest.mark.asyncio
-    async def test_get_thumbnail_source_not_found(self, mock_db_session):
+    async def test_get_thumbnail_source_not_found(self, mock_db_session, mock_thumbnail_generator):
         """Test 404 when source image doesn't exist for thumbnail generation."""
         detection = DetectionFactory(
             id=4,
@@ -1119,13 +1149,15 @@ class TestGetDetectionThumbnail:
             patch("backend.api.routes.detections.os.path.exists", return_value=False),
             pytest.raises(HTTPException) as exc_info,
         ):
-            await get_detection_thumbnail(detection_id=4, db=mock_db_session)
+            await get_detection_thumbnail(
+                detection_id=4, db=mock_db_session, thumbnail_generator=mock_thumbnail_generator
+            )
 
         assert exc_info.value.status_code == 404
         assert "source image not found" in str(exc_info.value.detail).lower()
 
     @pytest.mark.asyncio
-    async def test_get_thumbnail_generation_fails(self, mock_db_session):
+    async def test_get_thumbnail_generation_fails(self, mock_db_session, mock_thumbnail_generator):
         """Test 500 error when thumbnail generation fails."""
         detection = DetectionFactory(
             id=5,
@@ -1133,25 +1165,28 @@ class TestGetDetectionThumbnail:
             thumbnail_path=None,
         )
 
+        # Configure mock to return None (generation failure)
+        mock_thumbnail_generator.generate_thumbnail.return_value = None
+
         with (
             patch(
                 "backend.api.routes.detections.get_detection_or_404",
                 return_value=detection,
             ),
             patch("backend.api.routes.detections.os.path.exists", return_value=True),
-            patch(
-                "backend.api.routes.detections.thumbnail_generator.generate_thumbnail",
-                return_value=None,
-            ),
             pytest.raises(HTTPException) as exc_info,
         ):
-            await get_detection_thumbnail(detection_id=5, db=mock_db_session)
+            await get_detection_thumbnail(
+                detection_id=5, db=mock_db_session, thumbnail_generator=mock_thumbnail_generator
+            )
 
         assert exc_info.value.status_code == 500
         assert "failed to generate thumbnail" in str(exc_info.value.detail).lower()
 
     @pytest.mark.asyncio
-    async def test_get_thumbnail_includes_cache_headers(self, mock_db_session):
+    async def test_get_thumbnail_includes_cache_headers(
+        self, mock_db_session, mock_thumbnail_generator
+    ):
         """Test that thumbnail response includes cache headers."""
         detection = DetectionFactory(
             id=6,
@@ -1166,7 +1201,9 @@ class TestGetDetectionThumbnail:
             ),
             patch("backend.api.routes.detections.os.path.exists", return_value=True),
         ):
-            response = await get_detection_thumbnail(detection_id=6, db=mock_db_session)
+            response = await get_detection_thumbnail(
+                detection_id=6, db=mock_db_session, thumbnail_generator=mock_thumbnail_generator
+            )
 
         assert response.headers.get("Cache-Control") == "public, max-age=3600"
 
@@ -1307,7 +1344,7 @@ class TestGetVideoThumbnail:
     """Tests for get_video_thumbnail endpoint."""
 
     @pytest.mark.asyncio
-    async def test_get_video_thumbnail_exists(self, mock_db_session):
+    async def test_get_video_thumbnail_exists(self, mock_db_session, mock_video_processor):
         """Test getting video thumbnail when it exists."""
         detection = DetectionFactory(
             id=1,
@@ -1325,13 +1362,15 @@ class TestGetVideoThumbnail:
         ):
             mock_file_data = b"thumbnail data"
             with patch("builtins.open", mock_open(read_data=mock_file_data)):
-                response = await get_video_thumbnail(detection_id=1, db=mock_db_session)
+                response = await get_video_thumbnail(
+                    detection_id=1, db=mock_db_session, video_processor=mock_video_processor
+                )
 
         assert response.body == mock_file_data
         assert response.media_type == "image/jpeg"
 
     @pytest.mark.asyncio
-    async def test_get_video_thumbnail_not_video(self, mock_db_session):
+    async def test_get_video_thumbnail_not_video(self, mock_db_session, mock_video_processor):
         """Test getting video thumbnail when detection is not a video."""
         detection = DetectionFactory(
             id=1,
@@ -1345,18 +1384,25 @@ class TestGetVideoThumbnail:
             ),
             pytest.raises(HTTPException) as exc_info,
         ):
-            await get_video_thumbnail(detection_id=1, db=mock_db_session)
+            await get_video_thumbnail(
+                detection_id=1, db=mock_db_session, video_processor=mock_video_processor
+            )
 
         assert exc_info.value.status_code == 400
 
     @pytest.mark.asyncio
-    async def test_get_video_thumbnail_generate_on_fly(self, mock_db_session):
+    async def test_get_video_thumbnail_generate_on_fly(self, mock_db_session, mock_video_processor):
         """Test generating video thumbnail on the fly."""
         detection = DetectionFactory(
             id=1,
             file_path="/export/foscam/test.mp4",
             media_type="video",
             thumbnail_path=None,
+        )
+
+        # Configure mock video processor
+        mock_video_processor.extract_thumbnail_for_detection.return_value = (
+            "/data/thumbnails/generated.jpg"
         )
 
         with patch(
@@ -1366,20 +1412,20 @@ class TestGetVideoThumbnail:
             # detection.thumbnail_path is None, so os.path.exists not called on it
             # First: video file_path exists check (True), second: generated thumbnail exists (True)
             with patch("backend.api.routes.detections.os.path.exists", side_effect=[True, True]):
-                with patch(
-                    "backend.api.routes.detections.video_processor.extract_thumbnail_for_detection",
-                    return_value="/data/thumbnails/generated.jpg",
-                ) as mock_extract:
-                    mock_file_data = b"generated thumbnail"
-                    with patch("builtins.open", mock_open(read_data=mock_file_data)):
-                        response = await get_video_thumbnail(detection_id=1, db=mock_db_session)
+                mock_file_data = b"generated thumbnail"
+                with patch("builtins.open", mock_open(read_data=mock_file_data)):
+                    response = await get_video_thumbnail(
+                        detection_id=1, db=mock_db_session, video_processor=mock_video_processor
+                    )
 
         assert response.body == mock_file_data
-        mock_extract.assert_called_once()
+        mock_video_processor.extract_thumbnail_for_detection.assert_called_once()
         # Note: We don't assert commit because the mock may not preserve async call tracking
 
     @pytest.mark.asyncio
-    async def test_get_video_thumbnail_generation_fails(self, mock_db_session):
+    async def test_get_video_thumbnail_generation_fails(
+        self, mock_db_session, mock_video_processor
+    ):
         """Test handling video thumbnail generation failure."""
         detection = DetectionFactory(
             id=1,
@@ -1388,25 +1434,26 @@ class TestGetVideoThumbnail:
             thumbnail_path=None,
         )
 
+        # Configure mock to return None (generation failure)
+        mock_video_processor.extract_thumbnail_for_detection.return_value = None
+
         with (
             patch(
                 "backend.api.routes.detections.get_detection_or_404",
                 return_value=detection,
             ),
             patch("backend.api.routes.detections.os.path.exists", side_effect=[False, True]),
-            patch(
-                "backend.api.routes.detections.video_processor.extract_thumbnail_for_detection",
-                return_value=None,
-            ),
             pytest.raises(HTTPException) as exc_info,
         ):
-            await get_video_thumbnail(detection_id=1, db=mock_db_session)
+            await get_video_thumbnail(
+                detection_id=1, db=mock_db_session, video_processor=mock_video_processor
+            )
 
         # When generation returns None (404 or 500 depending on file state)
         assert exc_info.value.status_code in [404, 500]
 
     @pytest.mark.asyncio
-    async def test_get_video_thumbnail_video_not_found(self, mock_db_session):
+    async def test_get_video_thumbnail_video_not_found(self, mock_db_session, mock_video_processor):
         """Test getting video thumbnail when video file doesn't exist."""
         detection = DetectionFactory(
             id=1,
@@ -1423,6 +1470,8 @@ class TestGetVideoThumbnail:
             patch("os.path.exists", side_effect=[False, False]),
         ):
             with pytest.raises(HTTPException) as exc_info:
-                await get_video_thumbnail(detection_id=1, db=mock_db_session)
+                await get_video_thumbnail(
+                    detection_id=1, db=mock_db_session, video_processor=mock_video_processor
+                )
 
         assert exc_info.value.status_code == 404
