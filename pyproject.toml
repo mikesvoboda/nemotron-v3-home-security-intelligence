@@ -272,6 +272,12 @@ ignore = [
 "backend/scripts/**/*.py" = [
     "T201",   # print() ok in benchmark/utility scripts for CLI output
 ]
+"setup.py" = [
+    "T201",   # print() ok in setup script for CLI output
+]
+"setup_lib/**/*.py" = [
+    "T201",   # print() ok in setup library for CLI output
+]
 
 [tool.ruff.format]
 quote-style = "double"
