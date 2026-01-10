@@ -1,7 +1,7 @@
 """Add full-text search vector to detections table
 
 Revision ID: add_detection_search_vector
-Revises: add_deleted_at_soft_delete
+Revises: 1c42824dcb07
 Create Date: 2026-01-09 16:00:00.000000
 
 This migration adds PostgreSQL full-text search capability to the detections table.
@@ -15,7 +15,7 @@ from sqlalchemy.dialects import postgresql
 from alembic import op
 
 revision: str = "add_detection_search_vector"
-down_revision: str | Sequence[str] | None = "add_deleted_at_soft_delete"
+down_revision: str | Sequence[str] | None = "1c42824dcb07"  # pragma: allowlist secret
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
