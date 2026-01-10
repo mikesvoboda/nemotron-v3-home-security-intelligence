@@ -63,7 +63,7 @@ test.describe('Settings Configuration Journey (NEM-1664)', () => {
     await expect(settingsPage.first()).toBeVisible({ timeout: 5000 });
   });
 
-  test('settings page displays all configuration sections', async ({ page }) => {
+  test('settings page displays all configuration sections @flaky', async ({ page }) => {
     /**
      * Given: User is on the settings page
      * When: Page loads

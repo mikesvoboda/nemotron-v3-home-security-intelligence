@@ -236,7 +236,7 @@ export default function ActivityFeed({
       {/* Footer */}
       {displayedEvents.length > 0 && (
         <div className="border-t border-gray-800 px-4 py-2">
-          <p className="text-center text-xs text-text-muted">
+          <p className="text-center text-xs text-gray-400">
             Showing {displayedEvents.length} of {events.length} events
           </p>
         </div>

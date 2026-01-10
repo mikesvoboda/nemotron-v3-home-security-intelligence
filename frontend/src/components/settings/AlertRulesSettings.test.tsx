@@ -469,7 +469,7 @@ describe('AlertRulesSettings', () => {
       expect(screen.getByLabelText('Description')).toBeInTheDocument();
     });
 
-    it('should validate required fields', async () => {
+    it('should validate required fields (aligned with backend min_length=1)', async () => {
       render(<AlertRulesSettings />);
 
       await waitFor(() => {
@@ -488,7 +488,8 @@ describe('AlertRulesSettings', () => {
       await user.click(submitButton);
 
       await waitFor(() => {
-        expect(screen.getByText('Name must be at least 2 characters')).toBeInTheDocument();
+        // Updated to match backend validation (min_length=1)
+        expect(screen.getByText('Name is required')).toBeInTheDocument();
       });
     });
 

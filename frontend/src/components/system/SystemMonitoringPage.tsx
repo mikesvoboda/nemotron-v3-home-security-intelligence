@@ -10,10 +10,12 @@ import {
   BarChart2,
   ExternalLink,
   Package,
+  Layers,
 } from 'lucide-react';
 import { useEffect, useState, useRef } from 'react';
 
 import AiModelsPanel from './AiModelsPanel';
+import BackgroundJobsPanel from './BackgroundJobsPanel';
 import CircuitBreakerPanel from './CircuitBreakerPanel';
 import CollapsibleSection from './CollapsibleSection';
 import ContainersPanel from './ContainersPanel';
@@ -961,7 +963,24 @@ export default function SystemMonitoringPage() {
             </CollapsibleSection>
           </div>
 
-          {/* Row 3: Containers (grid of status badges) */}
+          {/* Row 3: Background Jobs (queue status and history) */}
+          <div className="xl:col-span-2" id="section-background-jobs">
+            <CollapsibleSection
+              title="Background Jobs"
+              icon={<Layers className="h-5 w-5 text-[#76B900]" />}
+              isOpen={sectionStates['background-jobs']}
+              onToggle={() => toggleSection('background-jobs')}
+              data-testid="background-jobs-section"
+            >
+              <BackgroundJobsPanel
+                pollingInterval={10000}
+                defaultExpanded={false}
+                data-testid="background-jobs-panel-section"
+              />
+            </CollapsibleSection>
+          </div>
+
+          {/* Row 4: Containers (grid of status badges) */}
           <div className="xl:col-span-2">
             <ContainersPanel
               containers={containerMetrics}

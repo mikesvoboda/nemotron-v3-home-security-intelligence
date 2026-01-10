@@ -3,6 +3,13 @@ export { default as SystemMonitoringPage } from './SystemMonitoringPage';
 export { default as WorkerStatusPanel } from './WorkerStatusPanel';
 export type { WorkerStatusPanelProps } from './WorkerStatusPanel';
 
+export { default as BackgroundJobsPanel } from './BackgroundJobsPanel';
+export type {
+  BackgroundJobsPanelProps,
+  BackgroundJob,
+  JobStatus,
+} from './BackgroundJobsPanel';
+
 // System Performance Dashboard components (Phase 6)
 export { default as TimeRangeSelector } from './TimeRangeSelector';
 export type { TimeRangeSelectorProps } from './TimeRangeSelector';

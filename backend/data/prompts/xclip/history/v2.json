@@ -3,9 +3,9 @@
   "config": {
     "action_classes": ["walking", "running", "standing"]
   },
-  "version": 3,
-  "created_at": "2026-01-09T18:35:49.692765+00:00",
+  "version": 2,
+  "created_at": "2026-01-09T18:17:49.983153+00:00",
   "created_by": "user",
   "description": null,
-  "updated_at": "2026-01-09T18:35:49.692765+00:00"
+  "updated_at": "2026-01-09T18:17:49.983153+00:00"
 }

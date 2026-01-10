@@ -204,7 +204,7 @@ repos:
         language: system
         files: ^backend/(api/routes|services)/.*\.py$
         pass_filenames: true
-        stages: [commit, push]
+        stages: [pre-commit, pre-push]
 
       - id: check-new-files-have-tests
         name: Detect new source files without test files
@@ -212,5 +212,5 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
-        stages: [push]
+        stages: [pre-push]
         verbose: true

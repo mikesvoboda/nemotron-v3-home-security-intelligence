@@ -488,15 +488,26 @@ const handleCloseModal = () => {
 
 ### Form Validation
 
-Client-side validation before API call:
+Client-side validation before API call. Uses centralized validation from `utils/validation.ts`:
 
 ```typescript
+import { validateCameraName, validateCameraFolderPath } from '../../utils/validation';
+
 const validateForm = (data: CameraFormData): CameraFormErrors => {
-  const errors = {};
-  if (!data.name || data.name.trim().length < 2) {
-    errors.name = 'Name must be at least 2 characters';
+  const errors: CameraFormErrors = {};
+
+  // Name validation (aligned with backend min_length=1, max_length=255)
+  const nameResult = validateCameraName(data.name);
+  if (!nameResult.isValid) {
+    errors.name = nameResult.error;  // "Name is required" or "Name must be at most 255 characters"
   }
-  // ... more validations
+
+  // Folder path validation (aligned with backend constraints)
+  const pathResult = validateCameraFolderPath(data.folderPath);
+  if (!pathResult.isValid) {
+    errors.folderPath = pathResult.error;
+  }
+
   return errors;
 };
 ```
