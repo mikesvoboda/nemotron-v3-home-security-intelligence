@@ -804,6 +804,72 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/alerts/{alert_id}/acknowledge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Acknowledge Alert
+         * @description Acknowledge an alert.
+         *
+         *     Marks an alert as acknowledged and broadcasts the state change via WebSocket.
+         *     Only alerts with status PENDING or DELIVERED can be acknowledged.
+         *
+         *     Args:
+         *         alert_id: Alert UUID
+         *         db: Database session
+         *
+         *     Returns:
+         *         Updated AlertResponse
+         *
+         *     Raises:
+         *         HTTPException: 404 if alert not found, 409 if alert cannot be acknowledged
+         */
+        post: operations["acknowledge_alert_api_alerts__alert_id__acknowledge_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/alerts/{alert_id}/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Dismiss Alert
+         * @description Dismiss an alert.
+         *
+         *     Marks an alert as dismissed and broadcasts the state change via WebSocket.
+         *     Only alerts with status PENDING, DELIVERED, or ACKNOWLEDGED can be dismissed.
+         *
+         *     Args:
+         *         alert_id: Alert UUID
+         *         db: Database session
+         *
+         *     Returns:
+         *         Updated AlertResponse
+         *
+         *     Raises:
+         *         HTTPException: 404 if alert not found, 409 if alert cannot be dismissed
+         */
+        post: operations["dismiss_alert_api_alerts__alert_id__dismiss_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/analytics/camera-uptime": {
         parameters: {
             query?: never;
@@ -4948,6 +5014,82 @@ export interface components {
             total_samples: number;
         };
         /**
+         * AlertResponse
+         * @description Schema for alert response.
+         * @example {
+         *       "channels": [
+         *         "pushover"
+         *       ],
+         *       "created_at": "2025-12-28T12:00:00Z",
+         *       "dedup_key": "front_door:person:entry_zone",
+         *       "delivered_at": "2025-12-28T12:00:30Z",
+         *       "event_id": 123,
+         *       "id": "550e8400-e29b-41d4-a716-446655440001",
+         *       "metadata": {
+         *         "camera_name": "Front Door"
+         *       },
+         *       "rule_id": "550e8400-e29b-41d4-a716-446655440000",
+         *       "severity": "high",
+         *       "status": "delivered",
+         *       "updated_at": "2025-12-28T12:01:00Z"
+         *     }
+         */
+        AlertResponse: {
+            /**
+             * Channels
+             * @description Notification channels
+             */
+            channels?: string[];
+            /**
+             * Created At
+             * Format: date-time
+             * @description Creation timestamp
+             */
+            created_at: string;
+            /**
+             * Dedup Key
+             * @description Deduplication key
+             */
+            dedup_key: string;
+            /**
+             * Delivered At
+             * @description Delivery timestamp
+             */
+            delivered_at?: string | null;
+            /**
+             * Event Id
+             * @description Event ID that triggered this alert
+             */
+            event_id: number;
+            /**
+             * Id
+             * @description Alert UUID
+             */
+            id: string;
+            /**
+             * Metadata
+             * @description Additional context
+             */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Rule Id
+             * @description Alert rule UUID that matched
+             */
+            rule_id?: string | null;
+            /** @description Alert severity level */
+            severity: components["schemas"]["AlertSeverity"];
+            /** @description Alert status */
+            status: components["schemas"]["AlertStatus"];
+            /**
+             * Updated At
+             * Format: date-time
+             * @description Last update timestamp
+             */
+            updated_at: string;
+        };
+        /**
          * AlertRuleConditions
          * @description Schema for legacy alert rule conditions (backward compatibility).
          *
@@ -5388,6 +5530,12 @@ export interface components {
          * @enum {string}
          */
         AlertSeverity: "low" | "medium" | "high" | "critical";
+        /**
+         * AlertStatus
+         * @description Alert status values.
+         * @enum {string}
+         */
+        AlertStatus: "pending" | "delivered" | "acknowledged" | "dismissed";
         /**
          * AllPromptsResponse
          * @description Response containing prompts for all models.
@@ -15757,6 +15905,110 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    acknowledge_alert_api_alerts__alert_id__acknowledge_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                alert_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AlertResponse"];
+                };
+            };
+            /** @description Alert not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Alert cannot be acknowledged (wrong status) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    dismiss_alert_api_alerts__alert_id__dismiss_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                alert_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AlertResponse"];
+                };
+            };
+            /** @description Alert not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Alert cannot be dismissed (wrong status) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
             /** @description Internal server error */
             500: {
