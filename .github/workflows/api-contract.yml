@@ -48,7 +48,8 @@ jobs:
       - name: Install oasdiff
         run: |
           # Install oasdiff for OpenAPI schema comparison
-          OASDIFF_VERSION="1.10.25"
+          # Using latest version with OpenAPI 3.1 support (numeric exclusiveMinimum)
+          OASDIFF_VERSION="1.11.4"
           DOWNLOAD_URL="https://github.com/Tufin/oasdiff/releases/download/v${OASDIFF_VERSION}/oasdiff_${OASDIFF_VERSION}_linux_amd64.tar.gz"
 
           # Download with retry and error checking
