@@ -9,6 +9,7 @@ All tests use mocked database operations following TDD methodology.
 """
 
 from datetime import time
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
@@ -788,6 +789,7 @@ class TestCreateQuietHoursPeriod:
     @pytest.mark.asyncio
     async def test_create_quiet_hours_period_start_after_end(self, mock_db: AsyncMock) -> None:
         """Test overnight period (start_time > end_time) is allowed."""
+
         # Mock refresh to set ID
         async def mock_refresh(obj: Any) -> None:
             if not hasattr(obj, "id") or obj.id is None:
