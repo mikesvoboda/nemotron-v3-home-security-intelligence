@@ -6,27 +6,47 @@ supporting multiple output formats via content negotiation.
 Supported formats:
 - CSV (text/csv) - Comma-separated values
 - Excel (application/vnd.openxmlformats-officedocument.spreadsheetml.sheet) - XLSX format
+- JSON (application/json) - JSON array
+- ZIP (application/zip) - Compressed archive with JSON data
 
 Security:
 - All string fields are sanitized to prevent CSV injection attacks
 - File downloads include Content-Disposition headers with safe filenames
+
+Progress Tracking (NEM-1989):
+- Supports background job progress updates via JobTracker
+- Updates progress every 100 events for large exports
 """
+
+from __future__ import annotations
 
 import csv
 import io
+import json
+import zipfile
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Any
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.logging import get_logger
 
+if TYPE_CHECKING:
+    from backend.services.job_tracker import JobTracker
+
 logger = get_logger(__name__)
+
+# Export directory for generated files
+EXPORT_DIR = Path("/tmp/exports")  # noqa: S108
+PROGRESS_UPDATE_INTERVAL = 100  # Update progress every 100 events
 
 
 class ExportFormat(str, Enum):
@@ -396,11 +416,19 @@ class ExportService:
 
     This service provides a high-level interface for exporting events,
     handling format selection, content generation, and response preparation.
+
+    Supports background export jobs with progress tracking (NEM-1989).
     """
 
-    def __init__(self) -> None:
-        """Initialize the export service."""
-        pass
+    def __init__(self, db: AsyncSession | None = None) -> None:
+        """Initialize the export service.
+
+        Args:
+            db: Optional database session for querying events.
+        """
+        self._db = db
+        # Ensure export directory exists
+        EXPORT_DIR.mkdir(parents=True, exist_ok=True)
 
     def get_export_format(self, accept_header: str | None) -> ExportFormat:
         """Determine export format from Accept header.
@@ -473,6 +501,237 @@ class ExportService:
         """
         disposition = "inline" if inline else "attachment"
         return f'{disposition}; filename="{filename}"'
+
+    async def export_events_with_progress(  # noqa: PLR0912
+        self,
+        job_id: str,
+        job_tracker: JobTracker,
+        export_format: str,
+        camera_id: str | None = None,
+        risk_level: str | None = None,
+        start_date: str | None = None,
+        end_date: str | None = None,
+        reviewed: bool | None = None,
+    ) -> dict[str, Any]:
+        """Export events with progress tracking for background jobs.
+
+        This method queries events from the database, exports them to a file,
+        and updates the job tracker with progress information.
+
+        Args:
+            job_id: The job ID for progress tracking.
+            job_tracker: JobTracker instance for progress updates.
+            export_format: Export format ('csv', 'json', 'zip').
+            camera_id: Optional camera ID filter.
+            risk_level: Optional risk level filter.
+            start_date: Optional start date filter (ISO format).
+            end_date: Optional end date filter (ISO format).
+            reviewed: Optional reviewed status filter.
+
+        Returns:
+            Dict with file_path, file_size, event_count, and format.
+
+        Raises:
+            ValueError: If database session not available.
+        """
+        from backend.models.camera import Camera
+        from backend.models.event import Event
+
+        if self._db is None:
+            raise ValueError("Database session required for export_events_with_progress")
+
+        # Build query
+        query = select(Event).where(Event.deleted_at.is_(None))
+
+        if camera_id is not None:
+            query = query.where(Event.camera_id == camera_id)
+
+        if risk_level is not None:
+            query = query.where(Event.risk_level == risk_level)
+
+        if start_date is not None:
+            from datetime import datetime as dt
+
+            start_dt = dt.fromisoformat(start_date.replace("Z", "+00:00"))
+            query = query.where(Event.started_at >= start_dt)
+
+        if end_date is not None:
+            from datetime import datetime as dt
+
+            end_dt = dt.fromisoformat(end_date.replace("Z", "+00:00"))
+            query = query.where(Event.started_at <= end_dt)
+
+        if reviewed is not None:
+            query = query.where(Event.reviewed == reviewed)
+
+        # Get total count first
+        count_query = select(func.count()).select_from(query.subquery())
+        result = await self._db.execute(count_query)
+        total_count = result.scalar() or 0
+
+        if total_count == 0:
+            job_tracker.update_progress(job_id, 50, message="No events to export")
+            # Create empty export file
+            return await self._create_empty_export(export_format)
+
+        job_tracker.update_progress(job_id, 10, message=f"Found {total_count} events to export")
+
+        # Fetch events
+        query = query.order_by(Event.started_at.desc())
+        events_result = await self._db.execute(query)
+        events: list[Event] = list(events_result.scalars().all())
+
+        # Convert to export rows with progress
+        export_rows: list[EventExportRow] = []
+        for idx, event in enumerate(events):
+            # Get camera name
+            camera_name = "Unknown"
+            if event.camera_id:
+                camera_result = await self._db.execute(
+                    select(Camera.name).where(Camera.id == event.camera_id)
+                )
+                camera_name = camera_result.scalar() or "Unknown"
+
+            export_rows.append(
+                EventExportRow(
+                    event_id=event.id,
+                    camera_name=camera_name,
+                    started_at=event.started_at,
+                    ended_at=event.ended_at,
+                    risk_score=event.risk_score,
+                    risk_level=event.risk_level,
+                    summary=event.summary,
+                    detection_count=event.detection_count or 0,
+                    reviewed=event.reviewed or False,
+                    object_types=event.object_types,
+                    reasoning=event.reasoning,
+                )
+            )
+
+            # Update progress every 100 events
+            if (idx + 1) % PROGRESS_UPDATE_INTERVAL == 0:
+                progress = 10 + int((idx + 1) / total_count * 70)  # 10-80% for fetching
+                job_tracker.update_progress(
+                    job_id, progress, message=f"Processing event {idx + 1}/{total_count}"
+                )
+
+        job_tracker.update_progress(job_id, 80, message=f"Writing {export_format.upper()} file...")
+
+        # Generate export file
+        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
+
+        if export_format == "csv":
+            content = events_to_csv(export_rows, EXTENDED_EXPORT_COLUMNS)
+            filename = f"events_export_{timestamp}.csv"
+            filepath = EXPORT_DIR / filename
+            filepath.write_text(content, encoding="utf-8")
+        elif export_format == "json":
+            content_dict = [
+                {
+                    "event_id": row.event_id,
+                    "camera_name": row.camera_name,
+                    "started_at": row.started_at.isoformat() if row.started_at else None,
+                    "ended_at": row.ended_at.isoformat() if row.ended_at else None,
+                    "risk_score": row.risk_score,
+                    "risk_level": row.risk_level,
+                    "summary": row.summary,
+                    "detection_count": row.detection_count,
+                    "reviewed": row.reviewed,
+                    "object_types": row.object_types,
+                    "reasoning": row.reasoning,
+                }
+                for row in export_rows
+            ]
+            filename = f"events_export_{timestamp}.json"
+            filepath = EXPORT_DIR / filename
+            filepath.write_text(json.dumps(content_dict, indent=2), encoding="utf-8")
+        elif export_format == "zip":
+            # Create JSON content and zip it
+            content_dict = [
+                {
+                    "event_id": row.event_id,
+                    "camera_name": row.camera_name,
+                    "started_at": row.started_at.isoformat() if row.started_at else None,
+                    "ended_at": row.ended_at.isoformat() if row.ended_at else None,
+                    "risk_score": row.risk_score,
+                    "risk_level": row.risk_level,
+                    "summary": row.summary,
+                    "detection_count": row.detection_count,
+                    "reviewed": row.reviewed,
+                    "object_types": row.object_types,
+                    "reasoning": row.reasoning,
+                }
+                for row in export_rows
+            ]
+            filename = f"events_export_{timestamp}.zip"
+            filepath = EXPORT_DIR / filename
+            json_filename = f"events_export_{timestamp}.json"
+
+            with zipfile.ZipFile(filepath, "w", zipfile.ZIP_DEFLATED) as zf:
+                zf.writestr(json_filename, json.dumps(content_dict, indent=2))
+        else:
+            raise ValueError(f"Unsupported export format: {export_format}")
+
+        job_tracker.update_progress(job_id, 95, message="Finalizing export...")
+
+        file_size = filepath.stat().st_size
+
+        logger.info(
+            "Export completed",
+            extra={
+                "job_id": job_id,
+                "format": export_format,
+                "event_count": len(export_rows),
+                "file_size": file_size,
+            },
+        )
+
+        return {
+            "file_path": f"/api/exports/{filename}",
+            "file_size": file_size,
+            "event_count": len(export_rows),
+            "format": export_format,
+        }
+
+    async def _create_empty_export(
+        self,
+        export_format: str,
+    ) -> dict[str, Any]:
+        """Create an empty export file.
+
+        Args:
+            export_format: Export format.
+
+        Returns:
+            Export result dict.
+        """
+        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
+
+        if export_format == "csv":
+            filename = f"events_export_{timestamp}.csv"
+            filepath = EXPORT_DIR / filename
+            # Write header only
+            header = ",".join([col[1] for col in EXTENDED_EXPORT_COLUMNS])
+            filepath.write_text(header + "\n", encoding="utf-8")
+        elif export_format == "json":
+            filename = f"events_export_{timestamp}.json"
+            filepath = EXPORT_DIR / filename
+            filepath.write_text("[]", encoding="utf-8")
+        elif export_format == "zip":
+            filename = f"events_export_{timestamp}.zip"
+            filepath = EXPORT_DIR / filename
+            json_filename = f"events_export_{timestamp}.json"
+            with zipfile.ZipFile(filepath, "w", zipfile.ZIP_DEFLATED) as zf:
+                zf.writestr(json_filename, "[]")
+        else:
+            raise ValueError(f"Unsupported export format: {export_format}")
+
+        return {
+            "file_path": f"/api/exports/{filename}",
+            "file_size": filepath.stat().st_size,
+            "event_count": 0,
+            "format": export_format,
+        }
 
 
 # Global service instance

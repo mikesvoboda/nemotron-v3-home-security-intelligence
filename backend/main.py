@@ -40,6 +40,7 @@ from backend.api.routes import (
     dlq,
     entities,
     events,
+    jobs,
     media,
     metrics,
     notification,
@@ -851,6 +852,7 @@ app.include_router(detections.router)
 app.include_router(dlq.router)
 app.include_router(entities.router)
 app.include_router(events.router)
+app.include_router(jobs.router)
 app.include_router(logs_router)
 app.include_router(media.router)
 app.include_router(metrics.router)
