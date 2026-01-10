@@ -437,11 +437,20 @@ export async function setupApiMocks(
         body: JSON.stringify({ detail: 'Failed to fetch cameras' }),
       });
     } else {
+      const cameras = mergedConfig.cameras || [];
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          cameras: mergedConfig.cameras || [],
+          items: cameras,
+          pagination: {
+            total: cameras.length,
+            limit: 50,
+            offset: null,
+            cursor: null,
+            next_cursor: null,
+            has_more: false,
+          },
         }),
       });
     }
@@ -532,11 +541,15 @@ export async function setupApiMocks(
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
-        detections: apiDetections,
-        count: apiDetections.length,
-        limit: 100,
-        offset: 0,
-        has_more: false,
+        items: apiDetections,
+        pagination: {
+          total: apiDetections.length,
+          limit: 100,
+          offset: null,
+          cursor: null,
+          next_cursor: null,
+          has_more: false,
+        },
       }),
     });
   });
@@ -563,11 +576,15 @@ export async function setupApiMocks(
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          events,
-          total: events.length,
-          count: events.length,
-          limit: 20,
-          offset: 0,
+          items: events,
+          pagination: {
+            total: events.length,
+            limit: 20,
+            offset: null,
+            cursor: null,
+            next_cursor: null,
+            has_more: false,
+          },
         }),
       });
     }
@@ -625,7 +642,7 @@ export async function setupApiMocks(
     });
   });
 
-  // Logs endpoint
+  // Logs endpoint (uses flat structure with 'logs' field, not pagination envelope)
   await page.route('**/api/logs*', async (route) => {
     if (mergedConfig.logsError) {
       await route.fulfill({
@@ -634,13 +651,13 @@ export async function setupApiMocks(
         body: JSON.stringify({ detail: 'Failed to fetch logs' }),
       });
     } else {
+      const logs = mergedConfig.logs || [];
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          logs: mergedConfig.logs || [],
-          total: mergedConfig.logs?.length || 0,
-          count: mergedConfig.logs?.length || 0,
+          logs: logs,
+          total: logs.length,
           limit: 50,
           offset: 0,
         }),
@@ -773,15 +790,20 @@ export async function setupApiMocks(
         body: JSON.stringify({ detail: 'Failed to fetch audit logs' }),
       });
     } else {
+      const auditLogs = mergedConfig.auditLogs || [];
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          logs: mergedConfig.auditLogs || [],
-          total: mergedConfig.auditLogs?.length || 0,
-          count: mergedConfig.auditLogs?.length || 0,
-          limit: 50,
-          offset: 0,
+          items: auditLogs,
+          pagination: {
+            total: auditLogs.length,
+            limit: 50,
+            offset: null,
+            cursor: null,
+            next_cursor: null,
+            has_more: false,
+          },
         }),
       });
     }
@@ -796,13 +818,20 @@ export async function setupApiMocks(
         body: JSON.stringify({ detail: 'Failed to fetch entities' }),
       });
     } else {
+      const entities = mergedConfig.entities || [];
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          entities: mergedConfig.entities || [],
-          total: mergedConfig.entities?.length || 0,
-          count: mergedConfig.entities?.length || 0,
+          items: entities,
+          pagination: {
+            total: entities.length,
+            limit: 50,
+            offset: null,
+            cursor: null,
+            next_cursor: null,
+            has_more: false,
+          },
         }),
       });
     }
@@ -969,10 +998,15 @@ export async function setupApiMocks(
           status: 200,
           contentType: 'application/json',
           body: JSON.stringify({
-            rules: rules,
-            count: rules.length,
-            limit: 50,
-            offset: 0,
+            items: rules,
+            pagination: {
+              total: rules.length,
+              limit: 50,
+              offset: null,
+              cursor: null,
+              next_cursor: null,
+              has_more: false,
+            },
           }),
         });
       }
