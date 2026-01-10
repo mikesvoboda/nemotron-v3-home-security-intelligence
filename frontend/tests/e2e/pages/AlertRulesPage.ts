@@ -269,18 +269,31 @@ export class AlertRulesPage extends BasePage {
    * Click the Add Rule button to open the modal
    */
   async openAddRuleModal(): Promise<void> {
-    await this.addRuleButton.click();
-    // Wait for the modal title to appear - more reliable than waiting for dialog element
-    // as Headless UI Transition may keep dialog element hidden during animation
-    await expect(this.modalTitle).toBeVisible({ timeout: this.pageLoadTimeout });
+    // Ensure button is visible and enabled before clicking
+    await expect(this.addRuleButton).toBeVisible({ timeout: this.pageLoadTimeout });
+    await expect(this.addRuleButton).toBeEnabled({ timeout: this.pageLoadTimeout });
+
+    // Click and wait for modal to appear
+    // Using Promise.all ensures we start waiting for the modal before the click completes
+    await Promise.all([
+      this.modalTitle.waitFor({ state: 'visible', timeout: this.pageLoadTimeout }),
+      this.addRuleButton.click()
+    ]);
   }
 
   /**
    * Click the empty state Add Rule button
    */
   async openAddRuleModalFromEmptyState(): Promise<void> {
-    await this.emptyStateAddButton.click();
-    await expect(this.modalTitle).toBeVisible({ timeout: this.pageLoadTimeout });
+    // Ensure button is visible and enabled before clicking
+    await expect(this.emptyStateAddButton).toBeVisible({ timeout: this.pageLoadTimeout });
+    await expect(this.emptyStateAddButton).toBeEnabled({ timeout: this.pageLoadTimeout });
+
+    // Click and wait for modal to appear
+    await Promise.all([
+      this.modalTitle.waitFor({ state: 'visible', timeout: this.pageLoadTimeout }),
+      this.emptyStateAddButton.click()
+    ]);
   }
 
   /**
@@ -397,8 +410,14 @@ export class AlertRulesPage extends BasePage {
    * Click edit button for a rule by index
    */
   async editRule(index: number = 0): Promise<void> {
-    await this.editButtons.nth(index).click();
-    await expect(this.modalTitle).toBeVisible({ timeout: this.pageLoadTimeout });
+    const editButton = this.editButtons.nth(index);
+    await expect(editButton).toBeVisible({ timeout: this.pageLoadTimeout });
+    await expect(editButton).toBeEnabled({ timeout: this.pageLoadTimeout });
+
+    await Promise.all([
+      this.modalTitle.waitFor({ state: 'visible', timeout: this.pageLoadTimeout }),
+      editButton.click()
+    ]);
   }
 
   /**
@@ -496,8 +515,14 @@ export class AlertRulesPage extends BasePage {
    */
   async editRuleByName(name: string): Promise<void> {
     const row = this.getRuleRowByName(name);
-    await row.locator('button[aria-label^="Edit"]').click();
-    await expect(this.modalTitle).toBeVisible({ timeout: this.pageLoadTimeout });
+    const editButton = row.locator('button[aria-label^="Edit"]');
+    await expect(editButton).toBeVisible({ timeout: this.pageLoadTimeout });
+    await expect(editButton).toBeEnabled({ timeout: this.pageLoadTimeout });
+
+    await Promise.all([
+      this.modalTitle.waitFor({ state: 'visible', timeout: this.pageLoadTimeout }),
+      editButton.click()
+    ]);
   }
 
   /**
