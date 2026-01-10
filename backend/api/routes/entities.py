@@ -16,6 +16,7 @@ from backend.api.schemas.entities import (
     EntityListResponse,
     EntitySummary,
 )
+from backend.api.schemas.logs import PaginationInfo
 from backend.core.logging import get_logger
 from backend.core.redis import get_redis_optional
 from backend.services.reid_service import (
@@ -145,10 +146,13 @@ async def list_entities(
     if redis is None:
         logger.warning("Redis not available for entity list")
         return EntityListResponse(
-            entities=[],
-            count=0,
-            limit=limit,
-            offset=offset,
+            items=[],
+            pagination=PaginationInfo(
+                total=0,
+                limit=limit,
+                offset=offset,
+                has_more=False,
+            ),
         )
 
     # Determine which entity types to query
@@ -196,11 +200,17 @@ async def list_entities(
     # Apply pagination
     paginated = summaries[offset : offset + limit]
 
+    # Determine if there are more results
+    has_more = (offset + limit) < total_count
+
     return EntityListResponse(
-        entities=paginated,
-        count=total_count,
-        limit=limit,
-        offset=offset,
+        items=paginated,
+        pagination=PaginationInfo(
+            total=total_count,
+            limit=limit,
+            offset=offset,
+            has_more=has_more,
+        ),
     )
 
 

@@ -40,10 +40,13 @@ async function makeRequest(url: string, options?: RequestInit): Promise<Response
 /**
  * Validate pagination response structure
  */
-function expectPaginationFields(data: unknown, expectedCount: number) {
-  expect(data).toHaveProperty('count', expectedCount);
-  expect(data).toHaveProperty('limit');
-  expect(data).toHaveProperty('offset');
+function expectPaginationFields(data: unknown, expectedTotal: number) {
+  expect(data).toHaveProperty('pagination');
+  const pagination = (data as { pagination: { total: number; limit: number; offset: number; has_more: boolean } }).pagination;
+  expect(pagination.total).toBe(expectedTotal);
+  expect(pagination).toHaveProperty('limit');
+  expect(pagination).toHaveProperty('offset');
+  expect(pagination).toHaveProperty('has_more');
 }
 
 // ============================================================================
@@ -268,17 +271,17 @@ describe('Camera Endpoints', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data).toHaveProperty('cameras');
-      expect(data).toHaveProperty('count');
-      expect(Array.isArray(data.cameras)).toBe(true);
-      expect(data.count).toBe(data.cameras.length);
+      expect(data).toHaveProperty('items');
+      expect(Array.isArray(data.items)).toBe(true);
+      expect(data).toHaveProperty('pagination');
+      expect(data.pagination.total).toBe(data.items.length);
     });
 
     it('returns cameras with required fields', async () => {
       const response = await makeRequest('/api/cameras');
       const data = await response.json();
 
-      data.cameras.forEach((camera: unknown) => {
+      data.items.forEach((camera: unknown) => {
         expect(camera).toHaveProperty('id');
         expect(camera).toHaveProperty('name');
         expect(camera).toHaveProperty('folder_path');
@@ -343,8 +346,8 @@ describe('Event Endpoints', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data).toHaveProperty('events');
-      expect(Array.isArray(data.events)).toBe(true);
+      expect(data).toHaveProperty('items');
+      expect(Array.isArray(data.items)).toBe(true);
       expectPaginationFields(data, mockEvents.length);
     });
 
@@ -353,8 +356,8 @@ describe('Event Endpoints', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.events.length).toBeLessThanOrEqual(2);
-      expect(data.limit).toBe(2);
+      expect(data.items.length).toBeLessThanOrEqual(2);
+      expect(data.pagination.limit).toBe(2);
     });
 
     it('respects offset parameter', async () => {
@@ -362,7 +365,7 @@ describe('Event Endpoints', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.offset).toBe(1);
+      expect(data.pagination.offset).toBe(1);
     });
 
     it('filters by camera_id', async () => {
@@ -370,7 +373,7 @@ describe('Event Endpoints', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      data.events.forEach((event: { camera_id: string }) => {
+      data.items.forEach((event: { camera_id: string }) => {
         expect(event.camera_id).toBe('camera-1');
       });
     });
@@ -380,7 +383,7 @@ describe('Event Endpoints', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      data.events.forEach((event: { risk_level: string }) => {
+      data.items.forEach((event: { risk_level: string }) => {
         expect(event.risk_level).toBe('high');
       });
     });
@@ -390,7 +393,7 @@ describe('Event Endpoints', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      data.events.forEach((event: { camera_id: string; risk_level: string }) => {
+      data.items.forEach((event: { camera_id: string; risk_level: string }) => {
         expect(event.camera_id).toBe('camera-1');
         expect(event.risk_level).toBe('high');
       });
@@ -401,15 +404,15 @@ describe('Event Endpoints', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.events).toEqual([]);
-      expect(data.count).toBe(0);
+      expect(data.items).toEqual([]);
+      expect(data.pagination.total).toBe(0);
     });
 
     it('returns events with required fields', async () => {
       const response = await makeRequest('/api/events');
       const data = await response.json();
 
-      data.events.forEach((event: unknown) => {
+      data.items.forEach((event: unknown) => {
         expect(event).toHaveProperty('id');
         expect(event).toHaveProperty('camera_id');
         expect(event).toHaveProperty('started_at');
@@ -525,8 +528,8 @@ describe('Event Endpoints', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data).toHaveProperty('detections');
-      expect(Array.isArray(data.detections)).toBe(true);
+      expect(data).toHaveProperty('items');
+      expect(Array.isArray(data.items)).toBe(true);
       expectPaginationFields(data, 0);
     });
 
@@ -535,7 +538,7 @@ describe('Event Endpoints', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.limit).toBe(50);
+      expect(data.pagination.limit).toBe(50);
     });
 
     it('respects offset parameter', async () => {
@@ -543,7 +546,7 @@ describe('Event Endpoints', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.offset).toBe(10);
+      expect(data.pagination.offset).toBe(10);
     });
   });
 });

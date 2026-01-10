@@ -3552,7 +3552,11 @@ export interface paths {
          *         QuietHoursPeriodResponse with created period
          *
          *     Raises:
-         *         HTTPException: 400 if time range is invalid
+         *         HTTPException: 400 if start_time equals end_time (zero-length period)
+         *
+         *     Note:
+         *         Periods can span midnight (e.g., 22:00 to 06:00).
+         *         If start_time > end_time, the period wraps to the next day.
          */
         post: operations["create_quiet_hours_period_api_notification_preferences_quiet_hours_post"];
         delete?: never;
@@ -6139,10 +6143,9 @@ export interface components {
         };
         /**
          * CameraNotificationSettingsListResponse
-         * @description Schema for camera notification settings list response.
+         * @description Schema for camera notification settings list response with pagination.
          * @example {
-         *       "count": 2,
-         *       "settings": [
+         *       "items": [
          *         {
          *           "camera_id": "front_door",
          *           "enabled": true,
@@ -6155,20 +6158,23 @@ export interface components {
          *           "id": "550e8400-e29b-41d4-a716-446655440001",
          *           "risk_threshold": 70
          *         }
-         *       ]
+         *       ],
+         *       "pagination": {
+         *         "has_more": false,
+         *         "limit": 50,
+         *         "offset": 0,
+         *         "total": 2
+         *       }
          *     }
          */
         CameraNotificationSettingsListResponse: {
             /**
-             * Count
-             * @description Total number of settings
-             */
-            count: number;
-            /**
-             * Settings
+             * Items
              * @description List of camera notification settings
              */
-            settings: components["schemas"]["CameraNotificationSettingResponse"][];
+            items: components["schemas"]["CameraNotificationSettingResponse"][];
+            /** @description Pagination metadata */
+            pagination: components["schemas"]["PaginationMeta"];
         };
         /**
          * CameraResponse
@@ -8555,10 +8561,11 @@ export interface components {
         };
         /**
          * EntityListResponse
-         * @description Schema for paginated entity list response.
+         * @description Schema for paginated entity list response (NEM-2075 pagination envelope).
+         *
+         *     Uses standardized pagination envelope with 'items' and 'pagination' fields.
          * @example {
-         *       "count": 1,
-         *       "entities": [
+         *       "items": [
          *         {
          *           "appearance_count": 5,
          *           "cameras_seen": [
@@ -8572,31 +8579,22 @@ export interface components {
          *           "thumbnail_url": "/api/detections/123/image"
          *         }
          *       ],
-         *       "limit": 50,
-         *       "offset": 0
+         *       "pagination": {
+         *         "has_more": false,
+         *         "limit": 50,
+         *         "offset": 0,
+         *         "total": 1
+         *       }
          *     }
          */
         EntityListResponse: {
             /**
-             * Count
-             * @description Total number of entities matching filters
-             */
-            count: number;
-            /**
-             * Entities
+             * Items
              * @description List of tracked entities
              */
-            entities: components["schemas"]["EntitySummary"][];
-            /**
-             * Limit
-             * @description Maximum number of results returned
-             */
-            limit: number;
-            /**
-             * Offset
-             * @description Number of results skipped
-             */
-            offset: number;
+            items: components["schemas"]["EntitySummary"][];
+            /** @description Pagination metadata */
+            pagination: components["schemas"]["PaginationInfo"];
         };
         /**
          * EntitySummary
@@ -8741,6 +8739,7 @@ export interface components {
          * @description Schema for a single event in a bulk create request.
          *
          *     Attributes:
+         *         batch_id: Batch ID that generated this event (tracks detection grouping)
          *         camera_id: Camera ID that generated this event
          *         started_at: Event start timestamp
          *         ended_at: Optional event end timestamp
@@ -8751,6 +8750,11 @@ export interface components {
          *         detection_ids: List of detection IDs associated with this event
          */
         EventBulkCreateItem: {
+            /**
+             * Batch Id
+             * @description Batch ID that generated this event
+             */
+            batch_id: string;
             /**
              * Camera Id
              * @description Camera ID
@@ -12128,10 +12132,9 @@ export interface components {
         };
         /**
          * QuietHoursPeriodsListResponse
-         * @description Schema for quiet hours periods list response.
+         * @description Schema for quiet hours periods list response with pagination.
          * @example {
-         *       "count": 1,
-         *       "periods": [
+         *       "items": [
          *         {
          *           "days": [
          *             "monday",
@@ -12145,20 +12148,23 @@ export interface components {
          *           "label": "Night Time",
          *           "start_time": "22:00:00"
          *         }
-         *       ]
+         *       ],
+         *       "pagination": {
+         *         "has_more": false,
+         *         "limit": 50,
+         *         "offset": 0,
+         *         "total": 1
+         *       }
          *     }
          */
         QuietHoursPeriodsListResponse: {
             /**
-             * Count
-             * @description Total number of periods
-             */
-            count: number;
-            /**
-             * Periods
+             * Items
              * @description List of quiet hours periods
              */
-            periods: components["schemas"]["QuietHoursPeriodResponse"][];
+            items: components["schemas"]["QuietHoursPeriodResponse"][];
+            /** @description Pagination metadata */
+            pagination: components["schemas"]["PaginationMeta"];
         };
         /**
          * RUMBatchRequest

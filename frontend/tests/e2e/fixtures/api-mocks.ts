@@ -821,7 +821,7 @@ export async function setupApiMocks(
     }
   });
 
-  // Entities endpoint (still uses old format with 'entities' field, not pagination envelope)
+  // Entities endpoint (NEM-2075: uses pagination envelope format)
   await page.route('**/api/entities*', async (route) => {
     if (mergedConfig.entitiesError) {
       await route.fulfill({
@@ -835,10 +835,13 @@ export async function setupApiMocks(
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          entities: entities,
-          count: entities.length,
-          limit: 50,
-          offset: 0,
+          items: entities,
+          pagination: {
+            total: entities.length,
+            limit: 50,
+            offset: 0,
+            has_more: false,
+          },
         }),
       });
     }

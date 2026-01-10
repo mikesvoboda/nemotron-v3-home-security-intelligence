@@ -9,6 +9,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from backend.api.schemas.logs import PaginationInfo
+
 
 class EntityAppearance(BaseModel):
     """Schema for a single entity appearance at a specific time and camera.
@@ -122,12 +124,15 @@ class EntityDetail(EntitySummary):
 
 
 class EntityListResponse(BaseModel):
-    """Schema for paginated entity list response."""
+    """Schema for paginated entity list response (NEM-2075 pagination envelope).
+
+    Uses standardized pagination envelope with 'items' and 'pagination' fields.
+    """
 
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "entities": [
+                "items": [
                     {
                         "id": "entity_abc123",
                         "entity_type": "person",
@@ -138,17 +143,18 @@ class EntityListResponse(BaseModel):
                         "thumbnail_url": "/api/detections/123/image",
                     }
                 ],
-                "count": 1,
-                "limit": 50,
-                "offset": 0,
+                "pagination": {
+                    "total": 1,
+                    "limit": 50,
+                    "offset": 0,
+                    "has_more": False,
+                },
             }
         }
     )
 
-    entities: list[EntitySummary] = Field(..., description="List of tracked entities")
-    count: int = Field(..., description="Total number of entities matching filters")
-    limit: int = Field(..., description="Maximum number of results returned")
-    offset: int = Field(..., description="Number of results skipped")
+    items: list[EntitySummary] = Field(..., description="List of tracked entities")
+    pagination: PaginationInfo = Field(..., description="Pagination metadata")
 
 
 class EntityHistoryResponse(BaseModel):

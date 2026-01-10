@@ -4,6 +4,7 @@ from datetime import time
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from backend.api.schemas.pagination import PaginationMeta
 from backend.models.notification_preferences import DayOfWeek, NotificationSound, RiskLevel
 
 __all__ = [
@@ -118,12 +119,12 @@ class CameraNotificationSettingUpdate(BaseModel):
 
 
 class CameraNotificationSettingsListResponse(BaseModel):
-    """Schema for camera notification settings list response."""
+    """Schema for camera notification settings list response with pagination."""
 
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "settings": [
+                "items": [
                     {
                         "id": "550e8400-e29b-41d4-a716-446655440000",
                         "camera_id": "front_door",
@@ -137,15 +138,22 @@ class CameraNotificationSettingsListResponse(BaseModel):
                         "risk_threshold": 70,
                     },
                 ],
-                "count": 2,
+                "pagination": {
+                    "total": 2,
+                    "limit": 50,
+                    "offset": 0,
+                    "cursor": None,
+                    "next_cursor": None,
+                    "has_more": False,
+                },
             }
         }
     )
 
-    settings: list[CameraNotificationSettingResponse] = Field(
+    items: list[CameraNotificationSettingResponse] = Field(
         ..., description="List of camera notification settings"
     )
-    count: int = Field(..., description="Total number of settings")
+    pagination: PaginationMeta = Field(..., description="Pagination metadata")
 
 
 class QuietHoursPeriodCreate(BaseModel):
@@ -195,12 +203,12 @@ class QuietHoursPeriodResponse(BaseModel):
 
 
 class QuietHoursPeriodsListResponse(BaseModel):
-    """Schema for quiet hours periods list response."""
+    """Schema for quiet hours periods list response with pagination."""
 
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "periods": [
+                "items": [
                     {
                         "id": "550e8400-e29b-41d4-a716-446655440000",
                         "label": "Night Time",
@@ -209,10 +217,17 @@ class QuietHoursPeriodsListResponse(BaseModel):
                         "days": ["monday", "tuesday", "wednesday", "thursday", "friday"],
                     }
                 ],
-                "count": 1,
+                "pagination": {
+                    "total": 1,
+                    "limit": 50,
+                    "offset": 0,
+                    "cursor": None,
+                    "next_cursor": None,
+                    "has_more": False,
+                },
             }
         }
     )
 
-    periods: list[QuietHoursPeriodResponse] = Field(..., description="List of quiet hours periods")
-    count: int = Field(..., description="Total number of periods")
+    items: list[QuietHoursPeriodResponse] = Field(..., description="List of quiet hours periods")
+    pagination: PaginationMeta = Field(..., description="Pagination metadata")

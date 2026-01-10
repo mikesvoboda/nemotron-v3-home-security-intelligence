@@ -2956,13 +2956,16 @@ export interface EntityDetail extends EntitySummary {
 }
 
 /**
- * Paginated entity list response
+ * Paginated entity list response (NEM-2075: pagination envelope format)
  */
 export interface EntityListResponse {
-  entities: EntitySummary[];
-  count: number;
-  limit: number;
-  offset: number;
+  items: EntitySummary[];
+  pagination: {
+    total: number;
+    limit: number;
+    offset: number;
+    has_more: boolean;
+  };
 }
 
 /**

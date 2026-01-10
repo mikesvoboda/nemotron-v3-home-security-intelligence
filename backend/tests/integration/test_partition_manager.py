@@ -78,8 +78,8 @@ async def test_partition_manager_creates_partitions_in_database(
     # Cleanup
     async with get_session() as session:
         for partition in partitions:
-            await session.execute(text(f"DROP TABLE IF EXISTS {partition}"))
-        await session.execute(text("DROP TABLE IF EXISTS test_partitioned"))
+            await session.execute(text(f"DROP TABLE IF EXISTS {partition} CASCADE"))
+        await session.execute(text("DROP TABLE IF EXISTS test_partitioned CASCADE"))
         await session.commit()
 
 
@@ -154,6 +154,7 @@ async def test_partition_manager_insert_into_correct_partition(
                 """
                 SELECT relname FROM pg_class
                 WHERE relname LIKE 'test_insert_partition%'
+                AND relkind IN ('r', 'p')
                 """
             )
         )
@@ -232,6 +233,7 @@ async def test_partition_manager_query_across_partitions(
                 """
                 SELECT relname FROM pg_class
                 WHERE relname LIKE 'test_query_partition%'
+                AND relkind IN ('r', 'p')
                 """
             )
         )
@@ -334,6 +336,7 @@ async def test_partition_manager_drops_old_partitions(
                 """
                 SELECT relname FROM pg_class
                 WHERE relname LIKE 'test_cleanup_partition%'
+                AND relkind IN ('r', 'p')
                 """
             )
         )
@@ -355,6 +358,22 @@ async def test_partition_manager_get_stats(
     """Test getting partition statistics from database."""
     from backend.core.database import get_session
     from backend.services.partition_manager import PartitionConfig, PartitionManager
+
+    # Clean up any existing test tables before starting
+    async with get_session() as session:
+        result = await session.execute(
+            text(
+                """
+                SELECT relname FROM pg_class
+                WHERE relname LIKE 'test_stats_partition%'
+                AND relkind IN ('r', 'p')
+                """
+            )
+        )
+        tables = [row[0] for row in result.fetchall()]
+        for table in tables:
+            await session.execute(text(f"DROP TABLE IF EXISTS {table} CASCADE"))
+        await session.commit()
 
     # Create partitioned table
     async with get_session() as session:
@@ -397,6 +416,9 @@ async def test_partition_manager_get_stats(
             )
         await session.commit()
 
+        # Run ANALYZE to update statistics (required for accurate row_count)
+        await session.execute(text("ANALYZE test_stats_partition"))
+
         # Get partition stats
         stats = await manager.get_partition_stats()
 
@@ -425,6 +447,7 @@ async def test_partition_manager_get_stats(
                 """
                 SELECT relname FROM pg_class
                 WHERE relname LIKE 'test_stats_partition%'
+                AND relkind IN ('r', 'p')
                 """
             )
         )
@@ -512,6 +535,7 @@ async def test_partition_inherits_indexes(
                 """
                 SELECT relname FROM pg_class
                 WHERE relname LIKE 'test_index_partition%'
+                AND relkind IN ('r', 'p')
                 """
             )
         )
@@ -574,6 +598,7 @@ async def test_partition_manager_handles_existing_partition_gracefully(
                 """
                 SELECT relname FROM pg_class
                 WHERE relname LIKE 'test_existing_partition%'
+                AND relkind IN ('r', 'p')
                 """
             )
         )

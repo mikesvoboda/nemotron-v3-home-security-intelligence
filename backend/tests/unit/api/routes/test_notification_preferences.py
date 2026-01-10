@@ -403,8 +403,8 @@ class TestGetAllCameraSettings:
 
             assert response.status_code == 200
             data = response.json()
-            assert data["settings"] == []
-            assert data["count"] == 0
+            assert data["items"] == []
+            assert data["pagination"]["total"] == 0
         finally:
             app.dependency_overrides.clear()
 
@@ -437,10 +437,10 @@ class TestGetAllCameraSettings:
 
             assert response.status_code == 200
             data = response.json()
-            assert data["count"] == 2
-            assert len(data["settings"]) == 2
-            assert data["settings"][0]["camera_id"] == "front_door"
-            assert data["settings"][1]["camera_id"] == "back_yard"
+            assert data["pagination"]["total"] == 2
+            assert len(data["items"]) == 2
+            assert data["items"][0]["camera_id"] == "front_door"
+            assert data["items"][1]["camera_id"] == "back_yard"
         finally:
             app.dependency_overrides.clear()
 
@@ -676,8 +676,8 @@ class TestGetQuietHours:
 
             assert response.status_code == 200
             data = response.json()
-            assert data["periods"] == []
-            assert data["count"] == 0
+            assert data["items"] == []
+            assert data["pagination"]["total"] == 0
         finally:
             app.dependency_overrides.clear()
 
@@ -711,10 +711,10 @@ class TestGetQuietHours:
 
             assert response.status_code == 200
             data = response.json()
-            assert data["count"] == 2
-            assert len(data["periods"]) == 2
-            assert data["periods"][0]["label"] == "Night Time"
-            assert data["periods"][1]["label"] == "Afternoon Nap"
+            assert data["pagination"]["total"] == 2
+            assert len(data["items"]) == 2
+            assert data["items"][0]["label"] == "Night Time"
+            assert data["items"][1]["label"] == "Afternoon Nap"
         finally:
             app.dependency_overrides.clear()
 
@@ -779,7 +779,7 @@ class TestCreateQuietHoursPeriod:
                 )
 
             assert response.status_code == 400
-            assert "start_time must be less than end_time" in response.json()["detail"]
+            assert "start_time must not equal end_time" in response.json()["detail"]
             mock_db.add.assert_not_called()
             mock_db.commit.assert_not_called()
         finally:
@@ -787,7 +787,14 @@ class TestCreateQuietHoursPeriod:
 
     @pytest.mark.asyncio
     async def test_create_quiet_hours_period_start_after_end(self, mock_db: AsyncMock) -> None:
-        """Test error when start_time > end_time."""
+        """Test overnight period (start_time > end_time) is allowed."""
+        # Mock refresh to set ID
+        async def mock_refresh(obj: Any) -> None:
+            if not hasattr(obj, "id") or obj.id is None:
+                obj.id = str(uuid4())
+
+        mock_db.refresh.side_effect = mock_refresh
+
         app.dependency_overrides[get_db] = create_mock_db_dependency(mock_db)
         try:
             async with AsyncClient(
@@ -803,10 +810,14 @@ class TestCreateQuietHoursPeriod:
                     },
                 )
 
-            # Note: The API validates start < end, so overnight periods fail
-            # This is a known limitation - the validation doesn't support overnight periods
-            assert response.status_code == 400
-            assert "start_time must be less than end_time" in response.json()["detail"]
+            # Overnight periods are now supported (wraps to next day)
+            assert response.status_code == 201
+            data = response.json()
+            assert data["label"] == "Overnight Period"
+            assert data["start_time"] == "22:00:00"
+            assert data["end_time"] == "06:00:00"
+            mock_db.add.assert_called_once()
+            mock_db.commit.assert_called_once()
         finally:
             app.dependency_overrides.clear()
 

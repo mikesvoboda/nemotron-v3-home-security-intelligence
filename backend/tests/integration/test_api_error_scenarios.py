@@ -760,7 +760,7 @@ class TestSystemEndpointErrors:
         # Should succeed but clamp the limit
         assert response.status_code == 200
         data = response.json()
-        assert data["pagination"]["limit"] <= 5000  # Max allowed
+        assert data["limit"] <= 5000  # Max allowed
 
     @pytest.mark.asyncio
     async def test_config_patch_without_api_key(self, client, mock_redis):

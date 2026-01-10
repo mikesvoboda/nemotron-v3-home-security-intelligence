@@ -85,9 +85,11 @@ class TestBulkCreateEvents:
     @pytest.mark.asyncio
     async def test_bulk_create_events_success(self, async_client, sample_camera):
         """Test successful bulk creation of events."""
+        batch_id = str(uuid.uuid4())
         events_data = {
             "events": [
                 {
+                    "batch_id": batch_id,
                     "camera_id": sample_camera.id,
                     "started_at": datetime.now(UTC).isoformat(),
                     "risk_score": 75,
@@ -95,6 +97,7 @@ class TestBulkCreateEvents:
                     "summary": "Test event 1",
                 },
                 {
+                    "batch_id": batch_id,
                     "camera_id": sample_camera.id,
                     "started_at": datetime.now(UTC).isoformat(),
                     "risk_score": 25,
@@ -121,9 +124,11 @@ class TestBulkCreateEvents:
     @pytest.mark.asyncio
     async def test_bulk_create_events_partial_failure(self, async_client, sample_camera):
         """Test bulk create with partial failure (invalid camera_id)."""
+        batch_id = str(uuid.uuid4())
         events_data = {
             "events": [
                 {
+                    "batch_id": batch_id,
                     "camera_id": sample_camera.id,
                     "started_at": datetime.now(UTC).isoformat(),
                     "risk_score": 75,
@@ -131,6 +136,7 @@ class TestBulkCreateEvents:
                     "summary": "Valid event",
                 },
                 {
+                    "batch_id": batch_id,
                     "camera_id": "nonexistent_camera",
                     "started_at": datetime.now(UTC).isoformat(),
                     "risk_score": 25,

@@ -71,6 +71,7 @@ class EventBulkCreateItem(BaseModel):
     """Schema for a single event in a bulk create request.
 
     Attributes:
+        batch_id: Batch ID that generated this event (tracks detection grouping)
         camera_id: Camera ID that generated this event
         started_at: Event start timestamp
         ended_at: Optional event end timestamp
@@ -83,6 +84,12 @@ class EventBulkCreateItem(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+    batch_id: str = Field(
+        ...,
+        min_length=1,
+        max_length=255,
+        description="Batch ID that generated this event",
+    )
     camera_id: str = Field(
         ...,
         min_length=1,

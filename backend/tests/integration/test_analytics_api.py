@@ -168,14 +168,14 @@ class TestCameraUptimeEndpoint:
         data = response.json()
 
         # Validate response structure
-        assert "items" in data
+        assert "cameras" in data
         assert "start_date" in data
         assert "end_date" in data
-        assert isinstance(data["items"], list)
+        assert isinstance(data["cameras"], list)
 
         # Validate camera data structure if present
-        if len(data["items"]) > 0:
-            camera_data = data["items"][0]
+        if len(data["cameras"]) > 0:
+            camera_data = data["cameras"][0]
             assert "camera_id" in camera_data
             assert "camera_name" in camera_data
             assert "uptime_percentage" in camera_data
@@ -367,7 +367,7 @@ class TestAnalyticsEndpointsEmptyData:
 
         assert response.status_code == 200
         data = response.json()
-        assert len(data["items"]) == 0
+        assert len(data["cameras"]) == 0
 
     @pytest.mark.asyncio
     async def test_object_distribution_empty_database(
