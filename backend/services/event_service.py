@@ -6,7 +6,10 @@ including cascade soft delete that propagates to related detections and alerts.
 The cascade soft delete uses the same timestamp for the parent event and its
 related records, enabling identification of cascade-deleted records for restore.
 
-Related Linear issue: NEM-1956
+File deletion is scheduled with a 5-minute delay to support undo operations.
+When an event is restored, pending file deletions are cancelled.
+
+Related Linear issues: NEM-1956, NEM-1988
 """
 
 from __future__ import annotations
@@ -20,6 +23,7 @@ from sqlalchemy.orm import selectinload
 from backend.core.logging import get_logger
 from backend.models.alert import Alert
 from backend.models.event import Event
+from backend.services.file_service import FileService, get_file_service
 
 logger = get_logger(__name__)
 
@@ -31,11 +35,59 @@ class EventService:
     - Soft deleting events with cascade to related detections and alerts
     - Restoring soft-deleted events with cascade to related records
     - Querying events with soft delete awareness
+    - Scheduling file deletion when events are soft-deleted
+    - Cancelling file deletion when events are restored
 
     The cascade soft delete uses the same timestamp for the parent event and
     its children, enabling identification of which records were deleted as
     part of the same cascade operation.
     """
+
+    def __init__(self, file_service: FileService | None = None):
+        """Initialize the event service.
+
+        Args:
+            file_service: Optional FileService instance. If not provided,
+                will use the singleton instance.
+        """
+        self._file_service = file_service
+
+    def _get_file_service(self) -> FileService:
+        """Get the file service instance.
+
+        Returns:
+            FileService instance
+        """
+        if self._file_service:
+            return self._file_service
+        return get_file_service()
+
+    def _collect_file_paths(self, event: Event) -> list[str]:
+        """Collect all file paths associated with an event.
+
+        This includes the event's clip path and all detection file paths
+        and thumbnail paths.
+
+        Args:
+            event: Event with detections loaded
+
+        Returns:
+            List of file paths (may include empty strings or None, filtered later)
+        """
+        file_paths: list[str] = []
+
+        # Add event clip path
+        if event.clip_path:
+            file_paths.append(event.clip_path)
+
+        # Add detection file paths and thumbnails
+        for detection in event.detections:
+            if detection.file_path:
+                file_paths.append(detection.file_path)
+            if detection.thumbnail_path:
+                file_paths.append(detection.thumbnail_path)
+
+        return file_paths
 
     async def soft_delete_event(
         self,
@@ -46,10 +98,14 @@ class EventService:
     ) -> Event:
         """Soft delete an event and optionally cascade to related records.
 
+        When cascade=True, also schedules associated files for deletion
+        after a 5-minute delay to support undo operations.
+
         Args:
             event_id: ID of the event to delete
             db: Database session
-            cascade: If True, cascade soft delete to related detections and alerts
+            cascade: If True, cascade soft delete to related detections and alerts,
+                and schedule file deletion
 
         Returns:
             The soft-deleted event
@@ -95,6 +151,20 @@ class EventService:
                     "(alerts do not support soft delete)"
                 )
 
+            # Schedule file deletion with delay (NEM-1988)
+            file_paths = self._collect_file_paths(event)
+            if file_paths:
+                file_service = self._get_file_service()
+                job_id = await file_service.schedule_deletion(
+                    file_paths=file_paths,
+                    event_id=event_id,
+                )
+                if job_id:
+                    logger.info(
+                        f"Scheduled {len(file_paths)} files for deletion "
+                        f"(event_id={event_id}, job_id={job_id})"
+                    )
+
         await db.flush()
         logger.info(
             f"Soft deleted event {event_id} with cascade={cascade}, timestamp={now.isoformat()}"
@@ -112,12 +182,14 @@ class EventService:
         """Restore a soft-deleted event and optionally cascade to related records.
 
         When cascade=True, this method restores detections that were deleted
-        at the same timestamp as the event (indicating they were cascade-deleted).
+        at the same timestamp as the event (indicating they were cascade-deleted),
+        and cancels any pending file deletions.
 
         Args:
             event_id: ID of the event to restore
             db: Database session
-            cascade: If True, cascade restore to related records deleted at same time
+            cascade: If True, cascade restore to related records deleted at same time,
+                and cancel pending file deletions
 
         Returns:
             The restored event
@@ -150,6 +222,14 @@ class EventService:
             if detection_count > 0:
                 logger.info(
                     f"Event {event_id} has {detection_count} detections (no cascade restore needed)"
+                )
+
+            # Cancel pending file deletions (NEM-1988)
+            file_service = self._get_file_service()
+            cancelled_count = await file_service.cancel_deletion_by_event_id(event_id)
+            if cancelled_count > 0:
+                logger.info(
+                    f"Cancelled {cancelled_count} pending file deletion jobs for event {event_id}"
                 )
 
         await db.flush()

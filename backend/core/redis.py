@@ -1165,6 +1165,33 @@ class RedisClient:
         result = await client.zscore(key, member)
         return cast("float | None", result)
 
+    async def zrangebyscore(
+        self,
+        key: str,
+        min_score: float | int | str,
+        max_score: float | int | str,
+        start: int | None = None,
+        num: int | None = None,
+    ) -> list[str]:
+        """Return elements in a sorted set with scores within the given range.
+
+        Args:
+            key: Sorted set key
+            min_score: Minimum score (inclusive). Use '-inf' for no minimum.
+            max_score: Maximum score (inclusive). Use '+inf' for no maximum.
+            start: Optional start offset for pagination
+            num: Optional number of elements to return (requires start)
+
+        Returns:
+            List of members with scores in the specified range
+        """
+        client = self._ensure_connected()
+        if start is not None and num is not None:
+            result = await client.zrangebyscore(key, min_score, max_score, start=start, num=num)
+        else:
+            result = await client.zrangebyscore(key, min_score, max_score)
+        return cast("list[str]", result)
+
     async def llen(self, key: str) -> int:
         """Get the length of a list.
 
