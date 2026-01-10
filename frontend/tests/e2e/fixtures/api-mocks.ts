@@ -649,7 +649,7 @@ export async function setupApiMocks(
     });
   });
 
-  // Logs endpoint (uses flat structure with 'logs' field, not pagination envelope)
+  // Logs endpoint (uses pagination envelope format)
   await page.route('**/api/logs*', async (route) => {
     if (mergedConfig.logsError) {
       await route.fulfill({
@@ -663,11 +663,15 @@ export async function setupApiMocks(
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          logs: logs,
-          total: logs.length,
-          count: logs.length,
-          limit: 50,
-          offset: 0,
+          items: logs,
+          pagination: {
+            total: logs.length,
+            limit: 50,
+            offset: null,
+            cursor: null,
+            next_cursor: null,
+            has_more: false,
+          },
         }),
       });
     }
