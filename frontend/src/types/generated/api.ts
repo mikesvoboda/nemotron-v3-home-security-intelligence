@@ -2158,6 +2158,46 @@ export interface paths {
         patch: operations["bulk_update_detections_api_detections_bulk_patch"];
         trace?: never;
     };
+    "/api/detections/labels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Detection Labels
+         * @description Get all unique detection labels with counts.
+         */
+        get: operations["list_detection_labels_api_detections_labels_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/detections/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search Detections
+         * @description Search detections using full-text search.
+         */
+        get: operations["search_detections_api_detections_search_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/detections/stats": {
         parameters: {
             query?: never;
@@ -8103,6 +8143,24 @@ export interface components {
             detections: components["schemas"]["DetectionBulkUpdateItem"][];
         };
         /**
+         * DetectionLabelCount
+         * @description Schema for a label with count.
+         */
+        DetectionLabelCount: {
+            /** Count */
+            count: number;
+            /** Label */
+            label: string;
+        };
+        /**
+         * DetectionLabelsResponse
+         * @description Schema for detection labels response.
+         */
+        DetectionLabelsResponse: {
+            /** Labels */
+            labels: components["schemas"]["DetectionLabelCount"][];
+        };
+        /**
          * DetectionListResponse
          * @description Schema for detection list response with standardized pagination envelope.
          *
@@ -8280,6 +8338,91 @@ export interface components {
              * @description Video resolution width
              */
             video_width?: number | null;
+        };
+        /**
+         * DetectionSearchResponse
+         * @description Schema for detection search response.
+         */
+        DetectionSearchResponse: {
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+            /**
+             * Results
+             * @description Search results
+             */
+            results: components["schemas"]["DetectionSearchResult"][];
+            /**
+             * Total Count
+             * @description Total matching detections
+             */
+            total_count: number;
+        };
+        /**
+         * DetectionSearchResult
+         * @description Schema for a single detection search result.
+         */
+        DetectionSearchResult: {
+            /** Bbox Height */
+            bbox_height?: number | null;
+            /** Bbox Width */
+            bbox_width?: number | null;
+            /** Bbox X */
+            bbox_x?: number | null;
+            /** Bbox Y */
+            bbox_y?: number | null;
+            /**
+             * Camera Id
+             * @description Camera ID
+             */
+            camera_id: string;
+            /**
+             * Confidence
+             * @description Detection confidence score
+             */
+            confidence?: number | null;
+            /**
+             * Detected At
+             * Format: date-time
+             * @description Detection timestamp
+             */
+            detected_at: string;
+            /** Enrichment Data */
+            enrichment_data?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * File Path
+             * @description Path to source file
+             */
+            file_path: string;
+            /**
+             * Id
+             * @description Detection ID
+             */
+            id: number;
+            /**
+             * Labels
+             * @description Searchable labels
+             */
+            labels?: string[];
+            /**
+             * Object Type
+             * @description Detected object type
+             */
+            object_type?: string | null;
+            /**
+             * Relevance Score
+             * @description Search relevance score
+             * @default 0
+             */
+            relevance_score: number;
+            /**
+             * Thumbnail Path
+             * @description Path to thumbnail
+             */
+            thumbnail_path?: string | null;
         };
         /**
          * DetectionStatsResponse
@@ -17659,6 +17802,64 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    list_detection_labels_api_detections_labels_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DetectionLabelsResponse"];
+                };
+            };
+        };
+    };
+    search_detections_api_detections_search_get: {
+        parameters: {
+            query: {
+                q: string;
+                labels?: string[] | null;
+                min_confidence?: number | null;
+                camera_id?: string | null;
+                start_date?: string | null;
+                end_date?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DetectionSearchResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };
