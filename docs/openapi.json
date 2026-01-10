@@ -225,6 +225,120 @@
         "title": "ActivityBaselineResponse",
         "type": "object"
       },
+      "AlertResponse": {
+        "description": "Schema for alert response.",
+        "example": {
+          "channels": [
+            "pushover"
+          ],
+          "created_at": "2025-12-28T12:00:00Z",
+          "dedup_key": "front_door:person:entry_zone",
+          "delivered_at": "2025-12-28T12:00:30Z",
+          "event_id": 123,
+          "id": "550e8400-e29b-41d4-a716-446655440001",
+          "metadata": {
+            "camera_name": "Front Door"
+          },
+          "rule_id": "550e8400-e29b-41d4-a716-446655440000",
+          "severity": "high",
+          "status": "delivered",
+          "updated_at": "2025-12-28T12:01:00Z"
+        },
+        "properties": {
+          "channels": {
+            "description": "Notification channels",
+            "items": {
+              "type": "string"
+            },
+            "title": "Channels",
+            "type": "array"
+          },
+          "created_at": {
+            "description": "Creation timestamp",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "dedup_key": {
+            "description": "Deduplication key",
+            "title": "Dedup Key",
+            "type": "string"
+          },
+          "delivered_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Delivery timestamp",
+            "title": "Delivered At"
+          },
+          "event_id": {
+            "description": "Event ID that triggered this alert",
+            "title": "Event Id",
+            "type": "integer"
+          },
+          "id": {
+            "description": "Alert UUID",
+            "title": "Id",
+            "type": "string"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Additional context",
+            "title": "Metadata"
+          },
+          "rule_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Alert rule UUID that matched",
+            "title": "Rule Id"
+          },
+          "severity": {
+            "$ref": "#/components/schemas/AlertSeverity",
+            "description": "Alert severity level"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AlertStatus",
+            "description": "Alert status"
+          },
+          "updated_at": {
+            "description": "Last update timestamp",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "event_id",
+          "severity",
+          "status",
+          "created_at",
+          "updated_at",
+          "dedup_key"
+        ],
+        "title": "AlertResponse",
+        "type": "object"
+      },
       "AlertRuleConditions": {
         "description": "Schema for legacy alert rule conditions (backward compatibility).\n\nNew rules should use explicit fields on AlertRuleCreate/AlertRuleUpdate.\nThis schema is kept for backward compatibility with existing rules.",
         "example": {
@@ -971,6 +1085,17 @@
         "description": "Alert severity levels.",
         "enum": ["low", "medium", "high", "critical"],
         "title": "AlertSeverity",
+        "type": "string"
+      },
+      "AlertStatus": {
+        "description": "Alert status values.",
+        "enum": [
+          "pending",
+          "delivered",
+          "acknowledged",
+          "dismissed"
+        ],
+        "title": "AlertStatus",
         "type": "string"
       },
       "AllPromptsResponse": {
@@ -14427,6 +14552,110 @@
         },
         "summary": "Test Rule",
         "tags": ["alert-rules"]
+      }
+    },
+    "/api/alerts/{alert_id}/acknowledge": {
+      "post": {
+        "description": "Acknowledge an alert.\n\nMarks an alert as acknowledged and broadcasts the state change via WebSocket.\nOnly alerts with status PENDING or DELIVERED can be acknowledged.\n\nArgs:\n    alert_id: Alert UUID\n    db: Database session\n\nReturns:\n    Updated AlertResponse\n\nRaises:\n    HTTPException: 404 if alert not found, 409 if alert cannot be acknowledged",
+        "operationId": "acknowledge_alert_api_alerts__alert_id__acknowledge_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "alert_id",
+            "required": true,
+            "schema": {
+              "title": "Alert Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Alert not found"
+          },
+          "409": {
+            "description": "Alert cannot be acknowledged (wrong status)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Acknowledge Alert",
+        "tags": [
+          "alerts"
+        ]
+      }
+    },
+    "/api/alerts/{alert_id}/dismiss": {
+      "post": {
+        "description": "Dismiss an alert.\n\nMarks an alert as dismissed and broadcasts the state change via WebSocket.\nOnly alerts with status PENDING, DELIVERED, or ACKNOWLEDGED can be dismissed.\n\nArgs:\n    alert_id: Alert UUID\n    db: Database session\n\nReturns:\n    Updated AlertResponse\n\nRaises:\n    HTTPException: 404 if alert not found, 409 if alert cannot be dismissed",
+        "operationId": "dismiss_alert_api_alerts__alert_id__dismiss_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "alert_id",
+            "required": true,
+            "schema": {
+              "title": "Alert Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Alert not found"
+          },
+          "409": {
+            "description": "Alert cannot be dismissed (wrong status)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Dismiss Alert",
+        "tags": [
+          "alerts"
+        ]
       }
     },
     "/api/analytics/camera-uptime": {

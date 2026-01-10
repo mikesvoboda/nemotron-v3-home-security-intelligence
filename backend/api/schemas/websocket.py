@@ -583,6 +583,267 @@ class WebSocketSceneChangeMessage(BaseModel):
     )
 
 
+# =============================================================================
+# Alert WebSocket Message Schemas (NEM-1981)
+# =============================================================================
+
+
+class WebSocketAlertEventType(StrEnum):
+    """WebSocket event types for alert state changes."""
+
+    ALERT_CREATED = auto()
+    ALERT_ACKNOWLEDGED = auto()
+    ALERT_DISMISSED = auto()
+
+
+class WebSocketAlertSeverity(StrEnum):
+    """Alert severity levels for WebSocket messages.
+
+    Mirrors backend.models.alert.AlertSeverityEnum for WebSocket message validation.
+    """
+
+    LOW = auto()
+    MEDIUM = auto()
+    HIGH = auto()
+    CRITICAL = auto()
+
+
+class WebSocketAlertStatus(StrEnum):
+    """Alert status values for WebSocket messages.
+
+    Mirrors backend.models.alert.AlertStatusEnum for WebSocket message validation.
+    """
+
+    PENDING = auto()
+    DELIVERED = auto()
+    ACKNOWLEDGED = auto()
+    DISMISSED = auto()
+
+
+class WebSocketAlertData(BaseModel):
+    """Data payload for alert messages broadcast to /ws/events clients.
+
+    This schema defines the contract for alert data sent from the backend
+    to WebSocket clients when alerts are created, acknowledged, or dismissed.
+
+    Fields:
+        id: Unique alert identifier (UUID)
+        event_id: Event ID that triggered this alert
+        rule_id: Alert rule UUID that matched (nullable)
+        severity: Alert severity level (low, medium, high, critical)
+        status: Current alert status (pending, delivered, acknowledged, dismissed)
+        dedup_key: Deduplication key for alert grouping
+        created_at: ISO 8601 timestamp when the alert was created
+        updated_at: ISO 8601 timestamp when the alert was last updated
+    """
+
+    id: str = Field(..., description="Unique alert identifier (UUID)")
+    event_id: int = Field(..., description="Event ID that triggered this alert")
+    rule_id: str | None = Field(None, description="Alert rule UUID that matched")
+    severity: WebSocketAlertSeverity = Field(
+        ..., description='Alert severity level ("low", "medium", "high", "critical")'
+    )
+    status: WebSocketAlertStatus = Field(
+        ...,
+        description='Current alert status ("pending", "delivered", "acknowledged", "dismissed")',
+    )
+    dedup_key: str = Field(..., description="Deduplication key for alert grouping")
+    created_at: str = Field(..., description="ISO 8601 timestamp when the alert was created")
+    updated_at: str = Field(..., description="ISO 8601 timestamp when the alert was last updated")
+
+    @field_validator("severity", mode="before")
+    @classmethod
+    def validate_severity(cls, v: str | WebSocketAlertSeverity) -> WebSocketAlertSeverity:
+        """Validate and convert severity to WebSocketAlertSeverity enum.
+
+        Accepts string values for backward compatibility with existing clients.
+        """
+        if isinstance(v, WebSocketAlertSeverity):
+            return v
+        if isinstance(v, str):
+            try:
+                return WebSocketAlertSeverity(v.lower())
+            except ValueError:
+                valid_values = [level.value for level in WebSocketAlertSeverity]
+                raise ValueError(
+                    f"Invalid severity '{v}'. Must be one of: {valid_values}"
+                ) from None
+        raise ValueError(f"severity must be a string or WebSocketAlertSeverity enum, got {type(v)}")
+
+    @field_validator("status", mode="before")
+    @classmethod
+    def validate_status(cls, v: str | WebSocketAlertStatus) -> WebSocketAlertStatus:
+        """Validate and convert status to WebSocketAlertStatus enum.
+
+        Accepts string values for backward compatibility with existing clients.
+        """
+        if isinstance(v, WebSocketAlertStatus):
+            return v
+        if isinstance(v, str):
+            try:
+                return WebSocketAlertStatus(v.lower())
+            except ValueError:
+                valid_values = [status.value for status in WebSocketAlertStatus]
+                raise ValueError(f"Invalid status '{v}'. Must be one of: {valid_values}") from None
+        raise ValueError(f"status must be a string or WebSocketAlertStatus enum, got {type(v)}")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "id": "550e8400-e29b-41d4-a716-446655440000",
+                "event_id": 123,
+                "rule_id": "550e8400-e29b-41d4-a716-446655440001",
+                "severity": "high",
+                "status": "pending",
+                "dedup_key": "front_door:person:rule1",
+                "created_at": "2026-01-09T12:00:00Z",
+                "updated_at": "2026-01-09T12:00:00Z",
+            }
+        }
+    )
+
+
+class WebSocketAlertCreatedMessage(BaseModel):
+    """Complete alert created message envelope sent to /ws/events clients.
+
+    This is the canonical format for alert creation messages broadcast via WebSocket.
+    The message wraps alert data in a standard envelope with a type field.
+
+    Format:
+        {
+            "type": "alert_created",
+            "data": {
+                "id": "550e8400-e29b-41d4-a716-446655440000",
+                "event_id": 123,
+                "rule_id": "550e8400-e29b-41d4-a716-446655440001",
+                "severity": "high",
+                "status": "pending",
+                "dedup_key": "front_door:person:rule1",
+                "created_at": "2026-01-09T12:00:00Z",
+                "updated_at": "2026-01-09T12:00:00Z"
+            }
+        }
+    """
+
+    type: Literal["alert_created"] = Field(
+        default="alert_created",
+        description="Message type, always 'alert_created' for alert creation messages",
+    )
+    data: WebSocketAlertData = Field(..., description="Alert data payload")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "type": "alert_created",
+                "data": {
+                    "id": "550e8400-e29b-41d4-a716-446655440000",
+                    "event_id": 123,
+                    "rule_id": "550e8400-e29b-41d4-a716-446655440001",
+                    "severity": "high",
+                    "status": "pending",
+                    "dedup_key": "front_door:person:rule1",
+                    "created_at": "2026-01-09T12:00:00Z",
+                    "updated_at": "2026-01-09T12:00:00Z",
+                },
+            }
+        }
+    )
+
+
+class WebSocketAlertAcknowledgedMessage(BaseModel):
+    """Complete alert acknowledged message envelope sent to /ws/events clients.
+
+    This is the canonical format for alert acknowledgment messages broadcast via WebSocket.
+    The message wraps alert data in a standard envelope with a type field.
+
+    Format:
+        {
+            "type": "alert_acknowledged",
+            "data": {
+                "id": "550e8400-e29b-41d4-a716-446655440000",
+                "event_id": 123,
+                "rule_id": "550e8400-e29b-41d4-a716-446655440001",
+                "severity": "high",
+                "status": "acknowledged",
+                "dedup_key": "front_door:person:rule1",
+                "created_at": "2026-01-09T12:00:00Z",
+                "updated_at": "2026-01-09T12:01:00Z"
+            }
+        }
+    """
+
+    type: Literal["alert_acknowledged"] = Field(
+        default="alert_acknowledged",
+        description="Message type, always 'alert_acknowledged' for alert acknowledgment messages",
+    )
+    data: WebSocketAlertData = Field(..., description="Alert data payload")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "type": "alert_acknowledged",
+                "data": {
+                    "id": "550e8400-e29b-41d4-a716-446655440000",
+                    "event_id": 123,
+                    "rule_id": "550e8400-e29b-41d4-a716-446655440001",
+                    "severity": "high",
+                    "status": "acknowledged",
+                    "dedup_key": "front_door:person:rule1",
+                    "created_at": "2026-01-09T12:00:00Z",
+                    "updated_at": "2026-01-09T12:01:00Z",
+                },
+            }
+        }
+    )
+
+
+class WebSocketAlertDismissedMessage(BaseModel):
+    """Complete alert dismissed message envelope sent to /ws/events clients.
+
+    This is the canonical format for alert dismissal messages broadcast via WebSocket.
+    The message wraps alert data in a standard envelope with a type field.
+
+    Format:
+        {
+            "type": "alert_dismissed",
+            "data": {
+                "id": "550e8400-e29b-41d4-a716-446655440000",
+                "event_id": 123,
+                "rule_id": "550e8400-e29b-41d4-a716-446655440001",
+                "severity": "high",
+                "status": "dismissed",
+                "dedup_key": "front_door:person:rule1",
+                "created_at": "2026-01-09T12:00:00Z",
+                "updated_at": "2026-01-09T12:02:00Z"
+            }
+        }
+    """
+
+    type: Literal["alert_dismissed"] = Field(
+        default="alert_dismissed",
+        description="Message type, always 'alert_dismissed' for alert dismissal messages",
+    )
+    data: WebSocketAlertData = Field(..., description="Alert data payload")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "type": "alert_dismissed",
+                "data": {
+                    "id": "550e8400-e29b-41d4-a716-446655440000",
+                    "event_id": 123,
+                    "rule_id": "550e8400-e29b-41d4-a716-446655440001",
+                    "severity": "high",
+                    "status": "dismissed",
+                    "dedup_key": "front_door:person:rule1",
+                    "created_at": "2026-01-09T12:00:00Z",
+                    "updated_at": "2026-01-09T12:02:00Z",
+                },
+            }
+        }
+    )
+
+
 # Job tracking WebSocket schemas
 
 

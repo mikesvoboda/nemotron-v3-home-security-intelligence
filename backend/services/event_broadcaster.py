@@ -18,6 +18,11 @@ from fastapi import WebSocket
 from pydantic import ValidationError
 
 from backend.api.schemas.websocket import (
+    WebSocketAlertAcknowledgedMessage,
+    WebSocketAlertCreatedMessage,
+    WebSocketAlertData,
+    WebSocketAlertDismissedMessage,
+    WebSocketAlertEventType,
     WebSocketCameraStatusData,
     WebSocketCameraStatusMessage,
     WebSocketEventData,
@@ -168,6 +173,26 @@ class EventBroadcaster:
             Current WebSocketCircuitState (CLOSED, OPEN, or HALF_OPEN)
         """
         return self._circuit_breaker.get_state()
+
+    @classmethod
+    def get_instance(cls) -> EventBroadcaster:
+        """Get the global event broadcaster instance.
+
+        This is a convenience method for getting the global broadcaster without
+        needing direct access to the module-level _broadcaster variable.
+
+        Returns:
+            The global EventBroadcaster instance
+
+        Raises:
+            RuntimeError: If the broadcaster has not been initialized
+        """
+        if _broadcaster is None:
+            raise RuntimeError(
+                "EventBroadcaster has not been initialized. "
+                "Call get_broadcaster() during application startup."
+            )
+        return _broadcaster
 
     @property
     def current_sequence(self) -> int:
@@ -638,6 +663,76 @@ class EventBroadcaster:
             raise
         except Exception as e:
             logger.error(f"Failed to broadcast camera status: {e}")
+            raise
+
+    async def broadcast_alert(
+        self, alert_data: dict[str, Any], event_type: WebSocketAlertEventType
+    ) -> int:
+        """Broadcast an alert message to all connected WebSocket clients via Redis pub/sub.
+
+        This method validates the alert data against the appropriate WebSocket message schema
+        based on the event type before publishing to Redis. This ensures all messages sent
+        to clients conform to the expected format for alert events.
+
+        Args:
+            alert_data: Alert data dictionary containing alert details
+            event_type: Type of alert event (ALERT_CREATED, ALERT_ACKNOWLEDGED, ALERT_DISMISSED)
+
+        Returns:
+            Number of Redis subscribers that received the message
+
+        Raises:
+            ValueError: If the message fails schema validation or has unknown event type
+
+        Example alert_data:
+            {
+                "id": "550e8400-e29b-41d4-a716-446655440000",
+                "event_id": 123,
+                "rule_id": "550e8400-e29b-41d4-a716-446655440001",
+                "severity": "high",
+                "status": "pending",
+                "dedup_key": "front_door:person:rule1",
+                "created_at": "2026-01-09T12:00:00Z",
+                "updated_at": "2026-01-09T12:00:00Z"
+            }
+        """
+        try:
+            # Validate the alert data
+            validated_data = WebSocketAlertData.model_validate(alert_data)
+
+            # Create the appropriate message type based on event_type
+            validated_message: (
+                WebSocketAlertCreatedMessage
+                | WebSocketAlertAcknowledgedMessage
+                | WebSocketAlertDismissedMessage
+            )
+            if event_type == WebSocketAlertEventType.ALERT_CREATED:
+                validated_message = WebSocketAlertCreatedMessage(data=validated_data)
+            elif event_type == WebSocketAlertEventType.ALERT_ACKNOWLEDGED:
+                validated_message = WebSocketAlertAcknowledgedMessage(data=validated_data)
+            elif event_type == WebSocketAlertEventType.ALERT_DISMISSED:
+                validated_message = WebSocketAlertDismissedMessage(data=validated_data)
+            else:
+                raise ValueError(f"Unknown alert event type: {event_type}")
+
+            # Use the validated message for broadcasting
+            broadcast_data = validated_message.model_dump(mode="json")
+
+            # Publish validated message to Redis channel
+            subscriber_count = await self._redis.publish(self._channel_name, broadcast_data)
+            logger.debug(
+                f"Alert broadcast to Redis: {broadcast_data.get('type')} "
+                f"(subscribers: {subscriber_count})"
+            )
+            return subscriber_count
+        except ValidationError as ve:
+            logger.error(f"Alert message validation failed: {ve}")
+            raise ValueError(f"Invalid alert message format: {ve}") from ve
+        except ValueError:
+            # Re-raise validation errors
+            raise
+        except Exception as e:
+            logger.error(f"Failed to broadcast alert: {e}")
             raise
 
     def _enter_degraded_mode(self) -> None:
