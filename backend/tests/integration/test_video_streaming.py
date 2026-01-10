@@ -432,11 +432,15 @@ class TestVideoThumbnail:
 
     async def test_thumbnail_generation_failure(self, async_client, video_detection_with_file):
         """Test thumbnail generation failure returns 500."""
-        # Mock the video processor to return None (generation failure)
+        # Create a mock video processor that returns None (generation failure)
+        mock_video_processor = AsyncMock()
+        mock_video_processor.extract_thumbnail_for_detection = AsyncMock(return_value=None)
+
+        # Patch the dependency function to return our mock
+        # This is safe for parallel execution as each test gets its own patch
         with patch(
-            "backend.api.routes.detections.video_processor.extract_thumbnail_for_detection",
-            new_callable=AsyncMock,
-            return_value=None,
+            "backend.api.dependencies.get_video_processor_dep",
+            return_value=mock_video_processor,
         ):
             response = await async_client.get(
                 f"/api/detections/{video_detection_with_file.id}/video/thumbnail"
@@ -444,7 +448,7 @@ class TestVideoThumbnail:
             assert response.status_code == 500
             data = response.json()
             error_msg = get_error_message(data)
-        assert "failed" in error_msg.lower()
+            assert "failed" in error_msg.lower()
 
 
 class TestVideoStreamingCaching:

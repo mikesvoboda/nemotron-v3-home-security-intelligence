@@ -29,6 +29,7 @@ from fastapi import (
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.api.dependencies import get_baseline_service_dep
 from backend.api.middleware import RateLimiter, RateLimitTier
 from backend.api.schemas.baseline import (
     AnomalyConfig,
@@ -111,11 +112,15 @@ from backend.core.redis import (
 from backend.models import Camera, Detection, Event, GPUStats, Log
 from backend.models.audit import AuditAction
 from backend.services.audit import AuditService
+from backend.services.baseline import BaselineService
 from backend.services.model_zoo import (
     get_model_config,
     get_model_manager,
     get_model_zoo,
 )
+
+# Type alias for dependency injection
+BaselineServiceDep = BaselineService
 
 logger = get_logger(__name__)
 
@@ -1415,7 +1420,9 @@ async def patch_config(
         500: {"description": "Internal server error"},
     },
 )
-async def get_anomaly_config() -> AnomalyConfig:
+async def get_anomaly_config(
+    service: BaselineServiceDep = Depends(get_baseline_service_dep),
+) -> AnomalyConfig:
     """Get current anomaly detection configuration.
 
     Returns the current settings for the baseline service including:
@@ -1424,13 +1431,12 @@ async def get_anomaly_config() -> AnomalyConfig:
     - decay_factor: Exponential decay factor for EWMA (weights recent observations)
     - window_days: Rolling window size in days for baseline calculations
 
+    Args:
+        service: BaselineService injected via Depends()
+
     Returns:
         AnomalyConfig with current anomaly detection settings
     """
-    from backend.services.baseline import get_baseline_service
-
-    service = get_baseline_service()
-
     return AnomalyConfig(
         threshold_stdev=service.anomaly_threshold_std,
         min_samples=service.min_samples,
@@ -1453,6 +1459,7 @@ async def update_anomaly_config(
     config_update: AnomalyConfigUpdate,
     request: Request,
     db: AsyncSession = Depends(get_db),
+    service: BaselineServiceDep = Depends(get_baseline_service_dep),
 ) -> AnomalyConfig:
     """Update anomaly detection configuration.
 
@@ -1469,14 +1476,11 @@ async def update_anomaly_config(
         config_update: Configuration values to update (only provided values are changed)
         request: HTTP request for audit logging
         db: Database session
+        service: BaselineService injected via Depends()
 
     Returns:
         AnomalyConfig with updated settings
     """
-    from backend.services.baseline import get_baseline_service
-
-    service = get_baseline_service()
-
     # Track old values for audit
     old_values: dict[str, Any] = {
         "threshold_stdev": service.anomaly_threshold_std,

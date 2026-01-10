@@ -790,6 +790,7 @@ export interface paths {
          *         rule_id: Rule UUID
          *         test_data: Test configuration (event IDs, time override)
          *         db: Database session
+         *         engine: AlertRuleEngine injected via Depends()
          *
          *     Returns:
          *         RuleTestResponse with per-event match results
@@ -1316,6 +1317,7 @@ export interface paths {
          *     Args:
          *         camera_id: ID of the camera
          *         db: Database session
+         *         baseline_service: BaselineService injected via Depends()
          *
          *     Returns:
          *         BaselineSummaryResponse with all baseline data
@@ -1350,6 +1352,7 @@ export interface paths {
          *     Args:
          *         camera_id: ID of the camera
          *         db: Database session
+         *         baseline_service: BaselineService injected via Depends()
          *
          *     Returns:
          *         ActivityBaselineResponse with entries for the heatmap
@@ -1385,6 +1388,7 @@ export interface paths {
          *         camera_id: ID of the camera
          *         days: Number of days to look back (default: 7, max: 90)
          *         db: Database session
+         *         baseline_service: BaselineService injected via Depends()
          *
          *     Returns:
          *         AnomalyListResponse with list of anomaly events
@@ -1418,6 +1422,7 @@ export interface paths {
          *     Args:
          *         camera_id: ID of the camera
          *         db: Database session
+         *         baseline_service: BaselineService injected via Depends()
          *
          *     Returns:
          *         ClassBaselineResponse with entries for each class/hour combination
@@ -2288,6 +2293,7 @@ export interface paths {
          *         detection_id: Detection ID
          *         full: If true, return the original full-size image instead of thumbnail
          *         db: Database session
+         *         thumbnail_generator: ThumbnailGenerator injected via Depends()
          *
          *     Returns:
          *         JPEG image (thumbnail with bounding box, or full-size original)
@@ -2387,6 +2393,7 @@ export interface paths {
          *     Args:
          *         detection_id: Detection ID
          *         db: Database session
+         *         video_processor: VideoProcessor injected via Depends()
          *
          *     Returns:
          *         JPEG thumbnail image
@@ -2731,6 +2738,7 @@ export interface paths {
          *         batch_id: Batch identifier to analyze
          *         camera_id: Optional camera ID (uses Redis lookup if not provided)
          *         detection_ids: Optional comma-separated detection IDs
+         *         analyzer: NemotronAnalyzer injected via Depends()
          *
          *     Returns:
          *         StreamingResponse with SSE event stream (text/event-stream)
@@ -3112,6 +3120,7 @@ export interface paths {
          *         event_id: Event ID
          *         request: Clip generation parameters
          *         db: Database session
+         *         clip_generator: ClipGenerator injected via Depends()
          *
          *     Returns:
          *         ClipGenerateResponse with generation status and clip info
@@ -3389,6 +3398,7 @@ export interface paths {
          *
          *     Args:
          *         filename: The clip filename (e.g., "123_clip.mp4")
+         *         clip_generator: ClipGenerator injected via Depends()
          *
          *     Returns:
          *         FileResponse with appropriate content-type header
@@ -3762,6 +3772,9 @@ export interface paths {
          *     - decay_factor: Exponential decay factor for EWMA (weights recent observations)
          *     - window_days: Rolling window size in days for baseline calculations
          *
+         *     Args:
+         *         service: BaselineService injected via Depends()
+         *
          *     Returns:
          *         AnomalyConfig with current anomaly detection settings
          */
@@ -3788,6 +3801,7 @@ export interface paths {
          *         config_update: Configuration values to update (only provided values are changed)
          *         request: HTTP request for audit logging
          *         db: Database session
+         *         service: BaselineService injected via Depends()
          *
          *     Returns:
          *         AnomalyConfig with updated settings

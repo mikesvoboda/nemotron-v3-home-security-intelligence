@@ -82,7 +82,11 @@
             "title": "Url"
           }
         },
-        "required": ["name", "display_name", "status"],
+        "required": [
+          "name",
+          "display_name",
+          "status"
+        ],
         "title": "AIServiceHealthStatus",
         "type": "object"
       },
@@ -129,7 +133,12 @@
             "type": "integer"
           }
         },
-        "required": ["hour", "day_of_week", "avg_count", "sample_count"],
+        "required": [
+          "hour",
+          "day_of_week",
+          "avg_count",
+          "sample_count"
+        ],
         "title": "ActivityBaselineEntry",
         "type": "object"
       },
@@ -221,14 +230,19 @@
             "type": "integer"
           }
         },
-        "required": ["camera_id", "total_samples"],
+        "required": [
+          "camera_id",
+          "total_samples"
+        ],
         "title": "ActivityBaselineResponse",
         "type": "object"
       },
       "AlertResponse": {
         "description": "Schema for alert response.",
         "example": {
-          "channels": ["pushover"],
+          "channels": [
+            "pushover"
+          ],
           "created_at": "2025-12-28T12:00:00Z",
           "dedup_key": "front_door:person:entry_zone",
           "delivered_at": "2025-12-28T12:00:30Z",
@@ -340,8 +354,14 @@
       "AlertRuleConditions": {
         "description": "Schema for legacy alert rule conditions (backward compatibility).\n\nNew rules should use explicit fields on AlertRuleCreate/AlertRuleUpdate.\nThis schema is kept for backward compatibility with existing rules.",
         "example": {
-          "camera_ids": ["front_door", "backyard"],
-          "object_types": ["person", "vehicle"],
+          "camera_ids": [
+            "front_door",
+            "backyard"
+          ],
+          "object_types": [
+            "person",
+            "vehicle"
+          ],
           "risk_threshold": 70,
           "time_ranges": [
             {
@@ -418,18 +438,32 @@
       "AlertRuleCreate": {
         "description": "Schema for creating an alert rule.\n\nAll conditions use AND logic - all specified conditions must match for the rule to trigger.\nLeave a condition as null/empty to not filter on that criterion.",
         "example": {
-          "camera_ids": ["front_door", "backyard"],
-          "channels": ["pushover", "webhook"],
+          "camera_ids": [
+            "front_door",
+            "backyard"
+          ],
+          "channels": [
+            "pushover",
+            "webhook"
+          ],
           "cooldown_seconds": 300,
           "dedup_key_template": "{camera_id}:{rule_id}",
           "description": "High-priority alert for person detection at night",
           "enabled": true,
           "min_confidence": 0.8,
           "name": "Night Intruder Alert",
-          "object_types": ["person"],
+          "object_types": [
+            "person"
+          ],
           "risk_threshold": 70,
           "schedule": {
-            "days": ["monday", "tuesday", "wednesday", "thursday", "friday"],
+            "days": [
+              "monday",
+              "tuesday",
+              "wednesday",
+              "thursday",
+              "friday"
+            ],
             "end_time": "06:00",
             "start_time": "22:00",
             "timezone": "America/New_York"
@@ -585,7 +619,9 @@
             "title": "Zone Ids"
           }
         },
-        "required": ["name"],
+        "required": [
+          "name"
+        ],
         "title": "AlertRuleCreate",
         "type": "object"
       },
@@ -594,7 +630,9 @@
         "example": {
           "items": [
             {
-              "channels": ["pushover"],
+              "channels": [
+                "pushover"
+              ],
               "conditions": {
                 "risk_threshold": 70
               },
@@ -627,15 +665,24 @@
             "description": "Pagination metadata"
           }
         },
-        "required": ["items", "pagination"],
+        "required": [
+          "items",
+          "pagination"
+        ],
         "title": "AlertRuleListResponse",
         "type": "object"
       },
       "AlertRuleResponse": {
         "description": "Schema for alert rule response.",
         "example": {
-          "camera_ids": ["front_door", "backyard"],
-          "channels": ["pushover", "webhook"],
+          "camera_ids": [
+            "front_door",
+            "backyard"
+          ],
+          "channels": [
+            "pushover",
+            "webhook"
+          ],
           "cooldown_seconds": 300,
           "created_at": "2025-12-28T12:00:00Z",
           "dedup_key_template": "{camera_id}:{rule_id}",
@@ -644,10 +691,18 @@
           "id": "550e8400-e29b-41d4-a716-446655440000",
           "min_confidence": 0.8,
           "name": "Night Intruder Alert",
-          "object_types": ["person"],
+          "object_types": [
+            "person"
+          ],
           "risk_threshold": 70,
           "schedule": {
-            "days": ["monday", "tuesday", "wednesday", "thursday", "friday"],
+            "days": [
+              "monday",
+              "tuesday",
+              "wednesday",
+              "thursday",
+              "friday"
+            ],
             "end_time": "06:00",
             "start_time": "22:00",
             "timezone": "America/New_York"
@@ -825,7 +880,13 @@
       "AlertRuleSchedule": {
         "description": "Schema for alert rule schedule (time-based conditions).\n\nIf start_time > end_time, the schedule spans midnight (e.g., 22:00-06:00).\nEmpty days array means all days. No schedule = always active (vacation mode).\n\nValidation:\n- Days must be valid day names (monday-sunday)\n- Times must be valid HH:MM format with hours 00-23, minutes 00-59\n- Start and end times are validated but can span midnight",
         "example": {
-          "days": ["monday", "tuesday", "wednesday", "thursday", "friday"],
+          "days": [
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday"
+          ],
           "end_time": "06:00",
           "start_time": "22:00",
           "timezone": "America/New_York"
@@ -1081,13 +1142,23 @@
       },
       "AlertSeverity": {
         "description": "Alert severity levels.",
-        "enum": ["low", "medium", "high", "critical"],
+        "enum": [
+          "low",
+          "medium",
+          "high",
+          "critical"
+        ],
         "title": "AlertSeverity",
         "type": "string"
       },
       "AlertStatus": {
         "description": "Alert status values.",
-        "enum": ["pending", "delivered", "acknowledged", "dismissed"],
+        "enum": [
+          "pending",
+          "delivered",
+          "acknowledged",
+          "dismissed"
+        ],
         "title": "AlertStatus",
         "type": "string"
       },
@@ -1097,7 +1168,9 @@
           "prompts": {
             "florence2": {
               "config": {
-                "vqa_queries": ["What is this?"]
+                "vqa_queries": [
+                  "What is this?"
+                ]
               },
               "model_name": "florence2",
               "updated_at": "2026-01-01T08:00:00Z",
@@ -1124,7 +1197,9 @@
             "type": "object"
           }
         },
-        "required": ["prompts"],
+        "required": [
+          "prompts"
+        ],
         "title": "AllPromptsResponse",
         "type": "object"
       },
@@ -1163,7 +1238,12 @@
             "type": "integer"
           }
         },
-        "required": ["threshold_stdev", "min_samples", "decay_factor", "window_days"],
+        "required": [
+          "threshold_stdev",
+          "min_samples",
+          "decay_factor",
+          "window_days"
+        ],
         "title": "AnomalyConfig",
         "type": "object"
       },
@@ -1306,7 +1386,11 @@
             "type": "integer"
           }
         },
-        "required": ["camera_id", "count", "period_days"],
+        "required": [
+          "camera_id",
+          "count",
+          "period_days"
+        ],
         "title": "AnomalyListResponse",
         "type": "object"
       },
@@ -1359,7 +1443,10 @@
             "description": "Pagination metadata"
           }
         },
-        "required": ["items", "pagination"],
+        "required": [
+          "items",
+          "pagination"
+        ],
         "title": "AuditLogListResponse",
         "type": "object"
       },
@@ -1473,7 +1560,14 @@
             "title": "User Agent"
           }
         },
-        "required": ["id", "timestamp", "action", "resource_type", "actor", "status"],
+        "required": [
+          "id",
+          "timestamp",
+          "action",
+          "resource_type",
+          "actor",
+          "status"
+        ],
         "title": "AuditLogResponse",
         "type": "object"
       },
@@ -1497,7 +1591,11 @@
             "success": 145
           },
           "logs_today": 150,
-          "recent_actors": ["admin@example.com", "system", "scheduler"],
+          "recent_actors": [
+            "admin@example.com",
+            "system",
+            "scheduler"
+          ],
           "total_logs": 5000
         },
         "properties": {
@@ -1669,7 +1767,9 @@
           "camera_id": "front_door",
           "camera_name": "Front Door",
           "current_deviation": {
-            "contributing_factors": ["person_count_elevated"],
+            "contributing_factors": [
+              "person_count_elevated"
+            ],
             "interpretation": "slightly_above_normal",
             "score": 1.8
           },
@@ -1767,7 +1867,11 @@
             "type": "object"
           }
         },
-        "required": ["camera_id", "camera_name", "data_points"],
+        "required": [
+          "camera_id",
+          "camera_name",
+          "data_points"
+        ],
         "title": "BaselineSummaryResponse",
         "type": "object"
       },
@@ -1816,7 +1920,11 @@
             "type": "integer"
           }
         },
-        "required": ["active_batches", "batch_window_seconds", "idle_timeout_seconds"],
+        "required": [
+          "active_batches",
+          "batch_window_seconds",
+          "idle_timeout_seconds"
+        ],
         "title": "BatchAggregatorStatusResponse",
         "type": "object"
       },
@@ -1873,7 +1981,10 @@
             "type": "integer"
           }
         },
-        "required": ["queued_count", "message"],
+        "required": [
+          "queued_count",
+          "message"
+        ],
         "title": "BatchAuditResponse",
         "type": "object"
       },
@@ -1963,7 +2074,10 @@
             "description": "Operation status"
           }
         },
-        "required": ["index", "status"],
+        "required": [
+          "index",
+          "status"
+        ],
         "title": "BulkItemResult",
         "type": "object"
       },
@@ -2004,13 +2118,21 @@
             "type": "integer"
           }
         },
-        "required": ["total", "succeeded", "failed"],
+        "required": [
+          "total",
+          "succeeded",
+          "failed"
+        ],
         "title": "BulkOperationResponse",
         "type": "object"
       },
       "BulkOperationStatus": {
         "description": "Status of individual items in a bulk operation.",
-        "enum": ["success", "failed", "skipped"],
+        "enum": [
+          "success",
+          "failed",
+          "skipped"
+        ],
         "title": "BulkOperationStatus",
         "type": "string"
       },
@@ -2042,7 +2164,10 @@
             "description": "Camera status (online, offline, error, unknown)"
           }
         },
-        "required": ["name", "folder_path"],
+        "required": [
+          "name",
+          "folder_path"
+        ],
         "title": "CameraCreate",
         "type": "object"
       },
@@ -2080,7 +2205,10 @@
             "description": "Pagination metadata"
           }
         },
-        "required": ["items", "pagination"],
+        "required": [
+          "items",
+          "pagination"
+        ],
         "title": "CameraListResponse",
         "type": "object"
       },
@@ -2116,7 +2244,12 @@
             "type": "integer"
           }
         },
-        "required": ["id", "camera_id", "enabled", "risk_threshold"],
+        "required": [
+          "id",
+          "camera_id",
+          "enabled",
+          "risk_threshold"
+        ],
         "title": "CameraNotificationSettingResponse",
         "type": "object"
       },
@@ -2195,7 +2328,10 @@
             "description": "Pagination metadata"
           }
         },
-        "required": ["items", "pagination"],
+        "required": [
+          "items",
+          "pagination"
+        ],
         "title": "CameraNotificationSettingsListResponse",
         "type": "object"
       },
@@ -2249,13 +2385,24 @@
             "description": "Camera status (online, offline, error, unknown)"
           }
         },
-        "required": ["id", "name", "folder_path", "status", "created_at"],
+        "required": [
+          "id",
+          "name",
+          "folder_path",
+          "status",
+          "created_at"
+        ],
         "title": "CameraResponse",
         "type": "object"
       },
       "CameraStatus": {
         "description": "Camera status values.\n\nIndicates the operational state of a camera:\n- ONLINE: Camera is active and receiving images\n- OFFLINE: Camera is not currently active (e.g., disconnected)\n- ERROR: Camera is experiencing an error condition\n- UNKNOWN: Camera status cannot be determined",
-        "enum": ["online", "offline", "error", "unknown"],
+        "enum": [
+          "online",
+          "offline",
+          "error",
+          "unknown"
+        ],
         "title": "CameraStatus",
         "type": "string"
       },
@@ -2342,7 +2489,12 @@
             "type": "number"
           }
         },
-        "required": ["camera_id", "camera_name", "uptime_percentage", "detection_count"],
+        "required": [
+          "camera_id",
+          "camera_name",
+          "uptime_percentage",
+          "detection_count"
+        ],
         "title": "CameraUptimeDataPoint",
         "type": "object"
       },
@@ -2388,7 +2540,11 @@
             "type": "string"
           }
         },
-        "required": ["cameras", "start_date", "end_date"],
+        "required": [
+          "cameras",
+          "start_date",
+          "end_date"
+        ],
         "title": "CameraUptimeResponse",
         "type": "object"
       },
@@ -2419,7 +2575,11 @@
             "type": "integer"
           }
         },
-        "required": ["total", "healthy", "unhealthy"],
+        "required": [
+          "total",
+          "healthy",
+          "unhealthy"
+        ],
         "title": "CategorySummary",
         "type": "object"
       },
@@ -2482,13 +2642,23 @@
             "description": "State before reset"
           }
         },
-        "required": ["name", "previous_state", "new_state", "message"],
+        "required": [
+          "name",
+          "previous_state",
+          "new_state",
+          "message"
+        ],
         "title": "CircuitBreakerResetResponse",
         "type": "object"
       },
       "CircuitBreakerStateEnum": {
         "description": "Circuit breaker states.",
-        "enum": ["closed", "open", "half_open", "unavailable"],
+        "enum": [
+          "closed",
+          "open",
+          "half_open",
+          "unavailable"
+        ],
         "title": "CircuitBreakerStateEnum",
         "type": "string"
       },
@@ -2628,7 +2798,13 @@
             "type": "integer"
           }
         },
-        "required": ["total", "closed", "open", "half_open", "breakers"],
+        "required": [
+          "total",
+          "closed",
+          "open",
+          "half_open",
+          "breakers"
+        ],
         "title": "CircuitBreakerSummary",
         "type": "object"
       },
@@ -2683,13 +2859,22 @@
             "type": "integer"
           }
         },
-        "required": ["circuit_breakers", "total_count", "open_count", "timestamp"],
+        "required": [
+          "circuit_breakers",
+          "total_count",
+          "open_count",
+          "timestamp"
+        ],
         "title": "CircuitBreakersResponse",
         "type": "object"
       },
       "CircuitState": {
         "description": "Circuit breaker state for a service.\n\nStates:\n- closed: Normal operation, requests pass through\n- open: Service failing, requests fail immediately\n- half_open: Testing recovery, limited requests allowed",
-        "enum": ["closed", "open", "half_open"],
+        "enum": [
+          "closed",
+          "open",
+          "half_open"
+        ],
         "title": "CircuitState",
         "type": "string"
       },
@@ -2727,7 +2912,12 @@
             "type": "integer"
           }
         },
-        "required": ["object_class", "hour", "frequency", "sample_count"],
+        "required": [
+          "object_class",
+          "hour",
+          "frequency",
+          "sample_count"
+        ],
         "title": "ClassBaselineEntry",
         "type": "object"
       },
@@ -2751,7 +2941,11 @@
           ],
           "most_common_class": "person",
           "total_samples": 150,
-          "unique_classes": ["person", "vehicle", "animal"]
+          "unique_classes": [
+            "person",
+            "vehicle",
+            "animal"
+          ]
         },
         "properties": {
           "camera_id": {
@@ -2794,7 +2988,10 @@
             "type": "array"
           }
         },
-        "required": ["camera_id", "total_samples"],
+        "required": [
+          "camera_id",
+          "total_samples"
+        ],
         "title": "ClassBaselineResponse",
         "type": "object"
       },
@@ -2941,7 +3138,13 @@
             "type": "string"
           }
         },
-        "required": ["running", "retention_days", "cleanup_time", "delete_images", "timestamp"],
+        "required": [
+          "running",
+          "retention_days",
+          "cleanup_time",
+          "delete_images",
+          "timestamp"
+        ],
         "title": "CleanupStatusResponse",
         "type": "object"
       },
@@ -2954,7 +3157,9 @@
             "type": "string"
           }
         },
-        "required": ["confirm"],
+        "required": [
+          "confirm"
+        ],
         "title": "ClearDataRequest",
         "type": "object"
       },
@@ -2974,7 +3179,11 @@
             "type": "integer"
           }
         },
-        "required": ["cameras_cleared", "events_cleared", "detections_cleared"],
+        "required": [
+          "cameras_cleared",
+          "events_cleared",
+          "detections_cleared"
+        ],
         "title": "ClearDataResponse",
         "type": "object"
       },
@@ -3069,7 +3278,10 @@
             "description": "Status of clip generation"
           }
         },
-        "required": ["event_id", "status"],
+        "required": [
+          "event_id",
+          "status"
+        ],
         "title": "ClipGenerateResponse",
         "type": "object"
       },
@@ -3144,13 +3356,20 @@
             "title": "Generated At"
           }
         },
-        "required": ["event_id", "clip_available"],
+        "required": [
+          "event_id",
+          "clip_available"
+        ],
         "title": "ClipInfoResponse",
         "type": "object"
       },
       "ClipStatus": {
         "description": "Status of clip generation.",
-        "enum": ["pending", "completed", "failed"],
+        "enum": [
+          "pending",
+          "completed",
+          "failed"
+        ],
         "title": "ClipStatus",
         "type": "string"
       },
@@ -3385,14 +3604,24 @@
       },
       "ContainerServiceStatus": {
         "description": "Current status of a managed container service.\n\nStatus values:\n- RUNNING: Container is up and passing health checks\n- STARTING: Container is starting, not yet healthy\n- UNHEALTHY: Running but failing health checks\n- STOPPED: Container is not running\n- DISABLED: Exceeded failure limit, requires manual reset\n- NOT_FOUND: Container doesn't exist yet",
-        "enum": ["running", "starting", "unhealthy", "stopped", "disabled", "not_found"],
+        "enum": [
+          "running",
+          "starting",
+          "unhealthy",
+          "stopped",
+          "disabled",
+          "not_found"
+        ],
         "title": "ContainerServiceStatus",
         "type": "string"
       },
       "CurrentDeviation": {
         "description": "Current activity deviation from established baseline.",
         "example": {
-          "contributing_factors": ["person_count_elevated", "unusual_hour"],
+          "contributing_factors": [
+            "person_count_elevated",
+            "unusual_hour"
+          ],
           "interpretation": "slightly_above_normal",
           "score": 1.8
         },
@@ -3415,7 +3644,10 @@
             "type": "number"
           }
         },
-        "required": ["score", "interpretation"],
+        "required": [
+          "score",
+          "interpretation"
+        ],
         "title": "CurrentDeviation",
         "type": "object"
       },
@@ -3464,7 +3696,10 @@
             "type": "number"
           }
         },
-        "required": ["event_id", "custom_prompt"],
+        "required": [
+          "event_id",
+          "custom_prompt"
+        ],
         "title": "CustomTestPromptRequest",
         "type": "object"
       },
@@ -3581,7 +3816,11 @@
             "type": "boolean"
           }
         },
-        "required": ["success", "message", "queue_name"],
+        "required": [
+          "success",
+          "message",
+          "queue_name"
+        ],
         "title": "DLQClearResponse",
         "type": "object"
       },
@@ -3604,7 +3843,10 @@
             "timestamp": "2025-12-23T10:30:00.000000"
           },
           "queue_name": "detection_queue",
-          "retry_delays": [1.0, 2.0],
+          "retry_delays": [
+            1.0,
+            2.0
+          ],
           "stack_trace": "Traceback (most recent call last):\n  ..."
         },
         "properties": {
@@ -3769,13 +4011,20 @@
             "type": "string"
           }
         },
-        "required": ["queue_name", "jobs", "count"],
+        "required": [
+          "queue_name",
+          "jobs",
+          "count"
+        ],
         "title": "DLQJobsResponse",
         "type": "object"
       },
       "DLQName": {
         "description": "Available dead-letter queue names.",
-        "enum": ["dlq:detection_queue", "dlq:analysis_queue"],
+        "enum": [
+          "dlq:detection_queue",
+          "dlq:analysis_queue"
+        ],
         "title": "DLQName",
         "type": "string"
       },
@@ -3815,7 +4064,10 @@
             "type": "boolean"
           }
         },
-        "required": ["success", "message"],
+        "required": [
+          "success",
+          "message"
+        ],
         "title": "DLQRequeueResponse",
         "type": "object"
       },
@@ -3846,7 +4098,11 @@
             "type": "integer"
           }
         },
-        "required": ["detection_queue_count", "analysis_queue_count", "total_count"],
+        "required": [
+          "detection_queue_count",
+          "analysis_queue_count",
+          "total_count"
+        ],
         "title": "DLQStatsResponse",
         "type": "object"
       },
@@ -3878,7 +4134,11 @@
             "type": "integer"
           }
         },
-        "required": ["avg_detections", "peak_hour", "total_samples"],
+        "required": [
+          "avg_detections",
+          "peak_hour",
+          "total_samples"
+        ],
         "title": "DailyPattern",
         "type": "object"
       },
@@ -3900,7 +4160,10 @@
             "type": "string"
           }
         },
-        "required": ["circuit_breakers", "timestamp"],
+        "required": [
+          "circuit_breakers",
+          "timestamp"
+        ],
         "title": "DebugCircuitBreakersResponse",
         "type": "object"
       },
@@ -3919,7 +4182,10 @@
             "type": "string"
           }
         },
-        "required": ["config", "timestamp"],
+        "required": [
+          "config",
+          "timestamp"
+        ],
         "title": "DebugConfigResponse",
         "type": "object"
       },
@@ -3959,20 +4225,35 @@
             "type": "boolean"
           }
         },
-        "required": ["connection_count", "is_listening", "is_degraded", "circuit_state"],
+        "required": [
+          "connection_count",
+          "is_listening",
+          "is_degraded",
+          "circuit_state"
+        ],
         "title": "DebugWebSocketBroadcasterStatus",
         "type": "object"
       },
       "DegradationModeEnum": {
         "description": "System degradation modes.",
-        "enum": ["normal", "degraded", "minimal", "offline"],
+        "enum": [
+          "normal",
+          "degraded",
+          "minimal",
+          "offline"
+        ],
         "title": "DegradationModeEnum",
         "type": "string"
       },
       "DegradationStatusResponse": {
         "description": "Status information for the DegradationManager service.",
         "example": {
-          "available_features": ["detection", "analysis", "events", "media"],
+          "available_features": [
+            "detection",
+            "analysis",
+            "events",
+            "media"
+          ],
           "fallback_queues": {},
           "is_degraded": false,
           "memory_queue_size": 0,
@@ -4033,7 +4314,12 @@
             "type": "array"
           }
         },
-        "required": ["mode", "is_degraded", "redis_healthy", "memory_queue_size"],
+        "required": [
+          "mode",
+          "is_degraded",
+          "redis_healthy",
+          "memory_queue_size"
+        ],
         "title": "DegradationStatusResponse",
         "type": "object"
       },
@@ -4071,7 +4357,10 @@
             "description": "Pagination metadata"
           }
         },
-        "required": ["items", "pagination"],
+        "required": [
+          "items",
+          "pagination"
+        ],
         "title": "DeletedCamerasListResponse",
         "type": "object"
       },
@@ -4082,7 +4371,13 @@
             {
               "camera_id": "front_door",
               "detection_count": 5,
-              "detection_ids": [1, 2, 3, 4, 5],
+              "detection_ids": [
+                1,
+                2,
+                3,
+                4,
+                5
+              ],
               "ended_at": "2025-12-23T12:02:30Z",
               "id": 1,
               "reasoning": "Analysis details",
@@ -4115,7 +4410,10 @@
             "description": "Pagination metadata"
           }
         },
-        "required": ["items", "pagination"],
+        "required": [
+          "items",
+          "pagination"
+        ],
         "title": "DeletedEventsListResponse",
         "type": "object"
       },
@@ -4261,7 +4559,9 @@
             "type": "array"
           }
         },
-        "required": ["detections"],
+        "required": [
+          "detections"
+        ],
         "title": "DetectionBulkCreateRequest",
         "type": "object"
       },
@@ -4302,7 +4602,11 @@
             "type": "integer"
           }
         },
-        "required": ["total", "succeeded", "failed"],
+        "required": [
+          "total",
+          "succeeded",
+          "failed"
+        ],
         "title": "DetectionBulkCreateResponse",
         "type": "object"
       },
@@ -4320,7 +4624,9 @@
             "type": "array"
           }
         },
-        "required": ["detection_ids"],
+        "required": [
+          "detection_ids"
+        ],
         "title": "DetectionBulkDeleteRequest",
         "type": "object"
       },
@@ -4375,7 +4681,9 @@
             "title": "Object Type"
           }
         },
-        "required": ["id"],
+        "required": [
+          "id"
+        ],
         "title": "DetectionBulkUpdateItem",
         "type": "object"
       },
@@ -4393,7 +4701,9 @@
             "type": "array"
           }
         },
-        "required": ["detections"],
+        "required": [
+          "detections"
+        ],
         "title": "DetectionBulkUpdateRequest",
         "type": "object"
       },
@@ -4450,7 +4760,10 @@
             "description": "Pagination metadata"
           }
         },
-        "required": ["items", "pagination"],
+        "required": [
+          "items",
+          "pagination"
+        ],
         "title": "DetectionListResponse",
         "type": "object"
       },
@@ -4468,7 +4781,9 @@
             "errors": [],
             "person": {
               "action": "walking",
-              "carrying": ["backpack"],
+              "carrying": [
+                "backpack"
+              ],
               "clothing_description": "dark jacket",
               "is_suspicious": false
             },
@@ -4680,7 +4995,12 @@
             "title": "Video Width"
           }
         },
-        "required": ["id", "camera_id", "file_path", "detected_at"],
+        "required": [
+          "id",
+          "camera_id",
+          "file_path",
+          "detected_at"
+        ],
         "title": "DetectionResponse",
         "type": "object"
       },
@@ -4723,7 +5043,10 @@
             "type": "integer"
           }
         },
-        "required": ["total_detections", "detections_by_class"],
+        "required": [
+          "total_detections",
+          "detections_by_class"
+        ],
         "title": "DetectionStatsResponse",
         "type": "object"
       },
@@ -4747,7 +5070,10 @@
             "type": "string"
           }
         },
-        "required": ["date", "count"],
+        "required": [
+          "date",
+          "count"
+        ],
         "title": "DetectionTrendDataPoint",
         "type": "object"
       },
@@ -4800,7 +5126,12 @@
             "type": "integer"
           }
         },
-        "required": ["data_points", "total_detections", "start_date", "end_date"],
+        "required": [
+          "data_points",
+          "total_detections",
+          "start_date",
+          "end_date"
+        ],
         "title": "DetectionTrendsResponse",
         "type": "object"
       },
@@ -5048,13 +5379,20 @@
             "title": "Weather"
           }
         },
-        "required": ["detection_id"],
+        "required": [
+          "detection_id"
+        ],
         "title": "EnrichmentResponse",
         "type": "object"
       },
       "EnrichmentStatusEnum": {
         "description": "Status of enrichment pipeline execution for an event.\n\nValues:\n    full: All enrichment models succeeded\n    partial: Some models succeeded, some failed\n    failed: All models failed (no enrichment data)\n    skipped: Enrichment was not attempted",
-        "enum": ["full", "partial", "failed", "skipped"],
+        "enum": [
+          "full",
+          "partial",
+          "failed",
+          "skipped"
+        ],
         "title": "EnrichmentStatusEnum",
         "type": "string"
       },
@@ -5064,10 +5402,16 @@
           "errors": {
             "clothing": "Model not loaded"
           },
-          "failed_models": ["clothing"],
+          "failed_models": [
+            "clothing"
+          ],
           "status": "partial",
           "success_rate": 0.75,
-          "successful_models": ["violence", "weather", "face"]
+          "successful_models": [
+            "violence",
+            "weather",
+            "face"
+          ]
         },
         "properties": {
           "errors": {
@@ -5106,7 +5450,10 @@
             "type": "array"
           }
         },
-        "required": ["status", "success_rate"],
+        "required": [
+          "status",
+          "success_rate"
+        ],
         "title": "EnrichmentStatusResponse",
         "type": "object"
       },
@@ -5186,7 +5533,11 @@
             "type": "string"
           }
         },
-        "required": ["detection_id", "camera_id", "timestamp"],
+        "required": [
+          "detection_id",
+          "camera_id",
+          "timestamp"
+        ],
         "title": "EntityAppearance",
         "type": "object"
       },
@@ -5219,7 +5570,10 @@
               "timestamp": "2025-12-23T12:15:00Z"
             }
           ],
-          "cameras_seen": ["front_door", "backyard"],
+          "cameras_seen": [
+            "front_door",
+            "backyard"
+          ],
           "entity_type": "person",
           "first_seen": "2025-12-23T10:00:00Z",
           "id": "entity_abc123",
@@ -5284,7 +5638,13 @@
             "title": "Thumbnail Url"
           }
         },
-        "required": ["id", "entity_type", "first_seen", "last_seen", "appearance_count"],
+        "required": [
+          "id",
+          "entity_type",
+          "first_seen",
+          "last_seen",
+          "appearance_count"
+        ],
         "title": "EntityDetail",
         "type": "object"
       },
@@ -5331,7 +5691,12 @@
             "type": "string"
           }
         },
-        "required": ["entity_id", "entity_type", "appearances", "count"],
+        "required": [
+          "entity_id",
+          "entity_type",
+          "appearances",
+          "count"
+        ],
         "title": "EntityHistoryResponse",
         "type": "object"
       },
@@ -5341,7 +5706,10 @@
           "items": [
             {
               "appearance_count": 5,
-              "cameras_seen": ["front_door", "backyard"],
+              "cameras_seen": [
+                "front_door",
+                "backyard"
+              ],
               "entity_type": "person",
               "first_seen": "2025-12-23T10:00:00Z",
               "id": "entity_abc123",
@@ -5370,7 +5738,10 @@
             "description": "Pagination metadata"
           }
         },
-        "required": ["items", "pagination"],
+        "required": [
+          "items",
+          "pagination"
+        ],
         "title": "EntityListResponse",
         "type": "object"
       },
@@ -5378,7 +5749,11 @@
         "description": "Schema for entity summary in list responses.\n\nProvides an overview of a tracked entity without the full appearance history.",
         "example": {
           "appearance_count": 5,
-          "cameras_seen": ["front_door", "backyard", "driveway"],
+          "cameras_seen": [
+            "front_door",
+            "backyard",
+            "driveway"
+          ],
           "entity_type": "person",
           "first_seen": "2025-12-23T10:00:00Z",
           "id": "entity_abc123",
@@ -5435,13 +5810,22 @@
             "title": "Thumbnail Url"
           }
         },
-        "required": ["id", "entity_type", "first_seen", "last_seen", "appearance_count"],
+        "required": [
+          "id",
+          "entity_type",
+          "first_seen",
+          "last_seen",
+          "appearance_count"
+        ],
         "title": "EntitySummary",
         "type": "object"
       },
       "EntityTypeEnum": {
         "description": "Valid entity types for filtering.",
-        "enum": ["person", "vehicle"],
+        "enum": [
+          "person",
+          "vehicle"
+        ],
         "title": "EntityTypeEnum",
         "type": "string"
       },
@@ -5471,7 +5855,9 @@
           "improvements": {
             "confusing_sections": [],
             "format_suggestions": [],
-            "missing_context": ["Time since last motion event"],
+            "missing_context": [
+              "Time since last motion event"
+            ],
             "model_gaps": [],
             "unused_data": []
           },
@@ -5654,7 +6040,14 @@
             "type": "string"
           }
         },
-        "required": ["batch_id", "camera_id", "started_at", "risk_score", "risk_level", "summary"],
+        "required": [
+          "batch_id",
+          "camera_id",
+          "started_at",
+          "risk_score",
+          "risk_level",
+          "summary"
+        ],
         "title": "EventBulkCreateItem",
         "type": "object"
       },
@@ -5672,7 +6065,9 @@
             "type": "array"
           }
         },
-        "required": ["events"],
+        "required": [
+          "events"
+        ],
         "title": "EventBulkCreateRequest",
         "type": "object"
       },
@@ -5713,7 +6108,11 @@
             "type": "integer"
           }
         },
-        "required": ["total", "succeeded", "failed"],
+        "required": [
+          "total",
+          "succeeded",
+          "failed"
+        ],
         "title": "EventBulkCreateResponse",
         "type": "object"
       },
@@ -5737,7 +6136,9 @@
             "type": "boolean"
           }
         },
-        "required": ["event_ids"],
+        "required": [
+          "event_ids"
+        ],
         "title": "EventBulkDeleteRequest",
         "type": "object"
       },
@@ -5776,7 +6177,9 @@
             "title": "Reviewed"
           }
         },
-        "required": ["id"],
+        "required": [
+          "id"
+        ],
         "title": "EventBulkUpdateItem",
         "type": "object"
       },
@@ -5794,7 +6197,9 @@
             "type": "array"
           }
         },
-        "required": ["events"],
+        "required": [
+          "events"
+        ],
         "title": "EventBulkUpdateRequest",
         "type": "object"
       },
@@ -5881,7 +6286,15 @@
             "type": "integer"
           }
         },
-        "required": ["event_id", "enrichments", "count", "total", "limit", "offset", "has_more"],
+        "required": [
+          "event_id",
+          "enrichments",
+          "count",
+          "total",
+          "limit",
+          "offset",
+          "has_more"
+        ],
         "title": "EventEnrichmentsResponse",
         "type": "object"
       },
@@ -5892,7 +6305,13 @@
             {
               "camera_id": "front_door",
               "detection_count": 5,
-              "detection_ids": [1, 2, 3, 4, 5],
+              "detection_ids": [
+                1,
+                2,
+                3,
+                4,
+                5
+              ],
               "ended_at": "2025-12-23T12:02:30Z",
               "id": 1,
               "reasoning": "Person approaching entrance during daytime",
@@ -5938,14 +6357,24 @@
             "description": "Pagination metadata"
           }
         },
-        "required": ["items", "pagination"],
+        "required": [
+          "items",
+          "pagination"
+        ],
         "title": "EventListResponse",
         "type": "object"
       },
       "EventRegistryResponse": {
         "description": "Response containing the complete WebSocket event registry.",
         "example": {
-          "channels": ["detections", "events", "alerts", "cameras", "jobs", "system"],
+          "channels": [
+            "detections",
+            "events",
+            "alerts",
+            "cameras",
+            "jobs",
+            "system"
+          ],
           "deprecated_count": 3,
           "event_types": [],
           "total_count": 25
@@ -5978,7 +6407,12 @@
             "type": "integer"
           }
         },
-        "required": ["event_types", "channels", "total_count", "deprecated_count"],
+        "required": [
+          "event_types",
+          "channels",
+          "total_count",
+          "deprecated_count"
+        ],
         "title": "EventRegistryResponse",
         "type": "object"
       },
@@ -5987,14 +6421,25 @@
         "example": {
           "camera_id": "front_door",
           "detection_count": 5,
-          "detection_ids": [1, 2, 3, 4, 5],
+          "detection_ids": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
           "ended_at": "2025-12-23T12:02:30Z",
           "enrichment_status": {
             "errors": {},
             "failed_models": [],
             "status": "full",
             "success_rate": 1.0,
-            "successful_models": ["violence", "weather", "face", "clothing"]
+            "successful_models": [
+              "violence",
+              "weather",
+              "face",
+              "clothing"
+            ]
           },
           "id": 1,
           "llm_prompt": "<|im_start|>system\nYou are a home security risk analyzer...",
@@ -6152,7 +6597,11 @@
             "title": "Thumbnail Url"
           }
         },
-        "required": ["id", "camera_id", "started_at"],
+        "required": [
+          "id",
+          "camera_id",
+          "started_at"
+        ],
         "title": "EventResponse",
         "type": "object"
       },
@@ -6198,7 +6647,11 @@
             "type": "integer"
           }
         },
-        "required": ["total_events", "events_by_risk_level", "events_by_camera"],
+        "required": [
+          "total_events",
+          "events_by_risk_level",
+          "events_by_camera"
+        ],
         "title": "EventStatsResponse",
         "type": "object"
       },
@@ -6288,7 +6741,11 @@
             "type": "string"
           }
         },
-        "required": ["type", "description", "payload_schema"],
+        "required": [
+          "type",
+          "description",
+          "payload_schema"
+        ],
         "title": "EventTypeInfo",
         "type": "object"
       },
@@ -6351,7 +6808,11 @@
             "type": "integer"
           }
         },
-        "required": ["camera_id", "camera_name", "event_count"],
+        "required": [
+          "camera_id",
+          "camera_name",
+          "event_count"
+        ],
         "title": "EventsByCamera",
         "type": "object"
       },
@@ -6462,7 +6923,12 @@
             "type": "boolean"
           }
         },
-        "required": ["running", "camera_root", "pending_tasks", "observer_type"],
+        "required": [
+          "running",
+          "camera_root",
+          "pending_tasks",
+          "observer_type"
+        ],
         "title": "FileWatcherStatusResponse",
         "type": "object"
       },
@@ -6540,7 +7006,11 @@
             "title": "User Agent"
           }
         },
-        "required": ["level", "component", "message"],
+        "required": [
+          "level",
+          "component",
+          "message"
+        ],
         "title": "FrontendLogCreate",
         "type": "object"
       },
@@ -6688,7 +7158,11 @@
             "type": "array"
           }
         },
-        "required": ["samples", "count", "limit"],
+        "required": [
+          "samples",
+          "count",
+          "limit"
+        ],
         "title": "GPUStatsHistoryResponse",
         "type": "object"
       },
@@ -6898,7 +7372,9 @@
             "title": "Utilization"
           }
         },
-        "required": ["recorded_at"],
+        "required": [
+          "recorded_at"
+        ],
         "title": "GPUStatsSample",
         "type": "object"
       },
@@ -6949,7 +7425,9 @@
             "type": "string"
           }
         },
-        "required": ["status"],
+        "required": [
+          "status"
+        ],
         "title": "HealthCheckServiceStatus",
         "type": "object"
       },
@@ -6991,7 +7469,11 @@
             "type": "string"
           }
         },
-        "required": ["timestamp", "service", "event_type"],
+        "required": [
+          "timestamp",
+          "service",
+          "event_type"
+        ],
         "title": "HealthEventResponse",
         "type": "object"
       },
@@ -7061,7 +7543,11 @@
             "type": "string"
           }
         },
-        "required": ["status", "services", "timestamp"],
+        "required": [
+          "status",
+          "services",
+          "timestamp"
+        ],
         "title": "HealthResponse",
         "type": "object"
       },
@@ -7092,7 +7578,11 @@
             "type": "number"
           }
         },
-        "required": ["avg_detections", "std_dev", "sample_count"],
+        "required": [
+          "avg_detections",
+          "std_dev",
+          "sample_count"
+        ],
         "title": "HourlyPattern",
         "type": "object"
       },
@@ -7210,7 +7700,11 @@
             "description": "Current health state"
           }
         },
-        "required": ["name", "status", "message"],
+        "required": [
+          "name",
+          "status",
+          "message"
+        ],
         "title": "InfrastructureHealthStatus",
         "type": "object"
       },
@@ -7238,7 +7732,10 @@
             "type": "string"
           }
         },
-        "required": ["timestamp", "stages"],
+        "required": [
+          "timestamp",
+          "stages"
+        ],
         "title": "LatencyHistorySnapshot",
         "type": "object"
       },
@@ -7272,7 +7769,13 @@
             "type": "integer"
           }
         },
-        "required": ["avg_ms", "p50_ms", "p95_ms", "p99_ms", "sample_count"],
+        "required": [
+          "avg_ms",
+          "p50_ms",
+          "p95_ms",
+          "p99_ms",
+          "sample_count"
+        ],
         "title": "LatencyHistoryStageStats",
         "type": "object"
       },
@@ -7308,14 +7811,22 @@
             "type": "integer"
           }
         },
-        "required": ["entries", "period_days"],
+        "required": [
+          "entries",
+          "period_days"
+        ],
         "title": "LeaderboardResponse",
         "type": "object"
       },
       "LicensePlateEnrichment": {
         "description": "License plate detection and OCR results.",
         "example": {
-          "bbox": [100.0, 200.0, 300.0, 250.0],
+          "bbox": [
+            100.0,
+            200.0,
+            300.0,
+            250.0
+          ],
           "confidence": 0.92,
           "detected": true,
           "ocr_confidence": 0.88,
@@ -7526,7 +8037,13 @@
             "type": "string"
           }
         },
-        "required": ["id", "timestamp", "level", "component", "message"],
+        "required": [
+          "id",
+          "timestamp",
+          "level",
+          "component",
+          "message"
+        ],
         "title": "LogEntry",
         "type": "object"
       },
@@ -7539,7 +8056,9 @@
             "type": "string"
           }
         },
-        "required": ["level"],
+        "required": [
+          "level"
+        ],
         "title": "LogLevelRequest",
         "type": "object"
       },
@@ -7569,7 +8088,10 @@
             "type": "string"
           }
         },
-        "required": ["level", "timestamp"],
+        "required": [
+          "level",
+          "timestamp"
+        ],
         "title": "LogLevelResponse",
         "type": "object"
       },
@@ -7641,7 +8163,13 @@
             "type": "integer"
           }
         },
-        "required": ["total_today", "errors_today", "warnings_today", "by_component", "by_level"],
+        "required": [
+          "total_today",
+          "errors_today",
+          "warnings_today",
+          "by_component",
+          "by_level"
+        ],
         "title": "LogStats",
         "type": "object"
       },
@@ -7683,7 +8211,10 @@
             "description": "Pagination metadata"
           }
         },
-        "required": ["items", "pagination"],
+        "required": [
+          "items",
+          "pagination"
+        ],
         "title": "LogsResponse",
         "type": "object"
       },
@@ -7709,7 +8240,10 @@
             "type": "string"
           }
         },
-        "required": ["error", "path"],
+        "required": [
+          "error",
+          "path"
+        ],
         "title": "MediaErrorResponse",
         "type": "object"
       },
@@ -7902,7 +8436,9 @@
             "type": "string"
           }
         },
-        "required": ["timestamp"],
+        "required": [
+          "timestamp"
+        ],
         "title": "ModelLatencyHistorySnapshot",
         "type": "object"
       },
@@ -7934,7 +8470,12 @@
             "type": "integer"
           }
         },
-        "required": ["avg_ms", "p50_ms", "p95_ms", "sample_count"],
+        "required": [
+          "avg_ms",
+          "p50_ms",
+          "p95_ms",
+          "sample_count"
+        ],
         "title": "ModelLatencyStageStats",
         "type": "object"
       },
@@ -7971,7 +8512,12 @@
             "title": "Quality Correlation"
           }
         },
-        "required": ["model_name", "contribution_rate", "quality_correlation", "event_count"],
+        "required": [
+          "model_name",
+          "contribution_rate",
+          "quality_correlation",
+          "event_count"
+        ],
         "title": "ModelLeaderboardEntry",
         "type": "object"
       },
@@ -8012,7 +8558,12 @@
             "type": "integer"
           }
         },
-        "required": ["model_name", "config", "version", "updated_at"],
+        "required": [
+          "model_name",
+          "config",
+          "version",
+          "updated_at"
+        ],
         "title": "ModelPromptResponse",
         "type": "object"
       },
@@ -8067,13 +8618,24 @@
             "type": "integer"
           }
         },
-        "required": ["vram_budget_mb", "vram_used_mb", "vram_available_mb", "models"],
+        "required": [
+          "vram_budget_mb",
+          "vram_used_mb",
+          "vram_available_mb",
+          "models"
+        ],
         "title": "ModelRegistryResponse",
         "type": "object"
       },
       "ModelStatusEnum": {
         "description": "Model loading status.",
-        "enum": ["loaded", "unloaded", "disabled", "loading", "error"],
+        "enum": [
+          "loaded",
+          "unloaded",
+          "disabled",
+          "loading",
+          "error"
+        ],
         "title": "ModelStatusEnum",
         "type": "string"
       },
@@ -8199,7 +8761,14 @@
             "type": "integer"
           }
         },
-        "required": ["name", "display_name", "category", "status", "vram_mb", "enabled"],
+        "required": [
+          "name",
+          "display_name",
+          "category",
+          "status",
+          "vram_mb",
+          "enabled"
+        ],
         "title": "ModelZooStatusItem",
         "type": "object"
       },
@@ -8283,15 +8852,24 @@
       },
       "NotificationChannel": {
         "description": "Notification channel types.",
-        "enum": ["email", "webhook", "push"],
+        "enum": [
+          "email",
+          "webhook",
+          "push"
+        ],
         "title": "NotificationChannel",
         "type": "string"
       },
       "NotificationConfigResponse": {
         "description": "Schema for notification configuration status.",
         "example": {
-          "available_channels": ["email", "webhook"],
-          "default_email_recipients": ["user@example.com"],
+          "available_channels": [
+            "email",
+            "webhook"
+          ],
+          "default_email_recipients": [
+            "user@example.com"
+          ],
           "default_webhook_url": "https://example.com/webhook",
           "email_configured": true,
           "notification_enabled": true,
@@ -8428,7 +9006,11 @@
         "example": {
           "enabled": true,
           "id": 1,
-          "risk_filters": ["critical", "high", "medium"],
+          "risk_filters": [
+            "critical",
+            "high",
+            "medium"
+          ],
           "sound": "default"
         },
         "properties": {
@@ -8457,7 +9039,11 @@
             "type": "string"
           }
         },
-        "required": ["enabled", "sound", "risk_filters"],
+        "required": [
+          "enabled",
+          "sound",
+          "risk_filters"
+        ],
         "title": "NotificationPreferencesResponse",
         "type": "object"
       },
@@ -8465,7 +9051,10 @@
         "description": "Schema for updating notification preferences.",
         "example": {
           "enabled": true,
-          "risk_filters": ["critical", "high"],
+          "risk_filters": [
+            "critical",
+            "high"
+          ],
           "sound": "alert"
         },
         "properties": {
@@ -8540,7 +9129,11 @@
             "type": "integer"
           }
         },
-        "required": ["avg_hourly", "peak_hour", "total_detections"],
+        "required": [
+          "avg_hourly",
+          "peak_hour",
+          "total_detections"
+        ],
         "title": "ObjectBaseline",
         "type": "object"
       },
@@ -8571,7 +9164,11 @@
             "type": "number"
           }
         },
-        "required": ["object_type", "count", "percentage"],
+        "required": [
+          "object_type",
+          "count",
+          "percentage"
+        ],
         "title": "ObjectDistributionDataPoint",
         "type": "object"
       },
@@ -8627,7 +9224,12 @@
             "type": "integer"
           }
         },
-        "required": ["object_types", "total_detections", "start_date", "end_date"],
+        "required": [
+          "object_types",
+          "total_detections",
+          "start_date",
+          "end_date"
+        ],
         "title": "ObjectDistributionResponse",
         "type": "object"
       },
@@ -8691,7 +9293,10 @@
             "type": "integer"
           }
         },
-        "required": ["total", "limit"],
+        "required": [
+          "total",
+          "limit"
+        ],
         "title": "PaginationInfo",
         "type": "object"
       },
@@ -8761,7 +9366,11 @@
             "type": "integer"
           }
         },
-        "required": ["total", "limit", "has_more"],
+        "required": [
+          "total",
+          "limit",
+          "has_more"
+        ],
         "title": "PaginationMeta",
         "type": "object"
       },
@@ -8960,7 +9569,12 @@
             "type": "integer"
           }
         },
-        "required": ["snapshots", "window_minutes", "bucket_seconds", "timestamp"],
+        "required": [
+          "snapshots",
+          "window_minutes",
+          "bucket_seconds",
+          "timestamp"
+        ],
         "title": "PipelineLatencyHistoryResponse",
         "type": "object"
       },
@@ -9064,7 +9678,10 @@
             "type": "integer"
           }
         },
-        "required": ["window_minutes", "timestamp"],
+        "required": [
+          "window_minutes",
+          "timestamp"
+        ],
         "title": "PipelineLatencyResponse",
         "type": "object"
       },
@@ -9165,7 +9782,9 @@
             "type": "integer"
           }
         },
-        "required": ["sample_count"],
+        "required": [
+          "sample_count"
+        ],
         "title": "PipelineStageLatency",
         "type": "object"
       },
@@ -9206,7 +9825,11 @@
             "description": "Worker status"
           }
         },
-        "required": ["queue_depths", "workers", "timestamp"],
+        "required": [
+          "queue_depths",
+          "workers",
+          "timestamp"
+        ],
         "title": "PipelineStateResponse",
         "type": "object"
       },
@@ -9220,7 +9843,12 @@
             "idle_timeout_seconds": 30
           },
           "degradation": {
-            "available_features": ["detection", "analysis", "events", "media"],
+            "available_features": [
+              "detection",
+              "analysis",
+              "events",
+              "media"
+            ],
             "fallback_queues": {},
             "is_degraded": false,
             "memory_queue_size": 0,
@@ -9277,7 +9905,9 @@
             "type": "string"
           }
         },
-        "required": ["timestamp"],
+        "required": [
+          "timestamp"
+        ],
         "title": "PipelineStatusResponse",
         "type": "object"
       },
@@ -9313,7 +9943,10 @@
             "type": "boolean"
           }
         },
-        "required": ["name", "running"],
+        "required": [
+          "name",
+          "running"
+        ],
         "title": "PipelineWorkerStatus",
         "type": "object"
       },
@@ -9333,7 +9966,11 @@
             "description": "File watcher status"
           }
         },
-        "required": ["file_watcher", "detector", "analyzer"],
+        "required": [
+          "file_watcher",
+          "detector",
+          "analyzer"
+        ],
         "title": "PipelineWorkersStatus",
         "type": "object"
       },
@@ -9343,8 +9980,16 @@
           "action": "walking",
           "confidence": 0.82,
           "keypoints": [
-            [100, 150, 0.9],
-            [120, 160, 0.85]
+            [
+              100,
+              150,
+              0.9
+            ],
+            [
+              120,
+              160,
+              0.85
+            ]
           ]
         },
         "properties": {
@@ -9415,7 +10060,11 @@
             "type": "string"
           }
         },
-        "required": ["status", "started_at", "message"],
+        "required": [
+          "status",
+          "started_at",
+          "message"
+        ],
         "title": "ProfileStartResponse",
         "type": "object"
       },
@@ -9457,7 +10106,10 @@
             "type": "string"
           }
         },
-        "required": ["is_profiling", "timestamp"],
+        "required": [
+          "is_profiling",
+          "timestamp"
+        ],
         "title": "ProfileStatsResponse",
         "type": "object"
       },
@@ -9492,7 +10144,11 @@
             "type": "string"
           }
         },
-        "required": ["status", "stopped_at", "message"],
+        "required": [
+          "status",
+          "stopped_at",
+          "message"
+        ],
         "title": "ProfileStopResponse",
         "type": "object"
       },
@@ -9527,7 +10183,9 @@
             "type": "number"
           }
         },
-        "required": ["systemPrompt"],
+        "required": [
+          "systemPrompt"
+        ],
         "title": "PromptConfigRequest",
         "type": "object"
       },
@@ -9575,7 +10233,14 @@
             "type": "integer"
           }
         },
-        "required": ["model", "systemPrompt", "temperature", "maxTokens", "version", "updatedAt"],
+        "required": [
+          "model",
+          "systemPrompt",
+          "temperature",
+          "maxTokens",
+          "version",
+          "updatedAt"
+        ],
         "title": "PromptConfigResponse",
         "type": "object"
       },
@@ -9585,7 +10250,9 @@
           "exported_at": "2026-01-03T10:30:00Z",
           "prompts": {
             "florence2": {
-              "vqa_queries": ["What is this person wearing?"]
+              "vqa_queries": [
+                "What is this person wearing?"
+              ]
             },
             "nemotron": {
               "max_tokens": 2048,
@@ -9618,7 +10285,10 @@
             "type": "string"
           }
         },
-        "required": ["exported_at", "prompts"],
+        "required": [
+          "exported_at",
+          "prompts"
+        ],
         "title": "PromptExportResponse",
         "type": "object"
       },
@@ -9673,7 +10343,11 @@
             "type": "integer"
           }
         },
-        "required": ["version", "config", "created_at"],
+        "required": [
+          "version",
+          "config",
+          "created_at"
+        ],
         "title": "PromptHistoryEntry",
         "type": "object"
       },
@@ -9722,7 +10396,11 @@
             "type": "array"
           }
         },
-        "required": ["model_name", "versions", "total_versions"],
+        "required": [
+          "model_name",
+          "versions",
+          "total_versions"
+        ],
         "title": "PromptHistoryResponse",
         "type": "object"
       },
@@ -9755,7 +10433,9 @@
             "type": "object"
           }
         },
-        "required": ["prompts"],
+        "required": [
+          "prompts"
+        ],
         "title": "PromptImportRequest",
         "type": "object"
       },
@@ -9793,18 +10473,33 @@
             "type": "integer"
           }
         },
-        "required": ["imported_count", "skipped_count", "message"],
+        "required": [
+          "imported_count",
+          "skipped_count",
+          "message"
+        ],
         "title": "PromptImportResponse",
         "type": "object"
       },
       "PromptImprovements": {
         "description": "Prompt improvement suggestions from self-evaluation.",
         "example": {
-          "confusing_sections": ["Zone overlap handling unclear"],
-          "format_suggestions": ["Add structured detection summary"],
-          "missing_context": ["Time since last motion event", "Weather conditions"],
-          "model_gaps": ["Pet detection model not active"],
-          "unused_data": ["Vehicle color data not utilized"]
+          "confusing_sections": [
+            "Zone overlap handling unclear"
+          ],
+          "format_suggestions": [
+            "Add structured detection summary"
+          ],
+          "missing_context": [
+            "Time since last motion event",
+            "Weather conditions"
+          ],
+          "model_gaps": [
+            "Pet detection model not active"
+          ],
+          "unused_data": [
+            "Vehicle color data not utilized"
+          ]
         },
         "properties": {
           "confusing_sections": {
@@ -9894,7 +10589,12 @@
             "type": "integer"
           }
         },
-        "required": ["model_name", "restored_version", "new_version", "message"],
+        "required": [
+          "model_name",
+          "restored_version",
+          "new_version",
+          "message"
+        ],
         "title": "PromptRestoreResponse",
         "type": "object"
       },
@@ -9928,7 +10628,11 @@
             "type": "string"
           }
         },
-        "required": ["model", "config", "event_id"],
+        "required": [
+          "model",
+          "config",
+          "event_id"
+        ],
         "title": "PromptTestRequest",
         "type": "object"
       },
@@ -9969,7 +10673,12 @@
             "type": "integer"
           }
         },
-        "required": ["before", "after", "improved", "inference_time_ms"],
+        "required": [
+          "before",
+          "after",
+          "improved",
+          "inference_time_ms"
+        ],
         "title": "PromptTestResponse",
         "type": "object"
       },
@@ -9999,7 +10708,11 @@
             "type": "string"
           }
         },
-        "required": ["score", "risk_level", "summary"],
+        "required": [
+          "score",
+          "risk_level",
+          "summary"
+        ],
         "title": "PromptTestResultAfter",
         "type": "object"
       },
@@ -10029,7 +10742,11 @@
             "type": "string"
           }
         },
-        "required": ["score", "risk_level", "summary"],
+        "required": [
+          "score",
+          "risk_level",
+          "summary"
+        ],
         "title": "PromptTestResultBefore",
         "type": "object"
       },
@@ -10063,7 +10780,9 @@
             "title": "Description"
           }
         },
-        "required": ["config"],
+        "required": [
+          "config"
+        ],
         "title": "PromptUpdateRequest",
         "type": "object"
       },
@@ -10098,7 +10817,12 @@
             "type": "integer"
           }
         },
-        "required": ["model_name", "version", "message", "config"],
+        "required": [
+          "model_name",
+          "version",
+          "message",
+          "config"
+        ],
         "title": "PromptUpdateResponse",
         "type": "object"
       },
@@ -10201,14 +10925,23 @@
             "type": "integer"
           }
         },
-        "required": ["detection_queue", "analysis_queue"],
+        "required": [
+          "detection_queue",
+          "analysis_queue"
+        ],
         "title": "QueueDepths",
         "type": "object"
       },
       "QuietHoursPeriodCreate": {
         "description": "Schema for creating a quiet hours period.",
         "example": {
-          "days": ["monday", "tuesday", "wednesday", "thursday", "friday"],
+          "days": [
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday"
+          ],
           "end_time": "06:00:00",
           "label": "Night Time",
           "start_time": "22:00:00"
@@ -10242,14 +10975,24 @@
             "type": "string"
           }
         },
-        "required": ["label", "start_time", "end_time"],
+        "required": [
+          "label",
+          "start_time",
+          "end_time"
+        ],
         "title": "QuietHoursPeriodCreate",
         "type": "object"
       },
       "QuietHoursPeriodResponse": {
         "description": "Schema for quiet hours period response.",
         "example": {
-          "days": ["monday", "tuesday", "wednesday", "thursday", "friday"],
+          "days": [
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday"
+          ],
           "end_time": "06:00:00",
           "id": "550e8400-e29b-41d4-a716-446655440000",
           "label": "Night Time",
@@ -10287,7 +11030,13 @@
             "type": "string"
           }
         },
-        "required": ["id", "label", "start_time", "end_time", "days"],
+        "required": [
+          "id",
+          "label",
+          "start_time",
+          "end_time",
+          "days"
+        ],
         "title": "QuietHoursPeriodResponse",
         "type": "object"
       },
@@ -10296,7 +11045,13 @@
         "example": {
           "items": [
             {
-              "days": ["monday", "tuesday", "wednesday", "thursday", "friday"],
+              "days": [
+                "monday",
+                "tuesday",
+                "wednesday",
+                "thursday",
+                "friday"
+              ],
               "end_time": "06:00:00",
               "id": "550e8400-e29b-41d4-a716-446655440000",
               "label": "Night Time",
@@ -10324,7 +11079,10 @@
             "description": "Pagination metadata"
           }
         },
-        "required": ["items", "pagination"],
+        "required": [
+          "items",
+          "pagination"
+        ],
         "title": "QuietHoursPeriodsListResponse",
         "type": "object"
       },
@@ -10384,7 +11142,9 @@
             "title": "User Agent"
           }
         },
-        "required": ["metrics"],
+        "required": [
+          "metrics"
+        ],
         "title": "RUMBatchRequest",
         "type": "object"
       },
@@ -10422,7 +11182,11 @@
             "type": "boolean"
           }
         },
-        "required": ["success", "metrics_count", "message"],
+        "required": [
+          "success",
+          "metrics_count",
+          "message"
+        ],
         "title": "RUMIngestResponse",
         "type": "object"
       },
@@ -10509,7 +11273,12 @@
             "type": "array"
           }
         },
-        "required": ["ready", "status", "services", "timestamp"],
+        "required": [
+          "ready",
+          "status",
+          "services",
+          "timestamp"
+        ],
         "title": "ReadinessResponse",
         "type": "object"
       },
@@ -10544,7 +11313,11 @@
             "type": "string"
           }
         },
-        "required": ["timestamp", "error_type", "component"],
+        "required": [
+          "timestamp",
+          "error_type",
+          "component"
+        ],
         "title": "RecentError",
         "type": "object"
       },
@@ -10574,7 +11347,12 @@
             "type": "string"
           }
         },
-        "required": ["category", "suggestion", "frequency", "priority"],
+        "required": [
+          "category",
+          "suggestion",
+          "frequency",
+          "priority"
+        ],
         "title": "RecommendationItem",
         "type": "object"
       },
@@ -10610,7 +11388,10 @@
             "type": "integer"
           }
         },
-        "required": ["recommendations", "total_events_analyzed"],
+        "required": [
+          "recommendations",
+          "total_events_analyzed"
+        ],
         "title": "RecommendationsResponse",
         "type": "object"
       },
@@ -10654,7 +11435,14 @@
             "type": "string"
           }
         },
-        "required": ["recording_id", "timestamp", "method", "path", "status_code", "duration_ms"],
+        "required": [
+          "recording_id",
+          "timestamp",
+          "method",
+          "path",
+          "status_code",
+          "duration_ms"
+        ],
         "title": "RecordingResponse",
         "type": "object"
       },
@@ -10680,7 +11468,11 @@
             "type": "integer"
           }
         },
-        "required": ["recordings", "total", "timestamp"],
+        "required": [
+          "recordings",
+          "total",
+          "timestamp"
+        ],
         "title": "RecordingsListResponse",
         "type": "object"
       },
@@ -10724,7 +11516,10 @@
             "type": "string"
           }
         },
-        "required": ["status", "timestamp"],
+        "required": [
+          "status",
+          "timestamp"
+        ],
         "title": "RedisInfoResponse",
         "type": "object"
       },
@@ -10818,7 +11613,9 @@
             "type": "integer"
           }
         },
-        "required": ["date"],
+        "required": [
+          "date"
+        ],
         "title": "RiskHistoryDataPoint",
         "type": "object"
       },
@@ -10866,7 +11663,11 @@
             "type": "string"
           }
         },
-        "required": ["data_points", "start_date", "end_date"],
+        "required": [
+          "data_points",
+          "start_date",
+          "end_date"
+        ],
         "title": "RiskHistoryResponse",
         "type": "object"
       },
@@ -10875,9 +11676,14 @@
         "example": {
           "camera_id": "front_door",
           "event_id": 123,
-          "matched_conditions": ["risk_score >= 70", "object_type in ['person']"],
+          "matched_conditions": [
+            "risk_score >= 70",
+            "object_type in ['person']"
+          ],
           "matches": true,
-          "object_types": ["person"],
+          "object_types": [
+            "person"
+          ],
           "risk_score": 75,
           "started_at": "2025-12-28T22:15:00Z"
         },
@@ -10938,14 +11744,24 @@
             "title": "Started At"
           }
         },
-        "required": ["event_id", "camera_id", "matches"],
+        "required": [
+          "event_id",
+          "camera_id",
+          "matches"
+        ],
         "title": "RuleTestEventResult",
         "type": "object"
       },
       "RuleTestRequest": {
         "description": "Schema for testing a rule against historical events.",
         "example": {
-          "event_ids": [1, 2, 3, 4, 5],
+          "event_ids": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
           "test_time": "2025-12-28T22:30:00Z"
         },
         "properties": {
@@ -10999,9 +11815,14 @@
             {
               "camera_id": "front_door",
               "event_id": 123,
-              "matched_conditions": ["risk_score >= 70", "object_type in ['person']"],
+              "matched_conditions": [
+                "risk_score >= 70",
+                "object_type in ['person']"
+              ],
               "matches": true,
-              "object_types": ["person"],
+              "object_types": [
+                "person"
+              ],
               "risk_score": 75,
               "started_at": "2025-12-28T22:15:00Z"
             }
@@ -11081,7 +11902,10 @@
             "type": "integer"
           }
         },
-        "required": ["id", "acknowledged_at"],
+        "required": [
+          "id",
+          "acknowledged_at"
+        ],
         "title": "SceneChangeAcknowledgeResponse",
         "type": "object"
       },
@@ -11142,7 +11966,9 @@
             "type": "integer"
           }
         },
-        "required": ["camera_id"],
+        "required": [
+          "camera_id"
+        ],
         "title": "SceneChangeListResponse",
         "type": "object"
       },
@@ -11212,7 +12038,12 @@
             "type": "number"
           }
         },
-        "required": ["id", "detected_at", "change_type", "similarity_score"],
+        "required": [
+          "id",
+          "detected_at",
+          "change_type",
+          "similarity_score"
+        ],
         "title": "SceneChangeResponse",
         "type": "object"
       },
@@ -11226,7 +12057,13 @@
               "camera_id": "front_door",
               "camera_name": "Front Door",
               "detection_count": 5,
-              "detection_ids": [1, 2, 3, 4, 5],
+              "detection_ids": [
+                1,
+                2,
+                3,
+                4,
+                5
+              ],
               "ended_at": "2025-12-23T12:02:30Z",
               "id": 1,
               "object_types": "person, vehicle",
@@ -11266,7 +12103,12 @@
             "type": "integer"
           }
         },
-        "required": ["results", "total_count", "limit", "offset"],
+        "required": [
+          "results",
+          "total_count",
+          "limit",
+          "offset"
+        ],
         "title": "SearchResponse",
         "type": "object"
       },
@@ -11276,7 +12118,13 @@
           "camera_id": "front_door",
           "camera_name": "Front Door",
           "detection_count": 5,
-          "detection_ids": [1, 2, 3, 4, 5],
+          "detection_ids": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
           "ended_at": "2025-12-23T12:02:30Z",
           "id": 1,
           "object_types": "person, vehicle",
@@ -11417,7 +12265,11 @@
             "title": "Summary"
           }
         },
-        "required": ["id", "camera_id", "started_at"],
+        "required": [
+          "id",
+          "camera_id",
+          "started_at"
+        ],
         "title": "SearchResult",
         "type": "object"
       },
@@ -11468,7 +12320,11 @@
             "type": "integer"
           }
         },
-        "required": ["created", "cleared", "cameras"],
+        "required": [
+          "created",
+          "cleared",
+          "cameras"
+        ],
         "title": "SeedCamerasResponse",
         "type": "object"
       },
@@ -11557,19 +12413,32 @@
             "type": "boolean"
           }
         },
-        "required": ["success", "message", "service"],
+        "required": [
+          "success",
+          "message",
+          "service"
+        ],
         "title": "ServiceActionResponse",
         "type": "object"
       },
       "ServiceCategory": {
         "description": "Service category for classification and restart policy.\n\nCategories determine restart behavior and priority:\n- INFRASTRUCTURE: Critical services (PostgreSQL, Redis) with aggressive restart\n- AI: AI/ML services with standard backoff\n- MONITORING: Optional monitoring services with lenient restart",
-        "enum": ["infrastructure", "ai", "monitoring"],
+        "enum": [
+          "infrastructure",
+          "ai",
+          "monitoring"
+        ],
         "title": "ServiceCategory",
         "type": "string"
       },
       "ServiceHealthState": {
         "description": "Health state for a service in the full health check.\n\nStates:\n- healthy: Service is fully operational\n- unhealthy: Service is down or experiencing critical issues\n- degraded: Service is partially operational\n- unknown: Service status cannot be determined",
-        "enum": ["healthy", "unhealthy", "degraded", "unknown"],
+        "enum": [
+          "healthy",
+          "unhealthy",
+          "degraded",
+          "unknown"
+        ],
         "title": "ServiceHealthState",
         "type": "string"
       },
@@ -11617,7 +12486,11 @@
             "type": "string"
           }
         },
-        "required": ["name", "status", "consecutive_failures"],
+        "required": [
+          "name",
+          "status",
+          "consecutive_failures"
+        ],
         "title": "ServiceHealthStatusResponse",
         "type": "object"
       },
@@ -11734,7 +12607,13 @@
             "title": "Uptime Seconds"
           }
         },
-        "required": ["name", "display_name", "category", "status", "port"],
+        "required": [
+          "name",
+          "display_name",
+          "category",
+          "status",
+          "port"
+        ],
         "title": "ServiceInfo",
         "type": "object"
       },
@@ -11813,7 +12692,11 @@
             "type": "string"
           }
         },
-        "required": ["services", "by_category", "timestamp"],
+        "required": [
+          "services",
+          "by_category",
+          "timestamp"
+        ],
         "title": "ServicesResponse",
         "type": "object"
       },
@@ -11885,7 +12768,12 @@
       },
       "SeverityEnum": {
         "description": "Severity levels for API responses.",
-        "enum": ["low", "medium", "high", "critical"],
+        "enum": [
+          "low",
+          "medium",
+          "high",
+          "critical"
+        ],
         "title": "SeverityEnum",
         "type": "string"
       },
@@ -11950,7 +12838,10 @@
             "description": "Current severity threshold configuration"
           }
         },
-        "required": ["definitions", "thresholds"],
+        "required": [
+          "definitions",
+          "thresholds"
+        ],
         "title": "SeverityMetadataResponse",
         "type": "object"
       },
@@ -11984,7 +12875,11 @@
             "type": "integer"
           }
         },
-        "required": ["low_max", "medium_max", "high_max"],
+        "required": [
+          "low_max",
+          "medium_max",
+          "high_max"
+        ],
         "title": "SeverityThresholds",
         "type": "object"
       },
@@ -12018,7 +12913,11 @@
             "type": "integer"
           }
         },
-        "required": ["low_max", "medium_max", "high_max"],
+        "required": [
+          "low_max",
+          "medium_max",
+          "high_max"
+        ],
         "title": "SeverityThresholdsUpdateRequest",
         "type": "object"
       },
@@ -12119,7 +13018,9 @@
             "type": "integer"
           }
         },
-        "required": ["sample_count"],
+        "required": [
+          "sample_count"
+        ],
         "title": "StageLatency",
         "type": "object"
       },
@@ -12139,7 +13040,10 @@
             "type": "integer"
           }
         },
-        "required": ["file_count", "size_bytes"],
+        "required": [
+          "file_count",
+          "size_bytes"
+        ],
         "title": "StorageCategoryStats",
         "type": "object"
       },
@@ -12288,7 +13192,12 @@
             "type": "number"
           }
         },
-        "required": ["total_cameras", "total_events", "total_detections", "uptime_seconds"],
+        "required": [
+          "total_cameras",
+          "total_events",
+          "total_detections",
+          "uptime_seconds"
+        ],
         "title": "SystemStatsResponse",
         "type": "object"
       },
@@ -12344,7 +13253,10 @@
             "type": "string"
           }
         },
-        "required": ["queues", "timestamp"],
+        "required": [
+          "queues",
+          "timestamp"
+        ],
         "title": "TelemetryResponse",
         "type": "object"
       },
@@ -12383,7 +13295,11 @@
             "type": "boolean"
           }
         },
-        "required": ["channel", "success", "message"],
+        "required": [
+          "channel",
+          "success",
+          "message"
+        ],
         "title": "TestNotificationResponse",
         "type": "object"
       },
@@ -12412,7 +13328,11 @@
             "type": "string"
           }
         },
-        "required": ["loc", "msg", "type"],
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
         "title": "ValidationError",
         "type": "object"
       },
@@ -12614,7 +13534,11 @@
             "description": "Current circuit state: closed (normal), open (failing), half_open (testing), unavailable (not initialized)"
           }
         },
-        "required": ["state", "failure_count", "is_degraded"],
+        "required": [
+          "state",
+          "failure_count",
+          "is_degraded"
+        ],
         "title": "WebSocketBroadcasterStatus",
         "type": "object"
       },
@@ -12635,7 +13559,11 @@
             "type": "string"
           }
         },
-        "required": ["event_broadcaster", "system_broadcaster", "timestamp"],
+        "required": [
+          "event_broadcaster",
+          "system_broadcaster",
+          "timestamp"
+        ],
         "title": "WebSocketConnectionsResponse",
         "type": "object"
       },
@@ -12684,7 +13612,9 @@
             "type": "string"
           }
         },
-        "required": ["timestamp"],
+        "required": [
+          "timestamp"
+        ],
         "title": "WebSocketHealthResponse",
         "type": "object"
       },
@@ -12740,7 +13670,11 @@
           },
           "rating": {
             "description": "Performance rating",
-            "enum": ["good", "needs-improvement", "poor"],
+            "enum": [
+              "good",
+              "needs-improvement",
+              "poor"
+            ],
             "title": "Rating",
             "type": "string"
           },
@@ -12750,13 +13684,26 @@
             "type": "number"
           }
         },
-        "required": ["name", "value", "rating", "delta", "id"],
+        "required": [
+          "name",
+          "value",
+          "rating",
+          "delta",
+          "id"
+        ],
         "title": "WebVitalMetric",
         "type": "object"
       },
       "WebVitalName": {
         "description": "Supported Core Web Vitals metric names.\n\nThese correspond to the metrics collected by the web-vitals library.",
-        "enum": ["LCP", "FID", "INP", "CLS", "TTFB", "FCP"],
+        "enum": [
+          "LCP",
+          "FID",
+          "INP",
+          "CLS",
+          "TTFB",
+          "FCP"
+        ],
         "title": "WebVitalName",
         "type": "string"
       },
@@ -12764,7 +13711,9 @@
         "description": "Schema for testing notification configuration.",
         "example": {
           "channel": "email",
-          "email_recipients": ["test@example.com"]
+          "email_recipients": [
+            "test@example.com"
+          ]
         },
         "properties": {
           "channel": {
@@ -12799,7 +13748,9 @@
             "title": "Webhook Url"
           }
         },
-        "required": ["channel"],
+        "required": [
+          "channel"
+        ],
         "title": "WebhookTestNotificationRequest",
         "type": "object"
       },
@@ -12827,7 +13778,11 @@
             "type": "boolean"
           }
         },
-        "required": ["name", "running", "critical"],
+        "required": [
+          "name",
+          "running",
+          "critical"
+        ],
         "title": "WorkerHealthStatus",
         "type": "object"
       },
@@ -12857,7 +13812,10 @@
             "type": "boolean"
           }
         },
-        "required": ["name", "running"],
+        "required": [
+          "name",
+          "running"
+        ],
         "title": "WorkerStatus",
         "type": "object"
       },
@@ -12866,10 +13824,22 @@
         "example": {
           "color": "#3B82F6",
           "coordinates": [
-            [0.1, 0.2],
-            [0.3, 0.2],
-            [0.3, 0.8],
-            [0.1, 0.8]
+            [
+              0.1,
+              0.2
+            ],
+            [
+              0.3,
+              0.2
+            ],
+            [
+              0.3,
+              0.8
+            ],
+            [
+              0.1,
+              0.8
+            ]
           ],
           "enabled": true,
           "name": "Front Door",
@@ -12929,7 +13899,10 @@
             "description": "Type of zone"
           }
         },
-        "required": ["name", "coordinates"],
+        "required": [
+          "name",
+          "coordinates"
+        ],
         "title": "ZoneCreate",
         "type": "object"
       },
@@ -12941,10 +13914,22 @@
               "camera_id": "front_door",
               "color": "#3B82F6",
               "coordinates": [
-                [0.1, 0.2],
-                [0.3, 0.2],
-                [0.3, 0.8],
-                [0.1, 0.8]
+                [
+                  0.1,
+                  0.2
+                ],
+                [
+                  0.3,
+                  0.2
+                ],
+                [
+                  0.3,
+                  0.8
+                ],
+                [
+                  0.1,
+                  0.8
+                ]
               ],
               "created_at": "2025-12-23T10:00:00Z",
               "enabled": true,
@@ -12977,7 +13962,10 @@
             "description": "Pagination metadata"
           }
         },
-        "required": ["items", "pagination"],
+        "required": [
+          "items",
+          "pagination"
+        ],
         "title": "ZoneListResponse",
         "type": "object"
       },
@@ -12987,10 +13975,22 @@
           "camera_id": "front_door",
           "color": "#3B82F6",
           "coordinates": [
-            [0.1, 0.2],
-            [0.3, 0.2],
-            [0.3, 0.8],
-            [0.1, 0.8]
+            [
+              0.1,
+              0.2
+            ],
+            [
+              0.3,
+              0.2
+            ],
+            [
+              0.3,
+              0.8
+            ],
+            [
+              0.1,
+              0.8
+            ]
           ],
           "created_at": "2025-12-23T10:00:00Z",
           "enabled": true,
@@ -13082,13 +14082,22 @@
       },
       "ZoneShape": {
         "description": "Shape of the zone polygon.",
-        "enum": ["rectangle", "polygon"],
+        "enum": [
+          "rectangle",
+          "polygon"
+        ],
         "title": "ZoneShape",
         "type": "string"
       },
       "ZoneType": {
         "description": "Type of zone for semantic categorization.",
-        "enum": ["entry_point", "driveway", "sidewalk", "yard", "other"],
+        "enum": [
+          "entry_point",
+          "driveway",
+          "sidewalk",
+          "yard",
+          "other"
+        ],
         "title": "ZoneType",
         "type": "string"
       },
@@ -13286,7 +14295,9 @@
           }
         },
         "summary": "Seed Cameras",
-        "tags": ["admin"]
+        "tags": [
+          "admin"
+        ]
       }
     },
     "/api/admin/seed/clear": {
@@ -13356,7 +14367,9 @@
           }
         },
         "summary": "Clear Seeded Data",
-        "tags": ["admin"]
+        "tags": [
+          "admin"
+        ]
       }
     },
     "/api/admin/seed/events": {
@@ -13419,7 +14432,9 @@
           }
         },
         "summary": "Seed Events",
-        "tags": ["admin"]
+        "tags": [
+          "admin"
+        ]
       }
     },
     "/api/ai-audit/batch": {
@@ -13455,7 +14470,9 @@
           }
         },
         "summary": "Trigger Batch Audit",
-        "tags": ["ai-audit"]
+        "tags": [
+          "ai-audit"
+        ]
       }
     },
     "/api/ai-audit/events/{event_id}": {
@@ -13502,7 +14519,9 @@
           }
         },
         "summary": "Get Event Audit",
-        "tags": ["ai-audit"]
+        "tags": [
+          "ai-audit"
+        ]
       }
     },
     "/api/ai-audit/events/{event_id}/evaluate": {
@@ -13554,7 +14573,9 @@
           }
         },
         "summary": "Evaluate Event",
-        "tags": ["ai-audit"]
+        "tags": [
+          "ai-audit"
+        ]
       }
     },
     "/api/ai-audit/leaderboard": {
@@ -13596,7 +14617,9 @@
           }
         },
         "summary": "Get Model Leaderboard",
-        "tags": ["ai-audit"]
+        "tags": [
+          "ai-audit"
+        ]
       }
     },
     "/api/ai-audit/prompt-config/{model}": {
@@ -13637,7 +14660,9 @@
           }
         },
         "summary": "Get Prompt Config",
-        "tags": ["ai-audit"]
+        "tags": [
+          "ai-audit"
+        ]
       },
       "put": {
         "description": "Update prompt configuration for a model (database-backed).\n\nCreates or updates the prompt configuration in the database.\nIf updating an existing config, increments the version number.\n\nArgs:\n    model: Model name (nemotron, florence-2, yolo-world, x-clip, fashion-clip)\n    request: New configuration with system_prompt, temperature, max_tokens\n    db: Database session\n\nReturns:\n    PromptConfigResponse with updated configuration\n\nRaises:\n    HTTPException: 404 if model not found, 400 if configuration invalid",
@@ -13686,7 +14711,9 @@
           }
         },
         "summary": "Update Prompt Config",
-        "tags": ["ai-audit"]
+        "tags": [
+          "ai-audit"
+        ]
       }
     },
     "/api/ai-audit/prompts": {
@@ -13709,7 +14736,9 @@
           }
         },
         "summary": "Get All Prompts",
-        "tags": ["ai-audit"]
+        "tags": [
+          "ai-audit"
+        ]
       }
     },
     "/api/ai-audit/prompts/export": {
@@ -13732,7 +14761,9 @@
           }
         },
         "summary": "Export Prompts",
-        "tags": ["ai-audit"]
+        "tags": [
+          "ai-audit"
+        ]
       }
     },
     "/api/ai-audit/prompts/history": {
@@ -13778,7 +14809,9 @@
           }
         },
         "summary": "Get All Prompts History",
-        "tags": ["ai-audit"]
+        "tags": [
+          "ai-audit"
+        ]
       }
     },
     "/api/ai-audit/prompts/history/{model}": {
@@ -13845,7 +14878,9 @@
           }
         },
         "summary": "Get Model History",
-        "tags": ["ai-audit"]
+        "tags": [
+          "ai-audit"
+        ]
       }
     },
     "/api/ai-audit/prompts/history/{version}": {
@@ -13913,7 +14948,9 @@
           }
         },
         "summary": "Restore Prompt Version",
-        "tags": ["ai-audit"]
+        "tags": [
+          "ai-audit"
+        ]
       }
     },
     "/api/ai-audit/prompts/import": {
@@ -13952,7 +14989,9 @@
           }
         },
         "summary": "Import Prompts",
-        "tags": ["ai-audit"]
+        "tags": [
+          "ai-audit"
+        ]
       }
     },
     "/api/ai-audit/prompts/test": {
@@ -13994,7 +15033,9 @@
           }
         },
         "summary": "Test Prompt",
-        "tags": ["ai-audit"]
+        "tags": [
+          "ai-audit"
+        ]
       }
     },
     "/api/ai-audit/prompts/{model}": {
@@ -14034,7 +15075,9 @@
           }
         },
         "summary": "Get Model Prompt",
-        "tags": ["ai-audit"]
+        "tags": [
+          "ai-audit"
+        ]
       },
       "put": {
         "description": "Update prompt configuration for a specific AI model.\n\nCreates a new version of the configuration with the provided changes.\nThe previous version is preserved in history.\n\nArgs:\n    model: Model name to update\n    request: New configuration and optional description\n\nReturns:\n    PromptUpdateResponse with new version info\n\nRaises:\n    HTTPException: 404 if model not found, 400 if configuration invalid",
@@ -14085,7 +15128,9 @@
           }
         },
         "summary": "Update Model Prompt",
-        "tags": ["ai-audit"]
+        "tags": [
+          "ai-audit"
+        ]
       }
     },
     "/api/ai-audit/recommendations": {
@@ -14127,7 +15172,9 @@
           }
         },
         "summary": "Get Recommendations",
-        "tags": ["ai-audit"]
+        "tags": [
+          "ai-audit"
+        ]
       }
     },
     "/api/ai-audit/stats": {
@@ -14187,7 +15234,9 @@
           }
         },
         "summary": "Get Audit Stats",
-        "tags": ["ai-audit"]
+        "tags": [
+          "ai-audit"
+        ]
       }
     },
     "/api/ai-audit/test-prompt": {
@@ -14235,7 +15284,9 @@
           }
         },
         "summary": "Test Custom Prompt",
-        "tags": ["ai-audit"]
+        "tags": [
+          "ai-audit"
+        ]
       }
     },
     "/api/alerts/rules": {
@@ -14326,7 +15377,9 @@
           }
         },
         "summary": "List Rules",
-        "tags": ["alert-rules"]
+        "tags": [
+          "alert-rules"
+        ]
       },
       "post": {
         "description": "Create a new alert rule.\n\nArgs:\n    rule_data: Rule creation data\n    db: Database session\n    cache: Cache service for cache invalidation (NEM-1952)\n\nReturns:\n    Created AlertRule",
@@ -14360,7 +15413,9 @@
           }
         },
         "summary": "Create Rule",
-        "tags": ["alert-rules"]
+        "tags": [
+          "alert-rules"
+        ]
       }
     },
     "/api/alerts/rules/{rule_id}": {
@@ -14400,7 +15455,9 @@
           }
         },
         "summary": "Delete Rule",
-        "tags": ["alert-rules"]
+        "tags": [
+          "alert-rules"
+        ]
       },
       "get": {
         "description": "Get a specific alert rule by ID.\n\nArgs:\n    rule_id: Rule UUID\n    db: Database session\n\nReturns:\n    AlertRule\n\nRaises:\n    HTTPException: 404 if rule not found",
@@ -14445,7 +15502,9 @@
           }
         },
         "summary": "Get Rule",
-        "tags": ["alert-rules"]
+        "tags": [
+          "alert-rules"
+        ]
       },
       "put": {
         "description": "Update an existing alert rule.\n\nArgs:\n    rule_id: Rule UUID\n    rule_data: Rule update data\n    db: Database session\n    cache: Cache service for cache invalidation (NEM-1952)\n\nReturns:\n    Updated AlertRule\n\nRaises:\n    HTTPException: 404 if rule not found",
@@ -14494,12 +15553,14 @@
           }
         },
         "summary": "Update Rule",
-        "tags": ["alert-rules"]
+        "tags": [
+          "alert-rules"
+        ]
       }
     },
     "/api/alerts/rules/{rule_id}/test": {
       "post": {
-        "description": "Test a rule against historical events.\n\nThis endpoint allows testing rule configuration without actually\ncreating alerts. Useful for validating rules before enabling them.\n\nArgs:\n    rule_id: Rule UUID\n    test_data: Test configuration (event IDs, time override)\n    db: Database session\n\nReturns:\n    RuleTestResponse with per-event match results\n\nRaises:\n    HTTPException: 404 if rule not found",
+        "description": "Test a rule against historical events.\n\nThis endpoint allows testing rule configuration without actually\ncreating alerts. Useful for validating rules before enabling them.\n\nArgs:\n    rule_id: Rule UUID\n    test_data: Test configuration (event IDs, time override)\n    db: Database session\n    engine: AlertRuleEngine injected via Depends()\n\nReturns:\n    RuleTestResponse with per-event match results\n\nRaises:\n    HTTPException: 404 if rule not found",
         "operationId": "test_rule_api_alerts_rules__rule_id__test_post",
         "parameters": [
           {
@@ -14544,7 +15605,9 @@
           }
         },
         "summary": "Test Rule",
-        "tags": ["alert-rules"]
+        "tags": [
+          "alert-rules"
+        ]
       }
     },
     "/api/alerts/{alert_id}/acknowledge": {
@@ -14594,7 +15657,9 @@
           }
         },
         "summary": "Acknowledge Alert",
-        "tags": ["alerts"]
+        "tags": [
+          "alerts"
+        ]
       }
     },
     "/api/alerts/{alert_id}/dismiss": {
@@ -14644,7 +15709,9 @@
           }
         },
         "summary": "Dismiss Alert",
-        "tags": ["alerts"]
+        "tags": [
+          "alerts"
+        ]
       }
     },
     "/api/analytics/camera-uptime": {
@@ -14699,7 +15766,9 @@
           }
         },
         "summary": "Get Camera Uptime",
-        "tags": ["analytics"]
+        "tags": [
+          "analytics"
+        ]
       }
     },
     "/api/analytics/detection-trends": {
@@ -14754,7 +15823,9 @@
           }
         },
         "summary": "Get Detection Trends",
-        "tags": ["analytics"]
+        "tags": [
+          "analytics"
+        ]
       }
     },
     "/api/analytics/object-distribution": {
@@ -14809,7 +15880,9 @@
           }
         },
         "summary": "Get Object Distribution",
-        "tags": ["analytics"]
+        "tags": [
+          "analytics"
+        ]
       }
     },
     "/api/analytics/risk-history": {
@@ -14864,7 +15937,9 @@
           }
         },
         "summary": "Get Risk History",
-        "tags": ["analytics"]
+        "tags": [
+          "analytics"
+        ]
       }
     },
     "/api/audit": {
@@ -15068,7 +16143,9 @@
           }
         },
         "summary": "List Audit Logs",
-        "tags": ["audit"]
+        "tags": [
+          "audit"
+        ]
       }
     },
     "/api/audit/stats": {
@@ -15094,7 +16171,9 @@
           }
         },
         "summary": "Get Audit Stats",
-        "tags": ["audit"]
+        "tags": [
+          "audit"
+        ]
       }
     },
     "/api/audit/{audit_id}": {
@@ -15141,7 +16220,9 @@
           }
         },
         "summary": "Get Audit Log",
-        "tags": ["audit"]
+        "tags": [
+          "audit"
+        ]
       }
     },
     "/api/cameras": {
@@ -15209,7 +16290,9 @@
           }
         },
         "summary": "List Cameras",
-        "tags": ["cameras"]
+        "tags": [
+          "cameras"
+        ]
       },
       "post": {
         "description": "Create a new camera.\n\nArgs:\n    camera_data: Camera creation data\n    request: FastAPI request for audit logging\n    db: Database session\n\nReturns:\n    Created camera object with generated ID\n\nRaises:\n    HTTPException: 409 if camera with same name or folder_path already exists",
@@ -15247,7 +16330,9 @@
           }
         },
         "summary": "Create Camera",
-        "tags": ["cameras"]
+        "tags": [
+          "cameras"
+        ]
       }
     },
     "/api/cameras/deleted": {
@@ -15267,7 +16352,9 @@
           }
         },
         "summary": "List all soft-deleted cameras",
-        "tags": ["cameras"]
+        "tags": [
+          "cameras"
+        ]
       }
     },
     "/api/cameras/validation/paths": {
@@ -15289,7 +16376,9 @@
           }
         },
         "summary": "Validate Camera Paths",
-        "tags": ["cameras"]
+        "tags": [
+          "cameras"
+        ]
       }
     },
     "/api/cameras/{camera_id}": {
@@ -15323,7 +16412,9 @@
           }
         },
         "summary": "Delete Camera",
-        "tags": ["cameras"]
+        "tags": [
+          "cameras"
+        ]
       },
       "get": {
         "description": "Get a specific camera by ID.\n\nArgs:\n    camera_id: Normalized camera ID (e.g., \"front_door\", \"backyard\")\n    db: Database session\n\nReturns:\n    Camera object\n\nRaises:\n    HTTPException: 404 if camera not found",
@@ -15362,7 +16453,9 @@
           }
         },
         "summary": "Get Camera",
-        "tags": ["cameras"]
+        "tags": [
+          "cameras"
+        ]
       },
       "patch": {
         "description": "Update an existing camera.\n\nArgs:\n    camera_id: Normalized camera ID (e.g., \"front_door\", \"backyard\")\n    camera_data: Camera update data (all fields optional)\n    request: FastAPI request for audit logging\n    db: Database session\n\nReturns:\n    Updated camera object\n\nRaises:\n    HTTPException: 404 if camera not found",
@@ -15411,12 +16504,14 @@
           }
         },
         "summary": "Update Camera",
-        "tags": ["cameras"]
+        "tags": [
+          "cameras"
+        ]
       }
     },
     "/api/cameras/{camera_id}/baseline": {
       "get": {
-        "description": "Get baseline activity data for a camera.\n\nReturns comprehensive baseline statistics including:\n- Hourly activity patterns (0-23 hours)\n- Daily patterns (by day of week)\n- Object-specific baselines\n- Current deviation from baseline\n\nArgs:\n    camera_id: ID of the camera\n    db: Database session\n\nReturns:\n    BaselineSummaryResponse with all baseline data\n\nRaises:\n    HTTPException: 404 if camera not found",
+        "description": "Get baseline activity data for a camera.\n\nReturns comprehensive baseline statistics including:\n- Hourly activity patterns (0-23 hours)\n- Daily patterns (by day of week)\n- Object-specific baselines\n- Current deviation from baseline\n\nArgs:\n    camera_id: ID of the camera\n    db: Database session\n    baseline_service: BaselineService injected via Depends()\n\nReturns:\n    BaselineSummaryResponse with all baseline data\n\nRaises:\n    HTTPException: 404 if camera not found",
         "operationId": "get_camera_baseline_api_cameras__camera_id__baseline_get",
         "parameters": [
           {
@@ -15452,12 +16547,14 @@
           }
         },
         "summary": "Get Camera Baseline",
-        "tags": ["cameras"]
+        "tags": [
+          "cameras"
+        ]
       }
     },
     "/api/cameras/{camera_id}/baseline/activity": {
       "get": {
-        "description": "Get raw activity baseline data for a camera.\n\nReturns up to 168 entries (24 hours x 7 days) representing the full\nweekly activity heatmap. Each entry contains the average count and\nsample count for that hour/day combination.\n\nArgs:\n    camera_id: ID of the camera\n    db: Database session\n\nReturns:\n    ActivityBaselineResponse with entries for the heatmap\n\nRaises:\n    HTTPException: 404 if camera not found",
+        "description": "Get raw activity baseline data for a camera.\n\nReturns up to 168 entries (24 hours x 7 days) representing the full\nweekly activity heatmap. Each entry contains the average count and\nsample count for that hour/day combination.\n\nArgs:\n    camera_id: ID of the camera\n    db: Database session\n    baseline_service: BaselineService injected via Depends()\n\nReturns:\n    ActivityBaselineResponse with entries for the heatmap\n\nRaises:\n    HTTPException: 404 if camera not found",
         "operationId": "get_camera_activity_baseline_api_cameras__camera_id__baseline_activity_get",
         "parameters": [
           {
@@ -15493,12 +16590,14 @@
           }
         },
         "summary": "Get Camera Activity Baseline",
-        "tags": ["cameras"]
+        "tags": [
+          "cameras"
+        ]
       }
     },
     "/api/cameras/{camera_id}/baseline/anomalies": {
       "get": {
-        "description": "Get recent anomaly events for a camera.\n\nReturns a list of anomaly events detected within the specified time period.\nAnomalies are detections that significantly deviate from the established\nbaseline activity patterns.\n\nArgs:\n    camera_id: ID of the camera\n    days: Number of days to look back (default: 7, max: 90)\n    db: Database session\n\nReturns:\n    AnomalyListResponse with list of anomaly events\n\nRaises:\n    HTTPException: 404 if camera not found",
+        "description": "Get recent anomaly events for a camera.\n\nReturns a list of anomaly events detected within the specified time period.\nAnomalies are detections that significantly deviate from the established\nbaseline activity patterns.\n\nArgs:\n    camera_id: ID of the camera\n    days: Number of days to look back (default: 7, max: 90)\n    db: Database session\n    baseline_service: BaselineService injected via Depends()\n\nReturns:\n    AnomalyListResponse with list of anomaly events\n\nRaises:\n    HTTPException: 404 if camera not found",
         "operationId": "get_camera_baseline_anomalies_api_cameras__camera_id__baseline_anomalies_get",
         "parameters": [
           {
@@ -15548,12 +16647,14 @@
           }
         },
         "summary": "Get Camera Baseline Anomalies",
-        "tags": ["cameras"]
+        "tags": [
+          "cameras"
+        ]
       }
     },
     "/api/cameras/{camera_id}/baseline/classes": {
       "get": {
-        "description": "Get class frequency baseline data for a camera.\n\nReturns baseline entries grouped by object class and hour, showing\nthe frequency of each object type at different times of day.\n\nArgs:\n    camera_id: ID of the camera\n    db: Database session\n\nReturns:\n    ClassBaselineResponse with entries for each class/hour combination\n\nRaises:\n    HTTPException: 404 if camera not found",
+        "description": "Get class frequency baseline data for a camera.\n\nReturns baseline entries grouped by object class and hour, showing\nthe frequency of each object type at different times of day.\n\nArgs:\n    camera_id: ID of the camera\n    db: Database session\n    baseline_service: BaselineService injected via Depends()\n\nReturns:\n    ClassBaselineResponse with entries for each class/hour combination\n\nRaises:\n    HTTPException: 404 if camera not found",
         "operationId": "get_camera_class_baseline_api_cameras__camera_id__baseline_classes_get",
         "parameters": [
           {
@@ -15589,7 +16690,9 @@
           }
         },
         "summary": "Get Camera Class Baseline",
-        "tags": ["cameras"]
+        "tags": [
+          "cameras"
+        ]
       }
     },
     "/api/cameras/{camera_id}/restore": {
@@ -15636,7 +16739,9 @@
           }
         },
         "summary": "Restore a soft-deleted camera",
-        "tags": ["cameras"]
+        "tags": [
+          "cameras"
+        ]
       }
     },
     "/api/cameras/{camera_id}/scene-changes": {
@@ -15728,7 +16833,9 @@
           }
         },
         "summary": "Get Camera Scene Changes",
-        "tags": ["cameras"]
+        "tags": [
+          "cameras"
+        ]
       }
     },
     "/api/cameras/{camera_id}/scene-changes/{scene_change_id}/acknowledge": {
@@ -15778,7 +16885,9 @@
           }
         },
         "summary": "Acknowledge Scene Change",
-        "tags": ["cameras"]
+        "tags": [
+          "cameras"
+        ]
       }
     },
     "/api/cameras/{camera_id}/snapshot": {
@@ -15818,7 +16927,9 @@
           }
         },
         "summary": "Get Camera Snapshot",
-        "tags": ["cameras"]
+        "tags": [
+          "cameras"
+        ]
       }
     },
     "/api/cameras/{camera_id}/zones": {
@@ -15877,7 +16988,9 @@
           }
         },
         "summary": "List Zones",
-        "tags": ["zones"]
+        "tags": [
+          "zones"
+        ]
       },
       "post": {
         "description": "Create a new zone for a camera.\n\nArgs:\n    camera_id: ID of the camera\n    zone_data: Zone creation data\n    db: Database session\n\nReturns:\n    Created zone object with generated ID",
@@ -15926,7 +17039,9 @@
           }
         },
         "summary": "Create Zone",
-        "tags": ["zones"]
+        "tags": [
+          "zones"
+        ]
       }
     },
     "/api/cameras/{camera_id}/zones/{zone_id}": {
@@ -15969,7 +17084,9 @@
           }
         },
         "summary": "Delete Zone",
-        "tags": ["zones"]
+        "tags": [
+          "zones"
+        ]
       },
       "get": {
         "description": "Get a specific zone by ID.\n\nArgs:\n    camera_id: ID of the camera\n    zone_id: ID of the zone\n    db: Database session\n\nReturns:\n    Zone object\n\nRaises:\n    HTTPException: 404 if zone not found",
@@ -16017,7 +17134,9 @@
           }
         },
         "summary": "Get Zone",
-        "tags": ["zones"]
+        "tags": [
+          "zones"
+        ]
       },
       "put": {
         "description": "Update an existing zone.\n\nArgs:\n    camera_id: ID of the camera\n    zone_id: ID of the zone to update\n    zone_data: Zone update data (all fields optional)\n    db: Database session\n\nReturns:\n    Updated zone object\n\nRaises:\n    HTTPException: 404 if zone not found",
@@ -16075,7 +17194,9 @@
           }
         },
         "summary": "Update Zone",
-        "tags": ["zones"]
+        "tags": [
+          "zones"
+        ]
       }
     },
     "/api/debug/circuit-breakers": {
@@ -16101,7 +17222,9 @@
           }
         },
         "summary": "Get Circuit Breakers",
-        "tags": ["debug"]
+        "tags": [
+          "debug"
+        ]
       }
     },
     "/api/debug/config": {
@@ -16127,7 +17250,9 @@
           }
         },
         "summary": "Get Config",
-        "tags": ["debug"]
+        "tags": [
+          "debug"
+        ]
       }
     },
     "/api/debug/log-level": {
@@ -16153,7 +17278,9 @@
           }
         },
         "summary": "Get Log Level",
-        "tags": ["debug"]
+        "tags": [
+          "debug"
+        ]
       },
       "post": {
         "description": "Set log level at runtime for debugging.\n\nAllows changing the log level without restarting the application.\nUseful for temporarily enabling DEBUG logging to investigate issues.\n\nNEM-1471: Log level runtime override\n\nArgs:\n    request: Log level request with new level\n\nReturns:\n    Current and previous log level\n\nRaises:\n    HTTPException: If the log level is invalid",
@@ -16193,7 +17320,9 @@
           }
         },
         "summary": "Set Log Level",
-        "tags": ["debug"]
+        "tags": [
+          "debug"
+        ]
       }
     },
     "/api/debug/pipeline-state": {
@@ -16219,7 +17348,9 @@
           }
         },
         "summary": "Get Pipeline State",
-        "tags": ["debug"]
+        "tags": [
+          "debug"
+        ]
       }
     },
     "/api/debug/profile/start": {
@@ -16245,7 +17376,9 @@
           }
         },
         "summary": "Start Profiling",
-        "tags": ["debug"]
+        "tags": [
+          "debug"
+        ]
       }
     },
     "/api/debug/profile/stats": {
@@ -16271,7 +17404,9 @@
           }
         },
         "summary": "Get Profile Stats",
-        "tags": ["debug"]
+        "tags": [
+          "debug"
+        ]
       }
     },
     "/api/debug/profile/stop": {
@@ -16297,7 +17432,9 @@
           }
         },
         "summary": "Stop Profiling",
-        "tags": ["debug"]
+        "tags": [
+          "debug"
+        ]
       }
     },
     "/api/debug/recordings": {
@@ -16339,7 +17476,9 @@
           }
         },
         "summary": "List Recordings",
-        "tags": ["debug"]
+        "tags": [
+          "debug"
+        ]
       }
     },
     "/api/debug/recordings/{recording_id}": {
@@ -16384,7 +17523,9 @@
           }
         },
         "summary": "Delete Recording",
-        "tags": ["debug"]
+        "tags": [
+          "debug"
+        ]
       },
       "get": {
         "description": "Get details of a specific recording.\n\nReturns the full recording data including headers, body, and response.\n\nNEM-1646: Request recording and replay for debugging\n\nArgs:\n    recording_id: ID of the recording to retrieve\n\nReturns:\n    Full recording data\n\nRaises:\n    HTTPException: 404 if recording not found",
@@ -16425,7 +17566,9 @@
           }
         },
         "summary": "Get Recording",
-        "tags": ["debug"]
+        "tags": [
+          "debug"
+        ]
       }
     },
     "/api/debug/redis/info": {
@@ -16451,7 +17594,9 @@
           }
         },
         "summary": "Get Redis Info",
-        "tags": ["debug"]
+        "tags": [
+          "debug"
+        ]
       }
     },
     "/api/debug/replay/{recording_id}": {
@@ -16492,7 +17637,9 @@
           }
         },
         "summary": "Replay Request",
-        "tags": ["debug"]
+        "tags": [
+          "debug"
+        ]
       }
     },
     "/api/debug/websocket/connections": {
@@ -16518,7 +17665,9 @@
           }
         },
         "summary": "Get Websocket Connections",
-        "tags": ["debug"]
+        "tags": [
+          "debug"
+        ]
       }
     },
     "/api/detections": {
@@ -16707,7 +17856,9 @@
           }
         },
         "summary": "List Detections",
-        "tags": ["detections"]
+        "tags": [
+          "detections"
+        ]
       }
     },
     "/api/detections/bulk": {
@@ -16743,7 +17894,9 @@
           }
         },
         "summary": "Bulk delete detections",
-        "tags": ["detections"]
+        "tags": [
+          "detections"
+        ]
       },
       "patch": {
         "description": "Update multiple detections in a single request.\n\nSupports partial success - some updates may succeed while others fail.\nReturns HTTP 207 Multi-Status with per-item results.\n\nRate limiting: Consider implementing RateLimitTier.BULK for production use.\n\nArgs:\n    request: Bulk update request with up to 100 detection updates\n    db: Database session\n    cache: Cache service for invalidation (NEM-1951)\n\nReturns:\n    BulkOperationResponse with per-item results",
@@ -16777,7 +17930,9 @@
           }
         },
         "summary": "Bulk update detections",
-        "tags": ["detections"]
+        "tags": [
+          "detections"
+        ]
       },
       "post": {
         "description": "Create multiple detections in a single request.\n\nSupports partial success - some detections may succeed while others fail.\nReturns HTTP 207 Multi-Status with per-item results.\n\nRate limiting: Consider implementing RateLimitTier.BULK for production use.\n\nArgs:\n    request: Bulk create request with up to 100 detections\n    db: Database session\n    cache: Cache service for invalidation (NEM-1951)\n\nReturns:\n    DetectionBulkCreateResponse with per-item results",
@@ -16811,7 +17966,9 @@
           }
         },
         "summary": "Bulk create detections",
-        "tags": ["detections"]
+        "tags": [
+          "detections"
+        ]
       }
     },
     "/api/detections/stats": {
@@ -16831,7 +17988,9 @@
           }
         },
         "summary": "Get Detection Stats",
-        "tags": ["detections"]
+        "tags": [
+          "detections"
+        ]
       }
     },
     "/api/detections/{detection_id}": {
@@ -16872,7 +18031,9 @@
           }
         },
         "summary": "Get Detection",
-        "tags": ["detections"]
+        "tags": [
+          "detections"
+        ]
       }
     },
     "/api/detections/{detection_id}/enrichment": {
@@ -16913,12 +18074,14 @@
           }
         },
         "summary": "Get Detection Enrichment",
-        "tags": ["detections"]
+        "tags": [
+          "detections"
+        ]
       }
     },
     "/api/detections/{detection_id}/image": {
       "get": {
-        "description": "Get detection image with bounding box overlay, or full-size original.\n\nThis endpoint is exempt from API key authentication because:\n1. It serves static image content accessed directly by browsers via <img> tags\n2. Detection IDs are not predictable (integer IDs require prior knowledge)\n3. It has rate limiting to prevent abuse\n\nBy default, returns the thumbnail image with bounding box drawn around the\ndetected object. If thumbnail doesn't exist, generates it on the fly from\nthe source image.\n\nWhen full=true is passed, returns the original source image without any\nbounding box overlay. This is used for the full-size image lightbox viewer.\n\nArgs:\n    detection_id: Detection ID\n    full: If true, return the original full-size image instead of thumbnail\n    db: Database session\n\nReturns:\n    JPEG image (thumbnail with bounding box, or full-size original)\n\nRaises:\n    HTTPException: 404 if detection not found or image file doesn't exist\n    HTTPException: 500 if image generation fails",
+        "description": "Get detection image with bounding box overlay, or full-size original.\n\nThis endpoint is exempt from API key authentication because:\n1. It serves static image content accessed directly by browsers via <img> tags\n2. Detection IDs are not predictable (integer IDs require prior knowledge)\n3. It has rate limiting to prevent abuse\n\nBy default, returns the thumbnail image with bounding box drawn around the\ndetected object. If thumbnail doesn't exist, generates it on the fly from\nthe source image.\n\nWhen full=true is passed, returns the original source image without any\nbounding box overlay. This is used for the full-size image lightbox viewer.\n\nArgs:\n    detection_id: Detection ID\n    full: If true, return the original full-size image instead of thumbnail\n    db: Database session\n    thumbnail_generator: ThumbnailGenerator injected via Depends()\n\nReturns:\n    JPEG image (thumbnail with bounding box, or full-size original)\n\nRaises:\n    HTTPException: 404 if detection not found or image file doesn't exist\n    HTTPException: 500 if image generation fails",
         "operationId": "get_detection_image_api_detections__detection_id__image_get",
         "parameters": [
           {
@@ -16968,7 +18131,9 @@
           }
         },
         "summary": "Get Detection Image",
-        "tags": ["detections"]
+        "tags": [
+          "detections"
+        ]
       }
     },
     "/api/detections/{detection_id}/thumbnail": {
@@ -17015,7 +18180,9 @@
           }
         },
         "summary": "Get detection thumbnail",
-        "tags": ["detections"]
+        "tags": [
+          "detections"
+        ]
       }
     },
     "/api/detections/{detection_id}/video": {
@@ -17080,12 +18247,14 @@
           }
         },
         "summary": "Stream Detection Video",
-        "tags": ["detections"]
+        "tags": [
+          "detections"
+        ]
       }
     },
     "/api/detections/{detection_id}/video/thumbnail": {
       "get": {
-        "description": "Get thumbnail frame from a video detection.\n\nThis endpoint is exempt from API key authentication because:\n1. It serves static image content accessed directly by browsers via <img> tags\n2. Detection IDs are not predictable (integer IDs require prior knowledge)\n3. It has rate limiting to prevent abuse\n\nExtracts and returns a thumbnail frame from the video. If thumbnail\ndoesn't exist, generates it on the fly using ffmpeg.\n\nArgs:\n    detection_id: Detection ID\n    db: Database session\n\nReturns:\n    JPEG thumbnail image\n\nRaises:\n    HTTPException: 404 if detection not found or not a video\n    HTTPException: 500 if thumbnail generation fails",
+        "description": "Get thumbnail frame from a video detection.\n\nThis endpoint is exempt from API key authentication because:\n1. It serves static image content accessed directly by browsers via <img> tags\n2. Detection IDs are not predictable (integer IDs require prior knowledge)\n3. It has rate limiting to prevent abuse\n\nExtracts and returns a thumbnail frame from the video. If thumbnail\ndoesn't exist, generates it on the fly using ffmpeg.\n\nArgs:\n    detection_id: Detection ID\n    db: Database session\n    video_processor: VideoProcessor injected via Depends()\n\nReturns:\n    JPEG thumbnail image\n\nRaises:\n    HTTPException: 404 if detection not found or not a video\n    HTTPException: 500 if thumbnail generation fails",
         "operationId": "get_video_thumbnail_api_detections__detection_id__video_thumbnail_get",
         "parameters": [
           {
@@ -17126,7 +18295,9 @@
           }
         },
         "summary": "Get Video Thumbnail",
-        "tags": ["detections"]
+        "tags": [
+          "detections"
+        ]
       }
     },
     "/api/dlq/jobs/{queue_name}": {
@@ -17189,7 +18360,9 @@
           }
         },
         "summary": "Get Dlq Jobs",
-        "tags": ["dlq"]
+        "tags": [
+          "dlq"
+        ]
       }
     },
     "/api/dlq/requeue-all/{queue_name}": {
@@ -17260,7 +18433,9 @@
           }
         },
         "summary": "Requeue All Dlq Jobs",
-        "tags": ["dlq"]
+        "tags": [
+          "dlq"
+        ]
       }
     },
     "/api/dlq/requeue/{queue_name}": {
@@ -17331,7 +18506,9 @@
           }
         },
         "summary": "Requeue Dlq Job",
-        "tags": ["dlq"]
+        "tags": [
+          "dlq"
+        ]
       }
     },
     "/api/dlq/stats": {
@@ -17354,7 +18531,9 @@
           }
         },
         "summary": "Get Dlq Stats",
-        "tags": ["dlq"]
+        "tags": [
+          "dlq"
+        ]
       }
     },
     "/api/dlq/{queue_name}": {
@@ -17425,7 +18604,9 @@
           }
         },
         "summary": "Clear Dlq",
-        "tags": ["dlq"]
+        "tags": [
+          "dlq"
+        ]
       }
     },
     "/api/entities": {
@@ -17535,7 +18716,9 @@
           }
         },
         "summary": "List Entities",
-        "tags": ["entities"]
+        "tags": [
+          "entities"
+        ]
       }
     },
     "/api/entities/{entity_id}": {
@@ -17585,7 +18768,9 @@
           }
         },
         "summary": "Get Entity",
-        "tags": ["entities"]
+        "tags": [
+          "entities"
+        ]
       }
     },
     "/api/entities/{entity_id}/history": {
@@ -17635,7 +18820,9 @@
           }
         },
         "summary": "Get Entity History",
-        "tags": ["entities"]
+        "tags": [
+          "entities"
+        ]
       }
     },
     "/api/events": {
@@ -17840,12 +19027,14 @@
           }
         },
         "summary": "List Events",
-        "tags": ["events"]
+        "tags": [
+          "events"
+        ]
       }
     },
     "/api/events/analyze/{batch_id}/stream": {
       "get": {
-        "description": "Stream LLM analysis progress for a batch via Server-Sent Events (NEM-1665).\n\nThis endpoint provides progressive LLM response updates during long inference\ntimes, allowing the frontend to display partial results and show typing\nindicators while the analysis is in progress.\n\nEvent Types:\n- progress: Partial LLM response chunk with accumulated_text\n- complete: Final event with risk assessment and event_id\n- error: Error information with error_code and recoverable flag\n\nArgs:\n    batch_id: Batch identifier to analyze\n    camera_id: Optional camera ID (uses Redis lookup if not provided)\n    detection_ids: Optional comma-separated detection IDs\n\nReturns:\n    StreamingResponse with SSE event stream (text/event-stream)\n\nExample SSE output:\n    data: {\"event_type\": \"progress\", \"content\": \"Based on\", \"accumulated_text\": \"Based on\"}\n\n    data: {\"event_type\": \"progress\", \"content\": \" the\", \"accumulated_text\": \"Based on the\"}\n\n    data: {\"event_type\": \"complete\", \"event_id\": 123, \"risk_score\": 75, ...}",
+        "description": "Stream LLM analysis progress for a batch via Server-Sent Events (NEM-1665).\n\nThis endpoint provides progressive LLM response updates during long inference\ntimes, allowing the frontend to display partial results and show typing\nindicators while the analysis is in progress.\n\nEvent Types:\n- progress: Partial LLM response chunk with accumulated_text\n- complete: Final event with risk assessment and event_id\n- error: Error information with error_code and recoverable flag\n\nArgs:\n    batch_id: Batch identifier to analyze\n    camera_id: Optional camera ID (uses Redis lookup if not provided)\n    detection_ids: Optional comma-separated detection IDs\n    analyzer: NemotronAnalyzer injected via Depends()\n\nReturns:\n    StreamingResponse with SSE event stream (text/event-stream)\n\nExample SSE output:\n    data: {\"event_type\": \"progress\", \"content\": \"Based on\", \"accumulated_text\": \"Based on\"}\n\n    data: {\"event_type\": \"progress\", \"content\": \" the\", \"accumulated_text\": \"Based on the\"}\n\n    data: {\"event_type\": \"complete\", \"event_id\": 123, \"risk_score\": 75, ...}",
         "operationId": "analyze_batch_streaming_api_events_analyze__batch_id__stream_get",
         "parameters": [
           {
@@ -17915,7 +19104,9 @@
           }
         },
         "summary": "Analyze Batch Streaming",
-        "tags": ["events"]
+        "tags": [
+          "events"
+        ]
       }
     },
     "/api/events/bulk": {
@@ -17951,7 +19142,9 @@
           }
         },
         "summary": "Bulk delete events",
-        "tags": ["events"]
+        "tags": [
+          "events"
+        ]
       },
       "patch": {
         "description": "Update multiple events in a single request.\n\nSupports partial success - some updates may succeed while others fail.\nReturns HTTP 207 Multi-Status with per-item results.\n\nRate limiting: Consider implementing RateLimitTier.BULK for production use.\n\nArgs:\n    request: Bulk update request with up to 100 event updates\n    db: Database session\n\nReturns:\n    BulkOperationResponse with per-item results",
@@ -17985,7 +19178,9 @@
           }
         },
         "summary": "Bulk update events",
-        "tags": ["events"]
+        "tags": [
+          "events"
+        ]
       },
       "post": {
         "description": "Create multiple events in a single request.\n\nSupports partial success - some events may succeed while others fail.\nReturns HTTP 207 Multi-Status with per-item results.\n\nRate limiting: Consider implementing RateLimitTier.BULK for production use.\n\nArgs:\n    request: Bulk create request with up to 100 events\n    db: Database session\n\nReturns:\n    EventBulkCreateResponse with per-item results",
@@ -18019,7 +19214,9 @@
           }
         },
         "summary": "Bulk create events",
-        "tags": ["events"]
+        "tags": [
+          "events"
+        ]
       }
     },
     "/api/events/deleted": {
@@ -18039,7 +19236,9 @@
           }
         },
         "summary": "List all soft-deleted events",
-        "tags": ["events"]
+        "tags": [
+          "events"
+        ]
       }
     },
     "/api/events/export": {
@@ -18177,7 +19376,9 @@
           }
         },
         "summary": "Export Events",
-        "tags": ["events"]
+        "tags": [
+          "events"
+        ]
       }
     },
     "/api/events/search": {
@@ -18376,7 +19577,9 @@
           }
         },
         "summary": "Search Events Endpoint",
-        "tags": ["events"]
+        "tags": [
+          "events"
+        ]
       }
     },
     "/api/events/stats": {
@@ -18446,7 +19649,9 @@
           }
         },
         "summary": "Get Event Stats",
-        "tags": ["events"]
+        "tags": [
+          "events"
+        ]
       }
     },
     "/api/events/{event_id}": {
@@ -18498,7 +19703,9 @@
           }
         },
         "summary": "Soft delete a single event",
-        "tags": ["events"]
+        "tags": [
+          "events"
+        ]
       },
       "get": {
         "description": "Get a specific event by ID with HATEOAS links.\n\nArgs:\n    event_id: Event ID\n    request: FastAPI request object for building HATEOAS links\n    db: Database session\n\nReturns:\n    Event object with detection count and HATEOAS links\n\nRaises:\n    HTTPException: 404 if event not found",
@@ -18537,7 +19744,9 @@
           }
         },
         "summary": "Get Event",
-        "tags": ["events"]
+        "tags": [
+          "events"
+        ]
       },
       "patch": {
         "description": "Update an event (mark as reviewed).\n\nArgs:\n    event_id: Event ID\n    update_data: Update data (reviewed field)\n    request: FastAPI request for audit logging\n    db: Database session\n    cache: Cache service for cache invalidation (NEM-1938)\n\nReturns:\n    Updated event object\n\nRaises:\n    HTTPException: 404 if event not found",
@@ -18586,7 +19795,9 @@
           }
         },
         "summary": "Update Event",
-        "tags": ["events"]
+        "tags": [
+          "events"
+        ]
       }
     },
     "/api/events/{event_id}/clip": {
@@ -18627,12 +19838,14 @@
           }
         },
         "summary": "Get Event Clip",
-        "tags": ["events"]
+        "tags": [
+          "events"
+        ]
       }
     },
     "/api/events/{event_id}/clip/generate": {
       "post": {
-        "description": "Trigger video clip generation for an event.\n\nIf a clip already exists and force=False, returns the existing clip info.\nIf force=True, regenerates the clip even if one exists.\n\nClip generation uses detection images to create a video sequence, or\nextracts from existing video if available.\n\nArgs:\n    event_id: Event ID\n    request: Clip generation parameters\n    db: Database session\n\nReturns:\n    ClipGenerateResponse with generation status and clip info\n\nRaises:\n    HTTPException: 404 if event not found\n    HTTPException: 400 if event has no detections to generate clip from",
+        "description": "Trigger video clip generation for an event.\n\nIf a clip already exists and force=False, returns the existing clip info.\nIf force=True, regenerates the clip even if one exists.\n\nClip generation uses detection images to create a video sequence, or\nextracts from existing video if available.\n\nArgs:\n    event_id: Event ID\n    request: Clip generation parameters\n    db: Database session\n    clip_generator: ClipGenerator injected via Depends()\n\nReturns:\n    ClipGenerateResponse with generation status and clip info\n\nRaises:\n    HTTPException: 404 if event not found\n    HTTPException: 400 if event has no detections to generate clip from",
         "operationId": "generate_event_clip_api_events__event_id__clip_generate_post",
         "parameters": [
           {
@@ -18694,7 +19907,9 @@
           }
         },
         "summary": "Generate Event Clip",
-        "tags": ["events"]
+        "tags": [
+          "events"
+        ]
       }
     },
     "/api/events/{event_id}/detections": {
@@ -18762,7 +19977,9 @@
           }
         },
         "summary": "Get Event Detections",
-        "tags": ["events"]
+        "tags": [
+          "events"
+        ]
       }
     },
     "/api/events/{event_id}/enrichments": {
@@ -18830,7 +20047,9 @@
           }
         },
         "summary": "Get Event Enrichments",
-        "tags": ["events"]
+        "tags": [
+          "events"
+        ]
       }
     },
     "/api/events/{event_id}/restore": {
@@ -18889,7 +20108,9 @@
           }
         },
         "summary": "Restore a soft-deleted event",
-        "tags": ["events"]
+        "tags": [
+          "events"
+        ]
       }
     },
     "/api/logs": {
@@ -19093,7 +20314,9 @@
           }
         },
         "summary": "List Logs",
-        "tags": ["logs"]
+        "tags": [
+          "logs"
+        ]
       }
     },
     "/api/logs/frontend": {
@@ -19133,7 +20356,9 @@
           }
         },
         "summary": "Create Frontend Log",
-        "tags": ["logs"]
+        "tags": [
+          "logs"
+        ]
       }
     },
     "/api/logs/stats": {
@@ -19159,7 +20384,9 @@
           }
         },
         "summary": "Get Log Stats",
-        "tags": ["logs"]
+        "tags": [
+          "logs"
+        ]
       }
     },
     "/api/logs/{log_id}": {
@@ -19206,7 +20433,9 @@
           }
         },
         "summary": "Get Log",
-        "tags": ["logs"]
+        "tags": [
+          "logs"
+        ]
       }
     },
     "/api/media/cameras/{camera_id}/{filename}": {
@@ -19272,12 +20501,14 @@
           }
         },
         "summary": "Serve Camera File",
-        "tags": ["media"]
+        "tags": [
+          "media"
+        ]
       }
     },
     "/api/media/clips/{filename}": {
       "get": {
-        "description": "Serve event video clips.\n\nClips are generated by the ClipGenerator service and stored in the\nconfigured clips directory.\n\nArgs:\n    filename: The clip filename (e.g., \"123_clip.mp4\")\n\nReturns:\n    FileResponse with appropriate content-type header\n\nRaises:\n    HTTPException: 403 for invalid paths, 404 for missing files",
+        "description": "Serve event video clips.\n\nClips are generated by the ClipGenerator service and stored in the\nconfigured clips directory.\n\nArgs:\n    filename: The clip filename (e.g., \"123_clip.mp4\")\n    clip_generator: ClipGenerator injected via Depends()\n\nReturns:\n    FileResponse with appropriate content-type header\n\nRaises:\n    HTTPException: 403 for invalid paths, 404 for missing files",
         "operationId": "serve_clip_api_media_clips__filename__get",
         "parameters": [
           {
@@ -19329,7 +20560,9 @@
           }
         },
         "summary": "Serve Clip",
-        "tags": ["media"]
+        "tags": [
+          "media"
+        ]
       }
     },
     "/api/media/thumbnails/{filename}": {
@@ -19386,7 +20619,9 @@
           }
         },
         "summary": "Serve Thumbnail",
-        "tags": ["media"]
+        "tags": [
+          "media"
+        ]
       }
     },
     "/api/media/{path}": {
@@ -19443,7 +20678,9 @@
           }
         },
         "summary": "Serve Media Compat",
-        "tags": ["media"]
+        "tags": [
+          "media"
+        ]
       }
     },
     "/api/metrics": {
@@ -19464,7 +20701,9 @@
           }
         },
         "summary": "Metrics",
-        "tags": ["metrics"]
+        "tags": [
+          "metrics"
+        ]
       }
     },
     "/api/notification-preferences/": {
@@ -19487,7 +20726,9 @@
           }
         },
         "summary": "Get Notification Preferences",
-        "tags": ["notification-preferences"]
+        "tags": [
+          "notification-preferences"
+        ]
       },
       "put": {
         "description": "Update global notification preferences.\n\nArgs:\n    update: Preferences update data\n\nReturns:\n    NotificationPreferencesResponse with updated preferences\n\nRaises:\n    HTTPException: 400 if sound value is invalid",
@@ -19524,7 +20765,9 @@
           }
         },
         "summary": "Update Notification Preferences",
-        "tags": ["notification-preferences"]
+        "tags": [
+          "notification-preferences"
+        ]
       }
     },
     "/api/notification-preferences/cameras": {
@@ -19547,7 +20790,9 @@
           }
         },
         "summary": "Get All Camera Settings",
-        "tags": ["notification-preferences"]
+        "tags": [
+          "notification-preferences"
+        ]
       }
     },
     "/api/notification-preferences/cameras/{camera_id}": {
@@ -19594,7 +20839,9 @@
           }
         },
         "summary": "Get Camera Setting",
-        "tags": ["notification-preferences"]
+        "tags": [
+          "notification-preferences"
+        ]
       },
       "put": {
         "description": "Update or create notification setting for a camera.\n\nArgs:\n    camera_id: Camera ID\n    update: Setting update data\n\nReturns:\n    CameraNotificationSettingResponse with updated setting\n\nRaises:\n    HTTPException: 404 if camera doesn't exist",
@@ -19642,7 +20889,9 @@
           }
         },
         "summary": "Update Camera Setting",
-        "tags": ["notification-preferences"]
+        "tags": [
+          "notification-preferences"
+        ]
       }
     },
     "/api/notification-preferences/quiet-hours": {
@@ -19665,7 +20914,9 @@
           }
         },
         "summary": "Get Quiet Hours",
-        "tags": ["notification-preferences"]
+        "tags": [
+          "notification-preferences"
+        ]
       },
       "post": {
         "description": "Create a new quiet hours period.\n\nArgs:\n    period: Quiet hours period data\n\nReturns:\n    QuietHoursPeriodResponse with created period\n\nRaises:\n    HTTPException: 400 if start_time equals end_time (zero-length period)\n\nNote:\n    Periods can span midnight (e.g., 22:00 to 06:00).\n    If start_time > end_time, the period wraps to the next day.",
@@ -19702,7 +20953,9 @@
           }
         },
         "summary": "Create Quiet Hours Period",
-        "tags": ["notification-preferences"]
+        "tags": [
+          "notification-preferences"
+        ]
       }
     },
     "/api/notification-preferences/quiet-hours/{period_id}": {
@@ -19742,7 +20995,9 @@
           }
         },
         "summary": "Delete Quiet Hours Period",
-        "tags": ["notification-preferences"]
+        "tags": [
+          "notification-preferences"
+        ]
       }
     },
     "/api/notification/config": {
@@ -19762,7 +21017,9 @@
           }
         },
         "summary": "Get Notification Config",
-        "tags": ["notification"]
+        "tags": [
+          "notification"
+        ]
       }
     },
     "/api/notification/test": {
@@ -19802,7 +21059,9 @@
           }
         },
         "summary": "Test Notification",
-        "tags": ["notification"]
+        "tags": [
+          "notification"
+        ]
       }
     },
     "/api/rum": {
@@ -19838,12 +21097,14 @@
           }
         },
         "summary": "Ingest RUM metrics",
-        "tags": ["rum"]
+        "tags": [
+          "rum"
+        ]
       }
     },
     "/api/system/anomaly-config": {
       "get": {
-        "description": "Get current anomaly detection configuration.\n\nReturns the current settings for the baseline service including:\n- threshold_stdev: Number of standard deviations for anomaly detection\n- min_samples: Minimum samples required before anomaly detection is reliable\n- decay_factor: Exponential decay factor for EWMA (weights recent observations)\n- window_days: Rolling window size in days for baseline calculations\n\nReturns:\n    AnomalyConfig with current anomaly detection settings",
+        "description": "Get current anomaly detection configuration.\n\nReturns the current settings for the baseline service including:\n- threshold_stdev: Number of standard deviations for anomaly detection\n- min_samples: Minimum samples required before anomaly detection is reliable\n- decay_factor: Exponential decay factor for EWMA (weights recent observations)\n- window_days: Rolling window size in days for baseline calculations\n\nArgs:\n    service: BaselineService injected via Depends()\n\nReturns:\n    AnomalyConfig with current anomaly detection settings",
         "operationId": "get_anomaly_config_api_system_anomaly_config_get",
         "responses": {
           "200": {
@@ -19861,10 +21122,12 @@
           }
         },
         "summary": "Get Anomaly Config",
-        "tags": ["system"]
+        "tags": [
+          "system"
+        ]
       },
       "patch": {
-        "description": "Update anomaly detection configuration.\n\nAllows updating the anomaly detection thresholds:\n- threshold_stdev: Number of standard deviations for anomaly detection\n- min_samples: Minimum samples required before anomaly detection is reliable\n\nNote: decay_factor and window_days are not configurable at runtime\nas they affect historical data calculations.\n\nRequires API key authentication.\n\nArgs:\n    config_update: Configuration values to update (only provided values are changed)\n    request: HTTP request for audit logging\n    db: Database session\n\nReturns:\n    AnomalyConfig with updated settings",
+        "description": "Update anomaly detection configuration.\n\nAllows updating the anomaly detection thresholds:\n- threshold_stdev: Number of standard deviations for anomaly detection\n- min_samples: Minimum samples required before anomaly detection is reliable\n\nNote: decay_factor and window_days are not configurable at runtime\nas they affect historical data calculations.\n\nRequires API key authentication.\n\nArgs:\n    config_update: Configuration values to update (only provided values are changed)\n    request: HTTP request for audit logging\n    db: Database session\n    service: BaselineService injected via Depends()\n\nReturns:\n    AnomalyConfig with updated settings",
         "operationId": "update_anomaly_config_api_system_anomaly_config_patch",
         "parameters": [
           {
@@ -19916,7 +21179,9 @@
           }
         },
         "summary": "Update Anomaly Config",
-        "tags": ["system"]
+        "tags": [
+          "system"
+        ]
       }
     },
     "/api/system/circuit-breakers": {
@@ -19936,7 +21201,9 @@
           }
         },
         "summary": "Get Circuit Breakers",
-        "tags": ["system"]
+        "tags": [
+          "system"
+        ]
       }
     },
     "/api/system/circuit-breakers/{name}/reset": {
@@ -19993,7 +21260,9 @@
           }
         },
         "summary": "Reset Circuit Breaker",
-        "tags": ["system"]
+        "tags": [
+          "system"
+        ]
       }
     },
     "/api/system/cleanup": {
@@ -20051,7 +21320,9 @@
           }
         },
         "summary": "Trigger Cleanup",
-        "tags": ["system"]
+        "tags": [
+          "system"
+        ]
       }
     },
     "/api/system/cleanup/status": {
@@ -20071,7 +21342,9 @@
           }
         },
         "summary": "Get Cleanup Status",
-        "tags": ["system"]
+        "tags": [
+          "system"
+        ]
       }
     },
     "/api/system/config": {
@@ -20091,7 +21364,9 @@
           }
         },
         "summary": "Get Config",
-        "tags": ["system"]
+        "tags": [
+          "system"
+        ]
       },
       "patch": {
         "description": "Patch processing-related configuration and persist runtime overrides.\n\nRequires API key authentication when api_key_enabled is True in settings.\nProvide the API key via X-API-Key header.\n\nNotes:\n- This updates a runtime override env file (see `HSI_RUNTIME_ENV_PATH`) and clears the\n  settings cache so subsequent `get_settings()` calls observe the new values.",
@@ -20146,7 +21421,9 @@
           }
         },
         "summary": "Patch Config",
-        "tags": ["system"]
+        "tags": [
+          "system"
+        ]
       }
     },
     "/api/system/gpu": {
@@ -20166,7 +21443,9 @@
           }
         },
         "summary": "Get Gpu Stats",
-        "tags": ["system"]
+        "tags": [
+          "system"
+        ]
       }
     },
     "/api/system/gpu/history": {
@@ -20225,7 +21504,9 @@
           }
         },
         "summary": "Get Gpu Stats History",
-        "tags": ["system"]
+        "tags": [
+          "system"
+        ]
       }
     },
     "/api/system/health": {
@@ -20245,7 +21526,9 @@
           }
         },
         "summary": "Get Health",
-        "tags": ["system"]
+        "tags": [
+          "system"
+        ]
       }
     },
     "/api/system/health/full": {
@@ -20268,7 +21551,9 @@
           }
         },
         "summary": "Get Full System Health Status",
-        "tags": ["system"]
+        "tags": [
+          "system"
+        ]
       }
     },
     "/api/system/health/ready": {
@@ -20288,7 +21573,9 @@
           }
         },
         "summary": "Get Readiness",
-        "tags": ["system"]
+        "tags": [
+          "system"
+        ]
       }
     },
     "/api/system/health/websocket": {
@@ -20308,7 +21595,9 @@
           }
         },
         "summary": "Get Websocket Health",
-        "tags": ["system"]
+        "tags": [
+          "system"
+        ]
       }
     },
     "/api/system/model-zoo/latency/history": {
@@ -20379,7 +21668,9 @@
           }
         },
         "summary": "Get Model Zoo Latency History",
-        "tags": ["system"]
+        "tags": [
+          "system"
+        ]
       }
     },
     "/api/system/model-zoo/status": {
@@ -20399,7 +21690,9 @@
           }
         },
         "summary": "Get Model Zoo Status",
-        "tags": ["system"]
+        "tags": [
+          "system"
+        ]
       }
     },
     "/api/system/models": {
@@ -20419,7 +21712,9 @@
           }
         },
         "summary": "Get Model Zoo Registry",
-        "tags": ["system"]
+        "tags": [
+          "system"
+        ]
       }
     },
     "/api/system/models/{model_name}": {
@@ -20460,7 +21755,9 @@
           }
         },
         "summary": "Get Model Status",
-        "tags": ["system"]
+        "tags": [
+          "system"
+        ]
       }
     },
     "/api/system/pipeline": {
@@ -20480,7 +21777,9 @@
           }
         },
         "summary": "Get Pipeline Status",
-        "tags": ["system"]
+        "tags": [
+          "system"
+        ]
       }
     },
     "/api/system/pipeline-latency": {
@@ -20522,7 +21821,9 @@
           }
         },
         "summary": "Get Pipeline Latency",
-        "tags": ["system"]
+        "tags": [
+          "system"
+        ]
       }
     },
     "/api/system/pipeline-latency/history": {
@@ -20582,7 +21883,9 @@
           }
         },
         "summary": "Get Pipeline Latency History",
-        "tags": ["system"]
+        "tags": [
+          "system"
+        ]
       }
     },
     "/api/system/services": {
@@ -20636,7 +21939,9 @@
           }
         },
         "summary": "List Services",
-        "tags": ["services"]
+        "tags": [
+          "services"
+        ]
       }
     },
     "/api/system/services/{name}/disable": {
@@ -20686,7 +21991,9 @@
           }
         },
         "summary": "Disable Service",
-        "tags": ["services"]
+        "tags": [
+          "services"
+        ]
       }
     },
     "/api/system/services/{name}/enable": {
@@ -20736,7 +22043,9 @@
           }
         },
         "summary": "Enable Service",
-        "tags": ["services"]
+        "tags": [
+          "services"
+        ]
       }
     },
     "/api/system/services/{name}/restart": {
@@ -20789,7 +22098,9 @@
           }
         },
         "summary": "Restart Service",
-        "tags": ["services"]
+        "tags": [
+          "services"
+        ]
       }
     },
     "/api/system/services/{name}/start": {
@@ -20842,7 +22153,9 @@
           }
         },
         "summary": "Start Service",
-        "tags": ["services"]
+        "tags": [
+          "services"
+        ]
       }
     },
     "/api/system/severity": {
@@ -20862,7 +22175,9 @@
           }
         },
         "summary": "Get Severity Metadata",
-        "tags": ["system"]
+        "tags": [
+          "system"
+        ]
       },
       "put": {
         "description": "Update severity threshold configuration.\n\nUpdates the risk score thresholds for severity levels. The thresholds\ndefine how risk scores (0-100) are mapped to severity levels:\n- LOW: 0 to low_max\n- MEDIUM: low_max+1 to medium_max\n- HIGH: medium_max+1 to high_max\n- CRITICAL: high_max+1 to 100\n\nRequires API key authentication when api_key_enabled is True in settings.\nProvide the API key via X-API-Key header.\n\nValidation:\n- Thresholds must be strictly ordered: low_max < medium_max < high_max\n- All thresholds must be between 1 and 99\n- This ensures contiguous, non-overlapping ranges covering 0-100\n\nNote: Changes only affect new events. Existing events retain their\noriginal severity assignment.\n\nArgs:\n    update: New threshold values\n\nReturns:\n    SeverityMetadataResponse with updated definitions and thresholds\n\nRaises:\n    HTTPException 400: If thresholds are not strictly ordered",
@@ -20918,7 +22233,9 @@
           }
         },
         "summary": "Update Severity Thresholds",
-        "tags": ["system"]
+        "tags": [
+          "system"
+        ]
       }
     },
     "/api/system/stats": {
@@ -20938,7 +22255,9 @@
           }
         },
         "summary": "Get Stats",
-        "tags": ["system"]
+        "tags": [
+          "system"
+        ]
       }
     },
     "/api/system/storage": {
@@ -20958,7 +22277,9 @@
           }
         },
         "summary": "Get Storage Stats",
-        "tags": ["system"]
+        "tags": [
+          "system"
+        ]
       }
     },
     "/api/system/telemetry": {
@@ -20978,7 +22299,9 @@
           }
         },
         "summary": "Get Telemetry",
-        "tags": ["system"]
+        "tags": [
+          "system"
+        ]
       }
     },
     "/api/system/websocket/events": {
@@ -20998,7 +22321,9 @@
           }
         },
         "summary": "List Websocket Event Types",
-        "tags": ["system"]
+        "tags": [
+          "system"
+        ]
       }
     },
     "/health": {

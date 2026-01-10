@@ -70,6 +70,7 @@ from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.core.database import get_db
 from backend.core.redis import RedisClient, get_redis
 from backend.models.alert import AlertRule
 from backend.models.audit import AuditLog
@@ -82,7 +83,13 @@ from backend.models.zone import Zone
 from backend.services.cache_service import CacheService
 
 if TYPE_CHECKING:
+    from backend.services.alert_engine import AlertRuleEngine
+    from backend.services.baseline import BaselineService
+    from backend.services.clip_generator import ClipGenerator
     from backend.services.container_orchestrator import ContainerOrchestrator
+    from backend.services.nemotron_analyzer import NemotronAnalyzer
+    from backend.services.thumbnail_generator import ThumbnailGenerator
+    from backend.services.video_processor import VideoProcessor
 
 
 # =============================================================================
@@ -535,3 +542,91 @@ async def get_cache_service_optional_dep(
         yield CacheService(redis)
     except Exception:
         yield None
+
+
+def get_baseline_service_dep() -> BaselineService:
+    """FastAPI dependency for BaselineService (NEM-2032).
+
+    Returns the global BaselineService singleton instance.
+
+    Returns:
+        BaselineService singleton instance
+    """
+    from backend.services.baseline import get_baseline_service
+
+    return get_baseline_service()
+
+
+def get_clip_generator_dep() -> ClipGenerator:
+    """FastAPI dependency for ClipGenerator (NEM-2032).
+
+    Returns the global ClipGenerator singleton instance.
+
+    Returns:
+        ClipGenerator singleton instance
+    """
+    from backend.services.clip_generator import get_clip_generator
+
+    return get_clip_generator()
+
+
+def get_alert_rule_engine_dep(
+    db: AsyncSession = Depends(get_db),
+) -> AlertRuleEngine:
+    """FastAPI dependency for AlertRuleEngine (NEM-2032).
+
+    Creates an AlertRuleEngine instance with the injected database session.
+
+    Args:
+        db: Database session injected via Depends(get_db)
+
+    Returns:
+        AlertRuleEngine instance
+    """
+    from backend.services.alert_engine import AlertRuleEngine
+
+    return AlertRuleEngine(db)
+
+
+def get_thumbnail_generator_dep() -> ThumbnailGenerator:
+    """FastAPI dependency for ThumbnailGenerator (NEM-2032).
+
+    Returns a ThumbnailGenerator instance.
+
+    Returns:
+        ThumbnailGenerator instance
+    """
+    from backend.services.thumbnail_generator import ThumbnailGenerator
+
+    return ThumbnailGenerator()
+
+
+def get_video_processor_dep() -> VideoProcessor:
+    """FastAPI dependency for VideoProcessor (NEM-2032).
+
+    Returns a VideoProcessor instance.
+
+    Returns:
+        VideoProcessor instance
+    """
+    from backend.services.video_processor import VideoProcessor
+
+    return VideoProcessor()
+
+
+async def get_nemotron_analyzer_dep(
+    redis: RedisClient = Depends(get_redis),
+) -> AsyncGenerator[NemotronAnalyzer]:
+    """FastAPI dependency for NemotronAnalyzer (NEM-2032).
+
+    Creates a NemotronAnalyzer instance with the injected Redis client.
+
+    Args:
+        redis: Redis client injected via Depends(get_redis)
+
+    Yields:
+        NemotronAnalyzer instance
+    """
+    from backend.services.nemotron_analyzer import NemotronAnalyzer
+
+    yield NemotronAnalyzer(redis_client=redis)

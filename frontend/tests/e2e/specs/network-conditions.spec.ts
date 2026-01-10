@@ -228,11 +228,13 @@ test.describe('Network Condition Simulation @network', () => {
           status: 200,
           contentType: 'application/json',
           body: JSON.stringify({
-            events: [],
-            total: 0,
-            count: 0,
-            limit: 20,
-            offset: 0,
+            items: [],
+            pagination: {
+              total: 0,
+              limit: 20,
+              offset: 0,
+              has_more: false,
+            },
           }),
         });
       });

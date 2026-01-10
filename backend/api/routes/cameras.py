@@ -10,7 +10,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from backend.api.dependencies import get_cache_service_dep, get_camera_or_404
+from backend.api.dependencies import (
+    get_baseline_service_dep,
+    get_cache_service_dep,
+    get_camera_or_404,
+)
 from backend.api.middleware import RateLimiter, RateLimitTier
 from backend.api.schemas.baseline import (
     ActivityBaselineEntry,
@@ -46,12 +50,15 @@ from backend.models.audit import AuditAction
 from backend.models.camera import Camera, normalize_camera_id
 from backend.models.scene_change import SceneChange
 from backend.services.audit import AuditService
-from backend.services.baseline import get_baseline_service
+from backend.services.baseline import BaselineService
 from backend.services.cache_service import (
     SHORT_TTL,
     CacheKeys,
     CacheService,
 )
+
+# Type alias for dependency injection
+BaselineServiceDep = BaselineService
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/cameras", tags=["cameras"])
@@ -790,6 +797,7 @@ async def validate_camera_paths(
 async def get_camera_baseline(
     camera_id: str,
     db: AsyncSession = Depends(get_db),
+    baseline_service: BaselineServiceDep = Depends(get_baseline_service_dep),
 ) -> BaselineSummaryResponse:
     """Get baseline activity data for a camera.
 
@@ -802,6 +810,7 @@ async def get_camera_baseline(
     Args:
         camera_id: ID of the camera
         db: Database session
+        baseline_service: BaselineService injected via Depends()
 
     Returns:
         BaselineSummaryResponse with all baseline data
@@ -811,10 +820,7 @@ async def get_camera_baseline(
     """
     camera = await get_camera_or_404(camera_id, db)
 
-    # Get baseline service and fetch data
-    baseline_service = get_baseline_service()
-
-    # Fetch all baseline data
+    # Fetch all baseline data (service injected via DI)
     summary = await baseline_service.get_camera_baseline_summary(camera_id, session=db)
     hourly_patterns = await baseline_service.get_hourly_patterns(camera_id, session=db)
     daily_patterns = await baseline_service.get_daily_patterns(camera_id, session=db)
@@ -844,6 +850,7 @@ async def get_camera_baseline_anomalies(
     camera_id: str,
     days: int = Query(default=7, ge=1, le=90, description="Number of days to look back"),
     db: AsyncSession = Depends(get_db),
+    baseline_service: BaselineServiceDep = Depends(get_baseline_service_dep),
 ) -> AnomalyListResponse:
     """Get recent anomaly events for a camera.
 
@@ -855,6 +862,7 @@ async def get_camera_baseline_anomalies(
         camera_id: ID of the camera
         days: Number of days to look back (default: 7, max: 90)
         db: Database session
+        baseline_service: BaselineService injected via Depends()
 
     Returns:
         AnomalyListResponse with list of anomaly events
@@ -864,8 +872,7 @@ async def get_camera_baseline_anomalies(
     """
     await get_camera_or_404(camera_id, db)
 
-    # Get baseline service and fetch anomalies
-    baseline_service = get_baseline_service()
+    # Fetch anomalies (service injected via DI)
     anomalies = await baseline_service.get_recent_anomalies(camera_id, days=days, session=db)
 
     return AnomalyListResponse(
@@ -880,6 +887,7 @@ async def get_camera_baseline_anomalies(
 async def get_camera_activity_baseline(
     camera_id: str,
     db: AsyncSession = Depends(get_db),
+    baseline_service: BaselineServiceDep = Depends(get_baseline_service_dep),
 ) -> ActivityBaselineResponse:
     """Get raw activity baseline data for a camera.
 
@@ -890,6 +898,7 @@ async def get_camera_activity_baseline(
     Args:
         camera_id: ID of the camera
         db: Database session
+        baseline_service: BaselineService injected via Depends()
 
     Returns:
         ActivityBaselineResponse with entries for the heatmap
@@ -899,8 +908,7 @@ async def get_camera_activity_baseline(
     """
     await get_camera_or_404(camera_id, db)
 
-    # Get baseline service and fetch raw activity baselines
-    baseline_service = get_baseline_service()
+    # Fetch raw activity baselines (service injected via DI)
     raw_baselines = await baseline_service.get_activity_baselines_raw(camera_id, session=db)
 
     # Calculate peak values
@@ -953,6 +961,7 @@ async def get_camera_activity_baseline(
 async def get_camera_class_baseline(
     camera_id: str,
     db: AsyncSession = Depends(get_db),
+    baseline_service: BaselineServiceDep = Depends(get_baseline_service_dep),
 ) -> ClassBaselineResponse:
     """Get class frequency baseline data for a camera.
 
@@ -962,6 +971,7 @@ async def get_camera_class_baseline(
     Args:
         camera_id: ID of the camera
         db: Database session
+        baseline_service: BaselineService injected via Depends()
 
     Returns:
         ClassBaselineResponse with entries for each class/hour combination
@@ -971,8 +981,7 @@ async def get_camera_class_baseline(
     """
     await get_camera_or_404(camera_id, db)
 
-    # Get baseline service and fetch raw class baselines
-    baseline_service = get_baseline_service()
+    # Fetch raw class baselines (service injected via DI)
     raw_baselines = await baseline_service.get_class_baselines_raw(camera_id, session=db)
 
     # Calculate stats

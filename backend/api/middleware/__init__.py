@@ -24,6 +24,10 @@ from .file_validator import (
     validate_file_magic_sync,
     validate_upload_file,
 )
+from .idempotency import (
+    IdempotencyMiddleware,
+    compute_request_fingerprint,
+)
 from .rate_limit import (
     RateLimiter,
     RateLimitTier,
@@ -61,6 +65,7 @@ __all__ = [
     "BodySizeLimitMiddleware",
     "ContentTypeValidationMiddleware",
     "DeprecationLoggerMiddleware",
+    "IdempotencyMiddleware",
     "RateLimitTier",
     "RateLimiter",
     "RequestIDMiddleware",
@@ -72,6 +77,7 @@ __all__ = [
     "ValidatedUploadFile",
     "authenticate_websocket",
     "check_websocket_rate_limit",
+    "compute_request_fingerprint",
     "create_safe_error_message",
     "detect_mime_type",
     "format_http_date",
