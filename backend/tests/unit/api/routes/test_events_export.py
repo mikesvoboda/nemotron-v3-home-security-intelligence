@@ -679,8 +679,16 @@ class TestExportFormatDetection:
         """Test that unknown Accept header defaults to CSV."""
         from backend.services.export_service import ExportFormat, parse_accept_header
 
-        assert parse_accept_header("application/json") == ExportFormat.CSV
+        # Unknown types default to CSV
         assert parse_accept_header("text/html") == ExportFormat.CSV
+        assert parse_accept_header("application/xml") == ExportFormat.CSV
+
+    @pytest.mark.asyncio
+    async def test_json_accept_header_returns_json(self):
+        """Test that application/json Accept header returns JSON format."""
+        from backend.services.export_service import ExportFormat, parse_accept_header
+
+        assert parse_accept_header("application/json") == ExportFormat.JSON
 
     @pytest.mark.asyncio
     async def test_accept_header_with_quality_values(self):
