@@ -70,6 +70,8 @@ export {
   createErrorResponse,
   createGPUStatsResponse,
   createEventResponse,
+  // Pagination helpers
+  createPaginationMeta,
 } from './factories';
 
 export type {
@@ -90,4 +92,5 @@ export type {
   CameraListResponse,
   GPUStatsResponse,
   ErrorResponse,
+  PaginationMeta,
 } from './factories';
