@@ -169,8 +169,9 @@ describe('PipelineLatencyPanel', () => {
   it('displays stage statistics correctly', async () => {
     render(<PipelineLatencyPanel />);
 
+    // Wait for all stage bars to be rendered (data fully loaded)
     await waitFor(() => {
-      expect(screen.getByText('Pipeline Latency Breakdown')).toBeInTheDocument();
+      expect(screen.getByTestId('stage-bar-watch_to_detect')).toBeInTheDocument();
     });
 
     // Find the watch_to_detect stage bar

@@ -433,8 +433,13 @@ test.describe('Batch Operations - Bulk Export', () => {
           status: 200,
           contentType: 'application/json',
           body: JSON.stringify({
-            events: [],
-            count: 0,
+            items: [],
+            pagination: {
+              total: 0,
+              limit: 50,
+              offset: 0,
+              has_more: false,
+            },
           }),
         });
       }
