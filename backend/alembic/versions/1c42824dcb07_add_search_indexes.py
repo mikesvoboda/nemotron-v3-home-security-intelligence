@@ -119,9 +119,10 @@ def upgrade() -> None:
     # This enables efficient LIKE/ILIKE queries with wildcards on both sides
     # e.g., WHERE object_type ILIKE '%person%'
     # Note: pg_trgm may not be available in all PostgreSQL installations (e.g., Alpine)
-    # We check if the extension was successfully created before adding the index
+    # The CREATE EXTENSION command silently does nothing if the module isn't installed,
+    # so we check for the actual operator class in pg_catalog instead of pg_extension
     connection = op.get_bind()
-    result = connection.execute(sa.text("SELECT 1 FROM pg_extension WHERE extname = 'pg_trgm'"))
+    result = connection.execute(sa.text("SELECT 1 FROM pg_opclass WHERE opcname = 'gin_trgm_ops'"))
     if result.fetchone():
         op.create_index(
             "idx_detections_object_type_trgm",
