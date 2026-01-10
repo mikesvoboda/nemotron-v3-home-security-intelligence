@@ -297,6 +297,77 @@ export type SystemChannelMessage =
   | ErrorMessage;
 
 // ============================================================================
+// Job Message Types
+// ============================================================================
+
+/**
+ * Status of a background job.
+ */
+export type JobStatus = 'pending' | 'running' | 'completed' | 'failed';
+
+/**
+ * Data payload for job progress WebSocket events.
+ */
+export interface JobProgressData {
+  /** Unique job identifier */
+  job_id: string;
+  /** Type of job (export, cleanup, backup, sync) */
+  job_type: string;
+  /** Job progress percentage (0-100) */
+  progress: number;
+  /** Current job status */
+  status: string;
+}
+
+/**
+ * Job progress message envelope.
+ */
+export interface JobProgressMessage {
+  type: 'job_progress';
+  data: JobProgressData;
+}
+
+/**
+ * Data payload for job completed WebSocket events.
+ */
+export interface JobCompletedData {
+  /** Unique job identifier */
+  job_id: string;
+  /** Type of job (export, cleanup, backup, sync) */
+  job_type: string;
+  /** Optional result data from the job */
+  result: unknown;
+}
+
+/**
+ * Job completed message envelope.
+ */
+export interface JobCompletedMessage {
+  type: 'job_completed';
+  data: JobCompletedData;
+}
+
+/**
+ * Data payload for job failed WebSocket events.
+ */
+export interface JobFailedData {
+  /** Unique job identifier */
+  job_id: string;
+  /** Type of job (export, cleanup, backup, sync) */
+  job_type: string;
+  /** Error message describing the failure */
+  error: string;
+}
+
+/**
+ * Job failed message envelope.
+ */
+export interface JobFailedMessage {
+  type: 'job_failed';
+  data: JobFailedData;
+}
+
+// ============================================================================
 // Combined Union - All Messages
 // ============================================================================
 
@@ -310,7 +381,10 @@ export type WebSocketMessage =
   | ServiceStatusMessage
   | HeartbeatMessage
   | PongMessage
-  | ErrorMessage;
+  | ErrorMessage
+  | JobProgressMessage
+  | JobCompletedMessage
+  | JobFailedMessage;
 
 /**
  * All message type discriminants.
@@ -428,6 +502,48 @@ export function isErrorMessage(value: unknown): value is ErrorMessage {
 }
 
 /**
+ * Type guard for JobProgressMessage.
+ */
+export function isJobProgressMessage(value: unknown): value is JobProgressMessage {
+  if (!hasTypeProperty(value)) return false;
+  if (value.type !== 'job_progress') return false;
+
+  const msg = value as { type: 'job_progress'; data?: unknown };
+  if (!msg.data || typeof msg.data !== 'object') return false;
+
+  const data = msg.data as Record<string, unknown>;
+  return 'job_id' in data && 'job_type' in data && 'progress' in data && 'status' in data;
+}
+
+/**
+ * Type guard for JobCompletedMessage.
+ */
+export function isJobCompletedMessage(value: unknown): value is JobCompletedMessage {
+  if (!hasTypeProperty(value)) return false;
+  if (value.type !== 'job_completed') return false;
+
+  const msg = value as { type: 'job_completed'; data?: unknown };
+  if (!msg.data || typeof msg.data !== 'object') return false;
+
+  const data = msg.data as Record<string, unknown>;
+  return 'job_id' in data && 'job_type' in data;
+}
+
+/**
+ * Type guard for JobFailedMessage.
+ */
+export function isJobFailedMessage(value: unknown): value is JobFailedMessage {
+  if (!hasTypeProperty(value)) return false;
+  if (value.type !== 'job_failed') return false;
+
+  const msg = value as { type: 'job_failed'; data?: unknown };
+  if (!msg.data || typeof msg.data !== 'object') return false;
+
+  const data = msg.data as Record<string, unknown>;
+  return 'job_id' in data && 'job_type' in data && 'error' in data;
+}
+
+/**
  * Type guard for any valid WebSocket message.
  * Useful for initial validation before more specific type guards.
  */
@@ -438,7 +554,10 @@ export function isWebSocketMessage(value: unknown): value is WebSocketMessage {
     isServiceStatusMessage(value) ||
     isHeartbeatMessage(value) ||
     isPongMessage(value) ||
-    isErrorMessage(value)
+    isErrorMessage(value) ||
+    isJobProgressMessage(value) ||
+    isJobCompletedMessage(value) ||
+    isJobFailedMessage(value)
   );
 }
 
