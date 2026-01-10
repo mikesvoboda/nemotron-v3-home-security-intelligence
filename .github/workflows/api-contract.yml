@@ -190,6 +190,7 @@ jobs:
 
       - name: Comment PR with contract test results
         if: always()
+        continue-on-error: true # Don't fail job if commenting fails (permissions may be limited)
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7
         with:
           script: |
