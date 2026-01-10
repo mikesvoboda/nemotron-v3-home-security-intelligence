@@ -23,6 +23,28 @@ class CameraStatus(str, Enum):
         return self.value
 
 
+class EntityType(str, Enum):
+    """Entity types for re-identification tracking.
+
+    Categorizes tracked entities for person/object re-identification:
+    - PERSON: Human individuals tracked across cameras
+    - VEHICLE: Cars, trucks, motorcycles, bicycles
+    - ANIMAL: Pets and wildlife
+    - PACKAGE: Delivered packages or parcels
+    - OTHER: Unclassified tracked objects
+    """
+
+    PERSON = "person"
+    VEHICLE = "vehicle"
+    ANIMAL = "animal"
+    PACKAGE = "package"
+    OTHER = "other"
+
+    def __str__(self) -> str:
+        """Return string representation of entity type."""
+        return self.value
+
+
 class Severity(str, Enum):
     """Severity levels for security events.
 
