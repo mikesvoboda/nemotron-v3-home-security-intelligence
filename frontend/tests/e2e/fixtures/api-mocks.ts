@@ -665,6 +665,7 @@ export async function setupApiMocks(
         body: JSON.stringify({
           logs: logs,
           total: logs.length,
+          count: logs.length,
           limit: 50,
           offset: 0,
         }),
