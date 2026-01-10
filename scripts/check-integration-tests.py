@@ -49,8 +49,8 @@ def check_files_for_integration_tests(file_paths: list[str]) -> tuple[bool, list
         if not path.is_absolute():
             path = project_root / path
 
-        # Only check Python files
-        if path.suffix != ".py" or path.name.startswith("test_"):
+        # Only check Python files (skip test files and __init__.py namespace files)
+        if path.suffix != ".py" or path.name.startswith("test_") or path.name == "__init__.py":
             continue
 
         # Check if file requires integration tests
