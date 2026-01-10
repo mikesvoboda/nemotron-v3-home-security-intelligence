@@ -25,6 +25,8 @@ detections (e.g., "person,vehicle,dog"). Queries use patterns like:
 
 from collections.abc import Sequence
 
+import sqlalchemy as sa
+
 from alembic import op
 
 # revision identifiers, used by Alembic.
@@ -38,18 +40,25 @@ def upgrade() -> None:
     """Add pg_trgm extension and GIN index on events.object_types."""
     # Enable pg_trgm extension (required for trigram indexes)
     # This is idempotent - will not fail if already enabled
+    # Note: In Alpine PostgreSQL the extension module may not be installed,
+    # so CREATE EXTENSION silently does nothing
     op.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm")
 
-    # Create GIN index using gin_trgm_ops operator class
-    # This enables efficient LIKE/ILIKE queries with wildcards on both sides
-    op.create_index(
-        "idx_events_object_types_trgm",
-        "events",
-        ["object_types"],
-        unique=False,
-        postgresql_using="gin",
-        postgresql_ops={"object_types": "gin_trgm_ops"},
-    )
+    # Check if the gin_trgm_ops operator class is actually available
+    # (the extension may not have been created if the module isn't installed)
+    connection = op.get_bind()
+    result = connection.execute(sa.text("SELECT 1 FROM pg_opclass WHERE opcname = 'gin_trgm_ops'"))
+    if result.fetchone():
+        # Create GIN index using gin_trgm_ops operator class
+        # This enables efficient LIKE/ILIKE queries with wildcards on both sides
+        op.create_index(
+            "idx_events_object_types_trgm",
+            "events",
+            ["object_types"],
+            unique=False,
+            postgresql_using="gin",
+            postgresql_ops={"object_types": "gin_trgm_ops"},
+        )
 
 
 def downgrade() -> None:
@@ -58,4 +67,10 @@ def downgrade() -> None:
     Note: We do not drop the pg_trgm extension as it may be used by other
     indexes or queries in the system.
     """
-    op.drop_index("idx_events_object_types_trgm", table_name="events")
+    # Check if the index exists before trying to drop it
+    connection = op.get_bind()
+    result = connection.execute(
+        sa.text("SELECT 1 FROM pg_indexes WHERE indexname = 'idx_events_object_types_trgm'")
+    )
+    if result.fetchone():
+        op.drop_index("idx_events_object_types_trgm", table_name="events")
