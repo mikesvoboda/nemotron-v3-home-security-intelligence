@@ -114,24 +114,34 @@ def upgrade() -> None:
     )
 
     # ==========================================================================
-    # 6. Create GIN trigram index on detections.object_type
+    # 6. Create GIN trigram index on detections.object_type (if pg_trgm available)
     # ==========================================================================
     # This enables efficient LIKE/ILIKE queries with wildcards on both sides
     # e.g., WHERE object_type ILIKE '%person%'
-    op.create_index(
-        "idx_detections_object_type_trgm",
-        "detections",
-        ["object_type"],
-        unique=False,
-        postgresql_using="gin",
-        postgresql_ops={"object_type": "gin_trgm_ops"},
-    )
+    # Note: pg_trgm may not be available in all PostgreSQL installations (e.g., Alpine)
+    # We check if the extension was successfully created before adding the index
+    connection = op.get_bind()
+    result = connection.execute(sa.text("SELECT 1 FROM pg_extension WHERE extname = 'pg_trgm'"))
+    if result.fetchone():
+        op.create_index(
+            "idx_detections_object_type_trgm",
+            "detections",
+            ["object_type"],
+            unique=False,
+            postgresql_using="gin",
+            postgresql_ops={"object_type": "gin_trgm_ops"},
+        )
 
 
 def downgrade() -> None:
     """Remove TSVECTOR column and indexes for full-text search."""
-    # Drop trigram index on detections
-    op.drop_index("idx_detections_object_type_trgm", table_name="detections")
+    # Drop trigram index on detections (if it exists)
+    connection = op.get_bind()
+    result = connection.execute(
+        sa.text("SELECT 1 FROM pg_indexes WHERE indexname = 'idx_detections_object_type_trgm'")
+    )
+    if result.fetchone():
+        op.drop_index("idx_detections_object_type_trgm", table_name="detections")
 
     # Drop GIN index on logs.search_vector
     op.drop_index("idx_logs_search_vector", table_name="logs")
