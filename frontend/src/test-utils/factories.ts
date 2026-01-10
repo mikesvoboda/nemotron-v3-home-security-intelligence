@@ -513,22 +513,55 @@ export interface HealthResponse {
 }
 
 /**
- * Paginated event list API response.
+ * Pagination metadata for standardized pagination envelope (NEM-2075).
  */
-export interface EventListResponse {
-  events: Event[];
+export interface PaginationMeta {
   total: number;
-  page: number;
-  page_size: number;
-  pages: number;
+  limit: number;
+  offset: number | null;
+  cursor: string | null;
+  next_cursor: string | null;
+  has_more: boolean;
 }
 
 /**
- * Camera list API response.
+ * Creates default pagination metadata.
+ *
+ * @param total - Total number of items
+ * @param limit - Items per page (default: 50)
+ * @param offset - Current offset (default: 0)
+ * @returns Pagination metadata object
+ */
+export function createPaginationMeta(
+  total: number,
+  limit: number = 50,
+  offset: number = 0
+): PaginationMeta {
+  return {
+    total,
+    limit,
+    offset,
+    cursor: null,
+    next_cursor: null,
+    has_more: offset + limit < total,
+  };
+}
+
+/**
+ * Paginated event list API response with standardized pagination envelope.
+ */
+export interface EventListResponse {
+  items: Event[];
+  pagination: PaginationMeta;
+  deprecation_warning?: string | null;
+}
+
+/**
+ * Camera list API response with standardized pagination envelope.
  */
 export interface CameraListResponse {
-  cameras: Camera[];
-  count: number;
+  items: Camera[];
+  pagination: PaginationMeta;
 }
 
 /**
@@ -568,22 +601,22 @@ export function createCameraResponse(overrides?: Partial<Camera>): Camera {
 }
 
 /**
- * Creates a camera list response for API mocking.
+ * Creates a camera list response for API mocking with pagination envelope.
  *
  * @param count - Number of cameras to include (default: 3)
- * @returns Camera list API response
+ * @returns Camera list API response with pagination
  *
  * @example
  * const response = createCamerasResponse(5);
- * // Returns: { cameras: [...], count: 5 }
+ * // Returns: { items: [...], pagination: { total: 5, ... } }
  */
 export function createCamerasResponse(count: number = 3): CameraListResponse {
   const cameras = Array.from({ length: count }, (_, i) =>
     createCamera({ id: `camera-${i}`, name: `Camera ${i}` })
   );
   return {
-    cameras,
-    count: cameras.length,
+    items: cameras,
+    pagination: createPaginationMeta(cameras.length),
   };
 }
 
@@ -626,30 +659,30 @@ export function createHealthResponse(
 }
 
 /**
- * Creates a paginated event list API response.
+ * Creates a paginated event list API response with standardized pagination envelope.
  *
  * @param events - Events to include (defaults to single event)
- * @param pagination - Pagination parameters
+ * @param paginationOverrides - Optional pagination overrides
  * @returns Event list response with pagination metadata
  *
  * @example
- * const response = createEventListResponse(createEvents(10), { total: 100, page: 1, pageSize: 10 });
+ * const response = createEventListResponse(createEvents(10), { total: 100, limit: 10 });
  */
 export function createEventListResponse(
   events?: Event[],
-  pagination?: { total: number; page: number; pageSize: number }
+  paginationOverrides?: Partial<PaginationMeta>
 ): EventListResponse {
   const eventList = events ?? [createEvent()];
-  const total = pagination?.total ?? eventList.length;
-  const page = pagination?.page ?? 1;
-  const pageSize = pagination?.pageSize ?? 20;
+  const total = paginationOverrides?.total ?? eventList.length;
+  const limit = paginationOverrides?.limit ?? 50;
+  const offset = paginationOverrides?.offset ?? 0;
 
   return {
-    events: eventList,
-    total,
-    page,
-    page_size: pageSize,
-    pages: Math.ceil(total / pageSize),
+    items: eventList,
+    pagination: {
+      ...createPaginationMeta(total, limit, offset),
+      ...paginationOverrides,
+    },
   };
 }
 
