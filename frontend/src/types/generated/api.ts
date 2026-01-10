@@ -5051,10 +5051,7 @@ export interface components {
          * AlertRuleListResponse
          * @description Schema for alert rule list response with pagination.
          * @example {
-         *       "count": 1,
-         *       "limit": 50,
-         *       "offset": 0,
-         *       "rules": [
+         *       "items": [
          *         {
          *           "channels": [
          *             "pushover"
@@ -5069,30 +5066,23 @@ export interface components {
          *           "name": "High Risk Alert",
          *           "updated_at": "2025-12-28T12:00:00Z"
          *         }
-         *       ]
+         *       ],
+         *       "pagination": {
+         *         "has_more": false,
+         *         "limit": 50,
+         *         "offset": 0,
+         *         "total": 1
+         *       }
          *     }
          */
         AlertRuleListResponse: {
             /**
-             * Count
-             * @description Total number of rules
-             */
-            count: number;
-            /**
-             * Limit
-             * @description Maximum number of results returned
-             */
-            limit: number;
-            /**
-             * Offset
-             * @description Number of results skipped
-             */
-            offset: number;
-            /**
-             * Rules
+             * Items
              * @description List of alert rules
              */
-            rules: components["schemas"]["AlertRuleResponse"][];
+            items: components["schemas"]["AlertRuleResponse"][];
+            /** @description Pagination metadata */
+            pagination: components["schemas"]["PaginationMeta"];
         };
         /**
          * AlertRuleResponse
@@ -5522,10 +5512,7 @@ export interface components {
          *     Supports both cursor-based pagination (recommended) and offset pagination (deprecated).
          *     Cursor-based pagination offers better performance for large datasets.
          * @example {
-         *       "count": 1,
-         *       "has_more": false,
-         *       "limit": 50,
-         *       "logs": [
+         *       "items": [
          *         {
          *           "action": "acknowledge",
          *           "actor": "admin@example.com",
@@ -5537,47 +5524,28 @@ export interface components {
          *           "timestamp": "2026-01-03T10:30:00Z"
          *         }
          *       ],
-         *       "next_cursor": "eyJpZCI6IDEsICJjcmVhdGVkX2F0IjogIjIwMjYtMDEtMDNUMTA6MzA6MDBaIn0=", // pragma: allowlist secret
-         *       "offset": 0
+         *       "pagination": {
+         *         "has_more": false,
+         *         "limit": 50,
+         *         "next_cursor": "eyJpZCI6IDEsICJjcmVhdGVkX2F0IjogIjIwMjYtMDEtMDNUMTA6MzA6MDBaIn0=", // pragma: allowlist secret
+         *         "offset": 0,
+         *         "total": 1
+         *       }
          *     }
          */
         AuditLogListResponse: {
-            /**
-             * Count
-             * @description Total count matching filters
-             */
-            count: number;
             /**
              * Deprecation Warning
              * @description Warning when using deprecated offset pagination
              */
             deprecation_warning?: string | null;
             /**
-             * Has More
-             * @description Whether more results are available
-             * @default false
-             */
-            has_more: boolean;
-            /**
-             * Limit
-             * @description Page size (1-1000)
-             */
-            limit: number;
-            /**
-             * Logs
+             * Items
              * @description List of audit log entries
              */
-            logs: components["schemas"]["AuditLogResponse"][];
-            /**
-             * Next Cursor
-             * @description Cursor for next page (use this instead of offset)
-             */
-            next_cursor?: string | null;
-            /**
-             * Offset
-             * @description Page offset (0-based, deprecated)
-             */
-            offset: number;
+            items: components["schemas"]["AuditLogResponse"][];
+            /** @description Pagination metadata */
+            pagination: components["schemas"]["PaginationMeta"];
         };
         /**
          * AuditLogResponse
@@ -6087,8 +6055,10 @@ export interface components {
         /**
          * CameraListResponse
          * @description Schema for camera list response.
+         *
+         *     NEM-2075: Standardized pagination envelope with items + pagination structure.
          * @example {
-         *       "cameras": [
+         *       "items": [
          *         {
          *           "created_at": "2025-12-23T10:00:00Z",
          *           "folder_path": "/export/foscam/front_door",
@@ -6098,20 +6068,22 @@ export interface components {
          *           "status": "online"
          *         }
          *       ],
-         *       "count": 1
+         *       "pagination": {
+         *         "has_more": false,
+         *         "limit": 50,
+         *         "offset": 0,
+         *         "total": 1
+         *       }
          *     }
          */
         CameraListResponse: {
             /**
-             * Cameras
+             * Items
              * @description List of cameras
              */
-            cameras: components["schemas"]["CameraResponse"][];
-            /**
-             * Count
-             * @description Total number of cameras
-             */
-            count: number;
+            items: components["schemas"]["CameraResponse"][];
+            /** @description Pagination metadata */
+            pagination: components["schemas"]["PaginationMeta"];
         };
         /**
          * CameraNotificationSettingResponse
@@ -7629,8 +7601,9 @@ export interface components {
          *
          *     NEM-1955: Provides a trash view of soft-deleted cameras that can be restored.
          *     Cameras are ordered by deleted_at descending (most recently deleted first).
+         *     NEM-2075: Standardized pagination envelope with items + pagination structure.
          * @example {
-         *       "cameras": [
+         *       "items": [
          *         {
          *           "created_at": "2025-12-23T10:00:00Z",
          *           "folder_path": "/export/foscam/front_door",
@@ -7640,20 +7613,22 @@ export interface components {
          *           "status": "offline"
          *         }
          *       ],
-         *       "count": 1
+         *       "pagination": {
+         *         "has_more": false,
+         *         "limit": 50,
+         *         "offset": 0,
+         *         "total": 1
+         *       }
          *     }
          */
         DeletedCamerasListResponse: {
             /**
-             * Cameras
+             * Items
              * @description List of soft-deleted cameras
              */
-            cameras: components["schemas"]["CameraResponse"][];
-            /**
-             * Count
-             * @description Total number of deleted cameras
-             */
-            count: number;
+            items: components["schemas"]["CameraResponse"][];
+            /** @description Pagination metadata */
+            pagination: components["schemas"]["PaginationMeta"];
         };
         /**
          * DeletedEventsListResponse
@@ -7661,9 +7636,9 @@ export interface components {
          *
          *     NEM-1955: Provides a trash view of soft-deleted events that can be restored.
          *     Events are ordered by deleted_at descending (most recently deleted first).
+         *     NEM-2075: Standardized pagination envelope with items + pagination structure.
          * @example {
-         *       "count": 1,
-         *       "events": [
+         *       "items": [
          *         {
          *           "camera_id": "front_door",
          *           "detection_count": 5,
@@ -7684,20 +7659,23 @@ export interface components {
          *           "summary": "Person detected near front entrance",
          *           "thumbnail_url": "/api/media/detections/1"
          *         }
-         *       ]
+         *       ],
+         *       "pagination": {
+         *         "has_more": false,
+         *         "limit": 50,
+         *         "offset": 0,
+         *         "total": 1
+         *       }
          *     }
          */
         DeletedEventsListResponse: {
             /**
-             * Count
-             * @description Total number of deleted events
-             */
-            count: number;
-            /**
-             * Events
+             * Items
              * @description List of soft-deleted events
              */
-            events: components["schemas"]["EventResponse"][];
+            items: components["schemas"]["EventResponse"][];
+            /** @description Pagination metadata */
+            pagination: components["schemas"]["PaginationMeta"];
         };
         /**
          * DepthEnrichment
@@ -7905,13 +7883,12 @@ export interface components {
         };
         /**
          * DetectionListResponse
-         * @description Schema for detection list response with pagination.
+         * @description Schema for detection list response with standardized pagination envelope.
          *
+         *     Uses the standard pagination envelope: {"items": [...], "pagination": {...}}
          *     Supports both cursor-based pagination (recommended) and offset pagination (deprecated).
-         *     Use cursor-based pagination for better performance with large datasets.
          * @example {
-         *       "count": 1,
-         *       "detections": [
+         *       "items": [
          *         {
          *           "bbox_height": 400,
          *           "bbox_width": 200,
@@ -7927,49 +7904,28 @@ export interface components {
          *           "thumbnail_path": "/data/thumbnails/1_thumb.jpg"
          *         }
          *       ],
-         *       "has_more": false,
-         *       "limit": 50,
-         *       "next_cursor": "eyJpZCI6IDEsICJjcmVhdGVkX2F0IjogIjIwMjUtMTItMjNUMTI6MDA6MDBaIn0=", // pragma: allowlist secret
-         *       "offset": 0
+         *       "pagination": {
+         *         "has_more": false,
+         *         "limit": 50,
+         *         "next_cursor": "eyJpZCI6IDEsICJjcmVhdGVkX2F0IjogIjIwMjUtMTItMjNUMTI6MDA6MDBaIn0=", // pragma: allowlist secret
+         *         "offset": 0,
+         *         "total": 1
+         *       }
          *     }
          */
         DetectionListResponse: {
-            /**
-             * Count
-             * @description Total number of detections matching filters
-             */
-            count: number;
             /**
              * Deprecation Warning
              * @description Warning message when using deprecated offset pagination
              */
             deprecation_warning?: string | null;
             /**
-             * Detections
+             * Items
              * @description List of detections
              */
-            detections: components["schemas"]["DetectionResponse"][];
-            /**
-             * Has More
-             * @description Whether there are more results available after this page
-             * @default false
-             */
-            has_more: boolean;
-            /**
-             * Limit
-             * @description Maximum number of results returned
-             */
-            limit: number;
-            /**
-             * Next Cursor
-             * @description Cursor for fetching the next page. Pass this as the 'cursor' parameter.
-             */
-            next_cursor?: string | null;
-            /**
-             * Offset
-             * @description Number of results skipped (deprecated, use cursor)
-             */
-            offset: number;
+            items: components["schemas"]["DetectionResponse"][];
+            /** @description Pagination metadata */
+            pagination: components["schemas"]["PaginationMeta"];
         };
         /**
          * DetectionResponse
@@ -9032,11 +8988,11 @@ export interface components {
          * EventListResponse
          * @description Schema for event list response with pagination.
          *
+         *     NEM-2075: Standardized pagination envelope with items + pagination structure.
          *     Supports both cursor-based pagination (recommended) and offset pagination (deprecated).
          *     Use cursor-based pagination for better performance with large datasets.
          * @example {
-         *       "count": 1,
-         *       "events": [
+         *       "items": [
          *         {
          *           "camera_id": "front_door",
          *           "detection_count": 5,
@@ -9049,8 +9005,7 @@ export interface components {
          *           ],
          *           "ended_at": "2025-12-23T12:02:30Z",
          *           "id": 1,
-         *           "llm_prompt": "<|im_start|>system\nYou are a home security risk analyzer...",
-         *           "reasoning": "Person approaching entrance during daytime, no suspicious behavior",
+         *           "reasoning": "Person approaching entrance during daytime",
          *           "reviewed": false,
          *           "risk_level": "medium",
          *           "risk_score": 75,
@@ -9059,49 +9014,28 @@ export interface components {
          *           "thumbnail_url": "/api/media/detections/1"
          *         }
          *       ],
-         *       "has_more": false,
-         *       "limit": 50,
-         *       "next_cursor": "eyJpZCI6IDEsICJjcmVhdGVkX2F0IjogIjIwMjUtMTItMjNUMTI6MDA6MDBaIn0=", // pragma: allowlist secret
-         *       "offset": 0
+         *       "pagination": {
+         *         "has_more": false,
+         *         "limit": 50,
+         *         "next_cursor": "eyJpZCI6IDEsICJjcmVhdGVkX2F0IjogIjIwMjUtMTItMjNUMTI6MDA6MDBaIn0=", // pragma: allowlist secret
+         *         "offset": 0,
+         *         "total": 1
+         *       }
          *     }
          */
         EventListResponse: {
-            /**
-             * Count
-             * @description Total number of events matching filters
-             */
-            count: number;
             /**
              * Deprecation Warning
              * @description Warning message when using deprecated offset pagination
              */
             deprecation_warning?: string | null;
             /**
-             * Events
+             * Items
              * @description List of events
              */
-            events: components["schemas"]["EventResponse"][];
-            /**
-             * Has More
-             * @description Whether there are more results available after this page
-             * @default false
-             */
-            has_more: boolean;
-            /**
-             * Limit
-             * @description Maximum number of results returned
-             */
-            limit: number;
-            /**
-             * Next Cursor
-             * @description Cursor for fetching the next page. Pass this as the 'cursor' parameter.
-             */
-            next_cursor?: string | null;
-            /**
-             * Offset
-             * @description Number of results skipped (deprecated, use cursor)
-             */
-            offset: number;
+            items: components["schemas"]["EventResponse"][];
+            /** @description Pagination metadata */
+            pagination: components["schemas"]["PaginationMeta"];
         };
         /**
          * EventResponse
@@ -11011,6 +10945,52 @@ export interface components {
              * @description Total detections in date range
              */
             total_detections: number;
+        };
+        /**
+         * PaginationMeta
+         * @description Pagination metadata for list responses.
+         *
+         *     Contains information about the current page and total results.
+         *     Supports both offset-based and cursor-based pagination.
+         * @example {
+         *       "has_more": true,
+         *       "limit": 50,
+         *       "next_cursor": "eyJpZCI6IDUwfQ",
+         *       "offset": 0,
+         *       "total": 150
+         *     }
+         */
+        PaginationMeta: {
+            /**
+             * Cursor
+             * @description Current cursor position (cursor-based pagination)
+             */
+            cursor?: string | null;
+            /**
+             * Has More
+             * @description Whether more items are available beyond this page
+             */
+            has_more: boolean;
+            /**
+             * Limit
+             * @description Maximum number of items returned per page
+             */
+            limit: number;
+            /**
+             * Next Cursor
+             * @description Cursor for the next page of results
+             */
+            next_cursor?: string | null;
+            /**
+             * Offset
+             * @description Number of items skipped (offset-based pagination)
+             */
+            offset?: number | null;
+            /**
+             * Total
+             * @description Total number of items matching the query
+             */
+            total: number;
         };
         /**
          * PetEnrichment
@@ -14205,8 +14185,7 @@ export interface components {
          * ZoneListResponse
          * @description Schema for zone list response.
          * @example {
-         *       "count": 1,
-         *       "zones": [
+         *       "items": [
          *         {
          *           "camera_id": "front_door",
          *           "color": "#3B82F6",
@@ -14237,20 +14216,23 @@ export interface components {
          *           "updated_at": "2025-12-23T12:00:00Z",
          *           "zone_type": "entry_point"
          *         }
-         *       ]
+         *       ],
+         *       "pagination": {
+         *         "has_more": false,
+         *         "limit": 50,
+         *         "offset": 0,
+         *         "total": 1
+         *       }
          *     }
          */
         ZoneListResponse: {
             /**
-             * Count
-             * @description Total number of zones
-             */
-            count: number;
-            /**
-             * Zones
+             * Items
              * @description List of zones
              */
-            zones: components["schemas"]["ZoneResponse"][];
+            items: components["schemas"]["ZoneResponse"][];
+            /** @description Pagination metadata */
+            pagination: components["schemas"]["PaginationMeta"];
         };
         /**
          * ZoneResponse

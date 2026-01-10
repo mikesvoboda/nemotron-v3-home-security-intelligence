@@ -221,10 +221,10 @@ export type AlertRuleUpdate = Omit<GeneratedAlertRuleUpdate, 'schedule'> & {
 };
 
 /**
- * Alert rule list response with properly typed rules.
+ * Alert rule list response with properly typed items.
  */
-export type AlertRuleListResponse = Omit<GeneratedAlertRuleListResponse, 'rules'> & {
-  rules: AlertRule[];
+export type AlertRuleListResponse = Omit<GeneratedAlertRuleListResponse, 'items'> & {
+  items: AlertRule[];
 };
 
 // Circuit Breaker types

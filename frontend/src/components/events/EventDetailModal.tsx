@@ -163,11 +163,11 @@ export default function EventDetailModal({
         const response = await fetchEventDetections(eventId, { limit: 100 });
 
         // Store full detection data for video metadata access
-        setDetectionsData(response.detections);
+        setDetectionsData(response.items);
 
         // Transform API detections to thumbnail format
         // For videos, use the video thumbnail endpoint; for images, use the image endpoint
-        const thumbnails: DetectionThumbnail[] = response.detections.map((detection) => ({
+        const thumbnails: DetectionThumbnail[] = response.items.map((detection) => ({
           id: detection.id,
           detected_at: detection.detected_at,
           thumbnail_url:

@@ -449,8 +449,9 @@ class TestDatabaseErrors:
         response = await client.get("/api/cameras")
         assert response.status_code == 200
         data = response.json()
-        assert "cameras" in data
-        assert "count" in data
+        assert "items" in data
+        assert "pagination" in data
+        assert "total" in data["pagination"]
 
 
 class TestServiceErrors:
@@ -508,7 +509,7 @@ class TestCacheErrors:
         response = await client.get("/api/cameras")
         assert response.status_code == 200
         data = response.json()
-        assert "cameras" in data
+        assert "items" in data
 
     @pytest.mark.asyncio
     async def test_camera_create_cache_invalidation_error(self, client, mock_redis):

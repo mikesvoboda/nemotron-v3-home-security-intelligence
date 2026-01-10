@@ -69,7 +69,7 @@ export default function ZoneEditor({ camera, isOpen, onClose }: ZoneEditorProps)
       setLoading(true);
       setError(null);
       const response = await fetchZones(camera.id);
-      setZones(response.zones);
+      setZones(response.items);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load zones');
     } finally {

@@ -195,7 +195,7 @@ class TestInvalidForeignKeyReferences:
         assert response.status_code == 200
         data = response.json()
         assert data["items"] == []
-        assert data["count"] == 0
+        assert data["pagination"]["total"] == 0
 
     @pytest.mark.asyncio
     async def test_detections_filter_by_nonexistent_camera_id(self, client, mock_redis):
@@ -206,7 +206,7 @@ class TestInvalidForeignKeyReferences:
         assert response.status_code == 200
         data = response.json()
         assert data["items"] == []
-        assert data["count"] == 0
+        assert data["pagination"]["total"] == 0
 
     @pytest.mark.asyncio
     async def test_event_detections_with_invalid_detection_ids(self, client, mock_redis):

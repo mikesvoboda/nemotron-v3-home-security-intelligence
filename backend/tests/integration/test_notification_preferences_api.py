@@ -133,7 +133,7 @@ async def test_get_camera_settings_empty(async_client: AsyncClient, integration_
 
     data = response.json()
     assert data["settings"] == []
-    assert data["count"] == 0
+    assert data["pagination"]["total"] == 0
 
 
 @pytest.mark.asyncio
@@ -161,7 +161,7 @@ async def test_create_and_get_camera_setting(
     response = await async_client.get("/api/notification-preferences/cameras")
     assert response.status_code == 200
     data = response.json()
-    assert data["count"] == 1
+    assert data["pagination"]["total"] == 1
     assert data["settings"][0]["camera_id"] == sample_camera.id
 
 
@@ -253,7 +253,7 @@ async def test_get_quiet_hours_empty(async_client: AsyncClient, integration_db: 
 
     data = response.json()
     assert data["periods"] == []
-    assert data["count"] == 0
+    assert data["pagination"]["total"] == 0
 
 
 @pytest.mark.asyncio
@@ -320,7 +320,7 @@ async def test_get_quiet_hours_after_creation(async_client: AsyncClient, integra
     assert response.status_code == 200
 
     data = response.json()
-    assert data["count"] == 2
+    assert data["pagination"]["total"] == 2
     assert len(data["periods"]) == 2
 
 
@@ -346,7 +346,7 @@ async def test_delete_quiet_hours_period(async_client: AsyncClient, integration_
     # Verify deletion
     response = await async_client.get("/api/notification-preferences/quiet-hours")
     data = response.json()
-    assert data["count"] == 0
+    assert data["pagination"]["total"] == 0
 
 
 @pytest.mark.asyncio

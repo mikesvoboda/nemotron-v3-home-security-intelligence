@@ -24,7 +24,7 @@ vi.mock('../../services/api', async () => {
   const actual = await vi.importActual<typeof api>('../../services/api');
   return {
     ...actual,
-    fetchEventDetections: vi.fn().mockResolvedValue({ detections: [], count: 0, limit: 100, offset: 0, has_more: false }),
+    fetchEventDetections: vi.fn().mockResolvedValue({ items: [], pagination: { total: 0, limit: 100, offset: 0, has_more: false } }),
     getDetectionImageUrl: vi.fn((id: number) => `/api/detections/${id}/image`),
     getDetectionVideoUrl: vi.fn((id: number) => `/api/detections/${id}/video`),
     getDetectionVideoThumbnailUrl: vi.fn((id: number) => `/api/detections/${id}/video/thumbnail`),
@@ -1615,11 +1615,8 @@ describe('EventDetailModal', () => {
 
     it('renders VideoPlayer when selected detection is a video', async () => {
       vi.mocked(api.fetchEventDetections).mockResolvedValue({
-        detections: [mockVideoDetection],
-        count: 1,
-        limit: 100,
-        offset: 0,
-        has_more: false,
+        items: [mockVideoDetection],
+        pagination: { total: 1, limit: 100, offset: 0, has_more: false },
       });
 
       render(<EventDetailModal {...mockVideoProps} />);
@@ -1631,11 +1628,8 @@ describe('EventDetailModal', () => {
 
     it('passes correct video src and poster to VideoPlayer', async () => {
       vi.mocked(api.fetchEventDetections).mockResolvedValue({
-        detections: [mockVideoDetection],
-        count: 1,
-        limit: 100,
-        offset: 0,
-        has_more: false,
+        items: [mockVideoDetection],
+        pagination: { total: 1, limit: 100, offset: 0, has_more: false },
       });
 
       render(<EventDetailModal {...mockVideoProps} />);
@@ -1649,11 +1643,8 @@ describe('EventDetailModal', () => {
 
     it('renders image instead of video when detection is an image', async () => {
       vi.mocked(api.fetchEventDetections).mockResolvedValue({
-        detections: [mockImageDetection],
-        count: 1,
-        limit: 100,
-        offset: 0,
-        has_more: false,
+        items: [mockImageDetection],
+        pagination: { total: 1, limit: 100, offset: 0, has_more: false },
       });
 
       render(<EventDetailModal {...mockVideoProps} />);
@@ -1667,11 +1658,8 @@ describe('EventDetailModal', () => {
 
     it('displays video metadata badge for video detections', async () => {
       vi.mocked(api.fetchEventDetections).mockResolvedValue({
-        detections: [mockVideoDetection],
-        count: 1,
-        limit: 100,
-        offset: 0,
-        has_more: false,
+        items: [mockVideoDetection],
+        pagination: { total: 1, limit: 100, offset: 0, has_more: false },
       });
 
       render(<EventDetailModal {...mockVideoProps} />);
@@ -1683,11 +1671,8 @@ describe('EventDetailModal', () => {
 
     it('displays video duration in metadata badge', async () => {
       vi.mocked(api.fetchEventDetections).mockResolvedValue({
-        detections: [mockVideoDetection],
-        count: 1,
-        limit: 100,
-        offset: 0,
-        has_more: false,
+        items: [mockVideoDetection],
+        pagination: { total: 1, limit: 100, offset: 0, has_more: false },
       });
 
       render(<EventDetailModal {...mockVideoProps} />);
@@ -1701,11 +1686,8 @@ describe('EventDetailModal', () => {
 
     it('displays video resolution in metadata badge', async () => {
       vi.mocked(api.fetchEventDetections).mockResolvedValue({
-        detections: [mockVideoDetection],
-        count: 1,
-        limit: 100,
-        offset: 0,
-        has_more: false,
+        items: [mockVideoDetection],
+        pagination: { total: 1, limit: 100, offset: 0, has_more: false },
       });
 
       render(<EventDetailModal {...mockVideoProps} />);
@@ -1719,11 +1701,8 @@ describe('EventDetailModal', () => {
 
     it('displays video codec in metadata badge', async () => {
       vi.mocked(api.fetchEventDetections).mockResolvedValue({
-        detections: [mockVideoDetection],
-        count: 1,
-        limit: 100,
-        offset: 0,
-        has_more: false,
+        items: [mockVideoDetection],
+        pagination: { total: 1, limit: 100, offset: 0, has_more: false },
       });
 
       render(<EventDetailModal {...mockVideoProps} />);
@@ -1737,11 +1716,8 @@ describe('EventDetailModal', () => {
 
     it('displays video details in event details section', async () => {
       vi.mocked(api.fetchEventDetections).mockResolvedValue({
-        detections: [mockVideoDetection],
-        count: 1,
-        limit: 100,
-        offset: 0,
-        has_more: false,
+        items: [mockVideoDetection],
+        pagination: { total: 1, limit: 100, offset: 0, has_more: false },
       });
 
       render(<EventDetailModal {...mockVideoProps} />);
@@ -1756,11 +1732,8 @@ describe('EventDetailModal', () => {
 
     it('does not show video details section for image detections', async () => {
       vi.mocked(api.fetchEventDetections).mockResolvedValue({
-        detections: [mockImageDetection],
-        count: 1,
-        limit: 100,
-        offset: 0,
-        has_more: false,
+        items: [mockImageDetection],
+        pagination: { total: 1, limit: 100, offset: 0, has_more: false },
       });
 
       render(<EventDetailModal {...mockVideoProps} />);
@@ -1784,11 +1757,8 @@ describe('EventDetailModal', () => {
       };
 
       vi.mocked(api.fetchEventDetections).mockResolvedValue({
-        detections: [minimalVideoDetection],
-        count: 1,
-        limit: 100,
-        offset: 0,
-        has_more: false,
+        items: [minimalVideoDetection],
+        pagination: { total: 1, limit: 100, offset: 0, has_more: false },
       });
 
       render(<EventDetailModal {...mockVideoProps} />);
@@ -1810,11 +1780,8 @@ describe('EventDetailModal', () => {
       };
 
       vi.mocked(api.fetchEventDetections).mockResolvedValue({
-        detections: [shortVideoDetection],
-        count: 1,
-        limit: 100,
-        offset: 0,
-        has_more: false,
+        items: [shortVideoDetection],
+        pagination: { total: 1, limit: 100, offset: 0, has_more: false },
       });
 
       render(<EventDetailModal {...mockVideoProps} />);
@@ -1828,11 +1795,8 @@ describe('EventDetailModal', () => {
 
     it('switches between video and image when clicking thumbnails', async () => {
       vi.mocked(api.fetchEventDetections).mockResolvedValue({
-        detections: [mockVideoDetection, mockImageDetection],
-        count: 2,
-        limit: 100,
-        offset: 0,
-        has_more: false,
+        items: [mockVideoDetection, mockImageDetection],
+        pagination: { total: 2, limit: 100, offset: 0, has_more: false },
       });
 
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
@@ -1860,11 +1824,8 @@ describe('EventDetailModal', () => {
 
     it('uses video thumbnail URL for video detection thumbnails', async () => {
       vi.mocked(api.fetchEventDetections).mockResolvedValue({
-        detections: [mockVideoDetection],
-        count: 1,
-        limit: 100,
-        offset: 0,
-        has_more: false,
+        items: [mockVideoDetection],
+        pagination: { total: 1, limit: 100, offset: 0, has_more: false },
       });
 
       render(<EventDetailModal {...mockVideoProps} />);
@@ -1876,11 +1837,8 @@ describe('EventDetailModal', () => {
 
     it('uses image URL for image detection thumbnails', async () => {
       vi.mocked(api.fetchEventDetections).mockResolvedValue({
-        detections: [mockImageDetection],
-        count: 1,
-        limit: 100,
-        offset: 0,
-        has_more: false,
+        items: [mockImageDetection],
+        pagination: { total: 1, limit: 100, offset: 0, has_more: false },
       });
 
       render(<EventDetailModal {...mockVideoProps} />);

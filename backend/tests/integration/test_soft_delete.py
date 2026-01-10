@@ -173,7 +173,7 @@ class TestEventSoftDeleteFiltering:
             assert response.status_code == 200
 
             data = response.json()
-            event_ids = [e["id"] for e in data["events"]]
+            event_ids = [e["id"] for e in data["items"]]
 
             # Active event should be present, deleted event should not
             assert active_event.id in event_ids
@@ -242,13 +242,13 @@ class TestEventTrashList:
             assert response.status_code == 200
 
             data = response.json()
-            event_ids = [e["id"] for e in data["events"]]
+            event_ids = [e["id"] for e in data["items"]]
 
             # Deleted events should be present, active should not
             assert deleted_event1.id in event_ids
             assert deleted_event2.id in event_ids
             assert active_event.id not in event_ids
-            assert data["count"] >= 2
+            assert data["pagination"]["total"] >= 2
 
     async def test_trash_list_empty_when_no_deleted_events(self, client: AsyncClient) -> None:
         """Verify GET /api/events/deleted returns empty list when no deleted events."""
@@ -258,8 +258,8 @@ class TestEventTrashList:
 
         data = response.json()
         # Count should be 0 or only contain events from this test run
-        assert "events" in data
-        assert "count" in data
+        assert "items" in data
+        assert "pagination" in data
 
     async def test_trash_list_ordered_by_deleted_at_descending(self, client: AsyncClient) -> None:
         """Verify trash list is ordered by deleted_at descending (most recent first)."""
@@ -284,7 +284,7 @@ class TestEventTrashList:
             assert response.status_code == 200
 
             data = response.json()
-            events = data["events"]
+            events = data["items"]
 
             # Find our test events in the response
             our_events = [e for e in events if e["camera_id"] == "trash_order_cam"]
@@ -315,7 +315,7 @@ class TestEventRestore:
 
             # Verify event is in trash
             trash_response = await client.get("/api/events/deleted")
-            assert event_id in [e["id"] for e in trash_response.json()["events"]]
+            assert event_id in [e["id"] for e in trash_response.json()["items"]]
 
             # Restore the event
             restore_response = await client.post(f"/api/events/{event_id}/restore")
@@ -328,7 +328,7 @@ class TestEventRestore:
 
             # Verify event is no longer in trash
             trash_response2 = await client.get("/api/events/deleted")
-            trash_ids = [e["id"] for e in trash_response2.json()["events"]]
+            trash_ids = [e["id"] for e in trash_response2.json()["items"]]
             assert event_id not in trash_ids
 
     async def test_restore_non_deleted_event_returns_409(self, client: AsyncClient) -> None:
@@ -369,14 +369,14 @@ class TestEventRestore:
 
             # Verify not in list initially
             list_response = await client.get("/api/events")
-            assert event_id not in [e["id"] for e in list_response.json()["events"]]
+            assert event_id not in [e["id"] for e in list_response.json()["items"]]
 
             # Restore
             await client.post(f"/api/events/{event_id}/restore")
 
             # Verify now in list
             list_response2 = await client.get("/api/events")
-            assert event_id in [e["id"] for e in list_response2.json()["events"]]
+            assert event_id in [e["id"] for e in list_response2.json()["items"]]
 
 
 # =============================================================================
@@ -411,7 +411,7 @@ class TestCameraSoftDeleteFiltering:
             assert response.status_code == 200
 
             data = response.json()
-            camera_ids = [c["id"] for c in data["cameras"]]
+            camera_ids = [c["id"] for c in data["items"]]
 
             # Active camera should be present, deleted should not
             assert active_camera.id in camera_ids
@@ -457,7 +457,7 @@ class TestCameraTrashList:
             assert response.status_code == 200
 
             data = response.json()
-            camera_ids = [c["id"] for c in data["cameras"]]
+            camera_ids = [c["id"] for c in data["items"]]
 
             # Deleted cameras should be present, active should not
             assert deleted_cam1.id in camera_ids
@@ -481,7 +481,7 @@ class TestCameraTrashList:
             assert response.status_code == 200
 
             data = response.json()
-            our_cam = next((c for c in data["cameras"] if c["id"] == deleted_cam.id), None)
+            our_cam = next((c for c in data["items"] if c["id"] == deleted_cam.id), None)
             assert our_cam is not None
             # Verify camera details are present
             assert "id" in our_cam
@@ -505,7 +505,7 @@ class TestCameraRestore:
 
             # Verify camera is in trash
             trash_response = await client.get("/api/cameras/deleted")
-            assert camera_id in [c["id"] for c in trash_response.json()["cameras"]]
+            assert camera_id in [c["id"] for c in trash_response.json()["items"]]
 
             # Restore the camera
             restore_response = await client.post(f"/api/cameras/{camera_id}/restore")
@@ -517,7 +517,7 @@ class TestCameraRestore:
 
             # Verify camera is no longer in trash
             trash_response2 = await client.get("/api/cameras/deleted")
-            trash_ids = [c["id"] for c in trash_response2.json()["cameras"]]
+            trash_ids = [c["id"] for c in trash_response2.json()["items"]]
             assert camera_id not in trash_ids
 
     async def test_restore_non_deleted_camera_returns_400(self, client: AsyncClient) -> None:
@@ -572,7 +572,7 @@ class TestEventCascadeSoftDelete:
 
             # Verify event is now in trash (soft deleted)
             trash_response = await client.get("/api/events/deleted")
-            trash_ids = [e["id"] for e in trash_response.json()["events"]]
+            trash_ids = [e["id"] for e in trash_response.json()["items"]]
             assert event_id in trash_ids
 
             # Verify event is no longer accessible via normal endpoint
@@ -670,7 +670,7 @@ class TestSoftDeleteEdgeCases:
 
             # Verify events are in trash
             trash_response = await client.get("/api/events/deleted")
-            trash_ids = [e["id"] for e in trash_response.json()["events"]]
+            trash_ids = [e["id"] for e in trash_response.json()["items"]]
             for eid in event_ids:
                 assert eid in trash_ids
 
@@ -750,5 +750,5 @@ class TestSoftDeleteEdgeCases:
 
             # Camera should NOT be in trash (hard deleted, not soft deleted)
             trash_response = await client.get("/api/cameras/deleted")
-            trash_ids = [c["id"] for c in trash_response.json()["cameras"]]
+            trash_ids = [c["id"] for c in trash_response.json()["items"]]
             assert camera_id not in trash_ids

@@ -238,7 +238,7 @@ export default function AlertRulesSettings() {
 
       // Fetch rules first (required) - cameras can fail independently
       const rulesData = await fetchAlertRules();
-      setRules(rulesData.rules);
+      setRules(rulesData.items);
 
       // Fetch cameras separately - don't block on failure
       await loadCameras();

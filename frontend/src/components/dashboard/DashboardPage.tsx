@@ -91,7 +91,7 @@ export default function DashboardPage() {
         ]);
 
         setCameras(camerasData);
-        setInitialEvents(eventsData.events);
+        setInitialEvents(eventsData.items);
         setEventStats(statsData);
       } catch (err) {
         console.error('Failed to load initial data:', err);

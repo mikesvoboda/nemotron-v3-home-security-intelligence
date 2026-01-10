@@ -1092,7 +1092,7 @@ async def test_zones_cascade_deleted_with_camera(client):
 
     # Verify zones exist
     list_response = await client.get(f"/api/cameras/{camera_id}/zones")
-    assert list_response.json()["count"] == 3
+    assert list_response.json()["pagination"]["total"] == 3
 
     # Delete the camera
     delete_response = await client.delete(f"/api/cameras/{camera_id}")
@@ -1329,4 +1329,4 @@ async def test_concurrent_zone_creation(client):
 
     # Verify all were created
     list_response = await client.get(f"/api/cameras/{camera_id}/zones")
-    assert list_response.json()["count"] == 5
+    assert list_response.json()["pagination"]["total"] == 5

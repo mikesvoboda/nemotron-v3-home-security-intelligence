@@ -798,7 +798,7 @@ async function fetchApi<T>(endpoint: string, options?: FetchOptions): Promise<T>
 
 export async function fetchCameras(): Promise<Camera[]> {
   const response = await fetchApi<GeneratedCameraListResponse>('/api/cameras');
-  return response.cameras;
+  return response.items;
 }
 
 export async function fetchCamera(id: string): Promise<Camera> {
@@ -1274,6 +1274,19 @@ export interface DeletedEventsResponse {
 }
 
 /**
+ * Backend response type for deleted events with NEM-2075 pagination envelope.
+ */
+interface DeletedEventsBackendResponse {
+  items: DeletedEvent[];
+  pagination: {
+    total: number;
+    limit: number;
+    offset?: number | null;
+    has_more: boolean;
+  };
+}
+
+/**
  * Fetch all soft-deleted events for the trash view.
  * Events are ordered by deleted_at descending (most recently deleted first).
  *
@@ -1283,14 +1296,14 @@ export interface DeletedEventsResponse {
 export async function fetchDeletedEvents(
   options?: FetchOptions
 ): Promise<DeletedEventsResponse> {
-  const response = await fetchApi<{ events: DeletedEvent[]; count: number }>(
+  const response = await fetchApi<DeletedEventsBackendResponse>(
     '/api/events/deleted',
     options
   );
-  // Map 'count' to 'total' for frontend consistency
+  // Map from NEM-2075 pagination envelope to frontend interface
   return {
-    events: response.events,
-    total: response.count,
+    events: response.items,
+    total: response.pagination.total,
   };
 }
 

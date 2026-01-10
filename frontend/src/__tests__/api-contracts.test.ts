@@ -60,15 +60,22 @@ describe('Event API Contract', () => {
   }
 
   /**
-   * EventListResponse from GET /api/events
+   * PaginationMeta from pagination envelope
    */
-  interface EventListResponse {
-    events: EventResponse[];
-    count: number;
+  interface PaginationMeta {
+    total: number;
     limit: number;
     offset: number;
     next_cursor: string | null;
     has_more: boolean;
+  }
+
+  /**
+   * EventListResponse from GET /api/events
+   */
+  interface EventListResponse {
+    items: EventResponse[];
+    pagination: PaginationMeta;
     deprecation_warning?: string | null;
   }
 
@@ -131,41 +138,45 @@ describe('Event API Contract', () => {
 
   it('EventListResponse has pagination fields', () => {
     const response: EventListResponse = {
-      events: [],
-      count: 0,
-      limit: 50,
-      offset: 0,
-      next_cursor: null,
-      has_more: false,
+      items: [],
+      pagination: {
+        total: 0,
+        limit: 50,
+        offset: 0,
+        next_cursor: null,
+        has_more: false,
+      },
     };
 
-    expect(response.events).toBeDefined();
-    expect(response.count).toBeDefined();
-    expect(response.limit).toBeDefined();
-    expect(response.offset).toBeDefined();
-    expect(response.has_more).toBeDefined();
+    expect(response.items).toBeDefined();
+    expect(response.pagination.total).toBeDefined();
+    expect(response.pagination.limit).toBeDefined();
+    expect(response.pagination.offset).toBeDefined();
+    expect(response.pagination.has_more).toBeDefined();
 
     // Verify types
-    expect(Array.isArray(response.events)).toBe(true);
-    expect(typeof response.count).toBe('number');
-    expect(typeof response.limit).toBe('number');
-    expect(typeof response.offset).toBe('number');
-    expect(typeof response.has_more).toBe('boolean');
+    expect(Array.isArray(response.items)).toBe(true);
+    expect(typeof response.pagination.total).toBe('number');
+    expect(typeof response.pagination.limit).toBe('number');
+    expect(typeof response.pagination.offset).toBe('number');
+    expect(typeof response.pagination.has_more).toBe('boolean');
   });
 
   it('EventListResponse defaults match backend', () => {
     const response: EventListResponse = {
-      events: [],
-      count: 0,
-      limit: 50, // Default limit
-      offset: 0, // Default offset
-      next_cursor: null,
-      has_more: false,
+      items: [],
+      pagination: {
+        total: 0,
+        limit: 50, // Default limit
+        offset: 0, // Default offset
+        next_cursor: null,
+        has_more: false,
+      },
     };
 
     // Default pagination values per CLAUDE.md
-    expect(response.limit).toBe(50);
-    expect(response.offset).toBe(0);
+    expect(response.pagination.limit).toBe(50);
+    expect(response.pagination.offset).toBe(0);
   });
 });
 
@@ -636,13 +647,23 @@ describe('Detection API Contract', () => {
   }
 
   /**
+   * DetectionPaginationMeta from pagination envelope
+   */
+  interface DetectionPaginationMeta {
+    total: number;
+    limit: number;
+    offset: number;
+    next_cursor: string | null;
+    has_more: boolean;
+  }
+
+  /**
    * DetectionListResponse from GET /api/detections
    */
   interface DetectionListResponse {
-    detections: DetectionResponse[];
-    count: number;
-    limit: number;
-    offset: number;
+    items: DetectionResponse[];
+    pagination: DetectionPaginationMeta;
+    deprecation_warning?: string | null;
   }
 
   it('DetectionResponse has all required fields', () => {
@@ -691,15 +712,19 @@ describe('Detection API Contract', () => {
 
   it('DetectionListResponse has pagination fields', () => {
     const response: DetectionListResponse = {
-      detections: [],
-      count: 0,
-      limit: 50,
-      offset: 0,
+      items: [],
+      pagination: {
+        total: 0,
+        limit: 50,
+        offset: 0,
+        next_cursor: null,
+        has_more: false,
+      },
     };
 
-    expect(response.detections).toBeDefined();
-    expect(response.count).toBeDefined();
-    expect(response.limit).toBeDefined();
-    expect(response.offset).toBeDefined();
+    expect(response.items).toBeDefined();
+    expect(response.pagination.total).toBeDefined();
+    expect(response.pagination.limit).toBeDefined();
+    expect(response.pagination.offset).toBeDefined();
   });
 });

@@ -51,19 +51,25 @@ describe('AuditLogPage', () => {
   ];
 
   const mockAuditResponse: AuditLogListResponse = {
-    logs: mockAuditLogs,
-    count: 3,
-    limit: 50,
-    offset: 0,
-    has_more: false,
+    items: mockAuditLogs,
+    pagination: {
+      total: 3,
+      limit: 50,
+      offset: 0,
+      has_more: false,
+      next_cursor: null,
+    },
   };
 
   const mockEmptyResponse: AuditLogListResponse = {
-    logs: [],
-    count: 0,
-    limit: 50,
-    offset: 0,
-    has_more: false,
+    items: [],
+    pagination: {
+      total: 0,
+      limit: 50,
+      offset: 0,
+      has_more: false,
+      next_cursor: null,
+    },
   };
 
   const mockStats: AuditLogStats = {
@@ -584,7 +590,10 @@ describe('AuditLogPage', () => {
     it('displays pagination controls when there are multiple pages', async () => {
       vi.mocked(api.fetchAuditLogs).mockResolvedValue({
         ...mockAuditResponse,
-        count: 100,
+        pagination: {
+          ...mockAuditResponse.pagination,
+          total: 100,
+        },
       });
 
       render(<AuditLogPage />);
@@ -601,7 +610,10 @@ describe('AuditLogPage', () => {
     it('navigates to next page', async () => {
       vi.mocked(api.fetchAuditLogs).mockResolvedValue({
         ...mockAuditResponse,
-        count: 100,
+        pagination: {
+          ...mockAuditResponse.pagination,
+          total: 100,
+        },
       });
 
       const user = userEvent.setup();
@@ -621,7 +633,10 @@ describe('AuditLogPage', () => {
     it('previous button is disabled on first page', async () => {
       vi.mocked(api.fetchAuditLogs).mockResolvedValue({
         ...mockAuditResponse,
-        count: 100,
+        pagination: {
+          ...mockAuditResponse.pagination,
+          total: 100,
+        },
       });
 
       render(<AuditLogPage />);

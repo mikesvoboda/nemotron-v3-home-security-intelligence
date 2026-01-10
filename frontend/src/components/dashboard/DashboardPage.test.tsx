@@ -278,10 +278,13 @@ describe('DashboardPage', () => {
   ];
 
   const mockEventListResponse = {
-    events: mockInitialEvents,
-    count: 2,
-    limit: 50,
-    offset: 0,
+    items: mockInitialEvents,
+    pagination: {
+      total: 2,
+      limit: 50,
+      offset: 0,
+      has_more: false,
+    },
   };
 
   const mockEventStats = {
@@ -624,10 +627,13 @@ describe('DashboardPage', () => {
       });
 
       (api.fetchEvents as Mock).mockResolvedValue({
-        events: [],
-        count: 0,
-        limit: 50,
-        offset: 0,
+        items: [],
+        pagination: {
+          total: 0,
+          limit: 50,
+          offset: 0,
+          has_more: false,
+        },
       });
 
       renderWithProviders(<DashboardPage />);

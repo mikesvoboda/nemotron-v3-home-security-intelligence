@@ -221,16 +221,17 @@ class TestListEvents:
         assert response.status_code == 200
         data = response.json()
         assert data["items"] == []
-        assert data["count"] == 0
+        assert data["pagination"]["total"] == 0
         assert data["pagination"]["limit"] == 50
-        assert data["pagination"]["offset"] == 0
+        # offset=0 is converted to None (falsy value) for cursor-based pagination
+        assert data["pagination"]["offset"] in (0, None)
 
     async def test_list_events_with_data(self, async_client, sample_event):
         """Test listing events when data exists."""
         response = await async_client.get("/api/events")
         assert response.status_code == 200
         data = response.json()
-        assert data["count"] >= 1
+        assert data["pagination"]["total"] >= 1
         assert len(data["items"]) >= 1
         event = data["items"][0]
         assert event["id"] == sample_event.id
@@ -245,7 +246,7 @@ class TestListEvents:
         assert response.status_code == 200
         data = response.json()
         # Should get events from first camera only (events 0, 1, 3)
-        assert data["count"] >= 3
+        assert data["pagination"]["total"] >= 3
         for event in data["items"]:
             assert event["camera_id"] == camera_id
 
@@ -254,7 +255,7 @@ class TestListEvents:
         response = await async_client.get("/api/events?risk_level=high")
         assert response.status_code == 200
         data = response.json()
-        assert data["count"] >= 1
+        assert data["pagination"]["total"] >= 1
         for event in data["items"]:
             assert event["risk_level"] == "high"
 
@@ -264,7 +265,7 @@ class TestListEvents:
         response = await async_client.get("/api/events?reviewed=true")
         assert response.status_code == 200
         data = response.json()
-        assert data["count"] >= 1
+        assert data["pagination"]["total"] >= 1
         for event in data["items"]:
             assert event["reviewed"] is True
 
@@ -272,7 +273,7 @@ class TestListEvents:
         response = await async_client.get("/api/events?reviewed=false")
         assert response.status_code == 200
         data = response.json()
-        assert data["count"] >= 3
+        assert data["pagination"]["total"] >= 3
         for event in data["items"]:
             assert event["reviewed"] is False
 
@@ -310,7 +311,7 @@ class TestListEvents:
         assert response.status_code == 200
         data = response.json()
         # Should get events at 14:00, 15:00, and 22:00 UTC (3 events in range)
-        assert data["count"] >= 2
+        assert data["pagination"]["total"] >= 2
         for event in data["items"]:
             event_start = datetime.fromisoformat(event["started_at"].replace("Z", "+00:00"))
             # Add timezone for comparison (both must be tz-aware)
@@ -580,7 +581,8 @@ class TestGetEventDetections:
         response = await async_client.get(f"/api/events/{sample_event.id}/detections")
         assert response.status_code == 200
         data = response.json()
-        assert "detections" in data
+        assert "items" in data
+        assert "pagination" in data
         assert len(data["items"]) >= 1
         detection = data["items"][0]
         assert detection["id"] == sample_detection.id
@@ -895,7 +897,8 @@ class TestEnrichmentDataInEventDetections:
         response = await async_client.get(f"/api/events/{sample_event.id}/detections")
         assert response.status_code == 200
         data = response.json()
-        assert "detections" in data
+        assert "items" in data
+        assert "pagination" in data
         assert len(data["items"]) == 1
         assert "enrichment_data" in data["items"][0]
         assert data["items"][0]["enrichment_data"] == enrichment_data
@@ -921,7 +924,8 @@ class TestEnrichmentDataInEventDetections:
         response = await async_client.get(f"/api/events/{sample_event.id}/detections")
         assert response.status_code == 200
         data = response.json()
-        assert "detections" in data
+        assert "items" in data
+        assert "pagination" in data
         assert len(data["items"]) == 1
         # enrichment_data should be None/null for detections without enrichment
         assert "enrichment_data" in data["items"][0]
@@ -1206,7 +1210,8 @@ class TestGetEventEnrichments:
         assert data["total"] == 1
         # EventEnrichmentsResponse uses flat structure (not pagination envelope)
         assert data["limit"] == 50  # default
-        assert data["offset"] == 0  # default
+        # offset=0 is converted to None (falsy value) for cursor-based pagination
+        assert data["offset"] in (0, None)  # default
         assert data["has_more"] is False
         assert len(data["enrichments"]) == 1
 
@@ -1239,7 +1244,8 @@ class TestGetEventEnrichments:
         assert data["total"] == 0
         # EventEnrichmentsResponse uses flat structure (not pagination envelope)
         assert data["limit"] == 50
-        assert data["offset"] == 0
+        # offset=0 is converted to None (falsy value) for cursor-based pagination
+        assert data["offset"] in (0, None)
         assert data["has_more"] is False
         assert data["enrichments"] == []
 
@@ -1318,7 +1324,8 @@ class TestGetEventEnrichments:
         assert data["total"] == 2
         # EventEnrichmentsResponse uses flat structure (not pagination envelope)
         assert data["limit"] == 50
-        assert data["offset"] == 0
+        # offset=0 is converted to None (falsy value) for cursor-based pagination
+        assert data["offset"] in (0, None)
         assert data["has_more"] is False
         assert len(data["enrichments"]) == 2
 
@@ -1378,7 +1385,8 @@ class TestGetEventEnrichments:
         assert data["total"] == 5
         # EventEnrichmentsResponse uses flat structure (not pagination envelope)
         assert data["limit"] == 2
-        assert data["offset"] == 0
+        # offset=0 is converted to None (falsy value) for cursor-based pagination
+        assert data["offset"] in (0, None)
         assert data["has_more"] is True
         assert len(data["enrichments"]) == 2
 
@@ -1787,5 +1795,6 @@ class TestSearchEvents:
 
         # Search endpoint uses its own response structure (not pagination envelope)
         assert data["limit"] == 2
-        assert data["offset"] == 0
+        # offset=0 is converted to None (falsy value) for cursor-based pagination
+        assert data["offset"] in (0, None)
         assert len(data["results"]) <= 2

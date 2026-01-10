@@ -874,9 +874,11 @@ describe('Audit Endpoints', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data).toHaveProperty('logs');
-      expect(Array.isArray(data.logs)).toBe(true);
-      expectPaginationFields(data, 0);
+      expect(data).toHaveProperty('items');
+      expect(Array.isArray(data.items)).toBe(true);
+      expect(data.pagination.total).toBe(0);
+      expect(data.pagination.limit).toBeDefined();
+      expect(data.pagination.offset).toBeDefined();
     });
 
     it('respects limit parameter', async () => {
@@ -884,7 +886,7 @@ describe('Audit Endpoints', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.limit).toBe(50);
+      expect(data.pagination.limit).toBe(50);
     });
 
     it('respects offset parameter', async () => {
@@ -892,7 +894,7 @@ describe('Audit Endpoints', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.offset).toBe(20);
+      expect(data.pagination.offset).toBe(20);
     });
   });
 

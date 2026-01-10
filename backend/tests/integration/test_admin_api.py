@@ -319,7 +319,7 @@ async def test_seed_cameras_clear_existing(debug_client, clean_seed_data):
 
     # Verify they exist
     list_response = await debug_client.get("/api/cameras")
-    assert list_response.json()["count"] == 2
+    assert list_response.json()["pagination"]["total"] == 2
 
     # Seed again with clear_existing=true
     response = await debug_client.post(
@@ -352,7 +352,7 @@ async def test_seed_cameras_skips_existing(debug_client, clean_seed_data):
 
     # Verify total is 5
     list_response = await debug_client.get("/api/cameras")
-    assert list_response.json()["count"] == 5
+    assert list_response.json()["pagination"]["total"] == 5
 
 
 @pytest.mark.asyncio
@@ -526,7 +526,7 @@ async def test_clear_data_success(debug_client, clean_seed_data):
 
     # Verify data is gone
     cameras_response = await debug_client.get("/api/cameras")
-    assert cameras_response.json()["count"] == 0
+    assert cameras_response.json()["pagination"]["total"] == 0
 
 
 @pytest.mark.asyncio
@@ -566,7 +566,7 @@ async def test_clear_data_requires_confirmation(debug_client, clean_seed_data):
 
     # Verify data is NOT deleted
     cameras_response = await debug_client.get("/api/cameras")
-    assert cameras_response.json()["count"] == 2
+    assert cameras_response.json()["pagination"]["total"] == 2
 
 
 @pytest.mark.asyncio
@@ -588,7 +588,7 @@ async def test_clear_data_missing_confirmation(debug_client, clean_seed_data):
 
     # Verify data is NOT deleted
     cameras_response = await debug_client.get("/api/cameras")
-    assert cameras_response.json()["count"] == 2
+    assert cameras_response.json()["pagination"]["total"] == 2
 
 
 # === Edge Cases ===

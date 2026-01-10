@@ -366,7 +366,7 @@ class TestGetDLQJobs:
         data = response.json()
         assert data["queue_name"] == DLQ_DETECTION_QUEUE
         assert data["jobs"] == []
-        assert data["count"] == 0
+        assert data["pagination"]["total"] == 0
 
     @pytest.mark.asyncio
     async def test_jobs_empty_analysis_queue(
@@ -381,7 +381,7 @@ class TestGetDLQJobs:
         data = response.json()
         assert data["queue_name"] == DLQ_ANALYSIS_QUEUE
         assert data["jobs"] == []
-        assert data["count"] == 0
+        assert data["pagination"]["total"] == 0
 
     @pytest.mark.asyncio
     async def test_jobs_with_data(
@@ -396,7 +396,7 @@ class TestGetDLQJobs:
         assert response.status_code == 200
         data = response.json()
         assert data["queue_name"] == DLQ_DETECTION_QUEUE
-        assert data["count"] == 1
+        assert data["pagination"]["total"] == 1
         assert len(data["jobs"]) == 1
 
         job = data["jobs"][0]
@@ -418,7 +418,7 @@ class TestGetDLQJobs:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["count"] == 5
+        assert data["pagination"]["total"] == 5
 
     @pytest.mark.asyncio
     async def test_jobs_pagination_custom(
@@ -806,7 +806,8 @@ class TestDLQResponseSchemas:
         # Verify required fields
         assert "queue_name" in data
         assert "jobs" in data
-        assert "count" in data
+        assert "pagination" in data
+        assert "total" in data["pagination"]
 
         # Verify job structure
         job = data["jobs"][0]
@@ -1105,13 +1106,13 @@ class TestDLQErrorHandling:
         response1 = await dlq_client.get(f"/api/dlq/jobs/{DLQ_DETECTION_QUEUE}?start=0&limit=5")
         assert response1.status_code == 200
         data1 = response1.json()
-        assert data1["count"] == 5
+        assert data1["pagination"]["total"] == 5
 
         # Get second page (remaining 5 items)
         response2 = await dlq_client.get(f"/api/dlq/jobs/{DLQ_DETECTION_QUEUE}?start=5&limit=5")
         assert response2.status_code == 200
         data2 = response2.json()
-        assert data2["count"] == 5
+        assert data2["pagination"]["total"] == 5
 
     @pytest.mark.asyncio
     async def test_stats_with_only_analysis_queue_populated(
@@ -1159,7 +1160,7 @@ class TestDLQErrorHandling:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["count"] == 3
+        assert data["pagination"]["total"] == 3
 
         # Verify each job has the correct error type
         errors = [job["error"] for job in data["jobs"]]
@@ -1200,7 +1201,7 @@ class TestAnalysisQueueOperations:
         assert response.status_code == 200
         data = response.json()
         assert data["queue_name"] == DLQ_ANALYSIS_QUEUE
-        assert data["count"] == 1
+        assert data["pagination"]["total"] == 1
 
         job = data["jobs"][0]
         assert "batch_id" in job["original_job"]

@@ -18,7 +18,7 @@ export interface UseDetectionsInfiniteQueryOptions {
 }
 
 export interface UseDetectionsInfiniteQueryReturn {
-  detections: DetectionListResponse['detections'];
+  detections: DetectionListResponse['items'];
   pages: DetectionListResponse[] | undefined;
   totalCount: number;
   isLoading: boolean;
@@ -75,14 +75,14 @@ export function useDetectionsInfiniteQuery(
     if (!query.data?.pages) {
       return [];
     }
-    return query.data.pages.flatMap((page) => page.detections);
+    return query.data.pages.flatMap((page) => page.items);
   }, [query.data?.pages]);
 
   const totalCount = useMemo(() => {
     if (!query.data?.pages?.[0]) {
       return 0;
     }
-    return query.data.pages[0].count;
+    return query.data.pages[0].pagination.total;
   }, [query.data?.pages]);
 
   return {

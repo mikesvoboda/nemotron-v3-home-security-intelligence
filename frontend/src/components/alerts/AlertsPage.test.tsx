@@ -70,34 +70,40 @@ describe('AlertsPage', () => {
   ];
 
   const mockHighResponse: EventListResponse = {
-    events: mockHighRiskEvents,
-    count: 1,
-    limit: 20,
-    offset: 0,
-    has_more: false,
+    items: mockHighRiskEvents,
+    pagination: {
+      total: 1,
+      limit: 20,
+      offset: 0,
+      has_more: false,
+    },
   };
 
   const mockCriticalResponse: EventListResponse = {
-    events: mockCriticalRiskEvents,
-    count: 1,
-    limit: 20,
-    offset: 0,
-    has_more: false,
+    items: mockCriticalRiskEvents,
+    pagination: {
+      total: 1,
+      limit: 20,
+      offset: 0,
+      has_more: false,
+    },
   };
 
   const mockEmptyResponse: EventListResponse = {
-    events: [],
-    count: 0,
-    limit: 20,
-    offset: 0,
-    has_more: false,
+    items: [],
+    pagination: {
+      total: 0,
+      limit: 20,
+      offset: 0,
+      has_more: false,
+    },
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
     // Mock detection fetching for modal
-    vi.mocked(api.fetchEventDetections).mockResolvedValue({ detections: [], count: 0, limit: 100, offset: 0, has_more: false });
+    vi.mocked(api.fetchEventDetections).mockResolvedValue({ items: [], pagination: { total: 0, limit: 100, offset: 0, has_more: false } });
     // Mock update event for mark as reviewed
     vi.mocked(api.updateEvent).mockResolvedValue({
       id: 1,
@@ -391,18 +397,22 @@ describe('AlertsPage', () => {
 
       vi.mocked(api.fetchEvents)
         .mockResolvedValueOnce({
-          events: manyHighEvents,
-          count: 15,
-          limit: 20,
-          offset: 0,
-          has_more: false,
+          items: manyHighEvents,
+          pagination: {
+            total: 15,
+            limit: 20,
+            offset: 0,
+            has_more: false,
+          },
         })
         .mockResolvedValueOnce({
-          events: manyCriticalEvents,
-          count: 15,
-          limit: 20,
-          offset: 0,
-          has_more: false,
+          items: manyCriticalEvents,
+          pagination: {
+            total: 15,
+            limit: 20,
+            offset: 0,
+            has_more: false,
+          },
         });
 
       render(<AlertsPage />);

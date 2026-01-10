@@ -342,7 +342,7 @@ export const abTestService: ABTestService = {
 
     // Transform to EventSummary format
     // Note: Event type only has camera_id, not camera_name
-    return response.events.map((event) => ({
+    return response.items.map((event) => ({
       id: event.id,
       timestamp: event.started_at,
       cameraName: event.camera_id,

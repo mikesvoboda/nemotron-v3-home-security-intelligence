@@ -110,14 +110,14 @@ class TestListDetections:
         assert response.status_code == 200
         data = response.json()
         assert data["items"] == []
-        assert data["count"] == 0
+        assert data["pagination"]["total"] == 0
 
     async def test_list_detections_with_data(self, async_client, sample_detection):
         """Test listing detections when data exists."""
         response = await async_client.get("/api/detections")
         assert response.status_code == 200
         data = response.json()
-        assert data["count"] >= 1
+        assert data["pagination"]["total"] >= 1
         assert len(data["items"]) >= 1
 
     async def test_list_detections_filter_by_camera(self, async_client, sample_detection):
