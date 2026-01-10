@@ -148,7 +148,7 @@ def _drop_test_migration_db(base_url: str, db_name: str) -> None:
                 cur.execute(f'DROP DATABASE IF EXISTS "{db_name}"')
         finally:
             conn.close()
-    except Exception:  # noqa: S110 - best-effort cleanup, ok to ignore errors
+    except Exception:  # best-effort cleanup, ok to ignore errors
         pass
 
 
