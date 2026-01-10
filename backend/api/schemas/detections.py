@@ -288,3 +288,49 @@ class DetectionStatsResponse(BaseModel):
     average_confidence: float | None = Field(
         None, description="Average confidence score across all detections"
     )
+
+
+# Search Schemas (NEM-1986)
+
+
+class DetectionSearchResult(BaseModel):
+    """Schema for a single detection search result."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int = Field(..., description="Detection ID")
+    camera_id: str = Field(..., description="Camera ID")
+    object_type: str | None = Field(None, description="Detected object type")
+    confidence: float | None = Field(None, description="Detection confidence score")
+    detected_at: datetime = Field(..., description="Detection timestamp")
+    file_path: str = Field(..., description="Path to source file")
+    thumbnail_path: str | None = Field(None, description="Path to thumbnail")
+    relevance_score: float = Field(default=0.0, description="Search relevance score")
+    labels: list[str] = Field(default_factory=list, description="Searchable labels")
+    bbox_x: int | None = Field(None)
+    bbox_y: int | None = Field(None)
+    bbox_width: int | None = Field(None)
+    bbox_height: int | None = Field(None)
+    enrichment_data: dict[str, Any] | None = Field(None)
+
+
+class DetectionSearchResponse(BaseModel):
+    """Schema for detection search response."""
+
+    results: list[DetectionSearchResult] = Field(..., description="Search results")
+    total_count: int = Field(..., description="Total matching detections")
+    limit: int = Field(...)
+    offset: int = Field(...)
+
+
+class DetectionLabelCount(BaseModel):
+    """Schema for a label with count."""
+
+    label: str = Field(...)
+    count: int = Field(...)
+
+
+class DetectionLabelsResponse(BaseModel):
+    """Schema for detection labels response."""
+
+    labels: list[DetectionLabelCount] = Field(...)

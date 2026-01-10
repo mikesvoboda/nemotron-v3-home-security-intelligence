@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import CheckConstraint, DateTime, Float, ForeignKey, Index, Integer, String
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.api.schemas.enrichment_data import (
@@ -67,6 +67,8 @@ class Detection(Base):
     # Contains results from 18+ vision models: license plate, face, vehicle,
     # clothing, violence, weather, image quality, pet classification, etc.
     enrichment_data: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    search_vector: Mapped[Any | None] = mapped_column(TSVECTOR, nullable=True)
+    labels: Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)
 
     # Relationships
     camera: Mapped[Camera] = relationship("Camera", back_populates="detections")
