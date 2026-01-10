@@ -46,15 +46,37 @@ def mock_db_session() -> AsyncMock:
 
 
 @pytest.fixture
-def client(mock_db_session: AsyncMock) -> TestClient:
-    """Create a test client with mocked dependencies."""
+def mock_cache_service() -> AsyncMock:
+    """Create a mock cache service for unit tests.
+
+    This mock prevents tests from attempting to connect to a real Redis server.
+    The cache invalidation methods return success values by default.
+    """
+    cache = AsyncMock()
+    cache.invalidate_alerts = AsyncMock(return_value=1)
+    return cache
+
+
+@pytest.fixture
+def client(mock_db_session: AsyncMock, mock_cache_service: AsyncMock) -> TestClient:
+    """Create a test client with mocked dependencies.
+
+    Mocks both database and cache service to ensure unit tests don't
+    connect to real external services.
+    """
+    from backend.api.dependencies import get_cache_service_dep
+
     app = FastAPI()
     app.include_router(router)
 
     async def override_get_db():
         yield mock_db_session
 
+    async def override_get_cache():
+        yield mock_cache_service
+
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_cache_service_dep] = override_get_cache
 
     with TestClient(app) as test_client:
         yield test_client
@@ -621,13 +643,6 @@ class TestApplyRuleUpdates:
 
 class TestCacheInvalidation:
     """Tests for cache invalidation on alert rule mutation endpoints."""
-
-    @pytest.fixture
-    def mock_cache_service(self) -> AsyncMock:
-        """Create a mock cache service."""
-        cache = AsyncMock()
-        cache.invalidate_alerts = AsyncMock(return_value=1)
-        return cache
 
     @pytest.fixture
     def client_with_cache(
