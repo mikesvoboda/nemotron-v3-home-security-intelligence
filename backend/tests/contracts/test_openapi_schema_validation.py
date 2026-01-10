@@ -206,18 +206,20 @@ class TestOpenAPISchemaValidation:
         data = response.json()
 
         # Validate response structure against expected schema
-        assert "events" in data
-        assert "count" in data
-        assert "limit" in data
-        assert "offset" in data
-        assert isinstance(data["events"], list)
-        assert isinstance(data["count"], int)
-        assert isinstance(data["limit"], int)
-        assert isinstance(data["offset"], int)
+        assert "items" in data
+        assert "pagination" in data
+        assert "limit" in data["pagination"]
+        assert "offset" in data["pagination"]
+        assert isinstance(data["items"], list)
+        assert isinstance(data["pagination"]["total"], int)
+        assert isinstance(data["pagination"]["limit"], int)
+        # offset can be None for cursor-based pagination
+        assert data["pagination"]["offset"] is None or isinstance(data["pagination"]["offset"], int)
 
         # Validate pagination defaults
-        assert data["limit"] == 50
-        assert data["offset"] == 0
+        assert data["pagination"]["limit"] == 50
+        # offset=0 may be returned as None due to cursor-based pagination preference
+        assert data["pagination"]["offset"] in (0, None)
 
     @pytest.mark.asyncio
     async def test_cameras_api_response_schema(self, client: AsyncClient, mock_session: MagicMock):
@@ -234,10 +236,10 @@ class TestOpenAPISchemaValidation:
         data = response.json()
 
         # Validate response structure
-        assert "cameras" in data
-        assert "count" in data
-        assert isinstance(data["cameras"], list)
-        assert isinstance(data["count"], int)
+        assert "items" in data
+        assert "pagination" in data
+        assert isinstance(data["items"], list)
+        assert isinstance(data["pagination"]["total"], int)
 
     @pytest.mark.asyncio
     async def test_detections_api_response_schema(
@@ -260,11 +262,11 @@ class TestOpenAPISchemaValidation:
         data = response.json()
 
         # Validate response structure
-        assert "detections" in data
-        assert "count" in data
-        assert "limit" in data
-        assert "offset" in data
-        assert isinstance(data["detections"], list)
+        assert "items" in data
+        assert "pagination" in data
+        assert "limit" in data["pagination"]
+        assert "offset" in data["pagination"]
+        assert isinstance(data["items"], list)
 
     @pytest.mark.asyncio
     async def test_health_api_response_schema(self, client: AsyncClient):

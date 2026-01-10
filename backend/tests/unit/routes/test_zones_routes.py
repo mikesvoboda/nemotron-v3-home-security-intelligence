@@ -159,8 +159,8 @@ class TestListZones:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["zones"] == []
-        assert data["count"] == 0
+        assert data["items"] == []
+        assert data["pagination"]["total"] == 0
 
     def test_list_zones_with_data(
         self,
@@ -184,8 +184,8 @@ class TestListZones:
 
         assert response.status_code == 200
         data = response.json()
-        assert len(data["zones"]) == 3
-        assert data["count"] == 3
+        assert len(data["items"]) == 3
+        assert data["pagination"]["total"] == 3
 
     def test_list_zones_filter_enabled(
         self,
@@ -210,10 +210,10 @@ class TestListZones:
 
         assert response.status_code == 200
         data = response.json()
-        assert len(data["zones"]) == 2
-        assert data["count"] == 2
+        assert len(data["items"]) == 2
+        assert data["pagination"]["total"] == 2
         # All returned zones should be enabled
-        for zone in data["zones"]:
+        for zone in data["items"]:
             assert zone["enabled"] is True
 
     def test_list_zones_camera_not_found(
@@ -780,7 +780,7 @@ class TestZoneListResponseSchema:
     def test_zone_list_response_valid(self) -> None:
         """Test ZoneListResponse with valid data."""
         data = {
-            "zones": [
+            "items": [
                 {
                     "id": "zone-123",
                     "camera_id": "front_door",
@@ -795,21 +795,21 @@ class TestZoneListResponseSchema:
                     "updated_at": datetime(2025, 12, 23, 10, 0, 0),
                 }
             ],
-            "count": 1,
+            "pagination": {"total": 1, "limit": 50, "offset": 0, "has_more": False},
         }
         schema = ZoneListResponse(**data)
-        assert len(schema.zones) == 1
-        assert schema.count == 1
+        assert len(schema.items) == 1
+        assert schema.pagination.total == 1
 
     def test_zone_list_response_empty(self) -> None:
         """Test ZoneListResponse with empty list."""
         data = {
-            "zones": [],
-            "count": 0,
+            "items": [],
+            "pagination": {"total": 0, "limit": 50, "offset": 0, "has_more": False},
         }
         schema = ZoneListResponse(**data)
-        assert schema.zones == []
-        assert schema.count == 0
+        assert schema.items == []
+        assert schema.pagination.total == 0
 
 
 # =============================================================================

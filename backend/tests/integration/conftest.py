@@ -61,6 +61,7 @@ HARDCODED_TABLE_DELETION_ORDER = [
     "class_baselines",
     "events",
     "scene_changes",
+    "camera_notification_settings",  # FK to cameras
     # Second: Delete tables without FK references (standalone)
     "alert_rules",
     "audit_logs",
@@ -69,6 +70,8 @@ HARDCODED_TABLE_DELETION_ORDER = [
     "api_keys",
     "zones",
     "prompt_configs",
+    "quiet_hours_periods",
+    "notification_preferences",
     # Last: Delete parent tables
     "cameras",
 ]

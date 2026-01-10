@@ -389,8 +389,8 @@ async def test_list_zones_empty(client):
 
     assert response.status_code == 200
     data = response.json()
-    assert data["zones"] == []
-    assert data["count"] == 0
+    assert data["items"] == []
+    assert data["pagination"]["total"] == 0
 
 
 @pytest.mark.asyncio
@@ -407,8 +407,8 @@ async def test_list_zones_with_data(client):
 
     assert response.status_code == 200
     data = response.json()
-    assert len(data["zones"]) == 3
-    assert data["count"] == 3
+    assert len(data["items"]) == 3
+    assert data["pagination"]["total"] == 3
 
 
 @pytest.mark.asyncio
@@ -437,18 +437,18 @@ async def test_list_zones_filter_by_enabled(client):
 
     assert response.status_code == 200
     data = response.json()
-    assert len(data["zones"]) == 1
-    assert data["zones"][0]["name"] == "Enabled Zone"
-    assert data["count"] == 1
+    assert len(data["items"]) == 1
+    assert data["items"][0]["name"] == "Enabled Zone"
+    assert data["pagination"]["total"] == 1
 
     # Filter by enabled=false
     response = await client.get(f"/api/cameras/{camera_id}/zones?enabled=false")
 
     assert response.status_code == 200
     data = response.json()
-    assert len(data["zones"]) == 1
-    assert data["zones"][0]["name"] == "Disabled Zone"
-    assert data["count"] == 1
+    assert len(data["items"]) == 1
+    assert data["items"][0]["name"] == "Disabled Zone"
+    assert data["pagination"]["total"] == 1
 
 
 @pytest.mark.asyncio
@@ -476,9 +476,9 @@ async def test_list_zones_ordered_by_priority(client):
     assert response.status_code == 200
     data = response.json()
     # Should be ordered by priority descending: 50, 30, 10
-    assert data["zones"][0]["priority"] == 50
-    assert data["zones"][1]["priority"] == 30
-    assert data["zones"][2]["priority"] == 10
+    assert data["items"][0]["priority"] == 50
+    assert data["items"][1]["priority"] == 30
+    assert data["items"][2]["priority"] == 10
 
 
 @pytest.mark.asyncio
@@ -507,14 +507,14 @@ async def test_list_zones_camera_isolation(client):
     response1 = await client.get(f"/api/cameras/{camera_id_1}/zones")
     assert response1.status_code == 200
     data1 = response1.json()
-    assert data1["count"] == 1
-    assert f"Camera 1 Zone A {uid}" in data1["zones"][0]["name"]
+    assert data1["pagination"]["total"] == 1
+    assert f"Camera 1 Zone A {uid}" in data1["items"][0]["name"]
 
     # Camera 2 should have 2 zones
     response2 = await client.get(f"/api/cameras/{camera_id_2}/zones")
     assert response2.status_code == 200
     data2 = response2.json()
-    assert data2["count"] == 2
+    assert data2["pagination"]["total"] == 2
 
 
 # === READ Tests (Single) ===
@@ -872,10 +872,10 @@ async def test_zone_list_response_schema(client):
     assert response.status_code == 200
     data = response.json()
     # Verify schema structure
-    assert "zones" in data
-    assert "count" in data
-    assert isinstance(data["zones"], list)
-    assert isinstance(data["count"], int)
+    assert "items" in data
+    assert "pagination" in data
+    assert isinstance(data["items"], list)
+    assert isinstance(data["pagination"]["total"], int)
 
 
 @pytest.mark.asyncio
@@ -1027,7 +1027,7 @@ async def test_create_multiple_zones_same_camera(client):
     # Verify all were created
     list_response = await client.get(f"/api/cameras/{camera_id}/zones")
     data = list_response.json()
-    assert data["count"] == 5
+    assert data["pagination"]["total"] == 5
 
 
 @pytest.mark.asyncio
@@ -1092,7 +1092,7 @@ async def test_zones_cascade_deleted_with_camera(client):
 
     # Verify zones exist
     list_response = await client.get(f"/api/cameras/{camera_id}/zones")
-    assert list_response.json()["count"] == 3
+    assert list_response.json()["pagination"]["total"] == 3
 
     # Delete the camera
     delete_response = await client.delete(f"/api/cameras/{camera_id}")
@@ -1329,4 +1329,4 @@ async def test_concurrent_zone_creation(client):
 
     # Verify all were created
     list_response = await client.get(f"/api/cameras/{camera_id}/zones")
-    assert list_response.json()["count"] == 5
+    assert list_response.json()["pagination"]["total"] == 5

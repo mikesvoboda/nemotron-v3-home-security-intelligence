@@ -351,10 +351,11 @@ async def test_list_events_returns_empty_list_when_no_events() -> None:
         db=db,
     )
 
-    assert response.events == []
-    assert response.count == 0
-    assert response.limit == 50
-    assert response.offset == 0
+    assert response.items == []
+    assert response.pagination.total == 0
+    assert response.pagination.limit == 50
+    # offset=0 becomes None in the response (falsy value converted to None)
+    assert response.pagination.offset is None
 
 
 @pytest.mark.asyncio
@@ -388,10 +389,10 @@ async def test_list_events_returns_events_with_detection_count() -> None:
         db=db,
     )
 
-    assert len(response.events) == 1
-    assert response.events[0].id == 1
-    assert response.events[0].detection_count == 3
-    assert response.count == 1
+    assert len(response.items) == 1
+    assert response.items[0].id == 1
+    assert response.items[0].detection_count == 3
+    assert response.pagination.total == 1
 
 
 @pytest.mark.asyncio
@@ -425,9 +426,9 @@ async def test_list_events_returns_detection_ids_array() -> None:
         db=db,
     )
 
-    assert len(response.events) == 1
-    assert response.events[0].detection_ids == [10, 20, 30]
-    assert response.events[0].detection_count == 3
+    assert len(response.items) == 1
+    assert response.items[0].detection_ids == [10, 20, 30]
+    assert response.items[0].detection_count == 3
 
 
 @pytest.mark.asyncio
@@ -461,8 +462,8 @@ async def test_list_events_with_empty_detection_ids() -> None:
         db=db,
     )
 
-    assert len(response.events) == 1
-    assert response.events[0].detection_count == 0
+    assert len(response.items) == 1
+    assert response.items[0].detection_count == 0
 
 
 @pytest.mark.asyncio
@@ -496,8 +497,8 @@ async def test_list_events_with_empty_string_detection_ids() -> None:
         db=db,
     )
 
-    assert len(response.events) == 1
-    assert response.events[0].detection_count == 0
+    assert len(response.items) == 1
+    assert response.items[0].detection_count == 0
 
 
 @pytest.mark.asyncio
@@ -531,8 +532,8 @@ async def test_list_events_with_camera_id_filter() -> None:
         db=db,
     )
 
-    assert len(response.events) == 1
-    assert response.events[0].camera_id == "cam-001"
+    assert len(response.items) == 1
+    assert response.items[0].camera_id == "cam-001"
 
 
 @pytest.mark.asyncio
@@ -566,8 +567,8 @@ async def test_list_events_with_risk_level_filter() -> None:
         db=db,
     )
 
-    assert len(response.events) == 1
-    assert response.events[0].risk_level == "high"
+    assert len(response.items) == 1
+    assert response.items[0].risk_level == "high"
 
 
 @pytest.mark.asyncio
@@ -605,7 +606,7 @@ async def test_list_events_with_date_filters() -> None:
         db=db,
     )
 
-    assert len(response.events) == 1
+    assert len(response.items) == 1
 
 
 @pytest.mark.asyncio
@@ -639,8 +640,8 @@ async def test_list_events_with_reviewed_filter_true() -> None:
         db=db,
     )
 
-    assert len(response.events) == 1
-    assert response.events[0].reviewed is True
+    assert len(response.items) == 1
+    assert response.items[0].reviewed is True
 
 
 @pytest.mark.asyncio
@@ -674,8 +675,8 @@ async def test_list_events_with_reviewed_filter_false() -> None:
         db=db,
     )
 
-    assert len(response.events) == 1
-    assert response.events[0].reviewed is False
+    assert len(response.items) == 1
+    assert response.items[0].reviewed is False
 
 
 @pytest.mark.asyncio
@@ -710,7 +711,7 @@ async def test_list_events_with_object_type_filter_matching() -> None:
         db=db,
     )
 
-    assert len(response.events) == 1
+    assert len(response.items) == 1
 
 
 @pytest.mark.asyncio
@@ -742,8 +743,8 @@ async def test_list_events_with_object_type_filter_no_matches() -> None:
         db=db,
     )
 
-    assert len(response.events) == 0
-    assert response.count == 0
+    assert len(response.items) == 0
+    assert response.pagination.total == 0
 
 
 @pytest.mark.asyncio
@@ -778,7 +779,7 @@ async def test_list_events_with_object_type_filter_single_value() -> None:
         db=db,
     )
 
-    assert len(response.events) == 1
+    assert len(response.items) == 1
 
 
 @pytest.mark.asyncio
@@ -813,7 +814,7 @@ async def test_list_events_with_object_type_filter_at_end() -> None:
         db=db,
     )
 
-    assert len(response.events) == 1
+    assert len(response.items) == 1
 
 
 @pytest.mark.asyncio
@@ -857,7 +858,7 @@ async def test_list_events_object_type_escapes_wildcard_characters() -> None:
     assert db.execute.called
 
     # The function should return results (mock returns 1 event)
-    assert len(response.events) == 1
+    assert len(response.items) == 1
 
 
 @pytest.mark.asyncio
@@ -891,8 +892,8 @@ async def test_list_events_pagination_with_custom_limit() -> None:
         db=db,
     )
 
-    assert len(response.events) == 3
-    assert response.limit == 3
+    assert len(response.items) == 3
+    assert response.pagination.limit == 3
 
 
 @pytest.mark.asyncio
@@ -926,8 +927,8 @@ async def test_list_events_pagination_with_offset() -> None:
         db=db,
     )
 
-    assert len(response.events) == 5
-    assert response.offset == 5
+    assert len(response.items) == 5
+    assert response.pagination.offset == 5
 
 
 @pytest.mark.asyncio
@@ -965,8 +966,8 @@ async def test_list_events_multiple_events() -> None:
         db=db,
     )
 
-    assert len(response.events) == 3
-    assert response.count == 3
+    assert len(response.items) == 3
+    assert response.pagination.total == 3
 
 
 @pytest.mark.asyncio
@@ -1000,8 +1001,8 @@ async def test_list_events_detection_ids_with_whitespace() -> None:
         db=db,
     )
 
-    assert len(response.events) == 1
-    assert response.events[0].detection_count == 4
+    assert len(response.items) == 1
+    assert response.items[0].detection_count == 4
 
 
 @pytest.mark.asyncio
@@ -1038,8 +1039,8 @@ async def test_list_events_returns_reasoning_field() -> None:
         db=db,
     )
 
-    assert len(response.events) == 1
-    assert response.events[0].reasoning == "Multiple persons detected during late night hours"
+    assert len(response.items) == 1
+    assert response.items[0].reasoning == "Multiple persons detected during late night hours"
 
 
 @pytest.mark.asyncio
@@ -1076,8 +1077,8 @@ async def test_list_events_returns_none_reasoning_when_not_set() -> None:
         db=db,
     )
 
-    assert len(response.events) == 1
-    assert response.events[0].reasoning is None
+    assert len(response.items) == 1
+    assert response.items[0].reasoning is None
 
 
 # =============================================================================
@@ -1738,10 +1739,10 @@ async def test_get_event_detections_returns_detections() -> None:
 
     response = await events_routes.get_event_detections(event_id=1, limit=50, offset=0, db=db)
 
-    assert len(response.detections) == 3
-    assert response.count == 3
-    assert response.limit == 50
-    assert response.offset == 0
+    assert len(response.items) == 3
+    assert response.pagination.total == 3
+    assert response.pagination.limit == 50
+    assert response.pagination.offset == 0
 
 
 @pytest.mark.asyncio
@@ -1773,8 +1774,8 @@ async def test_get_event_detections_returns_empty_list_when_no_detections() -> N
 
     response = await events_routes.get_event_detections(event_id=1, limit=50, offset=0, db=db)
 
-    assert response.detections == []
-    assert response.count == 0
+    assert response.items == []
+    assert response.pagination.total == 0
 
 
 @pytest.mark.asyncio
@@ -1790,8 +1791,8 @@ async def test_get_event_detections_returns_empty_list_when_empty_string() -> No
 
     response = await events_routes.get_event_detections(event_id=1, limit=50, offset=0, db=db)
 
-    assert response.detections == []
-    assert response.count == 0
+    assert response.items == []
+    assert response.pagination.total == 0
 
 
 @pytest.mark.asyncio
@@ -1822,10 +1823,10 @@ async def test_get_event_detections_with_pagination() -> None:
 
     response = await events_routes.get_event_detections(event_id=1, limit=2, offset=2, db=db)
 
-    assert len(response.detections) == 2
-    assert response.count == 5
-    assert response.limit == 2
-    assert response.offset == 2
+    assert len(response.items) == 2
+    assert response.pagination.total == 5
+    assert response.pagination.limit == 2
+    assert response.pagination.offset == 2
 
 
 @pytest.mark.asyncio
@@ -1857,8 +1858,8 @@ async def test_get_event_detections_handles_whitespace_in_detection_ids() -> Non
 
     response = await events_routes.get_event_detections(event_id=1, limit=50, offset=0, db=db)
 
-    assert len(response.detections) == 3
-    assert response.count == 3
+    assert len(response.items) == 3
+    assert response.pagination.total == 3
 
 
 @pytest.mark.asyncio
@@ -1886,8 +1887,8 @@ async def test_get_event_detections_custom_limit() -> None:
 
     response = await events_routes.get_event_detections(event_id=1, limit=5, offset=0, db=db)
 
-    assert len(response.detections) == 5
-    assert response.limit == 5
+    assert len(response.items) == 5
+    assert response.pagination.limit == 5
 
 
 # =============================================================================
@@ -1934,7 +1935,7 @@ async def test_list_events_with_all_filters_combined() -> None:
         db=db,
     )
 
-    assert len(response.events) == 1
+    assert len(response.items) == 1
 
 
 @pytest.mark.asyncio
@@ -1993,7 +1994,7 @@ async def test_list_events_count_returns_zero_on_none() -> None:
         db=db,
     )
 
-    assert response.count == 0
+    assert response.pagination.total == 0
 
 
 @pytest.mark.asyncio
@@ -2019,7 +2020,7 @@ async def test_get_event_detections_count_returns_zero_on_none() -> None:
 
     response = await events_routes.get_event_detections(event_id=1, limit=50, offset=0, db=db)
 
-    assert response.count == 0
+    assert response.pagination.total == 0
 
 
 # =============================================================================
@@ -2451,7 +2452,7 @@ async def test_list_events_equal_dates_is_valid() -> None:
         db=db,
     )
 
-    assert response.count == 1
+    assert response.pagination.total == 1
 
 
 @pytest.mark.asyncio

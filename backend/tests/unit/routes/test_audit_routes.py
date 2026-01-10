@@ -89,10 +89,10 @@ class TestListAuditLogs:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["logs"] == []
-        assert data["count"] == 0
-        assert data["limit"] == 100
-        assert data["offset"] == 0
+        assert data["items"] == []
+        assert data["pagination"]["total"] == 0
+        assert data["pagination"]["limit"] == 100
+        assert data["pagination"]["offset"] == 0
 
     def test_list_audit_logs_with_data(
         self, client: TestClient, sample_audit_log: AuditLog, mock_db_session: AsyncMock
@@ -112,8 +112,8 @@ class TestListAuditLogs:
 
         assert response.status_code == 200
         data = response.json()
-        assert len(data["logs"]) == 1
-        assert data["count"] == 1
+        assert len(data["items"]) == 1
+        assert data["pagination"]["total"] == 1
 
     def test_list_audit_logs_filter_by_action(
         self, client: TestClient, mock_db_session: AsyncMock
@@ -167,8 +167,8 @@ class TestListAuditLogs:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["limit"] == 10
-        assert data["offset"] == 20
+        assert data["pagination"]["limit"] == 10
+        assert data["pagination"]["offset"] == 20
 
 
 # =============================================================================

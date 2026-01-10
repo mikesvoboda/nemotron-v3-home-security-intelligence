@@ -273,7 +273,7 @@ class TestEventListResponseSchema:
     def test_event_list_response_valid(self):
         """Test EventListResponse with valid data."""
         data = {
-            "events": [
+            "items": [
                 {
                     "id": 1,
                     "camera_id": "123e4567-e89b-12d3-a456-426614174000",
@@ -286,32 +286,38 @@ class TestEventListResponseSchema:
                     "detection_count": 5,
                 }
             ],
-            "count": 1,
-            "limit": 50,
-            "offset": 0,
+            "pagination": {
+                "total": 1,
+                "limit": 50,
+                "offset": 0,
+                "has_more": False,
+            },
         }
         response = EventListResponse(**data)
-        assert len(response.events) == 1
-        assert response.count == 1
-        assert response.limit == 50
-        assert response.offset == 0
+        assert len(response.items) == 1
+        assert response.pagination.total == 1
+        assert response.pagination.limit == 50
+        assert response.pagination.offset == 0
 
     def test_event_list_response_empty(self):
         """Test EventListResponse with empty events list."""
         data = {
-            "events": [],
-            "count": 0,
-            "limit": 50,
-            "offset": 0,
+            "items": [],
+            "pagination": {
+                "total": 0,
+                "limit": 50,
+                "offset": 0,
+                "has_more": False,
+            },
         }
         response = EventListResponse(**data)
-        assert response.events == []
-        assert response.count == 0
+        assert response.items == []
+        assert response.pagination.total == 0
 
     def test_event_list_response_multiple_events(self):
         """Test EventListResponse with multiple events."""
         data = {
-            "events": [
+            "items": [
                 {
                     "id": 1,
                     "camera_id": "123e4567-e89b-12d3-a456-426614174000",
@@ -335,39 +341,44 @@ class TestEventListResponseSchema:
                     "detection_count": 8,
                 },
             ],
-            "count": 2,
-            "limit": 50,
-            "offset": 0,
+            "pagination": {
+                "total": 2,
+                "limit": 50,
+                "offset": 0,
+                "has_more": False,
+            },
         }
         response = EventListResponse(**data)
-        assert len(response.events) == 2
-        assert response.count == 2
-        assert response.events[0].id == 1
-        assert response.events[1].id == 2
+        assert len(response.items) == 2
+        assert response.pagination.total == 2
+        assert response.items[0].id == 1
+        assert response.items[1].id == 2
 
     def test_event_list_response_missing_required_field(self):
         """Test EventListResponse raises ValidationError when required field is missing."""
         data = {
-            "events": [],
-            "count": 0,
-            # Missing 'limit' and 'offset'
+            "items": [],
+            # Missing 'pagination'
         }
         with pytest.raises(ValidationError) as exc_info:
             EventListResponse(**data)
-        assert "limit" in str(exc_info.value) or "offset" in str(exc_info.value)
+        assert "pagination" in str(exc_info.value) or "items" in str(exc_info.value)
 
     def test_event_list_response_invalid_event(self):
         """Test EventListResponse raises ValidationError with invalid event in list."""
         data = {
-            "events": [
+            "items": [
                 {
                     "id": 1,
                     # Missing required fields like camera_id, started_at
                 }
             ],
-            "count": 1,
-            "limit": 50,
-            "offset": 0,
+            "pagination": {
+                "total": 1,
+                "limit": 50,
+                "offset": 0,
+                "has_more": False,
+            },
         }
         with pytest.raises(ValidationError):
             EventListResponse(**data)
@@ -375,12 +386,15 @@ class TestEventListResponseSchema:
     def test_event_list_response_pagination(self):
         """Test EventListResponse with pagination parameters."""
         data = {
-            "events": [],
-            "count": 100,
-            "limit": 10,
-            "offset": 20,
+            "items": [],
+            "pagination": {
+                "total": 100,
+                "limit": 10,
+                "offset": 20,
+                "has_more": True,
+            },
         }
         response = EventListResponse(**data)
-        assert response.count == 100
-        assert response.limit == 10
-        assert response.offset == 20
+        assert response.pagination.total == 100
+        assert response.pagination.limit == 10
+        assert response.pagination.offset == 20

@@ -124,8 +124,8 @@ async def test_list_cameras_empty(client, clean_cameras):
 
     assert response.status_code == 200
     data = response.json()
-    assert data["cameras"] == []
-    assert data["count"] == 0
+    assert data["items"] == []
+    assert data["pagination"]["total"] == 0
 
 
 @pytest.mark.asyncio
@@ -146,8 +146,8 @@ async def test_list_cameras_with_data(client, clean_cameras):
 
     assert response.status_code == 200
     data = response.json()
-    assert len(data["cameras"]) == 3
-    assert data["count"] == 3
+    assert len(data["items"]) == 3
+    assert data["pagination"]["total"] == 3
 
 
 @pytest.mark.asyncio
@@ -173,9 +173,9 @@ async def test_list_cameras_filter_by_status(client, clean_cameras):
 
     assert response.status_code == 200
     data = response.json()
-    assert len(data["cameras"]) == 1
-    assert data["cameras"][0]["status"] == "online"
-    assert data["count"] == 1
+    assert len(data["items"]) == 1
+    assert data["items"][0]["status"] == "online"
+    assert data["pagination"]["total"] == 1
 
 
 @pytest.mark.asyncio
@@ -633,15 +633,15 @@ async def test_list_cameras_returns_correct_schema(client):
 
     assert response.status_code == 200
     data = response.json()
-    # Verify schema structure
-    assert "cameras" in data
-    assert "count" in data
-    assert isinstance(data["cameras"], list)
-    assert isinstance(data["count"], int)
+    # Verify schema structure (NEM-2075 pagination envelope)
+    assert "items" in data
+    assert "pagination" in data
+    assert isinstance(data["items"], list)
+    assert isinstance(data["pagination"]["total"], int)
 
     # Verify camera object structure
-    if data["cameras"]:
-        camera = data["cameras"][0]
+    if data["items"]:
+        camera = data["items"][0]
         required_fields = ["id", "name", "folder_path", "status", "created_at"]
         for field in required_fields:
             assert field in camera
@@ -690,7 +690,7 @@ async def test_concurrent_camera_creation(client, clean_cameras):
     # Verify all were created
     list_response = await client.get("/api/cameras")
     data = list_response.json()
-    assert data["count"] == 5
+    assert data["pagination"]["total"] == 5
 
 
 @pytest.mark.asyncio
@@ -733,8 +733,8 @@ async def test_filter_by_nonexistent_status(client):
 
     assert response.status_code == 200
     data = response.json()
-    assert len(data["cameras"]) == 0
-    assert data["count"] == 0
+    assert len(data["items"]) == 0
+    assert data["pagination"]["total"] == 0
 
 
 # === Validation Endpoint Tests ===

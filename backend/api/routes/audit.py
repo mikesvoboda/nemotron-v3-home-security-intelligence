@@ -13,6 +13,7 @@ from backend.api.schemas.audit import (
     AuditLogResponse,
     AuditLogStats,
 )
+from backend.api.schemas.pagination import PaginationMeta
 from backend.api.validators import validate_date_range
 from backend.core.database import get_db
 from backend.models.audit import AuditLog
@@ -153,12 +154,15 @@ async def list_audit_logs(  # noqa: PLR0912
     deprecation_warning = get_deprecation_warning(cursor, offset)
 
     return AuditLogListResponse(
-        logs=logs,
-        count=total_count,
-        limit=limit,
-        offset=offset,
-        next_cursor=next_cursor,
-        has_more=has_more,
+        items=logs,
+        pagination=PaginationMeta(
+            total=total_count,
+            limit=limit,
+            offset=offset,
+            cursor=cursor,
+            next_cursor=next_cursor,
+            has_more=has_more,
+        ),
         deprecation_warning=deprecation_warning,
     )
 

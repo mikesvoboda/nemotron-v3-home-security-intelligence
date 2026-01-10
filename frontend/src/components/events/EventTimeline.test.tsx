@@ -107,11 +107,15 @@ describe('EventTimeline', () => {
   ];
 
   const mockEventsResponse: EventListResponse = {
-    events: mockEvents,
-    count: 3,
-    limit: 20,
-    offset: 0,
-    has_more: false,
+    items: mockEvents,
+    pagination: {
+      total: 3,
+      limit: 20,
+      offset: 0,
+      cursor: null,
+      next_cursor: null,
+      has_more: false,
+    },
   };
 
   // Mock WebSocket events for live activity
@@ -522,11 +526,15 @@ describe('EventTimeline', () => {
       }));
 
       vi.mocked(api.fetchEvents).mockResolvedValue({
-        events: manyEvents.slice(0, 20),
-        count: 50,
-        limit: 20,
-        offset: 0,
-        has_more: true,
+        items: manyEvents.slice(0, 20),
+        pagination: {
+          total: 50,
+          limit: 20,
+          offset: 0,
+          cursor: null,
+          next_cursor: null,
+          has_more: true,
+        },
       });
     });
 
@@ -556,25 +564,37 @@ describe('EventTimeline', () => {
       // First load (page 1), then page 2, then back to page 1
       vi.mocked(api.fetchEvents)
         .mockResolvedValueOnce({
-          events: mockEvents,
-          count: 50,
-          limit: 20,
-          offset: 0,
-          has_more: true,
+          items: mockEvents,
+          pagination: {
+            total: 50,
+            limit: 20,
+            offset: 0,
+            cursor: null,
+            next_cursor: null,
+            has_more: true,
+          },
         })
         .mockResolvedValueOnce({
-          events: mockEvents,
-          count: 50,
-          limit: 20,
-          offset: 20,
-          has_more: true,
+          items: mockEvents,
+          pagination: {
+            total: 50,
+            limit: 20,
+            offset: 20,
+            cursor: null,
+            next_cursor: null,
+            has_more: true,
+          },
         })
         .mockResolvedValueOnce({
-          events: mockEvents,
-          count: 50,
-          limit: 20,
-          offset: 0,
-          has_more: true,
+          items: mockEvents,
+          pagination: {
+            total: 50,
+            limit: 20,
+            offset: 0,
+            cursor: null,
+            next_cursor: null,
+            has_more: true,
+          },
         });
 
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
@@ -621,25 +641,37 @@ describe('EventTimeline', () => {
       // Navigate through pages to reach the last page
       vi.mocked(api.fetchEvents)
         .mockResolvedValueOnce({
-          events: mockEvents,
-          count: 50,
-          limit: 20,
-          offset: 0,
-          has_more: true,
+          items: mockEvents,
+          pagination: {
+            total: 50,
+            limit: 20,
+            offset: 0,
+            cursor: null,
+            next_cursor: null,
+            has_more: true,
+          },
         })
         .mockResolvedValueOnce({
-          events: mockEvents,
-          count: 50,
-          limit: 20,
-          offset: 20,
-          has_more: true,
+          items: mockEvents,
+          pagination: {
+            total: 50,
+            limit: 20,
+            offset: 20,
+            cursor: null,
+            next_cursor: null,
+            has_more: true,
+          },
         })
         .mockResolvedValueOnce({
-          events: mockEvents,
-          count: 50,
-          limit: 20,
-          offset: 40,
-          has_more: false,
+          items: mockEvents,
+          pagination: {
+            total: 50,
+            limit: 20,
+            offset: 40,
+            cursor: null,
+            next_cursor: null,
+            has_more: false,
+          },
         });
 
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
@@ -679,25 +711,37 @@ describe('EventTimeline', () => {
       // Initial load, navigate to page 2, then filter change resets to page 1
       vi.mocked(api.fetchEvents)
         .mockResolvedValueOnce({
-          events: mockEvents,
-          count: 50,
-          limit: 20,
-          offset: 0,
-          has_more: true,
+          items: mockEvents,
+          pagination: {
+            total: 50,
+            limit: 20,
+            offset: 0,
+            cursor: null,
+            next_cursor: null,
+            has_more: true,
+          },
         })
         .mockResolvedValueOnce({
-          events: mockEvents,
-          count: 50,
-          limit: 20,
-          offset: 20,
-          has_more: true,
+          items: mockEvents,
+          pagination: {
+            total: 50,
+            limit: 20,
+            offset: 20,
+            cursor: null,
+            next_cursor: null,
+            has_more: true,
+          },
         })
         .mockResolvedValueOnce({
-          events: mockEvents,
-          count: 50,
-          limit: 20,
-          offset: 0,
-          has_more: true,
+          items: mockEvents,
+          pagination: {
+            total: 50,
+            limit: 20,
+            offset: 0,
+            cursor: null,
+            next_cursor: null,
+            has_more: true,
+          },
         });
 
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
@@ -787,11 +831,15 @@ describe('EventTimeline', () => {
   describe('Empty States', () => {
     it('shows empty state when no events exist', async () => {
       vi.mocked(api.fetchEvents).mockResolvedValue({
-        events: [],
-        count: 0,
-        limit: 20,
-        offset: 0,
-        has_more: false,
+        items: [],
+        pagination: {
+          total: 0,
+          limit: 20,
+          offset: 0,
+          cursor: null,
+          next_cursor: null,
+          has_more: false,
+        },
       });
 
       renderWithProviders(<EventTimeline />);
@@ -815,11 +863,15 @@ describe('EventTimeline', () => {
 
       // Apply filter that returns no results
       vi.mocked(api.fetchEvents).mockResolvedValue({
-        events: [],
-        count: 0,
-        limit: 20,
-        offset: 0,
-        has_more: false,
+        items: [],
+        pagination: {
+          total: 0,
+          limit: 20,
+          offset: 0,
+          cursor: null,
+          next_cursor: null,
+          has_more: false,
+        },
       });
 
       await user.click(screen.getByText('Show Filters'));
@@ -837,11 +889,15 @@ describe('EventTimeline', () => {
 
     it('shows "0 events" instead of confusing "1-0 of 0" when empty', async () => {
       vi.mocked(api.fetchEvents).mockResolvedValue({
-        events: [],
-        count: 0,
-        limit: 20,
-        offset: 0,
-        has_more: false,
+        items: [],
+        pagination: {
+          total: 0,
+          limit: 20,
+          offset: 0,
+          cursor: null,
+          next_cursor: null,
+          has_more: false,
+        },
       });
 
       renderWithProviders(<EventTimeline />);
@@ -857,11 +913,15 @@ describe('EventTimeline', () => {
 
     it('does not show pagination controls when empty', async () => {
       vi.mocked(api.fetchEvents).mockResolvedValue({
-        events: [],
-        count: 0,
-        limit: 20,
-        offset: 0,
-        has_more: false,
+        items: [],
+        pagination: {
+          total: 0,
+          limit: 20,
+          offset: 0,
+          cursor: null,
+          next_cursor: null,
+          has_more: false,
+        },
       });
 
       renderWithProviders(<EventTimeline />);
@@ -921,7 +981,7 @@ describe('EventTimeline', () => {
 
     it('shows "Unknown Camera" when camera not found', async () => {
       const eventsWithUnknownCamera: EventListResponse = {
-        events: [
+        items: [
           {
             id: 1,
             camera_id: 'unknown-camera-id',
@@ -935,10 +995,14 @@ describe('EventTimeline', () => {
             notes: null,
           },
         ],
-        count: 1,
-        limit: 20,
-        offset: 0,
-        has_more: false,
+        pagination: {
+          total: 1,
+          limit: 20,
+          offset: 0,
+          cursor: null,
+          next_cursor: null,
+          has_more: false,
+        },
       };
 
       vi.mocked(api.fetchEvents).mockResolvedValue(eventsWithUnknownCamera);
@@ -1061,7 +1125,7 @@ describe('EventTimeline', () => {
       // Mock the events reload after bulk update
       vi.mocked(api.fetchEvents).mockResolvedValueOnce({
         ...mockEventsResponse,
-        events: mockEvents.map((e) => (e.id === 2 || e.id === 3 ? { ...e, reviewed: true } : e)),
+        items: mockEvents.map((e) => (e.id === 2 || e.id === 3 ? { ...e, reviewed: true } : e)),
       });
 
       // Click mark as reviewed
@@ -1271,7 +1335,7 @@ describe('EventTimeline', () => {
       // Mock the events reload after bulk update
       vi.mocked(api.fetchEvents).mockResolvedValueOnce({
         ...mockEventsResponse,
-        events: mockEvents.map((e) => (e.id === 2 || e.id === 3 ? { ...e, reviewed: false } : e)),
+        items: mockEvents.map((e) => (e.id === 2 || e.id === 3 ? { ...e, reviewed: false } : e)),
       });
 
       // Click mark as not reviewed
@@ -1448,11 +1512,15 @@ describe('EventTimeline', () => {
 
       // Apply filter
       vi.mocked(api.fetchEvents).mockResolvedValueOnce({
-        events: highRiskEvents,
-        count: 1,
-        limit: 20,
-        offset: 0,
-        has_more: false,
+        items: highRiskEvents,
+        pagination: {
+          total: 1,
+          limit: 20,
+          offset: 0,
+          cursor: null,
+          next_cursor: null,
+          has_more: false,
+        },
       });
 
       await user.click(screen.getByText('Show Filters'));
@@ -1518,11 +1586,15 @@ describe('EventTimeline', () => {
 
     it('does not display risk badges when no events are found', async () => {
       vi.mocked(api.fetchEvents).mockResolvedValue({
-        events: [],
-        count: 0,
-        limit: 20,
-        offset: 0,
-        has_more: false,
+        items: [],
+        pagination: {
+          total: 0,
+          limit: 20,
+          offset: 0,
+          cursor: null,
+          next_cursor: null,
+          has_more: false,
+        },
       });
 
       renderWithProviders(<EventTimeline />);
@@ -1568,11 +1640,15 @@ describe('EventTimeline', () => {
       ];
 
       vi.mocked(api.fetchEvents).mockResolvedValue({
-        events: mediumRiskEvents,
-        count: 2,
-        limit: 20,
-        offset: 0,
-        has_more: false,
+        items: mediumRiskEvents,
+        pagination: {
+          total: 2,
+          limit: 20,
+          offset: 0,
+          cursor: null,
+          next_cursor: null,
+          has_more: false,
+        },
       });
 
       renderWithProviders(<EventTimeline />);
@@ -1634,11 +1710,15 @@ describe('EventTimeline', () => {
       ];
 
       vi.mocked(api.fetchEvents).mockResolvedValue({
-        events: multipleEvents,
-        count: 3,
-        limit: 20,
-        offset: 0,
-        has_more: false,
+        items: multipleEvents,
+        pagination: {
+          total: 3,
+          limit: 20,
+          offset: 0,
+          cursor: null,
+          next_cursor: null,
+          has_more: false,
+        },
       });
 
       renderWithProviders(<EventTimeline />);
@@ -1683,11 +1763,15 @@ describe('EventTimeline', () => {
       ];
 
       vi.mocked(api.fetchEvents).mockResolvedValue({
-        events: mixedEvents,
-        count: 2,
-        limit: 20,
-        offset: 0,
-        has_more: false,
+        items: mixedEvents,
+        pagination: {
+          total: 2,
+          limit: 20,
+          offset: 0,
+          cursor: null,
+          next_cursor: null,
+          has_more: false,
+        },
       });
 
       renderWithProviders(<EventTimeline />);

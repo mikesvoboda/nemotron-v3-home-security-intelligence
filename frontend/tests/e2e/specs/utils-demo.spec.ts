@@ -73,8 +73,22 @@ test.describe('E2E Utility Usage Examples', () => {
       maxRiskScore: 100,
     });
 
-    await mockApiResponse(page, '/api/cameras', { cameras: [camera] });
-    await mockApiResponse(page, '/api/events', { events: highRiskEvents });
+    // Use pagination envelope format (NEM-2075)
+    await mockApiResponse(page, '/api/cameras', {
+      items: [camera],
+      pagination: { total: 1, limit: 50, offset: null, cursor: null, next_cursor: null, has_more: false },
+    });
+    await mockApiResponse(page, '/api/events', {
+      items: highRiskEvents,
+      pagination: {
+        total: highRiskEvents.length,
+        limit: 20,
+        offset: null,
+        cursor: null,
+        next_cursor: null,
+        has_more: false,
+      },
+    });
 
     await page.goto('/');
     await waitForPageLoad(page);
@@ -232,7 +246,11 @@ test.describe('E2E Utility Usage Examples', () => {
       generateCamera({ name: 'Front Door', status: 'online' }),
       generateCamera({ name: 'Back Yard', status: 'offline' }),
     ];
-    await mockApiResponse(page, '/api/cameras', { cameras });
+    // Use pagination envelope format (NEM-2075)
+    await mockApiResponse(page, '/api/cameras', {
+      items: cameras,
+      pagination: { total: cameras.length, limit: 50, offset: null, cursor: null, next_cursor: null, has_more: false },
+    });
 
     // 3. Navigate and wait for page load
     await page.goto('/');

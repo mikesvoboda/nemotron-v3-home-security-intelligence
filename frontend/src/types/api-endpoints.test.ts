@@ -204,8 +204,8 @@ describe('API Endpoint Template Literal Types', () => {
     });
 
     it('infers Event[] wrapped response for /api/events', () => {
-      // Events return { events: Event[], count, ... }
-      expectTypeOf<EndpointResponseType<'/api/events'>>().toHaveProperty('events');
+      // Events return { items: Event[], count, ... }
+      expectTypeOf<EndpointResponseType<'/api/events'>>().toHaveProperty('items');
     });
 
     it('infers Event for /api/events/:id', () => {
@@ -226,12 +226,12 @@ describe('API Endpoint Template Literal Types', () => {
 
     it('infers Detection[] wrapped response for /api/events/:id/detections', () => {
       expectTypeOf<EndpointResponseType<'/api/events/123/detections'>>().toHaveProperty(
-        'detections'
+        'items'
       );
     });
 
     it('infers AlertRule[] wrapped response for /api/alerts/rules', () => {
-      expectTypeOf<EndpointResponseType<'/api/alerts/rules'>>().toHaveProperty('rules');
+      expectTypeOf<EndpointResponseType<'/api/alerts/rules'>>().toHaveProperty('items');
     });
 
     it('infers AlertRule for /api/alerts/rules/:id', () => {
@@ -239,7 +239,7 @@ describe('API Endpoint Template Literal Types', () => {
     });
 
     it('infers Zone[] wrapped response for /api/cameras/:id/zones', () => {
-      expectTypeOf<EndpointResponseType<'/api/cameras/abc/zones'>>().toHaveProperty('zones');
+      expectTypeOf<EndpointResponseType<'/api/cameras/abc/zones'>>().toHaveProperty('items');
     });
 
     it('infers Zone for /api/cameras/:id/zones/:zoneId', () => {

@@ -24,10 +24,8 @@ class TestAuditAPI:
         assert response.status_code == 200
 
         data = response.json()
-        assert "logs" in data
-        assert "count" in data
-        assert "limit" in data
-        assert "offset" in data
+        assert "items" in data
+        assert "pagination" in data
 
     @pytest.mark.asyncio
     async def test_list_audit_logs_with_data(self, client: AsyncClient, db_session: AsyncSession):
@@ -47,8 +45,8 @@ class TestAuditAPI:
         assert response.status_code == 200
 
         data = response.json()
-        assert data["count"] >= 3
-        assert len(data["logs"]) >= 3
+        assert data["pagination"]["total"] >= 3
+        assert len(data["items"]) >= 3
 
     @pytest.mark.asyncio
     async def test_list_audit_logs_filter_by_action(
@@ -77,7 +75,7 @@ class TestAuditAPI:
         assert response.status_code == 200
 
         data = response.json()
-        assert all(log["action"] == "event_reviewed" for log in data["logs"])
+        assert all(log["action"] == "event_reviewed" for log in data["items"])
 
     @pytest.mark.asyncio
     async def test_list_audit_logs_filter_by_resource_type(
@@ -104,7 +102,7 @@ class TestAuditAPI:
         assert response.status_code == 200
 
         data = response.json()
-        assert all(log["resource_type"] == "camera" for log in data["logs"])
+        assert all(log["resource_type"] == "camera" for log in data["items"])
 
     @pytest.mark.asyncio
     async def test_list_audit_logs_filter_by_actor(
@@ -129,7 +127,7 @@ class TestAuditAPI:
         assert response.status_code == 200
 
         data = response.json()
-        assert all(log["actor"] == "admin_user" for log in data["logs"])
+        assert all(log["actor"] == "admin_user" for log in data["items"])
 
     @pytest.mark.asyncio
     async def test_list_audit_logs_pagination(self, client: AsyncClient, db_session: AsyncSession):
@@ -149,17 +147,17 @@ class TestAuditAPI:
         response1 = await client.get("/api/audit?limit=5&offset=0")
         assert response1.status_code == 200
         data1 = response1.json()
-        assert len(data1["logs"]) == 5
+        assert len(data1["items"]) == 5
 
         # Get second page
         response2 = await client.get("/api/audit?limit=5&offset=5")
         assert response2.status_code == 200
         data2 = response2.json()
-        assert len(data2["logs"]) == 5
+        assert len(data2["items"]) == 5
 
         # Ensure no overlap
-        ids1 = {log["id"] for log in data1["logs"]}
-        ids2 = {log["id"] for log in data2["logs"]}
+        ids1 = {log["id"] for log in data1["items"]}
+        ids2 = {log["id"] for log in data2["items"]}
         assert ids1.isdisjoint(ids2)
 
     @pytest.mark.asyncio
@@ -252,7 +250,7 @@ class TestAuditIntegration:
         data = response.json()
         camera_logs = [
             log
-            for log in data["logs"]
+            for log in data["items"]
             if log["details"] and log["details"].get("name") == "Test Audit Camera"
         ]
         assert len(camera_logs) >= 1
@@ -280,5 +278,5 @@ class TestAuditIntegration:
         assert response.status_code == 200
 
         data = response.json()
-        delete_logs = [log for log in data["logs"] if log["resource_id"] == camera_id]
+        delete_logs = [log for log in data["items"] if log["resource_id"] == camera_id]
         assert len(delete_logs) >= 1

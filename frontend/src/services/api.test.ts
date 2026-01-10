@@ -181,11 +181,15 @@ const mockEvent: Event = {
 };
 
 const mockEventListResponse: EventListResponse = {
-  events: [mockEvent],
-  count: 1,
-  limit: 50,
-  offset: 0,
-  has_more: false,
+  items: [mockEvent],
+  pagination: {
+    total: 1,
+    limit: 50,
+    offset: null,
+    cursor: null,
+    next_cursor: null,
+    has_more: false,
+  },
 };
 
 const mockEventStatsResponse: EventStatsResponse = {
@@ -227,11 +231,15 @@ const mockDetection: Detection = {
 };
 
 const mockDetectionListResponse: DetectionListResponse = {
-  detections: [mockDetection],
-  count: 1,
-  limit: 50,
-  offset: 0,
-  has_more: false,
+  items: [mockDetection],
+  pagination: {
+    total: 1,
+    limit: 50,
+    offset: null,
+    cursor: null,
+    next_cursor: null,
+    has_more: false,
+  },
 };
 
 const mockLogStats: LogStats = {
@@ -244,7 +252,7 @@ const mockLogStats: LogStats = {
 };
 
 const mockLogsResponse: LogsResponse = {
-  logs: [
+  items: [
     {
       id: 1,
       timestamp: '2025-01-01T10:00:00Z',
@@ -254,10 +262,14 @@ const mockLogsResponse: LogsResponse = {
       source: 'frontend',
     },
   ],
-  count: 1,
-  limit: 50,
-  offset: 0,
-  has_more: false,
+  pagination: {
+    total: 1,
+    limit: 50,
+    offset: null,
+    cursor: null,
+    next_cursor: null,
+    has_more: false,
+  },
 };
 
 // Helper to create mock fetch response
@@ -553,7 +565,17 @@ describe('Camera API', () => {
   describe('fetchCameras', () => {
     it('fetches all cameras successfully', async () => {
       vi.mocked(fetch).mockResolvedValueOnce(
-        createMockResponse({ cameras: mockCameras, count: mockCameras.length })
+        createMockResponse({
+          items: mockCameras,
+          pagination: {
+            total: mockCameras.length,
+            limit: 50,
+            offset: null,
+            cursor: null,
+            next_cursor: null,
+            has_more: false,
+          },
+        })
       );
 
       const result = await fetchCameras();
@@ -567,7 +589,19 @@ describe('Camera API', () => {
     });
 
     it('handles empty camera list', async () => {
-      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse({ cameras: [], count: 0 }));
+      vi.mocked(fetch).mockResolvedValueOnce(
+        createMockResponse({
+          items: [],
+          pagination: {
+            total: 0,
+            limit: 50,
+            offset: null,
+            cursor: null,
+            next_cursor: null,
+            has_more: false,
+          },
+        })
+      );
 
       const result = await fetchCameras();
 
@@ -1207,7 +1241,7 @@ describe('Events API', () => {
       expect(fetch).toHaveBeenCalledWith('/api/events', {
         headers: { 'Content-Type': 'application/json' },
       });
-      expect(result.events).toEqual([mockEvent]);
+      expect(result.items).toEqual([mockEvent]);
     });
 
     it('fetches events with all query params', async () => {
@@ -1481,7 +1515,7 @@ describe('Detections API', () => {
       expect(fetch).toHaveBeenCalledWith('/api/events/1/detections', {
         headers: { 'Content-Type': 'application/json' },
       });
-      expect(result.detections).toEqual([mockDetection]);
+      expect(result.items).toEqual([mockDetection]);
     });
 
     it('fetches detections with pagination params', async () => {
@@ -1556,7 +1590,7 @@ describe('Logs API', () => {
       expect(fetch).toHaveBeenCalledWith('/api/logs', {
         headers: { 'Content-Type': 'application/json' },
       });
-      expect(result.logs).toHaveLength(1);
+      expect(result.items).toHaveLength(1);
     });
 
     it('fetches logs with all query params', async () => {
@@ -2752,7 +2786,7 @@ describe('Audit Log API', () => {
   });
 
   const mockAuditLogListResponse = {
-    logs: [
+    items: [
       {
         id: 1,
         timestamp: '2025-01-01T10:00:00Z',
@@ -2764,9 +2798,13 @@ describe('Audit Log API', () => {
         details: { name: 'Front Door' },
       },
     ],
-    total: 1,
-    limit: 100,
-    offset: 0,
+    pagination: {
+      total: 1,
+      limit: 100,
+      offset: 0,
+      has_more: false,
+      next_cursor: null,
+    },
   };
 
   const mockAuditLogStats = {
@@ -2785,7 +2823,7 @@ describe('Audit Log API', () => {
       expect(fetch).toHaveBeenCalledWith('/api/audit', {
         headers: { 'Content-Type': 'application/json' },
       });
-      expect(result.logs).toHaveLength(1);
+      expect(result.items).toHaveLength(1);
     });
 
     it('fetches audit logs with all query parameters', async () => {
@@ -2857,7 +2895,7 @@ describe('Audit Log API', () => {
 
   describe('fetchAuditLog', () => {
     it('fetches single audit log by ID', async () => {
-      const mockSingleLog = mockAuditLogListResponse.logs[0];
+      const mockSingleLog = mockAuditLogListResponse.items[0];
       vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockSingleLog));
 
       const result = await fetchAuditLog(1);

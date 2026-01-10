@@ -67,14 +67,38 @@ async def test_camera(db_session: AsyncSession) -> Camera:
 
 
 @pytest.fixture
-async def cache_service(real_redis: RedisClient) -> CacheService:
+async def reset_redis_global():
+    """Reset global Redis client state before and after each test.
+
+    This is critical for test isolation when using pytest-asyncio with function-scoped
+    event loops. The global _redis_client from get_redis() must be cleared so each test
+    gets a fresh Redis client associated with its own event loop.
+
+    Without this, test 2+ would reuse test 1's Redis client which references a closed
+    event loop, causing "Event loop is closed" errors during async operations.
+    """
+    import backend.core.redis as redis_module
+
+    # Clear global state before test
+    redis_module._redis_client = None
+    redis_module._redis_init_lock = None
+
+    yield
+
+    # Clear global state after test
+    redis_module._redis_client = None
+    redis_module._redis_init_lock = None
+
+
+@pytest.fixture
+async def cache_service(real_redis: RedisClient, reset_redis_global) -> CacheService:
     """Create a CacheService with real Redis client."""
     return CacheService(real_redis)
 
 
 @pytest.fixture
 async def client_with_cache(
-    integration_db: str, real_redis: RedisClient, cache_service: CacheService
+    integration_db: str, real_redis: RedisClient, cache_service: CacheService, reset_redis_global
 ) -> AsyncClient:
     """Async HTTP client with real Redis cache for cache invalidation tests.
 
@@ -170,16 +194,24 @@ async def client_with_cache(
 
 @pytest.fixture
 async def cleanup_cache(real_redis: RedisClient):
-    """Clean up cache keys after each test."""
-    yield
-
-    # Cleanup after test - remove all event-related cache keys
+    """Clean up cache keys before and after each test."""
+    # Cleanup before test - ensure clean state
     client = real_redis._ensure_connected()
     patterns = [
         f"{CACHE_PREFIX}events:*",
         f"{CACHE_PREFIX}stats:events:*",
     ]
 
+    for pattern in patterns:
+        keys = []
+        async for key in client.scan_iter(match=pattern, count=100):
+            keys.append(key)
+        if keys:
+            await client.delete(*keys)
+
+    yield
+
+    # Cleanup after test - remove all event-related cache keys
     for pattern in patterns:
         keys = []
         async for key in client.scan_iter(match=pattern, count=100):
@@ -217,6 +249,7 @@ class TestBulkCreateEventsCacheInvalidation:
         request_data = {
             "events": [
                 {
+                    "batch_id": _unique_id("batch"),
                     "camera_id": test_camera.id,
                     "started_at": datetime.now(UTC).isoformat(),
                     "ended_at": datetime.now(UTC).isoformat(),
@@ -227,6 +260,7 @@ class TestBulkCreateEventsCacheInvalidation:
                     "detection_ids": [1, 2, 3],
                 },
                 {
+                    "batch_id": _unique_id("batch"),
                     "camera_id": test_camera.id,
                     "started_at": datetime.now(UTC).isoformat(),
                     "ended_at": datetime.now(UTC).isoformat(),
@@ -276,6 +310,7 @@ class TestBulkCreateEventsCacheInvalidation:
         request_data = {
             "events": [
                 {
+                    "batch_id": _unique_id("batch"),
                     "camera_id": test_camera.id,
                     "started_at": datetime.now(UTC).isoformat(),
                     "ended_at": datetime.now(UTC).isoformat(),
@@ -734,6 +769,7 @@ class TestCrossEndpointCacheConsistency:
         create_data = {
             "events": [
                 {
+                    "batch_id": _unique_id("batch"),
                     "camera_id": test_camera.id,
                     "started_at": datetime.now(UTC).isoformat(),
                     "ended_at": datetime.now(UTC).isoformat(),

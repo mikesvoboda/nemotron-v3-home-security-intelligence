@@ -175,8 +175,8 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
       setError(null);
       try {
         const response = await fetchEvents(filters, { signal: controller.signal });
-        setEvents(response.events);
-        setTotalCount(response.count);
+        setEvents(response.items);
+        setTotalCount(response.pagination.total);
       } catch (err) {
         // Ignore aborted requests - user changed filters before request completed
         if (isAbortError(err)) return;
@@ -375,8 +375,8 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
 
       // Reload events to reflect changes
       const response = await fetchEvents(filters);
-      setEvents(response.events);
-      setTotalCount(response.count);
+      setEvents(response.items);
+      setTotalCount(response.pagination.total);
 
       // Clear selections
       setSelectedEventIds(new Set());
@@ -402,8 +402,8 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
 
       // Reload events to reflect changes
       const response = await fetchEvents(filters);
-      setEvents(response.events);
-      setTotalCount(response.count);
+      setEvents(response.items);
+      setTotalCount(response.pagination.total);
 
       // Clear selections
       setSelectedEventIds(new Set());
@@ -501,8 +501,8 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
       await updateEvent(parseInt(eventId, 10), { reviewed: true });
       // Reload events to reflect changes
       const response = await fetchEvents(filters);
-      setEvents(response.events);
-      setTotalCount(response.count);
+      setEvents(response.items);
+      setTotalCount(response.pagination.total);
     } catch (err) {
       console.error('Failed to mark event as reviewed:', err);
     }

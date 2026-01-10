@@ -67,17 +67,30 @@ class LogEntry(BaseModel):
     )
 
 
-class LogsResponse(BaseModel):
-    """Schema for paginated logs response.
+class PaginationInfo(BaseModel):
+    """Pagination metadata for list responses (NEM-2075)."""
 
-    Supports both cursor-based pagination (recommended) and offset pagination (deprecated).
-    Cursor-based pagination offers better performance for large datasets.
+    total: int = Field(..., ge=0, description="Total count matching filters")
+    limit: int = Field(..., ge=1, le=1000, description="Page size (1-1000)")
+    offset: int | None = Field(
+        None, ge=0, description="Page offset (0-based, for offset pagination)"
+    )
+    cursor: str | None = Field(None, description="Current cursor position")
+    next_cursor: str | None = Field(None, description="Cursor for next page")
+    has_more: bool = Field(False, description="Whether more results are available")
+
+
+class LogsResponse(BaseModel):
+    """Schema for paginated logs response (NEM-2075 pagination envelope).
+
+    Uses standardized pagination envelope with 'items' and 'pagination' fields.
+    Supports both cursor-based pagination (recommended) and offset pagination.
     """
 
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "logs": [
+                "items": [
                     {
                         "id": 1,
                         "timestamp": "2026-01-03T10:30:00Z",
@@ -93,26 +106,20 @@ class LogsResponse(BaseModel):
                         "source": "backend",
                     }
                 ],
-                "count": 1,
-                "limit": 50,
-                "offset": 0,
-                "next_cursor": "eyJpZCI6IDEsICJjcmVhdGVkX2F0IjogIjIwMjYtMDEtMDNUMTA6MzA6MDBaIn0=",  # pragma: allowlist secret
-                "has_more": False,
+                "pagination": {
+                    "total": 1,
+                    "limit": 50,
+                    "offset": None,
+                    "cursor": None,
+                    "next_cursor": "eyJpZCI6IDEsICJjcmVhdGVkX2F0IjogIjIwMjYtMDEtMDNUMTA6MzA6MDBaIn0=",  # pragma: allowlist secret
+                    "has_more": False,
+                },
             }
         }
     )
 
-    logs: list[LogEntry] = Field(..., description="List of log entries")
-    count: int = Field(..., ge=0, description="Total count matching filters")
-    limit: int = Field(..., ge=1, le=1000, description="Page size (1-1000)")
-    offset: int = Field(..., ge=0, description="Page offset (0-based, deprecated)")
-    next_cursor: str | None = Field(
-        None, description="Cursor for next page (use this instead of offset)"
-    )
-    has_more: bool = Field(False, description="Whether more results are available")
-    deprecation_warning: str | None = Field(
-        None, description="Warning when using deprecated offset pagination"
-    )
+    items: list[LogEntry] = Field(..., description="List of log entries")
+    pagination: PaginationInfo = Field(..., description="Pagination metadata")
 
 
 class LogStats(BaseModel):

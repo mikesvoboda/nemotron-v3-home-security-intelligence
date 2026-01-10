@@ -188,13 +188,13 @@ export function useConnectionStatus(): UseConnectionStatusReturn {
 
       // Fetch recent events
       const eventsResponse = await fetchEvents({ limit: 20 });
-      if (eventsResponse.events && eventsResponse.events.length > 0) {
+      if (eventsResponse.items && eventsResponse.items.length > 0) {
         // Only add new events we haven't seen
-        const newEvents = eventsResponse.events.filter(
+        const newEvents = eventsResponse.items.filter(
           (event) => event.id !== lastEventIdRef.current
         );
         if (newEvents.length > 0) {
-          lastEventIdRef.current = eventsResponse.events[0].id;
+          lastEventIdRef.current = eventsResponse.items[0].id;
           setEvents((prevEvents) => {
             // Convert Event to SecurityEvent format
             const securityEvents: SecurityEvent[] = newEvents.map((e) => {

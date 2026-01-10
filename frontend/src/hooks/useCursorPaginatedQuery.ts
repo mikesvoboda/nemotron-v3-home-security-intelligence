@@ -8,10 +8,14 @@ import {
   type QueryKey,
 } from '@tanstack/react-query';
 
-export interface CursorPaginatedResponse {
+export interface PaginationInfo {
+  total: number;
   has_more: boolean;
   next_cursor?: string | null;
-  count: number;
+}
+
+export interface CursorPaginatedResponse {
+  pagination: PaginationInfo;
 }
 
 export interface UseCursorPaginatedQueryOptions<
@@ -70,8 +74,8 @@ export function useCursorPaginatedQuery<
     queryFn: ({ pageParam }) => queryFn({ cursor: pageParam, filters }),
     initialPageParam: undefined,
     getNextPageParam: (lastPage: TData) => {
-      if (lastPage.has_more && lastPage.next_cursor) {
-        return lastPage.next_cursor;
+      if (lastPage.pagination.has_more && lastPage.pagination.next_cursor) {
+        return lastPage.pagination.next_cursor;
       }
       return undefined;
     },

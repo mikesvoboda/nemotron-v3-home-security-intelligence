@@ -33,33 +33,33 @@ class TestListEntities:
         response = await async_client.get("/api/entities")
         assert response.status_code == 200
         data = response.json()
-        assert data["entities"] == []
-        assert data["count"] == 0
-        assert "limit" in data
-        assert "offset" in data
+        assert data["items"] == []
+        assert data["pagination"]["total"] == 0
+        assert "limit" in data["pagination"]
+        assert "offset" in data["pagination"]
 
     async def test_list_entities_with_type_filter(self, async_client):
         """Test filtering entities by type."""
         response = await async_client.get("/api/entities?entity_type=person")
         assert response.status_code == 200
         data = response.json()
-        assert "entities" in data
-        assert "count" in data
+        assert "items" in data
+        assert "pagination" in data
 
     async def test_list_entities_with_camera_filter(self, async_client):
         """Test filtering entities by camera."""
         response = await async_client.get("/api/entities?camera_id=front_door")
         assert response.status_code == 200
         data = response.json()
-        assert "entities" in data
+        assert "items" in data
 
     async def test_list_entities_with_pagination(self, async_client):
         """Test pagination parameters."""
         response = await async_client.get("/api/entities?limit=10&offset=0")
         assert response.status_code == 200
         data = response.json()
-        assert data["limit"] == 10
-        assert data["offset"] == 0
+        assert data["pagination"]["limit"] == 10
+        assert data["pagination"]["offset"] == 0
 
     async def test_list_entities_invalid_limit(self, async_client):
         """Test validation of limit parameter."""
@@ -77,7 +77,7 @@ class TestListEntities:
         response = await async_client.get(f"/api/entities?since={since}")
         assert response.status_code == 200
         data = response.json()
-        assert "entities" in data
+        assert "items" in data
 
 
 class TestGetEntity:
@@ -205,5 +205,5 @@ class TestEntitiesAPIValidation:
         )
         assert response.status_code == 200
         data = response.json()
-        assert data["limit"] == 10
-        assert data["offset"] == 0
+        assert data["pagination"]["limit"] == 10
+        assert data["pagination"]["offset"] == 0

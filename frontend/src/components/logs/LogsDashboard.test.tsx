@@ -76,11 +76,15 @@ describe('LogsDashboard', () => {
   ];
 
   const mockLogsResponse: LogsResponse = {
-    logs: mockLogs,
-    count: 3,
-    limit: 50,
-    offset: 0,
-    has_more: false,
+    items: mockLogs,
+    pagination: {
+      total: 3,
+      limit: 50,
+      offset: null,
+      cursor: null,
+      next_cursor: null,
+      has_more: false,
+    },
   };
 
   const mockLogStats: LogStats = {
@@ -336,11 +340,15 @@ describe('LogsDashboard', () => {
       }));
 
       vi.mocked(api.fetchLogs).mockResolvedValue({
-        logs: manyLogs.slice(0, 50),
-        count: 100,
-        limit: 50,
-        offset: 0,
-        has_more: true,
+        items: manyLogs.slice(0, 50),
+        pagination: {
+          total: 100,
+          limit: 50,
+          offset: null,
+          cursor: null,
+          next_cursor: null,
+          has_more: true,
+        },
       });
 
       render(<LogsDashboard />);
@@ -391,11 +399,15 @@ describe('LogsDashboard', () => {
       }));
 
       vi.mocked(api.fetchLogs).mockResolvedValue({
-        logs: manyLogs.slice(0, 50),
-        count: 100,
-        limit: 50,
-        offset: 0,
-        has_more: true,
+        items: manyLogs.slice(0, 50),
+        pagination: {
+          total: 100,
+          limit: 50,
+          offset: null,
+          cursor: null,
+          next_cursor: null,
+          has_more: true,
+        },
       });
     });
 
@@ -587,11 +599,15 @@ describe('LogsDashboard', () => {
   describe('Empty States', () => {
     it('shows empty state when no logs exist', async () => {
       vi.mocked(api.fetchLogs).mockResolvedValue({
-        logs: [],
-        count: 0,
-        limit: 50,
-        offset: 0,
-        has_more: false,
+        items: [],
+        pagination: {
+          total: 0,
+          limit: 50,
+          offset: null,
+          cursor: null,
+          next_cursor: null,
+          has_more: false,
+        },
       });
 
       render(<LogsDashboard />);
@@ -614,11 +630,15 @@ describe('LogsDashboard', () => {
 
       // Apply filter that returns no results
       vi.mocked(api.fetchLogs).mockResolvedValue({
-        logs: [],
-        count: 0,
-        limit: 50,
-        offset: 0,
-        has_more: false,
+        items: [],
+        pagination: {
+          total: 0,
+          limit: 50,
+          offset: null,
+          cursor: null,
+          next_cursor: null,
+          has_more: false,
+        },
       });
 
       await user.click(screen.getByText('Show Filters'));

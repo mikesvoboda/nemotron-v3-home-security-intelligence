@@ -165,16 +165,15 @@ class QuietHoursPeriod(Base):
 
     Defines a time range during which notifications should not be sent.
     Can be configured for specific days of the week.
+
+    Note:
+        Periods can span midnight (e.g., 22:00 to 06:00).
+        If start_time > end_time, the period wraps to the next day.
+        Only restriction: start_time must not equal end_time (zero-length period).
     """
 
     __tablename__ = "quiet_hours_periods"
-    __table_args__ = (
-        Index("idx_quiet_hours_periods_start_end", "start_time", "end_time"),
-        CheckConstraint(
-            "start_time < end_time",
-            name="ck_quiet_hours_periods_time_range",
-        ),
-    )
+    __table_args__ = (Index("idx_quiet_hours_periods_start_end", "start_time", "end_time"),)
 
     id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True)
     label: Mapped[str] = mapped_column(String, nullable=False)

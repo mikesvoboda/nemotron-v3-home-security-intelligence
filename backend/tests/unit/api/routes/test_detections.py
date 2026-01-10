@@ -559,11 +559,11 @@ class TestListDetections:
             db=mock_db_session,
         )
 
-        assert result.count == 2
-        assert len(result.detections) == 2
-        assert result.limit == 50
-        assert result.offset == 0
-        assert result.has_more is False
+        assert result.pagination.total == 2
+        assert len(result.items) == 2
+        assert result.pagination.limit == 50
+        assert result.pagination.offset == 0
+        assert result.pagination.has_more is False
 
     @pytest.mark.asyncio
     async def test_list_detections_with_filters(self, mock_db_session):
@@ -597,8 +597,8 @@ class TestListDetections:
             db=mock_db_session,
         )
 
-        assert result.count == 1
-        assert len(result.detections) == 1
+        assert result.pagination.total == 1
+        assert len(result.items) == 1
 
     @pytest.mark.asyncio
     async def test_list_detections_with_date_range(self, mock_db_session):
@@ -628,7 +628,7 @@ class TestListDetections:
             db=mock_db_session,
         )
 
-        assert result.count == 0
+        assert result.pagination.total == 0
 
     @pytest.mark.asyncio
     async def test_list_detections_invalid_date_range(self, mock_db_session):
@@ -676,10 +676,10 @@ class TestListDetections:
             db=mock_db_session,
         )
 
-        assert len(result.detections) == 1
-        assert result.has_more is False
+        assert len(result.items) == 1
+        assert result.pagination.has_more is False
         # No count query when using cursor
-        assert result.count == 0
+        assert result.pagination.total == 0
 
     @pytest.mark.asyncio
     async def test_list_detections_invalid_cursor(self, mock_db_session):
@@ -718,9 +718,9 @@ class TestListDetections:
             db=mock_db_session,
         )
 
-        assert result.has_more is True
-        assert len(result.detections) == 50
-        assert result.next_cursor is not None
+        assert result.pagination.has_more is True
+        assert len(result.items) == 50
+        assert result.pagination.next_cursor is not None
 
     @pytest.mark.asyncio
     async def test_list_detections_with_offset_deprecation_warning(self, mock_db_session):

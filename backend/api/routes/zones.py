@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.dependencies import get_camera_or_404, get_zone_or_404
+from backend.api.schemas.pagination import PaginationMeta
 from backend.api.schemas.zone import (
     ZoneCreate,
     ZoneListResponse,
@@ -47,7 +48,15 @@ async def list_zones(
     result = await db.execute(query)
     zones = result.scalars().all()
 
-    return ZoneListResponse(zones=zones, count=len(zones))
+    return ZoneListResponse(
+        items=zones,
+        pagination=PaginationMeta(
+            total=len(zones),
+            limit=len(zones) or 50,  # No pagination params, so use total as limit
+            offset=0,
+            has_more=False,
+        ),
+    )
 
 
 @router.post(

@@ -42,8 +42,8 @@ class TestLogsAPI:
         response = await client.get("/api/logs")
         assert response.status_code == 200
         data = response.json()
-        assert data["logs"] == []
-        assert data["count"] == 0
+        assert data["items"] == []
+        assert data["pagination"]["total"] == 0
 
     async def test_list_logs_with_data(self, client: AsyncClient, db_session, clean_logs):
         """Test listing logs with data."""
@@ -67,8 +67,8 @@ class TestLogsAPI:
         response = await client.get("/api/logs")
         assert response.status_code == 200
         data = response.json()
-        assert data["count"] == 2
-        assert len(data["logs"]) == 2
+        assert data["pagination"]["total"] == 2
+        assert len(data["items"]) == 2
 
     async def test_list_logs_filter_by_level(self, client: AsyncClient, db_session, clean_logs):
         """Test filtering logs by level."""
@@ -92,8 +92,8 @@ class TestLogsAPI:
         response = await client.get("/api/logs?level=ERROR")
         assert response.status_code == 200
         data = response.json()
-        assert data["count"] == 1
-        assert data["logs"][0]["level"] == "ERROR"
+        assert data["pagination"]["total"] == 1
+        assert data["items"][0]["level"] == "ERROR"
 
     async def test_list_logs_filter_by_component(self, client: AsyncClient, db_session, clean_logs):
         """Test filtering logs by component."""
@@ -117,8 +117,8 @@ class TestLogsAPI:
         response = await client.get("/api/logs?component=file_watcher")
         assert response.status_code == 200
         data = response.json()
-        assert data["count"] == 1
-        assert data["logs"][0]["component"] == "file_watcher"
+        assert data["pagination"]["total"] == 1
+        assert data["items"][0]["component"] == "file_watcher"
 
     async def test_get_log_stats(self, client: AsyncClient, db_session):
         """Test getting log statistics."""
@@ -144,8 +144,8 @@ class TestLogsAPI:
         response = await client.get("/api/logs?component=DashboardPage")
         assert response.status_code == 200
         data = response.json()
-        assert data["count"] == 1
-        assert data["logs"][0]["source"] == "frontend"
+        assert data["pagination"]["total"] == 1
+        assert data["items"][0]["source"] == "frontend"
 
     async def test_get_single_log(self, client: AsyncClient, db_session):
         """Test getting a single log by ID."""
@@ -194,11 +194,11 @@ class TestLogsAPI:
         response = await client.get(f"/api/logs?component={unique_component}&limit=10&offset=0")
         assert response.status_code == 200
         data = response.json()
-        assert len(data["logs"]) == 10
-        assert data["count"] == 15
+        assert len(data["items"]) == 10
+        assert data["pagination"]["total"] == 15
 
         # Second page - filter by our unique component
         response = await client.get(f"/api/logs?component={unique_component}&limit=10&offset=10")
         assert response.status_code == 200
         data = response.json()
-        assert len(data["logs"]) == 5
+        assert len(data["items"]) == 5

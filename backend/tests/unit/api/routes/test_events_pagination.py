@@ -15,51 +15,61 @@ class TestEventListResponseWithCursor:
     def test_event_list_response_with_cursor_fields(self):
         """Test EventListResponse includes cursor pagination fields."""
         data = {
-            "events": [],
-            "count": 100,
-            "limit": 50,
-            "offset": 0,
-            "next_cursor": "eyJpZCI6IDEwMCwgImNyZWF0ZWRfYXQiOiAiMjAyNS0xMi0yM1QxMjowMDowMFoifQ==",  # pragma: allowlist secret
-            "has_more": True,
+            "items": [],
+            "pagination": {
+                "total": 100,
+                "limit": 50,
+                "offset": 0,
+                "next_cursor": "eyJpZCI6IDEwMCwgImNyZWF0ZWRfYXQiOiAiMjAyNS0xMi0yM1QxMjowMDowMFoifQ==",  # pragma: allowlist secret
+                "has_more": True,
+            },
         }
         response = EventListResponse(**data)
-        assert response.next_cursor is not None
-        assert response.has_more is True
+        assert response.pagination.next_cursor is not None
+        assert response.pagination.has_more is True
 
     def test_event_list_response_no_more_results(self):
         """Test EventListResponse when there are no more results."""
         data = {
-            "events": [],
-            "count": 10,
-            "limit": 50,
-            "offset": 0,
-            "next_cursor": None,
-            "has_more": False,
+            "items": [],
+            "pagination": {
+                "total": 10,
+                "limit": 50,
+                "offset": 0,
+                "next_cursor": None,
+                "has_more": False,
+            },
         }
         response = EventListResponse(**data)
-        assert response.next_cursor is None
-        assert response.has_more is False
+        assert response.pagination.next_cursor is None
+        assert response.pagination.has_more is False
 
     def test_event_list_response_backward_compatible_without_cursor(self):
         """Test EventListResponse still works without cursor fields (backward compatibility)."""
         data = {
-            "events": [],
-            "count": 0,
-            "limit": 50,
-            "offset": 0,
+            "items": [],
+            "pagination": {
+                "total": 0,
+                "limit": 50,
+                "offset": 0,
+                "has_more": False,
+            },
         }
         response = EventListResponse(**data)
         # Should default to None/False for cursor fields
-        assert response.next_cursor is None
-        assert response.has_more is False
+        assert response.pagination.next_cursor is None
+        assert response.pagination.has_more is False
 
     def test_event_list_response_deprecation_warning(self):
         """Test EventListResponse can include deprecation warning."""
         data = {
-            "events": [],
-            "count": 100,
-            "limit": 50,
-            "offset": 20,
+            "items": [],
+            "pagination": {
+                "total": 100,
+                "limit": 50,
+                "offset": 20,
+                "has_more": True,
+            },
             "deprecation_warning": "Offset pagination is deprecated. Please use cursor-based pagination.",
         }
         response = EventListResponse(**data)

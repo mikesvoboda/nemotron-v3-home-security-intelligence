@@ -108,10 +108,10 @@ class TestListRules:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["rules"] == []
-        assert data["count"] == 0
-        assert data["limit"] == 50
-        assert data["offset"] == 0
+        assert data["items"] == []
+        assert data["pagination"]["total"] == 0
+        assert data["pagination"]["limit"] == 50
+        assert data["pagination"]["offset"] == 0
 
     def test_list_rules_with_data(
         self, client: TestClient, mock_db_session: AsyncMock, sample_rule: AlertRule
@@ -129,9 +129,9 @@ class TestListRules:
 
         assert response.status_code == 200
         data = response.json()
-        assert len(data["rules"]) == 1
-        assert data["count"] == 1
-        assert data["rules"][0]["name"] == sample_rule.name
+        assert len(data["items"]) == 1
+        assert data["pagination"]["total"] == 1
+        assert data["items"][0]["name"] == sample_rule.name
 
     def test_list_rules_filter_by_enabled(
         self, client: TestClient, mock_db_session: AsyncMock, sample_rule: AlertRule
@@ -149,7 +149,7 @@ class TestListRules:
 
         assert response.status_code == 200
         data = response.json()
-        assert len(data["rules"]) == 1
+        assert len(data["items"]) == 1
 
     def test_list_rules_filter_by_severity(
         self, client: TestClient, mock_db_session: AsyncMock, sample_rule: AlertRule
@@ -167,7 +167,7 @@ class TestListRules:
 
         assert response.status_code == 200
         data = response.json()
-        assert len(data["rules"]) == 1
+        assert len(data["items"]) == 1
 
     def test_list_rules_pagination(self, client: TestClient, mock_db_session: AsyncMock) -> None:
         """Test pagination parameters."""
@@ -183,8 +183,8 @@ class TestListRules:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["limit"] == 10
-        assert data["offset"] == 5
+        assert data["pagination"]["limit"] == 10
+        assert data["pagination"]["offset"] == 5
 
 
 # =============================================================================

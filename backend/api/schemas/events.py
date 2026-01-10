@@ -5,6 +5,8 @@ from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from backend.api.schemas.pagination import PaginationMeta
+
 
 class EnrichmentStatusEnum(str, Enum):
     """Status of enrichment pipeline execution for an event.
@@ -133,6 +135,7 @@ class EventUpdate(BaseModel):
 class EventListResponse(BaseModel):
     """Schema for event list response with pagination.
 
+    NEM-2075: Standardized pagination envelope with items + pagination structure.
     Supports both cursor-based pagination (recommended) and offset pagination (deprecated).
     Use cursor-based pagination for better performance with large datasets.
     """
@@ -140,7 +143,7 @@ class EventListResponse(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "events": [
+                "items": [
                     {
                         "id": 1,
                         "camera_id": "front_door",
@@ -149,8 +152,7 @@ class EventListResponse(BaseModel):
                         "risk_score": 75,
                         "risk_level": "medium",
                         "summary": "Person detected near front entrance",
-                        "reasoning": "Person approaching entrance during daytime, no suspicious behavior",
-                        "llm_prompt": "<|im_start|>system\nYou are a home security risk analyzer...",
+                        "reasoning": "Person approaching entrance during daytime",
                         "reviewed": False,
                         "notes": None,
                         "detection_count": 5,
@@ -158,26 +160,21 @@ class EventListResponse(BaseModel):
                         "thumbnail_url": "/api/media/detections/1",
                     }
                 ],
-                "count": 1,
-                "limit": 50,
-                "offset": 0,
-                "next_cursor": "eyJpZCI6IDEsICJjcmVhdGVkX2F0IjogIjIwMjUtMTItMjNUMTI6MDA6MDBaIn0=",  # pragma: allowlist secret
-                "has_more": False,
+                "pagination": {
+                    "total": 1,
+                    "limit": 50,
+                    "offset": 0,
+                    "cursor": None,
+                    "next_cursor": "eyJpZCI6IDEsICJjcmVhdGVkX2F0IjogIjIwMjUtMTItMjNUMTI6MDA6MDBaIn0=",  # pragma: allowlist secret
+                    "has_more": False,
+                },
+                "deprecation_warning": None,
             }
         }
     )
 
-    events: list[EventResponse] = Field(..., description="List of events")
-    count: int = Field(..., description="Total number of events matching filters")
-    limit: int = Field(..., description="Maximum number of results returned")
-    offset: int = Field(..., description="Number of results skipped (deprecated, use cursor)")
-    next_cursor: str | None = Field(
-        default=None,
-        description="Cursor for fetching the next page. Pass this as the 'cursor' parameter.",
-    )
-    has_more: bool = Field(
-        default=False, description="Whether there are more results available after this page"
-    )
+    items: list[EventResponse] = Field(..., description="List of events")
+    pagination: PaginationMeta = Field(..., description="Pagination metadata")
     deprecation_warning: str | None = Field(
         default=None,
         description="Warning message when using deprecated offset pagination",
@@ -261,12 +258,13 @@ class DeletedEventsListResponse(BaseModel):
 
     NEM-1955: Provides a trash view of soft-deleted events that can be restored.
     Events are ordered by deleted_at descending (most recently deleted first).
+    NEM-2075: Standardized pagination envelope with items + pagination structure.
     """
 
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "events": [
+                "items": [
                     {
                         "id": 1,
                         "camera_id": "front_door",
@@ -283,10 +281,17 @@ class DeletedEventsListResponse(BaseModel):
                         "thumbnail_url": "/api/media/detections/1",
                     }
                 ],
-                "count": 1,
+                "pagination": {
+                    "total": 1,
+                    "limit": 50,
+                    "offset": 0,
+                    "cursor": None,
+                    "next_cursor": None,
+                    "has_more": False,
+                },
             }
         }
     )
 
-    events: list[EventResponse] = Field(..., description="List of soft-deleted events")
-    count: int = Field(..., description="Total number of deleted events")
+    items: list[EventResponse] = Field(..., description="List of soft-deleted events")
+    pagination: PaginationMeta = Field(..., description="Pagination metadata")

@@ -92,7 +92,7 @@ describe('AnalyticsPage', () => {
   };
 
   const mockEvents = {
-    events: [
+    items: [
       {
         id: 1,
         camera_id: 'cam1',
@@ -106,10 +106,12 @@ describe('AnalyticsPage', () => {
         summary: 'High risk event',
       },
     ],
-    count: 1,
-    limit: 10,
-    offset: 0,
-    has_more: false,
+    pagination: {
+      total: 1,
+      limit: 10,
+      offset: 0,
+      has_more: false,
+    },
   };
 
   beforeEach(() => {

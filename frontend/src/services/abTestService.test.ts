@@ -202,10 +202,13 @@ describe('abTestService', () => {
       // Arrange
       fetchMock.mockResolvedValueOnce(
         createMockResponse({
-          events: mockEvents,
-          count: 3,
-          limit: 10,
-          offset: 0,
+          items: mockEvents,
+          pagination: {
+            total: 3,
+            limit: 10,
+            offset: 0,
+            has_more: false,
+          },
         })
       );
 
@@ -233,10 +236,13 @@ describe('abTestService', () => {
       // Arrange: Return 3 events
       fetchMock.mockResolvedValueOnce(
         createMockResponse({
-          events: mockEvents,
-          count: 3,
-          limit: 10,
-          offset: 0,
+          items: mockEvents,
+          pagination: {
+            total: 3,
+            limit: 10,
+            offset: 0,
+            has_more: false,
+          },
         })
       );
 
@@ -275,10 +281,13 @@ describe('abTestService', () => {
       // Arrange
       fetchMock.mockResolvedValueOnce(
         createMockResponse({
-          events: mockEvents.slice(0, 2), // Only 2 events
-          count: 2,
-          limit: 2,
-          offset: 0,
+          items: mockEvents.slice(0, 2), // Only 2 events
+          pagination: {
+            total: 2,
+            limit: 2,
+            offset: 0,
+            has_more: false,
+          },
         })
       );
 
@@ -314,16 +323,19 @@ describe('abTestService', () => {
     it('returns recent events', async () => {
       // Arrange - Event API returns camera_id, not camera_name
       const eventsResponse = {
-        events: mockEvents.map((e) => ({
+        items: mockEvents.map((e) => ({
           id: e.id,
           camera_id: `cam-${e.id}`,
           started_at: e.timestamp,
           detection_count: e.detectionCount,
           reviewed: false,
         })),
-        count: 3,
-        limit: 50,
-        offset: 0,
+        pagination: {
+          total: 3,
+          limit: 50,
+          offset: 0,
+          has_more: false,
+        },
       };
       fetchMock.mockResolvedValueOnce(createMockResponse(eventsResponse));
 
@@ -340,10 +352,13 @@ describe('abTestService', () => {
       // Arrange
       fetchMock.mockResolvedValueOnce(
         createMockResponse({
-          events: [],
-          count: 0,
-          limit: 20,
-          offset: 0,
+          items: [],
+          pagination: {
+            total: 0,
+            limit: 20,
+            offset: 0,
+            has_more: false,
+          },
         })
       );
 
