@@ -93,14 +93,14 @@ export default function ReidHistoryPanel({
   };
 
   // Format similarity score as percentage
-  const formatSimilarity = (score: number | null): string => {
-    if (score === null) return 'N/A';
+  const formatSimilarity = (score: number | null | undefined): string => {
+    if (score === null || score === undefined) return 'N/A';
     return `${Math.round(score * 100)}%`;
   };
 
   // Get similarity score badge color
-  const getSimilarityColor = (score: number | null): string => {
-    if (score === null) return 'bg-gray-700 text-gray-300';
+  const getSimilarityColor = (score: number | null | undefined): string => {
+    if (score === null || score === undefined) return 'bg-gray-700 text-gray-300';
     if (score >= 0.9) return 'bg-green-900/40 text-green-400';
     if (score >= 0.8) return 'bg-[#76B900]/20 text-[#76B900]';
     if (score >= 0.7) return 'bg-yellow-900/40 text-yellow-400';

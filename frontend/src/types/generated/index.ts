@@ -370,5 +370,13 @@ export type QuietHoursPeriodResponse =
 export type QuietHoursPeriodsListResponse =
   components['schemas']['QuietHoursPeriodsListResponse'];
 
+// Entity Re-Identification types
+export type EntityAppearance = components['schemas']['EntityAppearance'];
+export type EntitySummary = components['schemas']['EntitySummary'];
+export type EntityDetail = components['schemas']['EntityDetail'];
+export type EntityListResponse = components['schemas']['EntityListResponse'];
+export type EntityHistoryResponse = components['schemas']['EntityHistoryResponse'];
+export type PaginationInfo = components['schemas']['PaginationInfo'];
+
 // Import the components type for use in type aliases
 import type { components } from './api';

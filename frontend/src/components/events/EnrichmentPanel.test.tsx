@@ -8,10 +8,13 @@ import type { EnrichmentData } from '../../types/enrichment';
 
 /**
  * Helper function to expand an accordion section by clicking its header
+ * Uses getAllByText and selects the last one to handle potential DOM cleanup issues
  */
 async function expandAccordion(headerText: string) {
   const user = userEvent.setup();
-  const header = screen.getByText(headerText);
+  const headers = screen.getAllByText(headerText);
+  // Get the last one (most recently rendered) to avoid stale elements
+  const header = headers[headers.length - 1];
   const button = header.closest('button');
   if (button) {
     await user.click(button);
@@ -484,6 +487,343 @@ describe('EnrichmentPanel', () => {
       render(<EnrichmentPanel enrichment_data={specialChars} />);
       await expandAccordion('License Plate');
       expect(screen.getByText('ABC-1234 (CA)')).toBeInTheDocument();
+    });
+  });
+
+  describe('pose enrichment', () => {
+    // Sample keypoints for testing (17 COCO keypoints)
+    const mockKeypoints: [number, number, number][] = [
+      [100, 50, 0.95], // nose
+      [90, 45, 0.9], // left_eye
+      [110, 45, 0.9], // right_eye
+      [80, 50, 0.85], // left_ear
+      [120, 50, 0.85], // right_ear
+      [70, 100, 0.92], // left_shoulder
+      [130, 100, 0.92], // right_shoulder
+      [60, 150, 0.88], // left_elbow
+      [140, 150, 0.88], // right_elbow
+      [50, 200, 0.82], // left_wrist
+      [150, 200, 0.82], // right_wrist
+      [80, 180, 0.9], // left_hip
+      [120, 180, 0.9], // right_hip
+      [75, 250, 0.85], // left_knee
+      [125, 250, 0.85], // right_knee
+      [70, 320, 0.8], // left_ankle
+      [130, 320, 0.8], // right_ankle
+    ];
+
+    const poseEnrichment: EnrichmentData = {
+      pose: {
+        keypoints: mockKeypoints,
+        posture: 'standing',
+        alerts: [],
+        security_alerts: [],
+        confidence: 0.92,
+      },
+    };
+
+    it('renders pose section when pose data exists', () => {
+      render(<EnrichmentPanel enrichment_data={poseEnrichment} />);
+      // Use getAllByText to handle potential DOM cleanup issues in CI
+      const elements = screen.getAllByText('Pose Analysis');
+      expect(elements.length).toBeGreaterThan(0);
+    });
+
+    it('displays confidence badge for pose', () => {
+      render(<EnrichmentPanel enrichment_data={poseEnrichment} />);
+      expect(screen.getByText('92%')).toBeInTheDocument();
+    });
+
+    it('displays posture badge', async () => {
+      render(<EnrichmentPanel enrichment_data={poseEnrichment} />);
+      await expandAccordion('Pose Analysis');
+      expect(screen.getByTestId('posture-badge')).toHaveTextContent('standing');
+    });
+
+    it('displays keypoint confidence summary', async () => {
+      render(<EnrichmentPanel enrichment_data={poseEnrichment} />);
+      await expandAccordion('Pose Analysis');
+      expect(screen.getByText('Keypoint Confidence')).toBeInTheDocument();
+      expect(screen.getByText('High-Confidence Points')).toBeInTheDocument();
+      expect(screen.getByText('17 / 17')).toBeInTheDocument(); // All keypoints have confidence > 0.5
+    });
+
+    describe('posture badge colors', () => {
+      it('displays gray badge for standing posture', async () => {
+        render(<EnrichmentPanel enrichment_data={poseEnrichment} />);
+        await expandAccordion('Pose Analysis');
+        const badge = screen.getByTestId('posture-badge');
+        expect(badge).toHaveClass('bg-gray-500/20');
+      });
+
+      it('displays gray badge for sitting posture', async () => {
+        const sitting: EnrichmentData = {
+          pose: {
+            keypoints: mockKeypoints,
+            posture: 'sitting',
+            alerts: [],
+            security_alerts: [],
+            confidence: 0.88,
+          },
+        };
+        render(<EnrichmentPanel enrichment_data={sitting} />);
+        await expandAccordion('Pose Analysis');
+        const badge = screen.getByTestId('posture-badge');
+        expect(badge).toHaveClass('bg-gray-500/20');
+      });
+
+      it('displays blue badge for walking posture', async () => {
+        const walking: EnrichmentData = {
+          pose: {
+            keypoints: mockKeypoints,
+            posture: 'walking',
+            alerts: [],
+            security_alerts: [],
+            confidence: 0.85,
+          },
+        };
+        render(<EnrichmentPanel enrichment_data={walking} />);
+        await expandAccordion('Pose Analysis');
+        const badge = screen.getByTestId('posture-badge');
+        expect(badge).toHaveClass('bg-blue-500/20');
+      });
+
+      it('displays yellow badge for running posture', async () => {
+        const running: EnrichmentData = {
+          pose: {
+            keypoints: mockKeypoints,
+            posture: 'running',
+            alerts: [],
+            security_alerts: [],
+            confidence: 0.87,
+          },
+        };
+        render(<EnrichmentPanel enrichment_data={running} />);
+        await expandAccordion('Pose Analysis');
+        const badge = screen.getByTestId('posture-badge');
+        expect(badge).toHaveClass('bg-yellow-500/20');
+      });
+
+      it('displays red badge for crouching posture', async () => {
+        const crouching: EnrichmentData = {
+          pose: {
+            keypoints: mockKeypoints,
+            posture: 'crouching',
+            alerts: [],
+            security_alerts: [],
+            confidence: 0.80,
+          },
+        };
+        render(<EnrichmentPanel enrichment_data={crouching} />);
+        await expandAccordion('Pose Analysis');
+        const badge = screen.getByTestId('posture-badge');
+        expect(badge).toHaveClass('bg-red-500/20');
+      });
+
+      it('displays red badge for lying_down posture', async () => {
+        const lyingDown: EnrichmentData = {
+          pose: {
+            keypoints: mockKeypoints,
+            posture: 'lying_down',
+            alerts: [],
+            security_alerts: [],
+            confidence: 0.82,
+          },
+        };
+        render(<EnrichmentPanel enrichment_data={lyingDown} />);
+        await expandAccordion('Pose Analysis');
+        const badge = screen.getByTestId('posture-badge');
+        expect(badge).toHaveClass('bg-red-500/20');
+        expect(badge).toHaveTextContent('lying down'); // formatted with space
+      });
+    });
+
+    describe('security alerts', () => {
+      it('displays security alerts section when alerts present', async () => {
+        const withAlerts: EnrichmentData = {
+          pose: {
+            keypoints: mockKeypoints,
+            posture: 'crouching',
+            alerts: ['crouching'],
+            security_alerts: ['crouching'],
+            confidence: 0.85,
+          },
+        };
+        render(<EnrichmentPanel enrichment_data={withAlerts} />);
+        await expandAccordion('Pose Analysis');
+        expect(screen.getByTestId('pose-security-alerts')).toBeInTheDocument();
+      });
+
+      it('displays crouching alert with correct label', async () => {
+        const withAlerts: EnrichmentData = {
+          pose: {
+            keypoints: mockKeypoints,
+            posture: 'crouching',
+            alerts: ['crouching'],
+            security_alerts: ['crouching'],
+            confidence: 0.85,
+          },
+        };
+        render(<EnrichmentPanel enrichment_data={withAlerts} />);
+        await expandAccordion('Pose Analysis');
+        expect(screen.getByTestId('security-alert-crouching')).toBeInTheDocument();
+        expect(screen.getAllByText('Crouching Detected').length).toBeGreaterThan(0);
+      });
+
+      it('displays lying_down alert with correct label', async () => {
+        const withAlerts: EnrichmentData = {
+          pose: {
+            keypoints: mockKeypoints,
+            posture: 'lying_down',
+            alerts: ['lying_down'],
+            security_alerts: ['lying_down'],
+            confidence: 0.82,
+          },
+        };
+        render(<EnrichmentPanel enrichment_data={withAlerts} />);
+        await expandAccordion('Pose Analysis');
+        expect(screen.getByTestId('security-alert-lying_down')).toBeInTheDocument();
+        expect(screen.getAllByText('Person Down').length).toBeGreaterThan(0);
+      });
+
+      it('displays hands_raised alert with correct label', async () => {
+        const withAlerts: EnrichmentData = {
+          pose: {
+            keypoints: mockKeypoints,
+            posture: 'standing',
+            alerts: ['hands_raised'],
+            security_alerts: ['hands_raised'],
+            confidence: 0.90,
+          },
+        };
+        render(<EnrichmentPanel enrichment_data={withAlerts} />);
+        await expandAccordion('Pose Analysis');
+        expect(screen.getByTestId('security-alert-hands_raised')).toBeInTheDocument();
+        expect(screen.getAllByText('Hands Raised').length).toBeGreaterThan(0);
+      });
+
+      it('displays fighting_stance alert with correct label', async () => {
+        const withAlerts: EnrichmentData = {
+          pose: {
+            keypoints: mockKeypoints,
+            posture: 'standing',
+            alerts: ['fighting_stance'],
+            security_alerts: ['fighting_stance'],
+            confidence: 0.88,
+          },
+        };
+        render(<EnrichmentPanel enrichment_data={withAlerts} />);
+        await expandAccordion('Pose Analysis');
+        expect(screen.getByTestId('security-alert-fighting_stance')).toBeInTheDocument();
+        expect(screen.getAllByText('Aggressive Posture').length).toBeGreaterThan(0);
+      });
+
+      it('displays multiple alerts', async () => {
+        const multipleAlerts: EnrichmentData = {
+          pose: {
+            keypoints: mockKeypoints,
+            posture: 'crouching',
+            alerts: ['crouching', 'hands_raised'],
+            security_alerts: ['crouching', 'hands_raised'],
+            confidence: 0.85,
+          },
+        };
+        render(<EnrichmentPanel enrichment_data={multipleAlerts} />);
+        await expandAccordion('Pose Analysis');
+        expect(screen.getByTestId('security-alert-crouching')).toBeInTheDocument();
+        expect(screen.getByTestId('security-alert-hands_raised')).toBeInTheDocument();
+      });
+
+      it('displays alert count badge in header when alerts present', () => {
+        const withAlerts: EnrichmentData = {
+          pose: {
+            keypoints: mockKeypoints,
+            posture: 'crouching',
+            alerts: ['crouching', 'hands_raised'],
+            security_alerts: ['crouching', 'hands_raised'],
+            confidence: 0.85,
+          },
+        };
+        render(<EnrichmentPanel enrichment_data={withAlerts} />);
+        expect(screen.getByText('2 Alerts')).toBeInTheDocument();
+      });
+
+      it('displays singular alert text for single alert', () => {
+        const withOneAlert: EnrichmentData = {
+          pose: {
+            keypoints: mockKeypoints,
+            posture: 'crouching',
+            alerts: ['crouching'],
+            security_alerts: ['crouching'],
+            confidence: 0.85,
+          },
+        };
+        render(<EnrichmentPanel enrichment_data={withOneAlert} />);
+        expect(screen.getByText('1 Alert')).toBeInTheDocument();
+      });
+
+      it('does not display alert count badge when no alerts', () => {
+        render(<EnrichmentPanel enrichment_data={poseEnrichment} />);
+        expect(screen.queryByText(/Alert/)).not.toBeInTheDocument();
+      });
+    });
+
+    describe('keypoint confidence calculations', () => {
+      it('calculates correct high-confidence keypoint count', async () => {
+        // Create keypoints with some below 0.5 confidence
+        const mixedConfidenceKeypoints: [number, number, number][] = [
+          [100, 50, 0.95], // above threshold
+          [90, 45, 0.3], // below threshold
+          [110, 45, 0.9], // above threshold
+          [80, 50, 0.4], // below threshold
+          [120, 50, 0.85], // above threshold
+          [70, 100, 0.1], // below threshold
+          [130, 100, 0.92], // above threshold
+          [60, 150, 0.2], // below threshold
+          [140, 150, 0.88], // above threshold
+          [50, 200, 0.3], // below threshold
+          [150, 200, 0.82], // above threshold
+          [80, 180, 0.15], // below threshold
+          [120, 180, 0.9], // above threshold
+          [75, 250, 0.25], // below threshold
+          [125, 250, 0.85], // above threshold
+          [70, 320, 0.1], // below threshold
+          [130, 320, 0.8], // above threshold
+        ];
+        const mixedPose: EnrichmentData = {
+          pose: {
+            keypoints: mixedConfidenceKeypoints,
+            posture: 'standing',
+            alerts: [],
+            security_alerts: [],
+            confidence: 0.75,
+          },
+        };
+        render(<EnrichmentPanel enrichment_data={mixedPose} />);
+        await expandAccordion('Pose Analysis');
+        // 9 keypoints are above 0.5 threshold
+        expect(screen.getByText('9 / 17')).toBeInTheDocument();
+      });
+
+      it('handles keypoints with zero confidence', async () => {
+        // Create keypoints where some have 0 confidence
+        const zeroConfidenceKeypoints: [number, number, number][] = mockKeypoints.map(
+          (kp, index) => index < 5 ? [kp[0], kp[1], 0] as [number, number, number] : kp
+        );
+        const zeroPose: EnrichmentData = {
+          pose: {
+            keypoints: zeroConfidenceKeypoints,
+            posture: 'standing',
+            alerts: [],
+            security_alerts: [],
+            confidence: 0.60,
+          },
+        };
+        render(<EnrichmentPanel enrichment_data={zeroPose} />);
+        await expandAccordion('Pose Analysis');
+        // 12 keypoints are above 0.5 threshold (first 5 are 0)
+        expect(screen.getByText('12 / 17')).toBeInTheDocument();
+      });
     });
   });
 });

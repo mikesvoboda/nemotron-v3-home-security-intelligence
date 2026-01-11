@@ -3,11 +3,11 @@ import { Camera, Car, Clock, User } from 'lucide-react';
 export interface EntityAppearance {
   detection_id: string;
   camera_id: string;
-  camera_name: string | null;
+  camera_name?: string | null;
   timestamp: string;
-  thumbnail_url: string | null;
-  similarity_score: number | null;
-  attributes: Record<string, unknown>;
+  thumbnail_url?: string | null;
+  similarity_score?: number | null;
+  attributes?: Record<string, unknown>;
 }
 
 export interface EntityTimelineProps {
@@ -131,7 +131,7 @@ export default function EntityTimeline({
                     <span className="font-medium text-white">
                       {appearance.camera_name || appearance.camera_id}
                     </span>
-                    {appearance.similarity_score !== null && (
+                    {appearance.similarity_score !== null && appearance.similarity_score !== undefined && (
                       <span className="rounded bg-[#76B900]/20 px-1.5 py-0.5 text-xs font-medium text-[#76B900]">
                         {formatSimilarity(appearance.similarity_score)}
                       </span>
