@@ -99,6 +99,8 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Remove events backlog improvement indexes."""
-    op.drop_index("idx_events_unreviewed", table_name="events")
-    op.drop_index("idx_events_export_covering", table_name="events")
-    op.drop_index("idx_events_risk_level_started_at", table_name="events")
+    # Use IF EXISTS to handle case where indexes may have been removed by other migrations
+    # (e.g., during partition table conversion)
+    op.drop_index("idx_events_unreviewed", table_name="events", if_exists=True)
+    op.drop_index("idx_events_export_covering", table_name="events", if_exists=True)
+    op.drop_index("idx_events_risk_level_started_at", table_name="events", if_exists=True)

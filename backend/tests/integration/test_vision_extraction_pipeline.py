@@ -355,6 +355,21 @@ class TestVisionExtractorIntegration:
 class TestReIdentificationIntegration:
     """Integration tests for ReIdentificationService with real Redis."""
 
+    @pytest.fixture(autouse=True)
+    async def cleanup_reid_keys(self, real_redis):
+        """Clean up entity embedding keys before and after each test."""
+        redis_client = real_redis._ensure_connected()
+
+        async def _cleanup():
+            # Delete all entity_embeddings keys to ensure test isolation
+            keys = await redis_client.keys("entity_embeddings:*")
+            if keys:
+                await redis_client.delete(*keys)
+
+        await _cleanup()
+        yield
+        await _cleanup()
+
     @pytest.mark.asyncio
     async def test_reid_service_stores_and_matches_embeddings(
         self, real_redis, test_image: Image.Image

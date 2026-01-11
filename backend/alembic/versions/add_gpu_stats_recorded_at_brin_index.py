@@ -38,7 +38,8 @@ depends_on: str | Sequence[str] | None = None
 def upgrade() -> None:
     """Add BRIN index on gpu_stats.recorded_at, replacing the existing B-tree index."""
     # Drop the existing B-tree index first
-    op.drop_index("idx_gpu_stats_recorded_at", table_name="gpu_stats")
+    # Use if_exists to handle tables recreated by other migrations (e.g., partitioning)
+    op.drop_index("idx_gpu_stats_recorded_at", table_name="gpu_stats", if_exists=True)
 
     # Create BRIN index for time-series optimization
     op.create_index(
@@ -53,12 +54,21 @@ def upgrade() -> None:
 def downgrade() -> None:
     """Restore the B-tree index on gpu_stats.recorded_at."""
     # Drop the BRIN index
-    op.drop_index("ix_gpu_stats_recorded_at_brin", table_name="gpu_stats")
+    # Use if_exists to handle tables recreated by other migrations (e.g., partitioning)
+    op.drop_index("ix_gpu_stats_recorded_at_brin", table_name="gpu_stats", if_exists=True)
 
     # Restore the original B-tree index
-    op.create_index(
-        "idx_gpu_stats_recorded_at",
-        "gpu_stats",
-        ["recorded_at"],
-        unique=False,
-    )
+    # Check if it already exists (may have been recreated by partition downgrade)
+    from sqlalchemy import inspect
+
+    bind = op.get_bind()
+    inspector = inspect(bind)
+    indexes = {idx["name"] for idx in inspector.get_indexes("gpu_stats")}
+
+    if "idx_gpu_stats_recorded_at" not in indexes:
+        op.create_index(
+            "idx_gpu_stats_recorded_at",
+            "gpu_stats",
+            ["recorded_at"],
+            unique=False,
+        )

@@ -113,17 +113,17 @@ def upgrade() -> None:
 def downgrade() -> None:
     """Drop baseline tables."""
     # Drop indexes for class_baselines
-    op.drop_index("idx_class_baseline_slot", table_name="class_baselines")
-    op.drop_index("idx_class_baseline_class", table_name="class_baselines")
-    op.drop_index("idx_class_baseline_camera", table_name="class_baselines")
+    op.drop_index("idx_class_baseline_slot", table_name="class_baselines", if_exists=True)
+    op.drop_index("idx_class_baseline_class", table_name="class_baselines", if_exists=True)
+    op.drop_index("idx_class_baseline_camera", table_name="class_baselines", if_exists=True)
     op.drop_constraint("uq_class_baseline_slot", "class_baselines", type_="unique")
 
     # Drop class_baselines table
     op.drop_table("class_baselines")
 
     # Drop indexes for activity_baselines
-    op.drop_index("idx_activity_baseline_slot", table_name="activity_baselines")
-    op.drop_index("idx_activity_baseline_camera", table_name="activity_baselines")
+    op.drop_index("idx_activity_baseline_slot", table_name="activity_baselines", if_exists=True)
+    op.drop_index("idx_activity_baseline_camera", table_name="activity_baselines", if_exists=True)
     op.drop_constraint("uq_activity_baseline_slot", "activity_baselines", type_="unique")
 
     # Drop activity_baselines table

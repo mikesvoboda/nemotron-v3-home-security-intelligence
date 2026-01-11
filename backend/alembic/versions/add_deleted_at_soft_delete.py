@@ -34,20 +34,28 @@ def upgrade() -> None:
 
     Creates:
     - cameras.deleted_at - nullable timestamp for soft delete
-    - events.deleted_at - nullable timestamp for soft delete
+    - events.deleted_at - nullable timestamp for soft delete (if not already exists from partitioning)
     - Partial indexes for filtering non-deleted records efficiently
     """
-    # Add deleted_at to cameras table
+    from sqlalchemy import inspect
+
+    bind = op.get_bind()
+    inspector = inspect(bind)
+
+    # Add deleted_at to cameras table (always add)
     op.add_column(
         "cameras",
         sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
     )
 
-    # Add deleted_at to events table
-    op.add_column(
-        "events",
-        sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
-    )
+    # Add deleted_at to events table (only if not already present)
+    # The add_time_series_partitioning migration may have already added this column
+    events_columns = [col["name"] for col in inspector.get_columns("events")]
+    if "deleted_at" not in events_columns:
+        op.add_column(
+            "events",
+            sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
+        )
 
     # Create partial indexes for efficient queries on non-deleted records
     # These indexes only include rows where deleted_at IS NULL (active records)
@@ -69,8 +77,8 @@ def upgrade() -> None:
 def downgrade() -> None:
     """Remove deleted_at columns from cameras and events tables."""
     # Drop partial indexes first
-    op.drop_index("idx_events_active", table_name="events")
-    op.drop_index("idx_cameras_active", table_name="cameras")
+    op.drop_index("idx_events_active", table_name="events", if_exists=True)
+    op.drop_index("idx_cameras_active", table_name="cameras", if_exists=True)
 
     # Drop columns
     op.drop_column("events", "deleted_at")

@@ -38,4 +38,5 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Remove composite index on detections(camera_id, object_type)."""
-    op.drop_index("idx_detections_camera_object_type", table_name="detections")
+    # Use if_exists to handle tables recreated by other migrations (e.g., partitioning)
+    op.drop_index("idx_detections_camera_object_type", table_name="detections", if_exists=True)

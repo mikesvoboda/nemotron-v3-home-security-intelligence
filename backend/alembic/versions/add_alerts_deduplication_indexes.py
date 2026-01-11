@@ -53,5 +53,5 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Remove deduplication indexes."""
-    op.drop_index("idx_alerts_event_rule_delivered", table_name="alerts")
-    op.drop_index("idx_alerts_delivered_at", table_name="alerts")
+    op.drop_index("idx_alerts_event_rule_delivered", table_name="alerts", if_exists=True)
+    op.drop_index("idx_alerts_delivered_at", table_name="alerts", if_exists=True)

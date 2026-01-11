@@ -181,3 +181,18 @@ export type {
   UseDetectionsInfiniteQueryOptions,
   UseDetectionsInfiniteQueryReturn,
 } from './useDetectionsQuery';
+
+export { useServiceStatus } from './useServiceStatus';
+export type {
+  ServiceName,
+  ServiceStatusType,
+  ServiceStatus,
+  UseServiceStatusResult,
+} from './useServiceStatus';
+
+export { useSceneChangeAlerts, formatChangeType, getChangeSeverity } from './useSceneChangeAlerts';
+export type {
+  SceneChangeAlert,
+  UseSceneChangeAlertsOptions,
+  UseSceneChangeAlertsReturn,
+} from './useSceneChangeAlerts';

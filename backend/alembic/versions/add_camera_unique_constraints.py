@@ -80,5 +80,5 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Remove unique constraints (data cleanup is not reversible)."""
-    op.drop_index("idx_cameras_folder_path_unique", table_name="cameras")
-    op.drop_index("idx_cameras_name_unique", table_name="cameras")
+    op.drop_index("idx_cameras_folder_path_unique", table_name="cameras", if_exists=True)
+    op.drop_index("idx_cameras_name_unique", table_name="cameras", if_exists=True)
