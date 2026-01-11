@@ -182,6 +182,13 @@ describe('EventTimeline', () => {
       isConnected: true,
       latestEvent: mockWsEvents[0],
       clearEvents: vi.fn(),
+      sequenceStats: {
+        processedCount: 0,
+        duplicateCount: 0,
+        resyncCount: 0,
+        outOfOrderCount: 0,
+        currentBufferSize: 0,
+      },
     });
   });
 
@@ -230,6 +237,13 @@ describe('EventTimeline', () => {
         isConnected: false,
         latestEvent: null,
         clearEvents: vi.fn(),
+        sequenceStats: {
+          processedCount: 0,
+          duplicateCount: 0,
+          resyncCount: 0,
+          outOfOrderCount: 0,
+          currentBufferSize: 0,
+        },
       });
 
       renderWithProviders(<EventTimeline />);
