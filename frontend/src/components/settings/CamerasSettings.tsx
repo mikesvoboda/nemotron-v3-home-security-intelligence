@@ -355,7 +355,7 @@ export default function CamerasSettings() {
                           onClick={() => setZoneEditorCamera(camera)}
                           className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md p-2 text-gray-400 transition-colors hover:bg-gray-800 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary"
                           aria-label={`Configure zones for ${camera.name}`}
-                          title="View camera location on map"
+                          title="Configure detection zones"
                         >
                           <MapPin className="h-5 w-5" />
                         </button>
