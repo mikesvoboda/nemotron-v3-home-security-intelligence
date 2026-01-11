@@ -170,8 +170,9 @@ describe('useGpuStatsQuery', () => {
 });
 
 describe('useGpuHistoryQuery', () => {
+  // NEM-2178: Updated to use standard pagination envelope format
   const mockGpuHistory = {
-    samples: [
+    items: [
       {
         recorded_at: '2025-12-28T10:00:00Z',
         utilization: 70,
@@ -185,8 +186,12 @@ describe('useGpuHistoryQuery', () => {
         temperature: 65,
       },
     ],
-    count: 2,
-    limit: 60,
+    pagination: {
+      total: 2,
+      limit: 60,
+      offset: 0,
+      has_more: false,
+    },
   };
 
   beforeEach(() => {
@@ -247,7 +252,8 @@ describe('useGpuHistoryQuery', () => {
       });
 
       await waitFor(() => {
-        expect(result.current.history).toEqual(mockGpuHistory.samples);
+        // NEM-2178: 'history' is derived from 'items' in the pagination envelope
+        expect(result.current.history).toEqual(mockGpuHistory.items);
       });
     });
 
