@@ -166,6 +166,20 @@ export type {
   ExtractItemType,
 } from './useCursorPaginatedQuery';
 
+// Pagination state with URL persistence
+export { usePaginationState, default as usePaginationStateDefault } from './usePaginationState';
+export type {
+  PaginationType,
+  UsePaginationStateOptions,
+  BasePaginationState,
+  CursorPaginationState,
+  OffsetPaginationState,
+  PaginationState,
+  UseCursorPaginationStateReturn,
+  UseOffsetPaginationStateReturn,
+  UsePaginationStateReturn,
+} from './usePaginationState';
+
 export { useEventsInfiniteQuery, eventsQueryKeys } from './useEventsQuery';
 export type {
   EventFilters,
