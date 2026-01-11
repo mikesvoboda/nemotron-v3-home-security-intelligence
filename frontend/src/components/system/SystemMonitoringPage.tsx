@@ -12,7 +12,7 @@ import {
   Package,
   HardDrive,
 } from 'lucide-react';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 
 import AiModelsPanel from './AiModelsPanel';
 import CircuitBreakerPanel from './CircuitBreakerPanel';
@@ -30,7 +30,7 @@ import ServicesPanel from './ServicesPanel';
 import SystemSummaryRow from './SystemSummaryRow';
 import TimeRangeSelector from './TimeRangeSelector';
 import WorkerStatusPanel from './WorkerStatusPanel';
-import { useHealthStatusQuery } from '../../hooks/useHealthStatusQuery';
+import { useFullHealthQuery } from '../../hooks/useFullHealthQuery';
 import { useModelZooStatusQuery } from '../../hooks/useModelZooStatusQuery';
 import { usePerformanceMetrics } from '../../hooks/usePerformanceMetrics';
 import { useSystemPageSections } from '../../hooks/useSystemPageSections';
@@ -150,18 +150,73 @@ export default function SystemMonitoringPage() {
   // State for infrastructure grid expanded card
   const [expandedInfraCard, setExpandedInfraCard] = useState<InfrastructureCardId | null>(null);
 
-  // Use the TanStack Query health status hook for service health (avoids double-fetch)
+  // Use the TanStack Query full health status hook for comprehensive service health
   const {
     data: health,
-    services,
     overallStatus,
+    aiServices,
+    postgres,
+    redis,
     isLoading: healthLoading,
     error: healthErrorObj,
-  } = useHealthStatusQuery({
+  } = useFullHealthQuery({
     refetchInterval: 30000,
   });
   // Convert Error object to string for backward compatibility
   const healthError = healthErrorObj?.message ?? null;
+
+  // Build a services record from the full health response for backward compatibility
+  // This maps the aiServices array and infrastructure services to the legacy format
+  const services = useMemo(() => {
+    const result: Record<string, ServiceStatus> = {};
+
+    // Add AI services from aiServices array
+    for (const svc of aiServices) {
+      // Map service names to match legacy format (e.g., 'rtdetr' -> 'rtdetr_server')
+      const serviceName = svc.name === 'rtdetr' ? 'rtdetr_server' :
+                          svc.name === 'nemotron' ? 'nemotron_server' :
+                          svc.name;
+      result[serviceName] = {
+        status: svc.status,
+        message: svc.error ?? (svc.response_time_ms ? `${svc.response_time_ms}ms` : null),
+      };
+    }
+
+    // Add infrastructure services (postgres, redis)
+    if (postgres) {
+      result['postgres'] = {
+        status: postgres.status,
+        message: postgres.message,
+      };
+    }
+    if (redis) {
+      result['redis'] = {
+        status: redis.status,
+        message: redis.message,
+      };
+    }
+
+    // Add worker-based services from the health response if available
+    if (health?.workers) {
+      for (const worker of health.workers) {
+        // Map worker names to legacy service names
+        const workerServiceMap: Record<string, string> = {
+          'file_watcher': 'file_watcher',
+          'batch_aggregator': 'batch_aggregator',
+          'cleanup_service': 'cleanup_service',
+        };
+        const serviceName = workerServiceMap[worker.name] ?? worker.name;
+        if (!result[serviceName]) {
+          result[serviceName] = {
+            status: worker.running ? 'healthy' : 'unhealthy',
+            message: worker.message,
+          };
+        }
+      }
+    }
+
+    return result;
+  }, [aiServices, postgres, redis, health?.workers]);
 
   // Use performance metrics hook for real-time dashboard data
   const {
