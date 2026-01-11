@@ -77,7 +77,8 @@ export function setup() {
     if (camerasResponse.status === 200) {
         try {
             const data = JSON.parse(camerasResponse.body);
-            cameraIds = data.cameras ? data.cameras.map(c => c.id) : [];
+            // NEM-2075: API uses standardized pagination envelope with 'items' array
+            cameraIds = data.items ? data.items.map(c => c.id) : [];
         } catch (e) {
             console.warn('Could not parse cameras');
         }
@@ -86,7 +87,8 @@ export function setup() {
     if (eventsResponse.status === 200) {
         try {
             const data = JSON.parse(eventsResponse.body);
-            eventIds = data.events ? data.events.map(e => e.id) : [];
+            // NEM-2075: API uses standardized pagination envelope with 'items' array
+            eventIds = data.items ? data.items.map(e => e.id) : [];
         } catch (e) {
             console.warn('Could not parse events');
         }

@@ -89,7 +89,8 @@ export function setup() {
     if (eventsResponse.status === 200) {
         try {
             const data = JSON.parse(eventsResponse.body);
-            eventIds = data.events ? data.events.map(e => e.id) : [];
+            // NEM-2075: API uses standardized pagination envelope with 'items' array
+            eventIds = data.items ? data.items.map(e => e.id) : [];
         } catch (e) {
             console.warn('Could not parse events response:', e);
         }
@@ -172,20 +173,21 @@ function testListEvents() {
         eventErrorRate.add(response.status !== 200);
 
         // Validate response
+        // NEM-2075: API uses standardized pagination envelope with 'items' array
         const success = check(response, {
             'list events status is 200': (r) => r.status === 200,
-            'list events has events array': (r) => {
+            'list events has items array': (r) => {
                 try {
                     const body = JSON.parse(r.body);
-                    return Array.isArray(body.events);
+                    return Array.isArray(body.items);
                 } catch {
                     return false;
                 }
             },
-            'list events has count': (r) => {
+            'list events has pagination total': (r) => {
                 try {
                     const body = JSON.parse(r.body);
-                    return typeof body.count === 'number';
+                    return body.pagination && typeof body.pagination.total === 'number';
                 } catch {
                     return false;
                 }
