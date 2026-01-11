@@ -83,10 +83,11 @@ describe('queryClient configuration', () => {
       expect(options.queries?.refetchOnWindowFocus).toBe(false);
     });
 
-    it('configures retry with exponential backoff (3 retries)', () => {
+    it('configures smart retry based on error type (function)', () => {
       const client = createQueryClient();
       const options = client.getDefaultOptions();
-      expect(options.queries?.retry).toBe(3);
+      // Retry is now a function (shouldRetryQuery) for smart error-based retry
+      expect(typeof options.queries?.retry).toBe('function');
     });
 
     it('configures gcTime (garbage collection time)', () => {
@@ -111,15 +112,18 @@ describe('queryClient configuration', () => {
     it('singleton has correct default options', () => {
       const options = queryClient.getDefaultOptions();
       expect(options.queries?.staleTime).toBe(DEFAULT_STALE_TIME);
-      expect(options.queries?.retry).toBe(3);
+      // Retry is now a function for smart error-based retry
+      expect(typeof options.queries?.retry).toBe('function');
     });
   });
 
   describe('mutation defaults', () => {
-    it('configures mutation retry to 0 (no retries for mutations)', () => {
+    it('configures conservative mutation retry (timeout-only via function)', () => {
       const client = createQueryClient();
       const options = client.getDefaultOptions();
-      expect(options.mutations?.retry).toBe(0);
+      // Mutation retry is now a function (shouldRetryMutation) that only retries timeouts
+      // to prevent duplicate side effects for other transient errors
+      expect(typeof options.mutations?.retry).toBe('function');
     });
   });
 });

@@ -1,19 +1,28 @@
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
+
 import { useStorageStatsQuery, useCleanupPreviewMutation, useCleanupMutation } from './useStorageStatsQuery';
 import * as api from '../services/api';
 import { createQueryClient, queryKeys } from '../services/queryClient';
 import { createQueryWrapper } from '../test-utils/renderWithProviders';
 
-// Mock the API module
-vi.mock('../services/api', () => ({
-  fetchStorageStats: vi.fn(),
-  previewCleanup: vi.fn(),
-  triggerCleanup: vi.fn(),
-}));
+import type { QueryClient } from '@tanstack/react-query';
+
+// Mock the API module while preserving original exports like isTimeoutError
+vi.mock('../services/api', async (importOriginal) => {
+  const originalModule = await importOriginal<typeof api>();
+  return {
+    ...originalModule,
+    fetchStorageStats: vi.fn(),
+    previewCleanup: vi.fn(),
+    triggerCleanup: vi.fn(),
+  };
+});
 
 describe('useStorageStatsQuery', () => {
+  let queryClient: QueryClient;
+
   const mockStorageStats = {
     disk_usage_percent: 65.5,
     disk_total_bytes: 1000000000000, // 1TB
@@ -31,10 +40,12 @@ describe('useStorageStatsQuery', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    queryClient = createQueryClient();
     (api.fetchStorageStats as ReturnType<typeof vi.fn>).mockResolvedValue(mockStorageStats);
   });
 
   afterEach(() => {
+    queryClient.clear();
     vi.restoreAllMocks();
   });
 
@@ -43,7 +54,7 @@ describe('useStorageStatsQuery', () => {
       (api.fetchStorageStats as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => {}));
 
       const { result } = renderHook(() => useStorageStatsQuery(), {
-        wrapper: createQueryWrapper(),
+        wrapper: createQueryWrapper(queryClient),
       });
 
       expect(result.current.isLoading).toBe(true);
@@ -53,7 +64,7 @@ describe('useStorageStatsQuery', () => {
       (api.fetchStorageStats as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => {}));
 
       const { result } = renderHook(() => useStorageStatsQuery(), {
-        wrapper: createQueryWrapper(),
+        wrapper: createQueryWrapper(queryClient),
       });
 
       expect(result.current.data).toBeUndefined();
@@ -63,7 +74,7 @@ describe('useStorageStatsQuery', () => {
       (api.fetchStorageStats as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => {}));
 
       const { result } = renderHook(() => useStorageStatsQuery(), {
-        wrapper: createQueryWrapper(),
+        wrapper: createQueryWrapper(queryClient),
       });
 
       expect(result.current.diskUsagePercent).toBeNull();
@@ -76,7 +87,7 @@ describe('useStorageStatsQuery', () => {
   describe('fetching data', () => {
     it('fetches storage stats on mount', async () => {
       renderHook(() => useStorageStatsQuery(), {
-        wrapper: createQueryWrapper(),
+        wrapper: createQueryWrapper(queryClient),
       });
 
       await waitFor(() => {
@@ -86,7 +97,7 @@ describe('useStorageStatsQuery', () => {
 
     it('updates data after successful fetch', async () => {
       const { result } = renderHook(() => useStorageStatsQuery(), {
-        wrapper: createQueryWrapper(),
+        wrapper: createQueryWrapper(queryClient),
       });
 
       await waitFor(() => {
@@ -96,7 +107,7 @@ describe('useStorageStatsQuery', () => {
 
     it('sets isLoading false after fetch', async () => {
       const { result } = renderHook(() => useStorageStatsQuery(), {
-        wrapper: createQueryWrapper(),
+        wrapper: createQueryWrapper(queryClient),
       });
 
       await waitFor(() => {
@@ -106,7 +117,7 @@ describe('useStorageStatsQuery', () => {
 
     it('derives diskUsagePercent correctly', async () => {
       const { result } = renderHook(() => useStorageStatsQuery(), {
-        wrapper: createQueryWrapper(),
+        wrapper: createQueryWrapper(queryClient),
       });
 
       await waitFor(() => {
@@ -116,7 +127,7 @@ describe('useStorageStatsQuery', () => {
 
     it('derives diskTotalBytes correctly', async () => {
       const { result } = renderHook(() => useStorageStatsQuery(), {
-        wrapper: createQueryWrapper(),
+        wrapper: createQueryWrapper(queryClient),
       });
 
       await waitFor(() => {
@@ -126,7 +137,7 @@ describe('useStorageStatsQuery', () => {
 
     it('derives diskUsedBytes correctly', async () => {
       const { result } = renderHook(() => useStorageStatsQuery(), {
-        wrapper: createQueryWrapper(),
+        wrapper: createQueryWrapper(queryClient),
       });
 
       await waitFor(() => {
@@ -136,7 +147,7 @@ describe('useStorageStatsQuery', () => {
 
     it('derives diskFreeBytes correctly', async () => {
       const { result } = renderHook(() => useStorageStatsQuery(), {
-        wrapper: createQueryWrapper(),
+        wrapper: createQueryWrapper(queryClient),
       });
 
       await waitFor(() => {
@@ -151,7 +162,7 @@ describe('useStorageStatsQuery', () => {
       );
 
       const { result } = renderHook(() => useStorageStatsQuery(), {
-        wrapper: createQueryWrapper(),
+        wrapper: createQueryWrapper(queryClient),
       });
 
       await waitFor(
@@ -166,7 +177,7 @@ describe('useStorageStatsQuery', () => {
   describe('enabled option', () => {
     it('does not fetch when enabled is false', async () => {
       renderHook(() => useStorageStatsQuery({ enabled: false }), {
-        wrapper: createQueryWrapper(),
+        wrapper: createQueryWrapper(queryClient),
       });
 
       await new Promise((r) => setTimeout(r, 100));
@@ -177,7 +188,7 @@ describe('useStorageStatsQuery', () => {
   describe('refetch', () => {
     it('provides refetch function', async () => {
       const { result } = renderHook(() => useStorageStatsQuery(), {
-        wrapper: createQueryWrapper(),
+        wrapper: createQueryWrapper(queryClient),
       });
 
       await waitFor(() => {
@@ -190,6 +201,8 @@ describe('useStorageStatsQuery', () => {
 });
 
 describe('useCleanupPreviewMutation', () => {
+  let queryClient: QueryClient;
+
   const mockCleanupPreview = {
     detections_deleted: 100,
     dry_run: true,
@@ -205,18 +218,20 @@ describe('useCleanupPreviewMutation', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    queryClient = createQueryClient();
     (api.previewCleanup as ReturnType<typeof vi.fn>).mockResolvedValue(mockCleanupPreview);
     (api.fetchStorageStats as ReturnType<typeof vi.fn>).mockResolvedValue({});
   });
 
   afterEach(() => {
+    queryClient.clear();
     vi.restoreAllMocks();
   });
 
   describe('initialization', () => {
     it('starts with isPending false', () => {
       const { result } = renderHook(() => useCleanupPreviewMutation(), {
-        wrapper: createQueryWrapper(),
+        wrapper: createQueryWrapper(queryClient),
       });
 
       expect(result.current.isPending).toBe(false);
@@ -224,7 +239,7 @@ describe('useCleanupPreviewMutation', () => {
 
     it('starts with undefined previewData', () => {
       const { result } = renderHook(() => useCleanupPreviewMutation(), {
-        wrapper: createQueryWrapper(),
+        wrapper: createQueryWrapper(queryClient),
       });
 
       expect(result.current.previewData).toBeUndefined();
@@ -232,7 +247,7 @@ describe('useCleanupPreviewMutation', () => {
 
     it('starts with null error', () => {
       const { result } = renderHook(() => useCleanupPreviewMutation(), {
-        wrapper: createQueryWrapper(),
+        wrapper: createQueryWrapper(queryClient),
       });
 
       expect(result.current.error).toBeNull();
@@ -242,7 +257,7 @@ describe('useCleanupPreviewMutation', () => {
   describe('preview mutation', () => {
     it('calls previewCleanup API', async () => {
       const { result } = renderHook(() => useCleanupPreviewMutation(), {
-        wrapper: createQueryWrapper(),
+        wrapper: createQueryWrapper(queryClient),
       });
 
       await act(async () => {
@@ -254,7 +269,7 @@ describe('useCleanupPreviewMutation', () => {
 
     it('returns preview data after success', async () => {
       const { result } = renderHook(() => useCleanupPreviewMutation(), {
-        wrapper: createQueryWrapper(),
+        wrapper: createQueryWrapper(queryClient),
       });
 
       let previewResult: typeof mockCleanupPreview | undefined;
@@ -270,7 +285,6 @@ describe('useCleanupPreviewMutation', () => {
     });
 
     it('invalidates storage query after preview', async () => {
-      const queryClient = createQueryClient();
       const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
       const { result } = renderHook(() => useCleanupPreviewMutation(), {
@@ -293,27 +307,26 @@ describe('useCleanupPreviewMutation', () => {
       );
 
       const { result } = renderHook(() => useCleanupPreviewMutation(), {
-        wrapper: createQueryWrapper(),
+        wrapper: createQueryWrapper(queryClient),
       });
 
       await act(async () => {
-        try {
-          await result.current.preview();
-        } catch {
-          // Expected error
-        }
+        await expect(result.current.preview()).rejects.toThrow(errorMessage);
       });
 
+      // Wait for error state to update
       await waitFor(() => {
         expect(result.current.error).toBeInstanceOf(Error);
       });
+
+      expect(result.current.error?.message).toBe(errorMessage);
     });
   });
 
   describe('reset', () => {
     it('provides reset function', () => {
       const { result } = renderHook(() => useCleanupPreviewMutation(), {
-        wrapper: createQueryWrapper(),
+        wrapper: createQueryWrapper(queryClient),
       });
 
       expect(typeof result.current.reset).toBe('function');
@@ -321,7 +334,7 @@ describe('useCleanupPreviewMutation', () => {
 
     it('clears previewData on reset', async () => {
       const { result } = renderHook(() => useCleanupPreviewMutation(), {
-        wrapper: createQueryWrapper(),
+        wrapper: createQueryWrapper(queryClient),
       });
 
       await act(async () => {
@@ -344,6 +357,8 @@ describe('useCleanupPreviewMutation', () => {
 });
 
 describe('useCleanupMutation', () => {
+  let queryClient: QueryClient;
+
   const mockCleanupResult = {
     detections_deleted: 100,
     dry_run: false,
@@ -359,18 +374,20 @@ describe('useCleanupMutation', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    queryClient = createQueryClient();
     (api.triggerCleanup as ReturnType<typeof vi.fn>).mockResolvedValue(mockCleanupResult);
     (api.fetchStorageStats as ReturnType<typeof vi.fn>).mockResolvedValue({});
   });
 
   afterEach(() => {
+    queryClient.clear();
     vi.restoreAllMocks();
   });
 
   describe('initialization', () => {
     it('starts with isPending false', () => {
       const { result } = renderHook(() => useCleanupMutation(), {
-        wrapper: createQueryWrapper(),
+        wrapper: createQueryWrapper(queryClient),
       });
 
       expect(result.current.isPending).toBe(false);
@@ -378,7 +395,7 @@ describe('useCleanupMutation', () => {
 
     it('starts with undefined cleanupData', () => {
       const { result } = renderHook(() => useCleanupMutation(), {
-        wrapper: createQueryWrapper(),
+        wrapper: createQueryWrapper(queryClient),
       });
 
       expect(result.current.cleanupData).toBeUndefined();
@@ -386,7 +403,7 @@ describe('useCleanupMutation', () => {
 
     it('starts with null error', () => {
       const { result } = renderHook(() => useCleanupMutation(), {
-        wrapper: createQueryWrapper(),
+        wrapper: createQueryWrapper(queryClient),
       });
 
       expect(result.current.error).toBeNull();
@@ -396,7 +413,7 @@ describe('useCleanupMutation', () => {
   describe('cleanup mutation', () => {
     it('calls triggerCleanup API', async () => {
       const { result } = renderHook(() => useCleanupMutation(), {
-        wrapper: createQueryWrapper(),
+        wrapper: createQueryWrapper(queryClient),
       });
 
       await act(async () => {
@@ -408,7 +425,7 @@ describe('useCleanupMutation', () => {
 
     it('returns cleanup data after success', async () => {
       const { result } = renderHook(() => useCleanupMutation(), {
-        wrapper: createQueryWrapper(),
+        wrapper: createQueryWrapper(queryClient),
       });
 
       let cleanupResult: typeof mockCleanupResult | undefined;
@@ -424,7 +441,6 @@ describe('useCleanupMutation', () => {
     });
 
     it('invalidates storage query after cleanup', async () => {
-      const queryClient = createQueryClient();
       const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
       const { result } = renderHook(() => useCleanupMutation(), {
@@ -441,7 +457,6 @@ describe('useCleanupMutation', () => {
     });
 
     it('invalidates system stats query after cleanup', async () => {
-      const queryClient = createQueryClient();
       const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
       const { result } = renderHook(() => useCleanupMutation(), {
@@ -458,7 +473,6 @@ describe('useCleanupMutation', () => {
     });
 
     it('invalidates events query after cleanup', async () => {
-      const queryClient = createQueryClient();
       const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
       const { result } = renderHook(() => useCleanupMutation(), {
@@ -481,27 +495,26 @@ describe('useCleanupMutation', () => {
       );
 
       const { result } = renderHook(() => useCleanupMutation(), {
-        wrapper: createQueryWrapper(),
+        wrapper: createQueryWrapper(queryClient),
       });
 
       await act(async () => {
-        try {
-          await result.current.cleanup();
-        } catch {
-          // Expected error
-        }
+        await expect(result.current.cleanup()).rejects.toThrow(errorMessage);
       });
 
+      // Wait for error state to update
       await waitFor(() => {
         expect(result.current.error).toBeInstanceOf(Error);
       });
+
+      expect(result.current.error?.message).toBe(errorMessage);
     });
   });
 
   describe('reset', () => {
     it('provides reset function', () => {
       const { result } = renderHook(() => useCleanupMutation(), {
-        wrapper: createQueryWrapper(),
+        wrapper: createQueryWrapper(queryClient),
       });
 
       expect(typeof result.current.reset).toBe('function');
@@ -509,7 +522,7 @@ describe('useCleanupMutation', () => {
 
     it('clears cleanupData on reset', async () => {
       const { result } = renderHook(() => useCleanupMutation(), {
-        wrapper: createQueryWrapper(),
+        wrapper: createQueryWrapper(queryClient),
       });
 
       await act(async () => {
