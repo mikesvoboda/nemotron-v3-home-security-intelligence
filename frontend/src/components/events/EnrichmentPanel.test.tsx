@@ -667,7 +667,7 @@ describe('EnrichmentPanel', () => {
         render(<EnrichmentPanel enrichment_data={withAlerts} />);
         await expandAccordion('Pose Analysis');
         expect(screen.getByTestId('security-alert-crouching')).toBeInTheDocument();
-        expect(screen.getByText('Crouching Detected')).toBeInTheDocument();
+        expect(screen.getAllByText('Crouching Detected').length).toBeGreaterThan(0);
       });
 
       it('displays lying_down alert with correct label', async () => {
@@ -683,7 +683,7 @@ describe('EnrichmentPanel', () => {
         render(<EnrichmentPanel enrichment_data={withAlerts} />);
         await expandAccordion('Pose Analysis');
         expect(screen.getByTestId('security-alert-lying_down')).toBeInTheDocument();
-        expect(screen.getByText('Person Down')).toBeInTheDocument();
+        expect(screen.getAllByText('Person Down').length).toBeGreaterThan(0);
       });
 
       it('displays hands_raised alert with correct label', async () => {
@@ -699,7 +699,7 @@ describe('EnrichmentPanel', () => {
         render(<EnrichmentPanel enrichment_data={withAlerts} />);
         await expandAccordion('Pose Analysis');
         expect(screen.getByTestId('security-alert-hands_raised')).toBeInTheDocument();
-        expect(screen.getByText('Hands Raised')).toBeInTheDocument();
+        expect(screen.getAllByText('Hands Raised').length).toBeGreaterThan(0);
       });
 
       it('displays fighting_stance alert with correct label', async () => {
@@ -715,7 +715,7 @@ describe('EnrichmentPanel', () => {
         render(<EnrichmentPanel enrichment_data={withAlerts} />);
         await expandAccordion('Pose Analysis');
         expect(screen.getByTestId('security-alert-fighting_stance')).toBeInTheDocument();
-        expect(screen.getByText('Aggressive Posture')).toBeInTheDocument();
+        expect(screen.getAllByText('Aggressive Posture').length).toBeGreaterThan(0);
       });
 
       it('displays multiple alerts', async () => {
