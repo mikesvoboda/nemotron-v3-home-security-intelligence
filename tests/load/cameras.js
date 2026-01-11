@@ -71,7 +71,8 @@ export function setup() {
     if (camerasResponse.status === 200) {
         try {
             const data = JSON.parse(camerasResponse.body);
-            cameraIds = data.cameras ? data.cameras.map(c => c.id) : [];
+            // NEM-2075: API uses standardized pagination envelope with 'items' array
+            cameraIds = data.items ? data.items.map(c => c.id) : [];
         } catch (e) {
             console.warn('Could not parse cameras response:', e);
         }
@@ -137,20 +138,21 @@ function testListCameras() {
         cameraErrorRate.add(response.status !== 200);
 
         // Validate response
+        // NEM-2075: API uses standardized pagination envelope with 'items' array
         const success = check(response, {
             'list cameras status is 200': (r) => r.status === 200,
-            'list cameras has cameras array': (r) => {
+            'list cameras has items array': (r) => {
                 try {
                     const body = JSON.parse(r.body);
-                    return Array.isArray(body.cameras);
+                    return Array.isArray(body.items);
                 } catch {
                     return false;
                 }
             },
-            'list cameras has count': (r) => {
+            'list cameras has pagination total': (r) => {
                 try {
                     const body = JSON.parse(r.body);
-                    return typeof body.count === 'number';
+                    return body.pagination && typeof body.pagination.total === 'number';
                 } catch {
                     return false;
                 }

@@ -175,27 +175,48 @@ export async function updatePromptForModel(
 }
 
 /**
+ * Options for fetching prompt history.
+ */
+export interface PromptHistoryOptions {
+  /** Maximum results to return (1-100, default 50) */
+  limit?: number;
+  /**
+   * @deprecated Use cursor parameter instead for better performance with large datasets.
+   */
+  offset?: number;
+  /**
+   * Cursor for pagination. Pass the `next_cursor` value from the previous response.
+   * Recommended over offset pagination for better performance.
+   */
+  cursor?: string;
+}
+
+/**
  * Get version history for prompt configurations.
  *
  * Returns a list of all prompt versions, optionally filtered by model.
  *
  * @param model - Optional model filter
- * @param limit - Maximum results to return (1-100, default 50)
- * @param offset - Offset for pagination (default 0)
+ * @param options - Pagination options (limit, cursor, or deprecated offset)
  * @returns PromptHistoryResponse with version list and total count
  * @throws PromptApiError on failure
  */
 export async function fetchPromptHistory(
   model?: AIModelEnum,
-  limit: number = 50,
-  offset: number = 0
+  options: PromptHistoryOptions = {}
 ): Promise<PromptHistoryResponse> {
+  const { limit = 50, offset, cursor } = options;
   const queryParams = new URLSearchParams();
   if (model) {
     queryParams.append('model', model);
   }
   queryParams.append('limit', String(limit));
-  queryParams.append('offset', String(offset));
+  // Prefer cursor over offset for pagination
+  if (cursor) {
+    queryParams.append('cursor', cursor);
+  } else if (offset !== undefined) {
+    queryParams.append('offset', String(offset));
+  }
 
   const queryString = queryParams.toString();
   const endpoint = `/history?${queryString}`;
