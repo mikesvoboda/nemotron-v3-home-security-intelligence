@@ -9,10 +9,12 @@ import {
   ErrorBoundary,
   PageTransition,
   ProductTour,
+  RateLimitIndicator,
   RouteLoadingFallback,
   ToastProvider,
 } from './components/common';
 import Layout from './components/layout/Layout';
+import RetryingIndicator from './components/RetryingIndicator';
 import { queryClient } from './services/queryClient';
 
 // Lazy-loaded page components for code splitting
@@ -103,6 +105,10 @@ export default function App() {
           {/* Interactive product tour for first-time users */}
           <ProductTour />
         </BrowserRouter>
+        {/* Rate limit indicator - fixed position overlay */}
+        <RateLimitIndicator />
+        {/* Retrying indicator - shows when rate limited AND requests in flight */}
+        <RetryingIndicator />
         {/* React Query DevTools - only shown in development */}
         <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-right" />
       </ToastProvider>
