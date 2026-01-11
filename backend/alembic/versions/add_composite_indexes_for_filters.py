@@ -116,10 +116,11 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Remove composite filter indexes."""
-    op.drop_index("idx_logs_time_level", table_name="logs")
-    op.drop_index("idx_logs_time_level_component", table_name="logs")
-    op.drop_index("idx_alerts_severity_created", table_name="alerts")
-    op.drop_index("idx_alerts_status_created", table_name="alerts")
-    op.drop_index("idx_detections_camera_time_type", table_name="detections")
-    op.drop_index("idx_events_camera_time_reviewed", table_name="events")
-    op.drop_index("idx_events_camera_started", table_name="events")
+    # Use if_exists to handle tables recreated by other migrations (e.g., partitioning)
+    op.drop_index("idx_logs_time_level", table_name="logs", if_exists=True)
+    op.drop_index("idx_logs_time_level_component", table_name="logs", if_exists=True)
+    op.drop_index("idx_alerts_severity_created", table_name="alerts", if_exists=True)
+    op.drop_index("idx_alerts_status_created", table_name="alerts", if_exists=True)
+    op.drop_index("idx_detections_camera_time_type", table_name="detections", if_exists=True)
+    op.drop_index("idx_events_camera_time_reviewed", table_name="events", if_exists=True)
+    op.drop_index("idx_events_camera_started", table_name="events", if_exists=True)

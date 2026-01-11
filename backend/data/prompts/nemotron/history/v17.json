@@ -5,9 +5,9 @@
     "temperature": 0.8,
     "max_tokens": 3000
   },
-  "version": 18,
-  "created_at": "2026-01-11T01:00:27.213581+00:00",
+  "version": 17,
+  "created_at": "2026-01-11T01:00:25.624380+00:00",
   "created_by": "user",
   "description": null,
-  "updated_at": "2026-01-11T01:00:27.213581+00:00"
+  "updated_at": "2026-01-11T01:00:25.624380+00:00"
 }

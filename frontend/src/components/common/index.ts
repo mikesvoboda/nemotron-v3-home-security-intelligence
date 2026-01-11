@@ -99,3 +99,9 @@ export type { CommandPaletteProps } from './CommandPalette';
 
 export { default as ShortcutsHelpModal } from './ShortcutsHelpModal';
 export type { ShortcutsHelpModalProps } from './ShortcutsHelpModal';
+
+export { default as ServiceStatusIndicator } from './ServiceStatusIndicator';
+export type { ServiceStatusIndicatorProps, OverallStatus } from './ServiceStatusIndicator';
+
+export { default as SceneChangeAlert } from './SceneChangeAlert';
+export type { SceneChangeAlertProps } from './SceneChangeAlert';

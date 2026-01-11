@@ -1027,6 +1027,11 @@ async def real_redis(
     need to test actual Redis behavior (e.g., queue operations, pub/sub, etc.).
 
     Each xdist worker uses a different Redis database number for isolation.
+
+    Note: This fixture does NOT call flushdb() to allow parallel test execution.
+    Tests should use unique key prefixes (via test_prefix fixture) and cleanup_keys
+    fixture for proper isolation. This prevents one test's teardown from deleting
+    another parallel test's keys.
     """
     from backend.core.redis import RedisClient
 
@@ -1035,22 +1040,9 @@ async def real_redis(
     await client.connect()
 
     try:
-        # Flush the test database for isolation
-        redis_client = client._ensure_connected()
-        await redis_client.flushdb()
-
         yield client
     finally:
-        # Ensure clean state before disconnecting
-        try:
-            redis_client = client._ensure_connected()
-            await redis_client.flushdb()
-        except Exception as e:
-            logger.warning(
-                f"Redis cleanup failed: {e}",
-                exc_info=True,
-            )
-            # Continue to allow tests to run even if cleanup fails
+        # Disconnect without flushing to avoid affecting parallel tests
         await client.disconnect()
 
 

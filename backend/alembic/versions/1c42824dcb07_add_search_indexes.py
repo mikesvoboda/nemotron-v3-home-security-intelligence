@@ -142,10 +142,10 @@ def downgrade() -> None:
         sa.text("SELECT 1 FROM pg_indexes WHERE indexname = 'idx_detections_object_type_trgm'")
     )
     if result.fetchone():
-        op.drop_index("idx_detections_object_type_trgm", table_name="detections")
+        op.drop_index("idx_detections_object_type_trgm", table_name="detections", if_exists=True)
 
     # Drop GIN index on logs.search_vector
-    op.drop_index("idx_logs_search_vector", table_name="logs")
+    op.drop_index("idx_logs_search_vector", table_name="logs", if_exists=True)
 
     # Drop trigger on logs table
     op.execute("DROP TRIGGER IF EXISTS logs_search_vector_trigger ON logs;")

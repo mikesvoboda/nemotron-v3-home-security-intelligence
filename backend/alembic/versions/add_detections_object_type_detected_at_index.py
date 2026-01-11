@@ -52,4 +52,4 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Remove composite index on detections(object_type, detected_at)."""
-    op.drop_index("ix_detections_object_type_detected_at", table_name="detections")
+    op.drop_index("ix_detections_object_type_detected_at", table_name="detections", if_exists=True)

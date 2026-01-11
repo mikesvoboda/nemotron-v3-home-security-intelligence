@@ -141,7 +141,7 @@ def downgrade() -> None:
     """Remove full-text search vector column and trigger from detections table."""
     op.execute("DROP TRIGGER IF EXISTS detections_search_vector_trigger ON detections;")
     op.execute("DROP FUNCTION IF EXISTS detections_search_vector_update();")
-    op.drop_index("idx_detections_search_vector", table_name="detections")
-    op.drop_index("idx_detections_labels_gin", table_name="detections")
+    op.drop_index("idx_detections_search_vector", table_name="detections", if_exists=True)
+    op.drop_index("idx_detections_labels_gin", table_name="detections", if_exists=True)
     op.drop_column("detections", "search_vector")
     op.drop_column("detections", "labels")

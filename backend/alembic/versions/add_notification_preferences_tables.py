@@ -122,7 +122,9 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Remove notification preferences tables."""
-    op.drop_index("idx_quiet_hours_periods_start_end", table_name="quiet_hours_periods")
+    op.drop_index(
+        "idx_quiet_hours_periods_start_end", table_name="quiet_hours_periods", if_exists=True
+    )
     op.drop_table("quiet_hours_periods")
     op.drop_index(
         "idx_camera_notification_settings_camera_id",
