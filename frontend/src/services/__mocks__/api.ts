@@ -1010,6 +1010,48 @@ export const fetchModelZooLatencyHistory = vi.fn().mockResolvedValue({ samples: 
 export const fetchNotificationConfig = vi.fn().mockResolvedValue({});
 export const testNotification = vi.fn().mockResolvedValue({ success: true });
 
+// Notification preferences endpoints
+export const fetchNotificationPreferences = vi.fn().mockResolvedValue({
+  id: 1,
+  enabled: true,
+  sound: 'default',
+  risk_filters: ['critical', 'high', 'medium'],
+});
+export const updateNotificationPreferences = vi.fn().mockResolvedValue({
+  id: 1,
+  enabled: true,
+  sound: 'default',
+  risk_filters: ['critical', 'high', 'medium'],
+});
+export const fetchCameraNotificationSettings = vi.fn().mockResolvedValue({
+  settings: [],
+  count: 0,
+});
+export const fetchCameraNotificationSetting = vi.fn().mockResolvedValue({
+  id: '1',
+  camera_id: 'camera1',
+  enabled: true,
+  risk_threshold: 50,
+});
+export const updateCameraNotificationSetting = vi.fn().mockResolvedValue({
+  id: '1',
+  camera_id: 'camera1',
+  enabled: true,
+  risk_threshold: 50,
+});
+export const fetchQuietHoursPeriods = vi.fn().mockResolvedValue({
+  periods: [],
+  count: 0,
+});
+export const createQuietHoursPeriod = vi.fn().mockResolvedValue({
+  id: '1',
+  label: 'Night Time',
+  start_time: '22:00:00',
+  end_time: '06:00:00',
+  days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+});
+export const deleteQuietHoursPeriod = vi.fn().mockResolvedValue(undefined);
+
 // Severity endpoints
 export const fetchSeverityConfig = vi.fn().mockResolvedValue({});
 export const fetchSeverityMetadata = vi.fn().mockResolvedValue({});

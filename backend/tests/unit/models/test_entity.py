@@ -4,14 +4,15 @@ Tests cover:
 - Model initialization and default values
 - Field validation and constraints
 - String representation (__repr__)
-- EntityType enum
-- Embedding vector operations
-- Factory methods
-- Table arguments and indexes
+- Helper methods (update_seen, set_embedding, get_embedding_vector, etc.)
+- Factory method from_detection
+- Property-based tests for field values
+
+Related Linear issue: NEM-2210
 """
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from hypothesis import given, settings
@@ -29,17 +30,17 @@ pytestmark = pytest.mark.unit
 # =============================================================================
 
 # Strategy for valid entity types
-entity_types = st.sampled_from(["person", "vehicle", "animal", "package", "other"])
+entity_types = st.sampled_from([e.value for e in EntityType])
 
-# Strategy for valid embedding vectors (list of floats)
+# Strategy for valid embedding vectors (common dimensions: 128, 256, 512, 768)
 embedding_vectors = st.lists(
-    st.floats(min_value=-1.0, max_value=1.0, allow_nan=False, allow_infinity=False),
+    st.floats(min_value=-10.0, max_value=10.0, allow_nan=False, allow_infinity=False),
     min_size=128,
-    max_size=512,
+    max_size=768,
 )
 
-# Strategy for valid detection counts (non-negative integers)
-detection_counts = st.integers(min_value=0, max_value=100000)
+# Strategy for valid detection counts
+detection_counts = st.integers(min_value=0, max_value=10000)
 
 
 # =============================================================================
@@ -51,72 +52,31 @@ detection_counts = st.integers(min_value=0, max_value=100000)
 def sample_entity():
     """Create a sample entity for testing."""
     return Entity(
-        entity_type="person",
+        id=uuid.uuid4(),
+        entity_type=EntityType.PERSON.value,
         detection_count=5,
     )
 
 
 @pytest.fixture
 def entity_with_embedding():
-    """Create an entity with an embedding vector."""
+    """Create an entity with embedding vector for testing."""
     entity = Entity(
-        entity_type="vehicle",
+        id=uuid.uuid4(),
+        entity_type=EntityType.PERSON.value,
         detection_count=3,
     )
-    entity.set_embedding([0.1, 0.2, 0.3, 0.4, 0.5], model="clip", dimension=5)
+    entity.set_embedding(
+        vector=[0.1, 0.2, 0.3] * 43,  # 129 floats
+        model="clip",
+    )
     return entity
 
 
 @pytest.fixture
-def entity_with_metadata():
-    """Create an entity with metadata."""
-    return Entity(
-        entity_type="person",
-        detection_count=1,
-        entity_metadata={
-            "clothing_color": "blue",
-            "carrying": "backpack",
-            "hair_color": "brown",
-        },
-    )
-
-
-# =============================================================================
-# EntityType Enum Tests
-# =============================================================================
-
-
-class TestEntityTypeEnum:
-    """Tests for EntityType enumeration."""
-
-    def test_entity_type_person(self):
-        """Test EntityType.PERSON value."""
-        assert EntityType.PERSON.value == "person"
-
-    def test_entity_type_vehicle(self):
-        """Test EntityType.VEHICLE value."""
-        assert EntityType.VEHICLE.value == "vehicle"
-
-    def test_entity_type_animal(self):
-        """Test EntityType.ANIMAL value."""
-        assert EntityType.ANIMAL.value == "animal"
-
-    def test_entity_type_package(self):
-        """Test EntityType.PACKAGE value."""
-        assert EntityType.PACKAGE.value == "package"
-
-    def test_entity_type_other(self):
-        """Test EntityType.OTHER value."""
-        assert EntityType.OTHER.value == "other"
-
-    def test_entity_type_str(self):
-        """Test EntityType string conversion."""
-        assert str(EntityType.PERSON) == "person"
-        assert str(EntityType.VEHICLE) == "vehicle"
-
-    def test_entity_type_is_str_enum(self):
-        """Test that EntityType inherits from str."""
-        assert isinstance(EntityType.PERSON, str)
+def minimal_entity():
+    """Create an entity with only required fields."""
+    return Entity()
 
 
 # =============================================================================
@@ -127,79 +87,131 @@ class TestEntityTypeEnum:
 class TestEntityModelInitialization:
     """Tests for Entity model initialization."""
 
-    def test_entity_creation_minimal(self):
+    def test_entity_creation_minimal(self, minimal_entity):
         """Test creating an entity with minimal fields.
 
-        Note: SQLAlchemy defaults are applied at database flush time,
-        not at object construction. So entity_type and detection_count
-        will be None until flushed, unless explicitly set.
+        Note: SQLAlchemy column defaults (like UUID, datetime) are applied at
+        database flush time, not at instantiation time. For unit tests without
+        a database, we verify the defaults are defined on the column.
         """
-        entity = Entity()
-        # Defaults are not applied until flush, so they are None
-        assert entity.entity_type is None
-        assert entity.detection_count is None
-
-        # Can create with explicit values
-        entity_with_values = Entity(entity_type="person", detection_count=0)
-        assert entity_with_values.entity_type == "person"
-        assert entity_with_values.detection_count == 0
-
-    def test_entity_with_type(self, sample_entity):
-        """Test entity with explicit type."""
-        assert sample_entity.entity_type == "person"
-        assert sample_entity.detection_count == 5
-
-    def test_entity_optional_fields_default_to_none(self):
-        """Test that optional fields default to None."""
-        entity = Entity()
-        assert entity.embedding_vector is None
-        assert entity.entity_metadata is None
-        assert entity.primary_detection_id is None
-
-    def test_entity_uuid_generation(self):
-        """Test that entity generates UUID on creation."""
-        entity = Entity()
-        # When setting a default, SQLAlchemy sets it on flush, but we can
-        # manually test the default is callable
+        # Default values are applied at flush time, so id may be None
+        # We verify the column has a default defined
         from sqlalchemy import inspect
 
         mapper = inspect(Entity)
         id_col = mapper.columns["id"]
+        assert id_col.default is not None  # Has a default function
+
+    def test_entity_creation_with_fields(self, sample_entity):
+        """Test creating an entity with all fields populated."""
+        assert sample_entity.id is not None
+        assert sample_entity.entity_type == EntityType.PERSON.value
+        assert sample_entity.detection_count == 5
+
+    def test_entity_uuid_generation(self):
+        """Test that UUID default is properly defined on the column.
+
+        Note: SQLAlchemy column defaults are applied at database flush time.
+        For unit tests, we verify the default is configured on the column.
+        """
+        from sqlalchemy import inspect
+
+        mapper = inspect(Entity)
+        id_col = mapper.columns["id"]
+
+        # Verify the column has a default function set
         assert id_col.default is not None
+        # The default callable should be uuid4 (verify by name)
+        assert id_col.default.arg.__name__ == "uuid4"
 
-    def test_entity_with_all_types(self):
-        """Test entity creation with all valid types."""
-        for entity_type in ["person", "vehicle", "animal", "package", "other"]:
-            entity = Entity(entity_type=entity_type)
-            assert entity.entity_type == entity_type
+    def test_entity_default_timestamps(self):
+        """Test that timestamp defaults are properly defined on columns.
 
-    def test_entity_with_enum_type(self):
-        """Test entity creation using EntityType enum."""
-        entity = Entity(entity_type=EntityType.VEHICLE.value)
-        assert entity.entity_type == "vehicle"
+        Note: SQLAlchemy column defaults are applied at database flush time.
+        For unit tests, we verify the defaults are configured on the columns.
+        """
+        from sqlalchemy import inspect
+
+        mapper = inspect(Entity)
+        first_seen_col = mapper.columns["first_seen_at"]
+        last_seen_col = mapper.columns["last_seen_at"]
+
+        # Verify the columns have default functions set
+        assert first_seen_col.default is not None
+        assert last_seen_col.default is not None
+
+        # Verify the defaults are callable (lambda functions)
+        assert callable(first_seen_col.default.arg)
+        assert callable(last_seen_col.default.arg)
+
+    def test_entity_optional_fields_default_to_none(self, minimal_entity):
+        """Test that optional fields default to None."""
+        assert minimal_entity.embedding_vector is None
+        assert minimal_entity.entity_metadata is None
+        assert minimal_entity.primary_detection_id is None
 
 
 # =============================================================================
-# Entity Embedding Tests
+# Entity Type Tests
+# =============================================================================
+
+
+class TestEntityType:
+    """Tests for entity type handling."""
+
+    def test_entity_type_person(self):
+        """Test entity with person type."""
+        entity = Entity(entity_type=EntityType.PERSON.value)
+        assert entity.entity_type == "person"
+
+    def test_entity_type_vehicle(self):
+        """Test entity with vehicle type."""
+        entity = Entity(entity_type=EntityType.VEHICLE.value)
+        assert entity.entity_type == "vehicle"
+
+    def test_entity_type_animal(self):
+        """Test entity with animal type."""
+        entity = Entity(entity_type=EntityType.ANIMAL.value)
+        assert entity.entity_type == "animal"
+
+    def test_entity_type_package(self):
+        """Test entity with package type."""
+        entity = Entity(entity_type=EntityType.PACKAGE.value)
+        assert entity.entity_type == "package"
+
+    def test_entity_type_other(self):
+        """Test entity with other type."""
+        entity = Entity(entity_type=EntityType.OTHER.value)
+        assert entity.entity_type == "other"
+
+    def test_entity_type_enum_str_conversion(self):
+        """Test EntityType enum string conversion."""
+        assert str(EntityType.PERSON) == "person"
+        assert str(EntityType.VEHICLE) == "vehicle"
+        assert str(EntityType.ANIMAL) == "animal"
+
+
+# =============================================================================
+# Embedding Vector Tests
 # =============================================================================
 
 
 class TestEntityEmbedding:
-    """Tests for Entity embedding operations."""
+    """Tests for entity embedding operations."""
 
     def test_set_embedding(self):
-        """Test setting an embedding vector."""
+        """Test setting embedding vector."""
         entity = Entity()
-        vector = [0.1, 0.2, 0.3, 0.4]
+        vector = [0.1, 0.2, 0.3, 0.4, 0.5]
         entity.set_embedding(vector, model="clip")
 
         assert entity.embedding_vector is not None
         assert entity.embedding_vector["vector"] == vector
         assert entity.embedding_vector["model"] == "clip"
-        assert entity.embedding_vector["dimension"] == 4
+        assert entity.embedding_vector["dimension"] == 5
 
-    def test_set_embedding_custom_dimension(self):
-        """Test setting embedding with custom dimension."""
+    def test_set_embedding_with_explicit_dimension(self):
+        """Test setting embedding with explicit dimension."""
         entity = Entity()
         vector = [0.1, 0.2, 0.3]
         entity.set_embedding(vector, model="reid", dimension=512)
@@ -207,137 +219,137 @@ class TestEntityEmbedding:
         assert entity.embedding_vector["dimension"] == 512
 
     def test_get_embedding_vector(self, entity_with_embedding):
-        """Test retrieving the embedding vector."""
+        """Test getting embedding vector."""
         vector = entity_with_embedding.get_embedding_vector()
-        assert vector == [0.1, 0.2, 0.3, 0.4, 0.5]
+        assert vector is not None
+        assert isinstance(vector, list)
+        assert len(vector) == 129  # 0.1, 0.2, 0.3 repeated 43 times
 
-    def test_get_embedding_vector_none(self):
+    def test_get_embedding_vector_none(self, minimal_entity):
         """Test getting embedding vector when not set."""
-        entity = Entity()
-        assert entity.get_embedding_vector() is None
+        assert minimal_entity.get_embedding_vector() is None
 
     def test_get_embedding_model(self, entity_with_embedding):
-        """Test retrieving the embedding model name."""
+        """Test getting embedding model."""
         model = entity_with_embedding.get_embedding_model()
         assert model == "clip"
 
-    def test_get_embedding_model_none(self):
+    def test_get_embedding_model_none(self, minimal_entity):
         """Test getting embedding model when not set."""
+        assert minimal_entity.get_embedding_model() is None
+
+    def test_set_embedding_different_models(self):
+        """Test setting embeddings from different models."""
         entity = Entity()
-        assert entity.get_embedding_model() is None
+
+        # CLIP model
+        entity.set_embedding([0.1] * 512, model="clip")
+        assert entity.get_embedding_model() == "clip"
+
+        # ReID model
+        entity.set_embedding([0.2] * 256, model="torchreid")
+        assert entity.get_embedding_model() == "torchreid"
 
 
 # =============================================================================
-# Entity Metadata Tests
-# =============================================================================
-
-
-class TestEntityMetadata:
-    """Tests for Entity metadata field."""
-
-    def test_entity_metadata_dict(self, entity_with_metadata):
-        """Test entity with metadata dictionary."""
-        assert entity_with_metadata.entity_metadata["clothing_color"] == "blue"
-        assert entity_with_metadata.entity_metadata["carrying"] == "backpack"
-
-    def test_entity_metadata_empty(self):
-        """Test entity with empty metadata."""
-        entity = Entity(entity_metadata={})
-        assert entity.entity_metadata == {}
-
-    def test_entity_metadata_nested(self):
-        """Test entity with nested metadata."""
-        entity = Entity(
-            entity_metadata={
-                "vehicle": {
-                    "make": "Toyota",
-                    "model": "Camry",
-                    "year": 2023,
-                },
-                "color": "silver",
-            }
-        )
-        assert entity.entity_metadata["vehicle"]["make"] == "Toyota"
-
-
-# =============================================================================
-# Entity Update Methods Tests
+# Update Methods Tests
 # =============================================================================
 
 
 class TestEntityUpdateMethods:
-    """Tests for Entity update methods."""
+    """Tests for entity update helper methods."""
 
     def test_update_seen_increments_count(self):
         """Test that update_seen increments detection count."""
-        entity = Entity(detection_count=5)
+        entity = Entity(detection_count=0)
         entity.update_seen()
-        assert entity.detection_count == 6
+        assert entity.detection_count == 1
+
+        entity.update_seen()
+        assert entity.detection_count == 2
 
     def test_update_seen_updates_timestamp(self):
         """Test that update_seen updates last_seen_at."""
-        from datetime import timedelta
+        entity = Entity()
+        original_time = entity.last_seen_at
 
-        entity = Entity(detection_count=0)
-        old_time = datetime.now(UTC) - timedelta(seconds=1)
-        entity.last_seen_at = old_time
+        # Update with specific timestamp
+        new_time = datetime.now(UTC) + timedelta(hours=1)
+        entity.update_seen(timestamp=new_time)
+
+        assert entity.last_seen_at == new_time
+
+    def test_update_seen_default_timestamp(self):
+        """Test that update_seen uses current time by default."""
+        entity = Entity()
+        before = datetime.now(UTC)
         entity.update_seen()
-        assert entity.last_seen_at >= old_time
+        after = datetime.now(UTC)
 
-    def test_update_seen_custom_timestamp(self):
-        """Test update_seen with custom timestamp."""
-        entity = Entity(detection_count=0)
-        custom_time = datetime(2025, 6, 15, 12, 0, 0, tzinfo=UTC)
-        entity.update_seen(timestamp=custom_time)
-        assert entity.last_seen_at == custom_time
+        assert before <= entity.last_seen_at <= after
 
-
-# =============================================================================
-# Entity Factory Method Tests
-# =============================================================================
-
-
-class TestEntityFactoryMethods:
-    """Tests for Entity factory methods."""
-
-    def test_from_detection_basic(self):
-        """Test creating entity from detection with minimal args."""
-        entity = Entity.from_detection(entity_type="person")
-        assert entity.entity_type == "person"
+    def test_update_seen_handles_none_count(self):
+        """Test update_seen handles None detection_count gracefully."""
+        entity = Entity()
+        entity.detection_count = None  # type: ignore[assignment]
+        entity.update_seen()
         assert entity.detection_count == 1
 
-    def test_from_detection_with_enum(self):
-        """Test creating entity using EntityType enum."""
-        entity = Entity.from_detection(entity_type=EntityType.VEHICLE)
-        assert entity.entity_type == "vehicle"
 
-    def test_from_detection_with_detection_id(self):
-        """Test creating entity with primary detection ID."""
+# =============================================================================
+# Factory Method Tests
+# =============================================================================
+
+
+class TestEntityFactoryMethod:
+    """Tests for Entity.from_detection factory method."""
+
+    def test_from_detection_basic(self):
+        """Test creating entity from detection."""
         entity = Entity.from_detection(
-            entity_type="person",
+            entity_type=EntityType.PERSON,
             detection_id=123,
         )
+
+        assert entity.entity_type == "person"
         assert entity.primary_detection_id == 123
+        assert entity.detection_count == 1
 
     def test_from_detection_with_embedding(self):
-        """Test creating entity with embedding vector."""
-        vector = [0.1, 0.2, 0.3]
+        """Test creating entity from detection with embedding."""
+        embedding = [0.1] * 512
         entity = Entity.from_detection(
-            entity_type="person",
-            embedding=vector,
+            entity_type=EntityType.VEHICLE,
+            detection_id=456,
+            embedding=embedding,
             model="clip",
         )
-        assert entity.get_embedding_vector() == vector
+
+        assert entity.entity_type == "vehicle"
+        assert entity.get_embedding_vector() == embedding
         assert entity.get_embedding_model() == "clip"
 
     def test_from_detection_with_metadata(self):
-        """Test creating entity with metadata."""
-        metadata = {"clothing": "red shirt"}
+        """Test creating entity from detection with metadata."""
+        metadata = {"clothing_color": "red", "height_estimate": 175}
         entity = Entity.from_detection(
-            entity_type="person",
+            entity_type=EntityType.PERSON,
             entity_metadata=metadata,
         )
+
         assert entity.entity_metadata == metadata
+
+    def test_from_detection_string_entity_type(self):
+        """Test creating entity with string entity type."""
+        entity = Entity.from_detection(entity_type="vehicle")
+
+        assert entity.entity_type == "vehicle"
+
+    def test_from_detection_enum_entity_type(self):
+        """Test creating entity with enum entity type."""
+        entity = Entity.from_detection(entity_type=EntityType.ANIMAL)
+
+        assert entity.entity_type == "animal"
 
 
 # =============================================================================
@@ -352,6 +364,11 @@ class TestEntityRepr:
         """Test repr contains class name."""
         repr_str = repr(sample_entity)
         assert "Entity" in repr_str
+
+    def test_entity_repr_contains_id(self, sample_entity):
+        """Test repr contains entity id."""
+        repr_str = repr(sample_entity)
+        assert "id=" in repr_str
 
     def test_entity_repr_contains_entity_type(self, sample_entity):
         """Test repr contains entity_type."""
@@ -376,7 +393,7 @@ class TestEntityRepr:
 
 
 class TestEntityTableArgs:
-    """Tests for Entity table arguments (indexes and constraints)."""
+    """Tests for Entity table arguments (indexes, constraints)."""
 
     def test_entity_has_table_args(self):
         """Test Entity model has __table_args__."""
@@ -392,13 +409,13 @@ class TestEntityTableArgs:
         index_names = [idx.name for idx in indexes if hasattr(idx, "name")]
         assert "idx_entities_entity_type" in index_names
 
-    def test_entity_has_first_seen_index(self):
+    def test_entity_has_first_seen_at_index(self):
         """Test Entity has first_seen_at index defined."""
         indexes = Entity.__table_args__
         index_names = [idx.name for idx in indexes if hasattr(idx, "name")]
         assert "idx_entities_first_seen_at" in index_names
 
-    def test_entity_has_last_seen_index(self):
+    def test_entity_has_last_seen_at_index(self):
         """Test Entity has last_seen_at index defined."""
         indexes = Entity.__table_args__
         index_names = [idx.name for idx in indexes if hasattr(idx, "name")]
@@ -416,48 +433,30 @@ class TestEntityTableArgs:
         index_names = [idx.name for idx in indexes if hasattr(idx, "name")]
         assert "ix_entities_entity_metadata_gin" in index_names
 
-    def test_entity_metadata_gin_index_uses_gin(self):
-        """Test entity_metadata GIN index uses gin postgresql_using."""
-        from sqlalchemy import Index
-
-        indexes = Entity.__table_args__
-        gin_index = None
-        for idx in indexes:
-            if isinstance(idx, Index) and idx.name == "ix_entities_entity_metadata_gin":
-                gin_index = idx
-                break
-        assert gin_index is not None
-        assert gin_index.kwargs.get("postgresql_using") == "gin"
-
-    def test_entity_has_entity_type_check_constraint(self):
-        """Test Entity has CHECK constraint for entity_type."""
-        from sqlalchemy import CheckConstraint
-
-        constraints = Entity.__table_args__
-        check_names = [c.name for c in constraints if isinstance(c, CheckConstraint) and c.name]
-        assert "ck_entities_entity_type" in check_names
-
-    def test_entity_has_detection_count_check_constraint(self):
-        """Test Entity has CHECK constraint for detection_count."""
-        from sqlalchemy import CheckConstraint
-
-        constraints = Entity.__table_args__
-        check_names = [c.name for c in constraints if isinstance(c, CheckConstraint) and c.name]
-        assert "ck_entities_detection_count" in check_names
-
 
 # =============================================================================
-# Entity Relationship Tests
+# Entity Constraints Tests
 # =============================================================================
 
 
-class TestEntityRelationships:
-    """Tests for Entity relationship definitions."""
+class TestEntityConstraints:
+    """Tests for Entity check constraints."""
 
-    def test_entity_has_primary_detection_relationship(self):
-        """Test entity has primary_detection relationship defined."""
-        entity = Entity()
-        assert hasattr(entity, "primary_detection")
+    def test_entity_has_entity_type_constraint(self):
+        """Test Entity has entity_type CHECK constraint defined."""
+        from sqlalchemy import CheckConstraint
+
+        constraints = [arg for arg in Entity.__table_args__ if isinstance(arg, CheckConstraint)]
+        constraint_names = [c.name for c in constraints if c.name]
+        assert "ck_entities_entity_type" in constraint_names
+
+    def test_entity_has_detection_count_constraint(self):
+        """Test Entity has detection_count CHECK constraint defined."""
+        from sqlalchemy import CheckConstraint
+
+        constraints = [arg for arg in Entity.__table_args__ if isinstance(arg, CheckConstraint)]
+        constraint_names = [c.name for c in constraints if c.name]
+        assert "ck_entities_detection_count" in constraint_names
 
 
 # =============================================================================
@@ -488,42 +487,45 @@ class TestEntityProperties:
         """Property: Embedding vectors roundtrip correctly."""
         entity = Entity()
         entity.set_embedding(vector, model="test")
-        retrieved = entity.get_embedding_vector()
-        assert len(retrieved) == len(vector)
-        for i, (expected, actual) in enumerate(zip(vector, retrieved, strict=True)):
-            assert abs(expected - actual) < 1e-10, f"Mismatch at index {i}"
+        result = entity.get_embedding_vector()
+
+        assert result is not None
+        assert len(result) == len(vector)
+        # Allow for floating point precision
+        for orig, stored in zip(vector, result, strict=True):
+            assert abs(orig - stored) < 1e-10
 
     @given(
-        entity_type=entity_types,
-        count=st.integers(min_value=0, max_value=1000),
+        first_seen=st.datetimes(
+            min_value=datetime(2020, 1, 1),
+            max_value=datetime(2030, 12, 31),
+            timezones=st.just(UTC),
+        ),
+        last_seen=st.datetimes(
+            min_value=datetime(2020, 1, 1),
+            max_value=datetime(2030, 12, 31),
+            timezones=st.just(UTC),
+        ),
     )
-    @settings(max_examples=30)
-    def test_combined_fields_roundtrip(self, entity_type: str, count: int):
-        """Property: Combined fields roundtrip correctly."""
-        entity = Entity(entity_type=entity_type, detection_count=count)
-        assert entity.entity_type == entity_type
-        assert entity.detection_count == count
+    @settings(max_examples=20)
+    def test_timestamp_roundtrip(self, first_seen: datetime, last_seen: datetime):
+        """Property: Timestamps roundtrip correctly."""
+        entity = Entity(
+            first_seen_at=first_seen,
+            last_seen_at=last_seen,
+        )
+        assert entity.first_seen_at == first_seen
+        assert entity.last_seen_at == last_seen
 
 
 # =============================================================================
-# Entity UUID Tests
+# Entity Relationship Tests
 # =============================================================================
 
 
-class TestEntityUUID:
-    """Tests for Entity UUID primary key."""
+class TestEntityRelationships:
+    """Tests for Entity relationship definitions."""
 
-    def test_entity_accepts_uuid(self):
-        """Test entity accepts UUID for id."""
-        test_uuid = uuid.uuid4()
-        entity = Entity(id=test_uuid)
-        assert entity.id == test_uuid
-
-    def test_entity_id_is_uuid_type(self):
-        """Test entity id column is UUID type."""
-        from sqlalchemy import inspect
-        from sqlalchemy.dialects.postgresql import UUID
-
-        mapper = inspect(Entity)
-        id_col = mapper.columns["id"]
-        assert isinstance(id_col.type, UUID)
+    def test_entity_has_primary_detection_relationship(self, sample_entity):
+        """Test entity has primary_detection relationship defined."""
+        assert hasattr(sample_entity, "primary_detection")

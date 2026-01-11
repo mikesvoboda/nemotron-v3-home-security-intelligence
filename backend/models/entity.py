@@ -3,6 +3,8 @@
 This module provides the Entity model for tracking unique individuals
 and objects across multiple cameras using embedding vectors for
 re-identification.
+
+Related to NEM-1880 (Re-identification feature) and NEM-2210 (Entity model).
 """
 
 from __future__ import annotations

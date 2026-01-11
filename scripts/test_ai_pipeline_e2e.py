@@ -288,7 +288,7 @@ Be concise."""
     return "", elapsed
 
 
-def process_image(image_path: str, client: httpx.Client, verbose: bool = True) -> PipelineResult:  # noqa: PLR0912
+def process_image(image_path: str, client: httpx.Client, verbose: bool = True) -> PipelineResult:
     """Process a single image through all pipeline stages."""
     result = PipelineResult(image_path=image_path)
 
@@ -381,7 +381,7 @@ def save_test_fixtures(image_paths: list[str], output_dir: Path) -> None:
         print(f"  Saved: {dst}")
 
 
-def main():  # noqa: PLR0912
+def main():
     parser = argparse.ArgumentParser(description="End-to-end AI pipeline test")
     parser.add_argument(
         "--images",

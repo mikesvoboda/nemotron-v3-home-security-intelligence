@@ -517,7 +517,7 @@ def print_subheader(title: str, width: int = 100) -> None:
     print(f"\n--- {title} " + "-" * (width - len(title) - 5))
 
 
-def main() -> int:  # noqa: PLR0912 - comprehensive test requires many branches
+def main() -> int:
     """Run comprehensive model tests with GPU monitoring."""
     print_header("AI MODEL ZOO - COMPREHENSIVE TEST WITH GPU MONITORING")
 

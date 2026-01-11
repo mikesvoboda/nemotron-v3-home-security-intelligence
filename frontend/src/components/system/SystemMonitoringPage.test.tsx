@@ -2,18 +2,16 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach, type Mock } from 'vitest';
 
 import SystemMonitoringPage from './SystemMonitoringPage';
-import * as useFullHealthQueryHook from '../../hooks/useFullHealthQuery';
+import * as useHealthStatusQueryHook from '../../hooks/useHealthStatusQuery';
 import * as useModelZooStatusQueryHook from '../../hooks/useModelZooStatusQuery';
 import * as usePerformanceMetricsHook from '../../hooks/usePerformanceMetrics';
 import * as api from '../../services/api';
 
 // Mock the API and hooks
 vi.mock('../../services/api');
-vi.mock('../../hooks/useFullHealthQuery');
+vi.mock('../../hooks/useHealthStatusQuery');
 vi.mock('../../hooks/usePerformanceMetrics');
 vi.mock('../../hooks/useModelZooStatusQuery');
-
-// Note: QueryClientProvider wrapper available if needed for future tests
 
 // Mock child components
 vi.mock('../dashboard/GpuStats', () => ({
@@ -173,6 +171,17 @@ describe('SystemMonitoringPage', () => {
     inference_fps: 30,
   };
 
+  const mockHealthResponse = {
+    status: 'healthy',
+    services: {
+      database: { status: 'healthy', message: 'Connected' },
+      redis: { status: 'healthy', message: 'Connected' },
+      rtdetr_server: { status: 'healthy', message: 'Running' },
+      nemotron_server: { status: 'degraded', message: 'High latency' },
+    },
+    timestamp: '2025-01-01T12:00:00Z',
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
 
@@ -221,41 +230,16 @@ describe('SystemMonitoringPage', () => {
     // SeverityConfigPanel was moved to Settings page (NEM-1142)
     // fetchSeverityMetadata mock removed
 
-    // Setup mock for useFullHealthQuery (replaces useHealthStatus)
-    (useFullHealthQueryHook.useFullHealthQuery as Mock).mockReturnValue({
-      data: {
-        status: 'healthy',
-        ready: true,
-        message: 'System healthy',
-        postgres: { name: 'database', status: 'healthy', message: 'Connected', details: null },
-        redis: { name: 'redis', status: 'healthy', message: 'Connected', details: null },
-        ai_services: [
-          { name: 'rtdetr', display_name: 'RT-DETR', status: 'healthy', url: 'http://localhost:8001', response_time_ms: 100, error: null, circuit_state: 'closed', last_check: '2025-01-01T12:00:00Z' },
-          { name: 'nemotron', display_name: 'Nemotron', status: 'degraded', url: 'http://localhost:8002', response_time_ms: 500, error: 'High latency', circuit_state: 'closed', last_check: '2025-01-01T12:00:00Z' },
-        ],
-        circuit_breakers: { total: 2, open: 0, half_open: 0, closed: 2, breakers: {} },
-        workers: [],
-        timestamp: '2025-01-01T12:00:00Z',
-        version: '0.1.0',
-      },
+
+    (useHealthStatusQueryHook.useHealthStatusQuery as Mock).mockReturnValue({
+      data: mockHealthResponse,
+      services: mockHealthResponse.services,
       overallStatus: 'healthy',
-      aiServices: [
-        { name: 'rtdetr', display_name: 'RT-DETR', status: 'healthy', url: 'http://localhost:8001', response_time_ms: 100, error: null, circuit_state: 'closed', last_check: '2025-01-01T12:00:00Z' },
-        { name: 'nemotron', display_name: 'Nemotron', status: 'degraded', url: 'http://localhost:8002', response_time_ms: 500, error: 'High latency', circuit_state: 'closed', last_check: '2025-01-01T12:00:00Z' },
-      ],
-      postgres: { name: 'database', status: 'healthy', message: 'Connected', details: null },
-      redis: { name: 'redis', status: 'healthy', message: 'Connected', details: null },
-      workers: [],
       isLoading: false,
       isRefetching: false,
       error: null,
       isStale: false,
-      isReady: true,
-      statusMessage: 'System healthy',
-      circuitBreakers: { total: 2, open: 0, half_open: 0, closed: 2, breakers: {} },
-      criticalUnhealthyCount: 0,
-      nonCriticalUnhealthyCount: 0,
-      refetch: vi.fn(),
+      refetch: vi.fn().mockResolvedValue({}),
     });
 
     // Setup mock for usePerformanceMetrics
@@ -294,6 +278,7 @@ describe('SystemMonitoringPage', () => {
       models: [],
       vramStats: null,
       isLoading: false,
+      isRefetching: false,
       error: null,
       refetch: vi.fn(),
     });
@@ -318,23 +303,15 @@ describe('SystemMonitoringPage', () => {
     });
 
     it('renders loading state when health status is loading', () => {
-      (useFullHealthQueryHook.useFullHealthQuery as Mock).mockReturnValue({
-        data: null,
+      (useHealthStatusQueryHook.useHealthStatusQuery as Mock).mockReturnValue({
+        data: undefined,
+        services: {},
         overallStatus: null,
-        aiServices: [],
-        postgres: null,
-        redis: null,
-        workers: [],
         isLoading: true,
         isRefetching: false,
         error: null,
         isStale: false,
-        isReady: false,
-        statusMessage: null,
-        circuitBreakers: null,
-        criticalUnhealthyCount: 0,
-        nonCriticalUnhealthyCount: 0,
-        refetch: vi.fn(),
+        refetch: vi.fn().mockResolvedValue({}),
       });
 
       render(<SystemMonitoringPage />);
@@ -541,34 +518,15 @@ describe('SystemMonitoringPage', () => {
     });
 
     it('shows message when no services available', async () => {
-      (useFullHealthQueryHook.useFullHealthQuery as Mock).mockReturnValue({
-        data: {
-          status: 'healthy',
-          ready: true,
-          message: 'System healthy',
-          postgres: null,
-          redis: null,
-          ai_services: [],
-          circuit_breakers: { total: 0, open: 0, half_open: 0, closed: 0, breakers: {} },
-          workers: [],
-          timestamp: '2025-01-01T12:00:00Z',
-          version: '0.1.0',
-        },
+      (useHealthStatusQueryHook.useHealthStatusQuery as Mock).mockReturnValue({
+        data: { status: 'healthy', services: {}, timestamp: '2025-01-01T12:00:00Z' },
+        services: {},
         overallStatus: 'healthy',
-        aiServices: [],
-        postgres: null,
-        redis: null,
-        workers: [],
         isLoading: false,
         isRefetching: false,
         error: null,
         isStale: false,
-        isReady: true,
-        statusMessage: 'System healthy',
-        circuitBreakers: { total: 0, open: 0, half_open: 0, closed: 0, breakers: {} },
-        criticalUnhealthyCount: 0,
-        nonCriticalUnhealthyCount: 0,
-        refetch: vi.fn(),
+        refetch: vi.fn().mockResolvedValue({}),
       });
 
       render(<SystemMonitoringPage />);
@@ -580,31 +538,23 @@ describe('SystemMonitoringPage', () => {
 
     it('shows error message when health API fails', async () => {
       const errorMessage = 'Connection refused';
-      (useFullHealthQueryHook.useFullHealthQuery as Mock).mockReturnValue({
-        data: null,
+      (useHealthStatusQueryHook.useHealthStatusQuery as Mock).mockReturnValue({
+        data: undefined,
+        services: {},
         overallStatus: null,
-        aiServices: [],
-        postgres: null,
-        redis: null,
-        workers: [],
         isLoading: false,
         isRefetching: false,
         error: new Error(errorMessage),
         isStale: false,
-        isReady: false,
-        statusMessage: null,
-        circuitBreakers: null,
-        criticalUnhealthyCount: 0,
-        nonCriticalUnhealthyCount: 0,
-        refetch: vi.fn(),
+        refetch: vi.fn().mockResolvedValue({}),
       });
 
       render(<SystemMonitoringPage />);
 
-      // When healthError occurs, the main error UI is shown
       await waitFor(() => {
-        expect(screen.getByTestId('system-monitoring-error')).toBeInTheDocument();
-        expect(screen.getByText(errorMessage)).toBeInTheDocument();
+        expect(
+          screen.getByText(`Failed to fetch service health: ${errorMessage}`)
+        ).toBeInTheDocument();
       });
     });
   });
@@ -711,10 +661,10 @@ describe('SystemMonitoringPage', () => {
       });
     });
 
-    it('calls useFullHealthQuery with correct refetch interval', () => {
+    it('calls useHealthStatus with correct polling interval', () => {
       render(<SystemMonitoringPage />);
 
-      expect(useFullHealthQueryHook.useFullHealthQuery).toHaveBeenCalledWith({
+      expect(useHealthStatusQueryHook.useHealthStatusQuery).toHaveBeenCalledWith({
         refetchInterval: 30000,
       });
     });
@@ -751,43 +701,32 @@ describe('SystemMonitoringPage', () => {
         expect(screen.getByTestId('system-monitoring-page')).toBeInTheDocument();
       });
 
-      // All should be called at least once (BackgroundJobsPanel also calls fetchTelemetry)
+      // All should be called
       expect(api.fetchStats).toHaveBeenCalledTimes(1);
-      expect(api.fetchTelemetry).toHaveBeenCalled();
+      expect(api.fetchTelemetry).toHaveBeenCalledTimes(1);
       expect(api.fetchGPUStats).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('Different Health States', () => {
     it('displays unhealthy status correctly', async () => {
-      (useFullHealthQueryHook.useFullHealthQuery as Mock).mockReturnValue({
+      (useHealthStatusQueryHook.useHealthStatusQuery as Mock).mockReturnValue({
         data: {
           status: 'unhealthy',
-          ready: false,
-          message: 'Database connection refused',
-          postgres: { name: 'database', status: 'unhealthy', message: 'Connection refused', details: null },
-          redis: { name: 'redis', status: 'healthy', message: 'Connected', details: null },
-          ai_services: [],
-          circuit_breakers: { total: 0, open: 0, half_open: 0, closed: 0, breakers: {} },
-          workers: [],
+          services: {
+            database: { status: 'unhealthy', message: 'Connection refused' },
+          },
           timestamp: '2025-01-01T12:00:00Z',
-          version: '0.1.0',
+        },
+        services: {
+          database: { status: 'unhealthy', message: 'Connection refused' },
         },
         overallStatus: 'unhealthy',
-        aiServices: [],
-        postgres: { name: 'database', status: 'unhealthy', message: 'Connection refused', details: null },
-        redis: { name: 'redis', status: 'healthy', message: 'Connected', details: null },
-        workers: [],
         isLoading: false,
         isRefetching: false,
         error: null,
         isStale: false,
-        isReady: false,
-        statusMessage: 'Database connection refused',
-        circuitBreakers: { total: 0, open: 0, half_open: 0, closed: 0, breakers: {} },
-        criticalUnhealthyCount: 1,
-        nonCriticalUnhealthyCount: 0,
-        refetch: vi.fn(),
+        refetch: vi.fn().mockResolvedValue({}),
       });
 
       render(<SystemMonitoringPage />);
@@ -800,34 +739,23 @@ describe('SystemMonitoringPage', () => {
     });
 
     it('displays degraded status correctly', async () => {
-      (useFullHealthQueryHook.useFullHealthQuery as Mock).mockReturnValue({
+      (useHealthStatusQueryHook.useHealthStatusQuery as Mock).mockReturnValue({
         data: {
           status: 'degraded',
-          ready: true,
-          message: 'Redis high latency',
-          postgres: { name: 'database', status: 'healthy', message: 'Connected', details: null },
-          redis: { name: 'redis', status: 'degraded', message: 'High latency', details: null },
-          ai_services: [],
-          circuit_breakers: { total: 0, open: 0, half_open: 0, closed: 0, breakers: {} },
-          workers: [],
+          services: {
+            redis: { status: 'degraded', message: 'High latency' },
+          },
           timestamp: '2025-01-01T12:00:00Z',
-          version: '0.1.0',
+        },
+        services: {
+          redis: { status: 'degraded', message: 'High latency' },
         },
         overallStatus: 'degraded',
-        aiServices: [],
-        postgres: { name: 'database', status: 'healthy', message: 'Connected', details: null },
-        redis: { name: 'redis', status: 'degraded', message: 'High latency', details: null },
-        workers: [],
         isLoading: false,
         isRefetching: false,
         error: null,
         isStale: false,
-        isReady: true,
-        statusMessage: 'Redis high latency',
-        circuitBreakers: { total: 0, open: 0, half_open: 0, closed: 0, breakers: {} },
-        criticalUnhealthyCount: 0,
-        nonCriticalUnhealthyCount: 1,
-        refetch: vi.fn(),
+        refetch: vi.fn().mockResolvedValue({}),
       });
 
       render(<SystemMonitoringPage />);
@@ -1324,40 +1252,31 @@ describe('SystemMonitoringPage', () => {
     });
 
     it('handles degraded service statuses in background workers', async () => {
-      (useFullHealthQueryHook.useFullHealthQuery as Mock).mockReturnValue({
+      (useHealthStatusQueryHook.useHealthStatusQuery as Mock).mockReturnValue({
         data: {
           status: 'degraded',
-          ready: true,
-          message: 'Services degraded',
-          postgres: { name: 'database', status: 'healthy', message: 'Connected', details: null },
-          redis: { name: 'redis', status: 'healthy', message: 'Connected', details: null },
-          ai_services: [
-            { name: 'rtdetr', display_name: 'RT-DETR', status: 'degraded', url: 'http://localhost:8001', response_time_ms: 500, error: 'High latency', circuit_state: 'closed', last_check: '2025-01-01T12:00:00Z' },
-            { name: 'nemotron', display_name: 'Nemotron', status: 'healthy', url: 'http://localhost:8002', response_time_ms: 100, error: null, circuit_state: 'closed', last_check: '2025-01-01T12:00:00Z' },
-          ],
-          circuit_breakers: { total: 2, open: 0, half_open: 0, closed: 2, breakers: {} },
-          workers: [],
+          services: {
+            file_watcher: { status: 'degraded', message: 'Slow processing' },
+            rtdetr_server: { status: 'degraded', message: 'High latency' },
+            batch_aggregator: { status: 'healthy', message: 'OK' },
+            nemotron_server: { status: 'healthy', message: 'OK' },
+            cleanup_service: { status: 'degraded', message: 'Backlog' },
+          },
           timestamp: '2025-01-01T12:00:00Z',
-          version: '0.1.0',
+        },
+        services: {
+          file_watcher: { status: 'degraded', message: 'Slow processing' },
+          rtdetr_server: { status: 'degraded', message: 'High latency' },
+          batch_aggregator: { status: 'healthy', message: 'OK' },
+          nemotron_server: { status: 'healthy', message: 'OK' },
+          cleanup_service: { status: 'degraded', message: 'Backlog' },
         },
         overallStatus: 'degraded',
-        aiServices: [
-          { name: 'rtdetr', display_name: 'RT-DETR', status: 'degraded', url: 'http://localhost:8001', response_time_ms: 500, error: 'High latency', circuit_state: 'closed', last_check: '2025-01-01T12:00:00Z' },
-          { name: 'nemotron', display_name: 'Nemotron', status: 'healthy', url: 'http://localhost:8002', response_time_ms: 100, error: null, circuit_state: 'closed', last_check: '2025-01-01T12:00:00Z' },
-        ],
-        postgres: { name: 'database', status: 'healthy', message: 'Connected', details: null },
-        redis: { name: 'redis', status: 'healthy', message: 'Connected', details: null },
-        workers: [],
         isLoading: false,
         isRefetching: false,
         error: null,
         isStale: false,
-        isReady: true,
-        statusMessage: 'Services degraded',
-        circuitBreakers: { total: 2, open: 0, half_open: 0, closed: 2, breakers: {} },
-        criticalUnhealthyCount: 0,
-        nonCriticalUnhealthyCount: 1,
-        refetch: vi.fn(),
+        refetch: vi.fn().mockResolvedValue({}),
       });
 
       render(<SystemMonitoringPage />);
@@ -1371,38 +1290,25 @@ describe('SystemMonitoringPage', () => {
     });
 
     it('handles stopped service statuses in background workers', async () => {
-      (useFullHealthQueryHook.useFullHealthQuery as Mock).mockReturnValue({
+      (useHealthStatusQueryHook.useHealthStatusQuery as Mock).mockReturnValue({
         data: {
           status: 'unhealthy',
-          ready: false,
-          message: 'Services unhealthy',
-          postgres: { name: 'database', status: 'healthy', message: 'Connected', details: null },
-          redis: { name: 'redis', status: 'healthy', message: 'Connected', details: null },
-          ai_services: [
-            { name: 'rtdetr', display_name: 'RT-DETR', status: 'unhealthy', url: 'http://localhost:8001', response_time_ms: null, error: 'Service stopped', circuit_state: 'open', last_check: '2025-01-01T12:00:00Z' },
-          ],
-          circuit_breakers: { total: 1, open: 1, half_open: 0, closed: 0, breakers: {} },
-          workers: [],
+          services: {
+            file_watcher: { status: 'unhealthy', message: 'Not running' },
+            rtdetr_server: { status: 'stopped', message: 'Stopped' },
+          },
           timestamp: '2025-01-01T12:00:00Z',
-          version: '0.1.0',
+        },
+        services: {
+          file_watcher: { status: 'unhealthy', message: 'Not running' },
+          rtdetr_server: { status: 'stopped', message: 'Stopped' },
         },
         overallStatus: 'unhealthy',
-        aiServices: [
-          { name: 'rtdetr', display_name: 'RT-DETR', status: 'unhealthy', url: 'http://localhost:8001', response_time_ms: null, error: 'Service stopped', circuit_state: 'open', last_check: '2025-01-01T12:00:00Z' },
-        ],
-        postgres: { name: 'database', status: 'healthy', message: 'Connected', details: null },
-        redis: { name: 'redis', status: 'healthy', message: 'Connected', details: null },
-        workers: [],
         isLoading: false,
         isRefetching: false,
         error: null,
         isStale: false,
-        isReady: false,
-        statusMessage: 'Services unhealthy',
-        circuitBreakers: { total: 1, open: 1, half_open: 0, closed: 0, breakers: {} },
-        criticalUnhealthyCount: 1,
-        nonCriticalUnhealthyCount: 0,
-        refetch: vi.fn(),
+        refetch: vi.fn().mockResolvedValue({}),
       });
 
       render(<SystemMonitoringPage />);

@@ -136,7 +136,7 @@ function setupMocks(overrides?: {
     isStale: false,
     overallStatus: overrides?.overallStatus ?? 'healthy',
     services: overrides?.services ?? defaultServices,
-    refetch: vi.fn(),
+    refetch: vi.fn().mockResolvedValue({}),
   });
 
   mockedUseModelZooStatus.mockReturnValue({
