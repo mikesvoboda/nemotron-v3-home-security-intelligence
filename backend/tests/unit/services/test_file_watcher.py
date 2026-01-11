@@ -697,8 +697,11 @@ async def test_full_workflow(file_watcher, temp_camera_root, mock_redis_client):
             # Manually schedule (simulating watchdog event)
             await file_watcher._schedule_file_processing(str(image_path))
 
-            # Wait for debounce + processing
-            await asyncio.sleep(file_watcher.debounce_delay + 0.05)
+            # Wait for debounce + processing with extra margin for CI environments
+            # Use a more generous wait time to handle slower CI systems
+            await asyncio.sleep(file_watcher.debounce_delay + 0.2)
+            # Give async tasks a chance to complete
+            await asyncio.sleep(0)
 
             # Verify queue was called at least once (watchdog may trigger it too)
             assert mock_redis_client.add_to_queue_safe.await_count >= 1

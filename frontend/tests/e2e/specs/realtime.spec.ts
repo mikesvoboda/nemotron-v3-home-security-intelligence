@@ -79,20 +79,30 @@ test.describe('Empty State Handling', () => {
 });
 
 test.describe('Error Handling', () => {
-  test('dashboard shows error state when API fails', async ({ page }) => {
+  // API client has MAX_RETRIES=3 with exponential backoff (1s+2s+4s=7s)
+  // React Query also retries once, so total time for events API to fail is ~14-21s
+  // Use 25s timeout to account for network latency and CI variability
+  const ERROR_TIMEOUT = 35000;
+
+  test('dashboard shows error state when API fails', async ({ page }, testInfo) => {
+    // Extend test timeout to account for API retry delays
+    testInfo.setTimeout(ERROR_TIMEOUT + 5000);
     await setupApiMocks(page, errorMockConfig);
     const dashboardPage = new DashboardPage(page);
     await dashboardPage.goto();
 
-    // Should show error state
-    await expect(dashboardPage.errorHeading).toBeVisible({ timeout: 15000 });
+    // Should show error state - wait for API retries to exhaust
+    await expect(dashboardPage.errorHeading).toBeVisible({ timeout: ERROR_TIMEOUT });
     await expect(dashboardPage.reloadButton).toBeVisible();
   });
 
-  test('dashboard error state has reload button', async ({ page }) => {
+  test('dashboard error state has reload button', async ({ page }, testInfo) => {
+    // Extend test timeout to account for API retry delays
+    testInfo.setTimeout(ERROR_TIMEOUT + 5000);
     await setupApiMocks(page, errorMockConfig);
     const dashboardPage = new DashboardPage(page);
     await dashboardPage.goto();
-    await expect(dashboardPage.reloadButton).toBeVisible({ timeout: 15000 });
+    // Error UI appears after API retries exhaust
+    await expect(dashboardPage.reloadButton).toBeVisible({ timeout: ERROR_TIMEOUT });
   });
 });

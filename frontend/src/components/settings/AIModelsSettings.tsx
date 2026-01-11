@@ -50,10 +50,10 @@ function getStatusText(status: 'loaded' | 'unloaded' | 'error'): string {
 }
 
 /**
- * Formats a numeric value with fallback for null
+ * Formats a numeric value with fallback for null/undefined
  */
-function formatValue(value: number | null, suffix: string = ''): string {
-  return value !== null ? `${value.toFixed(0)}${suffix}` : 'N/A';
+function formatValue(value: number | null | undefined, suffix: string = ''): string {
+  return value !== null && value !== undefined ? `${value.toFixed(0)}${suffix}` : 'N/A';
 }
 
 /**
@@ -273,7 +273,7 @@ export default function AIModelsSettings({
             <div>
               <Text className="text-sm text-gray-400">Total GPU Memory</Text>
               <Text className="mt-1 text-lg font-semibold text-white">
-                {(gpuTotalMemory / 1024).toFixed(1)} GB
+                {gpuTotalMemory !== null && gpuTotalMemory !== undefined ? `${(gpuTotalMemory / 1024).toFixed(1)} GB` : 'N/A'}
               </Text>
             </div>
             <Cpu className="h-8 w-8 text-[#76B900]" />

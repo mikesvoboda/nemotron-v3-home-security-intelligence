@@ -1227,7 +1227,7 @@ export interface paths {
          *     Use this to diagnose cameras that show "No snapshot available" errors.
          *
          *     Returns:
-         *         Dictionary with validation results for all cameras
+         *         CameraPathValidationResponse with validation results for all cameras
          */
         get: operations["validate_camera_paths_api_cameras_validation_paths_get"];
         put?: never;
@@ -3309,7 +3309,7 @@ export interface paths {
          *         cache: Cache service for invalidation
          *
          *     Returns:
-         *         The restored event
+         *         The restored event as EventResponse
          *
          *     Raises:
          *         HTTPException: 404 if event not found, 409 if not deleted
@@ -6512,6 +6512,70 @@ export interface components {
             pagination: components["schemas"]["PaginationMeta"];
         };
         /**
+         * CameraPathValidationResponse
+         * @description Schema for camera path validation response.
+         *
+         *     NEM-2063: Response model for the /api/cameras/validation/paths endpoint.
+         *     Validates all camera folder paths against the configured base path.
+         * @example {
+         *       "base_path": "/export/foscam",
+         *       "invalid_cameras": [
+         *         {
+         *           "folder_path": "/export/foscam/garage",
+         *           "id": "garage",
+         *           "issues": [
+         *             "directory does not exist"
+         *           ],
+         *           "name": "Garage Camera",
+         *           "status": "offline"
+         *         }
+         *       ],
+         *       "invalid_count": 2,
+         *       "total_cameras": 6,
+         *       "valid_cameras": [
+         *         {
+         *           "folder_path": "/export/foscam/front_door",
+         *           "id": "front_door",
+         *           "name": "Front Door Camera",
+         *           "status": "online"
+         *         }
+         *       ],
+         *       "valid_count": 4
+         *     }
+         */
+        CameraPathValidationResponse: {
+            /**
+             * Base Path
+             * @description Configured base path for camera folders
+             */
+            base_path: string;
+            /**
+             * Invalid Cameras
+             * @description Cameras with validation issues
+             */
+            invalid_cameras: components["schemas"]["CameraValidationInfo"][];
+            /**
+             * Invalid Count
+             * @description Number of cameras with invalid paths
+             */
+            invalid_count: number;
+            /**
+             * Total Cameras
+             * @description Total number of cameras validated
+             */
+            total_cameras: number;
+            /**
+             * Valid Cameras
+             * @description Cameras with valid paths
+             */
+            valid_cameras: components["schemas"]["CameraValidationInfo"][];
+            /**
+             * Valid Count
+             * @description Number of cameras with valid paths
+             */
+            valid_count: number;
+        };
+        /**
          * CameraResponse
          * @description Schema for camera response.
          * @example {
@@ -6659,6 +6723,51 @@ export interface components {
              * @description Start date of the date range
              */
             start_date: string;
+        };
+        /**
+         * CameraValidationInfo
+         * @description Schema for individual camera validation result.
+         *
+         *     NEM-2063: Response model for camera path validation details.
+         * @example {
+         *       "folder_path": "/export/foscam/front_door",
+         *       "id": "front_door",
+         *       "issues": [
+         *         "directory does not exist"
+         *       ],
+         *       "name": "Front Door Camera",
+         *       "resolved_path": "/export/foscam/front_door",
+         *       "status": "online"
+         *     }
+         */
+        CameraValidationInfo: {
+            /**
+             * Folder Path
+             * @description Configured folder path
+             */
+            folder_path: string;
+            /**
+             * Id
+             * @description Camera ID
+             */
+            id: string;
+            /**
+             * Issues
+             * @description List of validation issues (only for invalid cameras)
+             */
+            issues?: string[] | null;
+            /**
+             * Name
+             * @description Camera name
+             */
+            name: string;
+            /**
+             * Resolved Path
+             * @description Resolved absolute path (included if path is outside base_path)
+             */
+            resolved_path?: string | null;
+            /** @description Camera status */
+            status: components["schemas"]["CameraStatus"];
         };
         /**
          * CategorySummary
@@ -16972,10 +17081,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["CameraPathValidationResponse"];
                 };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

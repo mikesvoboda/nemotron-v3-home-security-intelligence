@@ -24,6 +24,12 @@ export interface UseEventsInfiniteQueryOptions {
   enabled?: boolean;
   staleTime?: number;
   refetchInterval?: number | false;
+  /**
+   * Number of retry attempts for failed queries.
+   * Set to 0 to disable retries, or use a lower number for faster failure feedback.
+   * Defaults to 1 for better UX in list views.
+   */
+  retry?: number | boolean;
 }
 
 export interface UseEventsInfiniteQueryReturn {
@@ -58,6 +64,7 @@ export function useEventsInfiniteQuery(
     enabled = true,
     staleTime,
     refetchInterval,
+    retry = 1, // Default to 1 retry for faster failure feedback in list views
   } = options;
 
   const query = useCursorPaginatedQuery<EventListResponse, EventFilters>({
@@ -74,6 +81,7 @@ export function useEventsInfiniteQuery(
     enabled,
     staleTime,
     refetchInterval,
+    retry,
   });
 
   const events = useMemo(() => {

@@ -27,8 +27,10 @@ from backend.api.schemas.baseline import (
 from backend.api.schemas.camera import (
     CameraCreate,
     CameraListResponse,
+    CameraPathValidationResponse,
     CameraResponse,
     CameraUpdate,
+    CameraValidationInfo,
     DeletedCamerasListResponse,
 )
 from backend.api.schemas.pagination import create_pagination_meta
@@ -222,7 +224,7 @@ async def list_cameras(
 )
 async def list_deleted_cameras(
     db: AsyncSession = Depends(get_db),
-) -> dict[str, Any]:
+) -> DeletedCamerasListResponse:
     """List all soft-deleted cameras for trash view.
 
     Returns cameras that have been soft-deleted (deleted_at is not null),
@@ -243,27 +245,27 @@ async def list_deleted_cameras(
     result = await db.execute(query)
     deleted_cameras = result.scalars().all()
 
-    # Serialize cameras for response
+    # Serialize cameras for response using Pydantic models
     cameras_data = [
-        {
-            "id": c.id,
-            "name": c.name,
-            "folder_path": c.folder_path,
-            "status": c.status,
-            "created_at": c.created_at.isoformat() if c.created_at else None,
-            "last_seen_at": c.last_seen_at.isoformat() if c.last_seen_at else None,
-        }
+        CameraResponse(
+            id=c.id,
+            name=c.name,
+            folder_path=c.folder_path,
+            status=c.status,
+            created_at=c.created_at,
+            last_seen_at=c.last_seen_at,
+        )
         for c in deleted_cameras
     ]
 
-    return {
-        "items": cameras_data,
-        "pagination": create_pagination_meta(
+    return DeletedCamerasListResponse(
+        items=cameras_data,
+        pagination=create_pagination_meta(
             total=len(cameras_data),
             limit=1000,  # No pagination limit for deleted cameras list
             items_count=len(cameras_data),
-        ).model_dump(),
-    }
+        ),
+    )
 
 
 @router.post(
@@ -720,10 +722,16 @@ async def get_camera_snapshot(
     return FileResponse(path=str(latest), media_type=media_type, filename=latest.name)
 
 
-@router.get("/validation/paths")
+@router.get(
+    "/validation/paths",
+    response_model=CameraPathValidationResponse,
+    responses={
+        500: {"description": "Internal server error"},
+    },
+)
 async def validate_camera_paths(
     db: AsyncSession = Depends(get_db),
-) -> dict[str, Any]:
+) -> CameraPathValidationResponse:
     """Validate all camera folder paths against the configured base path.
 
     This endpoint checks each camera's folder_path to determine:
@@ -734,7 +742,7 @@ async def validate_camera_paths(
     Use this to diagnose cameras that show "No snapshot available" errors.
 
     Returns:
-        Dictionary with validation results for all cameras
+        CameraPathValidationResponse with validation results for all cameras
     """
     settings = get_settings()
     base_root = Path(settings.foscam_base_path).resolve()
@@ -742,18 +750,12 @@ async def validate_camera_paths(
     result = await db.execute(select(Camera))
     cameras = result.scalars().all()
 
-    valid_cameras: list[dict[str, Any]] = []
-    invalid_cameras: list[dict[str, Any]] = []
+    valid_cameras: list[CameraValidationInfo] = []
+    invalid_cameras: list[CameraValidationInfo] = []
 
     for camera in cameras:
-        camera_info: dict[str, Any] = {
-            "id": camera.id,
-            "name": camera.name,
-            "folder_path": camera.folder_path,
-            "status": camera.status,
-        }
-
         issues: list[str] = []
+        resolved_path: str | None = None
 
         # Check if path is under base_path
         try:
@@ -761,7 +763,7 @@ async def validate_camera_paths(
             camera_dir.relative_to(base_root)
         except ValueError:
             issues.append(f"folder_path not under base_path ({settings.foscam_base_path})")
-            camera_info["resolved_path"] = str(Path(camera.folder_path).resolve())
+            resolved_path = str(Path(camera.folder_path).resolve())
 
         # Check if directory exists
         camera_path = Path(camera.folder_path)
@@ -777,20 +779,28 @@ async def validate_camera_paths(
             if not has_images:
                 issues.append("no image files found")
 
+        camera_info = CameraValidationInfo(
+            id=camera.id,
+            name=camera.name,
+            folder_path=camera.folder_path,
+            status=camera.status,
+            resolved_path=resolved_path,
+            issues=issues if issues else None,
+        )
+
         if issues:
-            camera_info["issues"] = issues
             invalid_cameras.append(camera_info)
         else:
             valid_cameras.append(camera_info)
 
-    return {
-        "base_path": str(base_root),
-        "total_cameras": len(cameras),
-        "valid_count": len(valid_cameras),
-        "invalid_count": len(invalid_cameras),
-        "valid_cameras": valid_cameras,
-        "invalid_cameras": invalid_cameras,
-    }
+    return CameraPathValidationResponse(
+        base_path=str(base_root),
+        total_cameras=len(cameras),
+        valid_count=len(valid_cameras),
+        invalid_count=len(invalid_cameras),
+        valid_cameras=valid_cameras,
+        invalid_cameras=invalid_cameras,
+    )
 
 
 @router.get("/{camera_id}/baseline", response_model=BaselineSummaryResponse)

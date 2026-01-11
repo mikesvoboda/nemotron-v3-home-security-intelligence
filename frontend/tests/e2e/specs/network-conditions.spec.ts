@@ -102,6 +102,14 @@ test.describe('Network Condition Simulation @network', () => {
   });
 
   test.describe('Network Failure Tests', () => {
+    // API client has MAX_RETRIES=3 with exponential backoff (1s+2s+4s=7s)
+    // React Query also retries once, so total time for events API to fail is ~14-21s
+    // Use 35s timeout to account for network latency and CI variability
+    const ERROR_TIMEOUT = 35000;
+
+    // Increase test timeout to 60s for these tests since they wait for API retries
+    test.setTimeout(60000);
+
     test('dashboard shows error when network completely fails @network @critical', async ({
       page,
     }) => {
@@ -114,7 +122,7 @@ test.describe('Network Condition Simulation @network', () => {
       await dashboardPage.goto();
 
       // Should show error state when cameras API fails
-      await expect(dashboardPage.errorHeading).toBeVisible({ timeout: 15000 });
+      await expect(dashboardPage.errorHeading).toBeVisible({ timeout: ERROR_TIMEOUT });
     });
 
     test('system page handles partial network failure gracefully @network', async ({ page }) => {
@@ -160,23 +168,38 @@ test.describe('Network Condition Simulation @network', () => {
   });
 
   test.describe('Offline Mode Tests', () => {
+    // API client has MAX_RETRIES=3 with exponential backoff (1s+2s+4s=7s)
+    // React Query also retries once, so total time for events API to fail is ~14-21s
+    // Use 35s timeout to account for network latency and CI variability
+    const ERROR_TIMEOUT = 35000;
+
+    // Increase test timeout to 60s for these tests since they wait for API retries
+    test.setTimeout(60000);
+
     test('dashboard shows offline indicator when network is down @network @critical', async ({
       page,
     }) => {
+      // Extend test timeout to allow for API retry timeouts
+      test.setTimeout(60000);
+
       await setupApiMocks(page, defaultMockConfig);
 
       const dashboardPage = new DashboardPage(page);
       await dashboardPage.goto();
       await dashboardPage.waitForDashboardLoad();
 
-      // Now simulate going offline by failing all subsequent API requests
+      // Now simulate going offline by removing all existing API mocks
+      // and setting up a failure route. We must unroute first because
+      // Playwright processes routes in registration order - earlier routes
+      // take precedence over later ones for the same URL pattern.
+      await page.unrouteAll({ behavior: 'ignoreErrors' });
       await page.route('**/api/**', (route) => route.abort('failed'));
 
       // Trigger a refresh or action that would make an API call
       await page.reload();
 
-      // Should show error or offline state
-      await expect(dashboardPage.errorHeading).toBeVisible({ timeout: 15000 });
+      // Should show error or offline state - wait for API retries to exhaust
+      await expect(dashboardPage.errorHeading).toBeVisible({ timeout: ERROR_TIMEOUT });
     });
 
     test('application recovers when network is restored @network', async ({ page }) => {
@@ -187,8 +210,8 @@ test.describe('Network Condition Simulation @network', () => {
       const dashboardPage = new DashboardPage(page);
       await dashboardPage.goto();
 
-      // Should show error state initially
-      await expect(dashboardPage.errorHeading).toBeVisible({ timeout: 15000 });
+      // Should show error state initially - wait for API retries to exhaust
+      await expect(dashboardPage.errorHeading).toBeVisible({ timeout: ERROR_TIMEOUT });
 
       // "Restore" network by setting up proper mocks
       await page.unroute('**/api/cameras');
@@ -252,6 +275,14 @@ test.describe('Network Condition Simulation @network', () => {
   });
 
   test.describe('Retry Behavior Under Network Issues', () => {
+    // API client has MAX_RETRIES=3 with exponential backoff (1s+2s+4s=7s)
+    // React Query also retries once, so total time for events API to fail is ~14-21s
+    // Use 35s timeout to account for network latency and CI variability
+    const ERROR_TIMEOUT = 35000;
+
+    // Increase test timeout to 60s for these tests since they wait for API retries
+    test.setTimeout(60000);
+
     test('displays appropriate message on repeated failures @network', async ({ page }) => {
       // Track camera API requests
       let requestCount = 0;
@@ -272,8 +303,8 @@ test.describe('Network Condition Simulation @network', () => {
       const dashboardPage = new DashboardPage(page);
       await dashboardPage.goto();
 
-      // Should show error state
-      await expect(dashboardPage.errorHeading).toBeVisible({ timeout: 15000 });
+      // Should show error state - wait for API retries to exhaust
+      await expect(dashboardPage.errorHeading).toBeVisible({ timeout: ERROR_TIMEOUT });
 
       // Verify at least one request was made (we can't guarantee retries)
       // The test verifies the error state is shown, which is the key behavior
@@ -283,6 +314,14 @@ test.describe('Network Condition Simulation @network', () => {
 });
 
 test.describe('Network Condition Edge Cases @network', () => {
+  // API client has MAX_RETRIES=3 with exponential backoff (1s+2s+4s=7s)
+  // React Query also retries once, so total time for events API to fail is ~14-21s
+  // Use 35s timeout to account for network latency and CI variability
+  const ERROR_TIMEOUT = 35000;
+
+  // Increase test timeout to 60s for these tests since they wait for API retries
+  test.setTimeout(60000);
+
   test('handles empty response bodies gracefully @network', async ({ page }) => {
     await page.route('**/api/cameras', async (route) => {
       await route.fulfill({
@@ -330,8 +369,8 @@ test.describe('Network Condition Edge Cases @network', () => {
     const dashboardPage = new DashboardPage(page);
     await dashboardPage.goto();
 
-    // Should show error state for 503
-    await expect(dashboardPage.errorHeading).toBeVisible({ timeout: 15000 });
+    // Should show error state for 503 - wait for API retries to exhaust
+    await expect(dashboardPage.errorHeading).toBeVisible({ timeout: ERROR_TIMEOUT });
   });
 
   test('handles HTTP 429 Rate Limiting @network', async ({ page }) => {
@@ -348,7 +387,7 @@ test.describe('Network Condition Edge Cases @network', () => {
     const dashboardPage = new DashboardPage(page);
     await dashboardPage.goto();
 
-    // Should show error state for rate limiting
-    await expect(dashboardPage.errorHeading).toBeVisible({ timeout: 15000 });
+    // Should show error state for rate limiting - wait for API retries to exhaust
+    await expect(dashboardPage.errorHeading).toBeVisible({ timeout: ERROR_TIMEOUT });
   });
 });

@@ -222,7 +222,7 @@ export default function DlqMonitor({ className, refreshInterval = 30000 }: DlqMo
           size="xs"
           onClick={() => void loadStats()}
           disabled={loading}
-          className="text-gray-400 hover:text-white"
+          className="text-gray-300 hover:text-white"
           aria-label="Refresh DLQ stats"
         >
           <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
@@ -238,8 +238,8 @@ export default function DlqMonitor({ className, refreshInterval = 30000 }: DlqMo
 
       {error && (
         <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-4">
-          <AlertCircle className="h-5 w-5 flex-shrink-0 text-red-500" />
-          <Text className="text-red-500">{error}</Text>
+          <AlertCircle className="h-5 w-5 flex-shrink-0 text-red-400" />
+          <Text className="text-red-400">{error}</Text>
         </div>
       )}
 
@@ -252,9 +252,9 @@ export default function DlqMonitor({ className, refreshInterval = 30000 }: DlqMo
           }`}
         >
           <AlertCircle
-            className={`h-5 w-5 flex-shrink-0 ${actionResult.success ? 'text-green-500' : 'text-red-500'}`}
+            className={`h-5 w-5 flex-shrink-0 ${actionResult.success ? 'text-green-500' : 'text-red-400'}`}
           />
-          <Text className={actionResult.success ? 'text-green-500' : 'text-red-500'}>
+          <Text className={actionResult.success ? 'text-green-500' : 'text-red-400'}>
             {actionResult.message}
           </Text>
         </div>
@@ -289,9 +289,9 @@ export default function DlqMonitor({ className, refreshInterval = 30000 }: DlqMo
                 >
                   <div className="flex items-center gap-2">
                     {queueState.expanded ? (
-                      <ChevronDown className="h-4 w-4 text-gray-400" />
+                      <ChevronDown className="h-4 w-4 text-gray-300" />
                     ) : (
-                      <ChevronRight className="h-4 w-4 text-gray-400" />
+                      <ChevronRight className="h-4 w-4 text-gray-300" />
                     )}
                     <Text className="font-medium text-white">{getQueueDisplayName(queueName)}</Text>
                     {count > 0 && (
@@ -392,8 +392,8 @@ export default function DlqMonitor({ className, refreshInterval = 30000 }: DlqMo
                     {/* Error Loading Jobs */}
                     {queueState.error && (
                       <div className="flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-3">
-                        <AlertCircle className="h-4 w-4 text-red-500" />
-                        <Text className="text-sm text-red-500">{queueState.error}</Text>
+                        <AlertCircle className="h-4 w-4 text-red-400" />
+                        <Text className="text-sm text-red-400">{queueState.error}</Text>
                       </div>
                     )}
 
@@ -422,7 +422,7 @@ export default function DlqMonitor({ className, refreshInterval = 30000 }: DlqMo
                             </div>
 
                             {/* Job Metadata */}
-                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
+                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-300">
                               <div className="flex items-center gap-1">
                                 <RefreshCw className="h-3 w-3" />
                                 <span>Attempts: {job.attempt_count}</span>
@@ -439,10 +439,10 @@ export default function DlqMonitor({ className, refreshInterval = 30000 }: DlqMo
 
                             {/* Original Job Payload (collapsed by default) */}
                             <details className="mt-2">
-                              <summary className="cursor-pointer text-xs text-gray-500 hover:text-gray-400">
+                              <summary className="cursor-pointer text-xs text-gray-300 hover:text-gray-200">
                                 View payload
                               </summary>
-                              <pre className="mt-1 overflow-x-auto rounded bg-gray-900 p-2 text-xs text-gray-400">
+                              <pre className="mt-1 overflow-x-auto rounded bg-gray-900 p-2 text-xs text-gray-300">
                                 {JSON.stringify(job.original_job, null, 2)}
                               </pre>
                             </details>
@@ -460,7 +460,7 @@ export default function DlqMonitor({ className, refreshInterval = 30000 }: DlqMo
 
       {/* Footer Info */}
       <div className="mt-4 border-t border-gray-800 pt-4">
-        <Text className="text-xs text-gray-500">
+        <Text className="text-xs text-gray-300">
           Dead Letter Queue stores failed processing jobs for inspection and retry. Jobs are moved
           here after exhausting retry attempts.
         </Text>
