@@ -112,7 +112,7 @@ def create_test_image(width: int = 640, height: int = 480) -> Image.Image:
     return Image.fromarray(data)
 
 
-async def run_inference(model: Any, model_name: str, image: Image.Image) -> float | None:  # noqa: PLR0912
+async def run_inference(model: Any, model_name: str, image: Image.Image) -> float | None:
     """Run a single inference and return time in seconds.
 
     Returns None if inference is not applicable for this model type.

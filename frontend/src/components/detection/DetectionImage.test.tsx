@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { BoundingBox } from './BoundingBoxOverlay';
 import DetectionImage from './DetectionImage';
+import { Keypoint } from './PoseSkeletonOverlay';
 
 describe('DetectionImage', () => {
   const mockBoxes: BoundingBox[] = [
@@ -452,6 +453,259 @@ describe('DetectionImage', () => {
       await waitFor(() => {
         const rect = container.querySelector('rect[fill="none"]');
         expect(rect).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('pose skeleton overlay', () => {
+    const mockPoseKeypoints: Keypoint[] = [
+      [100, 50, 0.95], // 0: nose
+      [90, 45, 0.9], // 1: left_eye
+      [110, 45, 0.9], // 2: right_eye
+      [80, 50, 0.85], // 3: left_ear
+      [120, 50, 0.85], // 4: right_ear
+      [70, 100, 0.92], // 5: left_shoulder
+      [130, 100, 0.92], // 6: right_shoulder
+      [60, 150, 0.88], // 7: left_elbow
+      [140, 150, 0.88], // 8: right_elbow
+      [50, 200, 0.82], // 9: left_wrist
+      [150, 200, 0.82], // 10: right_wrist
+      [80, 180, 0.9], // 11: left_hip
+      [120, 180, 0.9], // 12: right_hip
+      [75, 250, 0.85], // 13: left_knee
+      [125, 250, 0.85], // 14: right_knee
+      [70, 320, 0.8], // 15: left_ankle
+      [130, 320, 0.8], // 16: right_ankle
+    ];
+
+    it('does not render pose skeleton when poseKeypoints is not provided', async () => {
+      const { container } = render(
+        <DetectionImage src={mockImageSrc} alt="Test image" boxes={mockBoxes} />
+      );
+
+      const img = container.querySelector('img') as HTMLImageElement;
+      Object.defineProperty(img, 'naturalWidth', { value: 800, writable: true });
+      Object.defineProperty(img, 'naturalHeight', { value: 600, writable: true });
+      fireEvent.load(img);
+
+      await waitFor(() => {
+        expect(
+          container.querySelector('[data-testid="pose-skeleton-overlay"]')
+        ).not.toBeInTheDocument();
+      });
+    });
+
+    it('renders pose skeleton when poseKeypoints is provided', async () => {
+      const { container } = render(
+        <DetectionImage
+          src={mockImageSrc}
+          alt="Test image"
+          boxes={mockBoxes}
+          poseKeypoints={mockPoseKeypoints}
+        />
+      );
+
+      const img = container.querySelector('img') as HTMLImageElement;
+      Object.defineProperty(img, 'naturalWidth', { value: 800, writable: true });
+      Object.defineProperty(img, 'naturalHeight', { value: 600, writable: true });
+      fireEvent.load(img);
+
+      await waitFor(() => {
+        expect(container.querySelector('[data-testid="pose-skeleton-overlay"]')).toBeInTheDocument();
+      });
+    });
+
+    it('passes correct image dimensions to pose skeleton overlay', async () => {
+      const { container } = render(
+        <DetectionImage
+          src={mockImageSrc}
+          alt="Test image"
+          boxes={mockBoxes}
+          poseKeypoints={mockPoseKeypoints}
+        />
+      );
+
+      const img = container.querySelector('img') as HTMLImageElement;
+      Object.defineProperty(img, 'naturalWidth', { value: 1920, writable: true });
+      Object.defineProperty(img, 'naturalHeight', { value: 1080, writable: true });
+      fireEvent.load(img);
+
+      await waitFor(() => {
+        const poseOverlay = container.querySelector('[data-testid="pose-skeleton-overlay"]');
+        expect(poseOverlay?.getAttribute('viewBox')).toBe('0 0 1920 1080');
+      });
+    });
+
+    it('renders keypoint circles', async () => {
+      const { container } = render(
+        <DetectionImage
+          src={mockImageSrc}
+          alt="Test image"
+          boxes={mockBoxes}
+          poseKeypoints={mockPoseKeypoints}
+        />
+      );
+
+      const img = container.querySelector('img') as HTMLImageElement;
+      Object.defineProperty(img, 'naturalWidth', { value: 800, writable: true });
+      Object.defineProperty(img, 'naturalHeight', { value: 600, writable: true });
+      fireEvent.load(img);
+
+      await waitFor(() => {
+        const circles = container.querySelectorAll('[data-testid^="pose-keypoint-"]');
+        expect(circles.length).toBe(17);
+      });
+    });
+
+    it('renders skeleton connections', async () => {
+      const { container } = render(
+        <DetectionImage
+          src={mockImageSrc}
+          alt="Test image"
+          boxes={mockBoxes}
+          poseKeypoints={mockPoseKeypoints}
+        />
+      );
+
+      const img = container.querySelector('img') as HTMLImageElement;
+      Object.defineProperty(img, 'naturalWidth', { value: 800, writable: true });
+      Object.defineProperty(img, 'naturalHeight', { value: 600, writable: true });
+      fireEvent.load(img);
+
+      await waitFor(() => {
+        const connections = container.querySelectorAll('[data-testid^="pose-connection-"]');
+        expect(connections.length).toBeGreaterThan(0);
+      });
+    });
+
+    it('hides pose skeleton when showPoseSkeleton is false', async () => {
+      const { container } = render(
+        <DetectionImage
+          src={mockImageSrc}
+          alt="Test image"
+          boxes={mockBoxes}
+          poseKeypoints={mockPoseKeypoints}
+          showPoseSkeleton={false}
+        />
+      );
+
+      const img = container.querySelector('img') as HTMLImageElement;
+      Object.defineProperty(img, 'naturalWidth', { value: 800, writable: true });
+      Object.defineProperty(img, 'naturalHeight', { value: 600, writable: true });
+      fireEvent.load(img);
+
+      await waitFor(() => {
+        expect(
+          container.querySelector('[data-testid="pose-skeleton-overlay"]')
+        ).not.toBeInTheDocument();
+      });
+    });
+
+    it('applies poseMinConfidence filter', async () => {
+      const mixedConfidenceKeypoints: Keypoint[] = [
+        [100, 50, 0.95], // above threshold
+        [90, 45, 0.2], // below threshold
+        [110, 45, 0.9], // above threshold
+        [80, 50, 0.1], // below threshold
+        [120, 50, 0.1], // below threshold
+        [70, 100, 0.92], // above threshold
+        [130, 100, 0.92], // above threshold
+        [60, 150, 0.1], // below threshold
+        [140, 150, 0.1], // below threshold
+        [50, 200, 0.1], // below threshold
+        [150, 200, 0.1], // below threshold
+        [80, 180, 0.9], // above threshold
+        [120, 180, 0.9], // above threshold
+        [75, 250, 0.1], // below threshold
+        [125, 250, 0.1], // below threshold
+        [70, 320, 0.1], // below threshold
+        [130, 320, 0.1], // below threshold
+      ];
+
+      const { container } = render(
+        <DetectionImage
+          src={mockImageSrc}
+          alt="Test image"
+          boxes={mockBoxes}
+          poseKeypoints={mixedConfidenceKeypoints}
+          poseMinConfidence={0.5}
+        />
+      );
+
+      const img = container.querySelector('img') as HTMLImageElement;
+      Object.defineProperty(img, 'naturalWidth', { value: 800, writable: true });
+      Object.defineProperty(img, 'naturalHeight', { value: 600, writable: true });
+      fireEvent.load(img);
+
+      await waitFor(() => {
+        const circles = container.querySelectorAll('[data-testid^="pose-keypoint-"]');
+        // Only keypoints above 0.5 confidence: indices 0, 2, 5, 6, 11, 12 = 6 keypoints
+        expect(circles.length).toBe(6);
+      });
+    });
+
+    it('does not render pose skeleton when poseKeypoints is null', async () => {
+      const { container } = render(
+        <DetectionImage src={mockImageSrc} alt="Test image" boxes={mockBoxes} poseKeypoints={null} />
+      );
+
+      const img = container.querySelector('img') as HTMLImageElement;
+      Object.defineProperty(img, 'naturalWidth', { value: 800, writable: true });
+      Object.defineProperty(img, 'naturalHeight', { value: 600, writable: true });
+      fireEvent.load(img);
+
+      await waitFor(() => {
+        expect(
+          container.querySelector('[data-testid="pose-skeleton-overlay"]')
+        ).not.toBeInTheDocument();
+      });
+    });
+
+    it('renders both bounding box and pose skeleton overlays', async () => {
+      const { container } = render(
+        <DetectionImage
+          src={mockImageSrc}
+          alt="Test image"
+          boxes={mockBoxes}
+          poseKeypoints={mockPoseKeypoints}
+        />
+      );
+
+      const img = container.querySelector('img') as HTMLImageElement;
+      Object.defineProperty(img, 'naturalWidth', { value: 800, writable: true });
+      Object.defineProperty(img, 'naturalHeight', { value: 600, writable: true });
+      fireEvent.load(img);
+
+      await waitFor(() => {
+        // Both overlays should be present
+        const svgs = container.querySelectorAll('svg');
+        expect(svgs.length).toBe(2);
+        expect(container.querySelector('[data-testid="pose-skeleton-overlay"]')).toBeInTheDocument();
+        expect(container.querySelector('rect[fill="none"]')).toBeInTheDocument();
+      });
+    });
+
+    it('pose skeleton has higher z-index than bounding boxes', async () => {
+      const { container } = render(
+        <DetectionImage
+          src={mockImageSrc}
+          alt="Test image"
+          boxes={mockBoxes}
+          poseKeypoints={mockPoseKeypoints}
+        />
+      );
+
+      const img = container.querySelector('img') as HTMLImageElement;
+      Object.defineProperty(img, 'naturalWidth', { value: 800, writable: true });
+      Object.defineProperty(img, 'naturalHeight', { value: 600, writable: true });
+      fireEvent.load(img);
+
+      await waitFor(() => {
+        const poseOverlay = container.querySelector(
+          '[data-testid="pose-skeleton-overlay"]'
+        ) as SVGElement;
+        // Pose skeleton should have z-index 20, bounding box has z-index 10
+        expect(poseOverlay?.style.zIndex).toBe('20');
       });
     });
   });

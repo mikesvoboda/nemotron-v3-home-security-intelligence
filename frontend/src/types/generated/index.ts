@@ -352,5 +352,23 @@ export interface AiAuditRecommendationsResponse {
   total_events_analyzed: number;
 }
 
+// Notification Preferences types
+export type NotificationPreferencesResponse =
+  components['schemas']['NotificationPreferencesResponse'];
+export type NotificationPreferencesUpdate =
+  components['schemas']['NotificationPreferencesUpdate'];
+export type CameraNotificationSettingResponse =
+  components['schemas']['CameraNotificationSettingResponse'];
+export type CameraNotificationSettingUpdate =
+  components['schemas']['CameraNotificationSettingUpdate'];
+export type CameraNotificationSettingsListResponse =
+  components['schemas']['CameraNotificationSettingsListResponse'];
+export type QuietHoursPeriodCreate =
+  components['schemas']['QuietHoursPeriodCreate'];
+export type QuietHoursPeriodResponse =
+  components['schemas']['QuietHoursPeriodResponse'];
+export type QuietHoursPeriodsListResponse =
+  components['schemas']['QuietHoursPeriodsListResponse'];
+
 // Import the components type for use in type aliases
 import type { components } from './api';

@@ -169,7 +169,7 @@ def estimate_tokens(text: str) -> int:
     return len(text) // 4
 
 
-def test_context_window(  # noqa: PLR0912
+def test_context_window(
     url: str = "http://localhost:8091",
     target_tokens: int = 30000,
     max_new_tokens: int = 500,

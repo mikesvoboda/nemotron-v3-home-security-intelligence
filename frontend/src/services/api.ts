@@ -100,6 +100,15 @@ export type {
   PipelineLatencyHistoryResponse,
   PipelineStageLatency,
   LatencyHistorySnapshot,
+  // Notification preferences types
+  NotificationPreferencesResponse,
+  NotificationPreferencesUpdate,
+  CameraNotificationSettingResponse,
+  CameraNotificationSettingUpdate,
+  CameraNotificationSettingsListResponse,
+  QuietHoursPeriodCreate,
+  QuietHoursPeriodResponse,
+  QuietHoursPeriodsListResponse,
 } from '../types/generated';
 
 import { addApiBreadcrumb, isSentryEnabled } from './sentry';
@@ -153,6 +162,14 @@ import type {
   ZoneCreate,
   ZoneListResponse as GeneratedZoneListResponse,
   ZoneUpdate,
+  NotificationPreferencesResponse,
+  NotificationPreferencesUpdate,
+  CameraNotificationSettingResponse,
+  CameraNotificationSettingUpdate,
+  CameraNotificationSettingsListResponse,
+  QuietHoursPeriodCreate,
+  QuietHoursPeriodResponse,
+  QuietHoursPeriodsListResponse,
 } from '../types/generated';
 
 // ============================================================================
@@ -2046,6 +2063,115 @@ export async function testNotification(
     method: 'POST',
     body: JSON.stringify(body),
   });
+}
+
+// ============================================================================
+// Notification Preferences Endpoints
+// ============================================================================
+
+/**
+ * Fetch global notification preferences.
+ *
+ * @returns NotificationPreferencesResponse with current global preferences
+ */
+export async function fetchNotificationPreferences(): Promise<NotificationPreferencesResponse> {
+  return fetchApi<NotificationPreferencesResponse>('/api/notification-preferences/');
+}
+
+/**
+ * Update global notification preferences.
+ *
+ * @param update - Partial update with fields to change
+ * @returns NotificationPreferencesResponse with updated preferences
+ */
+export async function updateNotificationPreferences(
+  update: NotificationPreferencesUpdate
+): Promise<NotificationPreferencesResponse> {
+  return fetchApi<NotificationPreferencesResponse>('/api/notification-preferences/', {
+    method: 'PUT',
+    body: JSON.stringify(update),
+  });
+}
+
+/**
+ * Fetch all camera notification settings.
+ *
+ * @returns CameraNotificationSettingsListResponse with all camera settings
+ */
+export async function fetchCameraNotificationSettings(): Promise<CameraNotificationSettingsListResponse> {
+  return fetchApi<CameraNotificationSettingsListResponse>('/api/notification-preferences/cameras');
+}
+
+/**
+ * Fetch notification setting for a specific camera.
+ *
+ * @param cameraId - Camera ID
+ * @returns CameraNotificationSettingResponse for the camera
+ */
+export async function fetchCameraNotificationSetting(
+  cameraId: string
+): Promise<CameraNotificationSettingResponse> {
+  return fetchApi<CameraNotificationSettingResponse>(
+    `/api/notification-preferences/cameras/${encodeURIComponent(cameraId)}`
+  );
+}
+
+/**
+ * Update notification setting for a specific camera.
+ *
+ * @param cameraId - Camera ID
+ * @param update - Partial update with fields to change
+ * @returns CameraNotificationSettingResponse with updated setting
+ */
+export async function updateCameraNotificationSetting(
+  cameraId: string,
+  update: CameraNotificationSettingUpdate
+): Promise<CameraNotificationSettingResponse> {
+  return fetchApi<CameraNotificationSettingResponse>(
+    `/api/notification-preferences/cameras/${encodeURIComponent(cameraId)}`,
+    {
+      method: 'PUT',
+      body: JSON.stringify(update),
+    }
+  );
+}
+
+/**
+ * Fetch all quiet hours periods.
+ *
+ * @returns QuietHoursPeriodsListResponse with all quiet periods
+ */
+export async function fetchQuietHoursPeriods(): Promise<QuietHoursPeriodsListResponse> {
+  return fetchApi<QuietHoursPeriodsListResponse>('/api/notification-preferences/quiet-hours');
+}
+
+/**
+ * Create a new quiet hours period.
+ *
+ * @param period - Quiet hours period to create
+ * @returns QuietHoursPeriodResponse with created period
+ */
+export async function createQuietHoursPeriod(
+  period: QuietHoursPeriodCreate
+): Promise<QuietHoursPeriodResponse> {
+  return fetchApi<QuietHoursPeriodResponse>('/api/notification-preferences/quiet-hours', {
+    method: 'POST',
+    body: JSON.stringify(period),
+  });
+}
+
+/**
+ * Delete a quiet hours period.
+ *
+ * @param periodId - Period UUID to delete
+ */
+export async function deleteQuietHoursPeriod(periodId: string): Promise<void> {
+  await fetchApi<void>(
+    `/api/notification-preferences/quiet-hours/${encodeURIComponent(periodId)}`,
+    {
+      method: 'DELETE',
+    }
+  );
 }
 
 // ============================================================================

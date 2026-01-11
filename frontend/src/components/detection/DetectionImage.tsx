@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 
 import BoundingBoxOverlay, { BoundingBox } from './BoundingBoxOverlay';
+import PoseSkeletonOverlay, { Keypoint } from './PoseSkeletonOverlay';
 import Lightbox from '../common/Lightbox';
 
 export interface DetectionImageProps {
@@ -17,6 +18,12 @@ export interface DetectionImageProps {
   enableLightbox?: boolean;
   /** Caption to show in the lightbox */
   lightboxCaption?: string;
+  /** Pose keypoints for skeleton overlay [[x, y, conf], ...] */
+  poseKeypoints?: Keypoint[] | null;
+  /** Whether to show pose skeleton overlay (default: true when keypoints provided) */
+  showPoseSkeleton?: boolean;
+  /** Minimum confidence for pose keypoints (default: 0.3) */
+  poseMinConfidence?: number;
 }
 
 const DetectionImage: React.FC<DetectionImageProps> = ({
@@ -30,6 +37,9 @@ const DetectionImage: React.FC<DetectionImageProps> = ({
   onClick,
   enableLightbox = false,
   lightboxCaption,
+  poseKeypoints,
+  showPoseSkeleton = true,
+  poseMinConfidence = 0.3,
 }) => {
   const [imageDimensions, setImageDimensions] = useState<{
     width: number;
@@ -79,15 +89,26 @@ const DetectionImage: React.FC<DetectionImageProps> = ({
           data-testid="detection-image"
         />
         {imageDimensions && (
-          <BoundingBoxOverlay
-            boxes={boxes}
-            imageWidth={imageDimensions.width}
-            imageHeight={imageDimensions.height}
-            showLabels={showLabels}
-            showConfidence={showConfidence}
-            minConfidence={minConfidence}
-            onClick={onClick}
-          />
+          <>
+            <BoundingBoxOverlay
+              boxes={boxes}
+              imageWidth={imageDimensions.width}
+              imageHeight={imageDimensions.height}
+              showLabels={showLabels}
+              showConfidence={showConfidence}
+              minConfidence={minConfidence}
+              onClick={onClick}
+            />
+            {poseKeypoints && (
+              <PoseSkeletonOverlay
+                keypoints={poseKeypoints}
+                imageWidth={imageDimensions.width}
+                imageHeight={imageDimensions.height}
+                visible={showPoseSkeleton}
+                minConfidence={poseMinConfidence}
+              />
+            )}
+          </>
         )}
         {enableLightbox && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-opacity hover:bg-black/30 hover:opacity-100">
