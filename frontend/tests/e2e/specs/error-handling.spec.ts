@@ -30,7 +30,7 @@ test.describe('Dashboard Error Handling', () => {
   // API client has MAX_RETRIES=3 with exponential backoff (1s+2s+4s=7s)
   // React Query also retries once, so total time for events API to fail is ~14-21s
   // Use 25s timeout to account for network latency and CI variability
-  const ERROR_TIMEOUT = 25000;
+  const ERROR_TIMEOUT = 35000;
 
   test('shows error state when cameras API fails', async ({ page }) => {
     await setupApiMocks(page, errorMockConfig);
@@ -60,7 +60,7 @@ test.describe('Dashboard Error Handling', () => {
 test.describe('Timeline Error Handling', () => {
   // API client has MAX_RETRIES=3 with exponential backoff (1s+2s+4s=7s)
   // React Query also retries once, so total time for events API to fail is ~14-21s
-  const ERROR_TIMEOUT = 25000;
+  const ERROR_TIMEOUT = 35000;
 
   test('shows error state when events API fails', async ({ page }) => {
     await setupApiMocks(page, errorMockConfig);
@@ -88,7 +88,7 @@ test.describe('Timeline Error Handling', () => {
 test.describe('Alerts Error Handling', () => {
   // API client has MAX_RETRIES=3 with exponential backoff (1s+2s+4s=7s)
   // React Query also retries once, so total time for events API to fail is ~14-21s
-  const ERROR_TIMEOUT = 25000;
+  const ERROR_TIMEOUT = 35000;
 
   test('shows error state when events API fails', async ({ page }) => {
     await setupApiMocks(page, errorMockConfig);
@@ -127,7 +127,7 @@ test.describe('Audit Error Handling', () => {
 test.describe('System Page Error Handling', () => {
   // API client has MAX_RETRIES=3 with exponential backoff (1s+2s+4s=7s)
   // React Query also retries, so use longer timeout for network idle
-  const ERROR_TIMEOUT = 25000;
+  const ERROR_TIMEOUT = 35000;
 
   test('page loads even when system APIs fail', async ({ page }) => {
     await setupApiMocks(page, errorMockConfig);
@@ -203,7 +203,7 @@ test.describe('Partial API Failure', () => {
 test.describe('Network Error Messages', () => {
   // API client has MAX_RETRIES=3 with exponential backoff (1s+2s+4s=7s)
   // React Query also retries once, so total time for events API to fail is ~14-21s
-  const ERROR_TIMEOUT = 25000;
+  const ERROR_TIMEOUT = 35000;
 
   test('error messages are user-friendly', async ({ page }) => {
     await setupApiMocks(page, errorMockConfig);

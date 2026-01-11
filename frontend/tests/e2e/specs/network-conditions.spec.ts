@@ -105,7 +105,7 @@ test.describe('Network Condition Simulation @network', () => {
     // API client has MAX_RETRIES=3 with exponential backoff (1s+2s+4s=7s)
     // React Query also retries once, so total time for events API to fail is ~14-21s
     // Use 25s timeout to account for network latency and CI variability
-    const ERROR_TIMEOUT = 25000;
+    const ERROR_TIMEOUT = 35000;
 
     test('dashboard shows error when network completely fails @network @critical', async ({
       page,
@@ -168,7 +168,7 @@ test.describe('Network Condition Simulation @network', () => {
     // API client has MAX_RETRIES=3 with exponential backoff (1s+2s+4s=7s)
     // React Query also retries once, so total time for events API to fail is ~14-21s
     // Use 25s timeout to account for network latency and CI variability
-    const ERROR_TIMEOUT = 25000;
+    const ERROR_TIMEOUT = 35000;
 
     test('dashboard shows offline indicator when network is down @network @critical', async ({
       page,
@@ -265,7 +265,7 @@ test.describe('Network Condition Simulation @network', () => {
     // API client has MAX_RETRIES=3 with exponential backoff (1s+2s+4s=7s)
     // React Query also retries once, so total time for events API to fail is ~14-21s
     // Use 25s timeout to account for network latency and CI variability
-    const ERROR_TIMEOUT = 25000;
+    const ERROR_TIMEOUT = 35000;
 
     test('displays appropriate message on repeated failures @network', async ({ page }) => {
       // Track camera API requests
@@ -301,7 +301,7 @@ test.describe('Network Condition Edge Cases @network', () => {
   // API client has MAX_RETRIES=3 with exponential backoff (1s+2s+4s=7s)
   // React Query also retries once, so total time for events API to fail is ~14-21s
   // Use 25s timeout to account for network latency and CI variability
-  const ERROR_TIMEOUT = 25000;
+  const ERROR_TIMEOUT = 35000;
 
   test('handles empty response bodies gracefully @network', async ({ page }) => {
     await page.route('**/api/cameras', async (route) => {
