@@ -5,6 +5,7 @@
  * - Vehicle classification (type, color, damage, commercial status)
  * - Pet identification (type, breed)
  * - Person attributes (clothing, action, carrying, suspicious/service indicators)
+ * - Pose analysis (posture, security alerts from ViTPose)
  * - License plate OCR results
  * - Weather conditions
  * - Image quality assessment
@@ -22,6 +23,11 @@ import {
   AlertTriangle,
   Briefcase,
   Package,
+  Activity,
+  ShieldAlert,
+  Heart,
+  Swords,
+  HandMetal,
 } from 'lucide-react';
 
 import {
@@ -105,8 +111,91 @@ function hasEnrichmentContent(data?: EnrichmentData | null): boolean {
     data.person ||
     data.license_plate ||
     data.weather ||
-    data.image_quality
+    data.image_quality ||
+    data.pose
   );
+}
+
+/**
+ * Get human-readable posture display name
+ */
+function getPostureDisplayName(posture: string): string {
+  const displayNames: Record<string, string> = {
+    standing: 'Standing',
+    walking: 'Walking',
+    running: 'Running',
+    sitting: 'Sitting',
+    crouching: 'Crouching',
+    lying_down: 'Lying Down',
+    unknown: 'Unknown',
+  };
+  return displayNames[posture] || posture;
+}
+
+/**
+ * Get posture badge styling based on security relevance
+ */
+function getPostureBadgeStyle(posture: string): { bg: string; border: string; text: string } {
+  // High-alert postures
+  if (posture === 'crouching' || posture === 'lying_down') {
+    return {
+      bg: 'bg-red-500/20',
+      border: 'border-red-500/40',
+      text: 'text-red-400',
+    };
+  }
+  // Active movement postures
+  if (posture === 'running') {
+    return {
+      bg: 'bg-orange-500/20',
+      border: 'border-orange-500/40',
+      text: 'text-orange-400',
+    };
+  }
+  // Normal postures
+  return {
+    bg: 'bg-green-500/20',
+    border: 'border-green-500/40',
+    text: 'text-green-400',
+  };
+}
+
+/**
+ * Get alert icon and styling for security alerts
+ */
+function getAlertDisplay(alert: string): { icon: React.ReactNode; label: string; description: string } {
+  switch (alert) {
+    case 'crouching':
+      return {
+        icon: <ShieldAlert className="h-4 w-4" />,
+        label: 'Crouching Detected',
+        description: 'Potential hiding or break-in attempt',
+      };
+    case 'lying_down':
+      return {
+        icon: <Heart className="h-4 w-4" />,
+        label: 'Person Down',
+        description: 'Possible medical emergency',
+      };
+    case 'hands_raised':
+      return {
+        icon: <HandMetal className="h-4 w-4" />,
+        label: 'Hands Raised',
+        description: 'Surrender or robbery situation',
+      };
+    case 'fighting_stance':
+      return {
+        icon: <Swords className="h-4 w-4" />,
+        label: 'Fighting Stance',
+        description: 'Aggressive posture detected',
+      };
+    default:
+      return {
+        icon: <AlertTriangle className="h-4 w-4" />,
+        label: alert,
+        description: 'Security alert',
+      };
+  }
 }
 
 /**
@@ -234,6 +323,82 @@ export default function EnrichmentPanel({
                 <FlagBadge label="Service Uniform" variant="info" />
               )}
             </div>
+          </div>
+        </AccordionBody>
+      </Accordion>
+    );
+  }
+
+  // Pose Section (ViTPose Analysis)
+  if (enrichment_data?.pose) {
+    const hasAlerts = enrichment_data.pose.alerts.length > 0;
+    const postureStyle = getPostureBadgeStyle(enrichment_data.pose.posture);
+
+    accordionSections.push(
+      <Accordion key="pose" data-testid="enrichment-pose" defaultOpen={hasAlerts}>
+        <AccordionHeader className="px-4 py-3 text-white hover:bg-gray-800/50">
+          <div className="flex w-full items-center justify-between pr-2">
+            <div className="flex items-center gap-2">
+              <Activity className={clsx('h-4 w-4', hasAlerts ? 'text-red-500' : 'text-[#76B900]')} />
+              <span className="font-medium">Pose Analysis</span>
+              {hasAlerts && (
+                <span className="ml-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">
+                  {enrichment_data.pose.alerts.length}
+                </span>
+              )}
+            </div>
+            <span
+              className={clsx(
+                'inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium',
+                postureStyle.bg,
+                postureStyle.border,
+                postureStyle.text
+              )}
+            >
+              {getPostureDisplayName(enrichment_data.pose.posture)}
+            </span>
+          </div>
+        </AccordionHeader>
+        <AccordionBody className="bg-black/20 px-4 py-3">
+          <div className="space-y-3">
+            {/* Posture Information */}
+            <DetailRow label="Posture" value={getPostureDisplayName(enrichment_data.pose.posture)} />
+            <DetailRow label="Keypoints Detected" value={`${enrichment_data.pose.keypoint_count}/17`} />
+
+            {/* Security Alerts Section */}
+            {hasAlerts && (
+              <div className="mt-3 space-y-2">
+                <span className="text-sm font-medium text-red-400 uppercase tracking-wide">Security Alerts</span>
+                <div className="space-y-2">
+                  {enrichment_data.pose.alerts.map((alert, i) => {
+                    const alertInfo = getAlertDisplay(alert);
+                    return (
+                      <div
+                        key={i}
+                        className="flex items-start gap-3 rounded-lg border border-red-500/30 bg-red-500/10 p-3"
+                        data-testid={`pose-alert-${alert}`}
+                      >
+                        <div className="flex-shrink-0 text-red-400">{alertInfo.icon}</div>
+                        <div>
+                          <span className="font-medium text-red-400">{alertInfo.label}</span>
+                          <p className="text-sm text-gray-400">{alertInfo.description}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* No alerts indicator */}
+            {!hasAlerts && (
+              <div className="mt-2 rounded-lg border border-green-500/30 bg-green-500/10 p-3">
+                <div className="flex items-center gap-2 text-green-400">
+                  <Activity className="h-4 w-4" />
+                  <span className="text-sm">Normal posture - no security concerns</span>
+                </div>
+              </div>
+            )}
           </div>
         </AccordionBody>
       </Accordion>

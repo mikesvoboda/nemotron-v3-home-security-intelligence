@@ -17,6 +17,7 @@ import { Fragment, useEffect, useMemo, useState } from 'react';
 
 import EnrichmentPanel from './EnrichmentPanel';
 import EventVideoPlayer from './EventVideoPlayer';
+import ReidMatchesPanel from './ReidMatchesPanel';
 import ThumbnailStrip from './ThumbnailStrip';
 import {
   fetchEventDetections,
@@ -779,6 +780,24 @@ export default function EventDetailModal({
                             className="mb-3"
                           />
                         ))}
+                    </div>
+                  )}
+
+                  {/* Re-Identification Matches */}
+                  {selectedDetectionId && (
+                    <div className="mb-6">
+                      <ReidMatchesPanel
+                        detectionId={selectedDetectionId}
+                        entityType={
+                          event.detections.some((d) =>
+                            d.label.toLowerCase().includes('vehicle') ||
+                            d.label.toLowerCase().includes('car') ||
+                            d.label.toLowerCase().includes('truck')
+                          )
+                            ? 'vehicle'
+                            : 'person'
+                        }
+                      />
                     </div>
                   )}
 

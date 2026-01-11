@@ -176,6 +176,60 @@ export interface WeatherEnrichment {
 }
 
 // ============================================================================
+// Pose Enrichment (ViTPose)
+// ============================================================================
+
+/**
+ * Known posture classifications from ViTPose.
+ */
+export const POSTURE_TYPES = ['standing', 'walking', 'running', 'sitting', 'crouching', 'lying_down', 'unknown'] as const;
+
+/**
+ * Posture type literal union.
+ */
+export type PostureType = (typeof POSTURE_TYPES)[number];
+
+/**
+ * Known pose security alerts that indicate potential threats.
+ */
+export const POSE_ALERTS = ['crouching', 'lying_down', 'hands_raised', 'fighting_stance'] as const;
+
+/**
+ * Pose alert type literal union.
+ */
+export type PoseAlert = (typeof POSE_ALERTS)[number];
+
+/**
+ * Pose enrichment data from ViTPose+ analysis.
+ * Contains keypoints for skeleton overlay and security-relevant alerts.
+ */
+export interface PoseEnrichment {
+  /**
+   * Classified posture type.
+   * Known types: standing, walking, running, sitting, crouching, lying_down, unknown.
+   */
+  posture: string;
+  /**
+   * Security-relevant pose alerts.
+   * - crouching: Potential hiding/break-in attempt
+   * - lying_down: Possible medical emergency
+   * - hands_raised: Surrender/robbery situation
+   * - fighting_stance: Aggressive posture
+   */
+  alerts: string[];
+  /**
+   * Keypoints array in COCO 17 keypoint order.
+   * Format: [[x, y, confidence], ...] where x and y are normalized (0-1).
+   * Order: nose, left_eye, right_eye, left_ear, right_ear, left_shoulder,
+   * right_shoulder, left_elbow, right_elbow, left_wrist, right_wrist,
+   * left_hip, right_hip, left_knee, right_knee, left_ankle, right_ankle.
+   */
+  keypoints: number[][];
+  /** Number of detected keypoints */
+  keypoint_count: number;
+}
+
+// ============================================================================
 // Image Quality Enrichment
 // ============================================================================
 
@@ -224,6 +278,8 @@ export interface EnrichmentData {
   weather?: WeatherEnrichment | null;
   /** Image quality assessment */
   image_quality?: ImageQualityEnrichment | null;
+  /** Pose analysis from ViTPose+ */
+  pose?: PoseEnrichment | null;
 }
 
 // ============================================================================
@@ -294,6 +350,20 @@ export function isImageQualityEnrichment(value: unknown): value is ImageQualityE
 }
 
 /**
+ * Type guard for PoseEnrichment.
+ */
+export function isPoseEnrichment(value: unknown): value is PoseEnrichment {
+  if (typeof value !== 'object' || value === null) return false;
+  const obj = value as Record<string, unknown>;
+  return (
+    typeof obj.posture === 'string' &&
+    Array.isArray(obj.alerts) &&
+    Array.isArray(obj.keypoints) &&
+    typeof obj.keypoint_count === 'number'
+  );
+}
+
+/**
  * Type guard for EnrichmentData.
  */
 export function isEnrichmentData(value: unknown): value is EnrichmentData {
@@ -307,6 +377,7 @@ export function isEnrichmentData(value: unknown): value is EnrichmentData {
   if (obj.license_plate !== undefined && obj.license_plate !== null && !isLicensePlateEnrichment(obj.license_plate)) return false;
   if (obj.weather !== undefined && obj.weather !== null && !isWeatherEnrichment(obj.weather)) return false;
   if (obj.image_quality !== undefined && obj.image_quality !== null && !isImageQualityEnrichment(obj.image_quality)) return false;
+  if (obj.pose !== undefined && obj.pose !== null && !isPoseEnrichment(obj.pose)) return false;
 
   return true;
 }
@@ -589,4 +660,20 @@ export function getImageQualityEnrichmentResult(
     return enrichmentError('Invalid image quality enrichment data');
   }
   return enrichmentSuccess(quality);
+}
+
+/**
+ * Safely extract pose enrichment data from EnrichmentData.
+ * Returns an EnrichmentResult with type guards for safe access.
+ */
+export function getPoseEnrichmentResult(
+  data: EnrichmentData | null | undefined
+): EnrichmentResult<PoseEnrichment> {
+  if (!data) return enrichmentEmpty();
+  const pose = data.pose;
+  if (pose === null || pose === undefined) return enrichmentEmpty();
+  if (!isPoseEnrichment(pose)) {
+    return enrichmentError('Invalid pose enrichment data');
+  }
+  return enrichmentSuccess(pose);
 }

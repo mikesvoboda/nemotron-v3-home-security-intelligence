@@ -2642,6 +2642,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/entities/matches/{detection_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Entity Matches
+         * @description Find entities matching a specific detection's embedding.
+         *
+         *     Searches for entities similar to the specified detection's embedding
+         *     across all cameras. Used to show re-ID matches in the EventDetailModal.
+         *
+         *     Args:
+         *         detection_id: Detection ID to find matches for
+         *         entity_type: Type of entity to search ('person' or 'vehicle')
+         *         threshold: Minimum cosine similarity threshold (default 0.85)
+         *         reid_service: Re-identification service dependency
+         *
+         *     Returns:
+         *         EntityMatchResponse with matching entities sorted by similarity
+         *
+         *     Raises:
+         *         HTTPException: 404 if detection embedding not found, 503 if Redis unavailable
+         */
+        get: operations["get_entity_matches_api_entities_matches__detection_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/entities/{entity_id}": {
         parameters: {
             query?: never;
@@ -9005,6 +9040,131 @@ export interface components {
             items: components["schemas"]["EntitySummary"][];
             /** @description Pagination metadata */
             pagination: components["schemas"]["PaginationInfo"];
+        };
+        /**
+         * EntityMatchItem
+         * @description Schema for a single entity match result.
+         *
+         *     Represents a matching entity found through re-identification,
+         *     including similarity score and time gap.
+         * @example {
+         *       "attributes": {
+         *         "clothing": "blue jacket"
+         *       },
+         *       "camera_id": "backyard",
+         *       "camera_name": "Backyard",
+         *       "entity_id": "det_abc123",
+         *       "entity_type": "person",
+         *       "similarity_score": 0.92,
+         *       "thumbnail_url": "/api/detections/123/image",
+         *       "time_gap_seconds": 3600,
+         *       "timestamp": "2025-12-23T10:00:00Z"
+         *     }
+         */
+        EntityMatchItem: {
+            /**
+             * Attributes
+             * @description Additional attributes extracted from the detection
+             */
+            attributes?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Camera Id
+             * @description Camera ID where entity was seen
+             */
+            camera_id: string;
+            /**
+             * Camera Name
+             * @description Human-readable camera name
+             */
+            camera_name?: string | null;
+            /**
+             * Entity Id
+             * @description Detection ID of the matched entity
+             */
+            entity_id: string;
+            /**
+             * Entity Type
+             * @description Type of entity: 'person' or 'vehicle'
+             */
+            entity_type: string;
+            /**
+             * Similarity Score
+             * @description Cosine similarity score (0-1)
+             */
+            similarity_score: number;
+            /**
+             * Thumbnail Url
+             * @description URL to thumbnail image
+             */
+            thumbnail_url?: string | null;
+            /**
+             * Time Gap Seconds
+             * @description Time gap in seconds between query and match
+             */
+            time_gap_seconds: number;
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description When the entity was detected
+             */
+            timestamp: string;
+        };
+        /**
+         * EntityMatchResponse
+         * @description Schema for entity match query response.
+         *
+         *     Returns entities matching a specific detection's embedding,
+         *     used for showing re-ID matches in the EventDetailModal.
+         * @example {
+         *       "entity_type": "person",
+         *       "matches": [
+         *         {
+         *           "attributes": {
+         *             "clothing": "blue jacket"
+         *           },
+         *           "camera_id": "backyard",
+         *           "camera_name": "Backyard",
+         *           "entity_id": "det_002",
+         *           "entity_type": "person",
+         *           "similarity_score": 0.92,
+         *           "thumbnail_url": "/api/detections/2/image",
+         *           "time_gap_seconds": 3600,
+         *           "timestamp": "2025-12-23T09:00:00Z"
+         *         }
+         *       ],
+         *       "query_detection_id": "det_001",
+         *       "threshold": 0.85,
+         *       "total_matches": 1
+         *     }
+         */
+        EntityMatchResponse: {
+            /**
+             * Entity Type
+             * @description Type of entity searched
+             */
+            entity_type: string;
+            /**
+             * Matches
+             * @description List of matching entities sorted by similarity
+             */
+            matches?: components["schemas"]["EntityMatchItem"][];
+            /**
+             * Query Detection Id
+             * @description Detection ID used for the query
+             */
+            query_detection_id: string;
+            /**
+             * Threshold
+             * @description Similarity threshold used for matching
+             */
+            threshold: number;
+            /**
+             * Total Matches
+             * @description Total number of matches found
+             */
+            total_matches: number;
         };
         /**
          * EntitySummary
@@ -18630,6 +18790,63 @@ export interface operations {
             };
             /** @description Internal server error */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_entity_matches_api_entities_matches__detection_id__get: {
+        parameters: {
+            query?: {
+                /** @description Type of entity to search for matches */
+                entity_type?: components["schemas"]["EntityTypeEnum"];
+                /** @description Minimum similarity threshold for matches */
+                threshold?: number;
+            };
+            header?: never;
+            path: {
+                detection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EntityMatchResponse"];
+                };
+            };
+            /** @description Detection not found or no embedding stored */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Redis service unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

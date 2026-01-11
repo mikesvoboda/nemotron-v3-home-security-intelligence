@@ -22,6 +22,7 @@ from backend.api.helpers.enrichment_transformers import (
     ImageQualityExtractor,
     LicensePlateExtractor,
     PetExtractor,
+    PoseExtractor,
     VehicleExtractor,
     ViolenceExtractor,
     get_enrichment_transformer,
@@ -445,6 +446,143 @@ class TestPetExtractor:
 
 
 # ============================================================================
+# Test PoseExtractor (NEM-1881)
+# ============================================================================
+
+
+class TestPoseExtractor:
+    """Tests for PoseExtractor (ViTPose pose analysis)."""
+
+    def test_extract_with_pose_data(self) -> None:
+        """Test extraction with complete pose estimation data."""
+        data = {
+            "pose_estimation": {
+                "posture": "standing",
+                "alerts": [],
+                "keypoints": [
+                    {"name": "nose", "x": 0.5, "y": 0.2, "confidence": 0.95},
+                    {"name": "left_eye", "x": 0.48, "y": 0.18, "confidence": 0.92},
+                    {"name": "right_eye", "x": 0.52, "y": 0.18, "confidence": 0.93},
+                    {"name": "left_ear", "x": 0.45, "y": 0.19, "confidence": 0.88},
+                    {"name": "right_ear", "x": 0.55, "y": 0.19, "confidence": 0.87},
+                    {"name": "left_shoulder", "x": 0.4, "y": 0.35, "confidence": 0.96},
+                    {"name": "right_shoulder", "x": 0.6, "y": 0.35, "confidence": 0.96},
+                    {"name": "left_elbow", "x": 0.35, "y": 0.5, "confidence": 0.89},
+                    {"name": "right_elbow", "x": 0.65, "y": 0.5, "confidence": 0.90},
+                    {"name": "left_wrist", "x": 0.3, "y": 0.65, "confidence": 0.85},
+                    {"name": "right_wrist", "x": 0.7, "y": 0.65, "confidence": 0.86},
+                    {"name": "left_hip", "x": 0.42, "y": 0.6, "confidence": 0.94},
+                    {"name": "right_hip", "x": 0.58, "y": 0.6, "confidence": 0.94},
+                    {"name": "left_knee", "x": 0.4, "y": 0.78, "confidence": 0.91},
+                    {"name": "right_knee", "x": 0.6, "y": 0.78, "confidence": 0.92},
+                    {"name": "left_ankle", "x": 0.38, "y": 0.95, "confidence": 0.88},
+                    {"name": "right_ankle", "x": 0.62, "y": 0.95, "confidence": 0.89},
+                ],
+                "inference_time_ms": 45.2,
+            }
+        }
+        extractor = PoseExtractor()
+        result = extractor.extract(data)
+
+        assert result is not None
+        assert result["posture"] == "standing"
+        assert result["alerts"] == []
+        assert result["keypoint_count"] == 17
+        # Check keypoints array is correctly formatted (17 keypoints in COCO order)
+        assert len(result["keypoints"]) == 17
+        # Check first keypoint (nose)
+        assert result["keypoints"][0] == [0.5, 0.2, 0.95]
+
+    def test_extract_with_security_alerts(self) -> None:
+        """Test extraction with security alerts for crouching posture."""
+        data = {
+            "pose_estimation": {
+                "posture": "crouching",
+                "alerts": ["crouching"],
+                "keypoints": [
+                    {"name": "nose", "x": 0.5, "y": 0.4, "confidence": 0.90},
+                    {"name": "left_shoulder", "x": 0.4, "y": 0.5, "confidence": 0.85},
+                    {"name": "right_shoulder", "x": 0.6, "y": 0.5, "confidence": 0.85},
+                ],
+                "inference_time_ms": 42.1,
+            }
+        }
+        extractor = PoseExtractor()
+        result = extractor.extract(data)
+
+        assert result is not None
+        assert result["posture"] == "crouching"
+        assert result["alerts"] == ["crouching"]
+        # Should have keypoint count matching number of keypoints provided
+        assert result["keypoint_count"] == 3
+
+    def test_extract_with_multiple_alerts(self) -> None:
+        """Test extraction with multiple security alerts."""
+        data = {
+            "pose_estimation": {
+                "posture": "lying_down",
+                "alerts": ["lying_down", "hands_raised"],
+                "keypoints": [],
+                "inference_time_ms": 38.5,
+            }
+        }
+        extractor = PoseExtractor()
+        result = extractor.extract(data)
+
+        assert result is not None
+        assert result["posture"] == "lying_down"
+        assert "lying_down" in result["alerts"]
+        assert "hands_raised" in result["alerts"]
+        assert result["keypoint_count"] == 0
+
+    def test_extract_empty_data(self) -> None:
+        """Test extraction with no pose data."""
+        extractor = PoseExtractor()
+        result = extractor.extract({})
+
+        assert result is None
+
+    def test_extract_keypoints_ordered_by_coco_format(self) -> None:
+        """Test that keypoints are returned in COCO 17 keypoint order."""
+        # Provide keypoints out of order to verify COCO ordering
+        data = {
+            "pose_estimation": {
+                "posture": "standing",
+                "alerts": [],
+                "keypoints": [
+                    {"name": "right_ankle", "x": 0.62, "y": 0.95, "confidence": 0.89},
+                    {"name": "nose", "x": 0.5, "y": 0.2, "confidence": 0.95},
+                    {"name": "left_shoulder", "x": 0.4, "y": 0.35, "confidence": 0.96},
+                ],
+                "inference_time_ms": 40.0,
+            }
+        }
+        extractor = PoseExtractor()
+        result = extractor.extract(data)
+
+        # Result should have 17 keypoints (missing ones filled with zeros)
+        assert len(result["keypoints"]) == 17
+        # Index 0 is nose
+        assert result["keypoints"][0] == [0.5, 0.2, 0.95]
+        # Index 5 is left_shoulder
+        assert result["keypoints"][5] == [0.4, 0.35, 0.96]
+        # Index 16 is right_ankle
+        assert result["keypoints"][16] == [0.62, 0.95, 0.89]
+        # Index 1 is left_eye (missing, should be zeros)
+        assert result["keypoints"][1] == [0.0, 0.0, 0.0]
+
+    def test_default_value(self) -> None:
+        """Test default value property."""
+        extractor = PoseExtractor()
+        assert extractor.default_value is None
+
+    def test_enrichment_key(self) -> None:
+        """Test enrichment key property."""
+        extractor = PoseExtractor()
+        assert extractor.enrichment_key == "pose_estimation"
+
+
+# ============================================================================
 # Test EnrichmentTransformer
 # ============================================================================
 
@@ -676,6 +814,7 @@ class TestCodeDuplicationReduction:
             ClothingExtractor,
             ImageQualityExtractor,
             PetExtractor,
+            PoseExtractor,
         ]
 
         for extractor_class in extractors:
@@ -691,6 +830,7 @@ class TestCodeDuplicationReduction:
             ClothingExtractor(),
             ImageQualityExtractor(),
             PetExtractor(),
+            PoseExtractor(),
         ]
 
         for extractor in extractors:
@@ -720,6 +860,7 @@ class TestSmallerHelperClasses:
             "clothing_classifications": ClothingExtractor,
             "image_quality": ImageQualityExtractor,
             "pet_classifications": PetExtractor,
+            "pose_estimation": PoseExtractor,
         }
 
         for key, extractor_class in enrichment_types.items():
@@ -739,6 +880,10 @@ class TestSmallerHelperClasses:
             (ClothingExtractor(), {"clothing_classifications": {"1": {"top_category": "shirt"}}}),
             (ImageQualityExtractor(), {"image_quality": {"quality_score": 80}}),
             (PetExtractor(), {"pet_classifications": {"1": {"animal_type": "cat"}}}),
+            (
+                PoseExtractor(),
+                {"pose_estimation": {"posture": "standing", "alerts": [], "keypoints": []}},
+            ),
         ]
 
         for extractor, data in test_cases:
