@@ -27,9 +27,9 @@ pytestmark = pytest.mark.integration
 class TestSettingsValidation:
     """Tests for Settings model validation and environment variable handling."""
 
-    async def test_valid_settings_load_successfully(self, integration_env: str) -> None:
+    async def test_valid_settings_load_successfully(self, integration_db: str) -> None:
         """Test that valid settings load from environment variables."""
-        # integration_env fixture sets up DATABASE_URL and REDIS_URL
+        # integration_db fixture sets up DATABASE_URL and REDIS_URL
         settings = get_settings()
 
         assert settings.database_url is not None
@@ -37,7 +37,7 @@ class TestSettingsValidation:
         assert "postgresql" in str(settings.database_url)
         assert "redis" in str(settings.redis_url)
 
-    async def test_settings_cache_returns_same_instance(self, integration_env: str) -> None:
+    async def test_settings_cache_returns_same_instance(self, integration_db: str) -> None:
         """Test that get_settings() returns cached instance."""
         settings1 = get_settings()
         settings2 = get_settings()
@@ -45,7 +45,7 @@ class TestSettingsValidation:
         # Should be the exact same object (cached)
         assert settings1 is settings2
 
-    async def test_settings_cache_clear_forces_reload(self, integration_env: str) -> None:
+    async def test_settings_cache_clear_forces_reload(self, integration_db: str) -> None:
         """Test that clearing cache forces settings reload."""
         original_settings = get_settings()
 
@@ -59,7 +59,7 @@ class TestSettingsValidation:
         assert original_settings is not new_settings
         assert original_settings.database_url == new_settings.database_url
 
-    async def test_invalid_database_url_raises_validation_error(self, integration_env: str) -> None:
+    async def test_invalid_database_url_raises_validation_error(self, integration_db: str) -> None:
         """Test that invalid database URL raises validation error."""
         original_db_url = os.environ.get("DATABASE_URL")
 
@@ -79,7 +79,7 @@ class TestSettingsValidation:
             get_settings.cache_clear()
 
     async def test_missing_required_field_raises_validation_error(
-        self, integration_env: str
+        self, integration_db: str
     ) -> None:
         """Test that missing required environment variable raises validation error."""
         original_db_url = os.environ.get("DATABASE_URL")
@@ -97,7 +97,7 @@ class TestSettingsValidation:
                 os.environ["DATABASE_URL"] = original_db_url
             get_settings.cache_clear()
 
-    async def test_numeric_validation_constraints(self, integration_env: str) -> None:
+    async def test_numeric_validation_constraints(self, integration_db: str) -> None:
         """Test that numeric fields enforce validation constraints."""
         original_pool_size = os.environ.get("DATABASE_POOL_SIZE")
 
@@ -123,7 +123,7 @@ class TestSettingsValidation:
 class TestOrchestratorSettings:
     """Tests for OrchestratorSettings validation."""
 
-    async def test_orchestrator_settings_with_defaults(self, integration_env: str) -> None:
+    async def test_orchestrator_settings_with_defaults(self, integration_db: str) -> None:
         """Test that OrchestratorSettings loads with default values."""
         settings = OrchestratorSettings()
 
@@ -134,7 +134,7 @@ class TestOrchestratorSettings:
         assert settings.startup_grace_period == 60
         assert settings.max_consecutive_failures == 5
 
-    async def test_orchestrator_settings_from_environment(self, integration_env: str) -> None:
+    async def test_orchestrator_settings_from_environment(self, integration_db: str) -> None:
         """Test that OrchestratorSettings loads from environment variables."""
         original_enabled = os.environ.get("ORCHESTRATOR_ENABLED")
         original_interval = os.environ.get("ORCHESTRATOR_HEALTH_CHECK_INTERVAL")
@@ -160,7 +160,7 @@ class TestOrchestratorSettings:
                 os.environ.pop("ORCHESTRATOR_HEALTH_CHECK_INTERVAL", None)
 
     async def test_orchestrator_health_check_interval_constraints(
-        self, integration_env: str
+        self, integration_db: str
     ) -> None:
         """Test that health check interval enforces min/max constraints."""
         original_interval = os.environ.get("ORCHESTRATOR_HEALTH_CHECK_INTERVAL")
@@ -187,7 +187,7 @@ class TestOrchestratorSettings:
             else:
                 os.environ.pop("ORCHESTRATOR_HEALTH_CHECK_INTERVAL", None)
 
-    async def test_orchestrator_timeout_less_than_interval(self, integration_env: str) -> None:
+    async def test_orchestrator_timeout_less_than_interval(self, integration_db: str) -> None:
         """Test that health check timeout should be less than interval."""
         original_timeout = os.environ.get("ORCHESTRATOR_HEALTH_CHECK_TIMEOUT")
         original_interval = os.environ.get("ORCHESTRATOR_HEALTH_CHECK_INTERVAL")
@@ -219,7 +219,7 @@ class TestOrchestratorSettings:
 class TestDatabasePoolSizeValidation:
     """Tests for database pool size validation."""
 
-    async def test_database_pool_size_constraints(self, integration_env: str) -> None:
+    async def test_database_pool_size_constraints(self, integration_db: str) -> None:
         """Test that database pool size enforces min/max constraints."""
         original_pool_size = os.environ.get("DATABASE_POOL_SIZE")
 
@@ -252,7 +252,7 @@ class TestDatabasePoolSizeValidation:
 class TestDynamicConfiguration:
     """Tests for dynamic configuration updates and environment isolation."""
 
-    async def test_environment_change_requires_cache_clear(self, integration_env: str) -> None:
+    async def test_environment_change_requires_cache_clear(self, integration_db: str) -> None:
         """Test that changing environment variables requires cache clear."""
         original_api_port = os.environ.get("API_PORT")
 
@@ -281,7 +281,7 @@ class TestDynamicConfiguration:
                 os.environ.pop("API_PORT", None)
             get_settings.cache_clear()
 
-    async def test_parallel_workers_use_independent_caches(self, integration_env: str) -> None:
+    async def test_parallel_workers_use_independent_caches(self, integration_db: str) -> None:
         """Test that parallel pytest-xdist workers use independent settings caches.
 
         This test demonstrates the pattern but can't truly test parallel execution
@@ -298,7 +298,7 @@ class TestDynamicConfiguration:
         # Worker isolation is handled by pytest-xdist worker_db_url fixture
         # This test verifies the pattern is working correctly
 
-    async def test_settings_immutability(self, integration_env: str) -> None:
+    async def test_settings_immutability(self, integration_db: str) -> None:
         """Test that Settings model is immutable (frozen)."""
         settings = get_settings()
 
@@ -320,7 +320,7 @@ class TestDynamicConfiguration:
 class TestConfigurationEdgeCases:
     """Tests for configuration edge cases and error handling."""
 
-    async def test_empty_string_vs_none_handling(self, integration_env: str) -> None:
+    async def test_empty_string_vs_none_handling(self, integration_db: str) -> None:
         """Test that empty strings are handled correctly vs None."""
         original_api_host = os.environ.get("API_HOST")
 
@@ -345,7 +345,7 @@ class TestConfigurationEdgeCases:
                 os.environ.pop("API_HOST", None)
             get_settings.cache_clear()
 
-    async def test_boolean_string_parsing(self, integration_env: str) -> None:
+    async def test_boolean_string_parsing(self, integration_db: str) -> None:
         """Test that boolean strings are parsed correctly."""
         original_debug = os.environ.get("DEBUG")
 
@@ -370,7 +370,7 @@ class TestConfigurationEdgeCases:
                 os.environ.pop("DEBUG", None)
             get_settings.cache_clear()
 
-    async def test_whitespace_trimming(self, integration_env: str) -> None:
+    async def test_whitespace_trimming(self, integration_db: str) -> None:
         """Test that string values have whitespace trimmed."""
         original_app_name = os.environ.get("APP_NAME")
 

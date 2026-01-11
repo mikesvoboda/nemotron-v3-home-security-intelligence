@@ -61,8 +61,8 @@ test.describe('Settings Navigation and Configuration Journey (NEM-2049)', () => 
         const isSelected = await tabElement.getAttribute('data-selected');
         expect(isSelected).toBe('true');
 
-        // Verify tab panel content is visible (filter to visible panel only)
-        const tabPanel = page.locator('[role="tabpanel"]:not([aria-hidden="true"])');
+        // Verify tab panel content is visible
+        const tabPanel = page.locator('[role="tabpanel"]');
         await expect(tabPanel).toBeVisible();
       }
     }
@@ -268,7 +268,7 @@ test.describe('Settings Navigation and Configuration Journey (NEM-2049)', () => 
       await page.waitForTimeout(1500);
 
       // Then: Verify rules interface is present
-      const tabPanel = page.locator('[role="tabpanel"]:not([aria-hidden="true"])');
+      const tabPanel = page.locator('[role="tabpanel"]');
       await expect(tabPanel).toBeVisible();
 
       // Look for rules-related content
@@ -304,7 +304,7 @@ test.describe('Settings Navigation and Configuration Journey (NEM-2049)', () => 
       await page.waitForTimeout(500);
 
       // Then: Verify a tab panel is visible (tab changed)
-      const tabPanel = page.locator('[role="tabpanel"]:not([aria-hidden="true"])');
+      const tabPanel = page.locator('[role="tabpanel"]');
       await expect(tabPanel).toBeVisible();
 
       // Navigate back with ArrowLeft
@@ -444,7 +444,7 @@ test.describe('Settings Navigation and Configuration Journey (NEM-2049)', () => 
         await page.waitForTimeout(1000);
 
         // Then: Look for descriptive text
-        const tabPanel = page.locator('[role="tabpanel"]:not([aria-hidden="true"])');
+        const tabPanel = page.locator('[role="tabpanel"]');
         await expect(tabPanel).toBeVisible();
 
         const panelText = await tabPanel.textContent();

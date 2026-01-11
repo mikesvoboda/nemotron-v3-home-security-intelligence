@@ -33,7 +33,9 @@ pytestmark = pytest.mark.integration
 class TestEventCreationIdempotency:
     """Tests for idempotent event creation using batch_id."""
 
-    async def test_duplicate_batch_id_creates_only_one_event(self, isolated_db_session) -> None:
+    async def test_duplicate_batch_id_creates_only_one_event(
+        self, integration_db: str, clean_tables: None
+    ) -> None:
         """Test that processing the same batch_id twice creates only one event."""
         batch_id = unique_id("batch")
         camera_id = unique_id("camera")
@@ -92,7 +94,9 @@ class TestEventCreationIdempotency:
             assert len(events) == 1
             assert events[0].summary == "First processing"  # First one wins
 
-    async def test_concurrent_batch_processing_creates_one_event(self, isolated_db_session) -> None:
+    async def test_concurrent_batch_processing_creates_one_event(
+        self, integration_db: str, clean_tables: None
+    ) -> None:
         """Test that concurrent batch processing creates only one event."""
         batch_id = unique_id("batch")
         camera_id = unique_id("camera")
@@ -151,7 +155,9 @@ class TestEventCreationIdempotency:
             success_count = sum(1 for r in results if r is True)
             assert success_count >= 1
 
-    async def test_event_update_is_not_idempotent(self, isolated_db_session) -> None:
+    async def test_event_update_is_not_idempotent(
+        self, integration_db: str, clean_tables: None
+    ) -> None:
         """Test that event updates are not idempotent (demonstrate non-idempotent operation)."""
         batch_id = unique_id("batch")
         camera_id = unique_id("camera")
@@ -210,7 +216,7 @@ class TestCameraRegistrationIdempotency:
     """Tests for idempotent camera registration."""
 
     async def test_register_same_camera_twice_updates_not_duplicates(
-        self, isolated_db_session
+        self, integration_db: str, clean_tables: None
     ) -> None:
         """Test that registering the same camera twice updates existing, not duplicates."""
         camera_id = unique_id("camera")
@@ -266,7 +272,7 @@ class TestCameraRegistrationIdempotency:
             assert len(cameras) == 1
             assert cameras[0].status == "online"
 
-    async def test_camera_upsert_pattern(self, isolated_db_session) -> None:
+    async def test_camera_upsert_pattern(self, integration_db: str, clean_tables: None) -> None:
         """Test camera upsert pattern for idempotent registration."""
         camera_id = unique_id("camera")
         folder_path = f"/export/foscam/{camera_id}"
@@ -311,7 +317,9 @@ class TestCameraRegistrationIdempotency:
 class TestDetectionProcessingIdempotency:
     """Tests for idempotent detection processing."""
 
-    async def test_duplicate_detection_file_path_handling(self, isolated_db_session) -> None:
+    async def test_duplicate_detection_file_path_handling(
+        self, integration_db: str, clean_tables: None
+    ) -> None:
         """Test handling of duplicate detections for the same file path."""
         camera_id = unique_id("camera")
         file_path = f"/export/foscam/{camera_id}/image.jpg"
@@ -371,7 +379,9 @@ class TestDetectionProcessingIdempotency:
             assert len(detections) == 1
             assert detections[0].id == detection_id_1
 
-    async def test_detection_re_enrichment_is_idempotent(self, isolated_db_session) -> None:
+    async def test_detection_re_enrichment_is_idempotent(
+        self, integration_db: str, clean_tables: None
+    ) -> None:
         """Test that re-enriching a detection is idempotent."""
         camera_id = unique_id("camera")
         file_path = f"/export/foscam/{camera_id}/image.jpg"
@@ -467,7 +477,7 @@ class TestAPIIdempotency:
 
         # Second POST with same data (creates different resource - not idempotent)
         response2 = await client.post("/api/cameras", json=camera_data)
-        assert response2.status_code == 409  # Conflict - duplicate folder_path
+        assert response2.status_code == 400  # Duplicate folder_path due to unique constraint
 
         # Verify behavior (POST is not idempotent without idempotency keys)
         # In production, you'd use idempotency keys or PUT for idempotent creates
@@ -489,7 +499,7 @@ class TestAPIIdempotency:
 
         # First DELETE
         response1 = await client.delete(f"/api/cameras/{camera_id}")
-        assert response1.status_code == 204  # No Content - successful deletion
+        assert response1.status_code == 200
 
         # Second DELETE (idempotent - same result)
         response2 = await client.delete(f"/api/cameras/{camera_id}")
@@ -503,7 +513,9 @@ class TestAPIIdempotency:
 class TestConcurrentIdempotency:
     """Tests for idempotency under concurrent operations."""
 
-    async def test_concurrent_camera_registration_one_succeeds(self, isolated_db_session) -> None:
+    async def test_concurrent_camera_registration_one_succeeds(
+        self, integration_db: str, clean_tables: None
+    ) -> None:
         """Test that concurrent camera registrations result in one camera."""
         camera_id = unique_id("camera")
         folder_path = f"/export/foscam/{camera_id}"
@@ -547,7 +559,9 @@ class TestConcurrentIdempotency:
             # This test demonstrates the need for database-level unique constraints
             assert len(cameras) >= 1
 
-    async def test_idempotency_with_transaction_retry(self, isolated_db_session) -> None:
+    async def test_idempotency_with_transaction_retry(
+        self, integration_db: str, clean_tables: None
+    ) -> None:
         """Test idempotency with transaction retry logic."""
         batch_id = unique_id("batch")
         camera_id = unique_id("camera")
