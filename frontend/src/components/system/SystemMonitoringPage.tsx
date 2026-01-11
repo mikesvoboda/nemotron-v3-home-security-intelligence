@@ -595,8 +595,9 @@ export default function SystemMonitoringPage() {
     return () => clearInterval(interval);
   }, []);
 
-  // Loading state
-  if (loading || healthLoading) {
+  // Loading state - don't show loading if there's already a critical error
+  // (healthError alone doesn't block loading - it shows inline in services panel)
+  if ((loading || healthLoading) && !error) {
     return (
       <div className="min-h-screen bg-[#121212] p-8" data-testid="system-monitoring-loading">
         <div className="mx-auto max-w-[1920px]">
@@ -617,7 +618,8 @@ export default function SystemMonitoringPage() {
     );
   }
 
-  // Error state
+  // Error state - only show full-page error for critical errors (main data fetch failure)
+  // healthError is shown inline in the services panel, not as a full-page error
   if (error) {
     return (
       <div
