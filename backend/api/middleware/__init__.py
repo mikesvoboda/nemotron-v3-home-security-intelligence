@@ -10,6 +10,13 @@ from .auth import AuthMiddleware, authenticate_websocket, validate_websocket_api
 from .body_limit import BodySizeLimitMiddleware
 from .content_type_validator import ContentTypeValidationMiddleware
 from .correlation import get_correlation_headers, merge_headers_with_correlation
+from .deprecation import (
+    DeprecatedEndpoint,
+    DeprecationConfig,
+    DeprecationMiddleware,
+    format_http_date,
+    format_unix_timestamp,
+)
 from .deprecation_logger import (
     DEPRECATED_CALLS_TOTAL,
     DeprecationLoggerMiddleware,
@@ -64,7 +71,10 @@ __all__ = [
     "AuthMiddleware",
     "BodySizeLimitMiddleware",
     "ContentTypeValidationMiddleware",
+    "DeprecatedEndpoint",
+    "DeprecationConfig",
     "DeprecationLoggerMiddleware",
+    "DeprecationMiddleware",
     "IdempotencyMiddleware",
     "RateLimitTier",
     "RateLimiter",

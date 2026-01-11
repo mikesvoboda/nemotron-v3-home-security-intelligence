@@ -3,6 +3,12 @@
 This module provides tracking and WebSocket broadcasting for background jobs.
 Jobs go through states: PENDING -> RUNNING -> COMPLETED/FAILED
 
+Features:
+- In-memory tracking with optional Redis persistence
+- WebSocket broadcast for job progress updates (throttled to 10% increments)
+- Job completion and failure notifications
+- TTL-based auto-cleanup of completed jobs in Redis
+
 WebSocket events are broadcast for:
 - Job progress updates (throttled to 10% increments)
 - Job completion
@@ -17,14 +23,23 @@ import uuid
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from enum import StrEnum, auto
-from typing import Any, TypedDict
+from typing import TYPE_CHECKING, Any, TypedDict
 
 from backend.core.logging import get_logger
+
+if TYPE_CHECKING:
+    from backend.core.redis import RedisClient
 
 logger = get_logger(__name__)
 
 # Progress updates are throttled to broadcast only on 10% increments
 PROGRESS_THROTTLE_INCREMENT = 10
+
+# Redis key prefix for job storage
+REDIS_JOB_KEY_PREFIX = "job:"
+
+# TTL for completed/failed jobs in Redis (1 hour)
+REDIS_JOB_TTL_SECONDS = 3600
 
 # Type alias for broadcast callback
 # Can be sync (returns None) or async (returns Awaitable)
@@ -55,6 +70,7 @@ class JobInfo(TypedDict):
     job_type: str
     status: JobStatus
     progress: int
+    message: str | None
     created_at: str
     started_at: str | None
     completed_at: str | None
@@ -95,17 +111,29 @@ class JobTracker:
 
     The broadcast callback can be either sync or async. When async, it will
     be scheduled on the current event loop if available.
+
+    Optionally supports Redis persistence for job state, enabling:
+    - Job status retrieval via API endpoints
+    - Crash recovery (jobs survive process restarts)
+    - TTL-based auto-cleanup of completed jobs
     """
 
-    def __init__(self, broadcast_callback: BroadcastCallback | None = None) -> None:
+    def __init__(
+        self,
+        broadcast_callback: BroadcastCallback | None = None,
+        redis_client: RedisClient | None = None,
+    ) -> None:
         """Initialize the job tracker.
 
         Args:
             broadcast_callback: Optional callback for broadcasting events.
                               Signature: (event_type: str, data: dict) -> None | Awaitable
                               If None, events will be logged but not broadcast.
+            redis_client: Optional Redis client for job persistence.
+                         If None, jobs are only tracked in memory.
         """
         self._broadcast_callback = broadcast_callback
+        self._redis_client = redis_client
         self._jobs: dict[str, JobInfo] = {}
         self._last_broadcast_progress: dict[str, int] = {}
         self._lock = threading.Lock()
@@ -134,6 +162,107 @@ class JobTracker:
                 extra={"event_type": event_type, "error": str(e)},
             )
 
+    def _get_redis_key(self, job_id: str) -> str:
+        """Get the Redis key for a job.
+
+        Args:
+            job_id: The job ID.
+
+        Returns:
+            Redis key string.
+        """
+        return f"{REDIS_JOB_KEY_PREFIX}{job_id}"
+
+    async def _persist_job_async(self, job_id: str, ttl: int | None = None) -> None:
+        """Persist job state to Redis asynchronously.
+
+        Args:
+            job_id: The job ID to persist.
+            ttl: Optional TTL in seconds. If None, no expiry is set.
+        """
+        if self._redis_client is None:
+            return
+
+        with self._lock:
+            job = self._jobs.get(job_id)
+            if job is None:
+                return
+            # Create a copy for serialization
+            job_data = dict(job)
+
+        try:
+            key = self._get_redis_key(job_id)
+            await self._redis_client.set(key, job_data, expire=ttl)
+        except Exception as e:
+            logger.warning(
+                "Failed to persist job to Redis",
+                extra={"job_id": job_id, "error": str(e)},
+            )
+
+    def _schedule_persist(self, job_id: str, ttl: int | None = None) -> None:
+        """Schedule job persistence to Redis.
+
+        Handles the async persistence in a fire-and-forget manner.
+
+        Args:
+            job_id: The job ID to persist.
+            ttl: Optional TTL in seconds.
+        """
+        if self._redis_client is None:
+            return
+
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(self._persist_job_async(job_id, ttl))
+        except RuntimeError:
+            # No running event loop - skip persistence
+            logger.debug("No event loop available for Redis persistence")
+
+    async def get_job_from_redis(self, job_id: str) -> JobInfo | None:
+        """Get job information from Redis.
+
+        Falls back to in-memory storage if Redis is unavailable.
+
+        Args:
+            job_id: The job ID to look up.
+
+        Returns:
+            Job information or None if not found.
+        """
+        # First check in-memory cache
+        with self._lock:
+            if job_id in self._jobs:
+                return self._jobs[job_id]
+
+        # Then check Redis
+        if self._redis_client is None:
+            return None
+
+        try:
+            key = self._get_redis_key(job_id)
+            data = await self._redis_client.get(key)
+            if data is not None and isinstance(data, dict):
+                # Reconstruct JobInfo from Redis data
+                return JobInfo(
+                    job_id=data.get("job_id", job_id),
+                    job_type=data.get("job_type", "unknown"),
+                    status=JobStatus(data.get("status", "pending")),
+                    progress=data.get("progress", 0),
+                    message=data.get("message"),
+                    created_at=data.get("created_at", ""),
+                    started_at=data.get("started_at"),
+                    completed_at=data.get("completed_at"),
+                    result=data.get("result"),
+                    error=data.get("error"),
+                )
+        except Exception as e:
+            logger.warning(
+                "Failed to get job from Redis",
+                extra={"job_id": job_id, "error": str(e)},
+            )
+
+        return None
+
     def create_job(self, job_type: str, job_id: str | None = None) -> str:
         """Create a new job and return its ID.
 
@@ -155,6 +284,7 @@ class JobTracker:
                 job_type=job_type,
                 status=JobStatus.PENDING,
                 progress=0,
+                message=None,
                 created_at=now,
                 started_at=None,
                 completed_at=None,
@@ -167,13 +297,18 @@ class JobTracker:
             "Job created",
             extra={"job_id": job_id, "job_type": job_type},
         )
+
+        # Persist to Redis (fire-and-forget)
+        self._schedule_persist(job_id)
+
         return job_id
 
-    def start_job(self, job_id: str) -> None:
+    def start_job(self, job_id: str, message: str | None = None) -> None:
         """Mark a job as started/running.
 
         Args:
             job_id: The job ID to start.
+            message: Optional status message.
 
         Raises:
             KeyError: If the job ID is not found.
@@ -186,10 +321,15 @@ class JobTracker:
 
             self._jobs[job_id]["status"] = JobStatus.RUNNING
             self._jobs[job_id]["started_at"] = now
+            if message is not None:
+                self._jobs[job_id]["message"] = message
 
         logger.info("Job started", extra={"job_id": job_id})
 
-    def update_progress(self, job_id: str, progress: int) -> None:
+        # Persist to Redis
+        self._schedule_persist(job_id)
+
+    def update_progress(self, job_id: str, progress: int, message: str | None = None) -> None:
         """Update job progress and optionally broadcast.
 
         Progress is clamped to 0-100 range. Broadcasts are throttled to
@@ -198,6 +338,7 @@ class JobTracker:
         Args:
             job_id: The job ID to update.
             progress: New progress value (0-100).
+            message: Optional status message describing current progress.
 
         Raises:
             KeyError: If the job ID is not found.
@@ -209,6 +350,8 @@ class JobTracker:
                 raise KeyError(f"Job not found: {job_id}")
 
             self._jobs[job_id]["progress"] = progress
+            if message is not None:
+                self._jobs[job_id]["message"] = message
 
             should_broadcast = self._should_broadcast_progress(job_id, progress)
             if should_broadcast:
@@ -216,6 +359,8 @@ class JobTracker:
 
         if should_broadcast:
             self._broadcast_progress(job_id)
+            # Persist to Redis on broadcast threshold
+            self._schedule_persist(job_id)
 
     def _should_broadcast_progress(self, job_id: str, progress: int) -> bool:
         """Determine if progress update should be broadcast.
@@ -279,6 +424,7 @@ class JobTracker:
             self._jobs[job_id]["progress"] = 100
             self._jobs[job_id]["completed_at"] = now
             self._jobs[job_id]["result"] = result
+            self._jobs[job_id]["message"] = "Completed successfully"
 
             job = self._jobs[job_id]
 
@@ -286,6 +432,9 @@ class JobTracker:
             "Job completed",
             extra={"job_id": job_id, "job_type": job["job_type"]},
         )
+
+        # Persist to Redis with TTL (completed jobs expire after 1 hour)
+        self._schedule_persist(job_id, ttl=REDIS_JOB_TTL_SECONDS)
 
         data = JobCompletedData(
             job_id=job_id,
@@ -317,6 +466,7 @@ class JobTracker:
             self._jobs[job_id]["status"] = JobStatus.FAILED
             self._jobs[job_id]["completed_at"] = now
             self._jobs[job_id]["error"] = error
+            self._jobs[job_id]["message"] = f"Failed: {error}"
 
             job = self._jobs[job_id]
 
@@ -324,6 +474,9 @@ class JobTracker:
             "Job failed",
             extra={"job_id": job_id, "job_type": job["job_type"], "error": error},
         )
+
+        # Persist to Redis with TTL (failed jobs expire after 1 hour)
+        self._schedule_persist(job_id, ttl=REDIS_JOB_TTL_SECONDS)
 
         data = JobFailedData(
             job_id=job_id,
@@ -389,19 +542,22 @@ _job_tracker: JobTracker | None = None
 
 def get_job_tracker(
     broadcast_callback: BroadcastCallback | None = None,
+    redis_client: RedisClient | None = None,
 ) -> JobTracker:
     """Get or create the singleton job tracker instance.
 
     Args:
         broadcast_callback: Optional callback for broadcasting events.
                           Only used when creating the singleton for the first time.
+        redis_client: Optional Redis client for job persistence.
+                     Only used when creating the singleton for the first time.
 
     Returns:
         The job tracker singleton.
     """
     global _job_tracker  # noqa: PLW0603
     if _job_tracker is None:
-        _job_tracker = JobTracker(broadcast_callback)
+        _job_tracker = JobTracker(broadcast_callback, redis_client)
     return _job_tracker
 
 
