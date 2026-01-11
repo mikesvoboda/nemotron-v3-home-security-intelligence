@@ -50,8 +50,8 @@ test.describe('Alerts Visual Regression', () => {
 
     await page.waitForLoadState('networkidle');
 
-    // Filter section screenshot
-    const filterSection = page.locator('select#risk-filter').locator('..');
+    // Filter section screenshot - updated for redesigned button group filters
+    const filterSection = page.locator('[role="group"][aria-label="Alert severity filters"]');
     if (await filterSection.isVisible()) {
       await expect(filterSection).toHaveScreenshot('alerts-filter-section.png');
     }

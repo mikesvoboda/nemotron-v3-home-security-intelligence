@@ -52,13 +52,13 @@ const AlertFilters = memo(function AlertFilters({
 
   return (
     <div className="flex flex-wrap items-center gap-3" role="group" aria-label="Alert severity filters">
-      {/* All Alerts */}
+      {/* All Alerts - Using darker green (#4B7600) for WCAG AA color contrast compliance */}
       <button
         onClick={() => handleFilterClick('all')}
         disabled={counts.all === 0}
         aria-pressed={activeFilter === 'all'}
         aria-label="Filter by all alerts"
-        className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all ${getButtonClasses('all', 'bg-[#76B900] hover:bg-[#8ACC00]')}`}
+        className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all ${getButtonClasses('all', 'bg-[#4B7600] hover:bg-[#5A8C00]')}`}
       >
         <Bell className="h-4 w-4" />
         <span>All</span>

@@ -49,11 +49,13 @@ export class AlertsPage extends BasePage {
 
     // Page heading
     this.pageTitle = page.getByRole('heading', { name: /Alerts/i }).first();
-    this.pageSubtitle = page.getByText(/High and critical risk events/i);
+    // Updated to match redesigned page with "X unacknowledged | Y total" format
+    this.pageSubtitle = page.getByText(/\d+ unacknowledged \| \d+ total/i);
     this.alertIcon = page.locator('svg.lucide-alert-triangle').first();
 
-    // Filter Section
-    this.riskFilter = page.locator('#risk-filter');
+    // Filter Section - redesigned from select dropdown to button group
+    // Use the filter group container to find the appropriate filter button
+    this.riskFilter = page.locator('[role="group"][aria-label="Alert severity filters"]');
     this.refreshButton = page.getByRole('button', { name: /Refresh/i });
 
     // Results Section
@@ -102,9 +104,18 @@ export class AlertsPage extends BasePage {
 
   /**
    * Filter by severity level
+   * Redesigned to use button-based filters instead of select dropdown
    */
-  async filterBySeverity(level: 'all' | 'critical' | 'high'): Promise<void> {
-    await this.riskFilter.selectOption(level);
+  async filterBySeverity(level: 'all' | 'critical' | 'high' | 'medium' | 'unread'): Promise<void> {
+    const labelMap: Record<string, string> = {
+      all: 'Filter by all alerts',
+      critical: 'Filter by critical severity',
+      high: 'Filter by high severity',
+      medium: 'Filter by medium severity',
+      unread: 'Filter by unread alerts',
+    };
+    const ariaLabel = labelMap[level];
+    await this.page.getByRole('button', { name: ariaLabel }).click();
   }
 
   /**
