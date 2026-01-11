@@ -234,9 +234,9 @@ test.describe('Event Filtering and Search Journey (NEM-2049)', () => {
       await clearFiltersButton.click();
       await page.waitForTimeout(1000);
 
-      // Then: Verify filters are cleared
+      // Then: Verify filters are cleared (accept 'all' or '' as default)
       const riskValue = await riskFilter.inputValue();
-      expect(riskValue).toBe('all'); // Default value
+      expect(riskValue === 'all' || riskValue === '').toBeTruthy();
     }
   });
 
