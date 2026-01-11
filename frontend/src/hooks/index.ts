@@ -196,3 +196,6 @@ export type {
   UseSceneChangeAlertsOptions,
   UseSceneChangeAlertsReturn,
 } from './useSceneChangeAlerts';
+
+export { useRateLimitCountdown, formatCountdown } from './useRateLimitCountdown';
+export type { UseRateLimitCountdownReturn } from './useRateLimitCountdown';
