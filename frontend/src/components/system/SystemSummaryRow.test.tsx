@@ -2,7 +2,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, Mock, vi } from 'vitest';
 
 import SystemSummaryRow from './SystemSummaryRow';
-import { useHealthStatus } from '../../hooks/useHealthStatus';
+import { useHealthStatusQuery } from '../../hooks/useHealthStatusQuery';
 import { useModelZooStatus } from '../../hooks/useModelZooStatus';
 import { usePerformanceMetrics } from '../../hooks/usePerformanceMetrics';
 
@@ -10,7 +10,7 @@ import type { PerformanceUpdate } from '../../hooks/usePerformanceMetrics';
 
 // Mock the hooks
 vi.mock('../../hooks/usePerformanceMetrics');
-vi.mock('../../hooks/useHealthStatus');
+vi.mock('../../hooks/useHealthStatusQuery');
 vi.mock('../../hooks/useModelZooStatus');
 
 // Mock scrollIntoView
@@ -116,7 +116,7 @@ function setupMocks(overrides?: {
   overallStatus?: 'healthy' | 'degraded' | 'unhealthy' | null;
 }) {
   const mockedUsePerformanceMetrics = usePerformanceMetrics as Mock;
-  const mockedUseHealthStatus = useHealthStatus as Mock;
+  const mockedUseHealthStatusQuery = useHealthStatusQuery as Mock;
   const mockedUseModelZooStatus = useModelZooStatus as Mock;
 
   mockedUsePerformanceMetrics.mockReturnValue({
@@ -128,13 +128,15 @@ function setupMocks(overrides?: {
     setTimeRange: vi.fn(),
   });
 
-  mockedUseHealthStatus.mockReturnValue({
-    health: null,
+  mockedUseHealthStatusQuery.mockReturnValue({
+    data: undefined,
     isLoading: false,
+    isRefetching: false,
     error: null,
+    isStale: false,
     overallStatus: overrides?.overallStatus ?? 'healthy',
     services: overrides?.services ?? defaultServices,
-    refresh: vi.fn(),
+    refetch: vi.fn(),
   });
 
   mockedUseModelZooStatus.mockReturnValue({

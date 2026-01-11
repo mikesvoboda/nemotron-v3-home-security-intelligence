@@ -9,7 +9,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 
-import { useStorageStats } from '../../hooks/useStorageStats';
+import { useStorageStatsQuery, useCleanupPreviewMutation } from '../../hooks/useStorageStatsQuery';
 
 export interface StorageDashboardProps {
   className?: string;
@@ -46,18 +46,26 @@ function formatNumber(num: number): string {
  * - Automatic polling for real-time updates
  */
 export default function StorageDashboard({ className }: StorageDashboardProps) {
+  // Use React Query hooks for storage stats and cleanup preview
   const {
-    stats,
-    loading,
-    error,
-    refresh,
-    previewCleanup,
-    previewLoading,
-    cleanupPreview,
-  } = useStorageStats({
-    pollInterval: 60000, // Poll every minute
-    enablePolling: true,
+    data: stats,
+    isLoading,
+    isRefetching,
+    error: statsError,
+    refetch,
+  } = useStorageStatsQuery({
+    refetchInterval: 60000, // Poll every minute
   });
+
+  const {
+    preview: previewCleanup,
+    previewData: cleanupPreview,
+    isPending: previewLoading,
+    error: previewError,
+  } = useCleanupPreviewMutation();
+
+  // Combine loading states for UI (use for showing spinner on refresh button)
+  const loading = isLoading || isRefetching;
 
   // Determine progress bar color based on usage percentage
   const getUsageColor = (percent: number): 'emerald' | 'yellow' | 'orange' | 'red' => {
@@ -67,8 +75,8 @@ export default function StorageDashboard({ className }: StorageDashboardProps) {
     return 'red';
   };
 
-  // Loading state
-  if (loading && !stats) {
+  // Loading state (only show on initial load, not background refetches)
+  if (isLoading && !stats) {
     return (
       <div className={`space-y-4 ${className || ''}`}>
         <div className="skeleton h-8 w-32"></div>
@@ -78,16 +86,16 @@ export default function StorageDashboard({ className }: StorageDashboardProps) {
     );
   }
 
-  // Error state
-  if (error && !stats) {
+  // Error state (only show if we have no data to display)
+  if (statsError && !stats) {
     return (
       <div className={`flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-4 ${className || ''}`}>
         <AlertCircle className="h-5 w-5 flex-shrink-0 text-red-500" />
-        <Text className="text-red-500">{error}</Text>
+        <Text className="text-red-500">{statsError.message}</Text>
         <Button
           size="xs"
           variant="secondary"
-          onClick={() => void refresh()}
+          onClick={() => void refetch()}
           className="ml-auto"
         >
           <RefreshCw className="mr-1 h-3 w-3" />
@@ -113,7 +121,7 @@ export default function StorageDashboard({ className }: StorageDashboardProps) {
           <Button
             size="xs"
             variant="secondary"
-            onClick={() => void refresh()}
+            onClick={() => void refetch()}
             disabled={loading}
             className="text-gray-400 hover:text-white"
           >
@@ -235,10 +243,10 @@ export default function StorageDashboard({ className }: StorageDashboardProps) {
           </Button>
         </div>
 
-        {error && !cleanupPreview && (
+        {previewError && !cleanupPreview && (
           <div className="mt-3 flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-2">
             <AlertCircle className="h-4 w-4 flex-shrink-0 text-red-500" />
-            <Text className="text-xs text-red-500">{error}</Text>
+            <Text className="text-xs text-red-500">{previewError.message}</Text>
           </div>
         )}
 

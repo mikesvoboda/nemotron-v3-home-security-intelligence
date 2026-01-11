@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import ModelZooPanel from './ModelZooPanel';
 
-import type { VRAMStats } from '../../hooks/useModelZooStatus';
+import type { VRAMStats } from '../../hooks/useModelZooStatusQuery';
 import type { ModelStatusResponse } from '../../services/api';
 
 describe('ModelZooPanel', () => {
@@ -55,10 +55,10 @@ describe('ModelZooPanel', () => {
   ];
 
   const mockVramStats: VRAMStats = {
-    budget_mb: 1650,
-    used_mb: 450,
-    available_mb: 1200,
-    usage_percent: 27.27,
+    budgetMb: 1650,
+    usedMb: 450,
+    availableMb: 1200,
+    usagePercent: 27.27,
   };
 
   const mockRefresh = vi.fn();

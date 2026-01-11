@@ -1,17 +1,9 @@
 import { Dialog, Transition } from '@headlessui/react';
 import { clsx } from 'clsx';
 import { AlertCircle, Camera as CameraIcon, Edit2, MapPin, Plus, Search, Trash2, X } from 'lucide-react';
-import { Fragment, useEffect, useState } from 'react';
+import { Fragment, useState } from 'react';
 
-import {
-  createCamera,
-  deleteCamera,
-  fetchCameras,
-  updateCamera,
-  type Camera,
-  type CameraCreate,
-  type CameraUpdate,
-} from '../../services/api';
+import { useCamerasQuery, useCameraMutation } from '../../hooks';
 import { formatRelativeTime, isTimestampStale } from '../../utils/time';
 import {
   validateCameraFolderPath,
@@ -19,6 +11,8 @@ import {
   VALIDATION_LIMITS,
 } from '../../utils/validation';
 import { ZoneEditor } from '../zones';
+
+import type { Camera, CameraCreate, CameraUpdate } from '../../services/api';
 
 /** Valid camera status values matching backend CameraStatus enum */
 type CameraStatusValue = 'online' | 'offline' | 'error' | 'unknown';
@@ -43,9 +37,11 @@ interface CameraFormErrors {
  * - Delete camera with confirmation
  */
 export default function CamerasSettings() {
-  const [cameras, setCameras] = useState<Camera[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // React Query hooks for data fetching and mutations
+  const { cameras, isLoading, error: queryError, refetch } = useCamerasQuery();
+  const { createMutation, updateMutation, deleteMutation } = useCameraMutation();
+
+  // Modal and form state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [editingCamera, setEditingCamera] = useState<Camera | null>(null);
@@ -56,34 +52,23 @@ export default function CamerasSettings() {
     status: 'online',
   });
   const [formErrors, setFormErrors] = useState<CameraFormErrors>({});
-  const [submitting, setSubmitting] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Zone editor state
   const [zoneEditorCamera, setZoneEditorCamera] = useState<Camera | null>(null);
 
+  // Local error state for mutations (to display after modal closes)
+  const [mutationError, setMutationError] = useState<string | null>(null);
+
+  // Derive loading/error states from query and mutations
+  const loading = isLoading;
+  const error = queryError?.message ?? mutationError;
+  const submitting = createMutation.isPending || updateMutation.isPending || deleteMutation.isPending;
+
   // Filter cameras based on search query
   const filteredCameras = cameras.filter((camera) =>
     camera.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
-
-  // Load cameras on mount
-  useEffect(() => {
-    void loadCameras();
-  }, []);
-
-  const loadCameras = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await fetchCameras();
-      setCameras(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load cameras');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const validateForm = (data: CameraFormData): CameraFormErrors => {
     const errors: CameraFormErrors = {};
@@ -147,7 +132,6 @@ export default function CamerasSettings() {
       return;
     }
 
-    setSubmitting(true);
     setFormErrors({});
 
     try {
@@ -158,7 +142,7 @@ export default function CamerasSettings() {
           folder_path: formData.folder_path.trim(),
           status: formData.status,
         };
-        await updateCamera(editingCamera.id, updateData);
+        await updateMutation.mutateAsync({ id: editingCamera.id, data: updateData });
       } else {
         // Create new camera
         const createData: CameraCreate = {
@@ -166,35 +150,29 @@ export default function CamerasSettings() {
           folder_path: formData.folder_path.trim(),
           status: formData.status ?? 'online',
         };
-        await createCamera(createData);
+        await createMutation.mutateAsync(createData);
       }
 
-      // Reload cameras and close modal
-      await loadCameras();
+      // Cache is automatically invalidated by the mutation
       handleCloseModal();
     } catch (err) {
       setFormErrors({
         name: err instanceof Error ? err.message : 'Failed to save camera',
       });
-    } finally {
-      setSubmitting(false);
     }
   };
 
   const handleDelete = async () => {
     if (!deletingCamera) return;
 
-    setSubmitting(true);
-
     try {
-      await deleteCamera(deletingCamera.id);
-      await loadCameras();
+      await deleteMutation.mutateAsync(deletingCamera.id);
+      // Cache is automatically invalidated by the mutation
       handleCloseDeleteModal();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete camera');
+      // Set the error to display in the main error section
+      setMutationError(err instanceof Error ? err.message : 'Failed to delete camera');
       handleCloseDeleteModal();
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -229,7 +207,7 @@ export default function CamerasSettings() {
             <p className="mt-1 text-sm text-red-400">{error}</p>
             <button
               onClick={() => {
-                void loadCameras();
+                void refetch();
               }}
               className="mt-2 text-sm font-medium text-red-500 hover:text-red-400"
             >

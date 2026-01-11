@@ -24,6 +24,7 @@ import { useMemo } from 'react';
 import {
   fetchStorageStats,
   previewCleanup,
+  triggerCleanup,
   type StorageStatsResponse,
   type CleanupResponse,
 } from '../services/api';
@@ -231,6 +232,83 @@ export function useCleanupPreviewMutation(): UseCleanupPreviewMutationReturn {
     isPending: mutation.isPending,
     error: mutation.error,
     preview: () => mutation.mutateAsync(),
+    reset: mutation.reset,
+  };
+}
+
+// ============================================================================
+// useCleanupMutation
+// ============================================================================
+
+/**
+ * Return type for the useCleanupMutation hook
+ */
+export interface UseCleanupMutationReturn {
+  /** Mutation for executing cleanup */
+  mutation: ReturnType<typeof useMutation<CleanupResponse, Error, void>>;
+  /** Last cleanup result */
+  cleanupData: CleanupResponse | undefined;
+  /** Whether the cleanup is in progress */
+  isPending: boolean;
+  /** Error from the cleanup operation */
+  error: Error | null;
+  /** Function to trigger cleanup */
+  cleanup: () => Promise<CleanupResponse>;
+  /** Reset the mutation state */
+  reset: () => void;
+}
+
+/**
+ * Hook providing mutation for cleanup operations.
+ *
+ * This mutation performs the actual cleanup operation,
+ * deleting old data according to retention policy.
+ *
+ * @returns Mutation for cleanup
+ *
+ * @example
+ * ```tsx
+ * const { cleanup, cleanupData, isPending, error } = useCleanupMutation();
+ *
+ * const handleCleanup = async () => {
+ *   const result = await cleanup();
+ *   console.log('Deleted:', result.events_deleted);
+ *   console.log('Space freed:', result.space_reclaimed);
+ * };
+ *
+ * return (
+ *   <div>
+ *     <button onClick={handleCleanup} disabled={isPending}>
+ *       {isPending ? 'Cleaning...' : 'Run Cleanup'}
+ *     </button>
+ *     {cleanupData && (
+ *       <p>Freed {formatBytes(cleanupData.space_reclaimed)}</p>
+ *     )}
+ *   </div>
+ * );
+ * ```
+ */
+export function useCleanupMutation(): UseCleanupMutationReturn {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: triggerCleanup,
+    onSuccess: () => {
+      // Invalidate storage stats after cleanup since disk usage has changed
+      void queryClient.invalidateQueries({ queryKey: queryKeys.system.storage });
+      // Also invalidate system stats as event counts may have changed
+      void queryClient.invalidateQueries({ queryKey: queryKeys.system.stats });
+      // Invalidate events queries since events may have been deleted
+      void queryClient.invalidateQueries({ queryKey: queryKeys.events.all });
+    },
+  });
+
+  return {
+    mutation,
+    cleanupData: mutation.data,
+    isPending: mutation.isPending,
+    error: mutation.error,
+    cleanup: () => mutation.mutateAsync(),
     reset: mutation.reset,
   };
 }

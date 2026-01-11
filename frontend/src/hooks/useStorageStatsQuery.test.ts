@@ -1,7 +1,7 @@
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import { useStorageStatsQuery, useCleanupPreviewMutation } from './useStorageStatsQuery';
+import { useStorageStatsQuery, useCleanupPreviewMutation, useCleanupMutation } from './useStorageStatsQuery';
 import * as api from '../services/api';
 import { createQueryClient, queryKeys } from '../services/queryClient';
 import { createQueryWrapper } from '../test-utils/renderWithProviders';
@@ -10,6 +10,7 @@ import { createQueryWrapper } from '../test-utils/renderWithProviders';
 vi.mock('../services/api', () => ({
   fetchStorageStats: vi.fn(),
   previewCleanup: vi.fn(),
+  triggerCleanup: vi.fn(),
 }));
 
 describe('useStorageStatsQuery', () => {
@@ -337,6 +338,194 @@ describe('useCleanupPreviewMutation', () => {
 
       await waitFor(() => {
         expect(result.current.previewData).toBeUndefined();
+      });
+    });
+  });
+});
+
+describe('useCleanupMutation', () => {
+  const mockCleanupResult = {
+    detections_deleted: 100,
+    dry_run: false,
+    events_deleted: 50,
+    gpu_stats_deleted: 1000,
+    images_deleted: 80,
+    logs_deleted: 500,
+    retention_days: 30,
+    space_reclaimed: 5000000000, // 5GB
+    thumbnails_deleted: 200,
+    timestamp: '2025-12-28T10:00:00Z',
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (api.triggerCleanup as ReturnType<typeof vi.fn>).mockResolvedValue(mockCleanupResult);
+    (api.fetchStorageStats as ReturnType<typeof vi.fn>).mockResolvedValue({});
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  describe('initialization', () => {
+    it('starts with isPending false', () => {
+      const { result } = renderHook(() => useCleanupMutation(), {
+        wrapper: createQueryWrapper(),
+      });
+
+      expect(result.current.isPending).toBe(false);
+    });
+
+    it('starts with undefined cleanupData', () => {
+      const { result } = renderHook(() => useCleanupMutation(), {
+        wrapper: createQueryWrapper(),
+      });
+
+      expect(result.current.cleanupData).toBeUndefined();
+    });
+
+    it('starts with null error', () => {
+      const { result } = renderHook(() => useCleanupMutation(), {
+        wrapper: createQueryWrapper(),
+      });
+
+      expect(result.current.error).toBeNull();
+    });
+  });
+
+  describe('cleanup mutation', () => {
+    it('calls triggerCleanup API', async () => {
+      const { result } = renderHook(() => useCleanupMutation(), {
+        wrapper: createQueryWrapper(),
+      });
+
+      await act(async () => {
+        await result.current.cleanup();
+      });
+
+      expect(api.triggerCleanup).toHaveBeenCalledTimes(1);
+    });
+
+    it('returns cleanup data after success', async () => {
+      const { result } = renderHook(() => useCleanupMutation(), {
+        wrapper: createQueryWrapper(),
+      });
+
+      let cleanupResult: typeof mockCleanupResult | undefined;
+      await act(async () => {
+        cleanupResult = await result.current.cleanup();
+      });
+
+      expect(cleanupResult).toEqual(mockCleanupResult);
+
+      await waitFor(() => {
+        expect(result.current.cleanupData).toEqual(mockCleanupResult);
+      });
+    });
+
+    it('invalidates storage query after cleanup', async () => {
+      const queryClient = createQueryClient();
+      const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+
+      const { result } = renderHook(() => useCleanupMutation(), {
+        wrapper: createQueryWrapper(queryClient),
+      });
+
+      await act(async () => {
+        await result.current.cleanup();
+      });
+
+      expect(invalidateSpy).toHaveBeenCalledWith({
+        queryKey: queryKeys.system.storage,
+      });
+    });
+
+    it('invalidates system stats query after cleanup', async () => {
+      const queryClient = createQueryClient();
+      const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+
+      const { result } = renderHook(() => useCleanupMutation(), {
+        wrapper: createQueryWrapper(queryClient),
+      });
+
+      await act(async () => {
+        await result.current.cleanup();
+      });
+
+      expect(invalidateSpy).toHaveBeenCalledWith({
+        queryKey: queryKeys.system.stats,
+      });
+    });
+
+    it('invalidates events query after cleanup', async () => {
+      const queryClient = createQueryClient();
+      const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+
+      const { result } = renderHook(() => useCleanupMutation(), {
+        wrapper: createQueryWrapper(queryClient),
+      });
+
+      await act(async () => {
+        await result.current.cleanup();
+      });
+
+      expect(invalidateSpy).toHaveBeenCalledWith({
+        queryKey: queryKeys.events.all,
+      });
+    });
+
+    it('sets error on failure', async () => {
+      const errorMessage = 'Failed to run cleanup';
+      (api.triggerCleanup as ReturnType<typeof vi.fn>).mockRejectedValue(
+        new Error(errorMessage)
+      );
+
+      const { result } = renderHook(() => useCleanupMutation(), {
+        wrapper: createQueryWrapper(),
+      });
+
+      await act(async () => {
+        try {
+          await result.current.cleanup();
+        } catch {
+          // Expected error
+        }
+      });
+
+      await waitFor(() => {
+        expect(result.current.error).toBeInstanceOf(Error);
+      });
+    });
+  });
+
+  describe('reset', () => {
+    it('provides reset function', () => {
+      const { result } = renderHook(() => useCleanupMutation(), {
+        wrapper: createQueryWrapper(),
+      });
+
+      expect(typeof result.current.reset).toBe('function');
+    });
+
+    it('clears cleanupData on reset', async () => {
+      const { result } = renderHook(() => useCleanupMutation(), {
+        wrapper: createQueryWrapper(),
+      });
+
+      await act(async () => {
+        await result.current.cleanup();
+      });
+
+      await waitFor(() => {
+        expect(result.current.cleanupData).toEqual(mockCleanupResult);
+      });
+
+      act(() => {
+        result.current.reset();
+      });
+
+      await waitFor(() => {
+        expect(result.current.cleanupData).toBeUndefined();
       });
     });
   });
