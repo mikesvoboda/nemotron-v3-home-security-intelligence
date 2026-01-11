@@ -9,6 +9,16 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 import PromptPlayground from '../PromptPlayground';
 
+/**
+ * Helper function to get an input element by test ID with proper typing.
+ * This resolves TypeScript errors when accessing input-specific properties like value, min, max, etc.
+ * The type assertion is necessary because screen.getByTestId returns HTMLElement, not HTMLInputElement.
+ */
+const getInputByTestId = (testId: string): HTMLInputElement => {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
+  return screen.getByTestId(testId) as HTMLInputElement;
+};
+
 // Mock the API functions
 vi.mock('../../../services/api', () => ({
   fetchAllPrompts: vi.fn(() =>
@@ -134,7 +144,7 @@ describe('PromptPlayground Temperature Validation', () => {
       expect(screen.getByTestId('nemotron-temperature')).toBeInTheDocument();
     });
 
-    const temperatureSlider = screen.getByTestId('nemotron-temperature');
+    const temperatureSlider = getInputByTestId('nemotron-temperature');
     expect(temperatureSlider.type).toBe('range');
     expect(temperatureSlider.min).toBe('0');
     expect(temperatureSlider.max).toBe('2');
@@ -148,7 +158,7 @@ describe('PromptPlayground Temperature Validation', () => {
       expect(screen.getByTestId('nemotron-temperature')).toBeInTheDocument();
     });
 
-    const temperatureSlider = screen.getByTestId('nemotron-temperature');
+    const temperatureSlider = getInputByTestId('nemotron-temperature');
     expect(temperatureSlider.value).toBe('0.7');
 
     // Check label displays value
@@ -162,7 +172,7 @@ describe('PromptPlayground Temperature Validation', () => {
       expect(screen.getByTestId('nemotron-temperature')).toBeInTheDocument();
     });
 
-    const temperatureSlider = screen.getByTestId('nemotron-temperature');
+    const temperatureSlider = getInputByTestId('nemotron-temperature');
 
     // Verify range constraints - browser enforces these on range inputs
     expect(Number(temperatureSlider.min)).toBe(0);
@@ -182,7 +192,7 @@ describe('PromptPlayground Temperature Validation', () => {
       expect(screen.getByTestId('nemotron-temperature')).toBeInTheDocument();
     });
 
-    const temperatureSlider = screen.getByTestId('nemotron-temperature');
+    const temperatureSlider = getInputByTestId('nemotron-temperature');
 
     // Browser enforces min/max on range inputs, so values below min are clamped
     expect(Number(temperatureSlider.min)).toBe(0);
@@ -196,7 +206,7 @@ describe('PromptPlayground Temperature Validation', () => {
       expect(screen.getByTestId('nemotron-temperature')).toBeInTheDocument();
     });
 
-    const temperatureSlider = screen.getByTestId('nemotron-temperature');
+    const temperatureSlider = getInputByTestId('nemotron-temperature');
 
     // Browser enforces min/max on range inputs, so values above max are clamped
     expect(Number(temperatureSlider.max)).toBe(2);
@@ -215,7 +225,7 @@ describe('PromptPlayground Temperature Validation', () => {
 
     // Note: Testing actual slider interaction requires simulating change events
     // The component correctly displays the temperature value in the label
-    const temperatureSlider = screen.getByTestId('nemotron-temperature');
+    const temperatureSlider = getInputByTestId('nemotron-temperature');
     expect(temperatureSlider.value).toBe('0.7');
   });
 
@@ -226,7 +236,7 @@ describe('PromptPlayground Temperature Validation', () => {
       expect(screen.getByTestId('nemotron-temperature')).toBeInTheDocument();
     });
 
-    const temperatureSlider = screen.getByTestId('nemotron-temperature');
+    const temperatureSlider = getInputByTestId('nemotron-temperature');
     const saveButton = screen.getByTestId('nemotron-save');
 
     // Initially should be disabled (no changes)
@@ -248,7 +258,7 @@ describe('PromptPlayground Temperature Validation', () => {
       expect(screen.getByTestId('nemotron-temperature')).toBeInTheDocument();
     });
 
-    const temperatureSlider = screen.getByTestId('nemotron-temperature');
+    const temperatureSlider = getInputByTestId('nemotron-temperature');
 
     // Test various decimal values using fireEvent
     const testValues = ['0.1', '0.5', '0.9', '1.3', '1.7', '1.9'];
@@ -277,7 +287,7 @@ describe('PromptPlayground Max Tokens Validation', () => {
       expect(screen.getByTestId('nemotron-max-tokens')).toBeInTheDocument();
     });
 
-    const maxTokensInput = screen.getByTestId('nemotron-max-tokens');
+    const maxTokensInput = getInputByTestId('nemotron-max-tokens');
     expect(maxTokensInput.type).toBe('number');
     expect(maxTokensInput.min).toBe('100');
     expect(maxTokensInput.max).toBe('8192');
@@ -290,7 +300,7 @@ describe('PromptPlayground Max Tokens Validation', () => {
       expect(screen.getByTestId('nemotron-max-tokens')).toBeInTheDocument();
     });
 
-    const maxTokensInput = screen.getByTestId('nemotron-max-tokens');
+    const maxTokensInput = getInputByTestId('nemotron-max-tokens');
     expect(maxTokensInput.value).toBe('2048');
   });
 
@@ -301,7 +311,7 @@ describe('PromptPlayground Max Tokens Validation', () => {
       expect(screen.getByTestId('nemotron-max-tokens')).toBeInTheDocument();
     });
 
-    const maxTokensInput = screen.getByTestId('nemotron-max-tokens');
+    const maxTokensInput = getInputByTestId('nemotron-max-tokens');
 
     // Test minimum (100) using fireEvent
     fireEvent.change(maxTokensInput, { target: { value: '100' } });
@@ -323,7 +333,7 @@ describe('PromptPlayground Max Tokens Validation', () => {
       expect(screen.getByTestId('nemotron-max-tokens')).toBeInTheDocument();
     });
 
-    const maxTokensInput = screen.getByTestId('nemotron-max-tokens');
+    const maxTokensInput = getInputByTestId('nemotron-max-tokens');
 
     // Test positive integer using fireEvent
     fireEvent.change(maxTokensInput, { target: { value: '1024' } });
@@ -337,7 +347,7 @@ describe('PromptPlayground Max Tokens Validation', () => {
       expect(screen.getByTestId('nemotron-max-tokens')).toBeInTheDocument();
     });
 
-    const maxTokensInput = screen.getByTestId('nemotron-max-tokens');
+    const maxTokensInput = getInputByTestId('nemotron-max-tokens');
     expect(Number(maxTokensInput.min)).toBe(100);
   });
 
@@ -348,7 +358,7 @@ describe('PromptPlayground Max Tokens Validation', () => {
       expect(screen.getByTestId('nemotron-max-tokens')).toBeInTheDocument();
     });
 
-    const maxTokensInput = screen.getByTestId('nemotron-max-tokens');
+    const maxTokensInput = getInputByTestId('nemotron-max-tokens');
     expect(Number(maxTokensInput.max)).toBe(8192);
   });
 
@@ -360,7 +370,7 @@ describe('PromptPlayground Max Tokens Validation', () => {
       expect(screen.getByTestId('nemotron-max-tokens')).toBeInTheDocument();
     });
 
-    const maxTokensInput = screen.getByTestId('nemotron-max-tokens');
+    const maxTokensInput = getInputByTestId('nemotron-max-tokens');
     const saveButton = screen.getByTestId('nemotron-save');
 
     // Initially should be disabled (no changes)
@@ -381,7 +391,7 @@ describe('PromptPlayground Max Tokens Validation', () => {
       expect(screen.getByTestId('nemotron-max-tokens')).toBeInTheDocument();
     });
 
-    const maxTokensInput = screen.getByTestId('nemotron-max-tokens');
+    const maxTokensInput = getInputByTestId('nemotron-max-tokens');
 
     // Verify that the input type is number, which has built-in validation
     expect(maxTokensInput.type).toBe('number');
@@ -400,7 +410,7 @@ describe('PromptPlayground Max Tokens Validation', () => {
       expect(screen.getByTestId('nemotron-max-tokens')).toBeInTheDocument();
     });
 
-    const maxTokensInput = screen.getByTestId('nemotron-max-tokens');
+    const maxTokensInput = getInputByTestId('nemotron-max-tokens');
 
     // Try to enter decimal value
     await user.clear(maxTokensInput);
@@ -429,7 +439,7 @@ describe('PromptPlayground Validation Edge Cases', () => {
       expect(screen.getByTestId('nemotron-temperature')).toBeInTheDocument();
     });
 
-    const temperatureSlider = screen.getByTestId('nemotron-temperature');
+    const temperatureSlider = getInputByTestId('nemotron-temperature');
 
     // Rapid consecutive changes using fireEvent
     fireEvent.change(temperatureSlider, { target: { value: '0.5' } });
@@ -451,7 +461,7 @@ describe('PromptPlayground Validation Edge Cases', () => {
       expect(screen.getByTestId('nemotron-max-tokens')).toBeInTheDocument();
     });
 
-    const maxTokensInput = screen.getByTestId('nemotron-max-tokens');
+    const maxTokensInput = getInputByTestId('nemotron-max-tokens');
 
     // Rapid consecutive changes using fireEvent for clean value replacement
     fireEvent.change(maxTokensInput, { target: { value: '512' } });
@@ -470,7 +480,7 @@ describe('PromptPlayground Validation Edge Cases', () => {
       expect(screen.getByTestId('nemotron-temperature')).toBeInTheDocument();
     });
 
-    const temperatureSlider = screen.getByTestId('nemotron-temperature');
+    const temperatureSlider = getInputByTestId('nemotron-temperature');
     const resetButton = screen.getByTestId('nemotron-reset');
 
     // Change temperature using fireEvent
@@ -482,7 +492,7 @@ describe('PromptPlayground Validation Edge Cases', () => {
 
     // Should return to original value (0.7)
     await waitFor(() => {
-      const updatedSlider = screen.getByTestId('nemotron-temperature');
+      const updatedSlider = getInputByTestId('nemotron-temperature');
       expect(updatedSlider.value).toBe('0.7');
     });
   });
@@ -495,7 +505,7 @@ describe('PromptPlayground Validation Edge Cases', () => {
       expect(screen.getByTestId('nemotron-max-tokens')).toBeInTheDocument();
     });
 
-    const maxTokensInput = screen.getByTestId('nemotron-max-tokens');
+    const maxTokensInput = getInputByTestId('nemotron-max-tokens');
     const resetButton = screen.getByTestId('nemotron-reset');
 
     // Change max_tokens using fireEvent
@@ -507,7 +517,7 @@ describe('PromptPlayground Validation Edge Cases', () => {
 
     // Should return to original value (2048)
     await waitFor(() => {
-      const updatedInput = screen.getByTestId('nemotron-max-tokens');
+      const updatedInput = getInputByTestId('nemotron-max-tokens');
       expect(updatedInput.value).toBe('2048');
     });
   });
@@ -520,7 +530,7 @@ describe('PromptPlayground Validation Edge Cases', () => {
       expect(screen.getByTestId('nemotron-temperature')).toBeInTheDocument();
     });
 
-    const temperatureSlider = screen.getByTestId('nemotron-temperature');
+    const temperatureSlider = getInputByTestId('nemotron-temperature');
     const saveButton = screen.getByTestId('nemotron-save');
 
     // Change temperature using fireEvent
@@ -542,7 +552,7 @@ describe('PromptPlayground Validation Edge Cases', () => {
     // This is expected behavior - the mock API doesn't persist changes
     // The important thing is that save succeeded without validation errors
     await waitFor(() => {
-      const updatedSlider = screen.getByTestId('nemotron-temperature');
+      const updatedSlider = getInputByTestId('nemotron-temperature');
       // Value returns to original after reload from mocked API
       expect(updatedSlider.value).toBe('0.7');
     });
@@ -556,7 +566,7 @@ describe('PromptPlayground Validation Edge Cases', () => {
       expect(screen.getByTestId('nemotron-max-tokens')).toBeInTheDocument();
     });
 
-    const maxTokensInput = screen.getByTestId('nemotron-max-tokens');
+    const maxTokensInput = getInputByTestId('nemotron-max-tokens');
     const saveButton = screen.getByTestId('nemotron-save');
 
     // Change max_tokens using fireEvent
@@ -575,7 +585,7 @@ describe('PromptPlayground Validation Edge Cases', () => {
     // This is expected behavior - the mock API doesn't persist changes
     // The important thing is that save succeeded without validation errors
     await waitFor(() => {
-      const updatedInput = screen.getByTestId('nemotron-max-tokens');
+      const updatedInput = getInputByTestId('nemotron-max-tokens');
       // Value returns to original after reload from mocked API
       expect(updatedInput.value).toBe('2048');
     });
@@ -589,8 +599,8 @@ describe('PromptPlayground Validation Edge Cases', () => {
       expect(screen.getByTestId('nemotron-max-tokens')).toBeInTheDocument();
     });
 
-    const temperatureSlider = screen.getByTestId('nemotron-temperature');
-    const maxTokensInput = screen.getByTestId('nemotron-max-tokens');
+    const temperatureSlider = getInputByTestId('nemotron-temperature');
+    const maxTokensInput = getInputByTestId('nemotron-max-tokens');
     const saveButton = screen.getByTestId('nemotron-save');
 
     // Change both values using fireEvent
@@ -632,8 +642,8 @@ describe('PromptPlayground Validation Edge Cases', () => {
       expect(screen.getByTestId('nemotron-max-tokens')).toBeInTheDocument();
     });
 
-    const temperatureSlider = screen.getByTestId('nemotron-temperature');
-    const maxTokensInput = screen.getByTestId('nemotron-max-tokens');
+    const temperatureSlider = getInputByTestId('nemotron-temperature');
+    const maxTokensInput = getInputByTestId('nemotron-max-tokens');
 
     expect(temperatureSlider.min).toBe('0');
     expect(temperatureSlider.max).toBe('2');
