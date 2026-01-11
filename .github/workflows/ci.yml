@@ -399,12 +399,19 @@ jobs:
       - name: Install dependencies
         run: uv sync --extra dev --frozen
 
+      - name: Install PostgreSQL client tools
+        # Required for backup/restore tests (pg_dump, pg_restore)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
       - name: Run Services integration tests
         # Service tests: test_*_integration.py, test_batch*.py, test_detector*.py, test_file_watcher*.py, test_circuit*.py
+        # Also includes: test_backup_restore, test_data_corruption for database operations
         # -n0 runs tests serially to avoid database deadlocks from concurrent schema creation
         run: |
           uv run pytest backend/tests/integration/ \
-            -k "test_batch_aggregator_integration or test_detector_client_integration or test_file_watcher_filesystem or test_file_watcher_integration or test_circuit_breaker or test_cleanup_service or test_dlq_retry_handler_integration or test_health_monitor_integration or test_nemotron_analyzer_integration or test_nemotron_analyzer or test_vision_extraction_pipeline or test_pipeline_e2e or test_full_stack or test_audit or test_event_search or test_github_workflows or test_alembic_migrations or test_transaction_rollback" \
+            -k "test_batch_aggregator_integration or test_detector_client_integration or test_file_watcher_filesystem or test_file_watcher_integration or test_circuit_breaker or test_cleanup_service or test_dlq_retry_handler_integration or test_health_monitor_integration or test_nemotron_analyzer_integration or test_nemotron_analyzer or test_vision_extraction_pipeline or test_pipeline_e2e or test_full_stack or test_audit or test_event_search or test_github_workflows or test_alembic_migrations or test_transaction_rollback or test_backup_restore or test_data_corruption" \
             -n0 \
             --timeout=30 \
             --cov=backend \

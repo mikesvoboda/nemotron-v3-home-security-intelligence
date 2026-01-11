@@ -185,25 +185,34 @@ class TestCheckMemoryPressure:
     @pytest.mark.asyncio
     async def test_check_memory_pressure_with_mock_gpu(self) -> None:
         """Test check_memory_pressure with mock GPU (no real GPU available)."""
-        # When GPU not available, should return NORMAL (mock data is low usage)
-        with (
-            patch("shutil.which", return_value=None),
-            patch.dict("sys.modules", {"pynvml": None}),
-            patch("builtins.__import__", side_effect=ImportError("pynvml not installed")),
-        ):
-            # Create monitor that will use mock mode
-            monitor = GPUMonitor.__new__(GPUMonitor)
-            monitor._gpu_available = False
-            monitor._nvidia_smi_available = False
-            monitor.poll_interval = 5.0
-            monitor.history_minutes = 60
-            monitor._http_timeout = 5.0
-            monitor.broadcaster = None
+        # Create monitor manually in mock mode (no GPU available)
+        monitor = GPUMonitor.__new__(GPUMonitor)
+        monitor._gpu_available = False
+        monitor._nvidia_smi_available = False
+        monitor.poll_interval = 5.0
+        monitor.history_minutes = 60
+        monitor._http_timeout = 5.0
+        monitor.broadcaster = None
+        monitor._last_memory_pressure_level = MemoryPressureLevel.NORMAL
+        monitor._memory_pressure_callbacks = []
+        monitor._total_warning_events = 0
+        monitor._total_critical_events = 0
+        monitor._last_warning_event_at = None
+        monitor._last_critical_event_at = None
 
+        # Mock get_current_stats_async to return low usage data
+        async def mock_stats():
+            return {
+                "memory_used": 8000,  # 8 GB
+                "memory_total": 24000,  # 24 GB
+                "gpu_utilization": 30.0,
+            }
+
+        with patch.object(monitor, "get_current_stats_async", side_effect=mock_stats):
             level = await monitor.check_memory_pressure()
 
-            # Mock data should be low usage, returning NORMAL
-            assert level == MemoryPressureLevel.NORMAL
+        # Mock data should be low usage, returning NORMAL
+        assert level == MemoryPressureLevel.NORMAL
 
     @pytest.mark.asyncio
     async def test_check_memory_pressure_tracks_last_level(self, mock_pynvml) -> None:
