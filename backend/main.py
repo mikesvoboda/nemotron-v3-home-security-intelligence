@@ -21,7 +21,9 @@ from backend.api.middleware import (
     AuthMiddleware,
     BodySizeLimitMiddleware,
     ContentTypeValidationMiddleware,
+    DeprecationConfig,
     DeprecationLoggerMiddleware,
+    DeprecationMiddleware,
     RequestTimingMiddleware,
     SecurityHeadersMiddleware,
 )
@@ -38,6 +40,7 @@ from backend.api.routes import (
     dlq,
     entities,
     events,
+    jobs,
     media,
     metrics,
     notification,
@@ -735,6 +738,49 @@ def _get_openapi_servers() -> list[dict[str, str]]:
     return [{"url": server_url, "description": "API server"}]
 
 
+def _get_deprecation_config() -> DeprecationConfig:
+    """Get deprecation configuration for RFC 8594 headers (NEM-2089).
+
+    This function returns a DeprecationConfig that registers all deprecated API
+    endpoints. The middleware will add Deprecation, Sunset, and Link headers
+    to responses from these endpoints per RFC 8594.
+
+    Returns:
+        DeprecationConfig with registered deprecated endpoints.
+
+    Example:
+        To deprecate an endpoint, import DeprecatedEndpoint and datetime,
+        then add to this function::
+
+            from datetime import UTC, datetime
+            from backend.api.middleware import DeprecatedEndpoint
+
+            config.register(
+                DeprecatedEndpoint(
+                    path="/api/v1/cameras",
+                    sunset_date=datetime(2026, 6, 1, tzinfo=UTC),
+                    deprecated_at=datetime(2026, 1, 1, tzinfo=UTC),
+                    replacement="/api/v2/cameras",
+                    link="https://docs.example.com/migration/v2-cameras",
+                )
+            )
+
+    Note:
+        DeprecatedEndpoint fields:
+        - path: The URL path (supports wildcards like /api/v1/*)
+        - sunset_date: When the endpoint will be removed
+        - deprecated_at: When deprecation was announced (optional)
+        - replacement: Replacement endpoint path (optional)
+        - link: Documentation URL for migration guide (optional)
+    """
+    config = DeprecationConfig()
+
+    # Currently no deprecated endpoints are registered.
+    # When deprecating an endpoint, add config.register() calls here.
+
+    return config
+
+
 app = FastAPI(
     title="Home Security Intelligence API",
     description="AI-powered home security monitoring system",
@@ -759,8 +805,13 @@ app.add_middleware(RequestIDMiddleware)
 # Added early so it measures the full request lifecycle including other middleware
 app.add_middleware(RequestTimingMiddleware)
 
+# Add RFC 8594 deprecation headers middleware (NEM-2089)
+# Adds Deprecation, Sunset, and Link headers to deprecated endpoints
+app.add_middleware(DeprecationMiddleware, config=_get_deprecation_config())
+
 # Add deprecation logger middleware for tracking deprecated endpoint usage (NEM-2090)
 # Logs deprecated calls, increments Prometheus metrics, and adds Warning header
+# Note: Must be added AFTER DeprecationMiddleware so it can see the Deprecation header
 app.add_middleware(DeprecationLoggerMiddleware)
 
 # Security: Restrict CORS methods to only what's needed
@@ -801,6 +852,7 @@ app.include_router(detections.router)
 app.include_router(dlq.router)
 app.include_router(entities.router)
 app.include_router(events.router)
+app.include_router(jobs.router)
 app.include_router(logs_router)
 app.include_router(media.router)
 app.include_router(metrics.router)

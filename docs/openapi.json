@@ -6587,6 +6587,120 @@
         "title": "EventsByRiskLevel",
         "type": "object"
       },
+      "ExportFormat": {
+        "description": "Supported export formats.",
+        "enum": ["csv", "json", "zip"],
+        "title": "ExportFormat",
+        "type": "string"
+      },
+      "ExportJobRequest": {
+        "description": "Request to start an export job.",
+        "example": {
+          "end_date": "2024-01-15T23:59:59Z",
+          "format": "csv",
+          "risk_level": "high",
+          "start_date": "2024-01-01T00:00:00Z"
+        },
+        "properties": {
+          "camera_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Filter by camera ID",
+            "title": "Camera Id"
+          },
+          "end_date": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Filter by end date (ISO format)",
+            "title": "End Date"
+          },
+          "format": {
+            "$ref": "#/components/schemas/ExportFormat",
+            "default": "csv",
+            "description": "Export format"
+          },
+          "reviewed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Filter by reviewed status",
+            "title": "Reviewed"
+          },
+          "risk_level": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Filter by risk level (low, medium, high, critical)",
+            "title": "Risk Level"
+          },
+          "start_date": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Filter by start date (ISO format)",
+            "title": "Start Date"
+          }
+        },
+        "title": "ExportJobRequest",
+        "type": "object"
+      },
+      "ExportJobStartResponse": {
+        "description": "Response when starting an export job.",
+        "example": {
+          "job_id": "550e8400-e29b-41d4-a716-446655440000",
+          "message": "Export job created. Use GET /api/jobs/{job_id} to track progress.",
+          "status": "pending"
+        },
+        "properties": {
+          "job_id": {
+            "description": "Job ID for tracking progress",
+            "title": "Job Id",
+            "type": "string"
+          },
+          "message": {
+            "description": "Status message",
+            "title": "Message",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatusEnum",
+            "default": "pending",
+            "description": "Initial job status"
+          }
+        },
+        "required": ["job_id", "message"],
+        "title": "ExportJobStartResponse",
+        "type": "object"
+      },
       "FaceEnrichment": {
         "description": "Face detection results.",
         "example": {
@@ -7408,6 +7522,113 @@
         "required": ["name", "status", "message"],
         "title": "InfrastructureHealthStatus",
         "type": "object"
+      },
+      "JobResponse": {
+        "description": "Response model for job status.",
+        "example": {
+          "created_at": "2024-01-15T10:30:00Z",
+          "job_id": "550e8400-e29b-41d4-a716-446655440000",
+          "job_type": "export",
+          "message": "Exporting events: 450/1000",
+          "progress": 45,
+          "started_at": "2024-01-15T10:30:01Z",
+          "status": "running"
+        },
+        "properties": {
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "ISO 8601 timestamp when job finished",
+            "title": "Completed At"
+          },
+          "created_at": {
+            "description": "ISO 8601 timestamp when job was created",
+            "title": "Created At",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Error message (if failed)",
+            "title": "Error"
+          },
+          "job_id": {
+            "description": "Unique job identifier",
+            "title": "Job Id",
+            "type": "string"
+          },
+          "job_type": {
+            "description": "Type of job (e.g., 'export')",
+            "title": "Job Type",
+            "type": "string"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Human-readable status message",
+            "title": "Message"
+          },
+          "progress": {
+            "description": "Progress percentage (0-100)",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Progress",
+            "type": "integer"
+          },
+          "result": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Job result data (if completed)",
+            "title": "Result"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "ISO 8601 timestamp when job started",
+            "title": "Started At"
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatusEnum",
+            "description": "Current job status"
+          }
+        },
+        "required": ["job_id", "job_type", "status", "progress", "created_at"],
+        "title": "JobResponse",
+        "type": "object"
+      },
+      "JobStatusEnum": {
+        "description": "Status of a background job.",
+        "enum": ["pending", "running", "completed", "failed"],
+        "title": "JobStatusEnum",
+        "type": "string"
       },
       "LatencyHistorySnapshot": {
         "description": "Single time-bucket snapshot of pipeline latency metrics.",
@@ -21368,6 +21589,46 @@
         "tags": ["system"]
       }
     },
+    "/events/export": {
+      "post": {
+        "description": "Start a background export job for events. Returns a job ID that can be used to track progress via GET /api/jobs/{job_id}.",
+        "operationId": "start_export_job_events_export_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExportJobRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportJobStartResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Start export job",
+        "tags": ["jobs"]
+      }
+    },
     "/health": {
       "get": {
         "description": "Simple liveness health check endpoint (canonical liveness probe).\n\nThis endpoint indicates whether the process is running and able to\nrespond to HTTP requests. It always returns 200 with status \"alive\"\nif the process is up.\n\nThis is the canonical liveness probe endpoint. Use this for:\n- Docker HEALTHCHECK liveness checks\n- Kubernetes liveness probes\n- Simple \"is the server up?\" monitoring\n\nFor detailed health information, use:\n- GET /api/system/health - Detailed health check with service status\n- GET /ready - Readiness probe (checks dependencies)\n\nReturns:\n    LivenessResponse with status \"alive\".",
@@ -21389,6 +21650,50 @@
           }
         },
         "summary": "Health"
+      }
+    },
+    "/jobs/{job_id}": {
+      "get": {
+        "description": "Get the current status and progress of a background job.",
+        "operationId": "get_job_status_jobs__job_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Job not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get job status",
+        "tags": ["jobs"]
       }
     },
     "/ready": {

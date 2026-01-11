@@ -630,3 +630,45 @@ async def get_nemotron_analyzer_dep(
     from backend.services.nemotron_analyzer import NemotronAnalyzer
 
     yield NemotronAnalyzer(redis_client=redis)
+
+
+def get_job_tracker_dep(
+    redis: RedisClient = Depends(get_redis),
+) -> JobTracker:
+    """FastAPI dependency for JobTracker (NEM-1989).
+
+    Returns the global JobTracker singleton instance with Redis persistence.
+
+    Args:
+        redis: Redis client for job persistence.
+
+    Returns:
+        JobTracker singleton instance
+    """
+    from backend.services.job_tracker import get_job_tracker
+
+    return get_job_tracker(redis_client=redis)
+
+
+def get_export_service_dep(
+    db: AsyncSession = Depends(get_db),
+) -> ExportService:
+    """FastAPI dependency for ExportService (NEM-1989).
+
+    Creates an ExportService instance with the injected database session.
+
+    Args:
+        db: Database session injected via Depends(get_db)
+
+    Returns:
+        ExportService instance
+    """
+    from backend.services.export_service import ExportService
+
+    return ExportService(db)
+
+
+# Type-hint-only imports for dependency injection return types
+if TYPE_CHECKING:
+    from backend.services.export_service import ExportService
+    from backend.services.job_tracker import JobTracker
