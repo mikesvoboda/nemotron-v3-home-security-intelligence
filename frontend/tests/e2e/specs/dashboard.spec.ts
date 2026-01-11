@@ -179,6 +179,11 @@ test.describe('Dashboard Error State', () => {
   // Keep using beforeEach for isolation
   let dashboardPage: DashboardPage;
 
+  // API client has MAX_RETRIES=3 with exponential backoff (1s+2s+4s=7s)
+  // React Query also retries once, so total time for events API to fail is ~14-21s
+  // Use 25s timeout to account for network latency and CI variability
+  const ERROR_TIMEOUT = 25000;
+
   test.beforeEach(async ({ page }) => {
     await setupApiMocks(page, errorMockConfig);
     dashboardPage = new DashboardPage(page);
@@ -186,12 +191,12 @@ test.describe('Dashboard Error State', () => {
 
   test('shows error heading when API fails', async () => {
     await dashboardPage.goto();
-    await expect(dashboardPage.errorHeading).toBeVisible({ timeout: 15000 });
+    await expect(dashboardPage.errorHeading).toBeVisible({ timeout: ERROR_TIMEOUT });
   });
 
   test('shows reload button when API fails', async () => {
     await dashboardPage.goto();
-    await expect(dashboardPage.reloadButton).toBeVisible({ timeout: 15000 });
+    await expect(dashboardPage.reloadButton).toBeVisible({ timeout: ERROR_TIMEOUT });
   });
 
   test('error state displays error elements', async () => {
@@ -199,8 +204,8 @@ test.describe('Dashboard Error State', () => {
     // Wait for error state to appear - use waitFor which properly polls for element
     // The error state shows after API calls fail, which may take a few retries
     await Promise.race([
-      dashboardPage.errorHeading.waitFor({ state: 'visible', timeout: 15000 }),
-      dashboardPage.reloadButton.waitFor({ state: 'visible', timeout: 15000 }),
+      dashboardPage.errorHeading.waitFor({ state: 'visible', timeout: ERROR_TIMEOUT }),
+      dashboardPage.reloadButton.waitFor({ state: 'visible', timeout: ERROR_TIMEOUT }),
     ]).catch(() => {
       // Ignore errors - we check visibility below
     });
