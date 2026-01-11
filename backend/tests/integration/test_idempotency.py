@@ -477,7 +477,7 @@ class TestAPIIdempotency:
 
         # Second POST with same data (creates different resource - not idempotent)
         response2 = await client.post("/api/cameras", json=camera_data)
-        assert response2.status_code == 400  # Duplicate folder_path due to unique constraint
+        assert response2.status_code == 409  # Conflict - duplicate folder_path
 
         # Verify behavior (POST is not idempotent without idempotency keys)
         # In production, you'd use idempotency keys or PUT for idempotent creates
@@ -499,7 +499,7 @@ class TestAPIIdempotency:
 
         # First DELETE
         response1 = await client.delete(f"/api/cameras/{camera_id}")
-        assert response1.status_code == 200
+        assert response1.status_code == 204  # No Content - successful deletion
 
         # Second DELETE (idempotent - same result)
         response2 = await client.delete(f"/api/cameras/{camera_id}")
