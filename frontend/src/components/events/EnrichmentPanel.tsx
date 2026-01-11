@@ -32,7 +32,6 @@ import {
 } from 'lucide-react';
 
 
-import { getPostureRiskLevel } from '../../types/enrichment';
 import {
   formatConfidencePercent,
   getConfidenceBgColorClass,

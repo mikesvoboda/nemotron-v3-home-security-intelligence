@@ -135,60 +135,27 @@ export interface PersonEnrichment {
 }
 
 // ============================================================================
-// Posture Enrichment
+// Posture Enrichment (Legacy - simpler posture detection)
 // ============================================================================
 
 /**
- * Known posture classifications for security monitoring.
- * Some postures are considered high-risk for security purposes.
- */
-export const POSTURE_TYPES = [
-  'standing',
-  'walking',
-  'running',
-  'sitting',
-  'crouching',
-  'lying_down',
-  'hands_raised',
-  'fighting_stance',
-  'kneeling',
-  'bending',
-] as const;
-
-/**
- * Posture type literal union.
- */
-export type PostureType = (typeof POSTURE_TYPES)[number];
-
-/**
- * High-risk postures that require special attention.
- * - crouching: Potential break-in attempt
- * - lying_down: Possible medical emergency
- * - hands_raised: Possible robbery situation
- * - fighting_stance: Possible aggression
- */
-export const HIGH_RISK_POSTURES: readonly PostureType[] = [
-  'crouching',
-  'lying_down',
-  'hands_raised',
-  'fighting_stance',
-] as const;
-
-/**
- * Posture enrichment data from AI pose analysis.
+ * Posture enrichment data from basic AI pose analysis.
+ * Note: For detailed ViTPose analysis, see PoseEnrichment below.
  */
 export interface PostureEnrichment {
   /** Detected posture classification */
-  posture: PostureType;
+  posture: string;
   /** Confidence score for the posture detection (0-1) */
   confidence: number;
 }
 
 /**
  * Check if a posture is considered high-risk for security purposes.
+ * Works with both PostureEnrichment and PoseEnrichment postures.
  */
 export function isHighRiskPosture(posture: string): boolean {
-  return (HIGH_RISK_POSTURES as readonly string[]).includes(posture);
+  const highRisk = ['crouching', 'lying_down', 'hands_raised', 'fighting_stance'];
+  return highRisk.includes(posture);
 }
 
 /**

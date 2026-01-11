@@ -21,7 +21,6 @@ import EventVideoPlayer from './EventVideoPlayer';
 import ReidMatchesPanel from './ReidMatchesPanel';
 import ThumbnailStrip from './ThumbnailStrip';
 import {
-  fetchEntity,
   fetchEventDetections,
   getDetectionFullImageUrl,
   getDetectionImageUrl,
@@ -141,8 +140,6 @@ export default function EventDetailModal({
   // State for entity detail modal
   const [entityDetailOpen, setEntityDetailOpen] = useState<boolean>(false);
   const [selectedEntity, setSelectedEntity] = useState<EntityDetail | null>(null);
-  // entityLoading reserved for async entity detail fetching
-  const [, setEntityLoading] = useState<boolean>(false);
 
   // Initialize notes text and reset re-evaluate state when event changes
   useEffect(() => {
@@ -303,20 +300,6 @@ export default function EventDetailModal({
     if (index !== -1) {
       setThumbnailLightboxIndex(index);
       setThumbnailLightboxOpen(true);
-    }
-  };
-
-  // Handle entity match click to open EntityDetailModal
-  const handleEntityClick = async (entityId: string) => {
-    setEntityLoading(true);
-    try {
-      const entityData = await fetchEntity(entityId);
-      setSelectedEntity(entityData);
-      setEntityDetailOpen(true);
-    } catch (error) {
-      console.error('Failed to fetch entity details:', error);
-    } finally {
-      setEntityLoading(false);
     }
   };
 
