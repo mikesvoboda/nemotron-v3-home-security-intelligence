@@ -2207,9 +2207,7 @@
             {
               "folder_path": "/export/foscam/garage",
               "id": "garage",
-              "issues": [
-                "directory does not exist"
-              ],
+              "issues": ["directory does not exist"],
               "name": "Garage Camera",
               "status": "offline"
             }
@@ -2473,9 +2471,7 @@
         "example": {
           "folder_path": "/export/foscam/front_door",
           "id": "front_door",
-          "issues": [
-            "directory does not exist"
-          ],
+          "issues": ["directory does not exist"],
           "name": "Front Door Camera",
           "resolved_path": "/export/foscam/front_door",
           "status": "online"
@@ -2528,12 +2524,7 @@
             "description": "Camera status"
           }
         },
-        "required": [
-          "id",
-          "name",
-          "folder_path",
-          "status"
-        ],
+        "required": ["id", "name", "folder_path", "status"],
         "title": "CameraValidationInfo",
         "type": "object"
       },
