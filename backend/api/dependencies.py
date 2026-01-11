@@ -668,7 +668,81 @@ def get_export_service_dep(
     return ExportService(db)
 
 
+def get_face_detector_service_dep() -> FaceDetectorService:
+    """FastAPI dependency for FaceDetectorService (NEM-2003).
+
+    Returns the FaceDetectorService singleton from the DI container.
+    This service wraps face detection functionality for detecting faces
+    within person bounding box regions.
+
+    Returns:
+        FaceDetectorService singleton instance from DI container
+    """
+    from backend.core.container import get_container
+    from backend.services.ai_services import FaceDetectorService as FDS
+
+    container = get_container()
+    return cast("FDS", container.get("face_detector_service"))
+
+
+def get_plate_detector_service_dep() -> PlateDetectorService:
+    """FastAPI dependency for PlateDetectorService (NEM-2003).
+
+    Returns the PlateDetectorService singleton from the DI container.
+    This service wraps license plate detection functionality for detecting
+    plates within vehicle bounding box regions.
+
+    Returns:
+        PlateDetectorService singleton instance from DI container
+    """
+    from backend.core.container import get_container
+    from backend.services.ai_services import PlateDetectorService as PDS
+
+    container = get_container()
+    return cast("PDS", container.get("plate_detector_service"))
+
+
+def get_ocr_service_dep() -> OCRService:
+    """FastAPI dependency for OCRService (NEM-2003).
+
+    Returns the OCRService singleton from the DI container.
+    This service wraps PaddleOCR functionality for reading text
+    from license plate images.
+
+    Returns:
+        OCRService singleton instance from DI container
+    """
+    from backend.core.container import get_container
+    from backend.services.ai_services import OCRService as OCRS
+
+    container = get_container()
+    return cast("OCRS", container.get("ocr_service"))
+
+
+def get_yolo_world_service_dep() -> YOLOWorldService:
+    """FastAPI dependency for YOLOWorldService (NEM-2003).
+
+    Returns the YOLOWorldService singleton from the DI container.
+    This service wraps YOLO-World open-vocabulary detection functionality
+    for detecting custom object classes via text prompts.
+
+    Returns:
+        YOLOWorldService singleton instance from DI container
+    """
+    from backend.core.container import get_container
+    from backend.services.ai_services import YOLOWorldService as YWS
+
+    container = get_container()
+    return cast("YWS", container.get("yolo_world_service"))
+
+
 # Type-hint-only imports for dependency injection return types
 if TYPE_CHECKING:
+    from backend.services.ai_services import (
+        FaceDetectorService,
+        OCRService,
+        PlateDetectorService,
+        YOLOWorldService,
+    )
     from backend.services.export_service import ExportService
     from backend.services.job_tracker import JobTracker
