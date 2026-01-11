@@ -1192,6 +1192,15 @@ class Settings(BaseSettings):
         "Files can be analyzed with 'snakeviz <file>.prof' or converted to flamegraphs.",
     )
 
+    # Request logging settings (NEM-1963)
+    # Enable structured request/response logging for observability
+    request_logging_enabled: bool = Field(
+        default=True,
+        description="Enable structured request/response logging middleware. "
+        "When enabled, HTTP requests are logged with timing, status codes, and correlation IDs. "
+        "Health check and metrics endpoints are excluded by default to reduce noise.",
+    )
+
     # Request recording settings (NEM-1646)
     # Enable request recording for debugging production issues
     request_recording_enabled: bool = Field(
