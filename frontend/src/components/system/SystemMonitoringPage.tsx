@@ -12,7 +12,7 @@ import {
   Package,
   Layers,
 } from 'lucide-react';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 
 import AiModelsPanel from './AiModelsPanel';
 import BackgroundJobsPanel from './BackgroundJobsPanel';
@@ -30,8 +30,8 @@ import ServicesPanel from './ServicesPanel';
 import SystemSummaryRow from './SystemSummaryRow';
 import TimeRangeSelector from './TimeRangeSelector';
 import WorkerStatusPanel from './WorkerStatusPanel';
-import { useHealthStatus } from '../../hooks/useHealthStatus';
-import { useModelZooStatus } from '../../hooks/useModelZooStatus';
+import { useFullHealthQuery } from '../../hooks/useFullHealthQuery';
+import { useModelZooStatusQuery } from '../../hooks/useModelZooStatusQuery';
 import { usePerformanceMetrics } from '../../hooks/usePerformanceMetrics';
 import { useSystemPageSections } from '../../hooks/useSystemPageSections';
 import {
@@ -53,7 +53,7 @@ import GpuStats from '../dashboard/GpuStats';
 import type { InfrastructureCardId, InfrastructureData } from './InfrastructureStatusGrid';
 import type { PipelineStageData, BackgroundWorkerStatus, TotalLatency } from './PipelineFlowVisualization';
 import type { ThroughputPoint } from './PipelineMetricsPanel';
-import type { GpuMetricDataPoint } from '../../hooks/useGpuHistory';
+import type { GPUStatsSample } from '../../types/generated';
 
 /**
  * SystemStats from the /api/system/stats endpoint
@@ -151,16 +151,60 @@ export default function SystemMonitoringPage() {
   // State for infrastructure grid expanded card
   const [expandedInfraCard, setExpandedInfraCard] = useState<InfrastructureCardId | null>(null);
 
-  // Use the health status hook for service health
+  // Use the full health query hook for comprehensive service health
   const {
-    health,
-    services,
+    data: healthData,
     overallStatus,
+    aiServices,
+    postgres: postgresHealth,
+    redis: redisHealth,
+    workers: healthWorkers,
     isLoading: healthLoading,
     error: healthError,
-  } = useHealthStatus({
-    pollingInterval: 30000,
+  } = useFullHealthQuery({
+    refetchInterval: 30000,
   });
+
+  // Derive services record from full health data for backward compatibility with ServiceHealthRow
+  const services = useMemo((): Record<string, ServiceStatus> => {
+    const result: Record<string, ServiceStatus> = {};
+
+    // Add infrastructure services
+    if (postgresHealth) {
+      result.database = {
+        status: postgresHealth.status,
+        message: postgresHealth.message ?? undefined,
+      };
+    }
+    if (redisHealth) {
+      result.redis = {
+        status: redisHealth.status,
+        message: redisHealth.message ?? undefined,
+      };
+    }
+
+    // Add AI services
+    for (const service of aiServices) {
+      const key = service.name === 'rtdetr' ? 'rtdetr_server' :
+                  service.name === 'nemotron' ? 'nemotron_server' :
+                  service.name;
+      result[key] = {
+        status: service.status,
+        message: service.error ?? undefined,
+      };
+    }
+
+    // Add workers as services (for file_watcher, batch_aggregator, cleanup_service)
+    for (const worker of healthWorkers) {
+      const key = worker.name.replace(/-/g, '_');
+      result[key] = {
+        status: worker.running ? 'healthy' : 'unhealthy',
+        message: worker.message ?? undefined,
+      };
+    }
+
+    return result;
+  }, [postgresHealth, redisHealth, aiServices, healthWorkers]);
 
   // Use performance metrics hook for real-time dashboard data
   const {
@@ -177,14 +221,14 @@ export default function SystemMonitoringPage() {
     vramStats: modelZooVramStats,
     isLoading: modelZooLoading,
     error: modelZooError,
-    refresh: refreshModelZoo,
-  } = useModelZooStatus({ pollingInterval: 10000 });
+    refetch: refreshModelZoo,
+  } = useModelZooStatusQuery({ refetchInterval: 10000 });
 
   // Transform performance history for GPU stats based on selected time range
-  const gpuHistoryData: GpuMetricDataPoint[] = (performanceHistory[timeRange] || [])
+  const gpuHistoryData: GPUStatsSample[] = (performanceHistory[timeRange] || [])
     .filter((update) => update.gpu !== null)
     .map((update) => ({
-      timestamp: update.timestamp,
+      recorded_at: update.timestamp,
       utilization: update.gpu?.utilization ?? 0,
       memory_used: (update.gpu?.vram_used_gb ?? 0) * 1024, // Convert GB to MB
       temperature: update.gpu?.temperature ?? 0,
@@ -606,8 +650,8 @@ export default function SystemMonitoringPage() {
     return () => clearInterval(interval);
   }, []);
 
-  // Loading state
-  if (loading || healthLoading) {
+  // Loading state - don't show loading if there's already an error
+  if ((loading || healthLoading) && !error && !healthError) {
     return (
       <div className="min-h-screen bg-[#121212] p-8" data-testid="system-monitoring-loading">
         <div className="mx-auto max-w-[1920px]">
@@ -628,8 +672,9 @@ export default function SystemMonitoringPage() {
     );
   }
 
-  // Error state
-  if (error) {
+  // Error state - check both local error and healthError from React Query
+  const displayError = error || (healthError ? healthError.message : null);
+  if (displayError) {
     return (
       <div
         className="flex min-h-screen items-center justify-center bg-[#121212] p-8"
@@ -638,7 +683,7 @@ export default function SystemMonitoringPage() {
         <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-6 text-center">
           <AlertCircle className="mx-auto mb-4 h-12 w-12 text-red-500" />
           <h2 className="mb-2 text-xl font-bold text-red-500">Error Loading System Data</h2>
-          <p className="text-sm text-gray-300">{error}</p>
+          <p className="text-sm text-gray-300">{displayError}</p>
           <button
             onClick={() => window.location.reload()}
             className="mt-4 rounded-md bg-red-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-800"
@@ -801,7 +846,7 @@ export default function SystemMonitoringPage() {
                 <div className="flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-2">
                   <AlertCircle className="h-3 w-3 text-red-500" />
                   <Text className="text-xs text-red-400">
-                    Failed to fetch service health: {healthError}
+                    Failed to fetch service health: {healthError.message}
                   </Text>
                 </div>
               ) : Object.entries(services).length > 0 ? (
@@ -813,9 +858,9 @@ export default function SystemMonitoringPage() {
               )}
             </div>
 
-            {health?.timestamp && (
+            {healthData?.timestamp && (
               <Text className="mt-2 text-xs text-gray-500">
-                Last checked: {new Date(health.timestamp).toLocaleTimeString()}
+                Last checked: {new Date(healthData.timestamp).toLocaleTimeString()}
               </Text>
             )}
           </Card>
@@ -839,7 +884,6 @@ export default function SystemMonitoringPage() {
             inferenceFps={gpuStats?.inference_fps ?? null}
             timeRange={timeRange}
             historyData={gpuHistoryData.length > 0 ? gpuHistoryData : undefined}
-            showHistoryControls={gpuHistoryData.length === 0}
             data-testid="gpu-stats"
           />
 
@@ -874,7 +918,7 @@ export default function SystemMonitoringPage() {
                 models={modelZooModels}
                 vramStats={modelZooVramStats}
                 isLoading={modelZooLoading}
-                error={modelZooError}
+                error={modelZooError?.message ?? null}
                 onRefresh={() => void refreshModelZoo()}
                 data-testid="model-zoo-panel-section"
               />

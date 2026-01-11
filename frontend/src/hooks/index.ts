@@ -58,11 +58,12 @@ export type {
   UseModelZooStatusQueryReturn,
 } from './useModelZooStatusQuery';
 
-export { useStorageStatsQuery, useCleanupPreviewMutation } from './useStorageStatsQuery';
+export { useStorageStatsQuery, useCleanupPreviewMutation, useCleanupMutation } from './useStorageStatsQuery';
 export type {
   UseStorageStatsQueryOptions,
   UseStorageStatsQueryReturn,
   UseCleanupPreviewMutationReturn,
+  UseCleanupMutationReturn,
 } from './useStorageStatsQuery';
 
 export { usePerformanceMetrics } from './usePerformanceMetrics';

@@ -3,7 +3,7 @@ import { clsx } from 'clsx';
 import { Cpu, RefreshCw, AlertCircle, CheckCircle, XCircle, Loader2, MinusCircle, Search, Filter } from 'lucide-react';
 import { useState, useMemo } from 'react';
 
-import type { VRAMStats } from '../../hooks/useModelZooStatus';
+import type { VRAMStats } from '../../hooks/useModelZooStatusQuery';
 import type { ModelStatusResponse } from '../../services/api';
 
 /**
@@ -133,8 +133,8 @@ export default function ModelZooPanel({
   // Calculate summary stats
   const loadedCount = models.filter((m) => m.status === 'loaded').length;
   const availableCount = models.length;
-  const usedVramMB = vramStats?.used_mb ?? 0;
-  const budgetVramMB = vramStats?.budget_mb ?? 0;
+  const usedVramMB = vramStats?.usedMb ?? 0;
+  const budgetVramMB = vramStats?.budgetMb ?? 0;
 
   // Filter models based on search query and status filter
   const filteredModels = useMemo(() => {
@@ -245,12 +245,12 @@ export default function ModelZooPanel({
               <div className="mb-2 flex items-center justify-between text-sm">
                 <Text className="text-gray-400">VRAM Budget</Text>
                 <Text className="font-medium text-white">
-                  {vramStats.used_mb}/{vramStats.budget_mb} MB ({Math.round(vramStats.usage_percent)}%)
+                  {vramStats.usedMb}/{vramStats.budgetMb} MB ({Math.round(vramStats.usagePercent)}%)
                 </Text>
               </div>
               <ProgressBar
-                value={vramStats.usage_percent}
-                color={getVramProgressColor(vramStats.usage_percent)}
+                value={vramStats.usagePercent}
+                color={getVramProgressColor(vramStats.usagePercent)}
                 className="bg-gray-700"
                 data-testid="vram-progress-bar"
               />

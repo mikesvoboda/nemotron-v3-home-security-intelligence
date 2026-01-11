@@ -3,22 +3,36 @@ import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import GpuStats from './GpuStats';
-import * as useGpuHistoryModule from '../../hooks/useGpuHistory';
+import * as useGpuStatsQueryModule from '../../hooks/useGpuStatsQuery';
 
-// Mock the useGpuHistory hook
-vi.mock('../../hooks/useGpuHistory', () => ({
-  useGpuHistory: vi.fn(),
+import type { GPUStatsSample } from '../../types/generated';
+
+// Mock the React Query hooks
+vi.mock('../../hooks/useGpuStatsQuery', () => ({
+  useGpuStatsQuery: vi.fn(),
+  useGpuHistoryQuery: vi.fn(),
 }));
 
-// Default mock return value for useGpuHistory
-const defaultMockReturn = {
-  current: null,
+// Default mock return values for the React Query hooks
+const defaultStatsQueryReturn = {
+  data: undefined,
+  isLoading: false,
+  isRefetching: false,
+  error: null,
+  isStale: false,
+  refetch: vi.fn(),
+  utilization: null,
+  memoryUsed: null,
+  temperature: null,
+};
+
+const defaultHistoryQueryReturn = {
+  data: undefined,
   history: [],
   isLoading: false,
+  isRefetching: false,
   error: null,
-  start: vi.fn(),
-  stop: vi.fn(),
-  clearHistory: vi.fn(),
+  refetch: vi.fn(),
 };
 
 // Mock ResizeObserver for Tremor charts
@@ -28,8 +42,9 @@ beforeEach(() => {
     unobserve() {}
     disconnect() {}
   };
-  // Reset to default mock for each test
-  vi.mocked(useGpuHistoryModule.useGpuHistory).mockReturnValue({ ...defaultMockReturn });
+  // Reset to default mocks for each test
+  vi.mocked(useGpuStatsQueryModule.useGpuStatsQuery).mockReturnValue({ ...defaultStatsQueryReturn });
+  vi.mocked(useGpuStatsQueryModule.useGpuHistoryQuery).mockReturnValue({ ...defaultHistoryQueryReturn });
 });
 
 afterEach(() => {
@@ -54,7 +69,6 @@ describe('GpuStats', () => {
   });
 
   it('displays GPU device name when provided', () => {
-    // The default mock returns null for current, so gpuName prop should be used
     render(
       <GpuStats
         gpuName="NVIDIA RTX A5500"
@@ -88,16 +102,6 @@ describe('GpuStats', () => {
   });
 
   it('displays utilization percentage', () => {
-    vi.mocked(useGpuHistoryModule.useGpuHistory).mockReturnValue({
-      current: null,
-      history: [],
-      isLoading: false,
-      error: null,
-      start: vi.fn(),
-      stop: vi.fn(),
-      clearHistory: vi.fn(),
-    });
-
     render(
       <GpuStats
         gpuName={null}
@@ -116,16 +120,6 @@ describe('GpuStats', () => {
   });
 
   it('displays memory usage in GB', () => {
-    vi.mocked(useGpuHistoryModule.useGpuHistory).mockReturnValue({
-      current: null,
-      history: [],
-      isLoading: false,
-      error: null,
-      start: vi.fn(),
-      stop: vi.fn(),
-      clearHistory: vi.fn(),
-    });
-
     render(
       <GpuStats
         gpuName={null}
@@ -144,16 +138,6 @@ describe('GpuStats', () => {
   });
 
   it('displays temperature with correct unit', () => {
-    vi.mocked(useGpuHistoryModule.useGpuHistory).mockReturnValue({
-      current: null,
-      history: [],
-      isLoading: false,
-      error: null,
-      start: vi.fn(),
-      stop: vi.fn(),
-      clearHistory: vi.fn(),
-    });
-
     render(
       <GpuStats
         gpuName={null}
@@ -207,16 +191,6 @@ describe('GpuStats', () => {
 
   describe('null value handling', () => {
     it('displays "N/A" for null utilization', () => {
-      vi.mocked(useGpuHistoryModule.useGpuHistory).mockReturnValue({
-        current: null,
-        history: [],
-        isLoading: false,
-        error: null,
-        start: vi.fn(),
-        stop: vi.fn(),
-        clearHistory: vi.fn(),
-      });
-
       render(
         <GpuStats
           gpuName={null}
@@ -235,16 +209,6 @@ describe('GpuStats', () => {
     });
 
     it('displays "N/A" for null memory values', () => {
-      vi.mocked(useGpuHistoryModule.useGpuHistory).mockReturnValue({
-        current: null,
-        history: [],
-        isLoading: false,
-        error: null,
-        start: vi.fn(),
-        stop: vi.fn(),
-        clearHistory: vi.fn(),
-      });
-
       render(
         <GpuStats
           gpuName={null}
@@ -262,16 +226,6 @@ describe('GpuStats', () => {
     });
 
     it('displays "N/A" for null temperature', () => {
-      vi.mocked(useGpuHistoryModule.useGpuHistory).mockReturnValue({
-        current: null,
-        history: [],
-        isLoading: false,
-        error: null,
-        start: vi.fn(),
-        stop: vi.fn(),
-        clearHistory: vi.fn(),
-      });
-
       render(
         <GpuStats
           gpuName={null}
@@ -419,16 +373,6 @@ describe('GpuStats', () => {
 
   describe('power usage color coding', () => {
     it('uses green color for low power (<150W)', () => {
-      vi.mocked(useGpuHistoryModule.useGpuHistory).mockReturnValue({
-        current: null,
-        history: [],
-        isLoading: false,
-        error: null,
-        start: vi.fn(),
-        stop: vi.fn(),
-        clearHistory: vi.fn(),
-      });
-
       render(
         <GpuStats
           gpuName={null}
@@ -446,16 +390,6 @@ describe('GpuStats', () => {
     });
 
     it('uses yellow color for moderate power (150-250W)', () => {
-      vi.mocked(useGpuHistoryModule.useGpuHistory).mockReturnValue({
-        current: null,
-        history: [],
-        isLoading: false,
-        error: null,
-        start: vi.fn(),
-        stop: vi.fn(),
-        clearHistory: vi.fn(),
-      });
-
       render(
         <GpuStats
           gpuName={null}
@@ -473,16 +407,6 @@ describe('GpuStats', () => {
     });
 
     it('uses red color for high power (>250W)', () => {
-      vi.mocked(useGpuHistoryModule.useGpuHistory).mockReturnValue({
-        current: null,
-        history: [],
-        isLoading: false,
-        error: null,
-        start: vi.fn(),
-        stop: vi.fn(),
-        clearHistory: vi.fn(),
-      });
-
       render(
         <GpuStats
           gpuName={null}
@@ -500,16 +424,6 @@ describe('GpuStats', () => {
     });
 
     it('uses gray color for null power', () => {
-      vi.mocked(useGpuHistoryModule.useGpuHistory).mockReturnValue({
-        current: null,
-        history: [],
-        isLoading: false,
-        error: null,
-        start: vi.fn(),
-        stop: vi.fn(),
-        clearHistory: vi.fn(),
-      });
-
       render(
         <GpuStats
           gpuName={null}
@@ -655,14 +569,13 @@ describe('GpuStats', () => {
 
   describe('GPU history chart', () => {
     it('shows loading state initially', () => {
-      vi.mocked(useGpuHistoryModule.useGpuHistory).mockReturnValue({
-        current: null,
-        history: [],
+      vi.mocked(useGpuStatsQueryModule.useGpuStatsQuery).mockReturnValue({
+        ...defaultStatsQueryReturn,
         isLoading: true,
-        error: null,
-        start: vi.fn(),
-        stop: vi.fn(),
-        clearHistory: vi.fn(),
+      });
+      vi.mocked(useGpuStatsQueryModule.useGpuHistoryQuery).mockReturnValue({
+        ...defaultHistoryQueryReturn,
+        isLoading: true,
       });
 
       render(
@@ -682,24 +595,32 @@ describe('GpuStats', () => {
     });
 
     it('displays history chart when data is available', async () => {
-      // GpuMetricDataPoint type: { timestamp, utilization, memory_used, temperature }
-      const mockHistory = [
+      // GPUStatsSample type for history
+      const mockHistory: GPUStatsSample[] = [
         {
-          timestamp: '2025-01-01T10:00:00Z',
+          recorded_at: '2025-01-01T10:00:00Z',
           utilization: 45.5,
           memory_used: 8192,
+          memory_total: 24576,
           temperature: 65,
+          gpu_name: 'NVIDIA RTX A5500',
+          power_usage: 100,
+          inference_fps: 28.5,
         },
         {
-          timestamp: '2025-01-01T10:01:00Z',
+          recorded_at: '2025-01-01T10:01:00Z',
           utilization: 50.0,
           memory_used: 8500,
+          memory_total: 24576,
           temperature: 66,
+          gpu_name: 'NVIDIA RTX A5500',
+          power_usage: 110,
+          inference_fps: 29.0,
         },
       ];
 
-      // GPUStats type for current
-      const mockCurrent = {
+      // GPUStats type for current stats
+      const mockStats = {
         gpu_name: 'NVIDIA RTX A5500',
         utilization: 50.0,
         memory_used: 8500,
@@ -709,14 +630,17 @@ describe('GpuStats', () => {
         inference_fps: 28.5,
       };
 
-      vi.mocked(useGpuHistoryModule.useGpuHistory).mockReturnValue({
-        current: mockCurrent,
+      vi.mocked(useGpuStatsQueryModule.useGpuStatsQuery).mockReturnValue({
+        ...defaultStatsQueryReturn,
+        data: mockStats,
+        utilization: mockStats.utilization,
+        memoryUsed: mockStats.memory_used,
+        temperature: mockStats.temperature,
+      });
+
+      vi.mocked(useGpuStatsQueryModule.useGpuHistoryQuery).mockReturnValue({
+        ...defaultHistoryQueryReturn,
         history: mockHistory,
-        isLoading: false,
-        error: null,
-        start: vi.fn(),
-        stop: vi.fn(),
-        clearHistory: vi.fn(),
       });
 
       render(
@@ -740,16 +664,6 @@ describe('GpuStats', () => {
     });
 
     it('shows empty state when no history data', async () => {
-      vi.mocked(useGpuHistoryModule.useGpuHistory).mockReturnValue({
-        current: null,
-        history: [],
-        isLoading: false,
-        error: null,
-        start: vi.fn(),
-        stop: vi.fn(),
-        clearHistory: vi.fn(),
-      });
-
       render(
         <GpuStats
           gpuName={null}
@@ -770,14 +684,9 @@ describe('GpuStats', () => {
     });
 
     it('shows error state when fetch fails', async () => {
-      vi.mocked(useGpuHistoryModule.useGpuHistory).mockReturnValue({
-        current: null,
-        history: [],
-        isLoading: false,
-        error: 'Network error',
-        start: vi.fn(),
-        stop: vi.fn(),
-        clearHistory: vi.fn(),
+      vi.mocked(useGpuStatsQueryModule.useGpuStatsQuery).mockReturnValue({
+        ...defaultStatsQueryReturn,
+        error: new Error('Network error'),
       });
 
       render(
@@ -815,42 +724,6 @@ describe('GpuStats', () => {
       expect(screen.getByText('Metrics History')).toBeInTheDocument();
     });
 
-    it('displays history controls when showHistoryControls is true', () => {
-      render(
-        <GpuStats
-          gpuName={null}
-          utilization={50}
-          memoryUsed={12000}
-          memoryTotal={24000}
-          temperature={60}
-          powerUsage={100}
-          inferenceFps={30}
-          showHistoryControls={true}
-        />
-      );
-
-      expect(screen.getByTestId('gpu-history-toggle')).toBeInTheDocument();
-      expect(screen.getByTestId('gpu-history-clear')).toBeInTheDocument();
-    });
-
-    it('hides history controls when showHistoryControls is false', () => {
-      render(
-        <GpuStats
-          gpuName={null}
-          utilization={50}
-          memoryUsed={12000}
-          memoryTotal={24000}
-          temperature={60}
-          powerUsage={100}
-          inferenceFps={30}
-          showHistoryControls={false}
-        />
-      );
-
-      expect(screen.queryByTestId('gpu-history-toggle')).not.toBeInTheDocument();
-      expect(screen.queryByTestId('gpu-history-clear')).not.toBeInTheDocument();
-    });
-
     it('displays tab selection for different metrics', () => {
       render(
         <GpuStats
@@ -872,8 +745,9 @@ describe('GpuStats', () => {
 
   describe('hook data priority', () => {
     it('uses hook current data over props when available', () => {
-      vi.mocked(useGpuHistoryModule.useGpuHistory).mockReturnValue({
-        current: {
+      vi.mocked(useGpuStatsQueryModule.useGpuStatsQuery).mockReturnValue({
+        ...defaultStatsQueryReturn,
+        data: {
           gpu_name: 'NVIDIA RTX A5500',
           utilization: 80, // Hook provides 80%
           memory_used: 16000, // Hook provides 16GB
@@ -882,12 +756,9 @@ describe('GpuStats', () => {
           power_usage: 150,
           inference_fps: 25,
         },
-        history: [],
-        isLoading: false,
-        error: null,
-        start: vi.fn(),
-        stop: vi.fn(),
-        clearHistory: vi.fn(),
+        utilization: 80,
+        memoryUsed: 16000,
+        temperature: 72,
       });
 
       render(
@@ -908,17 +779,7 @@ describe('GpuStats', () => {
       expect(screen.getByText('15.6 / 23.4 GB')).toBeInTheDocument();
     });
 
-    it('falls back to props when hook current is null', () => {
-      vi.mocked(useGpuHistoryModule.useGpuHistory).mockReturnValue({
-        current: null,
-        history: [],
-        isLoading: false,
-        error: null,
-        start: vi.fn(),
-        stop: vi.fn(),
-        clearHistory: vi.fn(),
-      });
-
+    it('falls back to props when hook data is undefined', () => {
       render(
         <GpuStats
           gpuName={null}
@@ -937,159 +798,34 @@ describe('GpuStats', () => {
     });
   });
 
-  describe('history controls interaction', () => {
-    it('calls stop when clicking pause button while polling', async () => {
-      const stopFn = vi.fn();
-      const startFn = vi.fn();
-
-      vi.mocked(useGpuHistoryModule.useGpuHistory).mockReturnValue({
-        current: null,
-        history: [],
-        isLoading: false,
-        error: null,
-        start: startFn,
-        stop: stopFn,
-        clearHistory: vi.fn(),
-      });
-
-      render(
-        <GpuStats
-          gpuName={null}
-          utilization={50}
-          memoryUsed={12000}
-          memoryTotal={24000}
-          temperature={60}
-          powerUsage={100}
-          inferenceFps={30}
-          historyOptions={{ autoStart: true }}
-        />
-      );
-
-      const toggleButton = screen.getByTestId('gpu-history-toggle');
-      expect(toggleButton).toHaveTextContent('Pause');
-
-      await userEvent.click(toggleButton);
-      expect(stopFn).toHaveBeenCalled();
-    });
-
-    it('calls start when clicking resume button while paused', async () => {
-      const stopFn = vi.fn();
-      const startFn = vi.fn();
-
-      vi.mocked(useGpuHistoryModule.useGpuHistory).mockReturnValue({
-        current: null,
-        history: [],
-        isLoading: false,
-        error: null,
-        start: startFn,
-        stop: stopFn,
-        clearHistory: vi.fn(),
-      });
-
-      render(
-        <GpuStats
-          gpuName={null}
-          utilization={50}
-          memoryUsed={12000}
-          memoryTotal={24000}
-          temperature={60}
-          powerUsage={100}
-          inferenceFps={30}
-          historyOptions={{ autoStart: false }}
-        />
-      );
-
-      const toggleButton = screen.getByTestId('gpu-history-toggle');
-      expect(toggleButton).toHaveTextContent('Resume');
-
-      await userEvent.click(toggleButton);
-      expect(startFn).toHaveBeenCalled();
-    });
-
-    it('calls clearHistory when clicking clear button', async () => {
-      const clearHistoryFn = vi.fn();
-
-      vi.mocked(useGpuHistoryModule.useGpuHistory).mockReturnValue({
-        current: null,
-        history: [],
-        isLoading: false,
-        error: null,
-        start: vi.fn(),
-        stop: vi.fn(),
-        clearHistory: clearHistoryFn,
-      });
-
-      render(
-        <GpuStats
-          gpuName={null}
-          utilization={50}
-          memoryUsed={12000}
-          memoryTotal={24000}
-          temperature={60}
-          powerUsage={100}
-          inferenceFps={30}
-        />
-      );
-
-      const clearButton = screen.getByTestId('gpu-history-clear');
-      await userEvent.click(clearButton);
-      expect(clearHistoryFn).toHaveBeenCalled();
-    });
-
-    it('shows correct aria-labels for history controls', () => {
-      vi.mocked(useGpuHistoryModule.useGpuHistory).mockReturnValue({
-        current: null,
-        history: [],
-        isLoading: false,
-        error: null,
-        start: vi.fn(),
-        stop: vi.fn(),
-        clearHistory: vi.fn(),
-      });
-
-      render(
-        <GpuStats
-          gpuName={null}
-          utilization={50}
-          memoryUsed={12000}
-          memoryTotal={24000}
-          temperature={60}
-          powerUsage={100}
-          inferenceFps={30}
-          historyOptions={{ autoStart: true }}
-        />
-      );
-
-      expect(screen.getByLabelText('Pause monitoring')).toBeInTheDocument();
-      expect(screen.getByLabelText('Clear history')).toBeInTheDocument();
-    });
-  });
-
   describe('tab switching and chart selection', () => {
-    const mockHistory = [
+    const mockHistory: GPUStatsSample[] = [
       {
-        timestamp: '2025-01-01T10:00:00Z',
+        recorded_at: '2025-01-01T10:00:00Z',
         utilization: 45.5,
         memory_used: 8192,
+        memory_total: 24576,
         temperature: 65,
+        gpu_name: 'NVIDIA RTX A5500',
+        power_usage: 100,
+        inference_fps: 28.5,
       },
       {
-        timestamp: '2025-01-01T10:01:00Z',
+        recorded_at: '2025-01-01T10:01:00Z',
         utilization: 50.0,
         memory_used: 8500,
+        memory_total: 24576,
         temperature: 66,
+        gpu_name: 'NVIDIA RTX A5500',
+        power_usage: 110,
+        inference_fps: 29.0,
       },
     ];
 
     beforeEach(() => {
-      vi.mocked(useGpuHistoryModule.useGpuHistory).mockReturnValue({
-        current: null,
+      vi.mocked(useGpuStatsQueryModule.useGpuHistoryQuery).mockReturnValue({
+        ...defaultHistoryQueryReturn,
         history: mockHistory,
-        isLoading: false,
-        error: null,
-        start: vi.fn(),
-        stop: vi.fn(),
-        clearHistory: vi.fn(),
       });
     });
 
@@ -1150,14 +886,9 @@ describe('GpuStats', () => {
     });
 
     it('displays singular "data point" for single history entry', () => {
-      vi.mocked(useGpuHistoryModule.useGpuHistory).mockReturnValue({
-        current: null,
+      vi.mocked(useGpuStatsQueryModule.useGpuHistoryQuery).mockReturnValue({
+        ...defaultHistoryQueryReturn,
         history: [mockHistory[0]],
-        isLoading: false,
-        error: null,
-        start: vi.fn(),
-        stop: vi.fn(),
-        clearHistory: vi.fn(),
       });
 
       render(
@@ -1176,14 +907,9 @@ describe('GpuStats', () => {
     });
 
     it('does not display data point count when history is empty', () => {
-      vi.mocked(useGpuHistoryModule.useGpuHistory).mockReturnValue({
-        current: null,
+      vi.mocked(useGpuStatsQueryModule.useGpuHistoryQuery).mockReturnValue({
+        ...defaultHistoryQueryReturn,
         history: [],
-        isLoading: false,
-        error: null,
-        start: vi.fn(),
-        stop: vi.fn(),
-        clearHistory: vi.fn(),
       });
 
       render(
@@ -1202,12 +928,11 @@ describe('GpuStats', () => {
     });
   });
 
-  describe('history options', () => {
-    it('passes historyOptions to useGpuHistory hook', () => {
+  describe('query options', () => {
+    it('passes statsQueryOptions to useGpuStatsQuery hook', () => {
       const customOptions = {
-        pollingInterval: 10000,
-        maxDataPoints: 100,
-        autoStart: false,
+        refetchInterval: 10000,
+        staleTime: 5000,
       };
 
       render(
@@ -1219,18 +944,51 @@ describe('GpuStats', () => {
           temperature={60}
           powerUsage={100}
           inferenceFps={30}
-          historyOptions={customOptions}
+          statsQueryOptions={customOptions}
         />
       );
 
-      expect(useGpuHistoryModule.useGpuHistory).toHaveBeenCalledWith(customOptions);
+      expect(useGpuStatsQueryModule.useGpuStatsQuery).toHaveBeenCalledWith(
+        expect.objectContaining({
+          refetchInterval: 10000,
+          staleTime: 5000,
+        })
+      );
+    });
+
+    it('passes historyQueryOptions to useGpuHistoryQuery hook', () => {
+      const customOptions = {
+        limit: 100,
+        refetchInterval: 10000,
+      };
+
+      render(
+        <GpuStats
+          gpuName={null}
+          utilization={50}
+          memoryUsed={12000}
+          memoryTotal={24000}
+          temperature={60}
+          powerUsage={100}
+          inferenceFps={30}
+          historyQueryOptions={customOptions}
+        />
+      );
+
+      expect(useGpuStatsQueryModule.useGpuHistoryQuery).toHaveBeenCalledWith(
+        expect.objectContaining({
+          limit: 100,
+          refetchInterval: 10000,
+        })
+      );
     });
   });
 
   describe('inference FPS from hook', () => {
     it('displays inference FPS from hook current data', () => {
-      vi.mocked(useGpuHistoryModule.useGpuHistory).mockReturnValue({
-        current: {
+      vi.mocked(useGpuStatsQueryModule.useGpuStatsQuery).mockReturnValue({
+        ...defaultStatsQueryReturn,
+        data: {
           gpu_name: 'NVIDIA RTX A5500',
           utilization: 80,
           memory_used: 16000,
@@ -1239,12 +997,9 @@ describe('GpuStats', () => {
           power_usage: 150,
           inference_fps: 42.7,
         },
-        history: [],
-        isLoading: false,
-        error: null,
-        start: vi.fn(),
-        stop: vi.fn(),
-        clearHistory: vi.fn(),
+        utilization: 80,
+        memoryUsed: 16000,
+        temperature: 72,
       });
 
       render(
@@ -1266,23 +1021,22 @@ describe('GpuStats', () => {
 
   describe('switch statement default cases', () => {
     beforeEach(() => {
-      const mockHistory = [
+      const mockHistory: GPUStatsSample[] = [
         {
-          timestamp: '2025-01-01T10:00:00Z',
+          recorded_at: '2025-01-01T10:00:00Z',
           utilization: 45.5,
           memory_used: 8192,
+          memory_total: 24576,
           temperature: 65,
+          gpu_name: 'NVIDIA RTX A5500',
+          power_usage: 100,
+          inference_fps: 28.5,
         },
       ];
 
-      vi.mocked(useGpuHistoryModule.useGpuHistory).mockReturnValue({
-        current: null,
+      vi.mocked(useGpuStatsQueryModule.useGpuHistoryQuery).mockReturnValue({
+        ...defaultHistoryQueryReturn,
         history: mockHistory,
-        isLoading: false,
-        error: null,
-        start: vi.fn(),
-        stop: vi.fn(),
-        clearHistory: vi.fn(),
       });
     });
 
@@ -1385,6 +1139,83 @@ describe('GpuStats', () => {
 
       // All switch cases should have been exercised
       expect(screen.getByText('GPU Statistics')).toBeInTheDocument();
+    });
+  });
+
+  describe('external history data', () => {
+    it('uses external historyData when provided instead of fetching', () => {
+      const externalHistory: GPUStatsSample[] = [
+        {
+          recorded_at: '2025-01-01T10:00:00Z',
+          utilization: 55.0,
+          memory_used: 10000,
+          memory_total: 24576,
+          temperature: 68,
+          gpu_name: 'NVIDIA RTX A5500',
+          power_usage: 120,
+          inference_fps: 30.0,
+        },
+      ];
+
+      render(
+        <GpuStats
+          gpuName={null}
+          utilization={50}
+          memoryUsed={12000}
+          memoryTotal={24000}
+          temperature={60}
+          powerUsage={100}
+          inferenceFps={30}
+          historyData={externalHistory}
+        />
+      );
+
+      // When external data is provided, hooks should be called with enabled: false
+      expect(useGpuStatsQueryModule.useGpuStatsQuery).toHaveBeenCalledWith(
+        expect.objectContaining({ enabled: false })
+      );
+      expect(useGpuStatsQueryModule.useGpuHistoryQuery).toHaveBeenCalledWith(
+        expect.objectContaining({ enabled: false })
+      );
+
+      // Should show data point count from external data
+      expect(screen.getByTestId('gpu-history-count')).toHaveTextContent('1 data point');
+    });
+  });
+
+  describe('time range display', () => {
+    it('displays time range in history section title when provided', () => {
+      render(
+        <GpuStats
+          gpuName={null}
+          utilization={50}
+          memoryUsed={12000}
+          memoryTotal={24000}
+          temperature={60}
+          powerUsage={100}
+          inferenceFps={30}
+          timeRange="15m"
+        />
+      );
+
+      expect(screen.getByText('Metrics History (15m)')).toBeInTheDocument();
+    });
+
+    it('does not show time range when not provided', () => {
+      render(
+        <GpuStats
+          gpuName={null}
+          utilization={50}
+          memoryUsed={12000}
+          memoryTotal={24000}
+          temperature={60}
+          powerUsage={100}
+          inferenceFps={30}
+        />
+      );
+
+      expect(screen.getByText('Metrics History')).toBeInTheDocument();
+      expect(screen.queryByText(/\(/)).not.toBeInTheDocument();
     });
   });
 });
