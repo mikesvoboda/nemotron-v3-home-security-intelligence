@@ -359,14 +359,15 @@ class TestGetDLQJobs:
     ) -> None:
         """Test listing jobs from empty detection DLQ."""
         mock_redis_for_dlq.peek_queue.return_value = []
+        mock_redis_for_dlq.get_queue_length.return_value = 0
 
         response = await dlq_client.get(f"/api/dlq/jobs/{DLQ_DETECTION_QUEUE}")
 
         assert response.status_code == 200
         data = response.json()
         assert data["queue_name"] == DLQ_DETECTION_QUEUE
-        assert data["jobs"] == []
-        assert data["count"] == 0
+        assert data["items"] == []
+        assert data["pagination"]["total"] == 0
 
     @pytest.mark.asyncio
     async def test_jobs_empty_analysis_queue(
@@ -374,14 +375,15 @@ class TestGetDLQJobs:
     ) -> None:
         """Test listing jobs from empty analysis DLQ."""
         mock_redis_for_dlq.peek_queue.return_value = []
+        mock_redis_for_dlq.get_queue_length.return_value = 0
 
         response = await dlq_client.get(f"/api/dlq/jobs/{DLQ_ANALYSIS_QUEUE}")
 
         assert response.status_code == 200
         data = response.json()
         assert data["queue_name"] == DLQ_ANALYSIS_QUEUE
-        assert data["jobs"] == []
-        assert data["count"] == 0
+        assert data["items"] == []
+        assert data["pagination"]["total"] == 0
 
     @pytest.mark.asyncio
     async def test_jobs_with_data(
@@ -390,16 +392,17 @@ class TestGetDLQJobs:
         """Test listing jobs from DLQ with data."""
         sample_job = create_sample_job_failure()
         mock_redis_for_dlq.peek_queue.return_value = [sample_job.to_dict()]
+        mock_redis_for_dlq.get_queue_length.return_value = 1
 
         response = await dlq_client.get(f"/api/dlq/jobs/{DLQ_DETECTION_QUEUE}")
 
         assert response.status_code == 200
         data = response.json()
         assert data["queue_name"] == DLQ_DETECTION_QUEUE
-        assert data["count"] == 1
-        assert len(data["jobs"]) == 1
+        assert data["pagination"]["total"] == 1
+        assert len(data["items"]) == 1
 
-        job = data["jobs"][0]
+        job = data["items"][0]
         assert job["original_job"]["camera_id"] == "front_door"
         assert job["error"] == "Connection refused: detector service unavailable"
         assert job["attempt_count"] == 3
@@ -413,12 +416,13 @@ class TestGetDLQJobs:
         # Create multiple jobs
         jobs = [create_sample_job_failure(camera_id=f"cam_{i}").to_dict() for i in range(5)]
         mock_redis_for_dlq.peek_queue.return_value = jobs
+        mock_redis_for_dlq.get_queue_length.return_value = 5
 
         response = await dlq_client.get(f"/api/dlq/jobs/{DLQ_DETECTION_QUEUE}")
 
         assert response.status_code == 200
         data = response.json()
-        assert data["count"] == 5
+        assert data["pagination"]["total"] == 5
 
     @pytest.mark.asyncio
     async def test_jobs_pagination_custom(
@@ -427,6 +431,7 @@ class TestGetDLQJobs:
         """Test custom pagination parameters."""
         jobs = [create_sample_job_failure(camera_id=f"cam_{i}").to_dict() for i in range(3)]
         mock_redis_for_dlq.peek_queue.return_value = jobs
+        mock_redis_for_dlq.get_queue_length.return_value = 3
 
         response = await dlq_client.get(f"/api/dlq/jobs/{DLQ_DETECTION_QUEUE}?start=2&limit=10")
 
@@ -797,19 +802,20 @@ class TestDLQResponseSchemas:
         """Test that jobs response matches DLQJobsResponse schema."""
         sample_job = create_sample_job_failure()
         mock_redis_for_dlq.peek_queue.return_value = [sample_job.to_dict()]
+        mock_redis_for_dlq.get_queue_length.return_value = 1
 
         response = await dlq_client.get(f"/api/dlq/jobs/{DLQ_DETECTION_QUEUE}")
 
         assert response.status_code == 200
         data = response.json()
 
-        # Verify required fields
+        # Verify required fields (NEM-2178 pagination envelope)
         assert "queue_name" in data
-        assert "jobs" in data
-        assert "count" in data
+        assert "items" in data
+        assert "pagination" in data
 
         # Verify job structure
-        job = data["jobs"][0]
+        job = data["items"][0]
         assert "original_job" in job
         assert "error" in job
         assert "attempt_count" in job
@@ -1100,18 +1106,19 @@ class TestDLQErrorHandling:
             return jobs[start : end + 1] if end != -1 else jobs[start:]
 
         mock_redis_for_dlq.peek_queue.side_effect = peek_queue_paginated
+        mock_redis_for_dlq.get_queue_length.return_value = 10
 
         # Get first page (5 items)
         response1 = await dlq_client.get(f"/api/dlq/jobs/{DLQ_DETECTION_QUEUE}?start=0&limit=5")
         assert response1.status_code == 200
         data1 = response1.json()
-        assert data1["count"] == 5
+        assert len(data1["items"]) == 5
 
         # Get second page (remaining 5 items)
         response2 = await dlq_client.get(f"/api/dlq/jobs/{DLQ_DETECTION_QUEUE}?start=5&limit=5")
         assert response2.status_code == 200
         data2 = response2.json()
-        assert data2["count"] == 5
+        assert len(data2["items"]) == 5
 
     @pytest.mark.asyncio
     async def test_stats_with_only_analysis_queue_populated(
@@ -1154,15 +1161,16 @@ class TestDLQErrorHandling:
             ).to_dict(),
         ]
         mock_redis_for_dlq.peek_queue.return_value = jobs
+        mock_redis_for_dlq.get_queue_length.return_value = 3
 
         response = await dlq_client.get(f"/api/dlq/jobs/{DLQ_DETECTION_QUEUE}")
 
         assert response.status_code == 200
         data = response.json()
-        assert data["count"] == 3
+        assert data["pagination"]["total"] == 3
 
         # Verify each job has the correct error type
-        errors = [job["error"] for job in data["jobs"]]
+        errors = [job["error"] for job in data["items"]]
         assert "Connection refused" in errors[0]
         assert "Timeout" in errors[1]
         assert "GPU memory" in errors[2]
@@ -1194,15 +1202,16 @@ class TestAnalysisQueueOperations:
             queue_name=ANALYSIS_QUEUE,
         )
         mock_redis_for_dlq.peek_queue.return_value = [sample_job.to_dict()]
+        mock_redis_for_dlq.get_queue_length.return_value = 1
 
         response = await dlq_client.get(f"/api/dlq/jobs/{DLQ_ANALYSIS_QUEUE}")
 
         assert response.status_code == 200
         data = response.json()
         assert data["queue_name"] == DLQ_ANALYSIS_QUEUE
-        assert data["count"] == 1
+        assert data["pagination"]["total"] == 1
 
-        job = data["jobs"][0]
+        job = data["items"][0]
         assert "batch_id" in job["original_job"]
         assert "detections" in job["original_job"]
         assert "LLM inference failed" in job["error"]

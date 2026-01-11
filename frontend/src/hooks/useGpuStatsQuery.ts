@@ -193,8 +193,8 @@ export interface UseGpuHistoryQueryOptions {
 export interface UseGpuHistoryQueryReturn {
   /** GPU history response, undefined if not yet fetched */
   data: GPUStatsHistoryResponse | undefined;
-  /** Array of historical GPU stats samples */
-  history: GPUStatsHistoryResponse['samples'];
+  /** Array of historical GPU stats samples (NEM-2178: renamed from 'samples' to 'items') */
+  history: GPUStatsHistoryResponse['items'];
   /** Whether the initial fetch is in progress */
   isLoading: boolean;
   /** Whether a background refetch is in progress */
@@ -250,8 +250,8 @@ export function useGpuHistoryQuery(
     retry: 1,
   });
 
-  // Provide empty array as default
-  const history = useMemo(() => query.data?.samples ?? [], [query.data?.samples]);
+  // Provide empty array as default (NEM-2178: renamed from 'samples' to 'items')
+  const history = useMemo(() => query.data?.items ?? [], [query.data?.items]);
 
   return {
     data: query.data,

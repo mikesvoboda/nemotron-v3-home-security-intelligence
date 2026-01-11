@@ -2481,7 +2481,7 @@ export interface paths {
          *         redis: Redis client
          *
          *     Returns:
-         *         DLQJobsResponse with list of jobs including error context
+         *         DLQJobsResponse with list of jobs including error context (NEM-2178 pagination envelope)
          */
         get: operations["get_dlq_jobs_api_dlq_jobs__queue_name__get"];
         put?: never;
@@ -4069,9 +4069,13 @@ export interface paths {
          * Get Gpu Stats History
          * @description Get recent GPU stats samples as a time-series.
          *
+         *     Returns GPU stats in standard pagination envelope format (NEM-2178):
+         *     - items: GPU stats samples (renamed from 'samples')
+         *     - pagination: Standard pagination metadata
+         *
          *     Args:
          *         since: Optional lower bound for recorded_at (ISO datetime)
-         *         limit: Maximum number of samples to return (default 300)
+         *         limit: Maximum number of samples to return (default 300, max 5000)
          *         db: Database session
          */
         get: operations["get_gpu_stats_history_api_system_gpu_history_get"];
@@ -7635,9 +7639,13 @@ export interface components {
         /**
          * DLQJobsResponse
          * @description Response schema for listing jobs in a DLQ.
+         *
+         *     Uses standard pagination envelope format (NEM-2178):
+         *     - items: List of DLQ jobs (renamed from 'jobs')
+         *     - pagination: Standard pagination metadata
+         *     - queue_name: Name of the dead-letter queue
          * @example {
-         *       "count": 1,
-         *       "jobs": [
+         *       "items": [
          *         {
          *           "attempt_count": 3,
          *           "error": "Connection refused",
@@ -7651,20 +7659,23 @@ export interface components {
          *           "queue_name": "detection_queue"
          *         }
          *       ],
+         *       "pagination": {
+         *         "has_more": false,
+         *         "limit": 100,
+         *         "offset": 0,
+         *         "total": 1
+         *       },
          *       "queue_name": "dlq:detection_queue"
          *     }
          */
         DLQJobsResponse: {
             /**
-             * Count
-             * @description Number of jobs returned
-             */
-            count: number;
-            /**
-             * Jobs
+             * Items
              * @description List of jobs in the queue
              */
-            jobs: components["schemas"]["DLQJobResponse"][];
+            items: components["schemas"]["DLQJobResponse"][];
+            /** @description Pagination metadata */
+            pagination: components["schemas"]["PaginationMeta"];
             /**
              * Queue Name
              * @description Name of the dead-letter queue
@@ -10072,23 +10083,38 @@ export interface components {
         /**
          * GPUStatsHistoryResponse
          * @description Response schema for GPU stats history endpoint.
+         *
+         *     Uses standard pagination envelope format (NEM-2178):
+         *     - items: GPU stats samples (renamed from 'samples')
+         *     - pagination: Standard pagination metadata
+         * @example {
+         *       "items": [
+         *         {
+         *           "gpu_name": "NVIDIA RTX A5500",
+         *           "inference_fps": 30.5,
+         *           "memory_total": 24000,
+         *           "memory_used": 12000,
+         *           "power_usage": 150,
+         *           "recorded_at": "2025-12-27T10:30:00Z",
+         *           "temperature": 65,
+         *           "utilization": 75.5
+         *         }
+         *       ],
+         *       "pagination": {
+         *         "has_more": false,
+         *         "limit": 300,
+         *         "total": 1
+         *       }
+         *     }
          */
         GPUStatsHistoryResponse: {
             /**
-             * Count
-             * @description Number of samples returned
-             */
-            count: number;
-            /**
-             * Limit
-             * @description Applied limit
-             */
-            limit: number;
-            /**
-             * Samples
+             * Items
              * @description GPU stats samples (chronological order)
              */
-            samples: components["schemas"]["GPUStatsSample"][];
+            items: components["schemas"]["GPUStatsSample"][];
+            /** @description Pagination metadata */
+            pagination: components["schemas"]["PaginationMeta"];
         };
         /**
          * GPUStatsResponse
