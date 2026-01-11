@@ -31,6 +31,12 @@ _.test_events
 _.cleanup_cache
 _.reader_id
 _.clean_soft_delete_tables
+_.pool_test_db
+_.slow_query_test_db
+_.cleanup_test_keys
+_.reset_redis_global
+_.sample_nemotron_config
+_.reset_signal_handler_state
 
 # Test mock fixtures
 _.mock_pil_image
@@ -50,3 +56,5 @@ _.device_tokens
 # Mock function parameters (required by interface signature but unused in mock body)
 # e.g., async def mock_seek(pos): pass - pos is required by UploadFile.seek signature
 _.pos
+_.shard_hint
+_.transaction
