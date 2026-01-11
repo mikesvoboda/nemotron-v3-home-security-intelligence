@@ -4,13 +4,12 @@ import { useCallback, useState } from 'react';
 import EntitiesEmptyState from './EntitiesEmptyState';
 import EntityCard from './EntityCard';
 import EntityDetailModal from './EntityDetailModal';
-import { useCamerasQuery } from '../../hooks/useCamerasQuery';
-import {
-  useEntitiesQuery,
-  useEntityDetailQuery,
-  type TimeRangeFilter,
-} from '../../hooks/useEntitiesQuery';
+import { useCamerasQuery, useEntitiesInfiniteQuery, useInfiniteScroll } from '../../hooks';
+import { useEntityDetailQuery, type TimeRangeFilter } from '../../hooks/useEntitiesQuery';
 import { EntityCardSkeleton } from '../common';
+
+import type { EntityTimeRangeFilter } from '../../hooks';
+import type { EntitySummary } from '../../services/api';
 
 /**
  * EntitiesPage component - Display and manage tracked entities
@@ -20,13 +19,14 @@ import { EntityCardSkeleton } from '../common';
  * - Filter by entity type (person/vehicle)
  * - Filter by time range (1h/24h/7d/30d)
  * - Filter by camera
+ * - Infinite scroll for loading more entities
  * - View entity detail with appearance timeline
  * - Auto-refresh every 30 seconds
  */
 export default function EntitiesPage() {
   // State for filters
   const [entityTypeFilter, setEntityTypeFilter] = useState<'all' | 'person' | 'vehicle'>('all');
-  const [timeRangeFilter, setTimeRangeFilter] = useState<TimeRangeFilter>('all');
+  const [timeRangeFilter, setTimeRangeFilter] = useState<EntityTimeRangeFilter>('all');
   const [cameraFilter, setCameraFilter] = useState<string>('');
 
   // State for entity detail modal
@@ -36,18 +36,31 @@ export default function EntitiesPage() {
   // Fetch cameras for the filter dropdown
   const { cameras, isLoading: camerasLoading } = useCamerasQuery();
 
-  // Fetch entities with TanStack Query and auto-refresh
+  // Fetch entities with infinite scroll support
   const {
     entities,
-    isLoading: loading,
-    isRefetching,
+    totalCount,
+    isLoading,
+    isFetching,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
     error,
+    isError,
     refetch,
-  } = useEntitiesQuery({
+  } = useEntitiesInfiniteQuery({
     entityType: entityTypeFilter,
     cameraId: cameraFilter || undefined,
     timeRange: timeRangeFilter,
     refetchInterval: 30000, // Auto-refresh every 30 seconds
+    limit: 50,
+  });
+
+  // Set up infinite scroll
+  const { sentinelRef, isLoadingMore } = useInfiniteScroll({
+    onLoadMore: fetchNextPage,
+    hasMore: hasNextPage,
+    isLoading: isFetchingNextPage,
   });
 
   // Fetch entity detail when modal is open
@@ -76,12 +89,12 @@ export default function EntitiesPage() {
     void refetch();
   }, [refetch]);
 
-  // Count entities by type
-  const personCount = entities.filter((e) => e.entity_type === 'person').length;
-  const vehicleCount = entities.filter((e) => e.entity_type === 'vehicle').length;
+  // Count entities by type (from currently loaded entities)
+  const personCount = entities.filter((e: EntitySummary) => e.entity_type === 'person').length;
+  const vehicleCount = entities.filter((e: EntitySummary) => e.entity_type === 'vehicle').length;
 
   // Time range options
-  const timeRangeOptions: { value: TimeRangeFilter; label: string }[] = [
+  const timeRangeOptions: { value: EntityTimeRangeFilter; label: string }[] = [
     { value: 'all', label: 'All Time' },
     { value: '1h', label: 'Last 1h' },
     { value: '24h', label: 'Last 24h' },
@@ -109,11 +122,11 @@ export default function EntitiesPage() {
         {/* Refresh button */}
         <button
           onClick={handleRefresh}
-          disabled={loading || isRefetching}
+          disabled={isLoading || isFetching}
           className="flex items-center gap-2 rounded-lg bg-gray-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700 disabled:opacity-50"
           aria-label="Refresh entities"
         >
-          <RefreshCw className={`h-4 w-4 ${loading || isRefetching ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`h-4 w-4 ${isLoading || isFetching ? 'animate-spin' : ''}`} />
           Refresh
         </button>
       </div>
@@ -167,7 +180,7 @@ export default function EntitiesPage() {
           <select
             id="time-range-filter"
             value={timeRangeFilter}
-            onChange={(e) => setTimeRangeFilter(e.target.value as TimeRangeFilter)}
+            onChange={(e) => setTimeRangeFilter(e.target.value as EntityTimeRangeFilter)}
             className="rounded-lg border border-gray-700 bg-[#1F1F1F] px-3 py-2 text-sm text-white focus:border-[#76B900] focus:outline-none focus:ring-1 focus:ring-[#76B900]"
             aria-label="Filter by time range"
           >
@@ -202,7 +215,7 @@ export default function EntitiesPage() {
         </div>
 
         {/* Stats */}
-        {!loading && !error && entities.length > 0 && (
+        {!isLoading && !isError && entities.length > 0 && (
           <div className="flex items-center gap-4 text-sm text-gray-400">
             <span className="flex items-center gap-1">
               <User className="h-4 w-4" />
@@ -212,11 +225,16 @@ export default function EntitiesPage() {
               <Car className="h-4 w-4" />
               {vehicleCount} {vehicleCount === 1 ? 'vehicle' : 'vehicles'}
             </span>
+            {totalCount > entities.length && (
+              <span className="text-xs text-gray-500">
+                ({entities.length} of {totalCount} loaded)
+              </span>
+            )}
           </div>
         )}
 
         {/* Auto-refresh indicator */}
-        {isRefetching && !loading && (
+        {isFetching && !isLoading && !isFetchingNextPage && (
           <span className="flex items-center gap-1 text-xs text-gray-500">
             <RefreshCw className="h-3 w-3 animate-spin" />
             Updating...
@@ -225,14 +243,14 @@ export default function EntitiesPage() {
       </div>
 
       {/* Content */}
-      {loading ? (
+      {isLoading ? (
         /* Loading state with skeletons */
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {Array.from({ length: 8 }, (_, i) => (
             <EntityCardSkeleton key={i} />
           ))}
         </div>
-      ) : error ? (
+      ) : isError ? (
         /* Error state */
         <div className="flex min-h-[400px] items-center justify-center rounded-lg border border-red-900/50 bg-red-900/10">
           <div className="flex flex-col items-center gap-3 text-center">
@@ -293,22 +311,37 @@ export default function EntitiesPage() {
           </div>
         )
       ) : (
-        /* Entity grid */
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {entities.map((entity) => (
-            <EntityCard
-              key={entity.id}
-              id={entity.id}
-              entity_type={entity.entity_type}
-              first_seen={entity.first_seen}
-              last_seen={entity.last_seen}
-              appearance_count={entity.appearance_count}
-              cameras_seen={entity.cameras_seen}
-              thumbnail_url={entity.thumbnail_url}
-              onClick={handleEntityClick}
-            />
-          ))}
-        </div>
+        /* Entity grid with infinite scroll */
+        <>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {entities.map((entity: EntitySummary) => (
+              <EntityCard
+                key={entity.id}
+                id={entity.id}
+                entity_type={entity.entity_type}
+                first_seen={entity.first_seen}
+                last_seen={entity.last_seen}
+                appearance_count={entity.appearance_count}
+                cameras_seen={entity.cameras_seen}
+                thumbnail_url={entity.thumbnail_url}
+                onClick={handleEntityClick}
+              />
+            ))}
+          </div>
+
+          {/* Infinite Scroll Sentinel */}
+          <div ref={sentinelRef} className="mt-4 flex justify-center py-4">
+            {(isLoadingMore || isFetchingNextPage) && (
+              <div className="flex items-center gap-2 text-gray-400">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                <span>Loading more entities...</span>
+              </div>
+            )}
+            {!hasNextPage && entities.length > 0 && (
+              <p className="text-sm text-gray-500">All entities loaded</p>
+            )}
+          </div>
+        </>
       )}
 
       {/* Entity Detail Modal */}

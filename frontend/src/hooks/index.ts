@@ -195,6 +195,20 @@ export type {
   UseDetectionsInfiniteQueryReturn,
 } from './useDetectionsQuery';
 
+export { useAlertsInfiniteQuery, alertsQueryKeys } from './useAlertsQuery';
+export type {
+  AlertRiskFilter,
+  UseAlertsInfiniteQueryOptions,
+  UseAlertsInfiniteQueryReturn,
+} from './useAlertsQuery';
+
+export { useEntitiesInfiniteQuery, entitiesInfiniteQueryKeys } from './useEntitiesInfiniteQuery';
+export type {
+  EntityTimeRangeFilter,
+  UseEntitiesInfiniteQueryOptions,
+  UseEntitiesInfiniteQueryReturn,
+} from './useEntitiesInfiniteQuery';
+
 export { useServiceStatus } from './useServiceStatus';
 export type {
   ServiceName,
