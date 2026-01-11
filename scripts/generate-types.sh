@@ -226,14 +226,26 @@ add_pragma_comments() {
     sed -i 's/\("next_cursor": "eyJ[^"]*="\),$/\1, \/\/ pragma: allowlist secret/g' "$file"
 }
 
+# Helper function to add eslint-disable comment for generated types
+# openapi-typescript generates union types like `T | unknown` which trigger ESLint rule
+add_eslint_disable() {
+    local file="$1"
+    # Check if the comment is already present
+    if ! grep -q "eslint-disable @typescript-eslint/no-redundant-type-constituents" "$file"; then
+        # Add the comment at the very top of the file
+        sed -i '1i/* eslint-disable @typescript-eslint/no-redundant-type-constituents */' "$file"
+    fi
+}
+
 if [ "$CHECK_MODE" = true ]; then
     # In check mode, generate to a temp file and compare
     TEMP_FILE=$(mktemp)
 
     npx --prefix "$PROJECT_ROOT/frontend" openapi-typescript "$OPENAPI_SPEC_FILE" -o "$TEMP_FILE" 2>/dev/null
 
-    # Add pragma comments to temp file for comparison
+    # Add pragma comments and eslint-disable to temp file for comparison
     add_pragma_comments "$TEMP_FILE"
+    add_eslint_disable "$TEMP_FILE"
 
     if [ ! -f "$GENERATED_TYPES_FILE" ]; then
         print_error "Generated types file does not exist: $GENERATED_TYPES_FILE"
@@ -266,6 +278,8 @@ else
 
     # Add pragma comments for detect-secrets false positives
     add_pragma_comments "$GENERATED_TYPES_FILE"
+    # Add eslint-disable comment for union types with unknown
+    add_eslint_disable "$GENERATED_TYPES_FILE"
 
     print_success "TypeScript types generated: $GENERATED_TYPES_FILE"
 fi

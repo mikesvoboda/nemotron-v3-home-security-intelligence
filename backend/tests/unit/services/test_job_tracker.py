@@ -459,3 +459,47 @@ class TestJobTrackerThreadSafety:
         assert job is not None
         # Final progress should be one of the valid values
         assert 0 <= job["progress"] <= 100
+
+
+class TestJobTrackerMessageField:
+    """Tests for the message field (NEM-1989)."""
+
+    def test_create_job_has_null_message(self, job_tracker: JobTracker) -> None:
+        """Should have null message on creation."""
+        job_id = job_tracker.create_job("export")
+        job = job_tracker.get_job(job_id)
+        assert job is not None
+        assert job["message"] is None
+
+    def test_start_job_with_message(self, job_tracker: JobTracker) -> None:
+        """Should set message when starting job."""
+        job_id = job_tracker.create_job("export")
+        job_tracker.start_job(job_id, message="Starting export...")
+        job = job_tracker.get_job(job_id)
+        assert job is not None
+        assert job["message"] == "Starting export..."
+
+    def test_update_progress_with_message(self, job_tracker: JobTracker) -> None:
+        """Should update message with progress."""
+        job_id = job_tracker.create_job("export")
+        job_tracker.start_job(job_id)
+        job_tracker.update_progress(job_id, 50, message="Processing 50/100 events")
+        job = job_tracker.get_job(job_id)
+        assert job is not None
+        assert job["message"] == "Processing 50/100 events"
+
+    def test_complete_job_sets_message(self, job_tracker: JobTracker) -> None:
+        """Should set success message on completion."""
+        job_id = job_tracker.create_job("export")
+        job_tracker.complete_job(job_id)
+        job = job_tracker.get_job(job_id)
+        assert job is not None
+        assert job["message"] == "Completed successfully"
+
+    def test_fail_job_sets_message(self, job_tracker: JobTracker) -> None:
+        """Should set failure message on fail."""
+        job_id = job_tracker.create_job("export")
+        job_tracker.fail_job(job_id, "Connection timeout")
+        job = job_tracker.get_job(job_id)
+        assert job is not None
+        assert job["message"] == "Failed: Connection timeout"
