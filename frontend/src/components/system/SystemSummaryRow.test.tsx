@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, Mock, vi } from 'vitest';
 
 import SystemSummaryRow from './SystemSummaryRow';
 import { useHealthStatusQuery } from '../../hooks/useHealthStatusQuery';
-import { useModelZooStatus } from '../../hooks/useModelZooStatus';
+import { useModelZooStatusQuery } from '../../hooks/useModelZooStatusQuery';
 import { usePerformanceMetrics } from '../../hooks/usePerformanceMetrics';
 
 import type { PerformanceUpdate } from '../../hooks/usePerformanceMetrics';
@@ -11,7 +11,7 @@ import type { PerformanceUpdate } from '../../hooks/usePerformanceMetrics';
 // Mock the hooks
 vi.mock('../../hooks/usePerformanceMetrics');
 vi.mock('../../hooks/useHealthStatusQuery');
-vi.mock('../../hooks/useModelZooStatus');
+vi.mock('../../hooks/useModelZooStatusQuery');
 
 // Mock scrollIntoView
 const mockScrollIntoView = vi.fn();
@@ -95,10 +95,10 @@ const defaultModels: MockModel[] = [
 ];
 
 const defaultVramStats = {
-  budget_mb: 24576,
-  used_mb: 9200,
-  available_mb: 15376,
-  usage_percent: 37.4,
+  budgetMb: 24576,
+  usedMb: 9200,
+  availableMb: 15376,
+  usagePercent: 37.4,
 };
 
 const defaultServices = {
@@ -117,7 +117,7 @@ function setupMocks(overrides?: {
 }) {
   const mockedUsePerformanceMetrics = usePerformanceMetrics as Mock;
   const mockedUseHealthStatusQuery = useHealthStatusQuery as Mock;
-  const mockedUseModelZooStatus = useModelZooStatus as Mock;
+  const mockedUseModelZooStatusQuery = useModelZooStatusQuery as Mock;
 
   mockedUsePerformanceMetrics.mockReturnValue({
     current: overrides?.performance === null ? null : { ...defaultPerformanceData, ...overrides?.performance },
@@ -139,12 +139,13 @@ function setupMocks(overrides?: {
     refetch: vi.fn().mockResolvedValue({}),
   });
 
-  mockedUseModelZooStatus.mockReturnValue({
+  mockedUseModelZooStatusQuery.mockReturnValue({
     models: overrides?.models ?? defaultModels,
     vramStats: overrides?.vramStats ?? defaultVramStats,
     isLoading: false,
+    isRefetching: false,
     error: null,
-    refresh: vi.fn(),
+    refetch: vi.fn().mockResolvedValue({}),
   });
 }
 
