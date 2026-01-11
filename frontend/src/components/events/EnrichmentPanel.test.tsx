@@ -221,6 +221,109 @@ describe('EnrichmentPanel', () => {
     });
   });
 
+  describe('posture enrichment', () => {
+    const postureEnrichment: EnrichmentData = {
+      posture: {
+        posture: 'standing',
+        confidence: 0.89,
+      },
+    };
+
+    it('renders posture section when posture data exists', () => {
+      render(<EnrichmentPanel enrichment_data={postureEnrichment} />);
+      expect(screen.getByText('Posture')).toBeInTheDocument();
+    });
+
+    it('displays posture classification', async () => {
+      render(<EnrichmentPanel enrichment_data={postureEnrichment} />);
+      await expandAccordion('Posture');
+      expect(screen.getByText('Standing')).toBeInTheDocument();
+    });
+
+    it('displays confidence badge for posture', () => {
+      render(<EnrichmentPanel enrichment_data={postureEnrichment} />);
+      expect(screen.getByText('89%')).toBeInTheDocument();
+    });
+
+    it('formats posture with underscores correctly', async () => {
+      const postureWithUnderscore: EnrichmentData = {
+        posture: {
+          posture: 'lying_down',
+          confidence: 0.92,
+        },
+      };
+      render(<EnrichmentPanel enrichment_data={postureWithUnderscore} />);
+      await expandAccordion('Posture');
+      expect(screen.getByText('Lying down')).toBeInTheDocument();
+    });
+
+    it('displays warning badge for crouching posture', async () => {
+      const crouchingPosture: EnrichmentData = {
+        posture: {
+          posture: 'crouching',
+          confidence: 0.87,
+        },
+      };
+      render(<EnrichmentPanel enrichment_data={crouchingPosture} />);
+      await expandAccordion('Posture');
+      expect(screen.getByText('Crouching')).toBeInTheDocument();
+      expect(screen.getByText('Security Concern')).toBeInTheDocument();
+    });
+
+    it('displays warning badge for lying_down posture', async () => {
+      const lyingDownPosture: EnrichmentData = {
+        posture: {
+          posture: 'lying_down',
+          confidence: 0.85,
+        },
+      };
+      render(<EnrichmentPanel enrichment_data={lyingDownPosture} />);
+      await expandAccordion('Posture');
+      expect(screen.getByText('Lying down')).toBeInTheDocument();
+      expect(screen.getByText('Security Concern')).toBeInTheDocument();
+    });
+
+    it('displays alert badge for hands_raised posture', async () => {
+      const handsRaisedPosture: EnrichmentData = {
+        posture: {
+          posture: 'hands_raised',
+          confidence: 0.91,
+        },
+      };
+      render(<EnrichmentPanel enrichment_data={handsRaisedPosture} />);
+      await expandAccordion('Posture');
+      expect(screen.getByText('Hands raised')).toBeInTheDocument();
+      expect(screen.getByText('High Security Risk')).toBeInTheDocument();
+    });
+
+    it('displays alert badge for fighting_stance posture', async () => {
+      const fightingStancePosture: EnrichmentData = {
+        posture: {
+          posture: 'fighting_stance',
+          confidence: 0.88,
+        },
+      };
+      render(<EnrichmentPanel enrichment_data={fightingStancePosture} />);
+      await expandAccordion('Posture');
+      expect(screen.getByText('Fighting stance')).toBeInTheDocument();
+      expect(screen.getByText('High Security Risk')).toBeInTheDocument();
+    });
+
+    it('does not display risk badge for normal postures', async () => {
+      const walkingPosture: EnrichmentData = {
+        posture: {
+          posture: 'walking',
+          confidence: 0.94,
+        },
+      };
+      render(<EnrichmentPanel enrichment_data={walkingPosture} />);
+      await expandAccordion('Posture');
+      expect(screen.getByText('Walking')).toBeInTheDocument();
+      expect(screen.queryByText('Security Concern')).not.toBeInTheDocument();
+      expect(screen.queryByText('High Security Risk')).not.toBeInTheDocument();
+    });
+  });
+
   describe('license plate enrichment', () => {
     const licensePlateEnrichment: EnrichmentData = {
       license_plate: {
@@ -377,6 +480,7 @@ describe('EnrichmentPanel', () => {
       render(<EnrichmentPanel enrichment_data={multipleEnrichments} />);
       expect(screen.queryByText('Pet')).not.toBeInTheDocument();
       expect(screen.queryByText('Person')).not.toBeInTheDocument();
+      expect(screen.queryByText('Posture')).not.toBeInTheDocument();
       expect(screen.queryByText('Image Quality')).not.toBeInTheDocument();
     });
   });

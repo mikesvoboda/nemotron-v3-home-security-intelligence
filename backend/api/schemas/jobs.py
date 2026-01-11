@@ -121,3 +121,89 @@ class ExportJobRequest(BaseModel):
             }
         }
     }
+
+
+class JobListResponse(BaseModel):
+    """Response model for listing jobs."""
+
+    jobs: list[JobResponse] = Field(description="List of jobs")
+    total: int = Field(ge=0, description="Total number of jobs matching filter")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "jobs": [
+                    {
+                        "job_id": "550e8400-e29b-41d4-a716-446655440000",
+                        "job_type": "export",
+                        "status": "running",
+                        "progress": 45,
+                        "message": "Exporting events: 450/1000",
+                        "created_at": "2024-01-15T10:30:00Z",
+                        "started_at": "2024-01-15T10:30:01Z",
+                        "completed_at": None,
+                        "result": None,
+                        "error": None,
+                    }
+                ],
+                "total": 1,
+            }
+        }
+    }
+
+
+class JobTypeInfo(BaseModel):
+    """Information about a job type."""
+
+    name: str = Field(description="Job type name (e.g., 'export', 'cleanup')")
+    description: str = Field(description="Human-readable description of the job type")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "name": "export",
+                "description": "Export events to CSV, JSON, or ZIP format",
+            }
+        }
+    }
+
+
+class JobTypesResponse(BaseModel):
+    """Response model for listing job types."""
+
+    job_types: list[JobTypeInfo] = Field(description="List of available job types")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "job_types": [
+                    {
+                        "name": "export",
+                        "description": "Export events to CSV, JSON, or ZIP format",
+                    },
+                    {
+                        "name": "cleanup",
+                        "description": "Clean up old data and temporary files",
+                    },
+                ]
+            }
+        }
+    }
+
+
+class JobCancelResponse(BaseModel):
+    """Response model for job cancellation request."""
+
+    job_id: str = Field(description="Job ID that was cancelled")
+    status: JobStatusEnum = Field(description="New job status after cancellation")
+    message: str = Field(description="Cancellation status message")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "job_id": "550e8400-e29b-41d4-a716-446655440000",
+                "status": "failed",
+                "message": "Job cancellation requested",
+            }
+        }
+    }

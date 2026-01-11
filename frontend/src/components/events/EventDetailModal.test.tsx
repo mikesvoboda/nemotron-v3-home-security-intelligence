@@ -25,6 +25,8 @@ vi.mock('../../services/api', async () => {
   return {
     ...actual,
     fetchEventDetections: vi.fn().mockResolvedValue({ items: [], pagination: { total: 0, limit: 100, offset: 0, has_more: false } }),
+    fetchEventEntityMatches: vi.fn().mockResolvedValue({ event_id: 123, person_matches: [], vehicle_matches: [], total_matches: 0 }),
+    fetchEntity: vi.fn().mockResolvedValue({ id: 'entity-1', entity_type: 'person', first_seen: '2024-01-15T10:00:00Z', last_seen: '2024-01-15T10:30:00Z', appearance_count: 1, cameras_seen: [], thumbnail_url: null, appearances: [] }),
     getDetectionImageUrl: vi.fn((id: number) => `/api/detections/${id}/image`),
     getDetectionVideoUrl: vi.fn((id: number) => `/api/detections/${id}/video`),
     getDetectionVideoThumbnailUrl: vi.fn((id: number) => `/api/detections/${id}/video/thumbnail`),
@@ -37,6 +39,29 @@ vi.mock('../video/VideoPlayer', () => ({
     <div data-testid="video-player" data-src={src} data-poster={poster} className={className}>
       Mocked VideoPlayer
     </div>
+  )),
+}));
+
+// Mock the MatchedEntitiesSection component
+vi.mock('./MatchedEntitiesSection', () => ({
+  default: vi.fn(({ eventId, onEntityClick }: { eventId: number; onEntityClick?: (entityId: string) => void }) => (
+    <div data-testid="matched-entities-section" data-event-id={eventId}>
+      <h3>Matched Entities</h3>
+      <button onClick={() => onEntityClick?.('entity-123')}>Mock Entity</button>
+    </div>
+  )),
+}));
+
+// Mock the EntityDetailModal component
+vi.mock('../entities/EntityDetailModal', () => ({
+  default: vi.fn(({ entity, isOpen, onClose }: { entity: unknown; isOpen: boolean; onClose: () => void }) => (
+    isOpen ? (
+      <div data-testid="entity-detail-modal">
+        Mocked EntityDetailModal
+        {entity ? <span data-testid="entity-loaded">Entity Loaded</span> : null}
+        <button onClick={onClose} data-testid="close-entity-modal">Close</button>
+      </div>
+    ) : null
   )),
 }));
 
@@ -2132,6 +2157,61 @@ describe('EventDetailModal', () => {
         const reEvalButton = screen.getByTestId('re-evaluate-button');
         expect(reEvalButton).toHaveAttribute('aria-label', 'Re-evaluate AI analysis');
       });
+    });
+  });
+
+  describe('matched entities section', () => {
+    // Mock event with numeric ID (required for entity matches)
+    const mockEventWithNumericId: Event = {
+      ...mockEvent,
+      id: '123',
+    };
+
+    const mockEntityMatchesProps: EventDetailModalProps = {
+      ...mockProps,
+      event: mockEventWithNumericId,
+    };
+
+    beforeEach(() => {
+      // Mock fetchEventEntityMatches to return empty by default
+      vi.mocked(api.fetchEventDetections).mockResolvedValue({
+        items: [],
+        pagination: { total: 0, limit: 100, offset: 0, has_more: false },
+      });
+    });
+
+    it('renders matched entities section for events with numeric ID', async () => {
+      render(<EventDetailModal {...mockEntityMatchesProps} />);
+
+      await waitFor(() => {
+        // The MatchedEntitiesSection should be rendered (it handles its own loading state)
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+
+      // The section title should appear (loading, empty, or with data)
+      await waitFor(() => {
+        expect(screen.getByText('Matched Entities')).toBeInTheDocument();
+      });
+    });
+
+    it('does not render matched entities section for non-numeric event ID', async () => {
+      const eventWithInvalidId: Event = {
+        ...mockEvent,
+        id: 'not-a-number',
+      };
+      const propsWithInvalidId: EventDetailModalProps = {
+        ...mockProps,
+        event: eventWithInvalidId,
+      };
+
+      render(<EventDetailModal {...propsWithInvalidId} />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+
+      // The Matched Entities section should not appear for invalid IDs
+      expect(screen.queryByText(/Matched Entities/)).not.toBeInTheDocument();
     });
   });
 });

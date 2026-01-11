@@ -108,3 +108,14 @@ export type { SceneChangeAlertProps } from './SceneChangeAlert';
 
 export { default as InfiniteScrollStatus, InfiniteScrollStatus as InfiniteScrollStatusNamed } from './InfiniteScrollStatus';
 export type { InfiniteScrollStatusProps } from './InfiniteScrollStatus';
+
+// Ambient status awareness components
+export { default as AmbientBackground } from './AmbientBackground';
+export type { AmbientBackgroundProps, ThreatCategory } from './AmbientBackground';
+export { getThreatCategory, threatLevelToRiskLevel } from './AmbientBackground';
+
+export { default as FaviconBadge } from './FaviconBadge';
+export type { FaviconBadgeProps } from './FaviconBadge';
+
+export { default as AmbientStatusProvider } from './AmbientStatusProvider';
+export type { AmbientStatusProviderProps } from './AmbientStatusProvider';

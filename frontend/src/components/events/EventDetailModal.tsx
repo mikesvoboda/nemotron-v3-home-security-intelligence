@@ -21,6 +21,7 @@ import EventVideoPlayer from './EventVideoPlayer';
 import ReidMatchesPanel from './ReidMatchesPanel';
 import ThumbnailStrip from './ThumbnailStrip';
 import {
+  fetchEntity,
   fetchEventDetections,
   getDetectionFullImageUrl,
   getDetectionImageUrl,
@@ -45,9 +46,11 @@ import { EventAuditDetail } from '../audit';
 import Lightbox from '../common/Lightbox';
 import RiskBadge from '../common/RiskBadge';
 import DetectionImage from '../detection/DetectionImage';
+import EntityDetailModal from '../entities/EntityDetailModal';
 import VideoPlayer from '../video/VideoPlayer';
 
 import type { DetectionThumbnail } from './ThumbnailStrip';
+import type { EntityDetail } from '../../services/api';
 import type { EnrichmentData } from '../../types/enrichment';
 import type { Detection as ApiDetection } from '../../types/generated';
 import type { LightboxImage } from '../common/Lightbox';
@@ -134,6 +137,12 @@ export default function EventDetailModal({
   const [isReEvaluating, setIsReEvaluating] = useState<boolean>(false);
   const [reEvaluateError, setReEvaluateError] = useState<string | null>(null);
   const [reEvaluateSuccess, setReEvaluateSuccess] = useState<boolean>(false);
+
+  // State for entity detail modal
+  const [entityDetailOpen, setEntityDetailOpen] = useState<boolean>(false);
+  const [selectedEntity, setSelectedEntity] = useState<EntityDetail | null>(null);
+  // entityLoading reserved for async entity detail fetching
+  const [, setEntityLoading] = useState<boolean>(false);
 
   // Initialize notes text and reset re-evaluate state when event changes
   useEffect(() => {
@@ -294,6 +303,20 @@ export default function EventDetailModal({
     if (index !== -1) {
       setThumbnailLightboxIndex(index);
       setThumbnailLightboxOpen(true);
+    }
+  };
+
+  // Handle entity match click to open EntityDetailModal
+  const handleEntityClick = async (entityId: string) => {
+    setEntityLoading(true);
+    try {
+      const entityData = await fetchEntity(entityId);
+      setSelectedEntity(entityData);
+      setEntityDetailOpen(true);
+    } catch (error) {
+      console.error('Failed to fetch entity details:', error);
+    } finally {
+      setEntityLoading(false);
     }
   };
 
@@ -1027,6 +1050,16 @@ export default function EventDetailModal({
           onIndexChange={setThumbnailLightboxIndex}
         />
       )}
+
+      {/* Entity Detail Modal */}
+      <EntityDetailModal
+        entity={selectedEntity}
+        isOpen={entityDetailOpen}
+        onClose={() => {
+          setEntityDetailOpen(false);
+          setSelectedEntity(null);
+        }}
+      />
     </Transition>
   );
 }

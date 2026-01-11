@@ -1722,3 +1722,209 @@ async def test_update_severity_thresholds_concurrent_updates(client, mock_redis)
     thresholds = data["thresholds"]
     valid_low_max = [25, 30, 20]
     assert thresholds["low_max"] in valid_low_max
+
+
+# =============================================================================
+# Performance Endpoint Tests (NEM-1900)
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_performance_endpoint_returns_metrics(client, mock_redis):
+    """Test performance endpoint returns current performance metrics."""
+    from backend.api.schemas.performance import PerformanceUpdate
+
+    # Create a real PerformanceUpdate for the mock to return
+    mock_snapshot = PerformanceUpdate(
+        timestamp=datetime.now(UTC),
+        gpu=None,
+        ai_models={},
+        nemotron=None,
+        inference=None,
+        databases={},
+        host=None,
+        containers=[],
+        alerts=[],
+    )
+
+    # Mock the PerformanceCollector
+    with patch("backend.api.routes.system._performance_collector") as mock_collector:
+        mock_collector.collect_all = AsyncMock(return_value=mock_snapshot)
+
+        # Mock Redis to avoid storage errors
+        mock_redis.zadd = AsyncMock(return_value=1)
+        mock_redis._ensure_connected = lambda: mock_redis
+        mock_redis.zcard = AsyncMock(return_value=1)
+
+        response = await client.get("/api/system/performance")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Check response structure
+        assert "timestamp" in data
+        assert "alerts" in data
+
+
+@pytest.mark.asyncio
+async def test_performance_endpoint_without_collector(client, mock_redis):
+    """Test performance endpoint creates temporary collector when none registered."""
+    from backend.api.schemas.performance import PerformanceUpdate
+
+    # Create a real PerformanceUpdate for the mock to return
+    mock_snapshot = PerformanceUpdate(
+        timestamp=datetime.now(UTC),
+        gpu=None,
+        ai_models={},
+        nemotron=None,
+        inference=None,
+        databases={},
+        host=None,
+        containers=[],
+        alerts=[],
+    )
+
+    # Ensure no collector is registered
+    with patch("backend.api.routes.system._performance_collector", None):
+        # Mock the PerformanceCollector class imported inside the function
+        with patch(
+            "backend.services.performance_collector.PerformanceCollector"
+        ) as MockCollectorClass:
+            mock_collector_instance = AsyncMock()
+            mock_collector_instance.collect_all = AsyncMock(return_value=mock_snapshot)
+            mock_collector_instance.close = AsyncMock()
+            MockCollectorClass.return_value = mock_collector_instance
+
+            # Mock Redis to avoid storage errors
+            mock_redis.zadd = AsyncMock(return_value=1)
+            mock_redis._ensure_connected = lambda: mock_redis
+            mock_redis.zcard = AsyncMock(return_value=1)
+
+            response = await client.get("/api/system/performance")
+
+            assert response.status_code == 200
+            # Verify temporary collector was closed
+            mock_collector_instance.close.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_performance_history_endpoint_empty(client, mock_redis):
+    """Test performance history endpoint with no stored data."""
+    # Configure mock Redis to return empty sorted set
+    mock_redis.zrangebyscore = AsyncMock(return_value=[])
+
+    response = await client.get("/api/system/performance/history")
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert "snapshots" in data
+    assert "time_range" in data
+    assert "count" in data
+    assert data["snapshots"] == []
+    assert data["count"] == 0
+    assert data["time_range"] == "5m"  # Default value
+
+
+@pytest.mark.asyncio
+async def test_performance_history_endpoint_with_time_range(client, mock_redis):
+    """Test performance history endpoint with different time ranges."""
+    mock_redis.zrangebyscore = AsyncMock(return_value=[])
+
+    # Test 5m time range
+    response = await client.get("/api/system/performance/history?time_range=5m")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["time_range"] == "5m"
+
+    # Test 15m time range
+    response = await client.get("/api/system/performance/history?time_range=15m")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["time_range"] == "15m"
+
+    # Test 60m time range
+    response = await client.get("/api/system/performance/history?time_range=60m")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["time_range"] == "60m"
+
+
+@pytest.mark.asyncio
+async def test_performance_history_endpoint_invalid_time_range(client, mock_redis):
+    """Test performance history endpoint rejects invalid time ranges."""
+    response = await client.get("/api/system/performance/history?time_range=invalid")
+
+    # FastAPI validates enum values and returns 422
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_performance_history_endpoint_with_data(client, mock_redis):
+    """Test performance history endpoint returns stored snapshots."""
+    import json
+
+    # Create sample performance data
+    sample_snapshot = {
+        "timestamp": "2026-01-10T12:00:00Z",
+        "gpu": None,
+        "ai_models": {},
+        "nemotron": None,
+        "inference": None,
+        "databases": {},
+        "host": {
+            "cpu_percent": 30.0,
+            "ram_used_gb": 10.0,
+            "ram_total_gb": 32.0,
+            "disk_used_gb": 200.0,
+            "disk_total_gb": 500.0,
+        },
+        "containers": [],
+        "alerts": [],
+    }
+
+    # Mock Redis to return stored snapshots
+    mock_redis.zrangebyscore = AsyncMock(return_value=[json.dumps(sample_snapshot)])
+
+    response = await client.get("/api/system/performance/history?time_range=5m")
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["count"] == 1
+    assert len(data["snapshots"]) == 1
+    snapshot = data["snapshots"][0]
+    assert snapshot["host"]["cpu_percent"] == 30.0
+
+
+@pytest.mark.asyncio
+async def test_performance_stores_snapshot_in_redis(client, mock_redis):
+    """Test that getting current performance stores snapshot in Redis."""
+    # Mock the PerformanceCollector
+    from backend.api.schemas.performance import PerformanceUpdate
+
+    mock_snapshot = PerformanceUpdate(
+        timestamp=datetime.now(UTC),
+        gpu=None,
+        ai_models={},
+        nemotron=None,
+        inference=None,
+        databases={},
+        host=None,
+        containers=[],
+        alerts=[],
+    )
+
+    with patch("backend.api.routes.system._performance_collector") as mock_collector:
+        mock_collector.collect_all = AsyncMock(return_value=mock_snapshot)
+
+        # Mock Redis zadd to verify it's called
+        mock_redis.zadd = AsyncMock(return_value=1)
+        mock_redis._ensure_connected = lambda: mock_redis
+        mock_redis.zcard = AsyncMock(return_value=1)
+
+        response = await client.get("/api/system/performance")
+
+        assert response.status_code == 200
+        # Verify Redis zadd was called to store the snapshot
+        mock_redis.zadd.assert_called_once()

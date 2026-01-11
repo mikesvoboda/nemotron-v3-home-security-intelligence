@@ -15,22 +15,24 @@
 import { Accordion, AccordionHeader, AccordionBody, AccordionList } from '@tremor/react';
 import { clsx } from 'clsx';
 import {
-  Car,
-  Dog,
-  User,
-  CreditCard,
-  Cloud,
-  ImageIcon,
+  Activity,
   AlertTriangle,
   Briefcase,
+  Car,
+  Cloud,
+  CreditCard,
+  Dog,
+  ImageIcon,
   Package,
-  Activity,
   ShieldAlert,
   Heart,
   Swords,
   HandMetal,
+  User,
 } from 'lucide-react';
 
+
+import { getPostureRiskLevel } from '../../types/enrichment';
 import {
   formatConfidencePercent,
   getConfidenceBgColorClass,
@@ -85,8 +87,9 @@ function DetailRow({ label, value }: { label: string; value: React.ReactNode }) 
 /**
  * Badge indicator for boolean flags
  */
-function FlagBadge({ label, variant = 'default' }: { label: string; variant?: 'warning' | 'info' | 'default' }) {
+function FlagBadge({ label, variant = 'default' }: { label: string; variant?: 'alert' | 'warning' | 'info' | 'default' }) {
   const variantClasses = {
+    alert: 'bg-red-500/20 border-red-500/40 text-red-400',
     warning: 'bg-yellow-500/20 border-yellow-500/40 text-yellow-400',
     info: 'bg-blue-500/20 border-blue-500/40 text-blue-400',
     default: 'bg-gray-500/20 border-gray-500/40 text-gray-400',
@@ -94,7 +97,7 @@ function FlagBadge({ label, variant = 'default' }: { label: string; variant?: 'w
 
   return (
     <span className={clsx('inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-medium', variantClasses[variant])}>
-      {variant === 'warning' && <AlertTriangle className="h-3 w-3" />}
+      {(variant === 'alert' || variant === 'warning') && <AlertTriangle className="h-3 w-3" />}
       {variant === 'info' && <Briefcase className="h-3 w-3" />}
       {label}
     </span>
@@ -196,6 +199,7 @@ function hasEnrichmentContent(data?: EnrichmentData | null): boolean {
     data.vehicle ||
     data.pet ||
     data.person ||
+    data.posture ||
     data.license_plate ||
     data.weather ||
     data.image_quality ||

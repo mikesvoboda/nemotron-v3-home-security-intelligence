@@ -1,25 +1,110 @@
 """API routes for background job tracking.
 
-Provides endpoints for querying job status and starting export jobs.
+Provides endpoints for querying job status, listing jobs, and job management.
 """
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 
 from backend.api.dependencies import get_export_service_dep, get_job_tracker_dep
 from backend.api.schemas.jobs import (
     ExportFormat,
     ExportJobRequest,
     ExportJobStartResponse,
+    JobCancelResponse,
+    JobListResponse,
     JobResponse,
     JobStatusEnum,
+    JobTypeInfo,
+    JobTypesResponse,
 )
 from backend.core.logging import get_logger
 from backend.services.export_service import ExportService
-from backend.services.job_tracker import JobTracker
+from backend.services.job_tracker import JobStatus, JobTracker
 
 logger = get_logger(__name__)
 
-router = APIRouter(tags=["jobs"])
+router = APIRouter(prefix="/api", tags=["jobs"])
+
+# Define available job types with descriptions
+JOB_TYPES: dict[str, str] = {
+    "export": "Export events to CSV, JSON, or ZIP format",
+    "cleanup": "Clean up old data and temporary files",
+    "backup": "Create a backup of system data",
+    "import": "Import events from external files",
+}
+
+
+@router.get(
+    "/jobs",
+    response_model=JobListResponse,
+    summary="List all jobs",
+    description="List all background jobs with optional filtering by type and status.",
+)
+async def list_jobs(
+    job_type: str | None = Query(
+        None,
+        description="Filter by job type (e.g., 'export', 'cleanup')",
+    ),
+    status_filter: JobStatusEnum | None = Query(
+        None,
+        alias="status",
+        description="Filter by job status",
+    ),
+    job_tracker: JobTracker = Depends(get_job_tracker_dep),
+) -> JobListResponse:
+    """List all jobs with optional filtering.
+
+    Args:
+        job_type: Optional filter by job type.
+        status_filter: Optional filter by job status.
+        job_tracker: Job tracker service.
+
+    Returns:
+        List of jobs matching the filters.
+    """
+    # Convert schema enum to service enum if provided
+    service_status = JobStatus(status_filter.value) if status_filter else None
+
+    jobs = job_tracker.get_all_jobs(
+        job_type=job_type,
+        status_filter=service_status,
+    )
+
+    # Convert to response models
+    job_responses = [
+        JobResponse(
+            job_id=job["job_id"],
+            job_type=job["job_type"],
+            status=JobStatusEnum(job["status"]),
+            progress=job["progress"],
+            message=job.get("message"),
+            created_at=job["created_at"],
+            started_at=job.get("started_at"),
+            completed_at=job.get("completed_at"),
+            result=job.get("result"),
+            error=job.get("error"),
+        )
+        for job in jobs
+    ]
+
+    return JobListResponse(jobs=job_responses, total=len(job_responses))
+
+
+@router.get(
+    "/jobs/types",
+    response_model=JobTypesResponse,
+    summary="List available job types",
+    description="List all available job types that can be created.",
+)
+async def list_job_types() -> JobTypesResponse:
+    """List all available job types.
+
+    Returns:
+        List of available job types with descriptions.
+    """
+    job_type_list = [JobTypeInfo(name=name, description=desc) for name, desc in JOB_TYPES.items()]
+
+    return JobTypesResponse(job_types=job_type_list)
 
 
 @router.get(
@@ -71,6 +156,59 @@ async def get_job_status(
         completed_at=job.get("completed_at"),
         result=job.get("result"),
         error=job.get("error"),
+    )
+
+
+@router.post(
+    "/jobs/{job_id}/cancel",
+    response_model=JobCancelResponse,
+    summary="Cancel a job",
+    description=(
+        "Request cancellation of a background job. "
+        "Jobs that are already completed or failed cannot be cancelled."
+    ),
+    responses={
+        404: {"description": "Job not found"},
+        409: {"description": "Job cannot be cancelled (already completed or failed)"},
+    },
+)
+async def cancel_job(
+    job_id: str,
+    job_tracker: JobTracker = Depends(get_job_tracker_dep),
+) -> JobCancelResponse:
+    """Cancel a background job.
+
+    Args:
+        job_id: The job ID to cancel.
+        job_tracker: Job tracker service.
+
+    Returns:
+        Cancellation response with updated status.
+
+    Raises:
+        HTTPException: If job not found or cannot be cancelled.
+    """
+    try:
+        cancelled = job_tracker.cancel_job(job_id)
+    except KeyError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No job found with ID: {job_id}",
+        ) from None
+
+    if not cancelled:
+        # Job was already completed or failed
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Job cannot be cancelled - it has already completed or failed",
+        )
+
+    logger.info("Job cancelled via API", extra={"job_id": job_id})
+
+    return JobCancelResponse(
+        job_id=job_id,
+        status=JobStatusEnum.FAILED,
+        message="Job cancellation requested",
     )
 
 

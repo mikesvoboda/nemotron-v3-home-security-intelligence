@@ -1,10 +1,11 @@
 import { Tab } from '@headlessui/react';
 import { clsx } from 'clsx';
-import { Bell, Camera, FileText, Settings as SettingsIcon, Shield } from 'lucide-react';
+import { Bell, Camera, Eye, FileText, Settings as SettingsIcon, Shield } from 'lucide-react';
 import { Fragment } from 'react';
 
 import { SecureContextWarning } from '../common';
 import AlertRulesSettings from './AlertRulesSettings';
+import AmbientStatusSettings from './AmbientStatusSettings';
 import CamerasSettings from './CamerasSettings';
 import NotificationSettings from './NotificationSettings';
 import ProcessingSettings from './ProcessingSettings';
@@ -13,11 +14,12 @@ import PromptManagementPanel from './PromptManagementPanel';
 /**
  * SettingsPage component with tabbed interface
  *
- * Contains five settings tabs:
+ * Contains six settings tabs:
  * - CAMERAS: Camera configuration and management
  * - RULES: Alert rules configuration
  * - PROCESSING: Event processing settings
  * - NOTIFICATIONS: Email and webhook notification settings
+ * - AMBIENT: Ambient status awareness settings
  * - PROMPTS: AI prompt template management and version history
  *
  * Note: Analytics functionality is available on the dedicated Analytics page (/analytics)
@@ -54,6 +56,12 @@ export default function SettingsPage() {
       name: 'NOTIFICATIONS',
       icon: Bell,
       component: NotificationSettings,
+    },
+    {
+      id: 'ambient',
+      name: 'AMBIENT',
+      icon: Eye,
+      component: AmbientStatusSettings,
     },
     {
       id: 'prompts',

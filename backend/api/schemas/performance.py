@@ -297,3 +297,26 @@ class PerformanceUpdate(BaseModel):
             }
         },
     )
+
+
+class PerformanceHistoryResponse(BaseModel):
+    """Response containing historical performance data.
+
+    Used by GET /api/system/performance/history endpoint.
+    """
+
+    snapshots: list[PerformanceUpdate] = Field(
+        ..., description="List of performance snapshots ordered chronologically"
+    )
+    time_range: TimeRange = Field(..., description="Time range of the history")
+    count: int = Field(..., ge=0, description="Number of snapshots returned")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "snapshots": [],
+                "time_range": "5m",
+                "count": 0,
+            }
+        }
+    )

@@ -1065,6 +1065,7 @@ export const acknowledgeSceneChange = vi.fn().mockResolvedValue({ success: true 
 export const fetchEntities = vi.fn().mockResolvedValue({ items: [], pagination: { total: 0, limit: 50, offset: 0, has_more: false } });
 export const fetchEntity = vi.fn().mockResolvedValue({});
 export const fetchEntityHistory = vi.fn().mockResolvedValue({ history: [] });
+export const fetchEventEntityMatches = vi.fn().mockResolvedValue({ event_id: 0, person_matches: [], vehicle_matches: [], total_matches: 0 });
 
 // Audit log endpoints
 export const fetchAuditLogs = vi.fn().mockResolvedValue({ items: [], pagination: { total: 0, limit: 50, offset: 0, has_more: false, next_cursor: null } });
