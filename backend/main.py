@@ -57,7 +57,7 @@ from backend.api.routes import (
 )
 from backend.api.routes.logs import router as logs_router
 from backend.api.routes.system import register_workers
-from backend.core import close_db, get_settings, init_db
+from backend.core import close_db, get_container, get_settings, init_db, wire_services
 from backend.core.config_validation import log_config_summary, validate_config
 from backend.core.docker_client import DockerClient
 from backend.core.logging import redact_url, setup_logging
@@ -477,6 +477,12 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:  # noqa: PLR0912 - Co
         redis_client = await init_redis()
         print(f"Redis initialized: {redact_url(settings.redis_url)}")
 
+        # Wire up DI container with all application services (NEM-2003)
+        # This must happen after Redis is initialized since some services depend on it
+        container = get_container()
+        await wire_services(container)
+        print("DI container services wired")
+
         # Initialize and start event broadcaster for WebSocket real-time events
         # Note: get_broadcaster() both creates AND starts the broadcaster
         # (subscribes to Redis pub/sub channel)
@@ -720,6 +726,15 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:  # noqa: PLR0912 - Co
     except Exception as e:
         # Log but don't prevent shutdown - CUDA cleanup is best-effort
         print(f"Warning: Error clearing CUDA cache: {e}")
+
+    # Shutdown DI container services (NEM-2003)
+    # This gracefully closes all services that have close() or disconnect() methods
+    try:
+        di_container = get_container()
+        await di_container.shutdown()
+        print("DI container services shut down")
+    except Exception as e:
+        print(f"Warning: Error shutting down DI container: {e}")
 
     await close_db()
     print("Database connections closed")

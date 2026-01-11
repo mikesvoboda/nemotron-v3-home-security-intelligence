@@ -22,8 +22,12 @@ __all__ = [
     "get_context_enricher_dependency",
     "get_detector_dependency",
     "get_enrichment_pipeline_dependency",
+    "get_face_detector_service_dependency",
     "get_nemotron_analyzer_dependency",
+    "get_ocr_service_dependency",
+    "get_plate_detector_service_dependency",
     "get_redis_dependency",
+    "get_yolo_world_service_dependency",
 ]
 
 from collections.abc import AsyncGenerator
@@ -33,6 +37,12 @@ from backend.core.container import get_container
 
 if TYPE_CHECKING:
     from backend.core.redis import RedisClient
+    from backend.services.ai_services import (
+        FaceDetectorService,
+        OCRService,
+        PlateDetectorService,
+        YOLOWorldService,
+    )
     from backend.services.context_enricher import ContextEnricher
     from backend.services.detector_client import DetectorClient
     from backend.services.enrichment_pipeline import EnrichmentPipeline
@@ -95,3 +105,59 @@ async def get_detector_dependency() -> AsyncGenerator[DetectorClient]:
     container = get_container()
     detector = container.get("detector_client")
     yield detector
+
+
+async def get_face_detector_service_dependency() -> AsyncGenerator[FaceDetectorService]:
+    """FastAPI dependency for FaceDetectorService.
+
+    This provides the FaceDetectorService from the DI container for face
+    detection operations in person detection regions.
+
+    Yields:
+        FaceDetectorService instance from the container
+    """
+    container = get_container()
+    service = container.get("face_detector_service")
+    yield service
+
+
+async def get_plate_detector_service_dependency() -> AsyncGenerator[PlateDetectorService]:
+    """FastAPI dependency for PlateDetectorService.
+
+    This provides the PlateDetectorService from the DI container for license
+    plate detection operations in vehicle regions.
+
+    Yields:
+        PlateDetectorService instance from the container
+    """
+    container = get_container()
+    service = container.get("plate_detector_service")
+    yield service
+
+
+async def get_ocr_service_dependency() -> AsyncGenerator[OCRService]:
+    """FastAPI dependency for OCRService.
+
+    This provides the OCRService from the DI container for license plate
+    text recognition using PaddleOCR.
+
+    Yields:
+        OCRService instance from the container
+    """
+    container = get_container()
+    service = container.get("ocr_service")
+    yield service
+
+
+async def get_yolo_world_service_dependency() -> AsyncGenerator[YOLOWorldService]:
+    """FastAPI dependency for YOLOWorldService.
+
+    This provides the YOLOWorldService from the DI container for open-vocabulary
+    object detection using text prompts.
+
+    Yields:
+        YOLOWorldService instance from the container
+    """
+    container = get_container()
+    service = container.get("yolo_world_service")
+    yield service
