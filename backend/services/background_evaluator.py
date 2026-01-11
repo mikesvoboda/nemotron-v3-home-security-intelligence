@@ -9,6 +9,7 @@ Key features:
 - Detection and analysis queues take priority over evaluation
 - Higher risk events are evaluated first (priority queue)
 - Configurable idle threshold and duration requirements
+- Job tracking with progress reporting and cancellation support
 
 Processing flow:
 1. Check if detection/analysis queues are empty
@@ -39,6 +40,9 @@ if TYPE_CHECKING:
     from backend.services.gpu_monitor import GPUMonitor
     from backend.services.pipeline_quality_audit_service import PipelineQualityAuditService
 
+# Import JobTracker at runtime since it's used in function signatures (not just type hints)
+from backend.services.job_tracker import JobTracker
+
 logger = get_logger(__name__)
 
 
@@ -54,11 +58,15 @@ class BackgroundEvaluator:
         idle_duration_required: Seconds GPU must be idle before processing (default: 5s)
         poll_interval: How often to check for work (default: 5s)
         enabled: Whether background evaluation is enabled (default: True)
+        job_tracker: Optional JobTracker for reporting progress and supporting cancellation
     """
 
     # Queue names for priority checking
     DETECTION_QUEUE = "detection_queue"
     ANALYSIS_QUEUE = "analysis_queue"
+
+    # Job type identifier for tracking
+    JOB_TYPE = "evaluation"
 
     def __init__(
         self,
@@ -70,6 +78,7 @@ class BackgroundEvaluator:
         idle_duration_required: int = 5,
         poll_interval: float = 5.0,
         enabled: bool = True,
+        job_tracker: JobTracker | None = None,
     ) -> None:
         """Initialize the background evaluator.
 
@@ -82,11 +91,13 @@ class BackgroundEvaluator:
             idle_duration_required: Seconds GPU must be idle before processing.
             poll_interval: How often to check for work (seconds).
             enabled: Whether background evaluation is enabled.
+            job_tracker: Optional job tracker for progress reporting.
         """
         self._redis = redis_client
         self._gpu_monitor = gpu_monitor
         self._evaluation_queue = evaluation_queue
         self._audit_service = audit_service
+        self._job_tracker = job_tracker
 
         # Configuration
         self.gpu_idle_threshold = gpu_idle_threshold
@@ -98,6 +109,7 @@ class BackgroundEvaluator:
         self.running = False
         self._task: asyncio.Task | None = None
         self._idle_since: float | None = None
+        self._current_job_id: str | None = None
 
         # Job status service for tracking evaluation jobs
         self._job_status_service: JobStatusService | None = None
@@ -176,11 +188,32 @@ class BackgroundEvaluator:
         # Check GPU idle status
         return await self.is_gpu_idle()
 
-    async def process_one(self) -> bool:
+    def _is_job_cancelled(self, job_id: str | None) -> bool:
+        """Check if the current job has been cancelled.
+
+        Args:
+            job_id: The job ID to check, or None if no job tracking.
+
+        Returns:
+            True if the job was cancelled, False otherwise.
+        """
+        if job_id is None or self._job_tracker is None:
+            return False
+        return self._job_tracker.is_cancelled(job_id)
+
+    async def process_one(self) -> bool:  # noqa: PLR0911, PLR0912
         """Process a single evaluation from the queue.
 
         Dequeues the highest priority event and runs full AI audit evaluation.
+<<<<<<< HEAD
         Tracks job status in Redis for monitoring.
+=======
+        Reports progress via JobTracker if configured.
+
+        Note: Complexity warnings (PLR0911, PLR0912) are suppressed because the
+        multiple returns and branches are necessary for proper job tracking,
+        progress reporting, and cancellation checking at each stage.
+>>>>>>> 79a0e149b (feat: implement 4 parallel tasks - AlertsPage, FeedbackUI, JobTracking, OrphanedCleanup)
 
         Returns:
             True if an evaluation was processed, False if queue was empty.
@@ -190,9 +223,16 @@ class BackgroundEvaluator:
         if event_id is None:
             return False
 
+        # Create job for tracking this evaluation
+        job_id: str | None = None
+        if self._job_tracker is not None:
+            job_id = self._job_tracker.create_job(self.JOB_TYPE)
+            self._current_job_id = job_id
+            self._job_tracker.start_job(job_id, message=f"Starting evaluation for event {event_id}")
+
         logger.info(
             f"Processing background evaluation for event {event_id}",
-            extra={"event_id": event_id},
+            extra={"event_id": event_id, "job_id": job_id},
         )
 
         # Start job tracking
@@ -204,10 +244,26 @@ class BackgroundEvaluator:
         )
 
         try:
+<<<<<<< HEAD
             # Update progress: starting
             await job_service.update_progress(job_id, 10, "Fetching event data")
+=======
+            # Check for cancellation before starting
+            if self._is_job_cancelled(job_id):
+                logger.info(
+                    f"Evaluation cancelled for event {event_id}",
+                    extra={"event_id": event_id, "job_id": job_id},
+                )
+                return True
+>>>>>>> 79a0e149b (feat: implement 4 parallel tasks - AlertsPage, FeedbackUI, JobTracking, OrphanedCleanup)
 
             async with get_session() as session:
+                # Update progress: fetching event (10%)
+                if self._job_tracker is not None and job_id is not None:
+                    self._job_tracker.update_progress(
+                        job_id, 10, message=f"Fetching event {event_id}"
+                    )
+
                 # Fetch event
                 result = await session.execute(select(Event).where(Event.id == event_id))
                 event = result.scalar_one_or_none()
@@ -217,11 +273,33 @@ class BackgroundEvaluator:
                         f"Event {event_id} not found in database, skipping evaluation",
                         extra={"event_id": event_id},
                     )
+<<<<<<< HEAD
                     await job_service.fail_job(job_id, f"Event {event_id} not found")
                     return True  # Item was processed (removed from queue)
 
                 # Update progress: event found
                 await job_service.update_progress(job_id, 25, "Fetching audit record")
+=======
+                    if self._job_tracker is not None and job_id is not None:
+                        self._job_tracker.complete_job(
+                            job_id, result={"skipped": True, "reason": "event_not_found"}
+                        )
+                    return True  # Item was processed (removed from queue)
+
+                # Check for cancellation
+                if self._is_job_cancelled(job_id):
+                    logger.info(
+                        f"Evaluation cancelled for event {event_id}",
+                        extra={"event_id": event_id, "job_id": job_id},
+                    )
+                    return True
+
+                # Update progress: fetching audit record (20%)
+                if self._job_tracker is not None and job_id is not None:
+                    self._job_tracker.update_progress(
+                        job_id, 20, message=f"Fetching audit record for event {event_id}"
+                    )
+>>>>>>> 79a0e149b (feat: implement 4 parallel tasks - AlertsPage, FeedbackUI, JobTracking, OrphanedCleanup)
 
                 # Fetch existing audit record
                 audit_result = await session.execute(
@@ -234,15 +312,38 @@ class BackgroundEvaluator:
                         f"No audit record for event {event_id}, skipping evaluation",
                         extra={"event_id": event_id},
                     )
+<<<<<<< HEAD
                     await job_service.fail_job(job_id, f"No audit record for event {event_id}")
                     return True
 
                 # Update progress: running evaluation
                 await job_service.update_progress(job_id, 40, "Running AI evaluation")
+=======
+                    if self._job_tracker is not None and job_id is not None:
+                        self._job_tracker.complete_job(
+                            job_id, result={"skipped": True, "reason": "audit_not_found"}
+                        )
+                    return True
+
+                # Check for cancellation before running evaluation
+                if self._is_job_cancelled(job_id):
+                    logger.info(
+                        f"Evaluation cancelled for event {event_id}",
+                        extra={"event_id": event_id, "job_id": job_id},
+                    )
+                    return True
+
+                # Update progress: running evaluation (30%)
+                if self._job_tracker is not None and job_id is not None:
+                    self._job_tracker.update_progress(
+                        job_id, 30, message=f"Running AI evaluation for event {event_id}"
+                    )
+>>>>>>> 79a0e149b (feat: implement 4 parallel tasks - AlertsPage, FeedbackUI, JobTracking, OrphanedCleanup)
 
                 # Run full evaluation (4 LLM calls)
                 await self._audit_service.run_full_evaluation(audit, event, session)
 
+<<<<<<< HEAD
                 # Update progress: complete
                 await job_service.complete_job(
                     job_id,
@@ -251,27 +352,53 @@ class BackgroundEvaluator:
                         "overall_quality_score": audit.overall_quality_score,
                     },
                 )
+=======
+                # Update progress: evaluation complete (90%)
+                if self._job_tracker is not None and job_id is not None:
+                    self._job_tracker.update_progress(
+                        job_id, 90, message="Evaluation complete, finalizing"
+                    )
+>>>>>>> 79a0e149b (feat: implement 4 parallel tasks - AlertsPage, FeedbackUI, JobTracking, OrphanedCleanup)
 
                 logger.info(
                     f"Completed background evaluation for event {event_id}",
                     extra={
                         "event_id": event_id,
                         "overall_quality_score": audit.overall_quality_score,
+                        "job_id": job_id,
                     },
                 )
+
+                # Complete the job
+                if self._job_tracker is not None and job_id is not None:
+                    self._job_tracker.complete_job(
+                        job_id,
+                        result={
+                            "event_id": event_id,
+                            "overall_quality_score": audit.overall_quality_score,
+                        },
+                    )
 
                 return True
 
         except Exception as e:
             logger.error(
                 f"Failed to process evaluation for event {event_id}: {e}",
-                extra={"event_id": event_id, "error": str(e)},
+                extra={"event_id": event_id, "error": str(e), "job_id": job_id},
                 exc_info=True,
             )
+<<<<<<< HEAD
             # Mark job as failed
             await job_service.fail_job(job_id, str(e))
+=======
+            # Fail the job with error details
+            if self._job_tracker is not None and job_id is not None:
+                self._job_tracker.fail_job(job_id, str(e))
+>>>>>>> 79a0e149b (feat: implement 4 parallel tasks - AlertsPage, FeedbackUI, JobTracking, OrphanedCleanup)
             # Re-queue the event for retry? For now, skip it
             return True  # Mark as processed to avoid infinite loop
+        finally:
+            self._current_job_id = None
 
     async def _run_loop(self) -> None:
         """Main processing loop that runs in the background."""
@@ -372,6 +499,7 @@ def get_background_evaluator(
     idle_duration_required: int = 5,
     poll_interval: float = 5.0,
     enabled: bool = True,
+    job_tracker: JobTracker | None = None,
 ) -> BackgroundEvaluator:
     """Get or create the background evaluator singleton.
 
@@ -384,6 +512,7 @@ def get_background_evaluator(
         idle_duration_required: Seconds GPU must be idle before processing.
         poll_interval: How often to check for work (seconds).
         enabled: Whether background evaluation is enabled.
+        job_tracker: Optional job tracker for progress reporting.
 
     Returns:
         BackgroundEvaluator singleton instance.
@@ -399,6 +528,7 @@ def get_background_evaluator(
             idle_duration_required=idle_duration_required,
             poll_interval=poll_interval,
             enabled=enabled,
+            job_tracker=job_tracker,
         )
     return _background_evaluator
 

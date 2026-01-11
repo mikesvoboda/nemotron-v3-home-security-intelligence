@@ -14,7 +14,11 @@ Features:
     - Detailed statistics on cleanup operations
     - Streaming queries to avoid loading all records into memory (NEM-1539)
     - Batch deletes for improved performance with large datasets (NEM-1539)
+<<<<<<< HEAD
     - Job status tracking via Redis for monitoring (NEM-2292)
+=======
+    - Job tracking with progress reporting and cancellation support (NEM-1974)
+>>>>>>> 79a0e149b (feat: implement 4 parallel tasks - AlertsPage, FeedbackUI, JobTracking, OrphanedCleanup)
 
 Cleanup Stats:
     - events_deleted: Number of events removed
@@ -40,6 +44,7 @@ from backend.models.detection import Detection
 from backend.models.event import Event
 from backend.models.gpu_stats import GPUStats
 from backend.models.log import Log
+from backend.services.job_tracker import JobTracker
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -107,7 +112,13 @@ class CleanupService:
     This service runs on a schedule to delete old records and files,
     maintaining database size and freeing disk space. All deletions
     are performed in transactions with proper error handling.
+
+    Optionally integrates with JobTracker for progress reporting and
+    cancellation support.
     """
+
+    # Job type identifier for tracking
+    JOB_TYPE = "cleanup"
 
     def __init__(
         self,
@@ -116,7 +127,11 @@ class CleanupService:
         thumbnail_dir: str = "data/thumbnails",
         delete_images: bool = False,
         batch_size: int = 1000,
+<<<<<<< HEAD
         redis_client: RedisClient | None = None,
+=======
+        job_tracker: JobTracker | None = None,
+>>>>>>> 79a0e149b (feat: implement 4 parallel tasks - AlertsPage, FeedbackUI, JobTracking, OrphanedCleanup)
     ):
         """Initialize cleanup service.
 
@@ -127,7 +142,11 @@ class CleanupService:
             delete_images: Whether to delete original image files (default: False)
             batch_size: Number of records to process per batch (default: 1000).
                         Used for streaming queries to limit memory usage.
+<<<<<<< HEAD
             redis_client: Optional Redis client for job status tracking.
+=======
+            job_tracker: Optional job tracker for progress reporting.
+>>>>>>> 79a0e149b (feat: implement 4 parallel tasks - AlertsPage, FeedbackUI, JobTracking, OrphanedCleanup)
         """
         settings = get_settings()
         self.cleanup_time = cleanup_time
@@ -135,10 +154,12 @@ class CleanupService:
         self.thumbnail_dir = Path(thumbnail_dir)
         self.delete_images = delete_images
         self.batch_size = batch_size
+        self._job_tracker = job_tracker
 
         # Task tracking
         self._cleanup_task: asyncio.Task | None = None
         self.running = False
+        self._current_job_id: str | None = None
 
         # Optional Redis client for job status tracking
         self._redis_client = redis_client
@@ -229,12 +250,39 @@ class CleanupService:
 
         await asyncio.sleep(wait_seconds)
 
+<<<<<<< HEAD
     async def run_cleanup(self) -> CleanupStats:  # noqa: PLR0912
+=======
+    def _is_job_cancelled(self, job_id: str | None) -> bool:
+        """Check if the current job has been cancelled.
+
+        Args:
+            job_id: The job ID to check, or None if no job tracking.
+
+        Returns:
+            True if the job was cancelled, False otherwise.
+        """
+        if job_id is None or self._job_tracker is None:
+            return False
+        return self._job_tracker.is_cancelled(job_id)
+
+    async def run_cleanup(  # noqa: PLR0912 - complexity due to job tracking and cancellation
+        self, job_id: str | None = None
+    ) -> CleanupStats:
+>>>>>>> 79a0e149b (feat: implement 4 parallel tasks - AlertsPage, FeedbackUI, JobTracking, OrphanedCleanup)
         """Execute cleanup operation.
 
         Deletes old records and files based on retention policy.
         Uses streaming queries to avoid loading all records into memory.
+<<<<<<< HEAD
         Tracks job status in Redis if available.
+=======
+        Reports progress via JobTracker if configured.
+
+        Args:
+            job_id: Optional job ID for tracking. If None and job_tracker is
+                   configured, a new job will be created.
+>>>>>>> 79a0e149b (feat: implement 4 parallel tasks - AlertsPage, FeedbackUI, JobTracking, OrphanedCleanup)
 
         Returns:
             CleanupStats object with operation statistics
@@ -242,7 +290,16 @@ class CleanupService:
         Raises:
             Exception: If cleanup fails (transaction is rolled back)
         """
-        logger.info(f"Starting cleanup (retention: {self.retention_days} days)")
+        # Create job for tracking if not provided
+        if job_id is None and self._job_tracker is not None:
+            job_id = self._job_tracker.create_job(self.JOB_TYPE)
+            self._current_job_id = job_id
+            self._job_tracker.start_job(job_id, "Starting cleanup operation")
+
+        logger.info(
+            f"Starting cleanup (retention: {self.retention_days} days)",
+            extra={"job_id": job_id},
+        )
         stats = CleanupStats()
 
         # Start job tracking if Redis is available
@@ -260,19 +317,44 @@ class CleanupService:
         logger.info(f"Deleting records older than {cutoff_date}")
 
         try:
+<<<<<<< HEAD
             if job_service is not None and job_id is not None:
                 await job_service.update_progress(job_id, 5, "Scanning for files to delete")
+=======
+            # Check for cancellation before starting
+            if self._is_job_cancelled(job_id):
+                logger.info("Cleanup cancelled before starting", extra={"job_id": job_id})
+                return stats
+>>>>>>> 79a0e149b (feat: implement 4 parallel tasks - AlertsPage, FeedbackUI, JobTracking, OrphanedCleanup)
 
             async with get_session() as session:
                 # Step 1: Stream detection file paths without loading all into memory
+                if self._job_tracker is not None and job_id is not None:
+                    self._job_tracker.update_progress(
+                        job_id, 10, "Collecting file paths for cleanup"
+                    )
+
                 thumbnail_paths, image_paths = await self._get_detection_file_paths_streaming(
                     session, cutoff_date
                 )
 
+<<<<<<< HEAD
                 if job_service is not None and job_id is not None:
                     await job_service.update_progress(job_id, 15, "Deleting old detections")
+=======
+                # Check for cancellation
+                if self._is_job_cancelled(job_id):
+                    logger.info(
+                        "Cleanup cancelled after collecting file paths",
+                        extra={"job_id": job_id},
+                    )
+                    return stats
+>>>>>>> 79a0e149b (feat: implement 4 parallel tasks - AlertsPage, FeedbackUI, JobTracking, OrphanedCleanup)
 
                 # Step 2: Delete old detections
+                if self._job_tracker is not None and job_id is not None:
+                    self._job_tracker.update_progress(job_id, 20, "Deleting old detections")
+
                 delete_detections_stmt = delete(Detection).where(
                     Detection.detected_at < cutoff_date
                 )
@@ -280,39 +362,93 @@ class CleanupService:
                 stats.detections_deleted = detections_result.rowcount or 0  # type: ignore[attr-defined]
                 logger.info(f"Deleted {stats.detections_deleted} old detections")
 
+<<<<<<< HEAD
                 if job_service is not None and job_id is not None:
                     await job_service.update_progress(job_id, 30, "Deleting old events")
+=======
+                # Check for cancellation
+                if self._is_job_cancelled(job_id):
+                    logger.info(
+                        "Cleanup cancelled after deleting detections",
+                        extra={"job_id": job_id},
+                    )
+                    await session.rollback()
+                    return stats
+>>>>>>> 79a0e149b (feat: implement 4 parallel tasks - AlertsPage, FeedbackUI, JobTracking, OrphanedCleanup)
 
                 # Step 3: Delete old events
+                if self._job_tracker is not None and job_id is not None:
+                    self._job_tracker.update_progress(job_id, 30, "Deleting old events")
+
                 delete_events_stmt = delete(Event).where(Event.started_at < cutoff_date)
                 events_result = await session.execute(delete_events_stmt)
                 stats.events_deleted = events_result.rowcount or 0  # type: ignore[attr-defined]
                 logger.info(f"Deleted {stats.events_deleted} old events")
 
+<<<<<<< HEAD
                 if job_service is not None and job_id is not None:
                     await job_service.update_progress(job_id, 45, "Deleting old GPU stats")
+=======
+                # Check for cancellation
+                if self._is_job_cancelled(job_id):
+                    logger.info(
+                        "Cleanup cancelled after deleting events",
+                        extra={"job_id": job_id},
+                    )
+                    await session.rollback()
+                    return stats
+>>>>>>> 79a0e149b (feat: implement 4 parallel tasks - AlertsPage, FeedbackUI, JobTracking, OrphanedCleanup)
 
                 # Step 4: Delete old GPU stats
+                if self._job_tracker is not None and job_id is not None:
+                    self._job_tracker.update_progress(job_id, 40, "Deleting old GPU stats")
+
                 delete_gpu_stats_stmt = delete(GPUStats).where(GPUStats.recorded_at < cutoff_date)
                 gpu_stats_result = await session.execute(delete_gpu_stats_stmt)
                 stats.gpu_stats_deleted = gpu_stats_result.rowcount or 0  # type: ignore[attr-defined]
                 logger.info(f"Deleted {stats.gpu_stats_deleted} old GPU stats")
 
                 # Commit database deletions
+                if self._job_tracker is not None and job_id is not None:
+                    self._job_tracker.update_progress(job_id, 50, "Committing database changes")
+
                 await session.commit()
                 logger.info("Database cleanup committed successfully")
 
+<<<<<<< HEAD
             if job_service is not None and job_id is not None:
                 await job_service.update_progress(job_id, 55, "Deleting old logs")
+=======
+            # Check for cancellation before file cleanup
+            if self._is_job_cancelled(job_id):
+                logger.info(
+                    "Cleanup cancelled before file cleanup",
+                    extra={"job_id": job_id},
+                )
+                return stats
+>>>>>>> 79a0e149b (feat: implement 4 parallel tasks - AlertsPage, FeedbackUI, JobTracking, OrphanedCleanup)
 
             # Step 5: Delete old logs
+            if self._job_tracker is not None and job_id is not None:
+                self._job_tracker.update_progress(job_id, 60, "Cleaning up old logs")
+
             stats.logs_deleted = await self.cleanup_old_logs()
 
             if job_service is not None and job_id is not None:
                 await job_service.update_progress(job_id, 70, "Deleting thumbnail files")
 
             # Step 6: Delete thumbnail files (after successful DB commit)
-            for thumbnail_path in thumbnail_paths:
+            if self._job_tracker is not None and job_id is not None:
+                self._job_tracker.update_progress(job_id, 70, "Deleting thumbnail files")
+
+            for i, thumbnail_path in enumerate(thumbnail_paths):
+                # Check for cancellation periodically during file deletion
+                if i > 0 and i % 100 == 0 and self._is_job_cancelled(job_id):
+                    logger.info(
+                        f"Cleanup cancelled during thumbnail deletion ({i}/{len(thumbnail_paths)})",
+                        extra={"job_id": job_id},
+                    )
+                    break
                 if self._delete_file(thumbnail_path):
                     stats.thumbnails_deleted += 1
 
@@ -320,15 +456,30 @@ class CleanupService:
 
             # Step 7: Delete original image files (if enabled)
             if self.delete_images:
+<<<<<<< HEAD
                 if job_service is not None and job_id is not None:
                     await job_service.update_progress(job_id, 85, "Deleting image files")
 
                 for image_path in image_paths:
+=======
+                if self._job_tracker is not None and job_id is not None:
+                    self._job_tracker.update_progress(job_id, 85, "Deleting original image files")
+
+                for i, image_path in enumerate(image_paths):
+                    # Check for cancellation periodically during file deletion
+                    if i > 0 and i % 100 == 0 and self._is_job_cancelled(job_id):
+                        logger.info(
+                            f"Cleanup cancelled during image deletion ({i}/{len(image_paths)})",
+                            extra={"job_id": job_id},
+                        )
+                        break
+>>>>>>> 79a0e149b (feat: implement 4 parallel tasks - AlertsPage, FeedbackUI, JobTracking, OrphanedCleanup)
                     if self._delete_file(image_path):
                         stats.images_deleted += 1
 
                 logger.info(f"Deleted {stats.images_deleted} original image files")
 
+<<<<<<< HEAD
             # Mark job as completed
             if job_service is not None and job_id is not None:
                 await job_service.complete_job(job_id, result=stats.to_dict())
@@ -341,7 +492,24 @@ class CleanupService:
             # Mark job as failed
             if job_service is not None and job_id is not None:
                 await job_service.fail_job(job_id, str(e))
+=======
+            logger.info(f"Cleanup completed: {stats}", extra={"job_id": job_id})
+
+            # Complete the job
+            if self._job_tracker is not None and job_id is not None:
+                self._job_tracker.complete_job(job_id, result=stats.to_dict())
+
+            return stats
+
+        except Exception as e:
+            logger.error(f"Cleanup failed: {e}", exc_info=True, extra={"job_id": job_id})
+            # Fail the job with error details
+            if self._job_tracker is not None and job_id is not None:
+                self._job_tracker.fail_job(job_id, str(e))
+>>>>>>> 79a0e149b (feat: implement 4 parallel tasks - AlertsPage, FeedbackUI, JobTracking, OrphanedCleanup)
             raise
+        finally:
+            self._current_job_id = None
 
     async def _get_detection_file_paths_streaming(
         self, session: AsyncSession, cutoff_date: datetime
@@ -642,3 +810,279 @@ class CleanupService:
             exc_tb: Exception traceback if an exception was raised, None otherwise.
         """
         await self.stop()
+
+
+def format_bytes(size: int) -> str:
+    """Convert bytes to human-readable format.
+
+    Args:
+        size: Size in bytes
+
+    Returns:
+        Human-readable string (e.g., "1.5 GB", "500 MB")
+    """
+    if size < 0:
+        return "0 B"
+
+    units = ["B", "KB", "MB", "GB", "TB", "PB"]
+    unit_index = 0
+
+    size_float = float(size)
+    while size_float >= 1024 and unit_index < len(units) - 1:
+        size_float /= 1024
+        unit_index += 1
+
+    if unit_index == 0:
+        return f"{int(size_float)} {units[unit_index]}"
+    return f"{size_float:.2f} {units[unit_index]}"
+
+
+class OrphanedFileCleanupStats:
+    """Statistics for an orphaned file cleanup operation."""
+
+    def __init__(self) -> None:
+        """Initialize cleanup stats with zero values."""
+        self.orphaned_count: int = 0
+        self.total_size: int = 0
+        self.dry_run: bool = True
+        self.orphaned_files: list[str] = []
+
+    def to_dict(self) -> dict[str, int | bool | str | list[str]]:
+        """Convert stats to dictionary.
+
+        Returns:
+            Dictionary with all cleanup statistics
+        """
+        return {
+            "orphaned_count": self.orphaned_count,
+            "total_size": self.total_size,
+            "total_size_formatted": format_bytes(self.total_size),
+            "dry_run": self.dry_run,
+            "orphaned_files": self.orphaned_files[:100],  # Limit to first 100 files
+        }
+
+    def __repr__(self) -> str:
+        """String representation of cleanup stats."""
+        return (
+            f"<OrphanedFileCleanupStats("
+            f"orphaned_count={self.orphaned_count}, "
+            f"total_size={format_bytes(self.total_size)}, "
+            f"dry_run={self.dry_run})>"
+        )
+
+
+class OrphanedFileCleanup:
+    """Service for finding and cleaning up orphaned files.
+
+    Orphaned files are files that exist on disk but are not referenced
+    in the database (Events, Detections tables).
+
+    This service:
+    - Scans configured storage directories recursively
+    - Compares files against database references
+    - Optionally deletes orphaned files (when dry_run=False)
+    - Reports progress via job_tracker
+
+    Storage directories scanned:
+    - Thumbnails directory (video_thumbnails_dir setting)
+    - Clips directory (clips_directory setting)
+    """
+
+    def __init__(
+        self,
+        job_tracker: JobTracker | None = None,
+        storage_paths: list[str] | None = None,
+    ):
+        """Initialize orphaned file cleanup service.
+
+        Args:
+            job_tracker: Optional job tracker for progress reporting.
+                        If None, progress is only logged.
+            storage_paths: List of directories to scan for orphaned files.
+                          If None, uses settings defaults (thumbnails, clips).
+        """
+        self._job_tracker = job_tracker
+        self._storage_paths = storage_paths or self._get_default_storage_paths()
+
+        logger.info(f"OrphanedFileCleanup initialized with storage paths: {self._storage_paths}")
+
+    def _get_default_storage_paths(self) -> list[str]:
+        """Get default storage paths from settings.
+
+        Returns:
+            List of storage directory paths to scan
+        """
+        settings = get_settings()
+        paths = []
+
+        # Add thumbnails directory
+        if settings.video_thumbnails_dir:
+            paths.append(settings.video_thumbnails_dir)
+
+        # Add clips directory
+        if settings.clips_directory:
+            paths.append(settings.clips_directory)
+
+        return paths
+
+    async def _get_referenced_files(self) -> set[str]:
+        """Query all file paths referenced in the database.
+
+        Queries:
+        - Detection.file_path (source images)
+        - Detection.thumbnail_path (thumbnails)
+        - Event.clip_path (generated clips)
+
+        Returns:
+            Set of all referenced file paths (absolute paths)
+        """
+        referenced: set[str] = set()
+
+        async with get_session() as session:
+            # Get detection file paths
+            detection_query = select(Detection.file_path, Detection.thumbnail_path)
+            result = await session.execute(detection_query)
+
+            for file_path, thumbnail_path in result.all():
+                if file_path:
+                    # Convert to absolute path if relative
+                    abs_path = str(Path(file_path).resolve())
+                    referenced.add(abs_path)
+                if thumbnail_path:
+                    abs_path = str(Path(thumbnail_path).resolve())
+                    referenced.add(abs_path)
+
+            # Get event clip paths
+            event_query = select(Event.clip_path).where(Event.clip_path.isnot(None))
+            result = await session.execute(event_query)
+
+            for (clip_path,) in result.all():
+                if clip_path:
+                    abs_path = str(Path(clip_path).resolve())
+                    referenced.add(abs_path)
+
+        return referenced
+
+    def _scan_storage_directories(self) -> list[tuple[str, int]]:
+        """Scan storage directories recursively for all files.
+
+        Returns:
+            List of tuples (file_path, file_size) for all files found
+        """
+        files_found: list[tuple[str, int]] = []
+
+        for storage_path in self._storage_paths:
+            path = Path(storage_path)
+            if not path.exists():
+                logger.warning(f"Storage path does not exist: {storage_path}")
+                continue
+
+            if not path.is_dir():
+                logger.warning(f"Storage path is not a directory: {storage_path}")
+                continue
+
+            # Recursively find all files
+            for file_path in path.rglob("*"):
+                if file_path.is_file():
+                    try:
+                        file_size = file_path.stat().st_size
+                        abs_path = str(file_path.resolve())
+                        files_found.append((abs_path, file_size))
+                    except OSError as e:
+                        logger.warning(f"Could not stat file {file_path}: {e}")
+
+        return files_found
+
+    def _update_job_progress(self, job_id: str | None, progress: int, message: str) -> None:
+        """Update job progress if job tracker is available.
+
+        Args:
+            job_id: The job ID, or None if no job tracking
+            progress: Progress percentage (0-100)
+            message: Status message
+        """
+        if job_id and self._job_tracker:
+            self._job_tracker.update_progress(job_id, progress, message)
+
+    def _delete_orphaned_files(self, orphaned_files: list[tuple[str, int]]) -> int:
+        """Delete orphaned files and return count of successfully deleted.
+
+        Args:
+            orphaned_files: List of (file_path, file_size) tuples
+
+        Returns:
+            Number of files successfully deleted
+        """
+        deleted_count = 0
+        for file_path, _ in orphaned_files:
+            try:
+                Path(file_path).unlink()
+                deleted_count += 1
+            except OSError as e:
+                logger.warning(f"Failed to delete orphaned file {file_path}: {e}")
+        return deleted_count
+
+    async def run_cleanup(self, dry_run: bool = True) -> OrphanedFileCleanupStats:
+        """Execute orphaned file cleanup operation.
+
+        Args:
+            dry_run: If True, only report what would be deleted without
+                    actually deleting files. Default is True for safety.
+
+        Returns:
+            OrphanedFileCleanupStats with operation statistics
+        """
+        job_id: str | None = None
+        if self._job_tracker:
+            job_id = self._job_tracker.create_job("orphaned_file_cleanup")
+            self._job_tracker.start_job(job_id, "Starting orphaned file cleanup")
+
+        stats = OrphanedFileCleanupStats()
+        stats.dry_run = dry_run
+
+        try:
+            # Step 1: Get all referenced files from database
+            self._update_job_progress(job_id, 10, "Querying database for referenced files")
+            logger.info("Querying database for referenced files...")
+            referenced_files = await self._get_referenced_files()
+            logger.info(f"Found {len(referenced_files)} referenced files in database")
+
+            # Step 2: Scan storage directories
+            self._update_job_progress(job_id, 30, "Scanning storage directories")
+            logger.info(f"Scanning storage directories: {self._storage_paths}")
+            all_files = self._scan_storage_directories()
+            logger.info(f"Found {len(all_files)} files on disk")
+
+            # Step 3: Find orphaned files
+            self._update_job_progress(job_id, 50, "Identifying orphaned files")
+            orphaned_files: list[tuple[str, int]] = []
+            for file_path, file_size in all_files:
+                if file_path not in referenced_files:
+                    orphaned_files.append((file_path, file_size))
+                    stats.orphaned_files.append(file_path)
+                    stats.total_size += file_size
+
+            stats.orphaned_count = len(orphaned_files)
+            logger.info(
+                f"Found {stats.orphaned_count} orphaned files ({format_bytes(stats.total_size)})"
+            )
+
+            # Step 4: Delete orphaned files if not dry run
+            if not dry_run and orphaned_files:
+                self._update_job_progress(job_id, 70, "Deleting orphaned files")
+                deleted_count = self._delete_orphaned_files(orphaned_files)
+                logger.info(f"Deleted {deleted_count} of {stats.orphaned_count} orphaned files")
+
+            # Complete job
+            if job_id and self._job_tracker:
+                result = stats.to_dict()
+                self._job_tracker.complete_job(job_id, result)
+
+            logger.info(f"Orphaned file cleanup completed: {stats}")
+            return stats
+
+        except Exception as e:
+            logger.error(f"Orphaned file cleanup failed: {e}", exc_info=True)
+            if job_id and self._job_tracker:
+                self._job_tracker.fail_job(job_id, str(e))
+            raise

@@ -906,3 +906,218 @@ class TestSingletonPattern:
         )
         assert evaluator1 is evaluator2
         reset_background_evaluator()
+
+
+# =============================================================================
+# Test: Job Tracking Integration (NEM-1974)
+# =============================================================================
+
+
+class TestJobTrackingIntegration:
+    """Tests for job tracking integration in BackgroundEvaluator (NEM-1974)."""
+
+    @pytest.fixture
+    def mock_job_tracker(self):
+        """Create a mock JobTracker."""
+        tracker = MagicMock()
+        tracker.create_job = MagicMock(return_value="test-job-123")
+        tracker.start_job = MagicMock()
+        tracker.update_progress = MagicMock()
+        tracker.complete_job = MagicMock()
+        tracker.fail_job = MagicMock()
+        tracker.is_cancelled = MagicMock(return_value=False)
+        return tracker
+
+    @pytest.fixture
+    def evaluator_with_job_tracker(
+        self,
+        mock_redis,
+        mock_gpu_monitor,
+        mock_evaluation_queue,
+        mock_audit_service,
+        mock_job_tracker,
+    ):
+        """Create a BackgroundEvaluator with job tracker."""
+        from backend.services.background_evaluator import BackgroundEvaluator
+
+        return BackgroundEvaluator(
+            redis_client=mock_redis,
+            gpu_monitor=mock_gpu_monitor,
+            evaluation_queue=mock_evaluation_queue,
+            audit_service=mock_audit_service,
+            job_tracker=mock_job_tracker,
+        )
+
+    @pytest.mark.asyncio
+    async def test_process_one_creates_job(
+        self, evaluator_with_job_tracker, mock_evaluation_queue, mock_job_tracker
+    ):
+        """Test that process_one creates a job when tracker is configured."""
+        mock_evaluation_queue.dequeue.return_value = 123
+
+        with patch("backend.services.background_evaluator.get_session") as mock_get_session:
+            mock_session = AsyncMock()
+            mock_result = MagicMock()
+            mock_result.scalar_one_or_none.return_value = None
+
+            mock_session.execute = AsyncMock(return_value=mock_result)
+
+            mock_ctx_manager = AsyncMock()
+            mock_ctx_manager.__aenter__.return_value = mock_session
+            mock_ctx_manager.__aexit__.return_value = None
+            mock_get_session.return_value = mock_ctx_manager
+
+            await evaluator_with_job_tracker.process_one()
+
+            mock_job_tracker.create_job.assert_called_once_with("evaluation")
+            mock_job_tracker.start_job.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_process_one_updates_progress(
+        self,
+        evaluator_with_job_tracker,
+        mock_evaluation_queue,
+        mock_audit_service,
+        mock_job_tracker,
+    ):
+        """Test that process_one updates progress during evaluation."""
+        mock_evaluation_queue.dequeue.return_value = 123
+
+        mock_event = MagicMock()
+        mock_event.id = 123
+
+        mock_audit = MagicMock()
+        mock_audit.event_id = 123
+        mock_audit.overall_quality_score = 85.0
+
+        with patch("backend.services.background_evaluator.get_session") as mock_get_session:
+            mock_session = AsyncMock()
+            mock_event_result = MagicMock()
+            mock_event_result.scalar_one_or_none.return_value = mock_event
+            mock_audit_result = MagicMock()
+            mock_audit_result.scalar_one_or_none.return_value = mock_audit
+
+            mock_session.execute.side_effect = [mock_event_result, mock_audit_result]
+
+            mock_ctx_manager = AsyncMock()
+            mock_ctx_manager.__aenter__.return_value = mock_session
+            mock_ctx_manager.__aexit__.return_value = None
+            mock_get_session.return_value = mock_ctx_manager
+
+            await evaluator_with_job_tracker.process_one()
+
+            # Verify progress updates were called
+            assert mock_job_tracker.update_progress.call_count >= 3
+            mock_job_tracker.complete_job.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_process_one_fails_job_on_exception(
+        self,
+        evaluator_with_job_tracker,
+        mock_evaluation_queue,
+        mock_audit_service,
+        mock_job_tracker,
+    ):
+        """Test that process_one fails the job when an exception occurs."""
+        mock_evaluation_queue.dequeue.return_value = 123
+        mock_audit_service.run_full_evaluation.side_effect = RuntimeError("AI service error")
+
+        mock_event = MagicMock()
+        mock_event.id = 123
+
+        mock_audit = MagicMock()
+        mock_audit.event_id = 123
+
+        with patch("backend.services.background_evaluator.get_session") as mock_get_session:
+            mock_session = AsyncMock()
+            mock_event_result = MagicMock()
+            mock_event_result.scalar_one_or_none.return_value = mock_event
+            mock_audit_result = MagicMock()
+            mock_audit_result.scalar_one_or_none.return_value = mock_audit
+
+            mock_session.execute.side_effect = [mock_event_result, mock_audit_result]
+
+            mock_ctx_manager = AsyncMock()
+            mock_ctx_manager.__aenter__.return_value = mock_session
+            mock_ctx_manager.__aexit__.return_value = None
+            mock_get_session.return_value = mock_ctx_manager
+
+            await evaluator_with_job_tracker.process_one()
+
+            mock_job_tracker.fail_job.assert_called_once()
+            call_args = mock_job_tracker.fail_job.call_args
+            assert "AI service error" in call_args[0][1]
+
+    @pytest.mark.asyncio
+    async def test_process_one_checks_cancellation(
+        self, evaluator_with_job_tracker, mock_evaluation_queue, mock_job_tracker
+    ):
+        """Test that process_one checks for cancellation."""
+        mock_evaluation_queue.dequeue.return_value = 123
+        mock_job_tracker.is_cancelled.return_value = True  # Simulate cancellation
+
+        with patch("backend.services.background_evaluator.get_session") as mock_get_session:
+            mock_session = AsyncMock()
+            mock_result = MagicMock()
+            mock_result.scalar_one_or_none.return_value = None
+
+            mock_session.execute = AsyncMock(return_value=mock_result)
+
+            mock_ctx_manager = AsyncMock()
+            mock_ctx_manager.__aenter__.return_value = mock_session
+            mock_ctx_manager.__aexit__.return_value = None
+            mock_get_session.return_value = mock_ctx_manager
+
+            result = await evaluator_with_job_tracker.process_one()
+
+            assert result is True  # Processed (but cancelled)
+            mock_job_tracker.is_cancelled.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_process_one_completes_job_for_skipped_event(
+        self, evaluator_with_job_tracker, mock_evaluation_queue, mock_job_tracker
+    ):
+        """Test that process_one completes job when event is not found."""
+        mock_evaluation_queue.dequeue.return_value = 999
+
+        with patch("backend.services.background_evaluator.get_session") as mock_get_session:
+            mock_session = AsyncMock()
+            mock_result = MagicMock()
+            mock_result.scalar_one_or_none.return_value = None  # Event not found
+
+            mock_session.execute = AsyncMock(return_value=mock_result)
+
+            mock_ctx_manager = AsyncMock()
+            mock_ctx_manager.__aenter__.return_value = mock_session
+            mock_ctx_manager.__aexit__.return_value = None
+            mock_get_session.return_value = mock_ctx_manager
+
+            await evaluator_with_job_tracker.process_one()
+
+            mock_job_tracker.complete_job.assert_called_once()
+            call_args = mock_job_tracker.complete_job.call_args
+            result = call_args[1]["result"]
+            assert result["skipped"] is True
+            assert result["reason"] == "event_not_found"
+
+    def test_is_job_cancelled_without_tracker(
+        self, mock_redis, mock_gpu_monitor, mock_evaluation_queue, mock_audit_service
+    ):
+        """Test _is_job_cancelled returns False when no tracker is configured."""
+        from backend.services.background_evaluator import BackgroundEvaluator
+
+        evaluator = BackgroundEvaluator(
+            redis_client=mock_redis,
+            gpu_monitor=mock_gpu_monitor,
+            evaluation_queue=mock_evaluation_queue,
+            audit_service=mock_audit_service,
+            job_tracker=None,
+        )
+
+        assert evaluator._is_job_cancelled("some-job-id") is False
+        assert evaluator._is_job_cancelled(None) is False
+
+    def test_is_job_cancelled_with_none_job_id(self, evaluator_with_job_tracker, mock_job_tracker):
+        """Test _is_job_cancelled returns False when job_id is None."""
+        assert evaluator_with_job_tracker._is_job_cancelled(None) is False
+        mock_job_tracker.is_cancelled.assert_not_called()
