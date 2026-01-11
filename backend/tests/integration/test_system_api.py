@@ -216,9 +216,9 @@ async def test_gpu_history_empty(client, db_session, mock_redis):
     resp = await client.get("/api/system/gpu/history")
     assert resp.status_code == 200
     data = resp.json()
-    assert data["samples"] == []
-    assert data["count"] == 0
-    assert data["limit"] >= 1
+    assert data["items"] == []
+    assert data["pagination"]["total"] == 0
+    assert data["pagination"]["limit"] >= 1
 
 
 @pytest.mark.asyncio
@@ -385,11 +385,11 @@ async def test_gpu_history_with_data_and_since_filter(client, db_session, mock_r
     resp = await client.get("/api/system/gpu/history?limit=10")
     assert resp.status_code == 200
     data = resp.json()
-    assert data["count"] == 2
-    assert data["samples"][0]["utilization"] == 10.0
-    assert data["samples"][0]["power_usage"] == 100.0
-    assert data["samples"][1]["utilization"] == 20.0
-    assert data["samples"][1]["power_usage"] == 120.0
+    assert data["pagination"]["total"] == 2
+    assert data["items"][0]["utilization"] == 10.0
+    assert data["items"][0]["power_usage"] == 100.0
+    assert data["items"][1]["utilization"] == 20.0
+    assert data["items"][1]["power_usage"] == 120.0
 
     # since filter should exclude the older sample
     # Use 'Z' to avoid '+' being interpreted as a space in query strings.
@@ -397,9 +397,9 @@ async def test_gpu_history_with_data_and_since_filter(client, db_session, mock_r
     resp2 = await client.get(f"/api/system/gpu/history?since={since}&limit=10")
     assert resp2.status_code == 200
     data2 = resp2.json()
-    assert data2["count"] == 1
-    assert data2["samples"][0]["utilization"] == 20.0
-    assert data2["samples"][0]["power_usage"] == 120.0
+    assert data2["pagination"]["total"] == 1
+    assert data2["items"][0]["utilization"] == 20.0
+    assert data2["items"][0]["power_usage"] == 120.0
 
 
 # =============================================================================

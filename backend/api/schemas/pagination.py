@@ -37,7 +37,7 @@ class PaginationMeta(BaseModel):
     limit: int = Field(
         ...,
         ge=1,
-        le=1000,
+        le=10000,
         description="Maximum number of items returned per page",
     )
     offset: int | None = Field(

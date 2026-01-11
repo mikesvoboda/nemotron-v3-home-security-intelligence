@@ -492,6 +492,15 @@ async def _reset_db_schema() -> None:
                     "ALTER TABLE events ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE"
                 )
             )
+            # Add search_vector columns for full-text search
+            await conn.execute(
+                text("ALTER TABLE events ADD COLUMN IF NOT EXISTS search_vector TSVECTOR")
+            )
+            await conn.execute(
+                text("ALTER TABLE detections ADD COLUMN IF NOT EXISTS search_vector TSVECTOR")
+            )
+            # Add labels column for detections
+            await conn.execute(text("ALTER TABLE detections ADD COLUMN IF NOT EXISTS labels JSONB"))
 
             # Add unique indexes for cameras table (migration adds these for production)
             # First, clean up any duplicate cameras that might prevent index creation

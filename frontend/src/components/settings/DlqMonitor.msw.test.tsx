@@ -36,7 +36,7 @@ const mockEmptyStats: DLQStatsResponse = {
 
 const mockDetectionJobs: DLQJobsResponse = {
   queue_name: 'dlq:detection_queue',
-  jobs: [
+  items: [
     {
       original_job: {
         camera_id: 'front_door',
@@ -62,12 +62,17 @@ const mockDetectionJobs: DLQJobsResponse = {
       queue_name: 'detection_queue',
     },
   ],
-  count: 2,
+  pagination: {
+    total: 2,
+    limit: 100,
+    offset: 0,
+    has_more: false,
+  },
 };
 
 const mockAnalysisJobs: DLQJobsResponse = {
   queue_name: 'dlq:analysis_queue',
-  jobs: [
+  items: [
     {
       original_job: {
         event_id: 123,
@@ -80,7 +85,12 @@ const mockAnalysisJobs: DLQJobsResponse = {
       queue_name: 'analysis_queue',
     },
   ],
-  count: 1,
+  pagination: {
+    total: 1,
+    limit: 100,
+    offset: 0,
+    has_more: false,
+  },
 };
 
 // ============================================================================

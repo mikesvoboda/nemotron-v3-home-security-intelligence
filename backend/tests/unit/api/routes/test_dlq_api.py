@@ -147,16 +147,18 @@ class TestDLQJobsEndpoint:
                 }
             ]
         )
+        mock_redis.get_queue_length = AsyncMock(return_value=1)
 
         response = client.get("/api/dlq/jobs/dlq:detection_queue")
 
         assert response.status_code == 200
         data = response.json()
         assert data["queue_name"] == "dlq:detection_queue"
-        assert data["count"] == 1
-        assert len(data["jobs"]) == 1
-        assert data["jobs"][0]["original_job"]["camera_id"] == "cam1"
-        assert data["jobs"][0]["error"] == "Connection refused"
+        assert "pagination" in data
+        assert data["pagination"]["total"] == 1
+        assert len(data["items"]) == 1
+        assert data["items"][0]["original_job"]["camera_id"] == "cam1"
+        assert data["items"][0]["error"] == "Connection refused"
 
     def test_get_jobs_analysis_queue(self, client: TestClient, mock_redis: MagicMock) -> None:
         """Test getting jobs from analysis DLQ."""
@@ -172,28 +174,31 @@ class TestDLQJobsEndpoint:
                 }
             ]
         )
+        mock_redis.get_queue_length = AsyncMock(return_value=1)
 
         response = client.get("/api/dlq/jobs/dlq:analysis_queue")
 
         assert response.status_code == 200
         data = response.json()
         assert data["queue_name"] == "dlq:analysis_queue"
-        assert data["count"] == 1
+        assert data["pagination"]["total"] == 1
 
     def test_get_jobs_empty_queue(self, client: TestClient, mock_redis: MagicMock) -> None:
         """Test getting jobs from empty DLQ."""
         mock_redis.peek_queue = AsyncMock(return_value=[])
+        mock_redis.get_queue_length = AsyncMock(return_value=0)
 
         response = client.get("/api/dlq/jobs/dlq:detection_queue")
 
         assert response.status_code == 200
         data = response.json()
-        assert data["count"] == 0
-        assert data["jobs"] == []
+        assert data["pagination"]["total"] == 0
+        assert data["items"] == []
 
     def test_get_jobs_with_pagination(self, client: TestClient, mock_redis: MagicMock) -> None:
         """Test pagination parameters are passed correctly."""
         mock_redis.peek_queue = AsyncMock(return_value=[])
+        mock_redis.get_queue_length = AsyncMock(return_value=0)
 
         response = client.get("/api/dlq/jobs/dlq:detection_queue?start=10&limit=50")
 
@@ -540,11 +545,12 @@ class TestPaginationEdgeCases:
     def test_get_jobs_large_start_offset(self, client: TestClient, mock_redis: MagicMock) -> None:
         """Test pagination with large start offset."""
         mock_redis.peek_queue = AsyncMock(return_value=[])
+        mock_redis.get_queue_length = AsyncMock(return_value=0)
 
         response = client.get("/api/dlq/jobs/dlq:detection_queue?start=999999")
 
         assert response.status_code == 200
-        assert response.json()["count"] == 0
+        assert response.json()["pagination"]["total"] == 0
 
 
 class TestRedisErrorHandling:
@@ -566,14 +572,15 @@ class TestRedisErrorHandling:
     def test_get_jobs_with_redis_exception(self, client: TestClient, mock_redis: MagicMock) -> None:
         """Test get jobs endpoint handles Redis exceptions gracefully."""
         mock_redis.peek_queue = AsyncMock(side_effect=RuntimeError("Redis connection lost"))
+        mock_redis.get_queue_length = AsyncMock(return_value=0)
 
         response = client.get("/api/dlq/jobs/dlq:detection_queue")
 
-        # Should return empty jobs list on error
+        # Should return empty items list on error
         assert response.status_code == 200
         data = response.json()
-        assert data["count"] == 0
-        assert data["jobs"] == []
+        assert data["pagination"]["total"] == 0
+        assert data["items"] == []
 
     def test_requeue_with_redis_exception_on_pop(
         self, client: TestClient, mock_redis: MagicMock
@@ -682,16 +689,17 @@ class TestMultipleJobsScenarios:
                 },
             ]
         )
+        mock_redis.get_queue_length = AsyncMock(return_value=3)
 
         response = client.get("/api/dlq/jobs/dlq:detection_queue")
 
         assert response.status_code == 200
         data = response.json()
-        assert data["count"] == 3
-        assert len(data["jobs"]) == 3
-        assert data["jobs"][0]["original_job"]["camera_id"] == "cam1"
-        assert data["jobs"][1]["original_job"]["camera_id"] == "cam2"
-        assert data["jobs"][2]["original_job"]["camera_id"] == "cam3"
+        assert data["pagination"]["total"] == 3
+        assert len(data["items"]) == 3
+        assert data["items"][0]["original_job"]["camera_id"] == "cam1"
+        assert data["items"][1]["original_job"]["camera_id"] == "cam2"
+        assert data["items"][2]["original_job"]["camera_id"] == "cam3"
 
     def test_stats_with_different_queue_counts(
         self, client: TestClient, mock_redis: MagicMock
@@ -785,13 +793,14 @@ class TestEnrichedErrorContext:
                 }
             ]
         )
+        mock_redis.get_queue_length = AsyncMock(return_value=1)
 
         response = client.get("/api/dlq/jobs/dlq:detection_queue")
 
         assert response.status_code == 200
         data = response.json()
-        assert len(data["jobs"]) == 1
-        assert data["jobs"][0]["error_type"] == "ConnectionRefusedError"
+        assert len(data["items"]) == 1
+        assert data["items"][0]["error_type"] == "ConnectionRefusedError"
 
     def test_get_jobs_includes_stack_trace(self, client: TestClient, mock_redis: MagicMock) -> None:
         """Test that DLQ jobs include stack_trace field."""
@@ -814,12 +823,13 @@ class TestEnrichedErrorContext:
                 }
             ]
         )
+        mock_redis.get_queue_length = AsyncMock(return_value=1)
 
         response = client.get("/api/dlq/jobs/dlq:detection_queue")
 
         assert response.status_code == 200
         data = response.json()
-        assert data["jobs"][0]["stack_trace"] == stack_trace
+        assert data["items"][0]["stack_trace"] == stack_trace
 
     def test_get_jobs_includes_http_status(self, client: TestClient, mock_redis: MagicMock) -> None:
         """Test that DLQ jobs include http_status field for network errors."""
@@ -841,13 +851,14 @@ class TestEnrichedErrorContext:
                 }
             ]
         )
+        mock_redis.get_queue_length = AsyncMock(return_value=1)
 
         response = client.get("/api/dlq/jobs/dlq:detection_queue")
 
         assert response.status_code == 200
         data = response.json()
-        assert data["jobs"][0]["http_status"] == 503
-        assert data["jobs"][0]["response_body"] == '{"error": "Service unavailable"}'
+        assert data["items"][0]["http_status"] == 503
+        assert data["items"][0]["response_body"] == '{"error": "Service unavailable"}'
 
     def test_get_jobs_includes_retry_delays(
         self, client: TestClient, mock_redis: MagicMock
@@ -871,12 +882,13 @@ class TestEnrichedErrorContext:
                 }
             ]
         )
+        mock_redis.get_queue_length = AsyncMock(return_value=1)
 
         response = client.get("/api/dlq/jobs/dlq:detection_queue")
 
         assert response.status_code == 200
         data = response.json()
-        assert data["jobs"][0]["retry_delays"] == [1.0, 2.5, 5.0]
+        assert data["items"][0]["retry_delays"] == [1.0, 2.5, 5.0]
 
     def test_get_jobs_includes_system_context(
         self, client: TestClient, mock_redis: MagicMock
@@ -905,13 +917,14 @@ class TestEnrichedErrorContext:
                 }
             ]
         )
+        mock_redis.get_queue_length = AsyncMock(return_value=1)
 
         response = client.get("/api/dlq/jobs/dlq:detection_queue")
 
         assert response.status_code == 200
         data = response.json()
-        assert data["jobs"][0]["context"] == system_context
-        assert data["jobs"][0]["context"]["detection_queue_depth"] == 150
+        assert data["items"][0]["context"] == system_context
+        assert data["items"][0]["context"]["detection_queue_depth"] == 150
 
     def test_get_jobs_handles_null_context_fields(
         self, client: TestClient, mock_redis: MagicMock
@@ -936,17 +949,18 @@ class TestEnrichedErrorContext:
                 }
             ]
         )
+        mock_redis.get_queue_length = AsyncMock(return_value=1)
 
         response = client.get("/api/dlq/jobs/dlq:detection_queue")
 
         assert response.status_code == 200
         data = response.json()
-        assert data["jobs"][0]["error_type"] is None
-        assert data["jobs"][0]["stack_trace"] is None
-        assert data["jobs"][0]["http_status"] is None
-        assert data["jobs"][0]["response_body"] is None
-        assert data["jobs"][0]["retry_delays"] is None
-        assert data["jobs"][0]["context"] is None
+        assert data["items"][0]["error_type"] is None
+        assert data["items"][0]["stack_trace"] is None
+        assert data["items"][0]["http_status"] is None
+        assert data["items"][0]["response_body"] is None
+        assert data["items"][0]["retry_delays"] is None
+        assert data["items"][0]["context"] is None
 
     def test_get_jobs_handles_missing_context_fields(
         self, client: TestClient, mock_redis: MagicMock
@@ -966,18 +980,19 @@ class TestEnrichedErrorContext:
                 }
             ]
         )
+        mock_redis.get_queue_length = AsyncMock(return_value=1)
 
         response = client.get("/api/dlq/jobs/dlq:detection_queue")
 
         assert response.status_code == 200
         data = response.json()
         # JobFailure.from_dict() handles missing fields with defaults
-        assert data["jobs"][0]["error_type"] is None
-        assert data["jobs"][0]["stack_trace"] is None
-        assert data["jobs"][0]["http_status"] is None
-        assert data["jobs"][0]["response_body"] is None
-        assert data["jobs"][0]["retry_delays"] is None
-        assert data["jobs"][0]["context"] is None
+        assert data["items"][0]["error_type"] is None
+        assert data["items"][0]["stack_trace"] is None
+        assert data["items"][0]["http_status"] is None
+        assert data["items"][0]["response_body"] is None
+        assert data["items"][0]["retry_delays"] is None
+        assert data["items"][0]["context"] is None
 
     def test_get_jobs_full_error_context(self, client: TestClient, mock_redis: MagicMock) -> None:
         """Test retrieving a DLQ job with full error context."""
@@ -1003,12 +1018,13 @@ class TestEnrichedErrorContext:
                 }
             ]
         )
+        mock_redis.get_queue_length = AsyncMock(return_value=1)
 
         response = client.get("/api/dlq/jobs/dlq:detection_queue")
 
         assert response.status_code == 200
         data = response.json()
-        job = data["jobs"][0]
+        job = data["items"][0]
 
         # Verify all original fields
         assert job["original_job"]["camera_id"] == "cam1"

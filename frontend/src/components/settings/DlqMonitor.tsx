@@ -104,7 +104,7 @@ export default function DlqMonitor({ className, refreshInterval = 30000 }: DlqMo
       const data = await fetchDlqJobs(queueName);
       setQueues((prev) => ({
         ...prev,
-        [queueName]: { ...prev[queueName], jobs: data.jobs, loading: false },
+        [queueName]: { ...prev[queueName], jobs: data.items, loading: false },
       }));
     } catch (err) {
       setQueues((prev) => ({

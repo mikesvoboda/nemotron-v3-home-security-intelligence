@@ -44,6 +44,7 @@ from backend.api.schemas.health import (
     ServiceHealthState,
     WorkerHealthStatus,
 )
+from backend.api.schemas.pagination import create_pagination_meta
 from backend.api.schemas.system import (
     BatchAggregatorStatusResponse,
     BatchInfoResponse,
@@ -1189,9 +1190,13 @@ async def get_gpu_stats_history(
 ) -> GPUStatsHistoryResponse:
     """Get recent GPU stats samples as a time-series.
 
+    Returns GPU stats in standard pagination envelope format (NEM-2178):
+    - items: GPU stats samples (renamed from 'samples')
+    - pagination: Standard pagination metadata
+
     Args:
         since: Optional lower bound for recorded_at (ISO datetime)
-        limit: Maximum number of samples to return (default 300)
+        limit: Maximum number of samples to return (default 300, max 5000)
         db: Database session
     """
     limit = max(limit, 1)
@@ -1201,13 +1206,20 @@ async def get_gpu_stats_history(
     if since is not None:
         stmt = stmt.where(GPUStats.recorded_at >= since)
 
+    # Get total count for pagination
+    count_stmt = select(func.count(GPUStats.id))
+    if since is not None:
+        count_stmt = count_stmt.where(GPUStats.recorded_at >= since)
+    total_result = await db.execute(count_stmt)
+    total = total_result.scalar() or 0
+
     # Fetch newest first, then reverse to chronological order for charting.
     stmt = stmt.order_by(GPUStats.recorded_at.desc()).limit(limit)
     result = await db.execute(stmt)
     rows = list(result.scalars().all())
     rows.reverse()
 
-    samples = [
+    items = [
         {
             "recorded_at": r.recorded_at,
             "gpu_name": r.gpu_name,
@@ -1221,7 +1233,14 @@ async def get_gpu_stats_history(
         for r in rows
     ]
 
-    return GPUStatsHistoryResponse(samples=samples, count=len(samples), limit=limit)
+    return GPUStatsHistoryResponse(
+        items=items,
+        pagination=create_pagination_meta(
+            total=total,
+            limit=limit,
+            items_count=len(items),
+        ),
+    )
 
 
 @router.get("/config", response_model=ConfigResponse)

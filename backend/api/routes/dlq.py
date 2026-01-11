@@ -21,6 +21,7 @@ from backend.api.schemas.dlq import (
     DLQRequeueResponse,
     DLQStatsResponse,
 )
+from backend.api.schemas.pagination import create_pagination_meta
 from backend.core.config import get_settings
 from backend.core.constants import (
     ANALYSIS_QUEUE,
@@ -164,34 +165,44 @@ async def get_dlq_jobs(
         redis: Redis client
 
     Returns:
-        DLQJobsResponse with list of jobs including error context
+        DLQJobsResponse with list of jobs including error context (NEM-2178 pagination envelope)
     """
     handler = get_retry_handler(redis)
     end = start + limit - 1 if limit > 0 else -1
 
     jobs = await handler.get_dlq_jobs(queue_name.value, start, end)
 
+    # Get total count for pagination metadata
+    total = await redis.get_queue_length(queue_name.value)
+
+    items = [
+        {
+            "original_job": job.original_job,
+            "error": job.error,
+            "attempt_count": job.attempt_count,
+            "first_failed_at": job.first_failed_at,
+            "last_failed_at": job.last_failed_at,
+            "queue_name": job.queue_name,
+            # Error context enrichment (NEM-1474)
+            "error_type": job.error_type,
+            "stack_trace": job.stack_trace,
+            "http_status": job.http_status,
+            "response_body": job.response_body,
+            "retry_delays": job.retry_delays,
+            "context": job.context,
+        }
+        for job in jobs
+    ]
+
     return DLQJobsResponse(
         queue_name=queue_name.value,
-        jobs=[
-            {
-                "original_job": job.original_job,
-                "error": job.error,
-                "attempt_count": job.attempt_count,
-                "first_failed_at": job.first_failed_at,
-                "last_failed_at": job.last_failed_at,
-                "queue_name": job.queue_name,
-                # Error context enrichment (NEM-1474)
-                "error_type": job.error_type,
-                "stack_trace": job.stack_trace,
-                "http_status": job.http_status,
-                "response_body": job.response_body,
-                "retry_delays": job.retry_delays,
-                "context": job.context,
-            }
-            for job in jobs
-        ],
-        count=len(jobs),
+        items=items,
+        pagination=create_pagination_meta(
+            total=total,
+            limit=limit,
+            offset=start,
+            items_count=len(items),
+        ),
     )
 
 
