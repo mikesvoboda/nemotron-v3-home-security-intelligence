@@ -187,3 +187,82 @@ class EntityHistoryResponse(BaseModel):
         ..., description="List of appearances in chronological order"
     )
     count: int = Field(..., description="Total number of appearances")
+
+
+class EntityMatchItem(BaseModel):
+    """Schema for a single entity match result.
+
+    Represents a matching entity found through re-identification,
+    including similarity score and time gap.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "entity_id": "det_abc123",
+                "entity_type": "person",
+                "camera_id": "backyard",
+                "camera_name": "Backyard",
+                "timestamp": "2025-12-23T10:00:00Z",
+                "thumbnail_url": "/api/detections/123/image",
+                "similarity_score": 0.92,
+                "time_gap_seconds": 3600.0,
+                "attributes": {"clothing": "blue jacket"},
+            }
+        }
+    )
+
+    entity_id: str = Field(..., description="Detection ID of the matched entity")
+    entity_type: str = Field(..., description="Type of entity: 'person' or 'vehicle'")
+    camera_id: str = Field(..., description="Camera ID where entity was seen")
+    camera_name: str | None = Field(None, description="Human-readable camera name")
+    timestamp: datetime = Field(..., description="When the entity was detected")
+    thumbnail_url: str | None = Field(None, description="URL to thumbnail image")
+    similarity_score: float = Field(
+        ..., ge=0.0, le=1.0, description="Cosine similarity score (0-1)"
+    )
+    time_gap_seconds: float = Field(..., description="Time gap in seconds between query and match")
+    attributes: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Additional attributes extracted from the detection",
+    )
+
+
+class EntityMatchResponse(BaseModel):
+    """Schema for entity match query response.
+
+    Returns entities matching a specific detection's embedding,
+    used for showing re-ID matches in the EventDetailModal.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "query_detection_id": "det_001",
+                "entity_type": "person",
+                "matches": [
+                    {
+                        "entity_id": "det_002",
+                        "entity_type": "person",
+                        "camera_id": "backyard",
+                        "camera_name": "Backyard",
+                        "timestamp": "2025-12-23T09:00:00Z",
+                        "thumbnail_url": "/api/detections/2/image",
+                        "similarity_score": 0.92,
+                        "time_gap_seconds": 3600.0,
+                        "attributes": {"clothing": "blue jacket"},
+                    }
+                ],
+                "total_matches": 1,
+                "threshold": 0.85,
+            }
+        }
+    )
+
+    query_detection_id: str = Field(..., description="Detection ID used for the query")
+    entity_type: str = Field(..., description="Type of entity searched")
+    matches: list[EntityMatchItem] = Field(
+        default_factory=list, description="List of matching entities sorted by similarity"
+    )
+    total_matches: int = Field(..., description="Total number of matches found")
+    threshold: float = Field(..., description="Similarity threshold used for matching")

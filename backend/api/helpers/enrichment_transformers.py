@@ -376,6 +376,89 @@ class PetExtractor(BaseEnrichmentExtractor):
         }
 
 
+class PoseExtractor(BaseEnrichmentExtractor):
+    """Extract pose analysis data from enrichment.
+
+    Extracts ViTPose+ pose estimation data including:
+    - keypoints: COCO 17 keypoints with normalized coordinates
+    - posture: Classified posture (standing, walking, sitting, crouching, lying_down, running)
+    - alerts: Security-relevant pose alerts (crouching, lying_down, hands_raised, fighting_stance)
+    """
+
+    @property
+    def enrichment_key(self) -> str:
+        return "pose_estimation"
+
+    @property
+    def default_value(self) -> None:
+        return None
+
+    def extract(self, enrichment_data: dict[str, Any]) -> dict[str, Any] | None:
+        """Extract pose analysis data.
+
+        Returns a structured response with:
+        - posture: The classified posture type
+        - alerts: List of security-relevant alerts
+        - keypoints: Array of [x, y, confidence] for skeleton overlay
+        - keypoint_count: Number of detected keypoints
+        """
+        # Check for pose_estimation key (from ViTPose analysis)
+        pose_data = enrichment_data.get(self.enrichment_key)
+        if not pose_data:
+            return self.default_value
+
+        # Extract keypoints as array format for frontend skeleton overlay
+        # Format: [[x, y, confidence], ...] matching COCO 17 keypoint order
+        keypoints_list = pose_data.get("keypoints", [])
+        keypoints_array: list[list[float]] = []
+
+        # Map keypoint names to COCO indices for proper ordering
+        coco_keypoint_order = [
+            "nose",
+            "left_eye",
+            "right_eye",
+            "left_ear",
+            "right_ear",
+            "left_shoulder",
+            "right_shoulder",
+            "left_elbow",
+            "right_elbow",
+            "left_wrist",
+            "right_wrist",
+            "left_hip",
+            "right_hip",
+            "left_knee",
+            "right_knee",
+            "left_ankle",
+            "right_ankle",
+        ]
+
+        # Build keypoint dict for lookup
+        keypoint_dict = {kp.get("name"): kp for kp in keypoints_list if kp.get("name")}
+
+        # Create ordered keypoints array
+        for name in coco_keypoint_order:
+            kp = keypoint_dict.get(name)
+            if kp:
+                keypoints_array.append(
+                    [
+                        kp.get("x", 0.0),
+                        kp.get("y", 0.0),
+                        kp.get("confidence", 0.0),
+                    ]
+                )
+            else:
+                # Missing keypoint - add placeholder with zero confidence
+                keypoints_array.append([0.0, 0.0, 0.0])
+
+        return {
+            "posture": pose_data.get("posture", "unknown"),
+            "alerts": pose_data.get("alerts", []),
+            "keypoints": keypoints_array,
+            "keypoint_count": len(keypoints_list),
+        }
+
+
 # ============================================================================
 # Main Transformer Class (NEM-1351: Validates before transformation)
 # ============================================================================
@@ -408,6 +491,7 @@ class EnrichmentTransformer:
         self._clothing_extractor = ClothingExtractor()
         self._image_quality_extractor = ImageQualityExtractor()
         self._pet_extractor = PetExtractor()
+        self._pose_extractor = PoseExtractor()
 
     def transform(
         self,
@@ -459,7 +543,7 @@ class EnrichmentTransformer:
             "clothing": self._clothing_extractor.extract(enrichment_data),
             "violence": self._violence_extractor.extract(enrichment_data),
             "weather": None,  # Placeholder - not currently in enrichment pipeline
-            "pose": None,  # Placeholder for future ViTPose
+            "pose": self._pose_extractor.extract(enrichment_data),
             "depth": None,  # Placeholder for future Depth Anything V2
             "image_quality": self._image_quality_extractor.extract(enrichment_data),
             "pet": self._pet_extractor.extract(enrichment_data),
@@ -481,7 +565,7 @@ class EnrichmentTransformer:
             "clothing": self._clothing_extractor.default_value,
             "violence": self._violence_extractor.default_value,
             "weather": None,
-            "pose": None,
+            "pose": self._pose_extractor.default_value,
             "depth": None,
             "image_quality": self._image_quality_extractor.default_value,
             "pet": self._pet_extractor.default_value,

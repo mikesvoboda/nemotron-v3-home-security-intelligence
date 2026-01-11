@@ -14,12 +14,15 @@ from backend.api.schemas.entities import (
     EntityDetail,
     EntityHistoryResponse,
     EntityListResponse,
+    EntityMatchItem,
+    EntityMatchResponse,
     EntitySummary,
 )
 from backend.api.schemas.logs import PaginationInfo
 from backend.core.logging import get_logger
 from backend.core.redis import get_redis_optional
 from backend.services.reid_service import (
+    DEFAULT_SIMILARITY_THRESHOLD,
     EntityEmbedding,
     ReIdentificationService,
     get_reid_service,
@@ -387,4 +390,104 @@ async def get_entity_history(
         entity_type=entity_type_found or "person",
         appearances=appearances,
         count=len(appearances),
+    )
+
+
+@router.get(
+    "/matches/{detection_id}",
+    response_model=EntityMatchResponse,
+    responses={
+        404: {"description": "Detection not found or no embedding stored"},
+        503: {"description": "Redis service unavailable"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def get_entity_matches(
+    detection_id: str,
+    entity_type: EntityTypeEnum = Query(
+        EntityTypeEnum.person, description="Type of entity to search for matches"
+    ),
+    threshold: float = Query(
+        DEFAULT_SIMILARITY_THRESHOLD,
+        ge=0.0,
+        le=1.0,
+        description="Minimum similarity threshold for matches",
+    ),
+    reid_service: ReIdentificationService = Depends(get_reid_service),
+) -> EntityMatchResponse:
+    """Find entities matching a specific detection's embedding.
+
+    Searches for entities similar to the specified detection's embedding
+    across all cameras. Used to show re-ID matches in the EventDetailModal.
+
+    Args:
+        detection_id: Detection ID to find matches for
+        entity_type: Type of entity to search ('person' or 'vehicle')
+        threshold: Minimum cosine similarity threshold (default 0.85)
+        reid_service: Re-identification service dependency
+
+    Returns:
+        EntityMatchResponse with matching entities sorted by similarity
+
+    Raises:
+        HTTPException: 404 if detection embedding not found, 503 if Redis unavailable
+    """
+    redis = await _get_redis_client()
+
+    if redis is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Redis service unavailable",
+        )
+
+    # First, find the embedding for the requested detection
+    all_embeddings = await reid_service.get_entity_history(
+        redis_client=redis,
+        entity_type=entity_type.value,
+    )
+
+    # Find the embedding for the requested detection
+    query_embedding: EntityEmbedding | None = None
+    for emb in all_embeddings:
+        if emb.detection_id == detection_id:
+            query_embedding = emb
+            break
+
+    if query_embedding is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No embedding found for detection '{detection_id}'",
+        )
+
+    # Find matching entities
+    matches = await reid_service.find_matching_entities(
+        redis_client=redis,
+        embedding=query_embedding.embedding,
+        entity_type=entity_type.value,
+        threshold=threshold,
+        exclude_detection_id=detection_id,
+    )
+
+    # Convert matches to response format
+    match_items = [
+        EntityMatchItem(
+            entity_id=match.entity.detection_id,
+            entity_type=match.entity.entity_type,
+            camera_id=match.entity.camera_id,
+            camera_name=match.entity.camera_id.replace("_", " ").title(),
+            timestamp=match.entity.timestamp,
+            thumbnail_url=_get_thumbnail_url(match.entity.detection_id),
+            similarity_score=match.similarity,
+            time_gap_seconds=match.time_gap_seconds,
+            attributes=match.entity.attributes,
+        )
+        for match in matches
+    ]
+
+    return EntityMatchResponse(
+        query_detection_id=detection_id,
+        entity_type=entity_type.value,
+        matches=match_items,
+        total_matches=len(match_items),
+        threshold=threshold,
     )
