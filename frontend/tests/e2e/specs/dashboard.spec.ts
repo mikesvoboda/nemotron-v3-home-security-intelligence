@@ -181,8 +181,12 @@ test.describe('Dashboard Error State', () => {
 
   // API client has MAX_RETRIES=3 with exponential backoff (1s+2s+4s=7s)
   // React Query also retries once, so total time for events API to fail is ~14-21s
-  // Use 25s timeout to account for network latency and CI variability
+  // Use 35s timeout to account for network latency and CI variability
   const ERROR_TIMEOUT = 35000;
+
+  // Increase test timeout to 60s for these tests since they wait for API retries
+  // (default is 15s, but we need to wait for ERROR_TIMEOUT assertions)
+  test.setTimeout(60000);
 
   test.beforeEach(async ({ page }) => {
     await setupApiMocks(page, errorMockConfig);

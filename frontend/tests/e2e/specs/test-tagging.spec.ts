@@ -89,8 +89,11 @@ test.describe('Smoke Tests @smoke', () => {
 test.describe('Critical Tests @critical', () => {
   // API client has MAX_RETRIES=3 with exponential backoff (1s+2s+4s=7s)
   // React Query also retries once, so total time for events API to fail is ~14-21s
-  // Use 25s timeout to account for network latency and CI variability
+  // Use 35s timeout to account for network latency and CI variability
   const ERROR_TIMEOUT = 35000;
+
+  // Increase test timeout to 60s for error state tests that wait for API retries
+  test.setTimeout(60000);
 
   test('dashboard displays all key sections @critical', async ({ page }) => {
     await setupApiMocks(page, defaultMockConfig);
