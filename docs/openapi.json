@@ -237,46 +237,6 @@
         "title": "ActivityBaselineResponse",
         "type": "object"
       },
-      "AiModelMetrics": {
-        "description": "Metrics for RT-DETRv2 model.",
-        "example": {
-          "device": "cuda:0",
-          "model": "rtdetr_r50vd_coco_o365",
-          "status": "healthy",
-          "vram_gb": 0.17
-        },
-        "properties": {
-          "device": {
-            "description": "Device (e.g., 'cuda:0')",
-            "title": "Device",
-            "type": "string"
-          },
-          "model": {
-            "description": "Model name",
-            "title": "Model",
-            "type": "string"
-          },
-          "status": {
-            "description": "Health status: healthy, unhealthy, unreachable",
-            "title": "Status",
-            "type": "string"
-          },
-          "vram_gb": {
-            "description": "VRAM used by the model in GB",
-            "minimum": 0.0,
-            "title": "Vram Gb",
-            "type": "number"
-          }
-        },
-        "required": [
-          "status",
-          "vram_gb",
-          "model",
-          "device"
-        ],
-        "title": "AiModelMetrics",
-        "type": "object"
-      },
       "AlertResponse": {
         "description": "Schema for alert response.",
         "example": {
@@ -3787,38 +3747,6 @@
         "title": "ConfigUpdateRequest",
         "type": "object"
       },
-      "ContainerMetrics": {
-        "description": "Container health status.",
-        "example": {
-          "health": "healthy",
-          "name": "backend",
-          "status": "running"
-        },
-        "properties": {
-          "health": {
-            "description": "Health status (healthy, unhealthy, starting)",
-            "title": "Health",
-            "type": "string"
-          },
-          "name": {
-            "description": "Container name",
-            "title": "Name",
-            "type": "string"
-          },
-          "status": {
-            "description": "Container status (running, stopped, restarting, etc.)",
-            "title": "Status",
-            "type": "string"
-          }
-        },
-        "required": [
-          "name",
-          "status",
-          "health"
-        ],
-        "title": "ContainerMetrics",
-        "type": "object"
-      },
       "ContainerServiceStatus": {
         "description": "Current status of a managed container service.\n\nStatus values:\n- RUNNING: Container is up and passing health checks\n- STARTING: Container is starting, not yet healthy\n- UNHEALTHY: Running but failing health checks\n- STOPPED: Container is not running\n- DISABLED: Exceeded failure limit, requires manual reset\n- NOT_FOUND: Container doesn't exist yet",
         "enum": [
@@ -4360,57 +4288,6 @@
           "total_samples"
         ],
         "title": "DailyPattern",
-        "type": "object"
-      },
-      "DatabaseMetrics": {
-        "description": "PostgreSQL database metrics.",
-        "example": {
-          "cache_hit_ratio": 98.2,
-          "connections_active": 5,
-          "connections_max": 30,
-          "status": "healthy",
-          "transactions_per_min": 1200
-        },
-        "properties": {
-          "cache_hit_ratio": {
-            "description": "Buffer cache hit ratio percentage",
-            "maximum": 100.0,
-            "minimum": 0.0,
-            "title": "Cache Hit Ratio",
-            "type": "number"
-          },
-          "connections_active": {
-            "description": "Active connections",
-            "minimum": 0.0,
-            "title": "Connections Active",
-            "type": "integer"
-          },
-          "connections_max": {
-            "description": "Maximum allowed connections",
-            "minimum": 0.0,
-            "title": "Connections Max",
-            "type": "integer"
-          },
-          "status": {
-            "description": "Health status: healthy, unhealthy, unreachable",
-            "title": "Status",
-            "type": "string"
-          },
-          "transactions_per_min": {
-            "description": "Transaction rate per minute",
-            "minimum": 0.0,
-            "title": "Transactions Per Min",
-            "type": "number"
-          }
-        },
-        "required": [
-          "status",
-          "connections_active",
-          "connections_max",
-          "cache_hit_ratio",
-          "transactions_per_min"
-        ],
-        "title": "DatabaseMetrics",
         "type": "object"
       },
       "DebugCircuitBreakersResponse": {
@@ -8301,65 +8178,6 @@
         "title": "GPUStatsSample",
         "type": "object"
       },
-      "GpuMetrics": {
-        "description": "GPU metrics from nvidia-smi / pynvml.",
-        "example": {
-          "name": "NVIDIA RTX A5500",
-          "power_watts": 31,
-          "temperature": 38,
-          "utilization": 38.0,
-          "vram_total_gb": 24.0,
-          "vram_used_gb": 22.7
-        },
-        "properties": {
-          "name": {
-            "description": "GPU device name (e.g., 'NVIDIA RTX A5500')",
-            "title": "Name",
-            "type": "string"
-          },
-          "power_watts": {
-            "description": "GPU power usage in Watts",
-            "minimum": 0.0,
-            "title": "Power Watts",
-            "type": "integer"
-          },
-          "temperature": {
-            "description": "GPU temperature in Celsius",
-            "minimum": 0.0,
-            "title": "Temperature",
-            "type": "integer"
-          },
-          "utilization": {
-            "description": "GPU utilization percentage (0-100)",
-            "maximum": 100.0,
-            "minimum": 0.0,
-            "title": "Utilization",
-            "type": "number"
-          },
-          "vram_total_gb": {
-            "description": "Total VRAM in GB",
-            "exclusiveMinimum": 0.0,
-            "title": "Vram Total Gb",
-            "type": "number"
-          },
-          "vram_used_gb": {
-            "description": "VRAM used in GB",
-            "minimum": 0.0,
-            "title": "Vram Used Gb",
-            "type": "number"
-          }
-        },
-        "required": [
-          "name",
-          "utilization",
-          "vram_used_gb",
-          "vram_total_gb",
-          "temperature",
-          "power_watts"
-        ],
-        "title": "GpuMetrics",
-        "type": "object"
-      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -8533,58 +8351,6 @@
         "title": "HealthResponse",
         "type": "object"
       },
-      "HostMetrics": {
-        "description": "Host system metrics from psutil.",
-        "example": {
-          "cpu_percent": 12,
-          "disk_total_gb": 500,
-          "disk_used_gb": 156,
-          "ram_total_gb": 32,
-          "ram_used_gb": 8.2
-        },
-        "properties": {
-          "cpu_percent": {
-            "description": "CPU utilization percentage",
-            "maximum": 100.0,
-            "minimum": 0.0,
-            "title": "Cpu Percent",
-            "type": "number"
-          },
-          "disk_total_gb": {
-            "description": "Total disk in GB",
-            "exclusiveMinimum": 0.0,
-            "title": "Disk Total Gb",
-            "type": "number"
-          },
-          "disk_used_gb": {
-            "description": "Disk used in GB",
-            "minimum": 0.0,
-            "title": "Disk Used Gb",
-            "type": "number"
-          },
-          "ram_total_gb": {
-            "description": "Total RAM in GB",
-            "exclusiveMinimum": 0.0,
-            "title": "Ram Total Gb",
-            "type": "number"
-          },
-          "ram_used_gb": {
-            "description": "RAM used in GB",
-            "minimum": 0.0,
-            "title": "Ram Used Gb",
-            "type": "number"
-          }
-        },
-        "required": [
-          "cpu_percent",
-          "ram_used_gb",
-          "ram_total_gb",
-          "disk_used_gb",
-          "disk_total_gb"
-        ],
-        "title": "HostMetrics",
-        "type": "object"
-      },
       "HourlyPattern": {
         "description": "Activity pattern for a specific hour.",
         "example": {
@@ -8696,84 +8462,6 @@
           }
         },
         "title": "ImageQualityEnrichment",
-        "type": "object"
-      },
-      "InferenceMetrics": {
-        "description": "AI inference latency and throughput metrics.",
-        "example": {
-          "nemotron_latency_ms": {
-            "avg": 2100,
-            "p95": 4800,
-            "p99": 8200
-          },
-          "pipeline_latency_ms": {
-            "avg": 3200,
-            "p95": 6100
-          },
-          "queues": {
-            "analysis": 0,
-            "detection": 0
-          },
-          "rtdetr_latency_ms": {
-            "avg": 45,
-            "p95": 82,
-            "p99": 120
-          },
-          "throughput": {
-            "events_per_min": 2.1,
-            "images_per_min": 12.4
-          }
-        },
-        "properties": {
-          "nemotron_latency_ms": {
-            "additionalProperties": {
-              "type": "number"
-            },
-            "description": "Nemotron latency stats (avg, p95, p99)",
-            "title": "Nemotron Latency Ms",
-            "type": "object"
-          },
-          "pipeline_latency_ms": {
-            "additionalProperties": {
-              "type": "number"
-            },
-            "description": "Full pipeline latency stats (avg, p95)",
-            "title": "Pipeline Latency Ms",
-            "type": "object"
-          },
-          "queues": {
-            "additionalProperties": {
-              "type": "integer"
-            },
-            "description": "Queue depths (detection, analysis)",
-            "title": "Queues",
-            "type": "object"
-          },
-          "rtdetr_latency_ms": {
-            "additionalProperties": {
-              "type": "number"
-            },
-            "description": "RT-DETRv2 latency stats (avg, p95, p99)",
-            "title": "Rtdetr Latency Ms",
-            "type": "object"
-          },
-          "throughput": {
-            "additionalProperties": {
-              "type": "number"
-            },
-            "description": "Throughput metrics (images_per_min, events_per_min)",
-            "title": "Throughput",
-            "type": "object"
-          }
-        },
-        "required": [
-          "rtdetr_latency_ms",
-          "nemotron_latency_ms",
-          "pipeline_latency_ms",
-          "throughput",
-          "queues"
-        ],
-        "title": "InferenceMetrics",
         "type": "object"
       },
       "InfrastructureHealthStatus": {
@@ -10205,48 +9893,6 @@
         "title": "ModelZooStatusResponse",
         "type": "object"
       },
-      "NemotronMetrics": {
-        "description": "Metrics for Nemotron LLM.",
-        "example": {
-          "context_size": 4096,
-          "slots_active": 1,
-          "slots_total": 2,
-          "status": "healthy"
-        },
-        "properties": {
-          "context_size": {
-            "description": "Context window size in tokens",
-            "minimum": 0.0,
-            "title": "Context Size",
-            "type": "integer"
-          },
-          "slots_active": {
-            "description": "Number of active inference slots",
-            "minimum": 0.0,
-            "title": "Slots Active",
-            "type": "integer"
-          },
-          "slots_total": {
-            "description": "Total available inference slots",
-            "minimum": 0.0,
-            "title": "Slots Total",
-            "type": "integer"
-          },
-          "status": {
-            "description": "Health status: healthy, unhealthy, unreachable",
-            "title": "Status",
-            "type": "string"
-          }
-        },
-        "required": [
-          "status",
-          "slots_active",
-          "slots_total",
-          "context_size"
-        ],
-        "title": "NemotronMetrics",
-        "type": "object"
-      },
       "NotificationChannel": {
         "description": "Notification channel types.",
         "enum": [
@@ -10769,217 +10415,6 @@
           "has_more"
         ],
         "title": "PaginationMeta",
-        "type": "object"
-      },
-      "PerformanceAlert": {
-        "description": "Alert when metric exceeds threshold.",
-        "example": {
-          "message": "GPU temperature high: 82C",
-          "metric": "gpu_temperature",
-          "severity": "warning",
-          "threshold": 80,
-          "value": 82
-        },
-        "properties": {
-          "message": {
-            "description": "Human-readable alert message",
-            "title": "Message",
-            "type": "string"
-          },
-          "metric": {
-            "description": "Metric name that triggered the alert",
-            "title": "Metric",
-            "type": "string"
-          },
-          "severity": {
-            "description": "Alert severity: warning or critical",
-            "title": "Severity",
-            "type": "string"
-          },
-          "threshold": {
-            "description": "Threshold that was exceeded",
-            "title": "Threshold",
-            "type": "number"
-          },
-          "value": {
-            "description": "Current metric value",
-            "title": "Value",
-            "type": "number"
-          }
-        },
-        "required": [
-          "severity",
-          "metric",
-          "value",
-          "threshold",
-          "message"
-        ],
-        "title": "PerformanceAlert",
-        "type": "object"
-      },
-      "PerformanceHistoryResponse": {
-        "description": "Response containing historical performance data.\n\nUsed by GET /api/system/performance/history endpoint.",
-        "example": {
-          "count": 0,
-          "snapshots": [],
-          "time_range": "5m"
-        },
-        "properties": {
-          "count": {
-            "description": "Number of snapshots returned",
-            "minimum": 0.0,
-            "title": "Count",
-            "type": "integer"
-          },
-          "snapshots": {
-            "description": "List of performance snapshots ordered chronologically",
-            "items": {
-              "$ref": "#/components/schemas/PerformanceUpdate"
-            },
-            "title": "Snapshots",
-            "type": "array"
-          },
-          "time_range": {
-            "$ref": "#/components/schemas/TimeRange",
-            "description": "Time range of the history"
-          }
-        },
-        "required": [
-          "snapshots",
-          "time_range",
-          "count"
-        ],
-        "title": "PerformanceHistoryResponse",
-        "type": "object"
-      },
-      "PerformanceUpdate": {
-        "description": "Complete performance update sent via WebSocket.\n\nThis is the main payload broadcast to frontend clients every 5 seconds.\nAll fields are optional to allow partial updates.",
-        "example": {
-          "ai_models": {
-            "rtdetr": {
-              "device": "cuda:0",
-              "model": "rtdetr",
-              "status": "healthy",
-              "vram_gb": 0.17
-            }
-          },
-          "alerts": [],
-          "gpu": {
-            "name": "NVIDIA RTX A5500",
-            "power_watts": 31,
-            "temperature": 38,
-            "utilization": 38.0,
-            "vram_total_gb": 24.0,
-            "vram_used_gb": 22.7
-          },
-          "host": {
-            "cpu_percent": 12,
-            "disk_total_gb": 500,
-            "disk_used_gb": 156,
-            "ram_total_gb": 32,
-            "ram_used_gb": 8.2
-          },
-          "timestamp": "2025-12-31T10:30:00Z"
-        },
-        "properties": {
-          "ai_models": {
-            "additionalProperties": {
-              "anyOf": [
-                {
-                  "$ref": "#/components/schemas/AiModelMetrics"
-                },
-                {
-                  "$ref": "#/components/schemas/NemotronMetrics"
-                }
-              ]
-            },
-            "description": "AI model metrics keyed by model name",
-            "title": "Ai Models",
-            "type": "object"
-          },
-          "alerts": {
-            "description": "Active performance alerts",
-            "items": {
-              "$ref": "#/components/schemas/PerformanceAlert"
-            },
-            "title": "Alerts",
-            "type": "array"
-          },
-          "containers": {
-            "description": "Container health statuses",
-            "items": {
-              "$ref": "#/components/schemas/ContainerMetrics"
-            },
-            "title": "Containers",
-            "type": "array"
-          },
-          "databases": {
-            "additionalProperties": {
-              "anyOf": [
-                {
-                  "$ref": "#/components/schemas/DatabaseMetrics"
-                },
-                {
-                  "$ref": "#/components/schemas/RedisMetrics"
-                }
-              ]
-            },
-            "description": "Database metrics keyed by name",
-            "title": "Databases",
-            "type": "object"
-          },
-          "gpu": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/GpuMetrics"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "GPU metrics"
-          },
-          "host": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/HostMetrics"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Host system metrics"
-          },
-          "inference": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/InferenceMetrics"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "AI inference latency and throughput"
-          },
-          "nemotron": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/NemotronMetrics"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Nemotron-specific metrics"
-          },
-          "timestamp": {
-            "description": "When this update was generated (UTC)",
-            "format": "date-time",
-            "title": "Timestamp",
-            "type": "string"
-          }
-        },
-        "title": "PerformanceUpdate",
         "type": "object"
       },
       "PetEnrichment": {
@@ -13131,57 +12566,6 @@
         "title": "RedisInfoResponse",
         "type": "object"
       },
-      "RedisMetrics": {
-        "description": "Redis cache metrics.",
-        "example": {
-          "blocked_clients": 0,
-          "connected_clients": 8,
-          "hit_ratio": 99.5,
-          "memory_mb": 1.5,
-          "status": "healthy"
-        },
-        "properties": {
-          "blocked_clients": {
-            "description": "Number of blocked clients",
-            "minimum": 0.0,
-            "title": "Blocked Clients",
-            "type": "integer"
-          },
-          "connected_clients": {
-            "description": "Number of connected clients",
-            "minimum": 0.0,
-            "title": "Connected Clients",
-            "type": "integer"
-          },
-          "hit_ratio": {
-            "description": "Cache hit ratio percentage",
-            "maximum": 100.0,
-            "minimum": 0.0,
-            "title": "Hit Ratio",
-            "type": "number"
-          },
-          "memory_mb": {
-            "description": "Memory used in MB",
-            "minimum": 0.0,
-            "title": "Memory Mb",
-            "type": "number"
-          },
-          "status": {
-            "description": "Health status: healthy, unhealthy, unreachable",
-            "title": "Status",
-            "type": "string"
-          }
-        },
-        "required": [
-          "status",
-          "connected_clients",
-          "memory_mb",
-          "hit_ratio",
-          "blocked_clients"
-        ],
-        "title": "RedisMetrics",
-        "type": "object"
-      },
       "ReplayResponse": {
         "description": "Response for request replay.",
         "properties": {
@@ -14961,16 +14345,6 @@
         ],
         "title": "TestNotificationResponse",
         "type": "object"
-      },
-      "TimeRange": {
-        "description": "Time range options for historical data.",
-        "enum": [
-          "5m",
-          "15m",
-          "60m"
-        ],
-        "title": "TimeRange",
-        "type": "string"
       },
       "ValidationError": {
         "properties": {
@@ -24007,71 +23381,6 @@
           }
         },
         "summary": "Get Model Status",
-        "tags": [
-          "system"
-        ]
-      }
-    },
-    "/api/system/performance": {
-      "get": {
-        "description": "Get current system performance metrics.\n\nCollects and returns real-time metrics from all system components:\n- GPU: Utilization, VRAM usage, temperature, power consumption\n- AI Models: RT-DETRv2 and Nemotron status and resource usage\n- Inference: Latency percentiles and throughput metrics\n- Databases: PostgreSQL and Redis connection status and performance\n- Host: CPU, RAM, and disk usage\n- Containers: Health status of all running containers\n- Alerts: Active performance alerts when thresholds are exceeded\n\nThis endpoint powers the System Performance Dashboard and provides\na comprehensive snapshot of system health at the time of the request.\n\nReturns:\n    PerformanceUpdate with all available metrics. Fields may be None\n    if a particular metric source is unavailable.\n\nRaises:\n    HTTPException: 503 if performance collector is not initialized\n    HTTPException: 500 if metric collection fails",
-        "operationId": "get_performance_metrics_api_system_performance_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PerformanceUpdate"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Get Performance Metrics",
-        "tags": [
-          "system"
-        ]
-      }
-    },
-    "/api/system/performance/history": {
-      "get": {
-        "description": "Get historical system performance metrics.\n\nReturns historical performance snapshots for time-series visualization.\nThe data is sampled based on the requested time range to provide\napproximately 60 data points for each range:\n\n- 5m: All snapshots from the last 5 minutes (every 5s = 60 points max)\n- 15m: Sampled snapshots from last 15 minutes (every 15s = 60 points max)\n- 60m: Sampled snapshots from last 60 minutes (every 60s = 60 points max)\n\nThis endpoint enables the System Performance Dashboard to display\nhistorical trends and patterns in system metrics.\n\nArgs:\n    time_range: Time range for history (5m, 15m, or 60m). Defaults to 5m.\n\nReturns:\n    PerformanceHistoryResponse containing:\n    - snapshots: List of PerformanceUpdate objects in chronological order\n    - time_range: The requested time range\n    - count: Number of snapshots returned",
-        "operationId": "get_performance_history_api_system_performance_history_get",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "time_range",
-            "required": false,
-            "schema": {
-              "$ref": "#/components/schemas/TimeRange",
-              "default": "5m"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PerformanceHistoryResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Get Performance History",
         "tags": [
           "system"
         ]
