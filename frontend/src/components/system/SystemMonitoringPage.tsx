@@ -650,8 +650,8 @@ export default function SystemMonitoringPage() {
     return () => clearInterval(interval);
   }, []);
 
-  // Loading state
-  if (loading || healthLoading) {
+  // Loading state - don't show loading if there's already an error
+  if ((loading || healthLoading) && !error && !healthError) {
     return (
       <div className="min-h-screen bg-[#121212] p-8" data-testid="system-monitoring-loading">
         <div className="mx-auto max-w-[1920px]">
@@ -672,8 +672,9 @@ export default function SystemMonitoringPage() {
     );
   }
 
-  // Error state
-  if (error) {
+  // Error state - check both local error and healthError from React Query
+  const displayError = error || (healthError ? healthError.message : null);
+  if (displayError) {
     return (
       <div
         className="flex min-h-screen items-center justify-center bg-[#121212] p-8"
@@ -682,7 +683,7 @@ export default function SystemMonitoringPage() {
         <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-6 text-center">
           <AlertCircle className="mx-auto mb-4 h-12 w-12 text-red-500" />
           <h2 className="mb-2 text-xl font-bold text-red-500">Error Loading System Data</h2>
-          <p className="text-sm text-gray-300">{error}</p>
+          <p className="text-sm text-gray-300">{displayError}</p>
           <button
             onClick={() => window.location.reload()}
             className="mt-4 rounded-md bg-red-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-800"

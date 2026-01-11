@@ -158,6 +158,7 @@ export const errorMockConfig: ApiMockConfig = {
   eventsError: true,
   gpuError: true,
   systemHealthError: true,
+  systemStatsError: true,
   logsError: true,
   auditError: true,
   telemetryError: true,

@@ -601,10 +601,10 @@ describe('SystemMonitoringPage', () => {
 
       render(<SystemMonitoringPage />);
 
+      // When healthError occurs, the main error UI is shown
       await waitFor(() => {
-        expect(
-          screen.getByText(`Failed to fetch service health: ${errorMessage}`)
-        ).toBeInTheDocument();
+        expect(screen.getByTestId('system-monitoring-error')).toBeInTheDocument();
+        expect(screen.getByText(errorMessage)).toBeInTheDocument();
       });
     });
   });
