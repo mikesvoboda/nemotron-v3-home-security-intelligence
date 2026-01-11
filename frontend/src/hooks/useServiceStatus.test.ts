@@ -61,7 +61,9 @@ describe('useServiceStatus', () => {
     expect(result.current.services.rtdetr).toBeNull();
     expect(result.current.services.nemotron).toBeNull();
     expect(result.current.hasUnhealthy).toBe(false);
+    expect(result.current.hasDegraded).toBe(false);
     expect(result.current.isAnyRestarting).toBe(false);
+    expect(result.current.allHealthy).toBe(false);
   });
 
   it('should update state on websocket message (test_updates_on_websocket_message)', () => {
@@ -494,5 +496,254 @@ describe('useServiceStatus', () => {
     });
 
     expect(result.current.isAnyRestarting).toBe(false);
+  });
+
+  // Tests for new features: allHealthy, hasDegraded, onStatusChange callback
+
+  describe('allHealthy', () => {
+    it('should return false when no services have reported yet', () => {
+      const { result } = renderHook(() => useServiceStatus());
+
+      expect(result.current.allHealthy).toBe(false);
+    });
+
+    it('should return false when only some services are healthy', () => {
+      const { result } = renderHook(() => useServiceStatus());
+
+      act(() => {
+        onMessageCallback?.(createServiceStatusMessage('rtdetr', 'healthy'));
+        onMessageCallback?.(createServiceStatusMessage('nemotron', 'healthy'));
+        // redis hasn't reported yet
+      });
+
+      expect(result.current.allHealthy).toBe(false);
+    });
+
+    it('should return true when all services are healthy', () => {
+      const { result } = renderHook(() => useServiceStatus());
+
+      act(() => {
+        onMessageCallback?.(createServiceStatusMessage('rtdetr', 'healthy'));
+        onMessageCallback?.(createServiceStatusMessage('nemotron', 'healthy'));
+        onMessageCallback?.(createServiceStatusMessage('redis', 'healthy'));
+      });
+
+      expect(result.current.allHealthy).toBe(true);
+    });
+
+    it('should return false when any service is unhealthy', () => {
+      const { result } = renderHook(() => useServiceStatus());
+
+      act(() => {
+        onMessageCallback?.(createServiceStatusMessage('rtdetr', 'healthy'));
+        onMessageCallback?.(createServiceStatusMessage('nemotron', 'unhealthy'));
+        onMessageCallback?.(createServiceStatusMessage('redis', 'healthy'));
+      });
+
+      expect(result.current.allHealthy).toBe(false);
+    });
+
+    it('should return false when any service is restarting', () => {
+      const { result } = renderHook(() => useServiceStatus());
+
+      act(() => {
+        onMessageCallback?.(createServiceStatusMessage('rtdetr', 'healthy'));
+        onMessageCallback?.(createServiceStatusMessage('nemotron', 'healthy'));
+        onMessageCallback?.(createServiceStatusMessage('redis', 'restarting'));
+      });
+
+      expect(result.current.allHealthy).toBe(false);
+    });
+
+    it('should transition from false to true when last service becomes healthy', () => {
+      const { result } = renderHook(() => useServiceStatus());
+
+      act(() => {
+        onMessageCallback?.(createServiceStatusMessage('rtdetr', 'healthy'));
+        onMessageCallback?.(createServiceStatusMessage('nemotron', 'healthy'));
+      });
+
+      expect(result.current.allHealthy).toBe(false);
+
+      act(() => {
+        onMessageCallback?.(createServiceStatusMessage('redis', 'healthy'));
+      });
+
+      expect(result.current.allHealthy).toBe(true);
+    });
+  });
+
+  describe('hasDegraded', () => {
+    it('should return false initially', () => {
+      const { result } = renderHook(() => useServiceStatus());
+
+      expect(result.current.hasDegraded).toBe(false);
+    });
+
+    it('should return true when a service is restarting', () => {
+      const { result } = renderHook(() => useServiceStatus());
+
+      act(() => {
+        onMessageCallback?.(createServiceStatusMessage('rtdetr', 'restarting'));
+      });
+
+      expect(result.current.hasDegraded).toBe(true);
+    });
+
+    it('should return false when all services are healthy', () => {
+      const { result } = renderHook(() => useServiceStatus());
+
+      act(() => {
+        onMessageCallback?.(createServiceStatusMessage('rtdetr', 'healthy'));
+        onMessageCallback?.(createServiceStatusMessage('nemotron', 'healthy'));
+        onMessageCallback?.(createServiceStatusMessage('redis', 'healthy'));
+      });
+
+      expect(result.current.hasDegraded).toBe(false);
+    });
+
+    it('should return false when a service is unhealthy (not degraded)', () => {
+      const { result } = renderHook(() => useServiceStatus());
+
+      act(() => {
+        onMessageCallback?.(createServiceStatusMessage('rtdetr', 'unhealthy'));
+      });
+
+      // unhealthy is not degraded, it's a failure state
+      expect(result.current.hasDegraded).toBe(false);
+      expect(result.current.hasUnhealthy).toBe(true);
+    });
+  });
+
+  describe('onStatusChange callback', () => {
+    it('should call callback when service status changes', () => {
+      const onStatusChange = vi.fn();
+      const { result } = renderHook(() => useServiceStatus({ onStatusChange }));
+
+      act(() => {
+        onMessageCallback?.(createServiceStatusMessage('rtdetr', 'healthy', 'Running'));
+      });
+
+      expect(onStatusChange).toHaveBeenCalledTimes(1);
+      expect(onStatusChange).toHaveBeenCalledWith(
+        'rtdetr',
+        expect.objectContaining({
+          service: 'rtdetr',
+          status: 'healthy',
+          message: 'Running',
+        }),
+        null // previous status was null
+      );
+      expect(result.current.services.rtdetr?.status).toBe('healthy');
+    });
+
+    it('should pass previous status to callback on subsequent updates', () => {
+      const onStatusChange = vi.fn();
+      renderHook(() => useServiceStatus({ onStatusChange }));
+
+      act(() => {
+        onMessageCallback?.(createServiceStatusMessage('rtdetr', 'healthy', 'Running'));
+      });
+
+      onStatusChange.mockClear();
+
+      act(() => {
+        onMessageCallback?.(createServiceStatusMessage('rtdetr', 'unhealthy', 'Crashed'));
+      });
+
+      expect(onStatusChange).toHaveBeenCalledTimes(1);
+      expect(onStatusChange).toHaveBeenCalledWith(
+        'rtdetr',
+        expect.objectContaining({
+          service: 'rtdetr',
+          status: 'unhealthy',
+          message: 'Crashed',
+        }),
+        expect.objectContaining({
+          service: 'rtdetr',
+          status: 'healthy',
+          message: 'Running',
+        })
+      );
+    });
+
+    it('should call callback for each service independently', () => {
+      const onStatusChange = vi.fn();
+      renderHook(() => useServiceStatus({ onStatusChange }));
+
+      act(() => {
+        onMessageCallback?.(createServiceStatusMessage('rtdetr', 'healthy'));
+      });
+
+      act(() => {
+        onMessageCallback?.(createServiceStatusMessage('nemotron', 'unhealthy'));
+      });
+
+      expect(onStatusChange).toHaveBeenCalledTimes(2);
+      expect(onStatusChange).toHaveBeenNthCalledWith(
+        1,
+        'rtdetr',
+        expect.objectContaining({ status: 'healthy' }),
+        null
+      );
+      expect(onStatusChange).toHaveBeenNthCalledWith(
+        2,
+        'nemotron',
+        expect.objectContaining({ status: 'unhealthy' }),
+        null
+      );
+    });
+
+    it('should not call callback when non-service-status messages are received', () => {
+      const onStatusChange = vi.fn();
+      renderHook(() => useServiceStatus({ onStatusChange }));
+
+      act(() => {
+        onMessageCallback?.({ type: 'system_status', data: { health: 'healthy' } });
+        onMessageCallback?.({ type: 'event', data: { id: 1 } });
+        onMessageCallback?.(null);
+      });
+
+      expect(onStatusChange).not.toHaveBeenCalled();
+    });
+
+    it('should handle callback being undefined', () => {
+      // Should not throw when no callback is provided
+      const { result } = renderHook(() => useServiceStatus());
+
+      act(() => {
+        onMessageCallback?.(createServiceStatusMessage('rtdetr', 'healthy'));
+      });
+
+      expect(result.current.services.rtdetr?.status).toBe('healthy');
+    });
+
+    it('should use updated callback reference after rerender', () => {
+      const firstCallback = vi.fn();
+      const secondCallback = vi.fn();
+
+      const { rerender } = renderHook(
+        ({ callback }) => useServiceStatus({ onStatusChange: callback }),
+        { initialProps: { callback: firstCallback } }
+      );
+
+      act(() => {
+        onMessageCallback?.(createServiceStatusMessage('rtdetr', 'healthy'));
+      });
+
+      expect(firstCallback).toHaveBeenCalledTimes(1);
+      expect(secondCallback).not.toHaveBeenCalled();
+
+      // Update the callback
+      rerender({ callback: secondCallback });
+
+      act(() => {
+        onMessageCallback?.(createServiceStatusMessage('rtdetr', 'unhealthy'));
+      });
+
+      // First callback should still have 1 call, second should have 1
+      expect(firstCallback).toHaveBeenCalledTimes(1);
+      expect(secondCallback).toHaveBeenCalledTimes(1);
+    });
   });
 });

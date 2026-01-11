@@ -55,10 +55,22 @@ export interface UseSceneChangeAlertsReturn {
   dismissAlert: (id: number) => void;
   /** Dismiss all alerts */
   dismissAll: () => void;
+  /** Acknowledge a specific alert (alias for dismissAlert) */
+  acknowledgeAlert: (id: number) => void;
+  /** Acknowledge all alerts (alias for dismissAll) */
+  acknowledgeAll: () => void;
   /** Clear all alerts from memory */
   clearAlerts: () => void;
   /** WebSocket connection status */
   isConnected: boolean;
+  /** Whether any camera has a blocked view */
+  hasBlockedCameras: boolean;
+  /** Whether any camera has been tampered with */
+  hasTamperedCameras: boolean;
+  /** Camera IDs with blocked views */
+  blockedCameraIds: string[];
+  /** Camera IDs with tampered views */
+  tamperedCameraIds: string[];
 }
 
 const DEFAULT_MAX_ALERTS = 50;
@@ -184,14 +196,44 @@ export function useSceneChangeAlerts(
 
   const hasAlerts = unacknowledgedCount > 0;
 
+  // Computed flags for blocked/tampered cameras (only unacknowledged alerts)
+  const blockedCameraIds = useMemo(
+    () =>
+      [...new Set(
+        alerts
+          .filter((alert) => !alert.dismissed && alert.changeType === 'view_blocked')
+          .map((alert) => alert.cameraId)
+      )],
+    [alerts]
+  );
+
+  const tamperedCameraIds = useMemo(
+    () =>
+      [...new Set(
+        alerts
+          .filter((alert) => !alert.dismissed && alert.changeType === 'view_tampered')
+          .map((alert) => alert.cameraId)
+      )],
+    [alerts]
+  );
+
+  const hasBlockedCameras = blockedCameraIds.length > 0;
+  const hasTamperedCameras = tamperedCameraIds.length > 0;
+
   return {
     alerts,
     unacknowledgedCount,
     hasAlerts,
     dismissAlert,
     dismissAll,
+    acknowledgeAlert: dismissAlert,
+    acknowledgeAll: dismissAll,
     clearAlerts,
     isConnected,
+    hasBlockedCameras,
+    hasTamperedCameras,
+    blockedCameraIds,
+    tamperedCameraIds,
   };
 }
 

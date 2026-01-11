@@ -282,6 +282,212 @@ describe('useSceneChangeAlerts', () => {
 
     expect(result.current.alerts).toEqual([]);
   });
+
+  describe('computed flags for blocked/tampered cameras', () => {
+    it('returns empty arrays and false flags when no alerts', () => {
+      const { result } = renderHook(() => useSceneChangeAlerts());
+
+      expect(result.current.blockedCameraIds).toEqual([]);
+      expect(result.current.tamperedCameraIds).toEqual([]);
+      expect(result.current.hasBlockedCameras).toBe(false);
+      expect(result.current.hasTamperedCameras).toBe(false);
+    });
+
+    it('detects blocked cameras', () => {
+      const { result } = renderHook(() => useSceneChangeAlerts());
+
+      act(() => {
+        onMessageCallback!({
+          type: 'scene_change',
+          data: {
+            id: 1,
+            camera_id: 'front_door',
+            detected_at: '2026-01-10T10:00:00Z',
+            change_type: 'view_blocked',
+            similarity_score: 0.25,
+          },
+        });
+      });
+
+      expect(result.current.blockedCameraIds).toEqual(['front_door']);
+      expect(result.current.hasBlockedCameras).toBe(true);
+      expect(result.current.tamperedCameraIds).toEqual([]);
+      expect(result.current.hasTamperedCameras).toBe(false);
+    });
+
+    it('detects tampered cameras', () => {
+      const { result } = renderHook(() => useSceneChangeAlerts());
+
+      act(() => {
+        onMessageCallback!({
+          type: 'scene_change',
+          data: {
+            id: 1,
+            camera_id: 'back_yard',
+            detected_at: '2026-01-10T10:00:00Z',
+            change_type: 'view_tampered',
+            similarity_score: 0.15,
+          },
+        });
+      });
+
+      expect(result.current.tamperedCameraIds).toEqual(['back_yard']);
+      expect(result.current.hasTamperedCameras).toBe(true);
+      expect(result.current.blockedCameraIds).toEqual([]);
+      expect(result.current.hasBlockedCameras).toBe(false);
+    });
+
+    it('deduplicates camera IDs', () => {
+      const { result } = renderHook(() => useSceneChangeAlerts());
+
+      // Add two blocked alerts for the same camera
+      act(() => {
+        onMessageCallback!({
+          type: 'scene_change',
+          data: {
+            id: 1,
+            camera_id: 'front_door',
+            detected_at: '2026-01-10T10:00:00Z',
+            change_type: 'view_blocked',
+            similarity_score: 0.25,
+          },
+        });
+      });
+
+      act(() => {
+        onMessageCallback!({
+          type: 'scene_change',
+          data: {
+            id: 2,
+            camera_id: 'front_door',
+            detected_at: '2026-01-10T10:01:00Z',
+            change_type: 'view_blocked',
+            similarity_score: 0.20,
+          },
+        });
+      });
+
+      expect(result.current.blockedCameraIds).toEqual(['front_door']);
+      expect(result.current.alerts).toHaveLength(2);
+    });
+
+    it('excludes dismissed alerts from computed flags', () => {
+      const { result } = renderHook(() => useSceneChangeAlerts());
+
+      act(() => {
+        onMessageCallback!({
+          type: 'scene_change',
+          data: {
+            id: 1,
+            camera_id: 'front_door',
+            detected_at: '2026-01-10T10:00:00Z',
+            change_type: 'view_blocked',
+            similarity_score: 0.25,
+          },
+        });
+      });
+
+      expect(result.current.hasBlockedCameras).toBe(true);
+
+      // Dismiss the alert
+      act(() => {
+        result.current.dismissAlert(1);
+      });
+
+      expect(result.current.blockedCameraIds).toEqual([]);
+      expect(result.current.hasBlockedCameras).toBe(false);
+    });
+
+    it('does not include angle_changed in blocked or tampered lists', () => {
+      const { result } = renderHook(() => useSceneChangeAlerts());
+
+      act(() => {
+        onMessageCallback!({
+          type: 'scene_change',
+          data: {
+            id: 1,
+            camera_id: 'side_entrance',
+            detected_at: '2026-01-10T10:00:00Z',
+            change_type: 'angle_changed',
+            similarity_score: 0.45,
+          },
+        });
+      });
+
+      expect(result.current.alerts).toHaveLength(1);
+      expect(result.current.blockedCameraIds).toEqual([]);
+      expect(result.current.tamperedCameraIds).toEqual([]);
+      expect(result.current.hasBlockedCameras).toBe(false);
+      expect(result.current.hasTamperedCameras).toBe(false);
+    });
+  });
+
+  describe('acknowledge aliases', () => {
+    it('acknowledgeAlert works the same as dismissAlert', () => {
+      const { result } = renderHook(() => useSceneChangeAlerts());
+
+      act(() => {
+        onMessageCallback!({
+          type: 'scene_change',
+          data: {
+            id: 1,
+            camera_id: 'front_door',
+            detected_at: '2026-01-10T10:00:00Z',
+            change_type: 'view_blocked',
+            similarity_score: 0.25,
+          },
+        });
+      });
+
+      expect(result.current.unacknowledgedCount).toBe(1);
+
+      act(() => {
+        result.current.acknowledgeAlert(1);
+      });
+
+      expect(result.current.unacknowledgedCount).toBe(0);
+      expect(result.current.alerts[0].dismissed).toBe(true);
+    });
+
+    it('acknowledgeAll works the same as dismissAll', () => {
+      const { result } = renderHook(() => useSceneChangeAlerts());
+
+      act(() => {
+        onMessageCallback!({
+          type: 'scene_change',
+          data: {
+            id: 1,
+            camera_id: 'front_door',
+            detected_at: '2026-01-10T10:00:00Z',
+            change_type: 'view_blocked',
+            similarity_score: 0.25,
+          },
+        });
+      });
+
+      act(() => {
+        onMessageCallback!({
+          type: 'scene_change',
+          data: {
+            id: 2,
+            camera_id: 'back_yard',
+            detected_at: '2026-01-10T10:01:00Z',
+            change_type: 'view_tampered',
+            similarity_score: 0.20,
+          },
+        });
+      });
+
+      expect(result.current.unacknowledgedCount).toBe(2);
+
+      act(() => {
+        result.current.acknowledgeAll();
+      });
+
+      expect(result.current.unacknowledgedCount).toBe(0);
+      expect(result.current.alerts.every((a) => a.dismissed)).toBe(true);
+    });
+  });
 });
 
 describe('formatChangeType', () => {

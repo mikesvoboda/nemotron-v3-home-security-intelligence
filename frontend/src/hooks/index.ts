@@ -200,8 +200,18 @@ export type {
   ServiceName,
   ServiceStatusType,
   ServiceStatus,
+  ServiceStatusChangeCallback,
+  UseServiceStatusOptions,
   UseServiceStatusResult,
 } from './useServiceStatus';
+
+export { useCircuitBreakerStatus } from './useCircuitBreakerStatus';
+export type {
+  CircuitBreakerStateType,
+  CircuitBreakerState,
+  CircuitBreakerSummary,
+  UseCircuitBreakerStatusReturn,
+} from './useCircuitBreakerStatus';
 
 export { useSceneChangeAlerts, formatChangeType, getChangeSeverity } from './useSceneChangeAlerts';
 export type {
