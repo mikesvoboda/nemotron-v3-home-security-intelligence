@@ -17,9 +17,10 @@ from backend.api.routes.entities import (
     _get_thumbnail_url,
     get_entity,
     get_entity_history,
+    get_entity_matches,
     list_entities,
 )
-from backend.services.reid_service import EntityEmbedding
+from backend.services.reid_service import EntityEmbedding, EntityMatch
 
 
 class TestThumbnailUrl:
@@ -1034,3 +1035,263 @@ class TestGetEntityHistoryEdgeCases:
         assert result.entity_type == "vehicle"
         assert result.count == 1
         assert result.appearances[0].attributes == {"color": "red"}
+
+
+class TestGetEntityMatches:
+    """Tests for GET /api/entities/matches/{detection_id} endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_get_matches_no_redis(self) -> None:
+        """Test getting matches when Redis is not available."""
+        mock_service = MagicMock()
+
+        with (
+            patch(
+                "backend.api.routes.entities._get_redis_client",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
+            pytest.raises(Exception) as exc_info,
+        ):
+            await get_entity_matches(
+                "det_001",
+                entity_type=EntityTypeEnum.person,
+                threshold=0.85,
+                reid_service=mock_service,
+            )
+
+        assert exc_info.value.status_code == 503
+
+    @pytest.mark.asyncio
+    async def test_get_matches_no_embedding_found(self) -> None:
+        """Test getting matches when no embedding exists for detection."""
+        mock_redis = MagicMock()
+        mock_service = MagicMock()
+        mock_service.get_entity_history = AsyncMock(return_value=[])
+
+        with (
+            patch(
+                "backend.api.routes.entities._get_redis_client",
+                new_callable=AsyncMock,
+                return_value=mock_redis,
+            ),
+            pytest.raises(Exception) as exc_info,
+        ):
+            await get_entity_matches(
+                "nonexistent",
+                entity_type=EntityTypeEnum.person,
+                threshold=0.85,
+                reid_service=mock_service,
+            )
+
+        assert exc_info.value.status_code == 404
+        assert "No embedding found" in str(exc_info.value.detail)
+
+    @pytest.mark.asyncio
+    async def test_get_matches_no_matches_found(self) -> None:
+        """Test getting matches when no similar entities found."""
+        mock_redis = MagicMock()
+        mock_service = MagicMock()
+
+        # Create query embedding
+        query_embedding = EntityEmbedding(
+            entity_type="person",
+            embedding=[0.1] * 768,
+            camera_id="front_door",
+            timestamp=datetime(2025, 12, 23, 10, 0, 0, tzinfo=UTC),
+            detection_id="det_001",
+            attributes={},
+        )
+
+        mock_service.get_entity_history = AsyncMock(return_value=[query_embedding])
+        mock_service.find_matching_entities = AsyncMock(return_value=[])
+
+        with patch(
+            "backend.api.routes.entities._get_redis_client",
+            new_callable=AsyncMock,
+            return_value=mock_redis,
+        ):
+            result = await get_entity_matches(
+                "det_001",
+                entity_type=EntityTypeEnum.person,
+                threshold=0.85,
+                reid_service=mock_service,
+            )
+
+        assert result.query_detection_id == "det_001"
+        assert result.entity_type == "person"
+        assert result.total_matches == 0
+        assert result.matches == []
+        assert result.threshold == 0.85
+
+    @pytest.mark.asyncio
+    async def test_get_matches_success(self) -> None:
+        """Test getting matches successfully."""
+        mock_redis = MagicMock()
+        mock_service = MagicMock()
+
+        # Create query embedding
+        query_embedding = EntityEmbedding(
+            entity_type="person",
+            embedding=[0.1] * 768,
+            camera_id="front_door",
+            timestamp=datetime(2025, 12, 23, 10, 0, 0, tzinfo=UTC),
+            detection_id="det_001",
+            attributes={},
+        )
+
+        # Create matching embedding
+        matched_embedding = EntityEmbedding(
+            entity_type="person",
+            embedding=[0.1] * 768,
+            camera_id="backyard",
+            timestamp=datetime(2025, 12, 23, 9, 0, 0, tzinfo=UTC),
+            detection_id="det_002",
+            attributes={"clothing": "blue jacket"},
+        )
+
+        mock_service.get_entity_history = AsyncMock(
+            return_value=[query_embedding, matched_embedding]
+        )
+        mock_service.find_matching_entities = AsyncMock(
+            return_value=[
+                EntityMatch(
+                    entity=matched_embedding,
+                    similarity=0.92,
+                    time_gap_seconds=3600.0,
+                )
+            ]
+        )
+
+        with patch(
+            "backend.api.routes.entities._get_redis_client",
+            new_callable=AsyncMock,
+            return_value=mock_redis,
+        ):
+            result = await get_entity_matches(
+                "det_001",
+                entity_type=EntityTypeEnum.person,
+                threshold=0.85,
+                reid_service=mock_service,
+            )
+
+        assert result.query_detection_id == "det_001"
+        assert result.entity_type == "person"
+        assert result.total_matches == 1
+        assert len(result.matches) == 1
+        assert result.matches[0].entity_id == "det_002"
+        assert result.matches[0].similarity_score == 0.92
+        assert result.matches[0].time_gap_seconds == 3600.0
+        assert result.matches[0].attributes == {"clothing": "blue jacket"}
+        assert result.matches[0].camera_name == "Backyard"
+
+    @pytest.mark.asyncio
+    async def test_get_matches_vehicle_type(self) -> None:
+        """Test getting matches for vehicle entity type."""
+        mock_redis = MagicMock()
+        mock_service = MagicMock()
+
+        # Create query embedding
+        query_embedding = EntityEmbedding(
+            entity_type="vehicle",
+            embedding=[0.1] * 768,
+            camera_id="driveway",
+            timestamp=datetime(2025, 12, 23, 10, 0, 0, tzinfo=UTC),
+            detection_id="det_001",
+            attributes={"color": "red"},
+        )
+
+        mock_service.get_entity_history = AsyncMock(return_value=[query_embedding])
+        mock_service.find_matching_entities = AsyncMock(return_value=[])
+
+        with patch(
+            "backend.api.routes.entities._get_redis_client",
+            new_callable=AsyncMock,
+            return_value=mock_redis,
+        ):
+            result = await get_entity_matches(
+                "det_001",
+                entity_type=EntityTypeEnum.vehicle,
+                threshold=0.80,
+                reid_service=mock_service,
+            )
+
+        # Verify correct entity type was searched
+        mock_service.get_entity_history.assert_called_once_with(
+            redis_client=mock_redis,
+            entity_type="vehicle",
+        )
+        mock_service.find_matching_entities.assert_called_once()
+        call_kwargs = mock_service.find_matching_entities.call_args.kwargs
+        assert call_kwargs["entity_type"] == "vehicle"
+        assert call_kwargs["threshold"] == 0.80
+        assert result.entity_type == "vehicle"
+
+    @pytest.mark.asyncio
+    async def test_get_matches_custom_threshold(self) -> None:
+        """Test getting matches with custom similarity threshold."""
+        mock_redis = MagicMock()
+        mock_service = MagicMock()
+
+        query_embedding = EntityEmbedding(
+            entity_type="person",
+            embedding=[0.1] * 768,
+            camera_id="front_door",
+            timestamp=datetime(2025, 12, 23, 10, 0, 0, tzinfo=UTC),
+            detection_id="det_001",
+            attributes={},
+        )
+
+        mock_service.get_entity_history = AsyncMock(return_value=[query_embedding])
+        mock_service.find_matching_entities = AsyncMock(return_value=[])
+
+        with patch(
+            "backend.api.routes.entities._get_redis_client",
+            new_callable=AsyncMock,
+            return_value=mock_redis,
+        ):
+            result = await get_entity_matches(
+                "det_001",
+                entity_type=EntityTypeEnum.person,
+                threshold=0.95,  # Higher threshold
+                reid_service=mock_service,
+            )
+
+        # Verify threshold was passed correctly
+        call_kwargs = mock_service.find_matching_entities.call_args.kwargs
+        assert call_kwargs["threshold"] == 0.95
+        assert result.threshold == 0.95
+
+    @pytest.mark.asyncio
+    async def test_get_matches_excludes_query_detection(self) -> None:
+        """Test that query detection is excluded from matches."""
+        mock_redis = MagicMock()
+        mock_service = MagicMock()
+
+        query_embedding = EntityEmbedding(
+            entity_type="person",
+            embedding=[0.1] * 768,
+            camera_id="front_door",
+            timestamp=datetime(2025, 12, 23, 10, 0, 0, tzinfo=UTC),
+            detection_id="det_001",
+            attributes={},
+        )
+
+        mock_service.get_entity_history = AsyncMock(return_value=[query_embedding])
+        mock_service.find_matching_entities = AsyncMock(return_value=[])
+
+        with patch(
+            "backend.api.routes.entities._get_redis_client",
+            new_callable=AsyncMock,
+            return_value=mock_redis,
+        ):
+            await get_entity_matches(
+                "det_001",
+                entity_type=EntityTypeEnum.person,
+                threshold=0.85,
+                reid_service=mock_service,
+            )
+
+        # Verify exclude_detection_id was passed
+        call_kwargs = mock_service.find_matching_entities.call_args.kwargs
+        assert call_kwargs["exclude_detection_id"] == "det_001"

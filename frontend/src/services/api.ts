@@ -3329,6 +3329,73 @@ export async function fetchEntityHistory(entityId: string): Promise<EntityHistor
   );
 }
 
+/**
+ * Single entity match result from re-identification
+ */
+export interface EntityMatchItem {
+  entity_id: string;
+  entity_type: 'person' | 'vehicle';
+  camera_id: string;
+  camera_name: string | null;
+  timestamp: string;
+  thumbnail_url: string | null;
+  similarity_score: number;
+  time_gap_seconds: number;
+  attributes: Record<string, unknown>;
+}
+
+/**
+ * Response from entity match query
+ */
+export interface EntityMatchResponse {
+  query_detection_id: string;
+  entity_type: string;
+  matches: EntityMatchItem[];
+  total_matches: number;
+  threshold: number;
+}
+
+/**
+ * Query parameters for fetching entity matches
+ */
+export interface EntityMatchQueryParams {
+  /** Type of entity to search ('person' or 'vehicle') */
+  entity_type?: 'person' | 'vehicle';
+  /** Minimum similarity threshold (0-1, default 0.85) */
+  threshold?: number;
+}
+
+/**
+ * Fetch entities matching a specific detection's embedding.
+ *
+ * Searches for entities similar to the specified detection across all cameras.
+ * Used to show re-ID matches in the EventDetailModal.
+ *
+ * @param detectionId - Detection ID to find matches for
+ * @param params - Query parameters for filtering
+ * @param options - Fetch options including AbortSignal
+ * @returns EntityMatchResponse with matching entities sorted by similarity
+ */
+export async function fetchEntityMatches(
+  detectionId: string,
+  params?: EntityMatchQueryParams,
+  options?: FetchOptions
+): Promise<EntityMatchResponse> {
+  const queryParams = new URLSearchParams();
+
+  if (params) {
+    if (params.entity_type) queryParams.append('entity_type', params.entity_type);
+    if (params.threshold !== undefined) queryParams.append('threshold', String(params.threshold));
+  }
+
+  const queryString = queryParams.toString();
+  const endpoint = queryString
+    ? `/api/entities/matches/${encodeURIComponent(detectionId)}?${queryString}`
+    : `/api/entities/matches/${encodeURIComponent(detectionId)}`;
+
+  return fetchApi<EntityMatchResponse>(endpoint, options);
+}
+
 // ============================================================================
 // Enriched Suggestion Types (Prompt Playground)
 // ============================================================================

@@ -1,0 +1,13 @@
+{
+  "model_name": "nemotron",
+  "config": {
+    "system_prompt": "Updated with version check",
+    "temperature": 0.7,
+    "max_tokens": 2048
+  },
+  "version": 23,
+  "created_at": "2026-01-11T14:23:58.544267+00:00",
+  "created_by": "user",
+  "description": null,
+  "updated_at": "2026-01-11T14:23:58.544267+00:00"
+}
