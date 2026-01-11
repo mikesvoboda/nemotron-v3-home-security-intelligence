@@ -62,13 +62,13 @@ HARDCODED_TABLE_DELETION_ORDER = [
     "events",
     "scene_changes",
     "camera_notification_settings",  # FK to cameras
+    "zones",  # FK to cameras - must be deleted before cameras
     # Second: Delete tables without FK references (standalone)
     "alert_rules",
     "audit_logs",
     "gpu_stats",
     "logs",
     "api_keys",
-    "zones",
     "prompt_configs",
     "quiet_hours_periods",
     "notification_preferences",
@@ -767,7 +767,14 @@ async def integration_db(integration_env: str) -> AsyncGenerator[str]:
     (development), tests share the database but use unique IDs to avoid
     conflicts. When testcontainers are used (CI), each module gets isolated
     containers.
+
+    Uses a PostgreSQL advisory lock to prevent deadlocks when multiple
+    pytest-xdist workers attempt to modify schema concurrently.
     """
+    import hashlib
+
+    from sqlalchemy import text
+
     from backend.core.config import get_settings
     from backend.core.database import close_db, get_engine, init_db
 
@@ -782,80 +789,99 @@ async def integration_db(integration_env: str) -> AsyncGenerator[str]:
     # Initialize database (creates engine)
     await init_db()
 
-    # Create all tables (no advisory lock needed)
+    # Advisory lock key for integration test schema initialization
+    # This prevents concurrent DDL operations that could cause deadlocks
+    _INTEGRATION_SCHEMA_LOCK_NAMESPACE = "home_security_intelligence.integration_test_schema"
+    _INTEGRATION_SCHEMA_LOCK_KEY = int(
+        hashlib.sha256(_INTEGRATION_SCHEMA_LOCK_NAMESPACE.encode()).hexdigest()[:15], 16
+    )
+
+    # Create all tables with advisory lock to prevent deadlock on concurrent DDL
     engine = get_engine()
     async with engine.begin() as conn:
-        await conn.run_sync(ModelsBase.metadata.create_all)
+        # Acquire advisory lock to serialize DDL operations across pytest-xdist workers
+        # Using pg_advisory_lock (blocking) to ensure all workers wait rather than skip
+        lock_sql = text(f"SELECT pg_advisory_lock({_INTEGRATION_SCHEMA_LOCK_KEY})")  # nosemgrep
+        await conn.execute(lock_sql)
 
-        # Add missing columns that create_all doesn't handle
-        # This handles schema drift without dropping data
-        from sqlalchemy import text
+        try:
+            # Create all tables
+            await conn.run_sync(ModelsBase.metadata.create_all)
 
-        # Add any missing columns (using IF NOT EXISTS for idempotency)
-        await conn.execute(text("ALTER TABLE events ADD COLUMN IF NOT EXISTS llm_prompt TEXT"))
-        await conn.execute(
-            text("ALTER TABLE detections ADD COLUMN IF NOT EXISTS enrichment_data JSONB")
-        )
-        # NEM-1652: Add soft delete columns
-        await conn.execute(
-            text("ALTER TABLE cameras ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE")
-        )
-        await conn.execute(
-            text("ALTER TABLE events ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE")
-        )
-
-        # Add unique indexes for cameras table (migration adds these for production)
-        # First, clean up any duplicate cameras that might prevent index creation
-
-        # Delete duplicate cameras by name (keep oldest)
-        await conn.execute(
-            text(
-                """
-                DELETE FROM cameras
-                WHERE id IN (
-                    SELECT id FROM (
-                        SELECT id,
-                               ROW_NUMBER() OVER (
-                                   PARTITION BY name
-                                   ORDER BY created_at ASC, id ASC
-                               ) as rn
-                        FROM cameras
-                    ) ranked
-                    WHERE rn > 1
+            # Add any missing columns (using IF NOT EXISTS for idempotency)
+            await conn.execute(text("ALTER TABLE events ADD COLUMN IF NOT EXISTS llm_prompt TEXT"))
+            await conn.execute(
+                text("ALTER TABLE detections ADD COLUMN IF NOT EXISTS enrichment_data JSONB")
+            )
+            # NEM-1652: Add soft delete columns
+            await conn.execute(
+                text(
+                    "ALTER TABLE cameras ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE"
                 )
-                """
             )
-        )
-
-        # Delete duplicate cameras by folder_path (keep oldest)
-        await conn.execute(
-            text(
-                """
-                DELETE FROM cameras
-                WHERE id IN (
-                    SELECT id FROM (
-                        SELECT id,
-                               ROW_NUMBER() OVER (
-                                   PARTITION BY folder_path
-                                   ORDER BY created_at ASC, id ASC
-                               ) as rn
-                        FROM cameras
-                    ) ranked
-                    WHERE rn > 1
+            await conn.execute(
+                text(
+                    "ALTER TABLE events ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE"
                 )
-                """
             )
-        )
 
-        # Now create unique indexes (using IF NOT EXISTS for idempotency)
-        await conn.execute(
-            text("CREATE UNIQUE INDEX IF NOT EXISTS idx_cameras_name_unique ON cameras (name)")
-        )
-        await conn.execute(
-            text(
-                "CREATE UNIQUE INDEX IF NOT EXISTS idx_cameras_folder_path_unique ON cameras (folder_path)"
+            # Add unique indexes for cameras table (migration adds these for production)
+            # First, clean up any duplicate cameras that might prevent index creation
+
+            # Delete duplicate cameras by name (keep oldest)
+            await conn.execute(
+                text(
+                    """
+                    DELETE FROM cameras
+                    WHERE id IN (
+                        SELECT id FROM (
+                            SELECT id,
+                                   ROW_NUMBER() OVER (
+                                       PARTITION BY name
+                                       ORDER BY created_at ASC, id ASC
+                                   ) as rn
+                            FROM cameras
+                        ) ranked
+                        WHERE rn > 1
+                    )
+                    """
+                )
             )
-        )
+
+            # Delete duplicate cameras by folder_path (keep oldest)
+            await conn.execute(
+                text(
+                    """
+                    DELETE FROM cameras
+                    WHERE id IN (
+                        SELECT id FROM (
+                            SELECT id,
+                                   ROW_NUMBER() OVER (
+                                       PARTITION BY folder_path
+                                       ORDER BY created_at ASC, id ASC
+                                   ) as rn
+                            FROM cameras
+                        ) ranked
+                        WHERE rn > 1
+                    )
+                    """
+                )
+            )
+
+            # Now create unique indexes (using IF NOT EXISTS for idempotency)
+            await conn.execute(
+                text("CREATE UNIQUE INDEX IF NOT EXISTS idx_cameras_name_unique ON cameras (name)")
+            )
+            await conn.execute(
+                text(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS idx_cameras_folder_path_unique ON cameras (folder_path)"
+                )
+            )
+        finally:
+            # Always release the advisory lock
+            # nosemgrep: python.sqlalchemy.security.audit.avoid-sqlalchemy-text.avoid-sqlalchemy-text, sqlalchemy-raw-text-injection
+            unlock_sql = text(f"SELECT pg_advisory_unlock({_INTEGRATION_SCHEMA_LOCK_KEY})")
+            await conn.execute(unlock_sql)
 
     try:
         yield integration_env
@@ -915,7 +941,7 @@ async def clean_tables(integration_db: str) -> AsyncGenerator[None]:
 
 
 @pytest.fixture
-async def db_session(integration_db: str) -> AsyncGenerator[None]:
+async def db_session(integration_db: str):
     """Yield a live AsyncSession bound to the integration test database.
 
     This fixture provides a database session for each test. When used with
@@ -935,7 +961,7 @@ async def db_session(integration_db: str) -> AsyncGenerator[None]:
 
 
 @pytest.fixture
-async def isolated_db_session(integration_db: str) -> AsyncGenerator[None]:
+async def isolated_db_session(integration_db: str):
     """Yield an isolated AsyncSession with transaction rollback for each test.
 
     This fixture provides a database session for each test with automatic
@@ -978,7 +1004,7 @@ async def isolated_db_session(integration_db: str) -> AsyncGenerator[None]:
 
 
 @pytest.fixture
-async def session(isolated_db_session: None) -> AsyncGenerator[None]:
+async def session(isolated_db_session):
     """Alias for isolated_db_session to maintain compatibility with tests using 'session'.
 
     This overrides the root conftest.py 'session' fixture for integration tests,
@@ -987,7 +1013,9 @@ async def session(isolated_db_session: None) -> AsyncGenerator[None]:
     Tests in backend/tests/integration/ that use the 'session' fixture will
     automatically use the worker-specific database.
     """
-    yield isolated_db_session
+    # isolated_db_session is the actual AsyncSession object, not None
+    # Just yield it directly for tests to use
+    return isolated_db_session
 
 
 @pytest.fixture
@@ -1104,7 +1132,7 @@ _cleanup_test_cameras = _cleanup_test_data
 
 
 @pytest.fixture
-async def client(integration_db: str, mock_redis: AsyncMock) -> AsyncGenerator[None]:
+async def client(integration_db: str, mock_redis: AsyncMock):
     """Async HTTP client bound to the FastAPI app (no network, no server startup).
 
     Notes:
@@ -1228,3 +1256,43 @@ def unique_id(prefix: str = "test") -> str:
     import uuid
 
     return f"{prefix}_{uuid.uuid4().hex[:8]}"
+
+
+def _unique_prefix() -> str:
+    """Generate a unique prefix for Redis keys to prevent collisions across parallel tests."""
+    import uuid
+
+    return f"test:{uuid.uuid4().hex[:8]}"
+
+
+@pytest.fixture
+async def test_prefix() -> str:
+    """Generate a unique prefix for this test to avoid key collisions in Redis.
+
+    This fixture is used by tests that interact with Redis to ensure that
+    parallel test execution doesn't cause key collisions. Each test gets
+    a unique prefix like "test:abc12345".
+    """
+    return _unique_prefix()
+
+
+@pytest.fixture
+async def cleanup_keys(real_redis: RedisClient, test_prefix: str):
+    """Clean up test keys after test completion.
+
+    This fixture ensures that Redis keys created during a test are cleaned up
+    after the test completes, preventing key accumulation and ensuring isolation.
+    """
+    yield
+
+    # Cleanup after test - delete all keys with this test's prefix
+    try:
+        keys = []
+        async for key in real_redis._client.scan_iter(match=f"{test_prefix}:*"):
+            keys.append(key)
+
+        if keys:
+            await real_redis._client.delete(*keys)
+            logger.debug(f"Cleaned up {len(keys)} Redis keys with prefix {test_prefix}")
+    except Exception as e:
+        logger.warning(f"Failed to clean up Redis keys: {e}")

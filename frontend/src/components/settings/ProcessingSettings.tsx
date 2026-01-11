@@ -139,8 +139,8 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
 
         {error && (
           <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-4">
-            <AlertCircle className="h-5 w-5 flex-shrink-0 text-red-500" />
-            <Text className="text-red-500">{error}</Text>
+            <AlertCircle className="h-5 w-5 flex-shrink-0 text-red-400" />
+            <Text className="text-red-400">{error}</Text>
           </div>
         )}
 
@@ -158,7 +158,7 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
               <div className="mb-2 flex items-end justify-between">
                 <div>
                   <Text className="font-medium text-gray-300">Batch Window Duration</Text>
-                  <Text className="mt-1 text-xs text-gray-500">
+                  <Text className="mt-1 text-xs text-gray-300">
                     Time window for grouping detections into events (seconds)
                   </Text>
                 </div>
@@ -180,7 +180,7 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
                 className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-700 accent-[#76B900]"
                 aria-label="Batch window duration in seconds"
               />
-              <div className="mt-1 flex justify-between text-xs text-gray-500">
+              <div className="mt-1 flex justify-between text-xs text-gray-300">
                 <span>30s</span>
                 <span>300s</span>
               </div>
@@ -191,7 +191,7 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
               <div className="mb-2 flex items-end justify-between">
                 <div>
                   <Text className="font-medium text-gray-300">Idle Timeout</Text>
-                  <Text className="mt-1 text-xs text-gray-500">
+                  <Text className="mt-1 text-xs text-gray-300">
                     Time to wait before processing incomplete batch (seconds)
                   </Text>
                 </div>
@@ -215,7 +215,7 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
                 className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-700 accent-[#76B900]"
                 aria-label="Batch idle timeout in seconds"
               />
-              <div className="mt-1 flex justify-between text-xs text-gray-500">
+              <div className="mt-1 flex justify-between text-xs text-gray-300">
                 <span>10s</span>
                 <span>120s</span>
               </div>
@@ -226,7 +226,7 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
               <div className="mb-2 flex items-end justify-between">
                 <div>
                   <Text className="font-medium text-gray-300">Retention Period</Text>
-                  <Text className="mt-1 text-xs text-gray-500">
+                  <Text className="mt-1 text-xs text-gray-300">
                     Number of days to retain events and detections
                   </Text>
                 </div>
@@ -248,7 +248,7 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
                 className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-700 accent-[#76B900]"
                 aria-label="Retention period in days"
               />
-              <div className="mt-1 flex justify-between text-xs text-gray-500">
+              <div className="mt-1 flex justify-between text-xs text-gray-300">
                 <span>1 day</span>
                 <span>90 days</span>
               </div>
@@ -259,12 +259,12 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
               <div className="mb-2 flex items-end justify-between">
                 <div>
                   <Text className="font-medium text-gray-300">Confidence Threshold</Text>
-                  <Text className="mt-1 text-xs text-gray-500">
+                  <Text className="mt-1 text-xs text-gray-300">
                     Minimum confidence for object detection (0.0 - 1.0)
                   </Text>
                 </div>
                 <Text className="text-lg font-semibold text-white">
-                  {editedConfig.detection_confidence_threshold.toFixed(2)}
+                  {editedConfig.detection_confidence_threshold?.toFixed(2) ?? '0.50'}
                 </Text>
               </div>
               <input
@@ -283,7 +283,7 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
                 className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-700 accent-[#76B900]"
                 aria-label="Detection confidence threshold"
               />
-              <div className="mt-1 flex justify-between text-xs text-gray-500">
+              <div className="mt-1 flex justify-between text-xs text-gray-300">
                 <span>0.00</span>
                 <span>1.00</span>
               </div>
@@ -329,17 +329,17 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
                 <div className="mt-3 rounded-lg border border-green-500/30 bg-green-500/10 p-3">
                   <Text className="mb-2 font-medium text-green-400">Cleanup Complete</Text>
                   <div className="grid grid-cols-2 gap-2 text-sm">
-                    <Text className="text-gray-400">Events deleted:</Text>
+                    <Text className="text-gray-300">Events deleted:</Text>
                     <Text className="text-white">{cleanupResult.events_deleted}</Text>
-                    <Text className="text-gray-400">Detections deleted:</Text>
+                    <Text className="text-gray-300">Detections deleted:</Text>
                     <Text className="text-white">{cleanupResult.detections_deleted}</Text>
-                    <Text className="text-gray-400">GPU stats deleted:</Text>
+                    <Text className="text-gray-300">GPU stats deleted:</Text>
                     <Text className="text-white">{cleanupResult.gpu_stats_deleted}</Text>
-                    <Text className="text-gray-400">Logs deleted:</Text>
+                    <Text className="text-gray-300">Logs deleted:</Text>
                     <Text className="text-white">{cleanupResult.logs_deleted}</Text>
-                    <Text className="text-gray-400">Thumbnails deleted:</Text>
+                    <Text className="text-gray-300">Thumbnails deleted:</Text>
                     <Text className="text-white">{cleanupResult.thumbnails_deleted}</Text>
-                    <Text className="text-gray-400">Retention period:</Text>
+                    <Text className="text-gray-300">Retention period:</Text>
                     <Text className="text-white">{cleanupResult.retention_days} days</Text>
                   </div>
                 </div>
@@ -349,11 +349,11 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
             {/* Application Info */}
             <div className="border-t border-gray-800 pt-4">
               <div className="mb-2 flex items-center justify-between">
-                <Text className="text-sm text-gray-400">Application</Text>
+                <Text className="text-sm text-gray-300">Application</Text>
                 <Text className="font-medium text-white">{config?.app_name}</Text>
               </div>
               <div className="flex items-center justify-between">
-                <Text className="text-sm text-gray-400">Version</Text>
+                <Text className="text-sm text-gray-300">Version</Text>
                 <Text className="font-medium text-white">{config?.version}</Text>
               </div>
             </div>

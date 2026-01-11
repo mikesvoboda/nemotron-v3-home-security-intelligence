@@ -105,3 +105,6 @@ export type { ServiceStatusIndicatorProps, OverallStatus } from './ServiceStatus
 
 export { default as SceneChangeAlert } from './SceneChangeAlert';
 export type { SceneChangeAlertProps } from './SceneChangeAlert';
+
+export { default as InfiniteScrollStatus, InfiniteScrollStatus as InfiniteScrollStatusNamed } from './InfiniteScrollStatus';
+export type { InfiniteScrollStatusProps } from './InfiniteScrollStatus';

@@ -321,6 +321,7 @@ def test_get_worker_statuses_no_workers_registered() -> None:
     original_cleanup = system_routes._cleanup_service
     original_broadcaster = system_routes._system_broadcaster
     original_watcher = system_routes._file_watcher
+    original_pipeline = system_routes._pipeline_manager
 
     try:
         # Clear all workers
@@ -328,6 +329,7 @@ def test_get_worker_statuses_no_workers_registered() -> None:
         system_routes._cleanup_service = None
         system_routes._system_broadcaster = None
         system_routes._file_watcher = None
+        system_routes._pipeline_manager = None
 
         statuses = system_routes._get_worker_statuses()
 
@@ -339,6 +341,7 @@ def test_get_worker_statuses_no_workers_registered() -> None:
         system_routes._cleanup_service = original_cleanup
         system_routes._system_broadcaster = original_broadcaster
         system_routes._file_watcher = original_watcher
+        system_routes._pipeline_manager = original_pipeline
 
 
 def test_get_worker_statuses_with_running_workers() -> None:

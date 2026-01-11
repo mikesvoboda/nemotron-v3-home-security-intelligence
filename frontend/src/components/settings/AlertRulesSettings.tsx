@@ -1390,7 +1390,7 @@ export default function AlertRulesSettings() {
                           </div>
                           <div className="rounded-lg border border-gray-800 bg-card p-3 text-center">
                             <p className="text-2xl font-bold text-text-primary">
-                              {(testResult.match_rate * 100).toFixed(0)}%
+                              {((testResult.match_rate ?? 0) * 100).toFixed(0)}%
                             </p>
                             <p className="text-xs text-text-secondary">Match Rate</p>
                           </div>

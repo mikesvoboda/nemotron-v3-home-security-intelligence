@@ -44,7 +44,6 @@ const createLocalStorageMock = () => {
         key,
         newValue,
         oldValue,
-        storageArea: window.localStorage,
         url: window.location.href,
       });
       window.dispatchEvent(event);
@@ -292,7 +291,6 @@ describe('Cross-Tab State Synchronization', () => {
           key: STORAGE_KEY,
           newValue: null,
           oldValue: JSON.stringify([initialSearch]),
-          storageArea: window.localStorage,
           url: window.location.href,
         });
         window.dispatchEvent(event);

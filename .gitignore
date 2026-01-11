@@ -63,6 +63,9 @@ data/profiles/
 .DS_Store
 Thumbs.db
 
+# Prompt history files (auto-generated, causes merge conflicts)
+backend/data/prompts/*/history/
+
 # Beads (track JSONL for collaboration, ignore local DB)
 .beads/*.db
 .beads/beads.db

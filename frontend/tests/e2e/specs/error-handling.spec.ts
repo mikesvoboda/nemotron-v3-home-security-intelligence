@@ -27,32 +27,49 @@ import {
 } from '../fixtures';
 
 test.describe('Dashboard Error Handling', () => {
+  // API client has MAX_RETRIES=3 with exponential backoff (1s+2s+4s=7s)
+  // React Query also retries once, so total time for events API to fail is ~14-21s
+  // Use 25s timeout to account for network latency and CI variability
+  const ERROR_TIMEOUT = 35000;
+
+  // Increase test timeout to allow for API retry exhaustion
+  test.setTimeout(45000);
+
   test('shows error state when cameras API fails', async ({ page }) => {
     await setupApiMocks(page, errorMockConfig);
     const dashboardPage = new DashboardPage(page);
     await dashboardPage.goto();
-    // Error UI should appear quickly once API returns 500
-    await expect(dashboardPage.errorHeading).toBeVisible({ timeout: 12000 });
+    // Error UI appears after API retries exhaust (camera + events APIs)
+    await expect(dashboardPage.errorHeading).toBeVisible({ timeout: ERROR_TIMEOUT });
   });
 
   test('shows reload button on error', async ({ page }) => {
     await setupApiMocks(page, errorMockConfig);
     const dashboardPage = new DashboardPage(page);
     await dashboardPage.goto();
-    // Error UI should appear quickly once API returns 500
-    await expect(dashboardPage.reloadButton).toBeVisible({ timeout: 12000 });
+    // Error UI appears after API retries exhaust
+    await expect(dashboardPage.reloadButton).toBeVisible({ timeout: ERROR_TIMEOUT });
   });
 
   test('error message is descriptive', async ({ page }) => {
     await setupApiMocks(page, errorMockConfig);
     const dashboardPage = new DashboardPage(page);
     await dashboardPage.goto();
-    // Error UI should appear quickly once API returns 500
-    await expect(dashboardPage.errorHeading).toHaveText(/Error Loading Dashboard/i, { timeout: 12000 });
+    // Error UI appears after API retries exhaust
+    await expect(dashboardPage.errorHeading).toHaveText(/Error Loading Dashboard/i, { timeout: ERROR_TIMEOUT });
   });
 });
 
 test.describe('Timeline Error Handling', () => {
+  // API client has MAX_RETRIES=3 with exponential backoff (1s+2s+4s=7s)
+  // useEventsInfiniteQuery has retry=1 (2 total attempts)
+  // Total time: ~7s API retries + 1s RQ wait + ~7s API retries = ~15s
+  // Use 25s timeout to account for timing variability
+  const ERROR_TIMEOUT = 25000;
+
+  // Increase test timeout to allow for API retry exhaustion
+  test.setTimeout(35000);
+
   test('shows error state when events API fails', async ({ page }) => {
     await setupApiMocks(page, errorMockConfig);
     const timelinePage = new TimelinePage(page);
@@ -60,9 +77,9 @@ test.describe('Timeline Error Handling', () => {
     // For error tests, wait directly for the error message instead of using
     // waitForTimelineLoad() which is designed for success scenarios and may
     // time out before the error state renders
-    // Error UI should appear quickly once API returns 500
-    await expect(timelinePage.pageTitle).toBeVisible({ timeout: 12000 });
-    await expect(timelinePage.errorMessage).toBeVisible({ timeout: 12000 });
+    // Error UI appears after API retries exhaust
+    await expect(timelinePage.pageTitle).toBeVisible({ timeout: ERROR_TIMEOUT });
+    await expect(timelinePage.errorMessage).toBeVisible({ timeout: ERROR_TIMEOUT });
   });
 
   test('error message mentions events', async ({ page }) => {
@@ -70,22 +87,29 @@ test.describe('Timeline Error Handling', () => {
     const timelinePage = new TimelinePage(page);
     await timelinePage.goto();
     // Wait for page structure then error message
-    // Error UI should appear quickly once API returns 500
-    await expect(timelinePage.pageTitle).toBeVisible({ timeout: 12000 });
-    await expect(timelinePage.errorMessage).toHaveText(/Error Loading Events/i, { timeout: 12000 });
+    // Error UI appears after API retries exhaust
+    await expect(timelinePage.pageTitle).toBeVisible({ timeout: ERROR_TIMEOUT });
+    await expect(timelinePage.errorMessage).toHaveText(/Error Loading Events/i, { timeout: ERROR_TIMEOUT });
   });
 });
 
 test.describe('Alerts Error Handling', () => {
+  // API client has MAX_RETRIES=3 with exponential backoff (1s+2s+4s=7s)
+  // React Query also retries once, so total time for events API to fail is ~14-21s
+  const ERROR_TIMEOUT = 35000;
+
+  // Increase test timeout to allow for API retry exhaustion
+  test.setTimeout(45000);
+
   test('shows error state when events API fails', async ({ page }) => {
     await setupApiMocks(page, errorMockConfig);
     const alertsPage = new AlertsPage(page);
     await alertsPage.goto();
     // For error tests, wait directly for the error message instead of using
     // waitForAlertsLoad() which is designed for success scenarios
-    // Error UI should appear quickly once API returns 500
-    await expect(alertsPage.pageTitle).toBeVisible({ timeout: 12000 });
-    await expect(alertsPage.errorMessage).toBeVisible({ timeout: 12000 });
+    // Error UI appears after API retries exhaust
+    await expect(alertsPage.pageTitle).toBeVisible({ timeout: ERROR_TIMEOUT });
+    await expect(alertsPage.errorMessage).toBeVisible({ timeout: ERROR_TIMEOUT });
   });
 });
 
@@ -112,19 +136,26 @@ test.describe('Audit Error Handling', () => {
 });
 
 test.describe('System Page Error Handling', () => {
+  // API client has MAX_RETRIES=3 with exponential backoff (1s+2s+4s=7s)
+  // React Query also retries, so use longer timeout for network idle
+  const ERROR_TIMEOUT = 35000;
+
+  // Increase test timeout to allow for API retry exhaustion
+  test.setTimeout(45000);
+
   test('page loads even when system APIs fail', async ({ page }) => {
     await setupApiMocks(page, errorMockConfig);
     const systemPage = new SystemPage(page);
     await systemPage.goto();
     // Wait for network to settle as errors need to propagate
-    // Error UI should appear quickly once API returns 500
-    await page.waitForLoadState('networkidle', { timeout: 12000 }).catch(() => {
+    // Error UI appears after API retries exhaust
+    await page.waitForLoadState('networkidle', { timeout: ERROR_TIMEOUT }).catch(() => {
       // Ignore timeout - we check content below
     });
     // Wait for any content to appear in main (error, failed, System, or page title)
     // The page title contains "System" and should be visible even if data fails
     const mainContent = page.locator('main').first();
-    await mainContent.waitFor({ state: 'attached', timeout: 8000 }).catch(() => {
+    await mainContent.waitFor({ state: 'attached', timeout: ERROR_TIMEOUT }).catch(() => {
       // Ignore timeout
     });
     // Just verify the page didn't crash - check body is visible
@@ -184,12 +215,19 @@ test.describe('Partial API Failure', () => {
 });
 
 test.describe('Network Error Messages', () => {
+  // API client has MAX_RETRIES=3 with exponential backoff (1s+2s+4s=7s)
+  // React Query also retries once, so total time for events API to fail is ~14-21s
+  const ERROR_TIMEOUT = 35000;
+
+  // Increase test timeout to allow for API retry exhaustion
+  test.setTimeout(45000);
+
   test('error messages are user-friendly', async ({ page }) => {
     await setupApiMocks(page, errorMockConfig);
     const dashboardPage = new DashboardPage(page);
     await dashboardPage.goto();
     // Should show a friendly message, not a raw error
-    // Error UI should appear quickly once API returns 500
-    await expect(page.getByText(/Error/i).first()).toBeVisible({ timeout: 12000 });
+    // Error UI appears after API retries exhaust
+    await expect(page.getByText(/Error/i).first()).toBeVisible({ timeout: ERROR_TIMEOUT });
   });
 });

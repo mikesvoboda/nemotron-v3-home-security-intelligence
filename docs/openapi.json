@@ -2199,6 +2199,80 @@
         "title": "CameraNotificationSettingsListResponse",
         "type": "object"
       },
+      "CameraPathValidationResponse": {
+        "description": "Schema for camera path validation response.\n\nNEM-2063: Response model for the /api/cameras/validation/paths endpoint.\nValidates all camera folder paths against the configured base path.",
+        "example": {
+          "base_path": "/export/foscam",
+          "invalid_cameras": [
+            {
+              "folder_path": "/export/foscam/garage",
+              "id": "garage",
+              "issues": ["directory does not exist"],
+              "name": "Garage Camera",
+              "status": "offline"
+            }
+          ],
+          "invalid_count": 2,
+          "total_cameras": 6,
+          "valid_cameras": [
+            {
+              "folder_path": "/export/foscam/front_door",
+              "id": "front_door",
+              "name": "Front Door Camera",
+              "status": "online"
+            }
+          ],
+          "valid_count": 4
+        },
+        "properties": {
+          "base_path": {
+            "description": "Configured base path for camera folders",
+            "title": "Base Path",
+            "type": "string"
+          },
+          "invalid_cameras": {
+            "description": "Cameras with validation issues",
+            "items": {
+              "$ref": "#/components/schemas/CameraValidationInfo"
+            },
+            "title": "Invalid Cameras",
+            "type": "array"
+          },
+          "invalid_count": {
+            "description": "Number of cameras with invalid paths",
+            "title": "Invalid Count",
+            "type": "integer"
+          },
+          "total_cameras": {
+            "description": "Total number of cameras validated",
+            "title": "Total Cameras",
+            "type": "integer"
+          },
+          "valid_cameras": {
+            "description": "Cameras with valid paths",
+            "items": {
+              "$ref": "#/components/schemas/CameraValidationInfo"
+            },
+            "title": "Valid Cameras",
+            "type": "array"
+          },
+          "valid_count": {
+            "description": "Number of cameras with valid paths",
+            "title": "Valid Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "base_path",
+          "total_cameras",
+          "valid_count",
+          "invalid_count",
+          "valid_cameras",
+          "invalid_cameras"
+        ],
+        "title": "CameraPathValidationResponse",
+        "type": "object"
+      },
       "CameraResponse": {
         "description": "Schema for camera response.",
         "example": {
@@ -2390,6 +2464,68 @@
         },
         "required": ["cameras", "start_date", "end_date"],
         "title": "CameraUptimeResponse",
+        "type": "object"
+      },
+      "CameraValidationInfo": {
+        "description": "Schema for individual camera validation result.\n\nNEM-2063: Response model for camera path validation details.",
+        "example": {
+          "folder_path": "/export/foscam/front_door",
+          "id": "front_door",
+          "issues": ["directory does not exist"],
+          "name": "Front Door Camera",
+          "resolved_path": "/export/foscam/front_door",
+          "status": "online"
+        },
+        "properties": {
+          "folder_path": {
+            "description": "Configured folder path",
+            "title": "Folder Path",
+            "type": "string"
+          },
+          "id": {
+            "description": "Camera ID",
+            "title": "Id",
+            "type": "string"
+          },
+          "issues": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "List of validation issues (only for invalid cameras)",
+            "title": "Issues"
+          },
+          "name": {
+            "description": "Camera name",
+            "title": "Name",
+            "type": "string"
+          },
+          "resolved_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Resolved absolute path (included if path is outside base_path)",
+            "title": "Resolved Path"
+          },
+          "status": {
+            "$ref": "#/components/schemas/CameraStatus",
+            "description": "Camera status"
+          }
+        },
+        "required": ["id", "name", "folder_path", "status"],
+        "title": "CameraValidationInfo",
         "type": "object"
       },
       "CategorySummary": {
@@ -15850,20 +15986,21 @@
     },
     "/api/cameras/validation/paths": {
       "get": {
-        "description": "Validate all camera folder paths against the configured base path.\n\nThis endpoint checks each camera's folder_path to determine:\n1. Whether the path is under the configured FOSCAM_BASE_PATH\n2. Whether the directory exists on disk\n3. Whether the directory contains any images\n\nUse this to diagnose cameras that show \"No snapshot available\" errors.\n\nReturns:\n    Dictionary with validation results for all cameras",
+        "description": "Validate all camera folder paths against the configured base path.\n\nThis endpoint checks each camera's folder_path to determine:\n1. Whether the path is under the configured FOSCAM_BASE_PATH\n2. Whether the directory exists on disk\n3. Whether the directory contains any images\n\nUse this to diagnose cameras that show \"No snapshot available\" errors.\n\nReturns:\n    CameraPathValidationResponse with validation results for all cameras",
         "operationId": "validate_camera_paths_api_cameras_validation_paths_get",
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Validate Camera Paths Api Cameras Validation Paths Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/CameraPathValidationResponse"
                 }
               }
             },
             "description": "Successful Response"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "summary": "Validate Camera Paths",
@@ -19660,7 +19797,7 @@
     },
     "/api/events/{event_id}/restore": {
       "post": {
-        "description": "Restore a soft-deleted event with optional cascade to related detections.\n\nWhen cascade=True, this restores detections that were deleted at the same\ntimestamp as the event, indicating they were cascade-deleted together.\n\nArgs:\n    event_id: ID of the event to restore\n    cascade: If True, cascade restore to related detections\n    db: Database session\n    cache: Cache service for invalidation\n\nReturns:\n    The restored event\n\nRaises:\n    HTTPException: 404 if event not found, 409 if not deleted",
+        "description": "Restore a soft-deleted event with optional cascade to related detections.\n\nWhen cascade=True, this restores detections that were deleted at the same\ntimestamp as the event, indicating they were cascade-deleted together.\n\nArgs:\n    event_id: ID of the event to restore\n    cascade: If True, cascade restore to related detections\n    db: Database session\n    cache: Cache service for invalidation\n\nReturns:\n    The restored event as EventResponse\n\nRaises:\n    HTTPException: 404 if event not found, 409 if not deleted",
         "operationId": "restore_event_api_events__event_id__restore_post",
         "parameters": [
           {

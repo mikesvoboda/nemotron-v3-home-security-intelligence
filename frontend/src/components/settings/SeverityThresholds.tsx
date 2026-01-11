@@ -183,8 +183,8 @@ export default function SeverityThresholds({ className }: SeverityThresholdsProp
 
       {error && (
         <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-4">
-          <AlertCircle className="h-5 w-5 flex-shrink-0 text-red-500" />
-          <Text className="text-red-500">{error}</Text>
+          <AlertCircle className="h-5 w-5 flex-shrink-0 text-red-400" />
+          <Text className="text-red-400">{error}</Text>
         </div>
       )}
 
@@ -249,7 +249,7 @@ export default function SeverityThresholds({ className }: SeverityThresholdsProp
                 {ranges.critical.max - ranges.critical.min + 1 > 10 && 'Crit'}
               </div>
             </div>
-            <div className="flex justify-between text-xs text-gray-500">
+            <div className="flex justify-between text-xs text-gray-300">
               <span>0</span>
               <span>25</span>
               <span>50</span>
@@ -283,7 +283,7 @@ export default function SeverityThresholds({ className }: SeverityThresholdsProp
                 aria-label="Low severity maximum score"
                 data-testid="low-max-slider"
               />
-              <div className="mt-1 flex justify-between text-xs text-gray-500">
+              <div className="mt-1 flex justify-between text-xs text-gray-300">
                 <span>1</span>
                 <span>98</span>
               </div>
@@ -316,7 +316,7 @@ export default function SeverityThresholds({ className }: SeverityThresholdsProp
                 aria-label="Medium severity maximum score"
                 data-testid="medium-max-slider"
               />
-              <div className="mt-1 flex justify-between text-xs text-gray-500">
+              <div className="mt-1 flex justify-between text-xs text-gray-300">
                 <span>{editedThresholds.low_max + 1}</span>
                 <span>99</span>
               </div>
@@ -349,7 +349,7 @@ export default function SeverityThresholds({ className }: SeverityThresholdsProp
                 aria-label="High severity maximum score"
                 data-testid="high-max-slider"
               />
-              <div className="mt-1 flex justify-between text-xs text-gray-500">
+              <div className="mt-1 flex justify-between text-xs text-gray-300">
                 <span>{editedThresholds.medium_max + 1}</span>
                 <span>99</span>
               </div>
@@ -369,7 +369,7 @@ export default function SeverityThresholds({ className }: SeverityThresholdsProp
                   {editedThresholds.high_max + 1}-100
                 </Text>
               </div>
-              <Text className="mt-1 text-xs text-gray-500">
+              <Text className="mt-1 text-xs text-gray-300">
                 Automatically calculated from High Max threshold
               </Text>
             </div>
@@ -377,7 +377,7 @@ export default function SeverityThresholds({ className }: SeverityThresholdsProp
 
           {/* Severity Level Table */}
           <div className="border-t border-gray-800 pt-4">
-            <Text className="mb-2 text-sm font-medium text-gray-400">Current Configuration</Text>
+            <Text className="mb-2 text-sm font-medium text-gray-300">Current Configuration</Text>
             <div className="overflow-hidden rounded-lg border border-gray-700">
               <table className="w-full" role="table">
                 <thead>
@@ -419,7 +419,7 @@ export default function SeverityThresholds({ className }: SeverityThresholdsProp
                       </Text>
                     </td>
                     <td className="px-4 py-2">
-                      <Text className="text-gray-400">Routine activity, no concern</Text>
+                      <Text className="text-gray-300">Routine activity, no concern</Text>
                     </td>
                   </tr>
                   <tr className="border-b border-gray-700/50">
@@ -438,7 +438,7 @@ export default function SeverityThresholds({ className }: SeverityThresholdsProp
                       </Text>
                     </td>
                     <td className="px-4 py-2">
-                      <Text className="text-gray-400">Notable activity, worth reviewing</Text>
+                      <Text className="text-gray-300">Notable activity, worth reviewing</Text>
                     </td>
                   </tr>
                   <tr className="border-b border-gray-700/50">
@@ -457,7 +457,7 @@ export default function SeverityThresholds({ className }: SeverityThresholdsProp
                       </Text>
                     </td>
                     <td className="px-4 py-2">
-                      <Text className="text-gray-400">Concerning activity, review soon</Text>
+                      <Text className="text-gray-300">Concerning activity, review soon</Text>
                     </td>
                   </tr>
                   <tr>
@@ -476,7 +476,7 @@ export default function SeverityThresholds({ className }: SeverityThresholdsProp
                       </Text>
                     </td>
                     <td className="px-4 py-2">
-                      <Text className="text-gray-400">Immediate attention required</Text>
+                      <Text className="text-gray-300">Immediate attention required</Text>
                     </td>
                   </tr>
                 </tbody>

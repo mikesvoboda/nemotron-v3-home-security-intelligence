@@ -71,8 +71,8 @@ export class SettingsPage extends BasePage {
     this.processingTab = page.getByRole('tab', { name: /PROCESSING/i }).or(page.locator('button').filter({ hasText: 'PROCESSING' }));
     this.notificationsTab = page.getByRole('tab', { name: /NOTIFICATIONS/i }).or(page.locator('button').filter({ hasText: 'NOTIFICATIONS' }));
 
-    // Tab Panels
-    this.tabPanel = page.locator('[role="tabpanel"]');
+    // Tab Panels (filter to visible panel only to avoid strict mode violation)
+    this.tabPanel = page.locator('[role="tabpanel"]:not([aria-hidden="true"])');
 
     // Cameras Tab Content
     this.camerasList = page.locator('[data-testid="cameras-list"]');
