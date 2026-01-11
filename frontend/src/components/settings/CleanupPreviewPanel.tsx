@@ -97,15 +97,15 @@ export default function CleanupPreviewPanel({ className }: CleanupPreviewPanelPr
         Cleanup Preview
       </Title>
 
-      <Text className="mb-4 text-gray-400">
+      <Text className="mb-4 text-gray-300">
         Preview what will be deleted by the retention policy before running cleanup. This performs
         a dry-run calculation without actually deleting any data.
       </Text>
 
       {errorMessage && (
         <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-4">
-          <AlertCircle className="h-5 w-5 flex-shrink-0 text-red-500" />
-          <Text className="text-red-500">{errorMessage}</Text>
+          <AlertCircle className="h-5 w-5 flex-shrink-0 text-red-400" />
+          <Text className="text-red-400">{errorMessage}</Text>
         </div>
       )}
 
@@ -142,7 +142,7 @@ export default function CleanupPreviewPanel({ className }: CleanupPreviewPanelPr
         <Button
           onClick={() => void handlePreview()}
           disabled={previewLoading}
-          className="w-full bg-[#76B900] text-white hover:bg-[#5c8f00] disabled:cursor-not-allowed disabled:opacity-50"
+          className="w-full bg-[#76B900] text-gray-950 hover:bg-[#5c8f00] disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Eye className="mr-2 h-4 w-4" />
           {previewLoading ? 'Calculating Preview...' : 'Preview Cleanup'}
@@ -176,22 +176,22 @@ function CleanupCompleteSection({ cleanupResult, formatBytes }: CleanupCompleteS
       <div className="space-y-2">
         <div className="flex items-center justify-between border-b border-green-500/20 pb-2">
           <Text className="font-medium text-green-300">Summary</Text>
-          <Text className="text-sm text-gray-400">Retention: {cleanupResult.retention_days} days</Text>
+          <Text className="text-sm text-gray-300">Retention: {cleanupResult.retention_days} days</Text>
         </div>
         <div className="grid grid-cols-2 gap-2 text-sm">
-          <Text className="text-gray-400">Events deleted:</Text>
+          <Text className="text-gray-300">Events deleted:</Text>
           <Text className="text-white">{cleanupResult.events_deleted.toLocaleString()}</Text>
-          <Text className="text-gray-400">Detections deleted:</Text>
+          <Text className="text-gray-300">Detections deleted:</Text>
           <Text className="text-white">{cleanupResult.detections_deleted.toLocaleString()}</Text>
-          <Text className="text-gray-400">GPU stats deleted:</Text>
+          <Text className="text-gray-300">GPU stats deleted:</Text>
           <Text className="text-white">{cleanupResult.gpu_stats_deleted.toLocaleString()}</Text>
-          <Text className="text-gray-400">Logs deleted:</Text>
+          <Text className="text-gray-300">Logs deleted:</Text>
           <Text className="text-white">{cleanupResult.logs_deleted.toLocaleString()}</Text>
-          <Text className="text-gray-400">Thumbnails deleted:</Text>
+          <Text className="text-gray-300">Thumbnails deleted:</Text>
           <Text className="text-white">{cleanupResult.thumbnails_deleted.toLocaleString()}</Text>
-          <Text className="text-gray-400">Images deleted:</Text>
+          <Text className="text-gray-300">Images deleted:</Text>
           <Text className="text-white">{cleanupResult.images_deleted.toLocaleString()}</Text>
-          <Text className="text-gray-400">Space reclaimed:</Text>
+          <Text className="text-gray-300">Space reclaimed:</Text>
           <Text className="font-medium text-green-400">{formatBytes(cleanupResult.space_reclaimed)}</Text>
         </div>
       </div>
@@ -210,7 +210,7 @@ function PreviewResultsSection({ preview, hasDeletableData, formatBytes }: Previ
     <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-4">
       <div className="mb-3 flex items-center justify-between border-b border-blue-500/20 pb-2">
         <Text className="font-medium text-blue-300">Preview Results</Text>
-        <Text className="text-sm text-gray-400">Retention: {preview.retention_days} days</Text>
+        <Text className="text-sm text-gray-300">Retention: {preview.retention_days} days</Text>
       </div>
 
       {hasDeletableData ? (
@@ -224,25 +224,25 @@ function PreviewResultsSection({ preview, hasDeletableData, formatBytes }: Previ
             <div className="grid grid-cols-2 gap-2 pl-6 text-sm">
               {preview.events_deleted > 0 && (
                 <>
-                  <Text className="text-gray-400">Events:</Text>
+                  <Text className="text-gray-300">Events:</Text>
                   <Text className="text-white">{preview.events_deleted.toLocaleString()}</Text>
                 </>
               )}
               {preview.detections_deleted > 0 && (
                 <>
-                  <Text className="text-gray-400">Detections:</Text>
+                  <Text className="text-gray-300">Detections:</Text>
                   <Text className="text-white">{preview.detections_deleted.toLocaleString()}</Text>
                 </>
               )}
               {preview.gpu_stats_deleted > 0 && (
                 <>
-                  <Text className="text-gray-400">GPU Stats:</Text>
+                  <Text className="text-gray-300">GPU Stats:</Text>
                   <Text className="text-white">{preview.gpu_stats_deleted.toLocaleString()}</Text>
                 </>
               )}
               {preview.logs_deleted > 0 && (
                 <>
-                  <Text className="text-gray-400">Logs:</Text>
+                  <Text className="text-gray-300">Logs:</Text>
                   <Text className="text-white">{preview.logs_deleted.toLocaleString()}</Text>
                 </>
               )}
@@ -259,13 +259,13 @@ function PreviewResultsSection({ preview, hasDeletableData, formatBytes }: Previ
               <div className="grid grid-cols-2 gap-2 pl-6 text-sm">
                 {preview.thumbnails_deleted > 0 && (
                   <>
-                    <Text className="text-gray-400">Thumbnails:</Text>
+                    <Text className="text-gray-300">Thumbnails:</Text>
                     <Text className="text-white">{preview.thumbnails_deleted.toLocaleString()}</Text>
                   </>
                 )}
                 {preview.images_deleted > 0 && (
                   <>
-                    <Text className="text-gray-400">Images:</Text>
+                    <Text className="text-gray-300">Images:</Text>
                     <Text className="text-white">{preview.images_deleted.toLocaleString()}</Text>
                   </>
                 )}
@@ -314,22 +314,22 @@ function ConfirmCleanupDialog({ preview, cleaning, onConfirm, onCancel }: Confir
       </Text>
       <div className="mb-4 space-y-1 text-sm">
         {preview.events_deleted > 0 && (
-          <Text className="text-gray-400">• {preview.events_deleted.toLocaleString()} events</Text>
+          <Text className="text-gray-300">• {preview.events_deleted.toLocaleString()} events</Text>
         )}
         {preview.detections_deleted > 0 && (
-          <Text className="text-gray-400">• {preview.detections_deleted.toLocaleString()} detections</Text>
+          <Text className="text-gray-300">• {preview.detections_deleted.toLocaleString()} detections</Text>
         )}
         {preview.gpu_stats_deleted > 0 && (
-          <Text className="text-gray-400">• {preview.gpu_stats_deleted.toLocaleString()} GPU stats</Text>
+          <Text className="text-gray-300">• {preview.gpu_stats_deleted.toLocaleString()} GPU stats</Text>
         )}
         {preview.logs_deleted > 0 && (
-          <Text className="text-gray-400">• {preview.logs_deleted.toLocaleString()} logs</Text>
+          <Text className="text-gray-300">• {preview.logs_deleted.toLocaleString()} logs</Text>
         )}
         {preview.thumbnails_deleted > 0 && (
-          <Text className="text-gray-400">• {preview.thumbnails_deleted.toLocaleString()} thumbnail files</Text>
+          <Text className="text-gray-300">• {preview.thumbnails_deleted.toLocaleString()} thumbnail files</Text>
         )}
         {preview.images_deleted > 0 && (
-          <Text className="text-gray-400">• {preview.images_deleted.toLocaleString()} image files</Text>
+          <Text className="text-gray-300">• {preview.images_deleted.toLocaleString()} image files</Text>
         )}
       </div>
       <div className="flex gap-3">

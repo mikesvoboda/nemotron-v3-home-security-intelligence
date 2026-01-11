@@ -90,8 +90,8 @@ export default function StorageDashboard({ className }: StorageDashboardProps) {
   if (statsError && !stats) {
     return (
       <div className={`flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-4 ${className || ''}`}>
-        <AlertCircle className="h-5 w-5 flex-shrink-0 text-red-500" />
-        <Text className="text-red-500">{statsError.message}</Text>
+        <AlertCircle className="h-5 w-5 flex-shrink-0 text-red-400" />
+        <Text className="text-red-400">{statsError.message}</Text>
         <Button
           size="xs"
           variant="secondary"
@@ -115,7 +115,7 @@ export default function StorageDashboard({ className }: StorageDashboardProps) {
       <div>
         <div className="mb-2 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <HardDrive className="h-4 w-4 text-gray-400" />
+            <HardDrive className="h-4 w-4 text-gray-300" />
             <Text className="font-medium text-gray-300">Disk Usage</Text>
           </div>
           <Button
@@ -123,7 +123,7 @@ export default function StorageDashboard({ className }: StorageDashboardProps) {
             variant="secondary"
             onClick={() => void refetch()}
             disabled={loading}
-            className="text-gray-400 hover:text-white"
+            className="text-gray-300 hover:text-white"
           >
             <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} />
           </Button>
@@ -135,7 +135,7 @@ export default function StorageDashboard({ className }: StorageDashboardProps) {
           className="mb-1"
         />
 
-        <div className="flex justify-between text-xs text-gray-500">
+        <div className="flex justify-between text-xs text-gray-300">
           <span>{formatBytes(stats.disk_used_bytes)} used</span>
           <span>{stats.disk_usage_percent?.toFixed(1) ?? 0}%</span>
           <span>{formatBytes(stats.disk_total_bytes)} total</span>
@@ -152,12 +152,12 @@ export default function StorageDashboard({ className }: StorageDashboardProps) {
         >
           <div className="flex items-center gap-2 mb-2">
             <Image className="h-4 w-4 text-cyan-500" />
-            <Text className="text-xs text-gray-400">Thumbnails</Text>
+            <Text className="text-xs text-gray-300">Thumbnails</Text>
           </div>
           <Text className="font-semibold text-white">
             {formatBytes(stats.thumbnails.size_bytes)}
           </Text>
-          <Text className="text-xs text-gray-500">
+          <Text className="text-xs text-gray-300">
             {formatNumber(stats.thumbnails.file_count)} files
           </Text>
         </Card>
@@ -170,12 +170,12 @@ export default function StorageDashboard({ className }: StorageDashboardProps) {
         >
           <div className="flex items-center gap-2 mb-2">
             <Image className="h-4 w-4 text-violet-500" />
-            <Text className="text-xs text-gray-400">Images</Text>
+            <Text className="text-xs text-gray-300">Images</Text>
           </div>
           <Text className="font-semibold text-white">
             {formatBytes(stats.images.size_bytes)}
           </Text>
-          <Text className="text-xs text-gray-500">
+          <Text className="text-xs text-gray-300">
             {formatNumber(stats.images.file_count)} files
           </Text>
         </Card>
@@ -188,12 +188,12 @@ export default function StorageDashboard({ className }: StorageDashboardProps) {
         >
           <div className="flex items-center gap-2 mb-2">
             <FileVideo className="h-4 w-4 text-amber-500" />
-            <Text className="text-xs text-gray-400">Clips</Text>
+            <Text className="text-xs text-gray-300">Clips</Text>
           </div>
           <Text className="font-semibold text-white">
             {formatBytes(stats.clips.size_bytes)}
           </Text>
-          <Text className="text-xs text-gray-500">
+          <Text className="text-xs text-gray-300">
             {formatNumber(stats.clips.file_count)} files
           </Text>
         </Card>
@@ -202,25 +202,25 @@ export default function StorageDashboard({ className }: StorageDashboardProps) {
       {/* Database Records */}
       <div className="rounded-lg border border-gray-800 bg-[#1A1A1A]/50 p-3">
         <div className="flex items-center gap-2 mb-2">
-          <Database className="h-4 w-4 text-gray-400" />
-          <Text className="text-xs text-gray-400">Database Records</Text>
+          <Database className="h-4 w-4 text-gray-300" />
+          <Text className="text-xs text-gray-300">Database Records</Text>
         </div>
         <div className="grid grid-cols-4 gap-2 text-center">
           <div>
             <Text className="font-semibold text-white">{formatNumber(stats.events_count)}</Text>
-            <Text className="text-xs text-gray-500">Events</Text>
+            <Text className="text-xs text-gray-300">Events</Text>
           </div>
           <div>
             <Text className="font-semibold text-white">{formatNumber(stats.detections_count)}</Text>
-            <Text className="text-xs text-gray-500">Detections</Text>
+            <Text className="text-xs text-gray-300">Detections</Text>
           </div>
           <div>
             <Text className="font-semibold text-white">{formatNumber(stats.gpu_stats_count)}</Text>
-            <Text className="text-xs text-gray-500">GPU Stats</Text>
+            <Text className="text-xs text-gray-300">GPU Stats</Text>
           </div>
           <div>
             <Text className="font-semibold text-white">{formatNumber(stats.logs_count)}</Text>
-            <Text className="text-xs text-gray-500">Logs</Text>
+            <Text className="text-xs text-gray-300">Logs</Text>
           </div>
         </div>
       </div>
@@ -229,15 +229,15 @@ export default function StorageDashboard({ className }: StorageDashboardProps) {
       <div className="rounded-lg border border-gray-800 bg-[#1A1A1A]/50 p-3">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <Trash2 className="h-4 w-4 text-gray-400" />
-            <Text className="text-xs text-gray-400">Cleanup Preview</Text>
+            <Trash2 className="h-4 w-4 text-gray-300" />
+            <Text className="text-xs text-gray-300">Cleanup Preview</Text>
           </div>
           <Button
             size="xs"
             variant="secondary"
             onClick={() => void previewCleanup()}
             disabled={previewLoading}
-            className="text-gray-400 hover:text-white"
+            className="text-gray-300 hover:text-white"
           >
             {previewLoading ? 'Checking...' : 'Preview Cleanup'}
           </Button>
@@ -245,8 +245,8 @@ export default function StorageDashboard({ className }: StorageDashboardProps) {
 
         {previewError && !cleanupPreview && (
           <div className="mt-3 flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-2">
-            <AlertCircle className="h-4 w-4 flex-shrink-0 text-red-500" />
-            <Text className="text-xs text-red-500">{previewError.message}</Text>
+            <AlertCircle className="h-4 w-4 flex-shrink-0 text-red-400" />
+            <Text className="text-xs text-red-400">{previewError.message}</Text>
           </div>
         )}
 
@@ -256,17 +256,17 @@ export default function StorageDashboard({ className }: StorageDashboardProps) {
               Would be deleted (based on retention period of {cleanupPreview.retention_days} days):
             </Text>
             <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-              <Text className="text-gray-400">Events:</Text>
+              <Text className="text-gray-300">Events:</Text>
               <Text className="text-white">{formatNumber(cleanupPreview.events_deleted)}</Text>
-              <Text className="text-gray-400">Detections:</Text>
+              <Text className="text-gray-300">Detections:</Text>
               <Text className="text-white">{formatNumber(cleanupPreview.detections_deleted)}</Text>
-              <Text className="text-gray-400">GPU Stats:</Text>
+              <Text className="text-gray-300">GPU Stats:</Text>
               <Text className="text-white">{formatNumber(cleanupPreview.gpu_stats_deleted)}</Text>
-              <Text className="text-gray-400">Logs:</Text>
+              <Text className="text-gray-300">Logs:</Text>
               <Text className="text-white">{formatNumber(cleanupPreview.logs_deleted)}</Text>
-              <Text className="text-gray-400">Thumbnails:</Text>
+              <Text className="text-gray-300">Thumbnails:</Text>
               <Text className="text-white">{formatNumber(cleanupPreview.thumbnails_deleted)}</Text>
-              <Text className="text-gray-400">Space to reclaim:</Text>
+              <Text className="text-gray-300">Space to reclaim:</Text>
               <Text className="font-semibold text-amber-400">
                 {formatBytes(cleanupPreview.space_reclaimed)}
               </Text>
