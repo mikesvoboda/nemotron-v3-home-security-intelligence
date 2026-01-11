@@ -52,6 +52,17 @@ repos:
         args: ['--baseline', '.secrets.baseline']
         exclude: (package-lock\.json|uv\.lock|\.secrets\.baseline|^mutants/|\.tsbuildinfo$)
 
+  # Auto-regenerate secrets baseline if it has conflicts or is out of date
+  # Runs on every commit but only regenerates when baseline is invalid/conflicted
+  - repo: local
+    hooks:
+      - id: regenerate-secrets-baseline
+        name: Regenerate secrets baseline
+        entry: bash -c 'if grep -q "^<<<<<<" .secrets.baseline 2>/dev/null; then echo "Detected merge conflicts in .secrets.baseline, regenerating..."; detect-secrets scan --baseline .secrets.baseline --exclude-files "(package-lock\.json|uv\.lock|\.secrets\.baseline|^mutants/|\.tsbuildinfo$)" && git add .secrets.baseline; fi'
+        language: system
+        pass_filenames: false
+        always_run: true
+
   # Hadolint - Dockerfile linting
   # Requires: brew install hadolint (macOS) or download binary
   - repo: local

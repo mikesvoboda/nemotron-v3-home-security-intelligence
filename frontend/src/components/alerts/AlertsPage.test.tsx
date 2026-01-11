@@ -1,5 +1,7 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { type ReactNode } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import AlertsPage from './AlertsPage';
@@ -9,6 +11,27 @@ import type { Camera, Event, EventListResponse } from '../../services/api';
 
 // Mock API module
 vi.mock('../../services/api');
+
+// Create a wrapper with QueryClientProvider for testing
+function createWrapper() {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+        gcTime: 0,
+      },
+    },
+  });
+
+  return function Wrapper({ children }: { children: ReactNode }) {
+    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+  };
+}
+
+// Helper function to render with QueryClientProvider
+function renderWithQueryClient(ui: React.ReactElement) {
+  return render(ui, { wrapper: createWrapper() });
+}
 
 // Mock VideoPlayer to avoid video element issues in tests
 vi.mock('../video/VideoPlayer', () => ({
@@ -125,7 +148,7 @@ describe('AlertsPage', () => {
         .mockResolvedValueOnce(mockHighResponse)
         .mockResolvedValueOnce(mockCriticalResponse);
 
-      render(<AlertsPage />);
+      renderWithQueryClient(<AlertsPage />);
 
       expect(screen.getByText('Alerts')).toBeInTheDocument();
       expect(
@@ -142,7 +165,7 @@ describe('AlertsPage', () => {
         .mockResolvedValueOnce(mockHighResponse)
         .mockResolvedValueOnce(mockCriticalResponse);
 
-      render(<AlertsPage />);
+      renderWithQueryClient(<AlertsPage />);
 
       expect(screen.getByText('Loading alerts...')).toBeInTheDocument();
 
@@ -156,7 +179,7 @@ describe('AlertsPage', () => {
         .mockResolvedValueOnce(mockHighResponse)
         .mockResolvedValueOnce(mockCriticalResponse);
 
-      render(<AlertsPage />);
+      renderWithQueryClient(<AlertsPage />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -170,7 +193,7 @@ describe('AlertsPage', () => {
         .mockResolvedValueOnce(mockHighResponse)
         .mockResolvedValueOnce(mockCriticalResponse);
 
-      render(<AlertsPage />);
+      renderWithQueryClient(<AlertsPage />);
 
       await waitFor(() => {
         expect(screen.getByText('2 alerts found')).toBeInTheDocument();
@@ -182,7 +205,7 @@ describe('AlertsPage', () => {
         .mockResolvedValueOnce(mockHighResponse)
         .mockResolvedValueOnce(mockCriticalResponse);
 
-      render(<AlertsPage />);
+      renderWithQueryClient(<AlertsPage />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -200,7 +223,7 @@ describe('AlertsPage', () => {
         .mockResolvedValueOnce(mockEmptyResponse)
         .mockResolvedValueOnce(mockEmptyResponse);
 
-      render(<AlertsPage />);
+      renderWithQueryClient(<AlertsPage />);
 
       await waitFor(() => {
         expect(screen.getByText('No Alerts at This Time')).toBeInTheDocument();
@@ -218,7 +241,7 @@ describe('AlertsPage', () => {
       vi.mocked(api.fetchEvents).mockResolvedValue(mockEmptyResponse);
 
       const user = userEvent.setup();
-      render(<AlertsPage />);
+      renderWithQueryClient(<AlertsPage />);
 
       await waitFor(() => {
         expect(screen.getByText('No Alerts at This Time')).toBeInTheDocument();
@@ -242,7 +265,7 @@ describe('AlertsPage', () => {
         .mockResolvedValueOnce(mockHighResponse)
         .mockResolvedValueOnce(mockCriticalResponse);
 
-      render(<AlertsPage />);
+      renderWithQueryClient(<AlertsPage />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -258,7 +281,7 @@ describe('AlertsPage', () => {
         .mockResolvedValueOnce(mockCriticalResponse);
 
       const user = userEvent.setup();
-      render(<AlertsPage />);
+      renderWithQueryClient(<AlertsPage />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -286,7 +309,7 @@ describe('AlertsPage', () => {
         .mockResolvedValueOnce(mockCriticalResponse);
 
       const user = userEvent.setup();
-      render(<AlertsPage />);
+      renderWithQueryClient(<AlertsPage />);
 
       await waitFor(() => {
         expect(screen.getByText('Unknown person at door')).toBeInTheDocument();
@@ -315,7 +338,7 @@ describe('AlertsPage', () => {
         .mockResolvedValueOnce(mockHighResponse)
         .mockResolvedValueOnce(mockCriticalResponse);
 
-      render(<AlertsPage />);
+      renderWithQueryClient(<AlertsPage />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -329,7 +352,7 @@ describe('AlertsPage', () => {
         () => new Promise(() => {}) // Never resolves
       );
 
-      render(<AlertsPage />);
+      renderWithQueryClient(<AlertsPage />);
 
       const refreshButton = screen.getByText('Refresh').closest('button');
       expect(refreshButton).toBeDisabled();
@@ -338,10 +361,13 @@ describe('AlertsPage', () => {
 
   describe('Error Handling', () => {
     it('displays error message when fetching alerts fails', async () => {
+      // Reset and set mock to reject all calls
+      vi.mocked(api.fetchEvents).mockReset();
       vi.mocked(api.fetchEvents).mockRejectedValue(new Error('Network error'));
 
-      render(<AlertsPage />);
+      renderWithQueryClient(<AlertsPage />);
 
+      // Wait for error state
       await waitFor(() => {
         expect(screen.getByText('Error Loading Alerts')).toBeInTheDocument();
       });
@@ -355,7 +381,7 @@ describe('AlertsPage', () => {
         .mockResolvedValueOnce(mockHighResponse)
         .mockResolvedValueOnce(mockCriticalResponse);
 
-      render(<AlertsPage />);
+      renderWithQueryClient(<AlertsPage />);
 
       // Should still load alerts
       await waitFor(() => {
@@ -367,8 +393,25 @@ describe('AlertsPage', () => {
     });
   });
 
-  describe('Pagination', () => {
-    it('displays pagination controls when there are multiple pages', async () => {
+  describe('Infinite Scroll', () => {
+    it('displays "All alerts loaded" when no more pages are available', async () => {
+      vi.mocked(api.fetchEvents)
+        .mockResolvedValueOnce(mockHighResponse)
+        .mockResolvedValueOnce(mockCriticalResponse);
+
+      renderWithQueryClient(<AlertsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('2 alerts found')).toBeInTheDocument();
+      });
+
+      // Should show "All alerts loaded" when all data is loaded
+      await waitFor(() => {
+        expect(screen.getByText('All alerts loaded')).toBeInTheDocument();
+      });
+    });
+
+    it('shows partial count when more alerts are available', async () => {
       const manyHighEvents: Event[] = Array.from({ length: 15 }, (_, i) => ({
         id: i + 1,
         camera_id: 'camera-1',
@@ -399,48 +442,33 @@ describe('AlertsPage', () => {
         .mockResolvedValueOnce({
           items: manyHighEvents,
           pagination: {
-            total: 15,
-            limit: 20,
+            total: 30,
+            limit: 25,
             offset: 0,
-            has_more: false,
+            has_more: true,
           },
         })
         .mockResolvedValueOnce({
           items: manyCriticalEvents,
           pagination: {
-            total: 15,
-            limit: 20,
+            total: 30,
+            limit: 25,
             offset: 0,
-            has_more: false,
+            has_more: true,
           },
         });
 
-      render(<AlertsPage />);
+      renderWithQueryClient(<AlertsPage />);
 
+      // Should show total count with indication that more are available
       await waitFor(() => {
-        expect(screen.getByText('30 alerts found')).toBeInTheDocument();
+        expect(screen.getByText(/60 alerts found/)).toBeInTheDocument();
       });
 
-      // Should show pagination controls
-      expect(screen.getByLabelText('Previous page')).toBeInTheDocument();
-      expect(screen.getByLabelText('Next page')).toBeInTheDocument();
-      expect(screen.getByText('Page 1 of 2')).toBeInTheDocument();
-    });
-
-    it('does not display pagination when all alerts fit on one page', async () => {
-      vi.mocked(api.fetchEvents)
-        .mockResolvedValueOnce(mockHighResponse)
-        .mockResolvedValueOnce(mockCriticalResponse);
-
-      render(<AlertsPage />);
-
+      // When not all alerts are loaded, should show "showing X" indicator
       await waitFor(() => {
-        expect(screen.getByText('2 alerts found')).toBeInTheDocument();
+        expect(screen.getByText(/showing 30/)).toBeInTheDocument();
       });
-
-      // Should not show pagination controls
-      expect(screen.queryByLabelText('Previous page')).not.toBeInTheDocument();
-      expect(screen.queryByLabelText('Next page')).not.toBeInTheDocument();
     });
   });
 
@@ -453,7 +481,7 @@ describe('AlertsPage', () => {
       const handleViewDetails = vi.fn();
       const user = userEvent.setup();
 
-      render(<AlertsPage onViewEventDetails={handleViewDetails} />);
+      renderWithQueryClient(<AlertsPage onViewEventDetails={handleViewDetails} />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -470,7 +498,7 @@ describe('AlertsPage', () => {
         .mockResolvedValueOnce(mockHighResponse)
         .mockResolvedValueOnce(mockCriticalResponse);
 
-      render(<AlertsPage />);
+      renderWithQueryClient(<AlertsPage />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -490,7 +518,7 @@ describe('AlertsPage', () => {
         .mockResolvedValueOnce(mockHighResponse)
         .mockResolvedValueOnce(mockEmptyResponse);
 
-      render(<AlertsPage />);
+      renderWithQueryClient(<AlertsPage />);
 
       await waitFor(() => {
         expect(screen.getByText('1 alert found')).toBeInTheDocument();
@@ -502,7 +530,7 @@ describe('AlertsPage', () => {
         .mockResolvedValueOnce(mockHighResponse)
         .mockResolvedValueOnce(mockCriticalResponse);
 
-      render(<AlertsPage />);
+      renderWithQueryClient(<AlertsPage />);
 
       await waitFor(() => {
         expect(screen.getByText('2 alerts found')).toBeInTheDocument();
@@ -514,7 +542,7 @@ describe('AlertsPage', () => {
         .mockResolvedValueOnce(mockEmptyResponse)
         .mockResolvedValueOnce(mockEmptyResponse);
 
-      render(<AlertsPage />);
+      renderWithQueryClient(<AlertsPage />);
 
       await waitFor(() => {
         expect(screen.getByText('0 alerts found')).toBeInTheDocument();
@@ -529,7 +557,7 @@ describe('AlertsPage', () => {
         .mockResolvedValueOnce(mockCriticalResponse);
 
       const user = userEvent.setup();
-      render(<AlertsPage />);
+      renderWithQueryClient(<AlertsPage />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -556,7 +584,7 @@ describe('AlertsPage', () => {
         .mockResolvedValueOnce(mockCriticalResponse);
 
       const user = userEvent.setup();
-      render(<AlertsPage />);
+      renderWithQueryClient(<AlertsPage />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -591,7 +619,7 @@ describe('AlertsPage', () => {
         .mockResolvedValueOnce(mockCriticalResponse);
 
       const user = userEvent.setup();
-      render(<AlertsPage />);
+      renderWithQueryClient(<AlertsPage />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -627,7 +655,7 @@ describe('AlertsPage', () => {
         .mockResolvedValueOnce(mockCriticalResponse);
 
       const user = userEvent.setup();
-      render(<AlertsPage />);
+      renderWithQueryClient(<AlertsPage />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -666,7 +694,7 @@ describe('AlertsPage', () => {
         .mockResolvedValueOnce(mockCriticalResponse);
 
       const user = userEvent.setup();
-      render(<AlertsPage />);
+      renderWithQueryClient(<AlertsPage />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
