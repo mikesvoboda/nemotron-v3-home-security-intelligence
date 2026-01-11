@@ -18,8 +18,8 @@ export interface StorageDashboardProps {
 /**
  * Format bytes to human-readable string.
  */
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 B';
+function formatBytes(bytes: number | null | undefined): string {
+  if (bytes === null || bytes === undefined || bytes === 0 || !Number.isFinite(bytes)) return '0 B';
 
   const units = ['B', 'KB', 'MB', 'GB', 'TB'];
   const k = 1024;
@@ -137,7 +137,7 @@ export default function StorageDashboard({ className }: StorageDashboardProps) {
 
         <div className="flex justify-between text-xs text-gray-500">
           <span>{formatBytes(stats.disk_used_bytes)} used</span>
-          <span>{stats.disk_usage_percent.toFixed(1)}%</span>
+          <span>{stats.disk_usage_percent?.toFixed(1) ?? 0}%</span>
           <span>{formatBytes(stats.disk_total_bytes)} total</span>
         </div>
       </div>

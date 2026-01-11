@@ -264,7 +264,7 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
                   </Text>
                 </div>
                 <Text className="text-lg font-semibold text-white">
-                  {editedConfig.detection_confidence_threshold.toFixed(2)}
+                  {editedConfig.detection_confidence_threshold?.toFixed(2) ?? '0.50'}
                 </Text>
               </div>
               <input

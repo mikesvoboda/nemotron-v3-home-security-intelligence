@@ -49,8 +49,8 @@ test.describe('Camera Configuration Journey (NEM-2049)', () => {
     await camerasTab.click();
     await page.waitForTimeout(1000);
 
-    // Then: Camera configuration should be visible
-    const tabPanel = page.locator('[role="tabpanel"]');
+    // Then: Camera configuration should be visible (select only active panel)
+    const tabPanel = page.locator('[role="tabpanel"][data-headlessui-state="selected"]');
     await expect(tabPanel).toBeVisible();
 
     // Verify camera-related content is present
@@ -426,8 +426,8 @@ test.describe('Camera Configuration Journey (NEM-2049)', () => {
       await analyticsTab.click();
       await page.waitForTimeout(1500);
 
-      // Then: Verify analytics content is displayed
-      const tabPanel = page.locator('[role="tabpanel"]');
+      // Then: Verify analytics content is displayed (select only active panel)
+      const tabPanel = page.locator('[role="tabpanel"][data-headlessui-state="selected"]');
       await expect(tabPanel).toBeVisible();
 
       const panelText = await tabPanel.textContent();

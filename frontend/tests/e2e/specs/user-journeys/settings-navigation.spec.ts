@@ -61,8 +61,8 @@ test.describe('Settings Navigation and Configuration Journey (NEM-2049)', () => 
         const isSelected = await tabElement.getAttribute('data-selected');
         expect(isSelected).toBe('true');
 
-        // Verify tab panel content is visible
-        const tabPanel = page.locator('[role="tabpanel"]');
+        // Verify tab panel content is visible (select only the active panel)
+        const tabPanel = page.locator('[role="tabpanel"][data-headlessui-state="selected"]');
         await expect(tabPanel).toBeVisible();
       }
     }
@@ -267,8 +267,8 @@ test.describe('Settings Navigation and Configuration Journey (NEM-2049)', () => 
       await rulesTab.click();
       await page.waitForTimeout(1500);
 
-      // Then: Verify rules interface is present
-      const tabPanel = page.locator('[role="tabpanel"]');
+      // Then: Verify rules interface is present (select only the active panel)
+      const tabPanel = page.locator('[role="tabpanel"][data-headlessui-state="selected"]');
       await expect(tabPanel).toBeVisible();
 
       // Look for rules-related content
@@ -303,16 +303,16 @@ test.describe('Settings Navigation and Configuration Journey (NEM-2049)', () => 
       await page.keyboard.press('ArrowRight');
       await page.waitForTimeout(500);
 
-      // Then: Verify a tab panel is visible (tab changed)
-      const tabPanel = page.locator('[role="tabpanel"]');
+      // Then: Verify a tab panel is visible (tab changed, select only active panel)
+      const tabPanel = page.locator('[role="tabpanel"][data-headlessui-state="selected"]');
       await expect(tabPanel).toBeVisible();
 
       // Navigate back with ArrowLeft
       await page.keyboard.press('ArrowLeft');
       await page.waitForTimeout(500);
 
-      // Verify tab panel still visible
-      await expect(tabPanel).toBeVisible();
+      // Verify active tab panel still visible
+      await expect(page.locator('[role="tabpanel"][data-headlessui-state="selected"]')).toBeVisible();
     }
   });
 
@@ -443,8 +443,8 @@ test.describe('Settings Navigation and Configuration Journey (NEM-2049)', () => 
         await tab.click();
         await page.waitForTimeout(1000);
 
-        // Then: Look for descriptive text
-        const tabPanel = page.locator('[role="tabpanel"]');
+        // Then: Look for descriptive text (select only active panel)
+        const tabPanel = page.locator('[role="tabpanel"][data-headlessui-state="selected"]');
         await expect(tabPanel).toBeVisible();
 
         const panelText = await tabPanel.textContent();

@@ -239,11 +239,13 @@ export const mockSystemConfig = {
     batch_window_seconds: 90,
     batch_idle_timeout_seconds: 30,
     retention_days: 30,
+    detection_confidence_threshold: 0.5,
   },
   customized: {
     batch_window_seconds: 120,
     batch_idle_timeout_seconds: 45,
     retention_days: 60,
+    detection_confidence_threshold: 0.7,
   },
 };
 
