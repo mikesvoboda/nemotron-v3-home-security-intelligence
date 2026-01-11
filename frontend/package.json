@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "vite",
     "dev:e2e": "vite --config vite.config.e2e.ts",
+    "prebuild": "npm run generate-types",
     "build": "tsc && vite build",
     "lint": "eslint src --max-warnings 0",
     "lint:fix": "eslint src --fix",

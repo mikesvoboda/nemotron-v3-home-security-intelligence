@@ -1,0 +1,12 @@
+{
+  "model_name": "fashion_clip",
+  "config": {
+    "clothing_categories": ["shirt", "pants", "shoes"],
+    "suspicious_indicators": ["mask", "hood"]
+  },
+  "version": 4,
+  "created_at": "2026-01-11T01:50:29.154663+00:00",
+  "created_by": "user",
+  "description": null,
+  "updated_at": "2026-01-11T01:50:29.154663+00:00"
+}

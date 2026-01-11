@@ -84,9 +84,11 @@ export default function DashboardPage() {
         const startDate = startOfDay.toISOString();
 
         // Fetch cameras, events, and event stats in parallel
+        // Note: We only need 10 events for the ActivityFeed and risk history sparkline
+        // This avoids the double-fetch anti-pattern of fetching more data than needed
         const [camerasData, eventsData, statsData] = await Promise.all([
           fetchCameras(),
-          fetchEvents({ limit: 50 }),
+          fetchEvents({ limit: 10 }),
           fetchEventStats({ start_date: startDate }),
         ]);
 

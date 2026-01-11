@@ -3274,7 +3274,7 @@ export interface paths {
          *         cache: Cache service for invalidation
          *
          *     Returns:
-         *         The restored event
+         *         The restored event as EventResponse
          *
          *     Raises:
          *         HTTPException: 404 if event not found, 409 if not deleted
@@ -4981,6 +4981,7 @@ export interface components {
             /**
              * Last Check
              * @description Timestamp of last health check
+             * @constraint format: date-time
              */
             last_check?: string | null;
             /**
@@ -5018,16 +5019,19 @@ export interface components {
             /**
              * Avg Count
              * @description Average activity count for this time slot
+             * @constraint minimum: 0.0
              */
             avg_count: number;
             /**
              * Day Of Week
              * @description Day of week (0=Monday, 6=Sunday)
+             * @constraint minimum: 0.0, maximum: 6.0
              */
             day_of_week: number;
             /**
              * Hour
              * @description Hour of day (0-23)
+             * @constraint minimum: 0.0, maximum: 23.0
              */
             hour: number;
             /**
@@ -5039,6 +5043,7 @@ export interface components {
             /**
              * Sample Count
              * @description Number of samples used to calculate this average
+             * @constraint minimum: 0.0
              */
             sample_count: number;
         };
@@ -5094,21 +5099,25 @@ export interface components {
              * Min Samples Required
              * @description Minimum samples required per time slot for learning completion
              * @default 10
+             * @constraint minimum: 1.0
              */
             min_samples_required: number;
             /**
              * Peak Day
              * @description Day with highest average activity (0=Monday, 6=Sunday)
+             * @constraint minimum: 0.0, maximum: 6.0
              */
             peak_day?: number | null;
             /**
              * Peak Hour
              * @description Hour with highest average activity (0-23)
+             * @constraint minimum: 0.0, maximum: 23.0
              */
             peak_hour?: number | null;
             /**
              * Total Samples
              * @description Total number of samples across all entries
+             * @constraint minimum: 0.0
              */
             total_samples: number;
         };
@@ -5143,6 +5152,7 @@ export interface components {
              * Created At
              * Format: date-time
              * @description Creation timestamp
+             * @constraint format: date-time
              */
             created_at: string;
             /**
@@ -5153,6 +5163,7 @@ export interface components {
             /**
              * Delivered At
              * @description Delivery timestamp
+             * @constraint format: date-time
              */
             delivered_at?: string | null;
             /**
@@ -5185,6 +5196,7 @@ export interface components {
              * Updated At
              * Format: date-time
              * @description Last update timestamp
+             * @constraint format: date-time
              */
             updated_at: string;
         };
@@ -5226,6 +5238,7 @@ export interface components {
             /**
              * Risk Threshold
              * @description Minimum risk score to trigger alert
+             * @constraint minimum: 0.0, maximum: 100.0
              */
             risk_threshold?: number | null;
             /**
@@ -5293,12 +5306,14 @@ export interface components {
              * Cooldown Seconds
              * @description Minimum seconds between duplicate alerts
              * @default 300
+             * @constraint minimum: 0.0
              */
             cooldown_seconds: number;
             /**
              * Dedup Key Template
              * @description Template for dedup key. Variables: {camera_id}, {rule_id}, {object_type}
              * @default {camera_id}:{rule_id}
+             * @constraint maxLength: 255
              */
             dedup_key_template: string;
             /**
@@ -5315,11 +5330,13 @@ export interface components {
             /**
              * Min Confidence
              * @description Minimum detection confidence (0.0-1.0)
+             * @constraint minimum: 0.0, maximum: 1.0
              */
             min_confidence?: number | null;
             /**
              * Name
              * @description Rule name
+             * @constraint minLength: 1, maxLength: 255
              */
             name: string;
             /**
@@ -5330,6 +5347,7 @@ export interface components {
             /**
              * Risk Threshold
              * @description Alert when risk_score >= threshold
+             * @constraint minimum: 0.0, maximum: 100.0
              */
             risk_threshold?: number | null;
             /** @description Time-based conditions (null = always active) */
@@ -5444,6 +5462,7 @@ export interface components {
              * Created At
              * Format: date-time
              * @description Creation timestamp
+             * @constraint format: date-time
              */
             created_at: string;
             /**
@@ -5494,6 +5513,7 @@ export interface components {
              * Updated At
              * Format: date-time
              * @description Last update timestamp
+             * @constraint format: date-time
              */
             updated_at: string;
             /**
@@ -5535,11 +5555,13 @@ export interface components {
             /**
              * End Time
              * @description End time in HH:MM format (00:00-23:59)
+             * @constraint pattern: ^\d{2}:\d{2}$
              */
             end_time?: string | null;
             /**
              * Start Time
              * @description Start time in HH:MM format (00:00-23:59)
+             * @constraint pattern: ^\d{2}:\d{2}$
              */
             start_time?: string | null;
             /**
@@ -5576,11 +5598,13 @@ export interface components {
             /**
              * Cooldown Seconds
              * @description Minimum seconds between duplicate alerts
+             * @constraint minimum: 0.0
              */
             cooldown_seconds?: number | null;
             /**
              * Dedup Key Template
              * @description Template for dedup key
+             * @constraint maxLength: 255
              */
             dedup_key_template?: string | null;
             /**
@@ -5596,11 +5620,13 @@ export interface components {
             /**
              * Min Confidence
              * @description Minimum detection confidence
+             * @constraint minimum: 0.0, maximum: 1.0
              */
             min_confidence?: number | null;
             /**
              * Name
              * @description Rule name
+             * @constraint minLength: 1, maxLength: 255
              */
             name?: string | null;
             /**
@@ -5611,6 +5637,7 @@ export interface components {
             /**
              * Risk Threshold
              * @description Alert when risk_score >= threshold
+             * @constraint minimum: 0.0, maximum: 100.0
              */
             risk_threshold?: number | null;
             /** @description Time-based conditions */
@@ -5685,21 +5712,25 @@ export interface components {
             /**
              * Decay Factor
              * @description Exponential decay factor for EWMA (0 < factor <= 1)
+             * @constraint maximum: 1.0, exclusiveMinimum: 0.0
              */
             decay_factor: number;
             /**
              * Min Samples
              * @description Minimum samples required before anomaly detection is reliable
+             * @constraint minimum: 1.0
              */
             min_samples: number;
             /**
              * Threshold Stdev
              * @description Number of standard deviations from mean for anomaly detection
+             * @constraint exclusiveMinimum: 0.0
              */
             threshold_stdev: number;
             /**
              * Window Days
              * @description Rolling window size in days for baseline calculations
+             * @constraint minimum: 1.0
              */
             window_days: number;
         };
@@ -5715,11 +5746,13 @@ export interface components {
             /**
              * Min Samples
              * @description Minimum samples required before anomaly detection is reliable
+             * @constraint minimum: 1.0
              */
             min_samples?: number | null;
             /**
              * Threshold Stdev
              * @description Number of standard deviations from mean for anomaly detection
+             * @constraint exclusiveMinimum: 0.0
              */
             threshold_stdev?: number | null;
         };
@@ -5739,6 +5772,7 @@ export interface components {
             /**
              * Anomaly Score
              * @description Anomaly score (0.0-1.0, higher is more anomalous)
+             * @constraint minimum: 0.0, maximum: 1.0
              */
             anomaly_score: number;
             /**
@@ -5749,11 +5783,13 @@ export interface components {
             /**
              * Expected Frequency
              * @description Expected frequency for this class at this time
+             * @constraint minimum: 0.0
              */
             expected_frequency: number;
             /**
              * Observed Frequency
              * @description Observed frequency that triggered the anomaly
+             * @constraint minimum: 0.0
              */
             observed_frequency: number;
             /**
@@ -5765,6 +5801,7 @@ export interface components {
              * Timestamp
              * Format: date-time
              * @description When the anomaly was detected
+             * @constraint format: date-time
              */
             timestamp: string;
         };
@@ -5801,11 +5838,13 @@ export interface components {
             /**
              * Count
              * @description Total number of anomalies returned
+             * @constraint minimum: 0.0
              */
             count: number;
             /**
              * Period Days
              * @description Number of days covered by this query
+             * @constraint minimum: 1.0
              */
             period_days: number;
         };
@@ -5874,11 +5913,13 @@ export interface components {
             /**
              * Action
              * @description The action performed (e.g., 'create', 'update', 'delete', 'acknowledge')
+             * @constraint minLength: 1, maxLength: 50
              */
             action: string;
             /**
              * Actor
              * @description User or system that performed the action
+             * @constraint minLength: 1, maxLength: 200
              */
             actor: string;
             /**
@@ -5891,37 +5932,44 @@ export interface components {
             /**
              * Id
              * @description Audit log entry ID
+             * @constraint minimum: 1.0
              */
             id: number;
             /**
              * Ip Address
              * @description IP address of the client (IPv4 or IPv6)
+             * @constraint maxLength: 45
              */
             ip_address?: string | null;
             /**
              * Resource Id
              * @description ID of the specific resource
+             * @constraint maxLength: 128
              */
             resource_id?: string | null;
             /**
              * Resource Type
              * @description Type of resource (event, alert, rule, camera, settings)
+             * @constraint minLength: 1, maxLength: 50
              */
             resource_type: string;
             /**
              * Status
              * @description Status of the action (success/failure)
+             * @constraint pattern: ^(success|failure)$
              */
             status: string;
             /**
              * Timestamp
              * Format: date-time
              * @description When the action occurred (UTC)
+             * @constraint format: date-time
              */
             timestamp: string;
             /**
              * User Agent
              * @description User agent string of the client
+             * @constraint maxLength: 500
              */
             user_agent?: string | null;
         };
@@ -5979,6 +6027,7 @@ export interface components {
             /**
              * Logs Today
              * @description Number of logs today
+             * @constraint minimum: 0.0
              */
             logs_today: number;
             /**
@@ -5989,6 +6038,7 @@ export interface components {
             /**
              * Total Logs
              * @description Total number of audit logs
+             * @constraint minimum: 0.0
              */
             total_logs: number;
         };
@@ -6099,6 +6149,7 @@ export interface components {
             /**
              * Baseline Established
              * @description When baseline data collection started (null if no data)
+             * @constraint format: date-time
              */
             baseline_established?: string | null;
             /**
@@ -6123,6 +6174,7 @@ export interface components {
             /**
              * Data Points
              * @description Total number of data points in baseline
+             * @constraint minimum: 0.0
              */
             data_points: number;
             /**
@@ -6163,11 +6215,13 @@ export interface components {
             /**
              * Active Batches
              * @description Number of active batches being aggregated
+             * @constraint minimum: 0.0
              */
             active_batches: number;
             /**
              * Batch Window Seconds
              * @description Configured batch window timeout in seconds
+             * @constraint minimum: 1.0
              */
             batch_window_seconds: number;
             /**
@@ -6178,6 +6232,7 @@ export interface components {
             /**
              * Idle Timeout Seconds
              * @description Configured idle timeout in seconds
+             * @constraint minimum: 1.0
              */
             idle_timeout_seconds: number;
         };
@@ -6199,6 +6254,7 @@ export interface components {
             /**
              * Limit
              * @default 100
+             * @constraint minimum: 1.0, maximum: 1000.0
              */
             limit: number;
             /** Min Risk Score */
@@ -6226,6 +6282,7 @@ export interface components {
             /**
              * Age Seconds
              * @description Time since batch started in seconds
+             * @constraint minimum: 0.0
              */
             age_seconds: number;
             /**
@@ -6241,11 +6298,13 @@ export interface components {
             /**
              * Detection Count
              * @description Number of detections in this batch
+             * @constraint minimum: 0.0
              */
             detection_count: number;
             /**
              * Last Activity Seconds
              * @description Time since last activity in seconds
+             * @constraint minimum: 0.0
              */
             last_activity_seconds: number;
             /**
@@ -6278,6 +6337,7 @@ export interface components {
             /**
              * Index
              * @description Zero-based index of the item in the request
+             * @constraint minimum: 0.0
              */
             index: number;
             /** @description Operation status */
@@ -6300,6 +6360,7 @@ export interface components {
             /**
              * Failed
              * @description Number of failed operations
+             * @constraint minimum: 0.0
              */
             failed: number;
             /**
@@ -6311,16 +6372,19 @@ export interface components {
              * Skipped
              * @description Number of skipped operations
              * @default 0
+             * @constraint minimum: 0.0
              */
             skipped: number;
             /**
              * Succeeded
              * @description Number of successful operations
+             * @constraint minimum: 0.0
              */
             succeeded: number;
             /**
              * Total
              * @description Total number of items in the request
+             * @constraint minimum: 0.0
              */
             total: number;
         };
@@ -6343,11 +6407,13 @@ export interface components {
             /**
              * Folder Path
              * @description File system path for camera uploads
+             * @constraint minLength: 1, maxLength: 500
              */
             folder_path: string;
             /**
              * Name
              * @description Camera name
+             * @constraint minLength: 1, maxLength: 255
              */
             name: string;
             /**
@@ -6418,6 +6484,7 @@ export interface components {
             /**
              * Risk Threshold
              * @description Minimum risk score to trigger notifications (0-100)
+             * @constraint minimum: 0.0, maximum: 100.0
              */
             risk_threshold: number;
         };
@@ -6438,6 +6505,7 @@ export interface components {
             /**
              * Risk Threshold
              * @description Minimum risk score to trigger notifications (0-100)
+             * @constraint minimum: 0.0, maximum: 100.0
              */
             risk_threshold?: number | null;
         };
@@ -6493,6 +6561,7 @@ export interface components {
              * Created At
              * Format: date-time
              * @description Timestamp when camera was created
+             * @constraint format: date-time
              */
             created_at: string;
             /**
@@ -6508,6 +6577,7 @@ export interface components {
             /**
              * Last Seen At
              * @description Last time camera was active
+             * @constraint format: date-time
              */
             last_seen_at?: string | null;
             /**
@@ -6542,11 +6612,13 @@ export interface components {
             /**
              * Folder Path
              * @description File system path for camera uploads
+             * @constraint minLength: 1, maxLength: 500
              */
             folder_path?: string | null;
             /**
              * Name
              * @description Camera name
+             * @constraint minLength: 1, maxLength: 255
              */
             name?: string | null;
             /** @description Camera status (online, offline, error, unknown) */
@@ -6576,11 +6648,13 @@ export interface components {
             /**
              * Detection Count
              * @description Total detections in date range
+             * @constraint minimum: 0.0
              */
             detection_count: number;
             /**
              * Uptime Percentage
              * @description Uptime percentage (0-100)
+             * @constraint minimum: 0.0, maximum: 100.0
              */
             uptime_percentage: number;
         };
@@ -6616,12 +6690,14 @@ export interface components {
              * End Date
              * Format: date
              * @description End date of the date range
+             * @constraint format: date
              */
             end_date: string;
             /**
              * Start Date
              * Format: date
              * @description Start date of the date range
+             * @constraint format: date
              */
             start_date: string;
         };
@@ -6641,16 +6717,19 @@ export interface components {
             /**
              * Healthy
              * @description Number of healthy (running) services
+             * @constraint minimum: 0.0
              */
             healthy: number;
             /**
              * Total
              * @description Total number of services in this category
+             * @constraint minimum: 0.0
              */
             total: number;
             /**
              * Unhealthy
              * @description Number of unhealthy/stopped/disabled services
+             * @constraint minimum: 0.0
              */
             unhealthy: number;
         };
@@ -6662,21 +6741,25 @@ export interface components {
             /**
              * Failure Threshold
              * @description Number of failures before opening circuit
+             * @constraint minimum: 1.0
              */
             failure_threshold: number;
             /**
              * Half Open Max Calls
              * @description Maximum calls allowed in half-open state
+             * @constraint minimum: 1.0
              */
             half_open_max_calls: number;
             /**
              * Recovery Timeout
              * @description Seconds to wait before transitioning to half-open
+             * @constraint minimum: 0.0
              */
             recovery_timeout: number;
             /**
              * Success Threshold
              * @description Successes needed in half-open to close circuit
+             * @constraint minimum: 1.0
              */
             success_threshold: number;
         };
@@ -6730,6 +6813,7 @@ export interface components {
             /**
              * Failure Count
              * @description Current consecutive failure count
+             * @constraint minimum: 0.0
              */
             failure_count: number;
             /**
@@ -6750,6 +6834,7 @@ export interface components {
             /**
              * Rejected Calls
              * @description Calls rejected due to open circuit
+             * @constraint minimum: 0.0
              */
             rejected_calls: number;
             /** @description Current circuit state: closed (normal), open (failing), half_open (testing) */
@@ -6757,11 +6842,13 @@ export interface components {
             /**
              * Success Count
              * @description Current consecutive success count (relevant in half-open)
+             * @constraint minimum: 0.0
              */
             success_count: number;
             /**
              * Total Calls
              * @description Total calls attempted through this circuit
+             * @constraint minimum: 0.0
              */
             total_calls: number;
         };
@@ -6849,17 +6936,20 @@ export interface components {
             /**
              * Open Count
              * @description Number of circuit breakers currently open
+             * @constraint minimum: 0.0
              */
             open_count: number;
             /**
              * Timestamp
              * Format: date-time
              * @description Timestamp of status snapshot
+             * @constraint format: date-time
              */
             timestamp: string;
             /**
              * Total Count
              * @description Total number of circuit breakers
+             * @constraint minimum: 0.0
              */
             total_count: number;
         };
@@ -6888,11 +6978,13 @@ export interface components {
             /**
              * Frequency
              * @description Frequency of this class at this hour
+             * @constraint minimum: 0.0
              */
             frequency: number;
             /**
              * Hour
              * @description Hour of day (0-23)
+             * @constraint minimum: 0.0, maximum: 23.0
              */
             hour: number;
             /**
@@ -6903,6 +6995,7 @@ export interface components {
             /**
              * Sample Count
              * @description Number of samples for this class/hour combination
+             * @constraint minimum: 0.0
              */
             sample_count: number;
         };
@@ -6953,6 +7046,7 @@ export interface components {
             /**
              * Total Samples
              * @description Total number of samples across all entries
+             * @constraint minimum: 0.0
              */
             total_samples: number;
             /**
@@ -6985,6 +7079,7 @@ export interface components {
             /**
              * Detections Deleted
              * @description Number of detections deleted (or would be deleted in dry run)
+             * @constraint minimum: 0.0
              */
             detections_deleted: number;
             /**
@@ -6996,42 +7091,50 @@ export interface components {
             /**
              * Events Deleted
              * @description Number of events deleted (or would be deleted in dry run)
+             * @constraint minimum: 0.0
              */
             events_deleted: number;
             /**
              * Gpu Stats Deleted
              * @description Number of GPU stat records deleted (or would be deleted in dry run)
+             * @constraint minimum: 0.0
              */
             gpu_stats_deleted: number;
             /**
              * Images Deleted
              * @description Number of original image files deleted (or would be deleted in dry run)
+             * @constraint minimum: 0.0
              */
             images_deleted: number;
             /**
              * Logs Deleted
              * @description Number of log records deleted (or would be deleted in dry run)
+             * @constraint minimum: 0.0
              */
             logs_deleted: number;
             /**
              * Retention Days
              * @description Retention period used for cleanup
+             * @constraint minimum: 1.0, maximum: 365.0
              */
             retention_days: number;
             /**
              * Space Reclaimed
              * @description Estimated disk space freed in bytes (or would be freed in dry run)
+             * @constraint minimum: 0.0
              */
             space_reclaimed: number;
             /**
              * Thumbnails Deleted
              * @description Number of thumbnail files deleted (or would be deleted in dry run)
+             * @constraint minimum: 0.0
              */
             thumbnails_deleted: number;
             /**
              * Timestamp
              * Format: date-time
              * @description Timestamp of cleanup operation
+             * @constraint format: date-time
              */
             timestamp: string;
         };
@@ -7066,6 +7169,7 @@ export interface components {
             /**
              * Retention Days
              * @description Current retention period in days
+             * @constraint minimum: 1.0, maximum: 365.0
              */
             retention_days: number;
             /**
@@ -7077,6 +7181,7 @@ export interface components {
              * Timestamp
              * Format: date-time
              * @description Timestamp of status snapshot
+             * @constraint format: date-time
              */
             timestamp: string;
         };
@@ -7122,6 +7227,7 @@ export interface components {
              * End Offset Seconds
              * @description Seconds relative to event start to end clip (range: -30 to 3600, must be >= start_offset_seconds)
              * @default 30
+             * @constraint minimum: -30.0, maximum: 3600.0
              */
             end_offset_seconds: number;
             /**
@@ -7134,6 +7240,7 @@ export interface components {
              * Start Offset Seconds
              * @description Seconds relative to event start to begin clip (negative = before event, range: -30 to 3600)
              * @default -15
+             * @constraint minimum: -30.0, maximum: 3600.0
              */
             start_offset_seconds: number;
         };
@@ -7162,6 +7269,7 @@ export interface components {
             /**
              * Generated At
              * @description Timestamp when the clip was generated
+             * @constraint format: date-time
              */
             generated_at?: string | null;
             /**
@@ -7213,6 +7321,7 @@ export interface components {
             /**
              * Generated At
              * @description Timestamp when the clip was generated
+             * @constraint format: date-time
              */
             generated_at?: string | null;
         };
@@ -7295,16 +7404,19 @@ export interface components {
             /**
              * Batch Idle Timeout Seconds
              * @description Idle timeout before processing incomplete batch
+             * @constraint minimum: 1.0
              */
             batch_idle_timeout_seconds: number;
             /**
              * Batch Window Seconds
              * @description Time window for batch processing detections
+             * @constraint minimum: 1.0
              */
             batch_window_seconds: number;
             /**
              * Detection Confidence Threshold
              * @description Minimum confidence threshold for detections (0.0-1.0)
+             * @constraint minimum: 0.0, maximum: 1.0
              */
             detection_confidence_threshold: number;
             /**
@@ -7315,6 +7427,7 @@ export interface components {
             /**
              * Retention Days
              * @description Number of days to retain events and detections
+             * @constraint minimum: 1.0, maximum: 365.0
              */
             retention_days: number;
             /**
@@ -7333,21 +7446,25 @@ export interface components {
             /**
              * Batch Idle Timeout Seconds
              * @description Idle timeout before processing incomplete batch
+             * @constraint minimum: 1.0
              */
             batch_idle_timeout_seconds?: number | null;
             /**
              * Batch Window Seconds
              * @description Time window for batch processing detections
+             * @constraint minimum: 1.0
              */
             batch_window_seconds?: number | null;
             /**
              * Detection Confidence Threshold
              * @description Minimum confidence threshold for detections (0.0-1.0)
+             * @constraint minimum: 0.0, maximum: 1.0
              */
             detection_confidence_threshold?: number | null;
             /**
              * Retention Days
              * @description Number of days to retain events and detections
+             * @constraint minimum: 1.0, maximum: 365.0
              */
             retention_days?: number | null;
         };
@@ -7409,17 +7526,20 @@ export interface components {
             /**
              * Custom Prompt
              * @description Custom prompt text to test
+             * @constraint minLength: 1
              */
             custom_prompt: string;
             /**
              * Event Id
              * @description Event ID to test the prompt against
+             * @constraint minimum: 1.0
              */
             event_id: number;
             /**
              * Max Tokens
              * @description Maximum tokens in response
              * @default 2048
+             * @constraint minimum: 100.0, maximum: 8192.0
              */
             max_tokens: number;
             /**
@@ -7432,6 +7552,7 @@ export interface components {
              * Temperature
              * @description LLM temperature setting
              * @default 0.7
+             * @constraint minimum: 0.0, maximum: 2.0
              */
             temperature: number;
         };
@@ -7475,6 +7596,7 @@ export interface components {
             /**
              * Processing Time Ms
              * @description Time taken for inference in milliseconds
+             * @constraint minimum: 0.0
              */
             processing_time_ms: number;
             /**
@@ -7496,6 +7618,7 @@ export interface components {
             /**
              * Risk Score
              * @description Computed risk score (0-100)
+             * @constraint minimum: 0.0, maximum: 100.0
              */
             risk_score: number;
             /**
@@ -7506,6 +7629,7 @@ export interface components {
             /**
              * Tokens Used
              * @description Number of tokens used in inference
+             * @constraint minimum: 0.0
              */
             tokens_used: number;
         };
@@ -7574,6 +7698,7 @@ export interface components {
             /**
              * Attempt Count
              * @description Number of processing attempts made
+             * @constraint minimum: 1.0
              */
             attempt_count: number;
             /**
@@ -7733,16 +7858,19 @@ export interface components {
             /**
              * Analysis Queue Count
              * @description Number of jobs in the analysis DLQ
+             * @constraint minimum: 0.0
              */
             analysis_queue_count: number;
             /**
              * Detection Queue Count
              * @description Number of jobs in the detection DLQ
+             * @constraint minimum: 0.0
              */
             detection_queue_count: number;
             /**
              * Total Count
              * @description Total number of jobs across all DLQs
+             * @constraint minimum: 0.0
              */
             total_count: number;
         };
@@ -7759,16 +7887,19 @@ export interface components {
             /**
              * Avg Detections
              * @description Average number of detections for this day
+             * @constraint minimum: 0.0
              */
             avg_detections: number;
             /**
              * Peak Hour
              * @description Hour with most activity (0-23)
+             * @constraint minimum: 0.0, maximum: 23.0
              */
             peak_hour: number;
             /**
              * Total Samples
              * @description Total samples for this day
+             * @constraint minimum: 0.0
              */
             total_samples: number;
         };
@@ -7893,6 +8024,7 @@ export interface components {
             /**
              * Memory Queue Size
              * @description Number of jobs in in-memory fallback queue
+             * @constraint minimum: 0.0
              */
             memory_queue_size: number;
             /** @description Current degradation mode */
@@ -8002,11 +8134,13 @@ export interface components {
             /**
              * Confidence
              * @description Estimation confidence
+             * @constraint minimum: 0.0, maximum: 1.0
              */
             confidence?: number | null;
             /**
              * Estimated Distance M
              * @description Estimated distance in meters
+             * @constraint minimum: 0.0
              */
             estimated_distance_m?: number | null;
         };
@@ -8030,37 +8164,44 @@ export interface components {
             /**
              * Bbox Height
              * @description Bounding box height
+             * @constraint exclusiveMinimum: 0.0
              */
             bbox_height: number;
             /**
              * Bbox Width
              * @description Bounding box width
+             * @constraint exclusiveMinimum: 0.0
              */
             bbox_width: number;
             /**
              * Bbox X
              * @description Bounding box X coordinate
+             * @constraint minimum: 0.0
              */
             bbox_x: number;
             /**
              * Bbox Y
              * @description Bounding box Y coordinate
+             * @constraint minimum: 0.0
              */
             bbox_y: number;
             /**
              * Camera Id
              * @description Camera ID
+             * @constraint minLength: 1, maxLength: 255, pattern: ^[a-zA-Z0-9_-]+$
              */
             camera_id: string;
             /**
              * Confidence
              * @description Confidence score (0.0-1.0)
+             * @constraint minimum: 0.0, maximum: 1.0
              */
             confidence: number;
             /**
              * Detected At
              * Format: date-time
              * @description Detection timestamp
+             * @constraint format: date-time
              */
             detected_at: string;
             /**
@@ -8073,11 +8214,13 @@ export interface components {
             /**
              * File Path
              * @description Image file path
+             * @constraint minLength: 1, maxLength: 1000
              */
             file_path: string;
             /**
              * Object Type
              * @description Object type (person, vehicle, etc.)
+             * @constraint minLength: 1, maxLength: 100
              */
             object_type: string;
         };
@@ -8092,6 +8235,7 @@ export interface components {
             /**
              * Detections
              * @description Detections to create (max 100)
+             * @constraint minItems: 1, maxItems: 100
              */
             detections: components["schemas"]["DetectionBulkCreateItem"][];
         };
@@ -8105,6 +8249,7 @@ export interface components {
             /**
              * Failed
              * @description Number of failed operations
+             * @constraint minimum: 0.0
              */
             failed: number;
             /**
@@ -8116,16 +8261,19 @@ export interface components {
              * Skipped
              * @description Number of skipped operations
              * @default 0
+             * @constraint minimum: 0.0
              */
             skipped: number;
             /**
              * Succeeded
              * @description Number of successful operations
+             * @constraint minimum: 0.0
              */
             succeeded: number;
             /**
              * Total
              * @description Total number of items in the request
+             * @constraint minimum: 0.0
              */
             total: number;
         };
@@ -8143,6 +8291,7 @@ export interface components {
             /**
              * Detection Ids
              * @description Detection IDs to delete (max 100)
+             * @constraint minItems: 1, maxItems: 100
              */
             detection_ids: number[];
         };
@@ -8160,6 +8309,7 @@ export interface components {
             /**
              * Confidence
              * @description Confidence score
+             * @constraint minimum: 0.0, maximum: 1.0
              */
             confidence?: number | null;
             /**
@@ -8172,11 +8322,13 @@ export interface components {
             /**
              * Id
              * @description Detection ID to update
+             * @constraint exclusiveMinimum: 0.0
              */
             id: number;
             /**
              * Object Type
              * @description Object type
+             * @constraint minLength: 1, maxLength: 100
              */
             object_type?: string | null;
         };
@@ -8191,6 +8343,7 @@ export interface components {
             /**
              * Detections
              * @description Detection updates (max 100)
+             * @constraint minItems: 1, maxItems: 100
              */
             detections: components["schemas"]["DetectionBulkUpdateItem"][];
         };
@@ -8330,6 +8483,7 @@ export interface components {
              * Detected At
              * Format: date-time
              * @description Timestamp when detection was made
+             * @constraint format: date-time
              */
             detected_at: string;
             /**
@@ -8438,6 +8592,7 @@ export interface components {
              * Detected At
              * Format: date-time
              * @description Detection timestamp
+             * @constraint format: date-time
              */
             detected_at: string;
             /** Enrichment Data */
@@ -8524,12 +8679,14 @@ export interface components {
             /**
              * Count
              * @description Number of detections on this date
+             * @constraint minimum: 0.0
              */
             count: number;
             /**
              * Date
              * Format: date
              * @description Date of the data point
+             * @constraint format: date
              */
             date: string;
         };
@@ -8566,17 +8723,20 @@ export interface components {
              * End Date
              * Format: date
              * @description End date of the date range
+             * @constraint format: date
              */
             end_date: string;
             /**
              * Start Date
              * Format: date
              * @description Start date of the date range
+             * @constraint format: date
              */
             start_date: string;
             /**
              * Total Detections
              * @description Total detections in date range
+             * @constraint minimum: 0.0
              */
             total_detections: number;
         };
@@ -8652,6 +8812,7 @@ export interface components {
             /**
              * Enriched At
              * @description Timestamp when enrichment was performed
+             * @constraint format: date-time
              */
             enriched_at?: string | null;
             /**
@@ -8697,6 +8858,7 @@ export interface components {
             /**
              * Processing Time Ms
              * @description Enrichment processing time in milliseconds
+             * @constraint minimum: 0.0
              */
             processing_time_ms?: number | null;
             /**
@@ -8773,6 +8935,7 @@ export interface components {
             /**
              * Success Rate
              * @description Success rate (0.0 to 1.0)
+             * @constraint minimum: 0.0, maximum: 1.0
              */
             success_rate: number;
             /**
@@ -8826,6 +8989,7 @@ export interface components {
             /**
              * Similarity Score
              * @description Similarity score to the entity's reference embedding
+             * @constraint minimum: 0.0, maximum: 1.0
              */
             similarity_score?: number | null;
             /**
@@ -8837,6 +9001,7 @@ export interface components {
              * Timestamp
              * Format: date-time
              * @description When the entity was detected
+             * @constraint format: date-time
              */
             timestamp: string;
         };
@@ -8887,6 +9052,7 @@ export interface components {
             /**
              * Appearance Count
              * @description Total number of appearances
+             * @constraint minimum: 0.0
              */
             appearance_count: number;
             /**
@@ -8908,6 +9074,7 @@ export interface components {
              * First Seen
              * Format: date-time
              * @description Timestamp of first appearance
+             * @constraint format: date-time
              */
             first_seen: string;
             /**
@@ -8919,6 +9086,7 @@ export interface components {
              * Last Seen
              * Format: date-time
              * @description Timestamp of most recent appearance
+             * @constraint format: date-time
              */
             last_seen: string;
             /**
@@ -9029,6 +9197,7 @@ export interface components {
             /**
              * Appearance Count
              * @description Total number of appearances
+             * @constraint minimum: 0.0
              */
             appearance_count: number;
             /**
@@ -9045,6 +9214,7 @@ export interface components {
              * First Seen
              * Format: date-time
              * @description Timestamp of first appearance
+             * @constraint format: date-time
              */
             first_seen: string;
             /**
@@ -9056,6 +9226,7 @@ export interface components {
              * Last Seen
              * Format: date-time
              * @description Timestamp of most recent appearance
+             * @constraint format: date-time
              */
             last_seen: string;
             /**
@@ -9120,6 +9291,7 @@ export interface components {
             /**
              * Audited At
              * Format: date-time
+             * @constraint format: date-time
              */
             audited_at: string;
             /** Consistency Diff */
@@ -9163,11 +9335,13 @@ export interface components {
             /**
              * Batch Id
              * @description Batch ID that generated this event
+             * @constraint minLength: 1, maxLength: 255
              */
             batch_id: string;
             /**
              * Camera Id
              * @description Camera ID
+             * @constraint minLength: 1, maxLength: 255, pattern: ^[a-zA-Z0-9_-]+$
              */
             camera_id: string;
             /**
@@ -9178,32 +9352,38 @@ export interface components {
             /**
              * Ended At
              * @description Event end timestamp
+             * @constraint format: date-time
              */
             ended_at?: string | null;
             /**
              * Reasoning
              * @description LLM reasoning
+             * @constraint maxLength: 5000
              */
             reasoning?: string | null;
             /**
              * Risk Level
              * @description Risk level
+             * @constraint pattern: ^(low|medium|high|critical)$
              */
             risk_level: string;
             /**
              * Risk Score
              * @description Risk score (0-100)
+             * @constraint minimum: 0.0, maximum: 100.0
              */
             risk_score: number;
             /**
              * Started At
              * Format: date-time
              * @description Event start timestamp
+             * @constraint format: date-time
              */
             started_at: string;
             /**
              * Summary
              * @description Event summary
+             * @constraint minLength: 1, maxLength: 1000
              */
             summary: string;
         };
@@ -9218,6 +9398,7 @@ export interface components {
             /**
              * Events
              * @description Events to create (max 100)
+             * @constraint minItems: 1, maxItems: 100
              */
             events: components["schemas"]["EventBulkCreateItem"][];
         };
@@ -9231,6 +9412,7 @@ export interface components {
             /**
              * Failed
              * @description Number of failed operations
+             * @constraint minimum: 0.0
              */
             failed: number;
             /**
@@ -9242,16 +9424,19 @@ export interface components {
              * Skipped
              * @description Number of skipped operations
              * @default 0
+             * @constraint minimum: 0.0
              */
             skipped: number;
             /**
              * Succeeded
              * @description Number of successful operations
+             * @constraint minimum: 0.0
              */
             succeeded: number;
             /**
              * Total
              * @description Total number of items in the request
+             * @constraint minimum: 0.0
              */
             total: number;
         };
@@ -9267,6 +9452,7 @@ export interface components {
             /**
              * Event Ids
              * @description Event IDs to delete (max 100)
+             * @constraint minItems: 1, maxItems: 100
              */
             event_ids: number[];
             /**
@@ -9289,11 +9475,13 @@ export interface components {
             /**
              * Id
              * @description Event ID to update
+             * @constraint exclusiveMinimum: 0.0
              */
             id: number;
             /**
              * Notes
              * @description Notes
+             * @constraint maxLength: 2000
              */
             notes?: string | null;
             /**
@@ -9313,6 +9501,7 @@ export interface components {
             /**
              * Events
              * @description Event updates (max 100)
+             * @constraint minItems: 1, maxItems: 100
              */
             events: components["schemas"]["EventBulkUpdateItem"][];
         };
@@ -9547,6 +9736,7 @@ export interface components {
             /**
              * Ended At
              * @description Event end timestamp
+             * @constraint format: date-time
              */
             ended_at?: string | null;
             /** @description Enrichment pipeline status (NEM-1672) - shows which models succeeded/failed */
@@ -9591,6 +9781,7 @@ export interface components {
              * Started At
              * Format: date-time
              * @description Event start timestamp
+             * @constraint format: date-time
              */
             started_at: string;
             /**
@@ -9819,6 +10010,7 @@ export interface components {
             /**
              * End Date
              * @description Filter by end date (ISO format)
+             * @constraint format: date-time
              */
             end_date?: string | null;
             /**
@@ -9839,6 +10031,7 @@ export interface components {
             /**
              * Start Date
              * @description Filter by start date (ISO format)
+             * @constraint format: date-time
              */
             start_date?: string | null;
         };
@@ -9881,12 +10074,14 @@ export interface components {
             /**
              * Confidence
              * @description Highest face confidence
+             * @constraint minimum: 0.0, maximum: 1.0
              */
             confidence?: number | null;
             /**
              * Count
              * @description Number of faces detected
              * @default 0
+             * @constraint minimum: 0.0
              */
             count: number;
             /**
@@ -9920,6 +10115,7 @@ export interface components {
             /**
              * Pending Tasks
              * @description Number of files pending processing (debouncing)
+             * @constraint minimum: 0.0
              */
             pending_tasks: number;
             /**
@@ -9947,6 +10143,7 @@ export interface components {
             /**
              * Component
              * @description Frontend component name (e.g., 'RiskGauge', 'CameraGrid')
+             * @constraint minLength: 1, maxLength: 50
              */
             component: string;
             /**
@@ -9959,21 +10156,25 @@ export interface components {
             /**
              * Level
              * @description Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+             * @constraint pattern: ^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$
              */
             level: string;
             /**
              * Message
              * @description Log message content
+             * @constraint minLength: 1, maxLength: 2000
              */
             message: string;
             /**
              * Url
              * @description Page URL where log occurred
+             * @constraint maxLength: 2000
              */
             url?: string | null;
             /**
              * User Agent
              * @description Browser user agent string
+             * @constraint maxLength: 500
              */
             user_agent?: string | null;
         };
@@ -10067,6 +10268,7 @@ export interface components {
              * Timestamp
              * Format: date-time
              * @description Response timestamp
+             * @constraint format: date-time
              */
             timestamp: string;
             /**
@@ -10138,21 +10340,25 @@ export interface components {
             /**
              * Inference Fps
              * @description Inference frames per second
+             * @constraint minimum: 0.0
              */
             inference_fps?: number | null;
             /**
              * Memory Total
              * @description Total GPU memory in MB
+             * @constraint minimum: 0.0
              */
             memory_total?: number | null;
             /**
              * Memory Used
              * @description GPU memory used in MB
+             * @constraint minimum: 0.0
              */
             memory_used?: number | null;
             /**
              * Power Usage
              * @description GPU power usage in watts
+             * @constraint minimum: 0.0
              */
             power_usage?: number | null;
             /**
@@ -10163,6 +10369,7 @@ export interface components {
             /**
              * Utilization
              * @description GPU utilization percentage (0-100)
+             * @constraint minimum: 0.0, maximum: 100.0
              */
             utilization?: number | null;
         };
@@ -10179,27 +10386,32 @@ export interface components {
             /**
              * Inference Fps
              * @description Inference frames per second
+             * @constraint minimum: 0.0
              */
             inference_fps?: number | null;
             /**
              * Memory Total
              * @description Total GPU memory in MB
+             * @constraint minimum: 0.0
              */
             memory_total?: number | null;
             /**
              * Memory Used
              * @description GPU memory used in MB
+             * @constraint minimum: 0.0
              */
             memory_used?: number | null;
             /**
              * Power Usage
              * @description GPU power usage in watts
+             * @constraint minimum: 0.0
              */
             power_usage?: number | null;
             /**
              * Recorded At
              * Format: date-time
              * @description When the GPU sample was recorded (UTC)
+             * @constraint format: date-time
              */
             recorded_at: string;
             /**
@@ -10210,6 +10422,7 @@ export interface components {
             /**
              * Utilization
              * @description GPU utilization percentage (0-100)
+             * @constraint minimum: 0.0, maximum: 100.0
              */
             utilization?: number | null;
         };
@@ -10276,6 +10489,7 @@ export interface components {
              * Timestamp
              * Format: date-time
              * @description When the event occurred (UTC)
+             * @constraint format: date-time
              */
             timestamp: string;
         };
@@ -10340,6 +10554,7 @@ export interface components {
              * Timestamp
              * Format: date-time
              * @description Timestamp of health check
+             * @constraint format: date-time
              */
             timestamp: string;
         };
@@ -10356,16 +10571,19 @@ export interface components {
             /**
              * Avg Detections
              * @description Average number of detections during this hour
+             * @constraint minimum: 0.0
              */
             avg_detections: number;
             /**
              * Sample Count
              * @description Number of samples used for this calculation
+             * @constraint minimum: 0.0
              */
             sample_count: number;
             /**
              * Std Dev
              * @description Standard deviation of detection count
+             * @constraint minimum: 0.0
              */
             std_dev: number;
         };
@@ -10403,6 +10621,7 @@ export interface components {
             /**
              * Score
              * @description Quality score (0-100)
+             * @constraint minimum: 0.0, maximum: 100.0
              */
             score?: number | null;
         };
@@ -10485,6 +10704,7 @@ export interface components {
             /**
              * Progress
              * @description Progress percentage (0-100)
+             * @constraint minimum: 0.0, maximum: 100.0
              */
             progress: number;
             /**
@@ -10552,6 +10772,7 @@ export interface components {
             /**
              * Sample Count
              * @description Number of samples in this bucket
+             * @constraint minimum: 0.0
              */
             sample_count: number;
         };
@@ -10607,6 +10828,7 @@ export interface components {
             /**
              * Confidence
              * @description Detection confidence
+             * @constraint minimum: 0.0, maximum: 1.0
              */
             confidence?: number | null;
             /**
@@ -10618,6 +10840,7 @@ export interface components {
             /**
              * Ocr Confidence
              * @description OCR confidence
+             * @constraint minimum: 0.0, maximum: 1.0
              */
             ocr_confidence?: number | null;
             /**
@@ -10651,26 +10874,31 @@ export interface components {
             /**
              * Camera Id
              * @description Associated camera ID (alphanumeric, underscore, hyphen only)
+             * @constraint maxLength: 64, pattern: ^[a-zA-Z0-9_-]+$
              */
             camera_id?: string | null;
             /**
              * Component
              * @description Component/module name (e.g., 'backend.services.detector')
+             * @constraint minLength: 1, maxLength: 200
              */
             component: string;
             /**
              * Detection Id
              * @description Associated detection ID
+             * @constraint minimum: 1.0
              */
             detection_id?: number | null;
             /**
              * Duration Ms
              * @description Operation duration in milliseconds
+             * @constraint minimum: 0.0
              */
             duration_ms?: number | null;
             /**
              * Event Id
              * @description Associated event ID
+             * @constraint minimum: 1.0
              */
             event_id?: number | null;
             /**
@@ -10683,33 +10911,39 @@ export interface components {
             /**
              * Id
              * @description Log entry ID
+             * @constraint minimum: 1.0
              */
             id: number;
             /**
              * Level
              * @description Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+             * @constraint pattern: ^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$
              */
             level: string;
             /**
              * Message
              * @description Log message content
+             * @constraint minLength: 1, maxLength: 5000
              */
             message: string;
             /**
              * Request Id
              * @description Request correlation ID for tracing
+             * @constraint maxLength: 128
              */
             request_id?: string | null;
             /**
              * Source
              * @description Log source (backend, frontend)
              * @default backend
+             * @constraint pattern: ^(backend|frontend)$
              */
             source: string;
             /**
              * Timestamp
              * Format: date-time
              * @description Log timestamp (UTC)
+             * @constraint format: date-time
              */
             timestamp: string;
         };
@@ -10785,6 +11019,7 @@ export interface components {
             /**
              * Errors Today
              * @description Error count today
+             * @constraint minimum: 0.0
              */
             errors_today: number;
             /**
@@ -10795,11 +11030,13 @@ export interface components {
             /**
              * Total Today
              * @description Total logs today
+             * @constraint minimum: 0.0
              */
             total_today: number;
             /**
              * Warnings Today
              * @description Warning count today
+             * @constraint minimum: 0.0
              */
             warnings_today: number;
         };
@@ -10853,11 +11090,13 @@ export interface components {
             /**
              * Error
              * @description Error message describing what went wrong
+             * @constraint minLength: 1, maxLength: 500
              */
             error: string;
             /**
              * Path
              * @description The path that was attempted to be accessed
+             * @constraint minLength: 0, maxLength: 4096
              */
             path: string;
         };
@@ -10983,6 +11222,7 @@ export interface components {
             /**
              * Bucket Seconds
              * @description Bucket size for aggregation
+             * @constraint minimum: 1.0
              */
             bucket_seconds: number;
             /**
@@ -11009,11 +11249,13 @@ export interface components {
              * Timestamp
              * Format: date-time
              * @description Timestamp when history was retrieved
+             * @constraint format: date-time
              */
             timestamp: string;
             /**
              * Window Minutes
              * @description Time window covered by the history
+             * @constraint minimum: 1.0
              */
             window_minutes: number;
         };
@@ -11038,21 +11280,25 @@ export interface components {
             /**
              * Avg Ms
              * @description Average latency in milliseconds
+             * @constraint minimum: 0.0
              */
             avg_ms: number;
             /**
              * P50 Ms
              * @description 50th percentile (median) latency in milliseconds
+             * @constraint minimum: 0.0
              */
             p50_ms: number;
             /**
              * P95 Ms
              * @description 95th percentile latency in milliseconds
+             * @constraint minimum: 0.0
              */
             p95_ms: number;
             /**
              * Sample Count
              * @description Number of samples in this time bucket
+             * @constraint minimum: 0.0
              */
             sample_count: number;
         };
@@ -11107,11 +11353,13 @@ export interface components {
              * Updated At
              * Format: date-time
              * @description When last updated
+             * @constraint format: date-time
              */
             updated_at: string;
             /**
              * Version
              * @description Current version number
+             * @constraint minimum: 1.0
              */
             version: number;
         };
@@ -11141,6 +11389,7 @@ export interface components {
              * Max Concurrent Models
              * @description Maximum number of models that can be loaded concurrently
              * @default 1
+             * @constraint minimum: 1.0
              */
             max_concurrent_models: number;
             /**
@@ -11151,16 +11400,19 @@ export interface components {
             /**
              * Vram Available Mb
              * @description Available VRAM for loading additional models
+             * @constraint minimum: 0.0
              */
             vram_available_mb: number;
             /**
              * Vram Budget Mb
              * @description Total VRAM budget available for Model Zoo models (excludes Nemotron and RT-DETRv2)
+             * @constraint minimum: 0.0
              */
             vram_budget_mb: number;
             /**
              * Vram Used Mb
              * @description Currently used VRAM by loaded models
+             * @constraint minimum: 0.0
              */
             vram_used_mb: number;
         };
@@ -11215,6 +11467,7 @@ export interface components {
              * Load Count
              * @description Current reference count for loaded model (0 if not loaded)
              * @default 0
+             * @constraint minimum: 0.0
              */
             load_count: number;
             /**
@@ -11232,6 +11485,7 @@ export interface components {
             /**
              * Vram Mb
              * @description Estimated VRAM usage in megabytes when loaded
+             * @constraint minimum: 0.0
              */
             vram_mb: number;
         };
@@ -11260,6 +11514,7 @@ export interface components {
             /**
              * Last Used At
              * @description Timestamp of last model usage (null if never used)
+             * @constraint format: date-time
              */
             last_used_at?: string | null;
             /**
@@ -11272,6 +11527,7 @@ export interface components {
             /**
              * Vram Mb
              * @description VRAM usage in megabytes when loaded
+             * @constraint minimum: 0.0
              */
             vram_mb: number;
         };
@@ -11304,11 +11560,13 @@ export interface components {
             /**
              * Disabled Count
              * @description Number of disabled models
+             * @constraint minimum: 0.0
              */
             disabled_count: number;
             /**
              * Loaded Count
              * @description Number of currently loaded models
+             * @constraint minimum: 0.0
              */
             loaded_count: number;
             /**
@@ -11320,21 +11578,25 @@ export interface components {
              * Timestamp
              * Format: date-time
              * @description Timestamp of status snapshot
+             * @constraint format: date-time
              */
             timestamp: string;
             /**
              * Total Models
              * @description Total number of models in the registry
+             * @constraint minimum: 0.0
              */
             total_models: number;
             /**
              * Vram Budget Mb
              * @description Total VRAM budget for Model Zoo
+             * @constraint minimum: 0.0
              */
             vram_budget_mb: number;
             /**
              * Vram Used Mb
              * @description Currently used VRAM
+             * @constraint minimum: 0.0
              */
             vram_used_mb: number;
         };
@@ -11508,16 +11770,19 @@ export interface components {
             /**
              * Avg Hourly
              * @description Average hourly detection count for this object type
+             * @constraint minimum: 0.0
              */
             avg_hourly: number;
             /**
              * Peak Hour
              * @description Hour with most detections of this type (0-23)
+             * @constraint minimum: 0.0, maximum: 23.0
              */
             peak_hour: number;
             /**
              * Total Detections
              * @description Total detections of this type in the baseline period
+             * @constraint minimum: 0.0
              */
             total_detections: number;
         };
@@ -11534,6 +11799,7 @@ export interface components {
             /**
              * Count
              * @description Number of detections for this object type
+             * @constraint minimum: 0.0
              */
             count: number;
             /**
@@ -11544,6 +11810,7 @@ export interface components {
             /**
              * Percentage
              * @description Percentage of total detections (0-100)
+             * @constraint minimum: 0.0, maximum: 100.0
              */
             percentage: number;
         };
@@ -11578,6 +11845,7 @@ export interface components {
              * End Date
              * Format: date
              * @description End date of the date range
+             * @constraint format: date
              */
             end_date: string;
             /**
@@ -11589,11 +11857,13 @@ export interface components {
              * Start Date
              * Format: date
              * @description Start date of the date range
+             * @constraint format: date
              */
             start_date: string;
             /**
              * Total Detections
              * @description Total detections in date range
+             * @constraint minimum: 0.0
              */
             total_detections: number;
         };
@@ -11616,6 +11886,7 @@ export interface components {
             /**
              * Limit
              * @description Page size (1-1000)
+             * @constraint minimum: 1.0, maximum: 1000.0
              */
             limit: number;
             /**
@@ -11626,11 +11897,13 @@ export interface components {
             /**
              * Offset
              * @description Page offset (0-based, for offset pagination)
+             * @constraint minimum: 0.0
              */
             offset?: number | null;
             /**
              * Total
              * @description Total count matching filters
+             * @constraint minimum: 0.0
              */
             total: number;
         };
@@ -11662,6 +11935,7 @@ export interface components {
             /**
              * Limit
              * @description Maximum number of items returned per page
+             * @constraint minimum: 1.0, maximum: 10000.0
              */
             limit: number;
             /**
@@ -11672,11 +11946,13 @@ export interface components {
             /**
              * Offset
              * @description Number of items skipped (offset-based pagination)
+             * @constraint minimum: 0.0
              */
             offset?: number | null;
             /**
              * Total
              * @description Total number of items matching the query
+             * @constraint minimum: 0.0
              */
             total: number;
         };
@@ -11694,6 +11970,7 @@ export interface components {
             /**
              * Confidence
              * @description Classification confidence
+             * @constraint minimum: 0.0, maximum: 1.0
              */
             confidence?: number | null;
             /**
@@ -11801,6 +12078,7 @@ export interface components {
             /**
              * Bucket Seconds
              * @description Bucket size for aggregation
+             * @constraint minimum: 1.0
              */
             bucket_seconds: number;
             /**
@@ -11812,11 +12090,13 @@ export interface components {
              * Timestamp
              * Format: date-time
              * @description Timestamp when history was retrieved
+             * @constraint format: date-time
              */
             timestamp: string;
             /**
              * Window Minutes
              * @description Time window covered by the history
+             * @constraint minimum: 1.0
              */
             window_minutes: number;
         };
@@ -11879,6 +12159,7 @@ export interface components {
              * Timestamp
              * Format: date-time
              * @description Timestamp of latency snapshot
+             * @constraint format: date-time
              */
             timestamp: string;
             /** @description Total end-to-end pipeline latency */
@@ -11888,6 +12169,7 @@ export interface components {
             /**
              * Window Minutes
              * @description Time window used for calculating statistics
+             * @constraint minimum: 1.0
              */
             window_minutes: number;
         };
@@ -11914,36 +12196,43 @@ export interface components {
             /**
              * Avg Ms
              * @description Average latency in milliseconds
+             * @constraint minimum: 0.0
              */
             avg_ms?: number | null;
             /**
              * Max Ms
              * @description Maximum latency in milliseconds
+             * @constraint minimum: 0.0
              */
             max_ms?: number | null;
             /**
              * Min Ms
              * @description Minimum latency in milliseconds
+             * @constraint minimum: 0.0
              */
             min_ms?: number | null;
             /**
              * P50 Ms
              * @description 50th percentile (median) latency in milliseconds
+             * @constraint minimum: 0.0
              */
             p50_ms?: number | null;
             /**
              * P95 Ms
              * @description 95th percentile latency in milliseconds
+             * @constraint minimum: 0.0
              */
             p95_ms?: number | null;
             /**
              * P99 Ms
              * @description 99th percentile latency in milliseconds
+             * @constraint minimum: 0.0
              */
             p99_ms?: number | null;
             /**
              * Sample Count
              * @description Number of samples used to calculate statistics
+             * @constraint minimum: 0.0
              */
             sample_count: number;
         };
@@ -12021,6 +12310,7 @@ export interface components {
              * Timestamp
              * Format: date-time
              * @description Timestamp of status snapshot
+             * @constraint format: date-time
              */
             timestamp: string;
         };
@@ -12092,6 +12382,7 @@ export interface components {
             /**
              * Confidence
              * @description Action confidence
+             * @constraint minimum: 0.0, maximum: 1.0
              */
             confidence?: number | null;
             /**
@@ -12190,17 +12481,20 @@ export interface components {
              * Maxtokens
              * @description Maximum tokens in response (100-8192)
              * @default 2048
+             * @constraint minimum: 100.0, maximum: 8192.0
              */
             maxTokens: number;
             /**
              * Systemprompt
              * @description Full system prompt text for the model
+             * @constraint minLength: 1
              */
             systemPrompt: string;
             /**
              * Temperature
              * @description LLM temperature setting (0-2)
              * @default 0.7
+             * @constraint minimum: 0.0, maximum: 2.0
              */
             temperature: number;
         };
@@ -12243,11 +12537,13 @@ export interface components {
              * Updatedat
              * Format: date-time
              * @description When the configuration was last updated
+             * @constraint format: date-time
              */
             updatedAt: string;
             /**
              * Version
              * @description Configuration version number
+             * @constraint minimum: 1.0
              */
             version: number;
         };
@@ -12276,6 +12572,7 @@ export interface components {
              * Exported At
              * Format: date-time
              * @description When the export was created
+             * @constraint format: date-time
              */
             exported_at: string;
             /**
@@ -12321,6 +12618,7 @@ export interface components {
              * Created At
              * Format: date-time
              * @description When this version was created
+             * @constraint format: date-time
              */
             created_at: string;
             /**
@@ -12337,6 +12635,7 @@ export interface components {
             /**
              * Version
              * @description Version number
+             * @constraint minimum: 1.0
              */
             version: number;
         };
@@ -12428,6 +12727,7 @@ export interface components {
             /**
              * Imported Count
              * @description Number of models imported
+             * @constraint minimum: 0.0
              */
             imported_count: number;
             /** Message */
@@ -12435,6 +12735,7 @@ export interface components {
             /**
              * Skipped Count
              * @description Number of models skipped
+             * @constraint minimum: 0.0
              */
             skipped_count: number;
         };
@@ -12530,6 +12831,7 @@ export interface components {
             /**
              * Event Id
              * @description Event ID to test against
+             * @constraint minimum: 1.0
              */
             event_id: number;
             /**
@@ -12569,6 +12871,7 @@ export interface components {
             /**
              * Inference Time Ms
              * @description Time taken for inference in ms
+             * @constraint minimum: 0.0
              */
             inference_time_ms: number;
         };
@@ -12590,6 +12893,7 @@ export interface components {
             /**
              * Score
              * @description Risk score from modified prompt
+             * @constraint minimum: 0.0, maximum: 100.0
              */
             score: number;
             /**
@@ -12616,6 +12920,7 @@ export interface components {
             /**
              * Score
              * @description Risk score from original prompt
+             * @constraint minimum: 0.0, maximum: 100.0
              */
             score: number;
             /**
@@ -12711,11 +13016,13 @@ export interface components {
             /**
              * Analysis Queue
              * @description Number of batches in analysis queue waiting for Nemotron LLM analysis
+             * @constraint minimum: 0.0
              */
             analysis_queue: number;
             /**
              * Detection Queue
              * @description Number of items in detection queue waiting for RT-DETRv2 processing
+             * @constraint minimum: 0.0
              */
             detection_queue: number;
         };
@@ -12745,17 +13052,20 @@ export interface components {
              * End Time
              * Format: time
              * @description End time (HH:MM:SS)
+             * @constraint format: time
              */
             end_time: string;
             /**
              * Label
              * @description Period label
+             * @constraint minLength: 1, maxLength: 255
              */
             label: string;
             /**
              * Start Time
              * Format: time
              * @description Start time (HH:MM:SS)
+             * @constraint format: time
              */
             start_time: string;
         };
@@ -12786,6 +13096,7 @@ export interface components {
              * End Time
              * Format: time
              * @description End time
+             * @constraint format: time
              */
             end_time: string;
             /**
@@ -12802,6 +13113,7 @@ export interface components {
              * Start Time
              * Format: time
              * @description Start time
+             * @constraint format: time
              */
             start_time: string;
         };
@@ -12876,6 +13188,7 @@ export interface components {
             /**
              * Metrics
              * @description List of metrics to ingest (non-empty)
+             * @constraint minItems: 1
              */
             metrics: components["schemas"]["WebVitalMetric"][];
             /**
@@ -12919,6 +13232,7 @@ export interface components {
             /**
              * Metrics Count
              * @description Number of metrics successfully ingested
+             * @constraint minimum: 0.0
              */
             metrics_count: number;
             /**
@@ -12999,6 +13313,7 @@ export interface components {
              * Timestamp
              * Format: date-time
              * @description Timestamp of readiness check
+             * @constraint format: date-time
              */
             timestamp: string;
             /**
@@ -13227,30 +13542,35 @@ export interface components {
              * Critical
              * @description Count of critical risk events
              * @default 0
+             * @constraint minimum: 0.0
              */
             critical: number;
             /**
              * Date
              * Format: date
              * @description Date of the data point
+             * @constraint format: date
              */
             date: string;
             /**
              * High
              * @description Count of high risk events
              * @default 0
+             * @constraint minimum: 0.0
              */
             high: number;
             /**
              * Low
              * @description Count of low risk events
              * @default 0
+             * @constraint minimum: 0.0
              */
             low: number;
             /**
              * Medium
              * @description Count of medium risk events
              * @default 0
+             * @constraint minimum: 0.0
              */
             medium: number;
         };
@@ -13288,12 +13608,14 @@ export interface components {
              * End Date
              * Format: date
              * @description End date of the date range
+             * @constraint format: date
              */
             end_date: string;
             /**
              * Start Date
              * Format: date
              * @description Start date of the date range
+             * @constraint format: date
              */
             start_date: string;
         };
@@ -13376,11 +13698,13 @@ export interface components {
              * Limit
              * @description Maximum number of recent events to test (if event_ids not provided)
              * @default 10
+             * @constraint minimum: 1.0, maximum: 100.0
              */
             limit: number;
             /**
              * Test Time
              * @description Override current time for schedule testing (ISO format)
+             * @constraint format: date-time
              */
             test_time?: string | null;
         };
@@ -13465,6 +13789,7 @@ export interface components {
              * Acknowledged At
              * Format: date-time
              * @description When the change was acknowledged
+             * @constraint format: date-time
              */
             acknowledged_at: string;
             /**
@@ -13520,6 +13845,7 @@ export interface components {
              * Total Changes
              * @description Number of scene changes returned
              * @default 0
+             * @constraint minimum: 0.0
              */
             total_changes: number;
         };
@@ -13548,6 +13874,7 @@ export interface components {
             /**
              * Acknowledged At
              * @description When the change was acknowledged
+             * @constraint format: date-time
              */
             acknowledged_at?: string | null;
             /**
@@ -13559,6 +13886,7 @@ export interface components {
              * Detected At
              * Format: date-time
              * @description When the scene change was detected
+             * @constraint format: date-time
              */
             detected_at: string;
             /**
@@ -13574,6 +13902,7 @@ export interface components {
             /**
              * Similarity Score
              * @description SSIM similarity score (0-1, lower means more different)
+             * @constraint minimum: 0.0, maximum: 1.0
              */
             similarity_score: number;
         };
@@ -13683,6 +14012,7 @@ export interface components {
             /**
              * Ended At
              * @description Event end timestamp
+             * @constraint format: date-time
              */
             ended_at?: string | null;
             /**
@@ -13726,6 +14056,7 @@ export interface components {
              * Started At
              * Format: date-time
              * @description Event start timestamp
+             * @constraint format: date-time
              */
             started_at: string;
             /**
@@ -13749,6 +14080,7 @@ export interface components {
              * Count
              * @description Number of cameras to create (1-6)
              * @default 6
+             * @constraint minimum: 1.0, maximum: 6.0
              */
             count: number;
             /**
@@ -13787,6 +14119,7 @@ export interface components {
              * Count
              * @description Number of events to create (1-100)
              * @default 15
+             * @constraint minimum: 1.0, maximum: 100.0
              */
             count: number;
         };
@@ -13872,6 +14205,7 @@ export interface components {
             /**
              * Consecutive Failures
              * @description Count of consecutive health check failures
+             * @constraint minimum: 0.0
              */
             consecutive_failures: number;
             /**
@@ -13939,6 +14273,7 @@ export interface components {
              * Failure Count
              * @description Consecutive health check failure count
              * @default 0
+             * @constraint minimum: 0.0
              */
             failure_count: number;
             /**
@@ -13949,6 +14284,7 @@ export interface components {
             /**
              * Last Restart At
              * @description Timestamp of last restart (null if never restarted)
+             * @constraint format: date-time
              */
             last_restart_at?: string | null;
             /**
@@ -13959,12 +14295,14 @@ export interface components {
             /**
              * Port
              * @description Primary service port
+             * @constraint minimum: 1.0, maximum: 65535.0
              */
             port: number;
             /**
              * Restart Count
              * @description Total restarts since backend boot
              * @default 0
+             * @constraint minimum: 0.0
              */
             restart_count: number;
             /** @description Current service status: running, starting, unhealthy, stopped, disabled, not_found */
@@ -13972,6 +14310,7 @@ export interface components {
             /**
              * Uptime Seconds
              * @description Seconds since container started (null if not running)
+             * @constraint minimum: 0.0
              */
             uptime_seconds?: number | null;
         };
@@ -14048,6 +14387,7 @@ export interface components {
              * Timestamp
              * Format: date-time
              * @description Timestamp of status snapshot
+             * @constraint format: date-time
              */
             timestamp: string;
         };
@@ -14068,6 +14408,7 @@ export interface components {
             /**
              * Color
              * @description Hex color code for UI display (e.g., '#22c55e')
+             * @constraint pattern: ^#[0-9a-fA-F]{6}$
              */
             color: string;
             /**
@@ -14083,16 +14424,19 @@ export interface components {
             /**
              * Max Score
              * @description Maximum risk score for this severity (inclusive)
+             * @constraint minimum: 0.0, maximum: 100.0
              */
             max_score: number;
             /**
              * Min Score
              * @description Minimum risk score for this severity (inclusive)
+             * @constraint minimum: 0.0, maximum: 100.0
              */
             min_score: number;
             /**
              * Priority
              * @description Sort priority (0 = highest priority, 3 = lowest)
+             * @constraint minimum: 0.0, maximum: 3.0
              */
             priority: number;
             /** @description The severity level identifier */
@@ -14180,16 +14524,19 @@ export interface components {
             /**
              * High Max
              * @description Maximum risk score for HIGH severity (medium_max+1 to this value = HIGH)
+             * @constraint minimum: 0.0, maximum: 100.0
              */
             high_max: number;
             /**
              * Low Max
              * @description Maximum risk score for LOW severity (0 to this value = LOW)
+             * @constraint minimum: 0.0, maximum: 100.0
              */
             low_max: number;
             /**
              * Medium Max
              * @description Maximum risk score for MEDIUM severity (low_max+1 to this value = MEDIUM)
+             * @constraint minimum: 0.0, maximum: 100.0
              */
             medium_max: number;
         };
@@ -14216,16 +14563,19 @@ export interface components {
             /**
              * High Max
              * @description Maximum risk score for HIGH severity (3-99)
+             * @constraint minimum: 3.0, maximum: 99.0
              */
             high_max: number;
             /**
              * Low Max
              * @description Maximum risk score for LOW severity (1-98)
+             * @constraint minimum: 1.0, maximum: 98.0
              */
             low_max: number;
             /**
              * Medium Max
              * @description Maximum risk score for MEDIUM severity (2-99)
+             * @constraint minimum: 2.0, maximum: 99.0
              */
             medium_max: number;
         };
@@ -14246,36 +14596,43 @@ export interface components {
             /**
              * Avg Ms
              * @description Average latency in milliseconds
+             * @constraint minimum: 0.0
              */
             avg_ms?: number | null;
             /**
              * Max Ms
              * @description Maximum latency in milliseconds
+             * @constraint minimum: 0.0
              */
             max_ms?: number | null;
             /**
              * Min Ms
              * @description Minimum latency in milliseconds
+             * @constraint minimum: 0.0
              */
             min_ms?: number | null;
             /**
              * P50 Ms
              * @description 50th percentile (median) latency in milliseconds
+             * @constraint minimum: 0.0
              */
             p50_ms?: number | null;
             /**
              * P95 Ms
              * @description 95th percentile latency in milliseconds
+             * @constraint minimum: 0.0
              */
             p95_ms?: number | null;
             /**
              * P99 Ms
              * @description 99th percentile latency in milliseconds
+             * @constraint minimum: 0.0
              */
             p99_ms?: number | null;
             /**
              * Sample Count
              * @description Number of samples used to calculate statistics
+             * @constraint minimum: 0.0
              */
             sample_count: number;
         };
@@ -14287,11 +14644,13 @@ export interface components {
             /**
              * File Count
              * @description Number of files in this category
+             * @constraint minimum: 0.0
              */
             file_count: number;
             /**
              * Size Bytes
              * @description Total size in bytes for this category
+             * @constraint minimum: 0.0
              */
             size_bytes: number;
         };
@@ -14333,36 +14692,43 @@ export interface components {
             /**
              * Detections Count
              * @description Total number of detections in database
+             * @constraint minimum: 0.0
              */
             detections_count: number;
             /**
              * Disk Free Bytes
              * @description Free disk space in bytes
+             * @constraint minimum: 0.0
              */
             disk_free_bytes: number;
             /**
              * Disk Total Bytes
              * @description Total disk space available in bytes
+             * @constraint minimum: 0.0
              */
             disk_total_bytes: number;
             /**
              * Disk Usage Percent
              * @description Disk usage percentage (0-100)
+             * @constraint minimum: 0.0, maximum: 100.0
              */
             disk_usage_percent: number;
             /**
              * Disk Used Bytes
              * @description Total disk space used in bytes
+             * @constraint minimum: 0.0
              */
             disk_used_bytes: number;
             /**
              * Events Count
              * @description Total number of events in database
+             * @constraint minimum: 0.0
              */
             events_count: number;
             /**
              * Gpu Stats Count
              * @description Total number of GPU stats records in database
+             * @constraint minimum: 0.0
              */
             gpu_stats_count: number;
             /** @description Storage used by original camera images */
@@ -14370,6 +14736,7 @@ export interface components {
             /**
              * Logs Count
              * @description Total number of log entries in database
+             * @constraint minimum: 0.0
              */
             logs_count: number;
             /** @description Storage used by detection thumbnails */
@@ -14378,6 +14745,7 @@ export interface components {
              * Timestamp
              * Format: date-time
              * @description Timestamp of storage stats snapshot
+             * @constraint format: date-time
              */
             timestamp: string;
         };
@@ -14395,21 +14763,25 @@ export interface components {
             /**
              * Total Cameras
              * @description Total number of cameras in the system
+             * @constraint minimum: 0.0
              */
             total_cameras: number;
             /**
              * Total Detections
              * @description Total number of detections recorded
+             * @constraint minimum: 0.0
              */
             total_detections: number;
             /**
              * Total Events
              * @description Total number of events recorded
+             * @constraint minimum: 0.0
              */
             total_events: number;
             /**
              * Uptime Seconds
              * @description Application uptime in seconds
+             * @constraint minimum: 0.0
              */
             uptime_seconds: number;
         };
@@ -14463,6 +14835,7 @@ export interface components {
              * Timestamp
              * Format: date-time
              * @description Timestamp of telemetry snapshot
+             * @constraint format: date-time
              */
             timestamp: string;
         };
@@ -14522,6 +14895,7 @@ export interface components {
             /**
              * Confidence
              * @description Classification confidence
+             * @constraint minimum: 0.0, maximum: 1.0
              */
             confidence?: number | null;
             /**
@@ -14558,6 +14932,7 @@ export interface components {
             /**
              * Confidence
              * @description Model confidence
+             * @constraint minimum: 0.0, maximum: 1.0
              */
             confidence?: number | null;
             /**
@@ -14570,6 +14945,7 @@ export interface components {
              * Score
              * @description Violence probability score
              * @default 0
+             * @constraint minimum: 0.0, maximum: 1.0
              */
             score: number;
         };
@@ -14590,6 +14966,7 @@ export interface components {
             /**
              * Confidence
              * @description Classification confidence
+             * @constraint minimum: 0.0, maximum: 1.0
              */
             confidence?: number | null;
         };
@@ -14601,6 +14978,7 @@ export interface components {
             /**
              * Failure Count
              * @description Current consecutive failure count
+             * @constraint minimum: 0.0
              */
             failure_count: number;
             /**
@@ -14657,6 +15035,7 @@ export interface components {
              * Timestamp
              * Format: date-time
              * @description Timestamp of health check
+             * @constraint format: date-time
              */
             timestamp: string;
         };
@@ -14836,11 +15215,13 @@ export interface components {
              * Color
              * @description Hex color for UI display
              * @default #3B82F6
+             * @constraint pattern: ^#[0-9A-Fa-f]{6}$
              */
             color: string;
             /**
              * Coordinates
              * @description Array of normalized [x, y] points (0-1 range)
+             * @constraint minItems: 3
              */
             coordinates: number[][];
             /**
@@ -14852,12 +15233,14 @@ export interface components {
             /**
              * Name
              * @description Zone name
+             * @constraint minLength: 1, maxLength: 255
              */
             name: string;
             /**
              * Priority
              * @description Priority for overlapping zones (higher = more important)
              * @default 0
+             * @constraint minimum: 0.0, maximum: 100.0
              */
             priority: number;
             /**
@@ -14978,6 +15361,7 @@ export interface components {
              * Created At
              * Format: date-time
              * @description Timestamp when zone was created
+             * @constraint format: date-time
              */
             created_at: string;
             /**
@@ -15006,6 +15390,7 @@ export interface components {
              * Updated At
              * Format: date-time
              * @description Timestamp when zone was last updated
+             * @constraint format: date-time
              */
             updated_at: string;
             /** @description Type of zone */
@@ -15035,11 +15420,13 @@ export interface components {
             /**
              * Color
              * @description Hex color for UI display
+             * @constraint pattern: ^#[0-9A-Fa-f]{6}$
              */
             color?: string | null;
             /**
              * Coordinates
              * @description Array of normalized [x, y] points (0-1 range)
+             * @constraint minItems: 3
              */
             coordinates?: number[][] | null;
             /**
@@ -15050,11 +15437,13 @@ export interface components {
             /**
              * Name
              * @description Zone name
+             * @constraint minLength: 1, maxLength: 255
              */
             name?: string | null;
             /**
              * Priority
              * @description Priority for overlapping zones (higher = more important)
+             * @constraint minimum: 0.0, maximum: 100.0
              */
             priority?: number | null;
             /** @description Shape of the zone */

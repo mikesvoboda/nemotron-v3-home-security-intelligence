@@ -1,0 +1,11 @@
+{
+  "model_name": "florence2",
+  "config": {
+    "vqa_queries": ["What objects are present?", "Describe the scene"]
+  },
+  "version": 11,
+  "created_at": "2026-01-11T02:33:52.956906+00:00",
+  "created_by": "user",
+  "description": null,
+  "updated_at": "2026-01-11T02:33:52.956906+00:00"
+}

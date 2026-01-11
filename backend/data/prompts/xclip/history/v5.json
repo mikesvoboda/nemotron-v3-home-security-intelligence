@@ -1,0 +1,11 @@
+{
+  "model_name": "xclip",
+  "config": {
+    "action_classes": ["walking", "running", "standing"]
+  },
+  "version": 5,
+  "created_at": "2026-01-11T01:59:07.258970+00:00",
+  "created_by": "user",
+  "description": null,
+  "updated_at": "2026-01-11T01:59:07.258970+00:00"
+}

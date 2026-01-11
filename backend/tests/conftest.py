@@ -499,6 +499,9 @@ async def _reset_db_schema() -> None:
             await conn.execute(
                 text("ALTER TABLE detections ADD COLUMN IF NOT EXISTS search_vector TSVECTOR")
             )
+            await conn.execute(
+                text("ALTER TABLE logs ADD COLUMN IF NOT EXISTS search_vector TSVECTOR")
+            )
             # Add labels column for detections
             await conn.execute(text("ALTER TABLE detections ADD COLUMN IF NOT EXISTS labels JSONB"))
 

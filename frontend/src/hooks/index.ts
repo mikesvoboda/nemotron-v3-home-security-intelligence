@@ -181,3 +181,17 @@ export type {
   UseDetectionsInfiniteQueryOptions,
   UseDetectionsInfiniteQueryReturn,
 } from './useDetectionsQuery';
+
+// Infinite scroll hook
+export { useInfiniteScroll } from './useInfiniteScroll';
+export type {
+  UseInfiniteScrollOptions,
+  UseInfiniteScrollReturn,
+} from './useInfiniteScroll';
+
+// Recent events hook (optimized for dashboard with server-side limiting)
+export { useRecentEventsQuery, recentEventsQueryKeys } from './useRecentEventsQuery';
+export type {
+  UseRecentEventsQueryOptions,
+  UseRecentEventsQueryReturn,
+} from './useRecentEventsQuery';

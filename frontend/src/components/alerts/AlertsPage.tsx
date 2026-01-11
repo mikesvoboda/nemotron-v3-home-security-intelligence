@@ -67,6 +67,7 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
   }, []);
 
   // Load high/critical risk events (with AbortController to cancel stale requests)
+  // Uses server-side filtering and pagination to avoid the double-fetch anti-pattern
   useEffect(() => {
     const controller = new AbortController();
 
@@ -74,42 +75,47 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
       setLoading(true);
       setError(null);
       try {
-        // Fetch high risk events
-        const highParams: EventsQueryParams = {
-          risk_level: 'high',
-          limit: pagination.limit,
-          offset: pagination.offset,
-        };
-        const highResponse = await fetchEvents(highParams, { signal: controller.signal });
-
-        // Fetch critical risk events
-        const criticalParams: EventsQueryParams = {
-          risk_level: 'critical',
-          limit: pagination.limit,
-          offset: pagination.offset,
-        };
-        const criticalResponse = await fetchEvents(criticalParams, { signal: controller.signal });
-
-        // Combine and sort by timestamp (most recent first)
-        let allAlerts = [...highResponse.items, ...criticalResponse.items];
-        allAlerts.sort(
-          (a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime()
-        );
-
-        // Apply risk filter if not 'all'
+        // If a specific risk filter is selected, only fetch that risk level
+        // This avoids fetching both high and critical then filtering client-side
         if (riskFilter !== 'all') {
-          allAlerts = allAlerts.filter((event) => {
-            const level = event.risk_level || getRiskLevel(event.risk_score || 0);
-            return level === riskFilter;
-          });
+          const params: EventsQueryParams = {
+            risk_level: riskFilter,
+            limit: pagination.limit,
+            offset: pagination.offset,
+          };
+          const response = await fetchEvents(params, { signal: controller.signal });
+          setEvents(response.items);
+          setTotalCount(response.pagination.total);
+        } else {
+          // For 'all', fetch both high and critical in parallel
+          // Each query is limited to half the page size to stay within bandwidth budget
+          const halfLimit = Math.ceil(pagination.limit / 2);
+          const halfOffset = Math.floor(pagination.offset / 2);
+
+          const [highResponse, criticalResponse] = await Promise.all([
+            fetchEvents(
+              { risk_level: 'high', limit: halfLimit, offset: halfOffset },
+              { signal: controller.signal }
+            ),
+            fetchEvents(
+              { risk_level: 'critical', limit: halfLimit, offset: halfOffset },
+              { signal: controller.signal }
+            ),
+          ]);
+
+          // Combine and sort by timestamp (most recent first)
+          const allAlerts = [...highResponse.items, ...criticalResponse.items];
+          allAlerts.sort(
+            (a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime()
+          );
+
+          // Take only the page limit (no extra slicing needed since we limited each query)
+          const paginatedAlerts = allAlerts.slice(0, pagination.limit);
+          const totalCombined = highResponse.pagination.total + criticalResponse.pagination.total;
+
+          setEvents(paginatedAlerts);
+          setTotalCount(totalCombined);
         }
-
-        // Handle pagination manually since we're combining two API calls
-        const totalCombined = highResponse.pagination.total + criticalResponse.pagination.total;
-        const paginatedAlerts = allAlerts.slice(0, pagination.limit);
-
-        setEvents(paginatedAlerts);
-        setTotalCount(totalCombined);
       } catch (err) {
         // Ignore aborted requests - user changed filters before request completed
         if (isAbortError(err)) return;

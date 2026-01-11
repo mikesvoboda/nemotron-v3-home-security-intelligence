@@ -281,7 +281,7 @@ describe('DashboardPage', () => {
     items: mockInitialEvents,
     pagination: {
       total: 2,
-      limit: 50,
+      limit: 10,
       offset: 0,
       has_more: false,
     },
@@ -630,7 +630,7 @@ describe('DashboardPage', () => {
         items: [],
         pagination: {
           total: 0,
-          limit: 50,
+          limit: 10,
           offset: 0,
           has_more: false,
         },
@@ -698,7 +698,7 @@ describe('DashboardPage', () => {
       renderWithProviders(<DashboardPage />);
 
       await waitFor(() => {
-        expect(api.fetchEvents).toHaveBeenCalledWith({ limit: 50 });
+        expect(api.fetchEvents).toHaveBeenCalledWith({ limit: 10 });
       });
     });
 

@@ -237,9 +237,21 @@ add_eslint_disable() {
     fi
 }
 
+# Helper function to add validation constraints as JSDoc comments
+# This enriches the generated types with constraints from the OpenAPI spec
+add_constraint_comments() {
+    print_step "Adding validation constraint comments..."
+    if $PYTHON_CMD "$PROJECT_ROOT/scripts/add-type-constraints.py"; then
+        print_success "Validation constraints added to JSDoc comments"
+    else
+        print_warning "Could not add validation constraints (non-fatal)"
+    fi
+}
+
 if [ "$CHECK_MODE" = true ]; then
     # In check mode, generate to a temp file and compare
     TEMP_FILE=$(mktemp)
+    TEMP_DIR=$(mktemp -d)
 
     npx --prefix "$PROJECT_ROOT/frontend" openapi-typescript "$OPENAPI_SPEC_FILE" -o "$TEMP_FILE" 2>/dev/null
 
@@ -247,14 +259,21 @@ if [ "$CHECK_MODE" = true ]; then
     add_pragma_comments "$TEMP_FILE"
     add_eslint_disable "$TEMP_FILE"
 
+    # For check mode, we need to compare without constraint comments
+    # since those are added as a post-processing step
+    # Create a version of the existing file without constraint comments for comparison
+    EXISTING_WITHOUT_CONSTRAINTS="$TEMP_DIR/existing.ts"
+    grep -v '@constraint' "$GENERATED_TYPES_FILE" > "$EXISTING_WITHOUT_CONSTRAINTS" 2>/dev/null || cp "$GENERATED_TYPES_FILE" "$EXISTING_WITHOUT_CONSTRAINTS"
+
     if [ ! -f "$GENERATED_TYPES_FILE" ]; then
         print_error "Generated types file does not exist: $GENERATED_TYPES_FILE"
         echo "Run './scripts/generate-types.sh' to generate types"
         rm -f "$TEMP_FILE"
+        rm -rf "$TEMP_DIR"
         exit 1
     fi
 
-    if ! diff -q "$TEMP_FILE" "$GENERATED_TYPES_FILE" > /dev/null 2>&1; then
+    if ! diff -q "$TEMP_FILE" "$EXISTING_WITHOUT_CONSTRAINTS" > /dev/null 2>&1; then
         print_error "Generated types are out of date!"
         echo ""
         echo "The OpenAPI schema has changed. Please regenerate types:"
@@ -262,10 +281,12 @@ if [ "$CHECK_MODE" = true ]; then
         echo ""
         echo "Then commit the updated types file."
         rm -f "$TEMP_FILE"
+        rm -rf "$TEMP_DIR"
         exit 1
     fi
 
     rm -f "$TEMP_FILE"
+    rm -rf "$TEMP_DIR"
     print_success "Generated types are current"
 else
     # Normal generation mode
@@ -280,6 +301,8 @@ else
     add_pragma_comments "$GENERATED_TYPES_FILE"
     # Add eslint-disable comment for union types with unknown
     add_eslint_disable "$GENERATED_TYPES_FILE"
+    # Add validation constraint comments to JSDoc
+    add_constraint_comments
 
     print_success "TypeScript types generated: $GENERATED_TYPES_FILE"
 fi

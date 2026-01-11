@@ -222,7 +222,7 @@ async def list_cameras(
 )
 async def list_deleted_cameras(
     db: AsyncSession = Depends(get_db),
-) -> dict[str, Any]:
+) -> DeletedCamerasListResponse:
     """List all soft-deleted cameras for trash view.
 
     Returns cameras that have been soft-deleted (deleted_at is not null),
@@ -243,27 +243,27 @@ async def list_deleted_cameras(
     result = await db.execute(query)
     deleted_cameras = result.scalars().all()
 
-    # Serialize cameras for response
+    # Serialize cameras for response using CameraResponse schema
     cameras_data = [
-        {
-            "id": c.id,
-            "name": c.name,
-            "folder_path": c.folder_path,
-            "status": c.status,
-            "created_at": c.created_at.isoformat() if c.created_at else None,
-            "last_seen_at": c.last_seen_at.isoformat() if c.last_seen_at else None,
-        }
+        CameraResponse(
+            id=c.id,
+            name=c.name,
+            folder_path=c.folder_path,
+            status=c.status,
+            created_at=c.created_at,
+            last_seen_at=c.last_seen_at,
+        )
         for c in deleted_cameras
     ]
 
-    return {
-        "items": cameras_data,
-        "pagination": create_pagination_meta(
+    return DeletedCamerasListResponse(
+        items=cameras_data,
+        pagination=create_pagination_meta(
             total=len(cameras_data),
             limit=1000,  # No pagination limit for deleted cameras list
             items_count=len(cameras_data),
-        ).model_dump(),
-    }
+        ),
+    )
 
 
 @router.post(

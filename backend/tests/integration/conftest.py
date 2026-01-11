@@ -803,6 +803,18 @@ async def integration_db(integration_env: str) -> AsyncGenerator[str]:
         await conn.execute(
             text("ALTER TABLE events ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE")
         )
+        # Add search_vector columns for full-text search
+        await conn.execute(
+            text("ALTER TABLE events ADD COLUMN IF NOT EXISTS search_vector TSVECTOR")
+        )
+        await conn.execute(
+            text("ALTER TABLE detections ADD COLUMN IF NOT EXISTS search_vector TSVECTOR")
+        )
+        await conn.execute(text("ALTER TABLE logs ADD COLUMN IF NOT EXISTS search_vector TSVECTOR"))
+        # Add media_type column for detections
+        await conn.execute(
+            text("ALTER TABLE detections ADD COLUMN IF NOT EXISTS media_type VARCHAR")
+        )
 
         # Add unique indexes for cameras table (migration adds these for production)
         # First, clean up any duplicate cameras that might prevent index creation
@@ -879,26 +891,22 @@ async def clean_tables(integration_db: str) -> AsyncGenerator[None]:
     Uses DELETE instead of TRUNCATE to avoid AccessExclusiveLock deadlocks
     when tests run in parallel.
 
-    The table deletion order is automatically determined using SQLAlchemy's
-    reflection API to inspect foreign key relationships.
+    The table deletion order uses a hardcoded list to avoid async/sync context
+    issues with SQLAlchemy's inspector.
     """
     from sqlalchemy import text
 
-    from backend.core.database import get_engine, get_session
+    from backend.core.database import get_session
 
     async def delete_all() -> None:
-        engine = get_engine()
-        if engine is None:
-            return
-
-        # Get tables in FK-safe deletion order
-        deletion_order = get_table_deletion_order(engine)
+        # Use hardcoded order to avoid async/sync context issues
+        deletion_order = HARDCODED_TABLE_DELETION_ORDER
 
         async with get_session() as session:
             # Delete data in order (respecting foreign key constraints)
             for table_name in deletion_order:
                 try:
-                    # Safe: table_name comes from SQLAlchemy inspector (trusted source), not user input
+                    # Safe: table_name comes from HARDCODED_TABLE_DELETION_ORDER (trusted source)
                     await session.execute(text(f"DELETE FROM {table_name}"))  # noqa: S608 nosemgrep
                 except Exception as e:
                     # Skip tables that don't exist
@@ -1077,7 +1085,8 @@ async def _cleanup_test_data() -> None:
             return
 
         # Get tables in FK-safe deletion order (dependent tables first)
-        deletion_order = get_table_deletion_order(engine)
+        # Use the hardcoded order to avoid async/sync context issues with inspector
+        deletion_order = HARDCODED_TABLE_DELETION_ORDER
 
         async with get_session() as session:
             # Delete all test-related data in FK-safe order

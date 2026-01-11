@@ -264,10 +264,9 @@ describe('AlertsPage', () => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
       });
 
-      // Mock the next set of API calls for filtered results
-      vi.mocked(api.fetchEvents)
-        .mockResolvedValueOnce(mockHighResponse)
-        .mockResolvedValueOnce(mockCriticalResponse);
+      // When filtering to a single risk level, the component now makes a single API call
+      // (server-side filtering optimization to avoid double-fetch)
+      vi.mocked(api.fetchEvents).mockResolvedValueOnce(mockCriticalResponse);
 
       const filterSelect = screen.getByLabelText('Filter by severity:');
       await user.selectOptions(filterSelect, 'critical');
@@ -292,10 +291,9 @@ describe('AlertsPage', () => {
         expect(screen.getByText('Unknown person at door')).toBeInTheDocument();
       });
 
-      // Mock the next set of API calls for filtered results
-      vi.mocked(api.fetchEvents)
-        .mockResolvedValueOnce(mockHighResponse)
-        .mockResolvedValueOnce(mockCriticalResponse);
+      // When filtering to a single risk level, the component now makes a single API call
+      // (server-side filtering optimization to avoid double-fetch)
+      vi.mocked(api.fetchEvents).mockResolvedValueOnce(mockHighResponse);
 
       const filterSelect = screen.getByLabelText('Filter by severity:');
       await user.selectOptions(filterSelect, 'high');

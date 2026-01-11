@@ -99,3 +99,6 @@ export type { CommandPaletteProps } from './CommandPalette';
 
 export { default as ShortcutsHelpModal } from './ShortcutsHelpModal';
 export type { ShortcutsHelpModalProps } from './ShortcutsHelpModal';
+
+export { default as InfiniteScrollStatus } from './InfiniteScrollStatus';
+export type { InfiniteScrollStatusProps } from './InfiniteScrollStatus';

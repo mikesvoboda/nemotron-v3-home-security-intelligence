@@ -1,0 +1,12 @@
+{
+  "model_name": "yolo_world",
+  "config": {
+    "object_classes": ["person", "vehicle", "animal"],
+    "confidence_threshold": 0.45
+  },
+  "version": 8,
+  "created_at": "2026-01-11T02:28:45.356148+00:00",
+  "created_by": "user",
+  "description": null,
+  "updated_at": "2026-01-11T02:28:45.356148+00:00"
+}
