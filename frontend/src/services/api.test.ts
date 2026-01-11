@@ -45,6 +45,7 @@ import {
   getRequestKey,
   getInFlightRequestCount,
   clearInFlightRequests,
+  extractRateLimitInfo,
   type Camera,
   type CameraCreate,
   type CameraUpdate,
@@ -3535,6 +3536,160 @@ describe('Audit Log API', () => {
 
       clearInFlightRequests();
       vi.useRealTimers();
+    });
+  });
+});
+
+// ============================================================================
+// Rate Limit Header Extraction Tests
+// ============================================================================
+
+describe('Rate Limit Header Extraction', () => {
+  describe('extractRateLimitInfo', () => {
+    it('extracts all rate limit headers when present', () => {
+      const headers = new Headers({
+        'X-RateLimit-Limit': '100',
+        'X-RateLimit-Remaining': '95',
+        'X-RateLimit-Reset': '1704067200',
+      });
+      const response = { headers } as Response;
+      const result = extractRateLimitInfo(response);
+      expect(result).toEqual({ limit: 100, remaining: 95, reset: 1704067200 });
+    });
+
+    it('includes retryAfter when Retry-After header is present', () => {
+      const headers = new Headers({
+        'X-RateLimit-Limit': '100',
+        'X-RateLimit-Remaining': '0',
+        'X-RateLimit-Reset': '1704067200',
+        'Retry-After': '30',
+      });
+      const response = { headers } as Response;
+      const result = extractRateLimitInfo(response);
+      expect(result).toEqual({ limit: 100, remaining: 0, reset: 1704067200, retryAfter: 30 });
+    });
+
+    it('returns null when X-RateLimit-Limit header is missing', () => {
+      const headers = new Headers({ 'X-RateLimit-Remaining': '95', 'X-RateLimit-Reset': '1704067200' });
+      const response = { headers } as Response;
+      expect(extractRateLimitInfo(response)).toBeNull();
+    });
+
+    it('returns null when X-RateLimit-Remaining header is missing', () => {
+      const headers = new Headers({ 'X-RateLimit-Limit': '100', 'X-RateLimit-Reset': '1704067200' });
+      const response = { headers } as Response;
+      expect(extractRateLimitInfo(response)).toBeNull();
+    });
+
+    it('returns null when X-RateLimit-Reset header is missing', () => {
+      const headers = new Headers({ 'X-RateLimit-Limit': '100', 'X-RateLimit-Remaining': '95' });
+      const response = { headers } as Response;
+      expect(extractRateLimitInfo(response)).toBeNull();
+    });
+
+    it('returns null when no rate limit headers are present', () => {
+      const headers = new Headers({ 'Content-Type': 'application/json' });
+      const response = { headers } as Response;
+      expect(extractRateLimitInfo(response)).toBeNull();
+    });
+
+    it('returns null when rate limit headers have invalid values', () => {
+      const headers = new Headers({
+        'X-RateLimit-Limit': 'invalid',
+        'X-RateLimit-Remaining': '95',
+        'X-RateLimit-Reset': '1704067200',
+      });
+      const response = { headers } as Response;
+      expect(extractRateLimitInfo(response)).toBeNull();
+    });
+
+    it('excludes retryAfter when Retry-After header has invalid value', () => {
+      const headers = new Headers({
+        'X-RateLimit-Limit': '100',
+        'X-RateLimit-Remaining': '0',
+        'X-RateLimit-Reset': '1704067200',
+        'Retry-After': 'invalid',
+      });
+      const response = { headers } as Response;
+      const result = extractRateLimitInfo(response);
+      expect(result).toEqual({ limit: 100, remaining: 0, reset: 1704067200 });
+    });
+
+    it('handles zero values correctly', () => {
+      const headers = new Headers({
+        'X-RateLimit-Limit': '100',
+        'X-RateLimit-Remaining': '0',
+        'X-RateLimit-Reset': '0',
+      });
+      const response = { headers } as Response;
+      const result = extractRateLimitInfo(response);
+      expect(result).toEqual({ limit: 100, remaining: 0, reset: 0 });
+    });
+  });
+
+  describe('429 Too Many Requests error handling', () => {
+    beforeEach(() => {
+      vi.stubGlobal('fetch', vi.fn());
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+      clearInFlightRequests();
+    });
+
+    it('includes retry_after in error data on 429 response', async () => {
+      const headers = new Headers({
+        'X-RateLimit-Limit': '100',
+        'X-RateLimit-Remaining': '0',
+        'X-RateLimit-Reset': '1704067200',
+        'Retry-After': '60',
+      });
+      vi.mocked(fetch).mockResolvedValueOnce({
+        ok: false,
+        status: 429,
+        statusText: 'Too Many Requests',
+        json: () => Promise.resolve({ detail: 'Rate limit exceeded' }),
+        headers,
+      } as Response);
+
+      let caughtError: ApiError | null = null;
+      try {
+        await fetchCameras();
+      } catch (e) {
+        caughtError = e as ApiError;
+      }
+
+      expect(caughtError).toBeInstanceOf(ApiError);
+      expect(caughtError!.status).toBe(429);
+      expect(caughtError!.data).toEqual(expect.objectContaining({ retry_after: 60 }));
+    });
+
+    it('handles 429 without Retry-After header', async () => {
+      const headers = new Headers({
+        'X-RateLimit-Limit': '100',
+        'X-RateLimit-Remaining': '0',
+        'X-RateLimit-Reset': '1704067200',
+      });
+      vi.mocked(fetch).mockResolvedValueOnce({
+        ok: false,
+        status: 429,
+        statusText: 'Too Many Requests',
+        json: () => Promise.resolve({ detail: 'Rate limit exceeded' }),
+        headers,
+      } as Response);
+
+      let caughtError: ApiError | null = null;
+      try {
+        await fetchCameras();
+      } catch (e) {
+        caughtError = e as ApiError;
+      }
+
+      expect(caughtError).toBeInstanceOf(ApiError);
+      expect(caughtError!.status).toBe(429);
+      if (typeof caughtError!.data === 'object' && caughtError!.data !== null) {
+        expect((caughtError!.data as Record<string, unknown>).retry_after).toBeUndefined();
+      }
     });
   });
 });

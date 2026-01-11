@@ -259,3 +259,9 @@ export type {
 // ============================================================================
 
 export type { PerformanceAlert, AiModelMetrics } from './performance';
+
+// ============================================================================
+// Rate Limit Types
+// ============================================================================
+
+export type { RateLimitInfo, ApiResponse } from './rate-limit';

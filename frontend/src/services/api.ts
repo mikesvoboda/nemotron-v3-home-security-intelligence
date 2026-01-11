@@ -110,8 +110,8 @@ export type {
   QuietHoursPeriodResponse,
   QuietHoursPeriodsListResponse,
 } from '../types/generated';
-
 import { addApiBreadcrumb, isSentryEnabled } from './sentry';
+import { useRateLimitStore, type RateLimitInfo } from '../stores/rate-limit-store';
 
 // Import concrete types for use in this module
 import type {
@@ -757,6 +757,64 @@ export function getApiKey(): string | undefined {
 // ============================================================================
 
 /**
+ * Extracts rate limit information from response headers.
+ *
+ * Looks for standard rate limit headers:
+ * - `X-RateLimit-Limit`: Maximum requests allowed per window
+ * - `X-RateLimit-Remaining`: Remaining requests in current window
+ * - `X-RateLimit-Reset`: Unix timestamp when rate limit resets
+ * - `Retry-After`: Seconds until retry is allowed (optional, typically on 429)
+ *
+ * @param response - The fetch Response object
+ * @returns RateLimitInfo object if all required headers are present and valid, null otherwise
+ *
+ * @example
+ * ```typescript
+ * const response = await fetch('/api/endpoint');
+ * const rateLimitInfo = extractRateLimitInfo(response);
+ * if (rateLimitInfo) {
+ *   console.log(`${rateLimitInfo.remaining}/${rateLimitInfo.limit} requests remaining`);
+ * }
+ * ```
+ */
+export function extractRateLimitInfo(response: Response): RateLimitInfo | null {
+  const limitHeader = response.headers.get('X-RateLimit-Limit');
+  const remainingHeader = response.headers.get('X-RateLimit-Remaining');
+  const resetHeader = response.headers.get('X-RateLimit-Reset');
+  const retryAfterHeader = response.headers.get('Retry-After');
+
+  // All three required headers must be present
+  if (!limitHeader || !remainingHeader || !resetHeader) {
+    return null;
+  }
+
+  const limit = parseInt(limitHeader, 10);
+  const remaining = parseInt(remainingHeader, 10);
+  const reset = parseInt(resetHeader, 10);
+
+  // Validate that parsing produced valid numbers
+  if (isNaN(limit) || isNaN(remaining) || isNaN(reset)) {
+    return null;
+  }
+
+  const info: RateLimitInfo = {
+    limit,
+    remaining,
+    reset,
+  };
+
+  // Add retryAfter if header is present and valid
+  if (retryAfterHeader) {
+    const retryAfter = parseInt(retryAfterHeader, 10);
+    if (!isNaN(retryAfter)) {
+      info.retryAfter = retryAfter;
+    }
+  }
+
+  return info;
+}
+
+/**
  * Adds a Sentry breadcrumb for an API request if Sentry is enabled.
  * This provides request tracking for debugging errors.
  *
@@ -818,6 +876,12 @@ function parseErrorBody(
 }
 
 async function handleResponse<T>(response: Response): Promise<T> {
+  // Extract rate limit info from headers and update global store
+  const rateLimitInfo = extractRateLimitInfo(response);
+  if (rateLimitInfo) {
+    useRateLimitStore.getState().update(rateLimitInfo);
+  }
+
   if (!response.ok) {
     const defaultMessage = `HTTP ${response.status}: ${response.statusText}`;
     let errorMessage = defaultMessage;
@@ -832,6 +896,21 @@ async function handleResponse<T>(response: Response): Promise<T> {
       problemDetails = parsed.problemDetails;
     } catch {
       // If response body is not JSON, use status text
+    }
+
+    // For 429 Too Many Requests, include retry_after in error data if available
+    if (response.status === 429) {
+      const retryAfterHeader = response.headers.get('Retry-After');
+      if (retryAfterHeader) {
+        const retryAfter = parseInt(retryAfterHeader, 10);
+        if (!isNaN(retryAfter)) {
+          // Merge retry_after into error data
+          errorData =
+            typeof errorData === 'object' && errorData !== null
+              ? { ...errorData, retry_after: retryAfter }
+              : { retry_after: retryAfter };
+        }
+      }
     }
 
     throw new ApiError(response.status, errorMessage, errorData, problemDetails);

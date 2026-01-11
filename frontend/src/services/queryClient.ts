@@ -23,9 +23,10 @@
  * @see https://tanstack.com/query/latest/docs/framework/react/overview
  */
 
-import { QueryClient } from '@tanstack/react-query';
+import { MutationCache, QueryCache, QueryClient } from '@tanstack/react-query';
 
-import { isTimeoutError } from './api';
+import { ApiError, isTimeoutError } from './api';
+import { useRateLimitStore, type RateLimitInfo } from '../stores/rate-limit-store';
 import { shouldRetry, ErrorCode } from '../utils/error-handling';
 
 import type { EventsQueryParams } from './api';
@@ -224,6 +225,71 @@ export function shouldRetryMutation(failureCount: number, error: unknown): boole
 
   // For other errors, don't retry mutations (could cause duplicate side effects)
   return false;
+}
+
+// ============================================================================
+// Rate Limit Store Integration
+// ============================================================================
+
+/**
+ * Default retry delay in seconds when no Retry-After header is provided.
+ * Falls back to 60 seconds as per acceptance criteria.
+ */
+export const DEFAULT_RATE_LIMIT_RETRY_SECONDS = 60;
+
+/**
+ * Update the rate limit store when a 429 error is encountered.
+ *
+ * This function extracts rate limit information from the error and updates
+ * the Zustand store, enabling the RetryingIndicator component to show
+ * feedback to users during automatic retry.
+ *
+ * @param error - The error that caused the failure
+ */
+export function updateRateLimitStoreFromError(error: unknown): void {
+  // Only handle ApiError instances with 429 status
+  if (!(error instanceof ApiError) || error.status !== 429) {
+    return;
+  }
+
+  const problemDetails = error.problemDetails;
+
+  // Extract retry_after, default to 60 seconds if not provided
+  let retryAfter = DEFAULT_RATE_LIMIT_RETRY_SECONDS;
+  if (
+    problemDetails &&
+    typeof problemDetails.retry_after === 'number' &&
+    problemDetails.retry_after > 0
+  ) {
+    retryAfter = problemDetails.retry_after;
+  }
+
+  // Extract rate limit headers if available
+  let limit = 100; // Default limit
+  let remaining = 0; // We're rate limited, so remaining is 0
+  let reset = Math.floor(Date.now() / 1000) + retryAfter;
+
+  if (problemDetails) {
+    if (typeof problemDetails.rate_limit_limit === 'number') {
+      limit = problemDetails.rate_limit_limit;
+    }
+    if (typeof problemDetails.rate_limit_remaining === 'number') {
+      remaining = problemDetails.rate_limit_remaining;
+    }
+    if (typeof problemDetails.rate_limit_reset === 'number') {
+      reset = problemDetails.rate_limit_reset;
+    }
+  }
+
+  // Update the rate limit store
+  const rateLimitInfo: RateLimitInfo = {
+    limit,
+    remaining,
+    reset,
+    retryAfter,
+  };
+
+  useRateLimitStore.getState().update(rateLimitInfo);
 }
 
 // ============================================================================
@@ -514,7 +580,23 @@ export const queryKeys = {
  * );
  */
 export function createQueryClient(): QueryClient {
+  // Create QueryCache with onError callback for rate limit store integration
+  const queryCache = new QueryCache({
+    onError: (error) => {
+      updateRateLimitStoreFromError(error);
+    },
+  });
+
+  // Create MutationCache with onError callback for rate limit store integration
+  const mutationCache = new MutationCache({
+    onError: (error) => {
+      updateRateLimitStoreFromError(error);
+    },
+  });
+
   return new QueryClient({
+    queryCache,
+    mutationCache,
     defaultOptions: {
       queries: {
         /**
