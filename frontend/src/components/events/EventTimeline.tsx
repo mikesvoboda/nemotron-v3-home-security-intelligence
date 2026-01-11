@@ -2,8 +2,6 @@ import {
   ArrowDownUp,
   Calendar,
   CheckSquare,
-  ChevronLeft,
-  ChevronRight,
   Clock,
   Download,
   Filter,
@@ -16,20 +14,20 @@ import EventCard from './EventCard';
 import EventDetailModal from './EventDetailModal';
 import ExportPanel from './ExportPanel';
 import LiveActivitySection from './LiveActivitySection';
+import { useEventsInfiniteQuery, type EventFilters } from '../../hooks/useEventsQuery';
 import { useEventStream } from '../../hooks/useEventStream';
+import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
 import {
   bulkUpdateEvents,
   exportEventsCSV,
   fetchCameras,
-  fetchEvents,
-  isAbortError,
   searchEvents,
   updateEvent,
 } from '../../services/api';
 import { countBy } from '../../utils/groupBy';
 import { pipe, getSortTransform, type SortOption } from '../../utils/pipeline';
 import { getRiskLevel } from '../../utils/risk';
-import { EmptyState, EventCardSkeleton } from '../common';
+import { EmptyState, EventCardSkeleton, InfiniteScrollStatus } from '../common';
 import RiskBadge from '../common/RiskBadge';
 import { type ActivityEvent } from '../dashboard/ActivityFeed';
 import { SearchBar, SearchResultsPanel } from '../search';
@@ -37,7 +35,7 @@ import { SearchBar, SearchResultsPanel } from '../search';
 import type { Detection } from './EventCard';
 import type { SearchFilters } from '../search';
 import type { Event as ModalEvent } from './EventDetailModal';
-import type { Camera, Event, EventsQueryParams, SearchResult } from '../../services/api';
+import type { Camera, Event, SearchResult } from '../../services/api';
 import type { RiskLevel } from '../../utils/risk';
 
 // Confidence filter threshold options
@@ -52,23 +50,14 @@ export interface EventTimelineProps {
 
 /**
  * EventTimeline component displays a chronological list of security events
- * with filtering, search, and pagination capabilities
+ * with filtering, search, and infinite scroll pagination capabilities
  */
 export default function EventTimeline({ onViewEventDetails, className = '' }: EventTimelineProps) {
-  // State for events data
-  const [events, setEvents] = useState<Event[]>([]);
-  const [totalCount, setTotalCount] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
   // State for cameras (for filter dropdown)
   const [cameras, setCameras] = useState<Camera[]>([]);
 
   // State for filters
-  const [filters, setFilters] = useState<EventsQueryParams>({
-    limit: 20,
-    offset: 0,
-  });
+  const [eventFilters, setEventFilters] = useState<EventFilters>({});
   const [showFilters, setShowFilters] = useState(false);
   const [confidenceFilter, setConfidenceFilter] = useState<ConfidenceFilter>('');
   const [sortOption, setSortOption] = useState<SortOption>('newest');
@@ -76,6 +65,7 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
   // State for selection and bulk actions
   const [selectedEventIds, setSelectedEventIds] = useState<Set<number>>(new Set());
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
+  const [bulkActionError, setBulkActionError] = useState<string | null>(null);
 
   // State for export
   const [exportLoading, setExportLoading] = useState(false);
@@ -100,6 +90,33 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
   // URL search params for deep-linking (e.g., /timeline?camera=cam-1)
   const [searchParams] = useSearchParams();
 
+  // Use infinite query for events with cursor-based pagination
+  const {
+    events,
+    totalCount,
+    isLoading: loading,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+    error: queryError,
+    refetch,
+  } = useEventsInfiniteQuery({
+    filters: eventFilters,
+    limit: 20,
+    enabled: !isSearchMode,
+  });
+
+  // Convert query error to string
+  const error = queryError?.message ?? bulkActionError;
+
+  // Use infinite scroll hook
+  const { sentinelRef, isLoadingMore, error: scrollError, retry } = useInfiniteScroll({
+    onLoadMore: fetchNextPage,
+    hasMore: hasNextPage,
+    isLoading: isFetchingNextPage,
+    enabled: !isSearchMode && !loading && events.length > 0,
+  });
+
   // Initialize filters from URL query parameters
   // Updates when searchParams changes (e.g., navigating from dashboard camera click or AI Performance risk chart)
   useEffect(() => {
@@ -108,11 +125,10 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
 
     // Only update if we have at least one parameter
     if (cameraParam || riskLevelParam) {
-      setFilters((prev) => ({
+      setEventFilters((prev) => ({
         ...prev,
         ...(cameraParam && { camera_id: cameraParam }),
         ...(riskLevelParam && { risk_level: riskLevelParam }),
-        offset: 0,
       }));
       // Show filters panel when coming with URL parameters
       setShowFilters(true);
@@ -166,71 +182,22 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
     void loadCameras();
   }, []);
 
-  // Load events whenever filters change (with AbortController to cancel stale requests)
-  useEffect(() => {
-    const controller = new AbortController();
-
-    const loadEvents = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const response = await fetchEvents(filters, { signal: controller.signal });
-        setEvents(response.items);
-        setTotalCount(response.pagination.total);
-      } catch (err) {
-        // Ignore aborted requests - user changed filters before request completed
-        if (isAbortError(err)) return;
-        setError(err instanceof Error ? err.message : 'Failed to load events');
-      } finally {
-        // Only update loading state if request wasn't aborted
-        if (!controller.signal.aborted) {
-          setLoading(false);
-        }
-      }
-    };
-    void loadEvents();
-
-    // Cleanup: abort pending request when filters change or component unmounts
-    return () => controller.abort();
-  }, [filters]);
-
   // Handle filter changes
-  const handleFilterChange = (key: keyof EventsQueryParams, value: string | boolean) => {
-    setFilters((prev) => ({
+  const handleFilterChange = (key: keyof EventFilters, value: string | boolean) => {
+    setEventFilters((prev) => ({
       ...prev,
       [key]: value === '' ? undefined : value,
-      offset: 0, // Reset to first page when filters change
     }));
-  };
-
-  // Handle pagination
-  const handlePreviousPage = () => {
-    const limit = filters.limit || 20;
-    const offset = filters.offset || 0;
-    if (offset > 0) {
-      setFilters((prev) => ({
-        ...prev,
-        offset: Math.max(0, offset - limit),
-      }));
-    }
-  };
-
-  const handleNextPage = () => {
-    const limit = filters.limit || 20;
-    const offset = filters.offset || 0;
-    if (offset + limit < totalCount) {
-      setFilters((prev) => ({
-        ...prev,
-        offset: offset + limit,
-      }));
-    }
+    // Clear selections when filters change
+    setSelectedEventIds(new Set());
   };
 
   // Clear all filters
   const handleClearFilters = () => {
-    setFilters({ limit: 20, offset: 0 });
+    setEventFilters({});
     setConfidenceFilter('');
     setSortOption('newest');
+    setSelectedEventIds(new Set());
   };
 
   // Handle full-text search
@@ -355,7 +322,7 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
       // If all are selected, deselect all
       setSelectedEventIds(new Set());
     } else {
-      // Select all current page events
+      // Select all loaded events
       setSelectedEventIds(new Set(filteredEvents.map((event) => event.id)));
     }
   };
@@ -365,23 +332,22 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
     if (selectedEventIds.size === 0) return;
 
     setBulkActionLoading(true);
+    setBulkActionError(null);
     try {
       const result = await bulkUpdateEvents(Array.from(selectedEventIds), { reviewed: true });
 
       if (result.failed.length > 0) {
         console.error('Some events failed to update:', result.failed);
-        setError(`Updated ${result.successful.length} events, but ${result.failed.length} failed`);
+        setBulkActionError(`Updated ${result.successful.length} events, but ${result.failed.length} failed`);
       }
 
-      // Reload events to reflect changes
-      const response = await fetchEvents(filters);
-      setEvents(response.items);
-      setTotalCount(response.pagination.total);
+      // Refetch events to reflect changes
+      void refetch();
 
       // Clear selections
       setSelectedEventIds(new Set());
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update events');
+      setBulkActionError(err instanceof Error ? err.message : 'Failed to update events');
     } finally {
       setBulkActionLoading(false);
     }
@@ -392,23 +358,22 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
     if (selectedEventIds.size === 0) return;
 
     setBulkActionLoading(true);
+    setBulkActionError(null);
     try {
       const result = await bulkUpdateEvents(Array.from(selectedEventIds), { reviewed: false });
 
       if (result.failed.length > 0) {
         console.error('Some events failed to update:', result.failed);
-        setError(`Updated ${result.successful.length} events, but ${result.failed.length} failed`);
+        setBulkActionError(`Updated ${result.successful.length} events, but ${result.failed.length} failed`);
       }
 
-      // Reload events to reflect changes
-      const response = await fetchEvents(filters);
-      setEvents(response.items);
-      setTotalCount(response.pagination.total);
+      // Refetch events to reflect changes
+      void refetch();
 
       // Clear selections
       setSelectedEventIds(new Set());
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update events');
+      setBulkActionError(err instanceof Error ? err.message : 'Failed to update events');
     } finally {
       setBulkActionLoading(false);
     }
@@ -417,18 +382,18 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
   // Handle export to CSV
   const handleExport = async () => {
     setExportLoading(true);
-    setError(null);
+    setBulkActionError(null);
     try {
       // Pass current filters to export (excluding pagination and object_type which isn't supported by export)
       await exportEventsCSV({
-        camera_id: filters.camera_id,
-        risk_level: filters.risk_level,
-        start_date: filters.start_date,
-        end_date: filters.end_date,
-        reviewed: filters.reviewed,
+        camera_id: eventFilters.camera_id,
+        risk_level: eventFilters.risk_level,
+        start_date: eventFilters.start_date,
+        end_date: eventFilters.end_date,
+        reviewed: eventFilters.reviewed,
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to export events');
+      setBulkActionError(err instanceof Error ? err.message : 'Failed to export events');
     } finally {
       setExportLoading(false);
     }
@@ -451,18 +416,14 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
     low: riskCountsPartial.low ?? 0,
   };
 
-  // Calculate pagination info
-  const limit = filters.limit || 20;
-  const offset = filters.offset || 0;
-  const currentPage = Math.floor(offset / limit) + 1;
-  const totalPages = Math.ceil(totalCount / limit);
+  // Calculate if there are active filters
   const hasActiveFilters =
-    filters.camera_id ||
-    filters.risk_level ||
-    filters.start_date ||
-    filters.end_date ||
-    filters.reviewed !== undefined ||
-    filters.object_type ||
+    eventFilters.camera_id ||
+    eventFilters.risk_level ||
+    eventFilters.start_date ||
+    eventFilters.end_date ||
+    eventFilters.reviewed !== undefined ||
+    eventFilters.object_type ||
     confidenceFilter ||
     sortOption !== 'newest';
 
@@ -499,10 +460,8 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
   const handleMarkReviewed = async (eventId: string) => {
     try {
       await updateEvent(parseInt(eventId, 10), { reviewed: true });
-      // Reload events to reflect changes
-      const response = await fetchEvents(filters);
-      setEvents(response.items);
-      setTotalCount(response.pagination.total);
+      // Refetch events to reflect changes
+      void refetch();
     } catch (err) {
       console.error('Failed to mark event as reviewed:', err);
     }
@@ -684,7 +643,7 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
                   </label>
                   <select
                     id="camera-filter"
-                    value={filters.camera_id || ''}
+                    value={eventFilters.camera_id || ''}
                     onChange={(e) => handleFilterChange('camera_id', e.target.value)}
                     className="w-full rounded-md border border-gray-700 bg-[#1A1A1A] px-3 py-2 text-sm text-white focus:border-[#76B900] focus:outline-none focus:ring-1 focus:ring-[#76B900]"
                   >
@@ -707,7 +666,7 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
                   </label>
                   <select
                     id="risk-filter"
-                    value={filters.risk_level || ''}
+                    value={eventFilters.risk_level || ''}
                     onChange={(e) => handleFilterChange('risk_level', e.target.value)}
                     className="w-full rounded-md border border-gray-700 bg-[#1A1A1A] px-3 py-2 text-sm text-white focus:border-[#76B900] focus:outline-none focus:ring-1 focus:ring-[#76B900]"
                   >
@@ -730,7 +689,7 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
                   <select
                     id="reviewed-filter"
                     value={
-                      filters.reviewed === undefined ? '' : filters.reviewed ? 'true' : 'false'
+                      eventFilters.reviewed === undefined ? '' : eventFilters.reviewed ? 'true' : 'false'
                     }
                     onChange={(e) =>
                       handleFilterChange(
@@ -756,7 +715,7 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
                   </label>
                   <select
                     id="object-type-filter"
-                    value={filters.object_type || ''}
+                    value={eventFilters.object_type || ''}
                     onChange={(e) => handleFilterChange('object_type', e.target.value)}
                     className="w-full rounded-md border border-gray-700 bg-[#1A1A1A] px-3 py-2 text-sm text-white focus:border-[#76B900] focus:outline-none focus:ring-1 focus:ring-[#76B900]"
                   >
@@ -827,7 +786,7 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
                     <input
                       id="start-date-filter"
                       type="date"
-                      value={filters.start_date || ''}
+                      value={eventFilters.start_date || ''}
                       onChange={(e) => handleFilterChange('start_date', e.target.value)}
                       className="w-full rounded-md border border-gray-700 bg-[#1A1A1A] py-2 pl-10 pr-3 text-sm text-white focus:border-[#76B900] focus:outline-none focus:ring-1 focus:ring-[#76B900]"
                     />
@@ -847,7 +806,7 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
                     <input
                       id="end-date-filter"
                       type="date"
-                      value={filters.end_date || ''}
+                      value={eventFilters.end_date || ''}
                       onChange={(e) => handleFilterChange('end_date', e.target.value)}
                       className="w-full rounded-md border border-gray-700 bg-[#1A1A1A] py-2 pl-10 pr-3 text-sm text-white focus:border-[#76B900] focus:outline-none focus:ring-1 focus:ring-[#76B900]"
                     />
@@ -873,11 +832,11 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
             <div className="mb-6">
               <ExportPanel
                 initialFilters={{
-                  camera_id: filters.camera_id,
-                  risk_level: filters.risk_level,
-                  start_date: filters.start_date,
-                  end_date: filters.end_date,
-                  reviewed: filters.reviewed,
+                  camera_id: eventFilters.camera_id,
+                  risk_level: eventFilters.risk_level,
+                  start_date: eventFilters.start_date,
+                  end_date: eventFilters.end_date,
+                  reviewed: eventFilters.reviewed,
                 }}
                 onExportStart={() => setExportLoading(true)}
                 onExportComplete={(success) => {
@@ -896,7 +855,7 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
               <p className="text-sm text-gray-400">
                 {totalCount === 0
                   ? '0 events'
-                  : `Showing ${offset + 1}-${Math.min(offset + filteredEvents.length, totalCount)} of ${totalCount} events`}
+                  : `Showing ${filteredEvents.length} of ${totalCount} events`}
               </p>
               {/* Risk Summary Badges */}
               {!loading && !error && filteredEvents.length > 0 && (
@@ -1040,60 +999,47 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
               />
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
-              {filteredEvents.map((event) => (
-                <div key={event.id} className="relative">
-                  {/* Selection Checkbox */}
-                  <div className="absolute left-2 top-2 z-10">
-                    <button
-                      onClick={() => handleToggleSelection(event.id)}
-                      className="flex h-8 w-8 items-center justify-center rounded-md border border-gray-700 bg-[#1A1A1A]/90 backdrop-blur-sm transition-colors hover:border-gray-600 hover:bg-[#252525]/90"
-                      aria-label={
-                        selectedEventIds.has(event.id)
-                          ? `Deselect event ${event.id}`
-                          : `Select event ${event.id}`
-                      }
-                    >
-                      {selectedEventIds.has(event.id) ? (
-                        <CheckSquare className="h-5 w-5 text-[#76B900]" />
-                      ) : (
-                        <Square className="h-5 w-5 text-gray-400" />
-                      )}
-                    </button>
+            <>
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
+                {filteredEvents.map((event) => (
+                  <div key={event.id} className="relative">
+                    {/* Selection Checkbox */}
+                    <div className="absolute left-2 top-2 z-10">
+                      <button
+                        onClick={() => handleToggleSelection(event.id)}
+                        className="flex h-8 w-8 items-center justify-center rounded-md border border-gray-700 bg-[#1A1A1A]/90 backdrop-blur-sm transition-colors hover:border-gray-600 hover:bg-[#252525]/90"
+                        aria-label={
+                          selectedEventIds.has(event.id)
+                            ? `Deselect event ${event.id}`
+                            : `Select event ${event.id}`
+                        }
+                      >
+                        {selectedEventIds.has(event.id) ? (
+                          <CheckSquare className="h-5 w-5 text-[#76B900]" />
+                        ) : (
+                          <Square className="h-5 w-5 text-gray-400" />
+                        )}
+                      </button>
+                    </div>
+                    <EventCard {...getEventCardProps(event)} hasCheckboxOverlay />
                   </div>
-                  <EventCard {...getEventCardProps(event)} hasCheckboxOverlay />
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Pagination Controls */}
-          {!loading && !error && totalCount > 0 && (
-            <div className="mt-6 flex items-center justify-between rounded-lg border border-gray-800 bg-[#1F1F1F] px-4 py-3">
-              <button
-                onClick={handlePreviousPage}
-                disabled={offset === 0}
-                className="flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#76B900]/10 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
-                aria-label="Previous page"
-              >
-                <ChevronLeft className="h-4 w-4" />
-                Previous
-              </button>
-
-              <div className="text-sm text-gray-400">
-                Page {currentPage} of {totalPages}
+                ))}
               </div>
 
-              <button
-                onClick={handleNextPage}
-                disabled={offset + limit >= totalCount}
-                className="flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#76B900]/10 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
-                aria-label="Next page"
-              >
-                Next
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            </div>
+              {/* Infinite Scroll Status */}
+              <InfiniteScrollStatus
+                sentinelRef={sentinelRef}
+                isLoading={isFetchingNextPage || isLoadingMore}
+                hasMore={hasNextPage}
+                error={scrollError}
+                onRetry={retry}
+                totalCount={totalCount}
+                loadedCount={filteredEvents.length}
+                endMessage="You've seen all events"
+                loadingMessage="Loading more events..."
+                className="mt-6"
+              />
+            </>
           )}
         </>
       )}

@@ -160,6 +160,13 @@ export { useIsMobile } from './useIsMobile';
 export { useSwipeGesture } from './useSwipeGesture';
 export type { SwipeDirection, SwipeGestureOptions } from './useSwipeGesture';
 
+// Infinite scroll hook
+export { useInfiniteScroll } from './useInfiniteScroll';
+export type {
+  UseInfiniteScrollOptions,
+  UseInfiniteScrollReturn,
+} from './useInfiniteScroll';
+
 // Cursor-based pagination hooks
 export { useCursorPaginatedQuery, default as useCursorPaginatedQueryDefault } from './useCursorPaginatedQuery';
 export type {
@@ -175,6 +182,12 @@ export type {
   UseEventsInfiniteQueryOptions,
   UseEventsInfiniteQueryReturn,
 } from './useEventsQuery';
+
+export { useRecentEventsQuery, recentEventsQueryKeys } from './useRecentEventsQuery';
+export type {
+  UseRecentEventsQueryOptions,
+  UseRecentEventsQueryReturn,
+} from './useRecentEventsQuery';
 
 export { useDetectionsInfiniteQuery, detectionsQueryKeys } from './useDetectionsQuery';
 export type {

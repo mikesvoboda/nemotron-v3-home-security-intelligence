@@ -863,7 +863,7 @@ async def export_events(
 )
 async def list_deleted_events(
     db: AsyncSession = Depends(get_db),
-) -> dict[str, Any]:
+) -> DeletedEventsListResponse:
     """List all soft-deleted events for trash view.
 
     Returns events that have been soft-deleted (deleted_at is not null),
@@ -884,43 +884,43 @@ async def list_deleted_events(
     result = await db.execute(query)
     deleted_events = result.scalars().all()
 
-    # Build response with detection info
+    # Build response with detection info using Pydantic models
     events_data = []
     for event in deleted_events:
         detection_ids = get_detection_ids_from_event(event)
         thumbnail_url = f"/api/media/detections/{detection_ids[0]}" if detection_ids else None
 
         events_data.append(
-            {
-                "id": event.id,
-                "camera_id": event.camera_id,
-                "started_at": event.started_at,
-                "ended_at": event.ended_at,
-                "risk_score": event.risk_score,
-                "risk_level": event.risk_level,
-                "summary": event.summary,
-                "reasoning": event.reasoning,
-                "llm_prompt": event.llm_prompt,
-                "reviewed": event.reviewed,
-                "notes": event.notes,
-                "detection_count": len(detection_ids),
-                "detection_ids": detection_ids,
-                "thumbnail_url": thumbnail_url,
-                "enrichment_status": None,
-            }
+            EventResponse(
+                id=event.id,
+                camera_id=event.camera_id,
+                started_at=event.started_at,
+                ended_at=event.ended_at,
+                risk_score=event.risk_score,
+                risk_level=event.risk_level,
+                summary=event.summary,
+                reasoning=event.reasoning,
+                llm_prompt=event.llm_prompt,
+                reviewed=event.reviewed,
+                notes=event.notes,
+                detection_count=len(detection_ids),
+                detection_ids=detection_ids,
+                thumbnail_url=thumbnail_url,
+                enrichment_status=None,
+            )
         )
 
-    return {
-        "items": events_data,
-        "pagination": PaginationMeta(
+    return DeletedEventsListResponse(
+        items=events_data,
+        pagination=PaginationMeta(
             total=len(events_data),
             limit=1000,  # No pagination limit for deleted events list
             offset=None,
             cursor=None,
             next_cursor=None,
             has_more=False,
-        ).model_dump(),
-    }
+        ),
+    )
 
 
 # =============================================================================
@@ -1998,7 +1998,7 @@ async def restore_event(
     cascade: bool = Query(True, description="Cascade restore to related detections"),
     db: AsyncSession = Depends(get_db),
     cache: CacheService = Depends(get_cache_service_dep),
-) -> dict[str, Any]:
+) -> EventResponse:
     """Restore a soft-deleted event with optional cascade to related detections.
 
     When cascade=True, this restores detections that were deleted at the same
@@ -2011,7 +2011,7 @@ async def restore_event(
         cache: Cache service for invalidation
 
     Returns:
-        The restored event
+        The restored event as EventResponse
 
     Raises:
         HTTPException: 404 if event not found, 409 if not deleted
@@ -2033,20 +2033,27 @@ async def restore_event(
         except Exception as e:
             logger.warning(f"Cache invalidation failed after restore: {e}")
 
-        return {
-            "id": event.id,
-            "camera_id": event.camera_id,
-            "started_at": event.started_at,
-            "ended_at": event.ended_at,
-            "risk_score": event.risk_score,
-            "risk_level": event.risk_level,
-            "summary": event.summary,
-            "reasoning": event.reasoning,
-            "reviewed": event.reviewed,
-            "notes": event.notes,
-            "clip_path": event.clip_path,
-            "deleted_at": event.deleted_at,
-        }
+        # Get detection IDs for the response
+        detection_ids = get_detection_ids_from_event(event)
+        thumbnail_url = f"/api/media/detections/{detection_ids[0]}" if detection_ids else None
+
+        return EventResponse(
+            id=event.id,
+            camera_id=event.camera_id,
+            started_at=event.started_at,
+            ended_at=event.ended_at,
+            risk_score=event.risk_score,
+            risk_level=event.risk_level,
+            summary=event.summary,
+            reasoning=event.reasoning,
+            llm_prompt=event.llm_prompt,
+            reviewed=event.reviewed,
+            notes=event.notes,
+            detection_count=len(detection_ids),
+            detection_ids=detection_ids,
+            thumbnail_url=thumbnail_url,
+            enrichment_status=None,
+        )
 
     except ValueError as e:
         error_msg = str(e)

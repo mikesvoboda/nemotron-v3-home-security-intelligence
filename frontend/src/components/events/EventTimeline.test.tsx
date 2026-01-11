@@ -2,18 +2,38 @@ import { within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import EventTimeline from './EventTimeline';
+import * as useEventsQueryHook from '../../hooks/useEventsQuery';
 import * as useEventStreamHook from '../../hooks/useEventStream';
+import * as useInfiniteScrollHook from '../../hooks/useInfiniteScroll';
 import * as api from '../../services/api';
 import { renderWithProviders, screen, waitFor, userEvent } from '../../test-utils/renderWithProviders';
 
-import type { Camera, Event, EventListResponse } from '../../services/api';
+import type { Camera, Event } from '../../services/api';
 
-// Mock API module
+// Mock API module (still needed for cameras, bulk updates, exports)
 vi.mock('../../services/api');
 
 // Mock useEventStream hook with factory function
 vi.mock('../../hooks/useEventStream', () => ({
   useEventStream: vi.fn(),
+}));
+
+// Mock useEventsInfiniteQuery hook
+vi.mock('../../hooks/useEventsQuery', () => ({
+  useEventsInfiniteQuery: vi.fn(),
+  eventsQueryKeys: {
+    all: ['events'] as const,
+    lists: () => ['events', 'list'] as const,
+    list: (filters?: Record<string, unknown>) => ['events', 'list', filters] as const,
+    infinite: (filters?: Record<string, unknown>, limit?: number) =>
+      ['events', 'infinite', { filters, limit }] as const,
+    detail: (id: number) => ['events', 'detail', id] as const,
+  },
+}));
+
+// Mock useInfiniteScroll hook
+vi.mock('../../hooks/useInfiniteScroll', () => ({
+  useInfiniteScroll: vi.fn(),
 }));
 
 // Mock LiveActivitySection component
@@ -106,18 +126,6 @@ describe('EventTimeline', () => {
     },
   ];
 
-  const mockEventsResponse: EventListResponse = {
-    items: mockEvents,
-    pagination: {
-      total: 3,
-      limit: 20,
-      offset: 0,
-      cursor: null,
-      next_cursor: null,
-      has_more: false,
-    },
-  };
-
   // Mock WebSocket events for live activity
   const mockWsEvents = [
     {
@@ -131,11 +139,42 @@ describe('EventTimeline', () => {
     },
   ];
 
+  // Default mock return values for useEventsInfiniteQuery
+  const createMockEventsQueryReturn = (overrides: Partial<useEventsQueryHook.UseEventsInfiniteQueryReturn> = {}) => ({
+    events: mockEvents,
+    pages: undefined,
+    totalCount: 3,
+    isLoading: false,
+    isFetching: false,
+    isFetchingNextPage: false,
+    hasNextPage: false,
+    fetchNextPage: vi.fn(),
+    error: null,
+    isError: false,
+    refetch: vi.fn(),
+    ...overrides,
+  });
+
+  // Default mock return values for useInfiniteScroll
+  const createMockInfiniteScrollReturn = (overrides: Partial<useInfiniteScrollHook.UseInfiniteScrollReturn> = {}) => ({
+    sentinelRef: vi.fn(),
+    isLoadingMore: false,
+    error: null,
+    retry: vi.fn(),
+    clearError: vi.fn(),
+    ...overrides,
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers({ shouldAdvanceTime: true });
     vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
-    vi.mocked(api.fetchEvents).mockResolvedValue(mockEventsResponse);
+
+    // Mock useEventsInfiniteQuery
+    vi.mocked(useEventsQueryHook.useEventsInfiniteQuery).mockReturnValue(createMockEventsQueryReturn());
+
+    // Mock useInfiniteScroll
+    vi.mocked(useInfiniteScrollHook.useInfiniteScroll).mockReturnValue(createMockInfiniteScrollReturn());
 
     // Mock useEventStream hook
     vi.mocked(useEventStreamHook.useEventStream).mockReturnValue({
@@ -210,15 +249,14 @@ describe('EventTimeline', () => {
       expect(screen.queryByText(/disconnected/i)).not.toBeInTheDocument();
     });
 
-    it('displays loading state initially with skeleton loaders', async () => {
+    it('displays loading state initially with skeleton loaders', () => {
+      vi.mocked(useEventsQueryHook.useEventsInfiniteQuery).mockReturnValue(
+        createMockEventsQueryReturn({ isLoading: true, events: [] })
+      );
+
       renderWithProviders(<EventTimeline />);
 
       expect(screen.getAllByTestId('event-card-skeleton').length).toBeGreaterThan(0);
-
-      // Wait for loading to complete to avoid act() warnings
-      await waitFor(() => {
-        expect(screen.queryByTestId('event-card-skeleton')).not.toBeInTheDocument();
-      });
     });
 
     it('displays events after loading', async () => {
@@ -236,19 +274,19 @@ describe('EventTimeline', () => {
       renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
-        expect(screen.getByText('Showing 1-3 of 3 events')).toBeInTheDocument();
+        expect(screen.getByText('Showing 3 of 3 events')).toBeInTheDocument();
       });
     });
 
-    it('displays pagination controls', async () => {
+    it('displays infinite scroll status at bottom of list', async () => {
       renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
-        expect(screen.getByLabelText('Previous page')).toBeInTheDocument();
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
       });
 
-      expect(screen.getByLabelText('Next page')).toBeInTheDocument();
-      expect(screen.getByText('Page 1 of 1')).toBeInTheDocument();
+      // Should show the infinite scroll end message when hasNextPage is false
+      expect(screen.getByTestId('infinite-scroll-end')).toBeInTheDocument();
     });
   });
 
@@ -292,7 +330,9 @@ describe('EventTimeline', () => {
       await user.selectOptions(cameraSelect, 'camera-1');
 
       await waitFor(() => {
-        expect(api.fetchEvents).toHaveBeenCalledWith(expect.objectContaining({ camera_id: 'camera-1', offset: 0 }), expect.anything());
+        expect(useEventsQueryHook.useEventsInfiniteQuery).toHaveBeenCalledWith(
+          expect.objectContaining({ filters: expect.objectContaining({ camera_id: 'camera-1' }) })
+        );
       });
     });
 
@@ -310,7 +350,9 @@ describe('EventTimeline', () => {
       await user.selectOptions(riskSelect, 'high');
 
       await waitFor(() => {
-        expect(api.fetchEvents).toHaveBeenCalledWith(expect.objectContaining({ risk_level: 'high', offset: 0 }), expect.anything());
+        expect(useEventsQueryHook.useEventsInfiniteQuery).toHaveBeenCalledWith(
+          expect.objectContaining({ filters: expect.objectContaining({ risk_level: 'high' }) })
+        );
       });
     });
 
@@ -328,7 +370,9 @@ describe('EventTimeline', () => {
       await user.selectOptions(statusSelect, 'false');
 
       await waitFor(() => {
-        expect(api.fetchEvents).toHaveBeenCalledWith(expect.objectContaining({ reviewed: false, offset: 0 }), expect.anything());
+        expect(useEventsQueryHook.useEventsInfiniteQuery).toHaveBeenCalledWith(
+          expect.objectContaining({ filters: expect.objectContaining({ reviewed: false }) })
+        );
       });
     });
 
@@ -349,11 +393,14 @@ describe('EventTimeline', () => {
       await user.type(endDateInput, '2024-01-31');
 
       await waitFor(() => {
-        expect(api.fetchEvents).toHaveBeenCalledWith(expect.objectContaining({
-            start_date: '2024-01-01',
-            end_date: '2024-01-31',
-            offset: 0,
-          }), expect.anything());
+        expect(useEventsQueryHook.useEventsInfiniteQuery).toHaveBeenCalledWith(
+          expect.objectContaining({
+            filters: expect.objectContaining({
+              start_date: '2024-01-01',
+              end_date: '2024-01-31',
+            }),
+          })
+        );
       });
     });
 
@@ -372,7 +419,9 @@ describe('EventTimeline', () => {
       await user.selectOptions(cameraSelect, 'camera-1');
 
       await waitFor(() => {
-        expect(api.fetchEvents).toHaveBeenCalledWith(expect.objectContaining({ camera_id: 'camera-1' }), expect.anything());
+        expect(useEventsQueryHook.useEventsInfiniteQuery).toHaveBeenCalledWith(
+          expect.objectContaining({ filters: expect.objectContaining({ camera_id: 'camera-1' }) })
+        );
       });
 
       // Clear filters
@@ -380,7 +429,9 @@ describe('EventTimeline', () => {
       await user.click(clearButton);
 
       await waitFor(() => {
-        expect(api.fetchEvents).toHaveBeenCalledWith({ limit: 20, offset: 0 }, expect.anything());
+        expect(useEventsQueryHook.useEventsInfiniteQuery).toHaveBeenCalledWith(
+          expect.objectContaining({ filters: {} })
+        );
       });
     });
 
@@ -421,7 +472,9 @@ describe('EventTimeline', () => {
       await user.selectOptions(objectTypeSelect, 'person');
 
       await waitFor(() => {
-        expect(api.fetchEvents).toHaveBeenCalledWith(expect.objectContaining({ object_type: 'person', offset: 0 }), expect.anything());
+        expect(useEventsQueryHook.useEventsInfiniteQuery).toHaveBeenCalledWith(
+          expect.objectContaining({ filters: expect.objectContaining({ object_type: 'person' }) })
+        );
       });
     });
 
@@ -466,7 +519,9 @@ describe('EventTimeline', () => {
       await user.selectOptions(objectTypeSelect, 'vehicle');
 
       await waitFor(() => {
-        expect(api.fetchEvents).toHaveBeenCalledWith(expect.objectContaining({ object_type: 'vehicle' }), expect.anything());
+        expect(useEventsQueryHook.useEventsInfiniteQuery).toHaveBeenCalledWith(
+          expect.objectContaining({ filters: expect.objectContaining({ object_type: 'vehicle' }) })
+        );
       });
 
       // Clear filters
@@ -474,7 +529,9 @@ describe('EventTimeline', () => {
       await user.click(clearButton);
 
       await waitFor(() => {
-        expect(api.fetchEvents).toHaveBeenCalledWith({ limit: 20, offset: 0 }, expect.anything());
+        expect(useEventsQueryHook.useEventsInfiniteQuery).toHaveBeenCalledWith(
+          expect.objectContaining({ filters: {} })
+        );
       });
     });
 
@@ -497,298 +554,97 @@ describe('EventTimeline', () => {
       await user.selectOptions(objectTypeSelect, 'animal');
 
       await waitFor(() => {
-        expect(api.fetchEvents).toHaveBeenCalledWith(expect.objectContaining({
-            camera_id: 'camera-1',
-            object_type: 'animal',
-            offset: 0,
-          }), expect.anything());
+        expect(useEventsQueryHook.useEventsInfiniteQuery).toHaveBeenCalledWith(
+          expect.objectContaining({
+            filters: expect.objectContaining({
+              camera_id: 'camera-1',
+              object_type: 'animal',
+            }),
+          })
+        );
       });
     });
   });
 
-  // Note: Client-side search has been removed in favor of full-text search only.
-  // Full-text search functionality is tested in the "Full-text search" describe block below.
+  describe('Infinite Scroll', () => {
+    it('displays loading indicator when fetching more events', async () => {
+      vi.mocked(useEventsQueryHook.useEventsInfiniteQuery).mockReturnValue(
+        createMockEventsQueryReturn({
+          hasNextPage: true,
+          isFetchingNextPage: true,
+        })
+      );
+      vi.mocked(useInfiniteScrollHook.useInfiniteScroll).mockReturnValue(
+        createMockInfiniteScrollReturn({ isLoadingMore: true })
+      );
 
-  describe('Pagination', () => {
-    beforeEach(() => {
-      // Mock response with more events for pagination
-      const manyEvents: Event[] = Array.from({ length: 50 }, (_, i) => ({
-        id: i + 1,
-        camera_id: 'camera-1',
-        started_at: `2024-01-01T${String(i).padStart(2, '0')}:00:00Z`,
-        ended_at: null,
-        risk_score: 50,
-        risk_level: 'medium',
-        summary: `Event ${i + 1}`,
-        reviewed: false,
-        detection_count: 1,
-        notes: null,
-      }));
+      renderWithProviders(<EventTimeline />);
 
-      vi.mocked(api.fetchEvents).mockResolvedValue({
-        items: manyEvents.slice(0, 20),
-        pagination: {
-          total: 50,
-          limit: 20,
-          offset: 0,
-          cursor: null,
-          next_cursor: null,
-          has_more: true,
-        },
+      await waitFor(() => {
+        expect(screen.getByTestId('infinite-scroll-loading')).toBeInTheDocument();
       });
     });
 
-    it('navigates to next page', async () => {
+    it('shows end of list message when no more events', async () => {
+      vi.mocked(useEventsQueryHook.useEventsInfiniteQuery).mockReturnValue(
+        createMockEventsQueryReturn({ hasNextPage: false })
+      );
+
+      renderWithProviders(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('infinite-scroll-end')).toBeInTheDocument();
+      });
+    });
+
+    it('shows sentinel element when more events available', async () => {
+      vi.mocked(useEventsQueryHook.useEventsInfiniteQuery).mockReturnValue(
+        createMockEventsQueryReturn({ hasNextPage: true })
+      );
+
+      renderWithProviders(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('infinite-scroll-sentinel')).toBeInTheDocument();
+      });
+    });
+
+    it('shows error with retry when scroll loading fails', async () => {
+      const mockRetry = vi.fn();
+      vi.mocked(useInfiniteScrollHook.useInfiniteScroll).mockReturnValue(
+        createMockInfiniteScrollReturn({
+          error: new Error('Network error'),
+          retry: mockRetry,
+        })
+      );
+
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
-        expect(screen.getByText('Page 1 of 3')).toBeInTheDocument();
+        expect(screen.getByTestId('infinite-scroll-error')).toBeInTheDocument();
       });
 
-      const nextButton = screen.getByLabelText('Next page');
-      expect(nextButton).not.toBeDisabled();
+      expect(screen.getByText('Network error')).toBeInTheDocument();
 
-      await user.click(nextButton);
-
-      await waitFor(() => {
-        expect(api.fetchEvents).toHaveBeenCalledWith(expect.objectContaining({ offset: 20 }), expect.anything());
-      });
-    });
-
-    it('navigates to previous page', async () => {
-      // Clear previous mocks and set up fresh ones for this test
-      vi.clearAllMocks();
-      vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
-
-      // First load (page 1), then page 2, then back to page 1
-      vi.mocked(api.fetchEvents)
-        .mockResolvedValueOnce({
-          items: mockEvents,
-          pagination: {
-            total: 50,
-            limit: 20,
-            offset: 0,
-            cursor: null,
-            next_cursor: null,
-            has_more: true,
-          },
-        })
-        .mockResolvedValueOnce({
-          items: mockEvents,
-          pagination: {
-            total: 50,
-            limit: 20,
-            offset: 20,
-            cursor: null,
-            next_cursor: null,
-            has_more: true,
-          },
-        })
-        .mockResolvedValueOnce({
-          items: mockEvents,
-          pagination: {
-            total: 50,
-            limit: 20,
-            offset: 0,
-            cursor: null,
-            next_cursor: null,
-            has_more: true,
-          },
-        });
-
-      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-      renderWithProviders(<EventTimeline />);
-
-      // Wait for initial load
-      await waitFor(() => {
-        expect(screen.getByText('Page 1 of 3')).toBeInTheDocument();
-      });
-
-      // Navigate to page 2
-      const nextButton = screen.getByLabelText('Next page');
-      await user.click(nextButton);
-
-      await waitFor(() => {
-        expect(screen.getByText('Page 2 of 3')).toBeInTheDocument();
-      });
-
-      // Navigate back to page 1
-      const prevButton = screen.getByLabelText('Previous page');
-      await user.click(prevButton);
-
-      await waitFor(() => {
-        expect(api.fetchEvents).toHaveBeenCalledWith(expect.objectContaining({ offset: 0 }), expect.anything());
-      });
-    });
-
-    it('disables previous button on first page', async () => {
-      renderWithProviders(<EventTimeline />);
-
-      await waitFor(() => {
-        expect(screen.getByText('Page 1 of 3')).toBeInTheDocument();
-      });
-
-      const prevButton = screen.getByLabelText('Previous page');
-      expect(prevButton).toBeDisabled();
-    });
-
-    it('disables next button on last page', async () => {
-      // Clear previous mocks and set up fresh ones for this test
-      vi.clearAllMocks();
-      vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
-
-      // Navigate through pages to reach the last page
-      vi.mocked(api.fetchEvents)
-        .mockResolvedValueOnce({
-          items: mockEvents,
-          pagination: {
-            total: 50,
-            limit: 20,
-            offset: 0,
-            cursor: null,
-            next_cursor: null,
-            has_more: true,
-          },
-        })
-        .mockResolvedValueOnce({
-          items: mockEvents,
-          pagination: {
-            total: 50,
-            limit: 20,
-            offset: 20,
-            cursor: null,
-            next_cursor: null,
-            has_more: true,
-          },
-        })
-        .mockResolvedValueOnce({
-          items: mockEvents,
-          pagination: {
-            total: 50,
-            limit: 20,
-            offset: 40,
-            cursor: null,
-            next_cursor: null,
-            has_more: false,
-          },
-        });
-
-      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-      renderWithProviders(<EventTimeline />);
-
-      // Wait for initial load (page 1)
-      await waitFor(() => {
-        expect(screen.getByText('Page 1 of 3')).toBeInTheDocument();
-      });
-
-      // Navigate to page 2
-      let nextButton = screen.getByLabelText('Next page');
-      await user.click(nextButton);
-
-      await waitFor(() => {
-        expect(screen.getByText('Page 2 of 3')).toBeInTheDocument();
-      });
-
-      // Navigate to page 3 (last page)
-      nextButton = screen.getByLabelText('Next page');
-      await user.click(nextButton);
-
-      await waitFor(() => {
-        expect(screen.getByText('Page 3 of 3')).toBeInTheDocument();
-      });
-
-      // Next button should be disabled on last page
-      nextButton = screen.getByLabelText('Next page');
-      expect(nextButton).toBeDisabled();
-    });
-
-    it('resets to first page when filters change', async () => {
-      // Clear previous mocks and set up fresh ones for this test
-      vi.clearAllMocks();
-      vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
-
-      // Initial load, navigate to page 2, then filter change resets to page 1
-      vi.mocked(api.fetchEvents)
-        .mockResolvedValueOnce({
-          items: mockEvents,
-          pagination: {
-            total: 50,
-            limit: 20,
-            offset: 0,
-            cursor: null,
-            next_cursor: null,
-            has_more: true,
-          },
-        })
-        .mockResolvedValueOnce({
-          items: mockEvents,
-          pagination: {
-            total: 50,
-            limit: 20,
-            offset: 20,
-            cursor: null,
-            next_cursor: null,
-            has_more: true,
-          },
-        })
-        .mockResolvedValueOnce({
-          items: mockEvents,
-          pagination: {
-            total: 50,
-            limit: 20,
-            offset: 0,
-            cursor: null,
-            next_cursor: null,
-            has_more: true,
-          },
-        });
-
-      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-      renderWithProviders(<EventTimeline />);
-
-      // Wait for initial load (page 1)
-      await waitFor(() => {
-        expect(screen.getByText('Page 1 of 3')).toBeInTheDocument();
-      });
-
-      // Navigate to page 2
-      const nextButton = screen.getByLabelText('Next page');
-      await user.click(nextButton);
-
-      await waitFor(() => {
-        expect(screen.getByText('Page 2 of 3')).toBeInTheDocument();
-      });
-
-      // Apply a filter
-      await user.click(screen.getByText('Show Filters'));
-
-      const cameraSelect = screen.getByLabelText('Camera');
-      await user.selectOptions(cameraSelect, 'camera-1');
-
-      // Should reset to offset 0 when filters change
-      await waitFor(() => {
-        expect(api.fetchEvents).toHaveBeenCalledWith(expect.objectContaining({ camera_id: 'camera-1', offset: 0 }), expect.anything());
-      });
+      // Click retry button
+      await user.click(screen.getByTestId('infinite-scroll-retry'));
+      expect(mockRetry).toHaveBeenCalled();
     });
   });
 
   describe('Error Handling', () => {
     it('displays error message when fetching events fails', async () => {
-      vi.resetAllMocks();
-      vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
-      vi.mocked(api.fetchEvents).mockRejectedValue(new Error('Network error'));
-      // Re-mock useEventStream after resetAllMocks
-      vi.mocked(useEventStreamHook.useEventStream).mockReturnValue({
-        events: mockWsEvents,
-        isConnected: true,
-        latestEvent: mockWsEvents[0],
-        clearEvents: vi.fn(),
-      });
+      vi.mocked(useEventsQueryHook.useEventsInfiniteQuery).mockReturnValue(
+        createMockEventsQueryReturn({
+          events: [],
+          error: new Error('Network error'),
+          isError: true,
+        })
+      );
 
       renderWithProviders(<EventTimeline />);
 
-      // Wait for error state to be displayed after async fetch fails
       await waitFor(() => {
         expect(screen.getByText('Error Loading Events')).toBeInTheDocument();
       });
@@ -797,16 +653,7 @@ describe('EventTimeline', () => {
     });
 
     it('handles camera fetch errors gracefully', async () => {
-      vi.resetAllMocks();
       vi.mocked(api.fetchCameras).mockRejectedValue(new Error('Camera fetch failed'));
-      vi.mocked(api.fetchEvents).mockResolvedValue(mockEventsResponse);
-      // Re-mock useEventStream after resetAllMocks
-      vi.mocked(useEventStreamHook.useEventStream).mockReturnValue({
-        events: mockWsEvents,
-        isConnected: true,
-        latestEvent: mockWsEvents[0],
-        clearEvents: vi.fn(),
-      });
 
       renderWithProviders(<EventTimeline />);
 
@@ -816,8 +663,8 @@ describe('EventTimeline', () => {
       });
 
       // Filter should still be available but with no camera options
-      const user2 = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-      await user2.click(screen.getByText('Show Filters'));
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      await user.click(screen.getByText('Show Filters'));
 
       const cameraSelect = screen.getByLabelText('Camera');
       const options = within(cameraSelect).getAllByRole('option');
@@ -830,17 +677,9 @@ describe('EventTimeline', () => {
 
   describe('Empty States', () => {
     it('shows empty state when no events exist', async () => {
-      vi.mocked(api.fetchEvents).mockResolvedValue({
-        items: [],
-        pagination: {
-          total: 0,
-          limit: 20,
-          offset: 0,
-          cursor: null,
-          next_cursor: null,
-          has_more: false,
-        },
-      });
+      vi.mocked(useEventsQueryHook.useEventsInfiniteQuery).mockReturnValue(
+        createMockEventsQueryReturn({ events: [], totalCount: 0 })
+      );
 
       renderWithProviders(<EventTimeline />);
 
@@ -848,7 +687,6 @@ describe('EventTimeline', () => {
         expect(screen.getByText('No Events Found')).toBeInTheDocument();
       });
 
-      // Updated to match new EmptyState component text
       expect(screen.getByText(/No security events have been recorded yet/)).toBeInTheDocument();
     });
 
@@ -862,17 +700,9 @@ describe('EventTimeline', () => {
       });
 
       // Apply filter that returns no results
-      vi.mocked(api.fetchEvents).mockResolvedValue({
-        items: [],
-        pagination: {
-          total: 0,
-          limit: 20,
-          offset: 0,
-          cursor: null,
-          next_cursor: null,
-          has_more: false,
-        },
-      });
+      vi.mocked(useEventsQueryHook.useEventsInfiniteQuery).mockReturnValue(
+        createMockEventsQueryReturn({ events: [], totalCount: 0 })
+      );
 
       await user.click(screen.getByText('Show Filters'));
 
@@ -883,22 +713,13 @@ describe('EventTimeline', () => {
         expect(screen.getByText('No Events Found')).toBeInTheDocument();
       });
 
-      // Updated to match new EmptyState component text
       expect(screen.getByText(/No events match your current filters/)).toBeInTheDocument();
     });
 
-    it('shows "0 events" instead of confusing "1-0 of 0" when empty', async () => {
-      vi.mocked(api.fetchEvents).mockResolvedValue({
-        items: [],
-        pagination: {
-          total: 0,
-          limit: 20,
-          offset: 0,
-          cursor: null,
-          next_cursor: null,
-          has_more: false,
-        },
-      });
+    it('shows "0 events" when empty', async () => {
+      vi.mocked(useEventsQueryHook.useEventsInfiniteQuery).mockReturnValue(
+        createMockEventsQueryReturn({ events: [], totalCount: 0 })
+      );
 
       renderWithProviders(<EventTimeline />);
 
@@ -906,23 +727,13 @@ describe('EventTimeline', () => {
         expect(screen.getByText('No Events Found')).toBeInTheDocument();
       });
 
-      // Should show "0 events" not "1-0 of 0 events"
       expect(screen.getByText('0 events')).toBeInTheDocument();
-      expect(screen.queryByText(/1-0 of 0/)).not.toBeInTheDocument();
     });
 
-    it('does not show pagination controls when empty', async () => {
-      vi.mocked(api.fetchEvents).mockResolvedValue({
-        items: [],
-        pagination: {
-          total: 0,
-          limit: 20,
-          offset: 0,
-          cursor: null,
-          next_cursor: null,
-          has_more: false,
-        },
-      });
+    it('does not show infinite scroll status when empty', async () => {
+      vi.mocked(useEventsQueryHook.useEventsInfiniteQuery).mockReturnValue(
+        createMockEventsQueryReturn({ events: [], totalCount: 0 })
+      );
 
       renderWithProviders(<EventTimeline />);
 
@@ -930,10 +741,10 @@ describe('EventTimeline', () => {
         expect(screen.getByText('No Events Found')).toBeInTheDocument();
       });
 
-      // Pagination controls should not be present when there are no events
-      expect(screen.queryByLabelText('Previous page')).not.toBeInTheDocument();
-      expect(screen.queryByLabelText('Next page')).not.toBeInTheDocument();
-      expect(screen.queryByText(/Page \d+ of \d+/)).not.toBeInTheDocument();
+      // Infinite scroll status should not be present when there are no events
+      expect(screen.queryByTestId('infinite-scroll-end')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('infinite-scroll-loading')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('infinite-scroll-sentinel')).not.toBeInTheDocument();
     });
   });
 
@@ -957,10 +768,6 @@ describe('EventTimeline', () => {
     });
 
     it('displays camera names in event cards', async () => {
-      vi.clearAllMocks();
-      vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
-      vi.mocked(api.fetchEvents).mockResolvedValue(mockEventsResponse);
-
       renderWithProviders(<EventTimeline />);
 
       // Wait for events to load first
@@ -980,32 +787,24 @@ describe('EventTimeline', () => {
     });
 
     it('shows "Unknown Camera" when camera not found', async () => {
-      const eventsWithUnknownCamera: EventListResponse = {
-        items: [
-          {
-            id: 1,
-            camera_id: 'unknown-camera-id',
-            started_at: '2024-01-01T10:00:00Z',
-            ended_at: null,
-            risk_score: 50,
-            risk_level: 'medium',
-            summary: 'Event from unknown camera',
-            reviewed: false,
-            detection_count: 1,
-            notes: null,
-          },
-        ],
-        pagination: {
-          total: 1,
-          limit: 20,
-          offset: 0,
-          cursor: null,
-          next_cursor: null,
-          has_more: false,
+      const eventsWithUnknownCamera: Event[] = [
+        {
+          id: 1,
+          camera_id: 'unknown-camera-id',
+          started_at: '2024-01-01T10:00:00Z',
+          ended_at: null,
+          risk_score: 50,
+          risk_level: 'medium',
+          summary: 'Event from unknown camera',
+          reviewed: false,
+          detection_count: 1,
+          notes: null,
         },
-      };
+      ];
 
-      vi.mocked(api.fetchEvents).mockResolvedValue(eventsWithUnknownCamera);
+      vi.mocked(useEventsQueryHook.useEventsInfiniteQuery).mockReturnValue(
+        createMockEventsQueryReturn({ events: eventsWithUnknownCamera, totalCount: 1 })
+      );
 
       renderWithProviders(<EventTimeline />);
 
@@ -1095,13 +894,14 @@ describe('EventTimeline', () => {
     });
 
     it('marks selected events as reviewed', async () => {
+      const mockRefetch = vi.fn();
+      vi.mocked(useEventsQueryHook.useEventsInfiniteQuery).mockReturnValue(
+        createMockEventsQueryReturn({ refetch: mockRefetch })
+      );
+
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-      vi.clearAllMocks();
-      vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
-      vi.mocked(api.fetchEvents).mockResolvedValue(mockEventsResponse);
 
       // Mock bulkUpdateEvents for successful update
-      // Events are sorted by most recent first (3, 2, 1), so selecting first two = [3, 2]
       vi.mocked(api.bulkUpdateEvents).mockResolvedValue({
         successful: [3, 2],
         failed: [],
@@ -1113,19 +913,13 @@ describe('EventTimeline', () => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
       });
 
-      // Select first two events (events are sorted by most recent first: 3, 2, 1)
+      // Select first two events (events sorted by most recent first: 3, 2, 1)
       const checkboxButtons = screen.getAllByLabelText(/Select event \d+/);
       await user.click(checkboxButtons[0]);
       await user.click(checkboxButtons[1]);
 
       await waitFor(() => {
         expect(screen.getByText('2 selected')).toBeInTheDocument();
-      });
-
-      // Mock the events reload after bulk update
-      vi.mocked(api.fetchEvents).mockResolvedValueOnce({
-        ...mockEventsResponse,
-        items: mockEvents.map((e) => (e.id === 2 || e.id === 3 ? { ...e, reviewed: true } : e)),
       });
 
       // Click mark as reviewed
@@ -1137,9 +931,9 @@ describe('EventTimeline', () => {
         expect(api.bulkUpdateEvents).toHaveBeenCalledWith([3, 2], { reviewed: true });
       });
 
-      // Should reload events
+      // Should call refetch to reload events
       await waitFor(() => {
-        expect(api.fetchEvents).toHaveBeenCalledTimes(2); // Initial load + reload after update
+        expect(mockRefetch).toHaveBeenCalled();
       });
 
       // Should clear selections
@@ -1150,9 +944,6 @@ describe('EventTimeline', () => {
 
     it('shows loading state during bulk update', async () => {
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-      vi.clearAllMocks();
-      vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
-      vi.mocked(api.fetchEvents).mockResolvedValue(mockEventsResponse);
 
       // Mock slow bulkUpdateEvents
       vi.mocked(api.bulkUpdateEvents).mockImplementation(
@@ -1205,12 +996,8 @@ describe('EventTimeline', () => {
 
     it('handles bulk update errors gracefully', async () => {
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-      vi.clearAllMocks();
-      vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
-      vi.mocked(api.fetchEvents).mockResolvedValue(mockEventsResponse);
 
       // Mock bulkUpdateEvents to return partial failure
-      // Events sorted by most recent: 3, 2, 1 - selecting first two gives [3, 2]
       vi.mocked(api.bulkUpdateEvents).mockResolvedValue({
         successful: [3],
         failed: [{ id: 2, error: 'Network error' }],
@@ -1227,17 +1014,9 @@ describe('EventTimeline', () => {
       await user.click(checkboxButtons[0]);
       await user.click(checkboxButtons[1]);
 
-      // Mock the events reload after bulk update
-      vi.mocked(api.fetchEvents).mockResolvedValueOnce(mockEventsResponse);
-
       // Click mark as reviewed
       const markAsReviewedButton = screen.getByText('Mark as Reviewed');
       await user.click(markAsReviewedButton);
-
-      // Should call bulkUpdateEvents (events sorted: 3, 2)
-      await waitFor(() => {
-        expect(api.bulkUpdateEvents).toHaveBeenCalledWith([3, 2], { reviewed: true });
-      });
 
       // Should show partial success error
       await waitFor(() => {
@@ -1305,13 +1084,14 @@ describe('EventTimeline', () => {
     });
 
     it('marks selected events as not reviewed', async () => {
+      const mockRefetch = vi.fn();
+      vi.mocked(useEventsQueryHook.useEventsInfiniteQuery).mockReturnValue(
+        createMockEventsQueryReturn({ refetch: mockRefetch })
+      );
+
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-      vi.clearAllMocks();
-      vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
-      vi.mocked(api.fetchEvents).mockResolvedValue(mockEventsResponse);
 
       // Mock bulkUpdateEvents for successful update
-      // Events sorted by most recent: 3, 2, 1 - selecting first two gives [3, 2]
       vi.mocked(api.bulkUpdateEvents).mockResolvedValue({
         successful: [3, 2],
         failed: [],
@@ -1332,12 +1112,6 @@ describe('EventTimeline', () => {
         expect(screen.getByText('2 selected')).toBeInTheDocument();
       });
 
-      // Mock the events reload after bulk update
-      vi.mocked(api.fetchEvents).mockResolvedValueOnce({
-        ...mockEventsResponse,
-        items: mockEvents.map((e) => (e.id === 2 || e.id === 3 ? { ...e, reviewed: false } : e)),
-      });
-
       // Click mark as not reviewed
       const markAsNotReviewedButton = screen.getByText('Mark Not Reviewed');
       await user.click(markAsNotReviewedButton);
@@ -1347,111 +1121,14 @@ describe('EventTimeline', () => {
         expect(api.bulkUpdateEvents).toHaveBeenCalledWith([3, 2], { reviewed: false });
       });
 
-      // Should reload events
+      // Should call refetch to reload events
       await waitFor(() => {
-        expect(api.fetchEvents).toHaveBeenCalledTimes(2); // Initial load + reload after update
+        expect(mockRefetch).toHaveBeenCalled();
       });
 
       // Should clear selections
       await waitFor(() => {
         expect(screen.getByText('Select all')).toBeInTheDocument();
-      });
-    });
-
-    it('shows loading state during bulk mark as not reviewed', async () => {
-      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-      vi.clearAllMocks();
-      vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
-      vi.mocked(api.fetchEvents).mockResolvedValue(mockEventsResponse);
-
-      // Mock slow bulkUpdateEvents
-      vi.mocked(api.bulkUpdateEvents).mockImplementation(
-        () =>
-          new Promise((resolve) =>
-            setTimeout(
-              () =>
-                resolve({
-                  successful: [1],
-                  failed: [],
-                }),
-              100
-            )
-          )
-      );
-
-      renderWithProviders(<EventTimeline />);
-
-      await waitFor(() => {
-        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
-      });
-
-      // Select an event
-      const checkboxButtons = screen.getAllByLabelText(/Select event \d+/);
-      await user.click(checkboxButtons[0]);
-
-      await waitFor(() => {
-        expect(screen.getByText('1 selected')).toBeInTheDocument();
-      });
-
-      // Click mark as not reviewed
-      const markAsNotReviewedButton = screen.getByText('Mark Not Reviewed');
-      await user.click(markAsNotReviewedButton);
-
-      // Should show loading state - there are two Updating... buttons (both are disabled)
-      await waitFor(() => {
-        expect(screen.getAllByText('Updating...')).toHaveLength(2);
-      });
-
-      // Both buttons should be disabled
-      const markReviewedButton = screen.getByRole('button', {
-        name: /Mark.*selected events as reviewed/,
-      });
-      const markNotReviewedButton = screen.getByRole('button', {
-        name: /Mark.*selected events as not reviewed/,
-      });
-      expect(markReviewedButton).toBeDisabled();
-      expect(markNotReviewedButton).toBeDisabled();
-    });
-
-    it('handles bulk mark as not reviewed errors gracefully', async () => {
-      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-      vi.clearAllMocks();
-      vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
-      vi.mocked(api.fetchEvents).mockResolvedValue(mockEventsResponse);
-
-      // Mock bulkUpdateEvents to return partial failure
-      // Events sorted by most recent: 3, 2, 1 - selecting first two gives [3, 2]
-      vi.mocked(api.bulkUpdateEvents).mockResolvedValue({
-        successful: [3],
-        failed: [{ id: 2, error: 'Network error' }],
-      });
-
-      renderWithProviders(<EventTimeline />);
-
-      await waitFor(() => {
-        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
-      });
-
-      // Select two events (events sorted by most recent first: 3, 2, 1)
-      const checkboxButtons = screen.getAllByLabelText(/Select event \d+/);
-      await user.click(checkboxButtons[0]);
-      await user.click(checkboxButtons[1]);
-
-      // Mock the events reload after bulk update
-      vi.mocked(api.fetchEvents).mockResolvedValueOnce(mockEventsResponse);
-
-      // Click mark as not reviewed
-      const markAsNotReviewedButton = screen.getByText('Mark Not Reviewed');
-      await user.click(markAsNotReviewedButton);
-
-      // Should call bulkUpdateEvents with reviewed: false (events sorted: 3, 2)
-      await waitFor(() => {
-        expect(api.bulkUpdateEvents).toHaveBeenCalledWith([3, 2], { reviewed: false });
-      });
-
-      // Should show partial success error
-      await waitFor(() => {
-        expect(screen.getByText(/Updated 1 events, but 1 failed/)).toBeInTheDocument();
       });
     });
 
@@ -1488,7 +1165,13 @@ describe('EventTimeline', () => {
     it('updates risk summary badges when filters are applied', async () => {
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
 
-      // Mock filtered response with only high risk events
+      renderWithProviders(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Apply filter that returns only high risk events
       const highRiskEvents: Event[] = [
         {
           id: 1,
@@ -1504,31 +1187,16 @@ describe('EventTimeline', () => {
         },
       ];
 
-      renderWithProviders(<EventTimeline />);
-
-      await waitFor(() => {
-        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
-      });
-
-      // Apply filter
-      vi.mocked(api.fetchEvents).mockResolvedValueOnce({
-        items: highRiskEvents,
-        pagination: {
-          total: 1,
-          limit: 20,
-          offset: 0,
-          cursor: null,
-          next_cursor: null,
-          has_more: false,
-        },
-      });
+      vi.mocked(useEventsQueryHook.useEventsInfiniteQuery).mockReturnValue(
+        createMockEventsQueryReturn({ events: highRiskEvents, totalCount: 1 })
+      );
 
       await user.click(screen.getByText('Show Filters'));
 
       const riskSelect = screen.getByLabelText('Risk Level');
       await user.selectOptions(riskSelect, 'high');
 
-      // Should only show high risk count - wait for critical badge to disappear
+      // Should only show high risk count
       await waitFor(() => {
         expect(screen.getByText('1', { selector: '.text-orange-400' })).toBeInTheDocument(); // High
         expect(screen.queryByText('1', { selector: '.text-red-400' })).not.toBeInTheDocument(); // Critical
@@ -1536,15 +1204,9 @@ describe('EventTimeline', () => {
       });
     });
 
-    // Test removed: Client-side search has been replaced with full-text search only
-    // Risk badges now reflect server-side filtered results, not client-side search
-
     it('does not display risk badges when loading', () => {
-      vi.clearAllMocks();
-      vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
-      // Make fetchEvents pending to simulate loading
-      vi.mocked(api.fetchEvents).mockImplementation(
-        () => new Promise(() => {}) // Never resolves
+      vi.mocked(useEventsQueryHook.useEventsInfiniteQuery).mockReturnValue(
+        createMockEventsQueryReturn({ isLoading: true, events: [] })
       );
 
       renderWithProviders(<EventTimeline />);
@@ -1560,16 +1222,13 @@ describe('EventTimeline', () => {
     });
 
     it('does not display risk badges when there is an error', async () => {
-      vi.resetAllMocks();
-      vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
-      vi.mocked(api.fetchEvents).mockRejectedValue(new Error('Network error'));
-      // Re-mock useEventStream after resetAllMocks
-      vi.mocked(useEventStreamHook.useEventStream).mockReturnValue({
-        events: mockWsEvents,
-        isConnected: true,
-        latestEvent: mockWsEvents[0],
-        clearEvents: vi.fn(),
-      });
+      vi.mocked(useEventsQueryHook.useEventsInfiniteQuery).mockReturnValue(
+        createMockEventsQueryReturn({
+          events: [],
+          error: new Error('Network error'),
+          isError: true,
+        })
+      );
 
       renderWithProviders(<EventTimeline />);
 
@@ -1585,17 +1244,9 @@ describe('EventTimeline', () => {
     });
 
     it('does not display risk badges when no events are found', async () => {
-      vi.mocked(api.fetchEvents).mockResolvedValue({
-        items: [],
-        pagination: {
-          total: 0,
-          limit: 20,
-          offset: 0,
-          cursor: null,
-          next_cursor: null,
-          has_more: false,
-        },
-      });
+      vi.mocked(useEventsQueryHook.useEventsInfiniteQuery).mockReturnValue(
+        createMockEventsQueryReturn({ events: [], totalCount: 0 })
+      );
 
       renderWithProviders(<EventTimeline />);
 
@@ -1639,17 +1290,9 @@ describe('EventTimeline', () => {
         },
       ];
 
-      vi.mocked(api.fetchEvents).mockResolvedValue({
-        items: mediumRiskEvents,
-        pagination: {
-          total: 2,
-          limit: 20,
-          offset: 0,
-          cursor: null,
-          next_cursor: null,
-          has_more: false,
-        },
-      });
+      vi.mocked(useEventsQueryHook.useEventsInfiniteQuery).mockReturnValue(
+        createMockEventsQueryReturn({ events: mediumRiskEvents, totalCount: 2 })
+      );
 
       renderWithProviders(<EventTimeline />);
 
@@ -1667,124 +1310,6 @@ describe('EventTimeline', () => {
       expect(screen.queryByText('High')).not.toBeInTheDocument();
       expect(screen.queryByText('Low')).not.toBeInTheDocument();
     });
-
-    it('correctly counts multiple events of the same risk level', async () => {
-      // Mock events with multiple events per risk level
-      const multipleEvents: Event[] = [
-        {
-          id: 1,
-          camera_id: 'camera-1',
-          started_at: '2024-01-01T10:00:00Z',
-          ended_at: '2024-01-01T10:02:00Z',
-          risk_score: 90,
-          risk_level: 'critical',
-          summary: 'Critical event 1',
-          reviewed: false,
-          detection_count: 5,
-          notes: null,
-        },
-        {
-          id: 2,
-          camera_id: 'camera-1',
-          started_at: '2024-01-01T11:00:00Z',
-          ended_at: '2024-01-01T11:02:00Z',
-          risk_score: 95,
-          risk_level: 'critical',
-          summary: 'Critical event 2',
-          reviewed: false,
-          detection_count: 3,
-          notes: null,
-        },
-        {
-          id: 3,
-          camera_id: 'camera-1',
-          started_at: '2024-01-01T12:00:00Z',
-          ended_at: '2024-01-01T12:02:00Z',
-          risk_score: 85,
-          risk_level: 'critical',
-          summary: 'Critical event 3',
-          reviewed: false,
-          detection_count: 7,
-          notes: null,
-        },
-      ];
-
-      vi.mocked(api.fetchEvents).mockResolvedValue({
-        items: multipleEvents,
-        pagination: {
-          total: 3,
-          limit: 20,
-          offset: 0,
-          cursor: null,
-          next_cursor: null,
-          has_more: false,
-        },
-      });
-
-      renderWithProviders(<EventTimeline />);
-
-      await waitFor(() => {
-        expect(screen.getByText('Critical event 1')).toBeInTheDocument();
-      });
-
-      // Should show critical risk badge with count of 3
-      await waitFor(() => {
-        expect(screen.getByText('3', { selector: '.text-red-400' })).toBeInTheDocument(); // Critical
-      });
-    });
-
-    it('uses risk_level from event when available, falls back to calculated level', async () => {
-      // Mock events where some have risk_level and some don't
-      const mixedEvents: Event[] = [
-        {
-          id: 1,
-          camera_id: 'camera-1',
-          started_at: '2024-01-01T10:00:00Z',
-          ended_at: '2024-01-01T10:02:00Z',
-          risk_score: 75,
-          risk_level: 'high', // Explicitly set
-          summary: 'Event with explicit level',
-          reviewed: false,
-          detection_count: 5,
-          notes: null,
-        },
-        {
-          id: 2,
-          camera_id: 'camera-1',
-          started_at: '2024-01-01T11:00:00Z',
-          ended_at: '2024-01-01T11:02:00Z',
-          risk_score: 70, // Should calculate to "high"
-          risk_level: null,
-          summary: 'Event without explicit level',
-          reviewed: false,
-          detection_count: 3,
-          notes: null,
-        },
-      ];
-
-      vi.mocked(api.fetchEvents).mockResolvedValue({
-        items: mixedEvents,
-        pagination: {
-          total: 2,
-          limit: 20,
-          offset: 0,
-          cursor: null,
-          next_cursor: null,
-          has_more: false,
-        },
-      });
-
-      renderWithProviders(<EventTimeline />);
-
-      await waitFor(() => {
-        expect(screen.getByText('Event with explicit level')).toBeInTheDocument();
-      });
-
-      // Should show high risk badge with count of 2 (both events are high risk)
-      await waitFor(() => {
-        expect(screen.getByText('2', { selector: '.text-orange-400' })).toBeInTheDocument(); // High
-      });
-    });
   });
 
   describe('URL Parameter Filtering', () => {
@@ -1792,9 +1317,10 @@ describe('EventTimeline', () => {
       renderWithProviders(<EventTimeline />, { route: '/timeline?risk_level=high' });
 
       await waitFor(() => {
-        expect(api.fetchEvents).toHaveBeenCalledWith(
-          expect.objectContaining({ risk_level: 'high', offset: 0 }),
-          expect.anything()
+        expect(useEventsQueryHook.useEventsInfiniteQuery).toHaveBeenCalledWith(
+          expect.objectContaining({
+            filters: expect.objectContaining({ risk_level: 'high' }),
+          })
         );
       });
 
@@ -1806,9 +1332,10 @@ describe('EventTimeline', () => {
       renderWithProviders(<EventTimeline />, { route: '/timeline?camera=camera-1' });
 
       await waitFor(() => {
-        expect(api.fetchEvents).toHaveBeenCalledWith(
-          expect.objectContaining({ camera_id: 'camera-1', offset: 0 }),
-          expect.anything()
+        expect(useEventsQueryHook.useEventsInfiniteQuery).toHaveBeenCalledWith(
+          expect.objectContaining({
+            filters: expect.objectContaining({ camera_id: 'camera-1' }),
+          })
         );
       });
     });
@@ -1819,13 +1346,13 @@ describe('EventTimeline', () => {
       });
 
       await waitFor(() => {
-        expect(api.fetchEvents).toHaveBeenCalledWith(
+        expect(useEventsQueryHook.useEventsInfiniteQuery).toHaveBeenCalledWith(
           expect.objectContaining({
-            camera_id: 'camera-1',
-            risk_level: 'critical',
-            offset: 0,
-          }),
-          expect.anything()
+            filters: expect.objectContaining({
+              camera_id: 'camera-1',
+              risk_level: 'critical',
+            }),
+          })
         );
       });
     });

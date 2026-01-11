@@ -2,15 +2,14 @@ import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useEventStream, type SecurityEvent } from '../../hooks/useEventStream';
+import { useRecentEventsQuery } from '../../hooks/useRecentEventsQuery';
 import { useSystemStatus } from '../../hooks/useSystemStatus';
 import { useThrottledValue } from '../../hooks/useThrottledValue';
 import {
   fetchCameras,
-  fetchEvents,
   fetchEventStats,
   getCameraSnapshotUrl,
   type Camera,
-  type Event,
   type EventStatsResponse,
 } from '../../services/api';
 import { CameraCardSkeleton, StatsCardSkeleton, Skeleton } from '../common';
@@ -53,10 +52,20 @@ export default function DashboardPage() {
 
   // State for REST API data
   const [cameras, setCameras] = useState<Camera[]>([]);
-  const [initialEvents, setInitialEvents] = useState<Event[]>([]);
   const [eventStats, setEventStats] = useState<EventStatsResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [camerasLoading, setCamerasLoading] = useState(true);
+  const [camerasError, setCamerasError] = useState<string | null>(null);
+
+  // Use React Query hook for recent events (server-side limiting)
+  // This replaces the previous fetchEvents({ limit: 50 }) + client-side slicing
+  const {
+    events: initialEvents,
+    isLoading: eventsLoading,
+    error: eventsError,
+  } = useRecentEventsQuery({
+    limit: 50, // Fetch 50 events for merging with WebSocket events
+    staleTime: 30000, // 30 seconds
+  });
 
   // WebSocket hooks for real-time data
   const { events: wsEvents, isConnected: eventsConnected } = useEventStream();
@@ -71,11 +80,11 @@ export default function DashboardPage() {
     interval: WEBSOCKET_THROTTLE_INTERVAL,
   });
 
-  // Fetch initial data including events and stats
+  // Fetch cameras and event stats (events now handled by useRecentEventsQuery)
   useEffect(() => {
     async function loadInitialData() {
-      setLoading(true);
-      setError(null);
+      setCamerasLoading(true);
+      setCamerasError(null);
 
       try {
         // Calculate today's date range for stats
@@ -83,26 +92,28 @@ export default function DashboardPage() {
         const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
         const startDate = startOfDay.toISOString();
 
-        // Fetch cameras, events, and event stats in parallel
-        const [camerasData, eventsData, statsData] = await Promise.all([
+        // Fetch cameras and event stats in parallel
+        const [camerasData, statsData] = await Promise.all([
           fetchCameras(),
-          fetchEvents({ limit: 50 }),
           fetchEventStats({ start_date: startDate }),
         ]);
 
         setCameras(camerasData);
-        setInitialEvents(eventsData.items);
         setEventStats(statsData);
       } catch (err) {
         console.error('Failed to load initial data:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
+        setCamerasError(err instanceof Error ? err.message : 'Failed to load dashboard data');
       } finally {
-        setLoading(false);
+        setCamerasLoading(false);
       }
     }
 
     void loadInitialData();
   }, []);
+
+  // Combined loading and error states
+  const loading = camerasLoading || eventsLoading;
+  const error = camerasError || (eventsError ? eventsError.message : null);
 
   // Merge throttled WebSocket events with initial events, avoiding duplicates
   // WebSocket events take precedence (they're newer)

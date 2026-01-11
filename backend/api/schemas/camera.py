@@ -12,9 +12,11 @@ from backend.models.enums import CameraStatus
 __all__ = [
     "CameraCreate",
     "CameraListResponse",
+    "CameraPathValidationResponse",
     "CameraResponse",
     "CameraStatus",
     "CameraUpdate",
+    "CameraValidationInfo",
     "DeletedCamerasListResponse",
 ]
 
@@ -208,3 +210,79 @@ class DeletedCamerasListResponse(BaseModel):
 
     items: list[CameraResponse] = Field(..., description="List of soft-deleted cameras")
     pagination: PaginationMeta = Field(..., description="Pagination metadata")
+
+
+class CameraValidationInfo(BaseModel):
+    """Schema for individual camera validation result.
+
+    NEM-2063: Response model for camera path validation details.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "id": "front_door",
+                "name": "Front Door Camera",
+                "folder_path": "/export/foscam/front_door",
+                "status": "online",
+                "resolved_path": "/export/foscam/front_door",
+                "issues": ["directory does not exist"],
+            }
+        }
+    )
+
+    id: str = Field(..., description="Camera ID")
+    name: str = Field(..., description="Camera name")
+    folder_path: str = Field(..., description="Configured folder path")
+    status: CameraStatus = Field(..., description="Camera status")
+    resolved_path: str | None = Field(
+        None, description="Resolved absolute path (included if path is outside base_path)"
+    )
+    issues: list[str] | None = Field(
+        None, description="List of validation issues (only for invalid cameras)"
+    )
+
+
+class CameraPathValidationResponse(BaseModel):
+    """Schema for camera path validation response.
+
+    NEM-2063: Response model for the /api/cameras/validation/paths endpoint.
+    Validates all camera folder paths against the configured base path.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "base_path": "/export/foscam",
+                "total_cameras": 6,
+                "valid_count": 4,
+                "invalid_count": 2,
+                "valid_cameras": [
+                    {
+                        "id": "front_door",
+                        "name": "Front Door Camera",
+                        "folder_path": "/export/foscam/front_door",
+                        "status": "online",
+                    }
+                ],
+                "invalid_cameras": [
+                    {
+                        "id": "garage",
+                        "name": "Garage Camera",
+                        "folder_path": "/export/foscam/garage",
+                        "status": "offline",
+                        "issues": ["directory does not exist"],
+                    }
+                ],
+            }
+        }
+    )
+
+    base_path: str = Field(..., description="Configured base path for camera folders")
+    total_cameras: int = Field(..., description="Total number of cameras validated")
+    valid_count: int = Field(..., description="Number of cameras with valid paths")
+    invalid_count: int = Field(..., description="Number of cameras with invalid paths")
+    valid_cameras: list[CameraValidationInfo] = Field(..., description="Cameras with valid paths")
+    invalid_cameras: list[CameraValidationInfo] = Field(
+        ..., description="Cameras with validation issues"
+    )
