@@ -3325,6 +3325,109 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit event feedback
+         * @description Submit feedback for an event.
+         *
+         *     Allows users to mark events as false positives, missed detections,
+         *     wrong severity, or correctly classified. Only one feedback per event
+         *     is allowed (enforced by unique constraint).
+         *
+         *     This feedback is used to calibrate personalized risk thresholds
+         *     and improve the AI model's accuracy over time.
+         *
+         *     Args:
+         *         feedback_data: Feedback details including event_id and feedback_type
+         *         db: Database session
+         *
+         *     Returns:
+         *         The created feedback record
+         *
+         *     Raises:
+         *         HTTPException: 404 if event not found
+         *         HTTPException: 409 if feedback already exists for this event
+         */
+        post: operations["create_feedback_api_feedback_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/feedback/event/{event_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get feedback for an event
+         * @description Get feedback for a specific event.
+         *
+         *     Args:
+         *         event_id: The event ID to get feedback for
+         *         db: Database session
+         *
+         *     Returns:
+         *         The feedback record for the event
+         *
+         *     Raises:
+         *         HTTPException: 404 if no feedback exists for the event
+         */
+        get: operations["get_event_feedback_api_feedback_event__event_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/feedback/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get feedback statistics
+         * @description Get aggregate feedback statistics.
+         *
+         *     Returns counts of feedback grouped by:
+         *     - Feedback type (false_positive, missed_detection, wrong_severity, correct)
+         *     - Camera ID
+         *
+         *     This data is useful for:
+         *     - Identifying cameras with high false positive rates
+         *     - Calibrating risk thresholds per camera
+         *     - Tracking model accuracy over time
+         *
+         *     Args:
+         *         db: Database session
+         *
+         *     Returns:
+         *         Aggregate statistics including total count and breakdowns
+         */
+        get: operations["get_feedback_stats_api_feedback_stats_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/jobs": {
         parameters: {
             query?: never;
@@ -9888,6 +9991,72 @@ export interface components {
             total: number;
         };
         /**
+         * EventFeedbackCreate
+         * @description Schema for creating event feedback.
+         *
+         *     Used when submitting user feedback about an event's classification.
+         * @example {
+         *       "event_id": 123,
+         *       "feedback_type": "false_positive",
+         *       "notes": "This was my neighbor's car, not a threat."
+         *     }
+         */
+        EventFeedbackCreate: {
+            /**
+             * Event Id
+             * @description ID of the event this feedback is for
+             */
+            event_id: number;
+            /** @description Type of feedback (false_positive, missed_detection, wrong_severity, correct) */
+            feedback_type: components["schemas"]["FeedbackType"];
+            /**
+             * Notes
+             * @description Optional notes explaining the feedback
+             */
+            notes?: string | null;
+        };
+        /**
+         * EventFeedbackResponse
+         * @description Schema for event feedback response.
+         *
+         *     Returned when retrieving feedback for an event.
+         * @example {
+         *       "created_at": "2025-01-01T12:00:00Z",
+         *       "event_id": 123,
+         *       "feedback_type": "false_positive",
+         *       "id": 1,
+         *       "notes": "This was my neighbor's car, not a threat."
+         *     }
+         */
+        EventFeedbackResponse: {
+            /**
+             * Created At
+             * Format: date-time
+             * @description When feedback was submitted
+             */
+            created_at: string;
+            /**
+             * Event Id
+             * @description Event ID this feedback belongs to
+             */
+            event_id: number;
+            /**
+             * Feedback Type
+             * @description Type of feedback provided
+             */
+            feedback_type: components["schemas"]["FeedbackType"] | string;
+            /**
+             * Id
+             * @description Feedback record ID
+             */
+            id: number;
+            /**
+             * Notes
+             * @description Optional notes from user
+             */
+            notes?: string | null;
+        };
+        /**
          * EventListResponse
          * @description Schema for event list response with pagination.
          *
@@ -10385,6 +10554,60 @@ export interface components {
              */
             detected: boolean;
         };
+        /**
+         * FeedbackStatsResponse
+         * @description Schema for aggregate feedback statistics.
+         *
+         *     Returns counts of feedback by type and by camera to help
+         *     calibrate the AI model's risk assessment.
+         * @example {
+         *       "by_camera": {
+         *         "back_yard": 30,
+         *         "front_door": 50,
+         *         "garage": 20
+         *       },
+         *       "by_type": {
+         *         "correct": 10,
+         *         "false_positive": 40,
+         *         "missed_detection": 30,
+         *         "wrong_severity": 20
+         *       },
+         *       "total_feedback": 100
+         *     }
+         */
+        FeedbackStatsResponse: {
+            /**
+             * By Camera
+             * @description Count of feedback entries grouped by camera ID
+             */
+            by_camera: {
+                [key: string]: number;
+            };
+            /**
+             * By Type
+             * @description Count of feedback entries grouped by feedback type
+             */
+            by_type: {
+                [key: string]: number;
+            };
+            /**
+             * Total Feedback
+             * @description Total number of feedback entries
+             */
+            total_feedback: number;
+        };
+        /**
+         * FeedbackType
+         * @description Types of feedback users can provide on events.
+         *
+         *     Values:
+         *         FALSE_POSITIVE: Event was incorrectly flagged as concerning
+         *         MISSED_DETECTION: System failed to detect a concerning event
+         *         WRONG_SEVERITY: Event was flagged but with wrong severity level
+         *         CORRECT: Event was correctly classified and scored
+         * @enum {string}
+         */
+        FeedbackType: "false_positive" | "missed_detection" | "wrong_severity" | "correct";
         /**
          * FileWatcherStatusResponse
          * @description Status information for the FileWatcher service.
@@ -20452,6 +20675,107 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_feedback_api_feedback_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EventFeedbackCreate"];
+            };
+        };
+        responses: {
+            /** @description Feedback created successfully */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventFeedbackResponse"];
+                };
+            };
+            /** @description Event not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Feedback already exists for this event */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_event_feedback_api_feedback_event__event_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Feedback found */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventFeedbackResponse"];
+                };
+            };
+            /** @description No feedback found for this event */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_feedback_stats_api_feedback_stats_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Statistics retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeedbackStatsResponse"];
                 };
             };
         };
