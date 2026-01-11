@@ -338,7 +338,7 @@ describe('fetchPromptHistory', () => {
   it('should fetch version history with custom pagination', async () => {
     mockFetchSuccess(mockHistoryApiResponse);
 
-    const result = await fetchPromptHistory(AIModelEnum.NEMOTRON, 10, 20);
+    const result = await fetchPromptHistory(AIModelEnum.NEMOTRON, { limit: 10, offset: 20 });
 
     expect(result).toEqual(mockHistoryResponse);
     expect((globalThis as any).fetch).toHaveBeenCalledWith(
@@ -347,6 +347,22 @@ describe('fetchPromptHistory', () => {
     );
     expect((globalThis as any).fetch).toHaveBeenCalledWith(
       expect.stringContaining('offset=20'),
+      expect.any(Object)
+    );
+  });
+
+  it('should fetch version history with cursor pagination', async () => {
+    mockFetchSuccess(mockHistoryApiResponse);
+
+    const result = await fetchPromptHistory(AIModelEnum.NEMOTRON, { limit: 10, cursor: 'abc123' });
+
+    expect(result).toEqual(mockHistoryResponse);
+    expect((globalThis as any).fetch).toHaveBeenCalledWith(
+      expect.stringContaining('limit=10'),
+      expect.any(Object)
+    );
+    expect((globalThis as any).fetch).toHaveBeenCalledWith(
+      expect.stringContaining('cursor=abc123'),
       expect.any(Object)
     );
   });

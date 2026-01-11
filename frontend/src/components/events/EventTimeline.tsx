@@ -17,6 +17,7 @@ import LiveActivitySection from './LiveActivitySection';
 import { useEventsInfiniteQuery, type EventFilters } from '../../hooks/useEventsQuery';
 import { useEventStream } from '../../hooks/useEventStream';
 import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
+import { usePaginationState } from '../../hooks/usePaginationState';
 import {
   bulkUpdateEvents,
   exportEventsCSV,
@@ -83,12 +84,23 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
   const [searchFilters, setSearchFilters] = useState<SearchFilters>({});
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [searchTotalCount, setSearchTotalCount] = useState(0);
-  const [searchOffset, setSearchOffset] = useState(0);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
 
   // URL search params for deep-linking (e.g., /timeline?camera=cam-1)
   const [searchParams] = useSearchParams();
+
+  // Search pagination state with URL persistence
+  // Uses custom param names to avoid conflicts with other URL params
+  const searchPagination = usePaginationState({
+    type: 'offset',
+    defaultLimit: 20,
+    paramNames: {
+      page: 'search_page',
+      limit: 'search_limit',
+    },
+    persistLimit: false, // Keep limit as default, only persist page
+  });
 
   // Use infinite query for events with cursor-based pagination
   const {
@@ -212,7 +224,7 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
     setSearchError(null);
     setFullTextQuery(query);
     setSearchFilters(filters);
-    setSearchOffset(0);
+    searchPagination.goToFirstPage(); // Reset to page 1 on new search
 
     try {
       const response = await searchEvents({
@@ -223,7 +235,7 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
         severity: filters.severity,
         object_type: filters.object_type,
         reviewed: filters.reviewed,
-        limit: 20,
+        limit: searchPagination.limit,
         offset: 0,
       });
       // Only update state if this is still the latest request
@@ -244,16 +256,19 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
         setIsSearching(false);
       }
     }
-  }, []);
+  }, [searchPagination]);
 
-  // Handle search pagination
+  // Handle search pagination - converts offset to page number
   const handleSearchPageChange = useCallback(
     async (newOffset: number) => {
       // Increment request ID to track this request
       const requestId = ++searchRequestIdRef.current;
 
       setIsSearching(true);
-      setSearchOffset(newOffset);
+
+      // Calculate page from offset and update pagination state
+      const newPage = Math.floor(newOffset / searchPagination.limit) + 1;
+      searchPagination.setPage(newPage);
 
       try {
         const response = await searchEvents({
@@ -264,7 +279,7 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
           severity: searchFilters.severity,
           object_type: searchFilters.object_type,
           reviewed: searchFilters.reviewed,
-          limit: 20,
+          limit: searchPagination.limit,
           offset: newOffset,
         });
         // Only update state if this is still the latest request
@@ -284,7 +299,7 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
         }
       }
     },
-    [fullTextQuery, searchFilters]
+    [fullTextQuery, searchFilters, searchPagination]
   );
 
   // Clear search and return to browse mode
@@ -294,9 +309,9 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
     setSearchFilters({});
     setSearchResults([]);
     setSearchTotalCount(0);
-    setSearchOffset(0);
+    searchPagination.reset(); // Reset pagination state and clear URL params
     setSearchError(null);
-  }, []);
+  }, [searchPagination]);
 
   // Handle clicking a search result
   const handleSearchResultClick = useCallback((eventId: number) => {
@@ -560,8 +575,8 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
         <SearchResultsPanel
           results={searchResults}
           totalCount={searchTotalCount}
-          offset={searchOffset}
-          limit={20}
+          offset={searchPagination.offset}
+          limit={searchPagination.limit}
           isLoading={isSearching}
           error={searchError}
           onPageChange={(offset) => void handleSearchPageChange(offset)}

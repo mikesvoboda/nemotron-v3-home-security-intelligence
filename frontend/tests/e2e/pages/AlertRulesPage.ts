@@ -273,13 +273,11 @@ export class AlertRulesPage extends BasePage {
     await expect(this.addRuleButton).toBeVisible({ timeout: this.pageLoadTimeout });
     await expect(this.addRuleButton).toBeEnabled({ timeout: this.pageLoadTimeout });
 
-    // Click and wait for modal to appear with increased timeout
-    // Modal has 300ms animation, plus rendering time in CI can be slow
-    // Increased from 10s to 20s to handle flaky CI environments (NEM-xxxx)
-    await Promise.all([
-      this.modalTitle.waitFor({ state: 'visible', timeout: 20000 }),
-      this.addRuleButton.click()
-    ]);
+    // Click button first, then wait for modal to appear
+    // Sequential execution avoids race condition where wait starts before click completes
+    // Modal has 300ms animation, plus rendering time in CI can be slow (especially webkit)
+    await this.addRuleButton.click();
+    await this.modalTitle.waitFor({ state: 'visible', timeout: 20000 });
   }
 
   /**
@@ -290,13 +288,11 @@ export class AlertRulesPage extends BasePage {
     await expect(this.emptyStateAddButton).toBeVisible({ timeout: this.pageLoadTimeout });
     await expect(this.emptyStateAddButton).toBeEnabled({ timeout: this.pageLoadTimeout });
 
-    // Click and wait for modal to appear with increased timeout
-    // Modal has 300ms animation, plus rendering time in CI can be slow
-    // Increased from 10s to 20s to handle flaky CI environments (NEM-xxxx)
-    await Promise.all([
-      this.modalTitle.waitFor({ state: 'visible', timeout: 20000 }),
-      this.emptyStateAddButton.click()
-    ]);
+    // Click button first, then wait for modal to appear
+    // Sequential execution avoids race condition where wait starts before click completes
+    // Modal has 300ms animation, plus rendering time in CI can be slow (especially webkit)
+    await this.emptyStateAddButton.click();
+    await this.modalTitle.waitFor({ state: 'visible', timeout: 20000 });
   }
 
   /**
@@ -417,13 +413,11 @@ export class AlertRulesPage extends BasePage {
     await expect(editButton).toBeVisible({ timeout: this.pageLoadTimeout });
     await expect(editButton).toBeEnabled({ timeout: this.pageLoadTimeout });
 
-    // Click and wait for modal to appear with increased timeout
-    // Modal has 300ms animation, plus rendering time in CI can be slow
-    // Increased from 10s to 20s to handle flaky CI environments (NEM-xxxx)
-    await Promise.all([
-      this.modalTitle.waitFor({ state: 'visible', timeout: 20000 }),
-      editButton.click()
-    ]);
+    // Click button first, then wait for modal to appear
+    // Sequential execution avoids race condition where wait starts before click completes
+    // Modal has 300ms animation, plus rendering time in CI can be slow (especially webkit)
+    await editButton.click();
+    await this.modalTitle.waitFor({ state: 'visible', timeout: 20000 });
   }
 
   /**
@@ -458,13 +452,11 @@ export class AlertRulesPage extends BasePage {
     await expect(testButton).toBeVisible({ timeout: this.pageLoadTimeout });
     await expect(testButton).toBeEnabled({ timeout: this.pageLoadTimeout });
 
-    // Click and wait for modal to appear with increased timeout
-    // Modal has 300ms animation, plus rendering time in CI can be slow
-    // Increased from 10s to 20s to handle flaky CI environments (NEM-xxxx)
-    await Promise.all([
-      this.testModalTitle.waitFor({ state: 'visible', timeout: 20000 }),
-      testButton.click()
-    ]);
+    // Click button first, then wait for modal to appear
+    // Sequential execution avoids race condition where wait starts before click completes
+    // Modal has 300ms animation, plus rendering time in CI can be slow (especially webkit)
+    await testButton.click();
+    await this.testModalTitle.waitFor({ state: 'visible', timeout: 20000 });
   }
 
   /**
@@ -534,13 +526,11 @@ export class AlertRulesPage extends BasePage {
     await expect(editButton).toBeVisible({ timeout: this.pageLoadTimeout });
     await expect(editButton).toBeEnabled({ timeout: this.pageLoadTimeout });
 
-    // Click and wait for modal to appear with increased timeout
-    // Modal has 300ms animation, plus rendering time in CI can be slow
-    // Increased from 10s to 20s to handle flaky CI environments (NEM-xxxx)
-    await Promise.all([
-      this.modalTitle.waitFor({ state: 'visible', timeout: 20000 }),
-      editButton.click()
-    ]);
+    // Click button first, then wait for modal to appear
+    // Sequential execution avoids race condition where wait starts before click completes
+    // Modal has 300ms animation, plus rendering time in CI can be slow (especially webkit)
+    await editButton.click();
+    await this.modalTitle.waitFor({ state: 'visible', timeout: 20000 });
   }
 
   /**
@@ -561,13 +551,11 @@ export class AlertRulesPage extends BasePage {
     await expect(testButton).toBeVisible({ timeout: this.pageLoadTimeout });
     await expect(testButton).toBeEnabled({ timeout: this.pageLoadTimeout });
 
-    // Click and wait for modal to appear with increased timeout
-    // Modal has 300ms animation, plus rendering time in CI can be slow
-    // Increased from 10s to 20s to handle flaky CI environments (NEM-xxxx)
-    await Promise.all([
-      this.testModalTitle.waitFor({ state: 'visible', timeout: 20000 }),
-      testButton.click()
-    ]);
+    // Click button first, then wait for modal to appear
+    // Sequential execution avoids race condition where wait starts before click completes
+    // Modal has 300ms animation, plus rendering time in CI can be slow (especially webkit)
+    await testButton.click();
+    await this.testModalTitle.waitFor({ state: 'visible', timeout: 20000 });
   }
 
   /**

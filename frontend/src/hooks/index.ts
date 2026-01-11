@@ -25,9 +25,6 @@ export type {
   UseGpuHistoryReturn,
 } from './useGpuHistory';
 
-export { useHealthStatus } from './useHealthStatus';
-export type { UseHealthStatusOptions, UseHealthStatusReturn } from './useHealthStatus';
-
 export { useHealthStatusQuery } from './useHealthStatusQuery';
 export type {
   UseHealthStatusQueryOptions,
@@ -96,13 +93,6 @@ export type {
   UseDetectionEnrichmentOptions,
   UseDetectionEnrichmentReturn,
 } from './useDetectionEnrichment';
-
-export { useModelZooStatus } from './useModelZooStatus';
-export type {
-  VRAMStats,
-  UseModelZooStatusOptions,
-  UseModelZooStatusReturn,
-} from './useModelZooStatus';
 
 export { useSavedSearches } from './useSavedSearches';
 export type { SavedSearch, LoadedSearch, UseSavedSearchesReturn } from './useSavedSearches';
@@ -175,6 +165,20 @@ export type {
   UseCursorPaginatedQueryReturn,
   ExtractItemType,
 } from './useCursorPaginatedQuery';
+
+// Pagination state with URL persistence
+export { usePaginationState, default as usePaginationStateDefault } from './usePaginationState';
+export type {
+  PaginationType,
+  UsePaginationStateOptions,
+  BasePaginationState,
+  CursorPaginationState,
+  OffsetPaginationState,
+  PaginationState,
+  UseCursorPaginationStateReturn,
+  UseOffsetPaginationStateReturn,
+  UsePaginationStateReturn,
+} from './usePaginationState';
 
 export { useEventsInfiniteQuery, eventsQueryKeys } from './useEventsQuery';
 export type {

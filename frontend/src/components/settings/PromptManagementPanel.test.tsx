@@ -238,8 +238,7 @@ describe('PromptManagementPanel - Model Selection', () => {
     await waitFor(() => {
       expect(promptApi.fetchPromptHistory).toHaveBeenCalledWith(
         AIModelEnum.NEMOTRON,
-        20,
-        0
+        { limit: 20, offset: 0 }
       );
     });
 
@@ -253,8 +252,7 @@ describe('PromptManagementPanel - Model Selection', () => {
     await waitFor(() => {
       expect(promptApi.fetchPromptHistory).toHaveBeenCalledWith(
         AIModelEnum.YOLO_WORLD,
-        20,
-        0
+        { limit: 20, offset: 0 }
       );
     });
   });
@@ -576,8 +574,7 @@ describe('PromptManagementPanel - Pagination', () => {
     await waitFor(() => {
       expect(promptApi.fetchPromptHistory).toHaveBeenCalledWith(
         AIModelEnum.NEMOTRON,
-        20,
-        20 // offset for page 2
+        { limit: 20, offset: 20 } // offset for page 2
       );
     });
   });
