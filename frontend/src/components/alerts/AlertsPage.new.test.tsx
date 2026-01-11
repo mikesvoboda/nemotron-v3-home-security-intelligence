@@ -277,15 +277,12 @@ describe('AlertsPage (Redesigned)', () => {
 
       render(<AlertsPage />);
 
-      // Wait for loading to complete - check for header stats first
+      // Wait for all alert cards to render (more reliable than checking header stats)
       await waitFor(() => {
-        expect(screen.getByText(/unacknowledged/i)).toBeInTheDocument();
+        expect(screen.getByTestId('alert-card-1')).toBeInTheDocument();
+        expect(screen.getByTestId('alert-card-2')).toBeInTheDocument();
+        expect(screen.getByTestId('alert-card-3')).toBeInTheDocument();
       });
-
-      // Check for alert cards (as strings since component uses String(event.id))
-      expect(screen.getByTestId('alert-card-1')).toBeInTheDocument();
-      expect(screen.getByTestId('alert-card-2')).toBeInTheDocument();
-      expect(screen.getByTestId('alert-card-3')).toBeInTheDocument();
     });
 
     it('passes correct props to AlertCard components', async () => {

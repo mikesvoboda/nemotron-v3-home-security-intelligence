@@ -158,6 +158,7 @@ export const errorMockConfig: ApiMockConfig = {
   eventsError: true,
   gpuError: true,
   systemHealthError: true,
+  systemStatsError: true,
   logsError: true,
   auditError: true,
   telemetryError: true,
@@ -491,6 +492,93 @@ export async function setupApiMocks(
         timestamp: new Date().toISOString(),
       }),
     });
+  });
+
+  // System Health Full endpoint (BEFORE /api/system/health)
+  // Returns comprehensive health data including AI services for SystemMonitoringPage
+  await page.route('**/api/system/health/full', async (route) => {
+    if (mergedConfig.systemHealthError) {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Health check failed' }),
+      });
+    } else {
+      const baseHealth = mergedConfig.systemHealth || mockSystemHealth.healthy;
+      // Transform services to ai_services format for useFullHealthQuery
+      const aiServices = Object.entries(baseHealth.services || {})
+        .filter(([name]) => ['rtdetr_server', 'nemotron'].includes(name))
+        .map(([name, svc]) => ({
+          name: name.replace('_server', ''),
+          status: (svc as { status: string }).status,
+          critical: true,
+          error: null,
+          last_check: new Date().toISOString(),
+          circuit_breaker: { state: 'closed', failure_count: 0 },
+        }));
+
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          status: baseHealth.status,
+          ready: baseHealth.status === 'healthy',
+          message: baseHealth.status === 'healthy' ? 'System healthy' : 'System degraded',
+          postgres: {
+            status: baseHealth.services?.postgresql?.status || 'healthy',
+            message: baseHealth.services?.postgresql?.message || 'Connected',
+            latency_ms: 5,
+          },
+          redis: {
+            status: baseHealth.services?.redis?.status || 'healthy',
+            message: baseHealth.services?.redis?.message || 'Connected',
+            latency_ms: 1,
+          },
+          ai_services: aiServices.length > 0 ? aiServices : [
+            { name: 'rtdetr', status: 'healthy', critical: true, error: null, last_check: new Date().toISOString(), circuit_breaker: { state: 'closed', failure_count: 0 } },
+            { name: 'nemotron', status: 'healthy', critical: true, error: null, last_check: new Date().toISOString(), circuit_breaker: { state: 'closed', failure_count: 0 } },
+          ],
+          circuit_breakers: {
+            total: 2,
+            closed: 2,
+            open: 0,
+            half_open: 0,
+          },
+          workers: [
+            { name: 'file-watcher', running: true, critical: true, message: 'Watching for new files' },
+            { name: 'batch-aggregator', running: true, critical: true, message: 'Processing batches' },
+            { name: 'cleanup-service', running: true, critical: false, message: 'Cleanup scheduled' },
+          ],
+          timestamp: new Date().toISOString(),
+          version: '0.1.0',
+        }),
+      });
+    }
+  });
+
+  // System Health Ready endpoint (BEFORE /api/system/health)
+  await page.route('**/api/system/health/ready', async (route) => {
+    if (mergedConfig.systemHealthError) {
+      await route.fulfill({
+        status: 503,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Not ready' }),
+      });
+    } else {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ready: true,
+          workers: [
+            { name: 'file-watcher', running: true, critical: true, message: 'Watching for new files' },
+            { name: 'batch-aggregator', running: true, critical: true, message: 'Processing batches' },
+            { name: 'cleanup-service', running: true, critical: false, message: 'Cleanup scheduled' },
+          ],
+          timestamp: new Date().toISOString(),
+        }),
+      });
+    }
   });
 
   // System Health endpoint
