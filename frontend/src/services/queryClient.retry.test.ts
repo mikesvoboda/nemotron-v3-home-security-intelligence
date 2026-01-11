@@ -8,7 +8,7 @@
  * - Mutation-safe retry (only TIMEOUT for mutations)
  */
 
-import { describe, it, expect } from 'vitest';
+import { afterEach, beforeEach, describe, it, expect } from 'vitest';
 
 import { ApiError, type ProblemDetails, TimeoutError } from './api';
 import {
@@ -16,10 +16,13 @@ import {
   calculateRetryDelay,
   shouldRetryQuery,
   shouldRetryMutation,
+  updateRateLimitStoreFromError,
   MAX_RETRY_ATTEMPTS,
   RETRY_BASE_DELAY_MS,
   MAX_RETRY_DELAY_MS,
+  DEFAULT_RATE_LIMIT_RETRY_SECONDS,
 } from './queryClient';
+import { useRateLimitStore } from '../stores/rate-limit-store';
 import { ErrorCode } from '../utils/error-handling';
 
 describe('QueryClient retry configuration', () => {
@@ -411,6 +414,141 @@ describe('QueryClient retry configuration', () => {
         expect(shouldRetryMutation(2, error)).toBe(true);
         expect(shouldRetryMutation(3, error)).toBe(false); // 4th attempt, should not retry
       });
+    });
+  });
+
+  describe('updateRateLimitStoreFromError', () => {
+    beforeEach(() => {
+      // Clear the rate limit store before each test
+      useRateLimitStore.getState().clear();
+    });
+
+    afterEach(() => {
+      // Clear the rate limit store after each test
+      useRateLimitStore.getState().clear();
+    });
+
+    it('exports DEFAULT_RATE_LIMIT_RETRY_SECONDS as 60', () => {
+      expect(DEFAULT_RATE_LIMIT_RETRY_SECONDS).toBe(60);
+    });
+
+    it('ignores non-ApiError errors', () => {
+      const error = new Error('Generic error');
+      updateRateLimitStoreFromError(error);
+
+      const state = useRateLimitStore.getState();
+      expect(state.current).toBeNull();
+      expect(state.isLimited).toBe(false);
+    });
+
+    it('ignores ApiError with non-429 status', () => {
+      const error = new ApiError(503, 'Service Unavailable');
+      updateRateLimitStoreFromError(error);
+
+      const state = useRateLimitStore.getState();
+      expect(state.current).toBeNull();
+      expect(state.isLimited).toBe(false);
+    });
+
+    it('updates rate limit store on 429 error', () => {
+      const error = new ApiError(429, 'Rate Limited');
+      updateRateLimitStoreFromError(error);
+
+      const state = useRateLimitStore.getState();
+      expect(state.current).not.toBeNull();
+      expect(state.isLimited).toBe(true);
+      expect(state.current?.remaining).toBe(0);
+    });
+
+    it('uses retry_after from problemDetails when available', () => {
+      const problemDetails: ProblemDetails = {
+        type: 'about:blank',
+        title: 'Rate Limited',
+        status: 429,
+        error_code: ErrorCode.RATE_LIMIT_EXCEEDED,
+        retry_after: 30,
+      };
+      const error = new ApiError(429, 'Rate Limited', undefined, problemDetails);
+      updateRateLimitStoreFromError(error);
+
+      const state = useRateLimitStore.getState();
+      expect(state.current?.retryAfter).toBe(30);
+    });
+
+    it('uses DEFAULT_RATE_LIMIT_RETRY_SECONDS when retry_after is not in problemDetails', () => {
+      const error = new ApiError(429, 'Rate Limited');
+      updateRateLimitStoreFromError(error);
+
+      const state = useRateLimitStore.getState();
+      expect(state.current?.retryAfter).toBe(DEFAULT_RATE_LIMIT_RETRY_SECONDS);
+    });
+
+    it('uses rate limit info from problemDetails when available', () => {
+      const problemDetails = {
+        type: 'about:blank',
+        title: 'Rate Limited',
+        status: 429,
+        error_code: ErrorCode.RATE_LIMIT_EXCEEDED,
+        retry_after: 15,
+        rate_limit_limit: 200,
+        rate_limit_remaining: 0,
+        rate_limit_reset: 1700000000,
+      };
+      const error = new ApiError(429, 'Rate Limited', undefined, problemDetails);
+      updateRateLimitStoreFromError(error);
+
+      const state = useRateLimitStore.getState();
+      expect(state.current?.limit).toBe(200);
+      expect(state.current?.remaining).toBe(0);
+      expect(state.current?.reset).toBe(1700000000);
+      expect(state.current?.retryAfter).toBe(15);
+    });
+
+    it('uses default limit of 100 when not in problemDetails', () => {
+      const error = new ApiError(429, 'Rate Limited');
+      updateRateLimitStoreFromError(error);
+
+      const state = useRateLimitStore.getState();
+      expect(state.current?.limit).toBe(100);
+    });
+
+    it('ignores invalid retry_after values (negative)', () => {
+      const problemDetails: ProblemDetails = {
+        type: 'about:blank',
+        title: 'Rate Limited',
+        status: 429,
+        error_code: ErrorCode.RATE_LIMIT_EXCEEDED,
+        retry_after: -10,
+      };
+      const error = new ApiError(429, 'Rate Limited', undefined, problemDetails);
+      updateRateLimitStoreFromError(error);
+
+      const state = useRateLimitStore.getState();
+      expect(state.current?.retryAfter).toBe(DEFAULT_RATE_LIMIT_RETRY_SECONDS);
+    });
+
+    it('ignores invalid retry_after values (zero)', () => {
+      const problemDetails: ProblemDetails = {
+        type: 'about:blank',
+        title: 'Rate Limited',
+        status: 429,
+        error_code: ErrorCode.RATE_LIMIT_EXCEEDED,
+        retry_after: 0,
+      };
+      const error = new ApiError(429, 'Rate Limited', undefined, problemDetails);
+      updateRateLimitStoreFromError(error);
+
+      const state = useRateLimitStore.getState();
+      expect(state.current?.retryAfter).toBe(DEFAULT_RATE_LIMIT_RETRY_SECONDS);
+    });
+
+    it('ignores TimeoutError (not a rate limit error)', () => {
+      const error = new TimeoutError(30000);
+      updateRateLimitStoreFromError(error);
+
+      const state = useRateLimitStore.getState();
+      expect(state.current).toBeNull();
+      expect(state.isLimited).toBe(false);
     });
   });
 
