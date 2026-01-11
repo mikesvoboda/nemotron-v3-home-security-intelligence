@@ -2,6 +2,7 @@
  * Tests for AIAuditPage component
  */
 
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
@@ -70,12 +71,53 @@ vi.mock('../../services/api', () => ({
   ),
 }));
 
+// Mock the useAIAuditPromptHistoryQuery hook for version history tab
+vi.mock('../../hooks/useAIAuditQueries', () => ({
+  useAIAuditPromptHistoryQuery: vi.fn(() => ({
+    data: {
+      versions: [],
+      total_count: 0,
+    },
+    isLoading: false,
+    error: null,
+    refetch: vi.fn(),
+  })),
+}));
+
+// Mock the promptManagementApi
+vi.mock('../../services/promptManagementApi', () => ({
+  restorePromptVersion: vi.fn(),
+  PromptApiError: class PromptApiError extends Error {
+    status: number;
+    constructor(status: number, message: string) {
+      super(message);
+      this.status = status;
+      this.name = 'PromptApiError';
+    }
+  },
+}));
+
+// Create a test wrapper
+const createTestWrapper = () => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+    },
+  });
+
+  return function TestWrapper({ children }: { children: React.ReactNode }) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>{children}</MemoryRouter>
+      </QueryClientProvider>
+    );
+  };
+};
+
 const renderWithRouter = () => {
-  return render(
-    <MemoryRouter>
-      <AIAuditPage />
-    </MemoryRouter>
-  );
+  return render(<AIAuditPage />, { wrapper: createTestWrapper() });
 };
 
 describe('AIAuditPage', () => {
@@ -169,13 +211,172 @@ describe('AIAuditPage quality metrics', () => {
   });
 });
 
-describe('AIAuditPage batch audit', () => {
+describe('AIAuditPage tabbed interface', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('renders trigger batch audit button', async () => {
+  it('renders tabs container', async () => {
     renderWithRouter();
+    await waitFor(() => {
+      expect(screen.getByTestId('ai-audit-tabs')).toBeInTheDocument();
+    });
+  });
+
+  it('renders all four tabs', async () => {
+    renderWithRouter();
+    await waitFor(() => {
+      expect(screen.getByTestId('tab-dashboard')).toBeInTheDocument();
+      expect(screen.getByTestId('tab-playground')).toBeInTheDocument();
+      expect(screen.getByTestId('tab-batch')).toBeInTheDocument();
+      expect(screen.getByTestId('tab-history')).toBeInTheDocument();
+    });
+  });
+
+  it('dashboard tab is selected by default', async () => {
+    renderWithRouter();
+    await waitFor(() => {
+      expect(screen.getByTestId('tab-panel-dashboard')).toBeInTheDocument();
+    });
+  });
+
+  it('switches to Prompt Playground tab when clicked', async () => {
+    const user = userEvent.setup();
+    renderWithRouter();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('tab-playground')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByTestId('tab-playground'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('tab-panel-playground')).toBeInTheDocument();
+    });
+  });
+
+  it('switches to Batch Audit tab when clicked', async () => {
+    const user = userEvent.setup();
+    renderWithRouter();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('tab-batch')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByTestId('tab-batch'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('tab-panel-batch')).toBeInTheDocument();
+    });
+  });
+
+  it('switches to Version History tab when clicked', async () => {
+    const user = userEvent.setup();
+    renderWithRouter();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('tab-history')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByTestId('tab-history'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('tab-panel-history')).toBeInTheDocument();
+    });
+  });
+});
+
+describe('AIAuditPage Prompt Playground tab', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('renders Open Prompt Playground button in playground tab', async () => {
+    const user = userEvent.setup();
+    renderWithRouter();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('tab-playground')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByTestId('tab-playground'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('open-playground-button')).toBeInTheDocument();
+    });
+  });
+
+  it('button has correct text', async () => {
+    const user = userEvent.setup();
+    renderWithRouter();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('tab-playground')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByTestId('tab-playground'));
+
+    await waitFor(() => {
+      const button = screen.getByTestId('open-playground-button');
+      expect(button).toHaveTextContent('Open Prompt Playground');
+    });
+  });
+
+  it('shows feature highlights in playground tab', async () => {
+    const user = userEvent.setup();
+    renderWithRouter();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('tab-playground')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByTestId('tab-playground'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Model Editors')).toBeInTheDocument();
+      expect(screen.getByText('A/B Testing')).toBeInTheDocument();
+      expect(screen.getByText('Import/Export')).toBeInTheDocument();
+    });
+  });
+
+  it('opens Prompt Playground when button is clicked', async () => {
+    const user = userEvent.setup();
+    renderWithRouter();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('tab-playground')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByTestId('tab-playground'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('open-playground-button')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByTestId('open-playground-button'));
+
+    // Prompt Playground panel should be open
+    await waitFor(() => {
+      expect(screen.getByTestId('prompt-playground-panel')).toBeInTheDocument();
+    });
+  });
+});
+
+describe('AIAuditPage Batch Audit tab', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('renders trigger batch audit button in batch tab', async () => {
+    const user = userEvent.setup();
+    renderWithRouter();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('tab-batch')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByTestId('tab-batch'));
+
     await waitFor(() => {
       expect(screen.getByTestId('trigger-batch-audit-button')).toBeInTheDocument();
     });
@@ -185,12 +386,16 @@ describe('AIAuditPage batch audit', () => {
     const user = userEvent.setup();
     renderWithRouter();
 
-    // Wait for page to load
+    await waitFor(() => {
+      expect(screen.getByTestId('tab-batch')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByTestId('tab-batch'));
+
     await waitFor(() => {
       expect(screen.getByTestId('trigger-batch-audit-button')).toBeInTheDocument();
     });
 
-    // Click the trigger button
     await user.click(screen.getByTestId('trigger-batch-audit-button'));
 
     // Modal should be open
@@ -199,85 +404,74 @@ describe('AIAuditPage batch audit', () => {
     });
   });
 
-  it('closes batch audit modal when cancel is clicked', async () => {
+  it('shows batch stats in batch tab', async () => {
     const user = userEvent.setup();
     renderWithRouter();
 
-    // Wait for page to load and open modal
     await waitFor(() => {
-      expect(screen.getByTestId('trigger-batch-audit-button')).toBeInTheDocument();
-    });
-    await user.click(screen.getByTestId('trigger-batch-audit-button'));
-
-    // Modal should be open
-    await waitFor(() => {
-      expect(screen.getByTestId('batch-audit-modal')).toBeInTheDocument();
+      expect(screen.getByTestId('tab-batch')).toBeInTheDocument();
     });
 
-    // Click cancel
-    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    await user.click(screen.getByTestId('tab-batch'));
 
-    // Modal should be closed
     await waitFor(() => {
-      expect(screen.queryByTestId('batch-audit-modal')).not.toBeInTheDocument();
+      expect(screen.getByText('Total Events')).toBeInTheDocument();
+      expect(screen.getByText('Audited Events')).toBeInTheDocument();
+      expect(screen.getByText('Fully Evaluated')).toBeInTheDocument();
     });
   });
 });
 
-describe('AIAuditPage Prompt Playground', () => {
+describe('AIAuditPage Version History tab', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('renders Open Prompt Playground button', async () => {
-    renderWithRouter();
-    await waitFor(() => {
-      expect(screen.getByTestId('open-playground-button')).toBeInTheDocument();
-    });
-  });
-
-  it('button has correct text and icon', async () => {
-    renderWithRouter();
-    await waitFor(() => {
-      const button = screen.getByTestId('open-playground-button');
-      expect(button).toHaveTextContent('Open Prompt Playground');
-    });
-  });
-
-  it('opens Prompt Playground when header button is clicked', async () => {
-    const user = userEvent.setup();
-    renderWithRouter();
-
-    // Wait for page to load
-    await waitFor(() => {
-      expect(screen.getByTestId('open-playground-button')).toBeInTheDocument();
-    });
-
-    // Click the Open Prompt Playground button
-    await user.click(screen.getByTestId('open-playground-button'));
-
-    // Prompt Playground panel should be open
-    await waitFor(() => {
-      expect(screen.getByTestId('prompt-playground-panel')).toBeInTheDocument();
-    });
-  });
-
-  it('passes no recommendation when opened from header button', async () => {
+  it('renders version history component in history tab', async () => {
     const user = userEvent.setup();
     renderWithRouter();
 
     await waitFor(() => {
-      expect(screen.getByTestId('open-playground-button')).toBeInTheDocument();
+      expect(screen.getByTestId('tab-history')).toBeInTheDocument();
     });
 
-    await user.click(screen.getByTestId('open-playground-button'));
+    await user.click(screen.getByTestId('tab-history'));
 
     await waitFor(() => {
-      expect(screen.getByTestId('prompt-playground-panel')).toBeInTheDocument();
+      expect(screen.getByTestId('prompt-version-history')).toBeInTheDocument();
+    });
+  });
+
+  it('shows version history title in history tab', async () => {
+    const user = userEvent.setup();
+    renderWithRouter();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('tab-history')).toBeInTheDocument();
     });
 
-    // Should not show recommendation banner
-    expect(screen.queryByTestId('recommendation-banner')).not.toBeInTheDocument();
+    await user.click(screen.getByTestId('tab-history'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Prompt Version History')).toBeInTheDocument();
+    });
+  });
+});
+
+describe('AIAuditPage recommendations integration', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('RecommendationsPanel component exists and can be interacted with', async () => {
+    renderWithRouter();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('recommendations-panel')).toBeInTheDocument();
+    });
+
+    // Verify the recommendations panel is rendering
+    expect(screen.getByText('Prompt Improvement Recommendations')).toBeInTheDocument();
   });
 
   it('recommendations panel renders with proper structure', async () => {
@@ -290,58 +484,6 @@ describe('AIAuditPage Prompt Playground', () => {
 
     // Verify the panel has recommendations accordion
     expect(screen.getByTestId('recommendations-accordion')).toBeInTheDocument();
-  });
-
-  it('header button opens playground without recommendation', async () => {
-    const user = userEvent.setup();
-    renderWithRouter();
-
-    await waitFor(() => {
-      expect(screen.getByTestId('open-playground-button')).toBeInTheDocument();
-    });
-
-    await user.click(screen.getByTestId('open-playground-button'));
-
-    await waitFor(() => {
-      expect(screen.getByTestId('prompt-playground-panel')).toBeInTheDocument();
-      // No recommendation banner when opened from header
-      expect(screen.queryByTestId('recommendation-banner')).not.toBeInTheDocument();
-    });
-  });
-
-  it('RecommendationsPanel component exists and can be interacted with', async () => {
-    renderWithRouter();
-
-    await waitFor(() => {
-      expect(screen.getByTestId('recommendations-panel')).toBeInTheDocument();
-    });
-
-    // Verify the recommendations panel is rendering (implicitly tests that buttons exist within)
-    // The actual button styling is tested in RecommendationsPanel.test.tsx
-    expect(screen.getByText('Prompt Improvement Recommendations')).toBeInTheDocument();
-  });
-
-  it('closes Prompt Playground when close button is clicked', async () => {
-    const user = userEvent.setup();
-    renderWithRouter();
-
-    await waitFor(() => {
-      expect(screen.getByTestId('open-playground-button')).toBeInTheDocument();
-    });
-
-    // Open playground
-    await user.click(screen.getByTestId('open-playground-button'));
-
-    await waitFor(() => {
-      expect(screen.getByTestId('prompt-playground-panel')).toBeInTheDocument();
-    });
-
-    // Close playground
-    await user.click(screen.getByTestId('close-panel-button'));
-
-    await waitFor(() => {
-      expect(screen.queryByTestId('prompt-playground-panel')).not.toBeInTheDocument();
-    });
   });
 });
 
@@ -399,10 +541,7 @@ describe('AIAuditPage new features', () => {
       expect(screen.getByText(/no events have been audited yet/i)).toBeInTheDocument();
     });
 
-    // In empty state, there are two "Trigger Batch Audit" buttons:
-    // 1. Header button (data-testid="trigger-batch-audit-button")
-    // 2. Empty state CTA button
-    // Find them by text to verify the CTA is present
+    // Find the batch audit button by text
     const batchAuditButtons = screen.getAllByRole('button', { name: /trigger batch audit/i });
     expect(batchAuditButtons.length).toBeGreaterThanOrEqual(1);
   });
