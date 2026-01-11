@@ -757,8 +757,7 @@ def _downgrade_events(conn: object) -> None:
     """
 
     # DDL operation using schema-defined columns, safe from SQL injection
-    # nosemgrep: python.sqlalchemy.security.audit.avoid-sqlalchemy-text.avoid-sqlalchemy-text
-    op.execute(text(create_table_sql))
+    op.execute(text(create_table_sql))  # nosemgrep: python.sqlalchemy.security.audit.avoid-sqlalchemy-text.avoid-sqlalchemy-text
 
     # Build INSERT statement with only existing columns
     column_list = [
@@ -811,8 +810,7 @@ def _downgrade_events(conn: object) -> None:
         FROM events
     """  # noqa: S608
 
-    # nosemgrep: python.sqlalchemy.security.audit.avoid-sqlalchemy-text.avoid-sqlalchemy-text
-    op.execute(text(insert_sql))
+    op.execute(text(insert_sql))  # nosemgrep: python.sqlalchemy.security.audit.avoid-sqlalchemy-text.avoid-sqlalchemy-text
     op.execute(text("DROP TABLE events CASCADE"))
     op.execute(text("ALTER TABLE events_regular RENAME TO events"))
     op.execute(text("CREATE INDEX idx_events_camera_id ON events (camera_id)"))
