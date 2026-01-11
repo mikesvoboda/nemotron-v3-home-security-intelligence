@@ -4,6 +4,7 @@ import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
 import {
+  AmbientStatusProvider,
   ChunkLoadErrorBoundary,
   ErrorBoundary,
   PageTransition,
@@ -73,28 +74,31 @@ export default function App() {
             title="Application Error"
             description="The application encountered an unexpected error. Please try again or refresh the page."
           >
-            <Layout>
-              <ChunkLoadErrorBoundary>
-                <Suspense fallback={<RouteLoadingFallback />}>
-                  <PageTransition>
-                    <Routes>
-                      <Route path="/" element={<DashboardPage />} />
-                      <Route path="/timeline" element={<EventTimeline />} />
-                      <Route path="/analytics" element={<AnalyticsPage />} />
-                      <Route path="/alerts" element={<AlertsPage />} />
-                      <Route path="/entities" element={<EntitiesPage />} />
-                      <Route path="/logs" element={<LogsDashboard />} />
-                      <Route path="/audit" element={<AuditLogPage />} />
-                      <Route path="/ai" element={<AIPerformancePage />} />
-                      <Route path="/ai-audit" element={<AIAuditPage />} />
-                      <Route path="/system" element={<SystemMonitoringPage />} />
-                      <Route path="/settings" element={<SettingsPage />} />
-                      <Route path="/trash" element={<TrashPage />} />
-                    </Routes>
-                  </PageTransition>
-                </Suspense>
-              </ChunkLoadErrorBoundary>
-            </Layout>
+            {/* Ambient status provider for visual/audio status awareness */}
+            <AmbientStatusProvider>
+              <Layout>
+                <ChunkLoadErrorBoundary>
+                  <Suspense fallback={<RouteLoadingFallback />}>
+                    <PageTransition>
+                      <Routes>
+                        <Route path="/" element={<DashboardPage />} />
+                        <Route path="/timeline" element={<EventTimeline />} />
+                        <Route path="/analytics" element={<AnalyticsPage />} />
+                        <Route path="/alerts" element={<AlertsPage />} />
+                        <Route path="/entities" element={<EntitiesPage />} />
+                        <Route path="/logs" element={<LogsDashboard />} />
+                        <Route path="/audit" element={<AuditLogPage />} />
+                        <Route path="/ai" element={<AIPerformancePage />} />
+                        <Route path="/ai-audit" element={<AIAuditPage />} />
+                        <Route path="/system" element={<SystemMonitoringPage />} />
+                        <Route path="/settings" element={<SettingsPage />} />
+                        <Route path="/trash" element={<TrashPage />} />
+                      </Routes>
+                    </PageTransition>
+                  </Suspense>
+                </ChunkLoadErrorBoundary>
+              </Layout>
+            </AmbientStatusProvider>
           </ErrorBoundary>
           {/* Interactive product tour for first-time users */}
           <ProductTour />

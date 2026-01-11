@@ -25,6 +25,8 @@ vi.mock('../../services/api', async () => {
   return {
     ...actual,
     fetchEventDetections: vi.fn().mockResolvedValue({ items: [], pagination: { total: 0, limit: 100, offset: 0, has_more: false } }),
+    fetchEventEntityMatches: vi.fn().mockResolvedValue({ event_id: 123, person_matches: [], vehicle_matches: [], total_matches: 0 }),
+    fetchEntity: vi.fn().mockResolvedValue({ id: 'entity-1', entity_type: 'person', first_seen: '2024-01-15T10:00:00Z', last_seen: '2024-01-15T10:30:00Z', appearance_count: 1, cameras_seen: [], thumbnail_url: null, appearances: [] }),
     getDetectionImageUrl: vi.fn((id: number) => `/api/detections/${id}/image`),
     getDetectionVideoUrl: vi.fn((id: number) => `/api/detections/${id}/video`),
     getDetectionVideoThumbnailUrl: vi.fn((id: number) => `/api/detections/${id}/video/thumbnail`),
@@ -37,6 +39,19 @@ vi.mock('../video/VideoPlayer', () => ({
     <div data-testid="video-player" data-src={src} data-poster={poster} className={className}>
       Mocked VideoPlayer
     </div>
+  )),
+}));
+
+// Mock the EntityDetailModal component
+vi.mock('../entities/EntityDetailModal', () => ({
+  default: vi.fn(({ entity, isOpen, onClose }: { entity: unknown; isOpen: boolean; onClose: () => void }) => (
+    isOpen ? (
+      <div data-testid="entity-detail-modal">
+        Mocked EntityDetailModal
+        {entity ? <span data-testid="entity-loaded">Entity Loaded</span> : null}
+        <button onClick={onClose} data-testid="close-entity-modal">Close</button>
+      </div>
+    ) : null
   )),
 }));
 
@@ -2134,4 +2149,6 @@ describe('EventDetailModal', () => {
       });
     });
   });
+
+  // Note: matched entities section tests removed - now using ReidMatchesPanel with detection-based matching
 });

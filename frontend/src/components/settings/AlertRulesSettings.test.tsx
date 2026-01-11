@@ -138,6 +138,8 @@ describe('AlertRulesSettings', () => {
       ],
       thresholds: { low_max: 29, medium_max: 59, high_max: 84 },
     });
+    // Mock console.error to suppress expected error messages in tests
+    vi.spyOn(console, 'error').mockImplementation(() => {});
   });
 
   afterEach(() => {

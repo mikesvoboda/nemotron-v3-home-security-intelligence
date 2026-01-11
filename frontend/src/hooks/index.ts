@@ -212,3 +212,31 @@ export type {
 
 export { useRateLimitCountdown, formatCountdown } from './useRateLimitCountdown';
 export type { UseRateLimitCountdownReturn } from './useRateLimitCountdown';
+
+// Ambient status awareness hooks
+export { useAudioNotifications } from './useAudioNotifications';
+export type {
+  SoundType,
+  UseAudioNotificationsOptions,
+  UseAudioNotificationsReturn,
+} from './useAudioNotifications';
+
+export { useDesktopNotifications } from './useDesktopNotifications';
+export type {
+  DesktopNotificationOptions,
+  SecurityAlertNotificationOptions,
+  UseDesktopNotificationsOptions,
+  UseDesktopNotificationsReturn,
+} from './useDesktopNotifications';
+
+export { useSettings } from './useSettings';
+export type {
+  AmbientSettings,
+  AudioSettings,
+  DesktopNotificationSettings,
+  FaviconSettings,
+  AmbientStatusSettings,
+  AppSettings,
+  UseSettingsReturn,
+} from './useSettings';
+export { DEFAULT_SETTINGS } from './useSettings';

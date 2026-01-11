@@ -3212,6 +3212,43 @@ export async function importPrompts(
 // EntityAppearance, EntitySummary, EntityDetail, EntityListResponse, EntityHistoryResponse
 
 /**
+ * Entity match result from re-identification.
+ * Represents a match between a detected entity in an event and a known entity.
+ */
+export interface EntityMatch {
+  /** Unique entity identifier */
+  entity_id: string;
+  /** Type of entity ('person' or 'vehicle') */
+  entity_type: 'person' | 'vehicle';
+  /** Similarity score between matched embeddings (0-1) */
+  similarity: number;
+  /** Time gap in seconds since this entity was last seen */
+  time_gap_seconds: number;
+  /** Camera where entity was last seen */
+  last_seen_camera: string;
+  /** Timestamp when entity was last seen */
+  last_seen_at: string;
+  /** Thumbnail URL of the entity */
+  thumbnail_url: string | null;
+  /** Additional attributes (clothing, carrying items, vehicle type, etc.) */
+  attributes?: Record<string, unknown>;
+}
+
+/**
+ * Response containing entity matches for an event.
+ */
+export interface EventEntityMatchesResponse {
+  /** Event ID */
+  event_id: number;
+  /** Person entity matches */
+  person_matches: EntityMatch[];
+  /** Vehicle entity matches */
+  vehicle_matches: EntityMatch[];
+  /** Total number of matches */
+  total_matches: number;
+}
+
+/**
  * Query parameters for fetching entities
  */
 export interface EntitiesQueryParams {
@@ -3349,6 +3386,39 @@ export async function fetchEntityMatches(
     : `/api/entities/matches/${encodeURIComponent(detectionId)}`;
 
   return fetchApi<EntityMatchResponse>(endpoint, options);
+}
+
+/**
+ * Fetch entity re-ID matches for a specific event.
+ *
+ * Returns any entities (persons or vehicles) that were matched via
+ * re-identification for this event, including similarity scores.
+ *
+ * Note: This endpoint may return 404 if no matches exist for the event,
+ * which is handled gracefully by returning empty arrays.
+ *
+ * @param eventId - Numeric event ID
+ * @returns EventEntityMatchesResponse with matched entities
+ */
+export async function fetchEventEntityMatches(
+  eventId: number
+): Promise<EventEntityMatchesResponse> {
+  try {
+    return await fetchApi<EventEntityMatchesResponse>(
+      `/api/events/${eventId}/entity-matches`
+    );
+  } catch (error) {
+    // If no matches exist (404) or endpoint not implemented, return empty response
+    if (error instanceof ApiError && (error.status === 404 || error.status === 501)) {
+      return {
+        event_id: eventId,
+        person_matches: [],
+        vehicle_matches: [],
+        total_matches: 0,
+      };
+    }
+    throw error;
+  }
 }
 
 // ============================================================================

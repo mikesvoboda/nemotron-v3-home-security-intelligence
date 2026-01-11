@@ -17,13 +17,16 @@ vi.mock('./components/dashboard/DashboardPage', () => ({
   default: () => <div data-testid="mock-dashboard">Dashboard Page Content</div>,
 }));
 
-// Mock ChunkLoadErrorBoundary to pass through children
+// Mock ChunkLoadErrorBoundary and AmbientStatusProvider to pass through children
 vi.mock('./components/common', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./components/common')>();
   return {
     ...actual,
     ChunkLoadErrorBoundary: ({ children }: { children: React.ReactNode }) => <>{children}</>,
     RouteLoadingFallback: () => <div data-testid="route-loading">Loading...</div>,
+    // AmbientStatusProvider uses useSystemStatus which requires API mocking
+    // so we mock it to just render children
+    AmbientStatusProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   };
 });
 
