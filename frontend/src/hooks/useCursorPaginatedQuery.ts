@@ -30,6 +30,12 @@ export interface UseCursorPaginatedQueryOptions<
   gcTime?: number;
   refetchInterval?: number | false;
   refetchOnWindowFocus?: boolean;
+  /**
+   * Number of retry attempts for failed queries.
+   * Set to 0 to disable retries, or use a lower number for faster failure feedback.
+   * Defaults to the global QueryClient setting (3).
+   */
+  retry?: number | boolean;
 }
 
 export interface UseCursorPaginatedQueryReturn<TData extends CursorPaginatedResponse> {
@@ -67,6 +73,7 @@ export function useCursorPaginatedQuery<
     gcTime = 300000,
     refetchInterval,
     refetchOnWindowFocus = true,
+    retry,
   } = options;
 
   const query = useInfiniteQuery<TData, Error, InfiniteData<TData, string | undefined>, QueryKey, string | undefined>({
@@ -84,6 +91,7 @@ export function useCursorPaginatedQuery<
     gcTime,
     refetchInterval,
     refetchOnWindowFocus,
+    ...(retry !== undefined && { retry }),
   });
 
   const handleFetchNextPage = (): void => {

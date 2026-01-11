@@ -129,7 +129,9 @@ test.describe('Critical Tests @critical', () => {
     expect(serviceCount).toBeGreaterThan(0);
   });
 
-  test('error states are displayed correctly @critical', async ({ page }) => {
+  test('error states are displayed correctly @critical', async ({ page }, testInfo) => {
+    // Extend test timeout to account for API retry delays
+    testInfo.setTimeout(ERROR_TIMEOUT + 5000);
     await setupApiMocks(page, {
       ...defaultMockConfig,
       camerasError: true,

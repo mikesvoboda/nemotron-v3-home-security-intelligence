@@ -193,17 +193,23 @@ test.describe('Dashboard Error State', () => {
     dashboardPage = new DashboardPage(page);
   });
 
-  test('shows error heading when API fails', async () => {
+  test('shows error heading when API fails', async ({ }, testInfo) => {
+    // Extend test timeout to account for API retry delays
+    testInfo.setTimeout(ERROR_TIMEOUT + 5000);
     await dashboardPage.goto();
     await expect(dashboardPage.errorHeading).toBeVisible({ timeout: ERROR_TIMEOUT });
   });
 
-  test('shows reload button when API fails', async () => {
+  test('shows reload button when API fails', async ({ }, testInfo) => {
+    // Extend test timeout to account for API retry delays
+    testInfo.setTimeout(ERROR_TIMEOUT + 5000);
     await dashboardPage.goto();
     await expect(dashboardPage.reloadButton).toBeVisible({ timeout: ERROR_TIMEOUT });
   });
 
-  test('error state displays error elements', async () => {
+  test('error state displays error elements', async ({ }, testInfo) => {
+    // Extend test timeout to account for API retry delays
+    testInfo.setTimeout(ERROR_TIMEOUT + 5000);
     await dashboardPage.goto();
     // Wait for error state to appear - use waitFor which properly polls for element
     // The error state shows after API calls fail, which may take a few retries

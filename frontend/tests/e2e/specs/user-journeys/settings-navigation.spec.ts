@@ -42,29 +42,29 @@ test.describe('Settings Navigation and Configuration Journey (NEM-2049)', () => 
     await expect(page.locator('h1:has-text("Settings")')).toBeVisible();
 
     // When/Then: Navigate through each tab
+    // Note: Actual tabs are CAMERAS, RULES, PROCESSING, NOTIFICATIONS, PROMPTS
     const tabs = [
       { name: 'CAMERAS', selector: page.getByRole('tab', { name: /CAMERAS/i }) },
-      { name: 'ANALYTICS', selector: page.getByRole('tab', { name: /ANALYTICS/i }) },
       { name: 'RULES', selector: page.getByRole('tab', { name: /RULES/i }) },
       { name: 'PROCESSING', selector: page.getByRole('tab', { name: /PROCESSING/i }) },
-      { name: 'NOTIFICATIONS', selector: page.getByRole('tab', { name: /NOTIFICATIONS/i }) }
+      { name: 'NOTIFICATIONS', selector: page.getByRole('tab', { name: /NOTIFICATIONS/i }) },
+      { name: 'PROMPTS', selector: page.getByRole('tab', { name: /PROMPTS/i }) }
     ];
 
     for (const tab of tabs) {
       const tabElement = tab.selector.or(page.locator('button').filter({ hasText: tab.name }));
 
-      if (await tabElement.isVisible()) {
-        await tabElement.click();
-        await page.waitForTimeout(500);
+      // Wait for tab to be visible before interacting
+      await expect(tabElement).toBeVisible({ timeout: 5000 });
+      await tabElement.click();
+      await page.waitForTimeout(500);
 
-        // Verify tab is selected
-        const isSelected = await tabElement.getAttribute('data-selected');
-        expect(isSelected).toBe('true');
+      // Verify tab is selected
+      await expect(tabElement).toHaveAttribute('data-selected', 'true');
 
-        // Verify tab panel content is visible (select only the active panel)
-        const tabPanel = page.locator('[role="tabpanel"][data-headlessui-state="selected"]');
-        await expect(tabPanel).toBeVisible();
-      }
+      // Verify tab panel content is visible (filter for visible panel since multiple exist)
+      const tabPanel = page.locator('[role="tabpanel"]:not([aria-hidden="true"])').first();
+      await expect(tabPanel).toBeVisible();
     }
   });
 
@@ -85,17 +85,24 @@ test.describe('Settings Navigation and Configuration Journey (NEM-2049)', () => 
       await processingTab.click();
       await page.waitForTimeout(1500);
 
-      // When: Look for processing configuration inputs
-      const batchWindowInput = page.getByLabel(/Batch Window/i)
-        .or(page.locator('input[name*="batch"]'))
-        .or(page.locator('input[type="number"]').first());
+      // When: Look for processing configuration inputs (could be range slider or number input)
+      const batchWindowInput = page.getByLabel(/Batch.*duration/i)
+        .or(page.locator('input[aria-label*="Batch window"]'))
+        .or(page.locator('input[name*="batch"]'));
 
       if (await batchWindowInput.isVisible()) {
         const originalValue = await batchWindowInput.inputValue();
+        const inputType = await batchWindowInput.getAttribute('type');
 
-        // Modify batch window
-        await batchWindowInput.clear();
-        await batchWindowInput.fill('120'); // 120 seconds
+        // Modify batch window - handle both range sliders and number inputs
+        if (inputType === 'range') {
+          // Range inputs: just fill directly (no clear needed)
+          await batchWindowInput.fill('120'); // 120 seconds
+        } else {
+          // Number inputs: clear then fill
+          await batchWindowInput.clear();
+          await batchWindowInput.fill('120');
+        }
         await page.waitForTimeout(500);
 
         // Then: Verify value updated
@@ -116,9 +123,21 @@ test.describe('Settings Navigation and Configuration Journey (NEM-2049)', () => 
           expect(hasSuccess || true).toBeTruthy();
         }
 
-        // Restore original value
-        await batchWindowInput.clear();
-        await batchWindowInput.fill(originalValue);
+        // Re-query the input after save (DOM may have updated)
+        const batchWindowInputRefresh = page.getByLabel(/Batch.*duration/i)
+          .or(page.locator('input[aria-label*="Batch window"]'))
+          .or(page.locator('input[name*="batch"]'));
+
+        // Restore original value - handle both range sliders and number inputs
+        if (await batchWindowInputRefresh.isVisible()) {
+          const refreshedType = await batchWindowInputRefresh.getAttribute('type');
+          if (refreshedType === 'range') {
+            await batchWindowInputRefresh.fill(originalValue);
+          } else {
+            await batchWindowInputRefresh.clear();
+            await batchWindowInputRefresh.fill(originalValue);
+          }
+        }
       }
     }
   });
@@ -140,28 +159,39 @@ test.describe('Settings Navigation and Configuration Journey (NEM-2049)', () => 
       await processingTab.click();
       await page.waitForTimeout(1500);
 
-      // When: Look for retention days input
-      const retentionInput = page.getByLabel(/Retention/i)
-        .or(page.locator('input[name*="retention"]'))
-        .or(page.locator('input[type="number"]'));
+      // When: Look for retention days input (could be range slider or number input)
+      const retentionInput = page.getByLabel(/Retention.*days/i)
+        .or(page.locator('input[aria-label*="Retention"]'))
+        .or(page.locator('input[name*="retention"]'));
 
       if (await retentionInput.count() > 0) {
         const input = retentionInput.last(); // Get last input if multiple
         if (await input.isVisible()) {
           const originalValue = await input.inputValue();
+          const inputType = await input.getAttribute('type');
 
-          // Modify retention period
-          await input.clear();
-          await input.fill('60'); // 60 days
+          // Modify retention period - handle both range sliders and number inputs
+          if (inputType === 'range') {
+            // Range inputs: just fill directly (no clear needed)
+            await input.fill('60'); // 60 days
+          } else {
+            // Number inputs: clear then fill
+            await input.clear();
+            await input.fill('60');
+          }
           await page.waitForTimeout(500);
 
           // Then: Verify value updated
           const newValue = await input.inputValue();
           expect(newValue).toBe('60');
 
-          // Restore original
-          await input.clear();
-          await input.fill(originalValue);
+          // Restore original - handle both range sliders and number inputs
+          if (inputType === 'range') {
+            await input.fill(originalValue);
+          } else {
+            await input.clear();
+            await input.fill(originalValue);
+          }
         }
       }
     }
@@ -267,8 +297,8 @@ test.describe('Settings Navigation and Configuration Journey (NEM-2049)', () => 
       await rulesTab.click();
       await page.waitForTimeout(1500);
 
-      // Then: Verify rules interface is present (select only the active panel)
-      const tabPanel = page.locator('[role="tabpanel"][data-headlessui-state="selected"]');
+      // Then: Verify rules interface is present (filter for visible panel since multiple exist)
+      const tabPanel = page.locator('[role="tabpanel"]:not([aria-hidden="true"])').first();
       await expect(tabPanel).toBeVisible();
 
       // Look for rules-related content
@@ -303,16 +333,17 @@ test.describe('Settings Navigation and Configuration Journey (NEM-2049)', () => 
       await page.keyboard.press('ArrowRight');
       await page.waitForTimeout(500);
 
-      // Then: Verify a tab panel is visible (tab changed, select only active panel)
-      const tabPanel = page.locator('[role="tabpanel"][data-headlessui-state="selected"]');
+      // Then: Verify a tab panel is visible (tab changed) - filter for visible panel since multiple exist
+      const tabPanel = page.locator('[role="tabpanel"]:not([aria-hidden="true"])').first();
       await expect(tabPanel).toBeVisible();
 
       // Navigate back with ArrowLeft
       await page.keyboard.press('ArrowLeft');
       await page.waitForTimeout(500);
 
-      // Verify active tab panel still visible
-      await expect(page.locator('[role="tabpanel"][data-headlessui-state="selected"]')).toBeVisible();
+      // Verify tab panel still visible - re-query for visible panel after navigation
+      const tabPanelAfterNav = page.locator('[role="tabpanel"]:not([aria-hidden="true"])').first();
+      await expect(tabPanelAfterNav).toBeVisible();
     }
   });
 
@@ -329,26 +360,25 @@ test.describe('Settings Navigation and Configuration Journey (NEM-2049)', () => 
     const processingTab = page.getByRole('tab', { name: /PROCESSING/i })
       .or(page.locator('button').filter({ hasText: 'PROCESSING' }));
 
-    if (await processingTab.isVisible()) {
-      await processingTab.click();
-      await page.waitForTimeout(1000);
+    // Wait for tab to be visible before interacting
+    await expect(processingTab).toBeVisible({ timeout: 5000 });
+    await processingTab.click();
+    await page.waitForTimeout(1000);
 
-      // Verify Processing tab is selected
-      let processingSelected = await processingTab.getAttribute('data-selected');
-      expect(processingSelected).toBe('true');
+    // Verify Processing tab is selected
+    await expect(processingTab).toHaveAttribute('data-selected', 'true');
 
-      // When: Navigate to dashboard
-      await page.goto('/');
-      await page.waitForTimeout(1000);
+    // When: Navigate to dashboard
+    await page.goto('/');
+    await page.waitForTimeout(1000);
 
-      // Navigate back to settings
-      await page.goto('/settings');
-      await page.waitForTimeout(1500);
+    // Navigate back to settings
+    await page.goto('/settings');
+    await page.waitForTimeout(1500);
 
-      // Then: A tab should be selected (may be default or remembered)
-      const anySelectedTab = page.locator('[role="tab"][data-selected="true"]');
-      await expect(anySelectedTab).toBeVisible();
-    }
+    // Then: A tab should be selected (may be default or remembered)
+    const anySelectedTab = page.locator('[role="tab"][data-selected="true"]');
+    await expect(anySelectedTab).toBeVisible();
   });
 
   test('user receives validation errors for invalid settings', async ({ page }) => {
@@ -438,19 +468,20 @@ test.describe('Settings Navigation and Configuration Journey (NEM-2049)', () => 
     ];
 
     for (const tab of tabs) {
-      if (await tab.isVisible()) {
-        // When: Click tab
-        await tab.click();
-        await page.waitForTimeout(1000);
+      // Wait for tab to be visible before interacting
+      await expect(tab).toBeVisible({ timeout: 5000 });
 
-        // Then: Look for descriptive text (select only active panel)
-        const tabPanel = page.locator('[role="tabpanel"][data-headlessui-state="selected"]');
-        await expect(tabPanel).toBeVisible();
+      // When: Click tab
+      await tab.click();
+      await page.waitForTimeout(1000);
 
-        const panelText = await tabPanel.textContent();
-        expect(panelText).toBeTruthy();
-        expect(panelText?.length || 0).toBeGreaterThan(20); // Has substantial content
-      }
+      // Then: Look for descriptive text (filter for visible panel since multiple exist)
+      const tabPanel = page.locator('[role="tabpanel"]:not([aria-hidden="true"])').first();
+      await expect(tabPanel).toBeVisible();
+
+      const panelText = await tabPanel.textContent();
+      expect(panelText).toBeTruthy();
+      expect(panelText?.length || 0).toBeGreaterThan(20); // Has substantial content
     }
   });
 

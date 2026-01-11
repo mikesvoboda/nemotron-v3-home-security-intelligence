@@ -112,7 +112,10 @@ export default function DashboardPage() {
   }, []);
 
   // Combined loading and error states
-  const loading = camerasLoading || eventsLoading;
+  // Show loading only if no errors have occurred yet
+  // Once an error occurs, we should stop loading and show the error state
+  const hasError = camerasError !== null || eventsError !== null;
+  const loading = !hasError && (camerasLoading || eventsLoading);
   const error = camerasError || (eventsError ? eventsError.message : null);
 
   // Merge throttled WebSocket events with initial events, avoiding duplicates

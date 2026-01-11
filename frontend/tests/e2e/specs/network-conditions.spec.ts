@@ -179,13 +179,20 @@ test.describe('Network Condition Simulation @network', () => {
     test('dashboard shows offline indicator when network is down @network @critical', async ({
       page,
     }) => {
+      // Extend test timeout to allow for API retry timeouts
+      test.setTimeout(60000);
+
       await setupApiMocks(page, defaultMockConfig);
 
       const dashboardPage = new DashboardPage(page);
       await dashboardPage.goto();
       await dashboardPage.waitForDashboardLoad();
 
-      // Now simulate going offline by failing all subsequent API requests
+      // Now simulate going offline by removing all existing API mocks
+      // and setting up a failure route. We must unroute first because
+      // Playwright processes routes in registration order - earlier routes
+      // take precedence over later ones for the same URL pattern.
+      await page.unrouteAll({ behavior: 'ignoreErrors' });
       await page.route('**/api/**', (route) => route.abort('failed'));
 
       // Trigger a refresh or action that would make an API call

@@ -49,8 +49,9 @@ test.describe('Camera Configuration Journey (NEM-2049)', () => {
     await camerasTab.click();
     await page.waitForTimeout(1000);
 
-    // Then: Camera configuration should be visible (select only active panel)
-    const tabPanel = page.locator('[role="tabpanel"][data-headlessui-state="selected"]');
+    // Then: Camera configuration should be visible
+    // Use specific tabpanel for CAMERAS to avoid matching all 5 tab panels
+    const tabPanel = page.getByRole('tabpanel', { name: 'CAMERAS' });
     await expect(tabPanel).toBeVisible();
 
     // Verify camera-related content is present
@@ -251,8 +252,8 @@ test.describe('Camera Configuration Journey (NEM-2049)', () => {
 
   test('user receives validation errors for invalid configuration', async ({ page }) => {
     /**
-     * Given: User is editing camera configuration
-     * When: User enters invalid data (empty name)
+     * Given: User is editing camera configuration in a modal
+     * When: User enters invalid data (empty name) and submits
      * Then: Validation error is shown
      */
 
@@ -265,34 +266,37 @@ test.describe('Camera Configuration Journey (NEM-2049)', () => {
     await camerasTab.click();
     await page.waitForTimeout(1500);
 
-    // When: Clear required field (name)
-    const nameInput = page.locator('input[type="text"]').first();
-    if (await nameInput.isVisible()) {
-      const originalValue = await nameInput.inputValue();
+    // When: Click Edit button on a camera to open the modal
+    // The CamerasSettings component uses modal-based editing
+    const editButton = page.locator('[data-testid^="edit-camera-"]').first();
 
-      await nameInput.clear();
-      await nameInput.blur(); // Trigger validation
-      await page.waitForTimeout(500);
+    // Wait for the camera table to load and the edit button to be visible
+    await expect(editButton).toBeVisible({ timeout: 5000 });
+    await editButton.click();
 
-      // Then: Look for validation error
-      const errorMessage = page.locator('[data-testid*="error"]')
-        .or(page.locator('.error'))
-        .or(page.locator('[role="alert"]'));
+    // Wait for modal input to appear (Headless UI transitions may keep dialog hidden initially)
+    // The name input has data-testid="camera-name-input" and is the key element we need
+    const nameInput = page.locator('[data-testid="camera-name-input"]');
+    await expect(nameInput).toBeVisible({ timeout: 5000 });
 
-      const hasError = await errorMessage.first().isVisible().catch(() => false);
+    // Clear the name field (invalid - empty name)
+    await nameInput.clear();
+    await nameInput.blur();
+    await page.waitForTimeout(300);
 
-      // Verify save button is disabled or error is shown
-      const saveButton = page.getByRole('button', { name: /Save/i });
-      let isSaveDisabled = false;
-      if (await saveButton.count() > 0) {
-        isSaveDisabled = await saveButton.first().isDisabled().catch(() => false);
-      }
+    // Click submit to trigger validation
+    // Use the data-testid on the modal's submit button to avoid matching the "Add Camera" button on the page
+    const submitButton = page.locator('[data-testid="save-settings"]');
+    await submitButton.click();
+    await page.waitForTimeout(500);
 
-      expect(hasError || isSaveDisabled).toBeTruthy();
+    // Then: Look for validation error message
+    // The CamerasSettings component shows errors with class "text-red-500" in a <p> tag
+    const errorMessage = page.locator('p.text-red-500');
+    await expect(errorMessage).toBeVisible({ timeout: 3000 });
 
-      // Restore original value
-      await nameInput.fill(originalValue);
-    }
+    // Close the modal
+    await page.keyboard.press('Escape');
   });
 
   test('camera configuration persists after page reload', async ({ page }) => {
@@ -426,8 +430,8 @@ test.describe('Camera Configuration Journey (NEM-2049)', () => {
       await analyticsTab.click();
       await page.waitForTimeout(1500);
 
-      // Then: Verify analytics content is displayed (select only active panel)
-      const tabPanel = page.locator('[role="tabpanel"][data-headlessui-state="selected"]');
+      // Then: Verify analytics content is displayed
+      const tabPanel = page.locator('[role="tabpanel"]');
       await expect(tabPanel).toBeVisible();
 
       const panelText = await tabPanel.textContent();
