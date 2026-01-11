@@ -1187,22 +1187,29 @@ async def test_get_gpu_stats_history_returns_samples() -> None:
     mock_stat2.power_usage = 150.0
     mock_stat2.inference_fps = 30.0
 
+    # Mock for count query
+    mock_count_result = MagicMock()
+    mock_count_result.scalar.return_value = 2
+
+    # Mock for data query
     mock_result = MagicMock()
     mock_scalars = MagicMock()
     # Return in descending order (newest first) - will be reversed
     mock_scalars.all.return_value = [mock_stat2, mock_stat1]
     mock_result.scalars.return_value = mock_scalars
-    db.execute = AsyncMock(return_value=mock_result)
+
+    # Execute returns count result first, then data result
+    db.execute = AsyncMock(side_effect=[mock_count_result, mock_result])
 
     response = await system_routes.get_gpu_stats_history(db=db)  # type: ignore[arg-type]
 
     assert isinstance(response, GPUStatsHistoryResponse)
-    assert response.count == 2
-    assert response.limit == 300  # Default limit
-    assert len(response.samples) == 2
+    assert response.pagination.total == 2
+    assert response.pagination.limit == 300  # Default limit
+    assert len(response.items) == 2
     # Should be in chronological order after reversal
-    assert response.samples[0].recorded_at == datetime(2025, 12, 27, 9, 0, 0)
-    assert response.samples[1].recorded_at == datetime(2025, 12, 27, 10, 0, 0)
+    assert response.items[0].recorded_at == datetime(2025, 12, 27, 9, 0, 0)
+    assert response.items[1].recorded_at == datetime(2025, 12, 27, 10, 0, 0)
 
 
 @pytest.mark.asyncio
@@ -1220,17 +1227,23 @@ async def test_get_gpu_stats_history_with_since_filter() -> None:
     mock_stat.power_usage = 150.0
     mock_stat.inference_fps = 30.0
 
+    # Mock for count query
+    mock_count_result = MagicMock()
+    mock_count_result.scalar.return_value = 1
+
+    # Mock for data query
     mock_result = MagicMock()
     mock_scalars = MagicMock()
     mock_scalars.all.return_value = [mock_stat]
     mock_result.scalars.return_value = mock_scalars
-    db.execute = AsyncMock(return_value=mock_result)
+
+    db.execute = AsyncMock(side_effect=[mock_count_result, mock_result])
 
     since_time = datetime(2025, 12, 27, 9, 0, 0)
     response = await system_routes.get_gpu_stats_history(since=since_time, db=db)  # type: ignore[arg-type]
 
     assert isinstance(response, GPUStatsHistoryResponse)
-    assert response.count == 1
+    assert response.pagination.total == 1
 
 
 @pytest.mark.asyncio
@@ -1238,23 +1251,29 @@ async def test_get_gpu_stats_history_limit_clamping() -> None:
     """Test get_gpu_stats_history clamps limit to valid range."""
     db = AsyncMock()
 
-    mock_result = MagicMock()
-    mock_scalars = MagicMock()
-    mock_scalars.all.return_value = []
-    mock_result.scalars.return_value = mock_scalars
-    db.execute = AsyncMock(return_value=mock_result)
+    def create_mock_db() -> AsyncMock:
+        """Create a fresh mock db for each test."""
+        mock_db = AsyncMock()
+        mock_count_result = MagicMock()
+        mock_count_result.scalar.return_value = 0
+        mock_result = MagicMock()
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = []
+        mock_result.scalars.return_value = mock_scalars
+        mock_db.execute = AsyncMock(side_effect=[mock_count_result, mock_result])
+        return mock_db
 
     # Test that limit of 0 is clamped to 1
-    response = await system_routes.get_gpu_stats_history(limit=0, db=db)  # type: ignore[arg-type]
-    assert response.limit == 1
+    response = await system_routes.get_gpu_stats_history(limit=0, db=create_mock_db())  # type: ignore[arg-type]
+    assert response.pagination.limit == 1
 
     # Test that negative limit is clamped to 1
-    response = await system_routes.get_gpu_stats_history(limit=-5, db=db)  # type: ignore[arg-type]
-    assert response.limit == 1
+    response = await system_routes.get_gpu_stats_history(limit=-5, db=create_mock_db())  # type: ignore[arg-type]
+    assert response.pagination.limit == 1
 
     # Test that limit over 5000 is clamped to 5000
-    response = await system_routes.get_gpu_stats_history(limit=10000, db=db)  # type: ignore[arg-type]
-    assert response.limit == 5000
+    response = await system_routes.get_gpu_stats_history(limit=10000, db=create_mock_db())  # type: ignore[arg-type]
+    assert response.pagination.limit == 5000
 
 
 @pytest.mark.asyncio
@@ -1262,17 +1281,23 @@ async def test_get_gpu_stats_history_empty_result() -> None:
     """Test get_gpu_stats_history with no samples."""
     db = AsyncMock()
 
+    # Mock for count query
+    mock_count_result = MagicMock()
+    mock_count_result.scalar.return_value = 0
+
+    # Mock for data query
     mock_result = MagicMock()
     mock_scalars = MagicMock()
     mock_scalars.all.return_value = []
     mock_result.scalars.return_value = mock_scalars
-    db.execute = AsyncMock(return_value=mock_result)
+
+    db.execute = AsyncMock(side_effect=[mock_count_result, mock_result])
 
     response = await system_routes.get_gpu_stats_history(db=db)  # type: ignore[arg-type]
 
     assert isinstance(response, GPUStatsHistoryResponse)
-    assert response.count == 0
-    assert response.samples == []
+    assert response.pagination.total == 0
+    assert response.items == []
 
 
 # =============================================================================

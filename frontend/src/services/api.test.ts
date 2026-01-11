@@ -1254,7 +1254,7 @@ describe('System API', () => {
   describe('fetchGpuHistory', () => {
     it('fetches GPU history successfully with default limit', async () => {
       const mockHistoryResponse: GPUStatsHistoryResponse = {
-        samples: [
+        items: [
           {
             recorded_at: '2025-01-01T10:00:00Z',
             utilization: 45.5,
@@ -1272,8 +1272,12 @@ describe('System API', () => {
             inference_fps: 28.5,
           },
         ],
-        count: 2,
-        limit: 100,
+        pagination: {
+          total: 2,
+          limit: 100,
+          offset: null,
+          has_more: false,
+        },
       };
 
       vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockHistoryResponse));
@@ -1285,14 +1289,14 @@ describe('System API', () => {
           'Content-Type': 'application/json',
         },
       });
-      expect(result.samples).toHaveLength(2);
-      expect(result.count).toBe(2);
-      expect(result.samples[0].utilization).toBe(45.5);
+      expect(result.items).toHaveLength(2);
+      expect(result.pagination.total).toBe(2);
+      expect(result.items[0].utilization).toBe(45.5);
     });
 
     it('fetches GPU history with custom limit', async () => {
       const mockHistoryResponse: GPUStatsHistoryResponse = {
-        samples: [
+        items: [
           {
             recorded_at: '2025-01-01T10:00:00Z',
             utilization: 45.5,
@@ -1302,8 +1306,12 @@ describe('System API', () => {
             inference_fps: 30.2,
           },
         ],
-        count: 1,
-        limit: 50,
+        pagination: {
+          total: 1,
+          limit: 50,
+          offset: null,
+          has_more: false,
+        },
       };
 
       vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockHistoryResponse));
@@ -1315,27 +1323,31 @@ describe('System API', () => {
           'Content-Type': 'application/json',
         },
       });
-      expect(result.samples).toHaveLength(1);
+      expect(result.items).toHaveLength(1);
     });
 
     it('handles empty GPU history', async () => {
       const emptyHistoryResponse: GPUStatsHistoryResponse = {
-        samples: [],
-        count: 0,
-        limit: 100,
+        items: [],
+        pagination: {
+          total: 0,
+          limit: 100,
+          offset: null,
+          has_more: false,
+        },
       };
 
       vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(emptyHistoryResponse));
 
       const result = await fetchGpuHistory();
 
-      expect(result.samples).toEqual([]);
-      expect(result.count).toBe(0);
+      expect(result.items).toEqual([]);
+      expect(result.pagination.total).toBe(0);
     });
 
     it('handles samples with null values', async () => {
       const mockHistoryResponse: GPUStatsHistoryResponse = {
-        samples: [
+        items: [
           {
             recorded_at: '2025-01-01T10:00:00Z',
             utilization: null,
@@ -1345,16 +1357,20 @@ describe('System API', () => {
             inference_fps: null,
           },
         ],
-        count: 1,
-        limit: 100,
+        pagination: {
+          total: 1,
+          limit: 100,
+          offset: null,
+          has_more: false,
+        },
       };
 
       vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockHistoryResponse));
 
       const result = await fetchGpuHistory();
 
-      expect(result.samples[0].utilization).toBeNull();
-      expect(result.samples[0].memory_used).toBeNull();
+      expect(result.items[0].utilization).toBeNull();
+      expect(result.items[0].memory_used).toBeNull();
     });
 
     it('throws ApiError on 500 error', async () => {

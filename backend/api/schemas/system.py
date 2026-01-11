@@ -6,6 +6,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from backend.api.schemas.pagination import PaginationMeta
+
 
 class SeverityEnum(str, Enum):
     """Severity levels for API responses."""
@@ -207,13 +209,42 @@ class GPUStatsSample(BaseModel):
 
 
 class GPUStatsHistoryResponse(BaseModel):
-    """Response schema for GPU stats history endpoint."""
+    """Response schema for GPU stats history endpoint.
 
-    samples: list[GPUStatsSample] = Field(
-        ..., description="GPU stats samples (chronological order)"
+    Uses standard pagination envelope format (NEM-2178):
+    - items: GPU stats samples (renamed from 'samples')
+    - pagination: Standard pagination metadata
+    """
+
+    items: list[GPUStatsSample] = Field(..., description="GPU stats samples (chronological order)")
+    pagination: PaginationMeta = Field(..., description="Pagination metadata")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "items": [
+                    {
+                        "recorded_at": "2025-12-27T10:30:00Z",
+                        "gpu_name": "NVIDIA RTX A5500",
+                        "utilization": 75.5,
+                        "memory_used": 12000,
+                        "memory_total": 24000,
+                        "temperature": 65.0,
+                        "power_usage": 150.0,
+                        "inference_fps": 30.5,
+                    }
+                ],
+                "pagination": {
+                    "total": 1,
+                    "limit": 300,
+                    "offset": None,
+                    "cursor": None,
+                    "next_cursor": None,
+                    "has_more": False,
+                },
+            }
+        }
     )
-    count: int = Field(..., description="Number of samples returned", ge=0)
-    limit: int = Field(..., description="Applied limit", ge=1)
 
 
 class ConfigResponse(BaseModel):

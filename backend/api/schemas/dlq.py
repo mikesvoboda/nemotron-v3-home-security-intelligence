@@ -4,6 +4,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from backend.api.schemas.pagination import PaginationMeta
+
 
 class DLQJobResponse(BaseModel):
     """Response schema for a single job in the dead-letter queue.
@@ -127,27 +129,32 @@ class DLQStatsResponse(BaseModel):
 
 
 class DLQJobsResponse(BaseModel):
-    """Response schema for listing jobs in a DLQ."""
+    """Response schema for listing jobs in a DLQ.
+
+    Uses standard pagination envelope format (NEM-2178):
+    - items: List of DLQ jobs (renamed from 'jobs')
+    - pagination: Standard pagination metadata
+    - queue_name: Name of the dead-letter queue
+    """
 
     queue_name: str = Field(
         ...,
         description="Name of the dead-letter queue",
     )
-    jobs: list[DLQJobResponse] = Field(
+    items: list[DLQJobResponse] = Field(
         ...,
         description="List of jobs in the queue",
     )
-    count: int = Field(
+    pagination: PaginationMeta = Field(
         ...,
-        description="Number of jobs returned",
-        ge=0,
+        description="Pagination metadata",
     )
 
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
                 "queue_name": "dlq:detection_queue",
-                "jobs": [
+                "items": [
                     {
                         "original_job": {
                             "camera_id": "front_door",
@@ -161,7 +168,14 @@ class DLQJobsResponse(BaseModel):
                         "queue_name": "detection_queue",
                     }
                 ],
-                "count": 1,
+                "pagination": {
+                    "total": 1,
+                    "limit": 100,
+                    "offset": 0,
+                    "cursor": None,
+                    "next_cursor": None,
+                    "has_more": False,
+                },
             }
         }
     )

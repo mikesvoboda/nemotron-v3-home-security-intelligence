@@ -22,7 +22,7 @@ describe('DlqMonitor', () => {
 
   const mockDetectionJobs: api.DLQJobsResponse = {
     queue_name: 'dlq:detection_queue',
-    jobs: [
+    items: [
       {
         original_job: {
           camera_id: 'front_door',
@@ -48,12 +48,17 @@ describe('DlqMonitor', () => {
         queue_name: 'detection_queue',
       },
     ],
-    count: 2,
+    pagination: {
+      total: 2,
+      limit: 100,
+      offset: 0,
+      has_more: false,
+    },
   };
 
   const mockAnalysisJobs: api.DLQJobsResponse = {
     queue_name: 'dlq:analysis_queue',
-    jobs: [
+    items: [
       {
         original_job: {
           event_id: 123,
@@ -66,7 +71,12 @@ describe('DlqMonitor', () => {
         queue_name: 'analysis_queue',
       },
     ],
-    count: 1,
+    pagination: {
+      total: 1,
+      limit: 100,
+      offset: 0,
+      has_more: false,
+    },
   };
 
   beforeEach(() => {
@@ -585,7 +595,7 @@ describe('DlqMonitor', () => {
 
       const invalidTimestampJobs: api.DLQJobsResponse = {
         queue_name: 'dlq:detection_queue',
-        jobs: [
+        items: [
           {
             original_job: { camera_id: 'test' },
             error: 'Test error with invalid timestamps',
@@ -595,7 +605,12 @@ describe('DlqMonitor', () => {
             queue_name: 'detection_queue',
           },
         ],
-        count: 1,
+        pagination: {
+          total: 1,
+          limit: 100,
+          offset: 0,
+          has_more: false,
+        },
       };
 
       vi.mocked(api.fetchDlqStats).mockResolvedValue(statsWithInvalidTimestamps);
