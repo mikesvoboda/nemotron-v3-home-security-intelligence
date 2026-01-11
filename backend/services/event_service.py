@@ -237,6 +237,58 @@ class EventService:
 
         return event
 
+    async def hard_delete_event(
+        self,
+        event_id: int,
+        db: AsyncSession,
+    ) -> tuple[int, int]:
+        """Hard delete an event and immediately delete associated files.
+
+        This method performs immediate file deletion (not scheduled) for hard
+        delete scenarios where the event is being permanently removed from the
+        database.
+
+        Note: This method only handles file deletion. The caller is responsible
+        for actually deleting the event from the database after this call.
+
+        Args:
+            event_id: ID of the event to delete
+            db: Database session
+
+        Returns:
+            Tuple of (files_deleted, files_failed) indicating the result
+            of file deletion operations.
+
+        Raises:
+            ValueError: If event not found
+        """
+        # Fetch the event with related detections
+        stmt = select(Event).options(selectinload(Event.detections)).where(Event.id == event_id)
+        result = await db.execute(stmt)
+        event = result.scalar_one_or_none()
+
+        if event is None:
+            raise ValueError(f"Event not found: {event_id}")
+
+        # Collect file paths
+        file_paths = self._collect_file_paths(event)
+
+        if not file_paths:
+            logger.debug(f"No files to delete for event {event_id}")
+            return 0, 0
+
+        # Delete files immediately (not scheduled)
+        file_service = self._get_file_service()
+        files_deleted, files_failed = await file_service.delete_files_immediately(
+            file_paths=file_paths
+        )
+
+        logger.info(
+            f"Hard delete event {event_id}: deleted {files_deleted} files, {files_failed} failed"
+        )
+
+        return files_deleted, files_failed
+
     async def get_event(
         self,
         event_id: int,

@@ -1221,7 +1221,18 @@ async def bulk_delete_events(
                     cascade=True,
                 )
             else:
-                # Hard delete - fetch and delete directly
+                # Hard delete - delete files first, then delete from database
+                # The hard_delete_event method handles file cleanup
+                _files_deleted, files_failed = await event_service.hard_delete_event(
+                    event_id=event_id,
+                    db=db,
+                )
+                if files_failed > 0:
+                    logger.warning(
+                        f"Hard delete event {event_id}: {files_failed} files failed to delete"
+                    )
+
+                # Now fetch and delete the event from the database
                 query = select(Event).where(Event.id == event_id)
                 result = await db.execute(query)
                 event = result.scalar_one_or_none()
