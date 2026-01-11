@@ -146,21 +146,21 @@ def upgrade() -> None:
 def downgrade() -> None:
     """Drop alerts and alert_rules tables."""
     # Drop indexes for alerts
-    op.drop_index("idx_alerts_dedup_key_created_at", table_name="alerts")
-    op.drop_index("idx_alerts_dedup_key", table_name="alerts")
-    op.drop_index("idx_alerts_created_at", table_name="alerts")
-    op.drop_index("idx_alerts_status", table_name="alerts")
-    op.drop_index("idx_alerts_severity", table_name="alerts")
-    op.drop_index("idx_alerts_rule_id", table_name="alerts")
-    op.drop_index("idx_alerts_event_id", table_name="alerts")
+    op.drop_index("idx_alerts_dedup_key_created_at", table_name="alerts", if_exists=True)
+    op.drop_index("idx_alerts_dedup_key", table_name="alerts", if_exists=True)
+    op.drop_index("idx_alerts_created_at", table_name="alerts", if_exists=True)
+    op.drop_index("idx_alerts_status", table_name="alerts", if_exists=True)
+    op.drop_index("idx_alerts_severity", table_name="alerts", if_exists=True)
+    op.drop_index("idx_alerts_rule_id", table_name="alerts", if_exists=True)
+    op.drop_index("idx_alerts_event_id", table_name="alerts", if_exists=True)
 
     # Drop alerts table
     op.drop_table("alerts")
 
     # Drop indexes for alert_rules
-    op.drop_index("idx_alert_rules_severity", table_name="alert_rules")
-    op.drop_index("idx_alert_rules_enabled", table_name="alert_rules")
-    op.drop_index("idx_alert_rules_name", table_name="alert_rules")
+    op.drop_index("idx_alert_rules_severity", table_name="alert_rules", if_exists=True)
+    op.drop_index("idx_alert_rules_enabled", table_name="alert_rules", if_exists=True)
+    op.drop_index("idx_alert_rules_name", table_name="alert_rules", if_exists=True)
 
     # Drop alert_rules table
     op.drop_table("alert_rules")

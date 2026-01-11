@@ -109,7 +109,7 @@ def downgrade() -> None:
     op.execute("DROP FUNCTION IF EXISTS events_search_vector_update();")
 
     # Drop GIN index
-    op.drop_index("idx_events_search_vector", table_name="events")
+    op.drop_index("idx_events_search_vector", table_name="events", if_exists=True)
 
     # Drop search_vector column
     op.drop_column("events", "search_vector")

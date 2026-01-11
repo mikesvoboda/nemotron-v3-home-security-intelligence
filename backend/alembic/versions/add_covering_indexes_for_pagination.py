@@ -105,7 +105,8 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Remove covering indexes for pagination."""
-    op.drop_index("idx_logs_pagination_covering", table_name="logs")
-    op.drop_index("idx_alerts_pagination_covering", table_name="alerts")
-    op.drop_index("idx_detections_pagination_covering", table_name="detections")
-    op.drop_index("idx_events_pagination_covering", table_name="events")
+    # Use if_exists to handle tables recreated by other migrations (e.g., partitioning)
+    op.drop_index("idx_logs_pagination_covering", table_name="logs", if_exists=True)
+    op.drop_index("idx_alerts_pagination_covering", table_name="alerts", if_exists=True)
+    op.drop_index("idx_detections_pagination_covering", table_name="detections", if_exists=True)
+    op.drop_index("idx_events_pagination_covering", table_name="events", if_exists=True)

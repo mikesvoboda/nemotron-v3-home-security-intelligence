@@ -113,9 +113,12 @@ def upgrade() -> None:
 def downgrade() -> None:
     """Remove partial indexes for boolean columns."""
     # NOTE: idx_scene_changes_acknowledged_false is managed by create_scene_changes_table
-    op.drop_index("idx_prompt_versions_is_active_true", table_name="prompt_versions")
-    op.drop_index("idx_api_keys_is_active_true", table_name="api_keys")
-    op.drop_index("idx_alert_rules_enabled_true", table_name="alert_rules")
-    op.drop_index("idx_zones_enabled_true", table_name="zones")
-    op.drop_index("idx_events_is_fast_path_true", table_name="events")
-    op.drop_index("idx_events_reviewed_false", table_name="events")
+    # Use if_exists to handle tables recreated by other migrations (e.g., partitioning)
+    op.drop_index(
+        "idx_prompt_versions_is_active_true", table_name="prompt_versions", if_exists=True
+    )
+    op.drop_index("idx_api_keys_is_active_true", table_name="api_keys", if_exists=True)
+    op.drop_index("idx_alert_rules_enabled_true", table_name="alert_rules", if_exists=True)
+    op.drop_index("idx_zones_enabled_true", table_name="zones", if_exists=True)
+    op.drop_index("idx_events_is_fast_path_true", table_name="events", if_exists=True)
+    op.drop_index("idx_events_reviewed_false", table_name="events", if_exists=True)

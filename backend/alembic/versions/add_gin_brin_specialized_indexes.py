@@ -118,10 +118,10 @@ def downgrade() -> None:
     """Remove GIN and BRIN indexes."""
     # Remove BRIN indexes
     # NOTE: ix_scene_changes_detected_at_brin is managed by create_scene_changes_table
-    op.drop_index("ix_audit_logs_timestamp_brin", table_name="audit_logs")
-    op.drop_index("ix_logs_timestamp_brin", table_name="logs")
-    op.drop_index("ix_events_started_at_brin", table_name="events")
-    op.drop_index("ix_detections_detected_at_brin", table_name="detections")
+    op.drop_index("ix_audit_logs_timestamp_brin", table_name="audit_logs", if_exists=True)
+    op.drop_index("ix_logs_timestamp_brin", table_name="logs", if_exists=True)
+    op.drop_index("ix_events_started_at_brin", table_name="events", if_exists=True)
+    op.drop_index("ix_detections_detected_at_brin", table_name="detections", if_exists=True)
 
     # Remove GIN index
-    op.drop_index("ix_detections_enrichment_data_gin", table_name="detections")
+    op.drop_index("ix_detections_enrichment_data_gin", table_name="detections", if_exists=True)

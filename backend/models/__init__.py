@@ -6,6 +6,7 @@ from .audit import AuditAction, AuditLog, AuditStatus
 from .baseline import ActivityBaseline, ClassBaseline
 from .camera import Base, Camera
 from .detection import Detection
+from .entity import Entity, EntityType
 from .enums import CameraStatus, Severity
 from .event import Event
 from .event_audit import EventAudit
@@ -43,6 +44,8 @@ __all__ = [
     "ClassBaseline",
     "DayOfWeek",
     "Detection",
+    "Entity",
+    "EntityType",
     "Event",
     "EventAudit",
     "EventDetection",

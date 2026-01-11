@@ -73,4 +73,4 @@ def downgrade() -> None:
         sa.text("SELECT 1 FROM pg_indexes WHERE indexname = 'idx_events_object_types_trgm'")
     )
     if result.fetchone():
-        op.drop_index("idx_events_object_types_trgm", table_name="events")
+        op.drop_index("idx_events_object_types_trgm", table_name="events", if_exists=True)

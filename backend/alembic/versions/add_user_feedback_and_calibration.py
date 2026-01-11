@@ -27,6 +27,10 @@ depends_on: str | Sequence[str] | None = None
 def upgrade() -> None:
     """Create event_feedback and user_calibration tables."""
     # Create event_feedback table
+    # Note: Foreign key to events.id is not enforced at database level because
+    # the events table is partitioned with composite PRIMARY KEY (id, started_at),
+    # and PostgreSQL does not allow foreign keys to reference only part of a
+    # partitioned table's primary key. The application layer enforces this relationship.
     op.create_table(
         "event_feedback",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
@@ -40,12 +44,8 @@ def upgrade() -> None:
             server_default=sa.text("now()"),
         ),
         sa.PrimaryKeyConstraint("id"),
-        sa.ForeignKeyConstraint(
-            ["event_id"],
-            ["events.id"],
-            name="fk_event_feedback_event_id",
-            ondelete="CASCADE",
-        ),
+        # Foreign key constraint omitted due to partitioned table limitation
+        # Application enforces: event_feedback.event_id -> events.id
         sa.UniqueConstraint("event_id", name="uq_event_feedback_event_id"),
         sa.CheckConstraint(
             "feedback_type IN ('false_positive', 'missed_detection')",
@@ -120,10 +120,10 @@ def upgrade() -> None:
 def downgrade() -> None:
     """Drop event_feedback and user_calibration tables."""
     # Drop indexes
-    op.drop_index("idx_user_calibration_user_id", table_name="user_calibration")
-    op.drop_index("idx_event_feedback_created_at", table_name="event_feedback")
-    op.drop_index("idx_event_feedback_type", table_name="event_feedback")
-    op.drop_index("idx_event_feedback_event_id", table_name="event_feedback")
+    op.drop_index("idx_user_calibration_user_id", table_name="user_calibration", if_exists=True)
+    op.drop_index("idx_event_feedback_created_at", table_name="event_feedback", if_exists=True)
+    op.drop_index("idx_event_feedback_type", table_name="event_feedback", if_exists=True)
+    op.drop_index("idx_event_feedback_event_id", table_name="event_feedback", if_exists=True)
 
     # Drop tables
     op.drop_table("user_calibration")

@@ -131,6 +131,16 @@ from .florence_extractor import (
 )
 from .florence_loader import load_florence_model
 from .gpu_monitor import GPUMonitor
+from .job_status import (
+    DEFAULT_COMPLETED_JOB_TTL,
+    JOB_STATUS_KEY_PREFIX,
+    JOB_STATUS_LIST_KEY,
+    JobMetadata,
+    JobState,
+    JobStatusService,
+    get_job_status_service,
+    reset_job_status_service,
+)
 from .job_tracker import (
     PROGRESS_THROTTLE_INCREMENT,
     BroadcastCallback,
@@ -266,6 +276,9 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "MIN_IMAGE_FILE_SIZE",
     "MODEL_ZOO",
     "PROGRESS_THROTTLE_INCREMENT",
+    "DEFAULT_COMPLETED_JOB_TTL",
+    "JOB_STATUS_KEY_PREFIX",
+    "JOB_STATUS_LIST_KEY",
     "PERSON_CLASS",
     "SEVERITY_COLORS",
     "SEVERITY_PRIORITY",
@@ -343,8 +356,11 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "JobFailedData",
     "JobFailure",
     "JobInfo",
+    "JobMetadata",
     "JobProgressData",
+    "JobState",
     "JobStatus",
+    "JobStatusService",
     "JobTracker",
     "LicensePlateResult",
     "ModelConfig",
@@ -412,6 +428,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "get_file_service",
     "get_florence_extractor",
     "get_highest_priority_zone",
+    "get_job_status_service",
     "get_job_tracker",
     "get_model_config",
     "get_model_manager",
@@ -452,6 +469,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "reset_event_service",
     "reset_file_service",
     "reset_florence_extractor",
+    "reset_job_status_service",
     "reset_job_tracker",
     "reset_model_manager",
     "reset_model_zoo",

@@ -51,10 +51,10 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Drop audit_logs table."""
-    op.drop_index("idx_audit_logs_resource", table_name="audit_logs")
-    op.drop_index("idx_audit_logs_status", table_name="audit_logs")
-    op.drop_index("idx_audit_logs_actor", table_name="audit_logs")
-    op.drop_index("idx_audit_logs_resource_type", table_name="audit_logs")
-    op.drop_index("idx_audit_logs_action", table_name="audit_logs")
-    op.drop_index("idx_audit_logs_timestamp", table_name="audit_logs")
+    op.drop_index("idx_audit_logs_resource", table_name="audit_logs", if_exists=True)
+    op.drop_index("idx_audit_logs_status", table_name="audit_logs", if_exists=True)
+    op.drop_index("idx_audit_logs_actor", table_name="audit_logs", if_exists=True)
+    op.drop_index("idx_audit_logs_resource_type", table_name="audit_logs", if_exists=True)
+    op.drop_index("idx_audit_logs_action", table_name="audit_logs", if_exists=True)
+    op.drop_index("idx_audit_logs_timestamp", table_name="audit_logs", if_exists=True)
     op.drop_table("audit_logs")

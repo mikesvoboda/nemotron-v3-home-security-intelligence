@@ -75,9 +75,9 @@ def upgrade() -> None:
 def downgrade() -> None:
     """Drop zones table."""
     # Drop indexes
-    op.drop_index("idx_zones_camera_enabled", table_name="zones")
-    op.drop_index("idx_zones_enabled", table_name="zones")
-    op.drop_index("idx_zones_camera_id", table_name="zones")
+    op.drop_index("idx_zones_camera_enabled", table_name="zones", if_exists=True)
+    op.drop_index("idx_zones_enabled", table_name="zones", if_exists=True)
+    op.drop_index("idx_zones_camera_id", table_name="zones", if_exists=True)
 
     # Drop zones table
     op.drop_table("zones")
