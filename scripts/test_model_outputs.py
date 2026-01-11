@@ -24,7 +24,7 @@ def encode_image(path: str) -> str:
         return base64.b64encode(f.read()).decode()
 
 
-def test_image(image_path: Path, client: httpx.Client) -> dict:  # noqa: PLR0912
+def test_image(image_path: Path, client: httpx.Client) -> dict:
     """Test a single image through all models."""
     results = {"image": image_path.name}
     image_b64 = encode_image(str(image_path))

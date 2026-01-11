@@ -282,6 +282,36 @@ export const queryKeys = {
   notifications: {
     /** Notification configuration */
     config: ['notifications', 'config'] as const,
+    /** Base key for notification preferences */
+    preferences: {
+      /** All notification preferences queries */
+      all: ['notifications', 'preferences'] as const,
+      /** Global notification preferences */
+      global: ['notifications', 'preferences', 'global'] as const,
+      /** Camera notification settings */
+      cameras: {
+        /** All camera settings */
+        all: ['notifications', 'preferences', 'cameras'] as const,
+        /** List of all camera settings */
+        list: () =>
+          [...queryKeys.notifications.preferences.cameras.all, 'list'] as const,
+        /** Single camera setting */
+        detail: (cameraId: string) =>
+          [
+            ...queryKeys.notifications.preferences.cameras.all,
+            'detail',
+            cameraId,
+          ] as const,
+      },
+      /** Quiet hours periods */
+      quietHours: {
+        /** All quiet hours queries */
+        all: ['notifications', 'preferences', 'quietHours'] as const,
+        /** List of quiet hours periods */
+        list: () =>
+          [...queryKeys.notifications.preferences.quietHours.all, 'list'] as const,
+      },
+    },
   },
 } as const;
 
