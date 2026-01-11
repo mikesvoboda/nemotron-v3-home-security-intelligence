@@ -1,15 +1,18 @@
 import { AlertCircle, Car, Loader2, RefreshCw, User, Users } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import EntitiesEmptyState from './EntitiesEmptyState';
 import EntityCard from './EntityCard';
 import EntityDetailModal from './EntityDetailModal';
-import { useCamerasQuery, useEntitiesInfiniteQuery, useInfiniteScroll } from '../../hooks';
+import { useCamerasQuery } from '../../hooks/useCamerasQuery';
+import {
+  useEntitiesInfiniteQuery,
+  type EntityFilters,
+  type EntityTimeRangeFilter,
+} from '../../hooks/useEntitiesInfiniteQuery';
 import { useEntityDetailQuery, type TimeRangeFilter } from '../../hooks/useEntitiesQuery';
-import { EntityCardSkeleton } from '../common';
-
-import type { EntityTimeRangeFilter } from '../../hooks';
-import type { EntitySummary } from '../../services/api';
+import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
+import { EntityCardSkeleton, InfiniteScrollStatus } from '../common';
 
 /**
  * EntitiesPage component - Display and manage tracked entities
@@ -19,14 +22,14 @@ import type { EntitySummary } from '../../services/api';
  * - Filter by entity type (person/vehicle)
  * - Filter by time range (1h/24h/7d/30d)
  * - Filter by camera
- * - Infinite scroll for loading more entities
  * - View entity detail with appearance timeline
  * - Auto-refresh every 30 seconds
+ * - Infinite scroll for large entity lists
  */
 export default function EntitiesPage() {
   // State for filters
   const [entityTypeFilter, setEntityTypeFilter] = useState<'all' | 'person' | 'vehicle'>('all');
-  const [timeRangeFilter, setTimeRangeFilter] = useState<EntityTimeRangeFilter>('all');
+  const [timeRangeFilter, setTimeRangeFilter] = useState<TimeRangeFilter>('all');
   const [cameraFilter, setCameraFilter] = useState<string>('');
 
   // State for entity detail modal
@@ -36,31 +39,50 @@ export default function EntitiesPage() {
   // Fetch cameras for the filter dropdown
   const { cameras, isLoading: camerasLoading } = useCamerasQuery();
 
-  // Fetch entities with infinite scroll support
+  // Build filters for the infinite query
+  const filters: EntityFilters = useMemo(() => {
+    const f: EntityFilters = {};
+
+    if (entityTypeFilter !== 'all') {
+      f.entity_type = entityTypeFilter;
+    }
+
+    if (cameraFilter) {
+      f.camera_id = cameraFilter;
+    }
+
+    // Convert time range filter to ISO timestamp
+    const since = timeRangeToSince(timeRangeFilter);
+    if (since) {
+      f.since = since;
+    }
+
+    return f;
+  }, [entityTypeFilter, cameraFilter, timeRangeFilter]);
+
+  // Fetch entities with cursor-based pagination and infinite scroll
   const {
     entities,
     totalCount,
-    isLoading,
+    isLoading: loading,
     isFetching,
     isFetchingNextPage,
     hasNextPage,
     fetchNextPage,
     error,
-    isError,
     refetch,
   } = useEntitiesInfiniteQuery({
-    entityType: entityTypeFilter,
-    cameraId: cameraFilter || undefined,
-    timeRange: timeRangeFilter,
-    refetchInterval: 30000, // Auto-refresh every 30 seconds
+    filters,
     limit: 50,
+    refetchInterval: 30000, // Auto-refresh every 30 seconds
   });
 
-  // Set up infinite scroll
-  const { sentinelRef, isLoadingMore } = useInfiniteScroll({
+  // Infinite scroll hook
+  const { sentinelRef, isLoadingMore, error: scrollError, retry } = useInfiniteScroll({
     onLoadMore: fetchNextPage,
     hasMore: hasNextPage,
     isLoading: isFetchingNextPage,
+    enabled: !loading && entities.length > 0,
   });
 
   // Fetch entity detail when modal is open
@@ -89,18 +111,21 @@ export default function EntitiesPage() {
     void refetch();
   }, [refetch]);
 
-  // Count entities by type (from currently loaded entities)
-  const personCount = entities.filter((e: EntitySummary) => e.entity_type === 'person').length;
-  const vehicleCount = entities.filter((e: EntitySummary) => e.entity_type === 'vehicle').length;
+  // Count entities by type (from loaded entities)
+  const personCount = entities.filter((e) => e.entity_type === 'person').length;
+  const vehicleCount = entities.filter((e) => e.entity_type === 'vehicle').length;
 
   // Time range options
-  const timeRangeOptions: { value: EntityTimeRangeFilter; label: string }[] = [
+  const timeRangeOptions: { value: TimeRangeFilter; label: string }[] = [
     { value: 'all', label: 'All Time' },
     { value: '1h', label: 'Last 1h' },
     { value: '24h', label: 'Last 24h' },
     { value: '7d', label: 'Last 7d' },
     { value: '30d', label: 'Last 30d' },
   ];
+
+  // Determine if we're doing a background refresh (not initial load or pagination)
+  const isRefetching = isFetching && !loading && !isFetchingNextPage;
 
   // Error message from entities or entity detail
   const errorMessage = error?.message ?? (detailError && modalOpen ? detailError.message : null);
@@ -122,11 +147,11 @@ export default function EntitiesPage() {
         {/* Refresh button */}
         <button
           onClick={handleRefresh}
-          disabled={isLoading || isFetching}
+          disabled={loading || isRefetching}
           className="flex items-center gap-2 rounded-lg bg-gray-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700 disabled:opacity-50"
           aria-label="Refresh entities"
         >
-          <RefreshCw className={`h-4 w-4 ${isLoading || isFetching ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`h-4 w-4 ${loading || isRefetching ? 'animate-spin' : ''}`} />
           Refresh
         </button>
       </div>
@@ -180,7 +205,7 @@ export default function EntitiesPage() {
           <select
             id="time-range-filter"
             value={timeRangeFilter}
-            onChange={(e) => setTimeRangeFilter(e.target.value as EntityTimeRangeFilter)}
+            onChange={(e) => setTimeRangeFilter(e.target.value as TimeRangeFilter)}
             className="rounded-lg border border-gray-700 bg-[#1F1F1F] px-3 py-2 text-sm text-white focus:border-[#76B900] focus:outline-none focus:ring-1 focus:ring-[#76B900]"
             aria-label="Filter by time range"
           >
@@ -215,7 +240,7 @@ export default function EntitiesPage() {
         </div>
 
         {/* Stats */}
-        {!isLoading && !isError && entities.length > 0 && (
+        {!loading && !error && entities.length > 0 && (
           <div className="flex items-center gap-4 text-sm text-gray-400">
             <span className="flex items-center gap-1">
               <User className="h-4 w-4" />
@@ -226,15 +251,15 @@ export default function EntitiesPage() {
               {vehicleCount} {vehicleCount === 1 ? 'vehicle' : 'vehicles'}
             </span>
             {totalCount > entities.length && (
-              <span className="text-xs text-gray-500">
-                ({entities.length} of {totalCount} loaded)
+              <span className="text-gray-500">
+                (showing {entities.length} of {totalCount})
               </span>
             )}
           </div>
         )}
 
         {/* Auto-refresh indicator */}
-        {isFetching && !isLoading && !isFetchingNextPage && (
+        {isRefetching && !loading && (
           <span className="flex items-center gap-1 text-xs text-gray-500">
             <RefreshCw className="h-3 w-3 animate-spin" />
             Updating...
@@ -243,14 +268,14 @@ export default function EntitiesPage() {
       </div>
 
       {/* Content */}
-      {isLoading ? (
+      {loading ? (
         /* Loading state with skeletons */
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {Array.from({ length: 8 }, (_, i) => (
             <EntityCardSkeleton key={i} />
           ))}
         </div>
-      ) : isError ? (
+      ) : error ? (
         /* Error state */
         <div className="flex min-h-[400px] items-center justify-center rounded-lg border border-red-900/50 bg-red-900/10">
           <div className="flex flex-col items-center gap-3 text-center">
@@ -314,7 +339,7 @@ export default function EntitiesPage() {
         /* Entity grid with infinite scroll */
         <>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {entities.map((entity: EntitySummary) => (
+            {entities.map((entity) => (
               <EntityCard
                 key={entity.id}
                 id={entity.id}
@@ -329,18 +354,19 @@ export default function EntitiesPage() {
             ))}
           </div>
 
-          {/* Infinite Scroll Sentinel */}
-          <div ref={sentinelRef} className="mt-4 flex justify-center py-4">
-            {(isLoadingMore || isFetchingNextPage) && (
-              <div className="flex items-center gap-2 text-gray-400">
-                <Loader2 className="h-5 w-5 animate-spin" />
-                <span>Loading more entities...</span>
-              </div>
-            )}
-            {!hasNextPage && entities.length > 0 && (
-              <p className="text-sm text-gray-500">All entities loaded</p>
-            )}
-          </div>
+          {/* Infinite Scroll Status */}
+          <InfiniteScrollStatus
+            sentinelRef={sentinelRef}
+            isLoading={isFetchingNextPage || isLoadingMore}
+            hasMore={hasNextPage}
+            error={scrollError}
+            onRetry={retry}
+            totalCount={totalCount}
+            loadedCount={entities.length}
+            endMessage="You've seen all entities"
+            loadingMessage="Loading more entities..."
+            className="mt-6"
+          />
         </>
       )}
 
@@ -362,6 +388,38 @@ export default function EntitiesPage() {
       )}
     </div>
   );
+}
+
+/**
+ * Converts a time range filter to an ISO timestamp string.
+ * Returns undefined for 'all' (no filtering).
+ */
+function timeRangeToSince(timeRange: TimeRangeFilter | EntityTimeRangeFilter): string | undefined {
+  if (timeRange === 'all') {
+    return undefined;
+  }
+
+  const now = new Date();
+  let sinceDate: Date;
+
+  switch (timeRange) {
+    case '1h':
+      sinceDate = new Date(now.getTime() - 60 * 60 * 1000);
+      break;
+    case '24h':
+      sinceDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      break;
+    case '7d':
+      sinceDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      break;
+    case '30d':
+      sinceDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      break;
+    default:
+      return undefined;
+  }
+
+  return sinceDate.toISOString();
 }
 
 /**
