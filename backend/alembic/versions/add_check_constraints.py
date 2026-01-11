@@ -9,7 +9,7 @@ This migration adds database-level CHECK constraints for:
 1. Enum-like string columns (NEM-1492):
    - cameras.status: online, offline, error, unknown
    - events.risk_level: low, medium, high, critical
-   - detections.media_type: image, video
+   - detections.media_type: image, video (skipped if column doesn't exist)
    - logs.level: DEBUG, INFO, WARNING, ERROR, CRITICAL
    - logs.source: backend, frontend
    - audit_logs.status: success, failure
@@ -28,11 +28,15 @@ This migration adds database-level CHECK constraints for:
    - alert_rules.risk_threshold: 0-100 range
    - alert_rules.min_confidence: 0.0-1.0 range
    - alert_rules.cooldown_seconds: non-negative
+
+Note: The media_type constraint is conditional - it's only added if the column exists.
+This handles cases where the initial schema didn't include video-related columns.
 """
 
 from collections.abc import Sequence
 
 import sqlalchemy as sa
+from sqlalchemy import inspect
 
 from alembic import op
 
@@ -41,6 +45,22 @@ revision: str = "add_check_constraints"
 down_revision: str | Sequence[str] | None = "add_alerts_dedup_indexes"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
+
+
+def _column_exists(table_name: str, column_name: str) -> bool:
+    """Check if a column exists in a table.
+
+    Args:
+        table_name: Name of the table
+        column_name: Name of the column to check
+
+    Returns:
+        True if column exists, False otherwise
+    """
+    bind = op.get_bind()
+    inspector = inspect(bind)
+    columns = inspector.get_columns(table_name)
+    return any(col["name"] == column_name for col in columns)
 
 
 def upgrade() -> None:
@@ -64,11 +84,13 @@ def upgrade() -> None:
     )
 
     # detections.media_type: image, video (nullable)
-    op.create_check_constraint(
-        "ck_detections_media_type",
-        "detections",
-        sa.text("media_type IS NULL OR media_type IN ('image', 'video')"),
-    )
+    # Only add if column exists (it may not exist in older schema versions)
+    if _column_exists("detections", "media_type"):
+        op.create_check_constraint(
+            "ck_detections_media_type",
+            "detections",
+            sa.text("media_type IS NULL OR media_type IN ('image', 'video')"),
+        )
 
     # logs.level: DEBUG, INFO, WARNING, ERROR, CRITICAL
     op.create_check_constraint(
@@ -230,32 +252,78 @@ def upgrade() -> None:
     )
 
 
-def downgrade() -> None:
-    """Remove all CHECK constraints."""
+def _constraint_exists(table_name: str, constraint_name: str) -> bool:
+    """Check if a constraint exists in a table.
+
+    Args:
+        table_name: Name of the table
+        constraint_name: Name of the constraint to check
+
+    Returns:
+        True if constraint exists, False otherwise
+    """
+    bind = op.get_bind()
+    inspector = inspect(bind)
+    constraints = inspector.get_check_constraints(table_name)
+    return any(cons["name"] == constraint_name for cons in constraints)
+
+
+def downgrade() -> None:  # noqa: PLR0912
+    """Remove all CHECK constraints.
+
+    Note: Some constraints may not exist if tables were recreated by other migrations
+    (e.g., partition conversion). Check existence before dropping to avoid errors.
+    """
     # Remove business rule constraints (NEM-1496)
-    op.drop_constraint("ck_alert_rules_cooldown_non_negative", "alert_rules", type_="check")
-    op.drop_constraint("ck_alert_rules_min_confidence_range", "alert_rules", type_="check")
-    op.drop_constraint("ck_alert_rules_risk_threshold_range", "alert_rules", type_="check")
-    op.drop_constraint("ck_event_audits_enrichment_range", "event_audits", type_="check")
-    op.drop_constraint("ck_event_audits_overall_score_range", "event_audits", type_="check")
-    op.drop_constraint("ck_event_audits_consistency_score_range", "event_audits", type_="check")
-    op.drop_constraint("ck_event_audits_risk_justification_range", "event_audits", type_="check")
-    op.drop_constraint("ck_event_audits_reasoning_score_range", "event_audits", type_="check")
-    op.drop_constraint("ck_event_audits_context_score_range", "event_audits", type_="check")
+    # Check existence for partitioned tables that may have been recreated
+    if _constraint_exists("alert_rules", "ck_alert_rules_cooldown_non_negative"):
+        op.drop_constraint("ck_alert_rules_cooldown_non_negative", "alert_rules", type_="check")
+    if _constraint_exists("alert_rules", "ck_alert_rules_min_confidence_range"):
+        op.drop_constraint("ck_alert_rules_min_confidence_range", "alert_rules", type_="check")
+    if _constraint_exists("alert_rules", "ck_alert_rules_risk_threshold_range"):
+        op.drop_constraint("ck_alert_rules_risk_threshold_range", "alert_rules", type_="check")
+    if _constraint_exists("event_audits", "ck_event_audits_enrichment_range"):
+        op.drop_constraint("ck_event_audits_enrichment_range", "event_audits", type_="check")
+    if _constraint_exists("event_audits", "ck_event_audits_overall_score_range"):
+        op.drop_constraint("ck_event_audits_overall_score_range", "event_audits", type_="check")
+    if _constraint_exists("event_audits", "ck_event_audits_consistency_score_range"):
+        op.drop_constraint("ck_event_audits_consistency_score_range", "event_audits", type_="check")
+    if _constraint_exists("event_audits", "ck_event_audits_risk_justification_range"):
+        op.drop_constraint(
+            "ck_event_audits_risk_justification_range", "event_audits", type_="check"
+        )
+    if _constraint_exists("event_audits", "ck_event_audits_reasoning_score_range"):
+        op.drop_constraint("ck_event_audits_reasoning_score_range", "event_audits", type_="check")
+    if _constraint_exists("event_audits", "ck_event_audits_context_score_range"):
+        op.drop_constraint("ck_event_audits_context_score_range", "event_audits", type_="check")
     # NOTE: ck_scene_changes_similarity_range is managed by create_scene_changes_table migration
-    op.drop_constraint("ck_zones_color_hex", "zones", type_="check")
-    op.drop_constraint("ck_zones_priority_non_negative", "zones", type_="check")
-    op.drop_constraint("ck_class_baselines_hour_range", "class_baselines", type_="check")
-    op.drop_constraint("ck_activity_baselines_dow_range", "activity_baselines", type_="check")
-    op.drop_constraint("ck_activity_baselines_hour_range", "activity_baselines", type_="check")
-    op.drop_constraint("ck_detections_confidence_range", "detections", type_="check")
-    op.drop_constraint("ck_events_time_order", "events", type_="check")
-    op.drop_constraint("ck_events_risk_score_range", "events", type_="check")
+    if _constraint_exists("zones", "ck_zones_color_hex"):
+        op.drop_constraint("ck_zones_color_hex", "zones", type_="check")
+    if _constraint_exists("zones", "ck_zones_priority_non_negative"):
+        op.drop_constraint("ck_zones_priority_non_negative", "zones", type_="check")
+    if _constraint_exists("class_baselines", "ck_class_baselines_hour_range"):
+        op.drop_constraint("ck_class_baselines_hour_range", "class_baselines", type_="check")
+    if _constraint_exists("activity_baselines", "ck_activity_baselines_dow_range"):
+        op.drop_constraint("ck_activity_baselines_dow_range", "activity_baselines", type_="check")
+    if _constraint_exists("activity_baselines", "ck_activity_baselines_hour_range"):
+        op.drop_constraint("ck_activity_baselines_hour_range", "activity_baselines", type_="check")
+    if _constraint_exists("detections", "ck_detections_confidence_range"):
+        op.drop_constraint("ck_detections_confidence_range", "detections", type_="check")
+    if _constraint_exists("events", "ck_events_time_order"):
+        op.drop_constraint("ck_events_time_order", "events", type_="check")
+    if _constraint_exists("events", "ck_events_risk_score_range"):
+        op.drop_constraint("ck_events_risk_score_range", "events", type_="check")
 
     # Remove enum-like constraints (NEM-1492)
-    op.drop_constraint("ck_audit_logs_status", "audit_logs", type_="check")
-    op.drop_constraint("ck_logs_source", "logs", type_="check")
-    op.drop_constraint("ck_logs_level", "logs", type_="check")
-    op.drop_constraint("ck_detections_media_type", "detections", type_="check")
-    op.drop_constraint("ck_events_risk_level", "events", type_="check")
-    op.drop_constraint("ck_cameras_status", "cameras", type_="check")
+    if _constraint_exists("audit_logs", "ck_audit_logs_status"):
+        op.drop_constraint("ck_audit_logs_status", "audit_logs", type_="check")
+    if _constraint_exists("logs", "ck_logs_source"):
+        op.drop_constraint("ck_logs_source", "logs", type_="check")
+    if _constraint_exists("logs", "ck_logs_level"):
+        op.drop_constraint("ck_logs_level", "logs", type_="check")
+    if _constraint_exists("detections", "ck_detections_media_type"):
+        op.drop_constraint("ck_detections_media_type", "detections", type_="check")
+    if _constraint_exists("events", "ck_events_risk_level"):
+        op.drop_constraint("ck_events_risk_level", "events", type_="check")
+    if _constraint_exists("cameras", "ck_cameras_status"):
+        op.drop_constraint("ck_cameras_status", "cameras", type_="check")

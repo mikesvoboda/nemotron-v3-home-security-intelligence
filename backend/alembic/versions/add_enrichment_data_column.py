@@ -46,5 +46,6 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Remove enrichment_data column from detections table."""
-    op.drop_index("idx_detections_enrichment_data", table_name="detections")
+    # Use if_exists to handle tables recreated by other migrations (e.g., partitioning)
+    op.drop_index("idx_detections_enrichment_data", table_name="detections", if_exists=True)
     op.drop_column("detections", "enrichment_data")

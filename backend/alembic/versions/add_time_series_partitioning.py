@@ -117,14 +117,14 @@ def _create_partitions_for_table(table_name: str, num_future_months: int = 2) ->
 def _table_has_data(table_name: str) -> bool:
     """Check if a table has any data."""
     conn = op.get_bind()
-    result = conn.execute(text(f"SELECT EXISTS (SELECT 1 FROM {table_name} LIMIT 1)"))  # noqa: S608
+    result = conn.execute(text(f"SELECT EXISTS (SELECT 1 FROM {table_name} LIMIT 1)"))  # noqa: S608  # nosemgrep
     return bool(result.scalar())
 
 
 def _is_partitioned(conn: object, table_name: str) -> bool:
     """Check if a table is already partitioned."""
     result = conn.execute(  # type: ignore[union-attr, attr-defined]
-        text(f"SELECT relkind FROM pg_class WHERE relname = '{table_name}'")  # noqa: S608
+        text(f"SELECT relkind FROM pg_class WHERE relname = '{table_name}'")  # noqa: S608  # nosemgrep
     )
     return bool(result.scalar() == "p")
 
@@ -711,33 +711,108 @@ def _downgrade_events(conn: object) -> None:
     if not _is_partitioned(conn, "events"):
         return
 
-    op.execute(
+    # Check which columns exist in the current partitioned table
+    result = conn.execute(  # type: ignore[union-attr, attr-defined]
         text(
             """
-            CREATE TABLE events_regular (
-                id SERIAL PRIMARY KEY,
-                batch_id VARCHAR NOT NULL,
-                camera_id VARCHAR NOT NULL,
-                started_at TIMESTAMPTZ NOT NULL,
-                ended_at TIMESTAMPTZ,
-                risk_score INTEGER,
-                risk_level VARCHAR,
-                summary TEXT,
-                reasoning TEXT,
-                llm_prompt TEXT,
-                detection_ids TEXT,
-                reviewed BOOLEAN NOT NULL DEFAULT false,
-                notes TEXT,
-                is_fast_path BOOLEAN NOT NULL DEFAULT false,
-                object_types TEXT,
-                clip_path VARCHAR,
-                search_vector TSVECTOR,
-                deleted_at TIMESTAMPTZ
-            )
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name = 'events'
+            AND table_schema = 'public'
             """
         )
     )
-    op.execute(text("INSERT INTO events_regular SELECT * FROM events"))
+    existing_columns = {row[0] for row in result.fetchall()}
+
+    # Build CREATE TABLE statement with only columns that exist
+    # Note: deleted_at was added in a later migration and may not exist yet
+    base_columns = [
+        "id SERIAL PRIMARY KEY",
+        "batch_id VARCHAR NOT NULL",
+        "camera_id VARCHAR NOT NULL",
+        "started_at TIMESTAMPTZ NOT NULL",
+        "ended_at TIMESTAMPTZ",
+        "risk_score INTEGER",
+        "risk_level VARCHAR",
+        "summary TEXT",
+        "reasoning TEXT",
+        "llm_prompt TEXT",
+        "detection_ids TEXT",
+        "reviewed BOOLEAN NOT NULL DEFAULT false",
+        "notes TEXT",
+        "is_fast_path BOOLEAN NOT NULL DEFAULT false",
+        "object_types TEXT",
+        "clip_path VARCHAR",
+        "search_vector TSVECTOR",
+    ]
+
+    # Only add deleted_at if it exists in the source table
+    if "deleted_at" in existing_columns:
+        base_columns.append("deleted_at TIMESTAMPTZ")
+
+    create_table_sql = f"""
+        CREATE TABLE events_regular (
+            {", ".join(base_columns)}
+        )
+    """
+
+    # DDL operation using schema-defined columns, safe from SQL injection
+    # nosemgrep: python.sqlalchemy.security.audit.avoid-sqlalchemy-text.avoid-sqlalchemy-text  # noqa: ERA001
+    op.execute(text(create_table_sql))
+
+    # Build INSERT statement with only existing columns
+    column_list = [
+        "id",
+        "batch_id",
+        "camera_id",
+        "started_at",
+        "ended_at",
+        "risk_score",
+        "risk_level",
+        "summary",
+        "reasoning",
+        "llm_prompt",
+        "detection_ids",
+        "reviewed",
+        "notes",
+        "is_fast_path",
+        "object_types",
+        "clip_path",
+        "search_vector",
+    ]
+    select_list = [
+        "id",
+        "batch_id",
+        "camera_id",
+        "started_at",
+        "ended_at",
+        "risk_score",
+        "risk_level",
+        "summary",
+        "reasoning",
+        "llm_prompt",
+        "detection_ids",
+        "reviewed::boolean",
+        "notes",
+        "is_fast_path::boolean",
+        "object_types",
+        "clip_path",
+        "search_vector",
+    ]
+
+    if "deleted_at" in existing_columns:
+        column_list.append("deleted_at")
+        select_list.append("deleted_at")
+
+    # Column names from schema, not user input - safe from SQL injection
+    insert_sql = f"""
+        INSERT INTO events_regular ({", ".join(column_list)})
+        SELECT {", ".join(select_list)}
+        FROM events
+    """  # noqa: S608
+
+    # nosemgrep: python.sqlalchemy.security.audit.avoid-sqlalchemy-text.avoid-sqlalchemy-text  # noqa: ERA001
+    op.execute(text(insert_sql))
     op.execute(text("DROP TABLE events CASCADE"))
     op.execute(text("ALTER TABLE events_regular RENAME TO events"))
     op.execute(text("CREATE INDEX idx_events_camera_id ON events (camera_id)"))
