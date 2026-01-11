@@ -21,6 +21,8 @@ from backend.tests.conftest import unique_id
 from backend.tests.factories import CameraFactory, EventFactory
 
 # Mark as unit tests
+# Note: These tests are automatically configured to run serially via conftest.py
+# to avoid database deadlocks during parallel execution (see conftest.py for details)
 pytestmark = pytest.mark.unit
 
 
