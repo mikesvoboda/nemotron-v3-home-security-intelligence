@@ -18,6 +18,31 @@ vi.mock('../../services/api', async () => {
   };
 });
 
+// Mock IntersectionObserver for infinite scroll
+class MockIntersectionObserver {
+  callback: IntersectionObserverCallback;
+  elements: Element[] = [];
+
+  constructor(callback: IntersectionObserverCallback) {
+    this.callback = callback;
+  }
+
+  observe(element: Element) {
+    this.elements.push(element);
+  }
+
+  unobserve(element: Element) {
+    this.elements = this.elements.filter((el) => el !== element);
+  }
+
+  disconnect() {
+    this.elements = [];
+  }
+}
+
+// @ts-expect-error - Mocking IntersectionObserver
+global.IntersectionObserver = MockIntersectionObserver;
+
 const mockFetchEntities = vi.mocked(api.fetchEntities);
 const mockFetchEntity = vi.mocked(api.fetchEntity);
 const mockFetchCameras = vi.mocked(api.fetchCameras);
@@ -587,6 +612,75 @@ describe('EntitiesPage', () => {
       });
 
       expect(screen.getByLabelText('Filter by camera')).toBeInTheDocument();
+    });
+  });
+
+  describe('Infinite Scroll', () => {
+    it('renders infinite scroll sentinel when there are more entities', async () => {
+      mockFetchEntities.mockResolvedValue({
+        items: mockEntities,
+        pagination: {
+          total: 100,
+          limit: 50,
+          offset: 0,
+          has_more: true,
+          next_cursor: 'cursor_page2',
+        },
+      });
+
+      renderWithProviders(<EntitiesPage />);
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('entity-card-skeleton')).not.toBeInTheDocument();
+      });
+
+      // Should show the infinite scroll sentinel
+      expect(screen.getByTestId('infinite-scroll-sentinel')).toBeInTheDocument();
+    });
+
+    it('shows end message when all entities are loaded', async () => {
+      mockFetchEntities.mockResolvedValue({
+        items: mockEntities,
+        pagination: {
+          total: 2,
+          limit: 50,
+          offset: 0,
+          has_more: false,
+          next_cursor: null,
+        },
+      });
+
+      renderWithProviders(<EntitiesPage />);
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('entity-card-skeleton')).not.toBeInTheDocument();
+      });
+
+      // Should show end message
+      expect(screen.getByTestId('infinite-scroll-end')).toBeInTheDocument();
+      expect(screen.getByText("You've seen all entities")).toBeInTheDocument();
+    });
+
+    it('shows entity count when more entities available', async () => {
+      mockFetchEntities.mockResolvedValue({
+        items: mockEntities,
+        pagination: {
+          total: 100,
+          limit: 50,
+          offset: 0,
+          has_more: true,
+          next_cursor: 'cursor_page2',
+        },
+      });
+
+      renderWithProviders(<EntitiesPage />);
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('entity-card-skeleton')).not.toBeInTheDocument();
+      });
+
+      // Should show count indicator when there are more entities
+      expect(screen.getByText(/showing 2 of 100/i)).toBeInTheDocument();
     });
   });
 
