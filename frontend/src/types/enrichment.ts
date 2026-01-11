@@ -199,6 +199,15 @@ export const POSE_ALERTS = ['crouching', 'lying_down', 'hands_raised', 'fighting
  */
 export type PoseAlert = (typeof POSE_ALERTS)[number];
 
+/** Alias for backward compatibility */
+export const SECURITY_ALERTS = POSE_ALERTS;
+export type SecurityAlertType = PoseAlert;
+
+/**
+ * Keypoint data structure - each is [x, y, confidence].
+ */
+export type PoseKeypoint = [number, number, number];
+
 /**
  * Pose enrichment data from ViTPose+ analysis.
  * Contains keypoints for skeleton overlay and security-relevant alerts.
@@ -217,16 +226,17 @@ export interface PoseEnrichment {
    * - fighting_stance: Aggressive posture
    */
   alerts: string[];
+  /** Alias for alerts - for component compatibility */
+  security_alerts?: string[];
   /**
    * Keypoints array in COCO 17 keypoint order.
    * Format: [[x, y, confidence], ...] where x and y are normalized (0-1).
-   * Order: nose, left_eye, right_eye, left_ear, right_ear, left_shoulder,
-   * right_shoulder, left_elbow, right_elbow, left_wrist, right_wrist,
-   * left_hip, right_hip, left_knee, right_knee, left_ankle, right_ankle.
    */
   keypoints: number[][];
   /** Number of detected keypoints */
-  keypoint_count: number;
+  keypoint_count?: number;
+  /** Overall confidence score for the pose detection (0-1) */
+  confidence?: number;
 }
 
 // ============================================================================
@@ -358,8 +368,7 @@ export function isPoseEnrichment(value: unknown): value is PoseEnrichment {
   return (
     typeof obj.posture === 'string' &&
     Array.isArray(obj.alerts) &&
-    Array.isArray(obj.keypoints) &&
-    typeof obj.keypoint_count === 'number'
+    Array.isArray(obj.keypoints)
   );
 }
 

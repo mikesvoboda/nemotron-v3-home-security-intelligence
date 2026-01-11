@@ -151,10 +151,10 @@ export default function EntityDetailModal({
                     <div className="rounded-lg border border-gray-800 bg-black/30 p-3">
                       <div className="flex items-center gap-2 text-xl font-bold text-white">
                         <Camera className="h-5 w-5 text-gray-400" />
-                        <span>{entity.cameras_seen.length}</span>
+                        <span>{(entity.cameras_seen ?? []).length}</span>
                       </div>
                       <p className="mt-1 text-xs text-gray-400">
-                        {entity.cameras_seen.length === 1 ? 'camera' : 'cameras'}
+                        {(entity.cameras_seen ?? []).length === 1 ? 'camera' : 'cameras'}
                       </p>
                     </div>
 
@@ -182,13 +182,13 @@ export default function EntityDetailModal({
                   </div>
 
                   {/* Cameras list */}
-                  {entity.cameras_seen.length > 0 && (
+                  {(entity.cameras_seen ?? []).length > 0 && (
                     <div className="mb-6">
                       <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-gray-400">
                         Cameras
                       </h3>
                       <div className="flex flex-wrap gap-2">
-                        {entity.cameras_seen.map((camera) => (
+                        {(entity.cameras_seen ?? []).map((camera) => (
                           <span
                             key={camera}
                             className="flex items-center gap-1 rounded-full bg-gray-800 px-3 py-1 text-sm text-gray-300"
@@ -204,8 +204,8 @@ export default function EntityDetailModal({
                   {/* Appearance Timeline */}
                   <EntityTimeline
                     entity_id={entity.id}
-                    entity_type={entity.entity_type}
-                    appearances={entity.appearances}
+                    entity_type={entity.entity_type as 'person' | 'vehicle'}
+                    appearances={entity.appearances ?? []}
                   />
                 </div>
 
