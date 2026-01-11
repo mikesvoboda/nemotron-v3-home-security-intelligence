@@ -155,7 +155,7 @@ jobs:
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: test-results-unit-py${{ matrix.python-version }}
-          path: test-results-unit.xml
+          path: test-results-unit-parallel.xml
           retention-days: 7
 
       - name: Upload unit test coverage
