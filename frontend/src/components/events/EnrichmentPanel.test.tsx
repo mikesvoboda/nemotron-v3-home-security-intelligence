@@ -8,10 +8,13 @@ import type { EnrichmentData } from '../../types/enrichment';
 
 /**
  * Helper function to expand an accordion section by clicking its header
+ * Uses getAllByText and selects the last one to handle potential DOM cleanup issues
  */
 async function expandAccordion(headerText: string) {
   const user = userEvent.setup();
-  const header = screen.getByText(headerText);
+  const headers = screen.getAllByText(headerText);
+  // Get the last one (most recently rendered) to avoid stale elements
+  const header = headers[headers.length - 1];
   const button = header.closest('button');
   if (button) {
     await user.click(button);
