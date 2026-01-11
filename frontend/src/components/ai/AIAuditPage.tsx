@@ -1,16 +1,29 @@
 /**
  * AIAuditPage - Dashboard for AI quality metrics and recommendations
  *
- * Displays aggregate statistics from the AI pipeline audit system including:
- * - Quality score metrics and trends
- * - Prompt improvement recommendations
+ * Provides a tabbed interface for:
+ * - Dashboard: Quality score metrics and trends
+ * - Prompt Playground: Edit and test AI prompts
+ * - Batch Audit: Trigger batch processing
+ * - Version History: View and restore prompt versions
  *
  * Note: Model contribution rates and leaderboard are now on the AI Performance page
  */
 
+import { Tab } from '@headlessui/react';
 import { Text, Callout, Select, SelectItem } from '@tremor/react';
-import { ClipboardCheck, RefreshCw, AlertCircle, Calendar, Play, Sparkles } from 'lucide-react';
-import { useEffect, useState, useCallback } from 'react';
+import { clsx } from 'clsx';
+import {
+  AlertCircle,
+  Calendar,
+  ClipboardCheck,
+  History,
+  LayoutDashboard,
+  Play,
+  RefreshCw,
+  Sparkles,
+} from 'lucide-react';
+import { Fragment, useEffect, useState, useCallback } from 'react';
 
 import BatchAuditModal from './BatchAuditModal';
 import PromptPlayground from './PromptPlayground';
@@ -21,7 +34,7 @@ import {
   fetchAiAuditStats,
   fetchAuditRecommendations,
 } from '../../services/api';
-import { ModelContributionChart } from '../ai-audit';
+import { ModelContributionChart, PromptVersionHistory } from '../ai-audit';
 
 import type {
   AiAuditStatsResponse,
@@ -53,7 +66,33 @@ function formatModelName(name: string): string {
 }
 
 /**
- * AIAuditPage - Main AI audit dashboard
+ * Tab configuration
+ */
+const TABS = [
+  {
+    id: 'dashboard',
+    name: 'Dashboard',
+    icon: LayoutDashboard,
+  },
+  {
+    id: 'playground',
+    name: 'Prompt Playground',
+    icon: Sparkles,
+  },
+  {
+    id: 'batch',
+    name: 'Batch Audit',
+    icon: Play,
+  },
+  {
+    id: 'history',
+    name: 'Version History',
+    icon: History,
+  },
+] as const;
+
+/**
+ * AIAuditPage - Main AI audit dashboard with tabbed interface
  */
 export default function AIAuditPage() {
   // Data state
@@ -67,6 +106,7 @@ export default function AIAuditPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [periodDays, setPeriodDays] = useState(7);
+  const [selectedTabIndex, setSelectedTabIndex] = useState(0);
 
   // Batch audit modal state
   const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
@@ -131,10 +171,21 @@ export default function AIAuditPage() {
     setIsPlaygroundOpen(true);
   };
 
+  // Handle playground open
+  const handleOpenPlayground = () => {
+    setSelectedRecommendation(null);
+    setIsPlaygroundOpen(true);
+  };
+
   // Handle playground close
-  const handlePlaygroundClose = () => {
+  const handleClosePlayground = () => {
     setIsPlaygroundOpen(false);
     setSelectedRecommendation(null);
+  };
+
+  // Handle tab change
+  const handleTabChange = (index: number) => {
+    setSelectedTabIndex(index);
   };
 
   // Loading state with skeleton loaders
@@ -252,26 +303,6 @@ export default function AIAuditPage() {
               </Select>
             </div>
 
-            {/* Open Prompt Playground Button */}
-            <button
-              onClick={() => setIsPlaygroundOpen(true)}
-              className="flex items-center gap-2 rounded-lg bg-gray-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700"
-              data-testid="open-playground-button"
-            >
-              <Sparkles className="h-4 w-4" />
-              Open Prompt Playground
-            </button>
-
-            {/* Trigger Batch Audit Button */}
-            <button
-              onClick={() => setIsBatchModalOpen(true)}
-              className="flex items-center gap-2 rounded-lg bg-[#76B900] px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-[#8ACE00]"
-              data-testid="trigger-batch-audit-button"
-            >
-              <Play className="h-4 w-4" />
-              Trigger Batch Audit
-            </button>
-
             {/* Refresh Button */}
             <button
               onClick={() => void handleRefresh()}
@@ -311,7 +342,7 @@ export default function AIAuditPage() {
           </Callout>
         )}
 
-        {/* Main Content */}
+        {/* Main Content - No Data State */}
         {!hasData && (
           <div className="flex flex-col items-center justify-center rounded-lg border border-gray-800 bg-[#1F1F1F] p-12 text-center">
             <ClipboardCheck className="mb-4 h-16 w-16 text-gray-600" />
@@ -331,36 +362,179 @@ export default function AIAuditPage() {
           </div>
         )}
 
+        {/* Main Content - Tabbed Interface */}
         {hasData && stats && (
-          <div className="space-y-6">
-            {/* Quality Score Metrics */}
-            <QualityScoreTrends
-              avgQualityScore={stats.avg_quality_score}
-              avgConsistencyRate={stats.avg_consistency_rate}
-              avgEnrichmentUtilization={stats.avg_enrichment_utilization}
-              totalEvents={stats.total_events}
-              fullyEvaluatedEvents={stats.fully_evaluated_events}
-            />
+          <Tab.Group selectedIndex={selectedTabIndex} onChange={handleTabChange}>
+            {/* Tab List */}
+            <Tab.List
+              className="mb-6 flex space-x-1 rounded-lg border border-gray-800 bg-[#1A1A1A] p-1"
+              data-testid="ai-audit-tabs"
+            >
+              {TABS.map((tab) => {
+                const Icon = tab.icon;
+                return (
+                  <Tab key={tab.id} as={Fragment}>
+                    {({ selected }) => (
+                      <button
+                        className={clsx(
+                          'flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-all duration-200',
+                          'focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:ring-offset-2 focus:ring-offset-[#1A1A1A]',
+                          selected
+                            ? 'bg-[#76B900] text-gray-950 shadow-md'
+                            : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                        )}
+                        data-testid={`tab-${tab.id}`}
+                      >
+                        <Icon className="h-4 w-4" aria-hidden="true" />
+                        <span>{tab.name}</span>
+                      </button>
+                    )}
+                  </Tab>
+                );
+              })}
+            </Tab.List>
 
-            {/* Model Contribution Breakdown */}
-            {modelContributions.length > 0 && (
-              <ModelContributionChart contributions={modelContributions} />
-            )}
+            {/* Tab Panels */}
+            <Tab.Panels>
+              {/* Dashboard Tab */}
+              <Tab.Panel
+                className="focus:outline-none"
+                data-testid="tab-panel-dashboard"
+              >
+                <div className="space-y-6">
+                  {/* Quality Score Metrics */}
+                  <QualityScoreTrends
+                    avgQualityScore={stats.avg_quality_score}
+                    avgConsistencyRate={stats.avg_consistency_rate}
+                    avgEnrichmentUtilization={stats.avg_enrichment_utilization}
+                    totalEvents={stats.total_events}
+                    fullyEvaluatedEvents={stats.fully_evaluated_events}
+                  />
 
-            {/* Recommendations Panel (full width) */}
-            {recommendations && (
-              <RecommendationsPanel
-                recommendations={recommendations.recommendations}
-                totalEventsAnalyzed={recommendations.total_events_analyzed}
-                onExploreRecommendation={handleExploreRecommendation}
-              />
-            )}
+                  {/* Model Contribution Breakdown */}
+                  {modelContributions.length > 0 && (
+                    <ModelContributionChart contributions={modelContributions} />
+                  )}
 
-            {/* Last Updated */}
-            <Text className="text-center text-xs text-gray-500">
-              Showing data from the last {periodDays} days
-            </Text>
-          </div>
+                  {/* Recommendations Panel (full width) */}
+                  {recommendations && (
+                    <RecommendationsPanel
+                      recommendations={recommendations.recommendations}
+                      totalEventsAnalyzed={recommendations.total_events_analyzed}
+                      onExploreRecommendation={handleExploreRecommendation}
+                    />
+                  )}
+
+                  {/* Last Updated */}
+                  <Text className="text-center text-xs text-gray-500">
+                    Showing data from the last {periodDays} days
+                  </Text>
+                </div>
+              </Tab.Panel>
+
+              {/* Prompt Playground Tab */}
+              <Tab.Panel
+                className="focus:outline-none"
+                data-testid="tab-panel-playground"
+              >
+                <div className="rounded-lg border border-gray-800 bg-[#1A1A1A] p-8">
+                  <div className="mx-auto max-w-2xl text-center">
+                    <Sparkles className="mx-auto mb-4 h-16 w-16 text-[#76B900]" />
+                    <h2 className="mb-4 text-2xl font-bold text-white">Prompt Playground</h2>
+                    <p className="mb-6 text-gray-400">
+                      Edit, test, and refine AI model prompts. Experiment with different configurations,
+                      run A/B tests against real events, and save successful changes.
+                    </p>
+                    <button
+                      onClick={handleOpenPlayground}
+                      className="flex items-center gap-2 mx-auto rounded-lg bg-[#76B900] px-6 py-3 text-sm font-semibold text-black transition-colors hover:bg-[#8ACE00]"
+                      data-testid="open-playground-button"
+                    >
+                      <Sparkles className="h-5 w-5" />
+                      Open Prompt Playground
+                    </button>
+
+                    {/* Feature Highlights */}
+                    <div className="mt-8 grid gap-4 sm:grid-cols-3 text-left">
+                      <div className="rounded-lg border border-gray-700 bg-gray-900/50 p-4">
+                        <h3 className="font-semibold text-white mb-2">Model Editors</h3>
+                        <p className="text-sm text-gray-400">
+                          Edit prompts for Nemotron, Florence-2, YOLO-World, X-CLIP, and Fashion-CLIP models.
+                        </p>
+                      </div>
+                      <div className="rounded-lg border border-gray-700 bg-gray-900/50 p-4">
+                        <h3 className="font-semibold text-white mb-2">A/B Testing</h3>
+                        <p className="text-sm text-gray-400">
+                          Test modified prompts against real events and compare results before saving.
+                        </p>
+                      </div>
+                      <div className="rounded-lg border border-gray-700 bg-gray-900/50 p-4">
+                        <h3 className="font-semibold text-white mb-2">Import/Export</h3>
+                        <p className="text-sm text-gray-400">
+                          Export configurations for backup or import from other instances.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </Tab.Panel>
+
+              {/* Batch Audit Tab */}
+              <Tab.Panel
+                className="focus:outline-none"
+                data-testid="tab-panel-batch"
+              >
+                <div className="rounded-lg border border-gray-800 bg-[#1A1A1A] p-8">
+                  <div className="mx-auto max-w-2xl text-center">
+                    <Play className="mx-auto mb-4 h-16 w-16 text-[#76B900]" />
+                    <h2 className="mb-4 text-2xl font-bold text-white">Batch Audit Processing</h2>
+                    <p className="mb-6 text-gray-400">
+                      Queue multiple events for AI self-evaluation. Configure the limit, minimum
+                      risk score filter, and whether to re-evaluate already processed events.
+                    </p>
+                    <button
+                      onClick={() => setIsBatchModalOpen(true)}
+                      className="flex items-center gap-2 mx-auto rounded-lg bg-[#76B900] px-6 py-3 text-sm font-semibold text-black transition-colors hover:bg-[#8ACE00]"
+                      data-testid="trigger-batch-audit-button"
+                    >
+                      <Play className="h-5 w-5" />
+                      Trigger Batch Audit
+                    </button>
+
+                    {/* Recent Batch Stats */}
+                    <div className="mt-8 grid gap-4 sm:grid-cols-3">
+                      <div className="rounded-lg border border-gray-700 bg-gray-900/50 p-4">
+                        <p className="text-2xl font-bold text-white">
+                          {stats.total_events.toLocaleString()}
+                        </p>
+                        <p className="text-sm text-gray-400">Total Events</p>
+                      </div>
+                      <div className="rounded-lg border border-gray-700 bg-gray-900/50 p-4">
+                        <p className="text-2xl font-bold text-white">
+                          {stats.audited_events.toLocaleString()}
+                        </p>
+                        <p className="text-sm text-gray-400">Audited Events</p>
+                      </div>
+                      <div className="rounded-lg border border-gray-700 bg-gray-900/50 p-4">
+                        <p className="text-2xl font-bold text-white">
+                          {stats.fully_evaluated_events.toLocaleString()}
+                        </p>
+                        <p className="text-sm text-gray-400">Fully Evaluated</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </Tab.Panel>
+
+              {/* Version History Tab */}
+              <Tab.Panel
+                className="focus:outline-none"
+                data-testid="tab-panel-history"
+              >
+                <PromptVersionHistory periodDays={periodDays} />
+              </Tab.Panel>
+            </Tab.Panels>
+          </Tab.Group>
         )}
       </div>
 
@@ -374,7 +548,7 @@ export default function AIAuditPage() {
       {/* Prompt Playground Slide-out Panel */}
       <PromptPlayground
         isOpen={isPlaygroundOpen}
-        onClose={handlePlaygroundClose}
+        onClose={handleClosePlayground}
         recommendation={selectedRecommendation}
       />
     </div>
