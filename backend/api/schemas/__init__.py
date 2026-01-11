@@ -91,6 +91,12 @@ from .errors import (
     ValidationErrorResponse,
     raise_http_error,
 )
+from .feedback import (
+    EventFeedbackCreate,
+    EventFeedbackResponse,
+    FeedbackStatsResponse,
+    FeedbackType,
+)
 from .hateoas import (
     Link,
     LinkRel,
@@ -241,10 +247,14 @@ __all__ = [
     "EventBulkUpdateItem",
     "EventBulkUpdateRequest",
     "EventEnrichmentsResponse",
+    "EventFeedbackCreate",
+    "EventFeedbackResponse",
     "EventRegistryResponse",
     "EventTypeInfo",
     "ExampleImprovement",
     "FaceEnrichment",
+    "FeedbackStatsResponse",
+    "FeedbackType",
     "FlatErrorResponse",
     "HealthReadinessResponse",
     "HourlyPattern",
