@@ -147,6 +147,12 @@ export type MediaErrorResponse = components['schemas']['MediaErrorResponse'];
 
 // Cleanup types
 export type CleanupResponse = components['schemas']['CleanupResponse'];
+export type CleanupStatusResponse = components['schemas']['CleanupStatusResponse'];
+
+// Job types
+export type JobResponse = components['schemas']['JobResponse'];
+export type JobListResponse = components['schemas']['JobListResponse'];
+export type JobStatusEnum = components['schemas']['JobStatusEnum'];
 
 // Validation error type
 export type HTTPValidationError = components['schemas']['HTTPValidationError'];

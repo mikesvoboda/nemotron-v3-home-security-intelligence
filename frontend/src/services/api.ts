@@ -175,10 +175,17 @@ import type {
   EntityHistoryResponse,
   EntityAppearance,
   EntitySummary,
+  JobResponse,
+  JobListResponse,
+  JobStatusEnum,
+  CleanupStatusResponse,
 } from '../types/generated';
 
 // Re-export entity types for consumers of this module
 export type { EntityAppearance, EntitySummary, EntityDetail, EntityListResponse, EntityHistoryResponse };
+
+// Re-export job types for consumers of this module
+export type { JobResponse, JobListResponse, JobStatusEnum, CleanupStatusResponse };
 
 // ============================================================================
 // Additional types not in OpenAPI (client-side only)
@@ -2072,6 +2079,55 @@ export async function previewCleanup(): Promise<CleanupResponse> {
   return fetchApi<CleanupResponse>('/api/system/cleanup?dry_run=true', {
     method: 'POST',
   });
+}
+
+/**
+ * Fetch cleanup service status.
+ *
+ * @returns CleanupStatusResponse with cleanup service status
+ */
+export async function fetchCleanupStatus(): Promise<CleanupStatusResponse> {
+  return fetchApi<CleanupStatusResponse>('/api/system/cleanup/status');
+}
+
+// ============================================================================
+// Job Endpoints
+// ============================================================================
+
+/**
+ * Query parameters for job list endpoint.
+ */
+export interface JobsQueryParams {
+  /** Filter by job type (e.g., 'export', 'cleanup') */
+  job_type?: string;
+  /** Filter by job status */
+  status?: JobStatusEnum;
+}
+
+/**
+ * Fetch list of background jobs with optional filtering.
+ *
+ * @param params - Optional query parameters for filtering jobs
+ * @returns JobListResponse with list of jobs
+ */
+export async function fetchJobs(params?: JobsQueryParams): Promise<JobListResponse> {
+  const queryParams = new URLSearchParams();
+  if (params?.job_type) queryParams.append('job_type', params.job_type);
+  if (params?.status) queryParams.append('status', params.status);
+
+  const queryString = queryParams.toString();
+  const url = queryString ? `/api/jobs?${queryString}` : '/api/jobs';
+  return fetchApi<JobListResponse>(url);
+}
+
+/**
+ * Fetch a specific job by ID.
+ *
+ * @param jobId - The job ID to fetch
+ * @returns JobResponse with job details
+ */
+export async function fetchJob(jobId: string): Promise<JobResponse> {
+  return fetchApi<JobResponse>(`/api/jobs/${jobId}`);
 }
 
 // ============================================================================
