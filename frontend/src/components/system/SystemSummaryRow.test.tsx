@@ -140,6 +140,7 @@ function setupMocks(overrides?: {
   });
 
   mockedUseModelZooStatusQuery.mockReturnValue({
+    data: undefined,
     models: overrides?.models ?? defaultModels,
     vramStats: overrides?.vramStats ?? defaultVramStats,
     isLoading: false,

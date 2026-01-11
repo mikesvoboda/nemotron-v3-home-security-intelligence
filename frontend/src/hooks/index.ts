@@ -25,9 +25,6 @@ export type {
   UseGpuHistoryReturn,
 } from './useGpuHistory';
 
-export { useHealthStatus } from './useHealthStatus';
-export type { UseHealthStatusOptions, UseHealthStatusReturn } from './useHealthStatus';
-
 export { useHealthStatusQuery } from './useHealthStatusQuery';
 export type {
   UseHealthStatusQueryOptions,
@@ -96,13 +93,6 @@ export type {
   UseDetectionEnrichmentOptions,
   UseDetectionEnrichmentReturn,
 } from './useDetectionEnrichment';
-
-export { useModelZooStatus } from './useModelZooStatus';
-export type {
-  VRAMStats,
-  UseModelZooStatusOptions,
-  UseModelZooStatusReturn,
-} from './useModelZooStatus';
 
 export { useSavedSearches } from './useSavedSearches';
 export type { SavedSearch, LoadedSearch, UseSavedSearchesReturn } from './useSavedSearches';
