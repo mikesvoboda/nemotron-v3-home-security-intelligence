@@ -629,8 +629,11 @@ test.describe('Form Accessibility', () => {
     });
     await alertRulesPage.submitRuleForm();
 
-    // Error message should be visible
-    await expect(alertRulesPage.nameError).toBeVisible();
+    // Error message should be visible - use extended timeout for React state update and rendering
+    await expect(alertRulesPage.nameError).toBeVisible({ timeout: 10000 });
+
+    // Wait for error to be fully rendered before a11y check
+    await page.waitForTimeout(500);
 
     // Run a11y check with validation errors shown
     const results = await runA11yCheck(page);

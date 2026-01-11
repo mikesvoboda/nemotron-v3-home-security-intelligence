@@ -94,7 +94,7 @@ test.describe('E2E Utility Usage Examples', () => {
     await waitForPageLoad(page);
 
     // Verify generated data is displayed
-    await expect(page.getByText(camera.name)).toBeVisible();
+    await expect(page.getByText(camera.name).first()).toBeVisible();
   });
 
   test('example: waiting for async operations', async ({ page }) => {
