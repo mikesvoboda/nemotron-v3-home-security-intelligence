@@ -26,6 +26,7 @@
 import { vi } from 'vitest';
 
 import type { RiskLevel } from '../../types/websocket';
+import type { SequenceStatistics } from '../sequenceValidator';
 import type { UseEventStreamReturn, SecurityEvent } from '../useEventStream';
 
 // =============================================================================
@@ -68,7 +69,20 @@ export interface MockEventStreamOptions {
   events?: SecurityEvent[];
   /** Whether the WebSocket is connected. Default: false */
   isConnected?: boolean;
+  /** Sequence validation statistics. Default: empty stats */
+  sequenceStats?: SequenceStatistics;
 }
+
+/**
+ * Default empty sequence statistics for mocks.
+ */
+const DEFAULT_SEQUENCE_STATS: SequenceStatistics = {
+  processedCount: 0,
+  duplicateCount: 0,
+  resyncCount: 0,
+  outOfOrderCount: 0,
+  currentBufferSize: 0,
+};
 
 /**
  * Mock return type for useEventStream hook.
@@ -257,13 +271,14 @@ export function createMockEventList(count: number = 5): SecurityEvent[] {
  * ```
  */
 export function createMockEventStream(options: MockEventStreamOptions = {}): MockEventStreamReturn {
-  const { events = [], isConnected = false } = options;
+  const { events = [], isConnected = false, sequenceStats = DEFAULT_SEQUENCE_STATS } = options;
 
   return {
     events,
     isConnected,
     latestEvent: events.length > 0 ? events[0] : null,
     clearEvents: vi.fn(),
+    sequenceStats,
   };
 }
 
@@ -360,6 +375,7 @@ export function addEventToStream(
     ...mockReturn,
     events: newEvents,
     latestEvent: event,
+    sequenceStats: mockReturn.sequenceStats,
   };
 }
 

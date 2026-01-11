@@ -24,6 +24,7 @@ from backend.api.middleware import (
     DeprecationConfig,
     DeprecationLoggerMiddleware,
     DeprecationMiddleware,
+    IdempotencyMiddleware,
     RequestLoggingMiddleware,
     RequestRecorderMiddleware,
     RequestTimingMiddleware,
@@ -853,6 +854,12 @@ app.add_middleware(SecurityHeadersMiddleware, hsts_preload=get_settings().hsts_p
 # Add body size limit middleware to prevent DoS attacks (NEM-1614)
 # Default: 10MB limit for request bodies
 app.add_middleware(BodySizeLimitMiddleware, max_body_size=10 * 1024 * 1024)
+
+# Add idempotency middleware for mutation endpoints (NEM-1999)
+# Caches responses by Idempotency-Key header to prevent duplicate operations
+# Must be after body limit (to validate body first) and before auth (to cache auth'd responses)
+if get_settings().idempotency_enabled:
+    app.add_middleware(IdempotencyMiddleware)
 
 # Register global exception handlers for consistent error responses
 register_exception_handlers(app)
