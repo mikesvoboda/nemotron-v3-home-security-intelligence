@@ -22,14 +22,16 @@ import contextlib
 import json
 import random
 import threading
+from collections import deque
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 import httpx
 from fastapi import WebSocket
 from sqlalchemy import func, select
 
+from backend.api.schemas.performance import PerformanceUpdate, TimeRange
 from backend.core import get_session
 from backend.core.config import get_settings
 from backend.core.constants import ANALYSIS_QUEUE, DETECTION_QUEUE
@@ -123,6 +125,11 @@ class SystemBroadcaster:
         # Degraded mode flag - set when all recovery attempts have been exhausted
         self._is_degraded = False
 
+        # Performance history buffer for historical data
+        # 60 minutes at 5-second intervals = 720 snapshots
+        # This allows serving 5m, 15m, and 60m time ranges
+        self._performance_history: deque[PerformanceUpdate] = deque(maxlen=720)
+
     def _get_redis(self) -> RedisClient | None:
         """Get the Redis client instance.
 
@@ -159,6 +166,65 @@ class SystemBroadcaster:
             collector: PerformanceCollector instance or None
         """
         self._performance_collector = collector
+
+    def _store_performance_snapshot(self, snapshot: PerformanceUpdate) -> None:
+        """Store a performance snapshot in the history buffer.
+
+        Snapshots are stored in chronological order (oldest first, newest last).
+        The buffer automatically evicts the oldest entries when full.
+
+        Args:
+            snapshot: PerformanceUpdate to store
+        """
+        self._performance_history.append(snapshot)
+
+    def get_performance_history(self, time_range: TimeRange) -> list[PerformanceUpdate]:
+        """Get historical performance snapshots for the requested time range.
+
+        Returns performance snapshots filtered and sampled based on the time range:
+        - 5m: Returns all snapshots from the last 5 minutes (up to 60 points)
+        - 15m: Returns sampled snapshots from last 15 minutes (~60 points, every 3rd)
+        - 60m: Returns sampled snapshots from last 60 minutes (~60 points, every 12th)
+
+        Args:
+            time_range: TimeRange enum value (FIVE_MIN, FIFTEEN_MIN, SIXTY_MIN)
+
+        Returns:
+            List of PerformanceUpdate snapshots in chronological order (oldest first)
+        """
+        if not self._performance_history:
+            return []
+
+        now = datetime.now(UTC)
+
+        # Determine time window and sampling rate based on time range
+        if time_range == TimeRange.FIVE_MIN:
+            window_start = now - timedelta(minutes=5)
+            sample_interval = 1  # Every snapshot
+            max_points = 60
+        elif time_range == TimeRange.FIFTEEN_MIN:
+            window_start = now - timedelta(minutes=15)
+            sample_interval = 3  # Every 3rd snapshot
+            max_points = 60
+        else:  # SIXTY_MIN
+            window_start = now - timedelta(minutes=60)
+            sample_interval = 12  # Every 12th snapshot
+            max_points = 60
+
+        # Filter snapshots within the time window
+        filtered = [s for s in self._performance_history if s.timestamp >= window_start]
+
+        if not filtered:
+            return []
+
+        # Sample at the appropriate interval
+        if sample_interval == 1:
+            # For 5m range, take all snapshots up to max_points
+            return filtered[-max_points:] if len(filtered) > max_points else filtered
+        else:
+            # For 15m and 60m, sample every Nth snapshot
+            sampled = filtered[::sample_interval]
+            return sampled[-max_points:] if len(sampled) > max_points else sampled
 
     @property
     def circuit_breaker(self) -> WebSocketCircuitBreaker:
@@ -264,6 +330,9 @@ class SystemBroadcaster:
         try:
             # Collect all performance metrics
             performance_update = await self._performance_collector.collect_all()
+
+            # Store snapshot in history buffer for historical data endpoint
+            self._store_performance_snapshot(performance_update)
 
             # Build the broadcast message
             performance_data = {

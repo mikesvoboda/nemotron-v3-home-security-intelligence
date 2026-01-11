@@ -45,6 +45,11 @@ from backend.api.schemas.health import (
     WorkerHealthStatus,
 )
 from backend.api.schemas.pagination import create_pagination_meta
+from backend.api.schemas.performance import (
+    PerformanceHistoryResponse,
+    PerformanceUpdate,
+    TimeRange,
+)
 from backend.api.schemas.system import (
     BatchAggregatorStatusResponse,
     BatchInfoResponse,
@@ -1108,6 +1113,91 @@ async def get_websocket_health(
         event_broadcaster=event_status,
         system_broadcaster=system_status,
         timestamp=datetime.now(UTC),
+    )
+
+
+@router.get("/performance", response_model=PerformanceUpdate)
+async def get_performance_metrics(
+    _rate_limit: None = Depends(RateLimiter(tier=RateLimitTier.DEFAULT)),
+) -> PerformanceUpdate:
+    """Get current system performance metrics.
+
+    Collects and returns real-time metrics from all system components:
+    - GPU: Utilization, VRAM usage, temperature, power consumption
+    - AI Models: RT-DETRv2 and Nemotron status and resource usage
+    - Inference: Latency percentiles and throughput metrics
+    - Databases: PostgreSQL and Redis connection status and performance
+    - Host: CPU, RAM, and disk usage
+    - Containers: Health status of all running containers
+    - Alerts: Active performance alerts when thresholds are exceeded
+
+    This endpoint powers the System Performance Dashboard and provides
+    a comprehensive snapshot of system health at the time of the request.
+
+    Returns:
+        PerformanceUpdate with all available metrics. Fields may be None
+        if a particular metric source is unavailable.
+
+    Raises:
+        HTTPException: 503 if performance collector is not initialized
+        HTTPException: 500 if metric collection fails
+    """
+    if _performance_collector is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Performance collector not initialized",
+        )
+
+    try:
+        return await _performance_collector.collect_all()
+    except Exception as e:
+        logger.error(f"Failed to collect performance metrics: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to collect performance metrics: {e!s}",
+        ) from e
+
+
+@router.get("/performance/history", response_model=PerformanceHistoryResponse)
+async def get_performance_history(
+    time_range: TimeRange = Query(default=TimeRange.FIVE_MIN),
+    _rate_limit: None = Depends(RateLimiter(tier=RateLimitTier.DEFAULT)),
+) -> PerformanceHistoryResponse:
+    """Get historical system performance metrics.
+
+    Returns historical performance snapshots for time-series visualization.
+    The data is sampled based on the requested time range to provide
+    approximately 60 data points for each range:
+
+    - 5m: All snapshots from the last 5 minutes (every 5s = 60 points max)
+    - 15m: Sampled snapshots from last 15 minutes (every 15s = 60 points max)
+    - 60m: Sampled snapshots from last 60 minutes (every 60s = 60 points max)
+
+    This endpoint enables the System Performance Dashboard to display
+    historical trends and patterns in system metrics.
+
+    Args:
+        time_range: Time range for history (5m, 15m, or 60m). Defaults to 5m.
+
+    Returns:
+        PerformanceHistoryResponse containing:
+        - snapshots: List of PerformanceUpdate objects in chronological order
+        - time_range: The requested time range
+        - count: Number of snapshots returned
+    """
+    if _system_broadcaster is None:
+        # Return empty response if broadcaster not initialized
+        return PerformanceHistoryResponse(
+            snapshots=[],
+            time_range=time_range,
+            count=0,
+        )
+
+    snapshots = _system_broadcaster.get_performance_history(time_range)
+    return PerformanceHistoryResponse(
+        snapshots=snapshots,
+        time_range=time_range,
+        count=len(snapshots),
     )
 
 

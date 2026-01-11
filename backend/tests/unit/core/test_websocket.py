@@ -333,6 +333,7 @@ class MockSystemBroadcaster:
     - stop_broadcasting() -> None
     - get_circuit_state() -> str
     - is_degraded() -> bool
+    - get_performance_history(time_range) -> list[PerformanceUpdate]
     """
 
     def __init__(
@@ -453,6 +454,17 @@ class MockSystemBroadcaster:
             True if broadcaster is in degraded mode, False otherwise
         """
         return False  # Mock always returns healthy state
+
+    def get_performance_history(self, time_range: Any) -> list:
+        """Get historical performance snapshots for the requested time range.
+
+        Args:
+            time_range: TimeRange enum value (FIVE_MIN, FIFTEEN_MIN, SIXTY_MIN)
+
+        Returns:
+            List of PerformanceUpdate snapshots (empty for mock)
+        """
+        return []  # Mock returns empty history
 
     async def start(self) -> None:
         """Start the broadcaster (async context manager support).

@@ -42,6 +42,7 @@ from backend.api.schemas.system import (
     DegradationModeEnum,
 )
 from backend.core.config import Settings
+from backend.core.redis import get_redis
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -54,9 +55,22 @@ if TYPE_CHECKING:
 
 @pytest.fixture
 def test_app() -> FastAPI:
-    """Create test FastAPI app with system router."""
+    """Create test FastAPI app with system router.
+
+    Includes a mock Redis dependency override to prevent
+    endpoints with RateLimiter from connecting to real Redis.
+    """
     app = FastAPI()
     app.include_router(router)
+
+    # Create mock Redis client for rate limiting
+    mock_redis = AsyncMock()
+    mock_redis.health_check.return_value = {"status": "healthy", "connected": True}
+
+    async def mock_get_redis():
+        yield mock_redis
+
+    app.dependency_overrides[get_redis] = mock_get_redis
     return app
 
 
@@ -764,3 +778,244 @@ class TestHelperFunctions:
                 # Should return zeros for the file we couldn't access
                 assert total_size == 0
                 assert file_count == 0
+
+
+# =============================================================================
+# Performance Metrics Endpoint Tests
+# =============================================================================
+
+
+class TestPerformanceMetricsEndpoint:
+    """Tests for GET /api/system/performance endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_performance_endpoint_returns_metrics(
+        self, async_client: AsyncClient, mock_settings: Settings
+    ) -> None:
+        """Test that performance endpoint returns PerformanceUpdate response."""
+        from datetime import UTC, datetime
+
+        from backend.api.schemas.performance import (
+            GpuMetrics,
+            HostMetrics,
+            PerformanceUpdate,
+        )
+
+        # Create mock PerformanceUpdate
+        mock_update = PerformanceUpdate(
+            timestamp=datetime.now(UTC),
+            gpu=GpuMetrics(
+                name="NVIDIA RTX A5500",
+                utilization=38.0,
+                vram_used_gb=22.7,
+                vram_total_gb=24.0,
+                temperature=38,
+                power_watts=31,
+            ),
+            host=HostMetrics(
+                cpu_percent=12.0,
+                ram_used_gb=8.2,
+                ram_total_gb=32.0,
+                disk_used_gb=156.0,
+                disk_total_gb=500.0,
+            ),
+            ai_models={},
+            databases={},
+            containers=[],
+            alerts=[],
+        )
+
+        # Mock the performance collector
+        mock_collector = AsyncMock()
+        mock_collector.collect_all.return_value = mock_update
+
+        import backend.api.routes.system as system_module
+
+        original_collector = system_module._performance_collector
+        try:
+            system_module._performance_collector = mock_collector
+
+            response = await async_client.get("/api/system/performance")
+
+            assert response.status_code == 200
+            data = response.json()
+            assert "timestamp" in data
+            assert "gpu" in data
+            assert "host" in data
+            assert data["gpu"]["name"] == "NVIDIA RTX A5500"
+            assert data["gpu"]["utilization"] == 38.0
+            assert data["host"]["cpu_percent"] == 12.0
+        finally:
+            system_module._performance_collector = original_collector
+
+    @pytest.mark.asyncio
+    async def test_performance_endpoint_collector_not_initialized(
+        self, async_client: AsyncClient, mock_settings: Settings
+    ) -> None:
+        """Test that endpoint returns 503 when collector is not initialized."""
+        import backend.api.routes.system as system_module
+
+        original_collector = system_module._performance_collector
+        try:
+            system_module._performance_collector = None
+
+            response = await async_client.get("/api/system/performance")
+
+            assert response.status_code == 503
+            data = response.json()
+            assert "detail" in data
+            assert "not initialized" in data["detail"].lower()
+        finally:
+            system_module._performance_collector = original_collector
+
+    @pytest.mark.asyncio
+    async def test_performance_endpoint_collector_error(
+        self, async_client: AsyncClient, mock_settings: Settings
+    ) -> None:
+        """Test that endpoint handles collector errors gracefully."""
+        mock_collector = AsyncMock()
+        mock_collector.collect_all.side_effect = RuntimeError("Collection failed")
+
+        import backend.api.routes.system as system_module
+
+        original_collector = system_module._performance_collector
+        try:
+            system_module._performance_collector = mock_collector
+
+            response = await async_client.get("/api/system/performance")
+
+            assert response.status_code == 500
+            data = response.json()
+            assert "detail" in data
+        finally:
+            system_module._performance_collector = original_collector
+
+    @pytest.mark.asyncio
+    async def test_performance_endpoint_with_all_metrics(
+        self, async_client: AsyncClient, mock_settings: Settings
+    ) -> None:
+        """Test endpoint returns all metric fields when available."""
+        from datetime import UTC, datetime
+
+        from backend.api.schemas.performance import (
+            AiModelMetrics,
+            ContainerMetrics,
+            DatabaseMetrics,
+            GpuMetrics,
+            HostMetrics,
+            InferenceMetrics,
+            NemotronMetrics,
+            PerformanceAlert,
+            PerformanceUpdate,
+            RedisMetrics,
+        )
+
+        # Create mock PerformanceUpdate with all fields populated
+        mock_update = PerformanceUpdate(
+            timestamp=datetime.now(UTC),
+            gpu=GpuMetrics(
+                name="NVIDIA RTX A5500",
+                utilization=38.0,
+                vram_used_gb=22.7,
+                vram_total_gb=24.0,
+                temperature=38,
+                power_watts=31,
+            ),
+            ai_models={
+                "rtdetr": AiModelMetrics(
+                    status="healthy",
+                    vram_gb=0.17,
+                    model="rtdetr_r50vd_coco_o365",
+                    device="cuda:0",
+                ),
+                "nemotron": NemotronMetrics(
+                    status="healthy",
+                    slots_active=1,
+                    slots_total=2,
+                    context_size=4096,
+                ),
+            },
+            nemotron=NemotronMetrics(
+                status="healthy",
+                slots_active=1,
+                slots_total=2,
+                context_size=4096,
+            ),
+            inference=InferenceMetrics(
+                rtdetr_latency_ms={"avg": 45, "p95": 82, "p99": 120},
+                nemotron_latency_ms={"avg": 2100, "p95": 4800, "p99": 8200},
+                pipeline_latency_ms={"avg": 3200, "p95": 6100},
+                throughput={"images_per_min": 12.4, "events_per_min": 2.1},
+                queues={"detection": 0, "analysis": 0},
+            ),
+            databases={
+                "postgresql": DatabaseMetrics(
+                    status="healthy",
+                    connections_active=5,
+                    connections_max=30,
+                    cache_hit_ratio=98.2,
+                    transactions_per_min=1200,
+                ),
+                "redis": RedisMetrics(
+                    status="healthy",
+                    connected_clients=8,
+                    memory_mb=1.5,
+                    hit_ratio=99.5,
+                    blocked_clients=0,
+                ),
+            },
+            host=HostMetrics(
+                cpu_percent=12.0,
+                ram_used_gb=8.2,
+                ram_total_gb=32.0,
+                disk_used_gb=156.0,
+                disk_total_gb=500.0,
+            ),
+            containers=[
+                ContainerMetrics(name="backend", status="running", health="healthy"),
+                ContainerMetrics(name="frontend", status="running", health="healthy"),
+            ],
+            alerts=[
+                PerformanceAlert(
+                    severity="warning",
+                    metric="gpu_temperature",
+                    value=82,
+                    threshold=80,
+                    message="GPU temperature high: 82C",
+                ),
+            ],
+        )
+
+        mock_collector = AsyncMock()
+        mock_collector.collect_all.return_value = mock_update
+
+        import backend.api.routes.system as system_module
+
+        original_collector = system_module._performance_collector
+        try:
+            system_module._performance_collector = mock_collector
+
+            response = await async_client.get("/api/system/performance")
+
+            assert response.status_code == 200
+            data = response.json()
+
+            # Verify all fields are present
+            assert "timestamp" in data
+            assert "gpu" in data
+            assert "ai_models" in data
+            assert "nemotron" in data
+            assert "inference" in data
+            assert "databases" in data
+            assert "host" in data
+            assert "containers" in data
+            assert "alerts" in data
+
+            # Verify nested structure
+            assert data["ai_models"]["rtdetr"]["status"] == "healthy"
+            assert data["databases"]["postgresql"]["status"] == "healthy"
+            assert len(data["containers"]) == 2
+            assert len(data["alerts"]) == 1
+            assert data["alerts"][0]["severity"] == "warning"
+        finally:
+            system_module._performance_collector = original_collector

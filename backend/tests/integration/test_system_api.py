@@ -1729,33 +1729,50 @@ async def test_update_severity_thresholds_concurrent_updates(client, mock_redis)
 # =============================================================================
 
 
-@pytest.mark.skip(reason="Performance REST API endpoint not yet implemented (NEM-1900)")
 @pytest.mark.asyncio
 async def test_performance_endpoint_returns_metrics(client, mock_redis):
     """Test performance endpoint returns current performance metrics."""
-    from backend.api.schemas.performance import PerformanceUpdate
-
-    # Create a real PerformanceUpdate for the mock to return
-    mock_snapshot = PerformanceUpdate(
-        timestamp=datetime.now(UTC),
-        gpu=None,
-        ai_models={},
-        nemotron=None,
-        inference=None,
-        databases={},
-        host=None,
-        containers=[],
-        alerts=[],
+    from backend.api.routes import system as system_routes
+    from backend.api.schemas.performance import (
+        GpuMetrics,
+        HostMetrics,
+        PerformanceUpdate,
     )
 
-    # Mock the PerformanceCollector
-    with patch("backend.api.routes.system._performance_collector") as mock_collector:
-        mock_collector.collect_all = AsyncMock(return_value=mock_snapshot)
+    # Save original collector
+    original_collector = system_routes._performance_collector
 
-        # Mock Redis to avoid storage errors
-        mock_redis.zadd = AsyncMock(return_value=1)
-        mock_redis._ensure_connected = lambda: mock_redis
-        mock_redis.zcard = AsyncMock(return_value=1)
+    try:
+        # Create a real PerformanceUpdate for the mock to return
+        mock_snapshot = PerformanceUpdate(
+            timestamp=datetime.now(UTC),
+            gpu=GpuMetrics(
+                name="NVIDIA RTX A5500",
+                utilization=38.0,
+                vram_used_gb=22.7,
+                vram_total_gb=24.0,
+                temperature=38,
+                power_watts=31,
+            ),
+            ai_models={},
+            nemotron=None,
+            inference=None,
+            databases={},
+            host=HostMetrics(
+                cpu_percent=12.0,
+                ram_used_gb=8.2,
+                ram_total_gb=32.0,
+                disk_used_gb=156.0,
+                disk_total_gb=500.0,
+            ),
+            containers=[],
+            alerts=[],
+        )
+
+        # Create mock collector
+        mock_collector = AsyncMock()
+        mock_collector.collect_all = AsyncMock(return_value=mock_snapshot)
+        system_routes._performance_collector = mock_collector
 
         response = await client.get("/api/system/performance")
 
@@ -1764,49 +1781,63 @@ async def test_performance_endpoint_returns_metrics(client, mock_redis):
 
         # Check response structure
         assert "timestamp" in data
+        assert "gpu" in data
+        assert "host" in data
         assert "alerts" in data
 
+        # Verify data content
+        assert data["gpu"]["name"] == "NVIDIA RTX A5500"
+        assert data["gpu"]["utilization"] == 38.0
+        assert data["host"]["cpu_percent"] == 12.0
+    finally:
+        system_routes._performance_collector = original_collector
 
-@pytest.mark.skip(reason="Performance REST API endpoint not yet implemented (NEM-1900)")
+
 @pytest.mark.asyncio
 async def test_performance_endpoint_without_collector(client, mock_redis):
-    """Test performance endpoint creates temporary collector when none registered."""
-    from backend.api.schemas.performance import PerformanceUpdate
+    """Test performance endpoint returns 503 when collector is not registered."""
+    from backend.api.routes import system as system_routes
 
-    # Create a real PerformanceUpdate for the mock to return
-    mock_snapshot = PerformanceUpdate(
-        timestamp=datetime.now(UTC),
-        gpu=None,
-        ai_models={},
-        nemotron=None,
-        inference=None,
-        databases={},
-        host=None,
-        containers=[],
-        alerts=[],
-    )
+    # Save original collector
+    original_collector = system_routes._performance_collector
 
-    # Ensure no collector is registered
-    with patch("backend.api.routes.system._performance_collector", None):
-        # Mock the PerformanceCollector class imported inside the function
-        with patch(
-            "backend.services.performance_collector.PerformanceCollector"
-        ) as MockCollectorClass:
-            mock_collector_instance = AsyncMock()
-            mock_collector_instance.collect_all = AsyncMock(return_value=mock_snapshot)
-            mock_collector_instance.close = AsyncMock()
-            MockCollectorClass.return_value = mock_collector_instance
+    try:
+        # Ensure no collector is registered
+        system_routes._performance_collector = None
 
-            # Mock Redis to avoid storage errors
-            mock_redis.zadd = AsyncMock(return_value=1)
-            mock_redis._ensure_connected = lambda: mock_redis
-            mock_redis.zcard = AsyncMock(return_value=1)
+        response = await client.get("/api/system/performance")
 
-            response = await client.get("/api/system/performance")
+        # Should return 503 Service Unavailable
+        assert response.status_code == 503
+        data = response.json()
+        assert "detail" in data
+        assert "not initialized" in data["detail"].lower()
+    finally:
+        system_routes._performance_collector = original_collector
 
-            assert response.status_code == 200
-            # Verify temporary collector was closed
-            mock_collector_instance.close.assert_called_once()
+
+@pytest.mark.asyncio
+async def test_performance_endpoint_handles_collector_error(client, mock_redis):
+    """Test performance endpoint handles collector errors gracefully."""
+    from backend.api.routes import system as system_routes
+
+    # Save original collector
+    original_collector = system_routes._performance_collector
+
+    try:
+        # Create mock collector that raises an error
+        mock_collector = AsyncMock()
+        mock_collector.collect_all = AsyncMock(side_effect=RuntimeError("Collection failed"))
+        system_routes._performance_collector = mock_collector
+
+        response = await client.get("/api/system/performance")
+
+        # Should return 500 Internal Server Error
+        assert response.status_code == 500
+        data = response.json()
+        assert "detail" in data
+    finally:
+        system_routes._performance_collector = original_collector
 
 
 @pytest.mark.skip(reason="Performance REST API endpoint not yet implemented (NEM-1900)")

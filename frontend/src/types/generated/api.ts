@@ -4471,6 +4471,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/system/performance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Performance Metrics
+         * @description Get current system performance metrics.
+         *
+         *     Collects and returns real-time metrics from all system components:
+         *     - GPU: Utilization, VRAM usage, temperature, power consumption
+         *     - AI Models: RT-DETRv2 and Nemotron status and resource usage
+         *     - Inference: Latency percentiles and throughput metrics
+         *     - Databases: PostgreSQL and Redis connection status and performance
+         *     - Host: CPU, RAM, and disk usage
+         *     - Containers: Health status of all running containers
+         *     - Alerts: Active performance alerts when thresholds are exceeded
+         *
+         *     This endpoint powers the System Performance Dashboard and provides
+         *     a comprehensive snapshot of system health at the time of the request.
+         *
+         *     Returns:
+         *         PerformanceUpdate with all available metrics. Fields may be None
+         *         if a particular metric source is unavailable.
+         *
+         *     Raises:
+         *         HTTPException: 503 if performance collector is not initialized
+         *         HTTPException: 500 if metric collection fails
+         */
+        get: operations["get_performance_metrics_api_system_performance_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/system/performance/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Performance History
+         * @description Get historical system performance metrics.
+         *
+         *     Returns historical performance snapshots for time-series visualization.
+         *     The data is sampled based on the requested time range to provide
+         *     approximately 60 data points for each range:
+         *
+         *     - 5m: All snapshots from the last 5 minutes (every 5s = 60 points max)
+         *     - 15m: Sampled snapshots from last 15 minutes (every 15s = 60 points max)
+         *     - 60m: Sampled snapshots from last 60 minutes (every 60s = 60 points max)
+         *
+         *     This endpoint enables the System Performance Dashboard to display
+         *     historical trends and patterns in system metrics.
+         *
+         *     Args:
+         *         time_range: Time range for history (5m, 15m, or 60m). Defaults to 5m.
+         *
+         *     Returns:
+         *         PerformanceHistoryResponse containing:
+         *         - snapshots: List of PerformanceUpdate objects in chronological order
+         *         - time_range: The requested time range
+         *         - count: Number of snapshots returned
+         */
+        get: operations["get_performance_history_api_system_performance_history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/system/pipeline": {
         parameters: {
             query?: never;
@@ -5190,6 +5270,38 @@ export interface components {
              * @description Total number of samples across all entries
              */
             total_samples: number;
+        };
+        /**
+         * AiModelMetrics
+         * @description Metrics for RT-DETRv2 model.
+         * @example {
+         *       "device": "cuda:0",
+         *       "model": "rtdetr_r50vd_coco_o365",
+         *       "status": "healthy",
+         *       "vram_gb": 0.17
+         *     }
+         */
+        AiModelMetrics: {
+            /**
+             * Device
+             * @description Device (e.g., 'cuda:0')
+             */
+            device: string;
+            /**
+             * Model
+             * @description Model name
+             */
+            model: string;
+            /**
+             * Status
+             * @description Health status: healthy, unhealthy, unreachable
+             */
+            status: string;
+            /**
+             * Vram Gb
+             * @description VRAM used by the model in GB
+             */
+            vram_gb: number;
         };
         /**
          * AlertResponse
@@ -7540,6 +7652,32 @@ export interface components {
             retention_days?: number | null;
         };
         /**
+         * ContainerMetrics
+         * @description Container health status.
+         * @example {
+         *       "health": "healthy",
+         *       "name": "backend",
+         *       "status": "running"
+         *     }
+         */
+        ContainerMetrics: {
+            /**
+             * Health
+             * @description Health status (healthy, unhealthy, starting)
+             */
+            health: string;
+            /**
+             * Name
+             * @description Container name
+             */
+            name: string;
+            /**
+             * Status
+             * @description Container status (running, stopped, restarting, etc.)
+             */
+            status: string;
+        };
+        /**
          * ContainerServiceStatus
          * @description Current status of a managed container service.
          *
@@ -7959,6 +8097,44 @@ export interface components {
              * @description Total samples for this day
              */
             total_samples: number;
+        };
+        /**
+         * DatabaseMetrics
+         * @description PostgreSQL database metrics.
+         * @example {
+         *       "cache_hit_ratio": 98.2,
+         *       "connections_active": 5,
+         *       "connections_max": 30,
+         *       "status": "healthy",
+         *       "transactions_per_min": 1200
+         *     }
+         */
+        DatabaseMetrics: {
+            /**
+             * Cache Hit Ratio
+             * @description Buffer cache hit ratio percentage
+             */
+            cache_hit_ratio: number;
+            /**
+             * Connections Active
+             * @description Active connections
+             */
+            connections_active: number;
+            /**
+             * Connections Max
+             * @description Maximum allowed connections
+             */
+            connections_max: number;
+            /**
+             * Status
+             * @description Health status: healthy, unhealthy, unreachable
+             */
+            status: string;
+            /**
+             * Transactions Per Min
+             * @description Transaction rate per minute
+             */
+            transactions_per_min: number;
         };
         /**
          * DebugCircuitBreakersResponse
@@ -10526,6 +10702,50 @@ export interface components {
              */
             utilization?: number | null;
         };
+        /**
+         * GpuMetrics
+         * @description GPU metrics from nvidia-smi / pynvml.
+         * @example {
+         *       "name": "NVIDIA RTX A5500",
+         *       "power_watts": 31,
+         *       "temperature": 38,
+         *       "utilization": 38,
+         *       "vram_total_gb": 24,
+         *       "vram_used_gb": 22.7
+         *     }
+         */
+        GpuMetrics: {
+            /**
+             * Name
+             * @description GPU device name (e.g., 'NVIDIA RTX A5500')
+             */
+            name: string;
+            /**
+             * Power Watts
+             * @description GPU power usage in Watts
+             */
+            power_watts: number;
+            /**
+             * Temperature
+             * @description GPU temperature in Celsius
+             */
+            temperature: number;
+            /**
+             * Utilization
+             * @description GPU utilization percentage (0-100)
+             */
+            utilization: number;
+            /**
+             * Vram Total Gb
+             * @description Total VRAM in GB
+             */
+            vram_total_gb: number;
+            /**
+             * Vram Used Gb
+             * @description VRAM used in GB
+             */
+            vram_used_gb: number;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -10657,6 +10877,44 @@ export interface components {
             timestamp: string;
         };
         /**
+         * HostMetrics
+         * @description Host system metrics from psutil.
+         * @example {
+         *       "cpu_percent": 12,
+         *       "disk_total_gb": 500,
+         *       "disk_used_gb": 156,
+         *       "ram_total_gb": 32,
+         *       "ram_used_gb": 8.2
+         *     }
+         */
+        HostMetrics: {
+            /**
+             * Cpu Percent
+             * @description CPU utilization percentage
+             */
+            cpu_percent: number;
+            /**
+             * Disk Total Gb
+             * @description Total disk in GB
+             */
+            disk_total_gb: number;
+            /**
+             * Disk Used Gb
+             * @description Disk used in GB
+             */
+            disk_used_gb: number;
+            /**
+             * Ram Total Gb
+             * @description Total RAM in GB
+             */
+            ram_total_gb: number;
+            /**
+             * Ram Used Gb
+             * @description RAM used in GB
+             */
+            ram_used_gb: number;
+        };
+        /**
          * HourlyPattern
          * @description Activity pattern for a specific hour.
          * @example {
@@ -10718,6 +10976,71 @@ export interface components {
              * @description Quality score (0-100)
              */
             score?: number | null;
+        };
+        /**
+         * InferenceMetrics
+         * @description AI inference latency and throughput metrics.
+         * @example {
+         *       "nemotron_latency_ms": {
+         *         "avg": 2100,
+         *         "p95": 4800,
+         *         "p99": 8200
+         *       },
+         *       "pipeline_latency_ms": {
+         *         "avg": 3200,
+         *         "p95": 6100
+         *       },
+         *       "queues": {
+         *         "analysis": 0,
+         *         "detection": 0
+         *       },
+         *       "rtdetr_latency_ms": {
+         *         "avg": 45,
+         *         "p95": 82,
+         *         "p99": 120
+         *       },
+         *       "throughput": {
+         *         "events_per_min": 2.1,
+         *         "images_per_min": 12.4
+         *       }
+         *     }
+         */
+        InferenceMetrics: {
+            /**
+             * Nemotron Latency Ms
+             * @description Nemotron latency stats (avg, p95, p99)
+             */
+            nemotron_latency_ms: {
+                [key: string]: number;
+            };
+            /**
+             * Pipeline Latency Ms
+             * @description Full pipeline latency stats (avg, p95)
+             */
+            pipeline_latency_ms: {
+                [key: string]: number;
+            };
+            /**
+             * Queues
+             * @description Queue depths (detection, analysis)
+             */
+            queues: {
+                [key: string]: number;
+            };
+            /**
+             * Rtdetr Latency Ms
+             * @description RT-DETRv2 latency stats (avg, p95, p99)
+             */
+            rtdetr_latency_ms: {
+                [key: string]: number;
+            };
+            /**
+             * Throughput
+             * @description Throughput metrics (images_per_min, events_per_min)
+             */
+            throughput: {
+                [key: string]: number;
+            };
         };
         /**
          * InfrastructureHealthStatus
@@ -11748,6 +12071,38 @@ export interface components {
             vram_used_mb: number;
         };
         /**
+         * NemotronMetrics
+         * @description Metrics for Nemotron LLM.
+         * @example {
+         *       "context_size": 4096,
+         *       "slots_active": 1,
+         *       "slots_total": 2,
+         *       "status": "healthy"
+         *     }
+         */
+        NemotronMetrics: {
+            /**
+             * Context Size
+             * @description Context window size in tokens
+             */
+            context_size: number;
+            /**
+             * Slots Active
+             * @description Number of active inference slots
+             */
+            slots_active: number;
+            /**
+             * Slots Total
+             * @description Total available inference slots
+             */
+            slots_total: number;
+            /**
+             * Status
+             * @description Health status: healthy, unhealthy, unreachable
+             */
+            status: string;
+        };
+        /**
          * NotificationChannel
          * @description Notification channel types.
          * @enum {string}
@@ -12088,6 +12443,143 @@ export interface components {
              * @description Total number of items matching the query
              */
             total: number;
+        };
+        /**
+         * PerformanceAlert
+         * @description Alert when metric exceeds threshold.
+         * @example {
+         *       "message": "GPU temperature high: 82C",
+         *       "metric": "gpu_temperature",
+         *       "severity": "warning",
+         *       "threshold": 80,
+         *       "value": 82
+         *     }
+         */
+        PerformanceAlert: {
+            /**
+             * Message
+             * @description Human-readable alert message
+             */
+            message: string;
+            /**
+             * Metric
+             * @description Metric name that triggered the alert
+             */
+            metric: string;
+            /**
+             * Severity
+             * @description Alert severity: warning or critical
+             */
+            severity: string;
+            /**
+             * Threshold
+             * @description Threshold that was exceeded
+             */
+            threshold: number;
+            /**
+             * Value
+             * @description Current metric value
+             */
+            value: number;
+        };
+        /**
+         * PerformanceHistoryResponse
+         * @description Response containing historical performance data.
+         *
+         *     Used by GET /api/system/performance/history endpoint.
+         * @example {
+         *       "count": 0,
+         *       "snapshots": [],
+         *       "time_range": "5m"
+         *     }
+         */
+        PerformanceHistoryResponse: {
+            /**
+             * Count
+             * @description Number of snapshots returned
+             */
+            count: number;
+            /**
+             * Snapshots
+             * @description List of performance snapshots ordered chronologically
+             */
+            snapshots: components["schemas"]["PerformanceUpdate"][];
+            /** @description Time range of the history */
+            time_range: components["schemas"]["TimeRange"];
+        };
+        /**
+         * PerformanceUpdate
+         * @description Complete performance update sent via WebSocket.
+         *
+         *     This is the main payload broadcast to frontend clients every 5 seconds.
+         *     All fields are optional to allow partial updates.
+         * @example {
+         *       "ai_models": {
+         *         "rtdetr": {
+         *           "device": "cuda:0",
+         *           "model": "rtdetr",
+         *           "status": "healthy",
+         *           "vram_gb": 0.17
+         *         }
+         *       },
+         *       "alerts": [],
+         *       "gpu": {
+         *         "name": "NVIDIA RTX A5500",
+         *         "power_watts": 31,
+         *         "temperature": 38,
+         *         "utilization": 38,
+         *         "vram_total_gb": 24,
+         *         "vram_used_gb": 22.7
+         *       },
+         *       "host": {
+         *         "cpu_percent": 12,
+         *         "disk_total_gb": 500,
+         *         "disk_used_gb": 156,
+         *         "ram_total_gb": 32,
+         *         "ram_used_gb": 8.2
+         *       },
+         *       "timestamp": "2025-12-31T10:30:00Z"
+         *     }
+         */
+        PerformanceUpdate: {
+            /**
+             * Ai Models
+             * @description AI model metrics keyed by model name
+             */
+            ai_models?: {
+                [key: string]: components["schemas"]["AiModelMetrics"] | components["schemas"]["NemotronMetrics"];
+            };
+            /**
+             * Alerts
+             * @description Active performance alerts
+             */
+            alerts?: components["schemas"]["PerformanceAlert"][];
+            /**
+             * Containers
+             * @description Container health statuses
+             */
+            containers?: components["schemas"]["ContainerMetrics"][];
+            /**
+             * Databases
+             * @description Database metrics keyed by name
+             */
+            databases?: {
+                [key: string]: components["schemas"]["DatabaseMetrics"] | components["schemas"]["RedisMetrics"];
+            };
+            /** @description GPU metrics */
+            gpu?: components["schemas"]["GpuMetrics"] | null;
+            /** @description Host system metrics */
+            host?: components["schemas"]["HostMetrics"] | null;
+            /** @description AI inference latency and throughput */
+            inference?: components["schemas"]["InferenceMetrics"] | null;
+            /** @description Nemotron-specific metrics */
+            nemotron?: components["schemas"]["NemotronMetrics"] | null;
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description When this update was generated (UTC)
+             */
+            timestamp?: string;
         };
         /**
          * PetEnrichment
@@ -13583,6 +14075,44 @@ export interface components {
             timestamp: string;
         };
         /**
+         * RedisMetrics
+         * @description Redis cache metrics.
+         * @example {
+         *       "blocked_clients": 0,
+         *       "connected_clients": 8,
+         *       "hit_ratio": 99.5,
+         *       "memory_mb": 1.5,
+         *       "status": "healthy"
+         *     }
+         */
+        RedisMetrics: {
+            /**
+             * Blocked Clients
+             * @description Number of blocked clients
+             */
+            blocked_clients: number;
+            /**
+             * Connected Clients
+             * @description Number of connected clients
+             */
+            connected_clients: number;
+            /**
+             * Hit Ratio
+             * @description Cache hit ratio percentage
+             */
+            hit_ratio: number;
+            /**
+             * Memory Mb
+             * @description Memory used in MB
+             */
+            memory_mb: number;
+            /**
+             * Status
+             * @description Health status: healthy, unhealthy, unreachable
+             */
+            status: string;
+        };
+        /**
          * ReplayResponse
          * @description Response for request replay.
          */
@@ -14903,6 +15433,12 @@ export interface components {
              */
             success: boolean;
         };
+        /**
+         * TimeRange
+         * @description Time range options for historical data.
+         * @enum {string}
+         */
+        TimeRange: "5m" | "15m" | "60m";
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -21359,6 +21895,57 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ModelStatusResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_performance_metrics_api_system_performance_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PerformanceUpdate"];
+                };
+            };
+        };
+    };
+    get_performance_history_api_system_performance_history_get: {
+        parameters: {
+            query?: {
+                time_range?: components["schemas"]["TimeRange"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PerformanceHistoryResponse"];
                 };
             };
             /** @description Validation Error */
