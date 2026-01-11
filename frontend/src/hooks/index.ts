@@ -240,3 +240,18 @@ export type {
   UseSettingsReturn,
 } from './useSettings';
 export { DEFAULT_SETTINGS } from './useSettings';
+
+// Form validation error mapping hooks
+export {
+  applyApiValidationErrors,
+  useApiMutation,
+  isApiValidationException,
+  extractFieldPath,
+} from './useFormWithApiErrors';
+export type {
+  ValidationFieldError,
+  ApiValidationException,
+  FastAPIValidationError,
+  UseApiMutationOptions,
+  UseApiMutationResult,
+} from './useFormWithApiErrors';

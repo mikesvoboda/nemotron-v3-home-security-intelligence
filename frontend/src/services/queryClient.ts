@@ -25,6 +25,9 @@
 
 import { QueryClient } from '@tanstack/react-query';
 
+import { isTimeoutError } from './api';
+import { shouldRetry, ErrorCode } from '../utils/error-handling';
+
 import type { EventsQueryParams } from './api';
 
 // ============================================================================
@@ -48,6 +51,180 @@ export const REALTIME_STALE_TIME = 5 * 1000;
  * Used for data that rarely changes (system config, severity definitions).
  */
 export const STATIC_STALE_TIME = 5 * 60 * 1000;
+
+// ============================================================================
+// Retry Configuration Constants
+// ============================================================================
+
+/**
+ * Maximum number of retry attempts for transient errors.
+ * After 3 retries (4 total attempts), the error will be thrown to the caller.
+ */
+export const MAX_RETRY_ATTEMPTS = 3;
+
+/**
+ * Base delay for retry backoff in milliseconds (1 second).
+ * Exponential backoff: 1s, 2s, 4s for attempts 0, 1, 2.
+ */
+export const RETRY_BASE_DELAY_MS = 1000;
+
+/**
+ * Maximum retry delay in milliseconds (30 seconds).
+ * Prevents excessive waits for high attempt indices.
+ */
+export const MAX_RETRY_DELAY_MS = 30 * 1000;
+
+// ============================================================================
+// Retry Functions
+// ============================================================================
+
+/**
+ * Set of error codes that are safe to retry for mutations (timeout-only).
+ *
+ * Mutations can have side effects, so we only retry when we're confident
+ * the operation didn't complete (timeout means the server didn't respond
+ * before our deadline, but the operation may or may not have succeeded).
+ *
+ * For truly idempotent timeout scenarios, we allow retry.
+ */
+const MUTATION_SAFE_RETRY_CODES = new Set<string>([
+  ErrorCode.TIMEOUT,
+  ErrorCode.OPERATION_TIMEOUT,
+  ErrorCode.AI_SERVICE_TIMEOUT,
+]);
+
+/**
+ * Calculate the retry delay for a given attempt index and error.
+ *
+ * Uses exponential backoff (2^attemptIndex * RETRY_BASE_DELAY_MS) unless:
+ * - The error includes a valid `retry_after` field in problemDetails, in which
+ *   case we use that value (converted from seconds to milliseconds).
+ *
+ * The delay is capped at MAX_RETRY_DELAY_MS to prevent excessive waits.
+ *
+ * @param attemptIndex - Zero-based index of the retry attempt (0 = first retry)
+ * @param error - The error that caused the failure
+ * @returns Delay in milliseconds before the next retry attempt
+ *
+ * @example
+ * ```typescript
+ * // Exponential backoff
+ * calculateRetryDelay(0, someError); // 1000ms
+ * calculateRetryDelay(1, someError); // 2000ms
+ * calculateRetryDelay(2, someError); // 4000ms
+ *
+ * // Respects Retry-After header
+ * const rateLimitError = new ApiError(429, 'Rate limited', undefined, {
+ *   type: 'about:blank',
+ *   title: 'Rate Limited',
+ *   status: 429,
+ *   retry_after: 60, // 60 seconds
+ * });
+ * calculateRetryDelay(0, rateLimitError); // 60000ms (60 seconds)
+ * ```
+ */
+export function calculateRetryDelay(attemptIndex: number, error: unknown): number {
+  // Check for Retry-After header in problemDetails
+  // Use duck typing to avoid issues in test environments where ApiError may be mocked
+  if (
+    error &&
+    typeof error === 'object' &&
+    'problemDetails' in error &&
+    error.problemDetails &&
+    typeof error.problemDetails === 'object' &&
+    'retry_after' in error.problemDetails
+  ) {
+    const retryAfter = (error.problemDetails as { retry_after: unknown }).retry_after;
+
+    // Validate retry_after is a positive number
+    if (typeof retryAfter === 'number' && retryAfter > 0) {
+      // Convert seconds to milliseconds and cap at MAX_RETRY_DELAY_MS
+      return Math.min(retryAfter * 1000, MAX_RETRY_DELAY_MS);
+    }
+  }
+
+  // Default to exponential backoff: 2^attemptIndex * RETRY_BASE_DELAY_MS
+  const exponentialDelay = Math.pow(2, attemptIndex) * RETRY_BASE_DELAY_MS;
+
+  // Cap at MAX_RETRY_DELAY_MS
+  return Math.min(exponentialDelay, MAX_RETRY_DELAY_MS);
+}
+
+/**
+ * Determine if a query should be retried based on the error type and attempt count.
+ *
+ * Uses the `shouldRetry` function from error-handling.ts to check if the error
+ * is a transient error that may succeed on retry (timeouts, rate limits,
+ * service unavailable, etc.).
+ *
+ * @param failureCount - Number of failed attempts so far (0 = first failure)
+ * @param error - The error that caused the failure
+ * @returns true if the query should be retried, false otherwise
+ *
+ * @example
+ * ```typescript
+ * // In TanStack Query config
+ * retry: (failureCount, error) => shouldRetryQuery(failureCount, error),
+ * ```
+ */
+export function shouldRetryQuery(failureCount: number, error: unknown): boolean {
+  // Don't retry if we've exceeded the maximum attempts
+  if (failureCount >= MAX_RETRY_ATTEMPTS) {
+    return false;
+  }
+
+  // Use the shouldRetry function from error-handling.ts
+  // This checks for retryable error codes and HTTP status codes
+  return shouldRetry(error);
+}
+
+/**
+ * Determine if a mutation should be retried based on the error type.
+ *
+ * Mutations are more conservative than queries because they can have side effects.
+ * We only retry mutations for timeout errors, where we're confident the operation
+ * either didn't complete or is idempotent.
+ *
+ * @param failureCount - Number of failed attempts so far (0 = first failure)
+ * @param error - The error that caused the failure
+ * @returns true if the mutation should be retried, false otherwise
+ *
+ * @example
+ * ```typescript
+ * // In TanStack Query mutation config
+ * retry: (failureCount, error) => shouldRetryMutation(failureCount, error),
+ * ```
+ */
+export function shouldRetryMutation(failureCount: number, error: unknown): boolean {
+  // Don't retry if we've exceeded the maximum attempts
+  if (failureCount >= MAX_RETRY_ATTEMPTS) {
+    return false;
+  }
+
+  // TimeoutError is always safe to retry for mutations
+  if (isTimeoutError(error)) {
+    return true;
+  }
+
+  // Check for timeout-related error codes using duck typing
+  // This avoids issues in test environments where ApiError may be mocked
+  if (
+    error &&
+    typeof error === 'object' &&
+    'problemDetails' in error &&
+    error.problemDetails &&
+    typeof error.problemDetails === 'object' &&
+    'error_code' in error.problemDetails
+  ) {
+    const errorCode = (error.problemDetails as { error_code: unknown }).error_code;
+    if (typeof errorCode === 'string') {
+      return MUTATION_SAFE_RETRY_CODES.has(errorCode);
+    }
+  }
+
+  // For other errors, don't retry mutations (could cause duplicate side effects)
+  return false;
+}
 
 // ============================================================================
 // Query Key Factories
@@ -365,23 +542,33 @@ export function createQueryClient(): QueryClient {
         refetchOnReconnect: true,
 
         /**
-         * Number of retry attempts for failed queries.
-         * Uses exponential backoff by default.
+         * Smart retry logic based on error type.
+         * Only retries transient errors (timeouts, rate limits, service unavailable).
+         * Uses shouldRetryQuery which checks error codes and HTTP status codes.
          */
-        retry: 3,
+        retry: (failureCount, error) => shouldRetryQuery(failureCount, error),
 
         /**
-         * Retry delay configuration.
-         * Uses exponential backoff: attempt^2 * 1000ms, capped at 30 seconds.
+         * Retry delay configuration with Retry-After header support.
+         * Uses exponential backoff: 2^attemptIndex * 1000ms (1s, 2s, 4s).
+         * Respects Retry-After header from rate limit responses.
+         * Capped at 30 seconds.
          */
-        retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+        retryDelay: (attemptIndex, error) => calculateRetryDelay(attemptIndex, error),
       },
       mutations: {
         /**
-         * Do not retry mutations to prevent duplicate side effects.
-         * Mutations should be retried explicitly by the user if needed.
+         * Conservative retry for mutations to prevent duplicate side effects.
+         * Only retries timeout errors (TIMEOUT, OPERATION_TIMEOUT, AI_SERVICE_TIMEOUT).
+         * Other errors (including SERVICE_UNAVAILABLE) are not retried to avoid
+         * potentially creating duplicate resources or side effects.
          */
-        retry: 0,
+        retry: (failureCount, error) => shouldRetryMutation(failureCount, error),
+
+        /**
+         * Same retry delay logic as queries when mutations are retried.
+         */
+        retryDelay: (attemptIndex, error) => calculateRetryDelay(attemptIndex, error),
       },
     },
   });
