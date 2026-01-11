@@ -24,6 +24,8 @@ from backend.api.middleware import (
     DeprecationConfig,
     DeprecationLoggerMiddleware,
     DeprecationMiddleware,
+    RequestLoggingMiddleware,
+    RequestRecorderMiddleware,
     RequestTimingMiddleware,
     SecurityHeadersMiddleware,
 )
@@ -804,6 +806,22 @@ app.add_middleware(RequestIDMiddleware)
 # Add request timing middleware for API latency tracking (NEM-1469)
 # Added early so it measures the full request lifecycle including other middleware
 app.add_middleware(RequestTimingMiddleware)
+
+# Add request logging middleware for structured observability (NEM-1963)
+# Logs HTTP requests with timing, status codes, and correlation IDs
+# Added after RequestTimingMiddleware so logging happens after timing starts
+# Excludes health/metrics endpoints to reduce noise
+if get_settings().request_logging_enabled:
+    app.add_middleware(RequestLoggingMiddleware)
+
+# Add request recording middleware for debugging production issues (NEM-1964)
+# Records HTTP requests for replay debugging based on:
+# - Always on error (status >= 500)
+# - Sample % of successful requests (configurable via request_recording_sample_rate)
+# - When X-Debug-Record header is present
+# Disabled by default for production (request_recording_enabled=False)
+if get_settings().request_recording_enabled:
+    app.add_middleware(RequestRecorderMiddleware)
 
 # Add RFC 8594 deprecation headers middleware (NEM-2089)
 # Adds Deprecation, Sunset, and Link headers to deprecated endpoints
