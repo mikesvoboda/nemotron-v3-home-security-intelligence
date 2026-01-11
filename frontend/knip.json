@@ -1,0 +1,44 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": [
+    "src/main.tsx",
+    "src/App.tsx"
+  ],
+  "project": ["src/**/*.{ts,tsx}", "tests/**/*.{ts,tsx}"],
+  "ignore": [
+    "src/types/generated/**",
+    "src/**/index.ts",
+    "src/test/mocks/index.ts",
+    "src/hooks/useFullHealthQuery.ts"
+  ],
+  "ignoreDependencies": [
+    "openapi-typescript"
+  ],
+  "ignoreExportsUsedInFile": true,
+  "rules": {
+    "files": "error",
+    "dependencies": "error",
+    "devDependencies": "error",
+    "optionalPeerDependencies": "off",
+    "unlisted": "error",
+    "unresolved": "error",
+    "exports": "off",
+    "types": "off",
+    "duplicates": "off",
+    "enumMembers": "off",
+    "classMembers": "off",
+    "nsExports": "off",
+    "nsTypes": "off"
+  },
+  "stryker": {
+    "config": ["stryker.config.mjs"]
+  },
+  "playwright": {
+    "config": ["playwright.config.ts"],
+    "entry": ["tests/e2e/**/*.{ts,tsx}"]
+  },
+  "vitest": {
+    "config": ["vite.config.ts", "vite.config.e2e.ts"],
+    "entry": ["src/**/*.test.{ts,tsx}"]
+  }
+}
