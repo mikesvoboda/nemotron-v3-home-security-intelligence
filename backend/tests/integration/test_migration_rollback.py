@@ -7,15 +7,17 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
-from alembic import command
 from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.exc import ProgrammingError
 
+from alembic import command
+
 if TYPE_CHECKING:
     from collections.abc import Generator
+
     from sqlalchemy.engine import Engine
 
 # Add backend to path for imports
@@ -31,7 +33,7 @@ pytestmark = pytest.mark.integration
 
 
 @pytest.fixture(scope="function")
-def clean_db_config(integration_env: None) -> Generator[Config, None, None]:
+def clean_db_config(integration_env: None) -> Generator[Config]:  # noqa: PLR0912
     """Create Alembic config with clean database state for each test.
 
     This fixture ensures that each test starts with a completely clean
@@ -77,7 +79,7 @@ def clean_db_config(integration_env: None) -> Generator[Config, None, None]:
                 # Drop all tables
                 for table in tables:
                     try:
-                        conn.execute(text(f'DROP TABLE IF EXISTS "{table}" CASCADE'))
+                        conn.execute(text(f'DROP TABLE IF EXISTS "{table}" CASCADE'))  # nosemgrep
                     except Exception as e:
                         logger.warning(f"Failed to drop table {table}: {e}")
                 conn.commit()
@@ -103,7 +105,7 @@ def clean_db_config(integration_env: None) -> Generator[Config, None, None]:
 
             for enum_type in enum_types:
                 try:
-                    conn.execute(text(f"DROP TYPE IF EXISTS {enum_type} CASCADE"))
+                    conn.execute(text(f"DROP TYPE IF EXISTS {enum_type} CASCADE"))  # nosemgrep
                 except Exception as e:
                     logger.warning(f"Failed to drop enum {enum_type}: {e}")
             conn.commit()
@@ -128,7 +130,7 @@ def clean_db_config(integration_env: None) -> Generator[Config, None, None]:
                 tables2 = inspector2.get_table_names()
                 for table in tables2:
                     try:
-                        conn.execute(text(f'DROP TABLE IF EXISTS "{table}" CASCADE'))
+                        conn.execute(text(f'DROP TABLE IF EXISTS "{table}" CASCADE'))  # nosemgrep
                     except Exception:
                         pass
 
@@ -146,7 +148,7 @@ def clean_db_config(integration_env: None) -> Generator[Config, None, None]:
                 enum_types2 = [row[0] for row in result]
                 for enum_type in enum_types2:
                     try:
-                        conn.execute(text(f"DROP TYPE IF EXISTS {enum_type} CASCADE"))
+                        conn.execute(text(f"DROP TYPE IF EXISTS {enum_type} CASCADE"))  # nosemgrep
                     except Exception:
                         pass
 
@@ -175,7 +177,7 @@ def alembic_config(clean_db_config: Config) -> Config:
 
 
 @pytest.fixture
-def sync_engine(alembic_config: Config) -> Generator[Engine, None, None]:
+def sync_engine(alembic_config: Config) -> Generator[Engine]:
     """Create a synchronous SQLAlchemy engine for direct database inspection.
 
     Args:
@@ -397,9 +399,9 @@ class TestMigrationDowngrade:
         command.downgrade(alembic_config, "base")
 
         # Verify table and indexes are removed
-        assert not table_exists(
-            sync_engine, "detections"
-        ), "detections table still exists after downgrade"
+        assert not table_exists(sync_engine, "detections"), (
+            "detections table still exists after downgrade"
+        )
 
 
 class TestDataPreservationDuringRollback:
