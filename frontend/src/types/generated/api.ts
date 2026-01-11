@@ -2979,7 +2979,11 @@ export interface paths {
          */
         get: operations["export_events_api_events_export_get"];
         put?: never;
-        post?: never;
+        /**
+         * Start export job
+         * @description Start a background export job for events. Returns a job ID that can be used to track progress via GET /api/jobs/{job_id}.
+         */
+        post: operations["start_export_job_api_events_export_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3315,6 +3319,86 @@ export interface paths {
          *         HTTPException: 404 if event not found, 409 if not deleted
          */
         post: operations["restore_event_api_events__event_id__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List all jobs
+         * @description List all background jobs with optional filtering by type and status.
+         */
+        get: operations["list_jobs_api_jobs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List available job types
+         * @description List all available job types that can be created.
+         */
+        get: operations["list_job_types_api_jobs_types_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/{job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get job status
+         * @description Get the current status and progress of a background job.
+         */
+        get: operations["get_job_status_api_jobs__job_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/{job_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel a job
+         * @description Request cancellation of a background job. Jobs that are already completed or failed cannot be cancelled.
+         */
+        post: operations["cancel_job_api_jobs__job_id__cancel_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4387,6 +4471,77 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/system/performance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Current Performance Metrics
+         * @description Get current system performance metrics.
+         *
+         *     Returns comprehensive performance data including:
+         *     - GPU metrics (utilization, VRAM, temperature, power)
+         *     - AI model status (RT-DETRv2, Nemotron)
+         *     - Database metrics (PostgreSQL, Redis)
+         *     - Host metrics (CPU, RAM, disk)
+         *     - Container health status
+         *     - Active performance alerts
+         *
+         *     This endpoint collects metrics on-demand from the registered
+         *     PerformanceCollector. The data is also stored in Redis for
+         *     historical queries via /api/system/performance/history.
+         *
+         *     Returns:
+         *         PerformanceUpdate with current performance metrics
+         */
+        get: operations["get_performance_api_system_performance_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/system/performance/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Performance History
+         * @description Get historical performance metrics for the specified time range.
+         *
+         *     Returns a list of performance snapshots collected over the specified
+         *     time range. Snapshots are stored at approximately 5-second intervals
+         *     when the /api/system/performance endpoint is called or via the
+         *     WebSocket performance broadcast.
+         *
+         *     Time ranges:
+         *     - 5m: Last 5 minutes (~60 snapshots)
+         *     - 15m: Last 15 minutes (~180 snapshots)
+         *     - 60m: Last 60 minutes (~720 snapshots)
+         *
+         *     Args:
+         *         time_range: Time range enum (5m, 15m, or 60m)
+         *
+         *     Returns:
+         *         PerformanceHistoryResponse with chronologically ordered snapshots
+         */
+        get: operations["get_performance_history_api_system_performance_history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/system/pipeline": {
         parameters: {
             query?: never;
@@ -4864,26 +5019,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/events/export": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Start export job
-         * @description Start a background export job for events. Returns a job ID that can be used to track progress via GET /api/jobs/{job_id}.
-         */
-        post: operations["start_export_job_events_export_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/health": {
         parameters: {
             query?: never;
@@ -4912,26 +5047,6 @@ export interface paths {
          *         LivenessResponse with status "alive".
          */
         get: operations["health_health_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/jobs/{job_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get job status
-         * @description Get the current status and progress of a background job.
-         */
-        get: operations["get_job_status_jobs__job_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5146,6 +5261,38 @@ export interface components {
              * @description Total number of samples across all entries
              */
             total_samples: number;
+        };
+        /**
+         * AiModelMetrics
+         * @description Metrics for RT-DETRv2 model.
+         * @example {
+         *       "device": "cuda:0",
+         *       "model": "rtdetr_r50vd_coco_o365",
+         *       "status": "healthy",
+         *       "vram_gb": 0.17
+         *     }
+         */
+        AiModelMetrics: {
+            /**
+             * Device
+             * @description Device (e.g., 'cuda:0')
+             */
+            device: string;
+            /**
+             * Model
+             * @description Model name
+             */
+            model: string;
+            /**
+             * Status
+             * @description Health status: healthy, unhealthy, unreachable
+             */
+            status: string;
+            /**
+             * Vram Gb
+             * @description VRAM used by the model in GB
+             */
+            vram_gb: number;
         };
         /**
          * AlertResponse
@@ -7496,6 +7643,32 @@ export interface components {
             retention_days?: number | null;
         };
         /**
+         * ContainerMetrics
+         * @description Container health status.
+         * @example {
+         *       "health": "healthy",
+         *       "name": "backend",
+         *       "status": "running"
+         *     }
+         */
+        ContainerMetrics: {
+            /**
+             * Health
+             * @description Health status (healthy, unhealthy, starting)
+             */
+            health: string;
+            /**
+             * Name
+             * @description Container name
+             */
+            name: string;
+            /**
+             * Status
+             * @description Container status (running, stopped, restarting, etc.)
+             */
+            status: string;
+        };
+        /**
          * ContainerServiceStatus
          * @description Current status of a managed container service.
          *
@@ -7915,6 +8088,44 @@ export interface components {
              * @description Total samples for this day
              */
             total_samples: number;
+        };
+        /**
+         * DatabaseMetrics
+         * @description PostgreSQL database metrics.
+         * @example {
+         *       "cache_hit_ratio": 98.2,
+         *       "connections_active": 5,
+         *       "connections_max": 30,
+         *       "status": "healthy",
+         *       "transactions_per_min": 1200
+         *     }
+         */
+        DatabaseMetrics: {
+            /**
+             * Cache Hit Ratio
+             * @description Buffer cache hit ratio percentage
+             */
+            cache_hit_ratio: number;
+            /**
+             * Connections Active
+             * @description Active connections
+             */
+            connections_active: number;
+            /**
+             * Connections Max
+             * @description Maximum allowed connections
+             */
+            connections_max: number;
+            /**
+             * Status
+             * @description Health status: healthy, unhealthy, unreachable
+             */
+            status: string;
+            /**
+             * Transactions Per Min
+             * @description Transaction rate per minute
+             */
+            transactions_per_min: number;
         };
         /**
          * DebugCircuitBreakersResponse
@@ -10482,6 +10693,50 @@ export interface components {
              */
             utilization?: number | null;
         };
+        /**
+         * GpuMetrics
+         * @description GPU metrics from nvidia-smi / pynvml.
+         * @example {
+         *       "name": "NVIDIA RTX A5500",
+         *       "power_watts": 31,
+         *       "temperature": 38,
+         *       "utilization": 38,
+         *       "vram_total_gb": 24,
+         *       "vram_used_gb": 22.7
+         *     }
+         */
+        GpuMetrics: {
+            /**
+             * Name
+             * @description GPU device name (e.g., 'NVIDIA RTX A5500')
+             */
+            name: string;
+            /**
+             * Power Watts
+             * @description GPU power usage in Watts
+             */
+            power_watts: number;
+            /**
+             * Temperature
+             * @description GPU temperature in Celsius
+             */
+            temperature: number;
+            /**
+             * Utilization
+             * @description GPU utilization percentage (0-100)
+             */
+            utilization: number;
+            /**
+             * Vram Total Gb
+             * @description Total VRAM in GB
+             */
+            vram_total_gb: number;
+            /**
+             * Vram Used Gb
+             * @description VRAM used in GB
+             */
+            vram_used_gb: number;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -10613,6 +10868,44 @@ export interface components {
             timestamp: string;
         };
         /**
+         * HostMetrics
+         * @description Host system metrics from psutil.
+         * @example {
+         *       "cpu_percent": 12,
+         *       "disk_total_gb": 500,
+         *       "disk_used_gb": 156,
+         *       "ram_total_gb": 32,
+         *       "ram_used_gb": 8.2
+         *     }
+         */
+        HostMetrics: {
+            /**
+             * Cpu Percent
+             * @description CPU utilization percentage
+             */
+            cpu_percent: number;
+            /**
+             * Disk Total Gb
+             * @description Total disk in GB
+             */
+            disk_total_gb: number;
+            /**
+             * Disk Used Gb
+             * @description Disk used in GB
+             */
+            disk_used_gb: number;
+            /**
+             * Ram Total Gb
+             * @description Total RAM in GB
+             */
+            ram_total_gb: number;
+            /**
+             * Ram Used Gb
+             * @description RAM used in GB
+             */
+            ram_used_gb: number;
+        };
+        /**
          * HourlyPattern
          * @description Activity pattern for a specific hour.
          * @example {
@@ -10676,6 +10969,71 @@ export interface components {
             score?: number | null;
         };
         /**
+         * InferenceMetrics
+         * @description AI inference latency and throughput metrics.
+         * @example {
+         *       "nemotron_latency_ms": {
+         *         "avg": 2100,
+         *         "p95": 4800,
+         *         "p99": 8200
+         *       },
+         *       "pipeline_latency_ms": {
+         *         "avg": 3200,
+         *         "p95": 6100
+         *       },
+         *       "queues": {
+         *         "analysis": 0,
+         *         "detection": 0
+         *       },
+         *       "rtdetr_latency_ms": {
+         *         "avg": 45,
+         *         "p95": 82,
+         *         "p99": 120
+         *       },
+         *       "throughput": {
+         *         "events_per_min": 2.1,
+         *         "images_per_min": 12.4
+         *       }
+         *     }
+         */
+        InferenceMetrics: {
+            /**
+             * Nemotron Latency Ms
+             * @description Nemotron latency stats (avg, p95, p99)
+             */
+            nemotron_latency_ms: {
+                [key: string]: number;
+            };
+            /**
+             * Pipeline Latency Ms
+             * @description Full pipeline latency stats (avg, p95)
+             */
+            pipeline_latency_ms: {
+                [key: string]: number;
+            };
+            /**
+             * Queues
+             * @description Queue depths (detection, analysis)
+             */
+            queues: {
+                [key: string]: number;
+            };
+            /**
+             * Rtdetr Latency Ms
+             * @description RT-DETRv2 latency stats (avg, p95, p99)
+             */
+            rtdetr_latency_ms: {
+                [key: string]: number;
+            };
+            /**
+             * Throughput
+             * @description Throughput metrics (images_per_min, events_per_min)
+             */
+            throughput: {
+                [key: string]: number;
+            };
+        };
+        /**
          * InfrastructureHealthStatus
          * @description Health status for infrastructure services (postgres, redis).
          *
@@ -10706,6 +11064,59 @@ export interface components {
             name: string;
             /** @description Current health state */
             status: components["schemas"]["ServiceHealthState"];
+        };
+        /**
+         * JobCancelResponse
+         * @description Response model for job cancellation request.
+         * @example {
+         *       "job_id": "550e8400-e29b-41d4-a716-446655440000",
+         *       "message": "Job cancellation requested",
+         *       "status": "failed"
+         *     }
+         */
+        JobCancelResponse: {
+            /**
+             * Job Id
+             * @description Job ID that was cancelled
+             */
+            job_id: string;
+            /**
+             * Message
+             * @description Cancellation status message
+             */
+            message: string;
+            /** @description New job status after cancellation */
+            status: components["schemas"]["JobStatusEnum"];
+        };
+        /**
+         * JobListResponse
+         * @description Response model for listing jobs.
+         * @example {
+         *       "jobs": [
+         *         {
+         *           "created_at": "2024-01-15T10:30:00Z",
+         *           "job_id": "550e8400-e29b-41d4-a716-446655440000",
+         *           "job_type": "export",
+         *           "message": "Exporting events: 450/1000",
+         *           "progress": 45,
+         *           "started_at": "2024-01-15T10:30:01Z",
+         *           "status": "running"
+         *         }
+         *       ],
+         *       "total": 1
+         *     }
+         */
+        JobListResponse: {
+            /**
+             * Jobs
+             * @description List of jobs
+             */
+            jobs: components["schemas"]["JobResponse"][];
+            /**
+             * Total
+             * @description Total number of jobs matching filter
+             */
+            total: number;
         };
         /**
          * JobResponse
@@ -10775,6 +11186,49 @@ export interface components {
          * @enum {string}
          */
         JobStatusEnum: "pending" | "running" | "completed" | "failed";
+        /**
+         * JobTypeInfo
+         * @description Information about a job type.
+         * @example {
+         *       "description": "Export events to CSV, JSON, or ZIP format",
+         *       "name": "export"
+         *     }
+         */
+        JobTypeInfo: {
+            /**
+             * Description
+             * @description Human-readable description of the job type
+             */
+            description: string;
+            /**
+             * Name
+             * @description Job type name (e.g., 'export', 'cleanup')
+             */
+            name: string;
+        };
+        /**
+         * JobTypesResponse
+         * @description Response model for listing job types.
+         * @example {
+         *       "job_types": [
+         *         {
+         *           "description": "Export events to CSV, JSON, or ZIP format",
+         *           "name": "export"
+         *         },
+         *         {
+         *           "description": "Clean up old data and temporary files",
+         *           "name": "cleanup"
+         *         }
+         *       ]
+         *     }
+         */
+        JobTypesResponse: {
+            /**
+             * Job Types
+             * @description List of available job types
+             */
+            job_types: components["schemas"]["JobTypeInfo"][];
+        };
         /**
          * LatencyHistorySnapshot
          * @description Single time-bucket snapshot of pipeline latency metrics.
@@ -11608,6 +12062,38 @@ export interface components {
             vram_used_mb: number;
         };
         /**
+         * NemotronMetrics
+         * @description Metrics for Nemotron LLM.
+         * @example {
+         *       "context_size": 4096,
+         *       "slots_active": 1,
+         *       "slots_total": 2,
+         *       "status": "healthy"
+         *     }
+         */
+        NemotronMetrics: {
+            /**
+             * Context Size
+             * @description Context window size in tokens
+             */
+            context_size: number;
+            /**
+             * Slots Active
+             * @description Number of active inference slots
+             */
+            slots_active: number;
+            /**
+             * Slots Total
+             * @description Total available inference slots
+             */
+            slots_total: number;
+            /**
+             * Status
+             * @description Health status: healthy, unhealthy, unreachable
+             */
+            status: string;
+        };
+        /**
          * NotificationChannel
          * @description Notification channel types.
          * @enum {string}
@@ -11948,6 +12434,143 @@ export interface components {
              * @description Total number of items matching the query
              */
             total: number;
+        };
+        /**
+         * PerformanceAlert
+         * @description Alert when metric exceeds threshold.
+         * @example {
+         *       "message": "GPU temperature high: 82C",
+         *       "metric": "gpu_temperature",
+         *       "severity": "warning",
+         *       "threshold": 80,
+         *       "value": 82
+         *     }
+         */
+        PerformanceAlert: {
+            /**
+             * Message
+             * @description Human-readable alert message
+             */
+            message: string;
+            /**
+             * Metric
+             * @description Metric name that triggered the alert
+             */
+            metric: string;
+            /**
+             * Severity
+             * @description Alert severity: warning or critical
+             */
+            severity: string;
+            /**
+             * Threshold
+             * @description Threshold that was exceeded
+             */
+            threshold: number;
+            /**
+             * Value
+             * @description Current metric value
+             */
+            value: number;
+        };
+        /**
+         * PerformanceHistoryResponse
+         * @description Response containing historical performance data.
+         *
+         *     Used by GET /api/system/performance/history endpoint.
+         * @example {
+         *       "count": 0,
+         *       "snapshots": [],
+         *       "time_range": "5m"
+         *     }
+         */
+        PerformanceHistoryResponse: {
+            /**
+             * Count
+             * @description Number of snapshots returned
+             */
+            count: number;
+            /**
+             * Snapshots
+             * @description List of performance snapshots ordered chronologically
+             */
+            snapshots: components["schemas"]["PerformanceUpdate"][];
+            /** @description Time range of the history */
+            time_range: components["schemas"]["TimeRange"];
+        };
+        /**
+         * PerformanceUpdate
+         * @description Complete performance update sent via WebSocket.
+         *
+         *     This is the main payload broadcast to frontend clients every 5 seconds.
+         *     All fields are optional to allow partial updates.
+         * @example {
+         *       "ai_models": {
+         *         "rtdetr": {
+         *           "device": "cuda:0",
+         *           "model": "rtdetr",
+         *           "status": "healthy",
+         *           "vram_gb": 0.17
+         *         }
+         *       },
+         *       "alerts": [],
+         *       "gpu": {
+         *         "name": "NVIDIA RTX A5500",
+         *         "power_watts": 31,
+         *         "temperature": 38,
+         *         "utilization": 38,
+         *         "vram_total_gb": 24,
+         *         "vram_used_gb": 22.7
+         *       },
+         *       "host": {
+         *         "cpu_percent": 12,
+         *         "disk_total_gb": 500,
+         *         "disk_used_gb": 156,
+         *         "ram_total_gb": 32,
+         *         "ram_used_gb": 8.2
+         *       },
+         *       "timestamp": "2025-12-31T10:30:00Z"
+         *     }
+         */
+        PerformanceUpdate: {
+            /**
+             * Ai Models
+             * @description AI model metrics keyed by model name
+             */
+            ai_models?: {
+                [key: string]: components["schemas"]["AiModelMetrics"] | components["schemas"]["NemotronMetrics"];
+            };
+            /**
+             * Alerts
+             * @description Active performance alerts
+             */
+            alerts?: components["schemas"]["PerformanceAlert"][];
+            /**
+             * Containers
+             * @description Container health statuses
+             */
+            containers?: components["schemas"]["ContainerMetrics"][];
+            /**
+             * Databases
+             * @description Database metrics keyed by name
+             */
+            databases?: {
+                [key: string]: components["schemas"]["DatabaseMetrics"] | components["schemas"]["RedisMetrics"];
+            };
+            /** @description GPU metrics */
+            gpu?: components["schemas"]["GpuMetrics"] | null;
+            /** @description Host system metrics */
+            host?: components["schemas"]["HostMetrics"] | null;
+            /** @description AI inference latency and throughput */
+            inference?: components["schemas"]["InferenceMetrics"] | null;
+            /** @description Nemotron-specific metrics */
+            nemotron?: components["schemas"]["NemotronMetrics"] | null;
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description When this update was generated (UTC)
+             */
+            timestamp?: string;
         };
         /**
          * PetEnrichment
@@ -13443,6 +14066,44 @@ export interface components {
             timestamp: string;
         };
         /**
+         * RedisMetrics
+         * @description Redis cache metrics.
+         * @example {
+         *       "blocked_clients": 0,
+         *       "connected_clients": 8,
+         *       "hit_ratio": 99.5,
+         *       "memory_mb": 1.5,
+         *       "status": "healthy"
+         *     }
+         */
+        RedisMetrics: {
+            /**
+             * Blocked Clients
+             * @description Number of blocked clients
+             */
+            blocked_clients: number;
+            /**
+             * Connected Clients
+             * @description Number of connected clients
+             */
+            connected_clients: number;
+            /**
+             * Hit Ratio
+             * @description Cache hit ratio percentage
+             */
+            hit_ratio: number;
+            /**
+             * Memory Mb
+             * @description Memory used in MB
+             */
+            memory_mb: number;
+            /**
+             * Status
+             * @description Health status: healthy, unhealthy, unreachable
+             */
+            status: string;
+        };
+        /**
          * ReplayResponse
          * @description Response for request replay.
          */
@@ -14763,6 +15424,12 @@ export interface components {
              */
             success: boolean;
         };
+        /**
+         * TimeRange
+         * @description Time range options for historical data.
+         * @enum {string}
+         */
+        TimeRange: "5m" | "15m" | "60m";
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -19342,6 +20009,39 @@ export interface operations {
             };
         };
     };
+    start_export_job_api_events_export_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExportJobRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExportJobStartResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     search_events_endpoint_api_events_search_get: {
         parameters: {
             query: {
@@ -19730,6 +20430,143 @@ export interface operations {
                 content?: never;
             };
             /** @description Event is not deleted */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_jobs_api_jobs_get: {
+        parameters: {
+            query?: {
+                /** @description Filter by job type (e.g., 'export', 'cleanup') */
+                job_type?: string | null;
+                /** @description Filter by job status */
+                status?: components["schemas"]["JobStatusEnum"] | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_job_types_api_jobs_types_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobTypesResponse"];
+                };
+            };
+        };
+    };
+    get_job_status_api_jobs__job_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobResponse"];
+                };
+            };
+            /** @description Job not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_job_api_jobs__job_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobCancelResponse"];
+                };
+            };
+            /** @description Job not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Job cannot be cancelled (already completed or failed) */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -21062,6 +21899,65 @@ export interface operations {
             };
         };
     };
+    get_performance_api_system_performance_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current performance metrics */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PerformanceUpdate"];
+                };
+            };
+            /** @description Performance collector unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_performance_history_api_system_performance_history_get: {
+        parameters: {
+            query?: {
+                /** @description Time range for historical data (5m, 15m, 60m) */
+                time_range?: components["schemas"]["TimeRange"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Historical performance metrics */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PerformanceHistoryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_pipeline_status_api_system_pipeline_get: {
         parameters: {
             query?: never;
@@ -21549,39 +22445,6 @@ export interface operations {
             };
         };
     };
-    start_export_job_events_export_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ExportJobRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ExportJobStartResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     health_health_get: {
         parameters: {
             query?: never;
@@ -21600,44 +22463,6 @@ export interface operations {
                     "application/json": {
                         [key: string]: string;
                     };
-                };
-            };
-        };
-    };
-    get_job_status_jobs__job_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                job_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["JobResponse"];
-                };
-            };
-            /** @description Job not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
