@@ -42,6 +42,7 @@ from backend.api.schemas.system import (
     DegradationModeEnum,
 )
 from backend.core.config import Settings
+from backend.core.redis import get_redis
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -54,9 +55,22 @@ if TYPE_CHECKING:
 
 @pytest.fixture
 def test_app() -> FastAPI:
-    """Create test FastAPI app with system router."""
+    """Create test FastAPI app with system router.
+
+    Includes a mock Redis dependency override to prevent
+    endpoints with RateLimiter from connecting to real Redis.
+    """
     app = FastAPI()
     app.include_router(router)
+
+    # Create mock Redis client for rate limiting
+    mock_redis = AsyncMock()
+    mock_redis.health_check.return_value = {"status": "healthy", "connected": True}
+
+    async def mock_get_redis():
+        yield mock_redis
+
+    app.dependency_overrides[get_redis] = mock_get_redis
     return app
 
 
