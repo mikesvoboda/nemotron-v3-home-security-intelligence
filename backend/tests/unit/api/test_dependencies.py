@@ -10,6 +10,8 @@ Test cases cover:
 - get_event_audit_or_404: Event audit lookup by event_id
 - get_audit_log_or_404: Audit log lookup
 - get_or_404_factory: Generic factory for entity lookups
+- AI service dependencies (NEM-2003): FaceDetectorService, PlateDetectorService,
+  OCRService, YOLOWorldService via DI container
 """
 
 from __future__ import annotations
@@ -500,3 +502,103 @@ class TestExistingDependencies:
         result = await get_detection_or_404(42, mock_db)
 
         assert result == mock_detection
+
+
+class TestAIServiceDependencies:
+    """Tests for AI service dependency functions (NEM-2003).
+
+    These tests verify that the AI service dependency functions properly
+    retrieve services from the DI container.
+    """
+
+    @pytest.mark.asyncio
+    async def test_get_face_detector_service_dep_uses_container(self) -> None:
+        """Test that get_face_detector_service_dep retrieves from DI container."""
+        from unittest.mock import patch
+
+        from backend.api.dependencies import get_face_detector_service_dep
+
+        mock_service = MagicMock()
+        mock_service.name = "face_detector"
+
+        mock_container = MagicMock()
+        mock_container.get.return_value = mock_service
+
+        # Patch at the module where get_container is defined (backend.core.container)
+        with patch(
+            "backend.core.container.get_container",
+            return_value=mock_container,
+        ):
+            result = get_face_detector_service_dep()
+
+        assert result == mock_service
+        mock_container.get.assert_called_once_with("face_detector_service")
+
+    @pytest.mark.asyncio
+    async def test_get_plate_detector_service_dep_uses_container(self) -> None:
+        """Test that get_plate_detector_service_dep retrieves from DI container."""
+        from unittest.mock import patch
+
+        from backend.api.dependencies import get_plate_detector_service_dep
+
+        mock_service = MagicMock()
+        mock_service.name = "plate_detector"
+
+        mock_container = MagicMock()
+        mock_container.get.return_value = mock_service
+
+        # Patch at the module where get_container is defined (backend.core.container)
+        with patch(
+            "backend.core.container.get_container",
+            return_value=mock_container,
+        ):
+            result = get_plate_detector_service_dep()
+
+        assert result == mock_service
+        mock_container.get.assert_called_once_with("plate_detector_service")
+
+    @pytest.mark.asyncio
+    async def test_get_ocr_service_dep_uses_container(self) -> None:
+        """Test that get_ocr_service_dep retrieves from DI container."""
+        from unittest.mock import patch
+
+        from backend.api.dependencies import get_ocr_service_dep
+
+        mock_service = MagicMock()
+        mock_service.name = "ocr_service"
+
+        mock_container = MagicMock()
+        mock_container.get.return_value = mock_service
+
+        # Patch at the module where get_container is defined (backend.core.container)
+        with patch(
+            "backend.core.container.get_container",
+            return_value=mock_container,
+        ):
+            result = get_ocr_service_dep()
+
+        assert result == mock_service
+        mock_container.get.assert_called_once_with("ocr_service")
+
+    @pytest.mark.asyncio
+    async def test_get_yolo_world_service_dep_uses_container(self) -> None:
+        """Test that get_yolo_world_service_dep retrieves from DI container."""
+        from unittest.mock import patch
+
+        from backend.api.dependencies import get_yolo_world_service_dep
+
+        mock_service = MagicMock()
+        mock_service.name = "yolo_world"
+
+        mock_container = MagicMock()
+        mock_container.get.return_value = mock_service
+
+        # Patch at the module where get_container is defined (backend.core.container)
+        with patch(
+            "backend.core.container.get_container",
+            return_value=mock_container,
+        ):
+            result = get_yolo_world_service_dep()
+
+        assert result == mock_service
+        mock_container.get.assert_called_once_with("yolo_world_service")
