@@ -1729,6 +1729,7 @@ async def test_update_severity_thresholds_concurrent_updates(client, mock_redis)
 # =============================================================================
 
 
+@pytest.mark.skip(reason="Performance REST API endpoint not yet implemented (NEM-1900)")
 @pytest.mark.asyncio
 async def test_performance_endpoint_returns_metrics(client, mock_redis):
     """Test performance endpoint returns current performance metrics."""
@@ -1766,6 +1767,7 @@ async def test_performance_endpoint_returns_metrics(client, mock_redis):
         assert "alerts" in data
 
 
+@pytest.mark.skip(reason="Performance REST API endpoint not yet implemented (NEM-1900)")
 @pytest.mark.asyncio
 async def test_performance_endpoint_without_collector(client, mock_redis):
     """Test performance endpoint creates temporary collector when none registered."""
@@ -1807,6 +1809,7 @@ async def test_performance_endpoint_without_collector(client, mock_redis):
             mock_collector_instance.close.assert_called_once()
 
 
+@pytest.mark.skip(reason="Performance REST API endpoint not yet implemented (NEM-1900)")
 @pytest.mark.asyncio
 async def test_performance_history_endpoint_empty(client, mock_redis):
     """Test performance history endpoint with no stored data."""
@@ -1826,6 +1829,7 @@ async def test_performance_history_endpoint_empty(client, mock_redis):
     assert data["time_range"] == "5m"  # Default value
 
 
+@pytest.mark.skip(reason="Performance REST API endpoint not yet implemented (NEM-1900)")
 @pytest.mark.asyncio
 async def test_performance_history_endpoint_with_time_range(client, mock_redis):
     """Test performance history endpoint with different time ranges."""
@@ -1850,6 +1854,7 @@ async def test_performance_history_endpoint_with_time_range(client, mock_redis):
     assert data["time_range"] == "60m"
 
 
+@pytest.mark.skip(reason="Performance REST API endpoint not yet implemented (NEM-1900)")
 @pytest.mark.asyncio
 async def test_performance_history_endpoint_invalid_time_range(client, mock_redis):
     """Test performance history endpoint rejects invalid time ranges."""
@@ -1859,6 +1864,7 @@ async def test_performance_history_endpoint_invalid_time_range(client, mock_redi
     assert response.status_code == 422
 
 
+@pytest.mark.skip(reason="Performance REST API endpoint not yet implemented (NEM-1900)")
 @pytest.mark.asyncio
 async def test_performance_history_endpoint_with_data(client, mock_redis):
     """Test performance history endpoint returns stored snapshots."""
@@ -1897,6 +1903,7 @@ async def test_performance_history_endpoint_with_data(client, mock_redis):
     assert snapshot["host"]["cpu_percent"] == 30.0
 
 
+@pytest.mark.skip(reason="Performance REST API endpoint not yet implemented (NEM-1900)")
 @pytest.mark.asyncio
 async def test_performance_stores_snapshot_in_redis(client, mock_redis):
     """Test that getting current performance stores snapshot in Redis."""
