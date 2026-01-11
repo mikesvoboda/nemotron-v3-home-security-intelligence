@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
@@ -13,15 +14,35 @@ vi.mock('../../services/api', async () => {
     ...actual,
     fetchEntities: vi.fn(),
     fetchEntity: vi.fn(),
+    fetchCameras: vi.fn(),
   };
 });
 
 const mockFetchEntities = vi.mocked(api.fetchEntities);
 const mockFetchEntity = vi.mocked(api.fetchEntity);
+const mockFetchCameras = vi.mocked(api.fetchCameras);
 
-// Helper to render with router
-const renderWithRouter = (component: React.ReactElement) => {
-  return render(<BrowserRouter>{component}</BrowserRouter>);
+// Create a fresh QueryClient for each test
+function createTestQueryClient() {
+  return new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+        gcTime: 0,
+        staleTime: 0,
+      },
+    },
+  });
+}
+
+// Helper to render with router and query client
+const renderWithProviders = (component: React.ReactElement) => {
+  const queryClient = createTestQueryClient();
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>{component}</BrowserRouter>
+    </QueryClientProvider>
+  );
 };
 
 describe('EntitiesPage', () => {
@@ -44,6 +65,25 @@ describe('EntitiesPage', () => {
       appearance_count: 2,
       cameras_seen: ['driveway'],
       thumbnail_url: null,
+    },
+  ];
+
+  const mockCameras: api.Camera[] = [
+    {
+      id: 'front_door',
+      name: 'Front Door',
+      folder_path: '/export/foscam/front_door',
+      status: 'online',
+      created_at: '2024-01-01T00:00:00Z',
+      last_seen_at: '2024-01-01T12:00:00Z',
+    },
+    {
+      id: 'back_yard',
+      name: 'Back Yard',
+      folder_path: '/export/foscam/back_yard',
+      status: 'online',
+      created_at: '2024-01-01T00:00:00Z',
+      last_seen_at: '2024-01-01T12:00:00Z',
     },
   ];
 
@@ -75,6 +115,7 @@ describe('EntitiesPage', () => {
       },
     });
     mockFetchEntity.mockResolvedValue(mockEntityDetail);
+    mockFetchCameras.mockResolvedValue(mockCameras);
   });
 
   afterEach(() => {
@@ -83,10 +124,10 @@ describe('EntitiesPage', () => {
 
   describe('Rendering', () => {
     it('renders the page header with title and description', async () => {
-      renderWithRouter(<EntitiesPage />);
+      renderWithProviders(<EntitiesPage />);
 
       await waitFor(() => {
-        expect(screen.queryByText('Loading entities...')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('entity-card-skeleton')).not.toBeInTheDocument();
       });
 
       expect(screen.getByText('Entities')).toBeInTheDocument();
@@ -99,13 +140,13 @@ describe('EntitiesPage', () => {
       mockFetchEntities.mockImplementation(
         () => new Promise(() => {}) // Never resolves
       );
-      renderWithRouter(<EntitiesPage />);
+      renderWithProviders(<EntitiesPage />);
 
       expect(screen.getAllByTestId('entity-card-skeleton').length).toBeGreaterThan(0);
     });
 
     it('displays entity cards after loading', async () => {
-      renderWithRouter(<EntitiesPage />);
+      renderWithProviders(<EntitiesPage />);
 
       await waitFor(() => {
         expect(screen.queryByTestId('entity-card-skeleton')).not.toBeInTheDocument();
@@ -119,11 +160,15 @@ describe('EntitiesPage', () => {
     it('displays error state when API fails', async () => {
       mockFetchEntities.mockRejectedValue(new Error('API Error'));
 
-      renderWithRouter(<EntitiesPage />);
+      renderWithProviders(<EntitiesPage />);
 
-      await waitFor(() => {
-        expect(screen.getByText('API Error')).toBeInTheDocument();
-      });
+      // Wait for the query to fail (including any retries from TanStack Query)
+      await waitFor(
+        () => {
+          expect(screen.getByText('API Error')).toBeInTheDocument();
+        },
+        { timeout: 5000 }
+      );
 
       expect(screen.getByText('Try Again')).toBeInTheDocument();
     });
@@ -139,7 +184,7 @@ describe('EntitiesPage', () => {
         },
       });
 
-      renderWithRouter(<EntitiesPage />);
+      renderWithProviders(<EntitiesPage />);
 
       await waitFor(() => {
         expect(screen.getByText('No Entities Tracked Yet')).toBeInTheDocument();
@@ -157,7 +202,7 @@ describe('EntitiesPage', () => {
         },
       });
 
-      renderWithRouter(<EntitiesPage />);
+      renderWithProviders(<EntitiesPage />);
 
       await waitFor(() => {
         expect(screen.getByText('How it works')).toBeInTheDocument();
@@ -179,7 +224,7 @@ describe('EntitiesPage', () => {
         },
       });
 
-      renderWithRouter(<EntitiesPage />);
+      renderWithProviders(<EntitiesPage />);
 
       await waitFor(() => {
         const ctaButton = screen.getByRole('link', { name: /View Detection Settings/i });
@@ -189,23 +234,24 @@ describe('EntitiesPage', () => {
     });
   });
 
-  describe('Filtering', () => {
+  describe('Entity Type Filtering', () => {
     it('displays simpler empty state when filtered by person with no results', async () => {
-      mockFetchEntities.mockResolvedValue({
-        items: [],
-        pagination: {
-          total: 0,
-          limit: 50,
-          offset: 0,
-          has_more: false,
-        },
-      });
+      // First call returns data, subsequent calls return empty
+      mockFetchEntities
+        .mockResolvedValueOnce({
+          items: mockEntities,
+          pagination: { total: 2, limit: 50, offset: 0, has_more: false },
+        })
+        .mockResolvedValue({
+          items: [],
+          pagination: { total: 0, limit: 50, offset: 0, has_more: false },
+        });
 
       const user = userEvent.setup();
-      renderWithRouter(<EntitiesPage />);
+      renderWithProviders(<EntitiesPage />);
 
       await waitFor(() => {
-        expect(screen.queryByText('Loading entities...')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('entity-card-skeleton')).not.toBeInTheDocument();
       });
 
       // Click the Persons filter
@@ -220,21 +266,21 @@ describe('EntitiesPage', () => {
     });
 
     it('displays simpler empty state when filtered by vehicle with no results', async () => {
-      mockFetchEntities.mockResolvedValue({
-        items: [],
-        pagination: {
-          total: 0,
-          limit: 50,
-          offset: 0,
-          has_more: false,
-        },
-      });
+      mockFetchEntities
+        .mockResolvedValueOnce({
+          items: mockEntities,
+          pagination: { total: 2, limit: 50, offset: 0, has_more: false },
+        })
+        .mockResolvedValue({
+          items: [],
+          pagination: { total: 0, limit: 50, offset: 0, has_more: false },
+        });
 
       const user = userEvent.setup();
-      renderWithRouter(<EntitiesPage />);
+      renderWithProviders(<EntitiesPage />);
 
       await waitFor(() => {
-        expect(screen.queryByText('Loading entities...')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('entity-card-skeleton')).not.toBeInTheDocument();
       });
 
       // Click the Vehicles filter
@@ -249,10 +295,10 @@ describe('EntitiesPage', () => {
     });
 
     it('renders filter buttons for All, Persons, and Vehicles', async () => {
-      renderWithRouter(<EntitiesPage />);
+      renderWithProviders(<EntitiesPage />);
 
       await waitFor(() => {
-        expect(screen.queryByText('Loading entities...')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('entity-card-skeleton')).not.toBeInTheDocument();
       });
 
       expect(screen.getByText('All')).toBeInTheDocument();
@@ -262,10 +308,10 @@ describe('EntitiesPage', () => {
 
     it('filters entities when Persons button is clicked', async () => {
       const user = userEvent.setup();
-      renderWithRouter(<EntitiesPage />);
+      renderWithProviders(<EntitiesPage />);
 
       await waitFor(() => {
-        expect(screen.queryByText('Loading entities...')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('entity-card-skeleton')).not.toBeInTheDocument();
       });
 
       // Click the Persons filter
@@ -281,10 +327,10 @@ describe('EntitiesPage', () => {
 
     it('filters entities when Vehicles button is clicked', async () => {
       const user = userEvent.setup();
-      renderWithRouter(<EntitiesPage />);
+      renderWithProviders(<EntitiesPage />);
 
       await waitFor(() => {
-        expect(screen.queryByText('Loading entities...')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('entity-card-skeleton')).not.toBeInTheDocument();
       });
 
       // Click the Vehicles filter
@@ -299,12 +345,121 @@ describe('EntitiesPage', () => {
     });
   });
 
-  describe('Refresh functionality', () => {
-    it('renders refresh button', async () => {
-      renderWithRouter(<EntitiesPage />);
+  describe('Time Range Filtering', () => {
+    it('renders time range dropdown with all options', async () => {
+      renderWithProviders(<EntitiesPage />);
 
       await waitFor(() => {
-        expect(screen.queryByText('Loading entities...')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('entity-card-skeleton')).not.toBeInTheDocument();
+      });
+
+      const timeRangeSelect = screen.getByLabelText('Filter by time range');
+      expect(timeRangeSelect).toBeInTheDocument();
+
+      // Check all options are present
+      expect(screen.getByRole('option', { name: 'All Time' })).toBeInTheDocument();
+      expect(screen.getByRole('option', { name: 'Last 1h' })).toBeInTheDocument();
+      expect(screen.getByRole('option', { name: 'Last 24h' })).toBeInTheDocument();
+      expect(screen.getByRole('option', { name: 'Last 7d' })).toBeInTheDocument();
+      expect(screen.getByRole('option', { name: 'Last 30d' })).toBeInTheDocument();
+    });
+
+    it('filters entities when time range is changed', async () => {
+      const user = userEvent.setup();
+      renderWithProviders(<EntitiesPage />);
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('entity-card-skeleton')).not.toBeInTheDocument();
+      });
+
+      const timeRangeSelect = screen.getByLabelText('Filter by time range');
+      await user.selectOptions(timeRangeSelect, '24h');
+
+      // API should be called with since parameter
+      await waitFor(() => {
+        const calls = mockFetchEntities.mock.calls;
+        const lastCall = calls[calls.length - 1][0];
+        expect(lastCall?.since).toBeDefined();
+      });
+    });
+  });
+
+  describe('Camera Filtering', () => {
+    it('renders camera dropdown with all cameras', async () => {
+      renderWithProviders(<EntitiesPage />);
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('entity-card-skeleton')).not.toBeInTheDocument();
+      });
+
+      const cameraSelect = screen.getByLabelText('Filter by camera');
+      expect(cameraSelect).toBeInTheDocument();
+
+      // Check default option
+      expect(screen.getByRole('option', { name: 'All Cameras' })).toBeInTheDocument();
+
+      // Check camera options are present
+      expect(screen.getByRole('option', { name: 'Front Door' })).toBeInTheDocument();
+      expect(screen.getByRole('option', { name: 'Back Yard' })).toBeInTheDocument();
+    });
+
+    it('filters entities when camera is selected', async () => {
+      const user = userEvent.setup();
+      renderWithProviders(<EntitiesPage />);
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('entity-card-skeleton')).not.toBeInTheDocument();
+      });
+
+      const cameraSelect = screen.getByLabelText('Filter by camera');
+      await user.selectOptions(cameraSelect, 'front_door');
+
+      // API should be called with camera_id filter
+      await waitFor(() => {
+        expect(mockFetchEntities).toHaveBeenCalledWith(
+          expect.objectContaining({ camera_id: 'front_door' })
+        );
+      });
+    });
+  });
+
+  describe('Clear Filters', () => {
+    it('shows clear filters button when filters are applied and no results', async () => {
+      mockFetchEntities
+        .mockResolvedValueOnce({
+          items: mockEntities,
+          pagination: { total: 2, limit: 50, offset: 0, has_more: false },
+        })
+        .mockResolvedValue({
+          items: [],
+          pagination: { total: 0, limit: 50, offset: 0, has_more: false },
+        });
+
+      const user = userEvent.setup();
+      renderWithProviders(<EntitiesPage />);
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('entity-card-skeleton')).not.toBeInTheDocument();
+      });
+
+      // Apply a filter
+      await user.click(screen.getByText('Persons'));
+
+      await waitFor(() => {
+        expect(screen.getByText('No Persons Found')).toBeInTheDocument();
+      });
+
+      // Clear filters button should be present
+      expect(screen.getByText('Clear Filters')).toBeInTheDocument();
+    });
+  });
+
+  describe('Refresh functionality', () => {
+    it('renders refresh button', async () => {
+      renderWithProviders(<EntitiesPage />);
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('entity-card-skeleton')).not.toBeInTheDocument();
       });
 
       expect(screen.getByLabelText('Refresh entities')).toBeInTheDocument();
@@ -312,21 +467,21 @@ describe('EntitiesPage', () => {
 
     it('reloads entities when refresh button is clicked', async () => {
       const user = userEvent.setup();
-      renderWithRouter(<EntitiesPage />);
+      renderWithProviders(<EntitiesPage />);
 
       await waitFor(() => {
-        expect(screen.queryByText('Loading entities...')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('entity-card-skeleton')).not.toBeInTheDocument();
       });
 
-      // Clear previous calls
-      mockFetchEntities.mockClear();
+      // Get initial call count
+      const initialCallCount = mockFetchEntities.mock.calls.length;
 
       // Click refresh
       await user.click(screen.getByLabelText('Refresh entities'));
 
       // API should be called again
       await waitFor(() => {
-        expect(mockFetchEntities).toHaveBeenCalled();
+        expect(mockFetchEntities.mock.calls.length).toBeGreaterThan(initialCallCount);
       });
     });
   });
@@ -334,15 +489,17 @@ describe('EntitiesPage', () => {
   describe('Entity detail modal', () => {
     it('opens modal when entity card is clicked', async () => {
       const user = userEvent.setup();
-      renderWithRouter(<EntitiesPage />);
+      renderWithProviders(<EntitiesPage />);
 
       await waitFor(() => {
-        expect(screen.queryByText('Loading entities...')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('entity-card-skeleton')).not.toBeInTheDocument();
       });
 
       // Find and click the first entity card
       const entityCards = screen.getAllByRole('button');
-      const entityCard = entityCards.find((btn) => btn.getAttribute('aria-label')?.includes('View entity'));
+      const entityCard = entityCards.find((btn) =>
+        btn.getAttribute('aria-label')?.includes('View entity')
+      );
 
       if (entityCard) {
         await user.click(entityCard);
@@ -362,7 +519,7 @@ describe('EntitiesPage', () => {
 
   describe('Stats display', () => {
     it('displays entity type counts', async () => {
-      renderWithRouter(<EntitiesPage />);
+      renderWithProviders(<EntitiesPage />);
 
       // Wait for stats to appear (more reliable than just waiting for loading to disappear)
       await waitFor(() => {
@@ -377,10 +534,10 @@ describe('EntitiesPage', () => {
 
   describe('Accessibility', () => {
     it('has proper heading hierarchy', async () => {
-      renderWithRouter(<EntitiesPage />);
+      renderWithProviders(<EntitiesPage />);
 
       await waitFor(() => {
-        expect(screen.queryByText('Loading entities...')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('entity-card-skeleton')).not.toBeInTheDocument();
       });
 
       const mainHeading = screen.getByRole('heading', { level: 1 });
@@ -388,10 +545,10 @@ describe('EntitiesPage', () => {
     });
 
     it('filter buttons have aria-pressed attribute', async () => {
-      renderWithRouter(<EntitiesPage />);
+      renderWithProviders(<EntitiesPage />);
 
       await waitFor(() => {
-        expect(screen.queryByText('Loading entities...')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('entity-card-skeleton')).not.toBeInTheDocument();
       });
 
       const allButton = screen.getByText('All');
@@ -402,23 +559,43 @@ describe('EntitiesPage', () => {
     });
 
     it('refresh button is accessible', async () => {
-      renderWithRouter(<EntitiesPage />);
+      renderWithProviders(<EntitiesPage />);
 
       await waitFor(() => {
-        expect(screen.queryByText('Loading entities...')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('entity-card-skeleton')).not.toBeInTheDocument();
       });
 
       const refreshButton = screen.getByLabelText('Refresh entities');
       expect(refreshButton).toBeInTheDocument();
     });
+
+    it('time range filter has label', async () => {
+      renderWithProviders(<EntitiesPage />);
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('entity-card-skeleton')).not.toBeInTheDocument();
+      });
+
+      expect(screen.getByLabelText('Filter by time range')).toBeInTheDocument();
+    });
+
+    it('camera filter has label', async () => {
+      renderWithProviders(<EntitiesPage />);
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('entity-card-skeleton')).not.toBeInTheDocument();
+      });
+
+      expect(screen.getByLabelText('Filter by camera')).toBeInTheDocument();
+    });
   });
 
   describe('Styling', () => {
     it('applies NVIDIA green accent color to icons', async () => {
-      const { container } = renderWithRouter(<EntitiesPage />);
+      const { container } = renderWithProviders(<EntitiesPage />);
 
       await waitFor(() => {
-        expect(screen.queryByText('Loading entities...')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('entity-card-skeleton')).not.toBeInTheDocument();
       });
 
       // Check for the NVIDIA green color class on text elements
@@ -427,10 +604,10 @@ describe('EntitiesPage', () => {
     });
 
     it('has dark theme background', async () => {
-      const { container } = renderWithRouter(<EntitiesPage />);
+      const { container } = renderWithProviders(<EntitiesPage />);
 
       await waitFor(() => {
-        expect(screen.queryByText('Loading entities...')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('entity-card-skeleton')).not.toBeInTheDocument();
       });
 
       // Check for the dark background class

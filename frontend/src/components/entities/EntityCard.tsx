@@ -1,14 +1,21 @@
 import { Camera, Car, Clock, Eye, User } from 'lucide-react';
 import { memo } from 'react';
 
+/**
+ * Supported entity types for the EntityCard component.
+ * Note: The API may return other string values, which will be handled as 'vehicle' by default.
+ */
+export type EntityType = 'person' | 'vehicle';
+
 export interface EntityCardProps {
   id: string;
-  entity_type: 'person' | 'vehicle';
+  /** Entity type - accepts string from API (values other than 'person' treated as 'vehicle') */
+  entity_type: string;
   first_seen: string;
   last_seen: string;
   appearance_count: number;
-  cameras_seen: string[];
-  thumbnail_url: string | null;
+  cameras_seen?: string[];
+  thumbnail_url?: string | null;
   onClick?: (entityId: string) => void;
   className?: string;
 }
@@ -23,11 +30,14 @@ const EntityCard = memo(function EntityCard({
   first_seen,
   last_seen,
   appearance_count,
-  cameras_seen,
-  thumbnail_url,
+  cameras_seen = [],
+  thumbnail_url = null,
   onClick,
   className = '',
 }: EntityCardProps) {
+  // Normalize entity_type to known type ('person' | 'vehicle')
+  const normalizedType: EntityType = entity_type === 'person' ? 'person' : 'vehicle';
+
   // Format timestamp to relative time
   const formatTimestamp = (isoString: string): string => {
     try {
@@ -62,7 +72,7 @@ const EntityCard = memo(function EntityCard({
   };
 
   // Get entity type display label
-  const entityTypeLabel = entity_type === 'person' ? 'Person' : 'Vehicle';
+  const entityTypeLabel = normalizedType === 'person' ? 'Person' : 'Vehicle';
 
   // Handle card click
   const handleClick = () => {
@@ -98,7 +108,7 @@ const EntityCard = memo(function EntityCard({
         <div className="flex items-center gap-2">
           {/* Entity type badge */}
           <span className="flex items-center gap-1.5 rounded-full bg-[#76B900]/20 px-2.5 py-1 text-xs font-semibold text-[#76B900]">
-            {entity_type === 'person' ? (
+            {normalizedType === 'person' ? (
               <User className="lucide-user h-3.5 w-3.5" />
             ) : (
               <Car className="lucide-car h-3.5 w-3.5" />
@@ -125,7 +135,7 @@ const EntityCard = memo(function EntityCard({
             data-testid="entity-placeholder"
             className="flex h-full w-full items-center justify-center text-gray-600"
           >
-            {entity_type === 'person' ? (
+            {normalizedType === 'person' ? (
               <User className="h-16 w-16" />
             ) : (
               <Car className="h-16 w-16" />

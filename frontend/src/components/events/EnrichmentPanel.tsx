@@ -9,6 +9,7 @@
  * - License plate OCR results
  * - Weather conditions
  * - Image quality assessment
+ * - Pose visualization (posture, security alerts, keypoint confidence)
  */
 
 import { Accordion, AccordionHeader, AccordionBody, AccordionList } from '@tremor/react';
@@ -38,7 +39,7 @@ import {
   getConfidenceTextColorClass,
 } from '../../utils/confidence';
 
-import type { EnrichmentData } from '../../types/enrichment';
+import type { EnrichmentData, SecurityAlertType, PostureType } from '../../types/enrichment';
 import type { ReactElement } from 'react';
 
 export interface EnrichmentPanelProps {
@@ -97,6 +98,92 @@ function FlagBadge({ label, variant = 'default' }: { label: string; variant?: 'w
       {variant === 'info' && <Briefcase className="h-3 w-3" />}
       {label}
     </span>
+  );
+}
+
+/**
+ * Get badge color class for posture type
+ */
+function getPostureBadgeClass(posture: PostureType): string {
+  switch (posture) {
+    case 'standing':
+    case 'sitting':
+      return 'bg-gray-500/20 border-gray-500/40 text-gray-400';
+    case 'walking':
+      return 'bg-blue-500/20 border-blue-500/40 text-blue-400';
+    case 'running':
+      return 'bg-yellow-500/20 border-yellow-500/40 text-yellow-400';
+    case 'crouching':
+    case 'lying_down':
+      return 'bg-red-500/20 border-red-500/40 text-red-400';
+    default:
+      return 'bg-gray-500/20 border-gray-500/40 text-gray-400';
+  }
+}
+
+/**
+ * Security alert labels with emoji indicators
+ */
+const SECURITY_ALERT_LABELS: Record<SecurityAlertType, { emoji: string; label: string; description: string }> = {
+  crouching: {
+    emoji: '\u26A0\uFE0F',
+    label: 'Crouching Detected',
+    description: 'Person in crouching position may indicate suspicious behavior or hiding.',
+  },
+  lying_down: {
+    emoji: '\uD83D\uDEA8',
+    label: 'Person Down',
+    description: 'Person lying on ground may indicate medical emergency or security incident.',
+  },
+  hands_raised: {
+    emoji: '\uD83D\uDE4C',
+    label: 'Hands Raised',
+    description: 'Raised hands detected, may indicate surrender or distress signal.',
+  },
+  fighting_stance: {
+    emoji: '\u2694\uFE0F',
+    label: 'Aggressive Posture',
+    description: 'Aggressive stance detected, may indicate potential confrontation.',
+  },
+};
+
+/**
+ * Posture badge component for pose display
+ */
+function PostureBadge({ posture }: { posture: PostureType }) {
+  const badgeClass = getPostureBadgeClass(posture);
+  const formattedPosture = posture.replace('_', ' ');
+
+  return (
+    <span
+      className={clsx(
+        'inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium capitalize',
+        badgeClass
+      )}
+      data-testid="posture-badge"
+    >
+      {formattedPosture}
+    </span>
+  );
+}
+
+/**
+ * Security alert component for pose display
+ */
+function SecurityAlertBadge({ alert }: { alert: SecurityAlertType }) {
+  const alertInfo = SECURITY_ALERT_LABELS[alert];
+
+  return (
+    <div
+      className="rounded-md border border-red-500/40 bg-red-500/20 px-3 py-2"
+      data-testid={`security-alert-${alert}`}
+    >
+      <div className="flex items-center gap-2 text-sm font-medium text-red-400">
+        <span>{alertInfo.emoji}</span>
+        <span>{alertInfo.label}</span>
+      </div>
+      <p className="mt-1 text-xs text-red-300/80">{alertInfo.description}</p>
+    </div>
   );
 }
 
@@ -487,6 +574,97 @@ export default function EnrichmentPanel({
                 }
               />
             )}
+          </div>
+        </AccordionBody>
+      </Accordion>
+    );
+  }
+
+  // Pose Section
+  if (enrichment_data?.pose) {
+    const pose = enrichment_data.pose;
+    // Use alerts (HEAD) or security_alerts (fallback) for compatibility
+    const securityAlerts: string[] = pose.alerts ?? pose.security_alerts ?? [];
+    const hasSecurityAlerts = securityAlerts.length > 0;
+
+    // Calculate keypoint confidence summary
+    const keypoints = pose.keypoints;
+    const validKeypoints = keypoints.filter((kp) => kp[2] > 0);
+    const avgConfidence = validKeypoints.length > 0
+      ? validKeypoints.reduce((sum, kp) => sum + kp[2], 0) / validKeypoints.length
+      : 0;
+    const highConfidenceCount = keypoints.filter((kp) => kp[2] > 0.5).length;
+
+    accordionSections.push(
+      <Accordion key="pose" data-testid="enrichment-pose">
+        <AccordionHeader
+          className={clsx(
+            'px-4 py-3 text-white hover:bg-gray-800/50',
+            hasSecurityAlerts && 'bg-red-900/20'
+          )}
+        >
+          <div className="flex w-full items-center justify-between pr-2">
+            <div className="flex items-center gap-2">
+              <Activity className={clsx('h-4 w-4', hasSecurityAlerts ? 'text-red-500' : 'text-[#76B900]')} />
+              <span className="font-medium">Pose Analysis</span>
+              {hasSecurityAlerts && (
+                <span className="ml-1 inline-flex items-center rounded-full bg-red-500 px-2 py-0.5 text-xs font-semibold text-white">
+                  {securityAlerts.length} Alert{securityAlerts.length > 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
+            <ConfidenceBadge confidence={pose.confidence ?? 0} />
+          </div>
+        </AccordionHeader>
+        <AccordionBody
+          className={clsx(
+            'px-4 py-3',
+            hasSecurityAlerts ? 'bg-red-50/5 border-l-2 border-red-500' : 'bg-black/20'
+          )}
+        >
+          <div className="space-y-3">
+            {/* Security Alerts Section - High Visibility */}
+            {hasSecurityAlerts && (
+              <div
+                className="space-y-2 rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-900/20"
+                data-testid="pose-security-alerts"
+              >
+                <div className="text-xs font-semibold uppercase tracking-wide text-red-600 dark:text-red-400">
+                  Security Alerts
+                </div>
+                <div className="space-y-2">
+                  {securityAlerts.map((alert) => (
+                    <SecurityAlertBadge key={alert} alert={alert as SecurityAlertType} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Posture */}
+            <DetailRow
+              label="Posture"
+              value={<PostureBadge posture={pose.posture as PostureType} />}
+            />
+
+            {/* Keypoint Confidence Summary */}
+            <DetailRow
+              label="Keypoint Confidence"
+              value={
+                <div className="text-right">
+                  <span className="text-sm text-gray-200">
+                    {formatConfidencePercent(avgConfidence)} avg
+                  </span>
+                </div>
+              }
+            />
+            <DetailRow
+              label="High-Confidence Points"
+              value={
+                <span className="text-sm text-gray-200">
+                  {highConfidenceCount} / 17
+                </span>
+              }
+            />
           </div>
         </AccordionBody>
       </Accordion>

@@ -1,16 +1,15 @@
 import { AlertCircle, Car, Loader2, RefreshCw, User, Users } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 
 import EntitiesEmptyState from './EntitiesEmptyState';
 import EntityCard from './EntityCard';
 import EntityDetailModal from './EntityDetailModal';
+import { useCamerasQuery } from '../../hooks/useCamerasQuery';
 import {
-  fetchEntities,
-  fetchEntity,
-  type EntitySummary,
-  type EntityDetail,
-  type EntitiesQueryParams,
-} from '../../services/api';
+  useEntitiesQuery,
+  useEntityDetailQuery,
+  type TimeRangeFilter,
+} from '../../hooks/useEntitiesQuery';
 import { EntityCardSkeleton } from '../common';
 
 /**
@@ -19,86 +18,79 @@ import { EntityCardSkeleton } from '../common';
  * Features:
  * - List of tracked people and vehicles detected across cameras
  * - Filter by entity type (person/vehicle)
+ * - Filter by time range (1h/24h/7d/30d)
+ * - Filter by camera
  * - View entity detail with appearance timeline
- * - Refresh functionality
+ * - Auto-refresh every 30 seconds
  */
 export default function EntitiesPage() {
-  // State for entities list
-  const [entities, setEntities] = useState<EntitySummary[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
   // State for filters
   const [entityTypeFilter, setEntityTypeFilter] = useState<'all' | 'person' | 'vehicle'>('all');
+  const [timeRangeFilter, setTimeRangeFilter] = useState<TimeRangeFilter>('all');
+  const [cameraFilter, setCameraFilter] = useState<string>('');
 
   // State for entity detail modal
-  const [selectedEntity, setSelectedEntity] = useState<EntityDetail | null>(null);
+  const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
-  const [loadingDetail, setLoadingDetail] = useState(false);
 
-  // Fetch entities from API
-  const loadEntities = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  // Fetch cameras for the filter dropdown
+  const { cameras, isLoading: camerasLoading } = useCamerasQuery();
 
-    try {
-      const params: EntitiesQueryParams = {
-        limit: 50,
-      };
+  // Fetch entities with TanStack Query and auto-refresh
+  const {
+    entities,
+    isLoading: loading,
+    isRefetching,
+    error,
+    refetch,
+  } = useEntitiesQuery({
+    entityType: entityTypeFilter,
+    cameraId: cameraFilter || undefined,
+    timeRange: timeRangeFilter,
+    refetchInterval: 30000, // Auto-refresh every 30 seconds
+  });
 
-      if (entityTypeFilter !== 'all') {
-        params.entity_type = entityTypeFilter;
-      }
-
-      const response = await fetchEntities(params);
-      setEntities(response.items);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to load entities';
-      setError(message);
-      setEntities([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [entityTypeFilter]);
-
-  // Load entities on mount and when filter changes
-  useEffect(() => {
-    void loadEntities();
-  }, [loadEntities]);
+  // Fetch entity detail when modal is open
+  const {
+    data: selectedEntity,
+    isLoading: loadingDetail,
+    error: detailError,
+  } = useEntityDetailQuery(selectedEntityId ?? undefined, {
+    enabled: modalOpen && !!selectedEntityId,
+  });
 
   // Handle entity card click - open detail modal
-  const handleEntityClick = (entityId: string) => {
-    setLoadingDetail(true);
+  const handleEntityClick = useCallback((entityId: string) => {
+    setSelectedEntityId(entityId);
     setModalOpen(true);
-
-    fetchEntity(entityId)
-      .then((detail) => {
-        setSelectedEntity(detail);
-      })
-      .catch((err) => {
-        console.error('Failed to load entity detail:', err);
-        setSelectedEntity(null);
-        setModalOpen(false);
-      })
-      .finally(() => {
-        setLoadingDetail(false);
-      });
-  };
+  }, []);
 
   // Handle modal close
-  const handleCloseModal = () => {
+  const handleCloseModal = useCallback(() => {
     setModalOpen(false);
-    setSelectedEntity(null);
-  };
+    setSelectedEntityId(null);
+  }, []);
 
   // Handle refresh button click
-  const handleRefresh = () => {
-    void loadEntities();
-  };
+  const handleRefresh = useCallback(() => {
+    void refetch();
+  }, [refetch]);
 
   // Count entities by type
   const personCount = entities.filter((e) => e.entity_type === 'person').length;
   const vehicleCount = entities.filter((e) => e.entity_type === 'vehicle').length;
+
+  // Time range options
+  const timeRangeOptions: { value: TimeRangeFilter; label: string }[] = [
+    { value: 'all', label: 'All Time' },
+    { value: '1h', label: 'Last 1h' },
+    { value: '24h', label: 'Last 24h' },
+    { value: '7d', label: 'Last 7d' },
+    { value: '30d', label: 'Last 30d' },
+  ];
+
+  // Error message from entities or entity detail
+  const errorMessage = error?.message ?? (detailError && modalOpen ? detailError.message : null);
 
   return (
     <div className="flex flex-col">
@@ -117,16 +109,16 @@ export default function EntitiesPage() {
         {/* Refresh button */}
         <button
           onClick={handleRefresh}
-          disabled={loading}
+          disabled={loading || isRefetching}
           className="flex items-center gap-2 rounded-lg bg-gray-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700 disabled:opacity-50"
           aria-label="Refresh entities"
         >
-          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`h-4 w-4 ${loading || isRefetching ? 'animate-spin' : ''}`} />
           Refresh
         </button>
       </div>
 
-      {/* Filters and stats */}
+      {/* Filters */}
       <div className="mb-6 flex flex-wrap items-center gap-4">
         {/* Entity type filter */}
         <div className="flex rounded-lg border border-gray-700 bg-[#1F1F1F]">
@@ -167,6 +159,48 @@ export default function EntitiesPage() {
           </button>
         </div>
 
+        {/* Time range filter */}
+        <div className="flex items-center gap-2">
+          <label htmlFor="time-range-filter" className="text-sm text-gray-400">
+            Time:
+          </label>
+          <select
+            id="time-range-filter"
+            value={timeRangeFilter}
+            onChange={(e) => setTimeRangeFilter(e.target.value as TimeRangeFilter)}
+            className="rounded-lg border border-gray-700 bg-[#1F1F1F] px-3 py-2 text-sm text-white focus:border-[#76B900] focus:outline-none focus:ring-1 focus:ring-[#76B900]"
+            aria-label="Filter by time range"
+          >
+            {timeRangeOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Camera filter */}
+        <div className="flex items-center gap-2">
+          <label htmlFor="camera-filter" className="text-sm text-gray-400">
+            Camera:
+          </label>
+          <select
+            id="camera-filter"
+            value={cameraFilter}
+            onChange={(e) => setCameraFilter(e.target.value)}
+            disabled={camerasLoading}
+            className="rounded-lg border border-gray-700 bg-[#1F1F1F] px-3 py-2 text-sm text-white focus:border-[#76B900] focus:outline-none focus:ring-1 focus:ring-[#76B900] disabled:opacity-50"
+            aria-label="Filter by camera"
+          >
+            <option value="">All Cameras</option>
+            {cameras.map((camera) => (
+              <option key={camera.id} value={camera.id}>
+                {camera.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
         {/* Stats */}
         {!loading && !error && entities.length > 0 && (
           <div className="flex items-center gap-4 text-sm text-gray-400">
@@ -179,6 +213,14 @@ export default function EntitiesPage() {
               {vehicleCount} {vehicleCount === 1 ? 'vehicle' : 'vehicles'}
             </span>
           </div>
+        )}
+
+        {/* Auto-refresh indicator */}
+        {isRefetching && !loading && (
+          <span className="flex items-center gap-1 text-xs text-gray-500">
+            <RefreshCw className="h-3 w-3 animate-spin" />
+            Updating...
+          </span>
         )}
       </div>
 
@@ -195,7 +237,7 @@ export default function EntitiesPage() {
         <div className="flex min-h-[400px] items-center justify-center rounded-lg border border-red-900/50 bg-red-900/10">
           <div className="flex flex-col items-center gap-3 text-center">
             <AlertCircle className="h-8 w-8 text-red-500" />
-            <p className="text-red-400">{error}</p>
+            <p className="text-red-400">{errorMessage}</p>
             <button
               onClick={handleRefresh}
               className="mt-2 rounded-lg bg-gray-800 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"
@@ -206,7 +248,7 @@ export default function EntitiesPage() {
         </div>
       ) : entities.length === 0 ? (
         /* Empty state */
-        entityTypeFilter === 'all' ? (
+        entityTypeFilter === 'all' && timeRangeFilter === 'all' && !cameraFilter ? (
           <EntitiesEmptyState />
         ) : (
           /* Filtered empty state - simpler message */
@@ -215,16 +257,38 @@ export default function EntitiesPage() {
               <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-[#76B900]/10">
                 {entityTypeFilter === 'person' ? (
                   <User className="h-10 w-10 text-[#76B900]" />
-                ) : (
+                ) : entityTypeFilter === 'vehicle' ? (
                   <Car className="h-10 w-10 text-[#76B900]" />
+                ) : (
+                  <Users className="h-10 w-10 text-[#76B900]" />
                 )}
               </div>
               <h2 className="mb-3 text-xl font-semibold text-white">
-                No {entityTypeFilter === 'person' ? 'Persons' : 'Vehicles'} Found
+                {entityTypeFilter === 'person'
+                  ? 'No Persons Found'
+                  : entityTypeFilter === 'vehicle'
+                    ? 'No Vehicles Found'
+                    : 'No Entities Found'}
               </h2>
               <p className="text-gray-400">
-                No {entityTypeFilter === 'person' ? 'persons' : 'vehicles'} have been tracked yet.
+                {entityTypeFilter === 'person'
+                  ? 'No persons have been tracked'
+                  : entityTypeFilter === 'vehicle'
+                    ? 'No vehicles have been tracked'
+                    : 'No entities have been tracked'}
+                {timeRangeFilter !== 'all' && ` in the last ${getTimeRangeLabel(timeRangeFilter)}`}
+                {cameraFilter && ` on this camera`}.
               </p>
+              <button
+                onClick={() => {
+                  setEntityTypeFilter('all');
+                  setTimeRangeFilter('all');
+                  setCameraFilter('');
+                }}
+                className="mt-4 rounded-lg bg-gray-800 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"
+              >
+                Clear Filters
+              </button>
             </div>
           </div>
         )
@@ -249,7 +313,7 @@ export default function EntitiesPage() {
 
       {/* Entity Detail Modal */}
       <EntityDetailModal
-        entity={selectedEntity}
+        entity={selectedEntity ?? null}
         isOpen={modalOpen}
         onClose={handleCloseModal}
       />
@@ -265,4 +329,22 @@ export default function EntitiesPage() {
       )}
     </div>
   );
+}
+
+/**
+ * Helper to get a human-readable label for time range
+ */
+function getTimeRangeLabel(timeRange: TimeRangeFilter): string {
+  switch (timeRange) {
+    case '1h':
+      return 'hour';
+    case '24h':
+      return '24 hours';
+    case '7d':
+      return '7 days';
+    case '30d':
+      return '30 days';
+    default:
+      return '';
+  }
 }

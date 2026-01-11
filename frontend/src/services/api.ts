@@ -170,7 +170,15 @@ import type {
   QuietHoursPeriodCreate,
   QuietHoursPeriodResponse,
   QuietHoursPeriodsListResponse,
+  EntityDetail,
+  EntityListResponse,
+  EntityHistoryResponse,
+  EntityAppearance,
+  EntitySummary,
 } from '../types/generated';
+
+// Re-export entity types for consumers of this module
+export type { EntityAppearance, EntitySummary, EntityDetail, EntityListResponse, EntityHistoryResponse };
 
 // ============================================================================
 // Additional types not in OpenAPI (client-side only)
@@ -3200,61 +3208,8 @@ export async function importPrompts(
 // Entity Re-Identification Endpoints
 // ============================================================================
 
-/**
- * Entity appearance at a specific time and camera
- */
-export interface EntityAppearance {
-  detection_id: string;
-  camera_id: string;
-  camera_name: string | null;
-  timestamp: string;
-  thumbnail_url: string | null;
-  similarity_score: number | null;
-  attributes: Record<string, unknown>;
-}
-
-/**
- * Entity summary for list responses
- */
-export interface EntitySummary {
-  id: string;
-  entity_type: 'person' | 'vehicle';
-  first_seen: string;
-  last_seen: string;
-  appearance_count: number;
-  cameras_seen: string[];
-  thumbnail_url: string | null;
-}
-
-/**
- * Detailed entity information including appearance history
- */
-export interface EntityDetail extends EntitySummary {
-  appearances: EntityAppearance[];
-}
-
-/**
- * Paginated entity list response (NEM-2075: pagination envelope format)
- */
-export interface EntityListResponse {
-  items: EntitySummary[];
-  pagination: {
-    total: number;
-    limit: number;
-    offset: number;
-    has_more: boolean;
-  };
-}
-
-/**
- * Entity appearance history response
- */
-export interface EntityHistoryResponse {
-  entity_id: string;
-  entity_type: string;
-  appearances: EntityAppearance[];
-  count: number;
-}
+// Entity types are re-exported from generated types:
+// EntityAppearance, EntitySummary, EntityDetail, EntityListResponse, EntityHistoryResponse
 
 /**
  * Query parameters for fetching entities
@@ -3662,4 +3617,105 @@ export function getEventClipUrl(clipFilename: string): string {
     return `${BASE_URL}${clipFilename}`;
   }
   return clipFilename;
+}
+
+// ============================================================================
+// Entity Re-Identification Endpoints
+// ============================================================================
+
+/**
+ * Query parameters for listing tracked entities.
+ */
+export interface EntityQueryParams {
+  /** Filter by entity type: 'person' or 'vehicle' */
+  entity_type?: 'person' | 'vehicle';
+  /** Filter by camera ID */
+  camera_id?: string;
+  /** Filter entities seen since this ISO timestamp */
+  since?: string;
+  /** Maximum number of results (1-1000, default 50) */
+  limit?: number;
+  /** Number of results to skip for pagination (default 0) */
+  offset?: number;
+}
+
+/**
+ * Fetch a paginated list of tracked entities.
+ *
+ * Returns entities that have been tracked via re-identification across cameras.
+ * Entities are grouped by their embedding clusters and sorted by last_seen (newest first).
+ *
+ * @param params - Optional query parameters for filtering
+ * @returns EntityListResponse with filtered entities and pagination info
+ *
+ * @example
+ * ```typescript
+ * // Fetch all entities
+ * const entities = await fetchTrackedEntities();
+ *
+ * // Fetch only persons seen on front_door camera
+ * const persons = await fetchTrackedEntities({
+ *   entity_type: 'person',
+ *   camera_id: 'front_door',
+ * });
+ *
+ * // Fetch entities seen in the last hour
+ * const recent = await fetchTrackedEntities({
+ *   since: new Date(Date.now() - 3600000).toISOString(),
+ * });
+ * ```
+ */
+export async function fetchTrackedEntities(
+  params?: EntityQueryParams
+): Promise<EntityListResponse> {
+  const searchParams = new URLSearchParams();
+
+  if (params?.entity_type) {
+    searchParams.append('entity_type', params.entity_type);
+  }
+  if (params?.camera_id) {
+    searchParams.append('camera_id', params.camera_id);
+  }
+  if (params?.since) {
+    searchParams.append('since', params.since);
+  }
+  if (params?.limit !== undefined) {
+    searchParams.append('limit', String(params.limit));
+  }
+  if (params?.offset !== undefined) {
+    searchParams.append('offset', String(params.offset));
+  }
+
+  const queryString = searchParams.toString();
+  const endpoint = queryString ? `/api/entities?${queryString}` : '/api/entities';
+
+  return fetchApi<EntityListResponse>(endpoint);
+}
+
+/**
+ * Fetch detailed information about a specific entity.
+ *
+ * Returns the entity's summary information along with all recorded appearances
+ * across all cameras. The appearances are sorted chronologically.
+ *
+ * @param entityId - Unique entity identifier (detection_id)
+ * @returns EntityDetail with full entity information and appearances
+ * @throws ApiError with status 404 if entity not found
+ * @throws ApiError with status 503 if Redis service is unavailable
+ *
+ * @example
+ * ```typescript
+ * try {
+ *   const entity = await fetchEntityDetails('det_abc123');
+ *   console.log(`Entity ${entity.id} has ${entity.appearance_count} appearances`);
+ *   console.log(`Cameras seen: ${entity.cameras_seen?.join(', ')}`);
+ * } catch (error) {
+ *   if (error instanceof ApiError && error.status === 404) {
+ *     console.log('Entity not found');
+ *   }
+ * }
+ * ```
+ */
+export async function fetchEntityDetails(entityId: string): Promise<EntityDetail> {
+  return fetchApi<EntityDetail>(`/api/entities/${encodeURIComponent(entityId)}`);
 }

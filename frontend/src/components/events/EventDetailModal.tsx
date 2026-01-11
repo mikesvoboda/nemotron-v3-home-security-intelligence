@@ -16,6 +16,7 @@ import {
 import { Fragment, useEffect, useMemo, useState } from 'react';
 
 import EnrichmentPanel from './EnrichmentPanel';
+import EntityTrackingPanel from './EntityTrackingPanel';
 import EventVideoPlayer from './EventVideoPlayer';
 import ReidMatchesPanel from './ReidMatchesPanel';
 import ThumbnailStrip from './ThumbnailStrip';
@@ -62,6 +63,7 @@ export interface Detection {
 export interface Event {
   id: string;
   timestamp: string;
+  camera_id?: string;
   camera_name: string;
   risk_score: number;
   risk_label: string;
@@ -75,6 +77,7 @@ export interface Event {
   reviewed?: boolean;
   notes?: string | null;
   flagged?: boolean;
+  entity_id?: string | null;
 }
 
 export interface EventDetailModalProps {
@@ -797,6 +800,17 @@ export default function EventDetailModal({
                             ? 'vehicle'
                             : 'person'
                         }
+                      />
+                    </div>
+                  )}
+
+                  {/* Cross-Camera Entity Tracking */}
+                  {event.entity_id && (
+                    <div className="mb-6">
+                      <EntityTrackingPanel
+                        entityId={event.entity_id}
+                        currentCameraId={event.camera_id || event.camera_name}
+                        currentTimestamp={event.timestamp}
                       />
                     </div>
                   )}
