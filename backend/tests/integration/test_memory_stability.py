@@ -8,9 +8,11 @@ Tests verify:
 - Resource cleanup after exceptions
 
 Uses shared fixtures from conftest.py:
-- integration_db: Clean PostgreSQL test database
-- clean_tables: Database isolation for each test
+- integration_db: PostgreSQL test database
 - real_redis: Real Redis client for memory tracking
+
+Note: These tests rely on unique IDs for isolation and do not use clean_tables
+to avoid deadlocks during concurrent execution.
 """
 
 from __future__ import annotations
