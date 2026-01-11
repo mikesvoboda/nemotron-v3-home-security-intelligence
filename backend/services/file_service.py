@@ -294,6 +294,49 @@ class FileService:
             logger.error(f"Failed to delete file {file_path}: {e}")
             return False
 
+    async def delete_files_immediately(
+        self,
+        file_paths: list[str],
+    ) -> tuple[int, int]:
+        """Delete multiple files immediately without scheduling.
+
+        This method is used for hard deletes where files should be removed
+        immediately rather than being scheduled for delayed deletion.
+
+        Args:
+            file_paths: List of file paths to delete
+
+        Returns:
+            Tuple of (files_deleted, files_failed).
+            - files_deleted: Number of files that were successfully deleted
+            - files_failed: Number of files that failed to delete due to errors
+        """
+        # Filter out empty/None paths
+        valid_paths = [p for p in file_paths if p]
+        if not valid_paths:
+            return 0, 0
+
+        files_deleted = 0
+        files_failed = 0
+
+        for file_path in valid_paths:
+            try:
+                path = Path(file_path)
+                if path.exists():
+                    path.unlink()
+                    files_deleted += 1
+                    logger.debug(f"Immediately deleted file: {file_path}")
+                # Non-existent files are not counted as deleted or failed
+                # (they're already gone, which is the desired state)
+            except OSError as e:
+                logger.error(f"Failed to immediately delete file {file_path}: {e}")
+                files_failed += 1
+
+        if files_deleted > 0 or files_failed > 0:
+            logger.info(f"Immediate file deletion: {files_deleted} deleted, {files_failed} failed")
+
+        return files_deleted, files_failed
+
     async def get_queue_size(self) -> int:
         """Get the number of jobs in the deletion queue.
 

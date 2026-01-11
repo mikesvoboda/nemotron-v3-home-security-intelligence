@@ -81,13 +81,11 @@ def main() -> int:
             print(f"Run: uv run python {__file__}")
             return 1
 
-        existing_spec = json.loads(output_path.read_text())
+        # Compare file content directly (includes formatting)
+        expected_content = json.dumps(spec, indent=2, sort_keys=True) + "\n"
+        existing_content = output_path.read_text()
 
-        # Compare specs (use sorted JSON for deterministic comparison)
-        current_json = json.dumps(spec, sort_keys=True)
-        existing_json = json.dumps(existing_spec, sort_keys=True)
-
-        if current_json != existing_json:
+        if existing_content != expected_content:
             print(f"ERROR: {output_path} is out of date.")
             print(f"Run: uv run python {__file__}")
             return 1
@@ -95,9 +93,19 @@ def main() -> int:
         print(f"✓ {output_path} is current")
         return 0
 
-    # Generate spec (path validated above to be within project directory)
+    # Generate the new spec content
+    new_content = json.dumps(spec, indent=2, sort_keys=True) + "\n"
+
+    # Check if file already exists with same content (skip unnecessary writes)
+    if output_path.exists():
+        existing_content = output_path.read_text()
+        if existing_content == new_content:
+            print(f"✓ {output_path} is already up to date")
+            return 0
+
+    # Write spec (path validated above to be within project directory)
     with open(output_path, "w") as f:  # nosemgrep: path-traversal-open
-        json.dump(spec, f, indent=2, sort_keys=True)
+        f.write(new_content)
 
     print(f"Generated {output_path}")
     return 0

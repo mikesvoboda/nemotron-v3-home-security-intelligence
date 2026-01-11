@@ -1178,6 +1178,29 @@ class Settings(BaseSettings):
         description="How often (in seconds) to check if conditions are met for background evaluation.",
     )
 
+    # Orphan file cleanup settings (NEM-2260)
+    # Periodic cleanup of files on disk without corresponding database records
+    orphan_cleanup_enabled: bool = Field(
+        default=True,
+        description="Enable periodic cleanup of orphaned files. "
+        "When enabled, files in clips_directory without database records are deleted "
+        "after the age threshold is reached.",
+    )
+    orphan_cleanup_scan_interval_hours: int = Field(
+        default=24,
+        ge=1,
+        le=168,
+        description="How often (in hours) to scan for orphaned files. Default: 24 hours (daily).",
+    )
+    orphan_cleanup_age_threshold_hours: int = Field(
+        default=24,
+        ge=1,
+        le=720,
+        description="Minimum age (in hours) before an orphaned file can be deleted. "
+        "Files younger than this threshold are skipped to allow for incomplete processing. "
+        "Default: 24 hours.",
+    )
+
     # Performance profiling settings (NEM-1644)
     # Enable deep performance debugging with cProfile
     profiling_enabled: bool = Field(

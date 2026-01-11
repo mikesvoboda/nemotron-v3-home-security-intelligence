@@ -15,6 +15,7 @@ export type SystemSectionId =
   | 'containers'
   | 'host-system'
   | 'circuit-breakers'
+  | 'file-operations'
   | 'services';
 
 /**
@@ -40,6 +41,7 @@ const DEFAULT_SECTION_STATES: Record<SystemSectionId, boolean> = {
   'containers': true,
   'host-system': true,
   'circuit-breakers': false,
+  'file-operations': false,
   'services': false,
 };
 

@@ -138,6 +138,30 @@ class JobTracker:
         self._last_broadcast_progress: dict[str, int] = {}
         self._lock = threading.Lock()
 
+    def set_broadcast_callback(self, callback: BroadcastCallback) -> None:
+        """Set the broadcast callback after initialization.
+
+        This allows configuring the broadcast callback later, which is useful
+        when the callback depends on services not yet available at construction.
+
+        Args:
+            callback: The broadcast callback function.
+        """
+        self._broadcast_callback = callback
+        logger.info("Job tracker broadcast callback configured")
+
+    def set_redis_client(self, redis_client: RedisClient) -> None:
+        """Set the Redis client after initialization.
+
+        This allows configuring Redis persistence later, which is useful
+        when Redis may not be available at construction time.
+
+        Args:
+            redis_client: The Redis client for job persistence.
+        """
+        self._redis_client = redis_client
+        logger.info("Job tracker Redis client configured")
+
     def _broadcast(self, event_type: str, data: dict[str, Any]) -> None:
         """Broadcast an event using the configured callback.
 
@@ -649,3 +673,62 @@ def reset_job_tracker() -> None:
     """Reset the job tracker singleton. Used for testing."""
     global _job_tracker  # noqa: PLW0603
     _job_tracker = None
+
+
+def create_websocket_broadcast_callback() -> BroadcastCallback:
+    """Create a broadcast callback that sends job events via SystemBroadcaster.
+
+    This creates an async callback function that broadcasts job events
+    to all connected WebSocket clients through the SystemBroadcaster.
+
+    The callback formats job events to match the WebSocket event format
+    expected by the frontend (type, data structure).
+
+    Returns:
+        An async callback function suitable for JobTracker.
+    """
+    from backend.services.system_broadcaster import get_system_broadcaster
+
+    async def broadcast_job_event(event_type: str, data: dict[str, Any]) -> None:
+        """Broadcast a job event via WebSocket.
+
+        Args:
+            event_type: The job event type (job_progress, job_completed, job_failed)
+            data: The event payload containing type and data fields
+        """
+        broadcaster = get_system_broadcaster()
+        # Send directly to local clients (this is immediate, fire-and-forget)
+        await broadcaster._send_to_local_clients(data)
+        logger.debug(
+            "Broadcast job event via WebSocket",
+            extra={"event_type": event_type, "job_id": data.get("data", {}).get("job_id")},
+        )
+
+    return broadcast_job_event
+
+
+async def init_job_tracker_websocket(redis_client: RedisClient | None = None) -> JobTracker:
+    """Initialize the job tracker singleton with WebSocket broadcasting.
+
+    This should be called during application startup to configure the
+    job tracker with WebSocket broadcasting capability.
+
+    Args:
+        redis_client: Optional Redis client for job persistence.
+
+    Returns:
+        The configured job tracker singleton.
+    """
+    tracker = get_job_tracker(redis_client=redis_client)
+
+    # Set the broadcast callback if not already set
+    if tracker._broadcast_callback is None:
+        callback = create_websocket_broadcast_callback()
+        tracker.set_broadcast_callback(callback)
+        logger.info("Job tracker initialized with WebSocket broadcasting")
+
+    # Set Redis client if provided and not already set
+    if redis_client is not None and tracker._redis_client is None:
+        tracker.set_redis_client(redis_client)
+
+    return tracker
