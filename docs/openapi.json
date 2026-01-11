@@ -6932,6 +6932,105 @@
         "title": "EventEnrichmentsResponse",
         "type": "object"
       },
+      "EventFeedbackCreate": {
+        "description": "Schema for creating event feedback.\n\nUsed when submitting user feedback about an event's classification.",
+        "example": {
+          "event_id": 123,
+          "feedback_type": "false_positive",
+          "notes": "This was my neighbor's car, not a threat."
+        },
+        "properties": {
+          "event_id": {
+            "description": "ID of the event this feedback is for",
+            "exclusiveMinimum": 0.0,
+            "title": "Event Id",
+            "type": "integer"
+          },
+          "feedback_type": {
+            "$ref": "#/components/schemas/FeedbackType",
+            "description": "Type of feedback (false_positive, missed_detection, wrong_severity, correct)"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional notes explaining the feedback",
+            "title": "Notes"
+          }
+        },
+        "required": [
+          "event_id",
+          "feedback_type"
+        ],
+        "title": "EventFeedbackCreate",
+        "type": "object"
+      },
+      "EventFeedbackResponse": {
+        "description": "Schema for event feedback response.\n\nReturned when retrieving feedback for an event.",
+        "example": {
+          "created_at": "2025-01-01T12:00:00Z",
+          "event_id": 123,
+          "feedback_type": "false_positive",
+          "id": 1,
+          "notes": "This was my neighbor's car, not a threat."
+        },
+        "properties": {
+          "created_at": {
+            "description": "When feedback was submitted",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "event_id": {
+            "description": "Event ID this feedback belongs to",
+            "title": "Event Id",
+            "type": "integer"
+          },
+          "feedback_type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FeedbackType"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "description": "Type of feedback provided",
+            "title": "Feedback Type"
+          },
+          "id": {
+            "description": "Feedback record ID",
+            "title": "Id",
+            "type": "integer"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional notes from user",
+            "title": "Notes"
+          }
+        },
+        "required": [
+          "id",
+          "event_id",
+          "feedback_type",
+          "created_at"
+        ],
+        "title": "EventFeedbackResponse",
+        "type": "object"
+      },
       "EventListResponse": {
         "description": "Schema for event list response with pagination.\n\nNEM-2075: Standardized pagination envelope with items + pagination structure.\nSupports both cursor-based pagination (recommended) and offset pagination (deprecated).\nUse cursor-based pagination for better performance with large datasets.",
         "example": {
@@ -7646,6 +7745,65 @@
         },
         "title": "FaceEnrichment",
         "type": "object"
+      },
+      "FeedbackStatsResponse": {
+        "description": "Schema for aggregate feedback statistics.\n\nReturns counts of feedback by type and by camera to help\ncalibrate the AI model's risk assessment.",
+        "example": {
+          "by_camera": {
+            "back_yard": 30,
+            "front_door": 50,
+            "garage": 20
+          },
+          "by_type": {
+            "correct": 10,
+            "false_positive": 40,
+            "missed_detection": 30,
+            "wrong_severity": 20
+          },
+          "total_feedback": 100
+        },
+        "properties": {
+          "by_camera": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "Count of feedback entries grouped by camera ID",
+            "title": "By Camera",
+            "type": "object"
+          },
+          "by_type": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "Count of feedback entries grouped by feedback type",
+            "title": "By Type",
+            "type": "object"
+          },
+          "total_feedback": {
+            "description": "Total number of feedback entries",
+            "minimum": 0.0,
+            "title": "Total Feedback",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total_feedback",
+          "by_type",
+          "by_camera"
+        ],
+        "title": "FeedbackStatsResponse",
+        "type": "object"
+      },
+      "FeedbackType": {
+        "description": "Types of feedback users can provide on events.\n\nValues:\n    FALSE_POSITIVE: Event was incorrectly flagged as concerning\n    MISSED_DETECTION: System failed to detect a concerning event\n    WRONG_SEVERITY: Event was flagged but with wrong severity level\n    CORRECT: Event was correctly classified and scored",
+        "enum": [
+          "false_positive",
+          "missed_detection",
+          "wrong_severity",
+          "correct"
+        ],
+        "title": "FeedbackType",
+        "type": "string"
       },
       "FileWatcherStatusResponse": {
         "description": "Status information for the FileWatcher service.",
@@ -21915,6 +22073,108 @@
         "summary": "Restore a soft-deleted event",
         "tags": [
           "events"
+        ]
+      }
+    },
+    "/api/feedback": {
+      "post": {
+        "description": "Submit feedback for an event.\n\nAllows users to mark events as false positives, missed detections,\nwrong severity, or correctly classified. Only one feedback per event\nis allowed (enforced by unique constraint).\n\nThis feedback is used to calibrate personalized risk thresholds\nand improve the AI model's accuracy over time.\n\nArgs:\n    feedback_data: Feedback details including event_id and feedback_type\n    db: Database session\n\nReturns:\n    The created feedback record\n\nRaises:\n    HTTPException: 404 if event not found\n    HTTPException: 409 if feedback already exists for this event",
+        "operationId": "create_feedback_api_feedback_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventFeedbackCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventFeedbackResponse"
+                }
+              }
+            },
+            "description": "Feedback created successfully"
+          },
+          "404": {
+            "description": "Event not found"
+          },
+          "409": {
+            "description": "Feedback already exists for this event"
+          },
+          "422": {
+            "description": "Validation error"
+          }
+        },
+        "summary": "Submit event feedback",
+        "tags": [
+          "feedback"
+        ]
+      }
+    },
+    "/api/feedback/event/{event_id}": {
+      "get": {
+        "description": "Get feedback for a specific event.\n\nArgs:\n    event_id: The event ID to get feedback for\n    db: Database session\n\nReturns:\n    The feedback record for the event\n\nRaises:\n    HTTPException: 404 if no feedback exists for the event",
+        "operationId": "get_event_feedback_api_feedback_event__event_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "title": "Event Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventFeedbackResponse"
+                }
+              }
+            },
+            "description": "Feedback found"
+          },
+          "404": {
+            "description": "No feedback found for this event"
+          },
+          "422": {
+            "description": "Validation error"
+          }
+        },
+        "summary": "Get feedback for an event",
+        "tags": [
+          "feedback"
+        ]
+      }
+    },
+    "/api/feedback/stats": {
+      "get": {
+        "description": "Get aggregate feedback statistics.\n\nReturns counts of feedback grouped by:\n- Feedback type (false_positive, missed_detection, wrong_severity, correct)\n- Camera ID\n\nThis data is useful for:\n- Identifying cameras with high false positive rates\n- Calibrating risk thresholds per camera\n- Tracking model accuracy over time\n\nArgs:\n    db: Database session\n\nReturns:\n    Aggregate statistics including total count and breakdowns",
+        "operationId": "get_feedback_stats_api_feedback_stats_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackStatsResponse"
+                }
+              }
+            },
+            "description": "Statistics retrieved successfully"
+          }
+        },
+        "summary": "Get feedback statistics",
+        "tags": [
+          "feedback"
         ]
       }
     },

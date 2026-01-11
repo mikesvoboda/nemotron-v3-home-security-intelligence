@@ -875,7 +875,7 @@ describe('CamerasSettings', () => {
 
       expect(editButton).toHaveAttribute('title', 'Edit camera settings');
       expect(deleteButton).toHaveAttribute('title', 'Delete camera');
-      expect(zonesButton).toHaveAttribute('title', 'View camera location on map');
+      expect(zonesButton).toHaveAttribute('title', 'Configure detection zones');
     });
   });
 
