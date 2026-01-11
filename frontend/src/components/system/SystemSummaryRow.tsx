@@ -12,7 +12,7 @@ import {
 import { useCallback, useMemo } from 'react';
 
 import { useHealthStatusQuery } from '../../hooks/useHealthStatusQuery';
-import { useModelZooStatus } from '../../hooks/useModelZooStatus';
+import { useModelZooStatusQuery } from '../../hooks/useModelZooStatusQuery';
 import { usePerformanceMetrics } from '../../hooks/usePerformanceMetrics';
 
 // ============================================================================
@@ -292,7 +292,7 @@ export default function SystemSummaryRow({
   // Hooks for real-time data
   const { current, isConnected } = usePerformanceMetrics();
   const { services, overallStatus } = useHealthStatusQuery({ refetchInterval: 10000 });
-  const { models, vramStats } = useModelZooStatus({ pollingInterval: 10000 });
+  const { models, vramStats } = useModelZooStatusQuery({ refetchInterval: 10000 });
 
   // Scroll to section handler
   const handleIndicatorClick = useCallback(
@@ -445,8 +445,8 @@ export default function SystemSummaryRow({
       tooltipContent: [
         `Loaded models: ${loadedCount}`,
         `Total models: ${totalModels}`,
-        vramStats ? `VRAM used: ${formatGB(vramStats.used_mb / 1024)}` : 'VRAM: N/A',
-        vramStats ? `VRAM available: ${formatGB(vramStats.available_mb / 1024)}` : '',
+        vramStats ? `VRAM used: ${formatGB(vramStats.usedMb / 1024)}` : 'VRAM: N/A',
+        vramStats ? `VRAM available: ${formatGB(vramStats.availableMb / 1024)}` : '',
         ...loadedModels.slice(0, 3).map((m) => `- ${m.display_name || m.name}`),
         loadedModels.length > 3 ? `...and ${loadedModels.length - 3} more` : '',
       ].filter(Boolean),

@@ -222,8 +222,9 @@ export interface UseCameraMutationReturn {
 /**
  * Hook providing mutations for camera CRUD operations.
  *
- * All mutations automatically invalidate the cameras query cache on success,
- * ensuring the UI stays in sync with the server.
+ * All mutations implement optimistic updates for immediate UI feedback,
+ * with automatic rollback on failure. The cache is automatically invalidated
+ * on success to ensure the UI stays in sync with the server.
  *
  * @returns Object containing create, update, and delete mutations
  *
@@ -246,15 +247,94 @@ export function useCameraMutation(): UseCameraMutationReturn {
 
   const createMutation = useMutation({
     mutationFn: (data: CameraCreate) => createCamera(data),
-    onSuccess: () => {
-      // Invalidate all camera queries to refetch the list
+
+    // Optimistic update: add the new camera immediately
+    onMutate: async (newCameraData) => {
+      // Cancel outgoing refetches to avoid overwriting optimistic update
+      await queryClient.cancelQueries({ queryKey: queryKeys.cameras.all });
+
+      // Snapshot the previous value for rollback
+      const previousCameras = queryClient.getQueryData<Camera[]>(queryKeys.cameras.list());
+
+      // Create a temporary camera with a placeholder ID
+      const optimisticCamera: Camera = {
+        id: `temp-${Date.now()}`,
+        name: newCameraData.name,
+        folder_path: newCameraData.folder_path,
+        status: newCameraData.status ?? 'online',
+        last_seen_at: null,
+        created_at: new Date().toISOString(),
+      };
+
+      // Optimistically add the camera to the cache
+      queryClient.setQueryData<Camera[]>(queryKeys.cameras.list(), (old) => [
+        ...(old ?? []),
+        optimisticCamera,
+      ]);
+
+      // Return context with snapshot for rollback
+      return { previousCameras, optimisticId: optimisticCamera.id };
+    },
+
+    // On error, rollback to the previous value
+    onError: (_err, _variables, context) => {
+      if (context?.previousCameras) {
+        queryClient.setQueryData(queryKeys.cameras.list(), context.previousCameras);
+      }
+    },
+
+    // Replace the optimistic camera with the real one on success
+    onSuccess: (newCamera, _variables, context) => {
+      queryClient.setQueryData<Camera[]>(queryKeys.cameras.list(), (old) =>
+        old?.map((camera) =>
+          camera.id === context?.optimisticId ? newCamera : camera
+        )
+      );
+    },
+
+    // Always refetch after error or success for data consistency
+    onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.cameras.all });
     },
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: CameraUpdate }) => updateCamera(id, data),
-    onSuccess: (_data, variables) => {
+
+    // Optimistic update: immediately update the cache
+    onMutate: async ({ id, data }) => {
+      // Cancel outgoing refetches to avoid overwriting optimistic update
+      await queryClient.cancelQueries({ queryKey: queryKeys.cameras.all });
+
+      // Snapshot the previous value for rollback
+      const previousCameras = queryClient.getQueryData<Camera[]>(queryKeys.cameras.list());
+
+      // Optimistically update the cache (only apply non-null values)
+      queryClient.setQueryData<Camera[]>(queryKeys.cameras.list(), (old) =>
+        old?.map((camera) => {
+          if (camera.id !== id) return camera;
+          // Filter out null/undefined values to avoid overwriting with nulls
+          const updates: Partial<Camera> = {};
+          if (data.name !== null && data.name !== undefined) updates.name = data.name;
+          if (data.folder_path !== null && data.folder_path !== undefined) updates.folder_path = data.folder_path;
+          if (data.status !== null && data.status !== undefined) updates.status = data.status;
+          return { ...camera, ...updates };
+        })
+      );
+
+      // Return context with snapshot for rollback
+      return { previousCameras };
+    },
+
+    // On error, rollback to the previous value
+    onError: (_err, _variables, context) => {
+      if (context?.previousCameras) {
+        queryClient.setQueryData(queryKeys.cameras.list(), context.previousCameras);
+      }
+    },
+
+    // Always refetch after error or success for data consistency
+    onSettled: (_data, _error, variables) => {
       // Invalidate all camera queries (list and detail)
       void queryClient.invalidateQueries({ queryKey: queryKeys.cameras.all });
       // Also specifically invalidate the detail query for this camera
@@ -264,11 +344,37 @@ export function useCameraMutation(): UseCameraMutationReturn {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteCamera(id),
-    onSuccess: (_data, id) => {
+
+    // Optimistic update: immediately remove the camera
+    onMutate: async (deletedId) => {
+      // Cancel outgoing refetches to avoid overwriting optimistic update
+      await queryClient.cancelQueries({ queryKey: queryKeys.cameras.all });
+
+      // Snapshot the previous value for rollback
+      const previousCameras = queryClient.getQueryData<Camera[]>(queryKeys.cameras.list());
+
+      // Optimistically remove the camera from the cache
+      queryClient.setQueryData<Camera[]>(queryKeys.cameras.list(), (old) =>
+        old?.filter((camera) => camera.id !== deletedId)
+      );
+
+      // Return context with snapshot for rollback
+      return { previousCameras };
+    },
+
+    // On error, rollback to the previous value
+    onError: (_err, _variables, context) => {
+      if (context?.previousCameras) {
+        queryClient.setQueryData(queryKeys.cameras.list(), context.previousCameras);
+      }
+    },
+
+    // Always refetch and clean up after error or success
+    onSettled: (_data, _error, deletedId) => {
       // Invalidate all camera queries
       void queryClient.invalidateQueries({ queryKey: queryKeys.cameras.all });
       // Remove the specific camera from cache
-      queryClient.removeQueries({ queryKey: queryKeys.cameras.detail(id) });
+      queryClient.removeQueries({ queryKey: queryKeys.cameras.detail(deletedId) });
     },
   });
 
