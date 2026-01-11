@@ -74,16 +74,32 @@ def check_files_for_integration_tests(file_paths: list[str]) -> tuple[bool, list
 
         # Look for corresponding integration test
         relative_path = path.relative_to(project_root)
+        test_name = f"test_{path.stem}"  # e.g., "test_event_service"
+
+        # Search for test files in multiple locations including subdirectories
         test_paths = [
+            # Direct matches
             project_root / "backend/tests/integration" / f"test_{path.name}",
+            project_root / "backend/tests/unit" / f"test_{path.name}",
+            # Preserve relative structure
             project_root
             / "backend/tests/integration"
             / relative_path.with_name(f"test_{path.name}"),
-            project_root / "backend/tests/unit" / f"test_{path.name}",
             project_root / "backend/tests/unit" / relative_path.with_name(f"test_{path.name}"),
         ]
 
-        has_test = any(test_path.exists() for test_path in test_paths)
+        # Also search recursively for test files matching the pattern
+        def find_test_recursive(base_dir: Path, test_pattern: str) -> bool:
+            """Search recursively for test files matching pattern."""
+            if not base_dir.exists():
+                return False
+            return any(test_file.is_file() for test_file in base_dir.rglob(f"{test_pattern}*.py"))
+
+        has_test = (
+            any(test_path.exists() for test_path in test_paths)
+            or find_test_recursive(project_root / "backend/tests/integration", test_name)
+            or find_test_recursive(project_root / "backend/tests/unit", test_name)
+        )
 
         if not has_test:
             if requires_integration:

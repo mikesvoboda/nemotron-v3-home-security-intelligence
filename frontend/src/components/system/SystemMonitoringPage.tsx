@@ -10,6 +10,7 @@ import {
   BarChart2,
   ExternalLink,
   Package,
+  HardDrive,
 } from 'lucide-react';
 import { useEffect, useState, useRef } from 'react';
 
@@ -18,6 +19,7 @@ import CircuitBreakerPanel from './CircuitBreakerPanel';
 import CollapsibleSection from './CollapsibleSection';
 import ContainersPanel from './ContainersPanel';
 import DatabasesPanel from './DatabasesPanel';
+import FileOperationsPanel from './FileOperationsPanel';
 import HostSystemPanel from './HostSystemPanel';
 import InfrastructureStatusGrid from './InfrastructureStatusGrid';
 import ModelZooPanel from './ModelZooPanel';
@@ -1007,7 +1009,23 @@ export default function SystemMonitoringPage() {
             </CollapsibleSection>
           </div>
 
-          {/* Row 6: Services Panel (full width) */}
+          {/* Row 6: File Operations Panel (full width) */}
+          <div className="lg:col-span-2 xl:col-span-4" id="section-file-operations">
+            <CollapsibleSection
+              title="File Operations"
+              icon={<HardDrive className="h-5 w-5 text-[#76B900]" />}
+              isOpen={sectionStates['file-operations']}
+              onToggle={() => toggleSection('file-operations')}
+              data-testid="file-operations-section"
+            >
+              <FileOperationsPanel
+                pollingInterval={30000}
+                data-testid="file-operations-panel-section"
+              />
+            </CollapsibleSection>
+          </div>
+
+          {/* Row 7: Services Panel (full width) */}
           <div className="lg:col-span-2 xl:col-span-4" id="section-services">
             <CollapsibleSection
               title="Services"

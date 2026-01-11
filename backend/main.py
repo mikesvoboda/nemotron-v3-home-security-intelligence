@@ -73,6 +73,7 @@ from backend.services.event_broadcaster import get_broadcaster, stop_broadcaster
 from backend.services.file_watcher import FileWatcher
 from backend.services.gpu_monitor import GPUMonitor
 from backend.services.health_monitor import ServiceHealthMonitor
+from backend.services.job_tracker import init_job_tracker_websocket
 from backend.services.performance_collector import PerformanceCollector
 from backend.services.pipeline_quality_audit_service import get_audit_service
 from backend.services.pipeline_workers import (
@@ -506,6 +507,11 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:  # noqa: PLR0912 - Co
     system_broadcaster = get_system_broadcaster(redis_client=redis_client)
     await system_broadcaster.start_broadcasting(interval=5.0)
     print("System status broadcaster initialized (5s interval)")
+
+    # Initialize job tracker with WebSocket broadcasting (NEM-2261)
+    # This enables export progress updates to be sent to connected clients
+    await init_job_tracker_websocket(redis_client=redis_client)
+    print("Job tracker initialized with WebSocket broadcasting")
 
     # Initialize performance collector and attach to system broadcaster
     # This enables detailed performance metrics broadcasting alongside system status
