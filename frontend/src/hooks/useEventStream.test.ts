@@ -951,4 +951,473 @@ describe('useEventStream', () => {
       expect(result.current.events).toHaveLength(2);
     });
   });
+
+  // NEM-1999: Sequence validation tests
+  describe('sequence validation (NEM-1999)', () => {
+    // Helper to wrap event data in the backend envelope format with sequence
+    function wrapInSequencedEnvelope(
+      event: SecurityEvent,
+      sequence: number
+    ): { type: 'event'; data: SecurityEvent; sequence: number } {
+      return { type: 'event', data: event, sequence };
+    }
+
+    it('should process events with sequence numbers in order', () => {
+      const { result } = renderHook(() => useEventStream());
+
+      const event1: SecurityEvent = {
+        id: 1,
+        camera_id: 'cam-1',
+        risk_score: 50,
+        risk_level: 'medium',
+        summary: 'Event 1',
+        started_at: '2025-12-23T10:00:00Z',
+      };
+
+      const event2: SecurityEvent = {
+        id: 2,
+        camera_id: 'cam-1',
+        risk_score: 60,
+        risk_level: 'medium',
+        summary: 'Event 2',
+        started_at: '2025-12-23T10:01:00Z',
+      };
+
+      const event3: SecurityEvent = {
+        id: 3,
+        camera_id: 'cam-1',
+        risk_score: 70,
+        risk_level: 'high',
+        summary: 'Event 3',
+        started_at: '2025-12-23T10:02:00Z',
+      };
+
+      act(() => {
+        onMessageCallback?.(wrapInSequencedEnvelope(event1, 1));
+        onMessageCallback?.(wrapInSequencedEnvelope(event2, 2));
+        onMessageCallback?.(wrapInSequencedEnvelope(event3, 3));
+      });
+
+      expect(result.current.events).toHaveLength(3);
+      // Events should be in reverse chronological order (newest first)
+      expect(result.current.events[0].id).toBe(3);
+      expect(result.current.events[1].id).toBe(2);
+      expect(result.current.events[2].id).toBe(1);
+    });
+
+    it('should buffer out-of-order events and process when gap is filled', () => {
+      const { result } = renderHook(() => useEventStream());
+
+      const event1: SecurityEvent = {
+        id: 1,
+        camera_id: 'cam-1',
+        risk_score: 50,
+        risk_level: 'medium',
+        summary: 'Event 1',
+        started_at: '2025-12-23T10:00:00Z',
+      };
+
+      const event2: SecurityEvent = {
+        id: 2,
+        camera_id: 'cam-1',
+        risk_score: 60,
+        risk_level: 'medium',
+        summary: 'Event 2',
+        started_at: '2025-12-23T10:01:00Z',
+      };
+
+      const event3: SecurityEvent = {
+        id: 3,
+        camera_id: 'cam-1',
+        risk_score: 70,
+        risk_level: 'high',
+        summary: 'Event 3',
+        started_at: '2025-12-23T10:02:00Z',
+      };
+
+      // Send events out of order: 1, 3, 2
+      act(() => {
+        onMessageCallback?.(wrapInSequencedEnvelope(event1, 1));
+      });
+
+      expect(result.current.events).toHaveLength(1);
+      expect(result.current.events[0].id).toBe(1);
+
+      // Event 3 arrives before event 2 (out of order)
+      act(() => {
+        onMessageCallback?.(wrapInSequencedEnvelope(event3, 3));
+      });
+
+      // Event 3 should be buffered since sequence 2 is missing
+      // Only event 1 should be in the events array
+      expect(result.current.events).toHaveLength(1);
+
+      // Event 2 arrives, filling the gap
+      act(() => {
+        onMessageCallback?.(wrapInSequencedEnvelope(event2, 2));
+      });
+
+      // Now all events should be processed in order
+      expect(result.current.events).toHaveLength(3);
+      expect(result.current.events[0].id).toBe(3);
+      expect(result.current.events[1].id).toBe(2);
+      expect(result.current.events[2].id).toBe(1);
+    });
+
+    it('should ignore duplicate sequence numbers (replay protection)', () => {
+      const { result } = renderHook(() => useEventStream());
+
+      const event1: SecurityEvent = {
+        id: 1,
+        camera_id: 'cam-1',
+        risk_score: 50,
+        risk_level: 'medium',
+        summary: 'Event 1',
+        started_at: '2025-12-23T10:00:00Z',
+      };
+
+      const event1Duplicate: SecurityEvent = {
+        id: 1,
+        camera_id: 'cam-1',
+        risk_score: 50,
+        risk_level: 'medium',
+        summary: 'Event 1 duplicate',
+        started_at: '2025-12-23T10:00:00Z',
+      };
+
+      act(() => {
+        onMessageCallback?.(wrapInSequencedEnvelope(event1, 1));
+        onMessageCallback?.(wrapInSequencedEnvelope(event1Duplicate, 1));
+      });
+
+      // Should only have one event (duplicate rejected)
+      expect(result.current.events).toHaveLength(1);
+      expect(result.current.events[0].summary).toBe('Event 1');
+    });
+
+    it('should ignore events with sequence < last processed (replay protection)', () => {
+      const { result } = renderHook(() => useEventStream());
+
+      const event1: SecurityEvent = {
+        id: 1,
+        camera_id: 'cam-1',
+        risk_score: 50,
+        risk_level: 'medium',
+        summary: 'Event 1',
+        started_at: '2025-12-23T10:00:00Z',
+      };
+
+      const event2: SecurityEvent = {
+        id: 2,
+        camera_id: 'cam-1',
+        risk_score: 60,
+        risk_level: 'medium',
+        summary: 'Event 2',
+        started_at: '2025-12-23T10:01:00Z',
+      };
+
+      const event3: SecurityEvent = {
+        id: 3,
+        camera_id: 'cam-1',
+        risk_score: 70,
+        risk_level: 'high',
+        summary: 'Event 3',
+        started_at: '2025-12-23T10:02:00Z',
+      };
+
+      // Old event that arrives after seq 3 was processed
+      const oldEvent: SecurityEvent = {
+        id: 0,
+        camera_id: 'cam-1',
+        risk_score: 40,
+        risk_level: 'low',
+        summary: 'Old event',
+        started_at: '2025-12-23T09:59:00Z',
+      };
+
+      act(() => {
+        onMessageCallback?.(wrapInSequencedEnvelope(event1, 1));
+        onMessageCallback?.(wrapInSequencedEnvelope(event2, 2));
+        onMessageCallback?.(wrapInSequencedEnvelope(event3, 3));
+      });
+
+      expect(result.current.events).toHaveLength(3);
+
+      // Now an old event with sequence 0 arrives (replay attack or stale message)
+      act(() => {
+        onMessageCallback?.(wrapInSequencedEnvelope(oldEvent, 0));
+      });
+
+      // Should still have only 3 events (old event rejected)
+      expect(result.current.events).toHaveLength(3);
+    });
+
+    it('should process multiple buffered events when gap is filled', () => {
+      const { result } = renderHook(() => useEventStream());
+
+      const event1: SecurityEvent = {
+        id: 1,
+        camera_id: 'cam-1',
+        risk_score: 50,
+        risk_level: 'medium',
+        summary: 'Event 1',
+        started_at: '2025-12-23T10:00:00Z',
+      };
+
+      const event2: SecurityEvent = {
+        id: 2,
+        camera_id: 'cam-1',
+        risk_score: 60,
+        risk_level: 'medium',
+        summary: 'Event 2',
+        started_at: '2025-12-23T10:01:00Z',
+      };
+
+      const event3: SecurityEvent = {
+        id: 3,
+        camera_id: 'cam-1',
+        risk_score: 70,
+        risk_level: 'high',
+        summary: 'Event 3',
+        started_at: '2025-12-23T10:02:00Z',
+      };
+
+      const event4: SecurityEvent = {
+        id: 4,
+        camera_id: 'cam-1',
+        risk_score: 80,
+        risk_level: 'high',
+        summary: 'Event 4',
+        started_at: '2025-12-23T10:03:00Z',
+      };
+
+      const event5: SecurityEvent = {
+        id: 5,
+        camera_id: 'cam-1',
+        risk_score: 90,
+        risk_level: 'critical',
+        summary: 'Event 5',
+        started_at: '2025-12-23T10:04:00Z',
+      };
+
+      // Send events: 1, 4, 5, 3, 2
+      act(() => {
+        onMessageCallback?.(wrapInSequencedEnvelope(event1, 1));
+      });
+
+      expect(result.current.events).toHaveLength(1);
+
+      act(() => {
+        onMessageCallback?.(wrapInSequencedEnvelope(event4, 4));
+        onMessageCallback?.(wrapInSequencedEnvelope(event5, 5));
+        onMessageCallback?.(wrapInSequencedEnvelope(event3, 3));
+      });
+
+      // Events 4, 5, 3 should be buffered
+      expect(result.current.events).toHaveLength(1);
+
+      // Event 2 arrives, filling the gap
+      act(() => {
+        onMessageCallback?.(wrapInSequencedEnvelope(event2, 2));
+      });
+
+      // All events should be processed
+      expect(result.current.events).toHaveLength(5);
+      // Newest first
+      expect(result.current.events[0].id).toBe(5);
+      expect(result.current.events[1].id).toBe(4);
+      expect(result.current.events[2].id).toBe(3);
+      expect(result.current.events[3].id).toBe(2);
+      expect(result.current.events[4].id).toBe(1);
+    });
+
+    it('should handle events without sequence numbers (backward compatibility)', () => {
+      const { result } = renderHook(() => useEventStream());
+
+      // Event without sequence (legacy format)
+      const legacyEvent: SecurityEvent = {
+        id: 1,
+        camera_id: 'cam-1',
+        risk_score: 50,
+        risk_level: 'medium',
+        summary: 'Legacy event',
+        started_at: '2025-12-23T10:00:00Z',
+      };
+
+      act(() => {
+        // Use standard envelope without sequence
+        onMessageCallback?.(wrapInEnvelope(legacyEvent));
+      });
+
+      // Should be processed immediately (no sequence validation)
+      expect(result.current.events).toHaveLength(1);
+      expect(result.current.events[0].summary).toBe('Legacy event');
+    });
+
+    it('should reset sequence state when clearEvents is called', () => {
+      const { result } = renderHook(() => useEventStream());
+
+      const event1: SecurityEvent = {
+        id: 1,
+        camera_id: 'cam-1',
+        risk_score: 50,
+        risk_level: 'medium',
+        summary: 'Event 1',
+        started_at: '2025-12-23T10:00:00Z',
+      };
+
+      const event2: SecurityEvent = {
+        id: 2,
+        camera_id: 'cam-1',
+        risk_score: 60,
+        risk_level: 'medium',
+        summary: 'Event 2',
+        started_at: '2025-12-23T10:01:00Z',
+      };
+
+      act(() => {
+        onMessageCallback?.(wrapInSequencedEnvelope(event1, 1));
+        onMessageCallback?.(wrapInSequencedEnvelope(event2, 2));
+      });
+
+      expect(result.current.events).toHaveLength(2);
+
+      // Clear events
+      act(() => {
+        result.current.clearEvents();
+      });
+
+      expect(result.current.events).toHaveLength(0);
+
+      // Send new events starting from sequence 1 again
+      const newEvent1: SecurityEvent = {
+        id: 101,
+        camera_id: 'cam-2',
+        risk_score: 70,
+        risk_level: 'high',
+        summary: 'New Event 1',
+        started_at: '2025-12-23T11:00:00Z',
+      };
+
+      act(() => {
+        onMessageCallback?.(wrapInSequencedEnvelope(newEvent1, 1));
+      });
+
+      // Should accept the new sequence 1 since state was reset
+      expect(result.current.events).toHaveLength(1);
+      expect(result.current.events[0].id).toBe(101);
+    });
+
+    it('should send resync request when large gap detected', () => {
+      // First render to establish baseline - result used for verification
+      renderHook(() => useEventStream());
+
+      // Re-mock to capture the send function
+      vi.spyOn(useWebSocketModule, 'useWebSocket').mockImplementation((options) => {
+        onMessageCallback = options.onMessage;
+        return mockWebSocketReturn;
+      });
+
+      // Re-render to get the updated mock
+      const { result: result2 } = renderHook(() => useEventStream());
+
+      const event1: SecurityEvent = {
+        id: 1,
+        camera_id: 'cam-1',
+        risk_score: 50,
+        risk_level: 'medium',
+        summary: 'Event 1',
+        started_at: '2025-12-23T10:00:00Z',
+      };
+
+      act(() => {
+        onMessageCallback?.(wrapInSequencedEnvelope(event1, 1));
+      });
+
+      expect(result2.current.events).toHaveLength(1);
+
+      // Send an event with a large gap (e.g., sequence 100 when last was 1)
+      // Default gap threshold is 10
+      const gapEvent: SecurityEvent = {
+        id: 100,
+        camera_id: 'cam-1',
+        risk_score: 80,
+        risk_level: 'high',
+        summary: 'Event with large gap',
+        started_at: '2025-12-23T12:00:00Z',
+      };
+
+      act(() => {
+        onMessageCallback?.(wrapInSequencedEnvelope(gapEvent, 100));
+      });
+
+      // Should have called send with resync request
+      expect(mockWebSocketReturn.send).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'resync',
+          last_sequence: 1,
+          channel: 'events',
+        })
+      );
+    });
+
+    it('should expose sequence statistics for monitoring', () => {
+      const { result } = renderHook(() => useEventStream());
+
+      // Note: This test verifies the hook exposes sequence statistics
+      // The actual implementation will add getSequenceStats() method
+
+      const event1: SecurityEvent = {
+        id: 1,
+        camera_id: 'cam-1',
+        risk_score: 50,
+        risk_level: 'medium',
+        summary: 'Event 1',
+        started_at: '2025-12-23T10:00:00Z',
+      };
+
+      const event3: SecurityEvent = {
+        id: 3,
+        camera_id: 'cam-1',
+        risk_score: 70,
+        risk_level: 'high',
+        summary: 'Event 3',
+        started_at: '2025-12-23T10:02:00Z',
+      };
+
+      act(() => {
+        onMessageCallback?.(wrapInSequencedEnvelope(event1, 1));
+        onMessageCallback?.(wrapInSequencedEnvelope(event3, 3)); // Out of order
+      });
+
+      // Check that sequence stats are available
+      const stats = result.current.sequenceStats;
+      expect(stats).toBeDefined();
+      expect(stats.processedCount).toBeGreaterThanOrEqual(1);
+      expect(stats.outOfOrderCount).toBeGreaterThanOrEqual(1);
+      expect(stats.currentBufferSize).toBeGreaterThanOrEqual(1);
+    });
+
+    it('should handle first message with any sequence number', () => {
+      const { result } = renderHook(() => useEventStream());
+
+      // First message might have sequence > 1 (e.g., client connecting mid-stream)
+      const event: SecurityEvent = {
+        id: 42,
+        camera_id: 'cam-1',
+        risk_score: 50,
+        risk_level: 'medium',
+        summary: 'Mid-stream event',
+        started_at: '2025-12-23T10:00:00Z',
+      };
+
+      act(() => {
+        onMessageCallback?.(wrapInSequencedEnvelope(event, 42));
+      });
+
+      // Should accept the first message regardless of sequence
+      expect(result.current.events).toHaveLength(1);
+      expect(result.current.events[0].id).toBe(42);
+    });
+  });
 });

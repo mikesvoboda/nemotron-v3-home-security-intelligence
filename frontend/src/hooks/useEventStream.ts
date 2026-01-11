@@ -1,11 +1,17 @@
 import { LRUCache } from 'lru-cache';
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 
+import {
+  SequenceValidator,
+  type SequenceStatistics,
+  type SequencedMessage,
+} from './sequenceValidator';
 import { useWebSocket } from './useWebSocket';
 import { buildWebSocketOptions } from '../services/api';
 import { logger } from '../services/logger';
 import {
   type SecurityEventData,
+  type ResyncRequestMessage,
   isEventMessage,
   isHeartbeatMessage,
   isErrorMessage,
@@ -22,6 +28,8 @@ export interface UseEventStreamReturn {
   isConnected: boolean;
   latestEvent: SecurityEvent | null;
   clearEvents: () => void;
+  /** Sequence validation statistics for monitoring (NEM-1999) */
+  sequenceStats: SequenceStatistics;
 }
 
 const MAX_EVENTS = 100;
@@ -40,8 +48,21 @@ function getEventKey(event: SecurityEvent): string {
   return String(id);
 }
 
+// Default empty statistics for when no events have been processed
+const EMPTY_SEQUENCE_STATS: SequenceStatistics = {
+  processedCount: 0,
+  duplicateCount: 0,
+  resyncCount: 0,
+  outOfOrderCount: 0,
+  currentBufferSize: 0,
+};
+
+// Channel name for the events WebSocket
+const EVENTS_CHANNEL = 'events';
+
 export function useEventStream(): UseEventStreamReturn {
   const [events, setEvents] = useState<SecurityEvent[]>([]);
+  const [sequenceStats, setSequenceStats] = useState<SequenceStatistics>(EMPTY_SEQUENCE_STATS);
 
   // Track mounted state to prevent state updates after unmount (wa0t.31)
   const isMountedRef = useRef(true);
@@ -55,6 +76,33 @@ export function useEventStream(): UseEventStreamReturn {
     })
   );
 
+  // Ref to store the send function from useWebSocket
+  const sendRef = useRef<((data: unknown) => void) | null>(null);
+
+  // NEM-1999: Sequence validator for event ordering
+  // Create resync callback that sends resync request via WebSocket
+  const sequenceValidatorRef = useRef<SequenceValidator | null>(null);
+
+  // Initialize sequence validator lazily
+  if (!sequenceValidatorRef.current) {
+    sequenceValidatorRef.current = new SequenceValidator(
+      (channel: string, lastSequence: number) => {
+        // Send resync request to backend
+        const resyncRequest: ResyncRequestMessage = {
+          type: 'resync',
+          last_sequence: lastSequence,
+          channel,
+        };
+        logger.info('Sending resync request', {
+          component: 'useEventStream',
+          channel,
+          lastSequence,
+        });
+        sendRef.current?.(resyncRequest);
+      }
+    );
+  }
+
   // Set mounted state on mount and cleanup on unmount
   useEffect(() => {
     isMountedRef.current = true;
@@ -62,6 +110,46 @@ export function useEventStream(): UseEventStreamReturn {
     return () => {
       isMountedRef.current = false;
     };
+  }, []);
+
+  /**
+   * Process a single event: add to events array with deduplication.
+   */
+  const processEvent = useCallback((event: SecurityEvent) => {
+    if (!isMountedRef.current) {
+      return;
+    }
+
+    const eventKey = getEventKey(event);
+
+    // Check for duplicate events (wa0t.34)
+    if (seenEventIdsRef.current.has(eventKey)) {
+      return;
+    }
+
+    // Mark event as seen (NEM-2020: use .set() for LRU cache)
+    seenEventIdsRef.current.set(eventKey, true);
+
+    setEvents((prevEvents) => {
+      // Add new event to the beginning of the array
+      const newEvents = [event, ...prevEvents];
+
+      // Keep only the most recent MAX_EVENTS
+      const trimmedEvents = newEvents.slice(0, MAX_EVENTS);
+
+      // NEM-1998: Bound the seen IDs set to prevent memory leaks
+      // When events are evicted from the array, remove their IDs from the set
+      // This ensures the set doesn't grow unbounded over time
+      if (newEvents.length > MAX_EVENTS) {
+        const evictedEvents = newEvents.slice(MAX_EVENTS);
+        for (const evictedEvent of evictedEvents) {
+          const evictedKey = getEventKey(evictedEvent);
+          seenEventIdsRef.current.delete(evictedKey);
+        }
+      }
+
+      return trimmedEvents;
+    });
   }, []);
 
   const handleMessage = useCallback((data: unknown) => {
@@ -74,36 +162,41 @@ export function useEventStream(): UseEventStreamReturn {
     // First, check for event messages (most common case)
     if (isEventMessage(data)) {
       const event = data.data;
-      const eventKey = getEventKey(event);
 
-      // Check for duplicate events (wa0t.34)
-      if (seenEventIdsRef.current.has(eventKey)) {
-        return;
-      }
+      // NEM-1999: Check if message has sequence number for ordering
+      if (data.sequence !== undefined && data.sequence !== null) {
+        // Use sequence validator for ordering
+        const sequencedMessage: SequencedMessage = {
+          type: data.type,
+          sequence: data.sequence,
+          data: event,
+          replay: data.replay,
+          requires_ack: data.requires_ack,
+          timestamp: data.timestamp,
+        };
 
-      // Mark event as seen (NEM-2020: use .set() for LRU cache)
-      seenEventIdsRef.current.set(eventKey, true);
+        const result = sequenceValidatorRef.current?.handleMessage(
+          EVENTS_CHANNEL,
+          sequencedMessage
+        );
 
-      setEvents((prevEvents) => {
-        // Add new event to the beginning of the array
-        const newEvents = [event, ...prevEvents];
+        if (result) {
+          // Process all events that are now in order
+          for (const processedMsg of result.processed) {
+            const processedEvent = processedMsg.data as SecurityEvent;
+            processEvent(processedEvent);
+          }
 
-        // Keep only the most recent MAX_EVENTS
-        const trimmedEvents = newEvents.slice(0, MAX_EVENTS);
-
-        // NEM-1998: Bound the seen IDs set to prevent memory leaks
-        // When events are evicted from the array, remove their IDs from the set
-        // This ensures the set doesn't grow unbounded over time
-        if (newEvents.length > MAX_EVENTS) {
-          const evictedEvents = newEvents.slice(MAX_EVENTS);
-          for (const evictedEvent of evictedEvents) {
-            const evictedKey = getEventKey(evictedEvent);
-            seenEventIdsRef.current.delete(evictedKey);
+          // Update sequence statistics
+          const stats = sequenceValidatorRef.current?.getStatistics(EVENTS_CHANNEL);
+          if (stats) {
+            setSequenceStats(stats);
           }
         }
-
-        return trimmedEvents;
-      });
+      } else {
+        // No sequence number - process immediately (backward compatibility)
+        processEvent(event);
+      }
       return;
     }
 
@@ -124,17 +217,22 @@ export function useEventStream(): UseEventStreamReturn {
 
     // Unknown message types are silently ignored
     // This is intentional - the backend may send messages we don't care about
-  }, []);
+  }, [processEvent]);
 
   // Build WebSocket options using helper (respects VITE_WS_BASE_URL)
   // SECURITY: API key is passed via Sec-WebSocket-Protocol header, not URL query param
   const wsOptions = buildWebSocketOptions('/ws/events');
 
-  const { isConnected } = useWebSocket({
+  const { isConnected, send } = useWebSocket({
     url: wsOptions.url,
     protocols: wsOptions.protocols,
     onMessage: handleMessage,
   });
+
+  // Store send function in ref for use in resync callback
+  useEffect(() => {
+    sendRef.current = send;
+  }, [send]);
 
   const clearEvents = useCallback(() => {
     // Check if component is still mounted before updating state
@@ -144,6 +242,9 @@ export function useEventStream(): UseEventStreamReturn {
     setEvents([]);
     // Also clear the seen event IDs cache when events are cleared
     seenEventIdsRef.current.clear();
+    // NEM-1999: Reset sequence validator state when events are cleared
+    sequenceValidatorRef.current?.reset(EVENTS_CHANNEL);
+    setSequenceStats(EMPTY_SEQUENCE_STATS);
   }, []);
 
   const latestEvent = useMemo(() => {
@@ -155,5 +256,6 @@ export function useEventStream(): UseEventStreamReturn {
     isConnected,
     latestEvent,
     clearEvents,
+    sequenceStats,
   };
 }
