@@ -45,9 +45,11 @@ import { EventAuditDetail } from '../audit';
 import Lightbox from '../common/Lightbox';
 import RiskBadge from '../common/RiskBadge';
 import DetectionImage from '../detection/DetectionImage';
+import EntityDetailModal from '../entities/EntityDetailModal';
 import VideoPlayer from '../video/VideoPlayer';
 
 import type { DetectionThumbnail } from './ThumbnailStrip';
+import type { EntityDetail } from '../../services/api';
 import type { EnrichmentData } from '../../types/enrichment';
 import type { Detection as ApiDetection } from '../../types/generated';
 import type { LightboxImage } from '../common/Lightbox';
@@ -134,6 +136,10 @@ export default function EventDetailModal({
   const [isReEvaluating, setIsReEvaluating] = useState<boolean>(false);
   const [reEvaluateError, setReEvaluateError] = useState<string | null>(null);
   const [reEvaluateSuccess, setReEvaluateSuccess] = useState<boolean>(false);
+
+  // State for entity detail modal
+  const [entityDetailOpen, setEntityDetailOpen] = useState<boolean>(false);
+  const [selectedEntity, setSelectedEntity] = useState<EntityDetail | null>(null);
 
   // Initialize notes text and reset re-evaluate state when event changes
   useEffect(() => {
@@ -1027,6 +1033,16 @@ export default function EventDetailModal({
           onIndexChange={setThumbnailLightboxIndex}
         />
       )}
+
+      {/* Entity Detail Modal */}
+      <EntityDetailModal
+        entity={selectedEntity}
+        isOpen={entityDetailOpen}
+        onClose={() => {
+          setEntityDetailOpen(false);
+          setSelectedEntity(null);
+        }}
+      />
     </Transition>
   );
 }

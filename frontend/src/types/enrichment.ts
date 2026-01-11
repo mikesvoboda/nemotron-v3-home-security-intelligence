@@ -135,6 +135,44 @@ export interface PersonEnrichment {
 }
 
 // ============================================================================
+// Posture Enrichment (Legacy - simpler posture detection)
+// ============================================================================
+
+/**
+ * Posture enrichment data from basic AI pose analysis.
+ * Note: For detailed ViTPose analysis, see PoseEnrichment below.
+ */
+export interface PostureEnrichment {
+  /** Detected posture classification */
+  posture: string;
+  /** Confidence score for the posture detection (0-1) */
+  confidence: number;
+}
+
+/**
+ * Check if a posture is considered high-risk for security purposes.
+ * Works with both PostureEnrichment and PoseEnrichment postures.
+ */
+export function isHighRiskPosture(posture: string): boolean {
+  const highRisk = ['crouching', 'lying_down', 'hands_raised', 'fighting_stance'];
+  return highRisk.includes(posture);
+}
+
+/**
+ * Get the risk level for a posture.
+ * Returns 'alert' for high-security threats, 'warning' for concerning postures.
+ */
+export function getPostureRiskLevel(posture: string): 'alert' | 'warning' | 'normal' {
+  if (posture === 'hands_raised' || posture === 'fighting_stance') {
+    return 'alert';
+  }
+  if (posture === 'crouching' || posture === 'lying_down') {
+    return 'warning';
+  }
+  return 'normal';
+}
+
+// ============================================================================
 // License Plate Enrichment
 // ============================================================================
 
@@ -282,6 +320,8 @@ export interface EnrichmentData {
   pet?: PetEnrichment | null;
   /** Person attributes and behavior */
   person?: PersonEnrichment | null;
+  /** Posture/pose detection for security monitoring */
+  posture?: PostureEnrichment | null;
   /** License plate OCR result */
   license_plate?: LicensePlateEnrichment | null;
   /** Weather condition detection */
@@ -330,6 +370,15 @@ export function isPersonEnrichment(value: unknown): value is PersonEnrichment {
   if (!hasValidConfidence(value)) return false;
   // PersonEnrichment has no required fields beyond confidence
   return true;
+}
+
+/**
+ * Type guard for PostureEnrichment.
+ */
+export function isPostureEnrichment(value: unknown): value is PostureEnrichment {
+  if (!hasValidConfidence(value)) return false;
+  const obj = value as Record<string, unknown>;
+  return typeof obj.posture === 'string';
 }
 
 /**
@@ -383,6 +432,7 @@ export function isEnrichmentData(value: unknown): value is EnrichmentData {
   if (obj.vehicle !== undefined && obj.vehicle !== null && !isVehicleEnrichment(obj.vehicle)) return false;
   if (obj.pet !== undefined && obj.pet !== null && !isPetEnrichment(obj.pet)) return false;
   if (obj.person !== undefined && obj.person !== null && !isPersonEnrichment(obj.person)) return false;
+  if (obj.posture !== undefined && obj.posture !== null && !isPostureEnrichment(obj.posture)) return false;
   if (obj.license_plate !== undefined && obj.license_plate !== null && !isLicensePlateEnrichment(obj.license_plate)) return false;
   if (obj.weather !== undefined && obj.weather !== null && !isWeatherEnrichment(obj.weather)) return false;
   if (obj.image_quality !== undefined && obj.image_quality !== null && !isImageQualityEnrichment(obj.image_quality)) return false;
@@ -621,6 +671,22 @@ export function getPersonEnrichmentResult(
     return enrichmentError('Invalid person enrichment data');
   }
   return enrichmentSuccess(person);
+}
+
+/**
+ * Safely extract posture enrichment data from EnrichmentData.
+ * Returns an EnrichmentResult with type guards for safe access.
+ */
+export function getPostureEnrichmentResult(
+  data: EnrichmentData | null | undefined
+): EnrichmentResult<PostureEnrichment> {
+  if (!data) return enrichmentEmpty();
+  const posture = data.posture;
+  if (posture === null || posture === undefined) return enrichmentEmpty();
+  if (!isPostureEnrichment(posture)) {
+    return enrichmentError('Invalid posture enrichment data');
+  }
+  return enrichmentSuccess(posture);
 }
 
 /**

@@ -535,6 +535,90 @@ class JobTracker:
 
         return len(to_remove)
 
+    def get_all_jobs(
+        self,
+        job_type: str | None = None,
+        status_filter: JobStatus | None = None,
+    ) -> list[JobInfo]:
+        """Get all jobs with optional filtering.
+
+        Args:
+            job_type: Optional filter by job type (e.g., 'export', 'cleanup')
+            status_filter: Optional filter by job status
+
+        Returns:
+            List of jobs matching the filters, sorted by created_at descending
+        """
+        with self._lock:
+            jobs = list(self._jobs.values())
+
+        # Apply filters
+        if job_type is not None:
+            jobs = [j for j in jobs if j["job_type"] == job_type]
+
+        if status_filter is not None:
+            jobs = [j for j in jobs if j["status"] == status_filter]
+
+        # Sort by created_at descending (most recent first)
+        jobs.sort(key=lambda j: j["created_at"], reverse=True)
+
+        return jobs
+
+    def cancel_job(self, job_id: str) -> bool:
+        """Request cancellation of a job.
+
+        This marks the job as failed with a cancellation message.
+        Note: Actual cancellation of running tasks depends on the task
+        implementation checking for cancellation status.
+
+        Args:
+            job_id: The job ID to cancel.
+
+        Returns:
+            True if the job was cancelled, False if already completed/failed.
+
+        Raises:
+            KeyError: If the job ID is not found.
+        """
+        now = datetime.now(UTC).isoformat()
+
+        with self._lock:
+            if job_id not in self._jobs:
+                raise KeyError(f"Job not found: {job_id}")
+
+            job = self._jobs[job_id]
+
+            # Can only cancel pending or running jobs
+            if job["status"] in (JobStatus.COMPLETED, JobStatus.FAILED):
+                return False
+
+            self._jobs[job_id]["status"] = JobStatus.FAILED
+            self._jobs[job_id]["completed_at"] = now
+            self._jobs[job_id]["error"] = "Cancelled by user"
+            self._jobs[job_id]["message"] = "Job cancelled by user request"
+
+        logger.info(
+            "Job cancelled",
+            extra={"job_id": job_id, "job_type": job["job_type"]},
+        )
+
+        # Persist to Redis with TTL (cancelled jobs expire after 1 hour)
+        self._schedule_persist(job_id, ttl=REDIS_JOB_TTL_SECONDS)
+
+        # Broadcast cancellation as a failure event
+        data = JobFailedData(
+            job_id=job_id,
+            job_type=job["job_type"],
+            error="Cancelled by user",
+        )
+
+        self._broadcast(
+            JobEventType.JOB_FAILED,
+            {"type": JobEventType.JOB_FAILED, "data": dict(data)},
+        )
+
+        return True
+
 
 # Module-level singleton
 _job_tracker: JobTracker | None = None

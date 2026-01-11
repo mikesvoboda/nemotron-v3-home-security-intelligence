@@ -1,4 +1,4 @@
-"""Tests for the Jobs API routes (NEM-1989)."""
+"""Tests for the Jobs API routes (NEM-1989, NEM-1972)."""
 
 from __future__ import annotations
 
@@ -47,6 +47,131 @@ def client(app: FastAPI) -> TestClient:
     return TestClient(app)
 
 
+class TestListJobs:
+    """Tests for GET /api/jobs."""
+
+    def test_list_jobs_empty(self, client: TestClient, mock_job_tracker: MagicMock) -> None:
+        """Should return empty list when no jobs exist."""
+        mock_job_tracker.get_all_jobs.return_value = []
+
+        response = client.get("/api/jobs")
+        assert response.status_code == 200
+
+        data = response.json()
+        assert data["jobs"] == []
+        assert data["total"] == 0
+
+    def test_list_jobs_returns_jobs(self, client: TestClient, mock_job_tracker: MagicMock) -> None:
+        """Should return list of jobs."""
+        mock_job_tracker.get_all_jobs.return_value = [
+            JobInfo(
+                job_id="job-1",
+                job_type="export",
+                status=JobStatus.RUNNING,
+                progress=50,
+                message="Processing...",
+                created_at="2024-01-15T10:30:00Z",
+                started_at="2024-01-15T10:30:01Z",
+                completed_at=None,
+                result=None,
+                error=None,
+            ),
+            JobInfo(
+                job_id="job-2",
+                job_type="cleanup",
+                status=JobStatus.COMPLETED,
+                progress=100,
+                message="Completed",
+                created_at="2024-01-15T10:00:00Z",
+                started_at="2024-01-15T10:00:01Z",
+                completed_at="2024-01-15T10:05:00Z",
+                result=None,
+                error=None,
+            ),
+        ]
+
+        response = client.get("/api/jobs")
+        assert response.status_code == 200
+
+        data = response.json()
+        assert len(data["jobs"]) == 2
+        assert data["total"] == 2
+        assert data["jobs"][0]["job_id"] == "job-1"
+        assert data["jobs"][1]["job_id"] == "job-2"
+
+    def test_list_jobs_filter_by_type(
+        self, client: TestClient, mock_job_tracker: MagicMock
+    ) -> None:
+        """Should filter jobs by type."""
+        mock_job_tracker.get_all_jobs.return_value = [
+            JobInfo(
+                job_id="export-job",
+                job_type="export",
+                status=JobStatus.RUNNING,
+                progress=50,
+                message="Processing...",
+                created_at="2024-01-15T10:30:00Z",
+                started_at=None,
+                completed_at=None,
+                result=None,
+                error=None,
+            ),
+        ]
+
+        response = client.get("/api/jobs?job_type=export")
+        assert response.status_code == 200
+
+        mock_job_tracker.get_all_jobs.assert_called_once_with(job_type="export", status_filter=None)
+
+    def test_list_jobs_filter_by_status(
+        self, client: TestClient, mock_job_tracker: MagicMock
+    ) -> None:
+        """Should filter jobs by status."""
+        mock_job_tracker.get_all_jobs.return_value = []
+
+        response = client.get("/api/jobs?status=running")
+        assert response.status_code == 200
+
+        mock_job_tracker.get_all_jobs.assert_called_once_with(
+            job_type=None, status_filter=JobStatus.RUNNING
+        )
+
+    def test_list_jobs_filter_by_type_and_status(
+        self, client: TestClient, mock_job_tracker: MagicMock
+    ) -> None:
+        """Should filter jobs by both type and status."""
+        mock_job_tracker.get_all_jobs.return_value = []
+
+        response = client.get("/api/jobs?job_type=export&status=pending")
+        assert response.status_code == 200
+
+        mock_job_tracker.get_all_jobs.assert_called_once_with(
+            job_type="export", status_filter=JobStatus.PENDING
+        )
+
+
+class TestListJobTypes:
+    """Tests for GET /api/jobs/types."""
+
+    def test_list_job_types(self, client: TestClient) -> None:
+        """Should return list of available job types."""
+        response = client.get("/api/jobs/types")
+        assert response.status_code == 200
+
+        data = response.json()
+        assert "job_types" in data
+        assert len(data["job_types"]) > 0
+
+        # Verify export type is included
+        type_names = [jt["name"] for jt in data["job_types"]]
+        assert "export" in type_names
+
+        # Verify structure
+        for job_type in data["job_types"]:
+            assert "name" in job_type
+            assert "description" in job_type
+
+
 class TestGetJobStatus:
     """Tests for GET /api/jobs/{job_id}."""
 
@@ -67,7 +192,7 @@ class TestGetJobStatus:
             error=None,
         )
 
-        response = client.get("/jobs/test-job-123")
+        response = client.get("/api/jobs/test-job-123")
         assert response.status_code == 200
 
         data = response.json()
@@ -99,7 +224,7 @@ class TestGetJobStatus:
             error=None,
         )
 
-        response = client.get("/jobs/test-job-456")
+        response = client.get("/api/jobs/test-job-456")
         assert response.status_code == 200
 
         data = response.json()
@@ -123,7 +248,7 @@ class TestGetJobStatus:
             error="Database connection error",
         )
 
-        response = client.get("/jobs/test-job-789")
+        response = client.get("/api/jobs/test-job-789")
         assert response.status_code == 200
 
         data = response.json()
@@ -137,7 +262,7 @@ class TestGetJobStatus:
         mock_job_tracker.get_job.return_value = None
         mock_job_tracker.get_job_from_redis = AsyncMock(return_value=None)
 
-        response = client.get("/jobs/nonexistent-job")
+        response = client.get("/api/jobs/nonexistent-job")
         assert response.status_code == 404
 
         data = response.json()
@@ -163,11 +288,51 @@ class TestGetJobStatus:
             )
         )
 
-        response = client.get("/jobs/redis-job-123")
+        response = client.get("/api/jobs/redis-job-123")
         assert response.status_code == 200
 
         data = response.json()
         assert data["job_id"] == "redis-job-123"
+
+
+class TestCancelJob:
+    """Tests for POST /api/jobs/{job_id}/cancel."""
+
+    def test_cancel_job_success(self, client: TestClient, mock_job_tracker: MagicMock) -> None:
+        """Should cancel a running job."""
+        mock_job_tracker.cancel_job.return_value = True
+
+        response = client.post("/api/jobs/job-123/cancel")
+        assert response.status_code == 200
+
+        data = response.json()
+        assert data["job_id"] == "job-123"
+        assert data["status"] == "failed"
+        assert "cancellation" in data["message"].lower()
+
+        mock_job_tracker.cancel_job.assert_called_once_with("job-123")
+
+    def test_cancel_job_not_found(self, client: TestClient, mock_job_tracker: MagicMock) -> None:
+        """Should return 404 when job not found."""
+        mock_job_tracker.cancel_job.side_effect = KeyError("Job not found")
+
+        response = client.post("/api/jobs/nonexistent/cancel")
+        assert response.status_code == 404
+
+        data = response.json()
+        assert "No job found" in data["detail"]
+
+    def test_cancel_job_already_completed(
+        self, client: TestClient, mock_job_tracker: MagicMock
+    ) -> None:
+        """Should return 409 when job already completed."""
+        mock_job_tracker.cancel_job.return_value = False
+
+        response = client.post("/api/jobs/completed-job/cancel")
+        assert response.status_code == 409
+
+        data = response.json()
+        assert "cannot be cancelled" in data["detail"]
 
 
 class TestStartExportJob:
@@ -178,7 +343,7 @@ class TestStartExportJob:
         mock_job_tracker.create_job.return_value = "export-job-001"
 
         response = client.post(
-            "/events/export",
+            "/api/events/export",
             json={"format": "csv"},
         )
         assert response.status_code == 202
@@ -193,7 +358,7 @@ class TestStartExportJob:
         mock_job_tracker.create_job.return_value = "export-job-002"
 
         response = client.post(
-            "/events/export",
+            "/api/events/export",
             json={"format": "json"},
         )
         assert response.status_code == 202
@@ -206,7 +371,7 @@ class TestStartExportJob:
         mock_job_tracker.create_job.return_value = "export-job-003"
 
         response = client.post(
-            "/events/export",
+            "/api/events/export",
             json={"format": "zip"},
         )
         assert response.status_code == 202
@@ -221,7 +386,7 @@ class TestStartExportJob:
         mock_job_tracker.create_job.return_value = "export-job-004"
 
         response = client.post(
-            "/events/export",
+            "/api/events/export",
             json={
                 "format": "csv",
                 "camera_id": "cam-1",
@@ -241,7 +406,7 @@ class TestStartExportJob:
     ) -> None:
         """Should reject invalid export format."""
         response = client.post(
-            "/events/export",
+            "/api/events/export",
             json={"format": "invalid"},
         )
         assert response.status_code == 422
@@ -280,3 +445,49 @@ class TestJobSchemas:
         assert request.format == ExportFormat.CSV
         assert request.risk_level == "high"
         assert request.camera_id is None
+
+    def test_job_list_response(self) -> None:
+        """Should serialize JobListResponse correctly."""
+        from backend.api.schemas.jobs import JobListResponse, JobResponse, JobStatusEnum
+
+        job = JobResponse(
+            job_id="test-123",
+            job_type="export",
+            status=JobStatusEnum.RUNNING,
+            progress=50,
+            message="Processing...",
+            created_at="2024-01-15T10:30:00Z",
+        )
+
+        response = JobListResponse(jobs=[job], total=1)
+
+        data = response.model_dump()
+        assert data["total"] == 1
+        assert len(data["jobs"]) == 1
+        assert data["jobs"][0]["job_id"] == "test-123"
+
+    def test_job_types_response(self) -> None:
+        """Should serialize JobTypesResponse correctly."""
+        from backend.api.schemas.jobs import JobTypeInfo, JobTypesResponse
+
+        job_type = JobTypeInfo(name="export", description="Export events")
+        response = JobTypesResponse(job_types=[job_type])
+
+        data = response.model_dump()
+        assert len(data["job_types"]) == 1
+        assert data["job_types"][0]["name"] == "export"
+
+    def test_job_cancel_response(self) -> None:
+        """Should serialize JobCancelResponse correctly."""
+        from backend.api.schemas.jobs import JobCancelResponse, JobStatusEnum
+
+        response = JobCancelResponse(
+            job_id="test-123",
+            status=JobStatusEnum.FAILED,
+            message="Job cancelled",
+        )
+
+        data = response.model_dump()
+        assert data["job_id"] == "test-123"
+        assert data["status"] == "failed"
+        assert data["message"] == "Job cancelled"

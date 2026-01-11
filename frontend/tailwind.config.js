@@ -205,6 +205,11 @@ export default {
           '0%, 100%': { transform: 'translateY(0px)' },
           '50%': { transform: 'translateY(-10px)' },
         },
+        // Ambient background pulse for critical threat level
+        'ambient-pulse': {
+          '0%, 100%': { opacity: '1' },
+          '50%': { opacity: '0.6' },
+        },
       },
 
       animation: {
@@ -213,6 +218,7 @@ export default {
         'slide-in': 'slide-in 0.3s ease-out',
         'fade-in': 'fade-in 0.2s ease-in',
         float: 'float 3s ease-in-out infinite',
+        'ambient-pulse': 'ambient-pulse 2s ease-in-out infinite',
       },
     },
   },

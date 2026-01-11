@@ -273,10 +273,11 @@ export class AlertRulesPage extends BasePage {
     await expect(this.addRuleButton).toBeVisible({ timeout: this.pageLoadTimeout });
     await expect(this.addRuleButton).toBeEnabled({ timeout: this.pageLoadTimeout });
 
-    // Click and wait for modal to appear
-    // Using Promise.all ensures we start waiting for the modal before the click completes
+    // Click and wait for modal to appear with increased timeout
+    // Modal has 300ms animation, plus rendering time in CI can be slow
+    // Increased from 10s to 20s to handle flaky CI environments (NEM-xxxx)
     await Promise.all([
-      this.modalTitle.waitFor({ state: 'visible', timeout: this.pageLoadTimeout }),
+      this.modalTitle.waitFor({ state: 'visible', timeout: 20000 }),
       this.addRuleButton.click()
     ]);
   }
@@ -289,9 +290,11 @@ export class AlertRulesPage extends BasePage {
     await expect(this.emptyStateAddButton).toBeVisible({ timeout: this.pageLoadTimeout });
     await expect(this.emptyStateAddButton).toBeEnabled({ timeout: this.pageLoadTimeout });
 
-    // Click and wait for modal to appear
+    // Click and wait for modal to appear with increased timeout
+    // Modal has 300ms animation, plus rendering time in CI can be slow
+    // Increased from 10s to 20s to handle flaky CI environments (NEM-xxxx)
     await Promise.all([
-      this.modalTitle.waitFor({ state: 'visible', timeout: this.pageLoadTimeout }),
+      this.modalTitle.waitFor({ state: 'visible', timeout: 20000 }),
       this.emptyStateAddButton.click()
     ]);
   }
@@ -414,8 +417,11 @@ export class AlertRulesPage extends BasePage {
     await expect(editButton).toBeVisible({ timeout: this.pageLoadTimeout });
     await expect(editButton).toBeEnabled({ timeout: this.pageLoadTimeout });
 
+    // Click and wait for modal to appear with increased timeout
+    // Modal has 300ms animation, plus rendering time in CI can be slow
+    // Increased from 10s to 20s to handle flaky CI environments (NEM-xxxx)
     await Promise.all([
-      this.modalTitle.waitFor({ state: 'visible', timeout: this.pageLoadTimeout }),
+      this.modalTitle.waitFor({ state: 'visible', timeout: 20000 }),
       editButton.click()
     ]);
   }
@@ -448,8 +454,17 @@ export class AlertRulesPage extends BasePage {
    * Click test button for a rule by index
    */
   async testRule(index: number = 0): Promise<void> {
-    await this.testButtons.nth(index).click();
-    await expect(this.testModalTitle).toBeVisible({ timeout: this.pageLoadTimeout });
+    const testButton = this.testButtons.nth(index);
+    await expect(testButton).toBeVisible({ timeout: this.pageLoadTimeout });
+    await expect(testButton).toBeEnabled({ timeout: this.pageLoadTimeout });
+
+    // Click and wait for modal to appear with increased timeout
+    // Modal has 300ms animation, plus rendering time in CI can be slow
+    // Increased from 10s to 20s to handle flaky CI environments (NEM-xxxx)
+    await Promise.all([
+      this.testModalTitle.waitFor({ state: 'visible', timeout: 20000 }),
+      testButton.click()
+    ]);
   }
 
   /**
@@ -519,8 +534,11 @@ export class AlertRulesPage extends BasePage {
     await expect(editButton).toBeVisible({ timeout: this.pageLoadTimeout });
     await expect(editButton).toBeEnabled({ timeout: this.pageLoadTimeout });
 
+    // Click and wait for modal to appear with increased timeout
+    // Modal has 300ms animation, plus rendering time in CI can be slow
+    // Increased from 10s to 20s to handle flaky CI environments (NEM-xxxx)
     await Promise.all([
-      this.modalTitle.waitFor({ state: 'visible', timeout: this.pageLoadTimeout }),
+      this.modalTitle.waitFor({ state: 'visible', timeout: 20000 }),
       editButton.click()
     ]);
   }
@@ -539,8 +557,17 @@ export class AlertRulesPage extends BasePage {
    */
   async testRuleByName(name: string): Promise<void> {
     const row = this.getRuleRowByName(name);
-    await row.locator('button[aria-label^="Test"]').click();
-    await expect(this.testModalTitle).toBeVisible({ timeout: this.pageLoadTimeout });
+    const testButton = row.locator('button[aria-label^="Test"]');
+    await expect(testButton).toBeVisible({ timeout: this.pageLoadTimeout });
+    await expect(testButton).toBeEnabled({ timeout: this.pageLoadTimeout });
+
+    // Click and wait for modal to appear with increased timeout
+    // Modal has 300ms animation, plus rendering time in CI can be slow
+    // Increased from 10s to 20s to handle flaky CI environments (NEM-xxxx)
+    await Promise.all([
+      this.testModalTitle.waitFor({ state: 'visible', timeout: 20000 }),
+      testButton.click()
+    ]);
   }
 
   /**

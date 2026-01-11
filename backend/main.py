@@ -630,6 +630,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:  # noqa: PLR0912 - Co
         file_watcher=file_watcher,
         pipeline_manager=pipeline_manager,
         service_health_monitor=service_health_monitor,
+        performance_collector=performance_collector,
     )
     print("Workers registered for readiness monitoring")
 

@@ -284,6 +284,7 @@ _pipeline_manager: PipelineWorkerManager | None = None
 _batch_aggregator: BatchAggregator | None = None
 _degradation_manager: DegradationManager | None = None
 _service_health_monitor: ServiceHealthMonitor | None = None
+_performance_collector: PerformanceCollector | None = None
 
 
 def register_workers(
@@ -295,6 +296,7 @@ def register_workers(
     batch_aggregator: BatchAggregator | None = None,
     degradation_manager: DegradationManager | None = None,
     service_health_monitor: ServiceHealthMonitor | None = None,
+    performance_collector: PerformanceCollector | None = None,
 ) -> None:
     """Register worker instances for readiness monitoring.
 
@@ -310,8 +312,9 @@ def register_workers(
         batch_aggregator: BatchAggregator instance for pipeline status
         degradation_manager: DegradationManager instance for degradation status
         service_health_monitor: ServiceHealthMonitor instance for health event history
+        performance_collector: PerformanceCollector instance for performance metrics
     """
-    global _gpu_monitor, _cleanup_service, _system_broadcaster, _file_watcher, _pipeline_manager, _batch_aggregator, _degradation_manager, _service_health_monitor  # noqa: PLW0603
+    global _gpu_monitor, _cleanup_service, _system_broadcaster, _file_watcher, _pipeline_manager, _batch_aggregator, _degradation_manager, _service_health_monitor, _performance_collector  # noqa: PLW0603
     _gpu_monitor = gpu_monitor
     _cleanup_service = cleanup_service
     _system_broadcaster = system_broadcaster
@@ -320,6 +323,7 @@ def register_workers(
     _batch_aggregator = batch_aggregator
     _degradation_manager = degradation_manager
     _service_health_monitor = service_health_monitor
+    _performance_collector = performance_collector
 
 
 def _get_worker_statuses() -> list[WorkerStatus]:
@@ -472,6 +476,7 @@ if TYPE_CHECKING:
     from backend.services.file_watcher import FileWatcher
     from backend.services.gpu_monitor import GPUMonitor
     from backend.services.health_monitor import ServiceHealthMonitor
+    from backend.services.performance_collector import PerformanceCollector
     from backend.services.pipeline_workers import PipelineWorkerManager
     from backend.services.system_broadcaster import SystemBroadcaster
 

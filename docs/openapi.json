@@ -7821,6 +7821,69 @@
         "title": "InfrastructureHealthStatus",
         "type": "object"
       },
+      "JobCancelResponse": {
+        "description": "Response model for job cancellation request.",
+        "example": {
+          "job_id": "550e8400-e29b-41d4-a716-446655440000",
+          "message": "Job cancellation requested",
+          "status": "failed"
+        },
+        "properties": {
+          "job_id": {
+            "description": "Job ID that was cancelled",
+            "title": "Job Id",
+            "type": "string"
+          },
+          "message": {
+            "description": "Cancellation status message",
+            "title": "Message",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatusEnum",
+            "description": "New job status after cancellation"
+          }
+        },
+        "required": ["job_id", "status", "message"],
+        "title": "JobCancelResponse",
+        "type": "object"
+      },
+      "JobListResponse": {
+        "description": "Response model for listing jobs.",
+        "example": {
+          "jobs": [
+            {
+              "created_at": "2024-01-15T10:30:00Z",
+              "job_id": "550e8400-e29b-41d4-a716-446655440000",
+              "job_type": "export",
+              "message": "Exporting events: 450/1000",
+              "progress": 45,
+              "started_at": "2024-01-15T10:30:01Z",
+              "status": "running"
+            }
+          ],
+          "total": 1
+        },
+        "properties": {
+          "jobs": {
+            "description": "List of jobs",
+            "items": {
+              "$ref": "#/components/schemas/JobResponse"
+            },
+            "title": "Jobs",
+            "type": "array"
+          },
+          "total": {
+            "description": "Total number of jobs matching filter",
+            "minimum": 0.0,
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": ["jobs", "total"],
+        "title": "JobListResponse",
+        "type": "object"
+      },
       "JobResponse": {
         "description": "Response model for job status.",
         "example": {
@@ -7927,6 +7990,56 @@
         "enum": ["pending", "running", "completed", "failed"],
         "title": "JobStatusEnum",
         "type": "string"
+      },
+      "JobTypeInfo": {
+        "description": "Information about a job type.",
+        "example": {
+          "description": "Export events to CSV, JSON, or ZIP format",
+          "name": "export"
+        },
+        "properties": {
+          "description": {
+            "description": "Human-readable description of the job type",
+            "title": "Description",
+            "type": "string"
+          },
+          "name": {
+            "description": "Job type name (e.g., 'export', 'cleanup')",
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": ["name", "description"],
+        "title": "JobTypeInfo",
+        "type": "object"
+      },
+      "JobTypesResponse": {
+        "description": "Response model for listing job types.",
+        "example": {
+          "job_types": [
+            {
+              "description": "Export events to CSV, JSON, or ZIP format",
+              "name": "export"
+            },
+            {
+              "description": "Clean up old data and temporary files",
+              "name": "cleanup"
+            }
+          ]
+        },
+        "properties": {
+          "job_types": {
+            "description": "List of available job types",
+            "items": {
+              "$ref": "#/components/schemas/JobTypeInfo"
+            },
+            "title": "Job Types",
+            "type": "array"
+          }
+        },
+        "required": ["job_types"],
+        "title": "JobTypesResponse",
+        "type": "object"
       },
       "LatencyHistorySnapshot": {
         "description": "Single time-bucket snapshot of pipeline latency metrics.",
@@ -19140,6 +19253,44 @@
         },
         "summary": "Export Events",
         "tags": ["events"]
+      },
+      "post": {
+        "description": "Start a background export job for events. Returns a job ID that can be used to track progress via GET /api/jobs/{job_id}.",
+        "operationId": "start_export_job_api_events_export_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExportJobRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportJobStartResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Start export job",
+        "tags": ["jobs"]
       }
     },
     "/api/events/search": {
@@ -19852,6 +20003,185 @@
         },
         "summary": "Restore a soft-deleted event",
         "tags": ["events"]
+      }
+    },
+    "/api/jobs": {
+      "get": {
+        "description": "List all background jobs with optional filtering by type and status.",
+        "operationId": "list_jobs_api_jobs_get",
+        "parameters": [
+          {
+            "description": "Filter by job type (e.g., 'export', 'cleanup')",
+            "in": "query",
+            "name": "job_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by job type (e.g., 'export', 'cleanup')",
+              "title": "Job Type"
+            }
+          },
+          {
+            "description": "Filter by job status",
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/JobStatusEnum"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by job status",
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List all jobs",
+        "tags": ["jobs"]
+      }
+    },
+    "/api/jobs/types": {
+      "get": {
+        "description": "List all available job types that can be created.",
+        "operationId": "list_job_types_api_jobs_types_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobTypesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List available job types",
+        "tags": ["jobs"]
+      }
+    },
+    "/api/jobs/{job_id}": {
+      "get": {
+        "description": "Get the current status and progress of a background job.",
+        "operationId": "get_job_status_api_jobs__job_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Job not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get job status",
+        "tags": ["jobs"]
+      }
+    },
+    "/api/jobs/{job_id}/cancel": {
+      "post": {
+        "description": "Request cancellation of a background job. Jobs that are already completed or failed cannot be cancelled.",
+        "operationId": "cancel_job_api_jobs__job_id__cancel_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobCancelResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Job not found"
+          },
+          "409": {
+            "description": "Job cannot be cancelled (already completed or failed)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cancel a job",
+        "tags": ["jobs"]
       }
     },
     "/api/logs": {
@@ -21963,46 +22293,6 @@
         "tags": ["system"]
       }
     },
-    "/events/export": {
-      "post": {
-        "description": "Start a background export job for events. Returns a job ID that can be used to track progress via GET /api/jobs/{job_id}.",
-        "operationId": "start_export_job_events_export_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ExportJobRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "202": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ExportJobStartResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Start export job",
-        "tags": ["jobs"]
-      }
-    },
     "/health": {
       "get": {
         "description": "Simple liveness health check endpoint (canonical liveness probe).\n\nThis endpoint indicates whether the process is running and able to\nrespond to HTTP requests. It always returns 200 with status \"alive\"\nif the process is up.\n\nThis is the canonical liveness probe endpoint. Use this for:\n- Docker HEALTHCHECK liveness checks\n- Kubernetes liveness probes\n- Simple \"is the server up?\" monitoring\n\nFor detailed health information, use:\n- GET /api/system/health - Detailed health check with service status\n- GET /ready - Readiness probe (checks dependencies)\n\nReturns:\n    LivenessResponse with status \"alive\".",
@@ -22024,50 +22314,6 @@
           }
         },
         "summary": "Health"
-      }
-    },
-    "/jobs/{job_id}": {
-      "get": {
-        "description": "Get the current status and progress of a background job.",
-        "operationId": "get_job_status_jobs__job_id__get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "job_id",
-            "required": true,
-            "schema": {
-              "title": "Job Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/JobResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "404": {
-            "description": "Job not found"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Get job status",
-        "tags": ["jobs"]
       }
     },
     "/ready": {

@@ -221,6 +221,9 @@ describe('EnrichmentPanel', () => {
     });
   });
 
+  // Note: posture enrichment tests removed - EnrichmentPanel now uses ViTPose pose analysis
+  // TODO: Add tests for pose enrichment when pose analysis is testable
+
   describe('license plate enrichment', () => {
     const licensePlateEnrichment: EnrichmentData = {
       license_plate: {
@@ -377,6 +380,7 @@ describe('EnrichmentPanel', () => {
       render(<EnrichmentPanel enrichment_data={multipleEnrichments} />);
       expect(screen.queryByText('Pet')).not.toBeInTheDocument();
       expect(screen.queryByText('Person')).not.toBeInTheDocument();
+      expect(screen.queryByText('Posture')).not.toBeInTheDocument();
       expect(screen.queryByText('Image Quality')).not.toBeInTheDocument();
     });
   });

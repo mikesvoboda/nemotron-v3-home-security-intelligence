@@ -2979,7 +2979,11 @@ export interface paths {
          */
         get: operations["export_events_api_events_export_get"];
         put?: never;
-        post?: never;
+        /**
+         * Start export job
+         * @description Start a background export job for events. Returns a job ID that can be used to track progress via GET /api/jobs/{job_id}.
+         */
+        post: operations["start_export_job_api_events_export_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3315,6 +3319,86 @@ export interface paths {
          *         HTTPException: 404 if event not found, 409 if not deleted
          */
         post: operations["restore_event_api_events__event_id__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List all jobs
+         * @description List all background jobs with optional filtering by type and status.
+         */
+        get: operations["list_jobs_api_jobs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List available job types
+         * @description List all available job types that can be created.
+         */
+        get: operations["list_job_types_api_jobs_types_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/{job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get job status
+         * @description Get the current status and progress of a background job.
+         */
+        get: operations["get_job_status_api_jobs__job_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/{job_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel a job
+         * @description Request cancellation of a background job. Jobs that are already completed or failed cannot be cancelled.
+         */
+        post: operations["cancel_job_api_jobs__job_id__cancel_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4864,26 +4948,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/events/export": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Start export job
-         * @description Start a background export job for events. Returns a job ID that can be used to track progress via GET /api/jobs/{job_id}.
-         */
-        post: operations["start_export_job_events_export_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/health": {
         parameters: {
             query?: never;
@@ -4912,26 +4976,6 @@ export interface paths {
          *         LivenessResponse with status "alive".
          */
         get: operations["health_health_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/jobs/{job_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get job status
-         * @description Get the current status and progress of a background job.
-         */
-        get: operations["get_job_status_jobs__job_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -10708,6 +10752,59 @@ export interface components {
             status: components["schemas"]["ServiceHealthState"];
         };
         /**
+         * JobCancelResponse
+         * @description Response model for job cancellation request.
+         * @example {
+         *       "job_id": "550e8400-e29b-41d4-a716-446655440000",
+         *       "message": "Job cancellation requested",
+         *       "status": "failed"
+         *     }
+         */
+        JobCancelResponse: {
+            /**
+             * Job Id
+             * @description Job ID that was cancelled
+             */
+            job_id: string;
+            /**
+             * Message
+             * @description Cancellation status message
+             */
+            message: string;
+            /** @description New job status after cancellation */
+            status: components["schemas"]["JobStatusEnum"];
+        };
+        /**
+         * JobListResponse
+         * @description Response model for listing jobs.
+         * @example {
+         *       "jobs": [
+         *         {
+         *           "created_at": "2024-01-15T10:30:00Z",
+         *           "job_id": "550e8400-e29b-41d4-a716-446655440000",
+         *           "job_type": "export",
+         *           "message": "Exporting events: 450/1000",
+         *           "progress": 45,
+         *           "started_at": "2024-01-15T10:30:01Z",
+         *           "status": "running"
+         *         }
+         *       ],
+         *       "total": 1
+         *     }
+         */
+        JobListResponse: {
+            /**
+             * Jobs
+             * @description List of jobs
+             */
+            jobs: components["schemas"]["JobResponse"][];
+            /**
+             * Total
+             * @description Total number of jobs matching filter
+             */
+            total: number;
+        };
+        /**
          * JobResponse
          * @description Response model for job status.
          * @example {
@@ -10775,6 +10872,49 @@ export interface components {
          * @enum {string}
          */
         JobStatusEnum: "pending" | "running" | "completed" | "failed";
+        /**
+         * JobTypeInfo
+         * @description Information about a job type.
+         * @example {
+         *       "description": "Export events to CSV, JSON, or ZIP format",
+         *       "name": "export"
+         *     }
+         */
+        JobTypeInfo: {
+            /**
+             * Description
+             * @description Human-readable description of the job type
+             */
+            description: string;
+            /**
+             * Name
+             * @description Job type name (e.g., 'export', 'cleanup')
+             */
+            name: string;
+        };
+        /**
+         * JobTypesResponse
+         * @description Response model for listing job types.
+         * @example {
+         *       "job_types": [
+         *         {
+         *           "description": "Export events to CSV, JSON, or ZIP format",
+         *           "name": "export"
+         *         },
+         *         {
+         *           "description": "Clean up old data and temporary files",
+         *           "name": "cleanup"
+         *         }
+         *       ]
+         *     }
+         */
+        JobTypesResponse: {
+            /**
+             * Job Types
+             * @description List of available job types
+             */
+            job_types: components["schemas"]["JobTypeInfo"][];
+        };
         /**
          * LatencyHistorySnapshot
          * @description Single time-bucket snapshot of pipeline latency metrics.
@@ -19342,6 +19482,39 @@ export interface operations {
             };
         };
     };
+    start_export_job_api_events_export_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExportJobRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExportJobStartResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     search_events_endpoint_api_events_search_get: {
         parameters: {
             query: {
@@ -19730,6 +19903,143 @@ export interface operations {
                 content?: never;
             };
             /** @description Event is not deleted */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_jobs_api_jobs_get: {
+        parameters: {
+            query?: {
+                /** @description Filter by job type (e.g., 'export', 'cleanup') */
+                job_type?: string | null;
+                /** @description Filter by job status */
+                status?: components["schemas"]["JobStatusEnum"] | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_job_types_api_jobs_types_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobTypesResponse"];
+                };
+            };
+        };
+    };
+    get_job_status_api_jobs__job_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobResponse"];
+                };
+            };
+            /** @description Job not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_job_api_jobs__job_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobCancelResponse"];
+                };
+            };
+            /** @description Job not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Job cannot be cancelled (already completed or failed) */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -21549,39 +21859,6 @@ export interface operations {
             };
         };
     };
-    start_export_job_events_export_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ExportJobRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ExportJobStartResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     health_health_get: {
         parameters: {
             query?: never;
@@ -21600,44 +21877,6 @@ export interface operations {
                     "application/json": {
                         [key: string]: string;
                     };
-                };
-            };
-        };
-    };
-    get_job_status_jobs__job_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                job_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["JobResponse"];
-                };
-            };
-            /** @description Job not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
