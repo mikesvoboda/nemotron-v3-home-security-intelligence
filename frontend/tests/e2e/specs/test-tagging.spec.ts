@@ -87,6 +87,11 @@ test.describe('Smoke Tests @smoke', () => {
  * These should run on every PR merge.
  */
 test.describe('Critical Tests @critical', () => {
+  // API client has MAX_RETRIES=3 with exponential backoff (1s+2s+4s=7s)
+  // React Query also retries once, so total time for events API to fail is ~14-21s
+  // Use 25s timeout to account for network latency and CI variability
+  const ERROR_TIMEOUT = 25000;
+
   test('dashboard displays all key sections @critical', async ({ page }) => {
     await setupApiMocks(page, defaultMockConfig);
     const dashboardPage = new DashboardPage(page);
@@ -131,8 +136,8 @@ test.describe('Critical Tests @critical', () => {
 
     await dashboardPage.goto();
 
-    // Should show error state
-    await expect(dashboardPage.errorHeading).toBeVisible({ timeout: 15000 });
+    // Should show error state - wait for API retries to exhaust
+    await expect(dashboardPage.errorHeading).toBeVisible({ timeout: ERROR_TIMEOUT });
   });
 });
 
