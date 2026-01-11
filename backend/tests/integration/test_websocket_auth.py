@@ -16,6 +16,7 @@ Uses shared fixtures from conftest.py:
 
 import json
 import os
+from contextlib import ExitStack
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -40,9 +41,11 @@ def sync_client_auth_disabled(integration_env):
 
     # Store original environment
     original_api_key_enabled = os.environ.get("API_KEY_ENABLED")
+    original_log_db_enabled = os.environ.get("LOG_DB_ENABLED")
 
-    # Disable API key authentication
+    # Disable API key authentication and database logging
     os.environ["API_KEY_ENABLED"] = "false"
+    os.environ["LOG_DB_ENABLED"] = "false"
 
     # Clear settings cache to pick up new environment variables
     get_settings.cache_clear()
@@ -62,125 +65,8 @@ def sync_client_auth_disabled(integration_env):
     async def mock_init_db():
         pass
 
-    async def mock_seed_cameras_if_empty():
-        return 0
-
-    async def mock_validate_camera_paths_on_startup():
-        return (0, 0)  # Return (valid_count, invalid_count)
-
-    # Mock background services
-    mock_system_broadcaster = MagicMock()
-    mock_system_broadcaster.start_broadcasting = AsyncMock()
-    mock_system_broadcaster.stop_broadcasting = AsyncMock()
-
-    mock_gpu_monitor = MagicMock()
-    mock_gpu_monitor.start = AsyncMock()
-    mock_gpu_monitor.stop = AsyncMock()
-
-    mock_cleanup_service = MagicMock()
-    mock_cleanup_service.start = AsyncMock()
-    mock_cleanup_service.stop = AsyncMock()
-
-    mock_file_watcher = MagicMock()
-    mock_file_watcher.start = AsyncMock()
-    mock_file_watcher.stop = AsyncMock()
-
-    mock_pipeline_manager = MagicMock()
-    mock_pipeline_manager.start = AsyncMock()
-    mock_pipeline_manager.stop = AsyncMock()
-
-    mock_event_broadcaster = MagicMock()
-    mock_event_broadcaster.start = AsyncMock()
-    mock_event_broadcaster.stop = AsyncMock()
-    mock_event_broadcaster.connect = AsyncMock()
-    mock_event_broadcaster.disconnect = AsyncMock()
-    mock_event_broadcaster.broadcast_event = AsyncMock(return_value=1)
-    mock_event_broadcaster.CHANNEL_NAME = "security_events"
-    mock_event_broadcaster.channel_name = "security_events"
-
-    mock_service_health_monitor = MagicMock()
-    mock_service_health_monitor.start = AsyncMock()
-    mock_service_health_monitor.stop = AsyncMock()
-
-    mock_ai_health = AsyncMock(
-        return_value={
-            "rtdetr": False,
-            "nemotron": False,
-            "any_healthy": False,
-            "all_healthy": False,
-        }
-    )
-
-    with (
-        patch("backend.core.redis._redis_client", mock_redis_client),
-        patch("backend.core.redis.init_redis", return_value=mock_redis_client),
-        patch("backend.core.redis.close_redis", return_value=None),
-        patch("backend.main.init_db", mock_init_db),
-        patch("backend.main.seed_cameras_if_empty", mock_seed_cameras_if_empty),
-        patch(
-            "backend.main.validate_camera_paths_on_startup",
-            mock_validate_camera_paths_on_startup,
-        ),
-        patch("backend.main.init_redis", return_value=mock_redis_client),
-        patch("backend.main.close_redis", return_value=None),
-        patch("backend.main.get_system_broadcaster", return_value=mock_system_broadcaster),
-        patch("backend.main.GPUMonitor", return_value=mock_gpu_monitor),
-        patch("backend.main.CleanupService", return_value=mock_cleanup_service),
-        patch("backend.main.FileWatcher", return_value=mock_file_watcher),
-        patch("backend.main.get_pipeline_manager", AsyncMock(return_value=mock_pipeline_manager)),
-        patch("backend.main.stop_pipeline_manager", AsyncMock()),
-        patch("backend.main.get_broadcaster", AsyncMock(return_value=mock_event_broadcaster)),
-        patch("backend.main.stop_broadcaster", AsyncMock()),
-        patch("backend.main.ServiceHealthMonitor", return_value=mock_service_health_monitor),
-        patch(
-            "backend.services.system_broadcaster.SystemBroadcaster._check_ai_health", mock_ai_health
-        ),
-        patch("backend.api.routes.websocket.check_websocket_rate_limit", mock_check_rate_limit),
-        TestClient(app) as client,
-    ):
-        yield client
-
-    # Restore original environment
-    if original_api_key_enabled is not None:
-        os.environ["API_KEY_ENABLED"] = original_api_key_enabled
-    else:
-        os.environ.pop("API_KEY_ENABLED", None)
-
-    get_settings.cache_clear()
-
-
-@pytest.fixture
-def sync_client_auth_enabled(integration_env, test_api_key):
-    """Create synchronous test client with auth enabled.
-
-    All lifespan services are fully mocked to avoid slow startup.
-    """
-    from backend.core.config import get_settings
-    from backend.main import app
-
-    # Store original environment
-    original_api_key_enabled = os.environ.get("API_KEY_ENABLED")
-    original_api_keys = os.environ.get("API_KEYS")
-
-    # Enable API key authentication
-    os.environ["API_KEY_ENABLED"] = "true"
-    os.environ["API_KEYS"] = f'["{test_api_key}"]'
-
-    # Clear settings cache to pick up new environment variables
-    get_settings.cache_clear()
-
-    # Create mock Redis client for this fixture
-    mock_redis_client = AsyncMock()
-    mock_redis_client.health_check.return_value = {
-        "status": "healthy",
-        "connected": True,
-        "redis_version": "7.0.0",
-    }
-
-    # Mock to disable rate limiting for basic auth tests
-    mock_check_rate_limit = AsyncMock(return_value=True)
-
-    async def mock_init_db():
+    # Create mock close_db that does nothing
+    async def mock_close_db():
         pass
 
     async def mock_seed_cameras_if_empty():
@@ -232,33 +118,200 @@ def sync_client_auth_enabled(integration_env, test_api_key):
         }
     )
 
-    with (
-        patch("backend.core.redis._redis_client", mock_redis_client),
-        patch("backend.core.redis.init_redis", return_value=mock_redis_client),
-        patch("backend.core.redis.close_redis", return_value=None),
-        patch("backend.main.init_db", mock_init_db),
-        patch("backend.main.seed_cameras_if_empty", mock_seed_cameras_if_empty),
-        patch(
-            "backend.main.validate_camera_paths_on_startup",
-            mock_validate_camera_paths_on_startup,
-        ),
-        patch("backend.main.init_redis", return_value=mock_redis_client),
-        patch("backend.main.close_redis", return_value=None),
-        patch("backend.main.get_system_broadcaster", return_value=mock_system_broadcaster),
-        patch("backend.main.GPUMonitor", return_value=mock_gpu_monitor),
-        patch("backend.main.CleanupService", return_value=mock_cleanup_service),
-        patch("backend.main.FileWatcher", return_value=mock_file_watcher),
-        patch("backend.main.get_pipeline_manager", AsyncMock(return_value=mock_pipeline_manager)),
-        patch("backend.main.stop_pipeline_manager", AsyncMock()),
-        patch("backend.main.get_broadcaster", AsyncMock(return_value=mock_event_broadcaster)),
-        patch("backend.main.stop_broadcaster", AsyncMock()),
-        patch("backend.main.ServiceHealthMonitor", return_value=mock_service_health_monitor),
-        patch(
-            "backend.services.system_broadcaster.SystemBroadcaster._check_ai_health", mock_ai_health
-        ),
-        patch("backend.api.routes.websocket.check_websocket_rate_limit", mock_check_rate_limit),
-        TestClient(app) as client,
-    ):
+    with ExitStack() as stack:
+        stack.enter_context(patch("backend.core.redis._redis_client", mock_redis_client))
+        stack.enter_context(patch("backend.core.redis.init_redis", return_value=mock_redis_client))
+        stack.enter_context(patch("backend.core.redis.close_redis", return_value=None))
+        stack.enter_context(patch("backend.main.init_db", mock_init_db))
+        stack.enter_context(patch("backend.core.database.init_db", mock_init_db))
+        stack.enter_context(patch("backend.core.database.close_db", mock_close_db))
+        stack.enter_context(patch("backend.main.seed_cameras_if_empty", mock_seed_cameras_if_empty))
+        stack.enter_context(
+            patch(
+                "backend.main.validate_camera_paths_on_startup",
+                mock_validate_camera_paths_on_startup,
+            )
+        )
+        stack.enter_context(patch("backend.main.init_redis", return_value=mock_redis_client))
+        stack.enter_context(patch("backend.main.close_redis", return_value=None))
+        stack.enter_context(
+            patch("backend.main.get_system_broadcaster", return_value=mock_system_broadcaster)
+        )
+        stack.enter_context(patch("backend.main.GPUMonitor", return_value=mock_gpu_monitor))
+        stack.enter_context(patch("backend.main.CleanupService", return_value=mock_cleanup_service))
+        stack.enter_context(patch("backend.main.FileWatcher", return_value=mock_file_watcher))
+        stack.enter_context(
+            patch(
+                "backend.main.get_pipeline_manager", AsyncMock(return_value=mock_pipeline_manager)
+            )
+        )
+        stack.enter_context(patch("backend.main.stop_pipeline_manager", AsyncMock()))
+        stack.enter_context(
+            patch("backend.main.get_broadcaster", AsyncMock(return_value=mock_event_broadcaster))
+        )
+        stack.enter_context(patch("backend.main.stop_broadcaster", AsyncMock()))
+        stack.enter_context(
+            patch("backend.main.ServiceHealthMonitor", return_value=mock_service_health_monitor)
+        )
+        stack.enter_context(
+            patch(
+                "backend.services.system_broadcaster.SystemBroadcaster._check_ai_health",
+                mock_ai_health,
+            )
+        )
+        stack.enter_context(
+            patch("backend.api.routes.websocket.check_websocket_rate_limit", mock_check_rate_limit)
+        )
+        client = stack.enter_context(TestClient(app))
+        yield client
+
+    # Restore original environment
+    if original_api_key_enabled is not None:
+        os.environ["API_KEY_ENABLED"] = original_api_key_enabled
+    else:
+        os.environ.pop("API_KEY_ENABLED", None)
+
+    if original_log_db_enabled is not None:
+        os.environ["LOG_DB_ENABLED"] = original_log_db_enabled
+    else:
+        os.environ.pop("LOG_DB_ENABLED", None)
+
+    get_settings.cache_clear()
+
+
+@pytest.fixture
+def sync_client_auth_enabled(integration_env, test_api_key):
+    """Create synchronous test client with auth enabled.
+
+    All lifespan services are fully mocked to avoid slow startup.
+    """
+    from backend.core.config import get_settings
+    from backend.main import app
+
+    # Store original environment
+    original_api_key_enabled = os.environ.get("API_KEY_ENABLED")
+    original_api_keys = os.environ.get("API_KEYS")
+    original_log_db_enabled = os.environ.get("LOG_DB_ENABLED")
+
+    # Enable API key authentication, disable database logging
+    os.environ["API_KEY_ENABLED"] = "true"
+    os.environ["API_KEYS"] = f'["{test_api_key}"]'
+    os.environ["LOG_DB_ENABLED"] = "false"
+
+    # Clear settings cache to pick up new environment variables
+    get_settings.cache_clear()
+
+    # Create mock Redis client for this fixture
+    mock_redis_client = AsyncMock()
+    mock_redis_client.health_check.return_value = {
+        "status": "healthy",
+        "connected": True,
+        "redis_version": "7.0.0",
+    }
+
+    # Mock to disable rate limiting for basic auth tests
+    mock_check_rate_limit = AsyncMock(return_value=True)
+
+    async def mock_init_db():
+        pass
+
+    async def mock_close_db():
+        pass
+
+    async def mock_seed_cameras_if_empty():
+        return 0
+
+    async def mock_validate_camera_paths_on_startup():
+        return (0, 0)  # Return (valid_count, invalid_count)
+
+    # Mock background services
+    mock_system_broadcaster = MagicMock()
+    mock_system_broadcaster.start_broadcasting = AsyncMock()
+    mock_system_broadcaster.stop_broadcasting = AsyncMock()
+
+    mock_gpu_monitor = MagicMock()
+    mock_gpu_monitor.start = AsyncMock()
+    mock_gpu_monitor.stop = AsyncMock()
+
+    mock_cleanup_service = MagicMock()
+    mock_cleanup_service.start = AsyncMock()
+    mock_cleanup_service.stop = AsyncMock()
+
+    mock_file_watcher = MagicMock()
+    mock_file_watcher.start = AsyncMock()
+    mock_file_watcher.stop = AsyncMock()
+
+    mock_pipeline_manager = MagicMock()
+    mock_pipeline_manager.start = AsyncMock()
+    mock_pipeline_manager.stop = AsyncMock()
+
+    mock_event_broadcaster = MagicMock()
+    mock_event_broadcaster.start = AsyncMock()
+    mock_event_broadcaster.stop = AsyncMock()
+    mock_event_broadcaster.connect = AsyncMock()
+    mock_event_broadcaster.disconnect = AsyncMock()
+    mock_event_broadcaster.broadcast_event = AsyncMock(return_value=1)
+    mock_event_broadcaster.CHANNEL_NAME = "security_events"
+    mock_event_broadcaster.channel_name = "security_events"
+
+    mock_service_health_monitor = MagicMock()
+    mock_service_health_monitor.start = AsyncMock()
+    mock_service_health_monitor.stop = AsyncMock()
+
+    mock_ai_health = AsyncMock(
+        return_value={
+            "rtdetr": False,
+            "nemotron": False,
+            "any_healthy": False,
+            "all_healthy": False,
+        }
+    )
+
+    with ExitStack() as stack:
+        stack.enter_context(patch("backend.core.redis._redis_client", mock_redis_client))
+        stack.enter_context(patch("backend.core.redis.init_redis", return_value=mock_redis_client))
+        stack.enter_context(patch("backend.core.redis.close_redis", return_value=None))
+        stack.enter_context(patch("backend.main.init_db", mock_init_db))
+        stack.enter_context(patch("backend.core.database.init_db", mock_init_db))
+        stack.enter_context(patch("backend.core.database.close_db", mock_close_db))
+        stack.enter_context(patch("backend.main.seed_cameras_if_empty", mock_seed_cameras_if_empty))
+        stack.enter_context(
+            patch(
+                "backend.main.validate_camera_paths_on_startup",
+                mock_validate_camera_paths_on_startup,
+            )
+        )
+        stack.enter_context(patch("backend.main.init_redis", return_value=mock_redis_client))
+        stack.enter_context(patch("backend.main.close_redis", return_value=None))
+        stack.enter_context(
+            patch("backend.main.get_system_broadcaster", return_value=mock_system_broadcaster)
+        )
+        stack.enter_context(patch("backend.main.GPUMonitor", return_value=mock_gpu_monitor))
+        stack.enter_context(patch("backend.main.CleanupService", return_value=mock_cleanup_service))
+        stack.enter_context(patch("backend.main.FileWatcher", return_value=mock_file_watcher))
+        stack.enter_context(
+            patch(
+                "backend.main.get_pipeline_manager", AsyncMock(return_value=mock_pipeline_manager)
+            )
+        )
+        stack.enter_context(patch("backend.main.stop_pipeline_manager", AsyncMock()))
+        stack.enter_context(
+            patch("backend.main.get_broadcaster", AsyncMock(return_value=mock_event_broadcaster))
+        )
+        stack.enter_context(patch("backend.main.stop_broadcaster", AsyncMock()))
+        stack.enter_context(
+            patch("backend.main.ServiceHealthMonitor", return_value=mock_service_health_monitor)
+        )
+        stack.enter_context(
+            patch(
+                "backend.services.system_broadcaster.SystemBroadcaster._check_ai_health",
+                mock_ai_health,
+            )
+        )
+        stack.enter_context(
+            patch("backend.api.routes.websocket.check_websocket_rate_limit", mock_check_rate_limit)
+        )
+        client = stack.enter_context(TestClient(app))
         yield client
 
     # Restore original environment
@@ -271,6 +324,11 @@ def sync_client_auth_enabled(integration_env, test_api_key):
         os.environ["API_KEYS"] = original_api_keys
     else:
         os.environ.pop("API_KEYS", None)
+
+    if original_log_db_enabled is not None:
+        os.environ["LOG_DB_ENABLED"] = original_log_db_enabled
+    else:
+        os.environ.pop("LOG_DB_ENABLED", None)
 
     get_settings.cache_clear()
 
@@ -585,11 +643,13 @@ def sync_client_rate_limited(integration_env):
     original_api_key_enabled = os.environ.get("API_KEY_ENABLED")
     original_rate_limit_enabled = os.environ.get("RATE_LIMIT_ENABLED")
     original_rate_limit_ws = os.environ.get("RATE_LIMIT_WEBSOCKET_CONNECTIONS_PER_MINUTE")
+    original_log_db_enabled = os.environ.get("LOG_DB_ENABLED")
 
-    # Disable auth but enable rate limiting with low limit
+    # Disable auth and database logging, enable rate limiting with low limit
     os.environ["API_KEY_ENABLED"] = "false"
     os.environ["RATE_LIMIT_ENABLED"] = "true"
     os.environ["RATE_LIMIT_WEBSOCKET_CONNECTIONS_PER_MINUTE"] = "2"  # Very low for testing
+    os.environ["LOG_DB_ENABLED"] = "false"
 
     get_settings.cache_clear()
 
@@ -611,6 +671,9 @@ def sync_client_rate_limited(integration_env):
         return connection_count["value"] <= 2
 
     async def mock_init_db():
+        pass
+
+    async def mock_close_db():
         pass
 
     async def mock_seed_cameras_if_empty():
@@ -662,33 +725,51 @@ def sync_client_rate_limited(integration_env):
         }
     )
 
-    with (
-        patch("backend.core.redis._redis_client", mock_redis_client),
-        patch("backend.core.redis.init_redis", return_value=mock_redis_client),
-        patch("backend.core.redis.close_redis", return_value=None),
-        patch("backend.main.init_db", mock_init_db),
-        patch("backend.main.seed_cameras_if_empty", mock_seed_cameras_if_empty),
-        patch(
-            "backend.main.validate_camera_paths_on_startup",
-            mock_validate_camera_paths_on_startup,
-        ),
-        patch("backend.main.init_redis", return_value=mock_redis_client),
-        patch("backend.main.close_redis", return_value=None),
-        patch("backend.main.get_system_broadcaster", return_value=mock_system_broadcaster),
-        patch("backend.main.GPUMonitor", return_value=mock_gpu_monitor),
-        patch("backend.main.CleanupService", return_value=mock_cleanup_service),
-        patch("backend.main.FileWatcher", return_value=mock_file_watcher),
-        patch("backend.main.get_pipeline_manager", AsyncMock(return_value=mock_pipeline_manager)),
-        patch("backend.main.stop_pipeline_manager", AsyncMock()),
-        patch("backend.main.get_broadcaster", AsyncMock(return_value=mock_event_broadcaster)),
-        patch("backend.main.stop_broadcaster", AsyncMock()),
-        patch("backend.main.ServiceHealthMonitor", return_value=mock_service_health_monitor),
-        patch(
-            "backend.services.system_broadcaster.SystemBroadcaster._check_ai_health", mock_ai_health
-        ),
-        patch("backend.api.routes.websocket.check_websocket_rate_limit", mock_check_rate_limit),
-        TestClient(app) as client,
-    ):
+    with ExitStack() as stack:
+        stack.enter_context(patch("backend.core.redis._redis_client", mock_redis_client))
+        stack.enter_context(patch("backend.core.redis.init_redis", return_value=mock_redis_client))
+        stack.enter_context(patch("backend.core.redis.close_redis", return_value=None))
+        stack.enter_context(patch("backend.main.init_db", mock_init_db))
+        stack.enter_context(patch("backend.core.database.init_db", mock_init_db))
+        stack.enter_context(patch("backend.core.database.close_db", mock_close_db))
+        stack.enter_context(patch("backend.main.seed_cameras_if_empty", mock_seed_cameras_if_empty))
+        stack.enter_context(
+            patch(
+                "backend.main.validate_camera_paths_on_startup",
+                mock_validate_camera_paths_on_startup,
+            )
+        )
+        stack.enter_context(patch("backend.main.init_redis", return_value=mock_redis_client))
+        stack.enter_context(patch("backend.main.close_redis", return_value=None))
+        stack.enter_context(
+            patch("backend.main.get_system_broadcaster", return_value=mock_system_broadcaster)
+        )
+        stack.enter_context(patch("backend.main.GPUMonitor", return_value=mock_gpu_monitor))
+        stack.enter_context(patch("backend.main.CleanupService", return_value=mock_cleanup_service))
+        stack.enter_context(patch("backend.main.FileWatcher", return_value=mock_file_watcher))
+        stack.enter_context(
+            patch(
+                "backend.main.get_pipeline_manager", AsyncMock(return_value=mock_pipeline_manager)
+            )
+        )
+        stack.enter_context(patch("backend.main.stop_pipeline_manager", AsyncMock()))
+        stack.enter_context(
+            patch("backend.main.get_broadcaster", AsyncMock(return_value=mock_event_broadcaster))
+        )
+        stack.enter_context(patch("backend.main.stop_broadcaster", AsyncMock()))
+        stack.enter_context(
+            patch("backend.main.ServiceHealthMonitor", return_value=mock_service_health_monitor)
+        )
+        stack.enter_context(
+            patch(
+                "backend.services.system_broadcaster.SystemBroadcaster._check_ai_health",
+                mock_ai_health,
+            )
+        )
+        stack.enter_context(
+            patch("backend.api.routes.websocket.check_websocket_rate_limit", mock_check_rate_limit)
+        )
+        client = stack.enter_context(TestClient(app))
         yield client
 
     # Restore original environment
@@ -706,6 +787,11 @@ def sync_client_rate_limited(integration_env):
         os.environ["RATE_LIMIT_WEBSOCKET_CONNECTIONS_PER_MINUTE"] = original_rate_limit_ws
     else:
         os.environ.pop("RATE_LIMIT_WEBSOCKET_CONNECTIONS_PER_MINUTE", None)
+
+    if original_log_db_enabled is not None:
+        os.environ["LOG_DB_ENABLED"] = original_log_db_enabled
+    else:
+        os.environ.pop("LOG_DB_ENABLED", None)
 
     get_settings.cache_clear()
 

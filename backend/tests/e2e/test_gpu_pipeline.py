@@ -54,14 +54,51 @@ pytestmark = [pytest.mark.xdist_group(name="gpu_pipeline_e2e")]
 # =============================================================================
 
 
+class MockRedisPipeline:
+    """Mock Redis pipeline for batch operations."""
+
+    def __init__(self, client: MockRedisClient) -> None:
+        self._client = client
+        self._commands: list[tuple[str, tuple, dict]] = []
+
+    async def __aenter__(self) -> MockRedisPipeline:
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+        pass
+
+    def set(self, key: str, value: Any, **kwargs) -> MockRedisPipeline:
+        """Queue a SET command (synchronous like real Redis pipeline)."""
+        self._commands.append(("set", (key, value), kwargs))
+        return self
+
+    async def execute(self) -> list[Any]:
+        """Execute all queued commands."""
+        results = []
+        for cmd, args, kwargs in self._commands:
+            if cmd == "set":
+                await self._client.set(*args, **kwargs)
+                results.append(True)
+        self._commands.clear()
+        return results
+
+
 class MockRedisClient:
     """Mock Redis client for testing without a real Redis server."""
 
     def __init__(self) -> None:
         self._store: dict[str, Any] = {}
         self._queues: dict[str, list[Any]] = {}
+        self._lists: dict[str, list[Any]] = {}  # For list operations
         self._client = AsyncMock()
         self._client.scan_iter = self._create_scan_iter_mock([])
+        # Make pipeline a regular method, not async
+        self._client.pipeline = lambda _transaction=False: MockRedisPipeline(self)
+        # Add list operations
+        self._client.llen = AsyncMock(side_effect=self._llen)
+        self._client.rpush = AsyncMock(side_effect=self._rpush)
+        self._client.lrange = AsyncMock(side_effect=self._lrange)
+        self._client.expire = AsyncMock(side_effect=self._expire)
 
     def _create_scan_iter_mock(self, keys: list[str]) -> MagicMock:
         """Create a mock scan_iter that returns an async generator."""
@@ -72,10 +109,49 @@ class MockRedisClient:
 
         return MagicMock(return_value=_generator())
 
+    async def _llen(self, key: str) -> int:
+        """Get the length of a list."""
+        return len(self._lists.get(key, []))
+
+    async def _rpush(self, key: str, *values: Any) -> int:
+        """Push values to the right of a list."""
+        if key not in self._lists:
+            self._lists[key] = []
+        self._lists[key].extend(values)
+        return len(self._lists[key])
+
+    async def _lrange(self, key: str, start: int, end: int) -> list[Any]:
+        """Get a range of elements from a list."""
+        if key not in self._lists:
+            return []
+        # Handle Redis-style negative indexing (end=-1 means to the end)
+        if end == -1:
+            return self._lists[key][start:]
+        return self._lists[key][start : end + 1]
+
+    async def _expire(self, key: str, ttl: int) -> bool:
+        """Set TTL on a key (mock implementation that always succeeds)."""
+        # In a mock, we don't actually track TTL, just return success
+        return True
+
+    def pipeline(self, transaction: bool = False) -> MockRedisPipeline:
+        """Create a mock Redis pipeline."""
+        return MockRedisPipeline(self)
+
     async def get(self, key: str) -> Any | None:
         return self._store.get(key)
 
-    async def set(self, key: str, value: Any, expire: int | None = None) -> bool:
+    async def set(
+        self, key: str, value: Any, expire: int | None = None, ex: int | None = None
+    ) -> bool:
+        """Set a key-value pair with optional expiration.
+
+        Args:
+            key: Redis key
+            value: Value to store
+            expire: Expiration in seconds (legacy parameter)
+            ex: Expiration in seconds (Redis standard parameter)
+        """
         self._store[key] = value
         return True
 
@@ -139,10 +215,15 @@ class MockRedisClient:
         return [k for k in self._store if k.endswith(":current") and k.startswith("batch:")]
 
 
-def create_test_image(path: Path, size: tuple[int, int] = (640, 480)) -> None:
-    """Create a valid test image file."""
+def create_test_image(path: Path, size: tuple[int, int] = (1920, 1080)) -> None:
+    """Create a valid test image file.
+
+    Creates an image that's at least 10KB to pass MIN_DETECTION_IMAGE_SIZE validation.
+    Default size (1920x1080) produces ~32KB JPEG file at quality 95.
+    """
     img = Image.new("RGB", size, color="red")
-    img.save(path, "JPEG")
+    # Save with quality setting to ensure file is large enough (>10KB)
+    img.save(path, "JPEG", quality=95)
 
 
 def create_mock_detector_response(detections: list[dict[str, Any]] | None = None) -> dict[str, Any]:
@@ -193,18 +274,25 @@ async def mock_redis() -> MockRedisClient:
 
 
 @pytest.fixture
-async def clean_pipeline(integration_db):
+async def clean_pipeline(isolated_db):
     """Delete all tables data before test runs for proper isolation.
 
     This fixture ensures tests start with a clean database state.
     Uses DELETE instead of TRUNCATE to avoid AccessExclusiveLock deadlocks
     when tests run in parallel with xdist.
+
+    Note: isolated_db is a dependency to ensure database is initialized.
     """
     from sqlalchemy import text
 
     from backend.core.database import get_engine
 
-    async with get_engine().begin() as conn:
+    engine = get_engine()
+    if engine is None:
+        yield
+        return
+
+    async with engine.begin() as conn:
         # Delete in order respecting foreign key constraints
         await conn.execute(text("DELETE FROM logs"))
         await conn.execute(text("DELETE FROM gpu_stats"))
@@ -217,7 +305,7 @@ async def clean_pipeline(integration_db):
 
     # Cleanup after test too (best effort)
     try:
-        async with get_engine().begin() as conn:
+        async with engine.begin() as conn:
             await conn.execute(text("DELETE FROM logs"))
             await conn.execute(text("DELETE FROM gpu_stats"))
             await conn.execute(text("DELETE FROM api_keys"))
@@ -229,7 +317,7 @@ async def clean_pipeline(integration_db):
 
 
 @pytest.fixture
-async def test_camera(integration_db, clean_pipeline, tmp_path: Path) -> tuple[Camera, Path]:
+async def test_camera(isolated_db, clean_pipeline, tmp_path: Path) -> tuple[Camera, Path]:
     """Create a test camera with unique ID in the database."""
     camera_id = unique_id("gpu_test_camera")
     camera_root = tmp_path / "foscam"
@@ -258,7 +346,7 @@ async def test_camera(integration_db, clean_pipeline, tmp_path: Path) -> tuple[C
 
 @pytest.mark.gpu
 @pytest.mark.asyncio
-async def test_gpu_detector_client_health_check(integration_db):
+async def test_gpu_detector_client_health_check(isolated_db):
     """Test DetectorClient health check against real RT-DETRv2 service.
 
     This test verifies that the RT-DETRv2 service is running and healthy
@@ -276,7 +364,7 @@ async def test_gpu_detector_client_health_check(integration_db):
 
 @pytest.mark.gpu
 @pytest.mark.asyncio
-async def test_gpu_nemotron_analyzer_health_check(integration_db):
+async def test_gpu_nemotron_analyzer_health_check(isolated_db):
     """Test NemotronAnalyzer health check against real Nemotron/llama.cpp service.
 
     This test verifies that the Nemotron LLM service is running and healthy
@@ -294,7 +382,7 @@ async def test_gpu_nemotron_analyzer_health_check(integration_db):
 @pytest.mark.gpu
 @pytest.mark.asyncio
 async def test_gpu_full_pipeline_with_real_services(
-    integration_db,
+    isolated_db,
     mock_redis: MockRedisClient,
     test_camera: tuple[Camera, Path],
 ):
@@ -401,7 +489,7 @@ async def test_gpu_full_pipeline_with_real_services(
 @pytest.mark.gpu
 @pytest.mark.asyncio
 async def test_gpu_detector_client_inference_performance(
-    integration_db,
+    isolated_db,
     test_camera: tuple[Camera, Path],
 ):
     """Test RT-DETRv2 inference performance on GPU.
@@ -454,7 +542,7 @@ async def test_gpu_detector_client_inference_performance(
 @pytest.mark.gpu
 @pytest.mark.asyncio
 async def test_gpu_nemotron_analysis_performance(
-    integration_db,
+    isolated_db,
     mock_redis: MockRedisClient,
     test_camera: tuple[Camera, Path],
 ):
@@ -525,7 +613,7 @@ async def test_gpu_nemotron_analysis_performance(
 
 @pytest.mark.asyncio
 async def test_detector_client_integration_mocked(
-    integration_db,
+    isolated_db,
     mock_redis: MockRedisClient,
     test_camera: tuple[Camera, Path],
 ):
@@ -554,14 +642,12 @@ async def test_detector_client_integration_mocked(
     )
 
     async with get_session() as session:
-        with patch("backend.services.detector_client.httpx.AsyncClient") as mock_client:
-            mock_response = create_mock_httpx_response(mock_detector_response)
+        mock_response = create_mock_httpx_response(mock_detector_response)
 
-            mock_instance = AsyncMock()
-            mock_instance.post = AsyncMock(return_value=mock_response)
-            mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
-            mock_client.return_value.__aexit__ = AsyncMock(return_value=None)
+        mock_client = AsyncMock()
+        mock_client.post = AsyncMock(return_value=mock_response)
 
+        with patch.object(detector, "_http_client", mock_client):
             detections = await detector.detect_objects(
                 image_path=str(image_path),
                 camera_id=camera_id,
@@ -584,7 +670,7 @@ async def test_detector_client_integration_mocked(
 
 @pytest.mark.asyncio
 async def test_nemotron_analyzer_integration_mocked(
-    integration_db,
+    isolated_db,
     mock_redis: MockRedisClient,
     test_camera: tuple[Camera, Path],
 ):
@@ -623,7 +709,7 @@ async def test_nemotron_analyzer_integration_mocked(
         await session.commit()
 
     # Test analysis
-    analyzer = NemotronAnalyzer(redis_client=mock_redis)
+    analyzer = NemotronAnalyzer(redis_client=mock_redis, use_enrichment_pipeline=False)
     batch_id = unique_id("mock_batch")
     mock_llm_response = create_mock_llm_response(
         risk_score=65,
@@ -668,7 +754,7 @@ async def test_nemotron_analyzer_integration_mocked(
 
 @pytest.mark.asyncio
 async def test_full_pipeline_integration_mocked(
-    integration_db,
+    isolated_db,
     mock_redis: MockRedisClient,
     test_camera: tuple[Camera, Path],
 ):
@@ -693,14 +779,12 @@ async def test_full_pipeline_integration_mocked(
     )
 
     async with get_session() as session:
-        with patch("backend.services.detector_client.httpx.AsyncClient") as mock_client:
-            mock_response = create_mock_httpx_response(mock_detector_response)
+        mock_response = create_mock_httpx_response(mock_detector_response)
 
-            mock_instance = AsyncMock()
-            mock_instance.post = AsyncMock(return_value=mock_response)
-            mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
-            mock_client.return_value.__aexit__ = AsyncMock(return_value=None)
+        mock_client = AsyncMock()
+        mock_client.post = AsyncMock(return_value=mock_response)
 
+        with patch.object(detector, "_http_client", mock_client):
             detections = await detector.detect_objects(
                 image_path=str(image_path),
                 camera_id=camera_id,
@@ -725,7 +809,7 @@ async def test_full_pipeline_integration_mocked(
     assert batch_summary["detection_count"] == 1
 
     # Step 5: Run Nemotron analysis with mocked LLM
-    analyzer = NemotronAnalyzer(redis_client=mock_redis)
+    analyzer = NemotronAnalyzer(redis_client=mock_redis, use_enrichment_pipeline=False)
     mock_llm_response = create_mock_llm_response(
         risk_score=55,
         risk_level="medium",
@@ -771,7 +855,7 @@ async def test_full_pipeline_integration_mocked(
 
 @pytest.mark.asyncio
 async def test_detector_unavailable_error_handling(
-    integration_db,
+    isolated_db,
     test_camera: tuple[Camera, Path],
 ):
     """Test DetectorClient error handling when service is unavailable.
@@ -781,6 +865,7 @@ async def test_detector_unavailable_error_handling(
     - Timeout errors
     - HTTP 5xx errors
     """
+
     camera, camera_root = test_camera
     camera_id = camera.id
 
@@ -790,13 +875,15 @@ async def test_detector_unavailable_error_handling(
     detector = DetectorClient()
 
     # Test connection error
+    # Need to patch the _http_client instance directly and mock sleep to avoid delays
     async with get_session() as session:
-        with patch("backend.services.detector_client.httpx.AsyncClient") as mock_client:
-            mock_instance = AsyncMock()
-            mock_instance.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
-            mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
-            mock_client.return_value.__aexit__ = AsyncMock(return_value=None)
+        mock_client = AsyncMock()
+        mock_client.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
 
+        with (
+            patch.object(detector, "_http_client", mock_client),
+            patch("asyncio.sleep", new_callable=AsyncMock),
+        ):
             with pytest.raises(DetectorUnavailableError) as exc_info:
                 await detector.detect_objects(
                     image_path=str(image_path),
@@ -804,16 +891,17 @@ async def test_detector_unavailable_error_handling(
                     session=session,
                 )
 
-            assert "Failed to connect" in str(exc_info.value)
+            assert "after" in str(exc_info.value)  # "failed after X attempts"
 
     # Test timeout error
     async with get_session() as session:
-        with patch("backend.services.detector_client.httpx.AsyncClient") as mock_client:
-            mock_instance = AsyncMock()
-            mock_instance.post = AsyncMock(side_effect=httpx.TimeoutException("Timeout"))
-            mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
-            mock_client.return_value.__aexit__ = AsyncMock(return_value=None)
+        mock_client = AsyncMock()
+        mock_client.post = AsyncMock(side_effect=httpx.TimeoutException("Timeout"))
 
+        with (
+            patch.object(detector, "_http_client", mock_client),
+            patch("asyncio.sleep", new_callable=AsyncMock),
+        ):
             with pytest.raises(DetectorUnavailableError) as exc_info:
                 await detector.detect_objects(
                     image_path=str(image_path),
@@ -821,24 +909,25 @@ async def test_detector_unavailable_error_handling(
                     session=session,
                 )
 
-            assert "timed out" in str(exc_info.value)
+            assert "after" in str(exc_info.value)  # "failed after X attempts"
 
     # Test HTTP 500 error
     async with get_session() as session:
-        with patch("backend.services.detector_client.httpx.AsyncClient") as mock_client:
-            mock_response = MagicMock()
-            mock_response.status_code = 500
-            mock_response.raise_for_status = MagicMock(
-                side_effect=httpx.HTTPStatusError(
-                    "Internal Server Error", request=MagicMock(), response=mock_response
-                )
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_response.raise_for_status = MagicMock(
+            side_effect=httpx.HTTPStatusError(
+                "Internal Server Error", request=MagicMock(), response=mock_response
             )
+        )
 
-            mock_instance = AsyncMock()
-            mock_instance.post = AsyncMock(return_value=mock_response)
-            mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
-            mock_client.return_value.__aexit__ = AsyncMock(return_value=None)
+        mock_client = AsyncMock()
+        mock_client.post = AsyncMock(return_value=mock_response)
 
+        with (
+            patch.object(detector, "_http_client", mock_client),
+            patch("asyncio.sleep", new_callable=AsyncMock),
+        ):
             with pytest.raises(DetectorUnavailableError) as exc_info:
                 await detector.detect_objects(
                     image_path=str(image_path),
@@ -846,12 +935,12 @@ async def test_detector_unavailable_error_handling(
                     session=session,
                 )
 
-            assert "server error: 500" in str(exc_info.value)
+            assert "after" in str(exc_info.value)  # "failed after X attempts"
 
 
 @pytest.mark.asyncio
 async def test_nemotron_llm_failure_fallback(
-    integration_db,
+    isolated_db,
     mock_redis: MockRedisClient,
     test_camera: tuple[Camera, Path],
 ):
@@ -878,7 +967,7 @@ async def test_nemotron_llm_failure_fallback(
         await session.refresh(detection)
 
     # Test with LLM failure
-    analyzer = NemotronAnalyzer(redis_client=mock_redis)
+    analyzer = NemotronAnalyzer(redis_client=mock_redis, use_enrichment_pipeline=False)
     batch_id = unique_id("fallback_batch")
 
     with patch("backend.services.nemotron_analyzer.httpx.AsyncClient") as mock_client:
@@ -902,7 +991,7 @@ async def test_nemotron_llm_failure_fallback(
 
 @pytest.mark.asyncio
 async def test_fast_path_analysis(
-    integration_db,
+    isolated_db,
     mock_redis: MockRedisClient,
     test_camera: tuple[Camera, Path],
 ):
@@ -929,7 +1018,7 @@ async def test_fast_path_analysis(
         await session.refresh(detection)
 
     # Test fast path analysis
-    analyzer = NemotronAnalyzer(redis_client=mock_redis)
+    analyzer = NemotronAnalyzer(redis_client=mock_redis, use_enrichment_pipeline=False)
     mock_llm_response = create_mock_llm_response(
         risk_score=90,
         risk_level="critical",
@@ -972,7 +1061,7 @@ async def test_fast_path_analysis(
 
 @pytest.mark.asyncio
 async def test_batch_aggregation_and_handoff(
-    integration_db,
+    isolated_db,
     mock_redis: MockRedisClient,
     test_camera: tuple[Camera, Path],
 ):
@@ -1039,7 +1128,7 @@ async def test_batch_aggregation_and_handoff(
     assert len(queue_item["detection_ids"]) == 5
 
     # Analyzer can process using queue payload directly
-    analyzer = NemotronAnalyzer(redis_client=mock_redis)
+    analyzer = NemotronAnalyzer(redis_client=mock_redis, use_enrichment_pipeline=False)
     mock_llm_response = create_mock_llm_response(
         risk_score=70,
         risk_level="high",

@@ -25,9 +25,9 @@ class TestJobStatusServiceIntegration:
 
         # Start a new job
         job_id = await service.start_job(
+            job_id=None,
             job_type=job_type,
-            message="Starting export",
-            extra={"format": "csv"},
+            metadata={"format": "csv"},
         )
         assert job_id is not None
 
@@ -37,16 +37,14 @@ class TestJobStatusServiceIntegration:
         assert job.status == JobState.PENDING
         assert job.job_type == job_type
         assert job.progress == 0
-        assert job.message == "Starting export"
         assert job.extra == {"format": "csv"}
 
         # Update progress
-        success = await service.update_progress(
+        await service.update_progress(
             job_id=job_id,
             progress=50,
             message="Processing rows...",
         )
-        assert success is True
 
         job = await service.get_job_status(job_id)
         assert job is not None
@@ -56,11 +54,10 @@ class TestJobStatusServiceIntegration:
         assert job.started_at is not None
 
         # Complete the job
-        success = await service.complete_job(
+        await service.complete_job(
             job_id=job_id,
             result={"rows_exported": 100},
         )
-        assert success is True
 
         job = await service.get_job_status(job_id)
         assert job is not None
@@ -77,17 +74,20 @@ class TestJobStatusServiceIntegration:
         job_type = f"{test_prefix}:backup"
 
         # Start a job
-        job_id = await service.start_job(job_type=job_type)
+        job_id = await service.start_job(
+            job_id=None,
+            job_type=job_type,
+            metadata=None,
+        )
 
         # Update progress
-        await service.update_progress(job_id=job_id, progress=25)
+        await service.update_progress(job_id=job_id, progress=25, message=None)
 
         # Fail the job
-        success = await service.fail_job(
+        await service.fail_job(
             job_id=job_id,
             error="Connection timeout",
         )
-        assert success is True
 
         job = await service.get_job_status(job_id)
         assert job is not None
@@ -103,26 +103,38 @@ class TestJobStatusServiceIntegration:
         job_type = f"{test_prefix}:cleanup"
 
         # Create multiple jobs
-        job1 = await service.start_job(job_type=job_type)
-        job2 = await service.start_job(job_type=job_type)
-        job3 = await service.start_job(job_type=job_type)
+        job1 = await service.start_job(
+            job_id=None,
+            job_type=job_type,
+            metadata=None,
+        )
+        job2 = await service.start_job(
+            job_id=None,
+            job_type=job_type,
+            metadata=None,
+        )
+        job3 = await service.start_job(
+            job_id=None,
+            job_type=job_type,
+            metadata=None,
+        )
 
         # Complete one, fail one, leave one pending
-        await service.update_progress(job_id=job1, progress=100)
-        await service.complete_job(job_id=job1)
+        await service.update_progress(job_id=job1, progress=100, message=None)
+        await service.complete_job(job_id=job1, result=None)
 
-        await service.update_progress(job_id=job2, progress=50)
+        await service.update_progress(job_id=job2, progress=50, message=None)
         await service.fail_job(job_id=job2, error="Test error")
 
         # List all jobs
-        all_jobs = await service.list_jobs(limit=100)
+        all_jobs = await service.list_jobs(status_filter=None, limit=100)
         job_ids = [j.job_id for j in all_jobs]
         assert job1 in job_ids
         assert job2 in job_ids
         assert job3 in job_ids
 
         # Filter by status
-        completed_jobs = await service.list_jobs(status=JobState.COMPLETED, limit=100)
+        completed_jobs = await service.list_jobs(status_filter=JobState.COMPLETED, limit=100)
         completed_ids = [j.job_id for j in completed_jobs]
         assert job1 in completed_ids
         assert job2 not in completed_ids
@@ -135,12 +147,15 @@ class TestJobStatusServiceIntegration:
         job = await service.get_job_status("nonexistent-job-id")
         assert job is None
 
-    async def test_update_nonexistent_job_returns_false(self, real_redis: RedisClient) -> None:
-        """Test that updating a nonexistent job returns False."""
+    async def test_update_nonexistent_job_raises_error(self, real_redis: RedisClient) -> None:
+        """Test that updating a nonexistent job raises KeyError."""
+        import pytest
+
         service = JobStatusService(real_redis)
 
-        success = await service.update_progress(
-            job_id="nonexistent-job-id",
-            progress=50,
-        )
-        assert success is False
+        with pytest.raises(KeyError, match="Job not found"):
+            await service.update_progress(
+                job_id="nonexistent-job-id",
+                progress=50,
+                message=None,
+            )
