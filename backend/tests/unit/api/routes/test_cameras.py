@@ -1000,10 +1000,10 @@ class TestValidateCameraPaths:
 
                 result = await validate_camera_paths(db=mock_db)
 
-        assert result["total_cameras"] == 1
-        assert result["valid_count"] == 1
-        assert result["invalid_count"] == 0
-        assert len(result["valid_cameras"]) == 1
+        assert result.total_cameras == 1
+        assert result.valid_count == 1
+        assert result.invalid_count == 0
+        assert len(result.valid_cameras) == 1
 
     @pytest.mark.asyncio
     async def test_validate_paths_outside_base_path(self) -> None:
@@ -1042,12 +1042,12 @@ class TestValidateCameraPaths:
 
                 result = await validate_camera_paths(db=mock_db)
 
-        assert result["total_cameras"] == 1
-        assert result["valid_count"] == 0
-        assert result["invalid_count"] == 1
+        assert result.total_cameras == 1
+        assert result.valid_count == 0
+        assert result.invalid_count == 1
         # The code first checks if path is under base, then checks for images
         # Both issues should be present
-        assert len(result["invalid_cameras"][0]["issues"]) >= 1
+        assert len(result.invalid_cameras[0].issues) >= 1
 
     @pytest.mark.asyncio
     async def test_validate_paths_directory_not_exists(self) -> None:
@@ -1080,8 +1080,8 @@ class TestValidateCameraPaths:
 
                 result = await validate_camera_paths(db=mock_db)
 
-        assert result["invalid_count"] == 1
-        assert "does not exist" in result["invalid_cameras"][0]["issues"][0]
+        assert result.invalid_count == 1
+        assert "does not exist" in result.invalid_cameras[0].issues[0]
 
     @pytest.mark.asyncio
     async def test_validate_paths_no_images(self) -> None:
@@ -1119,5 +1119,5 @@ class TestValidateCameraPaths:
 
                 result = await validate_camera_paths(db=mock_db)
 
-        assert result["invalid_count"] == 1
-        assert "no image files found" in result["invalid_cameras"][0]["issues"][0]
+        assert result.invalid_count == 1
+        assert "no image files found" in result.invalid_cameras[0].issues[0]
