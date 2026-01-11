@@ -14,7 +14,7 @@
  * Note: Redis health is not monitored by ServiceHealthMonitor since the backend
  * handles Redis failures gracefully through other mechanisms.
  */
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 
 import { useWebSocket } from './useWebSocket';
 import { buildWebSocketOptions } from '../services/api';
@@ -34,10 +34,30 @@ export interface ServiceStatus {
   timestamp: string;
 }
 
+/**
+ * Callback signature for service status changes.
+ * Called whenever a service's status changes.
+ */
+export type ServiceStatusChangeCallback = (
+  service: ServiceName,
+  newStatus: ServiceStatus,
+  previousStatus: ServiceStatus | null
+) => void;
+
+/**
+ * Options for the useServiceStatus hook.
+ */
+export interface UseServiceStatusOptions {
+  /** Callback fired when any service's status changes */
+  onStatusChange?: ServiceStatusChangeCallback;
+}
+
 export interface UseServiceStatusResult {
   services: Record<ServiceName, ServiceStatus | null>;
   hasUnhealthy: boolean;
+  hasDegraded: boolean;
   isAnyRestarting: boolean;
+  allHealthy: boolean;
   getServiceStatus: (name: ServiceName) => ServiceStatus | null;
 }
 
@@ -104,17 +124,46 @@ function createInitialServices(): Record<ServiceName, ServiceStatus | null> {
   };
 }
 
+// Degraded statuses are those that indicate reduced functionality but not complete failure
+const DEGRADED_STATUSES: ServiceStatusType[] = ['restarting'];
+
 /**
  * Subscribe to per-service health status updates from the backend.
  *
  * Returns current status for each monitored service (rtdetr, nemotron),
  * along with derived flags for checking if any service is unhealthy or restarting.
  *
+ * @param options - Optional configuration including status change callback
  * @returns UseServiceStatusResult with services map and utility getters
+ *
+ * @example
+ * ```tsx
+ * const { services, hasUnhealthy, allHealthy } = useServiceStatus({
+ *   onStatusChange: (service, newStatus, prevStatus) => {
+ *     if (newStatus.status === 'unhealthy') {
+ *       console.warn(`Service ${service} became unhealthy`);
+ *     }
+ *   },
+ * });
+ * ```
  */
-export function useServiceStatus(): UseServiceStatusResult {
+export function useServiceStatus(options: UseServiceStatusOptions = {}): UseServiceStatusResult {
+  const { onStatusChange } = options;
   const [services, setServices] =
     useState<Record<ServiceName, ServiceStatus | null>>(createInitialServices);
+
+  // Use ref to store callback to avoid dependency in handleMessage
+  const onStatusChangeRef = useRef(onStatusChange);
+  useEffect(() => {
+    onStatusChangeRef.current = onStatusChange;
+  }, [onStatusChange]);
+
+  // Track pending status change notifications
+  const pendingNotificationRef = useRef<{
+    service: ServiceName;
+    newStatus: ServiceStatus;
+    previousStatus: ServiceStatus | null;
+  } | null>(null);
 
   const handleMessage = useCallback((data: unknown) => {
     if (isBackendServiceStatusMessage(data)) {
@@ -126,12 +175,32 @@ export function useServiceStatus(): UseServiceStatusResult {
         timestamp: data.timestamp,
       };
 
-      setServices((prev) => ({
-        ...prev,
-        [data.data.service]: serviceStatus,
-      }));
+      setServices((prev) => {
+        const previousStatus = prev[data.data.service];
+
+        // Store pending notification for effect to process
+        pendingNotificationRef.current = {
+          service: data.data.service,
+          newStatus: serviceStatus,
+          previousStatus,
+        };
+
+        return {
+          ...prev,
+          [data.data.service]: serviceStatus,
+        };
+      });
     }
   }, []);
+
+  // Effect to fire callback after state update
+  useEffect(() => {
+    const pending = pendingNotificationRef.current;
+    if (pending && onStatusChangeRef.current) {
+      onStatusChangeRef.current(pending.service, pending.newStatus, pending.previousStatus);
+      pendingNotificationRef.current = null;
+    }
+  }, [services]);
 
   // Build WebSocket options using helper (respects VITE_WS_BASE_URL)
   // SECURITY: API key is passed via Sec-WebSocket-Protocol header, not URL query param
@@ -150,10 +219,25 @@ export function useServiceStatus(): UseServiceStatusResult {
     });
   }, [services]);
 
+  const hasDegraded = useMemo(() => {
+    return SERVICE_NAMES.some((name) => {
+      const status = services[name];
+      return status !== null && DEGRADED_STATUSES.includes(status.status);
+    });
+  }, [services]);
+
   const isAnyRestarting = useMemo(() => {
     return SERVICE_NAMES.some((name) => {
       const status = services[name];
       return status !== null && status.status === 'restarting';
+    });
+  }, [services]);
+
+  const allHealthy = useMemo(() => {
+    // All services must have reported status AND be healthy
+    return SERVICE_NAMES.every((name) => {
+      const status = services[name];
+      return status !== null && status.status === 'healthy';
     });
   }, [services]);
 
@@ -167,7 +251,9 @@ export function useServiceStatus(): UseServiceStatusResult {
   return {
     services,
     hasUnhealthy,
+    hasDegraded,
     isAnyRestarting,
+    allHealthy,
     getServiceStatus,
   };
 }
