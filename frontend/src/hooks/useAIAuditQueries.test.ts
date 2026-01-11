@@ -619,7 +619,11 @@ describe('useAIAuditPromptHistoryQuery', () => {
     });
 
     await waitFor(() => {
-      expect(promptApi.fetchPromptHistory).toHaveBeenCalledWith('nemotron', 50, 0);
+      expect(promptApi.fetchPromptHistory).toHaveBeenCalledWith('nemotron', {
+        limit: 50,
+        offset: undefined,
+        cursor: undefined,
+      });
     });
   });
 
@@ -629,7 +633,25 @@ describe('useAIAuditPromptHistoryQuery', () => {
     });
 
     await waitFor(() => {
-      expect(promptApi.fetchPromptHistory).toHaveBeenCalledWith(undefined, 10, 20);
+      expect(promptApi.fetchPromptHistory).toHaveBeenCalledWith(undefined, {
+        limit: 10,
+        offset: 20,
+        cursor: undefined,
+      });
+    });
+  });
+
+  it('fetches prompt history with cursor pagination', async () => {
+    renderHook(() => useAIAuditPromptHistoryQuery({ limit: 10, cursor: 'abc123' }), {
+      wrapper: createQueryWrapper(),
+    });
+
+    await waitFor(() => {
+      expect(promptApi.fetchPromptHistory).toHaveBeenCalledWith(undefined, {
+        limit: 10,
+        offset: undefined,
+        cursor: 'abc123',
+      });
     });
   });
 

@@ -568,10 +568,17 @@ export interface UseAIAuditPromptHistoryQueryOptions {
   limit?: number;
 
   /**
+   * @deprecated Use cursor parameter instead for better performance with large datasets.
    * Offset for pagination.
    * @default 0
    */
   offset?: number;
+
+  /**
+   * Cursor for pagination. Pass the `next_cursor` value from the previous response.
+   * Recommended over offset pagination for better performance.
+   */
+  cursor?: string;
 
   /**
    * Whether to enable the query.
@@ -627,11 +634,11 @@ export interface UseAIAuditPromptHistoryQueryReturn {
 export function useAIAuditPromptHistoryQuery(
   options: UseAIAuditPromptHistoryQueryOptions = {}
 ): UseAIAuditPromptHistoryQueryReturn {
-  const { model, limit = 50, offset = 0, enabled = true, staleTime = STATIC_STALE_TIME } = options;
+  const { model, limit = 50, offset, cursor, enabled = true, staleTime = STATIC_STALE_TIME } = options;
 
   const query = useQuery({
     queryKey: queryKeys.ai.prompts.history(model),
-    queryFn: () => fetchPromptHistory(model, limit, offset),
+    queryFn: () => fetchPromptHistory(model, { limit, offset, cursor }),
     enabled,
     staleTime,
     retry: 1,

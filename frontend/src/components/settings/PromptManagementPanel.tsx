@@ -163,7 +163,7 @@ export default function PromptManagementPanel({ className }: PromptManagementPan
   useEffect(() => {
     setIsLoadingHistory(true);
     setHistoryError(null);
-    fetchPromptHistory(selectedModel, ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+    fetchPromptHistory(selectedModel, { limit: ITEMS_PER_PAGE, offset: currentPage * ITEMS_PER_PAGE })
       .then(setHistoryData)
       .catch(setHistoryError)
       .finally(() => setIsLoadingHistory(false));
@@ -179,7 +179,7 @@ export default function PromptManagementPanel({ className }: PromptManagementPan
   // Refresh all data
   const refreshData = () => {
     fetchPromptForModel(selectedModel).then(setCurrentConfig).catch(setConfigError);
-    fetchPromptHistory(selectedModel, ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+    fetchPromptHistory(selectedModel, { limit: ITEMS_PER_PAGE, offset: currentPage * ITEMS_PER_PAGE })
       .then(setHistoryData)
       .catch(setHistoryError);
   };
