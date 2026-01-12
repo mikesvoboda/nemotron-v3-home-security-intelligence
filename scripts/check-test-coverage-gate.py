@@ -232,7 +232,7 @@ def check_coverage_diff(base_branch: str = "origin/main") -> tuple[bool, str]:
     try:
         # Run coverage for current branch
         subprocess.run(
-            ["uv", "run", "pytest", "backend/tests/unit/", "--cov=backend", "--cov-json"],
+            ["uv", "run", "pytest", "backend/tests/unit/", "--cov=backend", "--cov-report=json"],
             cwd=project_root,
             check=True,
             capture_output=True,
@@ -243,8 +243,8 @@ def check_coverage_diff(base_branch: str = "origin/main") -> tuple[bool, str]:
             # Coverage not available, skip check
             return True, "Coverage file not found, skipping coverage diff check"
 
-        # Parse coverage JSON
-        coverage_json = project_root / "coverage" / ".coverage"
+        # Parse coverage JSON (--cov-report=json generates coverage.json)
+        coverage_json = project_root / "coverage.json"
         if coverage_json.exists():
             # Resolve to absolute path for security
             resolved_path = coverage_json.resolve()
