@@ -861,7 +861,7 @@ jobs:
   frontend-tests:
     name: Frontend Tests (Vitest ${{ matrix.shard }}/8)
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10 # Increased from 5 to accommodate cleanup overhead
     # Wait for lint to pass first - fail fast on code quality issues
     needs: [frontend-lint]
     strategy:

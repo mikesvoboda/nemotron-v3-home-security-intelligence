@@ -186,20 +186,17 @@ export default defineConfig(({ mode }) => {
       exclude: ['**/node_modules/**', '**/dist/**', 'tests/e2e/**', 'tests/contract/**'],
       // Thread-based parallelization for faster execution
       pool: 'threads',
-      poolOptions: {
-        threads: {
-          // Ensure worker threads inherit increased memory limits
-          execArgv: ['--max-old-space-size=8192'],
-          // Limit max threads to prevent memory exhaustion
-          // Default is os.cpus().length - using fewer to reduce memory pressure
-          maxThreads: 4,
-          minThreads: 1,
-        },
-      },
+      // Vitest 4 moved poolOptions to top-level
+      // Limit max threads to prevent memory exhaustion
+      // Default is os.cpus().length - using fewer to reduce memory pressure
+      maxThreads: 4,
+      minThreads: 1,
       // Test timeouts
       testTimeout: 30000,
       hookTimeout: 30000,
-      teardownTimeout: 5000,
+      // Increased from 5000ms to 15000ms to prevent cleanup hangs
+      // when tests have pending timers from retry logic
+      teardownTimeout: 15000,
       coverage: {
         provider: 'v8',
         reporter: ['text', 'json', 'html'],
