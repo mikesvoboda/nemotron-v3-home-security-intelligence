@@ -17,6 +17,16 @@ WebSocket Message Validation:
     Invalid messages receive an error response with details about the issue.
     Supported message types: ping, pong, subscribe, unsubscribe.
 
+WebSocket Event Filtering (NEM-2383):
+    Clients can subscribe to specific event patterns to reduce bandwidth:
+    - Send: {"action": "subscribe", "events": ["alert.*", "camera.status_changed"]}
+    - Receive: {"action": "subscribed", "events": ["alert.*", "camera.status_changed"]}
+
+    Pattern syntax:
+    - "*" - All events (default if no subscription sent)
+    - "alert.*" - All alert events
+    - "camera.status_changed" - Exact match
+
 WebSocket Idle Timeout:
     Connections that do not send any messages within the configured idle
     timeout (default: 300 seconds) will be automatically closed. Clients
@@ -53,6 +63,10 @@ from backend.core.async_context import set_connection_id
 from backend.core.config import get_settings
 from backend.core.logging import get_logger
 from backend.core.redis import RedisClient, get_redis
+from backend.core.websocket.subscription_manager import (
+    SubscriptionResponse,
+    get_subscription_manager,
+)
 from backend.services.event_broadcaster import get_broadcaster
 from backend.services.system_broadcaster import get_system_broadcaster
 
@@ -105,7 +119,9 @@ async def validate_websocket_message(
         return None
 
 
-async def handle_validated_message(websocket: WebSocket, message: WebSocketMessage) -> None:
+async def handle_validated_message(
+    websocket: WebSocket, message: WebSocketMessage, connection_id: str
+) -> None:
     """Handle a validated WebSocket message.
 
     Dispatches the message to the appropriate handler based on its type.
@@ -115,8 +131,10 @@ async def handle_validated_message(websocket: WebSocket, message: WebSocketMessa
     Args:
         websocket: The WebSocket connection.
         message: The validated WebSocket message.
+        connection_id: Unique identifier for this connection (for subscription management).
     """
     message_type = message.type.lower()
+    subscription_manager = get_subscription_manager()
 
     match message_type:
         case WebSocketMessageType.PING.value:
@@ -126,14 +144,54 @@ async def handle_validated_message(websocket: WebSocket, message: WebSocketMessa
             logger.debug("Sent pong response to WebSocket client")
 
         case WebSocketMessageType.SUBSCRIBE.value:
-            # Future: handle subscription
-            logger.debug(f"Received subscribe message: {message.data}")
-            # For now, just acknowledge (subscription logic TBD)
+            # Handle subscription (NEM-2383)
+            events = message.data.get("events", []) if message.data else []
+            # Also support "channels" for backwards compatibility with existing schema
+            if not events and message.data:
+                events = message.data.get("channels", [])
+
+            if not events:
+                error_response = WebSocketErrorResponse(
+                    error=WebSocketErrorCode.VALIDATION_ERROR,
+                    message="Subscribe message must include 'events' array",
+                    details={"example": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
+                )
+                await websocket.send_text(error_response.model_dump_json())
+                return
+
+            # Subscribe to the patterns
+            subscribed_patterns = subscription_manager.subscribe(connection_id, events)
+            logger.info(
+                f"Connection {connection_id} subscribed to {len(subscribed_patterns)} patterns",
+                extra={"connection_id": connection_id, "patterns": subscribed_patterns},
+            )
+
+            # Send acknowledgment
+            response = SubscriptionResponse(action="subscribed", events=subscribed_patterns)
+            await websocket.send_text(response.model_dump_json())
 
         case WebSocketMessageType.UNSUBSCRIBE.value:
-            # Future: handle unsubscription
-            logger.debug(f"Received unsubscribe message: {message.data}")
-            # For now, just acknowledge (unsubscription logic TBD)
+            # Handle unsubscription (NEM-2383)
+            events = message.data.get("events", []) if message.data else []
+            # Also support "channels" for backwards compatibility with existing schema
+            if not events and message.data:
+                events = message.data.get("channels", [])
+
+            if events:
+                # Unsubscribe from specific patterns
+                removed_patterns = subscription_manager.unsubscribe(connection_id, events)
+            else:
+                # No patterns specified - unsubscribe from all
+                removed_patterns = subscription_manager.unsubscribe(connection_id)
+
+            logger.info(
+                f"Connection {connection_id} unsubscribed from {len(removed_patterns)} patterns",
+                extra={"connection_id": connection_id, "patterns": removed_patterns},
+            )
+
+            # Send acknowledgment
+            response = SubscriptionResponse(action="unsubscribed", events=removed_patterns)
+            await websocket.send_text(response.model_dump_json())
 
         case WebSocketMessageType.PONG.value:
             # Pong is a standard keepalive response from client to server-initiated ping
@@ -277,9 +335,14 @@ async def websocket_events_endpoint(  # noqa: PLR0912
     heartbeat_stop = asyncio.Event()
     heartbeat_task: asyncio.Task[None] | None = None
 
+    # Get subscription manager for event filtering (NEM-2383)
+    subscription_manager = get_subscription_manager()
+
     try:
         # Register the WebSocket connection
         await broadcaster.connect(websocket)
+        # Register connection with subscription manager (default: receive all events)
+        subscription_manager.register_connection(connection_id)
         logger.info(
             "WebSocket client connected to /ws/events", extra={"connection_id": connection_id}
         )
@@ -309,7 +372,7 @@ async def websocket_events_endpoint(  # noqa: PLR0912
                 # Validate and handle JSON messages
                 message = await validate_websocket_message(websocket, data)
                 if message is not None:
-                    await handle_validated_message(websocket, message)
+                    await handle_validated_message(websocket, message, connection_id)
 
             except TimeoutError:
                 logger.info(f"WebSocket idle timeout ({idle_timeout}s) - closing connection")
@@ -342,6 +405,8 @@ async def websocket_events_endpoint(  # noqa: PLR0912
                 pass
         # Ensure the connection is properly cleaned up
         await broadcaster.disconnect(websocket)
+        # Clean up subscriptions (NEM-2383)
+        subscription_manager.remove_connection(connection_id)
         # Clear connection_id context (NEM-1640)
         set_connection_id(None)
         logger.info("WebSocket connection cleaned up")
@@ -442,9 +507,14 @@ async def websocket_system_status(  # noqa: PLR0912
     heartbeat_stop = asyncio.Event()
     heartbeat_task: asyncio.Task[None] | None = None
 
+    # Get subscription manager for event filtering (NEM-2383)
+    subscription_manager = get_subscription_manager()
+
     try:
         # Add connection to broadcaster
         await broadcaster.connect(websocket)
+        # Register connection with subscription manager (default: receive all events)
+        subscription_manager.register_connection(connection_id)
         logger.info(
             "WebSocket client connected to /ws/system", extra={"connection_id": connection_id}
         )
@@ -474,7 +544,7 @@ async def websocket_system_status(  # noqa: PLR0912
                 # Validate and handle JSON messages
                 message = await validate_websocket_message(websocket, data)
                 if message is not None:
-                    await handle_validated_message(websocket, message)
+                    await handle_validated_message(websocket, message, connection_id)
 
             except TimeoutError:
                 logger.info(f"WebSocket idle timeout ({idle_timeout}s) - closing connection")
@@ -507,6 +577,8 @@ async def websocket_system_status(  # noqa: PLR0912
                 pass
         # Ensure the connection is properly cleaned up
         await broadcaster.disconnect(websocket)
+        # Clean up subscriptions (NEM-2383)
+        subscription_manager.remove_connection(connection_id)
         # Clear connection_id context (NEM-1640)
         set_connection_id(None)
         logger.info("WebSocket connection cleaned up")

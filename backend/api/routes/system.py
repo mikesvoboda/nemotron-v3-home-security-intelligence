@@ -120,6 +120,7 @@ from backend.models import Camera, Detection, Event, GPUStats, Log
 from backend.models.audit import AuditAction
 from backend.services.audit import AuditService
 from backend.services.baseline import BaselineService
+from backend.services.health_event_emitter import get_health_event_emitter
 from backend.services.model_zoo import (
     get_model_config,
     get_model_manager,
@@ -825,6 +826,61 @@ async def check_ai_services_health() -> HealthCheckServiceStatus:
         )
 
 
+async def _emit_health_status_changes(
+    db_status: str,
+    redis_status: str,
+    ai_status: str,
+    db_details: dict[str, Any] | None = None,
+    redis_details: dict[str, Any] | None = None,
+    ai_details: dict[str, Any] | None = None,
+) -> None:
+    """Emit WebSocket events for health status changes.
+
+    This helper function tracks health state transitions and only emits
+    WebSocket events when status actually changes. This prevents flooding
+    clients with duplicate events on each health check.
+
+    The health event emitter maintains previous state and handles the
+    logic for detecting transitions.
+
+    Args:
+        db_status: Current database health status
+        redis_status: Current Redis health status
+        ai_status: Current AI services health status
+        db_details: Optional database health details
+        redis_details: Optional Redis health details
+        ai_details: Optional AI services health details
+    """
+    try:
+        health_emitter = get_health_event_emitter()
+
+        # Try to set up the WebSocket emitter if not already configured
+        if health_emitter._emitter is None:
+            from backend.services.websocket_emitter import get_websocket_emitter_sync
+
+            ws_emitter = get_websocket_emitter_sync()
+            if ws_emitter is not None:
+                health_emitter.set_emitter(ws_emitter)
+
+        # Update all component statuses (emits events only on changes)
+        await health_emitter.update_all_components(
+            statuses={
+                "database": db_status,
+                "redis": redis_status,
+                "ai_service": ai_status,
+            },
+            details={
+                "database": db_details or {},
+                "redis": redis_details or {},
+                "ai_service": ai_details or {},
+            },
+        )
+
+    except Exception as e:
+        # Don't let health event emission failures break health checks
+        logger.warning(f"Failed to emit health status change events: {e}", exc_info=True)
+
+
 @router.get("/health", response_model=HealthResponse)
 async def get_health(
     response: Response,
@@ -905,6 +961,17 @@ async def get_health(
     # 200 for healthy, 503 for degraded or unhealthy
     if overall_status != "healthy":
         response.status_code = 503
+
+    # Emit WebSocket events for health status changes
+    # This only emits when status actually transitions (not on every check)
+    await _emit_health_status_changes(
+        db_status=db_status.status,
+        redis_status=redis_status.status,
+        ai_status=ai_status.status,
+        db_details=db_status.details,
+        redis_details=redis_status.details,
+        ai_details=ai_status.details,
+    )
 
     # Collect recent health events for debugging intermittent issues
     recent_events: list[HealthEventResponse] = []
@@ -3639,6 +3706,61 @@ def _get_worker_status() -> list[WorkerHealthStatus]:
     return workers
 
 
+async def _emit_full_health_status_changes(
+    postgres_status: str,
+    redis_status: str,
+    ai_services: list[AIServiceHealthStatus],
+) -> None:
+    """Emit WebSocket events for full health status changes.
+
+    This helper function tracks health state transitions for the full health
+    endpoint, which provides more detailed AI service information.
+
+    Args:
+        postgres_status: Current PostgreSQL health status
+        redis_status: Current Redis health status
+        ai_services: List of AI service health statuses
+    """
+    try:
+        health_emitter = get_health_event_emitter()
+
+        # Try to set up the WebSocket emitter if not already configured
+        if health_emitter._emitter is None:
+            from backend.services.websocket_emitter import get_websocket_emitter_sync
+
+            ws_emitter = get_websocket_emitter_sync()
+            if ws_emitter is not None:
+                health_emitter.set_emitter(ws_emitter)
+
+        # Build status dict for all components
+        statuses: dict[str, str] = {
+            "database": postgres_status,
+            "redis": redis_status,
+        }
+
+        # Add individual AI service statuses
+        for ai_service in ai_services:
+            # Use component names that match our tracking convention
+            statuses[f"ai_{ai_service.name}"] = ai_service.status.value
+
+        # Calculate overall AI service status
+        ai_healthy = all(s.status == ServiceHealthState.HEALTHY for s in ai_services)
+        ai_degraded = any(s.status == ServiceHealthState.HEALTHY for s in ai_services)
+        if ai_healthy:
+            statuses["ai_service"] = "healthy"
+        elif ai_degraded:
+            statuses["ai_service"] = "degraded"
+        else:
+            statuses["ai_service"] = "unhealthy"
+
+        # Update all component statuses (emits events only on changes)
+        await health_emitter.update_all_components(statuses=statuses)
+
+    except Exception as e:
+        # Don't let health event emission failures break health checks
+        logger.warning(f"Failed to emit full health status change events: {e}", exc_info=True)
+
+
 @router.get(
     "/health/full",
     response_model=FullHealthResponse,
@@ -3705,6 +3827,14 @@ async def get_full_health(
         overall_status = ServiceHealthState.HEALTHY
         ready = True
         message = "All systems operational"
+
+    # Emit WebSocket events for health status changes
+    # This integrates with the full health check to provide comprehensive status updates
+    await _emit_full_health_status_changes(
+        postgres_status=postgres_health.status.value,
+        redis_status=redis_health.status.value,
+        ai_services=ai_healths,
+    )
 
     return FullHealthResponse(
         status=overall_status,

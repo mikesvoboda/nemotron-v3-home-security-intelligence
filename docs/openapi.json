@@ -2076,6 +2076,98 @@
         "title": "BatchInfoResponse",
         "type": "object"
       },
+      "BulkCancelError": {
+        "description": "Error details for a single job in bulk cancellation.",
+        "example": {
+          "error": "Job not found",
+          "job_id": "550e8400-e29b-41d4-a716-446655440000"
+        },
+        "properties": {
+          "error": {
+            "description": "Error message",
+            "title": "Error",
+            "type": "string"
+          },
+          "job_id": {
+            "description": "Job ID that failed to cancel",
+            "title": "Job Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id",
+          "error"
+        ],
+        "title": "BulkCancelError",
+        "type": "object"
+      },
+      "BulkCancelRequest": {
+        "description": "Request model for bulk job cancellation.",
+        "example": {
+          "job_ids": [
+            "550e8400-e29b-41d4-a716-446655440000",
+            "550e8400-e29b-41d4-a716-446655440001"
+          ]
+        },
+        "properties": {
+          "job_ids": {
+            "description": "List of job IDs to cancel (1-100 jobs)",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Job Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "job_ids"
+        ],
+        "title": "BulkCancelRequest",
+        "type": "object"
+      },
+      "BulkCancelResponse": {
+        "description": "Response model for bulk job cancellation.",
+        "example": {
+          "cancelled": 5,
+          "errors": [
+            {
+              "error": "Job already completed",
+              "job_id": "550e8400-e29b-41d4-a716-446655440005"
+            }
+          ],
+          "failed": 1
+        },
+        "properties": {
+          "cancelled": {
+            "description": "Number of jobs successfully cancelled",
+            "minimum": 0.0,
+            "title": "Cancelled",
+            "type": "integer"
+          },
+          "errors": {
+            "description": "Details of cancellation failures",
+            "items": {
+              "$ref": "#/components/schemas/BulkCancelError"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "failed": {
+            "description": "Number of jobs that failed to cancel",
+            "minimum": 0.0,
+            "title": "Failed",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cancelled",
+          "failed"
+        ],
+        "title": "BulkCancelResponse",
+        "type": "object"
+      },
       "BulkItemResult": {
         "description": "Result for a single item in a bulk operation.\n\nAttributes:\n    index: Zero-based index of the item in the request array\n    status: Operation status (success, failed, skipped)\n    id: ID of the created/updated resource (for successful operations)\n    error: Error message (for failed operations)",
         "properties": {
@@ -7020,7 +7112,7 @@
           },
           "feedback_type": {
             "$ref": "#/components/schemas/FeedbackType",
-            "description": "Type of feedback (false_positive, missed_detection, wrong_severity, correct)"
+            "description": "Type of feedback (accurate, false_positive, missed_threat, severity_wrong)"
           },
           "notes": {
             "anyOf": [
@@ -7854,10 +7946,10 @@
             "garage": 20
           },
           "by_type": {
-            "correct": 10,
+            "accurate": 10,
             "false_positive": 40,
-            "missed_detection": 30,
-            "wrong_severity": 20
+            "missed_threat": 30,
+            "severity_wrong": 20
           },
           "total_feedback": 100
         },
@@ -7894,12 +7986,12 @@
         "type": "object"
       },
       "FeedbackType": {
-        "description": "Types of feedback users can provide on events.\n\nValues:\n    FALSE_POSITIVE: Event was incorrectly flagged as concerning\n    MISSED_DETECTION: System failed to detect a concerning event\n    WRONG_SEVERITY: Event was flagged but with wrong severity level\n    CORRECT: Event was correctly classified and scored",
+        "description": "Types of feedback users can provide on events.\n\nValues:\n    ACCURATE: Event was correctly classified with appropriate severity\n    FALSE_POSITIVE: Event was incorrectly flagged as concerning\n    MISSED_THREAT: System failed to detect a concerning event\n    SEVERITY_WRONG: Event was flagged but with incorrect severity level",
         "enum": [
+          "accurate",
           "false_positive",
-          "missed_detection",
-          "wrong_severity",
-          "correct"
+          "missed_threat",
+          "severity_wrong"
         ],
         "title": "FeedbackType",
         "type": "string"
@@ -8919,6 +9011,140 @@
         "title": "InfrastructureHealthStatus",
         "type": "object"
       },
+      "JobAbortResponse": {
+        "description": "Response model for job abort request.",
+        "example": {
+          "job_id": "550e8400-e29b-41d4-a716-446655440000",
+          "message": "Job abort requested - worker notified",
+          "status": "failed"
+        },
+        "properties": {
+          "job_id": {
+            "description": "Job ID that is being aborted",
+            "title": "Job Id",
+            "type": "string"
+          },
+          "message": {
+            "description": "Abort status message",
+            "title": "Message",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatusEnum",
+            "description": "New job status (aborting/failed)"
+          }
+        },
+        "required": [
+          "job_id",
+          "status",
+          "message"
+        ],
+        "title": "JobAbortResponse",
+        "type": "object"
+      },
+      "JobAttemptResponse": {
+        "description": "A single job execution attempt record.",
+        "example": {
+          "attempt_number": 1,
+          "duration_seconds": 89.0,
+          "ended_at": "2024-01-15T10:31:30Z",
+          "result": {
+            "processed": 1000
+          },
+          "started_at": "2024-01-15T10:30:01Z",
+          "status": "succeeded",
+          "worker_id": "worker-1"
+        },
+        "properties": {
+          "attempt_number": {
+            "description": "Sequential attempt number (1-based)",
+            "minimum": 1.0,
+            "title": "Attempt Number",
+            "type": "integer"
+          },
+          "duration_seconds": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Duration in seconds if completed",
+            "title": "Duration Seconds"
+          },
+          "ended_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When this attempt ended",
+            "title": "Ended At"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Error message if failed",
+            "title": "Error"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Result data if successful",
+            "title": "Result"
+          },
+          "started_at": {
+            "description": "When this attempt started",
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "status": {
+            "description": "Status of this attempt (started, succeeded, failed, cancelled)",
+            "title": "Status",
+            "type": "string"
+          },
+          "worker_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "ID of worker that processed this attempt",
+            "title": "Worker Id"
+          }
+        },
+        "required": [
+          "attempt_number",
+          "started_at",
+          "status"
+        ],
+        "title": "JobAttemptResponse",
+        "type": "object"
+      },
       "JobCancelResponse": {
         "description": "Response model for job cancellation request.",
         "example": {
@@ -8948,6 +9174,246 @@
           "message"
         ],
         "title": "JobCancelResponse",
+        "type": "object"
+      },
+      "JobDetailResponse": {
+        "description": "Detailed response model for a single job.\n\nProvides comprehensive information about a job including progress details,\ntiming information, retry status, and execution metadata.\n\nNEM-2390: GET /api/jobs/{job_id} detail endpoint response.",
+        "example": {
+          "id": "550e8400-e29b-41d4-a716-446655440000",
+          "job_type": "ai_analysis",
+          "metadata": {
+            "input_params": {
+              "event_ids": [
+                "evt-1",
+                "evt-2"
+              ]
+            },
+            "worker_id": "worker-001"
+          },
+          "priority": 1,
+          "progress": {
+            "current_step": "Analyzing detections",
+            "items_processed": 450,
+            "items_total": 1000,
+            "percent": 45
+          },
+          "queue_name": "high_priority",
+          "retry_info": {
+            "attempt_number": 1,
+            "max_attempts": 3,
+            "previous_errors": []
+          },
+          "status": "running",
+          "timing": {
+            "created_at": "2024-01-15T10:30:00Z",
+            "duration_seconds": 45.5,
+            "estimated_remaining_seconds": 55.0,
+            "started_at": "2024-01-15T10:30:01Z"
+          }
+        },
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Error message (if failed)",
+            "title": "Error"
+          },
+          "id": {
+            "description": "Unique job identifier",
+            "title": "Id",
+            "type": "string"
+          },
+          "job_type": {
+            "description": "Type of job (e.g., 'export', 'ai_analysis')",
+            "title": "Job Type",
+            "type": "string"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/JobMetadata",
+            "description": "Job execution metadata"
+          },
+          "priority": {
+            "default": 0,
+            "description": "Job priority (0=lowest, 10=highest)",
+            "maximum": 10.0,
+            "minimum": 0.0,
+            "title": "Priority",
+            "type": "integer"
+          },
+          "progress": {
+            "$ref": "#/components/schemas/JobProgressDetail",
+            "description": "Detailed progress information"
+          },
+          "queue_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Name of the job queue",
+            "title": "Queue Name"
+          },
+          "result": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Job result data (if completed)",
+            "title": "Result"
+          },
+          "retry_info": {
+            "$ref": "#/components/schemas/JobRetryInfo",
+            "description": "Retry attempt information"
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatusEnum",
+            "description": "Current job status"
+          },
+          "timing": {
+            "$ref": "#/components/schemas/JobTiming",
+            "description": "Job timing and duration information"
+          }
+        },
+        "required": [
+          "id",
+          "job_type",
+          "status",
+          "progress",
+          "timing",
+          "retry_info",
+          "metadata"
+        ],
+        "title": "JobDetailResponse",
+        "type": "object"
+      },
+      "JobHistoryResponse": {
+        "description": "Complete job history with transitions and attempts.\n\nNEM-2396: GET /api/jobs/{job_id}/history endpoint response.",
+        "example": {
+          "attempts": [
+            {
+              "attempt_number": 1,
+              "duration_seconds": 89.0,
+              "ended_at": "2024-01-15T10:31:30Z",
+              "result": {
+                "events_exported": 1000
+              },
+              "started_at": "2024-01-15T10:30:01Z",
+              "status": "succeeded",
+              "worker_id": "worker-1"
+            }
+          ],
+          "completed_at": "2024-01-15T10:31:30Z",
+          "created_at": "2024-01-15T10:30:00Z",
+          "job_id": "550e8400-e29b-41d4-a716-446655440000",
+          "job_type": "export",
+          "started_at": "2024-01-15T10:30:01Z",
+          "status": "completed",
+          "transitions": [
+            {
+              "at": "2024-01-15T10:30:00Z",
+              "to": "queued",
+              "triggered_by": "api"
+            },
+            {
+              "at": "2024-01-15T10:30:01Z",
+              "details": {
+                "worker_id": "worker-1"
+              },
+              "from": "queued",
+              "to": "running",
+              "triggered_by": "worker"
+            },
+            {
+              "at": "2024-01-15T10:31:30Z",
+              "from": "running",
+              "to": "completed",
+              "triggered_by": "worker"
+            }
+          ]
+        },
+        "properties": {
+          "attempts": {
+            "description": "Execution attempts in order",
+            "items": {
+              "$ref": "#/components/schemas/JobAttemptResponse"
+            },
+            "title": "Attempts",
+            "type": "array"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the job finished",
+            "title": "Completed At"
+          },
+          "created_at": {
+            "description": "When the job was created",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "job_id": {
+            "description": "Unique job identifier",
+            "title": "Job Id",
+            "type": "string"
+          },
+          "job_type": {
+            "description": "Type of job (e.g., 'export', 'cleanup')",
+            "title": "Job Type",
+            "type": "string"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When job execution started",
+            "title": "Started At"
+          },
+          "status": {
+            "description": "Current job status",
+            "title": "Status",
+            "type": "string"
+          },
+          "transitions": {
+            "description": "State transitions in chronological order",
+            "items": {
+              "$ref": "#/components/schemas/JobTransitionResponse"
+            },
+            "title": "Transitions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "job_id",
+          "job_type",
+          "status",
+          "created_at"
+        ],
+        "title": "JobHistoryResponse",
         "type": "object"
       },
       "JobListResponse": {
@@ -8990,6 +9456,230 @@
           "pagination"
         ],
         "title": "JobListResponse",
+        "type": "object"
+      },
+      "JobLogEntryResponse": {
+        "description": "A single job log entry.",
+        "example": {
+          "attempt_number": 1,
+          "context": {
+            "event_count": 1000
+          },
+          "level": "INFO",
+          "message": "Starting export of 1000 events",
+          "timestamp": "2024-01-15T10:30:05Z"
+        },
+        "properties": {
+          "attempt_number": {
+            "default": 1,
+            "description": "Which attempt generated this log",
+            "minimum": 1.0,
+            "title": "Attempt Number",
+            "type": "integer"
+          },
+          "context": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Additional context data",
+            "title": "Context"
+          },
+          "level": {
+            "description": "Log level (DEBUG, INFO, WARNING, ERROR)",
+            "title": "Level",
+            "type": "string"
+          },
+          "message": {
+            "description": "Log message",
+            "title": "Message",
+            "type": "string"
+          },
+          "timestamp": {
+            "description": "When the log entry was created",
+            "format": "date-time",
+            "title": "Timestamp",
+            "type": "string"
+          }
+        },
+        "required": [
+          "timestamp",
+          "level",
+          "message"
+        ],
+        "title": "JobLogEntryResponse",
+        "type": "object"
+      },
+      "JobLogsResponse": {
+        "description": "Response for job logs endpoint.\n\nNEM-2396: GET /api/jobs/{job_id}/logs endpoint response.",
+        "example": {
+          "has_more": false,
+          "job_id": "550e8400-e29b-41d4-a716-446655440000",
+          "logs": [
+            {
+              "attempt_number": 1,
+              "level": "INFO",
+              "message": "Job started",
+              "timestamp": "2024-01-15T10:30:01Z"
+            },
+            {
+              "attempt_number": 1,
+              "context": {
+                "progress": 0
+              },
+              "level": "INFO",
+              "message": "Processing events: 0/1000",
+              "timestamp": "2024-01-15T10:30:05Z"
+            },
+            {
+              "attempt_number": 1,
+              "context": {
+                "events_exported": 1000
+              },
+              "level": "INFO",
+              "message": "Export completed successfully",
+              "timestamp": "2024-01-15T10:31:30Z"
+            }
+          ],
+          "total": 3
+        },
+        "properties": {
+          "has_more": {
+            "default": false,
+            "description": "Whether more logs exist beyond the limit",
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "job_id": {
+            "description": "Unique job identifier",
+            "title": "Job Id",
+            "type": "string"
+          },
+          "logs": {
+            "description": "Log entries in chronological order",
+            "items": {
+              "$ref": "#/components/schemas/JobLogEntryResponse"
+            },
+            "title": "Logs",
+            "type": "array"
+          },
+          "total": {
+            "description": "Total number of log entries returned",
+            "minimum": 0.0,
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "job_id",
+          "total"
+        ],
+        "title": "JobLogsResponse",
+        "type": "object"
+      },
+      "JobMetadata": {
+        "description": "Metadata about job execution.\n\nContains input parameters and execution context.",
+        "example": {
+          "input_params": {
+            "camera_id": "cam-1",
+            "format": "csv"
+          },
+          "worker_id": "worker-abc-123"
+        },
+        "properties": {
+          "input_params": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Input parameters provided when job was created",
+            "title": "Input Params"
+          },
+          "worker_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "ID of the worker executing the job",
+            "title": "Worker Id"
+          }
+        },
+        "title": "JobMetadata",
+        "type": "object"
+      },
+      "JobProgressDetail": {
+        "description": "Detailed progress information for a job.\n\nProvides granular progress tracking beyond a simple percentage.",
+        "example": {
+          "current_step": "Processing events",
+          "items_processed": 450,
+          "items_total": 1000,
+          "percent": 45
+        },
+        "properties": {
+          "current_step": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Current processing step description",
+            "title": "Current Step"
+          },
+          "items_processed": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Number of items processed so far",
+            "title": "Items Processed"
+          },
+          "items_total": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Total number of items to process",
+            "title": "Items Total"
+          },
+          "percent": {
+            "description": "Progress percentage (0-100)",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Percent",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "percent"
+        ],
+        "title": "JobProgressDetail",
         "type": "object"
       },
       "JobResponse": {
@@ -9097,6 +9787,158 @@
           "created_at"
         ],
         "title": "JobResponse",
+        "type": "object"
+      },
+      "JobRetryInfo": {
+        "description": "Retry information for a job.\n\nTracks retry attempts and failure history.",
+        "example": {
+          "attempt_number": 2,
+          "max_attempts": 3,
+          "next_retry_at": "2024-01-15T10:35:00Z",
+          "previous_errors": [
+            "Connection timeout"
+          ]
+        },
+        "properties": {
+          "attempt_number": {
+            "description": "Current attempt number (1-indexed)",
+            "minimum": 1.0,
+            "title": "Attempt Number",
+            "type": "integer"
+          },
+          "max_attempts": {
+            "description": "Maximum number of retry attempts allowed",
+            "minimum": 1.0,
+            "title": "Max Attempts",
+            "type": "integer"
+          },
+          "next_retry_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the next retry will occur (if applicable)",
+            "title": "Next Retry At"
+          },
+          "previous_errors": {
+            "description": "List of error messages from previous attempts",
+            "items": {
+              "type": "string"
+            },
+            "title": "Previous Errors",
+            "type": "array"
+          }
+        },
+        "required": [
+          "attempt_number",
+          "max_attempts"
+        ],
+        "title": "JobRetryInfo",
+        "type": "object"
+      },
+      "JobSearchAggregations": {
+        "description": "Aggregation counts for job search results.",
+        "example": {
+          "by_status": {
+            "completed": 100,
+            "failed": 35,
+            "pending": 10,
+            "running": 5
+          },
+          "by_type": {
+            "ai_analysis": 120,
+            "cleanup": 10,
+            "export": 20
+          }
+        },
+        "properties": {
+          "by_status": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "Count of matching jobs by status",
+            "title": "By Status",
+            "type": "object"
+          },
+          "by_type": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "Count of matching jobs by job type",
+            "title": "By Type",
+            "type": "object"
+          }
+        },
+        "title": "JobSearchAggregations",
+        "type": "object"
+      },
+      "JobSearchResponse": {
+        "description": "Response model for job search with aggregations.\n\nExtends the standard list response with aggregation data for faceted search.\n\nNEM-2392: GET /api/jobs/search endpoint response.",
+        "example": {
+          "aggregations": {
+            "by_status": {
+              "completed": 100,
+              "failed": 35,
+              "pending": 10,
+              "running": 5
+            },
+            "by_type": {
+              "backup": 10,
+              "cleanup": 20,
+              "export": 120
+            }
+          },
+          "data": [
+            {
+              "completed_at": "2024-01-15T10:31:30Z",
+              "created_at": "2024-01-15T10:30:00Z",
+              "job_id": "550e8400-e29b-41d4-a716-446655440000",
+              "job_type": "export",
+              "message": "Export completed successfully",
+              "progress": 100,
+              "result": {
+                "file_path": "/exports/data.csv"
+              },
+              "started_at": "2024-01-15T10:30:01Z",
+              "status": "completed"
+            }
+          ],
+          "meta": {
+            "has_more": true,
+            "limit": 50,
+            "offset": 0,
+            "total": 150
+          }
+        },
+        "properties": {
+          "aggregations": {
+            "$ref": "#/components/schemas/JobSearchAggregations",
+            "description": "Aggregation counts for faceted filtering"
+          },
+          "data": {
+            "description": "List of matching jobs",
+            "items": {
+              "$ref": "#/components/schemas/JobResponse"
+            },
+            "title": "Data",
+            "type": "array"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/PaginationMeta",
+            "description": "Pagination metadata"
+          }
+        },
+        "required": [
+          "data",
+          "meta",
+          "aggregations"
+        ],
+        "title": "JobSearchResponse",
         "type": "object"
       },
       "JobStatsResponse": {
@@ -9229,6 +10071,141 @@
         ],
         "title": "JobStatusEnum",
         "type": "string"
+      },
+      "JobTiming": {
+        "description": "Timing information for a job.\n\nTracks job lifecycle timestamps and duration calculations.",
+        "example": {
+          "created_at": "2024-01-15T10:30:00Z",
+          "duration_seconds": 45.5,
+          "estimated_remaining_seconds": 55.0,
+          "started_at": "2024-01-15T10:30:01Z"
+        },
+        "properties": {
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the job completed or failed",
+            "title": "Completed At"
+          },
+          "created_at": {
+            "description": "When the job was created",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "duration_seconds": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Total duration in seconds (if started)",
+            "title": "Duration Seconds"
+          },
+          "estimated_remaining_seconds": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Estimated time remaining (if running)",
+            "title": "Estimated Remaining Seconds"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When job execution started",
+            "title": "Started At"
+          }
+        },
+        "required": [
+          "created_at"
+        ],
+        "title": "JobTiming",
+        "type": "object"
+      },
+      "JobTransitionResponse": {
+        "description": "A single state transition record in job history.",
+        "example": {
+          "at": "2024-01-15T10:30:00Z",
+          "details": {
+            "user": "system"
+          },
+          "to": "queued",
+          "triggered_by": "api"
+        },
+        "properties": {
+          "at": {
+            "description": "Timestamp of the transition",
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "details": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Additional transition details",
+            "title": "Details"
+          },
+          "from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Previous status (null for initial)",
+            "title": "From"
+          },
+          "to": {
+            "description": "New status after transition",
+            "title": "To",
+            "type": "string"
+          },
+          "triggered_by": {
+            "description": "What triggered the transition (api, worker, system, etc)",
+            "title": "Triggered By",
+            "type": "string"
+          }
+        },
+        "required": [
+          "to",
+          "at",
+          "triggered_by"
+        ],
+        "title": "JobTransitionResponse",
+        "type": "object"
       },
       "JobTypeCount": {
         "description": "Count of jobs by type.",
@@ -10876,6 +11853,52 @@
           "end_date"
         ],
         "title": "ObjectDistributionResponse",
+        "type": "object"
+      },
+      "OldestJobInfo": {
+        "description": "Information about the oldest job in a queue.",
+        "example": {
+          "id": "job_12345",
+          "queued_at": "2025-12-23T10:30:00.000000",
+          "wait_seconds": 45.2
+        },
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Job identifier (if available)",
+            "title": "Id"
+          },
+          "queued_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Timestamp when the job was queued",
+            "title": "Queued At"
+          },
+          "wait_seconds": {
+            "description": "How long the oldest job has been waiting in seconds",
+            "minimum": 0.0,
+            "title": "Wait Seconds",
+            "type": "number"
+          }
+        },
+        "required": [
+          "wait_seconds"
+        ],
+        "title": "OldestJobInfo",
         "type": "object"
       },
       "OrphanedFileCleanupResponse": {
@@ -12860,6 +13883,190 @@
           "analysis_queue"
         ],
         "title": "QueueDepths",
+        "type": "object"
+      },
+      "QueueHealthStatus": {
+        "description": "Health status for a queue based on depth and wait time.",
+        "enum": [
+          "healthy",
+          "warning",
+          "critical"
+        ],
+        "title": "QueueHealthStatus",
+        "type": "string"
+      },
+      "QueueStatus": {
+        "description": "Status of a single job queue.",
+        "example": {
+          "depth": 15,
+          "name": "ai_analysis",
+          "oldest_job": {
+            "id": "job_12345",
+            "queued_at": "2025-12-23T10:30:00.000000",
+            "wait_seconds": 45.2
+          },
+          "running": 2,
+          "status": "healthy",
+          "throughput": {
+            "avg_processing_seconds": 4.8,
+            "jobs_per_minute": 12.5
+          },
+          "workers": 4
+        },
+        "properties": {
+          "depth": {
+            "description": "Number of jobs waiting in the queue",
+            "minimum": 0.0,
+            "title": "Depth",
+            "type": "integer"
+          },
+          "name": {
+            "description": "Queue name",
+            "title": "Name",
+            "type": "string"
+          },
+          "oldest_job": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OldestJobInfo"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Information about the oldest job waiting (if any)"
+          },
+          "running": {
+            "description": "Number of jobs currently being processed",
+            "minimum": 0.0,
+            "title": "Running",
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/QueueHealthStatus",
+            "description": "Health status of the queue"
+          },
+          "throughput": {
+            "$ref": "#/components/schemas/ThroughputMetrics",
+            "description": "Throughput metrics for the queue"
+          },
+          "workers": {
+            "description": "Number of workers available for this queue",
+            "minimum": 0.0,
+            "title": "Workers",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name",
+          "status",
+          "depth",
+          "running",
+          "workers",
+          "throughput"
+        ],
+        "title": "QueueStatus",
+        "type": "object"
+      },
+      "QueueStatusSummary": {
+        "description": "Summary statistics across all queues.",
+        "example": {
+          "overall_status": "healthy",
+          "total_queued": 45,
+          "total_running": 8,
+          "total_workers": 12
+        },
+        "properties": {
+          "overall_status": {
+            "$ref": "#/components/schemas/QueueHealthStatus",
+            "description": "Overall health status (worst status across all queues)"
+          },
+          "total_queued": {
+            "description": "Total number of jobs waiting across all queues",
+            "minimum": 0.0,
+            "title": "Total Queued",
+            "type": "integer"
+          },
+          "total_running": {
+            "description": "Total number of jobs currently being processed",
+            "minimum": 0.0,
+            "title": "Total Running",
+            "type": "integer"
+          },
+          "total_workers": {
+            "description": "Total number of workers across all queues",
+            "minimum": 0.0,
+            "title": "Total Workers",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total_queued",
+          "total_running",
+          "total_workers",
+          "overall_status"
+        ],
+        "title": "QueueStatusSummary",
+        "type": "object"
+      },
+      "QueuesStatusResponse": {
+        "description": "Response schema for GET /api/queues/status endpoint.",
+        "example": {
+          "queues": [
+            {
+              "depth": 15,
+              "name": "ai_analysis",
+              "oldest_job": {
+                "id": "job_12345",
+                "queued_at": "2025-12-23T10:30:00.000000",
+                "wait_seconds": 45.2
+              },
+              "running": 2,
+              "status": "healthy",
+              "throughput": {
+                "avg_processing_seconds": 4.8,
+                "jobs_per_minute": 12.5
+              },
+              "workers": 4
+            },
+            {
+              "depth": 55,
+              "name": "detection",
+              "running": 3,
+              "status": "warning",
+              "throughput": {
+                "avg_processing_seconds": 7.3,
+                "jobs_per_minute": 8.2
+              },
+              "workers": 4
+            }
+          ],
+          "summary": {
+            "overall_status": "warning",
+            "total_queued": 70,
+            "total_running": 5,
+            "total_workers": 8
+          }
+        },
+        "properties": {
+          "queues": {
+            "description": "Status of each queue",
+            "items": {
+              "$ref": "#/components/schemas/QueueStatus"
+            },
+            "title": "Queues",
+            "type": "array"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/QueueStatusSummary",
+            "description": "Summary statistics across all queues"
+          }
+        },
+        "required": [
+          "queues",
+          "summary"
+        ],
+        "title": "QueuesStatusResponse",
         "type": "object"
       },
       "QuietHoursPeriodCreate": {
@@ -15282,6 +16489,33 @@
           "message"
         ],
         "title": "TestNotificationResponse",
+        "type": "object"
+      },
+      "ThroughputMetrics": {
+        "description": "Throughput metrics for a queue.",
+        "example": {
+          "avg_processing_seconds": 4.8,
+          "jobs_per_minute": 12.5
+        },
+        "properties": {
+          "avg_processing_seconds": {
+            "description": "Average time to process a job in seconds",
+            "minimum": 0.0,
+            "title": "Avg Processing Seconds",
+            "type": "number"
+          },
+          "jobs_per_minute": {
+            "description": "Average number of jobs processed per minute",
+            "minimum": 0.0,
+            "title": "Jobs Per Minute",
+            "type": "number"
+          }
+        },
+        "required": [
+          "jobs_per_minute",
+          "avg_processing_seconds"
+        ],
+        "title": "ThroughputMetrics",
         "type": "object"
       },
       "TimeRange": {
@@ -22860,6 +24094,337 @@
         ]
       }
     },
+    "/api/jobs/bulk-cancel": {
+      "post": {
+        "description": "Cancel multiple jobs at once. Returns counts of successful and failed cancellations.",
+        "operationId": "bulk_cancel_jobs_api_jobs_bulk_cancel_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkCancelRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkCancelResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Bulk cancel jobs",
+        "tags": [
+          "jobs"
+        ]
+      }
+    },
+    "/api/jobs/search": {
+      "get": {
+        "description": "Search and filter jobs with advanced query capabilities. Supports free text search, filtering by status/type/timestamps/duration, and returns aggregation data for faceted filtering. NEM-2392: Advanced job search endpoint.",
+        "operationId": "search_jobs_api_jobs_search_get",
+        "parameters": [
+          {
+            "description": "Free text search across job type, error message, and metadata",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Free text search across job type, error message, and metadata",
+              "title": "Q"
+            }
+          },
+          {
+            "description": "Comma-separated status values to filter (e.g., 'running,pending')",
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Comma-separated status values to filter (e.g., 'running,pending')",
+              "title": "Status"
+            }
+          },
+          {
+            "description": "Comma-separated job types to filter (e.g., 'export,cleanup')",
+            "in": "query",
+            "name": "job_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Comma-separated job types to filter (e.g., 'export,cleanup')",
+              "title": "Job Type"
+            }
+          },
+          {
+            "description": "Queue name filter (reserved for future use)",
+            "in": "query",
+            "name": "queue",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Queue name filter (reserved for future use)",
+              "title": "Queue"
+            }
+          },
+          {
+            "description": "Filter jobs created after this ISO timestamp",
+            "in": "query",
+            "name": "created_after",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter jobs created after this ISO timestamp",
+              "title": "Created After"
+            }
+          },
+          {
+            "description": "Filter jobs created before this ISO timestamp",
+            "in": "query",
+            "name": "created_before",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter jobs created before this ISO timestamp",
+              "title": "Created Before"
+            }
+          },
+          {
+            "description": "Filter jobs completed after this ISO timestamp",
+            "in": "query",
+            "name": "completed_after",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter jobs completed after this ISO timestamp",
+              "title": "Completed After"
+            }
+          },
+          {
+            "description": "Filter jobs completed before this ISO timestamp",
+            "in": "query",
+            "name": "completed_before",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter jobs completed before this ISO timestamp",
+              "title": "Completed Before"
+            }
+          },
+          {
+            "description": "If true, only jobs with errors; if false, only jobs without errors",
+            "in": "query",
+            "name": "has_error",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "If true, only jobs with errors; if false, only jobs without errors",
+              "title": "Has Error"
+            }
+          },
+          {
+            "description": "Minimum job duration in seconds (only completed jobs)",
+            "in": "query",
+            "name": "min_duration",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Minimum job duration in seconds (only completed jobs)",
+              "title": "Min Duration"
+            }
+          },
+          {
+            "description": "Maximum job duration in seconds (only completed jobs)",
+            "in": "query",
+            "name": "max_duration",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Maximum job duration in seconds (only completed jobs)",
+              "title": "Max Duration"
+            }
+          },
+          {
+            "description": "Maximum number of jobs to return",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "description": "Maximum number of jobs to return",
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Number of jobs to skip (for pagination)",
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Number of jobs to skip (for pagination)",
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Field to sort by (created_at, started_at, completed_at, progress, job_type, status)",
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "created_at",
+              "description": "Field to sort by (created_at, started_at, completed_at, progress, job_type, status)",
+              "title": "Sort",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Sort direction (asc or desc)",
+            "in": "query",
+            "name": "order",
+            "required": false,
+            "schema": {
+              "default": "desc",
+              "description": "Sort direction (asc or desc)",
+              "title": "Order",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobSearchResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Search and filter jobs",
+        "tags": [
+          "jobs"
+        ]
+      }
+    },
     "/api/jobs/stats": {
       "get": {
         "description": "Get aggregate statistics about jobs including counts by status, counts by type, and timing information.",
@@ -22905,6 +24470,53 @@
       }
     },
     "/api/jobs/{job_id}": {
+      "delete": {
+        "description": "Cancel or abort a job based on its current state. Queued jobs will be cancelled, running jobs will be aborted.",
+        "operationId": "delete_job_api_jobs__job_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobCancelResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Job cannot be cancelled or aborted"
+          },
+          "404": {
+            "description": "Job not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cancel or abort a job",
+        "tags": [
+          "jobs"
+        ]
+      },
       "get": {
         "description": "Get the current status and progress of a background job.",
         "operationId": "get_job_status_api_jobs__job_id__get",
@@ -22945,6 +24557,55 @@
           }
         },
         "summary": "Get job status",
+        "tags": [
+          "jobs"
+        ]
+      }
+    },
+    "/api/jobs/{job_id}/abort": {
+      "post": {
+        "description": "Abort a running background job by sending a signal to the worker. Only jobs with status 'running' can be aborted. Queued jobs should use the /cancel endpoint instead.",
+        "operationId": "abort_job_api_jobs__job_id__abort_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobAbortResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Job is not running (use cancel for queued jobs)"
+          },
+          "404": {
+            "description": "Job not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Abort a running job",
         "tags": [
           "jobs"
         ]
@@ -22994,6 +24655,195 @@
           }
         },
         "summary": "Cancel a job",
+        "tags": [
+          "jobs"
+        ]
+      }
+    },
+    "/api/jobs/{job_id}/detail": {
+      "get": {
+        "description": "Get detailed information about a specific job including full progress history, timing information, retry details, and execution metadata. NEM-2390: Provides comprehensive job status for monitoring and debugging.",
+        "operationId": "get_job_detail_api_jobs__job_id__detail_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobDetailResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Job not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get detailed job information",
+        "tags": [
+          "jobs"
+        ]
+      }
+    },
+    "/api/jobs/{job_id}/history": {
+      "get": {
+        "description": "Retrieve complete job execution history including state transitions, retry attempts, and execution timeline. Provides audit trail for debugging and compliance purposes. NEM-2396.",
+        "operationId": "get_job_history_api_jobs__job_id__history_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobHistoryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Job not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get job history",
+        "tags": [
+          "jobs"
+        ]
+      }
+    },
+    "/api/jobs/{job_id}/logs": {
+      "get": {
+        "description": "Retrieve execution logs for a job with optional filtering by level and time range. Useful for debugging and monitoring job execution. NEM-2396.",
+        "operationId": "get_job_logs_api_jobs__job_id__logs_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Minimum log level to return (DEBUG, INFO, WARNING, ERROR)",
+            "in": "query",
+            "name": "level",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Minimum log level to return (DEBUG, INFO, WARNING, ERROR)",
+              "title": "Level"
+            }
+          },
+          {
+            "description": "Return logs from this timestamp onwards (ISO format)",
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Return logs from this timestamp onwards (ISO format)",
+              "title": "Since"
+            }
+          },
+          {
+            "description": "Maximum number of log entries to return",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 1000,
+              "description": "Maximum number of log entries to return",
+              "maximum": 10000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobLogsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Job not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get job logs",
         "tags": [
           "jobs"
         ]
@@ -23947,6 +25797,57 @@
         "summary": "Test Notification",
         "tags": [
           "notification"
+        ]
+      }
+    },
+    "/api/queues/status": {
+      "get": {
+        "description": "Get the status of all job queues including depth, processing rate, and health.\n\n**Queues Monitored:**\n- `detection`: Object detection jobs from camera uploads\n- `ai_analysis`: LLM risk analysis jobs for batched detections\n- `dlq`: Dead-letter queue for failed jobs\n\n**Health Status:**\n- `healthy`: Queue depth below warning threshold, wait times acceptable\n- `warning`: Queue depth approaching limits or wait times elevated\n- `critical`: Queue depth exceeds limits or oldest job waiting too long\n\n**Thresholds:**\nEach queue has configurable thresholds:\n- `depth_warning`: Queue depth that triggers warning status\n- `depth_critical`: Queue depth that triggers critical status\n- `max_wait_seconds`: Maximum acceptable wait time for oldest job",
+        "operationId": "get_queues_status_api_queues_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "queues": [
+                    {
+                      "depth": 15,
+                      "name": "ai_analysis",
+                      "oldest_job": {
+                        "id": "job_12345",
+                        "queued_at": "2025-12-23T10:30:00.000000",
+                        "wait_seconds": 45.2
+                      },
+                      "running": 2,
+                      "status": "healthy",
+                      "throughput": {
+                        "avg_processing_seconds": 4.8,
+                        "jobs_per_minute": 12.5
+                      },
+                      "workers": 4
+                    }
+                  ],
+                  "summary": {
+                    "overall_status": "healthy",
+                    "total_queued": 15,
+                    "total_running": 2,
+                    "total_workers": 4
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/QueuesStatusResponse"
+                }
+              }
+            },
+            "description": "Queue status retrieved successfully"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get queue status",
+        "tags": [
+          "queues"
         ]
       }
     },
