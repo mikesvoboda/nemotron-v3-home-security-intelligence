@@ -377,7 +377,7 @@ export default function EventDetailModal({
   // Get display label for existing feedback
   const getFeedbackTypeLabel = (type: string): string => {
     const labels: Record<string, string> = {
-      correct: 'Correct Detection',
+      accurate: 'Correct Detection',
       false_positive: 'False Positive',
       severity_wrong: 'Wrong Severity',
       missed_threat: 'Missed Detection',

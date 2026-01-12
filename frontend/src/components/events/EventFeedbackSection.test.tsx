@@ -215,7 +215,7 @@ describe('EventFeedbackSection', () => {
 
       await user.click(screen.getByTestId('feedback-toggle'));
 
-      expect(screen.getByTestId('feedback-btn-correct')).toBeInTheDocument();
+      expect(screen.getByTestId('feedback-btn-accurate')).toBeInTheDocument();
       expect(screen.getByTestId('feedback-btn-false_positive')).toBeInTheDocument();
       expect(screen.getByTestId('feedback-btn-missed_threat')).toBeInTheDocument();
       expect(screen.getByTestId('feedback-btn-severity_wrong')).toBeInTheDocument();
@@ -233,7 +233,7 @@ describe('EventFeedbackSection', () => {
 
       await user.click(screen.getByTestId('feedback-toggle'));
 
-      const correctBtn = screen.getByTestId('feedback-btn-correct');
+      const correctBtn = screen.getByTestId('feedback-btn-accurate');
       expect(correctBtn).toHaveAttribute('aria-pressed', 'false');
 
       await user.click(correctBtn);
@@ -254,8 +254,8 @@ describe('EventFeedbackSection', () => {
       await user.click(screen.getByTestId('feedback-toggle'));
 
       // Select correct
-      await user.click(screen.getByTestId('feedback-btn-correct'));
-      expect(screen.getByTestId('feedback-btn-correct')).toHaveAttribute('aria-pressed', 'true');
+      await user.click(screen.getByTestId('feedback-btn-accurate'));
+      expect(screen.getByTestId('feedback-btn-accurate')).toHaveAttribute('aria-pressed', 'true');
 
       // Change to false positive
       await user.click(screen.getByTestId('feedback-btn-false_positive'));
@@ -263,7 +263,7 @@ describe('EventFeedbackSection', () => {
         'aria-pressed',
         'true'
       );
-      expect(screen.getByTestId('feedback-btn-correct')).toHaveAttribute('aria-pressed', 'false');
+      expect(screen.getByTestId('feedback-btn-accurate')).toHaveAttribute('aria-pressed', 'false');
     });
   });
 
@@ -366,7 +366,7 @@ describe('EventFeedbackSection', () => {
       });
 
       await user.click(screen.getByTestId('feedback-toggle'));
-      await user.click(screen.getByTestId('feedback-btn-correct'));
+      await user.click(screen.getByTestId('feedback-btn-accurate'));
 
       expect(screen.getByTestId('feedback-submit')).not.toBeDisabled();
     });
@@ -428,7 +428,7 @@ describe('EventFeedbackSection', () => {
       });
 
       await user.click(screen.getByTestId('feedback-toggle'));
-      await user.click(screen.getByTestId('feedback-btn-correct'));
+      await user.click(screen.getByTestId('feedback-btn-accurate'));
       await user.click(screen.getByTestId('feedback-submit'));
 
       await waitFor(() => {
@@ -463,7 +463,7 @@ describe('EventFeedbackSection', () => {
       });
 
       await user.click(screen.getByTestId('feedback-toggle'));
-      await user.click(screen.getByTestId('feedback-btn-correct'));
+      await user.click(screen.getByTestId('feedback-btn-accurate'));
 
       // Before clicking submit, button should be enabled
       expect(screen.getByTestId('feedback-submit')).not.toBeDisabled();
@@ -513,7 +513,7 @@ describe('EventFeedbackSection', () => {
       });
 
       await user.click(screen.getByTestId('feedback-toggle'));
-      await user.click(screen.getByTestId('feedback-btn-correct'));
+      await user.click(screen.getByTestId('feedback-btn-accurate'));
       await user.click(screen.getByTestId('feedback-submit'));
 
       // After successful submission, the component shows read-only view with submitted feedback
@@ -541,7 +541,7 @@ describe('EventFeedbackSection', () => {
       });
 
       await user.click(screen.getByTestId('feedback-toggle'));
-      await user.click(screen.getByTestId('feedback-btn-correct'));
+      await user.click(screen.getByTestId('feedback-btn-accurate'));
 
       // Before submission, we're in the form view
       expect(screen.getByTestId('feedback-submit')).toBeInTheDocument();
@@ -567,7 +567,7 @@ describe('EventFeedbackSection', () => {
       });
 
       await user.click(screen.getByTestId('feedback-toggle'));
-      await user.click(screen.getByTestId('feedback-btn-correct'));
+      await user.click(screen.getByTestId('feedback-btn-accurate'));
       await user.click(screen.getByTestId('feedback-submit'));
 
       await waitFor(() => {
@@ -588,7 +588,7 @@ describe('EventFeedbackSection', () => {
       });
 
       await user.click(screen.getByTestId('feedback-toggle'));
-      await user.click(screen.getByTestId('feedback-btn-correct'));
+      await user.click(screen.getByTestId('feedback-btn-accurate'));
       await user.click(screen.getByTestId('feedback-submit'));
 
       await waitFor(() => {
@@ -617,7 +617,7 @@ describe('EventFeedbackSection', () => {
       });
 
       await user.click(screen.getByTestId('feedback-toggle'));
-      await user.click(screen.getByTestId('feedback-btn-correct'));
+      await user.click(screen.getByTestId('feedback-btn-accurate'));
       await user.click(screen.getByTestId('feedback-submit'));
 
       // Check optimistic update in cache
@@ -706,7 +706,7 @@ describe('EventFeedbackSection', () => {
 
       await user.click(screen.getByTestId('feedback-toggle'));
 
-      const correctBtn = screen.getByTestId('feedback-btn-correct');
+      const correctBtn = screen.getByTestId('feedback-btn-accurate');
       expect(correctBtn).toHaveAttribute('aria-pressed', 'false');
     });
 
