@@ -308,10 +308,11 @@ test.describe('Event Feedback - Verification and Stats', () => {
     await page.goto('/settings');
     await page.waitForLoadState('networkidle');
 
-    // Look for feedback statistics display
-    const feedbackStats = page.locator(
-      '[data-testid="feedback-stats"], text="Feedback Statistics", text="False Positives"'
-    );
+    // Look for feedback statistics display using valid selectors
+    const feedbackStats = page
+      .locator('[data-testid="feedback-stats"]')
+      .or(page.getByText('Feedback Statistics'))
+      .or(page.getByText('False Positives'));
 
     const statsExists = (await feedbackStats.count()) > 0;
     if (!statsExists) {
