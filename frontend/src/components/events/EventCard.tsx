@@ -155,32 +155,27 @@ const EventCard = memo(function EventCard({
     }
   };
 
-  // Determine if card should have button role (for WCAG compliance)
-  // Don't add role="button" when there are nested interactive elements (snooze, view details)
-  // to avoid accessibility violations (WCAG nested-interactive).
-  // The card can still be clicked to trigger onClick, but won't be announced as a button.
+  // Determine if card should be clickable as a whole
+  // Don't make card clickable when there are nested interactive elements (snooze, view details)
+  // to avoid accessibility violations (WCAG nested-interactive)
+  // Users should use the nested buttons instead
   const hasNestedInteractiveElements = !!onSnooze || !!onViewDetails;
-  const hasButtonRole = !!onClick && !hasNestedInteractiveElements;
-  const isClickable = !!onClick;
-
-  // Keyboard handler for Enter/Space to click the card
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      onClick?.(id);
-    }
-  };
+  const isClickable = !!onClick && !hasNestedInteractiveElements;
 
   return (
-    /* eslint-disable jsx-a11y/no-static-element-interactions, jsx-a11y/no-noninteractive-tabindex -- Card is accessible via nested buttons (View Details, Snooze) when they exist; role="button" intentionally omitted to avoid WCAG nested-interactive violation */
     <div
       className={`rounded-lg border border-gray-800 ${getBorderColorClass()} border-l-4 bg-[#1F1F1F] shadow-lg transition-all hover:border-gray-700 ${isClickable ? 'cursor-pointer hover:bg-[#252525]' : ''} ${className}`}
       data-testid={`event-card-${id}`}
-      onClick={isClickable ? handleCardClick : undefined}
-      onKeyDown={isClickable ? handleKeyDown : undefined}
-      tabIndex={isClickable ? 0 : undefined}
-      {...(hasButtonRole && {
+      {...(isClickable && {
+        onClick: handleCardClick,
+        onKeyDown: (e: React.KeyboardEvent) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onClick?.(id);
+          }
+        },
         role: 'button',
+        tabIndex: 0,
         'aria-label': `View details for event from ${camera_name}`,
       })}
     >
