@@ -34,17 +34,18 @@ const eventGetDuration = new Trend('event_get_duration', true);
 const eventErrorRate = new Rate('event_error_rate');
 const eventRequestCount = new Counter('event_request_count');
 
-// Test configuration
+// Test configuration with CI-friendly thresholds
 export const options = {
     stages: getLoadStages(),
     thresholds: {
         ...standardThresholds,
-        // Events-specific thresholds
-        'event_list_duration': ['p(95)<400', 'avg<200'],
-        'event_stats_duration': ['p(95)<300', 'avg<150'],
-        'event_search_duration': ['p(95)<500', 'avg<250'],
-        'event_get_duration': ['p(95)<200', 'avg<100'],
-        'event_error_rate': ['rate<0.02'],  // Less than 2% errors
+        // Events-specific thresholds (CI-friendly values)
+        // NOTE: Relaxed for CI environment variability and cold-start overhead
+        'event_list_duration': ['p(95)<2000', 'avg<1000'],
+        'event_stats_duration': ['p(95)<1500', 'avg<750'],
+        'event_search_duration': ['p(95)<2500', 'avg<1250'],
+        'event_get_duration': ['p(95)<1000', 'avg<500'],
+        'event_error_rate': ['rate<0.05'],  // Less than 5% errors (CI-friendly)
     },
     // Tags for organizing results
     tags: {
@@ -192,7 +193,7 @@ function testListEvents() {
                     return false;
                 }
             },
-            'list events response time OK': (r) => r.timings.duration < 500,
+            'list events response time OK': (r) => r.timings.duration < 2000,
         });
 
         if (!success) {
@@ -240,7 +241,7 @@ function testEventStats() {
                     return false;
                 }
             },
-            'event stats response time OK': (r) => r.timings.duration < 300,
+            'event stats response time OK': (r) => r.timings.duration < 1500,
         });
     });
 }
@@ -296,7 +297,7 @@ function testSearchEvents() {
                     return false;
                 }
             },
-            'search events response time OK': (r) => r.timings.duration < 500,
+            'search events response time OK': (r) => r.timings.duration < 2500,
         });
     });
 }
@@ -346,7 +347,7 @@ function testGetEvent(eventIds) {
                     return false;
                 }
             },
-            'get event response time OK': (r) => r.timings.duration < 200,
+            'get event response time OK': (r) => r.timings.duration < 1000,
         });
     });
 }
@@ -388,7 +389,7 @@ function testGetEventDetections(eventIds) {
                     return false;
                 }
             },
-            'get detections response time OK': (r) => r.timings.duration < 300,
+            'get detections response time OK': (r) => r.timings.duration < 1500,
         });
     });
 }

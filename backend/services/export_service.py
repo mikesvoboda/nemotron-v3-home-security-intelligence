@@ -16,6 +16,10 @@ Security:
 Progress Tracking (NEM-1989):
 - Supports background job progress updates via JobTracker
 - Updates progress every 100 events for large exports
+
+WebSocket Events (NEM-2380):
+- Supports WebSocket event emission via JobProgressReporter
+- Emits job.started, job.progress, job.completed, and job.failed events
 """
 
 from __future__ import annotations
@@ -40,6 +44,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.core.logging import get_logger
 
 if TYPE_CHECKING:
+    from backend.services.job_progress_reporter import JobProgressReporter
     from backend.services.job_tracker import JobTracker
 
 logger = get_logger(__name__)
@@ -732,6 +737,240 @@ class ExportService:
             "event_count": 0,
             "format": export_format,
         }
+
+    async def export_events_with_websocket(  # noqa: PLR0912
+        self,
+        progress_reporter: JobProgressReporter,
+        export_format: str,
+        camera_id: str | None = None,
+        risk_level: str | None = None,
+        start_date: str | None = None,
+        end_date: str | None = None,
+        reviewed: bool | None = None,
+    ) -> dict[str, Any]:
+        """Export events with WebSocket event emission for real-time progress.
+
+        This method queries events from the database, exports them to a file,
+        and emits WebSocket events for job progress. Uses JobProgressReporter
+        to emit job.started, job.progress, job.completed, and job.failed events.
+
+        The progress_reporter should NOT be started before calling this method -
+        it will be started internally.
+
+        Args:
+            progress_reporter: JobProgressReporter instance for WebSocket events.
+            export_format: Export format ('csv', 'json', 'zip').
+            camera_id: Optional camera ID filter.
+            risk_level: Optional risk level filter.
+            start_date: Optional start date filter (ISO format).
+            end_date: Optional end date filter (ISO format).
+            reviewed: Optional reviewed status filter.
+
+        Returns:
+            Dict with file_path, file_size, event_count, format, and duration_seconds.
+
+        Raises:
+            ValueError: If database session not available.
+        """
+        from backend.models.camera import Camera
+        from backend.models.event import Event
+
+        if self._db is None:
+            raise ValueError("Database session required for export_events_with_websocket")
+
+        try:
+            # Start the job and emit job.started event
+            await progress_reporter.start(
+                metadata={
+                    "export_format": export_format,
+                    "filters": {
+                        "camera_id": camera_id,
+                        "risk_level": risk_level,
+                        "start_date": start_date,
+                        "end_date": end_date,
+                        "reviewed": reviewed,
+                    },
+                }
+            )
+
+            # Build query
+            query = select(Event).where(Event.deleted_at.is_(None))
+
+            if camera_id is not None:
+                query = query.where(Event.camera_id == camera_id)
+
+            if risk_level is not None:
+                query = query.where(Event.risk_level == risk_level)
+
+            if start_date is not None:
+                from datetime import datetime as dt
+
+                start_dt = dt.fromisoformat(start_date.replace("Z", "+00:00"))
+                query = query.where(Event.started_at >= start_dt)
+
+            if end_date is not None:
+                from datetime import datetime as dt
+
+                end_dt = dt.fromisoformat(end_date.replace("Z", "+00:00"))
+                query = query.where(Event.started_at <= end_dt)
+
+            if reviewed is not None:
+                query = query.where(Event.reviewed == reviewed)
+
+            # Get total count first
+            count_query = select(func.count()).select_from(query.subquery())
+            result = await self._db.execute(count_query)
+            total_count = result.scalar() or 0
+
+            await progress_reporter.report_progress(
+                1, current_step=f"Found {total_count} events to export", force=True
+            )
+
+            if total_count == 0:
+                # Create empty export file
+                export_result = await self._create_empty_export(export_format)
+                await progress_reporter.complete(
+                    result_summary={
+                        **export_result,
+                        "message": "No events to export",
+                    }
+                )
+                return export_result
+
+            # Fetch events
+            query = query.order_by(Event.started_at.desc())
+            events_result = await self._db.execute(query)
+            events: list[Event] = list(events_result.scalars().all())
+
+            # Convert to export rows with progress
+            export_rows: list[EventExportRow] = []
+            for idx, event in enumerate(events):
+                # Get camera name
+                camera_name = "Unknown"
+                if event.camera_id:
+                    camera_result = await self._db.execute(
+                        select(Camera.name).where(Camera.id == event.camera_id)
+                    )
+                    camera_name = camera_result.scalar() or "Unknown"
+
+                export_rows.append(
+                    EventExportRow(
+                        event_id=event.id,
+                        camera_name=camera_name,
+                        started_at=event.started_at,
+                        ended_at=event.ended_at,
+                        risk_score=event.risk_score,
+                        risk_level=event.risk_level,
+                        summary=event.summary,
+                        detection_count=event.detection_count or 0,
+                        reviewed=event.reviewed or False,
+                        object_types=event.object_types,
+                        reasoning=event.reasoning,
+                    )
+                )
+
+                # Report progress (throttled by reporter)
+                # Use 10-80% range for fetching events
+                progress_items = int((idx + 1) / total_count * 70)  # 0-70 range
+                await progress_reporter.report_progress(
+                    progress_items,
+                    current_step=f"Processing event {idx + 1}/{total_count}",
+                )
+
+            # Writing file (80-95% range)
+            await progress_reporter.report_progress(
+                80, current_step=f"Writing {export_format.upper()} file...", force=True
+            )
+
+            # Generate export file
+            timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
+
+            if export_format == "csv":
+                content = events_to_csv(export_rows, EXTENDED_EXPORT_COLUMNS)
+                filename = f"events_export_{timestamp}.csv"
+                filepath = EXPORT_DIR / filename
+                filepath.write_text(content, encoding="utf-8")
+            elif export_format == "json":
+                content_dict = [
+                    {
+                        "event_id": row.event_id,
+                        "camera_name": row.camera_name,
+                        "started_at": row.started_at.isoformat() if row.started_at else None,
+                        "ended_at": row.ended_at.isoformat() if row.ended_at else None,
+                        "risk_score": row.risk_score,
+                        "risk_level": row.risk_level,
+                        "summary": row.summary,
+                        "detection_count": row.detection_count,
+                        "reviewed": row.reviewed,
+                        "object_types": row.object_types,
+                        "reasoning": row.reasoning,
+                    }
+                    for row in export_rows
+                ]
+                filename = f"events_export_{timestamp}.json"
+                filepath = EXPORT_DIR / filename
+                filepath.write_text(json.dumps(content_dict, indent=2), encoding="utf-8")
+            elif export_format == "zip":
+                content_dict = [
+                    {
+                        "event_id": row.event_id,
+                        "camera_name": row.camera_name,
+                        "started_at": row.started_at.isoformat() if row.started_at else None,
+                        "ended_at": row.ended_at.isoformat() if row.ended_at else None,
+                        "risk_score": row.risk_score,
+                        "risk_level": row.risk_level,
+                        "summary": row.summary,
+                        "detection_count": row.detection_count,
+                        "reviewed": row.reviewed,
+                        "object_types": row.object_types,
+                        "reasoning": row.reasoning,
+                    }
+                    for row in export_rows
+                ]
+                filename = f"events_export_{timestamp}.zip"
+                filepath = EXPORT_DIR / filename
+                json_filename = f"events_export_{timestamp}.json"
+
+                with zipfile.ZipFile(filepath, "w", zipfile.ZIP_DEFLATED) as zf:
+                    zf.writestr(json_filename, json.dumps(content_dict, indent=2))
+            else:
+                raise ValueError(f"Unsupported export format: {export_format}")
+
+            await progress_reporter.report_progress(
+                95, current_step="Finalizing export...", force=True
+            )
+
+            file_size = filepath.stat().st_size
+            duration = progress_reporter.duration_seconds
+
+            export_result = {
+                "file_path": f"/api/exports/{filename}",
+                "file_size": file_size,
+                "event_count": len(export_rows),
+                "format": export_format,
+                "duration_seconds": duration,
+            }
+
+            logger.info(
+                "Export completed with WebSocket events",
+                extra={
+                    "job_id": progress_reporter.job_id,
+                    "format": export_format,
+                    "event_count": len(export_rows),
+                    "file_size": file_size,
+                    "duration_seconds": duration,
+                },
+            )
+
+            # Complete the job and emit job.completed event
+            await progress_reporter.complete(result_summary=export_result)
+
+            return export_result
+
+        except Exception as e:
+            # Fail the job and emit job.failed event
+            await progress_reporter.fail(e, retryable=False)
+            raise
 
 
 # Global service instance

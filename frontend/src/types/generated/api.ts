@@ -1162,26 +1162,7 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /**
-         * Patch Calibration
-         * @description Partially update calibration thresholds.
-         *
-         *     Allows partial updates - only provided fields will be changed.
-         *     Validates that threshold ordering is maintained (low < medium < high).
-         *
-         *     This endpoint is semantically identical to PUT but emphasizes partial updates.
-         *
-         *     Args:
-         *         update_data: Fields to update (partial updates supported)
-         *         db: Database session
-         *
-         *     Returns:
-         *         Updated CalibrationResponse
-         *
-         *     Raises:
-         *         HTTPException: 422 if threshold ordering would be violated
-         */
-        patch: operations["patch_calibration_api_calibration_patch"];
+        patch?: never;
         trace?: never;
     };
     "/api/calibration/defaults": {
@@ -19492,44 +19473,6 @@ export interface operations {
         };
     };
     update_calibration_api_calibration_put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UserCalibrationUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UserCalibrationResponse"];
-                };
-            };
-            /** @description Validation error (invalid threshold ordering) */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Internal server error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    patch_calibration_api_calibration_patch: {
         parameters: {
             query?: never;
             header?: never;

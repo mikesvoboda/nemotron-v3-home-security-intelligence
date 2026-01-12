@@ -133,7 +133,7 @@ describe('FeedbackPanel', () => {
       vi.mocked(api.submitEventFeedback).mockResolvedValue({
         id: 1,
         event_id: 123,
-        feedback_type: 'correct',
+        feedback_type: 'accurate',
         notes: null,
         created_at: '2024-01-15T10:30:00Z',
       });
@@ -151,7 +151,7 @@ describe('FeedbackPanel', () => {
         const callArgs = vi.mocked(api.submitEventFeedback).mock.calls[0][0];
         expect(callArgs).toEqual({
           event_id: 123,
-          feedback_type: 'correct',
+          feedback_type: 'accurate',
         });
       });
     });
@@ -162,7 +162,7 @@ describe('FeedbackPanel', () => {
       const submittedFeedback = {
         id: 1,
         event_id: 123,
-        feedback_type: 'correct' as const,
+        feedback_type: 'accurate' as const,
         notes: null,
         created_at: '2024-01-15T10:30:00Z',
       };
@@ -344,7 +344,7 @@ describe('FeedbackPanel', () => {
       vi.mocked(api.submitEventFeedback).mockResolvedValue({
         id: 1,
         event_id: 123,
-        feedback_type: 'wrong_severity',
+        feedback_type: 'severity_wrong',
         notes: 'Current score: 75. Should be lower',
         created_at: '2024-01-15T10:30:00Z',
       });
@@ -369,7 +369,7 @@ describe('FeedbackPanel', () => {
         const callArgs = vi.mocked(api.submitEventFeedback).mock.calls[0][0];
         expect(callArgs).toEqual({
           event_id: 123,
-          feedback_type: 'wrong_severity',
+          feedback_type: 'severity_wrong',
           notes: 'Current score: 75. Should be lower',
         });
       });
@@ -446,7 +446,7 @@ describe('FeedbackPanel', () => {
       resolveSubmit({
         id: 1,
         event_id: 123,
-        feedback_type: 'correct',
+        feedback_type: 'accurate',
         notes: null,
         created_at: '2024-01-15T10:30:00Z',
       });

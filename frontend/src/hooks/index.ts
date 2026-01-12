@@ -213,6 +213,14 @@ export type {
   UseAlertWebSocketReturn,
 } from './useAlertWebSocket';
 
+export { useWebSocketEvent, useWebSocketEvents } from './useWebSocketEvent';
+export type {
+  UseWebSocketEventOptions,
+  UseWebSocketEventReturn,
+  UseWebSocketEventsOptions,
+  WebSocketEventHandlers,
+} from './useWebSocketEvent';
+
 export { useEntitiesInfiniteQuery, entitiesInfiniteQueryKeys } from './useEntitiesInfiniteQuery';
 export type {
   EntityTimeRangeFilter,
@@ -254,6 +262,9 @@ export type {
 
 export { useRateLimitCountdown, formatCountdown } from './useRateLimitCountdown';
 export type { UseRateLimitCountdownReturn } from './useRateLimitCountdown';
+
+export { useRateLimit } from './useRateLimit';
+export type { UseRateLimitReturn } from './useRateLimit';
 
 // Ambient status awareness hooks
 export { useAudioNotifications } from './useAudioNotifications';

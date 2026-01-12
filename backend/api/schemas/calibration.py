@@ -192,7 +192,7 @@ class CalibrationAdjustRequest(BaseModel):
 
     feedback_type: FeedbackType = Field(
         ...,
-        description="Type of feedback (accurate, false_positive, missed_threat, severity_wrong)",
+        description="Type of feedback (false_positive, missed_detection, wrong_severity, correct)",
     )
     event_risk_score: int = Field(
         ...,

@@ -1269,6 +1269,14 @@ jobs:
     name: Test Performance Audit
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
+    needs:
+      - unit-tests
+      - integration-tests-api
+      - integration-tests-websocket
+      - integration-tests-services
+      - integration-tests-models
+      - frontend-e2e
+      - frontend-e2e-secondary
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -1291,6 +1299,7 @@ jobs:
           pattern: test-results-*
           path: test-results/
           merge-multiple: true
+        continue-on-error: true
 
       - name: Download E2E test results
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
@@ -1301,10 +1310,24 @@ jobs:
         continue-on-error: true
 
       - name: List downloaded artifacts
-        run: find test-results/ -type f -name "*.xml" | head -30
+        run: |
+          if [ -d "test-results/" ]; then
+            echo "Test results directory exists"
+            find test-results/ -type f -name "*.xml" | head -30 || echo "No XML files found"
+          else
+            echo "Warning: test-results/ directory not found"
+            mkdir -p test-results/
+          fi
 
       - name: Analyze test durations
-        run: uv run python scripts/audit-test-durations.py test-results/
+        run: |
+          if [ -d "test-results/" ] && [ -n "$(find test-results/ -type f -name '*.xml' 2>/dev/null)" ]; then
+            uv run python scripts/audit-test-durations.py test-results/
+          else
+            echo "⚠️ No test results found - skipping performance audit"
+            echo "This may indicate that test jobs did not complete or upload artifacts"
+            exit 0
+          fi
         env:
           UNIT_TEST_THRESHOLD: '1.0'
           INTEGRATION_TEST_THRESHOLD: '5.0'

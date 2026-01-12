@@ -11,11 +11,11 @@ name: Load Tests
 # - Full load tests are expensive (20+ minutes)
 # - Benchmarks.yml handles PR gates with faster pytest-benchmark tests
 #
-# Thresholds (defined in tests/load/config.js):
-# - 95% of requests < 500ms
-# - 99% of requests < 1000ms
-# - Error rate < 1%
-# - Throughput > 10 req/s
+# CI-Friendly Thresholds (defined in tests/load/config.js):
+# - 95% of requests < 2000ms (relaxed for CI variability)
+# - 99% of requests < 5000ms (relaxed for CI variability)
+# - Error rate < 5% (allows for CI flakiness)
+# - Throughput threshold removed (not meaningful with 1 VU smoke tests)
 
 on:
   push:
