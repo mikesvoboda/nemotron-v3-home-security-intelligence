@@ -155,8 +155,12 @@ const EventCard = memo(function EventCard({
     }
   };
 
-  // Determine if card should be clickable
-  const isClickable = !!onClick;
+  // Determine if card should be clickable as a whole
+  // Don't make card clickable when there are nested interactive elements (snooze, view details)
+  // to avoid accessibility violations (WCAG nested-interactive)
+  // Users should use the nested buttons instead
+  const hasNestedInteractiveElements = !!onSnooze || !!onViewDetails;
+  const isClickable = !!onClick && !hasNestedInteractiveElements;
 
   return (
     <div
