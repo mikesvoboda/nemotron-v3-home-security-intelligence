@@ -11,7 +11,7 @@ Root directory for all React components in the NVIDIA Security Intelligence home
 | **ai/**             | AI Performance and Audit page components         | AIPerformancePage, AIAuditPage, ModelStatusCards, LatencyPanel, PipelineHealthPanel, InsightsCharts, ModelZooSection, BatchAuditModal, PromptPlayground, PromptABTest, ABTestStats, QualityScoreTrends, RecommendationsPanel, ModelLeaderboard, SuggestionDiffView, SuggestionExplanation |
 | **ai-audit/**       | AI audit components (placeholder)                | index.ts barrel only (components live in ai/)                                                                                                                                                                                       |
 | **ai-performance/** | AI performance summary row component             | AIPerformanceSummaryRow                                                                                                                                                                                                             |
-| **alerts/**         | Alert management page                            | AlertsPage                                                                                                                                                                                                                          |
+| **alerts/**         | Alert management and rule configuration          | AlertsPage, AlertCard, AlertActions, AlertFilters, AlertForm, AlertRuleForm                                                                                                                                                         |
 | **analytics/**      | Analytics and baseline monitoring                | AnalyticsPage, ActivityHeatmap, ClassFrequencyChart, AnomalyConfigPanel, PipelineLatencyPanel, SceneChangePanel                                                                                                                     |
 | **audit/**          | Audit log viewing and filtering                  | AuditLogPage, AuditTable, AuditFilters, AuditDetailModal, AuditStatsCards, EventAuditDetail                                                                                                                                         |
 | **common/**         | Shared UI components used across the application | ErrorBoundary, ChunkLoadErrorBoundary, RiskBadge, ConfidenceBadge, ObjectTypeBadge, WebSocketStatus, Lightbox, SecureContextWarning, ScheduleSelector, TruncatedText, EmptyState, LoadingSpinner, RouteLoadingFallback             |
@@ -128,8 +128,19 @@ Test files are co-located with their components using the \`.test.tsx\` extensio
 
 ### alerts/
 
-- `AlertsPage.tsx` - Alert management page with filtering
+- `AlertsPage.tsx` - Main alerts page with infinite scroll and filtering
 - `AlertsPage.test.tsx` - Test suite for AlertsPage
+- `AlertCard.tsx` - Individual alert card with acknowledge/dismiss/snooze actions
+- `AlertCard.test.tsx` - Test suite for AlertCard
+- `AlertActions.tsx` - Bulk operation controls (select all, acknowledge, dismiss)
+- `AlertActions.test.tsx` - Test suite for AlertActions
+- `AlertFilters.tsx` - Severity-based filter buttons with counts
+- `AlertFilters.test.tsx` - Test suite for AlertFilters
+- `AlertForm.tsx` - Alert rule form with basic validation
+- `AlertForm.test.tsx` - Test suite for AlertForm
+- `AlertRuleForm.tsx` - Alert rule form with Zod/react-hook-form validation
+- `AlertRuleForm.test.tsx` - Test suite for AlertRuleForm
+- `index.ts` - Barrel exports for all components and types
 - `AGENTS.md` - Directory documentation
 
 ### analytics/
@@ -337,7 +348,7 @@ Each subdirectory contains its own `AGENTS.md` with detailed component documenta
 - `ai/AGENTS.md` - AI Performance and Audit page components (updated with A/B testing components)
 - `ai-audit/AGENTS.md` - AI audit placeholder (components live in ai/)
 - `ai-performance/AGENTS.md` - AI performance summary row component
-- `alerts/AGENTS.md` - Alert management and filtering
+- `alerts/AGENTS.md` - Alert management, modular architecture, and rule configuration
 - `analytics/AGENTS.md` - Analytics, baseline monitoring, and anomaly detection (NEW)
 - `audit/AGENTS.md` - Audit log viewing and filtering
 - `common/AGENTS.md` - Shared component patterns and APIs (updated with loading/error boundaries)

@@ -1,6 +1,6 @@
 import { Tab } from '@headlessui/react';
 import { clsx } from 'clsx';
-import { Bell, Camera, Eye, FileText, Settings as SettingsIcon, Shield, Sliders } from 'lucide-react';
+import { Bell, Camera, Eye, FileText, HardDrive, Settings as SettingsIcon, Shield, Sliders } from 'lucide-react';
 import { Fragment } from 'react';
 
 import { SecureContextWarning } from '../common';
@@ -11,18 +11,20 @@ import CamerasSettings from './CamerasSettings';
 import NotificationSettings from './NotificationSettings';
 import ProcessingSettings from './ProcessingSettings';
 import PromptManagementPanel from './PromptManagementPanel';
+import FileOperationsPanel from '../system/FileOperationsPanel';
 
 /**
  * SettingsPage component with tabbed interface
  *
- * Contains seven settings tabs:
+ * Contains eight settings tabs:
  * - CAMERAS: Camera configuration and management
  * - RULES: Alert rules configuration
  * - PROCESSING: Event processing settings
  * - NOTIFICATIONS: Email and webhook notification settings
  * - AMBIENT: Ambient status awareness settings
- * - CALIBRATION: AI risk sensitivity calibration settings
+ * - CALIBRATION: AI risk sensitivity and feedback calibration
  * - PROMPTS: AI prompt template management and version history
+ * - STORAGE: Disk storage usage and file cleanup operations
  *
  * Note: Analytics functionality is available on the dedicated Analytics page (/analytics)
  * Note: AI model information is available on the dedicated AI Performance page (/ai)
@@ -32,6 +34,9 @@ import PromptManagementPanel from './PromptManagementPanel';
  * - NVIDIA dark theme styling
  * - Icons for each settings category
  * - Responsive layout
+ *
+ * @see NEM-2356 - Add CalibrationPanel to Settings page
+ * @see NEM-2388 - Add FileOperationsPanel to Settings page
  */
 export default function SettingsPage() {
   const tabs = [
@@ -76,6 +81,12 @@ export default function SettingsPage() {
       name: 'PROMPTS',
       icon: FileText,
       component: PromptManagementPanel,
+    },
+    {
+      id: 'storage',
+      name: 'STORAGE',
+      icon: HardDrive,
+      component: FileOperationsPanel,
     },
   ];
 

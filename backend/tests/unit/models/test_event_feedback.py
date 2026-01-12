@@ -1,14 +1,15 @@
-"""Unit tests for EventFeedback model.
+"""Unit tests for EventFeedback model and FeedbackType enum.
 
 Tests cover:
-- Model initialization and default values
+- FeedbackType enum values and string conversion
+- EventFeedback model initialization and default values
 - Field validation and constraints
 - String representation (__repr__)
-- FeedbackType enum
+- expected_severity field for severity_wrong feedback
 - Table indexes and constraints
 - Property-based tests for field values
 
-Related Linear issue: NEM-2352
+Related Linear issues: NEM-2348, NEM-2352
 """
 
 from datetime import UTC, datetime
@@ -29,7 +30,13 @@ pytestmark = pytest.mark.unit
 # =============================================================================
 
 # Strategy for valid feedback types
-feedback_types = st.sampled_from([ft.value for ft in FeedbackType])
+feedback_types = st.sampled_from(list(FeedbackType))
+
+# Strategy for valid severity values
+severity_values = st.sampled_from(["low", "medium", "high", "critical"])
+
+# Strategy for optional severity values (including None)
+optional_severity_values = st.one_of(st.none(), severity_values)
 
 # Strategy for valid event IDs
 event_ids = st.integers(min_value=1, max_value=2**31 - 1)
@@ -54,6 +61,40 @@ def sample_feedback():
         event_id=100,
         feedback_type=FeedbackType.FALSE_POSITIVE,
         notes="This was my neighbor's car.",
+    )
+
+
+@pytest.fixture
+def correct_feedback():
+    """Create a correct feedback for testing."""
+    return EventFeedback(
+        id=2,
+        event_id=101,
+        feedback_type=FeedbackType.CORRECT,
+        notes="Alert was accurate",
+    )
+
+
+@pytest.fixture
+def severity_wrong_feedback():
+    """Create a severity_wrong feedback for testing."""
+    return EventFeedback(
+        id=3,
+        event_id=102,
+        feedback_type=FeedbackType.SEVERITY_WRONG,
+        notes="Should have been higher severity",
+        expected_severity="high",
+    )
+
+
+@pytest.fixture
+def missed_threat_feedback():
+    """Create a missed_threat feedback for testing."""
+    return EventFeedback(
+        id=4,
+        event_id=103,
+        feedback_type=FeedbackType.MISSED_THREAT,
+        notes="Actual threat was not detected",
     )
 
 
@@ -85,14 +126,19 @@ def feedback_with_timestamp():
 class TestFeedbackTypeEnum:
     """Tests for FeedbackType enum."""
 
-    def test_feedback_type_has_four_values(self):
-        """Test FeedbackType enum has exactly 4 values."""
-        assert len(FeedbackType) == 4
+    def test_feedback_type_has_five_values(self):
+        """Test FeedbackType enum has exactly 5 values (including both ACCURATE and CORRECT)."""
+        assert len(FeedbackType) == 5
 
     def test_feedback_type_accurate(self):
         """Test ACCURATE feedback type."""
         assert FeedbackType.ACCURATE.value == "accurate"
         assert str(FeedbackType.ACCURATE) == "accurate"
+
+    def test_feedback_type_correct(self):
+        """Test CORRECT feedback type."""
+        assert FeedbackType.CORRECT.value == "correct"
+        assert str(FeedbackType.CORRECT) == "correct"
 
     def test_feedback_type_false_positive(self):
         """Test FALSE_POSITIVE feedback type."""
@@ -112,6 +158,7 @@ class TestFeedbackTypeEnum:
     def test_feedback_type_is_str_enum(self):
         """Test FeedbackType inherits from str."""
         assert isinstance(FeedbackType.ACCURATE, str)
+        assert isinstance(FeedbackType.CORRECT, str)
         assert isinstance(FeedbackType.FALSE_POSITIVE, str)
         assert isinstance(FeedbackType.MISSED_THREAT, str)
         assert isinstance(FeedbackType.SEVERITY_WRONG, str)
@@ -119,6 +166,7 @@ class TestFeedbackTypeEnum:
     def test_feedback_type_from_string(self):
         """Test creating FeedbackType from string."""
         assert FeedbackType("accurate") == FeedbackType.ACCURATE
+        assert FeedbackType("correct") == FeedbackType.CORRECT
         assert FeedbackType("false_positive") == FeedbackType.FALSE_POSITIVE
         assert FeedbackType("missed_threat") == FeedbackType.MISSED_THREAT
         assert FeedbackType("severity_wrong") == FeedbackType.SEVERITY_WRONG
@@ -127,6 +175,11 @@ class TestFeedbackTypeEnum:
         """Test invalid feedback type raises ValueError."""
         with pytest.raises(ValueError):
             FeedbackType("invalid_type")
+
+    def test_feedback_type_all_values_distinct(self):
+        """Test all FeedbackType values are distinct."""
+        values = [ft.value for ft in FeedbackType]
+        assert len(values) == len(set(values))
 
 
 # =============================================================================
@@ -159,6 +212,23 @@ class TestEventFeedbackModelInitialization:
         """Test that notes defaults to None."""
         assert minimal_feedback.notes is None
 
+    def test_feedback_optional_fields_default_to_none(self, minimal_feedback):
+        """Test optional fields default to None."""
+        assert minimal_feedback.notes is None
+        assert minimal_feedback.expected_severity is None
+
+    def test_feedback_created_at_default_column_definition(self):
+        """Test created_at default column definition.
+
+        Note: SQLAlchemy defaults apply at database level, not in-memory.
+        This test verifies the column default is correctly defined.
+        """
+        mapper = inspect(EventFeedback)
+        created_at_col = mapper.columns["created_at"]
+        assert created_at_col.default is not None
+        # Default is a callable lambda
+        assert callable(created_at_col.default.arg)
+
     def test_feedback_with_empty_notes(self):
         """Test feedback with empty string notes."""
         feedback = EventFeedback(
@@ -187,6 +257,126 @@ class TestEventFeedbackModelInitialization:
                 feedback_type=feedback_type,
             )
             assert feedback.feedback_type == feedback_type
+
+
+# =============================================================================
+# EventFeedback Feedback Type Field Tests
+# =============================================================================
+
+
+class TestEventFeedbackFeedbackTypeField:
+    """Tests for EventFeedback feedback_type field."""
+
+    def test_feedback_type_correct(self, correct_feedback):
+        """Test feedback with CORRECT type."""
+        assert correct_feedback.feedback_type == FeedbackType.CORRECT
+
+    def test_feedback_type_false_positive(self, sample_feedback):
+        """Test feedback with FALSE_POSITIVE type."""
+        assert sample_feedback.feedback_type == FeedbackType.FALSE_POSITIVE
+
+    def test_feedback_type_missed_threat(self, missed_threat_feedback):
+        """Test feedback with MISSED_THREAT type."""
+        assert missed_threat_feedback.feedback_type == FeedbackType.MISSED_THREAT
+
+    def test_feedback_type_severity_wrong(self, severity_wrong_feedback):
+        """Test feedback with SEVERITY_WRONG type."""
+        assert severity_wrong_feedback.feedback_type == FeedbackType.SEVERITY_WRONG
+
+    def test_all_feedback_types_can_be_assigned(self):
+        """Test all feedback types can be assigned to feedback."""
+        for ft in FeedbackType:
+            feedback = EventFeedback(event_id=1, feedback_type=ft)
+            assert feedback.feedback_type == ft
+
+
+# =============================================================================
+# EventFeedback Expected Severity Field Tests
+# =============================================================================
+
+
+class TestEventFeedbackExpectedSeverityField:
+    """Tests for EventFeedback expected_severity field."""
+
+    def test_expected_severity_none_by_default(self, minimal_feedback):
+        """Test expected_severity is None by default."""
+        assert minimal_feedback.expected_severity is None
+
+    def test_expected_severity_for_severity_wrong(self, severity_wrong_feedback):
+        """Test expected_severity is set for severity_wrong feedback."""
+        assert severity_wrong_feedback.expected_severity == "high"
+
+    def test_expected_severity_low(self):
+        """Test expected_severity with low value."""
+        feedback = EventFeedback(
+            event_id=1,
+            feedback_type=FeedbackType.SEVERITY_WRONG,
+            expected_severity="low",
+        )
+        assert feedback.expected_severity == "low"
+
+    def test_expected_severity_medium(self):
+        """Test expected_severity with medium value."""
+        feedback = EventFeedback(
+            event_id=1,
+            feedback_type=FeedbackType.SEVERITY_WRONG,
+            expected_severity="medium",
+        )
+        assert feedback.expected_severity == "medium"
+
+    def test_expected_severity_high(self):
+        """Test expected_severity with high value."""
+        feedback = EventFeedback(
+            event_id=1,
+            feedback_type=FeedbackType.SEVERITY_WRONG,
+            expected_severity="high",
+        )
+        assert feedback.expected_severity == "high"
+
+    def test_expected_severity_critical(self):
+        """Test expected_severity with critical value."""
+        feedback = EventFeedback(
+            event_id=1,
+            feedback_type=FeedbackType.SEVERITY_WRONG,
+            expected_severity="critical",
+        )
+        assert feedback.expected_severity == "critical"
+
+
+# =============================================================================
+# EventFeedback Notes Field Tests
+# =============================================================================
+
+
+class TestEventFeedbackNotesField:
+    """Tests for EventFeedback notes field."""
+
+    def test_notes_none_by_default(self, minimal_feedback):
+        """Test notes is None by default."""
+        assert minimal_feedback.notes is None
+
+    def test_notes_can_be_set(self, sample_feedback):
+        """Test notes can be set."""
+        assert sample_feedback.notes == "This was my neighbor's car."
+
+    def test_notes_empty_string(self):
+        """Test notes can be empty string."""
+        feedback = EventFeedback(
+            event_id=1,
+            feedback_type=FeedbackType.CORRECT,
+            notes="",
+        )
+        assert feedback.notes == ""
+
+    def test_notes_long_text(self):
+        """Test notes can contain long text."""
+        long_notes = "A" * 1000
+        feedback = EventFeedback(
+            event_id=1,
+            feedback_type=FeedbackType.FALSE_POSITIVE,
+            notes=long_notes,
+        )
+        assert feedback.notes == long_notes
 
 
 # =============================================================================
@@ -264,6 +454,54 @@ class TestEventFeedbackColumnDefinitions:
         created_at_col = mapper.columns["created_at"]
         assert created_at_col.default is not None
 
+    def test_expected_severity_is_optional(self):
+        """Test expected_severity column is nullable."""
+        mapper = inspect(EventFeedback)
+        expected_severity_col = mapper.columns["expected_severity"]
+        assert expected_severity_col.nullable is True
+
+
+# =============================================================================
+# EventFeedback Repr Tests
+# =============================================================================
+
+
+class TestEventFeedbackRepr:
+    """Tests for EventFeedback string representation."""
+
+    def test_repr_contains_class_name(self, sample_feedback):
+        """Test repr contains class name."""
+        repr_str = repr(sample_feedback)
+        assert "EventFeedback" in repr_str
+
+    def test_repr_contains_id(self, sample_feedback):
+        """Test repr contains id."""
+        repr_str = repr(sample_feedback)
+        assert "id=1" in repr_str
+
+    def test_repr_contains_event_id(self, sample_feedback):
+        """Test repr contains event_id."""
+        repr_str = repr(sample_feedback)
+        assert "event_id=100" in repr_str
+
+    def test_repr_contains_feedback_type(self, sample_feedback):
+        """Test repr contains feedback_type."""
+        repr_str = repr(sample_feedback)
+        assert "false_positive" in repr_str
+
+    def test_repr_format(self, sample_feedback):
+        """Test repr has expected format."""
+        repr_str = repr(sample_feedback)
+        assert repr_str.startswith("<EventFeedback(")
+        assert repr_str.endswith(")>")
+
+    def test_repr_all_feedback_types(self):
+        """Test repr for all feedback types."""
+        for ft in FeedbackType:
+            feedback = EventFeedback(id=1, event_id=1, feedback_type=ft)
+            repr_str = repr(feedback)
+            assert ft.value in repr_str
+
 
 # =============================================================================
 # EventFeedback Table Args Tests
@@ -316,6 +554,14 @@ class TestEventFeedbackConstraints:
         constraint_names = [c.name for c in constraints if c.name]
         assert "ck_event_feedback_type" in constraint_names
 
+    def test_has_expected_severity_constraint(self):
+        """Test EventFeedback has expected_severity CHECK constraint defined."""
+        constraints = [
+            arg for arg in EventFeedback.__table_args__ if isinstance(arg, CheckConstraint)
+        ]
+        constraint_names = [c.name for c in constraints if c.name]
+        assert "ck_event_feedback_expected_severity" in constraint_names
+
     def test_feedback_type_constraint_includes_accurate(self):
         """Test CHECK constraint includes 'accurate' value."""
         constraints = [
@@ -326,6 +572,16 @@ class TestEventFeedbackConstraints:
         # Check the sqltext contains all valid values
         constraint_text = str(type_constraint.sqltext)
         assert "accurate" in constraint_text
+
+    def test_feedback_type_constraint_includes_correct(self):
+        """Test CHECK constraint includes 'correct' value."""
+        constraints = [
+            arg for arg in EventFeedback.__table_args__ if isinstance(arg, CheckConstraint)
+        ]
+        type_constraint = next((c for c in constraints if c.name == "ck_event_feedback_type"), None)
+        assert type_constraint is not None
+        constraint_text = str(type_constraint.sqltext)
+        assert "correct" in constraint_text
 
     def test_feedback_type_constraint_includes_false_positive(self):
         """Test CHECK constraint includes 'false_positive' value."""
@@ -359,42 +615,7 @@ class TestEventFeedbackConstraints:
 
 
 # =============================================================================
-# EventFeedback Repr Tests
-# =============================================================================
-
-
-class TestEventFeedbackRepr:
-    """Tests for EventFeedback string representation."""
-
-    def test_feedback_repr_contains_class_name(self, sample_feedback):
-        """Test repr contains class name."""
-        repr_str = repr(sample_feedback)
-        assert "EventFeedback" in repr_str
-
-    def test_feedback_repr_contains_id(self, sample_feedback):
-        """Test repr contains feedback id."""
-        repr_str = repr(sample_feedback)
-        assert "id=1" in repr_str
-
-    def test_feedback_repr_contains_event_id(self, sample_feedback):
-        """Test repr contains event_id."""
-        repr_str = repr(sample_feedback)
-        assert "event_id=100" in repr_str
-
-    def test_feedback_repr_contains_feedback_type(self, sample_feedback):
-        """Test repr contains feedback_type value."""
-        repr_str = repr(sample_feedback)
-        assert "false_positive" in repr_str
-
-    def test_feedback_repr_format(self, sample_feedback):
-        """Test repr has expected format."""
-        repr_str = repr(sample_feedback)
-        assert repr_str.startswith("<EventFeedback(")
-        assert repr_str.endswith(")>")
-
-
-# =============================================================================
-# EventFeedback Relationship Tests
+# EventFeedback Relationships Tests
 # =============================================================================
 
 
@@ -416,13 +637,10 @@ class TestEventFeedbackProperties:
 
     @given(feedback_type=feedback_types)
     @settings(max_examples=20)
-    def test_feedback_type_roundtrip(self, feedback_type: str):
+    def test_feedback_type_roundtrip(self, feedback_type: FeedbackType):
         """Property: Feedback type values roundtrip correctly."""
-        feedback = EventFeedback(
-            event_id=1,
-            feedback_type=FeedbackType(feedback_type),
-        )
-        assert feedback.feedback_type.value == feedback_type
+        feedback = EventFeedback(event_id=1, feedback_type=feedback_type)
+        assert feedback.feedback_type == feedback_type
 
     @given(event_id=event_ids)
     @settings(max_examples=50)
@@ -445,22 +663,42 @@ class TestEventFeedbackProperties:
         )
         assert feedback.notes == notes
 
+    @given(severity=optional_severity_values)
+    @settings(max_examples=20)
+    def test_expected_severity_roundtrip(self, severity: str | None):
+        """Property: Expected severity values roundtrip correctly."""
+        feedback = EventFeedback(
+            event_id=1,
+            feedback_type=FeedbackType.SEVERITY_WRONG,
+            expected_severity=severity,
+        )
+        assert feedback.expected_severity == severity
+
     @given(
         feedback_type=feedback_types,
         event_id=event_ids,
         notes=notes_strategy,
+        severity=optional_severity_values,
     )
-    @settings(max_examples=30)
-    def test_all_fields_roundtrip(self, feedback_type: str, event_id: int, notes: str | None):
+    @settings(max_examples=50)
+    def test_all_fields_roundtrip(
+        self,
+        feedback_type: FeedbackType,
+        event_id: int,
+        notes: str | None,
+        severity: str | None,
+    ):
         """Property: All field values roundtrip correctly together."""
         feedback = EventFeedback(
             event_id=event_id,
-            feedback_type=FeedbackType(feedback_type),
+            feedback_type=feedback_type,
             notes=notes,
+            expected_severity=severity,
         )
         assert feedback.event_id == event_id
-        assert feedback.feedback_type.value == feedback_type
+        assert feedback.feedback_type == feedback_type
         assert feedback.notes == notes
+        assert feedback.expected_severity == severity
 
 
 # =============================================================================

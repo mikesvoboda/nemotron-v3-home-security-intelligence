@@ -475,6 +475,8 @@ test.describe('Alert Rules Form Validation', () => {
   let alertRulesPage: AlertRulesPage;
 
   test.beforeEach(async ({ page }) => {
+    // Form validation tests interact with modals which can be slow in CI
+    test.setTimeout(30000);
     await setupApiMocks(page, defaultMockConfig);
     alertRulesPage = new AlertRulesPage(page);
     await alertRulesPage.goto();

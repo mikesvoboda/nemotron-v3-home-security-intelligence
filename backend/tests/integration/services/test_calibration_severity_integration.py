@@ -89,7 +89,7 @@ class TestFeedbackCalibrationClassificationFlow:
             db_session, user_id="user_no_feedback"
         )
         assert calibration.false_positive_count == 0
-        assert calibration.missed_detection_count == 0
+        assert calibration.missed_threat_count == 0
 
         # Classify risk - should show is_calibrated=False
         result = await severity_service.classify_risk(
@@ -428,7 +428,7 @@ class TestCalibrationThresholdsResponse:
             db_session, user_id=user_id
         )
         calibration.low_threshold = 25
-        calibration.missed_detection_count = 2
+        calibration.missed_threat_count = 2
         await db_session.flush()
 
         # Get updated thresholds

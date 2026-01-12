@@ -27,8 +27,10 @@ testcontainers are used for full isolation.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
+import random
 import socket
 import tempfile
 import time
@@ -247,12 +249,19 @@ def _check_local_redis() -> bool:
 # =============================================================================
 
 
-def wait_for_postgres_container(container: PostgresContainer, timeout: float = 30.0) -> None:
-    """Wait for PostgreSQL container to be ready using polling.
+def wait_for_postgres_container(
+    container: PostgresContainer,
+    timeout: float = 30.0,
+    initial_delay: float = 0.1,
+    max_delay: float = 2.0,
+) -> None:
+    """Wait for PostgreSQL container to be ready using polling with exponential backoff.
 
     Args:
         container: PostgresContainer instance
         timeout: Maximum time to wait in seconds
+        initial_delay: Initial delay between retries in seconds
+        max_delay: Maximum delay between retries in seconds
 
     Raises:
         TimeoutError: If PostgreSQL is not ready within timeout
@@ -262,8 +271,11 @@ def wait_for_postgres_container(container: PostgresContainer, timeout: float = 3
     start = time.monotonic()
     host = container.get_container_host_ip()
     port = int(container.get_exposed_port(5432))
+    delay = initial_delay
+    attempt = 0
 
     while time.monotonic() - start < timeout:
+        attempt += 1
         try:
             conn = psycopg2.connect(
                 host=host,
@@ -271,22 +283,42 @@ def wait_for_postgres_container(container: PostgresContainer, timeout: float = 3
                 user="postgres",
                 password="postgres",  # noqa: S106  # pragma: allowlist secret
                 dbname="security_test",
-                connect_timeout=1,
+                connect_timeout=2,
             )
             conn.close()
+            if attempt > 1:
+                logger.info(f"PostgreSQL ready after {attempt} attempts")
             return
-        except Exception:
-            time.sleep(0.1)  # Brief poll interval
+        except Exception as e:
+            elapsed = time.monotonic() - start
+            remaining = timeout - elapsed
+            if remaining <= 0:
+                break
+            # Exponential backoff with jitter
+            jitter = random.uniform(0, delay * 0.1)  # noqa: S311
+            sleep_time = min(delay + jitter, remaining, max_delay)
+            logger.debug(
+                f"PostgreSQL not ready (attempt {attempt}): {e}, retrying in {sleep_time:.2f}s"
+            )
+            time.sleep(sleep_time)
+            delay = min(delay * 2, max_delay)
 
-    raise TimeoutError(f"PostgreSQL not ready after {timeout} seconds")
+    raise TimeoutError(f"PostgreSQL not ready after {timeout} seconds ({attempt} attempts)")
 
 
-def wait_for_redis_container(container: RedisContainer, timeout: float = 30.0) -> None:
-    """Wait for Redis container to be ready using polling.
+def wait_for_redis_container(
+    container: RedisContainer,
+    timeout: float = 30.0,
+    initial_delay: float = 0.1,
+    max_delay: float = 2.0,
+) -> None:
+    """Wait for Redis container to be ready using polling with exponential backoff.
 
     Args:
         container: RedisContainer instance
         timeout: Maximum time to wait in seconds
+        initial_delay: Initial delay between retries in seconds
+        max_delay: Maximum delay between retries in seconds
 
     Raises:
         TimeoutError: If Redis is not ready within timeout
@@ -296,17 +328,31 @@ def wait_for_redis_container(container: RedisContainer, timeout: float = 30.0) -
     start = time.monotonic()
     host = container.get_container_host_ip()
     port = int(container.get_exposed_port(6379))
+    delay = initial_delay
+    attempt = 0
 
     while time.monotonic() - start < timeout:
+        attempt += 1
         try:
-            client = redis.Redis(host=host, port=port, socket_timeout=1)
+            client = redis.Redis(host=host, port=port, socket_timeout=2)
             client.ping()
             client.close()
+            if attempt > 1:
+                logger.info(f"Redis ready after {attempt} attempts")
             return
-        except Exception:
-            time.sleep(0.1)  # Brief poll interval
+        except Exception as e:
+            elapsed = time.monotonic() - start
+            remaining = timeout - elapsed
+            if remaining <= 0:
+                break
+            # Exponential backoff with jitter
+            jitter = random.uniform(0, delay * 0.1)  # noqa: S311
+            sleep_time = min(delay + jitter, remaining, max_delay)
+            logger.debug(f"Redis not ready (attempt {attempt}): {e}, retrying in {sleep_time:.2f}s")
+            time.sleep(sleep_time)
+            delay = min(delay * 2, max_delay)
 
-    raise TimeoutError(f"Redis not ready after {timeout} seconds")
+    raise TimeoutError(f"Redis not ready after {timeout} seconds ({attempt} attempts)")
 
 
 # =============================================================================
@@ -718,14 +764,22 @@ def integration_env(
     os.environ["REDIS_URL"] = worker_redis_url
     os.environ["HSI_RUNTIME_ENV_PATH"] = runtime_env_path
 
-    # Configure smaller pool sizes for integration tests to prevent
-    # "too many clients" errors. Even serial test execution (-n0) can hit
-    # PostgreSQL's max_connections limit (typically 100) because each test
-    # creates its own engine pool. With default settings (pool_size=20,
-    # max_overflow=30), just 2-3 tests can exhaust the connection limit.
-    # Use pool_size=5 (minimum), max_overflow=2 for 7 connections per test.
-    os.environ["DATABASE_POOL_SIZE"] = "5"
-    os.environ["DATABASE_POOL_OVERFLOW"] = "2"
+    # Configure pool sizes for integration tests to prevent "too many clients" errors.
+    # In CI environments, we use larger pools for better parallelism.
+    # In local development, we use smaller pools to prevent exhausting connections.
+    if os.environ.get("CI"):
+        # CI: Larger pools for better parallelism with GitHub Actions runners
+        os.environ["DATABASE_POOL_SIZE"] = "10"
+        os.environ["DATABASE_POOL_OVERFLOW"] = "5"
+        logger.debug("CI environment detected: using larger database pool (10+5)")
+    else:
+        # Local: Smaller pools to prevent "too many clients" errors.
+        # Even serial test execution (-n0) can hit PostgreSQL's max_connections
+        # limit (typically 100) because each test creates its own engine pool.
+        # With default settings (pool_size=20, max_overflow=30), just 2-3 tests
+        # can exhaust the connection limit. Use pool_size=5, max_overflow=2.
+        os.environ["DATABASE_POOL_SIZE"] = "5"
+        os.environ["DATABASE_POOL_OVERFLOW"] = "2"
 
     get_settings.cache_clear()
 
@@ -1078,57 +1132,77 @@ async def real_redis(
         await client.disconnect()
 
 
-async def _cleanup_test_data() -> None:
-    """Delete all test data created by integration tests.
+async def _cleanup_test_data(max_retries: int = 3) -> None:
+    """Delete all test data created by integration tests with retry logic.
 
     This helper function cleans up all tables in correct order (respecting
     foreign key constraints) to prevent orphaned entries from accumulating
     in the database.
 
     Uses DELETE instead of TRUNCATE to avoid AccessExclusiveLock deadlocks.
+    Implements retry logic with exponential backoff for transient failures.
 
     The table deletion order is automatically determined using SQLAlchemy's
     reflection API to inspect foreign key relationships, with a fallback to
     a hardcoded list if reflection fails.
+
+    Args:
+        max_retries: Maximum number of retry attempts (default 3)
     """
     from sqlalchemy import text
 
     from backend.core.database import get_engine, get_session
 
-    try:
-        engine = get_engine()
-        if engine is None:
+    for attempt in range(max_retries):
+        try:
+            engine = get_engine()
+            if engine is None:
+                return
+
+            # Get tables in FK-safe deletion order (dependent tables first)
+            deletion_order = get_table_deletion_order(engine)
+
+            async with get_session() as session:
+                # Delete all test-related data in FK-safe order
+                # The order is automatically computed from foreign key relationships
+                for tbl in deletion_order:
+                    try:
+                        # Use SAVEPOINT so failures don't abort the transaction
+                        # This handles missing tables (not yet migrated) gracefully
+                        await session.execute(text(f"SAVEPOINT sp_{tbl}"))  # nosemgrep
+                        # Safe: tbl comes from SQLAlchemy inspector (trusted source), not user input
+                        await session.execute(text(f"DELETE FROM {tbl}"))  # noqa: S608 nosemgrep
+                        await session.execute(text(f"RELEASE SAVEPOINT sp_{tbl}"))  # nosemgrep
+                    except Exception as e:
+                        # Rollback to savepoint and continue - table may not exist yet
+                        try:
+                            await session.execute(
+                                text(f"ROLLBACK TO SAVEPOINT sp_{tbl}")
+                            )  # nosemgrep
+                        except Exception as rb_err:
+                            logger.debug(f"Savepoint rollback failed for {tbl}: {rb_err}")
+                        logger.debug(f"Skipping table {tbl}: {e}")
+
+                await session.commit()
+            # Success - exit retry loop
             return
 
-        # Get tables in FK-safe deletion order (dependent tables first)
-        deletion_order = get_table_deletion_order(engine)
-
-        async with get_session() as session:
-            # Delete all test-related data in FK-safe order
-            # The order is automatically computed from foreign key relationships
-            for tbl in deletion_order:
-                try:
-                    # Use SAVEPOINT so failures don't abort the transaction
-                    # This handles missing tables (not yet migrated) gracefully
-                    await session.execute(text(f"SAVEPOINT sp_{tbl}"))  # nosemgrep
-                    # Safe: tbl comes from SQLAlchemy inspector (trusted source), not user input
-                    await session.execute(text(f"DELETE FROM {tbl}"))  # noqa: S608 nosemgrep
-                    await session.execute(text(f"RELEASE SAVEPOINT sp_{tbl}"))  # nosemgrep
-                except Exception as e:
-                    # Rollback to savepoint and continue - table may not exist yet
-                    try:
-                        await session.execute(text(f"ROLLBACK TO SAVEPOINT sp_{tbl}"))  # nosemgrep
-                    except Exception as rb_err:
-                        logger.debug(f"Savepoint rollback failed for {tbl}: {rb_err}")
-                    logger.debug(f"Skipping table {tbl}: {e}")
-
-            await session.commit()
-    except Exception as e:
-        logger.warning(
-            f"Database cleanup failed: {e}",
-            exc_info=True,
-        )
-        # Continue to allow tests to run even if cleanup fails
+        except Exception as e:
+            if attempt < max_retries - 1:
+                # Exponential backoff: 0.1s, 0.2s, 0.4s, ...
+                delay = 0.1 * (2**attempt)
+                logger.warning(
+                    f"Database cleanup attempt {attempt + 1}/{max_retries} failed: {e}, "
+                    f"retrying in {delay:.2f}s"
+                )
+                await asyncio.sleep(delay)
+            else:
+                # Final attempt failed - log warning but don't raise
+                # Allow tests to continue even if cleanup fails
+                logger.warning(
+                    f"Database cleanup failed after {max_retries} attempts: {e}",
+                    exc_info=True,
+                )
 
 
 # Keep the old name as an alias for backward compatibility
@@ -1238,7 +1312,11 @@ async def client(integration_db: str, mock_redis: AsyncMock):
         finally:
             # Clean up test data AFTER the test (even on failure)
             # This ensures no data leakage between tests
-            await _cleanup_test_data()
+            # Use timeout protection to prevent hanging on cleanup
+            try:
+                await asyncio.wait_for(_cleanup_test_data(), timeout=10.0)
+            except TimeoutError:
+                logger.warning("Client fixture cleanup timed out after 10s, continuing anyway")
 
 
 # =============================================================================

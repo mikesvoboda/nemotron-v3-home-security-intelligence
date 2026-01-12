@@ -1,3 +1,12 @@
+/**
+ * CalibrationPanel test suite
+ *
+ * Tests the CalibrationPanel component for the Settings page.
+ *
+ * @see NEM-2355 - Create CalibrationPanel component for Settings page
+ * @see NEM-2356 - Add CalibrationPanel to Settings page
+ */
+
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
@@ -61,19 +70,36 @@ describe('CalibrationPanel', () => {
   });
 
   describe('rendering', () => {
-    it('renders the component with title', () => {
+    it('renders the component', () => {
       render(<CalibrationPanel />);
 
-      expect(screen.getByText('AI Calibration Settings')).toBeInTheDocument();
+      expect(screen.getByTestId('calibration-panel')).toBeInTheDocument();
     });
 
-    it('renders the info card with calibration explanation', () => {
+    it('renders the introduction card with title', () => {
+      render(<CalibrationPanel />);
+
+      expect(screen.getByText('AI Calibration')).toBeInTheDocument();
+    });
+
+    it('renders the introduction card description', () => {
+      render(<CalibrationPanel />);
+
+      expect(screen.getByText(/Fine-tune how the AI classifies security events/)).toBeInTheDocument();
+    });
+
+    it('renders the How It Works section', () => {
       render(<CalibrationPanel />);
 
       expect(screen.getByText('How Calibration Works')).toBeInTheDocument();
-      expect(screen.getByText(/Thresholds/)).toBeInTheDocument();
-      expect(screen.getByText(/Learning Rate/)).toBeInTheDocument();
-      expect(screen.getByText(/Feedback/)).toBeInTheDocument();
+    });
+
+    it('renders all three feature cards', () => {
+      render(<CalibrationPanel />);
+
+      expect(screen.getByText('Threshold Adjustment')).toBeInTheDocument();
+      expect(screen.getByText('Feedback Learning')).toBeInTheDocument();
+      expect(screen.getByText('Learning Rate')).toBeInTheDocument();
     });
 
     it('renders RiskSensitivitySettings component', async () => {
@@ -82,6 +108,21 @@ describe('CalibrationPanel', () => {
       await waitFor(() => {
         expect(screen.getByText('Risk Sensitivity')).toBeInTheDocument();
       });
+    });
+
+    it('renders the Tips section', () => {
+      render(<CalibrationPanel />);
+
+      expect(screen.getByText('Tips for Effective Calibration')).toBeInTheDocument();
+    });
+
+    it('renders all tips', () => {
+      render(<CalibrationPanel />);
+
+      expect(screen.getByText(/Start with defaults/)).toBeInTheDocument();
+      expect(screen.getByText(/Provide consistent feedback/)).toBeInTheDocument();
+      expect(screen.getByText(/Lower thresholds for more alerts/)).toBeInTheDocument();
+      expect(screen.getByText(/Use a slower learning rate/)).toBeInTheDocument();
     });
 
     it('applies custom className', () => {
@@ -138,13 +179,41 @@ describe('CalibrationPanel', () => {
     });
   });
 
-  describe('description text', () => {
-    it('displays descriptive subtitle', () => {
+  describe('feature card descriptions', () => {
+    it('shows threshold adjustment description', () => {
       render(<CalibrationPanel />);
 
       expect(
-        screen.getByText(/Fine-tune how the AI system categorizes risk scores/)
+        screen.getByText(/Set the risk score boundaries that determine/)
       ).toBeInTheDocument();
+    });
+
+    it('shows feedback learning description', () => {
+      render(<CalibrationPanel />);
+
+      expect(
+        screen.getByText(/Your feedback on event accuracy helps the system learn/)
+      ).toBeInTheDocument();
+    });
+
+    it('shows learning rate description', () => {
+      render(<CalibrationPanel />);
+
+      expect(
+        screen.getByText(/Control how quickly thresholds adapt based on feedback/)
+      ).toBeInTheDocument();
+    });
+  });
+
+  describe('accessibility', () => {
+    it('has proper structure with multiple sections', () => {
+      render(<CalibrationPanel />);
+
+      // Check that main content sections exist
+      // Tremor Title components render as h3 by default
+      expect(screen.getByText('AI Calibration')).toBeInTheDocument();
+      expect(screen.getByText('How Calibration Works')).toBeInTheDocument();
+      expect(screen.getByText('Tips for Effective Calibration')).toBeInTheDocument();
     });
   });
 });

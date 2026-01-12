@@ -1012,7 +1012,7 @@ export default function EventDetailModal({
                             onClick={() => handleQuickFeedback('accurate')}
                             disabled={feedbackMutation.isPending}
                             className="flex items-center gap-2 rounded-lg border border-green-600/40 bg-green-600/10 px-3 py-2 text-sm font-medium text-green-400 transition-colors hover:bg-green-600/20 disabled:cursor-not-allowed disabled:opacity-50"
-                            data-testid="feedback-correct-button"
+                            data-testid="feedback-accurate-button"
                           >
                             <ThumbsUp className="h-4 w-4" />
                             Correct Detection

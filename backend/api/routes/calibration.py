@@ -53,7 +53,7 @@ def _calibration_to_response(calibration: UserCalibration) -> dict[str, Any]:
         "high_threshold": calibration.high_threshold,
         "decay_factor": calibration.decay_factor,
         "false_positive_count": calibration.false_positive_count,
-        "missed_detection_count": calibration.missed_detection_count,
+        "missed_threat_count": calibration.missed_threat_count,
         "created_at": calibration.created_at,
         "updated_at": calibration.updated_at,
     }
@@ -156,10 +156,62 @@ async def update_calibration(
     update_data: CalibrationUpdate,
     db: AsyncSession = Depends(get_db),
 ) -> CalibrationResponse:
-    """Update calibration thresholds.
+    """Update calibration thresholds (full replacement semantics).
 
     Allows partial updates - only provided fields will be changed.
     Validates that threshold ordering is maintained (low < medium < high).
+
+    Note: For REST semantics, use PATCH for partial updates. This PUT endpoint
+    is kept for backward compatibility and behaves identically to PATCH.
+
+    Args:
+        update_data: Fields to update (partial updates supported)
+        db: Database session
+
+    Returns:
+        Updated CalibrationResponse
+
+    Raises:
+        HTTPException: 422 if threshold ordering would be violated
+    """
+    return await _apply_calibration_update(update_data, db)
+
+
+@router.patch(
+    "",
+    response_model=CalibrationResponse,
+    responses={
+        422: {"description": "Validation error (invalid threshold ordering)"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def patch_calibration(
+    update_data: CalibrationUpdate,
+    db: AsyncSession = Depends(get_db),
+) -> CalibrationResponse:
+    """Partially update calibration thresholds.
+
+    Allows partial updates - only provided fields will be changed.
+    Validates that threshold ordering is maintained (low < medium < high).
+
+    Args:
+        update_data: Fields to update (partial updates supported)
+        db: Database session
+
+    Returns:
+        Updated CalibrationResponse
+
+    Raises:
+        HTTPException: 422 if threshold ordering would be violated
+    """
+    return await _apply_calibration_update(update_data, db)
+
+
+async def _apply_calibration_update(
+    update_data: CalibrationUpdate,
+    db: AsyncSession,
+) -> CalibrationResponse:
+    """Apply calibration update (shared by PUT and PATCH endpoints).
 
     Args:
         update_data: Fields to update (partial updates supported)
@@ -237,8 +289,8 @@ async def reset_calibration(
     - high_threshold: 85
     - decay_factor: 0.1
 
-    Note: Feedback counts (false_positive_count, missed_detection_count)
-    are NOT reset by this operation.
+    Note: Feedback counts (correct_count, false_positive_count, missed_threat_count,
+    severity_wrong_count) are NOT reset by this operation.
 
     Returns:
         CalibrationResetResponse with success message and reset calibration data

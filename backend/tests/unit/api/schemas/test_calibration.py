@@ -324,7 +324,7 @@ class TestUserCalibrationResponse:
             high_threshold=85,
             decay_factor=0.1,
             false_positive_count=5,
-            missed_detection_count=3,
+            missed_threat_count=3,
             created_at=now,
             updated_at=now,
         )
@@ -336,7 +336,7 @@ class TestUserCalibrationResponse:
         assert response.high_threshold == 85
         assert response.decay_factor == 0.1
         assert response.false_positive_count == 5
-        assert response.missed_detection_count == 3
+        assert response.missed_threat_count == 3
         assert response.created_at == now
         assert response.updated_at == now
 
@@ -355,7 +355,7 @@ class TestUserCalibrationResponse:
         mock_model.high_threshold = 80
         mock_model.decay_factor = 0.15
         mock_model.false_positive_count = 10
-        mock_model.missed_detection_count = 5
+        mock_model.missed_threat_count = 5
         mock_model.created_at = now
         mock_model.updated_at = now
 
@@ -368,7 +368,7 @@ class TestUserCalibrationResponse:
         assert response.high_threshold == 80
         assert response.decay_factor == 0.15
         assert response.false_positive_count == 10
-        assert response.missed_detection_count == 5
+        assert response.missed_threat_count == 5
 
     def test_response_serialization(self):
         """Test response serializes correctly to JSON-compatible dict."""
@@ -382,7 +382,7 @@ class TestUserCalibrationResponse:
             high_threshold=85,
             decay_factor=0.1,
             false_positive_count=0,
-            missed_detection_count=0,
+            missed_threat_count=0,
             created_at=datetime(2025, 1, 1, 12, 0, 0, tzinfo=UTC),
             updated_at=datetime(2025, 1, 1, 12, 0, 0, tzinfo=UTC),
         )
@@ -396,7 +396,7 @@ class TestUserCalibrationResponse:
         assert data["high_threshold"] == 85
         assert data["decay_factor"] == 0.1
         assert data["false_positive_count"] == 0
-        assert data["missed_detection_count"] == 0
+        assert data["missed_threat_count"] == 0
         assert "created_at" in data
         assert "updated_at" in data
 
