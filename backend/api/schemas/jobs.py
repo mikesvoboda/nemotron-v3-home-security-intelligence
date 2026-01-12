@@ -9,6 +9,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from backend.api.schemas.pagination import PaginationMeta
+
 
 class JobStatusEnum(StrEnum):
     """Status of a background job."""
@@ -124,15 +126,18 @@ class ExportJobRequest(BaseModel):
 
 
 class JobListResponse(BaseModel):
-    """Response model for listing jobs."""
+    """Response model for listing jobs with pagination.
 
-    jobs: list[JobResponse] = Field(description="List of jobs")
-    total: int = Field(ge=0, description="Total number of jobs matching filter")
+    Uses the standardized pagination envelope format (NEM-2178).
+    """
+
+    items: list[JobResponse] = Field(description="List of jobs")
+    pagination: PaginationMeta = Field(description="Pagination metadata")
 
     model_config = {
         "json_schema_extra": {
             "example": {
-                "jobs": [
+                "items": [
                     {
                         "job_id": "550e8400-e29b-41d4-a716-446655440000",
                         "job_type": "export",
@@ -146,7 +151,14 @@ class JobListResponse(BaseModel):
                         "error": None,
                     }
                 ],
-                "total": 1,
+                "pagination": {
+                    "total": 100,
+                    "limit": 50,
+                    "offset": 0,
+                    "cursor": None,
+                    "next_cursor": None,
+                    "has_more": True,
+                },
             }
         }
     }
@@ -204,6 +216,77 @@ class JobCancelResponse(BaseModel):
                 "job_id": "550e8400-e29b-41d4-a716-446655440000",
                 "status": "failed",
                 "message": "Job cancellation requested",
+            }
+        }
+    }
+
+
+class JobStatusCount(BaseModel):
+    """Count of jobs by status."""
+
+    status: JobStatusEnum = Field(description="Job status")
+    count: int = Field(ge=0, description="Number of jobs with this status")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "status": "completed",
+                "count": 42,
+            }
+        }
+    }
+
+
+class JobTypeCount(BaseModel):
+    """Count of jobs by type."""
+
+    job_type: str = Field(description="Job type name")
+    count: int = Field(ge=0, description="Number of jobs of this type")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "job_type": "export",
+                "count": 25,
+            }
+        }
+    }
+
+
+class JobStatsResponse(BaseModel):
+    """Response model for job statistics.
+
+    Provides aggregate statistics about jobs including counts by status,
+    counts by type, and timing information.
+    """
+
+    total_jobs: int = Field(ge=0, description="Total number of jobs tracked")
+    by_status: list[JobStatusCount] = Field(description="Job counts by status")
+    by_type: list[JobTypeCount] = Field(description="Job counts by type")
+    average_duration_seconds: float | None = Field(
+        None, description="Average job duration in seconds (for completed jobs)"
+    )
+    oldest_pending_job_age_seconds: float | None = Field(
+        None, description="Age of the oldest pending job in seconds"
+    )
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "total_jobs": 100,
+                "by_status": [
+                    {"status": "completed", "count": 75},
+                    {"status": "running", "count": 5},
+                    {"status": "pending", "count": 10},
+                    {"status": "failed", "count": 10},
+                ],
+                "by_type": [
+                    {"job_type": "export", "count": 60},
+                    {"job_type": "cleanup", "count": 30},
+                    {"job_type": "backup", "count": 10},
+                ],
+                "average_duration_seconds": 45.5,
+                "oldest_pending_job_age_seconds": 120.0,
             }
         }
     }

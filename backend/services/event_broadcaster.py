@@ -23,6 +23,8 @@ from backend.api.schemas.websocket import (
     WebSocketAlertData,
     WebSocketAlertDismissedMessage,
     WebSocketAlertEventType,
+    WebSocketAlertResolvedMessage,
+    WebSocketAlertUpdatedMessage,
     WebSocketCameraStatusData,
     WebSocketCameraStatusMessage,
     WebSocketEventData,
@@ -676,7 +678,11 @@ class EventBroadcaster:
 
         Args:
             alert_data: Alert data dictionary containing alert details
-            event_type: Type of alert event (ALERT_CREATED, ALERT_ACKNOWLEDGED, ALERT_DISMISSED)
+            event_type: Type of alert event:
+                - ALERT_CREATED: New alert triggered
+                - ALERT_UPDATED: Alert modified
+                - ALERT_ACKNOWLEDGED: Alert marked as seen
+                - ALERT_RESOLVED: Alert resolved/dismissed
 
         Returns:
             Number of Redis subscribers that received the message
@@ -703,15 +709,19 @@ class EventBroadcaster:
             # Create the appropriate message type based on event_type
             validated_message: (
                 WebSocketAlertCreatedMessage
+                | WebSocketAlertUpdatedMessage
                 | WebSocketAlertAcknowledgedMessage
                 | WebSocketAlertDismissedMessage
+                | WebSocketAlertResolvedMessage
             )
             if event_type == WebSocketAlertEventType.ALERT_CREATED:
                 validated_message = WebSocketAlertCreatedMessage(data=validated_data)
+            elif event_type == WebSocketAlertEventType.ALERT_UPDATED:
+                validated_message = WebSocketAlertUpdatedMessage(data=validated_data)
             elif event_type == WebSocketAlertEventType.ALERT_ACKNOWLEDGED:
                 validated_message = WebSocketAlertAcknowledgedMessage(data=validated_data)
-            elif event_type == WebSocketAlertEventType.ALERT_DISMISSED:
-                validated_message = WebSocketAlertDismissedMessage(data=validated_data)
+            elif event_type == WebSocketAlertEventType.ALERT_RESOLVED:
+                validated_message = WebSocketAlertResolvedMessage(data=validated_data)
             else:
                 raise ValueError(f"Unknown alert event type: {event_type}")
 

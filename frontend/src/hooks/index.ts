@@ -206,6 +206,13 @@ export type {
   UseAlertsInfiniteQueryReturn,
 } from './useAlertsQuery';
 
+export { useAlertWebSocket } from './useAlertWebSocket';
+export type {
+  AlertEventHandler,
+  UseAlertWebSocketOptions,
+  UseAlertWebSocketReturn,
+} from './useAlertWebSocket';
+
 export { useEntitiesInfiniteQuery, entitiesInfiniteQueryKeys } from './useEntitiesInfiniteQuery';
 export type {
   EntityTimeRangeFilter,
@@ -237,6 +244,13 @@ export type {
   UseSceneChangeAlertsOptions,
   UseSceneChangeAlertsReturn,
 } from './useSceneChangeAlerts';
+
+export { useCameraStatusWebSocket } from './useCameraStatusWebSocket';
+export type {
+  CameraStatusState,
+  UseCameraStatusWebSocketOptions,
+  UseCameraStatusWebSocketReturn,
+} from './useCameraStatusWebSocket';
 
 export { useRateLimitCountdown, formatCountdown } from './useRateLimitCountdown';
 export type { UseRateLimitCountdownReturn } from './useRateLimitCountdown';
@@ -283,3 +297,23 @@ export type {
   UseApiMutationOptions,
   UseApiMutationResult,
 } from './useFormWithApiErrors';
+
+// Retry with backoff hooks
+export {
+  useRetry,
+  useRetryStore,
+  useActiveRetries,
+  useHasActiveRetries,
+  parseRetryAfter,
+  calculateBackoff,
+  formatRetryCountdown,
+  generateRetryId,
+  DEFAULT_RETRY_CONFIG,
+} from './useRetry';
+export type {
+  RetryConfig,
+  RetryState,
+  PendingRetry,
+  RetryStoreState,
+  UseRetryReturn,
+} from './useRetry';

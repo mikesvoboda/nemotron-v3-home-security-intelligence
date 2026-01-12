@@ -1,9 +1,10 @@
-"""Unit tests for EventBroadcaster.broadcast_alert method (NEM-1981).
+"""Unit tests for EventBroadcaster.broadcast_alert method (NEM-1981, NEM-2294).
 
 Tests cover:
 - Broadcasting alert created events
+- Broadcasting alert updated events (NEM-2294)
 - Broadcasting alert acknowledged events
-- Broadcasting alert dismissed events
+- Broadcasting alert resolved events (NEM-2294)
 - Validation error handling
 - Unknown event type handling
 """
@@ -118,21 +119,37 @@ class TestBroadcastAlert:
         assert message["data"]["status"] == "acknowledged"
 
     @pytest.mark.asyncio
-    async def test_broadcast_alert_dismissed(
+    async def test_broadcast_alert_updated(
         self, broadcaster: EventBroadcaster, valid_alert_data: dict[str, Any]
     ) -> None:
-        """Test broadcasting an alert dismissed event."""
-        valid_alert_data["status"] = "dismissed"
-
+        """Test broadcasting an alert updated event (NEM-2294)."""
         subscriber_count = await broadcaster.broadcast_alert(
-            valid_alert_data, WebSocketAlertEventType.ALERT_DISMISSED
+            valid_alert_data, WebSocketAlertEventType.ALERT_UPDATED
         )
 
         assert subscriber_count == 2
 
         call_args = broadcaster._redis.publish.call_args
         _, message = call_args[0]
-        assert message["type"] == "alert_dismissed"
+        assert message["type"] == "alert_updated"
+        assert message["data"]["id"] == valid_alert_data["id"]
+
+    @pytest.mark.asyncio
+    async def test_broadcast_alert_resolved(
+        self, broadcaster: EventBroadcaster, valid_alert_data: dict[str, Any]
+    ) -> None:
+        """Test broadcasting an alert resolved event (NEM-2294)."""
+        valid_alert_data["status"] = "dismissed"
+
+        subscriber_count = await broadcaster.broadcast_alert(
+            valid_alert_data, WebSocketAlertEventType.ALERT_RESOLVED
+        )
+
+        assert subscriber_count == 2
+
+        call_args = broadcaster._redis.publish.call_args
+        _, message = call_args[0]
+        assert message["type"] == "alert_resolved"
         assert message["data"]["status"] == "dismissed"
 
     @pytest.mark.asyncio
