@@ -33,6 +33,10 @@ vi.mock('./PromptManagementPanel', () => ({
   default: () => <div data-testid="prompt-management">Prompt Management</div>,
 }));
 
+vi.mock('../system/FileOperationsPanel', () => ({
+  default: () => <div data-testid="file-operations-panel">File Operations Panel</div>,
+}));
+
 describe('SettingsPage', () => {
   it('should render the page title and description', () => {
     render(<SettingsPage />);
@@ -41,7 +45,7 @@ describe('SettingsPage', () => {
     expect(screen.getByText('Configure your security monitoring system')).toBeInTheDocument();
   });
 
-  it('should render all seven tabs', () => {
+  it('should render all eight tabs', () => {
     render(<SettingsPage />);
 
     expect(screen.getByRole('tab', { name: /cameras/i })).toBeInTheDocument();
@@ -51,6 +55,7 @@ describe('SettingsPage', () => {
     expect(screen.getByRole('tab', { name: /ambient/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /calibration/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /prompts/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /storage/i })).toBeInTheDocument();
   });
 
   it('should show cameras settings by default', () => {
@@ -121,11 +126,11 @@ describe('SettingsPage', () => {
     render(<SettingsPage />);
 
     const camerasTab = screen.getByRole('tab', { name: /cameras/i });
-    const promptsTab = screen.getByRole('tab', { name: /prompts/i });
+    const storageTab = screen.getByRole('tab', { name: /storage/i });
 
-    // Focus on the last tab (prompts is now last)
-    promptsTab.focus();
-    expect(promptsTab).toHaveFocus();
+    // Focus on the last tab (storage is now last)
+    storageTab.focus();
+    expect(storageTab).toHaveFocus();
 
     // Press arrow right to cycle to first tab
     await user.keyboard('{ArrowRight}');
@@ -162,6 +167,17 @@ describe('SettingsPage', () => {
     await user.click(ambientTab);
 
     expect(screen.getByTestId('ambient-settings')).toBeInTheDocument();
+    expect(screen.queryByTestId('cameras-settings')).not.toBeInTheDocument();
+  });
+
+  it('should switch to storage settings when tab is clicked', async () => {
+    const user = userEvent.setup();
+    render(<SettingsPage />);
+
+    const storageTab = screen.getByRole('tab', { name: /storage/i });
+    await user.click(storageTab);
+
+    expect(screen.getByTestId('file-operations-panel')).toBeInTheDocument();
     expect(screen.queryByTestId('cameras-settings')).not.toBeInTheDocument();
   });
 });

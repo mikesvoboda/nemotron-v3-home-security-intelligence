@@ -154,7 +154,7 @@ class CalibrationService:
             high_threshold=self.default_high,
             decay_factor=self.default_decay,
             false_positive_count=0,
-            missed_detection_count=0,
+            missed_threat_count=0,
         )
         db.add(calibration)
         await db.flush()
@@ -198,9 +198,7 @@ class CalibrationService:
             )
 
         # User has calibration - check if they've provided any feedback
-        is_calibrated = (
-            calibration.false_positive_count > 0 or calibration.missed_detection_count > 0
-        )
+        is_calibrated = calibration.false_positive_count > 0 or calibration.missed_threat_count > 0
 
         return CalibrationThresholds(
             low_threshold=calibration.low_threshold,
@@ -234,7 +232,7 @@ class CalibrationService:
         For FALSE_POSITIVE: Event was marked high-risk but user says benign
             -> Raise thresholds (less sensitive)
 
-        For MISSED_DETECTION: Event was marked low-risk but user says concerning
+        For MISSED_THREAT: Event was marked low-risk but user says concerning
             -> Lower thresholds (more sensitive)
 
         Args:
@@ -279,11 +277,18 @@ class CalibrationService:
         calibration.high_threshold = new_high
         calibration.updated_at = datetime.now(UTC)
 
-        # Update feedback counts
+        # Update feedback counts based on feedback type
+        # FALSE_POSITIVE and SEVERITY_WRONG both indicate over-sensitivity
+        # MISSED_THREAT indicates under-sensitivity
+        # ACCURATE/CORRECT doesn't affect counts
         if feedback.feedback_type == FeedbackType.FALSE_POSITIVE:
             calibration.false_positive_count += 1
-        else:
-            calibration.missed_detection_count += 1
+        elif feedback.feedback_type == FeedbackType.MISSED_THREAT:
+            calibration.missed_threat_count += 1
+        elif feedback.feedback_type == FeedbackType.SEVERITY_WRONG:
+            # Severity wrong could be either way, count as false positive for tracking
+            calibration.false_positive_count += 1
+        # ACCURATE/CORRECT feedback doesn't increment any counters
 
         await db.flush()
 
@@ -325,7 +330,7 @@ class CalibrationService:
         calibration.high_threshold = self.default_high
         calibration.decay_factor = self.default_decay
         calibration.false_positive_count = 0
-        calibration.missed_detection_count = 0
+        calibration.missed_threat_count = 0
         calibration.updated_at = datetime.now(UTC)
 
         await db.flush()
@@ -378,7 +383,16 @@ class CalibrationService:
         if decay_factor > 0 and base_adjustment < 1:
             base_adjustment = 1
 
-        if feedback_type == FeedbackType.FALSE_POSITIVE:
+        if feedback_type in (FeedbackType.ACCURATE, FeedbackType.CORRECT):
+            # Event was correctly classified - no adjustment needed
+            return ThresholdAdjustment(
+                low_delta=0,
+                medium_delta=0,
+                high_delta=0,
+                feedback_type=feedback_type,
+                original_risk_score=risk_score,
+            )
+        elif feedback_type == FeedbackType.FALSE_POSITIVE:
             # Event was flagged as high-risk but user says benign
             # Raise thresholds to be less sensitive
             # Higher risk scores mean larger upward adjustment needed

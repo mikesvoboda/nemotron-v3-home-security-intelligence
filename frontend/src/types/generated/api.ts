@@ -25,6 +25,45 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/cleanup/orphans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cleanup Orphans
+         * @description Manually trigger orphaned file cleanup.
+         *
+         *     Scans camera upload directories for files that have no corresponding
+         *     database records and optionally deletes them.
+         *
+         *     SECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.
+         *     If ADMIN_API_KEY is set, requires X-Admin-API-Key header.
+         *
+         *     Safety features:
+         *     - dry_run=True by default (no actual deletions)
+         *     - min_age_hours threshold prevents deleting files being processed
+         *     - max_delete_gb limits total deletion per run
+         *
+         *     Args:
+         *         request: Cleanup configuration (dry_run, min_age_hours, max_delete_gb)
+         *         http_request: FastAPI request for audit logging
+         *         _admin: Admin access validation (via dependency)
+         *
+         *     Returns:
+         *         Summary of cleanup operation with statistics
+         */
+        post: operations["cleanup_orphans_api_admin_cleanup_orphans_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/seed/cameras": {
         parameters: {
             query?: never;
@@ -1142,10 +1181,13 @@ export interface paths {
         get: operations["get_calibration_api_calibration_get"];
         /**
          * Update Calibration
-         * @description Update calibration thresholds.
+         * @description Update calibration thresholds (full replacement semantics).
          *
          *     Allows partial updates - only provided fields will be changed.
          *     Validates that threshold ordering is maintained (low < medium < high).
+         *
+         *     Note: For REST semantics, use PATCH for partial updates. This PUT endpoint
+         *     is kept for backward compatibility and behaves identically to PATCH.
          *
          *     Args:
          *         update_data: Fields to update (partial updates supported)
@@ -1162,7 +1204,24 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Patch Calibration
+         * @description Partially update calibration thresholds.
+         *
+         *     Allows partial updates - only provided fields will be changed.
+         *     Validates that threshold ordering is maintained (low < medium < high).
+         *
+         *     Args:
+         *         update_data: Fields to update (partial updates supported)
+         *         db: Database session
+         *
+         *     Returns:
+         *         Updated CalibrationResponse
+         *
+         *     Raises:
+         *         HTTPException: 422 if threshold ordering would be violated
+         */
+        patch: operations["patch_calibration_api_calibration_patch"];
         trace?: never;
     };
     "/api/calibration/defaults": {
@@ -1211,8 +1270,8 @@ export interface paths {
          *     - high_threshold: 85
          *     - decay_factor: 0.1
          *
-         *     Note: Feedback counts (false_positive_count, missed_detection_count)
-         *     are NOT reset by this operation.
+         *     Note: Feedback counts (correct_count, false_positive_count, missed_threat_count,
+         *     severity_wrong_count) are NOT reset by this operation.
          *
          *     Returns:
          *         CalibrationResetResponse with success message and reset calibration data
@@ -3421,6 +3480,94 @@ export interface paths {
          *         HTTPException: 404 if event not found, 409 if not deleted
          */
         post: operations["restore_event_api_events__event_id__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/exports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List export jobs
+         * @description List recent export jobs with optional filtering by status.
+         */
+        get: operations["list_exports_api_exports_get"];
+        put?: never;
+        /**
+         * Start export job
+         * @description Start a new background export job. Returns a job ID that can be used to track progress via GET /api/exports/{job_id}.
+         */
+        post: operations["start_export_api_exports_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/exports/{job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get export status
+         * @description Get the current status and progress of an export job.
+         */
+        get: operations["get_export_status_api_exports__job_id__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Cancel export job
+         * @description Cancel a pending or running export job. Completed or failed jobs cannot be cancelled.
+         */
+        delete: operations["cancel_export_api_exports__job_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/exports/{job_id}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download export file
+         * @description Download the completed export file.
+         */
+        get: operations["download_export_api_exports__job_id__download_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/exports/{job_id}/download/info": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get download info
+         * @description Get metadata about the export file for download.
+         */
+        get: operations["get_download_info_api_exports__job_id__download_info_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -7076,7 +7223,7 @@ export interface components {
          *         "id": 1,
          *         "low_threshold": 30,
          *         "medium_threshold": 60,
-         *         "missed_detection_count": 3,
+         *         "missed_threat_count": 3,
          *         "updated_at": "2025-01-01T12:00:00Z",
          *         "user_id": "default"
          *       },
@@ -10932,11 +11079,227 @@ export interface components {
             medium: number;
         };
         /**
+         * ExportDownloadResponse
+         * @description Schema for export file download metadata.
+         *
+         *     Returned when checking if a file is ready for download.
+         *     The actual file is served via a separate streaming endpoint.
+         * @example {
+         *       "content_type": "text/csv",
+         *       "download_url": "/api/exports/550e8400-e29b-41d4-a716-446655440000/download",
+         *       "filename": "events_export_20250112_143000.csv",
+         *       "ready": true,
+         *       "size_bytes": 125432
+         *     }
+         */
+        ExportDownloadResponse: {
+            /**
+             * Content Type
+             * @description MIME type of the file
+             */
+            content_type?: string | null;
+            /**
+             * Download Url
+             * @description URL to download the file
+             */
+            download_url?: string | null;
+            /**
+             * Filename
+             * @description Exported filename
+             */
+            filename?: string | null;
+            /**
+             * Ready
+             * @description Whether the file is ready for download
+             */
+            ready: boolean;
+            /**
+             * Size Bytes
+             * @description File size in bytes
+             */
+            size_bytes?: number | null;
+        };
+        /**
          * ExportFormat
          * @description Supported export formats.
          * @enum {string}
          */
         ExportFormat: "csv" | "json" | "zip";
+        /**
+         * ExportFormatEnum
+         * @description Export file formats.
+         * @enum {string}
+         */
+        ExportFormatEnum: "csv" | "json" | "zip" | "excel";
+        /**
+         * ExportJobCancelResponse
+         * @description Schema for export job cancellation response.
+         * @example {
+         *       "cancelled": true,
+         *       "job_id": "550e8400-e29b-41d4-a716-446655440000",
+         *       "message": "Export job cancelled by user",
+         *       "status": "failed"
+         *     }
+         */
+        ExportJobCancelResponse: {
+            /**
+             * Cancelled
+             * @description Whether cancellation was successful
+             */
+            cancelled: boolean;
+            /**
+             * Job Id
+             * @description Job ID that was cancelled
+             */
+            job_id: string;
+            /**
+             * Message
+             * @description Cancellation status message
+             */
+            message: string;
+            /** @description New job status after cancellation */
+            status: components["schemas"]["ExportJobStatusEnum"];
+        };
+        /**
+         * ExportJobCreate
+         * @description Schema for creating an export job.
+         *
+         *     Create a new background export job with optional filtering parameters.
+         *     The job will be processed asynchronously and can be monitored via
+         *     the job status endpoint.
+         * @example {
+         *       "camera_id": "front_door",
+         *       "end_date": "2025-01-12T23:59:59Z",
+         *       "export_format": "csv",
+         *       "export_type": "events",
+         *       "risk_level": "high",
+         *       "start_date": "2025-01-01T00:00:00Z"
+         *     }
+         */
+        ExportJobCreate: {
+            /**
+             * Camera Id
+             * @description Filter by camera ID
+             */
+            camera_id?: string | null;
+            /**
+             * End Date
+             * @description Filter events ending before this date (ISO format)
+             */
+            end_date?: string | null;
+            /**
+             * @description Output file format (csv, json, zip, excel)
+             * @default csv
+             */
+            export_format: components["schemas"]["ExportFormatEnum"];
+            /**
+             * @description Type of data to export (events, alerts, full_backup)
+             * @default events
+             */
+            export_type: components["schemas"]["ExportTypeEnum"];
+            /**
+             * Reviewed
+             * @description Filter by reviewed status (true=reviewed, false=unreviewed, null=all)
+             */
+            reviewed?: boolean | null;
+            /**
+             * Risk Level
+             * @description Filter by risk level (low, medium, high, critical)
+             */
+            risk_level?: string | null;
+            /**
+             * Start Date
+             * @description Filter events starting from this date (ISO format)
+             */
+            start_date?: string | null;
+        };
+        /**
+         * ExportJobListResponse
+         * @description Schema for export job list response with pagination.
+         * @example {
+         *       "items": [
+         *         {
+         *           "completed_at": "2025-01-12T14:35:00Z",
+         *           "created_at": "2025-01-12T14:30:00Z",
+         *           "export_format": "csv",
+         *           "export_type": "events",
+         *           "id": "550e8400-e29b-41d4-a716-446655440000",
+         *           "progress": {
+         *             "current_step": "Complete",
+         *             "processed_items": 1230,
+         *             "progress_percent": 100,
+         *             "total_items": 1230
+         *           },
+         *           "result": {
+         *             "event_count": 1230,
+         *             "format": "csv",
+         *             "output_path": "/api/exports/download/events_export_20250112_143000.csv",
+         *             "output_size_bytes": 125432
+         *           },
+         *           "started_at": "2025-01-12T14:30:01Z",
+         *           "status": "completed"
+         *         }
+         *       ],
+         *       "pagination": {
+         *         "has_more": false,
+         *         "limit": 50,
+         *         "offset": 0,
+         *         "total": 1
+         *       }
+         *     }
+         */
+        ExportJobListResponse: {
+            /**
+             * Items
+             * @description List of export jobs
+             */
+            items: components["schemas"]["ExportJobResponse"][];
+            /** @description Pagination metadata */
+            pagination: components["schemas"]["PaginationMeta"];
+        };
+        /**
+         * ExportJobProgress
+         * @description Schema for export job progress information.
+         *
+         *     Detailed progress information for an export job, including
+         *     timing, item counts, and current step.
+         * @example {
+         *       "current_step": "Processing events...",
+         *       "estimated_completion": "2025-01-12T14:35:00Z",
+         *       "processed_items": 245,
+         *       "progress_percent": 20,
+         *       "total_items": 1230
+         *     }
+         */
+        ExportJobProgress: {
+            /**
+             * Current Step
+             * @description Current processing step description
+             */
+            current_step?: string | null;
+            /**
+             * Estimated Completion
+             * @description Estimated completion time (ISO format)
+             */
+            estimated_completion?: string | null;
+            /**
+             * Processed Items
+             * @description Number of items processed so far
+             * @default 0
+             */
+            processed_items: number;
+            /**
+             * Progress Percent
+             * @description Progress percentage (0-100)
+             * @default 0
+             */
+            progress_percent: number;
+            /**
+             * Total Items
+             * @description Total items to process (null if unknown)
+             */
+            total_items?: number | null;
+        };
         /**
          * ExportJobRequest
          * @description Request to start an export job.
@@ -10980,6 +11343,108 @@ export interface components {
             start_date?: string | null;
         };
         /**
+         * ExportJobResponse
+         * @description Schema for export job status response.
+         *
+         *     Complete status information for an export job, including
+         *     progress, timing, result, and any error information.
+         * @example {
+         *       "created_at": "2025-01-12T14:30:00Z",
+         *       "export_format": "csv",
+         *       "export_type": "events",
+         *       "id": "550e8400-e29b-41d4-a716-446655440000",
+         *       "progress": {
+         *         "current_step": "Processing events...",
+         *         "estimated_completion": "2025-01-12T14:35:00Z",
+         *         "processed_items": 245,
+         *         "progress_percent": 20,
+         *         "total_items": 1230
+         *       },
+         *       "started_at": "2025-01-12T14:30:01Z",
+         *       "status": "running"
+         *     }
+         */
+        ExportJobResponse: {
+            /**
+             * Completed At
+             * @description Job completion timestamp
+             */
+            completed_at?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             * @description Job creation timestamp
+             */
+            created_at: string;
+            /**
+             * Error Message
+             * @description Error message (populated when failed)
+             */
+            error_message?: string | null;
+            /**
+             * Export Format
+             * @description Export file format
+             */
+            export_format: string;
+            /**
+             * Export Type
+             * @description Type of export
+             */
+            export_type: string;
+            /**
+             * Id
+             * @description Unique export job identifier
+             */
+            id: string;
+            /** @description Progress information */
+            progress?: components["schemas"]["ExportJobProgress"];
+            /** @description Export result (populated when completed) */
+            result?: components["schemas"]["ExportJobResult"] | null;
+            /**
+             * Started At
+             * @description Job start timestamp
+             */
+            started_at?: string | null;
+            /** @description Current job status */
+            status: components["schemas"]["ExportJobStatusEnum"];
+        };
+        /**
+         * ExportJobResult
+         * @description Schema for completed export job result.
+         *
+         *     Information about the completed export, including download path
+         *     and file statistics.
+         * @example {
+         *       "event_count": 1230,
+         *       "format": "csv",
+         *       "output_path": "/api/exports/download/events_export_20250112_143000.csv",
+         *       "output_size_bytes": 125432
+         *     }
+         */
+        ExportJobResult: {
+            /**
+             * Event Count
+             * @description Number of records exported
+             * @default 0
+             */
+            event_count: number;
+            /**
+             * Format
+             * @description Export format used
+             */
+            format: string;
+            /**
+             * Output Path
+             * @description Download path for the exported file
+             */
+            output_path?: string | null;
+            /**
+             * Output Size Bytes
+             * @description File size in bytes
+             */
+            output_size_bytes?: number | null;
+        };
+        /**
          * ExportJobStartResponse
          * @description Response when starting an export job.
          * @example {
@@ -11005,6 +11470,18 @@ export interface components {
              */
             status: components["schemas"]["JobStatusEnum"];
         };
+        /**
+         * ExportJobStatusEnum
+         * @description Export job status values.
+         * @enum {string}
+         */
+        ExportJobStatusEnum: "pending" | "running" | "completed" | "failed";
+        /**
+         * ExportTypeEnum
+         * @description Types of exports available.
+         * @enum {string}
+         */
+        ExportTypeEnum: "events" | "alerts" | "full_backup";
         /**
          * FaceEnrichment
          * @description Face detection results.
@@ -13831,6 +14308,58 @@ export interface components {
              * @description How long the oldest job has been waiting in seconds
              */
             wait_seconds: number;
+        };
+        /**
+         * OrphanCleanupRequest
+         * @description Request schema for orphan cleanup endpoint.
+         */
+        OrphanCleanupRequest: {
+            /**
+             * Dry Run
+             * @description If True, only report what would be deleted without actually deleting
+             * @default true
+             */
+            dry_run: boolean;
+            /**
+             * Max Delete Gb
+             * @description Maximum gigabytes to delete in one run (0.1-100)
+             * @default 10
+             */
+            max_delete_gb: number;
+            /**
+             * Min Age Hours
+             * @description Minimum age in hours before a file can be deleted (1-720)
+             * @default 24
+             */
+            min_age_hours: number;
+        };
+        /**
+         * OrphanCleanupResponse
+         * @description Response schema for orphan cleanup endpoint.
+         */
+        OrphanCleanupResponse: {
+            /** Deleted Bytes */
+            deleted_bytes: number;
+            /** Deleted Bytes Formatted */
+            deleted_bytes_formatted: string;
+            /** Deleted Files */
+            deleted_files: number;
+            /** Dry Run */
+            dry_run: boolean;
+            /** Duration Seconds */
+            duration_seconds: number;
+            /** Failed Count */
+            failed_count: number;
+            /** Failed Deletions */
+            failed_deletions: string[];
+            /** Orphaned Files */
+            orphaned_files: number;
+            /** Scanned Files */
+            scanned_files: number;
+            /** Skipped Size Limit */
+            skipped_size_limit: number;
+            /** Skipped Young */
+            skipped_young: number;
         };
         /**
          * OrphanedFileCleanupResponse
@@ -17134,7 +17663,7 @@ export interface components {
          *       "id": 1,
          *       "low_threshold": 30,
          *       "medium_threshold": 60,
-         *       "missed_detection_count": 3,
+         *       "missed_threat_count": 3,
          *       "updated_at": "2025-01-01T12:00:00Z",
          *       "user_id": "default"
          *     }
@@ -17177,10 +17706,10 @@ export interface components {
              */
             medium_threshold: number;
             /**
-             * Missed Detection Count
-             * @description Number of missed detection feedbacks received
+             * Missed Threat Count
+             * @description Number of missed threat feedbacks received
              */
-            missed_detection_count: number;
+            missed_threat_count: number;
             /**
              * Updated At
              * Format: date-time
@@ -17797,6 +18326,35 @@ export interface components {
             /** @description Type of zone */
             zone_type?: components["schemas"]["ZoneType"] | null;
         };
+        /**
+         * ExportJobStartResponse
+         * @description Response when creating an export job.
+         *
+         *     Returns the job ID that can be used to track progress via
+         *     GET /api/exports/{job_id}.
+         * @example {
+         *       "job_id": "550e8400-e29b-41d4-a716-446655440000",
+         *       "message": "Export job created. Use GET /api/exports/{job_id} to track progress.",
+         *       "status": "pending"
+         *     }
+         */
+        backend__api__schemas__export__ExportJobStartResponse: {
+            /**
+             * Job Id
+             * @description Unique job identifier for tracking progress
+             */
+            job_id: string;
+            /**
+             * Message
+             * @description Human-readable status message
+             */
+            message: string;
+            /**
+             * @description Initial job status (always pending)
+             * @default pending
+             */
+            status: components["schemas"]["ExportJobStatusEnum"];
+        };
     };
     responses: never;
     parameters: never;
@@ -17825,6 +18383,60 @@ export interface operations {
                         [key: string]: string;
                     };
                 };
+            };
+        };
+    };
+    cleanup_orphans_api_admin_cleanup_orphans_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-admin-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrphanCleanupRequest"];
+            };
+        };
+        responses: {
+            /** @description Orphan cleanup completed successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrphanCleanupResponse"];
+                };
+            };
+            /** @description Unauthorized - Admin API key required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden - Debug mode or admin not enabled */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -19473,6 +20085,44 @@ export interface operations {
         };
     };
     update_calibration_api_calibration_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserCalibrationUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserCalibrationResponse"];
+                };
+            };
+            /** @description Validation error (invalid threshold ordering) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    patch_calibration_api_calibration_patch: {
         parameters: {
             query?: never;
             header?: never;
@@ -22349,6 +22999,241 @@ export interface operations {
             };
             /** @description Event is not deleted */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_exports_api_exports_get: {
+        parameters: {
+            query?: {
+                /** @description Filter by job status */
+                status?: components["schemas"]["ExportJobStatusEnum"] | null;
+                /** @description Maximum number of jobs to return */
+                limit?: number;
+                /** @description Number of jobs to skip (for pagination) */
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExportJobListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_export_api_exports_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExportJobCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["backend__api__schemas__export__ExportJobStartResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_export_status_api_exports__job_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExportJobResponse"];
+                };
+            };
+            /** @description Export job not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_export_api_exports__job_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExportJobCancelResponse"];
+                };
+            };
+            /** @description Export job not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Job cannot be cancelled (already completed or failed) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    download_export_api_exports__job_id__download_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Export not yet complete */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Export job or file not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_download_info_api_exports__job_id__download_info_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExportDownloadResponse"];
+                };
+            };
+            /** @description Export job not found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

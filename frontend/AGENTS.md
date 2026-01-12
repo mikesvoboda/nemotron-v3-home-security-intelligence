@@ -566,7 +566,7 @@ Defined in `src/App.tsx`:
 | ----------- | ---------------------- | ---------------------------------------- |
 | `/`         | `DashboardPage`        | Main dashboard with real-time monitoring |
 | `/timeline` | `EventTimeline`        | Chronological event list                 |
-| `/alerts`   | `AlertsPage`           | Alert management                         |
+| `/alerts`   | `AlertsPage`           | Alert management (modular architecture)  |
 | `/entities` | `EntitiesPage`         | Entity tracking                          |
 | `/logs`     | `LogsDashboard`        | Application logs viewer                  |
 | `/audit`    | `AuditLogPage`         | Audit log viewer                         |

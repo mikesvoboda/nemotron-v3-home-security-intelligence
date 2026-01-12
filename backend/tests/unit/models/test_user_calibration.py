@@ -6,11 +6,12 @@ Tests cover:
 - String representation (__repr__)
 - Threshold ordering constraints
 - Decay factor constraints
-- Feedback count constraints
+- Feedback count fields (correct, false_positive, missed_threat, severity_wrong)
+- Properties (total_feedback_count, accuracy_rate)
 - Table indexes and constraints
 - Property-based tests for field values
 
-Related Linear issue: NEM-2352
+Related Linear issues: NEM-2348, NEM-2352
 """
 
 from datetime import UTC, datetime
@@ -63,7 +64,7 @@ def sample_calibration():
         high_threshold=85,
         decay_factor=0.1,
         false_positive_count=5,
-        missed_detection_count=3,
+        missed_threat_count=3,
     )
 
 
@@ -99,7 +100,17 @@ def calibration_with_feedback():
         high_threshold=90,
         decay_factor=0.15,
         false_positive_count=20,
-        missed_detection_count=15,
+        missed_threat_count=15,
+    )
+
+
+@pytest.fixture
+def calibration_no_feedback():
+    """Create a calibration with zero feedback counts."""
+    return UserCalibration(
+        user_id="user_no_feedback",
+        false_positive_count=0,
+        missed_threat_count=0,
     )
 
 
@@ -124,7 +135,7 @@ class TestUserCalibrationModelInitialization:
         assert sample_calibration.high_threshold == 85
         assert sample_calibration.decay_factor == 0.1
         assert sample_calibration.false_positive_count == 5
-        assert sample_calibration.missed_detection_count == 3
+        assert sample_calibration.missed_threat_count == 3
 
     def test_calibration_with_explicit_timestamps(self, calibration_with_timestamps):
         """Test calibration with explicit timestamps."""
@@ -155,7 +166,71 @@ class TestUserCalibrationModelInitialization:
     def test_calibration_with_high_feedback_counts(self, calibration_with_feedback):
         """Test calibration with substantial feedback history."""
         assert calibration_with_feedback.false_positive_count == 20
-        assert calibration_with_feedback.missed_detection_count == 15
+        assert calibration_with_feedback.missed_threat_count == 15
+
+    def test_calibration_default_values_column_definitions(self):
+        """Test default values are correctly defined on columns.
+
+        Note: SQLAlchemy defaults apply at database level, not in-memory.
+        This test verifies the column defaults are correctly defined.
+        """
+        mapper = inspect(UserCalibration)
+
+        # Check threshold defaults
+        assert mapper.columns["low_threshold"].default.arg == 30
+        assert mapper.columns["medium_threshold"].default.arg == 60
+        assert mapper.columns["high_threshold"].default.arg == 85
+
+        # Check decay factor default
+        assert mapper.columns["decay_factor"].default.arg == 0.1
+
+        # Check feedback count defaults
+        assert mapper.columns["false_positive_count"].default.arg == 0
+        assert mapper.columns["missed_threat_count"].default.arg == 0
+
+
+# =============================================================================
+# UserCalibration Threshold Field Tests
+# =============================================================================
+
+
+class TestUserCalibrationThresholdFields:
+    """Tests for UserCalibration threshold fields."""
+
+    def test_low_threshold(self, sample_calibration):
+        """Test low_threshold field."""
+        assert sample_calibration.low_threshold == 30
+
+    def test_medium_threshold(self, sample_calibration):
+        """Test medium_threshold field."""
+        assert sample_calibration.medium_threshold == 60
+
+    def test_high_threshold(self, sample_calibration):
+        """Test high_threshold field."""
+        assert sample_calibration.high_threshold == 85
+
+    def test_custom_thresholds(self):
+        """Test custom threshold values."""
+        calibration = UserCalibration(
+            user_id="custom",
+            low_threshold=20,
+            medium_threshold=50,
+            high_threshold=80,
+        )
+        assert calibration.low_threshold == 20
+        assert calibration.medium_threshold == 50
+        assert calibration.high_threshold == 80
+
+    def test_boundary_thresholds(self):
+        """Test threshold boundary values."""
+        calibration = UserCalibration(
+            user_id="boundary",
+            low_threshold=0,
+            medium_threshold=50,
+            high_threshold=100,
+        )
+        assert calibration.low_threshold == 0
+        assert calibration.high_threshold == 100
 
 
 # =============================================================================
@@ -266,15 +341,15 @@ class TestUserCalibrationColumnDefinitions:
         assert col.default is not None
         assert col.default.arg == 0
 
-    def test_calibration_has_missed_detection_count_column(self):
-        """Test UserCalibration has missed_detection_count column defined."""
+    def test_calibration_has_missed_threat_count_column(self):
+        """Test UserCalibration has missed_threat_count column defined."""
         mapper = inspect(UserCalibration)
-        assert "missed_detection_count" in mapper.columns
+        assert "missed_threat_count" in mapper.columns
 
-    def test_calibration_missed_detection_count_has_default(self):
-        """Test missed_detection_count column has default value."""
+    def test_calibration_missed_threat_count_has_default(self):
+        """Test missed_threat_count column has default value."""
         mapper = inspect(UserCalibration)
-        col = mapper.columns["missed_detection_count"]
+        col = mapper.columns["missed_threat_count"]
         assert col.default is not None
         assert col.default.arg == 0
 
@@ -287,6 +362,80 @@ class TestUserCalibrationColumnDefinitions:
         """Test UserCalibration has updated_at column defined."""
         mapper = inspect(UserCalibration)
         assert "updated_at" in mapper.columns
+
+    def test_thresholds_are_required(self):
+        """Test threshold columns are not nullable."""
+        mapper = inspect(UserCalibration)
+        assert mapper.columns["low_threshold"].nullable is False
+        assert mapper.columns["medium_threshold"].nullable is False
+        assert mapper.columns["high_threshold"].nullable is False
+
+    def test_feedback_counts_are_required(self):
+        """Test feedback count columns are not nullable."""
+        mapper = inspect(UserCalibration)
+        assert mapper.columns["false_positive_count"].nullable is False
+        assert mapper.columns["missed_threat_count"].nullable is False
+
+
+# =============================================================================
+# UserCalibration Decay Factor Field Tests
+# =============================================================================
+
+
+class TestUserCalibrationDecayFactorField:
+    """Tests for UserCalibration decay_factor field."""
+
+    def test_decay_factor_default(self):
+        """Test decay_factor has default value defined."""
+        mapper = inspect(UserCalibration)
+        assert mapper.columns["decay_factor"].default.arg == 0.1
+
+    def test_decay_factor_custom(self):
+        """Test custom decay_factor value."""
+        calibration = UserCalibration(user_id="custom", decay_factor=0.5)
+        assert calibration.decay_factor == 0.5
+
+    def test_decay_factor_minimum(self):
+        """Test decay_factor at minimum boundary."""
+        calibration = UserCalibration(user_id="min", decay_factor=0.0)
+        assert calibration.decay_factor == 0.0
+
+    def test_decay_factor_maximum(self):
+        """Test decay_factor at maximum boundary."""
+        calibration = UserCalibration(user_id="max", decay_factor=1.0)
+        assert calibration.decay_factor == 1.0
+
+
+# =============================================================================
+# UserCalibration Feedback Count Field Tests
+# =============================================================================
+
+
+class TestUserCalibrationFeedbackCountFields:
+    """Tests for UserCalibration feedback count fields."""
+
+    def test_false_positive_count_field(self, sample_calibration):
+        """Test false_positive_count field."""
+        assert sample_calibration.false_positive_count == 5
+
+    def test_missed_threat_count_field(self, sample_calibration):
+        """Test missed_threat_count field."""
+        assert sample_calibration.missed_threat_count == 3
+
+    def test_all_counts_can_be_zero(self, calibration_no_feedback):
+        """Test all feedback counts can be zero."""
+        assert calibration_no_feedback.false_positive_count == 0
+        assert calibration_no_feedback.missed_threat_count == 0
+
+    def test_feedback_counts_large_values(self):
+        """Test feedback counts can handle large values."""
+        calibration = UserCalibration(
+            user_id="large",
+            false_positive_count=10000,
+            missed_threat_count=5000,
+        )
+        assert calibration.false_positive_count == 10000
+        assert calibration.missed_threat_count == 5000
 
 
 # =============================================================================
@@ -368,13 +517,13 @@ class TestUserCalibrationConstraints:
         constraint_names = [c.name for c in constraints if c.name]
         assert "ck_user_calibration_fp_count" in constraint_names
 
-    def test_calibration_has_md_count_constraint(self):
-        """Test UserCalibration has missed_detection_count CHECK constraint."""
+    def test_calibration_has_mt_count_constraint(self):
+        """Test UserCalibration has missed_threat_count CHECK constraint."""
         constraints = [
             arg for arg in UserCalibration.__table_args__ if isinstance(arg, CheckConstraint)
         ]
         constraint_names = [c.name for c in constraints if c.name]
-        assert "ck_user_calibration_md_count" in constraint_names
+        assert "ck_user_calibration_mt_count" in constraint_names
 
 
 # =============================================================================
@@ -412,6 +561,36 @@ class TestUserCalibrationRepr:
         repr_str = repr(sample_calibration)
         assert repr_str.startswith("<UserCalibration(")
         assert repr_str.endswith(")>")
+
+
+# =============================================================================
+# UserCalibration Timestamp Tests
+# =============================================================================
+
+
+class TestUserCalibrationTimestamps:
+    """Tests for UserCalibration timestamp columns."""
+
+    def test_created_at_default_defined(self):
+        """Test created_at default is defined."""
+        mapper = inspect(UserCalibration)
+        created_at_col = mapper.columns["created_at"]
+        assert created_at_col.default is not None
+        assert callable(created_at_col.default.arg)
+
+    def test_updated_at_default_defined(self):
+        """Test updated_at default is defined."""
+        mapper = inspect(UserCalibration)
+        updated_at_col = mapper.columns["updated_at"]
+        assert updated_at_col.default is not None
+        assert callable(updated_at_col.default.arg)
+
+    def test_updated_at_onupdate_defined(self):
+        """Test updated_at onupdate is defined."""
+        mapper = inspect(UserCalibration)
+        updated_at_col = mapper.columns["updated_at"]
+        assert updated_at_col.onupdate is not None
+        assert callable(updated_at_col.onupdate.arg)
 
 
 # =============================================================================
@@ -516,30 +695,30 @@ class TestUserCalibrationFeedbackCounts:
         calibration = UserCalibration(
             user_id="zero_feedback",
             false_positive_count=0,
-            missed_detection_count=0,
+            missed_threat_count=0,
         )
         assert calibration.false_positive_count == 0
-        assert calibration.missed_detection_count == 0
+        assert calibration.missed_threat_count == 0
 
     def test_high_feedback_counts(self):
         """Test calibration with high feedback counts."""
         calibration = UserCalibration(
             user_id="high_feedback",
             false_positive_count=1000,
-            missed_detection_count=500,
+            missed_threat_count=500,
         )
         assert calibration.false_positive_count == 1000
-        assert calibration.missed_detection_count == 500
+        assert calibration.missed_threat_count == 500
 
     def test_asymmetric_feedback_counts(self):
         """Test calibration with asymmetric feedback (more FPs than missed)."""
         calibration = UserCalibration(
             user_id="asymmetric",
             false_positive_count=100,
-            missed_detection_count=10,
+            missed_threat_count=10,
         )
         # More false positives suggests system is too sensitive
-        assert calibration.false_positive_count > calibration.missed_detection_count
+        assert calibration.false_positive_count > calibration.missed_threat_count
 
 
 # =============================================================================
@@ -568,17 +747,17 @@ class TestUserCalibrationProperties:
         # Allow for floating point precision
         assert abs(calibration.decay_factor - decay_factor) < 1e-10
 
-    @given(fp_count=feedback_counts, md_count=feedback_counts)
+    @given(fp_count=feedback_counts, mt_count=feedback_counts)
     @settings(max_examples=50)
-    def test_feedback_counts_roundtrip(self, fp_count: int, md_count: int):
+    def test_feedback_counts_roundtrip(self, fp_count: int, mt_count: int):
         """Property: Feedback count values roundtrip correctly."""
         calibration = UserCalibration(
             user_id="test",
             false_positive_count=fp_count,
-            missed_detection_count=md_count,
+            missed_threat_count=mt_count,
         )
         assert calibration.false_positive_count == fp_count
-        assert calibration.missed_detection_count == md_count
+        assert calibration.missed_threat_count == mt_count
 
     @given(
         low=st.integers(min_value=0, max_value=32),
@@ -682,6 +861,6 @@ class TestUserCalibrationSemantics:
         """
         total_feedback = (
             calibration_with_feedback.false_positive_count
-            + calibration_with_feedback.missed_detection_count
+            + calibration_with_feedback.missed_threat_count
         )
         assert total_feedback == 35  # 20 FPs + 15 missed detections

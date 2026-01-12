@@ -2316,7 +2316,7 @@
             "id": 1,
             "low_threshold": 30,
             "medium_threshold": 60,
-            "missed_detection_count": 3,
+            "missed_threat_count": 3,
             "updated_at": "2025-01-01T12:00:00Z",
             "user_id": "default"
           },
@@ -7777,6 +7777,77 @@
         "title": "EventsByRiskLevel",
         "type": "object"
       },
+      "ExportDownloadResponse": {
+        "description": "Schema for export file download metadata.\n\nReturned when checking if a file is ready for download.\nThe actual file is served via a separate streaming endpoint.",
+        "example": {
+          "content_type": "text/csv",
+          "download_url": "/api/exports/550e8400-e29b-41d4-a716-446655440000/download",
+          "filename": "events_export_20250112_143000.csv",
+          "ready": true,
+          "size_bytes": 125432
+        },
+        "properties": {
+          "content_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "MIME type of the file",
+            "title": "Content Type"
+          },
+          "download_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "URL to download the file",
+            "title": "Download Url"
+          },
+          "filename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Exported filename",
+            "title": "Filename"
+          },
+          "ready": {
+            "description": "Whether the file is ready for download",
+            "title": "Ready",
+            "type": "boolean"
+          },
+          "size_bytes": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "File size in bytes",
+            "title": "Size Bytes"
+          }
+        },
+        "required": [
+          "ready"
+        ],
+        "title": "ExportDownloadResponse",
+        "type": "object"
+      },
       "ExportFormat": {
         "description": "Supported export formats.",
         "enum": [
@@ -7786,6 +7857,262 @@
         ],
         "title": "ExportFormat",
         "type": "string"
+      },
+      "ExportFormatEnum": {
+        "description": "Export file formats.",
+        "enum": [
+          "csv",
+          "json",
+          "zip",
+          "excel"
+        ],
+        "title": "ExportFormatEnum",
+        "type": "string"
+      },
+      "ExportJobCancelResponse": {
+        "description": "Schema for export job cancellation response.",
+        "example": {
+          "cancelled": true,
+          "job_id": "550e8400-e29b-41d4-a716-446655440000",
+          "message": "Export job cancelled by user",
+          "status": "failed"
+        },
+        "properties": {
+          "cancelled": {
+            "description": "Whether cancellation was successful",
+            "title": "Cancelled",
+            "type": "boolean"
+          },
+          "job_id": {
+            "description": "Job ID that was cancelled",
+            "title": "Job Id",
+            "type": "string"
+          },
+          "message": {
+            "description": "Cancellation status message",
+            "title": "Message",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ExportJobStatusEnum",
+            "description": "New job status after cancellation"
+          }
+        },
+        "required": [
+          "job_id",
+          "status",
+          "message",
+          "cancelled"
+        ],
+        "title": "ExportJobCancelResponse",
+        "type": "object"
+      },
+      "ExportJobCreate": {
+        "description": "Schema for creating an export job.\n\nCreate a new background export job with optional filtering parameters.\nThe job will be processed asynchronously and can be monitored via\nthe job status endpoint.",
+        "example": {
+          "camera_id": "front_door",
+          "end_date": "2025-01-12T23:59:59Z",
+          "export_format": "csv",
+          "export_type": "events",
+          "risk_level": "high",
+          "start_date": "2025-01-01T00:00:00Z"
+        },
+        "properties": {
+          "camera_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Filter by camera ID",
+            "title": "Camera Id"
+          },
+          "end_date": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Filter events ending before this date (ISO format)",
+            "title": "End Date"
+          },
+          "export_format": {
+            "$ref": "#/components/schemas/ExportFormatEnum",
+            "default": "csv",
+            "description": "Output file format (csv, json, zip, excel)"
+          },
+          "export_type": {
+            "$ref": "#/components/schemas/ExportTypeEnum",
+            "default": "events",
+            "description": "Type of data to export (events, alerts, full_backup)"
+          },
+          "reviewed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Filter by reviewed status (true=reviewed, false=unreviewed, null=all)",
+            "title": "Reviewed"
+          },
+          "risk_level": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Filter by risk level (low, medium, high, critical)",
+            "title": "Risk Level"
+          },
+          "start_date": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Filter events starting from this date (ISO format)",
+            "title": "Start Date"
+          }
+        },
+        "title": "ExportJobCreate",
+        "type": "object"
+      },
+      "ExportJobListResponse": {
+        "description": "Schema for export job list response with pagination.",
+        "example": {
+          "items": [
+            {
+              "completed_at": "2025-01-12T14:35:00Z",
+              "created_at": "2025-01-12T14:30:00Z",
+              "export_format": "csv",
+              "export_type": "events",
+              "id": "550e8400-e29b-41d4-a716-446655440000",
+              "progress": {
+                "current_step": "Complete",
+                "processed_items": 1230,
+                "progress_percent": 100,
+                "total_items": 1230
+              },
+              "result": {
+                "event_count": 1230,
+                "format": "csv",
+                "output_path": "/api/exports/download/events_export_20250112_143000.csv",
+                "output_size_bytes": 125432
+              },
+              "started_at": "2025-01-12T14:30:01Z",
+              "status": "completed"
+            }
+          ],
+          "pagination": {
+            "has_more": false,
+            "limit": 50,
+            "offset": 0,
+            "total": 1
+          }
+        },
+        "properties": {
+          "items": {
+            "description": "List of export jobs",
+            "items": {
+              "$ref": "#/components/schemas/ExportJobResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationMeta",
+            "description": "Pagination metadata"
+          }
+        },
+        "required": [
+          "items",
+          "pagination"
+        ],
+        "title": "ExportJobListResponse",
+        "type": "object"
+      },
+      "ExportJobProgress": {
+        "description": "Schema for export job progress information.\n\nDetailed progress information for an export job, including\ntiming, item counts, and current step.",
+        "example": {
+          "current_step": "Processing events...",
+          "estimated_completion": "2025-01-12T14:35:00Z",
+          "processed_items": 245,
+          "progress_percent": 20,
+          "total_items": 1230
+        },
+        "properties": {
+          "current_step": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Current processing step description",
+            "title": "Current Step"
+          },
+          "estimated_completion": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Estimated completion time (ISO format)",
+            "title": "Estimated Completion"
+          },
+          "processed_items": {
+            "default": 0,
+            "description": "Number of items processed so far",
+            "minimum": 0.0,
+            "title": "Processed Items",
+            "type": "integer"
+          },
+          "progress_percent": {
+            "default": 0,
+            "description": "Progress percentage (0-100)",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Progress Percent",
+            "type": "integer"
+          },
+          "total_items": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Total items to process (null if unknown)",
+            "title": "Total Items"
+          }
+        },
+        "title": "ExportJobProgress",
+        "type": "object"
       },
       "ExportJobRequest": {
         "description": "Request to start an export job.",
@@ -7867,6 +8194,166 @@
         "title": "ExportJobRequest",
         "type": "object"
       },
+      "ExportJobResponse": {
+        "description": "Schema for export job status response.\n\nComplete status information for an export job, including\nprogress, timing, result, and any error information.",
+        "example": {
+          "created_at": "2025-01-12T14:30:00Z",
+          "export_format": "csv",
+          "export_type": "events",
+          "id": "550e8400-e29b-41d4-a716-446655440000",
+          "progress": {
+            "current_step": "Processing events...",
+            "estimated_completion": "2025-01-12T14:35:00Z",
+            "processed_items": 245,
+            "progress_percent": 20,
+            "total_items": 1230
+          },
+          "started_at": "2025-01-12T14:30:01Z",
+          "status": "running"
+        },
+        "properties": {
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Job completion timestamp",
+            "title": "Completed At"
+          },
+          "created_at": {
+            "description": "Job creation timestamp",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Error message (populated when failed)",
+            "title": "Error Message"
+          },
+          "export_format": {
+            "description": "Export file format",
+            "title": "Export Format",
+            "type": "string"
+          },
+          "export_type": {
+            "description": "Type of export",
+            "title": "Export Type",
+            "type": "string"
+          },
+          "id": {
+            "description": "Unique export job identifier",
+            "title": "Id",
+            "type": "string"
+          },
+          "progress": {
+            "$ref": "#/components/schemas/ExportJobProgress",
+            "description": "Progress information"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExportJobResult"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Export result (populated when completed)"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Job start timestamp",
+            "title": "Started At"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ExportJobStatusEnum",
+            "description": "Current job status"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "export_type",
+          "export_format",
+          "created_at"
+        ],
+        "title": "ExportJobResponse",
+        "type": "object"
+      },
+      "ExportJobResult": {
+        "description": "Schema for completed export job result.\n\nInformation about the completed export, including download path\nand file statistics.",
+        "example": {
+          "event_count": 1230,
+          "format": "csv",
+          "output_path": "/api/exports/download/events_export_20250112_143000.csv",
+          "output_size_bytes": 125432
+        },
+        "properties": {
+          "event_count": {
+            "default": 0,
+            "description": "Number of records exported",
+            "minimum": 0.0,
+            "title": "Event Count",
+            "type": "integer"
+          },
+          "format": {
+            "description": "Export format used",
+            "title": "Format",
+            "type": "string"
+          },
+          "output_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Download path for the exported file",
+            "title": "Output Path"
+          },
+          "output_size_bytes": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "File size in bytes",
+            "title": "Output Size Bytes"
+          }
+        },
+        "required": [
+          "format"
+        ],
+        "title": "ExportJobResult",
+        "type": "object"
+      },
       "ExportJobStartResponse": {
         "description": "Response when starting an export job.",
         "example": {
@@ -7897,6 +8384,27 @@
         ],
         "title": "ExportJobStartResponse",
         "type": "object"
+      },
+      "ExportJobStatusEnum": {
+        "description": "Export job status values.",
+        "enum": [
+          "pending",
+          "running",
+          "completed",
+          "failed"
+        ],
+        "title": "ExportJobStatusEnum",
+        "type": "string"
+      },
+      "ExportTypeEnum": {
+        "description": "Types of exports available.",
+        "enum": [
+          "events",
+          "alerts",
+          "full_backup"
+        ],
+        "title": "ExportTypeEnum",
+        "type": "string"
       },
       "FaceEnrichment": {
         "description": "Face detection results.",
@@ -11899,6 +12407,102 @@
           "wait_seconds"
         ],
         "title": "OldestJobInfo",
+        "type": "object"
+      },
+      "OrphanCleanupRequest": {
+        "description": "Request schema for orphan cleanup endpoint.",
+        "properties": {
+          "dry_run": {
+            "default": true,
+            "description": "If True, only report what would be deleted without actually deleting",
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "max_delete_gb": {
+            "default": 10.0,
+            "description": "Maximum gigabytes to delete in one run (0.1-100)",
+            "maximum": 100.0,
+            "minimum": 0.1,
+            "title": "Max Delete Gb",
+            "type": "number"
+          },
+          "min_age_hours": {
+            "default": 24,
+            "description": "Minimum age in hours before a file can be deleted (1-720)",
+            "maximum": 720.0,
+            "minimum": 1.0,
+            "title": "Min Age Hours",
+            "type": "integer"
+          }
+        },
+        "title": "OrphanCleanupRequest",
+        "type": "object"
+      },
+      "OrphanCleanupResponse": {
+        "description": "Response schema for orphan cleanup endpoint.",
+        "properties": {
+          "deleted_bytes": {
+            "title": "Deleted Bytes",
+            "type": "integer"
+          },
+          "deleted_bytes_formatted": {
+            "title": "Deleted Bytes Formatted",
+            "type": "string"
+          },
+          "deleted_files": {
+            "title": "Deleted Files",
+            "type": "integer"
+          },
+          "dry_run": {
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "duration_seconds": {
+            "title": "Duration Seconds",
+            "type": "number"
+          },
+          "failed_count": {
+            "title": "Failed Count",
+            "type": "integer"
+          },
+          "failed_deletions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Failed Deletions",
+            "type": "array"
+          },
+          "orphaned_files": {
+            "title": "Orphaned Files",
+            "type": "integer"
+          },
+          "scanned_files": {
+            "title": "Scanned Files",
+            "type": "integer"
+          },
+          "skipped_size_limit": {
+            "title": "Skipped Size Limit",
+            "type": "integer"
+          },
+          "skipped_young": {
+            "title": "Skipped Young",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "scanned_files",
+          "orphaned_files",
+          "deleted_files",
+          "deleted_bytes",
+          "deleted_bytes_formatted",
+          "failed_count",
+          "failed_deletions",
+          "duration_seconds",
+          "dry_run",
+          "skipped_young",
+          "skipped_size_limit"
+        ],
+        "title": "OrphanCleanupResponse",
         "type": "object"
       },
       "OrphanedFileCleanupResponse": {
@@ -16538,7 +17142,7 @@
           "id": 1,
           "low_threshold": 30,
           "medium_threshold": 60,
-          "missed_detection_count": 3,
+          "missed_threat_count": 3,
           "updated_at": "2025-01-01T12:00:00Z",
           "user_id": "default"
         },
@@ -16579,9 +17183,9 @@
             "title": "Medium Threshold",
             "type": "integer"
           },
-          "missed_detection_count": {
-            "description": "Number of missed detection feedbacks received",
-            "title": "Missed Detection Count",
+          "missed_threat_count": {
+            "description": "Number of missed threat feedbacks received",
+            "title": "Missed Threat Count",
             "type": "integer"
           },
           "updated_at": {
@@ -16604,7 +17208,7 @@
           "high_threshold",
           "decay_factor",
           "false_positive_count",
-          "missed_detection_count",
+          "missed_threat_count",
           "created_at",
           "updated_at"
         ],
@@ -17582,6 +18186,37 @@
         },
         "title": "ZoneUpdate",
         "type": "object"
+      },
+      "backend__api__schemas__export__ExportJobStartResponse": {
+        "description": "Response when creating an export job.\n\nReturns the job ID that can be used to track progress via\nGET /api/exports/{job_id}.",
+        "example": {
+          "job_id": "550e8400-e29b-41d4-a716-446655440000",
+          "message": "Export job created. Use GET /api/exports/{job_id} to track progress.",
+          "status": "pending"
+        },
+        "properties": {
+          "job_id": {
+            "description": "Unique job identifier for tracking progress",
+            "title": "Job Id",
+            "type": "string"
+          },
+          "message": {
+            "description": "Human-readable status message",
+            "title": "Message",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ExportJobStatusEnum",
+            "default": "pending",
+            "description": "Initial job status (always pending)"
+          }
+        },
+        "required": [
+          "job_id",
+          "message"
+        ],
+        "title": "ExportJobStartResponse",
+        "type": "object"
       }
     }
   },
@@ -17613,6 +18248,68 @@
           }
         },
         "summary": "Root"
+      }
+    },
+    "/api/admin/cleanup/orphans": {
+      "post": {
+        "description": "Manually trigger orphaned file cleanup.\n\nScans camera upload directories for files that have no corresponding\ndatabase records and optionally deletes them.\n\nSECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.\nIf ADMIN_API_KEY is set, requires X-Admin-API-Key header.\n\nSafety features:\n- dry_run=True by default (no actual deletions)\n- min_age_hours threshold prevents deleting files being processed\n- max_delete_gb limits total deletion per run\n\nArgs:\n    request: Cleanup configuration (dry_run, min_age_hours, max_delete_gb)\n    http_request: FastAPI request for audit logging\n    _admin: Admin access validation (via dependency)\n\nReturns:\n    Summary of cleanup operation with statistics",
+        "operationId": "cleanup_orphans_api_admin_cleanup_orphans_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-admin-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrphanCleanupRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrphanCleanupResponse"
+                }
+              }
+            },
+            "description": "Orphan cleanup completed successfully"
+          },
+          "401": {
+            "description": "Unauthorized - Admin API key required"
+          },
+          "403": {
+            "description": "Forbidden - Debug mode or admin not enabled"
+          },
+          "422": {
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Cleanup Orphans",
+        "tags": [
+          "admin"
+        ]
       }
     },
     "/api/admin/seed/cameras": {
@@ -19626,8 +20323,44 @@
           "calibration"
         ]
       },
+      "patch": {
+        "description": "Partially update calibration thresholds.\n\nAllows partial updates - only provided fields will be changed.\nValidates that threshold ordering is maintained (low < medium < high).\n\nArgs:\n    update_data: Fields to update (partial updates supported)\n    db: Database session\n\nReturns:\n    Updated CalibrationResponse\n\nRaises:\n    HTTPException: 422 if threshold ordering would be violated",
+        "operationId": "patch_calibration_api_calibration_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserCalibrationUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserCalibrationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation error (invalid threshold ordering)"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Patch Calibration",
+        "tags": [
+          "calibration"
+        ]
+      },
       "put": {
-        "description": "Update calibration thresholds.\n\nAllows partial updates - only provided fields will be changed.\nValidates that threshold ordering is maintained (low < medium < high).\n\nArgs:\n    update_data: Fields to update (partial updates supported)\n    db: Database session\n\nReturns:\n    Updated CalibrationResponse\n\nRaises:\n    HTTPException: 422 if threshold ordering would be violated",
+        "description": "Update calibration thresholds (full replacement semantics).\n\nAllows partial updates - only provided fields will be changed.\nValidates that threshold ordering is maintained (low < medium < high).\n\nNote: For REST semantics, use PATCH for partial updates. This PUT endpoint\nis kept for backward compatibility and behaves identically to PATCH.\n\nArgs:\n    update_data: Fields to update (partial updates supported)\n    db: Database session\n\nReturns:\n    Updated CalibrationResponse\n\nRaises:\n    HTTPException: 422 if threshold ordering would be violated",
         "operationId": "update_calibration_api_calibration_put",
         "requestBody": {
           "content": {
@@ -19690,7 +20423,7 @@
     },
     "/api/calibration/reset": {
       "post": {
-        "description": "Reset calibration to default thresholds.\n\nResets all thresholds to their default values:\n- low_threshold: 30\n- medium_threshold: 60\n- high_threshold: 85\n- decay_factor: 0.1\n\nNote: Feedback counts (false_positive_count, missed_detection_count)\nare NOT reset by this operation.\n\nReturns:\n    CalibrationResetResponse with success message and reset calibration data",
+        "description": "Reset calibration to default thresholds.\n\nResets all thresholds to their default values:\n- low_threshold: 30\n- medium_threshold: 60\n- high_threshold: 85\n- decay_factor: 0.1\n\nNote: Feedback counts (correct_count, false_positive_count, missed_threat_count,\nseverity_wrong_count) are NOT reset by this operation.\n\nReturns:\n    CalibrationResetResponse with success message and reset calibration data",
         "operationId": "reset_calibration_api_calibration_reset_post",
         "responses": {
           "200": {
@@ -23892,6 +24625,311 @@
         "summary": "Restore a soft-deleted event",
         "tags": [
           "events"
+        ]
+      }
+    },
+    "/api/exports": {
+      "get": {
+        "description": "List recent export jobs with optional filtering by status.",
+        "operationId": "list_exports_api_exports_get",
+        "parameters": [
+          {
+            "description": "Filter by job status",
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ExportJobStatusEnum"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by job status",
+              "title": "Status"
+            }
+          },
+          {
+            "description": "Maximum number of jobs to return",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "description": "Maximum number of jobs to return",
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Number of jobs to skip (for pagination)",
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Number of jobs to skip (for pagination)",
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportJobListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List export jobs",
+        "tags": [
+          "exports"
+        ]
+      },
+      "post": {
+        "description": "Start a new background export job. Returns a job ID that can be used to track progress via GET /api/exports/{job_id}.",
+        "operationId": "start_export_api_exports_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExportJobCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/backend__api__schemas__export__ExportJobStartResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Start export job",
+        "tags": [
+          "exports"
+        ]
+      }
+    },
+    "/api/exports/{job_id}": {
+      "delete": {
+        "description": "Cancel a pending or running export job. Completed or failed jobs cannot be cancelled.",
+        "operationId": "cancel_export_api_exports__job_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportJobCancelResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Export job not found"
+          },
+          "409": {
+            "description": "Job cannot be cancelled (already completed or failed)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cancel export job",
+        "tags": [
+          "exports"
+        ]
+      },
+      "get": {
+        "description": "Get the current status and progress of an export job.",
+        "operationId": "get_export_status_api_exports__job_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportJobResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Export job not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get export status",
+        "tags": [
+          "exports"
+        ]
+      }
+    },
+    "/api/exports/{job_id}/download": {
+      "get": {
+        "description": "Download the completed export file.",
+        "operationId": "download_export_api_exports__job_id__download_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Export not yet complete"
+          },
+          "404": {
+            "description": "Export job or file not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Download export file",
+        "tags": [
+          "exports"
+        ]
+      }
+    },
+    "/api/exports/{job_id}/download/info": {
+      "get": {
+        "description": "Get metadata about the export file for download.",
+        "operationId": "get_download_info_api_exports__job_id__download_info_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportDownloadResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Export job not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get download info",
+        "tags": [
+          "exports"
         ]
       }
     },

@@ -11,15 +11,26 @@ vi.mock('../../services/api', async () => {
     ...actual,
     fetchStorageStats: vi.fn(),
     fetchJobs: vi.fn(),
+    fetchCleanupStatus: vi.fn(),
     triggerCleanup: vi.fn(),
     previewCleanup: vi.fn(),
+    previewOrphanedFiles: vi.fn(),
+    triggerOrphanedCleanup: vi.fn(),
   };
 });
 
+// Mock the storage status store
+vi.mock('../../stores/storage-status-store', () => ({
+  useStorageStatusStore: vi.fn(() => vi.fn()),
+}));
+
 const mockFetchStorageStats = vi.mocked(api.fetchStorageStats);
 const mockFetchJobs = vi.mocked(api.fetchJobs);
+const mockFetchCleanupStatus = vi.mocked(api.fetchCleanupStatus);
 const mockTriggerCleanup = vi.mocked(api.triggerCleanup);
 const mockPreviewCleanup = vi.mocked(api.previewCleanup);
+const mockPreviewOrphanedFiles = vi.mocked(api.previewOrphanedFiles);
+const mockTriggerOrphanedCleanup = vi.mocked(api.triggerOrphanedCleanup);
 
 describe('FileOperationsPanel', () => {
   // Sample storage stats data
@@ -97,11 +108,39 @@ describe('FileOperationsPanel', () => {
     timestamp: '2025-12-30T10:30:00Z',
   };
 
+  // Sample cleanup status response
+  const mockCleanupStatus: api.CleanupStatusResponse = {
+    running: true,
+    cleanup_time: '03:00',
+    retention_days: 30,
+    delete_images: false,
+    next_cleanup: '2025-12-31T03:00:00Z',
+    timestamp: '2025-12-30T10:00:00Z',
+  };
+
+  // Sample orphaned files response
+  const mockOrphanedPreview: api.OrphanedFileCleanupResponse = {
+    dry_run: true,
+    orphaned_count: 25,
+    orphaned_files: ['/data/thumbnails/orphan1.jpg', '/data/thumbnails/orphan2.jpg'],
+    total_size: 524288000, // 500 MB
+    total_size_formatted: '500.00 MB',
+    timestamp: '2025-12-30T10:30:00Z',
+    job_id: null,
+  };
+
   beforeEach(() => {
     mockFetchStorageStats.mockReset();
     mockFetchJobs.mockReset();
+    mockFetchCleanupStatus.mockReset();
     mockTriggerCleanup.mockReset();
     mockPreviewCleanup.mockReset();
+    mockPreviewOrphanedFiles.mockReset();
+    mockTriggerOrphanedCleanup.mockReset();
+
+    // Set default mock values for optional endpoints that may fail gracefully
+    mockFetchCleanupStatus.mockResolvedValue(mockCleanupStatus);
+    mockPreviewOrphanedFiles.mockResolvedValue({ ...mockOrphanedPreview, orphaned_count: 0, orphaned_files: [] });
   });
 
   afterEach(() => {
@@ -593,6 +632,112 @@ describe('FileOperationsPanel', () => {
 
       // Should be called with storage stats
       expect(onStorageChange).toHaveBeenCalledWith(mockStorageStats);
+    });
+  });
+
+  describe('cleanup summary display', () => {
+    it('displays cleanup service status', async () => {
+      mockFetchStorageStats.mockResolvedValue(mockStorageStats);
+      mockFetchJobs.mockResolvedValue(mockJobsEmpty);
+      mockFetchCleanupStatus.mockResolvedValue(mockCleanupStatus);
+
+      render(<FileOperationsPanel />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('file-operations-panel')).toBeInTheDocument();
+      });
+
+      expect(screen.getByTestId('cleanup-summary')).toBeInTheDocument();
+      expect(screen.getByText('Cleanup Service')).toBeInTheDocument();
+      expect(screen.getByText('03:00')).toBeInTheDocument();
+      expect(screen.getByText('30 days')).toBeInTheDocument();
+    });
+
+    it('shows running status when cleanup service is running', async () => {
+      mockFetchStorageStats.mockResolvedValue(mockStorageStats);
+      mockFetchJobs.mockResolvedValue(mockJobsEmpty);
+      mockFetchCleanupStatus.mockResolvedValue({ ...mockCleanupStatus, running: true });
+
+      render(<FileOperationsPanel />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('cleanup-summary')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('Running')).toBeInTheDocument();
+    });
+
+    it('shows stopped status when cleanup service is not running', async () => {
+      mockFetchStorageStats.mockResolvedValue(mockStorageStats);
+      mockFetchJobs.mockResolvedValue(mockJobsEmpty);
+      mockFetchCleanupStatus.mockResolvedValue({ ...mockCleanupStatus, running: false });
+
+      render(<FileOperationsPanel />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('cleanup-summary')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('Stopped')).toBeInTheDocument();
+    });
+  });
+
+  describe('orphaned files warning', () => {
+    it('displays orphaned files warning when orphaned files exist', async () => {
+      mockFetchStorageStats.mockResolvedValue(mockStorageStats);
+      mockFetchJobs.mockResolvedValue(mockJobsEmpty);
+      mockPreviewOrphanedFiles.mockResolvedValue(mockOrphanedPreview);
+
+      render(<FileOperationsPanel />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('file-operations-panel')).toBeInTheDocument();
+      });
+
+      expect(screen.getByTestId('orphaned-files-warning')).toBeInTheDocument();
+      expect(screen.getByText(/25 Orphaned Files Found/)).toBeInTheDocument();
+      expect(screen.getByText(/500\.00 MB can be reclaimed/)).toBeInTheDocument();
+    });
+
+    it('does not display orphaned files warning when no orphaned files', async () => {
+      mockFetchStorageStats.mockResolvedValue(mockStorageStats);
+      mockFetchJobs.mockResolvedValue(mockJobsEmpty);
+      mockPreviewOrphanedFiles.mockResolvedValue({
+        ...mockOrphanedPreview,
+        orphaned_count: 0,
+        orphaned_files: [],
+      });
+
+      render(<FileOperationsPanel />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('file-operations-panel')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByTestId('orphaned-files-warning')).not.toBeInTheDocument();
+    });
+
+    it('triggers orphaned cleanup when clean up button is clicked', async () => {
+      mockFetchStorageStats.mockResolvedValue(mockStorageStats);
+      mockFetchJobs.mockResolvedValue(mockJobsEmpty);
+      mockPreviewOrphanedFiles.mockResolvedValue(mockOrphanedPreview);
+      mockTriggerOrphanedCleanup.mockResolvedValue({
+        ...mockOrphanedPreview,
+        dry_run: false,
+      });
+
+      render(<FileOperationsPanel />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('orphaned-files-warning')).toBeInTheDocument();
+      });
+
+      const cleanOrphanedButton = screen.getByTestId('clean-orphaned-button');
+      fireEvent.click(cleanOrphanedButton);
+
+      await waitFor(() => {
+        expect(mockTriggerOrphanedCleanup).toHaveBeenCalled();
+      });
     });
   });
 });

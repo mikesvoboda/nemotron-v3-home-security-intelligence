@@ -151,7 +151,7 @@ class UserCalibrationResponse(BaseModel):
                 "high_threshold": 85,
                 "decay_factor": 0.1,
                 "false_positive_count": 5,
-                "missed_detection_count": 3,
+                "missed_threat_count": 3,
                 "created_at": "2025-01-01T12:00:00Z",
                 "updated_at": "2025-01-01T12:00:00Z",
             }
@@ -167,9 +167,7 @@ class UserCalibrationResponse(BaseModel):
     false_positive_count: int = Field(
         ..., description="Number of false positive feedbacks received"
     )
-    missed_detection_count: int = Field(
-        ..., description="Number of missed detection feedbacks received"
-    )
+    missed_threat_count: int = Field(..., description="Number of missed threat feedbacks received")
     created_at: datetime = Field(..., description="When calibration was created")
     updated_at: datetime = Field(..., description="When calibration was last modified")
 
@@ -243,7 +241,7 @@ class CalibrationResetResponse(BaseModel):
                     "high_threshold": 85,
                     "decay_factor": 0.1,
                     "false_positive_count": 5,
-                    "missed_detection_count": 3,
+                    "missed_threat_count": 3,
                     "created_at": "2025-01-01T12:00:00Z",
                     "updated_at": "2025-01-01T12:00:00Z",
                 },

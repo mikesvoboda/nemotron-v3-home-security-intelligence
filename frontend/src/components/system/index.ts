@@ -70,3 +70,7 @@ export type {
 // SeverityConfigPanel kept for potential other uses, but severity editing moved to Settings page (NEM-1142)
 export { default as SeverityConfigPanel } from './SeverityConfigPanel';
 export type { SeverityConfigPanelProps } from './SeverityConfigPanel';
+
+// File Operations panel (NEM-2388)
+export { default as FileOperationsPanel } from './FileOperationsPanel';
+export type { FileOperationsPanelProps } from './FileOperationsPanel';

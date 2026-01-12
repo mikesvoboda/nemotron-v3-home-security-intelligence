@@ -14,6 +14,18 @@
 // ============================================================================
 
 export type {
+  ExportJob,
+  ExportJobCreateParams,
+  ExportJobStartResponse,
+  ExportJobListResponse,
+  ExportJobCancelResponse,
+  ExportDownloadInfo,
+  ExportJobStatus,
+  ExportType,
+  ExportFormat,
+} from '../types/export';
+
+export type {
   AlertRule,
   AlertRuleCreate,
   AlertRuleListResponse,
@@ -110,10 +122,19 @@ export type {
   QuietHoursPeriodResponse,
   QuietHoursPeriodsListResponse,
 } from '../types/generated';
+
 import { addApiBreadcrumb, isSentryEnabled } from './sentry';
 import { useRateLimitStore, type RateLimitInfo } from '../stores/rate-limit-store';
 
-// Import concrete types for use in this module
+import type {
+  ExportJob,
+  ExportJobCreateParams,
+  ExportJobStartResponse,
+  ExportJobListResponse,
+  ExportJobCancelResponse,
+  ExportDownloadInfo,
+  ExportJobStatus,
+} from '../types/export';
 import type {
   AiAuditEventAuditResponse,
   AiAuditLeaderboardResponse,
@@ -179,6 +200,7 @@ import type {
   JobListResponse,
   JobStatusEnum,
   CleanupStatusResponse,
+  OrphanedFileCleanupResponse,
   EventFeedbackCreate,
   EventFeedbackResponse,
   FeedbackType,
@@ -193,7 +215,7 @@ import type {
 export type { EntityAppearance, EntitySummary, EntityDetail, EntityListResponse, EntityHistoryResponse };
 
 // Re-export job types for consumers of this module
-export type { JobResponse, JobListResponse, JobStatusEnum, CleanupStatusResponse };
+export type { JobResponse, JobListResponse, JobStatusEnum, CleanupStatusResponse, OrphanedFileCleanupResponse };
 
 // Re-export feedback types for consumers of this module
 export type { EventFeedbackCreate, EventFeedbackResponse, FeedbackType, FeedbackStatsResponse };
@@ -2005,6 +2027,148 @@ export async function exportEventsCSV(params?: ExportQueryParams): Promise<void>
 }
 
 // ============================================================================
+// Export Job Endpoints (NEM-2385, NEM-2386)
+// ============================================================================
+
+/**
+ * Start a new export job with progress tracking.
+ * The job runs in the background and can be monitored via getExportStatus.
+ *
+ * @param params - Export job parameters
+ * @returns Promise resolving to the job start response with job_id
+ */
+export async function startExportJob(
+  params: ExportJobCreateParams = {}
+): Promise<ExportJobStartResponse> {
+  return fetchApi<ExportJobStartResponse>('/api/exports', {
+    method: 'POST',
+    body: JSON.stringify({
+      export_type: params.export_type ?? 'events',
+      export_format: params.export_format ?? 'csv',
+      camera_id: params.camera_id,
+      risk_level: params.risk_level,
+      start_date: params.start_date,
+      end_date: params.end_date,
+      reviewed: params.reviewed,
+    }),
+  });
+}
+
+/**
+ * Get the current status and progress of an export job.
+ *
+ * @param jobId - The export job ID
+ * @returns Promise resolving to the export job status
+ */
+export async function getExportStatus(jobId: string): Promise<ExportJob> {
+  return fetchApi<ExportJob>(`/api/exports/${jobId}`);
+}
+
+/**
+ * List recent export jobs with optional status filtering.
+ *
+ * @param status - Optional status filter
+ * @param limit - Maximum number of jobs to return (default 50)
+ * @param offset - Number of jobs to skip for pagination (default 0)
+ * @returns Promise resolving to the paginated list of export jobs
+ */
+export async function listExportJobs(
+  status?: ExportJobStatus,
+  limit = 50,
+  offset = 0
+): Promise<ExportJobListResponse> {
+  const params = new URLSearchParams();
+  if (status) params.append('status', status);
+  params.append('limit', String(limit));
+  params.append('offset', String(offset));
+
+  const queryString = params.toString();
+  return fetchApi<ExportJobListResponse>(`/api/exports?${queryString}`);
+}
+
+/**
+ * Cancel a pending or running export job.
+ *
+ * @param jobId - The export job ID to cancel
+ * @returns Promise resolving to the cancellation response
+ */
+export async function cancelExportJob(jobId: string): Promise<ExportJobCancelResponse> {
+  return fetchApi<ExportJobCancelResponse>(`/api/exports/${jobId}`, {
+    method: 'DELETE',
+  });
+}
+
+/**
+ * Get download information for a completed export.
+ *
+ * @param jobId - The export job ID
+ * @returns Promise resolving to the download info
+ */
+export async function getExportDownloadInfo(jobId: string): Promise<ExportDownloadInfo> {
+  return fetchApi<ExportDownloadInfo>(`/api/exports/${jobId}/download/info`);
+}
+
+/**
+ * Download a completed export file.
+ * Triggers a file download in the browser.
+ *
+ * @param jobId - The export job ID
+ * @returns Promise that resolves when download is triggered
+ */
+export async function downloadExportFile(jobId: string): Promise<void> {
+  const url = `${BASE_URL}/api/exports/${jobId}/download`;
+
+  // Build headers with optional API key
+  const headers: HeadersInit = {};
+  if (API_KEY) {
+    headers['X-API-Key'] = API_KEY;
+  }
+
+  try {
+    const response = await fetch(url, { headers });
+
+    if (!response.ok) {
+      let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+      try {
+        const errorBody: unknown = await response.json();
+        if (typeof errorBody === 'object' && errorBody !== null && 'detail' in errorBody) {
+          errorMessage = String((errorBody as { detail: unknown }).detail);
+        }
+      } catch {
+        // If response body is not JSON, use status text
+      }
+      throw new ApiError(response.status, errorMessage);
+    }
+
+    // Get filename from Content-Disposition header or generate default
+    const contentDisposition = response.headers.get('Content-Disposition');
+    let filename = `export_${jobId}.csv`;
+    if (contentDisposition) {
+      const match = contentDisposition.match(/filename="?([^";\n]+)"?/);
+      if (match?.[1]) {
+        filename = match[1];
+      }
+    }
+
+    // Get the blob and trigger download
+    const blob = await response.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(downloadUrl);
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    throw new ApiError(0, error instanceof Error ? error.message : 'Download request failed');
+  }
+}
+
+// ============================================================================
 // Search Endpoints
 // ============================================================================
 
@@ -2202,6 +2366,29 @@ export async function previewCleanup(): Promise<CleanupResponse> {
  */
 export async function fetchCleanupStatus(): Promise<CleanupStatusResponse> {
   return fetchApi<CleanupStatusResponse>('/api/system/cleanup/status');
+}
+
+/**
+ * Preview orphaned files that would be cleaned up.
+ * Orphaned files are files on disk not referenced in the database.
+ *
+ * @returns OrphanedFileCleanupResponse with list and count of orphaned files
+ */
+export async function previewOrphanedFiles(): Promise<OrphanedFileCleanupResponse> {
+  return fetchApi<OrphanedFileCleanupResponse>('/api/system/cleanup/orphaned-files?dry_run=true', {
+    method: 'POST',
+  });
+}
+
+/**
+ * Trigger orphaned file cleanup to delete files on disk not referenced in database.
+ *
+ * @returns OrphanedFileCleanupResponse with statistics about deleted files
+ */
+export async function triggerOrphanedCleanup(): Promise<OrphanedFileCleanupResponse> {
+  return fetchApi<OrphanedFileCleanupResponse>('/api/system/cleanup/orphaned-files?dry_run=false', {
+    method: 'POST',
+  });
 }
 
 // ============================================================================

@@ -800,20 +800,23 @@ This pattern provides:
 
 **Enum:** `FeedbackType`
 
-| Value              | Description                                 |
-| ------------------ | ------------------------------------------- |
-| `FALSE_POSITIVE`   | Event was incorrectly flagged as concerning |
-| `MISSED_DETECTION` | System failed to detect a concerning event  |
+| Value            | Description                                       |
+| ---------------- | ------------------------------------------------- |
+| `CORRECT`        | The alert was accurate and appropriately flagged  |
+| `FALSE_POSITIVE` | Event was incorrectly flagged as concerning       |
+| `MISSED_THREAT`  | A real threat was not detected (missed detection) |
+| `SEVERITY_WRONG` | Threat detected but severity level was incorrect  |
 
 **Fields:**
 
-| Field           | Type                    | Description                                        |
-| --------------- | ----------------------- | -------------------------------------------------- |
-| `id`            | int (PK, autoincrement) | Unique feedback ID                                 |
-| `event_id`      | int (FK->events.id)     | Source event reference (unique, cascade delete)    |
-| `feedback_type` | FeedbackType enum       | Type of feedback (false_positive/missed_detection) |
-| `notes`         | text (nullable)         | Optional user notes                                |
-| `created_at`    | datetime (timezone)     | Feedback creation timestamp (UTC)                  |
+| Field               | Type                    | Description                                               |
+| ------------------- | ----------------------- | --------------------------------------------------------- |
+| `id`                | int (PK, autoincrement) | Unique feedback ID                                        |
+| `event_id`          | int (FK->events.id)     | Source event reference (unique, cascade delete)           |
+| `feedback_type`     | FeedbackType enum       | Type of feedback (correct/false_positive/etc.)            |
+| `notes`             | text (nullable)         | Optional user notes                                       |
+| `expected_severity` | str (nullable)          | For severity_wrong: expected severity (low/med/high/crit) |
+| `created_at`        | datetime (timezone)     | Feedback creation timestamp (UTC)                         |
 
 **Relationships:**
 
@@ -827,7 +830,8 @@ This pattern provides:
 
 **Constraints:**
 
-- `ck_event_feedback_type` - CHECK constraint for valid feedback types
+- `ck_event_feedback_type` - CHECK constraint for valid feedback types (correct, false_positive, missed_threat, severity_wrong)
+- `ck_event_feedback_expected_severity` - CHECK constraint for expected_severity values (NULL or low/medium/high/critical)
 
 ## `notification_preferences.py` - Notification Models
 
@@ -925,18 +929,20 @@ This pattern provides:
 
 **Fields:**
 
-| Field                    | Type                    | Description                                     |
-| ------------------------ | ----------------------- | ----------------------------------------------- |
-| `id`                     | int (PK, autoincrement) | Unique calibration ID                           |
-| `user_id`                | str (unique)            | User identifier (one calibration per user)      |
-| `low_threshold`          | int                     | Low risk threshold (default: 30)                |
-| `medium_threshold`       | int                     | Medium risk threshold (default: 60)             |
-| `high_threshold`         | int                     | High/critical threshold (default: 85)           |
-| `decay_factor`           | float                   | Learning rate for adjustments (default: 0.1)    |
-| `false_positive_count`   | int                     | Count of false positive feedback (default: 0)   |
-| `missed_detection_count` | int                     | Count of missed detection feedback (default: 0) |
-| `created_at`             | datetime (timezone)     | Creation timestamp (UTC)                        |
-| `updated_at`             | datetime (timezone)     | Last update timestamp (auto-updated)            |
+| Field                  | Type                    | Description                                   |
+| ---------------------- | ----------------------- | --------------------------------------------- |
+| `id`                   | int (PK, autoincrement) | Unique calibration ID                         |
+| `user_id`              | str (unique)            | User identifier (one calibration per user)    |
+| `low_threshold`        | int                     | Low risk threshold (default: 30)              |
+| `medium_threshold`     | int                     | Medium risk threshold (default: 60)           |
+| `high_threshold`       | int                     | High/critical threshold (default: 85)         |
+| `decay_factor`         | float                   | Learning rate for adjustments (default: 0.1)  |
+| `correct_count`        | int                     | Count of correct feedback (default: 0)        |
+| `false_positive_count` | int                     | Count of false positive feedback (default: 0) |
+| `missed_threat_count`  | int                     | Count of missed threat feedback (default: 0)  |
+| `severity_wrong_count` | int                     | Count of severity wrong feedback (default: 0) |
+| `created_at`           | datetime (timezone)     | Creation timestamp (UTC)                      |
+| `updated_at`           | datetime (timezone)     | Last update timestamp (auto-updated)          |
 
 **Indexes:**
 
@@ -949,8 +955,10 @@ This pattern provides:
 - `ck_user_calibration_high_range` - CHECK(high_threshold >= 0 AND <= 100)
 - `ck_user_calibration_threshold_order` - CHECK(low < medium < high)
 - `ck_user_calibration_decay_range` - CHECK(decay_factor >= 0.0 AND <= 1.0)
+- `ck_user_calibration_correct_count` - CHECK(correct_count >= 0)
 - `ck_user_calibration_fp_count` - CHECK(false_positive_count >= 0)
-- `ck_user_calibration_md_count` - CHECK(missed_detection_count >= 0)
+- `ck_user_calibration_mt_count` - CHECK(missed_threat_count >= 0)
+- `ck_user_calibration_sw_count` - CHECK(severity_wrong_count >= 0)
 
 **Default Thresholds:**
 
