@@ -189,8 +189,8 @@ test.describe('Detection to Alert Journey (NEM-1664)', () => {
     await expect(closeButton).toBeVisible();
     await closeButton.click();
 
-    // Then: Modal should be hidden
-    await expect(eventModal).not.toBeVisible();
+    // Then: Modal should be hidden (allow time for HeadlessUI exit animation)
+    await expect(eventModal).not.toBeVisible({ timeout: 10000 });
 
     // Verify user is on timeline page (not dashboard)
     await expect(page.locator('[data-testid="timeline-page"]')).toBeVisible();
