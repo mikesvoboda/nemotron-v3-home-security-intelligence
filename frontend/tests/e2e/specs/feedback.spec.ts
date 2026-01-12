@@ -186,12 +186,9 @@ test.describe('Event Feedback - False Positive Submission @critical', () => {
       await submitButton.click();
 
       // Look for success indicators
-      const successIndicators = modal
-        .locator('[data-testid="feedback-success"]')
-        .or(modal.locator('.success'))
-        .or(modal.locator('.toast'))
-        .or(modal.getByText('Feedback submitted'))
-        .or(modal.getByText('Thank you'));
+      const successIndicators = modal.locator(
+        '[data-testid="feedback-success"], .success, .toast, text="Feedback submitted", text="Thank you"'
+      );
 
       // Give time for success message to appear
       await page.waitForTimeout(1000);
@@ -311,11 +308,10 @@ test.describe('Event Feedback - Verification and Stats', () => {
     await page.goto('/settings');
     await page.waitForLoadState('networkidle');
 
-    // Look for feedback statistics display using valid selectors
-    const feedbackStats = page
-      .locator('[data-testid="feedback-stats"]')
-      .or(page.getByText('Feedback Statistics'))
-      .or(page.getByText('False Positives'));
+    // Look for feedback statistics display
+    const feedbackStats = page.locator(
+      '[data-testid="feedback-stats"], text="Feedback Statistics", text="False Positives"'
+    );
 
     const statsExists = (await feedbackStats.count()) > 0;
     if (!statsExists) {
@@ -407,11 +403,9 @@ test.describe('Event Feedback - Error Handling', () => {
       await submitButton.click();
 
       // Look for error message
-      const errorMessage = page
-        .locator('[data-testid="error-message"]')
-        .or(page.locator('.error'))
-        .or(page.getByText('Failed'))
-        .or(page.getByText('Error'));
+      const errorMessage = page.locator(
+        '[data-testid="error-message"], .error, text="Failed", text="Error"'
+      );
 
       await page.waitForTimeout(1000);
       const hasError = (await errorMessage.count()) > 0;

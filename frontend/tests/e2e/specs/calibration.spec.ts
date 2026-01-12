@@ -76,10 +76,10 @@ test.describe('Risk Calibration - Settings Page @critical', () => {
   });
 
   test('should display current threshold values', async ({ page }) => {
-    // Look for displayed threshold values using valid CSS selectors
-    const thresholdValues = page
-      .locator('[data-testid="threshold-value"]')
-      .or(page.locator('.threshold-display'));
+    // Look for displayed threshold values
+    const thresholdValues = page.locator(
+      '[data-testid="threshold-value"], text=/\\d+/, .threshold-display'
+    );
 
     const valuesExist = (await thresholdValues.count()) > 0;
     if (!valuesExist) {
@@ -330,11 +330,10 @@ test.describe('Risk Calibration - Event Reclassification', () => {
     await page.goto('/timeline');
     await page.waitForLoadState('networkidle');
 
-    // Look for calibration indicator on events using valid selectors
-    const calibrationIndicator = page
-      .locator('[data-testid="calibration-indicator"]')
-      .or(page.locator('.calibrated'))
-      .or(page.getByText('Calibrated'));
+    // Look for calibration indicator on events
+    const calibrationIndicator = page.locator(
+      '[data-testid="calibration-indicator"], .calibrated, text="Calibrated"'
+    );
 
     const indicatorExists = (await calibrationIndicator.count()) > 0;
     if (!indicatorExists) {

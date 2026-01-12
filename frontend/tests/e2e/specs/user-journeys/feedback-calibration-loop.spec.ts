@@ -104,15 +104,7 @@ test.describe('Full Feedback-Calibration Loop @critical', () => {
 
     const timelinePage = new TimelinePage(page);
     await timelinePage.goto();
-
-    // Check if timeline page loads - feature may not be implemented yet
-    const pageTitle = page.getByRole('heading', { name: /Event Timeline/i });
-    try {
-      await pageTitle.waitFor({ state: 'visible', timeout: 5000 });
-    } catch {
-      console.log('Event Timeline page not found - feature may not be implemented yet');
-      return;
-    }
+    await timelinePage.waitForTimelineLoad();
 
     // Verify event shows as HIGH risk
     const firstEventCard = page.locator('[data-testid="event-card"]').first();

@@ -215,10 +215,10 @@ describe('EventFeedbackSection', () => {
 
       await user.click(screen.getByTestId('feedback-toggle'));
 
-      expect(screen.getByTestId('feedback-btn-accurate')).toBeInTheDocument();
+      expect(screen.getByTestId('feedback-btn-correct')).toBeInTheDocument();
       expect(screen.getByTestId('feedback-btn-false_positive')).toBeInTheDocument();
-      expect(screen.getByTestId('feedback-btn-missed_threat')).toBeInTheDocument();
-      expect(screen.getByTestId('feedback-btn-severity_wrong')).toBeInTheDocument();
+      expect(screen.getByTestId('feedback-btn-missed_detection')).toBeInTheDocument();
+      expect(screen.getByTestId('feedback-btn-wrong_severity')).toBeInTheDocument();
     });
 
     it('highlights selected feedback option', async () => {
@@ -233,7 +233,7 @@ describe('EventFeedbackSection', () => {
 
       await user.click(screen.getByTestId('feedback-toggle'));
 
-      const correctBtn = screen.getByTestId('feedback-btn-accurate');
+      const correctBtn = screen.getByTestId('feedback-btn-correct');
       expect(correctBtn).toHaveAttribute('aria-pressed', 'false');
 
       await user.click(correctBtn);
@@ -254,8 +254,8 @@ describe('EventFeedbackSection', () => {
       await user.click(screen.getByTestId('feedback-toggle'));
 
       // Select correct
-      await user.click(screen.getByTestId('feedback-btn-accurate'));
-      expect(screen.getByTestId('feedback-btn-accurate')).toHaveAttribute('aria-pressed', 'true');
+      await user.click(screen.getByTestId('feedback-btn-correct'));
+      expect(screen.getByTestId('feedback-btn-correct')).toHaveAttribute('aria-pressed', 'true');
 
       // Change to false positive
       await user.click(screen.getByTestId('feedback-btn-false_positive'));
@@ -263,7 +263,7 @@ describe('EventFeedbackSection', () => {
         'aria-pressed',
         'true'
       );
-      expect(screen.getByTestId('feedback-btn-accurate')).toHaveAttribute('aria-pressed', 'false');
+      expect(screen.getByTestId('feedback-btn-correct')).toHaveAttribute('aria-pressed', 'false');
     });
   });
 
@@ -366,7 +366,7 @@ describe('EventFeedbackSection', () => {
       });
 
       await user.click(screen.getByTestId('feedback-toggle'));
-      await user.click(screen.getByTestId('feedback-btn-accurate'));
+      await user.click(screen.getByTestId('feedback-btn-correct'));
 
       expect(screen.getByTestId('feedback-submit')).not.toBeDisabled();
     });
@@ -416,7 +416,7 @@ describe('EventFeedbackSection', () => {
       vi.mocked(api.submitEventFeedback).mockResolvedValue({
         id: 1,
         event_id: 123,
-        feedback_type: 'accurate',
+        feedback_type: 'correct',
         notes: null,
         created_at: '2024-01-15T10:30:00Z',
       });
@@ -428,7 +428,7 @@ describe('EventFeedbackSection', () => {
       });
 
       await user.click(screen.getByTestId('feedback-toggle'));
-      await user.click(screen.getByTestId('feedback-btn-accurate'));
+      await user.click(screen.getByTestId('feedback-btn-correct'));
       await user.click(screen.getByTestId('feedback-submit'));
 
       await waitFor(() => {
@@ -437,7 +437,7 @@ describe('EventFeedbackSection', () => {
         const callArgs = vi.mocked(api.submitEventFeedback).mock.calls[0][0];
         expect(callArgs).toEqual({
           event_id: 123,
-          feedback_type: 'accurate',
+          feedback_type: 'correct',
           notes: null,
         });
       });
@@ -463,7 +463,7 @@ describe('EventFeedbackSection', () => {
       });
 
       await user.click(screen.getByTestId('feedback-toggle'));
-      await user.click(screen.getByTestId('feedback-btn-accurate'));
+      await user.click(screen.getByTestId('feedback-btn-correct'));
 
       // Before clicking submit, button should be enabled
       expect(screen.getByTestId('feedback-submit')).not.toBeDisabled();
@@ -483,7 +483,7 @@ describe('EventFeedbackSection', () => {
         resolveSubmit({
           id: 1,
           event_id: 123,
-          feedback_type: 'accurate',
+          feedback_type: 'correct',
           notes: null,
           created_at: '2024-01-15T10:30:00Z',
         });
@@ -501,7 +501,7 @@ describe('EventFeedbackSection', () => {
       vi.mocked(api.submitEventFeedback).mockResolvedValue({
         id: 1,
         event_id: 123,
-        feedback_type: 'accurate',
+        feedback_type: 'correct',
         notes: null,
         created_at: '2024-01-15T10:30:00Z',
       });
@@ -513,7 +513,7 @@ describe('EventFeedbackSection', () => {
       });
 
       await user.click(screen.getByTestId('feedback-toggle'));
-      await user.click(screen.getByTestId('feedback-btn-accurate'));
+      await user.click(screen.getByTestId('feedback-btn-correct'));
       await user.click(screen.getByTestId('feedback-submit'));
 
       // After successful submission, the component shows read-only view with submitted feedback
@@ -529,7 +529,7 @@ describe('EventFeedbackSection', () => {
       vi.mocked(api.submitEventFeedback).mockResolvedValue({
         id: 1,
         event_id: 123,
-        feedback_type: 'accurate',
+        feedback_type: 'correct',
         notes: null,
         created_at: '2024-01-15T10:30:00Z',
       });
@@ -541,7 +541,7 @@ describe('EventFeedbackSection', () => {
       });
 
       await user.click(screen.getByTestId('feedback-toggle'));
-      await user.click(screen.getByTestId('feedback-btn-accurate'));
+      await user.click(screen.getByTestId('feedback-btn-correct'));
 
       // Before submission, we're in the form view
       expect(screen.getByTestId('feedback-submit')).toBeInTheDocument();
@@ -567,7 +567,7 @@ describe('EventFeedbackSection', () => {
       });
 
       await user.click(screen.getByTestId('feedback-toggle'));
-      await user.click(screen.getByTestId('feedback-btn-accurate'));
+      await user.click(screen.getByTestId('feedback-btn-correct'));
       await user.click(screen.getByTestId('feedback-submit'));
 
       await waitFor(() => {
@@ -588,7 +588,7 @@ describe('EventFeedbackSection', () => {
       });
 
       await user.click(screen.getByTestId('feedback-toggle'));
-      await user.click(screen.getByTestId('feedback-btn-accurate'));
+      await user.click(screen.getByTestId('feedback-btn-correct'));
       await user.click(screen.getByTestId('feedback-submit'));
 
       await waitFor(() => {
@@ -617,7 +617,7 @@ describe('EventFeedbackSection', () => {
       });
 
       await user.click(screen.getByTestId('feedback-toggle'));
-      await user.click(screen.getByTestId('feedback-btn-accurate'));
+      await user.click(screen.getByTestId('feedback-btn-correct'));
       await user.click(screen.getByTestId('feedback-submit'));
 
       // Check optimistic update in cache
@@ -631,7 +631,7 @@ describe('EventFeedbackSection', () => {
         resolveSubmit!({
           id: 1,
           event_id: 123,
-          feedback_type: 'accurate',
+          feedback_type: 'correct',
           notes: null,
           created_at: '2024-01-15T10:30:00Z',
         });
@@ -706,7 +706,7 @@ describe('EventFeedbackSection', () => {
 
       await user.click(screen.getByTestId('feedback-toggle'));
 
-      const correctBtn = screen.getByTestId('feedback-btn-accurate');
+      const correctBtn = screen.getByTestId('feedback-btn-correct');
       expect(correctBtn).toHaveAttribute('aria-pressed', 'false');
     });
 
