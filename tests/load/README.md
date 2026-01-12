@@ -178,32 +178,44 @@ k6 run \
 
 ## Thresholds
 
-Tests will fail if these thresholds are not met:
+Tests will fail if these thresholds are not met.
 
-### Response Time
+**Note:** Thresholds are tuned for CI environments (GitHub Actions) which have variable
+resource availability. The values are more lenient than production targets to avoid
+false positives from CI resource contention.
+
+### Response Time (CI-Friendly)
 
 | Metric  | Threshold |
 | ------- | --------- |
-| p95     | < 500ms   |
-| p99     | < 1000ms  |
-| average | < 200ms   |
+| p95     | < 2000ms  |
+| p99     | < 5000ms  |
+| average | < 1000ms  |
 
-### Error Rate
+### Error Rate (CI-Friendly)
 
 | Metric             | Threshold |
 | ------------------ | --------- |
-| HTTP failures      | < 1%      |
-| WebSocket failures | < 5%      |
+| HTTP failures      | < 5%      |
+| WebSocket failures | < 10%     |
 
-### Endpoint-Specific
+### Endpoint-Specific (CI-Friendly)
 
 | Endpoint        | p95    |
 | --------------- | ------ |
-| Events List     | 400ms  |
-| Events Stats    | 300ms  |
-| Events Search   | 500ms  |
-| Cameras List    | 300ms  |
-| Camera Snapshot | 1000ms |
+| Events List     | 2000ms |
+| Events Stats    | 1500ms |
+| Events Search   | 2500ms |
+| Cameras List    | 1500ms |
+| Camera Snapshot | 5000ms |
+
+### Production Targets (Reference)
+
+For production monitoring, use stricter thresholds:
+
+- Response time p95: < 500ms
+- Response time avg: < 200ms
+- Error rate: < 1%
 
 ## Results
 

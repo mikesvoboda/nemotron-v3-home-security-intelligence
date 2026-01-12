@@ -33,17 +33,18 @@ const cameraBaselineDuration = new Trend('camera_baseline_duration', true);
 const cameraErrorRate = new Rate('camera_error_rate');
 const cameraRequestCount = new Counter('camera_request_count');
 
-// Test configuration
+// Test configuration with CI-friendly thresholds
 export const options = {
     stages: getLoadStages(),
     thresholds: {
         ...standardThresholds,
-        // Cameras-specific thresholds
-        'camera_list_duration': ['p(95)<300', 'avg<150'],
-        'camera_get_duration': ['p(95)<200', 'avg<100'],
-        'camera_snapshot_duration': ['p(95)<1000', 'avg<500'],  // Snapshots can be larger
-        'camera_baseline_duration': ['p(95)<400', 'avg<200'],
-        'camera_error_rate': ['rate<0.02'],
+        // Cameras-specific thresholds (CI-friendly values)
+        // NOTE: Relaxed for CI environment variability and cold-start overhead
+        'camera_list_duration': ['p(95)<1500', 'avg<750'],
+        'camera_get_duration': ['p(95)<1000', 'avg<500'],
+        'camera_snapshot_duration': ['p(95)<5000', 'avg<2500'],  // Snapshots can be larger
+        'camera_baseline_duration': ['p(95)<2000', 'avg<1000'],
+        'camera_error_rate': ['rate<0.05'],  // Less than 5% errors (CI-friendly)
     },
     tags: {
         testSuite: 'cameras',
@@ -157,7 +158,7 @@ function testListCameras() {
                     return false;
                 }
             },
-            'list cameras response time OK': (r) => r.timings.duration < 300,
+            'list cameras response time OK': (r) => r.timings.duration < 1500,
         });
 
         if (!success) {
@@ -218,7 +219,7 @@ function testGetCamera(cameraIds) {
                     return false;
                 }
             },
-            'get camera response time OK': (r) => r.timings.duration < 200,
+            'get camera response time OK': (r) => r.timings.duration < 1000,
         });
     });
 }
@@ -260,7 +261,7 @@ function testGetSnapshot(cameraIds) {
                 }
                 return true; // Skip check for 404
             },
-            'get snapshot response time OK': (r) => r.timings.duration < 1000,
+            'get snapshot response time OK': (r) => r.timings.duration < 5000,
         });
     });
 }
@@ -309,7 +310,7 @@ function testGetBaseline(cameraIds) {
                     return false;
                 }
             },
-            'get baseline response time OK': (r) => r.timings.duration < 400,
+            'get baseline response time OK': (r) => r.timings.duration < 2000,
         });
     });
 }

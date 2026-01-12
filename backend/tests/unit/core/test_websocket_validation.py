@@ -319,13 +319,18 @@ class TestHandleValidatedMessage:
         ws.send_text = AsyncMock()
         return ws
 
+    @pytest.fixture
+    def connection_id(self) -> str:
+        """Create a test connection ID."""
+        return "test-conn-123"
+
     @pytest.mark.asyncio
-    async def test_ping_sends_pong(self, mock_websocket: MagicMock) -> None:
+    async def test_ping_sends_pong(self, mock_websocket: MagicMock, connection_id: str) -> None:
         """Test that ping message results in pong response."""
         from backend.api.routes.websocket import handle_validated_message
 
         message = WebSocketMessage(type="ping")
-        await handle_validated_message(mock_websocket, message)
+        await handle_validated_message(mock_websocket, message, connection_id)
 
         mock_websocket.send_text.assert_called_once()
         call_args = mock_websocket.send_text.call_args[0][0]
@@ -333,12 +338,14 @@ class TestHandleValidatedMessage:
         assert response["type"] == "pong"
 
     @pytest.mark.asyncio
-    async def test_ping_case_insensitive(self, mock_websocket: MagicMock) -> None:
+    async def test_ping_case_insensitive(
+        self, mock_websocket: MagicMock, connection_id: str
+    ) -> None:
         """Test that PING (uppercase) also works."""
         from backend.api.routes.websocket import handle_validated_message
 
         message = WebSocketMessage(type="PING")
-        await handle_validated_message(mock_websocket, message)
+        await handle_validated_message(mock_websocket, message, connection_id)
 
         mock_websocket.send_text.assert_called_once()
         call_args = mock_websocket.send_text.call_args[0][0]
@@ -346,12 +353,14 @@ class TestHandleValidatedMessage:
         assert response["type"] == "pong"
 
     @pytest.mark.asyncio
-    async def test_unknown_type_sends_error(self, mock_websocket: MagicMock) -> None:
+    async def test_unknown_type_sends_error(
+        self, mock_websocket: MagicMock, connection_id: str
+    ) -> None:
         """Test that unknown message type sends error response."""
         from backend.api.routes.websocket import handle_validated_message
 
         message = WebSocketMessage(type="unknown_type")
-        await handle_validated_message(mock_websocket, message)
+        await handle_validated_message(mock_websocket, message, connection_id)
 
         mock_websocket.send_text.assert_called_once()
         call_args = mock_websocket.send_text.call_args[0][0]
@@ -361,29 +370,51 @@ class TestHandleValidatedMessage:
         assert "supported_types" in response["details"]
 
     @pytest.mark.asyncio
-    async def test_subscribe_handled_gracefully(self, mock_websocket: MagicMock) -> None:
-        """Test that subscribe message is handled (future functionality)."""
+    async def test_subscribe_handled_gracefully(
+        self, mock_websocket: MagicMock, connection_id: str
+    ) -> None:
+        """Test that subscribe message sends acknowledgment (NEM-2383)."""
         from backend.api.routes.websocket import handle_validated_message
 
-        message = WebSocketMessage(type="subscribe", data={"channels": ["events"]})
-        await handle_validated_message(mock_websocket, message)
+        message = WebSocketMessage(type="subscribe", data={"events": ["alert.*"]})
+        await handle_validated_message(mock_websocket, message, connection_id)
 
-        # Currently subscribe is just logged, no response sent
-        mock_websocket.send_text.assert_not_called()
+        # Subscribe should send acknowledgment response (NEM-2383)
+        mock_websocket.send_text.assert_called_once()
+        call_args = mock_websocket.send_text.call_args[0][0]
+        response = json.loads(call_args)
+        assert response["action"] == "subscribed"
+        assert response["events"] == ["alert.*"]
 
     @pytest.mark.asyncio
-    async def test_unsubscribe_handled_gracefully(self, mock_websocket: MagicMock) -> None:
-        """Test that unsubscribe message is handled (future functionality)."""
+    async def test_unsubscribe_handled_gracefully(
+        self, mock_websocket: MagicMock, connection_id: str
+    ) -> None:
+        """Test that unsubscribe message sends acknowledgment (NEM-2383)."""
         from backend.api.routes.websocket import handle_validated_message
 
-        message = WebSocketMessage(type="unsubscribe", data={"channels": ["events"]})
-        await handle_validated_message(mock_websocket, message)
+        # First subscribe to have something to unsubscribe from
+        subscribe_msg = WebSocketMessage(type="subscribe", data={"events": ["alert.*"]})
+        await handle_validated_message(mock_websocket, subscribe_msg, connection_id)
 
-        # Currently unsubscribe is just logged, no response sent
-        mock_websocket.send_text.assert_not_called()
+        # Reset mock
+        mock_websocket.send_text.reset_mock()
+
+        # Now unsubscribe
+        message = WebSocketMessage(type="unsubscribe", data={"events": ["alert.*"]})
+        await handle_validated_message(mock_websocket, message, connection_id)
+
+        # Unsubscribe should send acknowledgment response (NEM-2383)
+        mock_websocket.send_text.assert_called_once()
+        call_args = mock_websocket.send_text.call_args[0][0]
+        response = json.loads(call_args)
+        assert response["action"] == "unsubscribed"
+        assert response["events"] == ["alert.*"]
 
     @pytest.mark.asyncio
-    async def test_pong_handled_silently(self, mock_websocket: MagicMock) -> None:
+    async def test_pong_handled_silently(
+        self, mock_websocket: MagicMock, connection_id: str
+    ) -> None:
         """Test that pong message is handled silently (no response sent).
 
         Pong is a standard keepalive response from client to server-initiated ping.
@@ -392,18 +423,20 @@ class TestHandleValidatedMessage:
         from backend.api.routes.websocket import handle_validated_message
 
         message = WebSocketMessage(type="pong")
-        await handle_validated_message(mock_websocket, message)
+        await handle_validated_message(mock_websocket, message, connection_id)
 
         # Pong should be acknowledged silently with no response sent
         mock_websocket.send_text.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_pong_case_insensitive(self, mock_websocket: MagicMock) -> None:
+    async def test_pong_case_insensitive(
+        self, mock_websocket: MagicMock, connection_id: str
+    ) -> None:
         """Test that PONG (uppercase) also works."""
         from backend.api.routes.websocket import handle_validated_message
 
         message = WebSocketMessage(type="PONG")
-        await handle_validated_message(mock_websocket, message)
+        await handle_validated_message(mock_websocket, message, connection_id)
 
         # Pong should be acknowledged silently with no response sent
         mock_websocket.send_text.assert_not_called()
@@ -424,8 +457,13 @@ class TestWebSocketMessageFlow:
         ws.send_text = AsyncMock()
         return ws
 
+    @pytest.fixture
+    def connection_id(self) -> str:
+        """Create a test connection ID."""
+        return "test-flow-conn-123"
+
     @pytest.mark.asyncio
-    async def test_complete_ping_flow(self, mock_websocket: MagicMock) -> None:
+    async def test_complete_ping_flow(self, mock_websocket: MagicMock, connection_id: str) -> None:
         """Test complete ping message flow from raw data to pong response."""
         from backend.api.routes.websocket import (
             handle_validated_message,
@@ -440,7 +478,7 @@ class TestWebSocketMessageFlow:
         assert message is not None
 
         # Handle
-        await handle_validated_message(mock_websocket, message)
+        await handle_validated_message(mock_websocket, message, connection_id)
 
         # Verify pong response
         mock_websocket.send_text.assert_called_once()
@@ -494,7 +532,9 @@ class TestWebSocketMessageFlow:
         mock_websocket.send_text.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_special_characters_in_type(self, mock_websocket: MagicMock) -> None:
+    async def test_special_characters_in_type(
+        self, mock_websocket: MagicMock, connection_id: str
+    ) -> None:
         """Test message with special characters in type."""
         from backend.api.routes.websocket import (
             handle_validated_message,
@@ -506,7 +546,7 @@ class TestWebSocketMessageFlow:
         assert message is not None
 
         # Should result in unknown type error
-        await handle_validated_message(mock_websocket, message)
+        await handle_validated_message(mock_websocket, message, connection_id)
         response = json.loads(mock_websocket.send_text.call_args[0][0])
         assert response["type"] == "error"
         assert response["error"] == "unknown_message_type"

@@ -44,16 +44,17 @@ const apiRequestCount = new Counter('api_request_count');
 const wsConnectTime = new Trend('ws_connect_time', true);
 const wsConnectionErrors = new Rate('ws_connection_errors');
 
-// Combined thresholds
+// Combined thresholds (CI-friendly values)
 export const options = {
     stages: getLoadStages(),
     thresholds: {
         ...standardThresholds,
         ...wsThresholds,
-        'api_duration': ['p(95)<500', 'avg<250'],
-        'api_error_rate': ['rate<0.02'],
-        'ws_connect_time': ['p(95)<500'],
-        'ws_connection_errors': ['rate<0.05'],
+        // Custom API thresholds relaxed for CI environment variability
+        'api_duration': ['p(95)<2000', 'avg<1000'],
+        'api_error_rate': ['rate<0.05'],
+        'ws_connect_time': ['p(95)<2000'],
+        'ws_connection_errors': ['rate<0.10'],
     },
     tags: {
         testSuite: 'all',

@@ -19626,42 +19626,6 @@
           "calibration"
         ]
       },
-      "patch": {
-        "description": "Partially update calibration thresholds.\n\nAllows partial updates - only provided fields will be changed.\nValidates that threshold ordering is maintained (low < medium < high).\n\nThis endpoint is semantically identical to PUT but emphasizes partial updates.\n\nArgs:\n    update_data: Fields to update (partial updates supported)\n    db: Database session\n\nReturns:\n    Updated CalibrationResponse\n\nRaises:\n    HTTPException: 422 if threshold ordering would be violated",
-        "operationId": "patch_calibration_api_calibration_patch",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UserCalibrationUpdate"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UserCalibrationResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "description": "Validation error (invalid threshold ordering)"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        },
-        "summary": "Patch Calibration",
-        "tags": [
-          "calibration"
-        ]
-      },
       "put": {
         "description": "Update calibration thresholds.\n\nAllows partial updates - only provided fields will be changed.\nValidates that threshold ordering is maintained (low < medium < high).\n\nArgs:\n    update_data: Fields to update (partial updates supported)\n    db: Database session\n\nReturns:\n    Updated CalibrationResponse\n\nRaises:\n    HTTPException: 422 if threshold ordering would be violated",
         "operationId": "update_calibration_api_calibration_put",

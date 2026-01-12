@@ -26,14 +26,35 @@ describe('WebSocket Event Types', () => {
       expect(WEBSOCKET_EVENT_KEYS).toContain('pong');
     });
 
-    it('should have exactly 8 event keys', () => {
+    it('should have correct number of event keys', () => {
       // NEM-2295: Added camera_status event type
-      expect(WEBSOCKET_EVENT_KEYS).toHaveLength(8);
+      // NEM-2382: Added hierarchical event types (alert.*, camera.*, job.*, system.*)
+      // 8 legacy keys + 15 new hierarchical keys = 23 total
+      expect(WEBSOCKET_EVENT_KEYS).toHaveLength(23);
+    });
+
+    it('should include new hierarchical event keys', () => {
+      // NEM-2382: Verify new event types
+      expect(WEBSOCKET_EVENT_KEYS).toContain('alert.created');
+      expect(WEBSOCKET_EVENT_KEYS).toContain('alert.updated');
+      expect(WEBSOCKET_EVENT_KEYS).toContain('alert.deleted');
+      expect(WEBSOCKET_EVENT_KEYS).toContain('alert.acknowledged');
+      expect(WEBSOCKET_EVENT_KEYS).toContain('alert.dismissed');
+      expect(WEBSOCKET_EVENT_KEYS).toContain('camera.online');
+      expect(WEBSOCKET_EVENT_KEYS).toContain('camera.offline');
+      expect(WEBSOCKET_EVENT_KEYS).toContain('camera.status_changed');
+      expect(WEBSOCKET_EVENT_KEYS).toContain('camera.error');
+      expect(WEBSOCKET_EVENT_KEYS).toContain('job.started');
+      expect(WEBSOCKET_EVENT_KEYS).toContain('job.progress');
+      expect(WEBSOCKET_EVENT_KEYS).toContain('job.completed');
+      expect(WEBSOCKET_EVENT_KEYS).toContain('job.failed');
+      expect(WEBSOCKET_EVENT_KEYS).toContain('system.health_changed');
+      expect(WEBSOCKET_EVENT_KEYS).toContain('system.error');
     });
   });
 
   describe('isWebSocketEventKey', () => {
-    it('should return true for valid event keys', () => {
+    it('should return true for valid legacy event keys', () => {
       expect(isWebSocketEventKey('event')).toBe(true);
       expect(isWebSocketEventKey('service_status')).toBe(true);
       expect(isWebSocketEventKey('system_status')).toBe(true);
@@ -41,6 +62,19 @@ describe('WebSocket Event Types', () => {
       expect(isWebSocketEventKey('gpu_stats')).toBe(true);
       expect(isWebSocketEventKey('error')).toBe(true);
       expect(isWebSocketEventKey('pong')).toBe(true);
+    });
+
+    it('should return true for new hierarchical event keys', () => {
+      // NEM-2382: Test new event types
+      expect(isWebSocketEventKey('alert.created')).toBe(true);
+      expect(isWebSocketEventKey('alert.updated')).toBe(true);
+      expect(isWebSocketEventKey('camera.online')).toBe(true);
+      expect(isWebSocketEventKey('camera.offline')).toBe(true);
+      expect(isWebSocketEventKey('job.started')).toBe(true);
+      expect(isWebSocketEventKey('job.completed')).toBe(true);
+      expect(isWebSocketEventKey('job.failed')).toBe(true);
+      expect(isWebSocketEventKey('system.health_changed')).toBe(true);
+      expect(isWebSocketEventKey('system.error')).toBe(true);
     });
 
     it('should return false for invalid event keys', () => {

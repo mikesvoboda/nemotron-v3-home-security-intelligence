@@ -85,6 +85,19 @@ export interface PongPayload {
  * - 'gpu_stats' -> GpuStatsPayload (derived from system status)
  * - 'error' -> WebSocketErrorPayload
  * - 'pong' -> PongPayload
+ *
+ * New hierarchical event types (NEM-2382):
+ * - 'alert.created' -> AlertCreatedPayload
+ * - 'alert.updated' -> AlertUpdatedPayload (generic update payload)
+ * - 'alert.deleted' -> AlertDeletedPayload (generic delete payload)
+ * - 'camera.online' -> CameraStatusEventPayload
+ * - 'camera.offline' -> CameraStatusEventPayload
+ * - 'job.started' -> JobStartedPayload
+ * - 'job.progress' -> JobProgressPayload
+ * - 'job.completed' -> JobCompletedPayload
+ * - 'job.failed' -> JobFailedPayload
+ * - 'system.health_changed' -> SystemHealthChangedPayload
+ * - 'system.error' -> SystemErrorPayload
  */
 export interface WebSocketEventMap {
   /** Security event from the events channel */
@@ -103,6 +116,44 @@ export interface WebSocketEventMap {
   error: WebSocketErrorPayload;
   /** Pong response */
   pong: PongPayload;
+
+  // ========================================================================
+  // New hierarchical event types (NEM-2382)
+  // ========================================================================
+
+  /** Alert created event */
+  'alert.created': AlertCreatedPayload;
+  /** Alert updated event */
+  'alert.updated': AlertUpdatedPayload;
+  /** Alert deleted event */
+  'alert.deleted': AlertDeletedPayload;
+  /** Alert acknowledged event */
+  'alert.acknowledged': AlertAcknowledgedPayload;
+  /** Alert dismissed event */
+  'alert.dismissed': AlertDismissedPayload;
+
+  /** Camera online event */
+  'camera.online': CameraStatusEventPayload;
+  /** Camera offline event */
+  'camera.offline': CameraStatusEventPayload;
+  /** Camera status changed event */
+  'camera.status_changed': CameraStatusChangedPayload;
+  /** Camera error event */
+  'camera.error': CameraStatusEventPayload;
+
+  /** Job started event */
+  'job.started': JobStartedPayload;
+  /** Job progress event */
+  'job.progress': JobProgressPayload;
+  /** Job completed event */
+  'job.completed': JobCompletedPayload;
+  /** Job failed event */
+  'job.failed': JobFailedPayload;
+
+  /** System health changed event */
+  'system.health_changed': SystemHealthChangedPayload;
+  /** System error event */
+  'system.error': SystemErrorPayload;
 }
 
 // ============================================================================
@@ -163,6 +214,7 @@ export type WebSocketEventHandlerMap = {
  * All valid event keys as a constant array for runtime checks.
  */
 export const WEBSOCKET_EVENT_KEYS: readonly WebSocketEventKey[] = [
+  // Legacy event keys
   'event',
   'service_status',
   'system_status',
@@ -171,6 +223,22 @@ export const WEBSOCKET_EVENT_KEYS: readonly WebSocketEventKey[] = [
   'gpu_stats',
   'error',
   'pong',
+  // New hierarchical event keys (NEM-2382)
+  'alert.created',
+  'alert.updated',
+  'alert.deleted',
+  'alert.acknowledged',
+  'alert.dismissed',
+  'camera.online',
+  'camera.offline',
+  'camera.status_changed',
+  'camera.error',
+  'job.started',
+  'job.progress',
+  'job.completed',
+  'job.failed',
+  'system.health_changed',
+  'system.error',
 ] as const;
 
 /**
@@ -420,6 +488,24 @@ export interface AlertCreatedPayload {
 }
 
 /**
+ * Payload for alert.updated events.
+ */
+export interface AlertUpdatedPayload {
+  alert_id: number;
+  updated_at: string;
+  updated_fields?: string[];
+}
+
+/**
+ * Payload for alert.deleted events.
+ */
+export interface AlertDeletedPayload {
+  alert_id: number;
+  deleted_at: string;
+  reason?: string;
+}
+
+/**
  * Payload for alert.acknowledged events.
  */
 export interface AlertAcknowledgedPayload {
@@ -555,6 +641,17 @@ export interface SystemHealthChangedPayload {
   health: 'healthy' | 'degraded' | 'unhealthy';
   previous_health: 'healthy' | 'degraded' | 'unhealthy';
   components: Record<string, 'healthy' | 'degraded' | 'unhealthy'>;
+}
+
+/**
+ * Payload for system.error events.
+ */
+export interface SystemErrorPayload {
+  error: string;
+  message: string;
+  timestamp: string;
+  component?: string;
+  severity?: 'warning' | 'error' | 'critical';
 }
 
 /**

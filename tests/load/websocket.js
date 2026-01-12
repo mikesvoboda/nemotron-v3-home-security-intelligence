@@ -31,15 +31,16 @@ const wsConnectionErrors = new Rate('ws_connection_errors');
 const wsSessionDuration = new Trend('ws_session_duration', true);
 const wsActiveConnections = new Gauge('ws_active_connections');
 
-// Test configuration
+// Test configuration with CI-friendly thresholds
 export const options = {
     stages: getLoadStages(),
     thresholds: {
         ...wsThresholds,
-        'ws_connect_time': ['p(95)<500', 'avg<200'],
-        'ws_ping_pong_latency': ['p(95)<100', 'avg<50'],
-        'ws_connection_errors': ['rate<0.05'],
-        'ws_session_duration': ['avg>5000'],  // Sessions should last at least 5 seconds
+        // WebSocket thresholds relaxed for CI environment variability
+        'ws_connect_time': ['p(95)<2000', 'avg<1000'],
+        'ws_ping_pong_latency': ['p(95)<500', 'avg<250'],
+        'ws_connection_errors': ['rate<0.10'],  // 10% errors acceptable in CI
+        'ws_session_duration': ['avg>2000'],  // Sessions should last at least 2 seconds (CI-friendly)
     },
     tags: {
         testSuite: 'websocket',

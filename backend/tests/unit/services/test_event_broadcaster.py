@@ -2298,7 +2298,6 @@ def _create_valid_camera_status_data(
     camera_name: str = "Front Door Camera",
     status: str = "offline",
     previous_status: str | None = "online",
-    changed_at: str = "2026-01-09T10:30:00Z",
     reason: str | None = None,
     event_type: str = "camera.offline",
     timestamp: str = "2026-01-09T10:30:00Z",
@@ -2454,7 +2453,7 @@ async def test_broadcast_camera_status_rejects_missing_required_fields(
 ) -> None:
     """Test broadcast_camera_status rejects messages missing required fields.
 
-    NEM-1982: camera_id, camera_name, status, and changed_at are required.
+    NEM-1982: camera_id, camera_name, status, event_type, and timestamp are required.
     """
     redis = _FakeRedis()
     broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
@@ -2462,7 +2461,7 @@ async def test_broadcast_camera_status_rejects_missing_required_fields(
     # Missing required fields
     invalid_data = {
         "camera_id": "front_door",
-        # Missing camera_name, status, changed_at
+        # Missing camera_name, status, event_type, timestamp
     }
 
     with pytest.raises(ValueError, match="Invalid camera status message format"):
