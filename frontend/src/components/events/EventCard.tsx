@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronUp, Clock, Eye, Timer, TrendingUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, Clock, Eye, Moon, Timer, TrendingUp } from 'lucide-react';
 import { memo, useState } from 'react';
 
 import {
@@ -38,6 +38,8 @@ export interface EventCardProps {
   ended_at?: string | null;
   onViewDetails?: (eventId: string) => void;
   onClick?: (eventId: string) => void;
+  /** Callback to snooze the event for a duration in seconds */
+  onSnooze?: (eventId: string, seconds: number) => void;
   className?: string;
   /** When true, adds left margin to header to accommodate an overlaying checkbox */
   hasCheckboxOverlay?: boolean;
@@ -59,10 +61,20 @@ const EventCard = memo(function EventCard({
   ended_at,
   onViewDetails,
   onClick,
+  onSnooze,
   className = '',
   hasCheckboxOverlay = false,
 }: EventCardProps) {
   const [showReasoning, setShowReasoning] = useState(false);
+  const [showSnoozeMenu, setShowSnoozeMenu] = useState(false);
+
+  // Handle snooze action
+  const handleSnooze = (seconds: number) => {
+    if (onSnooze) {
+      onSnooze(id, seconds);
+    }
+    setShowSnoozeMenu(false);
+  };
 
   // Convert ISO timestamp to readable format
   const formatTimestamp = (isoString: string): string => {
@@ -326,17 +338,65 @@ const EventCard = memo(function EventCard({
             </div>
           )}
 
-          {/* View Details Button */}
-          {onViewDetails && (
-            <button
-              onClick={() => onViewDetails(id)}
-              className="flex w-full items-center justify-center gap-2 rounded-md bg-[#76B900] px-4 py-2 text-sm font-semibold text-black transition-all hover:bg-[#88d200] active:bg-[#68a000]"
-              aria-label={`View details for event ${id}`}
-            >
-              <Eye className="h-4 w-4" />
-              View Details
-            </button>
-          )}
+          {/* Action Buttons Row */}
+          <div className="flex gap-2">
+            {/* Snooze Dropdown */}
+            {onSnooze && (
+              <div className="relative">
+                <button
+                  onClick={() => setShowSnoozeMenu(!showSnoozeMenu)}
+                  className="flex items-center gap-2 rounded-md border border-gray-700 bg-gray-800 px-3 py-2 text-sm font-medium text-gray-300 transition-colors hover:border-gray-600 hover:bg-gray-700"
+                  aria-expanded={showSnoozeMenu}
+                  aria-haspopup="true"
+                  aria-label="Snooze event"
+                >
+                  <Moon className="h-4 w-4" />
+                  Snooze
+                  <ChevronDown className={`h-3 w-3 transition-transform ${showSnoozeMenu ? 'rotate-180' : ''}`} />
+                </button>
+                {showSnoozeMenu && (
+                  <div className="absolute right-0 z-10 mt-1 w-40 rounded-md border border-gray-700 bg-gray-800 py-1 shadow-lg">
+                    <button
+                      onClick={() => handleSnooze(900)}
+                      className="block w-full px-4 py-2 text-left text-sm text-gray-300 hover:bg-gray-700"
+                    >
+                      15 minutes
+                    </button>
+                    <button
+                      onClick={() => handleSnooze(3600)}
+                      className="block w-full px-4 py-2 text-left text-sm text-gray-300 hover:bg-gray-700"
+                    >
+                      1 hour
+                    </button>
+                    <button
+                      onClick={() => handleSnooze(14400)}
+                      className="block w-full px-4 py-2 text-left text-sm text-gray-300 hover:bg-gray-700"
+                    >
+                      4 hours
+                    </button>
+                    <button
+                      onClick={() => handleSnooze(28800)}
+                      className="block w-full px-4 py-2 text-left text-sm text-gray-300 hover:bg-gray-700"
+                    >
+                      8 hours
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* View Details Button */}
+            {onViewDetails && (
+              <button
+                onClick={() => onViewDetails(id)}
+                className="flex flex-1 items-center justify-center gap-2 rounded-md bg-[#76B900] px-4 py-2 text-sm font-semibold text-black transition-all hover:bg-[#88d200] active:bg-[#68a000]"
+                aria-label={`View details for event ${id}`}
+              >
+                <Eye className="h-4 w-4" />
+                View Details
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

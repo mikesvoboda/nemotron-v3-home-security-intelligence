@@ -1,7 +1,7 @@
 import { AlertTriangle, Bell, Loader2, RefreshCw } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
-import { useAlertsInfiniteQuery, useInfiniteScroll, useCamerasQuery } from '../../hooks';
+import { useAlertsInfiniteQuery, useInfiniteScroll, useCamerasQuery, useSnoozeEvent } from '../../hooks';
 import { updateEvent } from '../../services/api';
 import { getRiskLevel } from '../../utils/risk';
 import RiskBadge from '../common/RiskBadge';
@@ -35,6 +35,9 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
 
   // Fetch cameras for camera name lookup
   const { cameras } = useCamerasQuery();
+
+  // Snooze mutation
+  const { snooze } = useSnoozeEvent();
 
   // Fetch alerts with infinite scroll support
   const {
@@ -98,6 +101,7 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
       ended_at: event.ended_at,
       onViewDetails: onViewEventDetails ? () => onViewEventDetails(event.id) : undefined,
       onClick: (eventId: string) => setSelectedEventForModal(parseInt(eventId, 10)),
+      onSnooze: handleSnooze,
     };
   };
 
@@ -152,6 +156,11 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
       reviewed: event.reviewed,
       notes: event.notes,
     };
+  };
+
+  // Handle snooze action
+  const handleSnooze = (eventId: string, seconds: number) => {
+    void snooze(parseInt(eventId, 10), seconds);
   };
 
   // Handle filter change - resets to first page
