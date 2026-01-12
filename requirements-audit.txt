@@ -463,7 +463,7 @@ watchfiles==1.1.1
     # via uvicorn
 wcwidth==0.2.14
     # via ftfy
-websockets==15.0.1
+websockets==16.0
     # via uvicorn
 wrapt==2.0.1
     # via
