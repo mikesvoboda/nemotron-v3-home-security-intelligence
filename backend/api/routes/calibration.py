@@ -272,39 +272,6 @@ async def _apply_calibration_update(
     return CalibrationResponse(**_calibration_to_response(calibration))
 
 
-@router.patch(
-    "",
-    response_model=CalibrationResponse,
-    responses={
-        422: {"description": "Validation error (invalid threshold ordering)"},
-        500: {"description": "Internal server error"},
-    },
-)
-async def patch_calibration(
-    update_data: CalibrationUpdate,
-    db: AsyncSession = Depends(get_db),
-) -> CalibrationResponse:
-    """Partially update calibration thresholds.
-
-    Allows partial updates - only provided fields will be changed.
-    Validates that threshold ordering is maintained (low < medium < high).
-
-    This endpoint is semantically identical to PUT but emphasizes partial updates.
-
-    Args:
-        update_data: Fields to update (partial updates supported)
-        db: Database session
-
-    Returns:
-        Updated CalibrationResponse
-
-    Raises:
-        HTTPException: 422 if threshold ordering would be violated
-    """
-    # Delegate to the same logic as PUT
-    return await update_calibration(update_data, db)
-
-
 @router.post(
     "/reset",
     response_model=CalibrationResetResponse,

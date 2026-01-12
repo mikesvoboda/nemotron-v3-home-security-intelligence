@@ -1,6 +1,8 @@
 # AI Pipeline API
 
-This guide covers the AI processing pipeline including enrichment, batch aggregation, AI audit logging, and the dead letter queue for failed jobs.
+This guide covers the AI processing pipeline including enrichment, batch aggregation, AI audit logging, background jobs management, and the dead letter queue for failed jobs.
+
+**Endpoint Count:** 35 implemented endpoints across 3 domains (AI Audit: 18, DLQ: 5, Jobs: 12), plus 11 planned endpoints (Enrichment: 6, Batches: 5)
 
 ## Pipeline Overview
 
@@ -65,9 +67,11 @@ _End-to-end AI pipeline flow from camera image upload through detection, batchin
 
 ## Enrichment
 
-Enrichment endpoints provide access to vision model analysis results that describe detected objects.
+> **Note:** Enrichment endpoints are planned for a future release. The following documents the intended API design.
 
-### Endpoints
+Enrichment endpoints will provide access to vision model analysis results that describe detected objects.
+
+### Planned Endpoints
 
 | Method | Endpoint                         | Description             |
 | ------ | -------------------------------- | ----------------------- |
@@ -171,6 +175,8 @@ POST /api/enrichment/reprocess/123
 
 ## Batches
 
+> **Note:** Batch management endpoints are planned for a future release. The following documents the intended API design.
+
 Batches group detections from the same camera within configurable time windows (default: 90 seconds) before sending to the LLM for analysis.
 
 ### Batch Processing Lifecycle
@@ -202,7 +208,7 @@ stateDiagram-v2
 
 _State machine showing batch lifecycle from creation through collection to closure, with multiple timeout triggers._
 
-### Endpoints
+### Planned Endpoints
 
 | Method | Endpoint                        | Description            |
 | ------ | ------------------------------- | ---------------------- |
@@ -309,7 +315,7 @@ POST /api/batches/batch_xyz789/flush
 
 ## AI Audit
 
-The AI audit log provides transparency into LLM decision-making for security and compliance.
+The AI audit system provides transparency into LLM decision-making, prompt management, and self-evaluation capabilities for security and compliance.
 
 ### AI Audit Workflow
 
@@ -351,30 +357,115 @@ _Sequence diagram showing how AI decisions are logged for audit and later retrie
 
 ### Endpoints
 
-| Method | Endpoint                   | Description           |
-| ------ | -------------------------- | --------------------- |
-| GET    | `/api/ai-audit`            | List audit entries    |
-| GET    | `/api/ai-audit/{id}`       | Get audit entry by ID |
-| GET    | `/api/ai-audit/event/{id}` | Get audit for event   |
-| GET    | `/api/ai-audit/stats`      | Audit statistics      |
+| Method | Endpoint                                   | Description                           |
+| ------ | ------------------------------------------ | ------------------------------------- |
+| POST   | `/api/ai-audit/batch`                      | Trigger batch audit processing        |
+| GET    | `/api/ai-audit/events/{event_id}`          | Get audit for specific event          |
+| POST   | `/api/ai-audit/events/{event_id}/evaluate` | Trigger full event evaluation         |
+| GET    | `/api/ai-audit/leaderboard`                | Get model leaderboard by contribution |
+| GET    | `/api/ai-audit/prompt-config/{model}`      | Get prompt configuration (DB)         |
+| PUT    | `/api/ai-audit/prompt-config/{model}`      | Update prompt configuration (DB)      |
+| GET    | `/api/ai-audit/prompts`                    | Get all prompt configurations         |
+| GET    | `/api/ai-audit/prompts/export`             | Export all configurations as JSON     |
+| GET    | `/api/ai-audit/prompts/history`            | Get history for all models            |
+| GET    | `/api/ai-audit/prompts/history/{model}`    | Get history for specific model        |
+| POST   | `/api/ai-audit/prompts/history/{version}`  | Restore a prompt version              |
+| POST   | `/api/ai-audit/prompts/import`             | Import configurations from JSON       |
+| POST   | `/api/ai-audit/prompts/test`               | Test modified prompt config           |
+| GET    | `/api/ai-audit/prompts/{model}`            | Get prompt for specific model         |
+| PUT    | `/api/ai-audit/prompts/{model}`            | Update prompt for specific model      |
+| GET    | `/api/ai-audit/recommendations`            | Get prompt improvement suggestions    |
+| GET    | `/api/ai-audit/stats`                      | Get aggregate audit statistics        |
+| POST   | `/api/ai-audit/test-prompt`                | Test custom prompt (A/B testing)      |
 
-### List Audit Entries
+### Batch Audit Processing
+
+Trigger batch audit processing for multiple events:
 
 ```bash
-GET /api/ai-audit?model_name=nemotron&action=risk_assessment&limit=50
+POST /api/ai-audit/batch
+Content-Type: application/json
+
+{
+  "event_ids": [1, 2, 3],
+  "camera_id": "front_door",
+  "start_date": "2025-12-23T00:00:00Z",
+  "end_date": "2025-12-23T23:59:59Z"
+}
+```
+
+**Response:**
+
+```json
+{
+  "queued_count": 15,
+  "message": "Batch audit processing queued"
+}
+```
+
+### Get Event Audit
+
+Get audit information for a specific event:
+
+```bash
+GET /api/ai-audit/events/45
+```
+
+**Response:**
+
+```json
+{
+  "event_id": 45,
+  "audit_id": 123,
+  "model_contributions": {
+    "nemotron": 0.65,
+    "florence-2": 0.25,
+    "yolo-world": 0.1
+  },
+  "quality_scores": {
+    "coherence": 0.92,
+    "relevance": 0.88,
+    "consistency": 0.95
+  },
+  "prompt_suggestions": [
+    "Consider adding more context about time of day",
+    "Include weather conditions in prompt"
+  ],
+  "created_at": "2025-12-23T12:01:30Z"
+}
+```
+
+### Evaluate Event
+
+Trigger full self-evaluation pipeline for an event:
+
+```bash
+POST /api/ai-audit/events/45/evaluate?force=false
 ```
 
 **Parameters:**
 
-| Name       | Type     | Description                             |
-| ---------- | -------- | --------------------------------------- |
-| model_name | string   | Filter by model: `nemotron`, `qwen-vl`  |
-| action     | string   | Filter: `risk_assessment`, `enrichment` |
-| start_date | datetime | Filter after timestamp                  |
-| end_date   | datetime | Filter before timestamp                 |
-| event_id   | integer  | Filter by event                         |
-| limit      | integer  | Max results (1-1000, default: 50)       |
-| offset     | integer  | Results to skip (default: 0)            |
+| Name  | Type    | Default | Description                           |
+| ----- | ------- | ------- | ------------------------------------- |
+| force | boolean | false   | Re-evaluate even if already evaluated |
+
+**Response:**
+
+Returns updated `EventAuditResponse` with evaluation results including self-critique, rubric scoring, consistency check, and prompt improvements.
+
+### Model Leaderboard
+
+Get models ranked by contribution rate:
+
+```bash
+GET /api/ai-audit/leaderboard?days=7
+```
+
+**Parameters:**
+
+| Name | Type    | Default | Description                      |
+| ---- | ------- | ------- | -------------------------------- |
+| days | integer | 7       | Number of days to include (1-90) |
 
 **Response:**
 
@@ -382,65 +473,417 @@ GET /api/ai-audit?model_name=nemotron&action=risk_assessment&limit=50
 {
   "entries": [
     {
-      "id": 1,
-      "event_id": 45,
-      "batch_id": "batch_abc123",
-      "action": "risk_assessment",
-      "model_name": "nemotron-mini",
-      "model_version": "4b",
-      "input_summary": {
-        "detection_count": 8,
-        "object_types": ["person"],
-        "camera_id": "front_door",
-        "time_span_seconds": 90
-      },
-      "output": {
-        "risk_score": 75,
-        "risk_level": "high",
-        "summary": "Person detected at front door",
-        "reasoning": "Single person approaching entrance..."
-      },
-      "tokens_input": 1250,
-      "tokens_output": 350,
-      "latency_ms": 4500,
-      "temperature": 0.1,
-      "created_at": "2025-12-23T12:01:30Z"
+      "model_name": "nemotron",
+      "contribution_rate": 0.65,
+      "total_events": 1500,
+      "avg_quality_score": 0.91,
+      "quality_correlation": 0.87
+    },
+    {
+      "model_name": "florence-2",
+      "contribution_rate": 0.25,
+      "total_events": 1500,
+      "avg_quality_score": 0.88,
+      "quality_correlation": 0.82
     }
   ],
-  "count": 1,
-  "limit": 50,
-  "offset": 0
+  "period_days": 7,
+  "total_events": 1500
 }
 ```
 
-### Audit Statistics
+### Prompt Configuration Management
+
+#### Get Prompt Config (Database-backed)
 
 ```bash
-GET /api/ai-audit/stats
+GET /api/ai-audit/prompt-config/nemotron
 ```
 
 **Response:**
 
 ```json
 {
-  "total_entries": 5234,
-  "entries_today": 156,
-  "by_model": {
-    "nemotron-mini": 4500,
-    "qwen-vl": 734
-  },
-  "by_action": {
-    "risk_assessment": 4500,
-    "enrichment": 734
-  },
-  "avg_latency_ms": {
-    "nemotron-mini": 4200,
-    "qwen-vl": 1150
-  },
-  "token_usage_today": {
-    "input": 450000,
-    "output": 85000
+  "model": "nemotron",
+  "system_prompt": "You are a security analysis AI...",
+  "temperature": 0.1,
+  "max_tokens": 2048,
+  "version": 5,
+  "created_at": "2025-12-23T10:00:00Z"
+}
+```
+
+#### Update Prompt Config (Database-backed)
+
+```bash
+PUT /api/ai-audit/prompt-config/nemotron
+Content-Type: application/json
+
+{
+  "system_prompt": "You are an expert security analyst...",
+  "temperature": 0.15,
+  "max_tokens": 3000
+}
+```
+
+### Prompt Management
+
+#### Get All Prompts
+
+```bash
+GET /api/ai-audit/prompts
+```
+
+**Response:**
+
+```json
+{
+  "prompts": {
+    "nemotron": {
+      "system_prompt": "...",
+      "temperature": 0.1,
+      "max_tokens": 2048,
+      "version": 5
+    },
+    "florence-2": {
+      "system_prompt": "...",
+      "temperature": 0.0,
+      "max_tokens": 512,
+      "version": 3
+    }
   }
+}
+```
+
+#### Get Model Prompt
+
+```bash
+GET /api/ai-audit/prompts/nemotron
+```
+
+#### Update Model Prompt
+
+```bash
+PUT /api/ai-audit/prompts/nemotron
+Content-Type: application/json
+
+{
+  "system_prompt": "Updated prompt content...",
+  "temperature": 0.1,
+  "max_tokens": 2048,
+  "description": "Added weather context handling"
+}
+```
+
+**Response:**
+
+```json
+{
+  "model": "nemotron",
+  "version": 6,
+  "previous_version": 5,
+  "description": "Added weather context handling",
+  "updated_at": "2025-12-23T14:00:00Z"
+}
+```
+
+### Prompt History
+
+#### Get All Models History
+
+```bash
+GET /api/ai-audit/prompts/history?limit=10
+```
+
+**Parameters:**
+
+| Name  | Type    | Default | Description                    |
+| ----- | ------- | ------- | ------------------------------ |
+| limit | integer | 10      | Max versions per model (1-100) |
+
+#### Get Model History
+
+```bash
+GET /api/ai-audit/prompts/history/nemotron?limit=50&offset=0
+```
+
+**Parameters:**
+
+| Name   | Type    | Default | Description                |
+| ------ | ------- | ------- | -------------------------- |
+| limit  | integer | 50      | Max versions to return     |
+| offset | integer | 0       | Number of versions to skip |
+
+**Response:**
+
+```json
+{
+  "model": "nemotron",
+  "versions": [
+    {
+      "version": 6,
+      "system_prompt": "...",
+      "temperature": 0.1,
+      "description": "Added weather context",
+      "created_at": "2025-12-23T14:00:00Z"
+    },
+    {
+      "version": 5,
+      "system_prompt": "...",
+      "temperature": 0.1,
+      "description": "Initial prompt",
+      "created_at": "2025-12-22T10:00:00Z"
+    }
+  ],
+  "total": 6
+}
+```
+
+#### Restore Prompt Version
+
+```bash
+POST /api/ai-audit/prompts/history/5?model=nemotron
+Content-Type: application/json
+
+{
+  "description": "Reverting to version 5"
+}
+```
+
+**Response:**
+
+```json
+{
+  "model": "nemotron",
+  "restored_version": 5,
+  "new_version": 7,
+  "description": "Reverting to version 5",
+  "restored_at": "2025-12-23T15:00:00Z"
+}
+```
+
+### Prompt Import/Export
+
+#### Export All Prompts
+
+```bash
+GET /api/ai-audit/prompts/export
+```
+
+**Response:**
+
+```json
+{
+  "prompts": {
+    "nemotron": {
+      "system_prompt": "...",
+      "temperature": 0.1,
+      "max_tokens": 2048
+    },
+    "florence-2": {
+      "system_prompt": "...",
+      "temperature": 0.0,
+      "max_tokens": 512
+    }
+  },
+  "exported_at": "2025-12-23T12:00:00Z",
+  "version": "1.0"
+}
+```
+
+#### Import Prompts
+
+```bash
+POST /api/ai-audit/prompts/import
+Content-Type: application/json
+
+{
+  "prompts": {
+    "nemotron": {
+      "system_prompt": "...",
+      "temperature": 0.1,
+      "max_tokens": 2048
+    }
+  },
+  "overwrite": false
+}
+```
+
+**Parameters:**
+
+| Name      | Type    | Default | Description                       |
+| --------- | ------- | ------- | --------------------------------- |
+| overwrite | boolean | false   | Overwrite existing configurations |
+
+**Response:**
+
+```json
+{
+  "imported": ["nemotron"],
+  "skipped": ["florence-2"],
+  "errors": []
+}
+```
+
+### Prompt Testing
+
+#### Test Modified Prompt Config
+
+Test a prompt configuration against an event:
+
+```bash
+POST /api/ai-audit/prompts/test
+Content-Type: application/json
+
+{
+  "model": "nemotron",
+  "event_id": 45,
+  "config": {
+    "system_prompt": "Modified prompt for testing...",
+    "temperature": 0.2,
+    "max_tokens": 2048
+  }
+}
+```
+
+**Response:**
+
+```json
+{
+  "event_id": 45,
+  "model": "nemotron",
+  "current_result": {
+    "risk_score": 75,
+    "summary": "Current analysis result..."
+  },
+  "modified_result": {
+    "risk_score": 80,
+    "summary": "Modified analysis result..."
+  },
+  "comparison": {
+    "risk_score_diff": 5,
+    "latency_diff_ms": 150
+  }
+}
+```
+
+#### Test Custom Prompt (A/B Testing)
+
+Test a custom prompt for the Prompt Playground:
+
+```bash
+POST /api/ai-audit/test-prompt
+Content-Type: application/json
+
+{
+  "event_id": 45,
+  "custom_prompt": "Analyze this security event with focus on...",
+  "temperature": 0.1,
+  "max_tokens": 2048,
+  "model": "nemotron"
+}
+```
+
+**Response:**
+
+```json
+{
+  "event_id": 45,
+  "result": {
+    "risk_score": 78,
+    "risk_level": "high",
+    "summary": "Analysis based on custom prompt...",
+    "reasoning": "..."
+  },
+  "latency_ms": 4200,
+  "tokens_used": 1650
+}
+```
+
+### Recommendations
+
+Get aggregated prompt improvement recommendations:
+
+```bash
+GET /api/ai-audit/recommendations?days=7
+```
+
+**Parameters:**
+
+| Name | Type    | Default | Description                      |
+| ---- | ------- | ------- | -------------------------------- |
+| days | integer | 7       | Number of days to analyze (1-90) |
+
+**Response:**
+
+```json
+{
+  "recommendations": [
+    {
+      "model": "nemotron",
+      "priority": "high",
+      "category": "context",
+      "suggestion": "Add time-of-day context to improve night analysis",
+      "impact_estimate": 0.15,
+      "affected_events": 45
+    },
+    {
+      "model": "florence-2",
+      "priority": "medium",
+      "category": "specificity",
+      "suggestion": "Include clothing color descriptions",
+      "impact_estimate": 0.08,
+      "affected_events": 120
+    }
+  ],
+  "period_days": 7,
+  "total_events_analyzed": 1500
+}
+```
+
+### Audit Statistics
+
+```bash
+GET /api/ai-audit/stats?days=7&camera_id=front_door
+```
+
+**Parameters:**
+
+| Name      | Type    | Default | Description                      |
+| --------- | ------- | ------- | -------------------------------- |
+| days      | integer | 7       | Number of days to include (1-90) |
+| camera_id | string  | null    | Optional camera filter           |
+
+**Response:**
+
+```json
+{
+  "total_events": 5234,
+  "events_today": 156,
+  "by_model": {
+    "nemotron": {
+      "events": 4500,
+      "avg_latency_ms": 4200,
+      "contribution_rate": 0.65
+    },
+    "florence-2": {
+      "events": 734,
+      "avg_latency_ms": 1150,
+      "contribution_rate": 0.25
+    }
+  },
+  "quality_scores": {
+    "avg_coherence": 0.91,
+    "avg_relevance": 0.88,
+    "avg_consistency": 0.94
+  },
+  "token_usage": {
+    "total_input": 4500000,
+    "total_output": 850000,
+    "today_input": 45000,
+    "today_output": 8500
+  },
+  "period_days": 7
 }
 ```
 
@@ -746,6 +1189,399 @@ GET /api/system/circuit-breakers
 ```bash
 POST /api/system/circuit-breakers/rtdetr/reset
 X-API-Key: your-api-key
+```
+
+---
+
+## Background Jobs
+
+The jobs API provides management and monitoring of background processing tasks including exports, cleanups, and AI processing jobs.
+
+### Endpoints
+
+| Method | Endpoint                     | Description                     |
+| ------ | ---------------------------- | ------------------------------- |
+| GET    | `/api/jobs`                  | List all jobs with filtering    |
+| POST   | `/api/jobs/bulk-cancel`      | Cancel multiple jobs at once    |
+| GET    | `/api/jobs/search`           | Advanced job search with facets |
+| GET    | `/api/jobs/stats`            | Get aggregate job statistics    |
+| GET    | `/api/jobs/types`            | List available job types        |
+| GET    | `/api/jobs/{job_id}`         | Get job status                  |
+| DELETE | `/api/jobs/{job_id}`         | Cancel or abort a job           |
+| POST   | `/api/jobs/{job_id}/abort`   | Abort a running job             |
+| POST   | `/api/jobs/{job_id}/cancel`  | Cancel a queued job             |
+| GET    | `/api/jobs/{job_id}/detail`  | Get detailed job information    |
+| GET    | `/api/jobs/{job_id}/history` | Get job execution history       |
+| GET    | `/api/jobs/{job_id}/logs`    | Get job execution logs          |
+
+### List Jobs
+
+```bash
+GET /api/jobs?job_type=export&status=running&limit=50&offset=0
+```
+
+**Parameters:**
+
+| Name     | Type    | Default | Description                                                       |
+| -------- | ------- | ------- | ----------------------------------------------------------------- |
+| job_type | string  | null    | Filter by type (export, cleanup, etc.)                            |
+| status   | string  | null    | Filter by status (pending, running, completed, failed, cancelled) |
+| limit    | integer | 50      | Max results (1-1000)                                              |
+| offset   | integer | 0       | Results to skip                                                   |
+
+**Response:**
+
+```json
+{
+  "jobs": [
+    {
+      "job_id": "job_abc123",
+      "job_type": "export",
+      "status": "running",
+      "progress": 45,
+      "created_at": "2025-12-23T12:00:00Z",
+      "started_at": "2025-12-23T12:00:05Z",
+      "metadata": {
+        "format": "csv",
+        "event_count": 1000
+      }
+    }
+  ],
+  "count": 1,
+  "limit": 50,
+  "offset": 0
+}
+```
+
+### Advanced Job Search
+
+Search and filter jobs with advanced query capabilities:
+
+```bash
+GET /api/jobs/search?q=export&status=running,pending&has_error=false&sort=created_at&order=desc
+```
+
+**Parameters:**
+
+| Name             | Type     | Default    | Description                                   |
+| ---------------- | -------- | ---------- | --------------------------------------------- |
+| q                | string   | null       | Free text search across type, error, metadata |
+| status           | string   | null       | Comma-separated status values                 |
+| job_type         | string   | null       | Comma-separated job types                     |
+| queue            | string   | null       | Queue name filter                             |
+| created_after    | datetime | null       | Filter jobs created after timestamp           |
+| created_before   | datetime | null       | Filter jobs created before timestamp          |
+| completed_after  | datetime | null       | Filter jobs completed after timestamp         |
+| completed_before | datetime | null       | Filter jobs completed before timestamp        |
+| has_error        | boolean  | null       | Filter jobs with/without errors               |
+| min_duration     | float    | null       | Minimum duration in seconds                   |
+| max_duration     | float    | null       | Maximum duration in seconds                   |
+| limit            | integer  | 50         | Max results (1-1000)                          |
+| offset           | integer  | 0          | Results to skip                               |
+| sort             | string   | created_at | Sort field                                    |
+| order            | string   | desc       | Sort direction (asc, desc)                    |
+
+**Response:**
+
+```json
+{
+  "jobs": [...],
+  "count": 25,
+  "limit": 50,
+  "offset": 0,
+  "aggregations": {
+    "by_status": {
+      "running": 5,
+      "pending": 10,
+      "completed": 8,
+      "failed": 2
+    },
+    "by_type": {
+      "export": 15,
+      "cleanup": 10
+    }
+  }
+}
+```
+
+### Job Statistics
+
+```bash
+GET /api/jobs/stats
+```
+
+**Response:**
+
+```json
+{
+  "total_jobs": 1500,
+  "by_status": {
+    "pending": 25,
+    "running": 5,
+    "completed": 1400,
+    "failed": 50,
+    "cancelled": 20
+  },
+  "by_type": {
+    "export": 800,
+    "cleanup": 500,
+    "ai_processing": 200
+  },
+  "avg_duration_seconds": 45.5,
+  "jobs_today": 120,
+  "jobs_this_hour": 15
+}
+```
+
+### Job Types
+
+```bash
+GET /api/jobs/types
+```
+
+**Response:**
+
+```json
+{
+  "types": [
+    {
+      "type": "export",
+      "description": "Export events to CSV/JSON",
+      "supports_abort": true
+    },
+    {
+      "type": "cleanup",
+      "description": "Clean up old data",
+      "supports_abort": false
+    }
+  ]
+}
+```
+
+### Get Job Status
+
+```bash
+GET /api/jobs/job_abc123
+```
+
+**Response:**
+
+```json
+{
+  "job_id": "job_abc123",
+  "job_type": "export",
+  "status": "running",
+  "progress": 65,
+  "created_at": "2025-12-23T12:00:00Z",
+  "started_at": "2025-12-23T12:00:05Z",
+  "completed_at": null,
+  "error_message": null,
+  "result": null,
+  "metadata": {
+    "format": "csv",
+    "event_count": 1000,
+    "processed": 650
+  }
+}
+```
+
+### Get Job Detail
+
+Get comprehensive job information including progress history and timing:
+
+```bash
+GET /api/jobs/job_abc123/detail
+```
+
+**Response:**
+
+```json
+{
+  "job_id": "job_abc123",
+  "job_type": "export",
+  "status": "running",
+  "progress": 65,
+  "progress_history": [
+    { "timestamp": "2025-12-23T12:00:05Z", "progress": 0, "message": "Starting" },
+    { "timestamp": "2025-12-23T12:00:30Z", "progress": 25, "message": "Processing batch 1" },
+    { "timestamp": "2025-12-23T12:01:00Z", "progress": 50, "message": "Processing batch 2" },
+    { "timestamp": "2025-12-23T12:01:30Z", "progress": 65, "message": "Processing batch 3" }
+  ],
+  "timing": {
+    "created_at": "2025-12-23T12:00:00Z",
+    "started_at": "2025-12-23T12:00:05Z",
+    "queue_wait_seconds": 5,
+    "running_seconds": 90
+  },
+  "retry_info": {
+    "attempt": 1,
+    "max_attempts": 3,
+    "last_error": null
+  },
+  "metadata": {
+    "format": "csv",
+    "event_count": 1000
+  }
+}
+```
+
+### Get Job History
+
+Get complete execution history with state transitions:
+
+```bash
+GET /api/jobs/job_abc123/history
+```
+
+**Response:**
+
+```json
+{
+  "job_id": "job_abc123",
+  "transitions": [
+    {
+      "from_status": null,
+      "to_status": "pending",
+      "timestamp": "2025-12-23T12:00:00Z",
+      "reason": "Job created"
+    },
+    {
+      "from_status": "pending",
+      "to_status": "running",
+      "timestamp": "2025-12-23T12:00:05Z",
+      "reason": "Worker picked up job"
+    }
+  ],
+  "attempts": [
+    {
+      "attempt": 1,
+      "started_at": "2025-12-23T12:00:05Z",
+      "status": "running"
+    }
+  ]
+}
+```
+
+### Get Job Logs
+
+```bash
+GET /api/jobs/job_abc123/logs?level=INFO&since=2025-12-23T12:00:00Z&limit=100
+```
+
+**Parameters:**
+
+| Name  | Type     | Default | Description                                     |
+| ----- | -------- | ------- | ----------------------------------------------- |
+| level | string   | null    | Minimum log level (DEBUG, INFO, WARNING, ERROR) |
+| since | datetime | null    | Return logs from this timestamp                 |
+| limit | integer  | 100     | Maximum log entries                             |
+
+**Response:**
+
+```json
+{
+  "job_id": "job_abc123",
+  "logs": [
+    {
+      "timestamp": "2025-12-23T12:00:05Z",
+      "level": "INFO",
+      "message": "Starting export job"
+    },
+    {
+      "timestamp": "2025-12-23T12:00:30Z",
+      "level": "INFO",
+      "message": "Processed 250 events"
+    },
+    {
+      "timestamp": "2025-12-23T12:01:00Z",
+      "level": "WARNING",
+      "message": "Slow query detected, optimizing"
+    }
+  ],
+  "count": 3
+}
+```
+
+### Cancel Job
+
+Cancel a queued job:
+
+```bash
+POST /api/jobs/job_abc123/cancel
+```
+
+**Response:**
+
+```json
+{
+  "job_id": "job_abc123",
+  "status": "cancelled",
+  "message": "Job cancelled successfully"
+}
+```
+
+### Abort Running Job
+
+Abort a currently running job:
+
+```bash
+POST /api/jobs/job_abc123/abort
+```
+
+**Response:**
+
+```json
+{
+  "job_id": "job_abc123",
+  "status": "aborted",
+  "message": "Abort signal sent to worker"
+}
+```
+
+### Delete/Cancel Job (Unified)
+
+Cancel or abort based on current state:
+
+```bash
+DELETE /api/jobs/job_abc123
+```
+
+**Response:**
+
+```json
+{
+  "job_id": "job_abc123",
+  "action": "cancelled",
+  "previous_status": "pending",
+  "message": "Job cancelled"
+}
+```
+
+### Bulk Cancel Jobs
+
+Cancel multiple jobs at once:
+
+```bash
+POST /api/jobs/bulk-cancel
+Content-Type: application/json
+
+{
+  "job_ids": ["job_abc123", "job_def456", "job_ghi789"]
+}
+```
+
+**Response:**
+
+```json
+{
+  "successful": 2,
+  "failed": 1,
+  "results": [
+    { "job_id": "job_abc123", "success": true, "message": "Cancelled" },
+    { "job_id": "job_def456", "success": true, "message": "Cancelled" },
+    { "job_id": "job_ghi789", "success": false, "error": "Job already completed" }
+  ]
+}
 ```
 
 ---

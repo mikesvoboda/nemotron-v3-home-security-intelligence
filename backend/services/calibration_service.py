@@ -154,7 +154,7 @@ class CalibrationService:
             high_threshold=self.default_high,
             decay_factor=self.default_decay,
             false_positive_count=0,
-            missed_detection_count=0,
+            missed_threat_count=0,
         )
         db.add(calibration)
         await db.flush()
@@ -198,9 +198,7 @@ class CalibrationService:
             )
 
         # User has calibration - check if they've provided any feedback
-        is_calibrated = (
-            calibration.false_positive_count > 0 or calibration.missed_detection_count > 0
-        )
+        is_calibrated = calibration.false_positive_count > 0 or calibration.missed_threat_count > 0
 
         return CalibrationThresholds(
             low_threshold=calibration.low_threshold,
@@ -286,7 +284,7 @@ class CalibrationService:
         if feedback.feedback_type == FeedbackType.FALSE_POSITIVE:
             calibration.false_positive_count += 1
         elif feedback.feedback_type == FeedbackType.MISSED_THREAT:
-            calibration.missed_detection_count += 1
+            calibration.missed_threat_count += 1
         elif feedback.feedback_type == FeedbackType.SEVERITY_WRONG:
             # Severity wrong could be either way, count as false positive for tracking
             calibration.false_positive_count += 1
@@ -332,7 +330,7 @@ class CalibrationService:
         calibration.high_threshold = self.default_high
         calibration.decay_factor = self.default_decay
         calibration.false_positive_count = 0
-        calibration.missed_detection_count = 0
+        calibration.missed_threat_count = 0
         calibration.updated_at = datetime.now(UTC)
 
         await db.flush()

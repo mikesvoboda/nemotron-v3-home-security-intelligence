@@ -87,19 +87,23 @@ Cameras represent physical security devices that upload images to configured fol
 
 ### Endpoints
 
-| Method | Endpoint                                                  | Description              |
-| ------ | --------------------------------------------------------- | ------------------------ |
-| GET    | `/api/cameras`                                            | List all cameras         |
-| GET    | `/api/cameras/{camera_id}`                                | Get camera by ID         |
-| POST   | `/api/cameras`                                            | Create new camera        |
-| PATCH  | `/api/cameras/{camera_id}`                                | Update camera            |
-| DELETE | `/api/cameras/{camera_id}`                                | Delete camera            |
-| GET    | `/api/cameras/{camera_id}/snapshot`                       | Get latest snapshot      |
-| GET    | `/api/cameras/validation/paths`                           | Validate folder paths    |
-| GET    | `/api/cameras/{camera_id}/baseline`                       | Get baseline activity    |
-| GET    | `/api/cameras/{camera_id}/baseline/anomalies`             | Get recent anomalies     |
-| GET    | `/api/cameras/{camera_id}/scene-changes`                  | List scene changes       |
-| POST   | `/api/cameras/{camera_id}/scene-changes/{id}/acknowledge` | Acknowledge scene change |
+| Method | Endpoint                                                  | Description               |
+| ------ | --------------------------------------------------------- | ------------------------- |
+| GET    | `/api/cameras`                                            | List all cameras          |
+| GET    | `/api/cameras/{camera_id}`                                | Get camera by ID          |
+| POST   | `/api/cameras`                                            | Create new camera         |
+| PATCH  | `/api/cameras/{camera_id}`                                | Update camera             |
+| DELETE | `/api/cameras/{camera_id}`                                | Delete camera             |
+| GET    | `/api/cameras/deleted`                                    | List soft-deleted cameras |
+| POST   | `/api/cameras/{camera_id}/restore`                        | Restore deleted camera    |
+| GET    | `/api/cameras/{camera_id}/snapshot`                       | Get latest snapshot       |
+| GET    | `/api/cameras/validation/paths`                           | Validate folder paths     |
+| GET    | `/api/cameras/{camera_id}/baseline`                       | Get baseline summary      |
+| GET    | `/api/cameras/{camera_id}/baseline/activity`              | Get activity heatmap data |
+| GET    | `/api/cameras/{camera_id}/baseline/anomalies`             | Get recent anomalies      |
+| GET    | `/api/cameras/{camera_id}/baseline/classes`               | Get class frequency data  |
+| GET    | `/api/cameras/{camera_id}/scene-changes`                  | List scene changes        |
+| POST   | `/api/cameras/{camera_id}/scene-changes/{id}/acknowledge` | Acknowledge scene change  |
 
 ### List Cameras
 
@@ -109,9 +113,10 @@ GET /api/cameras?status=online
 
 **Parameters:**
 
-| Name   | Type   | Description                          |
-| ------ | ------ | ------------------------------------ |
-| status | string | Filter: `online`, `offline`, `error` |
+| Name   | Type   | Description                                                                                                                    |
+| ------ | ------ | ------------------------------------------------------------------------------------------------------------------------------ |
+| status | string | Filter: `online`, `offline`, `error`                                                                                           |
+| fields | string | Comma-separated list of fields for sparse response. Valid: `id`, `name`, `folder_path`, `status`, `created_at`, `last_seen_at` |
 
 **Response:**
 
@@ -189,7 +194,117 @@ Monitor camera tampering or angle changes:
 GET /api/cameras/front_door/scene-changes?acknowledged=false
 ```
 
+**Parameters:**
+
+| Name         | Type     | Description                               |
+| ------------ | -------- | ----------------------------------------- |
+| acknowledged | boolean  | Filter by acknowledgement status          |
+| limit        | integer  | Max results (1-100, default: 50)          |
+| cursor       | datetime | Pagination cursor (detected_at timestamp) |
+
 **Change Types:** `view_blocked`, `angle_changed`, `view_tampered`, `unknown`
+
+### Soft-Deleted Cameras
+
+List cameras that have been soft-deleted for trash view:
+
+```bash
+GET /api/cameras/deleted
+```
+
+**Response:**
+
+```json
+{
+  "cameras": [
+    {
+      "id": "old_camera",
+      "name": "Old Camera",
+      "folder_path": "/export/foscam/old_camera",
+      "status": "offline",
+      "deleted_at": "2026-01-10T15:30:00Z"
+    }
+  ],
+  "count": 1
+}
+```
+
+### Restore Camera
+
+Restore a soft-deleted camera:
+
+```bash
+POST /api/cameras/old_camera/restore
+```
+
+**Response:** Returns the restored camera object.
+
+**Errors:**
+
+- `404` - Camera not found
+- `400` - Camera is not deleted (nothing to restore)
+
+### Activity Heatmap Data
+
+Get raw activity baseline data for weekly heatmap visualization:
+
+```bash
+GET /api/cameras/front_door/baseline/activity
+```
+
+Returns up to 168 entries (24 hours x 7 days) representing the full weekly activity heatmap.
+
+**Response:**
+
+```json
+{
+  "camera_id": "front_door",
+  "entries": [
+    {
+      "hour": 0,
+      "day_of_week": 0,
+      "avg_count": 0.5,
+      "sample_count": 30
+    },
+    {
+      "hour": 17,
+      "day_of_week": 1,
+      "avg_count": 5.2,
+      "sample_count": 30
+    }
+  ]
+}
+```
+
+### Class Frequency Baseline
+
+Get baseline entries grouped by object class and hour:
+
+```bash
+GET /api/cameras/front_door/baseline/classes
+```
+
+**Response:**
+
+```json
+{
+  "camera_id": "front_door",
+  "entries": [
+    {
+      "object_class": "person",
+      "hour": 17,
+      "avg_count": 3.5,
+      "sample_count": 30
+    },
+    {
+      "object_class": "car",
+      "hour": 8,
+      "avg_count": 2.1,
+      "sample_count": 30
+    }
+  ]
+}
+```
 
 ---
 
@@ -239,18 +354,26 @@ sequenceDiagram
 
 ### Endpoints
 
-| Method | Endpoint                               | Description                |
-| ------ | -------------------------------------- | -------------------------- |
-| GET    | `/api/events`                          | List events with filtering |
-| GET    | `/api/events/stats`                    | Get event statistics       |
-| GET    | `/api/events/search`                   | Full-text search           |
-| GET    | `/api/events/export`                   | Export as CSV              |
-| GET    | `/api/events/{event_id}`               | Get event by ID            |
-| PATCH  | `/api/events/{event_id}`               | Update event (review)      |
-| GET    | `/api/events/{event_id}/detections`    | Get detections for event   |
-| GET    | `/api/events/{event_id}/enrichments`   | Get enrichment data        |
-| GET    | `/api/events/{event_id}/clip`          | Get video clip info        |
-| POST   | `/api/events/{event_id}/clip/generate` | Generate video clip        |
+| Method | Endpoint                                | Description                        |
+| ------ | --------------------------------------- | ---------------------------------- |
+| GET    | `/api/events`                           | List events with filtering         |
+| GET    | `/api/events/stats`                     | Get event statistics               |
+| GET    | `/api/events/search`                    | Full-text search                   |
+| GET    | `/api/events/export`                    | Export as CSV/Excel                |
+| POST   | `/api/events/export`                    | Start background export job        |
+| GET    | `/api/events/deleted`                   | List soft-deleted events           |
+| POST   | `/api/events/bulk`                      | Bulk create events                 |
+| PATCH  | `/api/events/bulk`                      | Bulk update events                 |
+| DELETE | `/api/events/bulk`                      | Bulk delete events                 |
+| GET    | `/api/events/analyze/{batch_id}/stream` | Stream LLM analysis progress (SSE) |
+| GET    | `/api/events/{event_id}`                | Get event by ID                    |
+| PATCH  | `/api/events/{event_id}`                | Update event (review)              |
+| DELETE | `/api/events/{event_id}`                | Soft delete event                  |
+| POST   | `/api/events/{event_id}/restore`        | Restore soft-deleted event         |
+| GET    | `/api/events/{event_id}/detections`     | Get detections for event           |
+| GET    | `/api/events/{event_id}/enrichments`    | Get enrichment data                |
+| GET    | `/api/events/{event_id}/clip`           | Get video clip info                |
+| POST   | `/api/events/{event_id}/clip/generate`  | Generate video clip                |
 
 ### List Events
 
@@ -260,16 +383,18 @@ GET /api/events?camera_id=front_door&risk_level=high&limit=50
 
 **Parameters:**
 
-| Name        | Type     | Description                           |
-| ----------- | -------- | ------------------------------------- |
-| camera_id   | string   | Filter by camera ID                   |
-| risk_level  | string   | `low`, `medium`, `high`, `critical`   |
-| start_date  | datetime | Filter events after date              |
-| end_date    | datetime | Filter events before date             |
-| reviewed    | boolean  | Filter by reviewed status             |
-| object_type | string   | Filter by object: `person`, `vehicle` |
-| limit       | integer  | Max results (1-1000, default: 50)     |
-| offset      | integer  | Results to skip (default: 0)          |
+| Name        | Type     | Description                                                                                                                                                                                                         |
+| ----------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| camera_id   | string   | Filter by camera ID                                                                                                                                                                                                 |
+| risk_level  | string   | `low`, `medium`, `high`, `critical`                                                                                                                                                                                 |
+| start_date  | datetime | Filter events after date                                                                                                                                                                                            |
+| end_date    | datetime | Filter events before date                                                                                                                                                                                           |
+| reviewed    | boolean  | Filter by reviewed status                                                                                                                                                                                           |
+| object_type | string   | Filter by object: `person`, `vehicle`                                                                                                                                                                               |
+| limit       | integer  | Max results (1-100, default: 50)                                                                                                                                                                                    |
+| offset      | integer  | Results to skip (deprecated, use cursor)                                                                                                                                                                            |
+| cursor      | string   | Pagination cursor from previous response                                                                                                                                                                            |
+| fields      | string   | Comma-separated fields for sparse response. Valid: `id`, `camera_id`, `started_at`, `ended_at`, `risk_score`, `risk_level`, `summary`, `reasoning`, `reviewed`, `detection_count`, `detection_ids`, `thumbnail_url` |
 
 **Response:**
 
@@ -336,6 +461,181 @@ Content-Type: application/json
 }
 ```
 
+### Delete Event
+
+Soft delete an event with optional cascade to related detections:
+
+```bash
+DELETE /api/events/123?cascade=true
+```
+
+**Parameters:**
+
+| Name    | Type    | Description                                       |
+| ------- | ------- | ------------------------------------------------- |
+| cascade | boolean | Cascade soft delete to detections (default: true) |
+
+**Errors:**
+
+- `404` - Event not found
+- `409` - Event already deleted
+
+### Restore Event
+
+Restore a soft-deleted event with optional cascade:
+
+```bash
+POST /api/events/123/restore?cascade=true
+```
+
+**Parameters:**
+
+| Name    | Type    | Description                                           |
+| ------- | ------- | ----------------------------------------------------- |
+| cascade | boolean | Cascade restore to related detections (default: true) |
+
+### Soft-Deleted Events
+
+List events that have been soft-deleted:
+
+```bash
+GET /api/events/deleted
+```
+
+Returns events ordered by `deleted_at` descending (most recently deleted first).
+
+### Bulk Operations
+
+Create, update, or delete multiple events in a single request. All bulk operations support partial success and return HTTP 207 Multi-Status.
+
+**Bulk Create:**
+
+```bash
+POST /api/events/bulk
+Content-Type: application/json
+
+{
+  "events": [
+    {
+      "camera_id": "front_door",
+      "started_at": "2026-01-10T12:00:00Z",
+      "risk_score": 50,
+      "summary": "Person detected"
+    }
+  ]
+}
+```
+
+**Bulk Update:**
+
+```bash
+PATCH /api/events/bulk
+Content-Type: application/json
+
+{
+  "updates": [
+    { "id": 1, "reviewed": true },
+    { "id": 2, "reviewed": true }
+  ]
+}
+```
+
+**Bulk Delete:**
+
+```bash
+DELETE /api/events/bulk
+Content-Type: application/json
+
+{
+  "ids": [1, 2, 3],
+  "soft_delete": true,
+  "cascade": true
+}
+```
+
+**Response (207 Multi-Status):**
+
+```json
+{
+  "total": 3,
+  "succeeded": 2,
+  "failed": 1,
+  "results": [
+    { "id": 1, "status": 200 },
+    { "id": 2, "status": 200 },
+    { "id": 3, "status": 404, "error": "Not found" }
+  ]
+}
+```
+
+### Stream LLM Analysis
+
+Stream LLM analysis progress via Server-Sent Events:
+
+```bash
+GET /api/events/analyze/batch_abc123/stream?camera_id=front_door
+```
+
+**Parameters:**
+
+| Name          | Type   | Description                   |
+| ------------- | ------ | ----------------------------- |
+| camera_id     | string | Camera ID for the batch       |
+| detection_ids | string | Comma-separated detection IDs |
+
+**SSE Event Types:**
+
+| Event Type | Description                                |
+| ---------- | ------------------------------------------ |
+| `progress` | Partial LLM response with accumulated_text |
+| `complete` | Final event with risk assessment           |
+| `error`    | Error with error_code and recoverable flag |
+
+**Example SSE Stream:**
+
+```text
+data: {"event_type": "progress", "content": "Based on", "accumulated_text": "Based on"}
+
+data: {"event_type": "progress", "content": " the", "accumulated_text": "Based on the"}
+
+data: {"event_type": "complete", "event_id": 123, "risk_score": 75, "risk_level": "medium"}
+```
+
+### Export Events
+
+Export events as CSV or Excel. Supports content negotiation via Accept header.
+
+**CSV Export (default):**
+
+```bash
+GET /api/events/export?camera_id=front_door
+Accept: text/csv
+```
+
+**Excel Export:**
+
+```bash
+GET /api/events/export?camera_id=front_door
+Accept: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+```
+
+**Background Export Job:**
+
+For large exports, start a background job:
+
+```bash
+POST /api/events/export
+Content-Type: application/json
+
+{
+  "format": "xlsx",
+  "camera_id": "front_door",
+  "start_date": "2026-01-01T00:00:00Z"
+}
+```
+
+Returns job ID for tracking via `GET /api/jobs/{job_id}`.
+
 ---
 
 ## Detections
@@ -344,14 +644,21 @@ Detections represent individual objects identified by RT-DETRv2 in camera images
 
 ### Endpoints
 
-| Method | Endpoint                                         | Description         |
-| ------ | ------------------------------------------------ | ------------------- |
-| GET    | `/api/detections`                                | List detections     |
-| GET    | `/api/detections/{detection_id}`                 | Get detection by ID |
-| GET    | `/api/detections/{detection_id}/image`           | Get thumbnail       |
-| GET    | `/api/detections/{detection_id}/enrichment`      | Get enrichment data |
-| GET    | `/api/detections/{detection_id}/video`           | Stream video        |
-| GET    | `/api/detections/{detection_id}/video/thumbnail` | Get video thumbnail |
+| Method | Endpoint                                         | Description                   |
+| ------ | ------------------------------------------------ | ----------------------------- |
+| GET    | `/api/detections`                                | List detections               |
+| GET    | `/api/detections/labels`                         | Get unique labels with counts |
+| GET    | `/api/detections/search`                         | Full-text search              |
+| GET    | `/api/detections/stats`                          | Get detection statistics      |
+| POST   | `/api/detections/bulk`                           | Bulk create detections        |
+| PATCH  | `/api/detections/bulk`                           | Bulk update detections        |
+| DELETE | `/api/detections/bulk`                           | Bulk delete detections        |
+| GET    | `/api/detections/{detection_id}`                 | Get detection by ID           |
+| GET    | `/api/detections/{detection_id}/image`           | Get image with bounding box   |
+| GET    | `/api/detections/{detection_id}/thumbnail`       | Get cropped thumbnail         |
+| GET    | `/api/detections/{detection_id}/enrichment`      | Get enrichment data           |
+| GET    | `/api/detections/{detection_id}/video`           | Stream video                  |
+| GET    | `/api/detections/{detection_id}/video/thumbnail` | Get video thumbnail           |
 
 ### List Detections
 
@@ -361,15 +668,17 @@ GET /api/detections?camera_id=front_door&object_type=person&min_confidence=0.8
 
 **Parameters:**
 
-| Name           | Type     | Description                          |
-| -------------- | -------- | ------------------------------------ |
-| camera_id      | string   | Filter by camera ID                  |
-| object_type    | string   | Filter: `person`, `car`, `dog`, etc. |
-| start_date     | datetime | Filter after date                    |
-| end_date       | datetime | Filter before date                   |
-| min_confidence | float    | Minimum confidence (0.0-1.0)         |
-| limit          | integer  | Max results (1-1000, default: 50)    |
-| offset         | integer  | Results to skip (default: 0)         |
+| Name           | Type     | Description                                                                                                                                                                                                                                                                                              |
+| -------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| camera_id      | string   | Filter by camera ID                                                                                                                                                                                                                                                                                      |
+| object_type    | string   | Filter: `person`, `car`, `dog`, etc.                                                                                                                                                                                                                                                                     |
+| start_date     | datetime | Filter after date                                                                                                                                                                                                                                                                                        |
+| end_date       | datetime | Filter before date                                                                                                                                                                                                                                                                                       |
+| min_confidence | float    | Minimum confidence (0.0-1.0)                                                                                                                                                                                                                                                                             |
+| limit          | integer  | Max results (1-100, default: 50)                                                                                                                                                                                                                                                                         |
+| offset         | integer  | Results to skip (deprecated, use cursor)                                                                                                                                                                                                                                                                 |
+| cursor         | string   | Pagination cursor from previous response                                                                                                                                                                                                                                                                 |
+| fields         | string   | Comma-separated fields for sparse response. Valid: `id`, `camera_id`, `file_path`, `file_type`, `detected_at`, `object_type`, `confidence`, `bbox_x`, `bbox_y`, `bbox_width`, `bbox_height`, `thumbnail_path`, `media_type`, `duration`, `video_codec`, `video_width`, `video_height`, `enrichment_data` |
 
 **Response:**
 
@@ -422,6 +731,146 @@ Range: bytes=0-1048575
 ```
 
 Returns `206 Partial Content` with `Content-Range` header.
+
+### Detection Image
+
+Get detection image with bounding box overlay:
+
+```bash
+GET /api/detections/1/image
+```
+
+**Parameters:**
+
+| Name | Type    | Description                                                |
+| ---- | ------- | ---------------------------------------------------------- |
+| full | boolean | Return full-size original without overlay (default: false) |
+
+### Cropped Thumbnail
+
+Get cropped thumbnail image focused on the detected object:
+
+```bash
+GET /api/detections/1/thumbnail
+```
+
+Returns JPEG/PNG image cropped to the bounding box area.
+
+### Detection Labels
+
+Get all unique detection labels with counts:
+
+```bash
+GET /api/detections/labels
+```
+
+**Response:**
+
+```json
+{
+  "labels": [
+    { "label": "person", "count": 450 },
+    { "label": "car", "count": 180 },
+    { "label": "dog", "count": 60 }
+  ]
+}
+```
+
+### Search Detections
+
+Full-text search across detections:
+
+```bash
+GET /api/detections/search?q=person&labels=person,vehicle&min_confidence=0.8
+```
+
+**Parameters:**
+
+| Name           | Type     | Description                       |
+| -------------- | -------- | --------------------------------- |
+| q              | string   | Search query (required)           |
+| labels         | array    | Filter by label types             |
+| min_confidence | float    | Minimum confidence (0.0-1.0)      |
+| camera_id      | string   | Filter by camera ID               |
+| start_date     | datetime | Filter after date                 |
+| end_date       | datetime | Filter before date                |
+| limit          | integer  | Max results (1-1000, default: 50) |
+| offset         | integer  | Results to skip (default: 0)      |
+
+### Detection Statistics
+
+Get aggregate detection statistics:
+
+```bash
+GET /api/detections/stats
+```
+
+**Response:**
+
+```json
+{
+  "total_count": 690,
+  "avg_confidence": 0.87,
+  "class_distribution": [
+    { "object_type": "person", "count": 450 },
+    { "object_type": "car", "count": 180 },
+    { "object_type": "dog", "count": 60 }
+  ]
+}
+```
+
+### Bulk Operations
+
+Create, update, or delete multiple detections. All operations support partial success and return HTTP 207 Multi-Status.
+
+**Bulk Create:**
+
+```bash
+POST /api/detections/bulk
+Content-Type: application/json
+
+{
+  "detections": [
+    {
+      "camera_id": "front_door",
+      "file_path": "/export/foscam/front_door/image.jpg",
+      "object_type": "person",
+      "confidence": 0.95,
+      "bbox_x": 100,
+      "bbox_y": 150,
+      "bbox_width": 200,
+      "bbox_height": 400
+    }
+  ]
+}
+```
+
+**Bulk Update:**
+
+```bash
+PATCH /api/detections/bulk
+Content-Type: application/json
+
+{
+  "updates": [
+    { "id": 1, "object_type": "person" },
+    { "id": 2, "object_type": "car" }
+  ]
+}
+```
+
+**Bulk Delete:**
+
+```bash
+DELETE /api/detections/bulk
+Content-Type: application/json
+
+{
+  "ids": [1, 2, 3]
+}
+```
+
+Note: Detection deletion is always hard delete (soft-delete not supported for raw data).
 
 ---
 
@@ -555,11 +1004,12 @@ Entities track persons and vehicles across cameras using CLIP-based re-identific
 
 ### Endpoints
 
-| Method | Endpoint                            | Description             |
-| ------ | ----------------------------------- | ----------------------- |
-| GET    | `/api/entities`                     | List tracked entities   |
-| GET    | `/api/entities/{entity_id}`         | Get entity details      |
-| GET    | `/api/entities/{entity_id}/history` | Get appearance timeline |
+| Method | Endpoint                               | Description                          |
+| ------ | -------------------------------------- | ------------------------------------ |
+| GET    | `/api/entities`                        | List tracked entities                |
+| GET    | `/api/entities/matches/{detection_id}` | Find matching entities for detection |
+| GET    | `/api/entities/{entity_id}`            | Get entity details                   |
+| GET    | `/api/entities/{entity_id}/history`    | Get appearance timeline              |
 
 ### List Entities
 
@@ -612,6 +1062,44 @@ Returns entity with full appearance history including:
 - Similarity scores
 - Attributes (clothing, carrying items)
 
+### Find Entity Matches
+
+Find entities matching a specific detection's embedding:
+
+```bash
+GET /api/entities/matches/123?entity_type=person&threshold=0.85
+```
+
+**Parameters:**
+
+| Name        | Type   | Description                                             |
+| ----------- | ------ | ------------------------------------------------------- |
+| entity_type | string | Type to search: `person` or `vehicle` (default: person) |
+| threshold   | float  | Minimum cosine similarity (default: 0.85)               |
+
+**Response:**
+
+```json
+{
+  "detection_id": "123",
+  "matches": [
+    {
+      "entity_id": "entity_abc123",
+      "similarity": 0.92,
+      "camera_id": "backyard",
+      "detected_at": "2026-01-10T14:30:00Z",
+      "thumbnail_url": "/api/detections/456/image"
+    }
+  ],
+  "match_count": 1
+}
+```
+
+**Errors:**
+
+- `404` - Detection not found or no embedding stored
+- `503` - Redis service unavailable
+
 ### Re-identification Architecture
 
 - **Algorithm:** CLIP ViT-L 768-dimensional embeddings
@@ -634,11 +1122,22 @@ Analytics endpoints provide aggregated data for dashboards and reports.
 | GET    | `/api/analytics/camera-uptime`       | Uptime per camera       |
 | GET    | `/api/analytics/object-distribution` | Counts by object type   |
 
+All analytics endpoints require `start_date` and `end_date` parameters (ISO date format: YYYY-MM-DD).
+
 ### Detection Trends
+
+Get detection counts aggregated by day:
 
 ```bash
 GET /api/analytics/detection-trends?start_date=2025-12-01&end_date=2025-12-31
 ```
+
+**Parameters (required):**
+
+| Name       | Type | Description            |
+| ---------- | ---- | ---------------------- |
+| start_date | date | Start date (inclusive) |
+| end_date   | date | End date (inclusive)   |
 
 **Response:**
 

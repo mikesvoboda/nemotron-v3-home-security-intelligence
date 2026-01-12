@@ -54,18 +54,31 @@ flowchart TB
 
 ## Overview
 
-The system provides two WebSocket endpoints for real-time communication:
+The system provides WebSocket endpoints for real-time push communication and an SSE endpoint for streaming LLM analysis:
 
-| Protocol | Endpoint     | Description           |
-| -------- | ------------ | --------------------- |
-| WS       | `/ws/events` | Security event stream |
-| WS       | `/ws/system` | System status stream  |
+| Protocol | Endpoint                                | Description                     |
+| -------- | --------------------------------------- | ------------------------------- |
+| WS       | `/ws/events`                            | Security event stream           |
+| WS       | `/ws/system`                            | System status stream            |
+| SSE      | `/api/events/analyze/{batch_id}/stream` | LLM analysis progress streaming |
+
+Additionally, REST endpoints are available for WebSocket monitoring:
+
+| Method | Endpoint                           | Description                      |
+| ------ | ---------------------------------- | -------------------------------- |
+| GET    | `/api/system/health/websocket`     | WebSocket broadcaster health     |
+| GET    | `/api/system/websocket/events`     | Event type registry              |
+| GET    | `/api/debug/websocket/connections` | Active connection states (debug) |
 
 WebSocket connections enable the frontend to receive push notifications without polling, reducing latency and server load.
 
 ---
 
 ## Authentication
+
+Two authentication methods are available (both optional, can be used together):
+
+### 1. API Key Authentication
 
 When `API_KEY_ENABLED=true`, provide the API key via:
 
@@ -79,6 +92,23 @@ ws://localhost:8000/ws/events?api_key=YOUR_KEY
 
 ```javascript
 const ws = new WebSocket('ws://localhost:8000/ws/events', ['api-key.YOUR_KEY']);
+```
+
+### 2. Token Authentication
+
+When `WEBSOCKET_TOKEN` is configured, provide the token via query parameter:
+
+```
+ws://localhost:8000/ws/events?token=YOUR_TOKEN
+```
+
+**JavaScript Example:**
+
+```javascript
+// With token authentication:
+const ws = new WebSocket('ws://localhost:8000/ws/events?token=YOUR_TOKEN');
+// Or with API key authentication:
+const ws = new WebSocket('ws://localhost:8000/ws/events?api_key=YOUR_KEY');
 ```
 
 ---
@@ -207,6 +237,66 @@ For backward compatibility, plain text pings are also accepted:
 ```
 ping
 ```
+
+### Event Filtering (Subscriptions)
+
+Clients can subscribe to specific event patterns to reduce bandwidth and receive only relevant events. By default, new connections receive all events.
+
+#### Subscribe Message
+
+Send to subscribe to specific event patterns:
+
+```json
+{
+  "type": "subscribe",
+  "data": {
+    "events": ["alert.*", "camera.status_changed", "event.created"]
+  }
+}
+```
+
+**Server Response:**
+
+```json
+{
+  "action": "subscribed",
+  "events": ["alert.*", "camera.status_changed", "event.created"]
+}
+```
+
+#### Unsubscribe Message
+
+Send to unsubscribe from specific patterns (or all if no patterns specified):
+
+```json
+{
+  "type": "unsubscribe",
+  "data": {
+    "events": ["alert.*"]
+  }
+}
+```
+
+**Server Response:**
+
+```json
+{
+  "action": "unsubscribed",
+  "events": ["alert.*"]
+}
+```
+
+#### Pattern Syntax
+
+| Pattern                 | Description                    |
+| ----------------------- | ------------------------------ |
+| `*`                     | All events (default)           |
+| `alert.*`               | All alert events               |
+| `camera.*`              | All camera events              |
+| `event.*`               | All security event events      |
+| `job.*`                 | All background job events      |
+| `system.*`              | All system events              |
+| `camera.status_changed` | Exact match for specific event |
 
 ### Error Messages
 
@@ -638,20 +728,31 @@ class ReconnectingWebSocket {
 flowchart TB
     subgraph ClientToServer["Client to Server"]
         PING[ping]
+        SUB[subscribe]
+        UNSUB[unsubscribe]
     end
 
     subgraph ServerToClient["Server to Client"]
         PONG[pong]
         EVENT[event]
+        ALERT[alert_*]
+        CAM[camera_status]
+        SCENE[scene_change]
+        JOB[job_*]
         SYS[system_status]
         SVC[service_status]
+        SUBRESP[subscribed/unsubscribed]
         ERR[error]
     end
 
     subgraph EventEndpoint["/ws/events"]
         E_PING[ping]
+        E_SUB[subscribe]
         E_PONG[pong]
         E_EVENT[event]
+        E_ALERT[alert_*]
+        E_CAM[camera_status]
+        E_SCENE[scene_change]
         E_ERR[error]
     end
 
@@ -660,19 +761,28 @@ flowchart TB
         S_PONG[pong]
         S_SYS[system_status]
         S_SVC[service_status]
+        S_JOB[job_*]
         S_ERR[error]
     end
 
     PING -.->|request| E_PING
     PING -.->|request| S_PING
+    SUB -.->|request| E_SUB
     E_PING -->|response| E_PONG
     S_PING -->|response| S_PONG
 
     style PING fill:#3B82F6,color:#fff
+    style SUB fill:#3B82F6,color:#fff
+    style UNSUB fill:#3B82F6,color:#fff
     style PONG fill:#4ADE80,color:#000
     style EVENT fill:#A855F7,color:#fff
+    style ALERT fill:#E74856,color:#fff
+    style CAM fill:#FFB800,color:#000
+    style SCENE fill:#009688,color:#fff
+    style JOB fill:#009688,color:#fff
     style SYS fill:#009688,color:#fff
     style SVC fill:#FFB800,color:#000
+    style SUBRESP fill:#4ADE80,color:#000
     style ERR fill:#E74856,color:#fff
 ```
 
@@ -689,6 +799,28 @@ flowchart TB
 
 ```json
 { "type": "ping" }
+```
+
+**WebSocketSubscribeMessage:**
+
+```json
+{
+  "type": "subscribe",
+  "data": {
+    "events": ["alert.*", "camera.status_changed"]
+  }
+}
+```
+
+**WebSocketUnsubscribeMessage:**
+
+```json
+{
+  "type": "unsubscribe",
+  "data": {
+    "events": ["alert.*"]
+  }
+}
 ```
 
 ### Server-to-Client Messages
@@ -730,6 +862,41 @@ flowchart TB
 | `error`   | string | Error code                 |
 | `message` | string | Human-readable description |
 | `details` | object | Additional context         |
+
+**WebSocketSubscriptionResponse:**
+
+| Field    | Type     | Description                        |
+| -------- | -------- | ---------------------------------- |
+| `action` | string   | `"subscribed"` or `"unsubscribed"` |
+| `events` | string[] | List of affected event patterns    |
+
+**WebSocketCameraStatusMessage:**
+
+| Field  | Type   | Description              |
+| ------ | ------ | ------------------------ |
+| `type` | string | Always `"camera_status"` |
+| `data` | object | Camera status payload    |
+
+**WebSocketAlertMessage:**
+
+| Field  | Type   | Description                                                    |
+| ------ | ------ | -------------------------------------------------------------- |
+| `type` | string | `"alert_created"`, `"alert_acknowledged"`, `"alert_dismissed"` |
+| `data` | object | Alert data payload                                             |
+
+**WebSocketSceneChangeMessage:**
+
+| Field  | Type   | Description             |
+| ------ | ------ | ----------------------- |
+| `type` | string | Always `"scene_change"` |
+| `data` | object | Scene change payload    |
+
+**WebSocketJobMessage:**
+
+| Field  | Type   | Description                                         |
+| ------ | ------ | --------------------------------------------------- |
+| `type` | string | `"job_progress"`, `"job_completed"`, `"job_failed"` |
+| `data` | object | Job data payload                                    |
 
 ---
 
@@ -786,6 +953,399 @@ export function useEventStream(apiKey: string) {
   return { events, connected, error };
 }
 ```
+
+---
+
+## Additional Message Types
+
+Beyond the core `event` and `system_status` messages, the WebSocket endpoints support additional message types for different domains.
+
+### Camera Status Message
+
+Broadcast when a camera's status changes:
+
+```json
+{
+  "type": "camera_status",
+  "data": {
+    "event_type": "camera.offline",
+    "camera_id": "front_door",
+    "camera_name": "Front Door Camera",
+    "status": "offline",
+    "timestamp": "2026-01-09T10:30:00Z",
+    "previous_status": "online",
+    "reason": "No activity detected for 5 minutes",
+    "details": null
+  }
+}
+```
+
+**Camera Event Types:**
+
+| Event Type       | Description                  |
+| ---------------- | ---------------------------- |
+| `camera.online`  | Camera came online           |
+| `camera.offline` | Camera went offline          |
+| `camera.error`   | Camera encountered an error  |
+| `camera.updated` | Camera configuration updated |
+
+### Alert Messages
+
+Broadcast when alerts are created or their state changes:
+
+**Alert Created:**
+
+```json
+{
+  "type": "alert_created",
+  "data": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "event_id": 123,
+    "rule_id": "550e8400-e29b-41d4-a716-446655440001",
+    "severity": "high",
+    "status": "pending",
+    "dedup_key": "front_door:person:rule1",
+    "created_at": "2026-01-09T12:00:00Z",
+    "updated_at": "2026-01-09T12:00:00Z"
+  }
+}
+```
+
+**Alert Acknowledged:**
+
+```json
+{
+  "type": "alert_acknowledged",
+  "data": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "event_id": 123,
+    "severity": "high",
+    "status": "acknowledged",
+    "created_at": "2026-01-09T12:00:00Z",
+    "updated_at": "2026-01-09T12:01:00Z"
+  }
+}
+```
+
+**Alert Dismissed:**
+
+```json
+{
+  "type": "alert_dismissed",
+  "data": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "event_id": 123,
+    "severity": "high",
+    "status": "dismissed",
+    "created_at": "2026-01-09T12:00:00Z",
+    "updated_at": "2026-01-09T12:02:00Z"
+  }
+}
+```
+
+### Scene Change Message
+
+Broadcast when a camera view change is detected (potential tampering):
+
+```json
+{
+  "type": "scene_change",
+  "data": {
+    "id": 1,
+    "camera_id": "front_door",
+    "detected_at": "2026-01-03T10:30:00Z",
+    "change_type": "view_blocked",
+    "similarity_score": 0.23
+  }
+}
+```
+
+**Change Types:**
+
+| Type            | Description                        |
+| --------------- | ---------------------------------- |
+| `view_blocked`  | Camera view is obstructed          |
+| `angle_changed` | Camera angle has shifted           |
+| `view_tampered` | Potential intentional interference |
+| `unknown`       | Unclassified scene change          |
+
+### Job Progress Messages
+
+Broadcast for background job lifecycle events:
+
+**Job Progress:**
+
+```json
+{
+  "type": "job_progress",
+  "data": {
+    "job_id": "550e8400-e29b-41d4-a716-446655440000",
+    "job_type": "export",
+    "progress": 50,
+    "status": "running"
+  }
+}
+```
+
+**Job Completed:**
+
+```json
+{
+  "type": "job_completed",
+  "data": {
+    "job_id": "550e8400-e29b-41d4-a716-446655440000",
+    "job_type": "export",
+    "result": { "file_path": "/exports/events_2026-01-09.json" }
+  }
+}
+```
+
+**Job Failed:**
+
+```json
+{
+  "type": "job_failed",
+  "data": {
+    "job_id": "550e8400-e29b-41d4-a716-446655440000",
+    "job_type": "export",
+    "error": "Database connection failed"
+  }
+}
+```
+
+---
+
+## Server-Sent Events (SSE) Streaming
+
+### Analyze Batch Streaming
+
+Stream LLM analysis progress for a batch via Server-Sent Events (SSE). This endpoint provides progressive LLM response updates during long inference times, allowing the frontend to display partial results and typing indicators.
+
+**Endpoint:** `GET /api/events/analyze/{batch_id}/stream`
+
+**Content-Type:** `text/event-stream`
+
+#### Parameters
+
+| Parameter       | Type   | In    | Required | Description                              |
+| --------------- | ------ | ----- | -------- | ---------------------------------------- |
+| `batch_id`      | string | path  | Yes      | Batch identifier to analyze              |
+| `camera_id`     | string | query | No       | Camera ID (uses Redis lookup if omitted) |
+| `detection_ids` | string | query | No       | Comma-separated detection IDs            |
+
+#### SSE Event Types
+
+**Progress Event:**
+
+Sent during LLM inference with partial response:
+
+```
+data: {"event_type": "progress", "content": "Based on", "accumulated_text": "Based on"}
+
+data: {"event_type": "progress", "content": " the", "accumulated_text": "Based on the"}
+
+data: {"event_type": "progress", "content": " detected", "accumulated_text": "Based on the detected"}
+```
+
+**Complete Event:**
+
+Sent when analysis completes with final results:
+
+```
+data: {"event_type": "complete", "event_id": 123, "risk_score": 75, "risk_level": "high", "summary": "Person detected at entrance", "reasoning": "..."}
+```
+
+**Error Event:**
+
+Sent if analysis fails:
+
+```
+data: {"event_type": "error", "error_code": "inference_failed", "message": "LLM inference timeout", "recoverable": true}
+```
+
+#### JavaScript Example
+
+```javascript
+const eventSource = new EventSource(`/api/events/analyze/${batchId}/stream?camera_id=${cameraId}`);
+
+let accumulatedText = '';
+
+eventSource.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+
+  switch (data.event_type) {
+    case 'progress':
+      accumulatedText = data.accumulated_text;
+      updateTypingIndicator(accumulatedText);
+      break;
+    case 'complete':
+      hideTypingIndicator();
+      displayFinalResult(data);
+      eventSource.close();
+      break;
+    case 'error':
+      showError(data.message);
+      if (!data.recoverable) {
+        eventSource.close();
+      }
+      break;
+  }
+};
+
+eventSource.onerror = () => {
+  console.error('SSE connection error');
+  eventSource.close();
+};
+```
+
+---
+
+## WebSocket Monitoring REST Endpoints
+
+These REST endpoints provide information about WebSocket infrastructure health and available event types.
+
+### Get WebSocket Health
+
+Check the health status of WebSocket broadcasters.
+
+**Endpoint:** `GET /api/system/health/websocket`
+
+**Response:**
+
+```json
+{
+  "event_broadcaster": {
+    "state": "closed",
+    "failure_count": 0,
+    "is_degraded": false
+  },
+  "system_broadcaster": {
+    "state": "closed",
+    "failure_count": 0,
+    "is_degraded": false
+  },
+  "timestamp": "2025-12-30T10:30:00Z"
+}
+```
+
+**Circuit Breaker States:**
+
+| State       | Description                             |
+| ----------- | --------------------------------------- |
+| `closed`    | Normal operation, connections accepted  |
+| `open`      | Circuit open due to failures, rejecting |
+| `half_open` | Testing recovery, limited connections   |
+
+### List WebSocket Event Types
+
+Get the complete registry of available WebSocket event types.
+
+**Endpoint:** `GET /api/system/websocket/events`
+
+**Response:**
+
+```json
+{
+  "event_types": [
+    {
+      "type": "alert.created",
+      "description": "New alert generated from a security event",
+      "channel": "alerts",
+      "payload_schema": {...},
+      "example": {...},
+      "deprecated": false,
+      "replacement": null
+    },
+    {
+      "type": "camera.status_changed",
+      "description": "Camera status change (online/offline/error)",
+      "channel": "cameras",
+      "payload_schema": {...},
+      "example": {...},
+      "deprecated": false,
+      "replacement": null
+    }
+  ],
+  "channels": ["alerts", "cameras", "detections", "events", "jobs", "system"],
+  "total_count": 25,
+  "deprecated_count": 3
+}
+```
+
+### Get WebSocket Connections (Debug)
+
+Get active WebSocket connection states for diagnostics. Only available when debug mode is enabled.
+
+**Endpoint:** `GET /api/debug/websocket/connections`
+
+**Response:**
+
+```json
+{
+  "event_broadcaster": {
+    "connection_count": 3,
+    "state": "closed",
+    "failure_count": 0,
+    "is_degraded": false
+  },
+  "system_broadcaster": {
+    "connection_count": 2,
+    "state": "closed",
+    "failure_count": 0,
+    "is_degraded": false
+  },
+  "timestamp": "2026-01-09T10:30:00Z"
+}
+```
+
+---
+
+## Event Type Registry
+
+The system supports a comprehensive set of WebSocket event types organized by domain.
+
+### Event Domains
+
+| Domain      | Channel      | Description                           |
+| ----------- | ------------ | ------------------------------------- |
+| `alert`     | `alerts`     | Alert notifications and state changes |
+| `camera`    | `cameras`    | Camera status and configuration       |
+| `detection` | `detections` | Raw AI detection results              |
+| `event`     | `events`     | Security event lifecycle              |
+| `job`       | `jobs`       | Background job lifecycle              |
+| `system`    | `system`     | System health and monitoring          |
+
+### Complete Event Type List
+
+| Event Type               | Description                                 |
+| ------------------------ | ------------------------------------------- |
+| `alert.created`          | New alert triggered from rule evaluation    |
+| `alert.updated`          | Alert modified (metadata, channels updated) |
+| `alert.acknowledged`     | Alert marked as seen by user                |
+| `alert.resolved`         | Alert resolved/closed                       |
+| `alert.dismissed`        | Alert dismissed by user                     |
+| `camera.online`          | Camera came online and is streaming         |
+| `camera.offline`         | Camera went offline                         |
+| `camera.status_changed`  | Camera status changed                       |
+| `camera.enabled`         | Camera enabled for monitoring               |
+| `camera.disabled`        | Camera disabled from monitoring             |
+| `camera.error`           | Camera encountered an error                 |
+| `camera.config_updated`  | Camera configuration was updated            |
+| `detection.new`          | New detection from AI pipeline              |
+| `detection.batch`        | Batch of detections from a frame            |
+| `event.created`          | New security event created after analysis   |
+| `event.updated`          | Existing security event updated             |
+| `event.deleted`          | Security event deleted                      |
+| `job.started`            | Background job started                      |
+| `job.progress`           | Background job progress update              |
+| `job.completed`          | Background job completed                    |
+| `job.failed`             | Background job failed                       |
+| `job.cancelled`          | Background job cancelled                    |
+| `system.health_changed`  | System health status changed                |
+| `system.status`          | Periodic system status update               |
+| `service.status_changed` | Individual service status changed           |
+| `gpu.stats_updated`      | GPU statistics updated                      |
+| `scene_change.detected`  | Camera scene change detected                |
 
 ---
 

@@ -1,6 +1,8 @@
 # System Operations API
 
-This guide covers system health monitoring, configuration, alerts, logging, and notification preferences.
+This guide covers system health monitoring, configuration, alerts, logging, notification preferences, and service management.
+
+**Total Endpoints: 60** (Health: 6, GPU: 2, Config: 2, Statistics: 8, Cleanup: 3, Severity: 2, Alerts: 8, Logs: 4, Notifications: 10, Services: 5, Models: 4, Anomaly Config: 2, Circuit Breakers: 2, Metrics: 1, WebSocket Registry: 1)
 
 ## System Operations Overview
 
@@ -56,11 +58,14 @@ The system exposes multiple health endpoints for monitoring and orchestration.
 
 ### Endpoints
 
-| Method | Endpoint                   | Description           |
-| ------ | -------------------------- | --------------------- |
-| GET    | `/health`                  | Liveness probe        |
-| GET    | `/api/system/health`       | Detailed health check |
-| GET    | `/api/system/health/ready` | Readiness probe       |
+| Method | Endpoint                       | Description                  |
+| ------ | ------------------------------ | ---------------------------- |
+| GET    | `/health`                      | Liveness probe               |
+| GET    | `/ready`                       | Simple readiness probe       |
+| GET    | `/api/system/health`           | Detailed health check        |
+| GET    | `/api/system/health/ready`     | Readiness probe with details |
+| GET    | `/api/system/health/full`      | Comprehensive health check   |
+| GET    | `/api/system/health/websocket` | WebSocket broadcaster health |
 
 ### Liveness Probe
 
@@ -77,6 +82,25 @@ GET /health
 ```
 
 Always returns `200 OK` if the HTTP server is responding.
+
+### Simple Readiness Probe
+
+Check if the system is ready to receive traffic:
+
+```bash
+GET /ready
+```
+
+**Response:** `200 OK` (ready) or `503 Service Unavailable` (not ready)
+
+```json
+{
+  "ready": true,
+  "status": "ready"
+}
+```
+
+This is the canonical readiness probe endpoint for Kubernetes/Docker health checks.
 
 ### Detailed Health Check
 
@@ -186,6 +210,78 @@ GET /api/system/health/ready
 - Database must be healthy
 - Redis must be healthy
 - Pipeline workers must be running
+
+### Full Health Check
+
+Comprehensive health status including all system components:
+
+```bash
+GET /api/system/health/full
+```
+
+**Response:** `200 OK` (healthy) or `503 Service Unavailable` (critical services unhealthy)
+
+```json
+{
+  "status": "healthy",
+  "infrastructure": {
+    "postgres": { "status": "healthy", "latency_ms": 5.2 },
+    "redis": { "status": "healthy", "latency_ms": 1.1 }
+  },
+  "ai_services": {
+    "rtdetr": { "status": "healthy", "loaded": true },
+    "nemotron": { "status": "healthy", "loaded": true },
+    "florence": { "status": "healthy", "loaded": false },
+    "clip": { "status": "healthy", "loaded": false },
+    "enrichment": { "status": "healthy" }
+  },
+  "circuit_breakers": {
+    "rtdetr": { "state": "closed", "failures": 0 },
+    "nemotron": { "state": "closed", "failures": 0 }
+  },
+  "workers": {
+    "gpu_monitor": { "running": true },
+    "cleanup_service": { "running": true },
+    "detection_worker": { "running": true },
+    "analysis_worker": { "running": true }
+  },
+  "timestamp": "2025-12-23T10:30:00Z"
+}
+```
+
+### WebSocket Health
+
+Check WebSocket broadcaster circuit breaker status:
+
+```bash
+GET /api/system/health/websocket
+```
+
+**Response:**
+
+```json
+{
+  "event_broadcaster": {
+    "state": "closed",
+    "failures": 0,
+    "last_failure": null
+  },
+  "system_broadcaster": {
+    "state": "closed",
+    "failures": 0,
+    "last_failure": null
+  },
+  "timestamp": "2025-12-23T10:30:00Z"
+}
+```
+
+**Circuit Breaker States:**
+
+| State       | Description                                  |
+| ----------- | -------------------------------------------- |
+| `closed`    | Normal operation, events flowing             |
+| `open`      | Failures detected, events may be delayed     |
+| `half_open` | Testing recovery, limited operations allowed |
 
 ---
 
@@ -380,12 +476,16 @@ System-wide statistics and metrics.
 
 ### Endpoints
 
-| Method | Endpoint                | Description        |
-| ------ | ----------------------- | ------------------ |
-| GET    | `/api/system/stats`     | System statistics  |
-| GET    | `/api/system/storage`   | Storage statistics |
-| GET    | `/api/system/telemetry` | Pipeline telemetry |
-| GET    | `/api/system/pipeline`  | Pipeline status    |
+| Method | Endpoint                               | Description                 |
+| ------ | -------------------------------------- | --------------------------- |
+| GET    | `/api/system/stats`                    | System statistics           |
+| GET    | `/api/system/storage`                  | Storage statistics          |
+| GET    | `/api/system/telemetry`                | Pipeline telemetry          |
+| GET    | `/api/system/pipeline`                 | Pipeline status             |
+| GET    | `/api/system/performance`              | Current performance metrics |
+| GET    | `/api/system/performance/history`      | Historical performance      |
+| GET    | `/api/system/pipeline-latency`         | Pipeline latency metrics    |
+| GET    | `/api/system/pipeline-latency/history` | Pipeline latency history    |
 
 ### System Statistics
 
@@ -453,6 +553,162 @@ GET /api/system/telemetry
 }
 ```
 
+### Performance Metrics
+
+Get comprehensive real-time performance metrics:
+
+```bash
+GET /api/system/performance
+```
+
+**Response:**
+
+```json
+{
+  "gpu": {
+    "utilization": 75.5,
+    "memory_used_mb": 12000,
+    "memory_total_mb": 24000,
+    "temperature_c": 65.0,
+    "power_watts": 150.0
+  },
+  "ai_models": {
+    "rtdetr": { "status": "loaded", "vram_mb": 2048 },
+    "nemotron": { "status": "loaded", "vram_mb": 8192 }
+  },
+  "inference": {
+    "avg_latency_ms": 45.2,
+    "p95_latency_ms": 120.5,
+    "throughput_fps": 22.3
+  },
+  "databases": {
+    "postgres": { "status": "healthy", "connections": 10 },
+    "redis": { "status": "healthy", "memory_mb": 256 }
+  },
+  "host": {
+    "cpu_percent": 35.2,
+    "ram_percent": 62.1,
+    "disk_percent": 45.0
+  },
+  "containers": [
+    { "name": "backend", "status": "running" },
+    { "name": "ai", "status": "running" }
+  ],
+  "alerts": [],
+  "timestamp": "2025-12-27T10:30:00Z"
+}
+```
+
+### Performance History
+
+Get historical performance metrics for time-series visualization:
+
+```bash
+GET /api/system/performance/history?time_range=5m
+```
+
+**Parameters:**
+
+| Name       | Type   | Default | Description                       |
+| ---------- | ------ | ------- | --------------------------------- |
+| time_range | string | 5m      | Time range: `5m`, `15m`, or `60m` |
+
+**Response:**
+
+```json
+{
+  "snapshots": [
+    { "timestamp": "2025-12-27T10:29:00Z", "gpu": { ... }, ... },
+    { "timestamp": "2025-12-27T10:30:00Z", "gpu": { ... }, ... }
+  ],
+  "time_range": "5m",
+  "count": 60
+}
+```
+
+### Pipeline Latency
+
+Get detailed pipeline latency metrics with percentiles:
+
+```bash
+GET /api/system/pipeline-latency?window_minutes=60
+```
+
+**Parameters:**
+
+| Name           | Type    | Default | Description                             |
+| -------------- | ------- | ------- | --------------------------------------- |
+| window_minutes | integer | 60      | Time window for statistics (in minutes) |
+
+**Response:**
+
+```json
+{
+  "watch_to_detect": {
+    "avg_ms": 15.2,
+    "min_ms": 5.0,
+    "max_ms": 45.0,
+    "p50_ms": 12.0,
+    "p95_ms": 35.0,
+    "p99_ms": 42.0,
+    "sample_count": 500
+  },
+  "detect_to_batch": {
+    "avg_ms": 200.0,
+    "min_ms": 150.0,
+    "max_ms": 350.0,
+    "p50_ms": 190.0,
+    "p95_ms": 300.0,
+    "p99_ms": 340.0,
+    "sample_count": 500
+  },
+  "batch_to_analyze": { ... },
+  "total_pipeline": { ... },
+  "timestamp": "2025-12-27T10:30:00Z"
+}
+```
+
+**Pipeline Stages:**
+
+| Stage              | Description                                 |
+| ------------------ | ------------------------------------------- |
+| `watch_to_detect`  | File watcher to RT-DETR processing start    |
+| `detect_to_batch`  | Detection completion to batch aggregation   |
+| `batch_to_analyze` | Batch completion to Nemotron analysis start |
+| `total_pipeline`   | Total end-to-end processing time            |
+
+### Pipeline Latency History
+
+Get pipeline latency history for time-series charts:
+
+```bash
+GET /api/system/pipeline-latency/history?since=60&bucket_seconds=60
+```
+
+**Parameters:**
+
+| Name           | Type    | Default | Description                           |
+| -------------- | ------- | ------- | ------------------------------------- |
+| since          | integer | 60      | Minutes of history (1-1440)           |
+| bucket_seconds | integer | 60      | Time bucket size in seconds (10-3600) |
+
+**Response:**
+
+```json
+{
+  "snapshots": [
+    {
+      "timestamp": "2025-12-27T10:29:00Z",
+      "watch_to_detect": { "avg_ms": 15.0, "p50_ms": 12.0, "p95_ms": 35.0 },
+      "detect_to_batch": { "avg_ms": 200.0, "p50_ms": 190.0, "p95_ms": 300.0 },
+      "batch_to_analyze": { ... },
+      "total_pipeline": { ... }
+    }
+  ],
+  "count": 60
+}
+```
+
 ---
 
 ## Data Cleanup
@@ -461,10 +717,11 @@ Manage data retention and cleanup.
 
 ### Endpoints
 
-| Method | Endpoint                     | Description            |
-| ------ | ---------------------------- | ---------------------- |
-| GET    | `/api/system/cleanup/status` | Cleanup service status |
-| POST   | `/api/system/cleanup`        | Trigger cleanup        |
+| Method | Endpoint                             | Description            |
+| ------ | ------------------------------------ | ---------------------- |
+| GET    | `/api/system/cleanup/status`         | Cleanup service status |
+| POST   | `/api/system/cleanup`                | Trigger cleanup        |
+| POST   | `/api/system/cleanup/orphaned-files` | Clean orphaned files   |
 
 ### Cleanup Status
 
@@ -516,6 +773,49 @@ X-API-Key: your-api-key
   "timestamp": "2025-12-27T10:30:00Z"
 }
 ```
+
+### Orphaned File Cleanup
+
+Find and clean up orphaned files (files on disk not referenced in database):
+
+**Requires API key authentication.**
+
+```bash
+POST /api/system/cleanup/orphaned-files?dry_run=true
+X-API-Key: your-api-key
+```
+
+**Parameters:**
+
+| Name    | Type    | Default | Description                             |
+| ------- | ------- | ------- | --------------------------------------- |
+| dry_run | boolean | true    | Preview without deleting (default safe) |
+
+**Response:**
+
+```json
+{
+  "thumbnails": {
+    "orphaned_count": 45,
+    "orphaned_size_bytes": 2250000,
+    "files": ["thumb_001.jpg", "thumb_002.jpg"]
+  },
+  "clips": {
+    "orphaned_count": 5,
+    "orphaned_size_bytes": 50000000,
+    "files": ["clip_old.mp4"]
+  },
+  "total_orphaned_files": 50,
+  "total_size_bytes": 52250000,
+  "dry_run": true,
+  "timestamp": "2025-12-27T10:30:00Z"
+}
+```
+
+**Storage Directories Scanned:**
+
+- Thumbnails directory (`video_thumbnails_dir` setting)
+- Clips directory (`clips_directory` setting)
 
 ---
 
@@ -649,14 +949,16 @@ flowchart TB
 
 ### Endpoints
 
-| Method | Endpoint                      | Description      |
-| ------ | ----------------------------- | ---------------- |
-| GET    | `/api/alerts/rules`           | List alert rules |
-| POST   | `/api/alerts/rules`           | Create rule      |
-| GET    | `/api/alerts/rules/{id}`      | Get rule         |
-| PUT    | `/api/alerts/rules/{id}`      | Update rule      |
-| DELETE | `/api/alerts/rules/{id}`      | Delete rule      |
-| POST   | `/api/alerts/rules/{id}/test` | Test rule        |
+| Method | Endpoint                             | Description       |
+| ------ | ------------------------------------ | ----------------- |
+| GET    | `/api/alerts/rules`                  | List alert rules  |
+| POST   | `/api/alerts/rules`                  | Create rule       |
+| GET    | `/api/alerts/rules/{id}`             | Get rule          |
+| PUT    | `/api/alerts/rules/{id}`             | Update rule       |
+| DELETE | `/api/alerts/rules/{id}`             | Delete rule       |
+| POST   | `/api/alerts/rules/{id}/test`        | Test rule         |
+| POST   | `/api/alerts/{alert_id}/acknowledge` | Acknowledge alert |
+| POST   | `/api/alerts/{alert_id}/dismiss`     | Dismiss alert     |
 
 ### List Alert Rules
 
@@ -733,6 +1035,52 @@ Content-Type: application/json
   "limit": 50
 }
 ```
+
+### Acknowledge Alert
+
+Mark an alert as acknowledged:
+
+```bash
+POST /api/alerts/{alert_id}/acknowledge
+```
+
+**Response:** `200 OK`, `404 Not Found`, or `409 Conflict`
+
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "status": "acknowledged",
+  "acknowledged_at": "2025-12-23T10:35:00Z",
+  "rule_id": "550e8400-e29b-41d4-a716-446655440001",
+  "event_id": 123,
+  "created_at": "2025-12-23T10:30:00Z"
+}
+```
+
+**Status Requirements:** Only alerts with status `PENDING` or `DELIVERED` can be acknowledged.
+
+### Dismiss Alert
+
+Mark an alert as dismissed:
+
+```bash
+POST /api/alerts/{alert_id}/dismiss
+```
+
+**Response:** `200 OK`, `404 Not Found`, or `409 Conflict`
+
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "status": "dismissed",
+  "dismissed_at": "2025-12-23T10:40:00Z",
+  "rule_id": "550e8400-e29b-41d4-a716-446655440001",
+  "event_id": 123,
+  "created_at": "2025-12-23T10:30:00Z"
+}
+```
+
+**Status Requirements:** Only alerts with status `PENDING`, `DELIVERED`, or `ACKNOWLEDGED` can be dismissed.
 
 ---
 
@@ -960,6 +1308,497 @@ Content-Type: application/json
 ```
 
 **Channels:** `email`, `webhook`, `push`
+
+---
+
+## Services Management
+
+Manage and monitor container services.
+
+### Endpoints
+
+| Method | Endpoint                              | Description       |
+| ------ | ------------------------------------- | ----------------- |
+| GET    | `/api/system/services`                | List all services |
+| POST   | `/api/system/services/{name}/restart` | Restart service   |
+| POST   | `/api/system/services/{name}/start`   | Start service     |
+| POST   | `/api/system/services/{name}/enable`  | Enable service    |
+| POST   | `/api/system/services/{name}/disable` | Disable service   |
+
+### List Services
+
+Get status of all managed services:
+
+```bash
+GET /api/system/services?category=ai
+```
+
+**Parameters:**
+
+| Name     | Type   | Description                                              |
+| -------- | ------ | -------------------------------------------------------- |
+| category | string | Filter by category: `infrastructure`, `ai`, `monitoring` |
+
+**Response:**
+
+```json
+{
+  "services": [
+    {
+      "name": "backend",
+      "category": "infrastructure",
+      "status": "running",
+      "enabled": true,
+      "failure_count": 0,
+      "last_restart": null
+    },
+    {
+      "name": "ai",
+      "category": "ai",
+      "status": "running",
+      "enabled": true,
+      "failure_count": 0,
+      "last_restart": null
+    }
+  ],
+  "summaries": {
+    "infrastructure": { "total": 3, "healthy": 3, "unhealthy": 0 },
+    "ai": { "total": 1, "healthy": 1, "unhealthy": 0 },
+    "monitoring": { "total": 2, "healthy": 2, "unhealthy": 0 }
+  }
+}
+```
+
+### Restart Service
+
+Manually restart a service:
+
+```bash
+POST /api/system/services/ai/restart
+```
+
+**Response:** `200 OK`, `400 Bad Request` (disabled), or `404 Not Found`
+
+```json
+{
+  "action": "restart",
+  "service": "ai",
+  "success": true,
+  "message": "Service ai restarted successfully",
+  "service_info": {
+    "name": "ai",
+    "status": "running",
+    "enabled": true,
+    "failure_count": 0
+  }
+}
+```
+
+### Start Service
+
+Start a stopped service:
+
+```bash
+POST /api/system/services/ai/start
+```
+
+**Response:** `200 OK`, `400 Bad Request` (already running or disabled), or `404 Not Found`
+
+### Enable Service
+
+Re-enable a disabled service (allows self-healing to resume):
+
+```bash
+POST /api/system/services/ai/enable
+```
+
+**Response:** `200 OK` or `404 Not Found`
+
+### Disable Service
+
+Disable a service (prevents self-healing restarts):
+
+```bash
+POST /api/system/services/ai/disable
+```
+
+**Response:** `200 OK` or `404 Not Found`
+
+---
+
+## Model Zoo
+
+Manage AI models in the Model Zoo.
+
+### Endpoints
+
+| Method | Endpoint                                | Description               |
+| ------ | --------------------------------------- | ------------------------- |
+| GET    | `/api/system/models`                    | Get model registry        |
+| GET    | `/api/system/models/{model_name}`       | Get specific model status |
+| GET    | `/api/system/model-zoo/status`          | Compact model status      |
+| GET    | `/api/system/model-zoo/latency/history` | Model latency history     |
+
+### Get Model Registry
+
+Get comprehensive information about all AI models:
+
+```bash
+GET /api/system/models
+```
+
+**Response:**
+
+```json
+{
+  "vram_budget_mb": 1650,
+  "vram_used_mb": 512,
+  "vram_available_mb": 1138,
+  "models": [
+    {
+      "name": "yolo11-license-plate",
+      "category": "detection",
+      "status": "loaded",
+      "vram_mb": 256,
+      "last_used": "2025-12-23T10:30:00Z",
+      "enabled": true
+    },
+    {
+      "name": "insightface",
+      "category": "recognition",
+      "status": "unloaded",
+      "vram_mb": 512,
+      "last_used": null,
+      "enabled": true
+    }
+  ]
+}
+```
+
+**Model Categories:**
+
+| Category           | Description                      |
+| ------------------ | -------------------------------- |
+| `detection`        | Object detection (YOLO variants) |
+| `recognition`      | Face/license plate recognition   |
+| `ocr`              | Optical character recognition    |
+| `embedding`        | Visual embeddings (CLIP)         |
+| `depth-estimation` | Depth estimation models          |
+| `pose`             | Human pose estimation            |
+
+### Get Model Status
+
+Get detailed status for a specific model:
+
+```bash
+GET /api/system/models/yolo11-license-plate
+```
+
+**Response:** `200 OK` or `404 Not Found`
+
+```json
+{
+  "name": "yolo11-license-plate",
+  "category": "detection",
+  "status": "loaded",
+  "vram_mb": 256,
+  "last_used": "2025-12-23T10:30:00Z",
+  "enabled": true,
+  "load_time_ms": 1250,
+  "inference_count": 1500
+}
+```
+
+### Model Zoo Status
+
+Compact status for all 18 Model Zoo models:
+
+```bash
+GET /api/system/model-zoo/status
+```
+
+**Response:**
+
+```json
+{
+  "models": [
+    {
+      "name": "yolo11-license-plate",
+      "category": "detection",
+      "status": "loaded",
+      "vram_mb": 256
+    }
+  ],
+  "categories": {
+    "detection": { "loaded": 2, "total": 4 },
+    "recognition": { "loaded": 0, "total": 2 }
+  },
+  "timestamp": "2025-12-23T10:30:00Z"
+}
+```
+
+### Model Latency History
+
+Get latency history for a specific model:
+
+```bash
+GET /api/system/model-zoo/latency/history?model=yolo11-license-plate&since=60&bucket_seconds=60
+```
+
+**Parameters:**
+
+| Name           | Type    | Required | Default | Description                           |
+| -------------- | ------- | -------- | ------- | ------------------------------------- |
+| model          | string  | Yes      | -       | Model name                            |
+| since          | integer | No       | 60      | Minutes of history (1-1440)           |
+| bucket_seconds | integer | No       | 60      | Time bucket size in seconds (10-3600) |
+
+**Response:** `200 OK` or `404 Not Found`
+
+```json
+{
+  "model": "yolo11-license-plate",
+  "snapshots": [
+    {
+      "timestamp": "2025-12-23T10:29:00Z",
+      "avg_ms": 45.2,
+      "p50_ms": 42.0,
+      "p95_ms": 85.0,
+      "sample_count": 100
+    }
+  ],
+  "count": 60
+}
+```
+
+---
+
+## Anomaly Detection Configuration
+
+Configure anomaly detection thresholds for baseline deviation alerts.
+
+### Endpoints
+
+| Method | Endpoint                     | Description           |
+| ------ | ---------------------------- | --------------------- |
+| GET    | `/api/system/anomaly-config` | Get anomaly config    |
+| PATCH  | `/api/system/anomaly-config` | Update anomaly config |
+
+### Get Anomaly Config
+
+```bash
+GET /api/system/anomaly-config
+```
+
+**Response:**
+
+```json
+{
+  "threshold_stdev": 3.0,
+  "min_samples": 100,
+  "decay_factor": 0.1,
+  "window_days": 7
+}
+```
+
+**Configuration Fields:**
+
+| Field             | Type    | Description                                  |
+| ----------------- | ------- | -------------------------------------------- |
+| `threshold_stdev` | float   | Standard deviations for anomaly detection    |
+| `min_samples`     | integer | Minimum samples before detection is reliable |
+| `decay_factor`    | float   | Exponential decay factor for EWMA            |
+| `window_days`     | integer | Rolling window size in days                  |
+
+### Update Anomaly Config
+
+**Requires API key authentication.**
+
+```bash
+PATCH /api/system/anomaly-config
+X-API-Key: your-api-key
+Content-Type: application/json
+
+{
+  "threshold_stdev": 2.5,
+  "min_samples": 50
+}
+```
+
+**Note:** `decay_factor` and `window_days` are not configurable at runtime as they affect historical data calculations.
+
+---
+
+## Circuit Breakers
+
+Manage circuit breakers that protect external services from cascading failures.
+
+### Endpoints
+
+| Method | Endpoint                                    | Description              |
+| ------ | ------------------------------------------- | ------------------------ |
+| GET    | `/api/system/circuit-breakers`              | Get all circuit breakers |
+| POST   | `/api/system/circuit-breakers/{name}/reset` | Reset circuit breaker    |
+
+### Get Circuit Breakers
+
+Get status of all circuit breakers:
+
+```bash
+GET /api/system/circuit-breakers
+```
+
+**Response:**
+
+```json
+{
+  "circuit_breakers": [
+    {
+      "name": "rtdetr",
+      "state": "closed",
+      "failure_count": 0,
+      "success_count": 150,
+      "last_failure": null,
+      "last_state_change": "2025-12-23T08:00:00Z"
+    },
+    {
+      "name": "nemotron",
+      "state": "closed",
+      "failure_count": 0,
+      "success_count": 75,
+      "last_failure": null,
+      "last_state_change": "2025-12-23T08:00:00Z"
+    }
+  ],
+  "timestamp": "2025-12-23T10:30:00Z"
+}
+```
+
+### Reset Circuit Breaker
+
+Manually reset a circuit breaker to CLOSED state:
+
+**Requires API key authentication (when enabled).**
+
+```bash
+POST /api/system/circuit-breakers/rtdetr/reset
+X-API-Key: your-api-key
+```
+
+**Response:** `200 OK`, `400 Bad Request` (invalid name), or `404 Not Found`
+
+```json
+{
+  "name": "rtdetr",
+  "previous_state": "open",
+  "new_state": "closed",
+  "message": "Circuit breaker rtdetr reset to closed state",
+  "timestamp": "2025-12-23T10:30:00Z"
+}
+```
+
+---
+
+## Prometheus Metrics
+
+Export metrics in Prometheus exposition format.
+
+### Endpoints
+
+| Method | Endpoint       | Description        |
+| ------ | -------------- | ------------------ |
+| GET    | `/api/metrics` | Prometheus metrics |
+
+### Get Metrics
+
+```bash
+GET /api/metrics
+```
+
+**Response:** `200 OK` with `text/plain` content type
+
+```
+# HELP http_requests_total Total HTTP requests
+# TYPE http_requests_total counter
+http_requests_total{method="GET",endpoint="/api/events",status="200"} 1523
+
+# HELP detection_latency_seconds Detection processing latency
+# TYPE detection_latency_seconds histogram
+detection_latency_seconds_bucket{le="0.1"} 450
+detection_latency_seconds_bucket{le="0.5"} 980
+detection_latency_seconds_bucket{le="1.0"} 1050
+detection_latency_seconds_sum 523.45
+detection_latency_seconds_count 1050
+
+# HELP gpu_utilization_percent Current GPU utilization
+# TYPE gpu_utilization_percent gauge
+gpu_utilization_percent 75.5
+
+# HELP active_events_count Number of active security events
+# TYPE active_events_count gauge
+active_events_count 3
+```
+
+This endpoint is designed for Prometheus scraping and returns all registered application metrics.
+
+---
+
+## WebSocket Event Registry
+
+Discover available WebSocket event types.
+
+### Endpoints
+
+| Method | Endpoint                       | Description                |
+| ------ | ------------------------------ | -------------------------- |
+| GET    | `/api/system/websocket/events` | List WebSocket event types |
+
+### List WebSocket Event Types
+
+Get all available WebSocket event types with schemas:
+
+```bash
+GET /api/system/websocket/events
+```
+
+**Response:**
+
+```json
+{
+  "event_types": [
+    {
+      "type": "detection.new",
+      "channel": "detections",
+      "description": "New detection from AI pipeline",
+      "deprecated": false,
+      "payload_schema": { ... },
+      "example": { ... }
+    },
+    {
+      "type": "event.created",
+      "channel": "events",
+      "description": "New security event created",
+      "deprecated": false,
+      "payload_schema": { ... },
+      "example": { ... }
+    }
+  ],
+  "channels": ["detections", "events", "alerts", "cameras", "jobs", "system"],
+  "total_count": 24,
+  "deprecated_count": 2
+}
+```
+
+**Channels:**
+
+| Channel      | Description                           |
+| ------------ | ------------------------------------- |
+| `detections` | AI detection pipeline events          |
+| `events`     | Security event lifecycle events       |
+| `alerts`     | Alert notifications and state changes |
+| `cameras`    | Camera status and configuration       |
+| `jobs`       | Background job lifecycle events       |
+| `system`     | System health and status events       |
 
 ---
 
