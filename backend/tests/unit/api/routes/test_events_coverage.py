@@ -1004,6 +1004,7 @@ class TestListEventsFieldValidation:
         assert "invalid" in response.json()["detail"].lower()
 
 
+@pytest.mark.integration  # Requires Redis connection
 class TestExportEventsFilters:
     """Tests for export_events with various filters."""
 
