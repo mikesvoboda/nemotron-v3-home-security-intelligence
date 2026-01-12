@@ -21,7 +21,7 @@ I need you to set up Linear integration for this project. Here are the details:
 Add the API key to `~/.bashrc` (or `~/.zshrc` on macOS):
 
 ```bash
-echo 'export LINEAR_API_KEY="YOUR_LINEAR_API_KEY"' >> ~/.bashrc
+echo 'export LINEAR_API_KEY="YOUR_LINEAR_API_KEY"' >> ~/.bashrc  # pragma: allowlist secret
 ```
 
 #### 2. Install the Linear Claude Code skill
@@ -35,7 +35,7 @@ cd ~/.claude/skills/linear && npm install
 #### 3. Verify the skill installation
 
 ```bash
-export LINEAR_API_KEY="YOUR_LINEAR_API_KEY"
+export LINEAR_API_KEY="YOUR_LINEAR_API_KEY"  # pragma: allowlist secret
 npx tsx ~/.claude/skills/linear/skills/linear/scripts/linear-ops.ts whoami
 ```
 
@@ -56,7 +56,7 @@ Create `.mcp.json` in the project root with:
       "command": "npx",
       "args": ["mcp-remote", "https://mcp.linear.app/sse"],
       "env": {
-        "LINEAR_API_KEY": "YOUR_LINEAR_API_KEY"
+        "LINEAR_API_KEY": "<your-linear-api-key>"
       }
     }
   }
@@ -96,7 +96,7 @@ If you want a single command to run all setup steps:
 
 ```bash
 # Add API key to bashrc
-echo 'export LINEAR_API_KEY="YOUR_LINEAR_API_KEY"' >> ~/.bashrc && \
+echo 'export LINEAR_API_KEY="YOUR_LINEAR_API_KEY"' >> ~/.bashrc  # pragma: allowlist secret && \
 source ~/.bashrc && \
 # Install skill
 mkdir -p ~/.claude/skills && \

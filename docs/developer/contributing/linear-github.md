@@ -92,7 +92,7 @@ Use the audit script to identify GitHub issues that should be closed.
 
 ```bash
 # Set API keys
-export LINEAR_API_KEY="lin_api_..."  # From linear.app/settings/api  pragma: allowlist secret
+export LINEAR_API_KEY="lin_api_..."  # From linear.app/settings/api # pragma: allowlist secret
 export GITHUB_TOKEN="ghp_..."         # Or use: gh auth login
 ```
 

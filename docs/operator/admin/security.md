@@ -141,7 +141,7 @@ scrape_configs:
     metrics_path: '/api/metrics'
     basic_auth:
       username: prometheus
-      password: 'secure-password-here'
+      password: 'secure-password-here' # pragma: allowlist secret
 ```
 
 ### 3. Rate Limiting for Metrics
