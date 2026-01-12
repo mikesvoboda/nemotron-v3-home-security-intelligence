@@ -447,7 +447,7 @@ async def _reset_db_schema() -> None:
     from backend.core.database import get_engine
 
     # Import all models to ensure they're registered with Base.metadata
-    from backend.models import Camera, Detection, Event, GPUStats  # noqa: F401
+    from backend.models import Camera, Detection, Event, GPUStats, JobTransition  # noqa: F401
     from backend.models.camera import Base as ModelsBase
 
     engine = get_engine()

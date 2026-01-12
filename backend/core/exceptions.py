@@ -933,6 +933,50 @@ class LLMResponseParseError(ProcessingError):
 
 
 # Conflict Errors
+class InvalidStateTransition(ConflictError):
+    """Raised when an invalid job state transition is attempted.
+
+    This exception is raised when trying to transition a job to an invalid state.
+    For example, attempting to transition from "completed" to "running" is invalid
+    because "completed" is a terminal state.
+    """
+
+    default_message = "Invalid job state transition"
+    default_error_code = "INVALID_STATE_TRANSITION"
+
+    def __init__(
+        self,
+        message: str | None = None,
+        *,
+        from_status: str | None = None,
+        to_status: str | None = None,
+        job_id: str | None = None,
+        **kwargs: Any,
+    ) -> None:
+        """Initialize the error.
+
+        Args:
+            message: Human-readable error description
+            from_status: The current job status
+            to_status: The target status that was rejected
+            job_id: The job ID involved in the transition
+            **kwargs: Additional keyword arguments passed to parent
+        """
+        if message is None and from_status and to_status:
+            message = f"Cannot transition from '{from_status}' to '{to_status}'"
+        self.from_status = from_status
+        self.to_status = to_status
+        self.job_id = job_id
+        details = kwargs.pop("details", {}) or {}
+        if from_status is not None:
+            details["from_status"] = from_status
+        if to_status is not None:
+            details["to_status"] = to_status
+        if job_id is not None:
+            details["job_id"] = job_id
+        super().__init__(message, details=details, **kwargs)
+
+
 class PromptVersionConflictError(ConflictError):
     """Raised when prompt version conflicts with stored version."""
 

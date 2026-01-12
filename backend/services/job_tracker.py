@@ -664,6 +664,155 @@ class JobTracker:
 
         return True
 
+    def cancel_queued_job(self, job_id: str) -> tuple[bool, str]:
+        """Cancel a queued (pending) job.
+
+        Only cancels jobs that are in PENDING status. Running jobs should
+        be aborted instead using abort_job().
+
+        Args:
+            job_id: The job ID to cancel.
+
+        Returns:
+            Tuple of (success, error_message). success is True if cancelled,
+            False if validation failed. error_message contains details on failure.
+
+        Raises:
+            KeyError: If the job ID is not found.
+        """
+        now = datetime.now(UTC).isoformat()
+
+        with self._lock:
+            if job_id not in self._jobs:
+                raise KeyError(f"Job not found: {job_id}")
+
+            job = self._jobs[job_id]
+            status = job["status"]
+
+            # Can only cancel pending/queued jobs
+            if status == JobStatus.RUNNING:
+                return False, "Cannot cancel running job - use abort instead"
+            if status in (JobStatus.COMPLETED, JobStatus.FAILED):
+                return False, f"Cannot cancel job with status: {status}"
+
+            self._jobs[job_id]["status"] = JobStatus.FAILED
+            self._jobs[job_id]["completed_at"] = now
+            self._jobs[job_id]["error"] = "Cancelled by user"
+            self._jobs[job_id]["message"] = "Job cancelled by user request"
+            job_type = job["job_type"]
+
+        logger.info(
+            "Queued job cancelled",
+            extra={"job_id": job_id, "job_type": job_type},
+        )
+
+        # Persist to Redis with TTL
+        self._schedule_persist(job_id, ttl=REDIS_JOB_TTL_SECONDS)
+
+        # Broadcast cancellation as a failure event
+        data = JobFailedData(
+            job_id=job_id,
+            job_type=job_type,
+            error="Cancelled by user",
+        )
+
+        self._broadcast(
+            JobEventType.JOB_FAILED,
+            {"type": JobEventType.JOB_FAILED, "data": dict(data)},
+        )
+
+        return True, ""
+
+    async def abort_job(self, job_id: str, reason: str = "User requested") -> tuple[bool, str]:
+        """Abort a running job by signaling the worker via Redis pub/sub.
+
+        Only aborts jobs that are in RUNNING status. Queued jobs should
+        be cancelled instead using cancel_queued_job().
+
+        The abort signal is sent via Redis pub/sub to channel job:{job_id}:control.
+        Workers processing the job should subscribe to this channel and check
+        for abort signals periodically.
+
+        Args:
+            job_id: The job ID to abort.
+            reason: Reason for abortion (default: "User requested").
+
+        Returns:
+            Tuple of (success, error_message). success is True if abort signal
+            was sent, False if validation failed.
+
+        Raises:
+            KeyError: If the job ID is not found.
+        """
+        import json
+
+        with self._lock:
+            if job_id not in self._jobs:
+                raise KeyError(f"Job not found: {job_id}")
+
+            job = self._jobs[job_id]
+            status = job["status"]
+
+            # Can only abort running jobs
+            if status == JobStatus.PENDING:
+                return False, "Cannot abort queued job - use cancel instead"
+            if status in (JobStatus.COMPLETED, JobStatus.FAILED):
+                return False, f"Cannot abort job with status: {status}"
+
+            job_type = job["job_type"]
+
+        # Send abort signal via Redis pub/sub
+        if self._redis_client is not None:
+            try:
+                channel = f"job:{job_id}:control"
+                message = json.dumps({"action": "abort", "reason": reason})
+                await self._redis_client.publish(channel, message)
+                logger.info(
+                    "Job abort signal sent",
+                    extra={"job_id": job_id, "job_type": job_type, "channel": channel},
+                )
+            except Exception as e:
+                logger.error(
+                    "Failed to send abort signal",
+                    extra={"job_id": job_id, "error": str(e)},
+                )
+                return False, f"Failed to send abort signal: {e}"
+        else:
+            logger.warning(
+                "No Redis client - abort signal not sent via pub/sub",
+                extra={"job_id": job_id},
+            )
+
+        # Mark job as aborting (will be set to FAILED when worker acknowledges)
+        with self._lock:
+            # Update message to indicate aborting
+            self._jobs[job_id]["message"] = f"Aborting: {reason}"
+
+        logger.info(
+            "Job abort requested",
+            extra={"job_id": job_id, "job_type": job_type, "reason": reason},
+        )
+
+        # Persist to Redis
+        self._schedule_persist(job_id)
+
+        return True, ""
+
+    def get_job_status_string(self, job_id: str) -> str | None:
+        """Get the status string of a job.
+
+        Args:
+            job_id: The job ID to look up.
+
+        Returns:
+            Job status string or None if not found.
+        """
+        with self._lock:
+            job = self._jobs.get(job_id)
+            if job is None:
+                return None
+            return str(job["status"])
+
 
 # Module-level singleton
 _job_tracker: JobTracker | None = None
