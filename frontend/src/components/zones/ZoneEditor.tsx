@@ -371,6 +371,8 @@ export default function ZoneEditor({ camera, isOpen, onClose }: ZoneEditorProps)
                           onCancel={handleFormCancel}
                           isSubmitting={isSubmitting}
                           submitText={mode === 'create' ? 'Create Zone' : 'Update Zone'}
+                          apiError={error}
+                          onClearApiError={() => setError(null)}
                         />
                       </>
                     )}
