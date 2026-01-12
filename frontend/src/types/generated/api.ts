@@ -4204,6 +4204,56 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/system/cleanup/orphaned-files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Run Orphaned File Cleanup
+         * @description Find and clean up orphaned files (files on disk not referenced in database).
+         *
+         *     Requires API key authentication when api_key_enabled is True in settings.
+         *     Provide the API key via X-API-Key header.
+         *
+         *     This endpoint scans storage directories for files that are not referenced
+         *     in the database and optionally deletes them to reclaim disk space.
+         *
+         *     Storage directories scanned:
+         *     - Thumbnails directory (video_thumbnails_dir setting)
+         *     - Clips directory (clips_directory setting)
+         *
+         *     Database tables checked for file references:
+         *     - Detection.file_path (source images)
+         *     - Detection.thumbnail_path (thumbnails)
+         *     - Event.clip_path (generated clips)
+         *
+         *     **Safety Features:**
+         *     - dry_run=True by default to prevent accidental deletion
+         *     - Progress tracking via job system
+         *     - Detailed reporting of orphaned files
+         *
+         *     Args:
+         *         dry_run: If True, calculate and return what would be deleted without
+         *                  actually performing the deletion. Default is True for safety.
+         *                  Set to False to actually delete orphaned files.
+         *
+         *     Returns:
+         *         OrphanedFileCleanupResponse with statistics about orphaned files.
+         *         When dry_run=True, shows what would be deleted.
+         *         When dry_run=False, shows what was deleted.
+         */
+        post: operations["run_orphaned_file_cleanup_api_system_cleanup_orphaned_files_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/system/cleanup/status": {
         parameters: {
             query?: never;
@@ -12715,6 +12765,63 @@ export interface components {
              * @description Total detections in date range
              */
             total_detections: number;
+        };
+        /**
+         * OrphanedFileCleanupResponse
+         * @description Response schema for orphaned file cleanup endpoint.
+         *
+         *     Returns statistics about orphaned files found (and optionally deleted).
+         *     Orphaned files are files on disk not referenced in the database.
+         * @example {
+         *       "dry_run": true,
+         *       "job_id": "550e8400-e29b-41d4-a716-446655440000",
+         *       "orphaned_count": 25,
+         *       "orphaned_files": [
+         *         "/data/thumbnails/orphaned1.jpg",
+         *         "/data/thumbnails/orphaned2.jpg"
+         *       ],
+         *       "timestamp": "2025-12-30T10:30:00Z",
+         *       "total_size": 524288000,
+         *       "total_size_formatted": "500.00 MB"
+         *     }
+         */
+        OrphanedFileCleanupResponse: {
+            /**
+             * Dry Run
+             * @description Whether this was a dry run (no actual deletion performed)
+             */
+            dry_run: boolean;
+            /**
+             * Job Id
+             * @description Background job ID for tracking progress
+             */
+            job_id?: string | null;
+            /**
+             * Orphaned Count
+             * @description Number of orphaned files found (or deleted if dry_run=False)
+             */
+            orphaned_count: number;
+            /**
+             * Orphaned Files
+             * @description List of orphaned file paths (limited to first 100)
+             */
+            orphaned_files?: string[];
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description Timestamp of cleanup operation
+             */
+            timestamp: string;
+            /**
+             * Total Size
+             * @description Total size of orphaned files in bytes
+             */
+            total_size: number;
+            /**
+             * Total Size Formatted
+             * @description Human-readable total size (e.g., '1.5 GB')
+             */
+            total_size_formatted: string;
         };
         /**
          * PaginationInfo
@@ -22042,6 +22149,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CleanupResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    run_orphaned_file_cleanup_api_system_cleanup_orphaned_files_post: {
+        parameters: {
+            query?: {
+                /** @description If True, only report what would be deleted without deleting. Default is True for safety. */
+                dry_run?: boolean;
+            };
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrphanedFileCleanupResponse"];
                 };
             };
             /** @description Validation Error */

@@ -525,6 +525,27 @@ class JobTracker:
         with self._lock:
             return self._jobs.get(job_id)
 
+    def is_cancelled(self, job_id: str) -> bool:
+        """Check if a job has been cancelled.
+
+        A job is considered cancelled if its status is FAILED and its error
+        message indicates cancellation. This allows long-running tasks to
+        check for cancellation and exit gracefully.
+
+        Args:
+            job_id: The job ID to check.
+
+        Returns:
+            True if the job was cancelled, False otherwise.
+            Returns False if job is not found.
+        """
+        with self._lock:
+            job = self._jobs.get(job_id)
+            if job is None:
+                return False
+
+            return job["status"] == JobStatus.FAILED and job.get("error") == "Cancelled by user"
+
     def get_active_jobs(self) -> list[JobInfo]:
         """Get all jobs that are pending or running.
 

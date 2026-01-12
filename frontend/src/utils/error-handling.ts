@@ -663,8 +663,8 @@ export function shouldRetry(error: unknown): boolean {
     return true;
   }
 
-  // Check ApiError
-  if (error instanceof ApiError) {
+  // Check ApiError (with defensive check for module initialization timing)
+  if (typeof ApiError === 'function' && error instanceof ApiError) {
     // Check for error_code in problemDetails
     const errorCode = error.problemDetails?.error_code as string | undefined;
     if (errorCode && isRetryableErrorCode(errorCode)) {
@@ -690,7 +690,7 @@ export function shouldRetry(error: unknown): boolean {
  * @returns The error code string, or 'UNKNOWN' if not found
  */
 function extractErrorCode(error: unknown): string {
-  if (error instanceof ApiError) {
+  if (typeof ApiError === 'function' && error instanceof ApiError) {
     // Check for error_code in problemDetails
     const errorCode = error.problemDetails?.error_code as string | undefined;
     if (errorCode) {
@@ -754,7 +754,7 @@ export function handleApiError(error: unknown): ErrorConfig {
   let description: string | undefined;
   let retryAfter: number | undefined;
 
-  if (error instanceof ApiError && error.problemDetails) {
+  if (typeof ApiError === 'function' && error instanceof ApiError && error.problemDetails) {
     // Use the detail field from RFC 7807 as the description
     if (error.problemDetails.detail && error.problemDetails.detail !== config.message) {
       description = error.problemDetails.detail;

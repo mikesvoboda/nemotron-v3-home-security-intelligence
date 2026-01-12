@@ -384,5 +384,10 @@ export type EntityListResponse = components['schemas']['EntityListResponse'];
 export type EntityHistoryResponse = components['schemas']['EntityHistoryResponse'];
 export type PaginationInfo = components['schemas']['PaginationInfo'];
 
+// Event Feedback types
+export type EventFeedbackCreate = components['schemas']['EventFeedbackCreate'];
+export type EventFeedbackResponse = components['schemas']['EventFeedbackResponse'];
+export type FeedbackType = components['schemas']['FeedbackType'];
+
 // Import the components type for use in type aliases
 import type { components } from './api';

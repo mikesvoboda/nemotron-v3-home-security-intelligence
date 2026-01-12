@@ -179,6 +179,8 @@ import type {
   JobListResponse,
   JobStatusEnum,
   CleanupStatusResponse,
+  EventFeedbackCreate,
+  EventFeedbackResponse,
 } from '../types/generated';
 
 // Re-export entity types for consumers of this module
@@ -186,6 +188,9 @@ export type { EntityAppearance, EntitySummary, EntityDetail, EntityListResponse,
 
 // Re-export job types for consumers of this module
 export type { JobResponse, JobListResponse, JobStatusEnum, CleanupStatusResponse };
+
+// Re-export feedback types for consumers of this module
+export type { EventFeedbackCreate, EventFeedbackResponse };
 
 // ============================================================================
 // Additional types not in OpenAPI (client-side only)
@@ -2036,6 +2041,52 @@ export async function searchEvents(
   }
 
   return fetchApi<GeneratedSearchResponse>(`/api/events/search?${queryParams.toString()}`, options);
+}
+
+// ============================================================================
+// Event Feedback Endpoints
+// ============================================================================
+
+/**
+ * Submit feedback for an event.
+ *
+ * Allows users to mark events as correct, false positive, wrong severity,
+ * or missed detection. This feedback is used to improve AI model performance.
+ *
+ * @param feedback - The feedback data including event_id, feedback_type, and optional notes
+ * @returns EventFeedbackResponse with the created feedback record
+ * @throws ApiError with 404 if event not found, 409 if feedback already exists
+ */
+export async function submitEventFeedback(
+  feedback: EventFeedbackCreate
+): Promise<EventFeedbackResponse> {
+  return fetchApi<EventFeedbackResponse>('/api/feedback', {
+    method: 'POST',
+    body: JSON.stringify(feedback),
+  });
+}
+
+/**
+ * Get existing feedback for an event.
+ *
+ * Retrieves any previously submitted feedback for the specified event.
+ * Returns null if no feedback exists (404 response is handled as null).
+ *
+ * @param eventId - The event ID to get feedback for
+ * @returns EventFeedbackResponse if feedback exists, null if not found
+ */
+export async function getEventFeedback(
+  eventId: number
+): Promise<EventFeedbackResponse | null> {
+  try {
+    return await fetchApi<EventFeedbackResponse>(`/api/feedback/event/${eventId}`);
+  } catch (error) {
+    // Return null for 404 (no feedback found) - this is expected behavior
+    if (error instanceof ApiError && error.status === 404) {
+      return null;
+    }
+    throw error;
+  }
 }
 
 // ============================================================================
