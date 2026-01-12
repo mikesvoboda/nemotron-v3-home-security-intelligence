@@ -19,7 +19,7 @@ asyncpg==0.31.0
     # via home-security-intelligence
 beautifulsoup4==4.14.3
     # via gdown
-certifi==2025.11.12
+certifi==2026.1.4
     # via
     #   httpcore
     #   httpx
