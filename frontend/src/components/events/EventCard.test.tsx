@@ -1392,13 +1392,15 @@ describe('EventCard', () => {
     });
 
     it('both onClick and onViewDetails can be provided together', async () => {
+      // When nested interactive elements (View Details button) exist, the card is still clickable
+      // but does NOT have role="button" to avoid WCAG nested-interactive violations.
       vi.useRealTimers();
       const user = userEvent.setup();
       const handleClick = vi.fn();
       const handleViewDetails = vi.fn();
       render(<EventCard {...mockProps} onClick={handleClick} onViewDetails={handleViewDetails} />);
 
-      // Click on card (not on button)
+      // Click on card (not on button) - onClick should still be called
       const summaryText = screen.getByText('Person detected approaching the front entrance');
       await user.click(summaryText);
 
@@ -1411,7 +1413,7 @@ describe('EventCard', () => {
       });
       await user.click(viewDetailsButton);
 
-      expect(handleClick).toHaveBeenCalledTimes(1); // Still only 1 call
+      expect(handleClick).toHaveBeenCalledTimes(1); // Still only 1 call (button click doesn't propagate)
       expect(handleViewDetails).toHaveBeenCalledWith('event-123');
 
       vi.useFakeTimers({ shouldAdvanceTime: true });

@@ -366,6 +366,26 @@ class VisionExtractor:
             caption=caption,
         )
 
+    async def extract_scene_caption(
+        self,
+        image: Image.Image,
+    ) -> str:
+        """Extract a detailed scene caption using Florence-2.
+
+        This method uses DETAILED_CAPTION_TASK to generate a richer, more
+        comprehensive description of the scene compared to the standard
+        CAPTION_TASK. Useful for providing more context to the LLM for
+        risk assessment.
+
+        Args:
+            image: Full frame image
+
+        Returns:
+            Detailed scene description string
+        """
+        caption = await self._query_florence(image, DETAILED_CAPTION_TASK)
+        return caption.strip() if caption else ""
+
     async def extract_scene_analysis(
         self,
         image: Image.Image,

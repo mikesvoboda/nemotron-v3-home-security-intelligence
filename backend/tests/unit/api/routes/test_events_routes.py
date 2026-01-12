@@ -430,6 +430,7 @@ class TestGetEventRoute:
         mock_event.reasoning = "Test reasoning"
         mock_event.reviewed = False
         mock_event.notes = None
+        mock_event.snooze_until = None
         mock_event.detections = []
         mock_event.detection_ids = "[1, 2, 3]"
 
@@ -466,6 +467,7 @@ class TestUpdateEventRoute:
         mock_event.reasoning = "Test reasoning"
         mock_event.reviewed = False
         mock_event.notes = None
+        mock_event.snooze_until = None
         mock_event.detections = []
         mock_event.detection_ids = "[1, 2, 3]"
 
@@ -911,6 +913,7 @@ class TestUpdateEventRouteComprehensive:
         mock_event.reasoning = "Test"
         mock_event.reviewed = False
         mock_event.notes = None
+        mock_event.snooze_until = None
         mock_event.detections = []
         mock_event.detection_ids = "[1, 2]"
 
@@ -952,6 +955,7 @@ class TestUpdateEventRouteComprehensive:
         mock_event.reasoning = "Test"
         mock_event.reviewed = True
         mock_event.notes = "Old note"
+        mock_event.snooze_until = None
         mock_event.detections = []
         mock_event.detection_ids = "[1]"
 

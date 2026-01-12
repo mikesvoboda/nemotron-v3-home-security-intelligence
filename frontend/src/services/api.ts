@@ -181,6 +181,12 @@ import type {
   CleanupStatusResponse,
   EventFeedbackCreate,
   EventFeedbackResponse,
+  FeedbackType,
+  FeedbackStatsResponse,
+  CalibrationResponse,
+  CalibrationUpdate,
+  CalibrationDefaultsResponse,
+  CalibrationResetResponse,
 } from '../types/generated';
 
 // Re-export entity types for consumers of this module
@@ -190,7 +196,10 @@ export type { EntityAppearance, EntitySummary, EntityDetail, EntityListResponse,
 export type { JobResponse, JobListResponse, JobStatusEnum, CleanupStatusResponse };
 
 // Re-export feedback types for consumers of this module
-export type { EventFeedbackCreate, EventFeedbackResponse };
+export type { EventFeedbackCreate, EventFeedbackResponse, FeedbackType, FeedbackStatsResponse };
+
+// Re-export calibration types for consumers of this module
+export type { CalibrationResponse, CalibrationUpdate, CalibrationDefaultsResponse, CalibrationResetResponse };
 
 // ============================================================================
 // Additional types not in OpenAPI (client-side only)
@@ -1477,6 +1486,8 @@ export async function fetchEventStats(
 export interface EventUpdateData {
   reviewed?: boolean;
   notes?: string | null;
+  /** ISO timestamp until which alerts for this event are snoozed (NEM-2359) */
+  snooze_until?: string | null;
 }
 
 export async function updateEvent(id: number, data: EventUpdateData): Promise<Event> {
@@ -1515,6 +1526,33 @@ export async function bulkUpdateEvents(
 
   await Promise.all(updatePromises);
   return results;
+}
+
+/**
+ * Snooze an event for a specified duration (NEM-2360).
+ *
+ * Computes the snooze_until timestamp by adding the specified seconds
+ * to the current time and updates the event.
+ *
+ * @param eventId - ID of the event to snooze
+ * @param seconds - Duration in seconds to snooze the event
+ * @returns Updated event with snooze_until set
+ */
+export async function snoozeEvent(eventId: number, seconds: number): Promise<Event> {
+  const snoozeUntil = new Date(Date.now() + seconds * 1000).toISOString();
+  return updateEvent(eventId, { snooze_until: snoozeUntil });
+}
+
+/**
+ * Clear the snooze on an event (NEM-2360).
+ *
+ * Sets snooze_until to null, effectively un-snoozing the event.
+ *
+ * @param eventId - ID of the event to un-snooze
+ * @returns Updated event with snooze_until cleared
+ */
+export async function clearSnooze(eventId: number): Promise<Event> {
+  return updateEvent(eventId, { snooze_until: null });
 }
 
 // ============================================================================
@@ -4045,4 +4083,149 @@ export async function fetchTrackedEntities(
  */
 export async function fetchEntityDetails(entityId: string): Promise<EntityDetail> {
   return fetchApi<EntityDetail>(`/api/entities/${encodeURIComponent(entityId)}`);
+}
+
+// ============================================================================
+// Event Feedback API (additional functions)
+// ============================================================================
+
+/**
+ * Get feedback for a specific event.
+ *
+ * @param eventId - The event ID to get feedback for
+ * @returns The feedback record for the event
+ * @throws ApiError with status 404 if no feedback exists for the event
+ *
+ * @example
+ * ```typescript
+ * try {
+ *   const feedback = await fetchEventFeedback(123);
+ *   console.log(`Event ${feedback.event_id} was marked as ${feedback.feedback_type}`);
+ * } catch (error) {
+ *   if (error instanceof ApiError && error.status === 404) {
+ *     console.log('No feedback for this event yet');
+ *   }
+ * }
+ * ```
+ */
+export async function fetchEventFeedback(eventId: number): Promise<EventFeedbackResponse> {
+  return fetchApi<EventFeedbackResponse>(`/api/feedback/event/${eventId}`);
+}
+
+/**
+ * Get aggregate feedback statistics.
+ *
+ * Returns counts of feedback grouped by type and camera.
+ * Useful for tracking model accuracy and identifying cameras with high false positive rates.
+ *
+ * @returns Aggregate statistics including total count and breakdowns by type/camera
+ *
+ * @example
+ * ```typescript
+ * const stats = await fetchFeedbackStats();
+ * console.log(`Total feedback: ${stats.total_feedback}`);
+ * console.log(`False positives: ${stats.by_type.false_positive || 0}`);
+ * ```
+ */
+export async function fetchFeedbackStats(): Promise<FeedbackStatsResponse> {
+  return fetchApi<FeedbackStatsResponse>('/api/feedback/stats');
+}
+
+// ============================================================================
+// Calibration Endpoints
+// ============================================================================
+
+/**
+ * Fetch the current user's calibration settings.
+ *
+ * Returns the calibration thresholds and feedback statistics.
+ * Creates a default calibration if none exists.
+ *
+ * @returns CalibrationResponse with current calibration data
+ *
+ * @example
+ * ```typescript
+ * const calibration = await fetchCalibration();
+ * console.log(`Low threshold: ${calibration.low_threshold}`);
+ * console.log(`Medium threshold: ${calibration.medium_threshold}`);
+ * console.log(`High threshold: ${calibration.high_threshold}`);
+ * ```
+ */
+export async function fetchCalibration(): Promise<CalibrationResponse> {
+  return fetchApi<CalibrationResponse>('/api/calibration');
+}
+
+/**
+ * Update calibration thresholds.
+ *
+ * Allows partial updates - only provided fields will be changed.
+ * Validates that threshold ordering is maintained (low < medium < high).
+ *
+ * @param update - CalibrationUpdate with fields to update
+ * @returns CalibrationResponse with updated calibration data
+ * @throws ApiError if threshold ordering would be violated (422)
+ *
+ * @example
+ * ```typescript
+ * const updated = await updateCalibration({
+ *   low_threshold: 35,
+ *   medium_threshold: 58,
+ * });
+ * console.log(`Updated thresholds: ${updated.low_threshold}, ${updated.medium_threshold}`);
+ * ```
+ */
+export async function updateCalibration(
+  update: CalibrationUpdate
+): Promise<CalibrationResponse> {
+  return fetchApi<CalibrationResponse>('/api/calibration', {
+    method: 'PUT',
+    body: JSON.stringify(update),
+  });
+}
+
+/**
+ * Reset calibration to default thresholds.
+ *
+ * Resets all thresholds to their default values:
+ * - low_threshold: 30
+ * - medium_threshold: 60
+ * - high_threshold: 85
+ * - decay_factor: 0.1
+ *
+ * Note: Feedback counts (false_positive_count, missed_detection_count)
+ * are NOT reset by this operation.
+ *
+ * @returns CalibrationResetResponse with success message and reset calibration
+ *
+ * @example
+ * ```typescript
+ * const result = await resetCalibration();
+ * console.log(result.message); // "Calibration reset to default values"
+ * console.log(`New low threshold: ${result.calibration.low_threshold}`);
+ * ```
+ */
+export async function resetCalibration(): Promise<CalibrationResetResponse> {
+  return fetchApi<CalibrationResetResponse>('/api/calibration/reset', {
+    method: 'POST',
+  });
+}
+
+/**
+ * Get default calibration threshold values.
+ *
+ * Returns the default values used when creating new calibrations
+ * or when resetting to defaults. Useful for displaying defaults in the UI.
+ *
+ * @returns CalibrationDefaultsResponse with default threshold values
+ *
+ * @example
+ * ```typescript
+ * const defaults = await fetchCalibrationDefaults();
+ * console.log(`Default low: ${defaults.low_threshold}`);
+ * console.log(`Default medium: ${defaults.medium_threshold}`);
+ * console.log(`Default high: ${defaults.high_threshold}`);
+ * ```
+ */
+export async function fetchCalibrationDefaults(): Promise<CalibrationDefaultsResponse> {
+  return fetchApi<CalibrationDefaultsResponse>('/api/calibration/defaults');
 }

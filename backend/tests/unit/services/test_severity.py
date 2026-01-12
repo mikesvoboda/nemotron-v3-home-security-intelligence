@@ -1245,3 +1245,224 @@ class TestSeverityProperties:
             assert get_severity_priority(a) > get_severity_priority(b)
         else:
             assert get_severity_priority(a) == get_severity_priority(b)
+
+
+# =============================================================================
+# ClassificationResult Tests
+# =============================================================================
+
+
+class TestClassificationResult:
+    """Tests for ClassificationResult dataclass."""
+
+    def test_classification_result_creation(self) -> None:
+        """Test that ClassificationResult can be created with all attributes."""
+        from backend.services.severity import ClassificationResult
+
+        result = ClassificationResult(severity=Severity.HIGH, is_calibrated=True)
+        assert result.severity == Severity.HIGH
+        assert result.is_calibrated is True
+
+    def test_classification_result_immutable(self) -> None:
+        """Test that ClassificationResult is immutable (frozen)."""
+        from backend.services.severity import ClassificationResult
+
+        result = ClassificationResult(severity=Severity.LOW, is_calibrated=False)
+        with pytest.raises(AttributeError):
+            result.severity = Severity.HIGH  # type: ignore[misc]
+
+    def test_classification_result_equality(self) -> None:
+        """Test that ClassificationResult supports equality comparison."""
+        from backend.services.severity import ClassificationResult
+
+        result1 = ClassificationResult(severity=Severity.MEDIUM, is_calibrated=True)
+        result2 = ClassificationResult(severity=Severity.MEDIUM, is_calibrated=True)
+        result3 = ClassificationResult(severity=Severity.MEDIUM, is_calibrated=False)
+
+        assert result1 == result2
+        assert result1 != result3
+
+
+# =============================================================================
+# classify_risk Method Tests
+# =============================================================================
+
+
+class TestClassifyRisk:
+    """Tests for SeverityService.classify_risk method."""
+
+    @pytest.mark.asyncio
+    async def test_classify_risk_without_calibration_service(self) -> None:
+        """Test classify_risk returns default classification without calibration."""
+        from unittest.mock import AsyncMock
+
+        from backend.services.severity import ClassificationResult
+
+        service = SeverityService()
+        mock_db = AsyncMock()
+
+        result = await service.classify_risk(mock_db, score=45)
+
+        assert isinstance(result, ClassificationResult)
+        assert result.severity == Severity.MEDIUM  # 45 is in default MEDIUM range
+        assert result.is_calibrated is False
+
+    @pytest.mark.asyncio
+    async def test_classify_risk_with_calibration_service_uncalibrated_user(self) -> None:
+        """Test classify_risk with uncalibrated user returns defaults."""
+        from unittest.mock import AsyncMock, MagicMock
+
+        from backend.services.calibration_service import CalibrationThresholds
+        from backend.services.severity import ClassificationResult
+
+        service = SeverityService()
+        mock_db = AsyncMock()
+
+        # Mock calibration service returning default thresholds (not calibrated)
+        mock_calibration_service = MagicMock()
+        mock_calibration_service.get_thresholds = AsyncMock(
+            return_value=CalibrationThresholds(
+                low_threshold=30,
+                medium_threshold=60,
+                high_threshold=85,
+                is_calibrated=False,
+            )
+        )
+
+        result = await service.classify_risk(
+            mock_db,
+            score=45,
+            user_id="test_user",
+            calibration_service=mock_calibration_service,
+        )
+
+        assert isinstance(result, ClassificationResult)
+        assert result.severity == Severity.MEDIUM
+        assert result.is_calibrated is False
+
+    @pytest.mark.asyncio
+    async def test_classify_risk_with_calibrated_user(self) -> None:
+        """Test classify_risk with calibrated user uses custom thresholds."""
+        from unittest.mock import AsyncMock, MagicMock
+
+        from backend.services.calibration_service import CalibrationThresholds
+        from backend.services.severity import ClassificationResult
+
+        service = SeverityService()
+        mock_db = AsyncMock()
+
+        # Mock calibration service returning custom thresholds
+        # With low_threshold=20, score 25 should be MEDIUM (25 >= 20)
+        mock_calibration_service = MagicMock()
+        mock_calibration_service.get_thresholds = AsyncMock(
+            return_value=CalibrationThresholds(
+                low_threshold=20,  # Scores >= 20 are MEDIUM
+                medium_threshold=45,  # Scores >= 45 are HIGH
+                high_threshold=70,  # Scores >= 70 are CRITICAL
+                is_calibrated=True,
+            )
+        )
+
+        result = await service.classify_risk(
+            mock_db,
+            score=25,  # Would be LOW with defaults, but MEDIUM with custom
+            user_id="calibrated_user",
+            calibration_service=mock_calibration_service,
+        )
+
+        assert isinstance(result, ClassificationResult)
+        assert result.severity == Severity.MEDIUM
+        assert result.is_calibrated is True
+
+    @pytest.mark.asyncio
+    async def test_classify_risk_invalid_score_raises_error(self) -> None:
+        """Test classify_risk raises ValueError for invalid scores."""
+        from unittest.mock import AsyncMock
+
+        service = SeverityService()
+        mock_db = AsyncMock()
+
+        with pytest.raises(ValueError) as exc_info:
+            await service.classify_risk(mock_db, score=-1)
+        assert "Risk score must be between 0 and 100" in str(exc_info.value)
+
+        with pytest.raises(ValueError) as exc_info:
+            await service.classify_risk(mock_db, score=101)
+        assert "Risk score must be between 0 and 100" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_classify_risk_boundary_scores(self) -> None:
+        """Test classify_risk at threshold boundaries."""
+        from unittest.mock import AsyncMock, MagicMock
+
+        from backend.services.calibration_service import CalibrationThresholds
+
+        service = SeverityService()
+        mock_db = AsyncMock()
+
+        # Custom thresholds: LOW < 25, MEDIUM < 50, HIGH < 75
+        mock_calibration_service = MagicMock()
+        mock_calibration_service.get_thresholds = AsyncMock(
+            return_value=CalibrationThresholds(
+                low_threshold=25,
+                medium_threshold=50,
+                high_threshold=75,
+                is_calibrated=True,
+            )
+        )
+
+        # Score 24 (just below threshold) -> LOW
+        result = await service.classify_risk(
+            mock_db, score=24, calibration_service=mock_calibration_service
+        )
+        assert result.severity == Severity.LOW
+
+        # Score 25 (at threshold) -> MEDIUM
+        result = await service.classify_risk(
+            mock_db, score=25, calibration_service=mock_calibration_service
+        )
+        assert result.severity == Severity.MEDIUM
+
+        # Score 50 (at threshold) -> HIGH
+        result = await service.classify_risk(
+            mock_db, score=50, calibration_service=mock_calibration_service
+        )
+        assert result.severity == Severity.HIGH
+
+        # Score 75 (at threshold) -> CRITICAL
+        result = await service.classify_risk(
+            mock_db, score=75, calibration_service=mock_calibration_service
+        )
+        assert result.severity == Severity.CRITICAL
+
+    @pytest.mark.asyncio
+    async def test_classify_risk_extreme_score_values(self) -> None:
+        """Test classify_risk with score 0 and 100."""
+        from unittest.mock import AsyncMock, MagicMock
+
+        from backend.services.calibration_service import CalibrationThresholds
+
+        service = SeverityService()
+        mock_db = AsyncMock()
+
+        mock_calibration_service = MagicMock()
+        mock_calibration_service.get_thresholds = AsyncMock(
+            return_value=CalibrationThresholds(
+                low_threshold=10,
+                medium_threshold=50,
+                high_threshold=99,
+                is_calibrated=True,
+            )
+        )
+
+        # Score 0 should always be LOW (even with low_threshold=10)
+        result = await service.classify_risk(
+            mock_db, score=0, calibration_service=mock_calibration_service
+        )
+        assert result.severity == Severity.LOW
+
+        # Score 100 should be CRITICAL (since 100 >= 99)
+        result = await service.classify_risk(
+            mock_db, score=100, calibration_service=mock_calibration_service
+        )
+        assert result.severity == Severity.CRITICAL

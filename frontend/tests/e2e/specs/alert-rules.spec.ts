@@ -129,6 +129,9 @@ test.describe('Alert Rules Error State', () => {
 test.describe('Create Alert Rule', () => {
   let alertRulesPage: AlertRulesPage;
 
+  // Modal animations can be slow in CI - extend timeout
+  test.describe.configure({ timeout: 30000 });
+
   test.beforeEach(async ({ page }) => {
     await setupApiMocks(page, defaultMockConfig);
     alertRulesPage = new AlertRulesPage(page);

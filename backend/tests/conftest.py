@@ -492,6 +492,12 @@ async def _reset_db_schema() -> None:
                     "ALTER TABLE events ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE"
                 )
             )
+            # NEM-2363: Add snooze_until column for event snoozing
+            await conn.execute(
+                text(
+                    "ALTER TABLE events ADD COLUMN IF NOT EXISTS snooze_until TIMESTAMP WITH TIME ZONE"
+                )
+            )
             # Add search_vector columns for full-text search
             await conn.execute(
                 text("ALTER TABLE events ADD COLUMN IF NOT EXISTS search_vector TSVECTOR")

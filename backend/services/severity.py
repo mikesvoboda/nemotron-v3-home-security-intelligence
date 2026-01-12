@@ -19,9 +19,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import lru_cache
+from typing import TYPE_CHECKING
 
 from backend.core.config import get_settings
 from backend.models.enums import Severity
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    from backend.services.calibration_service import CalibrationService
 
 # Color scheme for severity levels (Tailwind-inspired)
 SEVERITY_COLORS: dict[Severity, str] = {
@@ -73,6 +79,20 @@ class SeverityDefinition:
             "min_score": self.min_score,
             "max_score": self.max_score,
         }
+
+
+@dataclass(frozen=True, slots=True)
+class ClassificationResult:
+    """Result of risk score classification.
+
+    Attributes:
+        severity: The classified severity level
+        is_calibrated: Whether the classification used user-calibrated thresholds
+            (True if user has provided feedback, False otherwise)
+    """
+
+    severity: Severity
+    is_calibrated: bool
 
 
 class SeverityService:
@@ -198,6 +218,55 @@ class SeverityService:
             "medium_max": self.medium_max,
             "high_max": self.high_max,
         }
+
+    async def classify_risk(
+        self,
+        db: AsyncSession,
+        score: int,
+        user_id: str = "default",
+        calibration_service: CalibrationService | None = None,
+    ) -> ClassificationResult:
+        """Classify risk score using calibration thresholds if available.
+
+        This method integrates with CalibrationService to provide personalized
+        severity classification based on user feedback history.
+
+        Args:
+            db: Database session for querying calibration data
+            score: Risk score from 0 to 100
+            user_id: User identifier for calibration lookup
+            calibration_service: Optional CalibrationService for fetching thresholds.
+                If None, uses default thresholds from this service.
+
+        Returns:
+            ClassificationResult with severity and calibration status
+
+        Raises:
+            ValueError: If score is outside the 0-100 range
+        """
+        if calibration_service is None:
+            # No calibration service provided, use default thresholds
+            return ClassificationResult(
+                severity=self.risk_score_to_severity(score),
+                is_calibrated=False,
+            )
+
+        # Get user's calibration thresholds
+        thresholds = await calibration_service.get_thresholds(db, user_id)
+
+        # Create a temporary SeverityService with calibrated thresholds
+        # Note: Calibration thresholds use exclusive upper bounds, so we subtract 1
+        # to convert to the inclusive max format used by SeverityService
+        calibrated_service = SeverityService(
+            low_max=thresholds.low_threshold - 1,
+            medium_max=thresholds.medium_threshold - 1,
+            high_max=thresholds.high_threshold - 1,
+        )
+
+        return ClassificationResult(
+            severity=calibrated_service.risk_score_to_severity(score),
+            is_calibrated=thresholds.is_calibrated,
+        )
 
 
 # =============================================================================

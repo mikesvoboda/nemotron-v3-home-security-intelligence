@@ -76,6 +76,7 @@ class EventResponse(BaseModel):
                 "llm_prompt": "<|im_start|>system\nYou are a home security risk analyzer...",
                 "reviewed": False,
                 "notes": None,
+                "snooze_until": None,
                 "detection_count": 5,
                 "detection_ids": [1, 2, 3, 4, 5],
                 "thumbnail_url": "/api/media/detections/1",
@@ -103,6 +104,9 @@ class EventResponse(BaseModel):
     )
     reviewed: bool = Field(False, description="Whether event has been reviewed")
     notes: str | None = Field(None, description="User notes for the event")
+    snooze_until: datetime | None = Field(
+        None, description="Timestamp until which alerts for this event are snoozed (NEM-2359)"
+    )
     detection_count: int = Field(0, description="Number of detections in this event")
     detection_ids: list[int] = Field(
         default_factory=list, description="List of detection IDs associated with this event"
@@ -124,12 +128,16 @@ class EventUpdate(BaseModel):
             "example": {
                 "reviewed": True,
                 "notes": "Verified - delivery person",
+                "snooze_until": "2025-12-24T12:00:00Z",
             }
         }
     )
 
     reviewed: bool | None = Field(None, description="Mark event as reviewed or not reviewed")
     notes: str | None = Field(None, description="User notes for the event")
+    snooze_until: datetime | None = Field(
+        None, description="Set or clear the alert snooze timestamp (NEM-2359)"
+    )
 
 
 class EventListResponse(BaseModel):

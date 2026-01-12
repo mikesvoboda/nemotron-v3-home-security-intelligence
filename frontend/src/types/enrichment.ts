@@ -56,6 +56,8 @@ export interface VehicleEnrichment {
   damage?: string[];
   /** Whether the vehicle appears to be commercial */
   commercial?: boolean;
+  /** Florence-2 generated caption/description of the vehicle */
+  caption?: string;
   /** Confidence score for the vehicle classification (0-1) */
   confidence: number;
 }
@@ -130,6 +132,8 @@ export interface PersonEnrichment {
   suspicious_attire?: boolean;
   /** Whether person appears to be wearing a service uniform */
   service_uniform?: boolean;
+  /** Florence-2 generated caption/description of the person */
+  caption?: string;
   /** Confidence score for the person analysis (0-1) */
   confidence: number;
 }
