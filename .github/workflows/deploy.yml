@@ -93,7 +93,7 @@ jobs:
           touch "/tmp/digests/${{ matrix.image.name }}/${digest#sha256:}"
 
       - name: Upload digest
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4
         with:
           name: digests-${{ matrix.image.name }}-${{ matrix.platform.suffix }}
           path: /tmp/digests/${{ matrix.image.name }}/*
@@ -330,17 +330,17 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install cosign
-        uses: sigstore/cosign-installer@f713795cb21599bc4e5c4b58cbad1da852d7eeb9 # v3
+        uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3
 
       - name: Generate SBOM
-        uses: anchore/sbom-action@a930d0ac434e3182448fe678398ba5713717112a # v0
+        uses: anchore/sbom-action@0b82b0b1a22399a1c542d4d656f70cd903571b5c # v0
         with:
           image: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:latest
           format: spdx-json
           output-file: sbom-${{ matrix.image }}.spdx.json
 
       - name: Upload SBOM artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4
         with:
           name: sbom-${{ matrix.image }}
           path: sbom-${{ matrix.image }}.spdx.json
@@ -435,7 +435,7 @@ jobs:
           echo "  FRONTEND_URL=http://staging:5173 npm test -- --project=chromium"
 
       - name: Document staging validation
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4
         with:
           name: staging-deployment-guide
           path: docs/DEPLOYMENT_VERIFICATION_CHECKLIST.md
@@ -537,7 +537,7 @@ jobs:
           cat canary-readiness.txt
 
       - name: Create deployment documentation artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4
         with:
           name: deployment-readiness
           path: canary-readiness.txt
