@@ -154,7 +154,7 @@ class CalibrationService:
             high_threshold=self.default_high,
             decay_factor=self.default_decay,
             false_positive_count=0,
-            missed_threat_count=0,
+            missed_detection_count=0,
         )
         db.add(calibration)
         await db.flush()
@@ -198,7 +198,9 @@ class CalibrationService:
             )
 
         # User has calibration - check if they've provided any feedback
-        is_calibrated = calibration.false_positive_count > 0 or calibration.missed_threat_count > 0
+        is_calibrated = (
+            calibration.false_positive_count > 0 or calibration.missed_detection_count > 0
+        )
 
         return CalibrationThresholds(
             low_threshold=calibration.low_threshold,
@@ -232,7 +234,7 @@ class CalibrationService:
         For FALSE_POSITIVE: Event was marked high-risk but user says benign
             -> Raise thresholds (less sensitive)
 
-        For MISSED_THREAT: Event was marked low-risk but user says concerning
+        For MISSED_DETECTION: Event was marked low-risk but user says concerning
             -> Lower thresholds (more sensitive)
 
         Args:
@@ -280,15 +282,15 @@ class CalibrationService:
         # Update feedback counts based on feedback type
         # FALSE_POSITIVE and SEVERITY_WRONG both indicate over-sensitivity
         # MISSED_THREAT indicates under-sensitivity
-        # ACCURATE/CORRECT doesn't affect counts
+        # ACCURATE doesn't affect counts
         if feedback.feedback_type == FeedbackType.FALSE_POSITIVE:
             calibration.false_positive_count += 1
         elif feedback.feedback_type == FeedbackType.MISSED_THREAT:
-            calibration.missed_threat_count += 1
+            calibration.missed_detection_count += 1
         elif feedback.feedback_type == FeedbackType.SEVERITY_WRONG:
             # Severity wrong could be either way, count as false positive for tracking
             calibration.false_positive_count += 1
-        # ACCURATE/CORRECT feedback doesn't increment any counters
+        # ACCURATE feedback doesn't increment any counters
 
         await db.flush()
 
@@ -330,7 +332,7 @@ class CalibrationService:
         calibration.high_threshold = self.default_high
         calibration.decay_factor = self.default_decay
         calibration.false_positive_count = 0
-        calibration.missed_threat_count = 0
+        calibration.missed_detection_count = 0
         calibration.updated_at = datetime.now(UTC)
 
         await db.flush()
@@ -355,17 +357,25 @@ class CalibrationService:
         """Calculate the threshold adjustment for given feedback.
 
         The adjustment is calculated based on:
-        1. The feedback type (false positive vs missed detection)
+        1. The feedback type (accurate, false positive, missed threat, severity wrong)
         2. The risk score of the event
         3. The decay factor controlling adjustment magnitude
+
+        For ACCURATE (event was correctly classified):
+            - No adjustment needed, thresholds are working well
 
         For FALSE_POSITIVE (event was high-risk but benign):
             - Raise all thresholds to make the system less sensitive
             - Adjustment magnitude based on how high the risk score was
 
-        For MISSED_DETECTION (event was low-risk but concerning):
+        For MISSED_THREAT (event was low-risk but concerning):
             - Lower all thresholds to make the system more sensitive
             - Adjustment magnitude based on how low the risk score was
+
+        For SEVERITY_WRONG (event flagged but with wrong severity):
+            - Apply smaller adjustment based on score distance from midpoint
+            - Higher scores: raise thresholds slightly (severity was too high)
+            - Lower scores: lower thresholds slightly (severity was too low)
 
         Args:
             feedback_type: Type of feedback
@@ -383,7 +393,7 @@ class CalibrationService:
         if decay_factor > 0 and base_adjustment < 1:
             base_adjustment = 1
 
-        if feedback_type in (FeedbackType.ACCURATE, FeedbackType.CORRECT):
+        if feedback_type == FeedbackType.ACCURATE:
             # Event was correctly classified - no adjustment needed
             return ThresholdAdjustment(
                 low_delta=0,
@@ -406,35 +416,7 @@ class CalibrationService:
                 feedback_type=feedback_type,
                 original_risk_score=risk_score,
             )
-        elif feedback_type == FeedbackType.SEVERITY_WRONG:
-            # User says severity was wrong - adjust based on score direction
-            # High score (>50) means severity was too high, raise thresholds
-            # Low score (<50) means severity was too low, lower thresholds
-            # Smaller adjustment than FALSE_POSITIVE/MISSED_THREAT (halved)
-            if risk_score > 50:
-                # Severity was too high - raise thresholds slightly
-                score_factor = max(1.0, risk_score / 50.0)
-                adjustment = max(1, int(base_adjustment * score_factor * 0.5))  # Half effect, min 1
-                return ThresholdAdjustment(
-                    low_delta=adjustment,
-                    medium_delta=adjustment,
-                    high_delta=adjustment,
-                    feedback_type=feedback_type,
-                    original_risk_score=risk_score,
-                )
-            else:
-                # Severity was too low - lower thresholds slightly
-                score_factor = max(1.0, (100 - risk_score) / 50.0)
-                adjustment = max(1, int(base_adjustment * score_factor * 0.5))  # Half effect, min 1
-                return ThresholdAdjustment(
-                    low_delta=-adjustment,
-                    medium_delta=-adjustment,
-                    high_delta=-adjustment,
-                    feedback_type=feedback_type,
-                    original_risk_score=risk_score,
-                )
-        else:
-            # FeedbackType.MISSED_THREAT / MISSED_DETECTION
+        elif feedback_type == FeedbackType.MISSED_THREAT:
             # Event was flagged as low-risk but user says concerning
             # Lower thresholds to be more sensitive
             # Lower risk scores mean larger downward adjustment needed
@@ -448,6 +430,33 @@ class CalibrationService:
                 feedback_type=feedback_type,
                 original_risk_score=risk_score,
             )
+        else:
+            # FeedbackType.SEVERITY_WRONG
+            # Event was flagged but with wrong severity level
+            # Apply a smaller adjustment - half of the base adjustment
+            # Direction depends on whether score is above or below 50
+            half_adjustment = max(1, base_adjustment // 2) if decay_factor > 0 else 0
+
+            if risk_score >= 50:
+                # High score but wrong severity - probably rated too severe
+                # Raise thresholds slightly
+                return ThresholdAdjustment(
+                    low_delta=half_adjustment,
+                    medium_delta=half_adjustment,
+                    high_delta=half_adjustment,
+                    feedback_type=feedback_type,
+                    original_risk_score=risk_score,
+                )
+            else:
+                # Low score but wrong severity - probably rated too low
+                # Lower thresholds slightly
+                return ThresholdAdjustment(
+                    low_delta=-half_adjustment,
+                    medium_delta=-half_adjustment,
+                    high_delta=-half_adjustment,
+                    feedback_type=feedback_type,
+                    original_risk_score=risk_score,
+                )
 
     def _apply_adjustment(
         self,
