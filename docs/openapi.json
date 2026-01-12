@@ -8852,9 +8852,9 @@
         "type": "object"
       },
       "JobListResponse": {
-        "description": "Response model for listing jobs.",
+        "description": "Response model for listing jobs with pagination.\n\nUses the standardized pagination envelope format (NEM-2178).",
         "example": {
-          "jobs": [
+          "items": [
             {
               "created_at": "2024-01-15T10:30:00Z",
               "job_id": "550e8400-e29b-41d4-a716-446655440000",
@@ -8865,27 +8865,30 @@
               "status": "running"
             }
           ],
-          "total": 1
+          "pagination": {
+            "has_more": true,
+            "limit": 50,
+            "offset": 0,
+            "total": 100
+          }
         },
         "properties": {
-          "jobs": {
+          "items": {
             "description": "List of jobs",
             "items": {
               "$ref": "#/components/schemas/JobResponse"
             },
-            "title": "Jobs",
+            "title": "Items",
             "type": "array"
           },
-          "total": {
-            "description": "Total number of jobs matching filter",
-            "minimum": 0.0,
-            "title": "Total",
-            "type": "integer"
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationMeta",
+            "description": "Pagination metadata"
           }
         },
         "required": [
-          "jobs",
-          "total"
+          "items",
+          "pagination"
         ],
         "title": "JobListResponse",
         "type": "object"
@@ -8997,6 +9000,126 @@
         "title": "JobResponse",
         "type": "object"
       },
+      "JobStatsResponse": {
+        "description": "Response model for job statistics.\n\nProvides aggregate statistics about jobs including counts by status,\ncounts by type, and timing information.",
+        "example": {
+          "average_duration_seconds": 45.5,
+          "by_status": [
+            {
+              "count": 75,
+              "status": "completed"
+            },
+            {
+              "count": 5,
+              "status": "running"
+            },
+            {
+              "count": 10,
+              "status": "pending"
+            },
+            {
+              "count": 10,
+              "status": "failed"
+            }
+          ],
+          "by_type": [
+            {
+              "count": 60,
+              "job_type": "export"
+            },
+            {
+              "count": 30,
+              "job_type": "cleanup"
+            },
+            {
+              "count": 10,
+              "job_type": "backup"
+            }
+          ],
+          "oldest_pending_job_age_seconds": 120.0,
+          "total_jobs": 100
+        },
+        "properties": {
+          "average_duration_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Average job duration in seconds (for completed jobs)",
+            "title": "Average Duration Seconds"
+          },
+          "by_status": {
+            "description": "Job counts by status",
+            "items": {
+              "$ref": "#/components/schemas/JobStatusCount"
+            },
+            "title": "By Status",
+            "type": "array"
+          },
+          "by_type": {
+            "description": "Job counts by type",
+            "items": {
+              "$ref": "#/components/schemas/JobTypeCount"
+            },
+            "title": "By Type",
+            "type": "array"
+          },
+          "oldest_pending_job_age_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Age of the oldest pending job in seconds",
+            "title": "Oldest Pending Job Age Seconds"
+          },
+          "total_jobs": {
+            "description": "Total number of jobs tracked",
+            "minimum": 0.0,
+            "title": "Total Jobs",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total_jobs",
+          "by_status",
+          "by_type"
+        ],
+        "title": "JobStatsResponse",
+        "type": "object"
+      },
+      "JobStatusCount": {
+        "description": "Count of jobs by status.",
+        "example": {
+          "count": 42,
+          "status": "completed"
+        },
+        "properties": {
+          "count": {
+            "description": "Number of jobs with this status",
+            "minimum": 0.0,
+            "title": "Count",
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatusEnum",
+            "description": "Job status"
+          }
+        },
+        "required": [
+          "status",
+          "count"
+        ],
+        "title": "JobStatusCount",
+        "type": "object"
+      },
       "JobStatusEnum": {
         "description": "Status of a background job.",
         "enum": [
@@ -9007,6 +9130,32 @@
         ],
         "title": "JobStatusEnum",
         "type": "string"
+      },
+      "JobTypeCount": {
+        "description": "Count of jobs by type.",
+        "example": {
+          "count": 25,
+          "job_type": "export"
+        },
+        "properties": {
+          "count": {
+            "description": "Number of jobs of this type",
+            "minimum": 0.0,
+            "title": "Count",
+            "type": "integer"
+          },
+          "job_type": {
+            "description": "Job type name",
+            "title": "Job Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_type",
+          "count"
+        ],
+        "title": "JobTypeCount",
+        "type": "object"
       },
       "JobTypeInfo": {
         "description": "Information about a job type.",
@@ -22218,6 +22367,33 @@
               "description": "Filter by job status",
               "title": "Status"
             }
+          },
+          {
+            "description": "Maximum number of jobs to return",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "description": "Maximum number of jobs to return",
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Number of jobs to skip (for pagination)",
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Number of jobs to skip (for pagination)",
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -22243,6 +22419,28 @@
           }
         },
         "summary": "List all jobs",
+        "tags": [
+          "jobs"
+        ]
+      }
+    },
+    "/api/jobs/stats": {
+      "get": {
+        "description": "Get aggregate statistics about jobs including counts by status, counts by type, and timing information.",
+        "operationId": "get_job_stats_api_jobs_stats_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobStatsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get job statistics",
         "tags": [
           "jobs"
         ]

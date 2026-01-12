@@ -3,8 +3,9 @@
  *
  * Shows a fixed-position indicator when API rate limit quota is low or exhausted.
  * - Yellow warning when quota < 50%
- * - Red alert when rate limited (remaining = 0)
+ * - Red alert when quota < 20% or rate limited (remaining = 0)
  * - Live countdown showing seconds until reset
+ * - Toast notification when quota drops below 20%
  * - Auto-hides when quota replenishes above 50%
  *
  * @example
@@ -15,6 +16,8 @@
  */
 import { clsx } from 'clsx';
 import { AlertTriangle } from 'lucide-react';
+import { useEffect, useRef } from 'react';
+import { toast } from 'sonner';
 
 import { useRateLimitCountdown } from '../../hooks/useRateLimitCountdown';
 
@@ -26,6 +29,13 @@ export interface RateLimitIndicatorProps {
   /** Optional class name for additional styling */
   className?: string;
 }
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+/** Threshold below which the quota is considered "very low" and toast notification is shown */
+const VERY_LOW_QUOTA_THRESHOLD = 20;
 
 // ============================================================================
 // Helper Functions
@@ -60,15 +70,45 @@ export default function RateLimitIndicator({
 }: RateLimitIndicatorProps) {
   const { isLimited, formattedCountdown, current } = useRateLimitCountdown();
 
+  // Track if we've already shown a toast for the current low quota state
+  // This prevents showing multiple toasts for the same low quota event
+  const hasShownToastRef = useRef(false);
+
+  // Calculate remaining percentage for the component
+  const remainingPercentage = current
+    ? calculateRemainingPercentage(current.remaining, current.limit)
+    : 100;
+
+  // Determine if quota is very low (< 20%)
+  const isVeryLow = remainingPercentage < VERY_LOW_QUOTA_THRESHOLD;
+
+  // Show toast notification when quota drops below 20%
+  useEffect(() => {
+    if (!current) {
+      // Reset toast flag when rate limit info is cleared
+      hasShownToastRef.current = false;
+      return;
+    }
+
+    // Check if quota is very low and we haven't shown a toast yet
+    if (isVeryLow && !hasShownToastRef.current) {
+      toast.warning('API quota running low', {
+        description: `Only ${current.remaining} of ${current.limit} requests remaining. Consider reducing request frequency.`,
+        duration: 6000,
+      });
+      hasShownToastRef.current = true;
+    }
+
+    // Reset the flag when quota recovers above 20%
+    if (!isVeryLow && hasShownToastRef.current) {
+      hasShownToastRef.current = false;
+    }
+  }, [current, isVeryLow]);
+
   // Don't render if no rate limit info
   if (!current) {
     return null;
   }
-
-  const remainingPercentage = calculateRemainingPercentage(
-    current.remaining,
-    current.limit
-  );
 
   // Don't render if quota is above 50% and not rate limited
   if (remainingPercentage > 50 && !isLimited) {
@@ -77,7 +117,6 @@ export default function RateLimitIndicator({
 
   // Determine styling based on state
   const isRateLimited = isLimited || current.remaining === 0;
-  const isVeryLow = remainingPercentage < 20;
 
   // Build ARIA label
   const ariaLabel = isRateLimited

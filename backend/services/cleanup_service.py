@@ -14,6 +14,7 @@ Features:
     - Detailed statistics on cleanup operations
     - Streaming queries to avoid loading all records into memory (NEM-1539)
     - Batch deletes for improved performance with large datasets (NEM-1539)
+    - Job status tracking via Redis for monitoring (NEM-2292)
 
 Cleanup Stats:
     - events_deleted: Number of events removed
@@ -42,6 +43,9 @@ from backend.models.log import Log
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
+
+    from backend.core.redis import RedisClient
+    from backend.services.job_status import JobStatusService
 
 logger = get_logger(__name__)
 
@@ -112,6 +116,7 @@ class CleanupService:
         thumbnail_dir: str = "data/thumbnails",
         delete_images: bool = False,
         batch_size: int = 1000,
+        redis_client: RedisClient | None = None,
     ):
         """Initialize cleanup service.
 
@@ -122,6 +127,7 @@ class CleanupService:
             delete_images: Whether to delete original image files (default: False)
             batch_size: Number of records to process per batch (default: 1000).
                         Used for streaming queries to limit memory usage.
+            redis_client: Optional Redis client for job status tracking.
         """
         settings = get_settings()
         self.cleanup_time = cleanup_time
@@ -134,6 +140,10 @@ class CleanupService:
         self._cleanup_task: asyncio.Task | None = None
         self.running = False
 
+        # Optional Redis client for job status tracking
+        self._redis_client = redis_client
+        self._job_status_service: JobStatusService | None = None
+
         logger.info(
             f"CleanupService initialized: "
             f"retention={self.retention_days} days, "
@@ -141,6 +151,32 @@ class CleanupService:
             f"delete_images={self.delete_images}, "
             f"batch_size={self.batch_size}"
         )
+
+    def _get_job_status_service(self) -> JobStatusService | None:
+        """Get job status service if Redis is available.
+
+        Returns:
+            JobStatusService instance or None if Redis not configured.
+        """
+        if self._redis_client is None:
+            return None
+
+        if self._job_status_service is None:
+            from backend.services.job_status import get_job_status_service
+
+            self._job_status_service = get_job_status_service(self._redis_client)
+        return self._job_status_service
+
+    def set_redis_client(self, redis_client: RedisClient) -> None:
+        """Set the Redis client for job status tracking.
+
+        This allows configuring Redis after initialization.
+
+        Args:
+            redis_client: Redis client instance.
+        """
+        self._redis_client = redis_client
+        self._job_status_service = None  # Reset to recreate with new client
 
     def _parse_cleanup_time(self) -> tuple[int, int]:
         """Parse cleanup time string into hours and minutes.
@@ -193,11 +229,12 @@ class CleanupService:
 
         await asyncio.sleep(wait_seconds)
 
-    async def run_cleanup(self) -> CleanupStats:
+    async def run_cleanup(self) -> CleanupStats:  # noqa: PLR0912
         """Execute cleanup operation.
 
         Deletes old records and files based on retention policy.
         Uses streaming queries to avoid loading all records into memory.
+        Tracks job status in Redis if available.
 
         Returns:
             CleanupStats object with operation statistics
@@ -208,16 +245,32 @@ class CleanupService:
         logger.info(f"Starting cleanup (retention: {self.retention_days} days)")
         stats = CleanupStats()
 
+        # Start job tracking if Redis is available
+        job_service = self._get_job_status_service()
+        job_id: str | None = None
+        if job_service is not None:
+            job_id = await job_service.start_job(
+                job_id=f"cleanup-{datetime.now(UTC).strftime('%Y%m%d-%H%M%S')}",
+                job_type="data_cleanup",
+                metadata={"retention_days": self.retention_days},
+            )
+
         # Calculate cutoff date (use UTC for consistency with timezone-aware columns)
         cutoff_date = datetime.now(UTC) - timedelta(days=self.retention_days)
         logger.info(f"Deleting records older than {cutoff_date}")
 
         try:
+            if job_service is not None and job_id is not None:
+                await job_service.update_progress(job_id, 5, "Scanning for files to delete")
+
             async with get_session() as session:
                 # Step 1: Stream detection file paths without loading all into memory
                 thumbnail_paths, image_paths = await self._get_detection_file_paths_streaming(
                     session, cutoff_date
                 )
+
+                if job_service is not None and job_id is not None:
+                    await job_service.update_progress(job_id, 15, "Deleting old detections")
 
                 # Step 2: Delete old detections
                 delete_detections_stmt = delete(Detection).where(
@@ -227,11 +280,17 @@ class CleanupService:
                 stats.detections_deleted = detections_result.rowcount or 0  # type: ignore[attr-defined]
                 logger.info(f"Deleted {stats.detections_deleted} old detections")
 
+                if job_service is not None and job_id is not None:
+                    await job_service.update_progress(job_id, 30, "Deleting old events")
+
                 # Step 3: Delete old events
                 delete_events_stmt = delete(Event).where(Event.started_at < cutoff_date)
                 events_result = await session.execute(delete_events_stmt)
                 stats.events_deleted = events_result.rowcount or 0  # type: ignore[attr-defined]
                 logger.info(f"Deleted {stats.events_deleted} old events")
+
+                if job_service is not None and job_id is not None:
+                    await job_service.update_progress(job_id, 45, "Deleting old GPU stats")
 
                 # Step 4: Delete old GPU stats
                 delete_gpu_stats_stmt = delete(GPUStats).where(GPUStats.recorded_at < cutoff_date)
@@ -243,8 +302,14 @@ class CleanupService:
                 await session.commit()
                 logger.info("Database cleanup committed successfully")
 
+            if job_service is not None and job_id is not None:
+                await job_service.update_progress(job_id, 55, "Deleting old logs")
+
             # Step 5: Delete old logs
             stats.logs_deleted = await self.cleanup_old_logs()
+
+            if job_service is not None and job_id is not None:
+                await job_service.update_progress(job_id, 70, "Deleting thumbnail files")
 
             # Step 6: Delete thumbnail files (after successful DB commit)
             for thumbnail_path in thumbnail_paths:
@@ -255,17 +320,27 @@ class CleanupService:
 
             # Step 7: Delete original image files (if enabled)
             if self.delete_images:
+                if job_service is not None and job_id is not None:
+                    await job_service.update_progress(job_id, 85, "Deleting image files")
+
                 for image_path in image_paths:
                     if self._delete_file(image_path):
                         stats.images_deleted += 1
 
                 logger.info(f"Deleted {stats.images_deleted} original image files")
 
+            # Mark job as completed
+            if job_service is not None and job_id is not None:
+                await job_service.complete_job(job_id, result=stats.to_dict())
+
             logger.info(f"Cleanup completed: {stats}")
             return stats
 
         except Exception as e:
             logger.error(f"Cleanup failed: {e}", exc_info=True)
+            # Mark job as failed
+            if job_service is not None and job_id is not None:
+                await job_service.fail_job(job_id, str(e))
             raise
 
     async def _get_detection_file_paths_streaming(

@@ -1,6 +1,8 @@
-"""Unit tests for CameraStatusService (NEM-1982).
+"""Unit tests for CameraStatusService (NEM-1982, NEM-2295).
 
 Tests for WebSocket camera status change broadcasting when camera status changes.
+
+NEM-2295: Added tests for event_type, timestamp, and details fields.
 """
 
 from __future__ import annotations
@@ -11,9 +13,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from backend.api.schemas.websocket import WebSocketCameraEventType
 from backend.models import Camera
 from backend.services.camera_status_service import (
     CameraStatusService,
+    _get_event_type_for_status,
     broadcast_camera_status_change,
 )
 
@@ -107,6 +111,10 @@ async def test_set_camera_status_updates_database_and_broadcasts() -> None:
     assert call_args["status"] == "offline"
     assert call_args["previous_status"] == "online"
     assert call_args["reason"] == "Connection timeout"
+    # NEM-2295: Verify new event_type and timestamp fields
+    assert call_args["event_type"] == "camera.offline"
+    assert "timestamp" in call_args
+    assert call_args["details"] is None
 
     # Verify result
     assert result is not None
@@ -418,7 +426,10 @@ async def test_broadcast_camera_status_change_function() -> None:
     assert call_args["status"] == "online"
     assert call_args["previous_status"] == "offline"
     assert call_args["reason"] == "Camera reconnected"
-    assert "changed_at" in call_args
+    # NEM-2295: Verify new event_type and timestamp fields
+    assert call_args["event_type"] == "camera.online"
+    assert "timestamp" in call_args
+    assert call_args["details"] is None
 
 
 @pytest.mark.asyncio
@@ -446,3 +457,104 @@ async def test_broadcast_camera_status_change_without_optional_fields() -> None:
     call_args = mock_broadcaster.broadcast_camera_status.await_args.args[0]
     assert call_args["previous_status"] is None
     assert call_args["reason"] is None
+    # NEM-2295: Verify new event_type and timestamp fields
+    assert call_args["event_type"] == "camera.error"
+    assert "timestamp" in call_args
+    assert call_args["details"] is None
+
+
+# ==============================================================================
+# Tests for event type mapping (NEM-2295)
+# ==============================================================================
+
+
+def test_get_event_type_for_online_status() -> None:
+    """Test _get_event_type_for_status returns camera.online for online status."""
+    assert _get_event_type_for_status("online") == WebSocketCameraEventType.CAMERA_ONLINE
+
+
+def test_get_event_type_for_offline_status() -> None:
+    """Test _get_event_type_for_status returns camera.offline for offline status."""
+    assert _get_event_type_for_status("offline") == WebSocketCameraEventType.CAMERA_OFFLINE
+
+
+def test_get_event_type_for_error_status() -> None:
+    """Test _get_event_type_for_status returns camera.error for error status."""
+    assert _get_event_type_for_status("error") == WebSocketCameraEventType.CAMERA_ERROR
+
+
+def test_get_event_type_for_unknown_status() -> None:
+    """Test _get_event_type_for_status returns camera.updated for unknown status."""
+    assert _get_event_type_for_status("unknown") == WebSocketCameraEventType.CAMERA_UPDATED
+
+
+def test_get_event_type_for_arbitrary_status() -> None:
+    """Test _get_event_type_for_status returns camera.updated for arbitrary status values."""
+    assert _get_event_type_for_status("custom_status") == WebSocketCameraEventType.CAMERA_UPDATED
+
+
+def test_get_event_type_case_insensitive() -> None:
+    """Test _get_event_type_for_status handles different cases."""
+    assert _get_event_type_for_status("ONLINE") == WebSocketCameraEventType.CAMERA_ONLINE
+    assert _get_event_type_for_status("Offline") == WebSocketCameraEventType.CAMERA_OFFLINE
+    assert _get_event_type_for_status("ERROR") == WebSocketCameraEventType.CAMERA_ERROR
+
+
+@pytest.mark.asyncio
+async def test_broadcast_camera_status_change_with_explicit_event_type() -> None:
+    """Test broadcast_camera_status_change with explicit event_type parameter.
+
+    NEM-2295: Test that explicit event_type overrides derived event type.
+    """
+    mock_redis = _FakeRedis()
+
+    mock_broadcaster = MagicMock()
+    mock_broadcaster.broadcast_camera_status = AsyncMock(return_value=1)
+
+    with patch(
+        "backend.services.camera_status_service.get_broadcaster",
+        return_value=mock_broadcaster,
+    ):
+        await broadcast_camera_status_change(
+            redis=mock_redis,  # type: ignore[arg-type]
+            camera_id="front_door",
+            camera_name="Front Door Camera",
+            status="online",
+            event_type=WebSocketCameraEventType.CAMERA_UPDATED,  # Override
+        )
+
+    call_args = mock_broadcaster.broadcast_camera_status.await_args.args[0]
+    # Should use explicit event_type, not derived from status
+    assert call_args["event_type"] == "camera.updated"
+
+
+@pytest.mark.asyncio
+async def test_broadcast_camera_status_change_with_details() -> None:
+    """Test broadcast_camera_status_change with details parameter.
+
+    NEM-2295: Test that details are included in the broadcast.
+    """
+    mock_redis = _FakeRedis()
+
+    mock_broadcaster = MagicMock()
+    mock_broadcaster.broadcast_camera_status = AsyncMock(return_value=1)
+
+    details = {
+        "firmware_version": "2.1.0",
+        "ip_address": "192.168.1.100",
+    }
+
+    with patch(
+        "backend.services.camera_status_service.get_broadcaster",
+        return_value=mock_broadcaster,
+    ):
+        await broadcast_camera_status_change(
+            redis=mock_redis,  # type: ignore[arg-type]
+            camera_id="front_door",
+            camera_name="Front Door Camera",
+            status="online",
+            details=details,
+        )
+
+    call_args = mock_broadcaster.broadcast_camera_status.await_args.args[0]
+    assert call_args["details"] == details
