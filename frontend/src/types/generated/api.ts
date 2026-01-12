@@ -1122,6 +1122,108 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/calibration": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Calibration
+         * @description Get the current user's calibration settings.
+         *
+         *     Returns the calibration thresholds for the default user.
+         *     If no calibration exists, one is automatically created with default values.
+         *
+         *     Returns:
+         *         CalibrationResponse with current threshold settings
+         */
+        get: operations["get_calibration_api_calibration_get"];
+        /**
+         * Update Calibration
+         * @description Update calibration thresholds.
+         *
+         *     Allows partial updates - only provided fields will be changed.
+         *     Validates that threshold ordering is maintained (low < medium < high).
+         *
+         *     Args:
+         *         update_data: Fields to update (partial updates supported)
+         *         db: Database session
+         *
+         *     Returns:
+         *         Updated CalibrationResponse
+         *
+         *     Raises:
+         *         HTTPException: 422 if threshold ordering would be violated
+         */
+        put: operations["update_calibration_api_calibration_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/calibration/defaults": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Calibration Defaults
+         * @description Get default calibration threshold values.
+         *
+         *     Returns the default values used when creating new calibrations
+         *     or when resetting to defaults. This endpoint is useful for
+         *     displaying defaults in the UI or documentation.
+         *
+         *     Returns:
+         *         CalibrationDefaultsResponse with default threshold values
+         */
+        get: operations["get_calibration_defaults_api_calibration_defaults_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/calibration/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reset Calibration
+         * @description Reset calibration to default thresholds.
+         *
+         *     Resets all thresholds to their default values:
+         *     - low_threshold: 30
+         *     - medium_threshold: 60
+         *     - high_threshold: 85
+         *     - decay_factor: 0.1
+         *
+         *     Note: Feedback counts (false_positive_count, missed_detection_count)
+         *     are NOT reset by this operation.
+         *
+         *     Returns:
+         *         CalibrationResetResponse with success message and reset calibration data
+         */
+        post: operations["reset_calibration_api_calibration_reset_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/cameras": {
         parameters: {
             query?: never;
@@ -6695,6 +6797,74 @@ export interface components {
          */
         BulkOperationStatus: "success" | "failed" | "skipped";
         /**
+         * CalibrationDefaultsResponse
+         * @description Schema for calibration defaults response.
+         *
+         *     Returns the system default threshold values.
+         * @example {
+         *       "decay_factor": 0.1,
+         *       "high_threshold": 85,
+         *       "low_threshold": 30,
+         *       "medium_threshold": 60
+         *     }
+         */
+        CalibrationDefaultsResponse: {
+            /**
+             * Decay Factor
+             * @description Default decay factor value
+             * @default 0.1
+             */
+            decay_factor: number;
+            /**
+             * High Threshold
+             * @description Default high threshold value
+             * @default 85
+             */
+            high_threshold: number;
+            /**
+             * Low Threshold
+             * @description Default low threshold value
+             * @default 30
+             */
+            low_threshold: number;
+            /**
+             * Medium Threshold
+             * @description Default medium threshold value
+             * @default 60
+             */
+            medium_threshold: number;
+        };
+        /**
+         * CalibrationResetResponse
+         * @description Schema for calibration reset response.
+         *
+         *     Returned after resetting calibration to default values.
+         * @example {
+         *       "calibration": {
+         *         "created_at": "2025-01-01T12:00:00Z",
+         *         "decay_factor": 0.1,
+         *         "false_positive_count": 5,
+         *         "high_threshold": 85,
+         *         "id": 1,
+         *         "low_threshold": 30,
+         *         "medium_threshold": 60,
+         *         "missed_detection_count": 3,
+         *         "updated_at": "2025-01-01T12:00:00Z",
+         *         "user_id": "default"
+         *       },
+         *       "message": "Calibration reset to default values"
+         *     }
+         */
+        CalibrationResetResponse: {
+            /** @description Reset calibration data */
+            calibration: components["schemas"]["UserCalibrationResponse"];
+            /**
+             * Message
+             * @description Success message
+             */
+            message: string;
+        };
+        /**
          * CameraCreate
          * @description Schema for creating a new camera.
          * @example {
@@ -10316,6 +10486,11 @@ export interface components {
              */
             risk_score?: number | null;
             /**
+             * Snooze Until
+             * @description Timestamp until which alerts for this event are snoozed (NEM-2359)
+             */
+            snooze_until?: string | null;
+            /**
              * Started At
              * Format: date-time
              * @description Event start timestamp
@@ -10445,7 +10620,8 @@ export interface components {
          * @description Schema for updating an event (PATCH).
          * @example {
          *       "notes": "Verified - delivery person",
-         *       "reviewed": true
+         *       "reviewed": true,
+         *       "snooze_until": "2025-12-24T12:00:00Z"
          *     }
          */
         EventUpdate: {
@@ -10459,6 +10635,11 @@ export interface components {
              * @description Mark event as reviewed or not reviewed
              */
             reviewed?: boolean | null;
+            /**
+             * Snooze Until
+             * @description Set or clear the alert snooze timestamp (NEM-2359)
+             */
+            snooze_until?: string | null;
         };
         /**
          * EventsByCamera
@@ -15901,6 +16082,115 @@ export interface components {
          * @enum {string}
          */
         TimeRange: "5m" | "15m" | "60m";
+        /**
+         * UserCalibrationResponse
+         * @description Schema for user calibration response.
+         *
+         *     Returned when retrieving or modifying calibration settings.
+         *     Includes feedback counts to show calibration history.
+         * @example {
+         *       "created_at": "2025-01-01T12:00:00Z",
+         *       "decay_factor": 0.1,
+         *       "false_positive_count": 5,
+         *       "high_threshold": 85,
+         *       "id": 1,
+         *       "low_threshold": 30,
+         *       "medium_threshold": 60,
+         *       "missed_detection_count": 3,
+         *       "updated_at": "2025-01-01T12:00:00Z",
+         *       "user_id": "default"
+         *     }
+         */
+        UserCalibrationResponse: {
+            /**
+             * Created At
+             * Format: date-time
+             * @description When calibration was created
+             */
+            created_at: string;
+            /**
+             * Decay Factor
+             * @description Learning rate for threshold adjustment (0.0-1.0)
+             */
+            decay_factor: number;
+            /**
+             * False Positive Count
+             * @description Number of false positive feedbacks received
+             */
+            false_positive_count: number;
+            /**
+             * High Threshold
+             * @description Score threshold for high risk (0-100)
+             */
+            high_threshold: number;
+            /**
+             * Id
+             * @description Calibration record ID
+             */
+            id: number;
+            /**
+             * Low Threshold
+             * @description Score threshold for low risk (0-100)
+             */
+            low_threshold: number;
+            /**
+             * Medium Threshold
+             * @description Score threshold for medium risk (0-100)
+             */
+            medium_threshold: number;
+            /**
+             * Missed Detection Count
+             * @description Number of missed detection feedbacks received
+             */
+            missed_detection_count: number;
+            /**
+             * Updated At
+             * Format: date-time
+             * @description When calibration was last modified
+             */
+            updated_at: string;
+            /**
+             * User Id
+             * @description User identifier
+             */
+            user_id: string;
+        };
+        /**
+         * UserCalibrationUpdate
+         * @description Schema for updating user calibration settings.
+         *
+         *     All fields are optional - only provided fields will be updated.
+         *     When all three thresholds are provided, ordering is validated
+         *     (low < medium < high).
+         * @example {
+         *       "decay_factor": 0.15,
+         *       "high_threshold": 80,
+         *       "low_threshold": 25,
+         *       "medium_threshold": 55
+         *     }
+         */
+        UserCalibrationUpdate: {
+            /**
+             * Decay Factor
+             * @description Learning rate for threshold adjustment (0.0-1.0)
+             */
+            decay_factor?: number | null;
+            /**
+             * High Threshold
+             * @description Score threshold for high risk classification (0-100)
+             */
+            high_threshold?: number | null;
+            /**
+             * Low Threshold
+             * @description Score threshold for low risk classification (0-100)
+             */
+            low_threshold?: number | null;
+            /**
+             * Medium Threshold
+             * @description Score threshold for medium risk classification (0-100)
+             */
+            medium_threshold?: number | null;
+        };
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -18106,6 +18396,125 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_calibration_api_calibration_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserCalibrationResponse"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    update_calibration_api_calibration_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserCalibrationUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserCalibrationResponse"];
+                };
+            };
+            /** @description Validation error (invalid threshold ordering) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_calibration_defaults_api_calibration_defaults_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CalibrationDefaultsResponse"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    reset_calibration_api_calibration_reset_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CalibrationResetResponse"];
                 };
             };
             /** @description Internal server error */
