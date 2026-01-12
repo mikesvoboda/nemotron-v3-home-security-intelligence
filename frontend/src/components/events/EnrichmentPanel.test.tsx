@@ -111,6 +111,34 @@ describe('EnrichmentPanel', () => {
       render(<EnrichmentPanel enrichment_data={personalVehicle} />);
       expect(screen.queryByText(/Commercial/)).not.toBeInTheDocument();
     });
+
+    it('displays caption when present', async () => {
+      const vehicleWithCaption: EnrichmentData = {
+        vehicle: {
+          type: 'van',
+          color: 'white',
+          caption: 'A white delivery van parked in the driveway',
+          confidence: 0.91,
+        },
+      };
+      render(<EnrichmentPanel enrichment_data={vehicleWithCaption} />);
+      await expandAccordion('Vehicle');
+      expect(screen.getByText('A white delivery van parked in the driveway')).toBeInTheDocument();
+    });
+
+    it('does not display caption section when caption is not present', async () => {
+      const vehicleWithoutCaption: EnrichmentData = {
+        vehicle: {
+          type: 'sedan',
+          color: 'blue',
+          confidence: 0.88,
+        },
+      };
+      render(<EnrichmentPanel enrichment_data={vehicleWithoutCaption} />);
+      await expandAccordion('Vehicle');
+      // Caption container should not be present
+      expect(screen.queryByText(/A white delivery van/)).not.toBeInTheDocument();
+    });
   });
 
   describe('pet enrichment', () => {
@@ -218,6 +246,32 @@ describe('EnrichmentPanel', () => {
     it('displays confidence badge for person', () => {
       render(<EnrichmentPanel enrichment_data={personEnrichment} />);
       expect(screen.getByText('91%')).toBeInTheDocument();
+    });
+
+    it('displays caption when present', async () => {
+      const personWithCaption: EnrichmentData = {
+        person: {
+          clothing: 'blue shirt',
+          caption: 'A person in casual attire approaching the front door',
+          confidence: 0.89,
+        },
+      };
+      render(<EnrichmentPanel enrichment_data={personWithCaption} />);
+      await expandAccordion('Person');
+      expect(screen.getByText('A person in casual attire approaching the front door')).toBeInTheDocument();
+    });
+
+    it('does not display caption section when caption is not present', async () => {
+      const personWithoutCaption: EnrichmentData = {
+        person: {
+          clothing: 'red jacket',
+          confidence: 0.86,
+        },
+      };
+      render(<EnrichmentPanel enrichment_data={personWithoutCaption} />);
+      await expandAccordion('Person');
+      // Caption should not be present
+      expect(screen.queryByText(/approaching the front door/)).not.toBeInTheDocument();
     });
   });
 

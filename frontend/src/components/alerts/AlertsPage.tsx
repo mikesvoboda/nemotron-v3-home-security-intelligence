@@ -1,7 +1,7 @@
 import { AlertTriangle, Bell, Loader2, RefreshCw } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
-import { useAlertsInfiniteQuery, useInfiniteScroll, useCamerasQuery } from '../../hooks';
+import { useAlertsInfiniteQuery, useInfiniteScroll, useCamerasQuery, useSnoozeEvent } from '../../hooks';
 import { updateEvent } from '../../services/api';
 import { getRiskLevel } from '../../utils/risk';
 import RiskBadge from '../common/RiskBadge';
@@ -35,6 +35,9 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
 
   // Fetch cameras for camera name lookup
   const { cameras } = useCamerasQuery();
+
+  // Snooze mutation
+  const { snooze } = useSnoozeEvent();
 
   // Fetch alerts with infinite scroll support
   const {
@@ -98,6 +101,7 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
       ended_at: event.ended_at,
       onViewDetails: onViewEventDetails ? () => onViewEventDetails(event.id) : undefined,
       onClick: (eventId: string) => setSelectedEventForModal(parseInt(eventId, 10)),
+      onSnooze: handleSnooze,
     };
   };
 
@@ -154,6 +158,11 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
     };
   };
 
+  // Handle snooze action
+  const handleSnooze = (eventId: string, seconds: number) => {
+    void snooze(parseInt(eventId, 10), seconds);
+  };
+
   // Handle filter change - resets to first page
   const handleFilterChange = (newFilter: AlertRiskFilter) => {
     setRiskFilter(newFilter);
@@ -196,6 +205,7 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
         <button
           onClick={handleRefresh}
           disabled={isFetching}
+          aria-label="Refresh alerts"
           className="flex items-center gap-2 rounded-md bg-[#76B900]/10 px-4 py-2 text-sm font-medium text-[#76B900] transition-colors hover:bg-[#76B900]/20 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />

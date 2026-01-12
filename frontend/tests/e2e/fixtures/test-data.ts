@@ -1033,3 +1033,31 @@ export const mockAIMetrics = {
     lastUpdated: new Date().toISOString(),
   },
 };
+
+// User Calibration Mock Data (for calibration and feedback tests)
+export const mockUserCalibration = {
+  default: {
+    id: 1,
+    user_id: 'default',
+    low_threshold: 30,
+    medium_threshold: 60,
+    high_threshold: 85,
+    decay_factor: 0.1,
+    false_positive_count: 0,
+    missed_detection_count: 0,
+    created_at: '2025-01-01T12:00:00Z',
+    updated_at: '2025-01-01T12:00:00Z',
+  },
+  adjusted: {
+    id: 1,
+    user_id: 'default',
+    low_threshold: 35,
+    medium_threshold: 65,
+    high_threshold: 90,
+    decay_factor: 0.1,
+    false_positive_count: 5,
+    missed_detection_count: 3,
+    created_at: '2025-01-01T12:00:00Z',
+    updated_at: new Date().toISOString(),
+  },
+};

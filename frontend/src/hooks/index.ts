@@ -317,3 +317,10 @@ export type {
   RetryStoreState,
   UseRetryReturn,
 } from './useRetry';
+
+// Event snooze hooks (NEM-2360, NEM-2361)
+export { useSnoozeEvent } from './useSnoozeEvent';
+export type {
+  UseSnoozeEventOptions,
+  UseSnoozeEventReturn,
+} from './useSnoozeEvent';

@@ -1346,6 +1346,7 @@ async def get_event(
         reasoning=event.reasoning,
         reviewed=event.reviewed,
         notes=event.notes,
+        snooze_until=event.snooze_until,
         detection_count=detection_count,
         detection_ids=parsed_detection_ids,
         thumbnail_url=thumbnail_url,
@@ -1354,7 +1355,7 @@ async def get_event(
 
 
 @router.patch("/{event_id}", response_model=EventResponse)
-async def update_event(
+async def update_event(  # noqa: PLR0912  # Allow branches for audit logging logic
     event_id: int,
     update_data: EventUpdate,
     request: Request,
@@ -1382,6 +1383,7 @@ async def update_event(
     changes: dict[str, Any] = {}
     old_reviewed = event.reviewed
     old_notes = event.notes
+    old_snooze_until = event.snooze_until
 
     # Update fields if provided (use exclude_unset to differentiate between None and not provided)
     update_dict = update_data.model_dump(exclude_unset=True)
@@ -1393,6 +1395,14 @@ async def update_event(
         event.notes = update_data.notes
         if old_notes != event.notes:
             changes["notes"] = {"old": old_notes, "new": event.notes}
+    # Handle snooze_until field (NEM-2359)
+    if "snooze_until" in update_dict:
+        event.snooze_until = update_data.snooze_until
+        if old_snooze_until != event.snooze_until:
+            changes["snooze_until"] = {
+                "old": old_snooze_until.isoformat() if old_snooze_until else None,
+                "new": event.snooze_until.isoformat() if event.snooze_until else None,
+            }
 
     # Determine audit action based on changes
     if changes.get("reviewed", {}).get("new") is True:
@@ -1466,6 +1476,7 @@ async def update_event(
         reasoning=event.reasoning,
         reviewed=event.reviewed,
         notes=event.notes,
+        snooze_until=event.snooze_until,
         detection_count=detection_count,
         detection_ids=parsed_detection_ids,
         thumbnail_url=thumbnail_url,

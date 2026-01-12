@@ -568,8 +568,9 @@ describe('AlertsPage', () => {
         expect(screen.getByText('Front Door')).toBeInTheDocument();
       });
 
-      // Find the first event card and click on it (not the View Details button)
-      const eventCard = screen.getByRole('button', { name: /View details for event from Front Door/i });
+      // Find the first event card by data-testid and click on it
+      // Note: Card doesn't have role="button" when nested interactive elements exist (snooze)
+      const eventCard = screen.getByTestId('event-card-1');
       await user.click(eventCard);
 
       // Modal should open
@@ -596,7 +597,7 @@ describe('AlertsPage', () => {
       });
 
       // Click on event card to open modal
-      const eventCard = screen.getByRole('button', { name: /View details for event from Front Door/i });
+      const eventCard = screen.getByTestId('event-card-1');
       await user.click(eventCard);
 
       await waitFor(() => {
@@ -631,7 +632,7 @@ describe('AlertsPage', () => {
       });
 
       // Click on event card to open modal
-      const eventCard = screen.getByRole('button', { name: /View details for event from Front Door/i });
+      const eventCard = screen.getByTestId('event-card-1');
       await user.click(eventCard);
 
       await waitFor(() => {
@@ -667,7 +668,7 @@ describe('AlertsPage', () => {
       });
 
       // Click on first event card to open modal
-      const eventCard = screen.getByRole('button', { name: /View details for event from Front Door/i });
+      const eventCard = screen.getByTestId('event-card-1');
       await user.click(eventCard);
 
       await waitFor(() => {
@@ -706,7 +707,7 @@ describe('AlertsPage', () => {
       });
 
       // Click on event card to open modal
-      const eventCard = screen.getByRole('button', { name: /View details for event from Front Door/i });
+      const eventCard = screen.getByTestId('event-card-1');
       await user.click(eventCard);
 
       await waitFor(() => {

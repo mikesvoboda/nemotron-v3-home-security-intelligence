@@ -71,6 +71,156 @@ export interface ValidationResult {
 // =============================================================================
 
 /**
+ * Check if two consecutive points are duplicates within a tolerance.
+ * Aligned with backend _has_duplicate_consecutive_points() in zone.py
+ */
+function hasDuplicateConsecutivePoints(
+  coords: [number, number][],
+  tolerance: number = 1e-9
+): boolean {
+  const n = coords.length;
+  for (let i = 0; i < n; i++) {
+    const p1 = coords[i];
+    const p2 = coords[(i + 1) % n];
+    if (Math.abs(p1[0] - p2[0]) < tolerance && Math.abs(p1[1] - p2[1]) < tolerance) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Calculate cross product sign for counter-clockwise test.
+ * Aligned with backend _ccw() in zone.py
+ */
+function ccw(a: [number, number], b: [number, number], c: [number, number]): number {
+  return (c[1] - a[1]) * (b[0] - a[0]) - (b[1] - a[1]) * (c[0] - a[0]);
+}
+
+/**
+ * Check if line segments (p1,p2) and (p3,p4) properly intersect.
+ * Aligned with backend _segments_intersect() in zone.py
+ */
+function segmentsIntersect(
+  p1: [number, number],
+  p2: [number, number],
+  p3: [number, number],
+  p4: [number, number]
+): boolean {
+  const d1 = ccw(p3, p4, p1);
+  const d2 = ccw(p3, p4, p2);
+  const d3 = ccw(p1, p2, p3);
+  const d4 = ccw(p1, p2, p4);
+
+  // Check for proper crossing (signs must differ)
+  return ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0));
+}
+
+/**
+ * Check if a polygon self-intersects.
+ * Aligned with backend _is_self_intersecting() in zone.py
+ */
+function isSelfIntersecting(coords: [number, number][]): boolean {
+  const n = coords.length;
+  if (n < 4) {
+    // A triangle cannot self-intersect
+    return false;
+  }
+
+  // Check all pairs of non-adjacent edges
+  for (let i = 0; i < n; i++) {
+    const p1 = coords[i];
+    const p2 = coords[(i + 1) % n];
+
+    // Check against non-adjacent edges
+    for (let j = i + 2; j < n; j++) {
+      // Skip the edge that wraps around and is adjacent to edge i
+      if (i === 0 && j === n - 1) {
+        continue;
+      }
+
+      const p3 = coords[j];
+      const p4 = coords[(j + 1) % n];
+
+      if (segmentsIntersect(p1, p2, p3, p4)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Calculate the area of a polygon using the shoelace formula.
+ * Aligned with backend _polygon_area() in zone.py
+ */
+function calculatePolygonArea(coords: [number, number][]): number {
+  const n = coords.length;
+  if (n < 3) {
+    return 0;
+  }
+
+  let area = 0;
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    area += coords[i][0] * coords[j][1];
+    area -= coords[j][0] * coords[i][1];
+  }
+  return Math.abs(area / 2);
+}
+
+/**
+ * Validates zone coordinates according to backend schema.
+ * Backend constraints (from zone.py _validate_polygon_geometry):
+ * - Minimum 3 points for a polygon
+ * - Each point must have exactly 2 values [x, y]
+ * - All values must be normalized (0-1 range)
+ * - No duplicate consecutive points
+ * - Polygon must have positive area (not degenerate)
+ * - Polygon must not self-intersect
+ */
+export function validateZoneCoordinates(coordinates: [number, number][]): ValidationResult {
+  // Minimum 3 points for a polygon
+  const { minPoints } = VALIDATION_LIMITS.zone.coordinates;
+  if (coordinates.length < minPoints) {
+    return { isValid: false, error: `Zone must have at least ${minPoints} points` };
+  }
+
+  // Check each point has valid format and is normalized (0-1 range)
+  for (let i = 0; i < coordinates.length; i++) {
+    const point = coordinates[i];
+    if (!Array.isArray(point) || point.length !== 2) {
+      return { isValid: false, error: `Point ${i + 1} must have exactly 2 values [x, y]` };
+    }
+    const [x, y] = point;
+    if (typeof x !== 'number' || typeof y !== 'number') {
+      return { isValid: false, error: `Point ${i + 1} coordinates must be numbers` };
+    }
+    if (x < 0 || x > 1 || y < 0 || y > 1) {
+      return { isValid: false, error: `Point ${i + 1} coordinates must be normalized (0-1 range)` };
+    }
+  }
+
+  // Check for duplicate consecutive points
+  if (hasDuplicateConsecutivePoints(coordinates)) {
+    return { isValid: false, error: 'Zone has duplicate consecutive points' };
+  }
+
+  // Check for self-intersection
+  if (isSelfIntersecting(coordinates)) {
+    return { isValid: false, error: 'Zone polygon cannot self-intersect' };
+  }
+
+  // Minimum area check (not degenerate)
+  if (calculatePolygonArea(coordinates) < 1e-10) {
+    return { isValid: false, error: 'Zone area is too small (degenerate shape)' };
+  }
+
+  return { isValid: true };
+}
+
+/**
  * Validates zone name according to backend schema.
  * Backend constraint: min_length=1, max_length=255
  */
@@ -268,14 +418,36 @@ export function validateCooldownSeconds(cooldown: number): ValidationResult {
 }
 
 /**
+ * Pattern for valid dedup_key: alphanumeric, underscore, hyphen, colon only.
+ * Aligned with backend DEDUP_KEY_PATTERN in alerts.py (NEM-1107 security fix).
+ * Template variables like {camera_id} are also allowed.
+ */
+const DEDUP_KEY_PATTERN = /^[a-zA-Z0-9_:\-{}]+$/;
+
+/**
  * Validates dedup key template according to backend schema.
- * Backend constraint: max_length=255
+ * Backend constraints (from alerts.py):
+ * - max_length=255
+ * - Pattern: only alphanumeric, underscore, hyphen, colon, and template braces allowed
  */
 export function validateDedupKeyTemplate(template: string): ValidationResult {
   const { maxLength } = VALIDATION_LIMITS.alertRule.dedupKeyTemplate;
 
   if (template.length > maxLength) {
     return { isValid: false, error: `Dedup key template must be at most ${maxLength} characters` };
+  }
+
+  // Empty templates are valid (will use default)
+  if (template.length === 0) {
+    return { isValid: true };
+  }
+
+  // Check pattern - only allow safe characters
+  if (!DEDUP_KEY_PATTERN.test(template)) {
+    return {
+      isValid: false,
+      error: 'Only alphanumeric, underscore, hyphen, colon, and template variables allowed',
+    };
   }
 
   return { isValid: true };

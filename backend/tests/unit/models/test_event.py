@@ -677,3 +677,129 @@ class TestEventProperties:
         # Can parse back to list
         parsed = [int(x) for x in event.detection_ids.split(",")]
         assert parsed == detection_ids
+
+
+# =============================================================================
+# Event Snooze Tests (NEM-2359)
+# =============================================================================
+
+
+class TestEventSnooze:
+    """Tests for Event snooze_until field (NEM-2359).
+
+    The snooze_until field allows temporarily suppressing alerts for an event
+    until a specified timestamp. When set, alerts for the event are snoozed
+    until that time.
+    """
+
+    def test_snooze_until_default_is_none(self):
+        """Test snooze_until is None by default."""
+        event = Event(
+            batch_id="b1",
+            camera_id="cam",
+            started_at=datetime.now(UTC),
+        )
+        assert event.snooze_until is None
+
+    def test_snooze_until_can_be_set(self):
+        """Test snooze_until can be set to a future timestamp."""
+        snooze_time = datetime(2025, 1, 15, 12, 0, 0, tzinfo=UTC)
+        event = Event(
+            batch_id="b1",
+            camera_id="cam",
+            started_at=datetime.now(UTC),
+            snooze_until=snooze_time,
+        )
+        assert event.snooze_until == snooze_time
+
+    def test_snooze_until_with_timezone(self):
+        """Test snooze_until preserves timezone-aware datetime."""
+        snooze_time = datetime(2025, 6, 15, 18, 30, 0, tzinfo=UTC)
+        event = Event(
+            batch_id="b1",
+            camera_id="cam",
+            started_at=datetime.now(UTC),
+            snooze_until=snooze_time,
+        )
+        assert event.snooze_until == snooze_time
+        assert event.snooze_until.tzinfo is not None
+
+    def test_snooze_until_can_be_cleared(self):
+        """Test snooze_until can be cleared by setting to None."""
+        snooze_time = datetime(2025, 1, 15, 12, 0, 0, tzinfo=UTC)
+        event = Event(
+            batch_id="b1",
+            camera_id="cam",
+            started_at=datetime.now(UTC),
+            snooze_until=snooze_time,
+        )
+        assert event.snooze_until == snooze_time
+
+        # Clear the snooze
+        event.snooze_until = None
+        assert event.snooze_until is None
+
+    def test_is_snoozed_when_snooze_until_in_future(self):
+        """Test event is considered snoozed when snooze_until is in the future."""
+        future_time = datetime.now(UTC) + timedelta(hours=1)
+        event = Event(
+            batch_id="b1",
+            camera_id="cam",
+            started_at=datetime.now(UTC),
+            snooze_until=future_time,
+        )
+        assert event.is_snoozed is True
+
+    def test_is_snoozed_when_snooze_until_in_past(self):
+        """Test event is not snoozed when snooze_until is in the past."""
+        past_time = datetime.now(UTC) - timedelta(hours=1)
+        event = Event(
+            batch_id="b1",
+            camera_id="cam",
+            started_at=datetime.now(UTC),
+            snooze_until=past_time,
+        )
+        assert event.is_snoozed is False
+
+    def test_is_snoozed_when_snooze_until_is_none(self):
+        """Test event is not snoozed when snooze_until is None."""
+        event = Event(
+            batch_id="b1",
+            camera_id="cam",
+            started_at=datetime.now(UTC),
+            snooze_until=None,
+        )
+        assert event.is_snoozed is False
+
+    def test_snooze_until_column_is_nullable(self):
+        """Test that snooze_until column is defined as nullable."""
+        from sqlalchemy import inspect
+
+        mapper = inspect(Event)
+        snooze_col = mapper.columns["snooze_until"]
+        assert snooze_col.nullable is True
+
+    def test_snooze_until_column_is_datetime_with_timezone(self):
+        """Test that snooze_until column is DateTime with timezone."""
+        from sqlalchemy import inspect
+
+        mapper = inspect(Event)
+        snooze_col = mapper.columns["snooze_until"]
+        # Check it's a DateTime type
+        assert hasattr(snooze_col.type, "timezone")
+        assert snooze_col.type.timezone is True
+
+    def test_snooze_event_factory(self):
+        """Test EventFactory can create snoozed events."""
+        from backend.tests.factories import EventFactory
+
+        snooze_time = datetime(2025, 2, 1, 10, 0, 0, tzinfo=UTC)
+        event = EventFactory(snooze_until=snooze_time)
+        assert event.snooze_until == snooze_time
+
+    def test_snooze_event_factory_default(self):
+        """Test EventFactory creates events without snooze by default."""
+        from backend.tests.factories import EventFactory
+
+        event = EventFactory()
+        assert event.snooze_until is None

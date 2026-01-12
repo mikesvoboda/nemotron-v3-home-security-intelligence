@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   Clock,
   Download,
+  Eye,
   Film,
   Flag,
   RefreshCw,
@@ -88,6 +89,8 @@ export interface Event {
   notes?: string | null;
   flagged?: boolean;
   entity_id?: string | null;
+  /** Florence-2 generated scene caption describing the overall scene */
+  scene_caption?: string | null;
 }
 
 export interface EventDetailModalProps {
@@ -754,6 +757,24 @@ export default function EventDetailModal({
                     )}
                     <p className="text-base leading-relaxed text-gray-200">{event.summary}</p>
                   </div>
+
+                  {/* AI Scene Description (Florence-2 Caption) */}
+                  {event.scene_caption && (
+                    <div className="mb-6" data-testid="scene-caption-section">
+                      <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-gray-400">
+                        <Eye className="h-4 w-4" aria-hidden="true" />
+                        AI Scene Description
+                      </h3>
+                      <div className="rounded-lg border border-gray-700 bg-black/20 p-4">
+                        <p
+                          className="text-sm italic leading-relaxed text-gray-300"
+                          data-testid="scene-caption-text"
+                        >
+                          {event.scene_caption}
+                        </p>
+                      </div>
+                    </div>
+                  )}
 
                   {/* AI Reasoning */}
                   {event.reasoning && (

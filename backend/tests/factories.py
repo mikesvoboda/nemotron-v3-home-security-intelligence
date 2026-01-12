@@ -168,6 +168,7 @@ class EventFactory(factory.Factory):
     clip_path: str | None = None
     search_vector = None
     deleted_at: datetime | None = None
+    snooze_until: datetime | None = None
 
     class Params:
         """Traits for common event configurations."""

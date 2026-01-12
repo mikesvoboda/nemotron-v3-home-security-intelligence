@@ -22,6 +22,7 @@ import {
   Cloud,
   CreditCard,
   Dog,
+  FileText,
   ImageIcon,
   Package,
   ShieldAlert,
@@ -342,6 +343,14 @@ export default function EnrichmentPanel({
                 <FlagBadge label="Commercial Vehicle" variant="info" />
               </div>
             )}
+            {enrichment_data.vehicle.caption && (
+              <div className="pt-2 border-t border-gray-700">
+                <div className="flex items-start gap-2 pt-2">
+                  <FileText className="h-3 w-3 text-gray-400 mt-0.5 flex-shrink-0" />
+                  <span className="text-xs text-gray-400 italic">{enrichment_data.vehicle.caption}</span>
+                </div>
+              </div>
+            )}
           </div>
         </AccordionBody>
       </Accordion>
@@ -413,6 +422,14 @@ export default function EnrichmentPanel({
                 <FlagBadge label="Service Uniform" variant="info" />
               )}
             </div>
+            {enrichment_data.person.caption && (
+              <div className="pt-2 border-t border-gray-700">
+                <div className="flex items-start gap-2 pt-2">
+                  <FileText className="h-3 w-3 text-gray-400 mt-0.5 flex-shrink-0" />
+                  <span className="text-xs text-gray-400 italic">{enrichment_data.person.caption}</span>
+                </div>
+              </div>
+            )}
           </div>
         </AccordionBody>
       </Accordion>
