@@ -1162,7 +1162,26 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Patch Calibration
+         * @description Partially update calibration thresholds.
+         *
+         *     Allows partial updates - only provided fields will be changed.
+         *     Validates that threshold ordering is maintained (low < medium < high).
+         *
+         *     This endpoint is semantically identical to PUT but emphasizes partial updates.
+         *
+         *     Args:
+         *         update_data: Fields to update (partial updates supported)
+         *         db: Database session
+         *
+         *     Returns:
+         *         Updated CalibrationResponse
+         *
+         *     Raises:
+         *         HTTPException: 422 if threshold ordering would be violated
+         */
+        patch: operations["patch_calibration_api_calibration_patch"];
         trace?: never;
     };
     "/api/calibration/defaults": {
@@ -10475,7 +10494,7 @@ export interface components {
              * @description ID of the event this feedback is for
              */
             event_id: number;
-            /** @description Type of feedback (false_positive, missed_detection, wrong_severity, correct) */
+            /** @description Type of feedback (accurate, false_positive, missed_threat, severity_wrong) */
             feedback_type: components["schemas"]["FeedbackType"];
             /**
              * Notes
@@ -11046,10 +11065,10 @@ export interface components {
          *         "garage": 20
          *       },
          *       "by_type": {
-         *         "correct": 10,
+         *         "accurate": 10,
          *         "false_positive": 40,
-         *         "missed_detection": 30,
-         *         "wrong_severity": 20
+         *         "missed_threat": 30,
+         *         "severity_wrong": 20
          *       },
          *       "total_feedback": 100
          *     }
@@ -11080,13 +11099,13 @@ export interface components {
          * @description Types of feedback users can provide on events.
          *
          *     Values:
+         *         ACCURATE: Event was correctly classified with appropriate severity
          *         FALSE_POSITIVE: Event was incorrectly flagged as concerning
-         *         MISSED_DETECTION: System failed to detect a concerning event
-         *         WRONG_SEVERITY: Event was flagged but with wrong severity level
-         *         CORRECT: Event was correctly classified and scored
+         *         MISSED_THREAT: System failed to detect a concerning event
+         *         SEVERITY_WRONG: Event was flagged but with incorrect severity level
          * @enum {string}
          */
-        FeedbackType: "false_positive" | "missed_detection" | "wrong_severity" | "correct";
+        FeedbackType: "accurate" | "false_positive" | "missed_threat" | "severity_wrong";
         /**
          * FileWatcherStatusResponse
          * @description Status information for the FileWatcher service.
@@ -19473,6 +19492,44 @@ export interface operations {
         };
     };
     update_calibration_api_calibration_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserCalibrationUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserCalibrationResponse"];
+                };
+            };
+            /** @description Validation error (invalid threshold ordering) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    patch_calibration_api_calibration_patch: {
         parameters: {
             query?: never;
             header?: never;

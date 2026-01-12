@@ -279,11 +279,18 @@ class CalibrationService:
         calibration.high_threshold = new_high
         calibration.updated_at = datetime.now(UTC)
 
-        # Update feedback counts
+        # Update feedback counts based on feedback type
+        # FALSE_POSITIVE and SEVERITY_WRONG both indicate over-sensitivity
+        # MISSED_THREAT indicates under-sensitivity
+        # ACCURATE doesn't affect counts
         if feedback.feedback_type == FeedbackType.FALSE_POSITIVE:
             calibration.false_positive_count += 1
-        else:
+        elif feedback.feedback_type == FeedbackType.MISSED_THREAT:
             calibration.missed_detection_count += 1
+        elif feedback.feedback_type == FeedbackType.SEVERITY_WRONG:
+            # Severity wrong could be either way, count as false positive for tracking
+            calibration.false_positive_count += 1
+        # ACCURATE feedback doesn't increment any counters
 
         await db.flush()
 
@@ -350,17 +357,25 @@ class CalibrationService:
         """Calculate the threshold adjustment for given feedback.
 
         The adjustment is calculated based on:
-        1. The feedback type (false positive vs missed detection)
+        1. The feedback type (accurate, false positive, missed threat, severity wrong)
         2. The risk score of the event
         3. The decay factor controlling adjustment magnitude
+
+        For ACCURATE (event was correctly classified):
+            - No adjustment needed, thresholds are working well
 
         For FALSE_POSITIVE (event was high-risk but benign):
             - Raise all thresholds to make the system less sensitive
             - Adjustment magnitude based on how high the risk score was
 
-        For MISSED_DETECTION (event was low-risk but concerning):
+        For MISSED_THREAT (event was low-risk but concerning):
             - Lower all thresholds to make the system more sensitive
             - Adjustment magnitude based on how low the risk score was
+
+        For SEVERITY_WRONG (event flagged but with wrong severity):
+            - Apply smaller adjustment based on score distance from midpoint
+            - Higher scores: raise thresholds slightly (severity was too high)
+            - Lower scores: lower thresholds slightly (severity was too low)
 
         Args:
             feedback_type: Type of feedback
@@ -378,7 +393,16 @@ class CalibrationService:
         if decay_factor > 0 and base_adjustment < 1:
             base_adjustment = 1
 
-        if feedback_type == FeedbackType.FALSE_POSITIVE:
+        if feedback_type == FeedbackType.ACCURATE:
+            # Event was correctly classified - no adjustment needed
+            return ThresholdAdjustment(
+                low_delta=0,
+                medium_delta=0,
+                high_delta=0,
+                feedback_type=feedback_type,
+                original_risk_score=risk_score,
+            )
+        elif feedback_type == FeedbackType.FALSE_POSITIVE:
             # Event was flagged as high-risk but user says benign
             # Raise thresholds to be less sensitive
             # Higher risk scores mean larger upward adjustment needed
@@ -392,8 +416,7 @@ class CalibrationService:
                 feedback_type=feedback_type,
                 original_risk_score=risk_score,
             )
-        else:
-            # FeedbackType.MISSED_DETECTION
+        elif feedback_type == FeedbackType.MISSED_THREAT:
             # Event was flagged as low-risk but user says concerning
             # Lower thresholds to be more sensitive
             # Lower risk scores mean larger downward adjustment needed
@@ -407,6 +430,33 @@ class CalibrationService:
                 feedback_type=feedback_type,
                 original_risk_score=risk_score,
             )
+        else:
+            # FeedbackType.SEVERITY_WRONG
+            # Event was flagged but with wrong severity level
+            # Apply a smaller adjustment - half of the base adjustment
+            # Direction depends on whether score is above or below 50
+            half_adjustment = max(1, base_adjustment // 2) if decay_factor > 0 else 0
+
+            if risk_score >= 50:
+                # High score but wrong severity - probably rated too severe
+                # Raise thresholds slightly
+                return ThresholdAdjustment(
+                    low_delta=half_adjustment,
+                    medium_delta=half_adjustment,
+                    high_delta=half_adjustment,
+                    feedback_type=feedback_type,
+                    original_risk_score=risk_score,
+                )
+            else:
+                # Low score but wrong severity - probably rated too low
+                # Lower thresholds slightly
+                return ThresholdAdjustment(
+                    low_delta=-half_adjustment,
+                    medium_delta=-half_adjustment,
+                    high_delta=-half_adjustment,
+                    feedback_type=feedback_type,
+                    original_risk_score=risk_score,
+                )
 
     def _apply_adjustment(
         self,

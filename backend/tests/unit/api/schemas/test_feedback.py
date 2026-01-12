@@ -31,26 +31,26 @@ class TestFeedbackType:
         assert FeedbackType.FALSE_POSITIVE == "false_positive"
         assert FeedbackType.FALSE_POSITIVE.value == "false_positive"
 
-    def test_feedback_type_missed_detection(self):
-        """Test FeedbackType.MISSED_DETECTION value."""
+    def test_feedback_type_missed_threat(self):
+        """Test FeedbackType.MISSED_THREAT value."""
         from backend.api.schemas.feedback import FeedbackType
 
-        assert FeedbackType.MISSED_DETECTION == "missed_detection"
-        assert FeedbackType.MISSED_DETECTION.value == "missed_detection"
+        assert FeedbackType.MISSED_THREAT == "missed_threat"
+        assert FeedbackType.MISSED_THREAT.value == "missed_threat"
 
-    def test_feedback_type_wrong_severity(self):
-        """Test FeedbackType.WRONG_SEVERITY value."""
+    def test_feedback_type_severity_wrong(self):
+        """Test FeedbackType.SEVERITY_WRONG value."""
         from backend.api.schemas.feedback import FeedbackType
 
-        assert FeedbackType.WRONG_SEVERITY == "wrong_severity"
-        assert FeedbackType.WRONG_SEVERITY.value == "wrong_severity"
+        assert FeedbackType.SEVERITY_WRONG == "severity_wrong"
+        assert FeedbackType.SEVERITY_WRONG.value == "severity_wrong"
 
-    def test_feedback_type_correct(self):
-        """Test FeedbackType.CORRECT value."""
+    def test_feedback_type_accurate(self):
+        """Test FeedbackType.ACCURATE value."""
         from backend.api.schemas.feedback import FeedbackType
 
-        assert FeedbackType.CORRECT == "correct"
-        assert FeedbackType.CORRECT.value == "correct"
+        assert FeedbackType.ACCURATE == "accurate"
+        assert FeedbackType.ACCURATE.value == "accurate"
 
     def test_feedback_type_is_string_enum(self):
         """Test FeedbackType inherits from str."""
@@ -89,12 +89,12 @@ class TestEventFeedbackCreate:
 
         feedback = EventFeedbackCreate(
             event_id=456,
-            feedback_type=FeedbackType.MISSED_DETECTION,
+            feedback_type=FeedbackType.MISSED_THREAT,
             notes="This was my neighbor's car.",
         )
 
         assert feedback.event_id == 456
-        assert feedback.feedback_type == FeedbackType.MISSED_DETECTION
+        assert feedback.feedback_type == FeedbackType.MISSED_THREAT
         assert feedback.notes == "This was my neighbor's car."
 
     def test_create_with_string_feedback_type(self):
@@ -103,22 +103,22 @@ class TestEventFeedbackCreate:
 
         feedback = EventFeedbackCreate(
             event_id=789,
-            feedback_type="wrong_severity",
+            feedback_type="severity_wrong",
         )
 
-        assert feedback.feedback_type == FeedbackType.WRONG_SEVERITY
+        assert feedback.feedback_type == FeedbackType.SEVERITY_WRONG
 
-    def test_create_with_correct_feedback_type(self):
-        """Test creating feedback with correct classification."""
+    def test_create_with_accurate_feedback_type(self):
+        """Test creating feedback with accurate classification."""
         from backend.api.schemas.feedback import EventFeedbackCreate, FeedbackType
 
         feedback = EventFeedbackCreate(
             event_id=100,
-            feedback_type=FeedbackType.CORRECT,
+            feedback_type=FeedbackType.ACCURATE,
             notes="Good detection!",
         )
 
-        assert feedback.feedback_type == FeedbackType.CORRECT
+        assert feedback.feedback_type == FeedbackType.ACCURATE
 
     def test_create_missing_event_id_raises_error(self):
         """Test that missing event_id raises validation error."""
@@ -209,7 +209,7 @@ class TestEventFeedbackResponse:
         response = EventFeedbackResponse(
             id=2,
             event_id=456,
-            feedback_type=FeedbackType.MISSED_DETECTION,
+            feedback_type=FeedbackType.MISSED_THREAT,
             notes=None,
             created_at=datetime.now(UTC),
         )
@@ -227,7 +227,7 @@ class TestEventFeedbackResponse:
         mock_model = MagicMock()
         mock_model.id = 3
         mock_model.event_id = 789
-        mock_model.feedback_type = "wrong_severity"
+        mock_model.feedback_type = "severity_wrong"
         mock_model.notes = "Severity too high"
         mock_model.created_at = datetime.now(UTC)
 
@@ -235,7 +235,7 @@ class TestEventFeedbackResponse:
 
         assert response.id == 3
         assert response.event_id == 789
-        assert response.feedback_type == "wrong_severity"
+        assert response.feedback_type == "severity_wrong"
         assert response.notes == "Severity too high"
 
     def test_response_serialization(self):
@@ -247,7 +247,7 @@ class TestEventFeedbackResponse:
         response = EventFeedbackResponse(
             id=4,
             event_id=100,
-            feedback_type=FeedbackType.CORRECT,
+            feedback_type=FeedbackType.ACCURATE,
             notes=None,
             created_at=datetime(2025, 1, 1, 12, 0, 0, tzinfo=UTC),
         )
@@ -256,7 +256,7 @@ class TestEventFeedbackResponse:
 
         assert data["id"] == 4
         assert data["event_id"] == 100
-        assert data["feedback_type"] == "correct"
+        assert data["feedback_type"] == "accurate"
         assert data["notes"] is None
         assert "created_at" in data
 
@@ -277,9 +277,9 @@ class TestFeedbackStatsResponse:
             total_feedback=100,
             by_type={
                 "false_positive": 40,
-                "missed_detection": 30,
-                "wrong_severity": 20,
-                "correct": 10,
+                "missed_threat": 30,
+                "severity_wrong": 20,
+                "accurate": 10,
             },
             by_camera={
                 "front_door": 50,
@@ -290,7 +290,7 @@ class TestFeedbackStatsResponse:
 
         assert stats.total_feedback == 100
         assert stats.by_type["false_positive"] == 40
-        assert stats.by_type["missed_detection"] == 30
+        assert stats.by_type["missed_threat"] == 30
         assert stats.by_camera["front_door"] == 50
 
     def test_stats_response_empty_data(self):
@@ -327,14 +327,14 @@ class TestFeedbackStatsResponse:
 
         stats = FeedbackStatsResponse(
             total_feedback=50,
-            by_type={"false_positive": 25, "correct": 25},
+            by_type={"false_positive": 25, "accurate": 25},
             by_camera={"front_door": 50},
         )
 
         data = stats.model_dump(mode="json")
 
         assert data["total_feedback"] == 50
-        assert data["by_type"] == {"false_positive": 25, "correct": 25}
+        assert data["by_type"] == {"false_positive": 25, "accurate": 25}
         assert data["by_camera"] == {"front_door": 50}
 
     def test_stats_response_has_example(self):
