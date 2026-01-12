@@ -78,30 +78,23 @@ test.describe('Alerts Filter', () => {
     await page?.context().close();
   });
 
-  test('filter buttons are visible', async () => {
-    // Redesigned from dropdown to button group
+  test('risk filter dropdown is visible', async () => {
     await expect(alertsPage.riskFilter).toBeVisible();
   });
 
   test('can select all alerts filter', async () => {
     await alertsPage.filterBySeverity('all');
-    // Verify the button is pressed (aria-pressed="true")
-    const allButton = page.getByRole('button', { name: 'Filter by all alerts' });
-    await expect(allButton).toHaveAttribute('aria-pressed', 'true');
+    await expect(alertsPage.riskFilter).toHaveValue('all');
   });
 
   test('can select critical only filter', async () => {
     await alertsPage.filterBySeverity('critical');
-    // Verify the button is pressed (aria-pressed="true")
-    const criticalButton = page.getByRole('button', { name: 'Filter by critical severity' });
-    await expect(criticalButton).toHaveAttribute('aria-pressed', 'true');
+    await expect(alertsPage.riskFilter).toHaveValue('critical');
   });
 
   test('can select high only filter', async () => {
     await alertsPage.filterBySeverity('high');
-    // Verify the button is pressed (aria-pressed="true")
-    const highButton = page.getByRole('button', { name: 'Filter by high severity' });
-    await expect(highButton).toHaveAttribute('aria-pressed', 'true');
+    await expect(alertsPage.riskFilter).toHaveValue('high');
   });
 });
 
