@@ -13,16 +13,16 @@ class FeedbackType(str, Enum):
     """Types of feedback users can provide on events.
 
     Values:
+        ACCURATE: Event was correctly classified with appropriate severity
         FALSE_POSITIVE: Event was incorrectly flagged as concerning
-        MISSED_DETECTION: System failed to detect a concerning event
-        WRONG_SEVERITY: Event was flagged but with wrong severity level
-        CORRECT: Event was correctly classified and scored
+        MISSED_THREAT: System failed to detect a concerning event
+        SEVERITY_WRONG: Event was flagged but with incorrect severity level
     """
 
+    ACCURATE = "accurate"
     FALSE_POSITIVE = "false_positive"
-    MISSED_DETECTION = "missed_detection"
-    WRONG_SEVERITY = "wrong_severity"
-    CORRECT = "correct"
+    MISSED_THREAT = "missed_threat"
+    SEVERITY_WRONG = "severity_wrong"
 
     def __str__(self) -> str:
         """Return string representation of feedback type."""
@@ -52,7 +52,7 @@ class EventFeedbackCreate(BaseModel):
     )
     feedback_type: FeedbackType = Field(
         ...,
-        description="Type of feedback (false_positive, missed_detection, wrong_severity, correct)",
+        description="Type of feedback (accurate, false_positive, missed_threat, severity_wrong)",
     )
     notes: str | None = Field(
         None,
@@ -99,10 +99,10 @@ class FeedbackStatsResponse(BaseModel):
             "example": {
                 "total_feedback": 100,
                 "by_type": {
+                    "accurate": 10,
                     "false_positive": 40,
-                    "missed_detection": 30,
-                    "wrong_severity": 20,
-                    "correct": 10,
+                    "missed_threat": 30,
+                    "severity_wrong": 20,
                 },
                 "by_camera": {
                     "front_door": 50,

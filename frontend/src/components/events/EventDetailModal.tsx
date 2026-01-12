@@ -368,7 +368,7 @@ export default function EventDetailModal({
       notes: notes || undefined,
       // Note: The backend doesn't have expected_severity in the schema currently,
       // so we include it in the notes for now
-      ...(expectedSeverity !== undefined && feedbackFormType === 'wrong_severity'
+      ...(expectedSeverity !== undefined && feedbackFormType === 'severity_wrong'
         ? { notes: notes ? `Expected severity: ${expectedSeverity}. ${notes}` : `Expected severity: ${expectedSeverity}` }
         : {}),
     });
@@ -377,10 +377,10 @@ export default function EventDetailModal({
   // Get display label for existing feedback
   const getFeedbackTypeLabel = (type: string): string => {
     const labels: Record<string, string> = {
-      correct: 'Correct Detection',
+      accurate: 'Correct Detection',
       false_positive: 'False Positive',
-      wrong_severity: 'Wrong Severity',
-      missed_detection: 'Missed Detection',
+      severity_wrong: 'Wrong Severity',
+      missed_threat: 'Missed Detection',
     };
     return labels[type] || type;
   };
@@ -1009,7 +1009,7 @@ export default function EventDetailModal({
                         </p>
                         <div className="flex flex-wrap gap-2">
                           <button
-                            onClick={() => handleQuickFeedback('correct')}
+                            onClick={() => handleQuickFeedback('accurate')}
                             disabled={feedbackMutation.isPending}
                             className="flex items-center gap-2 rounded-lg border border-green-600/40 bg-green-600/10 px-3 py-2 text-sm font-medium text-green-400 transition-colors hover:bg-green-600/20 disabled:cursor-not-allowed disabled:opacity-50"
                             data-testid="feedback-correct-button"
@@ -1027,7 +1027,7 @@ export default function EventDetailModal({
                             False Positive
                           </button>
                           <button
-                            onClick={() => setFeedbackFormType('wrong_severity')}
+                            onClick={() => setFeedbackFormType('severity_wrong')}
                             disabled={feedbackMutation.isPending}
                             className="flex items-center gap-2 rounded-lg border border-yellow-600/40 bg-yellow-600/10 px-3 py-2 text-sm font-medium text-yellow-400 transition-colors hover:bg-yellow-600/20 disabled:cursor-not-allowed disabled:opacity-50"
                             data-testid="feedback-wrong-severity-button"

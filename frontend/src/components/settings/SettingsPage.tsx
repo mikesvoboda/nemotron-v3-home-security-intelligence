@@ -1,11 +1,12 @@
 import { Tab } from '@headlessui/react';
 import { clsx } from 'clsx';
-import { Bell, Camera, Eye, FileText, Settings as SettingsIcon, Shield } from 'lucide-react';
+import { Bell, Camera, Eye, FileText, Settings as SettingsIcon, Shield, Sliders } from 'lucide-react';
 import { Fragment } from 'react';
 
 import { SecureContextWarning } from '../common';
 import AlertRulesSettings from './AlertRulesSettings';
 import AmbientStatusSettings from './AmbientStatusSettings';
+import CalibrationPanel from './CalibrationPanel';
 import CamerasSettings from './CamerasSettings';
 import NotificationSettings from './NotificationSettings';
 import ProcessingSettings from './ProcessingSettings';
@@ -14,12 +15,13 @@ import PromptManagementPanel from './PromptManagementPanel';
 /**
  * SettingsPage component with tabbed interface
  *
- * Contains six settings tabs:
+ * Contains seven settings tabs:
  * - CAMERAS: Camera configuration and management
  * - RULES: Alert rules configuration
  * - PROCESSING: Event processing settings
  * - NOTIFICATIONS: Email and webhook notification settings
  * - AMBIENT: Ambient status awareness settings
+ * - CALIBRATION: AI risk sensitivity calibration settings
  * - PROMPTS: AI prompt template management and version history
  *
  * Note: Analytics functionality is available on the dedicated Analytics page (/analytics)
@@ -62,6 +64,12 @@ export default function SettingsPage() {
       name: 'AMBIENT',
       icon: Eye,
       component: AmbientStatusSettings,
+    },
+    {
+      id: 'calibration',
+      name: 'CALIBRATION',
+      icon: Sliders,
+      component: CalibrationPanel,
     },
     {
       id: 'prompts',

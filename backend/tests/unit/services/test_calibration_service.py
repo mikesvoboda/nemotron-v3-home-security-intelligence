@@ -90,7 +90,7 @@ class TestThresholdAdjustment:
             low_delta=-3,
             medium_delta=-3,
             high_delta=-3,
-            feedback_type=FeedbackType.MISSED_DETECTION,
+            feedback_type=FeedbackType.MISSED_THREAT,
             original_risk_score=25,
         )
         result = adjustment.to_dict()
@@ -98,7 +98,7 @@ class TestThresholdAdjustment:
             "low_delta": -3,
             "medium_delta": -3,
             "high_delta": -3,
-            "feedback_type": "missed_detection",
+            "feedback_type": "missed_threat",
             "original_risk_score": 25,
         }
 
@@ -289,18 +289,18 @@ class TestCalculateAdjustment:
         assert adjustment.high_delta > 0
         assert adjustment.feedback_type == FeedbackType.FALSE_POSITIVE
 
-    def test_missed_detection_lowers_thresholds(self) -> None:
-        """Test that MISSED_DETECTION feedback results in negative deltas."""
+    def test_missed_threat_lowers_thresholds(self) -> None:
+        """Test that MISSED_THREAT feedback results in negative deltas."""
         service = CalibrationService()
         adjustment = service.calculate_adjustment(
-            feedback_type=FeedbackType.MISSED_DETECTION,
+            feedback_type=FeedbackType.MISSED_THREAT,
             risk_score=25,
             decay_factor=0.1,
         )
         assert adjustment.low_delta < 0
         assert adjustment.medium_delta < 0
         assert adjustment.high_delta < 0
-        assert adjustment.feedback_type == FeedbackType.MISSED_DETECTION
+        assert adjustment.feedback_type == FeedbackType.MISSED_THREAT
 
     def test_higher_risk_score_larger_false_positive_adjustment(self) -> None:
         """Test that higher risk scores lead to larger adjustments for false positives."""
@@ -317,16 +317,16 @@ class TestCalculateAdjustment:
         )
         assert high_adj.low_delta >= low_adj.low_delta
 
-    def test_lower_risk_score_larger_missed_detection_adjustment(self) -> None:
-        """Test that lower risk scores lead to larger adjustments for missed detections."""
+    def test_lower_risk_score_larger_missed_threat_adjustment(self) -> None:
+        """Test that lower risk scores lead to larger adjustments for missed threats."""
         service = CalibrationService()
         high_score_adj = service.calculate_adjustment(
-            feedback_type=FeedbackType.MISSED_DETECTION,
+            feedback_type=FeedbackType.MISSED_THREAT,
             risk_score=50,
             decay_factor=0.1,
         )
         low_score_adj = service.calculate_adjustment(
-            feedback_type=FeedbackType.MISSED_DETECTION,
+            feedback_type=FeedbackType.MISSED_THREAT,
             risk_score=10,
             decay_factor=0.1,
         )
@@ -364,7 +364,7 @@ class TestCalculateAdjustment:
         ("feedback_type", "expected_sign"),
         [
             (FeedbackType.FALSE_POSITIVE, 1),
-            (FeedbackType.MISSED_DETECTION, -1),
+            (FeedbackType.MISSED_THREAT, -1),
         ],
     )
     def test_adjustment_direction_by_feedback_type(
@@ -383,6 +383,74 @@ class TestCalculateAdjustment:
             assert adjustment.low_delta > 0
         else:
             assert adjustment.low_delta < 0
+
+    def test_accurate_feedback_no_adjustment(self) -> None:
+        """Test that ACCURATE feedback results in zero deltas."""
+        service = CalibrationService()
+        adjustment = service.calculate_adjustment(
+            feedback_type=FeedbackType.ACCURATE,
+            risk_score=50,
+            decay_factor=0.1,
+        )
+        assert adjustment.low_delta == 0
+        assert adjustment.medium_delta == 0
+        assert adjustment.high_delta == 0
+        assert adjustment.feedback_type == FeedbackType.ACCURATE
+
+    def test_accurate_feedback_no_adjustment_any_score(self) -> None:
+        """Test that ACCURATE feedback results in zero deltas regardless of score."""
+        service = CalibrationService()
+        for score in [0, 25, 50, 75, 100]:
+            adjustment = service.calculate_adjustment(
+                feedback_type=FeedbackType.ACCURATE,
+                risk_score=score,
+                decay_factor=0.5,
+            )
+            assert adjustment.low_delta == 0
+            assert adjustment.medium_delta == 0
+            assert adjustment.high_delta == 0
+
+    def test_severity_wrong_high_score_raises_thresholds(self) -> None:
+        """Test that SEVERITY_WRONG with high score raises thresholds slightly."""
+        service = CalibrationService()
+        adjustment = service.calculate_adjustment(
+            feedback_type=FeedbackType.SEVERITY_WRONG,
+            risk_score=75,  # High score - severity was too high
+            decay_factor=0.1,
+        )
+        assert adjustment.low_delta > 0
+        assert adjustment.medium_delta > 0
+        assert adjustment.high_delta > 0
+        assert adjustment.feedback_type == FeedbackType.SEVERITY_WRONG
+
+    def test_severity_wrong_low_score_lowers_thresholds(self) -> None:
+        """Test that SEVERITY_WRONG with low score lowers thresholds slightly."""
+        service = CalibrationService()
+        adjustment = service.calculate_adjustment(
+            feedback_type=FeedbackType.SEVERITY_WRONG,
+            risk_score=25,  # Low score - severity was too low
+            decay_factor=0.1,
+        )
+        assert adjustment.low_delta < 0
+        assert adjustment.medium_delta < 0
+        assert adjustment.high_delta < 0
+        assert adjustment.feedback_type == FeedbackType.SEVERITY_WRONG
+
+    def test_severity_wrong_smaller_than_false_positive(self) -> None:
+        """Test that SEVERITY_WRONG adjustment is smaller than FALSE_POSITIVE."""
+        service = CalibrationService()
+        severity_wrong = service.calculate_adjustment(
+            feedback_type=FeedbackType.SEVERITY_WRONG,
+            risk_score=75,
+            decay_factor=0.1,
+        )
+        false_positive = service.calculate_adjustment(
+            feedback_type=FeedbackType.FALSE_POSITIVE,
+            risk_score=75,
+            decay_factor=0.1,
+        )
+        # Severity wrong should result in smaller adjustments
+        assert abs(severity_wrong.low_delta) <= abs(false_positive.low_delta)
 
 
 # =============================================================================
@@ -415,7 +483,7 @@ class TestApplyAdjustment:
             low_delta=-5,
             medium_delta=-5,
             high_delta=-5,
-            feedback_type=FeedbackType.MISSED_DETECTION,
+            feedback_type=FeedbackType.MISSED_THREAT,
             original_risk_score=25,
         )
         new_low, new_medium, new_high = service._apply_adjustment(30, 60, 85, adjustment)
@@ -430,7 +498,7 @@ class TestApplyAdjustment:
             low_delta=-50,
             medium_delta=-50,
             high_delta=-50,
-            feedback_type=FeedbackType.MISSED_DETECTION,
+            feedback_type=FeedbackType.MISSED_THREAT,
             original_risk_score=10,
         )
         new_low, _new_medium, _new_high = service._apply_adjustment(10, 40, 70, adjustment)
@@ -518,7 +586,7 @@ class TestApplyAdjustment:
             low_delta=-100,
             medium_delta=-100,
             high_delta=-100,
-            feedback_type=FeedbackType.MISSED_DETECTION,
+            feedback_type=FeedbackType.MISSED_THREAT,
             original_risk_score=0,
         )
         new_low, new_medium, new_high = service._apply_adjustment(30, 60, 85, adjustment)
@@ -663,8 +731,8 @@ class TestAdjustFromFeedback:
         assert result.missed_detection_count == 0
 
     @pytest.mark.asyncio
-    async def test_adjusts_on_missed_detection(self) -> None:
-        """Test that thresholds are lowered on missed detection feedback."""
+    async def test_adjusts_on_missed_threat(self) -> None:
+        """Test that thresholds are lowered on missed threat feedback."""
         service = CalibrationService()
 
         from backend.models.user_calibration import UserCalibration
@@ -693,7 +761,7 @@ class TestAdjustFromFeedback:
         mock_event.risk_score = 25
 
         mock_feedback = MagicMock(spec=EventFeedback)
-        mock_feedback.feedback_type = FeedbackType.MISSED_DETECTION
+        mock_feedback.feedback_type = FeedbackType.MISSED_THREAT
 
         result = await service.adjust_from_feedback(
             mock_session, mock_feedback, mock_event, "test_user"
@@ -850,7 +918,7 @@ class TestEdgeCases:
             low_delta=-10,
             medium_delta=-10,
             high_delta=-10,
-            feedback_type=FeedbackType.MISSED_DETECTION,
+            feedback_type=FeedbackType.MISSED_THREAT,
             original_risk_score=5,
         )
         new_low, new_medium, new_high = service._apply_adjustment(5, 35, 65, adjustment)
@@ -929,7 +997,7 @@ class TestEdgeCases:
             low_delta=-10,
             medium_delta=-10,
             high_delta=-10,
-            feedback_type=FeedbackType.MISSED_DETECTION,
+            feedback_type=FeedbackType.MISSED_THREAT,
             original_risk_score=20,
         )
         new_low2, new_medium2, new_high2 = service._apply_adjustment(

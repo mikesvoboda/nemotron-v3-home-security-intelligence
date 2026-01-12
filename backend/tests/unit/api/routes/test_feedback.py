@@ -178,7 +178,7 @@ class TestCreateFeedback:
             "/api/feedback",
             json={
                 "event_id": 456,
-                "feedback_type": "correct",
+                "feedback_type": "accurate",
             },
         )
 
@@ -321,9 +321,9 @@ class TestGetFeedbackStats:
         mock_type_result = MagicMock()
         mock_type_result.all.return_value = [
             ("false_positive", 40),
-            ("missed_detection", 30),
-            ("wrong_severity", 20),
-            ("correct", 10),
+            ("missed_threat", 30),
+            ("severity_wrong", 20),
+            ("accurate", 10),
         ]
 
         # Mock by_camera query result (returns list of tuples)
@@ -346,7 +346,7 @@ class TestGetFeedbackStats:
         data = response.json()
         assert data["total_feedback"] == 100
         assert data["by_type"]["false_positive"] == 40
-        assert data["by_type"]["missed_detection"] == 30
+        assert data["by_type"]["missed_threat"] == 30
         assert data["by_camera"]["front_door"] == 50
         assert data["by_camera"]["back_yard"] == 30
 
