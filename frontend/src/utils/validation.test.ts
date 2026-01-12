@@ -25,6 +25,7 @@ import {
   validateTemperature,
   validateTimeFormat,
   validateZoneColor,
+  validateZoneCoordinates,
   validateZoneName,
   validateZonePriority,
   VALID_DAYS,
@@ -101,6 +102,140 @@ describe('Zone Validation', () => {
       expect(validateZoneColor('#3B82F6F').isValid).toBe(false); // Too long
       expect(validateZoneColor('#GGGGGG').isValid).toBe(false); // Invalid chars
       expect(validateZoneColor('rgb(0,0,0)').isValid).toBe(false); // Wrong format
+    });
+  });
+
+  describe('validateZoneCoordinates', () => {
+    it('should accept valid polygon coordinates (aligned with backend _validate_polygon_geometry)', () => {
+      // Simple rectangle
+      const rectangle: [number, number][] = [
+        [0.1, 0.1],
+        [0.9, 0.1],
+        [0.9, 0.9],
+        [0.1, 0.9],
+      ];
+      expect(validateZoneCoordinates(rectangle).isValid).toBe(true);
+
+      // Triangle (minimum valid polygon)
+      const triangle: [number, number][] = [
+        [0.0, 0.0],
+        [1.0, 0.0],
+        [0.5, 1.0],
+      ];
+      expect(validateZoneCoordinates(triangle).isValid).toBe(true);
+
+      // Complex pentagon
+      const pentagon: [number, number][] = [
+        [0.5, 0.0],
+        [1.0, 0.4],
+        [0.8, 1.0],
+        [0.2, 1.0],
+        [0.0, 0.4],
+      ];
+      expect(validateZoneCoordinates(pentagon).isValid).toBe(true);
+    });
+
+    it('should reject polygons with less than 3 points (aligned with backend min_length=3)', () => {
+      const result1 = validateZoneCoordinates([]);
+      expect(result1.isValid).toBe(false);
+      expect(result1.error).toContain('at least 3');
+
+      const result2 = validateZoneCoordinates([[0.1, 0.1]]);
+      expect(result2.isValid).toBe(false);
+      expect(result2.error).toContain('at least 3');
+
+      const result3 = validateZoneCoordinates([
+        [0.1, 0.1],
+        [0.9, 0.9],
+      ]);
+      expect(result3.isValid).toBe(false);
+      expect(result3.error).toContain('at least 3');
+    });
+
+    it('should reject points with wrong format', () => {
+      // Point with only one coordinate
+      const result1 = validateZoneCoordinates([
+        [0.1, 0.1],
+        [0.9] as unknown as [number, number],
+        [0.5, 0.9],
+      ]);
+      expect(result1.isValid).toBe(false);
+      expect(result1.error).toContain('exactly 2 values');
+
+      // Point with three coordinates
+      const result2 = validateZoneCoordinates([
+        [0.1, 0.1],
+        [0.9, 0.1, 0.5] as unknown as [number, number],
+        [0.5, 0.9],
+      ]);
+      expect(result2.isValid).toBe(false);
+      expect(result2.error).toContain('exactly 2 values');
+    });
+
+    it('should reject coordinates outside 0-1 range (aligned with backend normalization)', () => {
+      // X coordinate out of range
+      const result1 = validateZoneCoordinates([
+        [0.1, 0.1],
+        [1.5, 0.1],
+        [0.5, 0.9],
+      ]);
+      expect(result1.isValid).toBe(false);
+      expect(result1.error).toContain('normalized (0-1 range)');
+
+      // Y coordinate out of range (negative)
+      const result2 = validateZoneCoordinates([
+        [0.1, -0.1],
+        [0.9, 0.1],
+        [0.5, 0.9],
+      ]);
+      expect(result2.isValid).toBe(false);
+      expect(result2.error).toContain('normalized (0-1 range)');
+    });
+
+    it('should reject duplicate consecutive points (aligned with backend _has_duplicate_consecutive_points)', () => {
+      const result = validateZoneCoordinates([
+        [0.1, 0.1],
+        [0.1, 0.1], // Duplicate
+        [0.9, 0.1],
+        [0.5, 0.9],
+      ]);
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain('duplicate consecutive');
+    });
+
+    it('should reject self-intersecting polygons (aligned with backend _is_self_intersecting)', () => {
+      // Figure-8 shaped polygon (edges cross)
+      const figureEight: [number, number][] = [
+        [0.0, 0.0],
+        [1.0, 1.0],
+        [1.0, 0.0],
+        [0.0, 1.0],
+      ];
+      const result = validateZoneCoordinates(figureEight);
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain('self-intersect');
+    });
+
+    it('should reject degenerate polygons with zero area (aligned with backend area check)', () => {
+      // All points on a line (zero area)
+      const collinear: [number, number][] = [
+        [0.0, 0.0],
+        [0.5, 0.5],
+        [1.0, 1.0],
+      ];
+      const result = validateZoneCoordinates(collinear);
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain('too small');
+    });
+
+    it('should accept edge case: boundary coordinates (0 and 1)', () => {
+      const boundary: [number, number][] = [
+        [0, 0],
+        [1, 0],
+        [1, 1],
+        [0, 1],
+      ];
+      expect(validateZoneCoordinates(boundary).isValid).toBe(true);
     });
   });
 });
@@ -266,16 +401,49 @@ describe('Alert Rule Validation', () => {
   });
 
   describe('validateDedupKeyTemplate', () => {
-    it('should accept valid templates', () => {
+    it('should accept valid templates (aligned with backend DEDUP_KEY_PATTERN)', () => {
       expect(validateDedupKeyTemplate('{camera_id}:{rule_id}').isValid).toBe(true);
       expect(validateDedupKeyTemplate('short').isValid).toBe(true);
+      expect(validateDedupKeyTemplate('camera-123:rule_456').isValid).toBe(true);
+      expect(validateDedupKeyTemplate('ABC_123').isValid).toBe(true);
       expect(validateDedupKeyTemplate('a'.repeat(255)).isValid).toBe(true);
+    });
+
+    it('should accept empty templates', () => {
+      expect(validateDedupKeyTemplate('').isValid).toBe(true);
     });
 
     it('should reject templates exceeding max length (aligned with backend max_length=255)', () => {
       const result = validateDedupKeyTemplate('a'.repeat(256));
       expect(result.isValid).toBe(false);
       expect(result.error).toContain('255');
+    });
+
+    it('should reject templates with invalid characters (aligned with backend security validation NEM-1107)', () => {
+      // SQL injection attempt
+      const result1 = validateDedupKeyTemplate("'; DROP TABLE alerts;--");
+      expect(result1.isValid).toBe(false);
+      expect(result1.error).toContain('alphanumeric');
+
+      // Command injection attempt
+      const result2 = validateDedupKeyTemplate('test$(whoami)');
+      expect(result2.isValid).toBe(false);
+      expect(result2.error).toContain('alphanumeric');
+
+      // XSS attempt
+      const result3 = validateDedupKeyTemplate('<script>alert(1)</script>');
+      expect(result3.isValid).toBe(false);
+      expect(result3.error).toContain('alphanumeric');
+
+      // Path traversal
+      const result4 = validateDedupKeyTemplate('../../../etc/passwd');
+      expect(result4.isValid).toBe(false);
+      expect(result4.error).toContain('alphanumeric');
+
+      // Spaces not allowed
+      const result5 = validateDedupKeyTemplate('camera id');
+      expect(result5.isValid).toBe(false);
+      expect(result5.error).toContain('alphanumeric');
     });
   });
 });
