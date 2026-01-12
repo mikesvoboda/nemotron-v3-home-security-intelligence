@@ -18329,32 +18329,6 @@ export interface components {
             /** @description Type of zone */
             zone_type?: components["schemas"]["ZoneType"] | null;
         };
-        /**
-         * ExportJobStartResponse
-         * @description Response when starting an export job.
-         * @example {
-         *       "job_id": "550e8400-e29b-41d4-a716-446655440000",
-         *       "message": "Export job created. Use GET /api/jobs/{job_id} to track progress.",
-         *       "status": "pending"
-         *     }
-         */
-        backend__api__schemas__jobs__ExportJobStartResponse: {
-            /**
-             * Job Id
-             * @description Job ID for tracking progress
-             */
-            job_id: string;
-            /**
-             * Message
-             * @description Status message
-             */
-            message: string;
-            /**
-             * @description Initial job status
-             * @default pending
-             */
-            status: components["schemas"]["JobStatusEnum"];
-        };
     };
     responses: never;
     parameters: never;
@@ -22596,7 +22570,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["backend__api__schemas__jobs__ExportJobStartResponse"];
+                    "application/json": components["schemas"]["ExportJobStartResponse"];
                 };
             };
             /** @description Validation Error */

@@ -8355,27 +8355,27 @@
         "type": "object"
       },
       "ExportJobStartResponse": {
-        "description": "Response when starting an export job.",
+        "description": "Response when creating an export job.\n\nReturns the job ID that can be used to track progress via\nGET /api/exports/{job_id}.",
         "example": {
           "job_id": "550e8400-e29b-41d4-a716-446655440000",
-          "message": "Export job created. Use GET /api/jobs/{job_id} to track progress.",
+          "message": "Export job created. Use GET /api/exports/{job_id} to track progress.",
           "status": "pending"
         },
         "properties": {
           "job_id": {
-            "description": "Job ID for tracking progress",
+            "description": "Unique job identifier for tracking progress",
             "title": "Job Id",
             "type": "string"
           },
           "message": {
-            "description": "Status message",
+            "description": "Human-readable status message",
             "title": "Message",
             "type": "string"
           },
           "status": {
-            "$ref": "#/components/schemas/JobStatusEnum",
+            "$ref": "#/components/schemas/ExportJobStatusEnum",
             "default": "pending",
-            "description": "Initial job status"
+            "description": "Initial job status (always pending)"
           }
         },
         "required": [
@@ -18186,37 +18186,6 @@
         },
         "title": "ZoneUpdate",
         "type": "object"
-      },
-      "backend__api__schemas__export__ExportJobStartResponse": {
-        "description": "Response when creating an export job.\n\nReturns the job ID that can be used to track progress via\nGET /api/exports/{job_id}.",
-        "example": {
-          "job_id": "550e8400-e29b-41d4-a716-446655440000",
-          "message": "Export job created. Use GET /api/exports/{job_id} to track progress.",
-          "status": "pending"
-        },
-        "properties": {
-          "job_id": {
-            "description": "Unique job identifier for tracking progress",
-            "title": "Job Id",
-            "type": "string"
-          },
-          "message": {
-            "description": "Human-readable status message",
-            "title": "Message",
-            "type": "string"
-          },
-          "status": {
-            "$ref": "#/components/schemas/ExportJobStatusEnum",
-            "default": "pending",
-            "description": "Initial job status (always pending)"
-          }
-        },
-        "required": [
-          "job_id",
-          "message"
-        ],
-        "title": "ExportJobStartResponse",
-        "type": "object"
       }
     }
   },
@@ -24724,7 +24693,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/backend__api__schemas__export__ExportJobStartResponse"
+                  "$ref": "#/components/schemas/ExportJobStartResponse"
                 }
               }
             },
