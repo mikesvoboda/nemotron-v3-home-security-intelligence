@@ -7020,7 +7020,7 @@
           },
           "feedback_type": {
             "$ref": "#/components/schemas/FeedbackType",
-            "description": "Type of feedback (false_positive, missed_detection, wrong_severity, correct)"
+            "description": "Type of feedback (accurate, false_positive, missed_threat, severity_wrong)"
           },
           "notes": {
             "anyOf": [
@@ -7854,10 +7854,10 @@
             "garage": 20
           },
           "by_type": {
-            "correct": 10,
+            "accurate": 10,
             "false_positive": 40,
-            "missed_detection": 30,
-            "wrong_severity": 20
+            "missed_threat": 30,
+            "severity_wrong": 20
           },
           "total_feedback": 100
         },
@@ -7894,12 +7894,12 @@
         "type": "object"
       },
       "FeedbackType": {
-        "description": "Types of feedback users can provide on events.\n\nValues:\n    FALSE_POSITIVE: Event was incorrectly flagged as concerning\n    MISSED_DETECTION: System failed to detect a concerning event\n    WRONG_SEVERITY: Event was flagged but with wrong severity level\n    CORRECT: Event was correctly classified and scored",
+        "description": "Types of feedback users can provide on events.\n\nValues:\n    ACCURATE: Event was correctly classified with appropriate severity\n    FALSE_POSITIVE: Event was incorrectly flagged as concerning\n    MISSED_THREAT: System failed to detect a concerning event\n    SEVERITY_WRONG: Event was flagged but with incorrect severity level",
         "enum": [
+          "accurate",
           "false_positive",
-          "missed_detection",
-          "wrong_severity",
-          "correct"
+          "missed_threat",
+          "severity_wrong"
         ],
         "title": "FeedbackType",
         "type": "string"
@@ -18388,6 +18388,42 @@
           }
         },
         "summary": "Get Calibration",
+        "tags": [
+          "calibration"
+        ]
+      },
+      "patch": {
+        "description": "Partially update calibration thresholds.\n\nAllows partial updates - only provided fields will be changed.\nValidates that threshold ordering is maintained (low < medium < high).\n\nThis endpoint is semantically identical to PUT but emphasizes partial updates.\n\nArgs:\n    update_data: Fields to update (partial updates supported)\n    db: Database session\n\nReturns:\n    Updated CalibrationResponse\n\nRaises:\n    HTTPException: 422 if threshold ordering would be violated",
+        "operationId": "patch_calibration_api_calibration_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserCalibrationUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserCalibrationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation error (invalid threshold ordering)"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Patch Calibration",
         "tags": [
           "calibration"
         ]

@@ -60,7 +60,7 @@ vi.mock('../../services/api', async () => {
     submitEventFeedback: vi.fn().mockResolvedValue({
       id: 1,
       event_id: 123,
-      feedback_type: 'correct',
+      feedback_type: 'accurate',
       notes: null,
       created_at: '2024-01-15T10:30:00Z',
     }),
@@ -2256,7 +2256,7 @@ describe('EventDetailModal', () => {
       vi.mocked(api.getEventFeedback).mockResolvedValue({
         id: 1,
         event_id: 123,
-        feedback_type: 'correct',
+        feedback_type: 'accurate',
         notes: null,
         created_at: '2024-01-15T10:30:00Z',
       });
@@ -2292,7 +2292,7 @@ describe('EventDetailModal', () => {
       vi.mocked(api.submitEventFeedback).mockResolvedValue({
         id: 1,
         event_id: 123,
-        feedback_type: 'correct',
+        feedback_type: 'accurate',
         notes: null,
         created_at: '2024-01-15T10:30:00Z',
       });
@@ -2313,7 +2313,7 @@ describe('EventDetailModal', () => {
         expect(calls.length).toBeGreaterThan(0);
         expect(calls[0][0]).toEqual({
           event_id: 123,
-          feedback_type: 'correct',
+          feedback_type: 'accurate',
         });
       });
     });
@@ -2384,7 +2384,7 @@ describe('EventDetailModal', () => {
       vi.mocked(api.getEventFeedback).mockResolvedValue({
         id: 1,
         event_id: 123,
-        feedback_type: 'correct',
+        feedback_type: 'accurate',
         notes: null,
         created_at: '2024-01-15T10:30:00Z',
       });

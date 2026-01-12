@@ -217,8 +217,8 @@ describe('EventFeedbackSection', () => {
 
       expect(screen.getByTestId('feedback-btn-correct')).toBeInTheDocument();
       expect(screen.getByTestId('feedback-btn-false_positive')).toBeInTheDocument();
-      expect(screen.getByTestId('feedback-btn-missed_detection')).toBeInTheDocument();
-      expect(screen.getByTestId('feedback-btn-wrong_severity')).toBeInTheDocument();
+      expect(screen.getByTestId('feedback-btn-missed_threat')).toBeInTheDocument();
+      expect(screen.getByTestId('feedback-btn-severity_wrong')).toBeInTheDocument();
     });
 
     it('highlights selected feedback option', async () => {
@@ -416,7 +416,7 @@ describe('EventFeedbackSection', () => {
       vi.mocked(api.submitEventFeedback).mockResolvedValue({
         id: 1,
         event_id: 123,
-        feedback_type: 'correct',
+        feedback_type: 'accurate',
         notes: null,
         created_at: '2024-01-15T10:30:00Z',
       });
@@ -437,7 +437,7 @@ describe('EventFeedbackSection', () => {
         const callArgs = vi.mocked(api.submitEventFeedback).mock.calls[0][0];
         expect(callArgs).toEqual({
           event_id: 123,
-          feedback_type: 'correct',
+          feedback_type: 'accurate',
           notes: null,
         });
       });
@@ -483,7 +483,7 @@ describe('EventFeedbackSection', () => {
         resolveSubmit({
           id: 1,
           event_id: 123,
-          feedback_type: 'correct',
+          feedback_type: 'accurate',
           notes: null,
           created_at: '2024-01-15T10:30:00Z',
         });
@@ -501,7 +501,7 @@ describe('EventFeedbackSection', () => {
       vi.mocked(api.submitEventFeedback).mockResolvedValue({
         id: 1,
         event_id: 123,
-        feedback_type: 'correct',
+        feedback_type: 'accurate',
         notes: null,
         created_at: '2024-01-15T10:30:00Z',
       });
@@ -529,7 +529,7 @@ describe('EventFeedbackSection', () => {
       vi.mocked(api.submitEventFeedback).mockResolvedValue({
         id: 1,
         event_id: 123,
-        feedback_type: 'correct',
+        feedback_type: 'accurate',
         notes: null,
         created_at: '2024-01-15T10:30:00Z',
       });
@@ -631,7 +631,7 @@ describe('EventFeedbackSection', () => {
         resolveSubmit!({
           id: 1,
           event_id: 123,
-          feedback_type: 'correct',
+          feedback_type: 'accurate',
           notes: null,
           created_at: '2024-01-15T10:30:00Z',
         });
