@@ -18,3 +18,8 @@ scripts/test_ai_pipeline_e2e.py
 # Admin mock data endpoint - uses random for generating test data
 # This is a dev-only endpoint for seeding test databases, not security-sensitive
 backend/api/routes/admin.py
+
+# Integration test conftest - uses dynamic SQL for table cleanup
+# Table names come from SQLAlchemy reflection (get_table_deletion_order), not user input
+# This is test infrastructure code, not production
+backend/tests/integration/conftest.py
