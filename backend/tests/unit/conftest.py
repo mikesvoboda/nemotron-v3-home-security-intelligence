@@ -11,6 +11,20 @@ from unittest.mock import MagicMock
 import pytest
 
 
+def pytest_collection_modifyitems(config, items):
+    """Skip tests marked with 'integration' in unit test runs.
+
+    Tests marked with @pytest.mark.integration require a real database
+    connection and should not run during unit test execution.
+    """
+    skip_integration = pytest.mark.skip(
+        reason="Integration test requires database - skipped in unit test run"
+    )
+    for item in items:
+        if "integration" in item.keywords:
+            item.add_marker(skip_integration)
+
+
 @pytest.fixture(autouse=True)
 def mock_transformers_for_speed(monkeypatch):
     """Mock transformers to speed up unit tests.
