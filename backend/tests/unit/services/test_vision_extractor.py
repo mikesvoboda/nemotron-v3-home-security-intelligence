@@ -739,6 +739,72 @@ class TestVisionExtractorExtraction:
         assert "ladder" in result.tools_detected
 
     @pytest.mark.asyncio
+    async def test_extract_scene_caption(self) -> None:
+        """Test extract_scene_caption uses DETAILED_CAPTION_TASK."""
+        from PIL import Image
+
+        extractor = VisionExtractor()
+
+        async def mock_query(image, task, text_input=""):
+            """Mock _query_florence - returns detailed caption for DETAILED_CAPTION_TASK."""
+            if task == "<DETAILED_CAPTION>":
+                return "A residential driveway at night with a white sedan parked near the garage. The scene is illuminated by a porch light. A person in a dark jacket is walking toward the front door carrying a package."
+            elif task == "<CAPTION>":
+                return "Night scene with car and person"
+            return ""
+
+        extractor._query_florence = mock_query
+
+        img = Image.new("RGB", (640, 480), color="black")
+        result = await extractor.extract_scene_caption(img)
+
+        assert "residential driveway" in result
+        assert "white sedan" in result
+        assert "porch light" in result
+        assert "dark jacket" in result
+
+    @pytest.mark.asyncio
+    async def test_extract_scene_caption_empty_response(self) -> None:
+        """Test extract_scene_caption handles empty response gracefully."""
+        from PIL import Image
+
+        extractor = VisionExtractor()
+
+        async def mock_query(image, task, text_input=""):
+            """Mock _query_florence - returns empty string."""
+            return ""
+
+        extractor._query_florence = mock_query
+
+        img = Image.new("RGB", (640, 480), color="black")
+        result = await extractor.extract_scene_caption(img)
+
+        assert result == ""
+
+    @pytest.mark.asyncio
+    async def test_extract_scene_caption_strips_whitespace(self) -> None:
+        """Test extract_scene_caption strips leading/trailing whitespace."""
+        from PIL import Image
+
+        extractor = VisionExtractor()
+
+        async def mock_query(image, task, text_input=""):
+            """Mock _query_florence - returns caption with whitespace."""
+            if task == "<DETAILED_CAPTION>":
+                return "  A detailed scene description with extra spaces  \n"
+            return ""
+
+        extractor._query_florence = mock_query
+
+        img = Image.new("RGB", (640, 480), color="black")
+        result = await extractor.extract_scene_caption(img)
+
+        assert result == "A detailed scene description with extra spaces"
+        assert not result.startswith(" ")
+        assert not result.endswith(" ")
+        assert not result.endswith("\n")
+
+    @pytest.mark.asyncio
     async def test_extract_environment_context(self) -> None:
         """Test extract_environment_context."""
         from PIL import Image

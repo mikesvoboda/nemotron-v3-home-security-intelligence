@@ -560,6 +560,27 @@ class Settings(BaseSettings):
         default=True,
         description="Enable Florence-2 vision extraction for vehicle/person attributes",
     )
+
+    # Florence-2 feature toggles (granular control)
+    florence_scene_captions_enabled: bool = Field(
+        default=True,
+        description="Enable Florence-2 detailed scene captions. When enabled, generates rich "
+        "scene descriptions using DETAILED_CAPTION_TASK for enhanced LLM context. "
+        "Disable to reduce API calls if scene captions are not needed.",
+    )
+    florence_detection_captions_enabled: bool = Field(
+        default=True,
+        description="Enable Florence-2 captions for individual detections (vehicles, persons). "
+        "When enabled, generates descriptive captions for each detected object. "
+        "Disable to reduce API calls when only structured attributes are needed.",
+    )
+    florence_vqa_enabled: bool = Field(
+        default=True,
+        description="Enable Florence-2 Visual Question Answering for detailed attribute extraction. "
+        "When enabled, uses VQA to extract vehicle color, type, person clothing, etc. "
+        "Disable to rely only on basic captions for attribute extraction.",
+    )
+
     image_quality_enabled: bool = Field(
         default=True,
         description="Enable BRISQUE image quality assessment (CPU-based). "
