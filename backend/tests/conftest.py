@@ -449,6 +449,8 @@ async def _reset_db_schema() -> None:
     # Import all models to ensure they're registered with Base.metadata
     from backend.models import Camera, Detection, Event, GPUStats, JobTransition  # noqa: F401
     from backend.models.camera import Base as ModelsBase
+    from backend.models.event_feedback import EventFeedback  # noqa: F401
+    from backend.models.user_calibration import UserCalibration  # noqa: F401
 
     engine = get_engine()
     if engine is None:
@@ -507,6 +509,30 @@ async def _reset_db_schema() -> None:
             )
             # Add labels column for detections
             await conn.execute(text("ALTER TABLE detections ADD COLUMN IF NOT EXISTS labels JSONB"))
+
+            # NEM-2348: Add 4 feedback types columns for user_calibration
+            await conn.execute(
+                text(
+                    "ALTER TABLE user_calibration ADD COLUMN IF NOT EXISTS correct_count INTEGER DEFAULT 0"
+                )
+            )
+            await conn.execute(
+                text(
+                    "ALTER TABLE user_calibration ADD COLUMN IF NOT EXISTS missed_threat_count INTEGER DEFAULT 0"
+                )
+            )
+            await conn.execute(
+                text(
+                    "ALTER TABLE user_calibration ADD COLUMN IF NOT EXISTS severity_wrong_count INTEGER DEFAULT 0"
+                )
+            )
+
+            # NEM-2348: Add expected_severity column for event_feedback
+            await conn.execute(
+                text(
+                    "ALTER TABLE event_feedback ADD COLUMN IF NOT EXISTS expected_severity VARCHAR"
+                )
+            )
 
             # Add unique indexes for cameras table (migration adds these for production)
             # First, clean up any duplicate cameras that might prevent index creation
