@@ -406,8 +406,35 @@ class CalibrationService:
                 feedback_type=feedback_type,
                 original_risk_score=risk_score,
             )
+        elif feedback_type == FeedbackType.SEVERITY_WRONG:
+            # User says severity was wrong - adjust based on score direction
+            # High score (>50) means severity was too high, raise thresholds
+            # Low score (<50) means severity was too low, lower thresholds
+            # Smaller adjustment than FALSE_POSITIVE/MISSED_THREAT (halved)
+            if risk_score > 50:
+                # Severity was too high - raise thresholds slightly
+                score_factor = max(1.0, risk_score / 50.0)
+                adjustment = max(1, int(base_adjustment * score_factor * 0.5))  # Half effect, min 1
+                return ThresholdAdjustment(
+                    low_delta=adjustment,
+                    medium_delta=adjustment,
+                    high_delta=adjustment,
+                    feedback_type=feedback_type,
+                    original_risk_score=risk_score,
+                )
+            else:
+                # Severity was too low - lower thresholds slightly
+                score_factor = max(1.0, (100 - risk_score) / 50.0)
+                adjustment = max(1, int(base_adjustment * score_factor * 0.5))  # Half effect, min 1
+                return ThresholdAdjustment(
+                    low_delta=-adjustment,
+                    medium_delta=-adjustment,
+                    high_delta=-adjustment,
+                    feedback_type=feedback_type,
+                    original_risk_score=risk_score,
+                )
         else:
-            # FeedbackType.MISSED_DETECTION
+            # FeedbackType.MISSED_THREAT / MISSED_DETECTION
             # Event was flagged as low-risk but user says concerning
             # Lower thresholds to be more sensitive
             # Lower risk scores mean larger downward adjustment needed
