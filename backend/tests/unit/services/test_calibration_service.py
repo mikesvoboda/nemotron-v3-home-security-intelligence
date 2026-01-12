@@ -198,7 +198,7 @@ class TestGetThresholds:
             high_threshold=80,
             decay_factor=0.15,
             false_positive_count=3,
-            missed_detection_count=2,
+            missed_threat_count=2,
         )
 
         mock_session = AsyncMock()
@@ -228,7 +228,7 @@ class TestGetThresholds:
             high_threshold=85,
             decay_factor=0.1,
             false_positive_count=0,
-            missed_detection_count=0,
+            missed_threat_count=0,
         )
 
         mock_session = AsyncMock()
@@ -383,6 +383,87 @@ class TestCalculateAdjustment:
             assert adjustment.low_delta > 0
         else:
             assert adjustment.low_delta < 0
+
+    def test_accurate_feedback_no_adjustment(self) -> None:
+        """Test that ACCURATE feedback results in zero deltas."""
+        service = CalibrationService()
+        adjustment = service.calculate_adjustment(
+            feedback_type=FeedbackType.ACCURATE,
+            risk_score=50,
+            decay_factor=0.1,
+        )
+        assert adjustment.low_delta == 0
+        assert adjustment.medium_delta == 0
+        assert adjustment.high_delta == 0
+        assert adjustment.feedback_type == FeedbackType.ACCURATE
+
+    def test_correct_feedback_no_adjustment(self) -> None:
+        """Test that CORRECT feedback results in zero deltas."""
+        service = CalibrationService()
+        adjustment = service.calculate_adjustment(
+            feedback_type=FeedbackType.CORRECT,
+            risk_score=50,
+            decay_factor=0.1,
+        )
+        assert adjustment.low_delta == 0
+        assert adjustment.medium_delta == 0
+        assert adjustment.high_delta == 0
+        assert adjustment.feedback_type == FeedbackType.CORRECT
+
+    def test_accurate_feedback_no_adjustment_any_score(self) -> None:
+        """Test that ACCURATE feedback results in zero deltas regardless of score."""
+        service = CalibrationService()
+        for score in [0, 25, 50, 75, 100]:
+            adjustment = service.calculate_adjustment(
+                feedback_type=FeedbackType.ACCURATE,
+                risk_score=score,
+                decay_factor=0.5,
+            )
+            assert adjustment.low_delta == 0
+            assert adjustment.medium_delta == 0
+            assert adjustment.high_delta == 0
+
+    def test_severity_wrong_high_score_raises_thresholds(self) -> None:
+        """Test that SEVERITY_WRONG with high score raises thresholds slightly."""
+        service = CalibrationService()
+        adjustment = service.calculate_adjustment(
+            feedback_type=FeedbackType.SEVERITY_WRONG,
+            risk_score=75,  # High score - severity was too high
+            decay_factor=0.1,
+        )
+        assert adjustment.low_delta > 0
+        assert adjustment.medium_delta > 0
+        assert adjustment.high_delta > 0
+        assert adjustment.feedback_type == FeedbackType.SEVERITY_WRONG
+
+    def test_severity_wrong_low_score_lowers_thresholds(self) -> None:
+        """Test that SEVERITY_WRONG with low score lowers thresholds slightly."""
+        service = CalibrationService()
+        adjustment = service.calculate_adjustment(
+            feedback_type=FeedbackType.SEVERITY_WRONG,
+            risk_score=25,  # Low score - severity was too low
+            decay_factor=0.1,
+        )
+        assert adjustment.low_delta < 0
+        assert adjustment.medium_delta < 0
+        assert adjustment.high_delta < 0
+        assert adjustment.feedback_type == FeedbackType.SEVERITY_WRONG
+
+    def test_severity_wrong_smaller_than_false_positive(self) -> None:
+        """Test that SEVERITY_WRONG adjustment is smaller than FALSE_POSITIVE."""
+        service = CalibrationService()
+        severity_wrong = service.calculate_adjustment(
+            feedback_type=FeedbackType.SEVERITY_WRONG,
+            risk_score=75,
+            decay_factor=0.1,
+        )
+        false_positive = service.calculate_adjustment(
+            feedback_type=FeedbackType.FALSE_POSITIVE,
+            risk_score=75,
+            decay_factor=0.1,
+        )
+        # Severity wrong should result in smaller adjustments
+        assert abs(severity_wrong.low_delta) <= abs(false_positive.low_delta)
 
 
 # =============================================================================
@@ -557,7 +638,7 @@ class TestGetOrCreateCalibration:
         assert calibration.high_threshold == DEFAULT_HIGH_THRESHOLD
         assert calibration.decay_factor == DEFAULT_DECAY_FACTOR
         assert calibration.false_positive_count == 0
-        assert calibration.missed_detection_count == 0
+        assert calibration.missed_threat_count == 0
 
         mock_session.add.assert_called_once()
         mock_session.flush.assert_called_once()
@@ -578,7 +659,7 @@ class TestGetOrCreateCalibration:
             high_threshold=80,
             decay_factor=0.15,
             false_positive_count=5,
-            missed_detection_count=3,
+            missed_threat_count=3,
         )
 
         # Mock database session
@@ -631,7 +712,7 @@ class TestAdjustFromFeedback:
             high_threshold=85,
             decay_factor=0.1,
             false_positive_count=0,
-            missed_detection_count=0,
+            missed_threat_count=0,
         )
 
         # Mock database session
@@ -660,7 +741,7 @@ class TestAdjustFromFeedback:
         assert result.medium_threshold >= 60
         assert result.high_threshold >= 85
         assert result.false_positive_count == 1
-        assert result.missed_detection_count == 0
+        assert result.missed_threat_count == 0
 
     @pytest.mark.asyncio
     async def test_adjusts_on_missed_detection(self) -> None:
@@ -677,7 +758,7 @@ class TestAdjustFromFeedback:
             high_threshold=85,
             decay_factor=0.1,
             false_positive_count=0,
-            missed_detection_count=0,
+            missed_threat_count=0,
         )
 
         mock_session = AsyncMock()
@@ -704,7 +785,7 @@ class TestAdjustFromFeedback:
         assert result.medium_threshold <= 60
         assert result.high_threshold <= 85
         assert result.false_positive_count == 0
-        assert result.missed_detection_count == 1
+        assert result.missed_threat_count == 1
 
     @pytest.mark.asyncio
     async def test_handles_null_risk_score(self) -> None:
@@ -721,7 +802,7 @@ class TestAdjustFromFeedback:
             high_threshold=85,
             decay_factor=0.1,
             false_positive_count=0,
-            missed_detection_count=0,
+            missed_threat_count=0,
         )
 
         mock_session = AsyncMock()
@@ -748,7 +829,7 @@ class TestAdjustFromFeedback:
         assert result.medium_threshold == 60
         assert result.high_threshold == 85
         assert result.false_positive_count == 0
-        assert result.missed_detection_count == 0
+        assert result.missed_threat_count == 0
 
 
 # =============================================================================
@@ -774,7 +855,7 @@ class TestResetCalibration:
             high_threshold=80,
             decay_factor=0.2,
             false_positive_count=10,
-            missed_detection_count=5,
+            missed_threat_count=5,
         )
 
         mock_session = AsyncMock()
@@ -789,7 +870,7 @@ class TestResetCalibration:
         assert result.high_threshold == DEFAULT_HIGH_THRESHOLD
         assert result.decay_factor == DEFAULT_DECAY_FACTOR
         assert result.false_positive_count == 0
-        assert result.missed_detection_count == 0
+        assert result.missed_threat_count == 0
 
     @pytest.mark.asyncio
     async def test_creates_if_not_exists(self) -> None:

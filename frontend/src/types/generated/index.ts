@@ -148,6 +148,7 @@ export type MediaErrorResponse = components['schemas']['MediaErrorResponse'];
 // Cleanup types
 export type CleanupResponse = components['schemas']['CleanupResponse'];
 export type CleanupStatusResponse = components['schemas']['CleanupStatusResponse'];
+export type OrphanedFileCleanupResponse = components['schemas']['OrphanedFileCleanupResponse'];
 
 // Job types
 export type JobResponse = components['schemas']['JobResponse'];

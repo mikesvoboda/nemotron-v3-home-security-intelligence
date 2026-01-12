@@ -83,6 +83,43 @@ class ClearDataResponse(BaseModel):
     detections_cleared: int
 
 
+class OrphanCleanupRequest(BaseModel):
+    """Request schema for orphan cleanup endpoint."""
+
+    dry_run: bool = Field(
+        default=True,
+        description="If True, only report what would be deleted without actually deleting",
+    )
+    min_age_hours: int = Field(
+        default=24,
+        ge=1,
+        le=720,
+        description="Minimum age in hours before a file can be deleted (1-720)",
+    )
+    max_delete_gb: float = Field(
+        default=10.0,
+        ge=0.1,
+        le=100.0,
+        description="Maximum gigabytes to delete in one run (0.1-100)",
+    )
+
+
+class OrphanCleanupResponse(BaseModel):
+    """Response schema for orphan cleanup endpoint."""
+
+    scanned_files: int
+    orphaned_files: int
+    deleted_files: int
+    deleted_bytes: int
+    deleted_bytes_formatted: str
+    failed_count: int
+    failed_deletions: list[str]
+    duration_seconds: float
+    dry_run: bool
+    skipped_young: int
+    skipped_size_limit: int
+
+
 # --- Sample Data ---
 
 
@@ -558,4 +595,90 @@ async def clear_seeded_data(
         cameras_cleared=cameras_cleared,
         events_cleared=events_cleared,
         detections_cleared=detections_cleared,
+    )
+
+
+@router.post(
+    "/cleanup/orphans",
+    response_model=OrphanCleanupResponse,
+    responses={
+        200: {"description": "Orphan cleanup completed successfully"},
+        401: {"description": "Unauthorized - Admin API key required"},
+        403: {"description": "Forbidden - Debug mode or admin not enabled"},
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def cleanup_orphans(
+    request: OrphanCleanupRequest,
+    http_request: Request,
+    db: AsyncSession = Depends(get_db),
+    _admin: None = Depends(require_admin_access),
+) -> OrphanCleanupResponse:
+    """Manually trigger orphaned file cleanup.
+
+    Scans camera upload directories for files that have no corresponding
+    database records and optionally deletes them.
+
+    SECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.
+    If ADMIN_API_KEY is set, requires X-Admin-API-Key header.
+
+    Safety features:
+    - dry_run=True by default (no actual deletions)
+    - min_age_hours threshold prevents deleting files being processed
+    - max_delete_gb limits total deletion per run
+
+    Args:
+        request: Cleanup configuration (dry_run, min_age_hours, max_delete_gb)
+        http_request: FastAPI request for audit logging
+        _admin: Admin access validation (via dependency)
+
+    Returns:
+        Summary of cleanup operation with statistics
+    """
+    from backend.jobs.orphan_cleanup_job import OrphanCleanupJob
+    from backend.services.job_tracker import get_job_tracker
+
+    # Get job tracker for progress tracking
+    job_tracker = get_job_tracker()
+
+    # Create and run cleanup job
+    job = OrphanCleanupJob(
+        min_age_hours=request.min_age_hours,
+        dry_run=request.dry_run,
+        max_delete_gb=request.max_delete_gb,
+        job_tracker=job_tracker,
+    )
+
+    # Run the cleanup
+    report = await job.run()
+
+    # Log to audit
+    await get_db_audit_service().log_action(
+        db=db,
+        action=AuditAction.DATA_CLEARED,
+        resource_type="orphan_cleanup",
+        actor="admin",
+        details={
+            "dry_run": request.dry_run,
+            "scanned_files": report.scanned_files,
+            "orphaned_files": report.orphaned_files,
+            "deleted_files": report.deleted_files,
+            "deleted_bytes": report.deleted_bytes,
+        },
+        request=http_request,
+    )
+
+    return OrphanCleanupResponse(
+        scanned_files=report.scanned_files,
+        orphaned_files=report.orphaned_files,
+        deleted_files=report.deleted_files,
+        deleted_bytes=report.deleted_bytes,
+        deleted_bytes_formatted=report._format_bytes(report.deleted_bytes),
+        failed_count=len(report.failed_deletions),
+        failed_deletions=report.failed_deletions[:50],  # Limit to 50
+        duration_seconds=report.duration_seconds,
+        dry_run=report.dry_run,
+        skipped_young=report.skipped_young,
+        skipped_size_limit=report.skipped_size_limit,
     )

@@ -239,24 +239,6 @@ class ExportJobResult(BaseModel):
     }
 
 
-class ExportJobStartResponse(BaseModel):
-    """Response when starting an export job."""
-
-    job_id: str = Field(description="Job ID for tracking progress")
-    status: JobStatusEnum = Field(default=JobStatusEnum.PENDING, description="Initial job status")
-    message: str = Field(description="Status message")
-
-    model_config = {
-        "json_schema_extra": {
-            "example": {
-                "job_id": "550e8400-e29b-41d4-a716-446655440000",
-                "status": "pending",
-                "message": "Export job created. Use GET /api/jobs/{job_id} to track progress.",
-            }
-        }
-    }
-
-
 class ExportFormat(StrEnum):
     """Supported export formats."""
 

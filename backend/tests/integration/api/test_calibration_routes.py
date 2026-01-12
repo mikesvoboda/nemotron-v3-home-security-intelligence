@@ -38,7 +38,7 @@ async def test_get_calibration_auto_creates_default(client):
 
     # Verify feedback counts start at zero
     assert data["false_positive_count"] == 0
-    assert data["missed_detection_count"] == 0
+    assert data["missed_threat_count"] == 0
 
     # Verify timestamps exist
     assert "id" in data
@@ -79,7 +79,7 @@ async def test_get_calibration_response_schema(client):
         "high_threshold",
         "decay_factor",
         "false_positive_count",
-        "missed_detection_count",
+        "missed_threat_count",
         "created_at",
         "updated_at",
     ]
@@ -108,6 +108,95 @@ async def test_update_calibration_single_threshold(client):
     # Other thresholds unchanged
     assert data["medium_threshold"] == DEFAULT_MEDIUM_THRESHOLD
     assert data["high_threshold"] == DEFAULT_HIGH_THRESHOLD
+
+
+# === PATCH /api/calibration Tests ===
+
+
+@pytest.mark.asyncio
+async def test_patch_calibration_single_threshold(client):
+    """Test patching a single threshold value via PATCH endpoint."""
+    # First GET to ensure calibration exists
+    await client.get("/api/calibration")
+
+    # Patch low_threshold only
+    response = await client.patch(
+        "/api/calibration",
+        json={"low_threshold": 22},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["low_threshold"] == 22
+    # Other thresholds unchanged
+    assert data["medium_threshold"] == DEFAULT_MEDIUM_THRESHOLD
+    assert data["high_threshold"] == DEFAULT_HIGH_THRESHOLD
+
+
+@pytest.mark.asyncio
+async def test_patch_calibration_multiple_thresholds(client):
+    """Test patching multiple thresholds at once via PATCH endpoint."""
+    # First GET to ensure calibration exists
+    await client.get("/api/calibration")
+
+    response = await client.patch(
+        "/api/calibration",
+        json={
+            "low_threshold": 15,
+            "medium_threshold": 45,
+            "high_threshold": 75,
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["low_threshold"] == 15
+    assert data["medium_threshold"] == 45
+    assert data["high_threshold"] == 75
+
+
+@pytest.mark.asyncio
+async def test_patch_calibration_invalid_ordering(client):
+    """Test that PATCH validates threshold ordering."""
+    await client.get("/api/calibration")
+
+    # Try to set low >= medium via PATCH
+    response = await client.patch(
+        "/api/calibration",
+        json={"low_threshold": 65},  # Would exceed default medium (60)
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_patch_calibration_auto_creates(client):
+    """Test that PATCH auto-creates calibration if not exists."""
+    # PATCH without prior GET should auto-create
+    response = await client.patch(
+        "/api/calibration",
+        json={"low_threshold": 28},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["low_threshold"] == 28
+    assert data["user_id"] == "default"
+
+
+@pytest.mark.asyncio
+async def test_patch_calibration_decay_factor(client):
+    """Test patching decay factor via PATCH endpoint."""
+    await client.get("/api/calibration")
+
+    response = await client.patch(
+        "/api/calibration",
+        json={"decay_factor": 0.25},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["decay_factor"] == 0.25
 
 
 @pytest.mark.asyncio
@@ -350,7 +439,7 @@ async def test_reset_calibration_preserves_feedback_counts(client):
     # Verify feedback counts exist in response
     calibration = data["calibration"]
     assert "false_positive_count" in calibration
-    assert "missed_detection_count" in calibration
+    assert "missed_threat_count" in calibration
 
 
 @pytest.mark.asyncio

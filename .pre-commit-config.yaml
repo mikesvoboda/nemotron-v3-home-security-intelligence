@@ -87,8 +87,9 @@ repos:
           - --config=p/python
           - --error
         types: [python]
-        # Exclude mutants/ and test_database_isolation.py (uses intentional raw SQL for advisory locks)
-        exclude: (^mutants/|backend/tests/integration/test_database_isolation\.py$)
+        # Exclude mutants/, test_database_isolation.py (uses intentional raw SQL for advisory locks),
+        # and conftest.py (table names come from SQLAlchemy reflection, not user input)
+        exclude: (^mutants/|backend/tests/integration/test_database_isolation\.py$|backend/tests/integration/conftest\.py$)
 
   # Python - Ruff (fast linter + formatter)
   - repo: https://github.com/astral-sh/ruff-pre-commit

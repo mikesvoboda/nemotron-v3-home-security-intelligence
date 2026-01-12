@@ -16,19 +16,27 @@ import {
   Clock,
   XCircle,
   PlayCircle,
+  FileQuestion,
+  Calendar,
 } from 'lucide-react';
 import { useEffect, useState, useCallback } from 'react';
 
 import {
   fetchStorageStats,
   fetchJobs,
+  fetchCleanupStatus,
   previewCleanup,
   triggerCleanup,
+  previewOrphanedFiles,
+  triggerOrphanedCleanup,
   type StorageStatsResponse,
   type JobListResponse,
   type JobResponse,
   type CleanupResponse,
+  type CleanupStatusResponse,
+  type OrphanedFileCleanupResponse,
 } from '../../services/api';
+import { useStorageStatusStore } from '../../stores/storage-status-store';
 
 /**
  * Props for FileOperationsPanel component
@@ -190,6 +198,113 @@ function ExportJobRow({ job }: ExportJobRowProps) {
 }
 
 /**
+ * Cleanup summary component - shows last cleanup info
+ */
+interface CleanupSummaryProps {
+  cleanupStatus: CleanupStatusResponse | null;
+}
+
+function CleanupSummary({ cleanupStatus }: CleanupSummaryProps) {
+  if (!cleanupStatus) {
+    return null;
+  }
+
+  return (
+    <div className="mb-4 rounded-lg bg-gray-800/30 p-3" data-testid="cleanup-summary">
+      <Text className="mb-2 text-xs font-medium uppercase tracking-wider text-gray-500">
+        Cleanup Service
+      </Text>
+      <div className="space-y-2 text-sm">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {cleanupStatus.running ? (
+              <CheckCircle className="h-4 w-4 text-green-500" />
+            ) : (
+              <XCircle className="h-4 w-4 text-gray-500" />
+            )}
+            <Text className="text-gray-400">Status:</Text>
+          </div>
+          <Text className={clsx('font-medium', cleanupStatus.running ? 'text-green-400' : 'text-gray-400')}>
+            {cleanupStatus.running ? 'Running' : 'Stopped'}
+          </Text>
+        </div>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4 text-gray-500" />
+            <Text className="text-gray-400">Scheduled Time:</Text>
+          </div>
+          <Text className="font-medium text-white">{cleanupStatus.cleanup_time}</Text>
+        </div>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-gray-500" />
+            <Text className="text-gray-400">Retention:</Text>
+          </div>
+          <Text className="font-medium text-white">{cleanupStatus.retention_days} days</Text>
+        </div>
+        {cleanupStatus.next_cleanup && (
+          <div className="flex items-center justify-between">
+            <Text className="text-gray-400">Next Cleanup:</Text>
+            <Text className="font-medium text-white">
+              {new Date(cleanupStatus.next_cleanup).toLocaleString()}
+            </Text>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Orphaned files warning component
+ */
+interface OrphanedFilesWarningProps {
+  orphanedPreview: OrphanedFileCleanupResponse | null;
+  onCleanOrphaned: () => void;
+  isLoading: boolean;
+}
+
+function OrphanedFilesWarning({ orphanedPreview, onCleanOrphaned, isLoading }: OrphanedFilesWarningProps) {
+  if (!orphanedPreview || orphanedPreview.orphaned_count === 0) {
+    return null;
+  }
+
+  return (
+    <div
+      className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3"
+      data-testid="orphaned-files-warning"
+    >
+      <div className="flex items-start justify-between">
+        <div className="flex items-start gap-2">
+          <FileQuestion className="mt-0.5 h-4 w-4 text-amber-500" />
+          <div>
+            <Text className="text-sm font-medium text-amber-400">
+              {formatNumber(orphanedPreview.orphaned_count)} Orphaned Files Found
+            </Text>
+            <Text className="text-xs text-amber-300/70">
+              {orphanedPreview.total_size_formatted ?? formatBytes(orphanedPreview.total_size)} can be reclaimed
+            </Text>
+            <Text className="mt-1 text-xs text-gray-400">
+              These files exist on disk but are not referenced in the database.
+            </Text>
+          </div>
+        </div>
+        <Button
+          size="xs"
+          color="amber"
+          variant="secondary"
+          onClick={onCleanOrphaned}
+          disabled={isLoading}
+          data-testid="clean-orphaned-button"
+        >
+          {isLoading ? 'Cleaning...' : 'Clean Up'}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/**
  * Cleanup preview modal component
  */
 interface CleanupPreviewModalProps {
@@ -295,6 +410,8 @@ export default function FileOperationsPanel({
 }: FileOperationsPanelProps) {
   const [storageStats, setStorageStats] = useState<StorageStatsResponse | null>(null);
   const [jobs, setJobs] = useState<JobListResponse | null>(null);
+  const [cleanupStatus, setCleanupStatus] = useState<CleanupStatusResponse | null>(null);
+  const [orphanedPreview, setOrphanedPreview] = useState<OrphanedFileCleanupResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -306,25 +423,43 @@ export default function FileOperationsPanel({
   const [isLoadingCleanup, setIsLoadingCleanup] = useState(false);
   const [isExecutingCleanup, setIsExecutingCleanup] = useState(false);
 
+  // Orphaned files cleanup state
+  const [isLoadingOrphaned, setIsLoadingOrphaned] = useState(false);
+
+  // Storage status store for header warning
+  const updateStorageStatus = useStorageStatusStore((state) => state.update);
+
   const fetchData = useCallback(async () => {
     try {
-      const [storageData, jobsData] = await Promise.all([
+      const [storageData, jobsData, cleanupStatusData, orphanedData] = await Promise.all([
         fetchStorageStats(),
         fetchJobs().catch(() => ({ items: [], pagination: { total: 0, offset: 0, limit: 50, has_more: false } })),
+        fetchCleanupStatus().catch(() => null),
+        previewOrphanedFiles().catch(() => null),
       ]);
 
       setStorageStats(storageData);
       setJobs(jobsData);
+      setCleanupStatus(cleanupStatusData);
+      setOrphanedPreview(orphanedData);
       setLastUpdated(new Date());
       setError(null);
       onStorageChange?.(storageData);
+
+      // Update global storage status store for header warning
+      updateStorageStatus(
+        storageData.disk_usage_percent,
+        storageData.disk_used_bytes,
+        storageData.disk_total_bytes,
+        storageData.disk_free_bytes
+      );
     } catch (err) {
       console.error('Failed to fetch file operations data:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch data');
     } finally {
       setLoading(false);
     }
-  }, [onStorageChange]);
+  }, [onStorageChange, updateStorageStatus]);
 
   // Initial fetch
   useEffect(() => {
@@ -370,6 +505,23 @@ export default function FileOperationsPanel({
       setCleanupError(err instanceof Error ? err.message : 'Failed to execute cleanup');
     } finally {
       setIsExecutingCleanup(false);
+    }
+  };
+
+  // Handle orphaned files cleanup
+  const handleOrphanedCleanup = async () => {
+    setIsLoadingOrphaned(true);
+    setCleanupError(null);
+
+    try {
+      await triggerOrphanedCleanup();
+      // Refresh data after cleanup
+      await fetchData();
+    } catch (err) {
+      console.error('Failed to clean orphaned files:', err);
+      setCleanupError(err instanceof Error ? err.message : 'Failed to clean orphaned files');
+    } finally {
+      setIsLoadingOrphaned(false);
     }
   };
 
@@ -567,6 +719,16 @@ export default function FileOperationsPanel({
               </div>
             </>
           )}
+
+          {/* Cleanup Service Summary */}
+          <CleanupSummary cleanupStatus={cleanupStatus} />
+
+          {/* Orphaned Files Warning */}
+          <OrphanedFilesWarning
+            orphanedPreview={orphanedPreview}
+            onCleanOrphaned={() => void handleOrphanedCleanup()}
+            isLoading={isLoadingOrphaned}
+          />
 
           {/* Active Exports Section */}
           <div className="mb-4" data-testid="active-exports-section">

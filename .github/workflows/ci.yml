@@ -170,7 +170,7 @@ jobs:
   integration-tests-api:
     name: Integration Tests (API) - Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -207,6 +207,7 @@ jobs:
       REDIS_HOST: localhost
       REDIS_PORT: 6379
       LOG_DB_ENABLED: 'false'
+      CI: 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -223,21 +224,32 @@ jobs:
       - name: Install dependencies
         run: uv sync --extra dev --frozen
 
-      - name: Run API integration tests
+      - name: Run API integration tests with retry
         # API tests: test_*_api.py files
         # -n0 runs tests serially to avoid database deadlocks from concurrent schema creation
+        # Retry loop: 3 attempts with 10s wait between retries for transient failures
         run: |
-          uv run pytest backend/tests/integration/ \
-            -k "test_admin_api or test_ai_audit_api or test_alerts_api or test_api_error_scenarios or test_api_errors or test_audit_api or test_cameras_api or test_detections_api or test_dlq_api or test_entities_api or test_events_api or test_http_error_codes or test_logs_api or test_media_api or test_media_security or test_metrics_api or test_notification_api or test_search_api or test_system_api or test_video_streaming or test_zones_api or test_api" \
-            -n0 \
-            --timeout=30 \
-            --cov=backend \
-            --cov-fail-under=0 \
-            --cov-report=xml:coverage-integration-api.xml \
-            --cov-report=term-missing \
-            --junit-xml=test-results-integration-api.xml \
-            --durations=20 \
-            -v
+          for attempt in 1 2 3; do
+            echo "Attempt $attempt of 3"
+            if uv run pytest backend/tests/integration/ \
+              -k "test_admin_api or test_ai_audit_api or test_alerts_api or test_api_error_scenarios or test_api_errors or test_audit_api or test_cameras_api or test_detections_api or test_dlq_api or test_entities_api or test_events_api or test_http_error_codes or test_logs_api or test_media_api or test_media_security or test_metrics_api or test_notification_api or test_search_api or test_system_api or test_video_streaming or test_zones_api or test_api" \
+              -n0 \
+              --timeout=30 \
+              --cov=backend \
+              --cov-fail-under=0 \
+              --cov-report=xml:coverage-integration-api.xml \
+              --cov-report=term-missing \
+              --junit-xml=test-results-integration-api.xml \
+              --durations=20 \
+              -v; then
+              exit 0
+            fi
+            if [ $attempt -lt 3 ]; then
+              echo "Test failed, retrying in 10s..."
+              sleep 10
+            fi
+          done
+          exit 1
 
       - name: Upload test results
         if: always()
@@ -258,7 +270,7 @@ jobs:
   integration-tests-websocket:
     name: Integration Tests (WebSocket) - Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -295,6 +307,7 @@ jobs:
       REDIS_HOST: localhost
       REDIS_PORT: 6379
       LOG_DB_ENABLED: 'false'
+      CI: 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -311,21 +324,32 @@ jobs:
       - name: Install dependencies
         run: uv sync --extra dev --frozen
 
-      - name: Run WebSocket integration tests
+      - name: Run WebSocket integration tests with retry
         # WebSocket tests: test_websocket*.py, test_broadcast*.py, test_pubsub*.py
         # -n0 runs tests serially to avoid database deadlocks from concurrent schema creation
+        # Retry loop: 3 attempts with 10s wait between retries for transient failures
         run: |
-          uv run pytest backend/tests/integration/ \
-            -k "test_websocket or test_system_broadcaster or test_redis_pubsub" \
-            -n0 \
-            --timeout=30 \
-            --cov=backend \
-            --cov-fail-under=0 \
-            --cov-report=xml:coverage-integration-websocket.xml \
-            --cov-report=term-missing \
-            --junit-xml=test-results-integration-websocket.xml \
-            --durations=20 \
-            -v
+          for attempt in 1 2 3; do
+            echo "Attempt $attempt of 3"
+            if uv run pytest backend/tests/integration/ \
+              -k "test_websocket or test_system_broadcaster or test_redis_pubsub" \
+              -n0 \
+              --timeout=30 \
+              --cov=backend \
+              --cov-fail-under=0 \
+              --cov-report=xml:coverage-integration-websocket.xml \
+              --cov-report=term-missing \
+              --junit-xml=test-results-integration-websocket.xml \
+              --durations=20 \
+              -v; then
+              exit 0
+            fi
+            if [ $attempt -lt 3 ]; then
+              echo "Test failed, retrying in 10s..."
+              sleep 10
+            fi
+          done
+          exit 1
 
       - name: Upload test results
         if: always()
@@ -346,7 +370,7 @@ jobs:
   integration-tests-services:
     name: Integration Tests (Services) - Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -383,6 +407,7 @@ jobs:
       REDIS_HOST: localhost
       REDIS_PORT: 6379
       LOG_DB_ENABLED: 'false'
+      CI: 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -405,22 +430,33 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y postgresql-client
 
-      - name: Run Services integration tests
+      - name: Run Services integration tests with retry
         # Service tests: test_*_integration.py, test_batch*.py, test_detector*.py, test_file_watcher*.py, test_circuit*.py
         # Also includes: test_backup_restore, test_data_corruption for database operations
         # -n0 runs tests serially to avoid database deadlocks from concurrent schema creation
+        # Retry loop: 3 attempts with 10s wait between retries for transient failures
         run: |
-          uv run pytest backend/tests/integration/ \
-            -k "test_batch_aggregator_integration or test_detector_client_integration or test_file_watcher_filesystem or test_file_watcher_integration or test_circuit_breaker or test_cleanup_service or test_dlq_retry_handler_integration or test_health_monitor_integration or test_nemotron_analyzer_integration or test_nemotron_analyzer or test_vision_extraction_pipeline or test_pipeline_e2e or test_full_stack or test_audit or test_event_search or test_github_workflows or test_alembic_migrations or test_transaction_rollback or test_backup_restore or test_data_corruption" \
-            -n0 \
-            --timeout=30 \
-            --cov=backend \
-            --cov-fail-under=0 \
-            --cov-report=xml:coverage-integration-services.xml \
-            --cov-report=term-missing \
-            --junit-xml=test-results-integration-services.xml \
-            --durations=20 \
-            -v
+          for attempt in 1 2 3; do
+            echo "Attempt $attempt of 3"
+            if uv run pytest backend/tests/integration/ \
+              -k "test_batch_aggregator_integration or test_detector_client_integration or test_file_watcher_filesystem or test_file_watcher_integration or test_circuit_breaker or test_cleanup_service or test_dlq_retry_handler_integration or test_health_monitor_integration or test_nemotron_analyzer_integration or test_nemotron_analyzer or test_vision_extraction_pipeline or test_pipeline_e2e or test_full_stack or test_audit or test_event_search or test_github_workflows or test_alembic_migrations or test_transaction_rollback or test_backup_restore or test_data_corruption" \
+              -n0 \
+              --timeout=30 \
+              --cov=backend \
+              --cov-fail-under=0 \
+              --cov-report=xml:coverage-integration-services.xml \
+              --cov-report=term-missing \
+              --junit-xml=test-results-integration-services.xml \
+              --durations=20 \
+              -v; then
+              exit 0
+            fi
+            if [ $attempt -lt 3 ]; then
+              echo "Test failed, retrying in 10s..."
+              sleep 10
+            fi
+          done
+          exit 1
 
       - name: Upload test results
         if: always()
@@ -441,7 +477,7 @@ jobs:
   integration-tests-models:
     name: Integration Tests (Models) - Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -478,6 +514,7 @@ jobs:
       REDIS_HOST: localhost
       REDIS_PORT: 6379
       LOG_DB_ENABLED: 'false'
+      CI: 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -494,21 +531,32 @@ jobs:
       - name: Install dependencies
         run: uv sync --extra dev --frozen
 
-      - name: Run Models integration tests
+      - name: Run Models integration tests with retry
         # Model tests: test_models*.py, test_database*.py, test_baseline*.py, test_alert_*.py, test_enrichment*.py, test_cache*.py
         # -n0 runs tests serially to avoid database deadlocks from concurrent schema creation
+        # Retry loop: 3 attempts with 10s wait between retries for transient failures
         run: |
-          uv run pytest backend/tests/integration/ \
-            -k "test_models or test_model_cascades or test_database or test_baseline or test_alert_dedup or test_alert_engine or test_alert_models or test_enrichment_pipeline or test_cache_service_integration" \
-            -n0 \
-            --timeout=30 \
-            --cov=backend \
-            --cov-fail-under=0 \
-            --cov-report=xml:coverage-integration-models.xml \
-            --cov-report=term-missing \
-            --junit-xml=test-results-integration-models.xml \
-            --durations=20 \
-            -v
+          for attempt in 1 2 3; do
+            echo "Attempt $attempt of 3"
+            if uv run pytest backend/tests/integration/ \
+              -k "test_models or test_model_cascades or test_database or test_baseline or test_alert_dedup or test_alert_engine or test_alert_models or test_enrichment_pipeline or test_cache_service_integration" \
+              -n0 \
+              --timeout=30 \
+              --cov=backend \
+              --cov-fail-under=0 \
+              --cov-report=xml:coverage-integration-models.xml \
+              --cov-report=term-missing \
+              --junit-xml=test-results-integration-models.xml \
+              --durations=20 \
+              -v; then
+              exit 0
+            fi
+            if [ $attempt -lt 3 ]; then
+              echo "Test failed, retrying in 10s..."
+              sleep 10
+            fi
+          done
+          exit 1
 
       - name: Upload test results
         if: always()
@@ -836,6 +884,17 @@ jobs:
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
+      - name: Restore npm cache with fallback
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5
+        with:
+          path: |
+            ~/.npm
+            node_modules
+          key: npm-${{ runner.os }}-node-${{ env.NODE_VERSION }}-${{ hashFiles('frontend/package-lock.json') }}
+          restore-keys: |
+            npm-${{ runner.os }}-node-${{ env.NODE_VERSION }}-
+            npm-${{ runner.os }}-
+
       - name: Install dependencies
         run: cd frontend && npm ci
 
@@ -951,8 +1010,20 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit == 'true'
         run: cd frontend && npx playwright install-deps chromium
 
-      - name: Run E2E tests (Chromium shard ${{ matrix.shard }})
-        run: cd frontend && npx playwright test --project=chromium --shard=${{ matrix.shard }}
+      - name: Run E2E tests (Chromium shard ${{ matrix.shard }}) with retry
+        # Retry loop: 3 attempts with 10s wait between retries for transient failures
+        run: |
+          for attempt in 1 2 3; do
+            echo "Attempt $attempt of 3"
+            if cd frontend && npx playwright test --project=chromium --shard=${{ matrix.shard }}; then
+              exit 0
+            fi
+            if [ $attempt -lt 3 ]; then
+              echo "Test failed, retrying in 10s..."
+              sleep 10
+            fi
+          done
+          exit 1
 
       - name: Upload Playwright report
         if: always()

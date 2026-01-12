@@ -10,3 +10,16 @@ frontend/nginx.conf
 # This is an admin-only one-time migration tool (SQLite to PostgreSQL)
 # Not user-facing or production code, table names come from SQLAlchemy models
 scripts/migrate-sqlite-to-postgres.py
+
+# E2E test script - URLs come from env vars/localhost, paths from test args
+# Not production code, only used for manual pipeline testing
+scripts/test_ai_pipeline_e2e.py
+
+# Admin mock data endpoint - uses random for generating test data
+# This is a dev-only endpoint for seeding test databases, not security-sensitive
+backend/api/routes/admin.py
+
+# Integration test conftest - uses dynamic SQL for table cleanup
+# Table names come from SQLAlchemy reflection (get_table_deletion_order), not user input
+# This is test infrastructure code, not production
+backend/tests/integration/conftest.py

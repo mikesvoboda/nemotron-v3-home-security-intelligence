@@ -265,3 +265,31 @@ export type { PerformanceAlert, AiModelMetrics } from './performance';
 // ============================================================================
 
 export type { RateLimitInfo, ApiResponse } from './rate-limit';
+
+// ============================================================================
+// Export Types
+// ============================================================================
+
+export type {
+  ExportJobStatus,
+  ExportType,
+  ExportFormat,
+  ExportJobCreateParams,
+  ExportJobStartResponse,
+  ExportJobProgress,
+  ExportJobResult,
+  ExportJob,
+  ExportPaginationMeta,
+  ExportJobListResponse,
+  ExportJobCancelResponse,
+  ExportDownloadInfo,
+} from './export';
+
+export {
+  isExportJobComplete,
+  isExportJobRunning,
+  isExportJobPending,
+  isExportJobFailed,
+  formatFileSize,
+  calculateTimeRemaining,
+} from './export';

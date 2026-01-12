@@ -12,6 +12,7 @@ from .event import Event
 from .event_audit import EventAudit
 from .event_detection import EventDetection, event_detections
 from .event_feedback import EventFeedback, FeedbackType
+from .export_job import ExportJob, ExportJobStatus, ExportType
 from .gpu_stats import GPUStats
 from .job import Job, JobStatus
 from .job_attempt import JobAttempt, JobAttemptStatus
@@ -54,6 +55,9 @@ __all__ = [
     "EventAudit",
     "EventDetection",
     "EventFeedback",
+    "ExportJob",
+    "ExportJobStatus",
+    "ExportType",
     "FeedbackType",
     "GPUStats",
     "Job",

@@ -1,9 +1,10 @@
-import { AlertTriangle, CheckCircle, Menu, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle, HardDrive, Menu, XCircle } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import { useConnectionStatus } from '../../hooks/useConnectionStatus';
 import { useHealthStatusQuery } from '../../hooks/useHealthStatusQuery';
 import { useSidebarContext } from '../../hooks/useSidebarContext';
+import { useStorageStatusStore, CRITICAL_USAGE_THRESHOLD } from '../../stores/storage-status-store';
 import { WebSocketStatus } from '../common';
 
 /**
@@ -154,6 +155,7 @@ export default function Header() {
   const { overallStatus: apiHealth, services, isLoading: healthLoading } = useHealthStatusQuery({
     refetchInterval: 30000, // Poll every 30 seconds
   });
+  const { isCritical: isStorageCritical, status: storageStatus } = useStorageStatusStore();
 
   // Derive status and isConnected from the connection status summary
   const isConnected = summary.allConnected;
@@ -303,6 +305,20 @@ export default function Header() {
         {isPollingFallback && (
           <div className="hidden items-center gap-1 rounded bg-yellow-900/30 px-2 py-1 md:flex">
             <span className="text-xs text-yellow-400">REST Fallback</span>
+          </div>
+        )}
+
+        {/* Storage Warning - shown when disk usage is critical (>= 90%) */}
+        {isStorageCritical && storageStatus && (
+          <div
+            className="hidden items-center gap-1.5 rounded bg-red-900/30 px-2 py-1 md:flex"
+            data-testid="storage-warning"
+            title={`Disk usage: ${storageStatus.usagePercent.toFixed(1)}% (${CRITICAL_USAGE_THRESHOLD}% threshold)`}
+          >
+            <HardDrive className="h-3 w-3 text-red-400" aria-hidden="true" />
+            <span className="text-xs font-medium text-red-400">
+              Disk {storageStatus.usagePercent.toFixed(0)}%
+            </span>
           </div>
         )}
 

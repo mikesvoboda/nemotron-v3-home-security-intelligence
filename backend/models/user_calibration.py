@@ -14,7 +14,7 @@ class UserCalibration(Base):
     """UserCalibration model for storing personalized risk thresholds.
 
     Tracks user-specific risk thresholds that are adjusted based on
-    feedback (false positives and missed detections).
+    feedback (correct, false positives, missed threats, and severity errors).
 
     Default thresholds:
     - low_threshold: 30 (0-29 = low risk)
@@ -23,6 +23,12 @@ class UserCalibration(Base):
 
     Decay factor controls how quickly thresholds adjust based on feedback.
     Lower values = slower adjustment, higher values = faster adjustment.
+
+    Feedback tracking for all 4 types:
+    - correct_count: Alerts that were accurate
+    - false_positive_count: Alerts that were wrong (no real threat)
+    - missed_threat_count: Threats that were not detected
+    - severity_wrong_count: Alerts with incorrect severity
 
     Database constraints:
     - UNIQUE(user_id): One calibration record per user
@@ -46,9 +52,11 @@ class UserCalibration(Base):
     # Controls learning rate - how quickly thresholds adapt to feedback
     decay_factor: Mapped[float] = mapped_column(Float, nullable=False, default=0.1)
 
-    # Feedback tracking
+    # Feedback tracking for all 4 types
+    correct_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     false_positive_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    missed_detection_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    missed_threat_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    severity_wrong_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
@@ -87,16 +95,53 @@ class UserCalibration(Base):
             "decay_factor >= 0.0 AND decay_factor <= 1.0",
             name="ck_user_calibration_decay_range",
         ),
-        # CHECK constraints for feedback counts
+        # CHECK constraints for feedback counts (all 4 types)
+        CheckConstraint(
+            "correct_count >= 0",
+            name="ck_user_calibration_correct_count",
+        ),
         CheckConstraint(
             "false_positive_count >= 0",
             name="ck_user_calibration_fp_count",
         ),
         CheckConstraint(
-            "missed_detection_count >= 0",
-            name="ck_user_calibration_md_count",
+            "missed_threat_count >= 0",
+            name="ck_user_calibration_mt_count",
+        ),
+        CheckConstraint(
+            "severity_wrong_count >= 0",
+            name="ck_user_calibration_sw_count",
         ),
     )
+
+    @property
+    def total_feedback_count(self) -> int:
+        """Get the total number of feedback responses across all types.
+
+        Returns:
+            Total count of all feedback provided by this user
+        """
+        return (
+            self.correct_count
+            + self.false_positive_count
+            + self.missed_threat_count
+            + self.severity_wrong_count
+        )
+
+    @property
+    def accuracy_rate(self) -> float | None:
+        """Calculate the accuracy rate based on feedback.
+
+        Returns the ratio of correct predictions to total feedback.
+        Returns None if no feedback has been provided.
+
+        Returns:
+            Accuracy rate as a float between 0.0 and 1.0, or None if no feedback
+        """
+        total = self.total_feedback_count
+        if total == 0:
+            return None
+        return self.correct_count / total
 
     def __repr__(self) -> str:
         """Return string representation of UserCalibration."""
