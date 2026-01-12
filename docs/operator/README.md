@@ -1,0 +1,220 @@
+# Operator Hub
+
+> Deploy, configure, and maintain Home Security Intelligence.
+
+This hub is for **sysadmins, DevOps engineers, and technically savvy users** who deploy and maintain the system. For end-user documentation, see the [User Hub](../user-hub.md). For development and contribution, see the [Developer Hub](../developer-hub.md).
+
+---
+
+## Quick Navigation
+
+| Section            | Description                                       | Link                       |
+| ------------------ | ------------------------------------------------- | -------------------------- |
+| **Deployment**     | Docker/Podman setup, GPU passthrough, AI services | [deployment/](deployment/) |
+| **Monitoring**     | Health checks, GPU metrics, SLOs, alerting        | [monitoring/](monitoring/) |
+| **Administration** | Configuration, secrets, security                  | [admin/](admin/)           |
+
+---
+
+## Quick Deploy
+
+**Estimated deployment time:** 30-45 minutes (including model downloads)
+
+```bash
+# 1. Clone and setup
+git clone https://github.com/your-org/home-security-intelligence.git
+cd home-security-intelligence
+./setup.sh              # Quick mode - generates .env with secure passwords
+
+# 2. Download AI models (~2.7GB)
+./ai/download_models.sh
+
+# 3. Start services
+docker compose -f docker-compose.prod.yml up -d
+
+# 4. Verify
+curl http://localhost:8000/api/system/health/ready
+```
+
+---
+
+## System Requirements
+
+| Component   | Minimum         | Recommended       |
+| ----------- | --------------- | ----------------- |
+| **GPU**     | NVIDIA 8GB VRAM | NVIDIA 12GB+ VRAM |
+| **CPU**     | 4 cores         | 8+ cores          |
+| **RAM**     | 8GB             | 16GB+             |
+| **Storage** | 50GB            | 100GB+ SSD        |
+| **CUDA**    | 11.8+           | 12.x              |
+
+**AI VRAM Usage:**
+
+- RT-DETRv2 (object detection): ~4GB
+- Nemotron Mini 4B (risk analysis): ~3GB
+- **Total required:** ~7GB concurrent
+
+**Supported GPUs:** RTX 30/40 series, RTX A-series, Tesla/V100/A100
+
+---
+
+## Service Architecture
+
+```
+Camera uploads --> backend FileWatcher --> detection_queue
+  --> RT-DETRv2 (8090) --> detections (DB)
+  --> batching + enrichment
+  --> Nemotron (8091) --> events (DB)
+  --> WebSocket dashboard
+```
+
+### Ports Reference
+
+| Service    | Port | Purpose                               |
+| ---------- | ---- | ------------------------------------- |
+| Frontend   | 80   | Web dashboard (production)            |
+| Frontend   | 5173 | Web dashboard (development)           |
+| Backend    | 8000 | REST API + WebSocket                  |
+| RT-DETRv2  | 8090 | Object detection service              |
+| Nemotron   | 8091 | LLM risk analysis service             |
+| Florence-2 | 8092 | Vision extraction (optional)          |
+| CLIP       | 8093 | Re-identification (optional)          |
+| Enrichment | 8094 | Vehicle/pet classification (optional) |
+| PostgreSQL | 5432 | Database                              |
+| Redis      | 6379 | Cache + message broker                |
+
+---
+
+## Quick Commands
+
+### Service Management
+
+```bash
+# Start all services (production)
+docker compose -f docker-compose.prod.yml up -d
+
+# Stop all services
+docker compose -f docker-compose.prod.yml down
+
+# View logs
+docker compose -f docker-compose.prod.yml logs -f
+docker compose -f docker-compose.prod.yml logs -f backend
+
+# Restart a service
+docker compose -f docker-compose.prod.yml restart backend
+```
+
+### Health Checks
+
+```bash
+# System health
+curl http://localhost:8000/api/system/health
+
+# Full health with circuit breakers
+curl http://localhost:8000/api/system/health/full
+
+# AI services
+curl http://localhost:8090/health   # RT-DETRv2
+curl http://localhost:8091/health   # Nemotron
+
+# Database
+docker compose exec postgres pg_isready
+
+# Redis
+docker compose exec redis redis-cli ping
+```
+
+### GPU Management
+
+```bash
+# GPU status
+nvidia-smi
+
+# GPU memory usage
+nvidia-smi --query-gpu=memory.used,memory.total --format=csv
+
+# Kill GPU processes (emergency)
+fuser -k /dev/nvidia*
+```
+
+---
+
+## Detailed Guides
+
+### Deployment
+
+- [Complete Deployment Guide](deployment/) - Docker/Podman setup, compose files, GHCR images
+- [GPU Setup Guide](gpu-setup.md) - NVIDIA drivers, container toolkit, CDI
+- [AI Services Guide](ai-overview.md) - RT-DETRv2, Nemotron, optional services
+- [Deployment Modes](deployment-modes.md) - AI networking for different setups
+
+### Monitoring
+
+- [Monitoring Guide](monitoring/) - Health checks, GPU metrics, DLQ
+- [Prometheus Alerting](prometheus-alerting.md) - Alert rules, Alertmanager
+- [Service Level Objectives](../slo-definitions.md) - SLIs, SLOs, error budgets
+
+### Administration
+
+- [Administration Guide](admin/) - Configuration, secrets, security
+- [Backup and Recovery](backup.md) - Database backup, disaster recovery
+- [Redis Setup](redis.md) - Authentication, persistence
+
+---
+
+## Troubleshooting
+
+### Quick Diagnostics
+
+```bash
+# Comprehensive health check
+curl http://localhost:8000/api/system/health/full | jq
+
+# Container status
+docker compose -f docker-compose.prod.yml ps
+
+# Recent logs
+docker compose -f docker-compose.prod.yml logs --tail=100 backend
+
+# GPU availability
+nvidia-smi
+```
+
+### Common Issues
+
+| Issue                      | Quick Fix                                                                  |
+| -------------------------- | -------------------------------------------------------------------------- |
+| AI services unreachable    | Check [Deployment Modes](deployment-modes.md) for correct URLs             |
+| GPU out of memory          | Close other GPU apps, restart AI services                                  |
+| Database connection failed | Verify `DATABASE_URL`, check PostgreSQL is running                         |
+| Redis auth failed          | Check `REDIS_PASSWORD` in .env, see [Redis Setup](redis.md)                |
+| WebSocket won't connect    | Check CORS settings, verify backend is healthy                             |
+| Images not processing      | Check `FOSCAM_BASE_PATH`, enable `FILE_WATCHER_POLLING` for Docker Desktop |
+| DLQ jobs accumulating      | Verify AI services healthy, check [DLQ Management](dlq-management.md)      |
+
+### Getting Help
+
+When reporting issues, collect:
+
+```bash
+# System health
+curl http://localhost:8000/api/system/health | jq
+
+# GPU info
+nvidia-smi
+
+# Container status
+docker compose -f docker-compose.prod.yml ps
+
+# Recent logs
+docker compose -f docker-compose.prod.yml logs --tail=100 backend
+```
+
+---
+
+## See Also
+
+- [User Hub](../user-hub.md) - End-user documentation
+- [Developer Hub](../developer-hub.md) - Development and contribution
+- [API Reference](../api-reference/overview.md) - REST and WebSocket APIs
+- [Architecture Overview](../architecture/overview.md) - System design
