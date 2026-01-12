@@ -93,7 +93,7 @@ jobs:
           touch "/tmp/digests/${{ matrix.image.name }}/${digest#sha256:}"
 
       - name: Upload digest
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4
         with:
           name: digests-${{ matrix.image.name }}-${{ matrix.platform.suffix }}
           path: /tmp/digests/${{ matrix.image.name }}/*
@@ -340,7 +340,7 @@ jobs:
           output-file: sbom-${{ matrix.image }}.spdx.json
 
       - name: Upload SBOM artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4
         with:
           name: sbom-${{ matrix.image }}
           path: sbom-${{ matrix.image }}.spdx.json
@@ -435,7 +435,7 @@ jobs:
           echo "  FRONTEND_URL=http://staging:5173 npm test -- --project=chromium"
 
       - name: Document staging validation
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4
         with:
           name: staging-deployment-guide
           path: docs/DEPLOYMENT_VERIFICATION_CHECKLIST.md
@@ -537,7 +537,7 @@ jobs:
           cat canary-readiness.txt
 
       - name: Create deployment documentation artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4
         with:
           name: deployment-readiness
           path: canary-readiness.txt
