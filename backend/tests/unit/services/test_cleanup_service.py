@@ -1527,3 +1527,680 @@ async def test_run_cleanup_missing_thumbnail_file(tmp_path):
 
     # File didn't exist, so thumbnail count stays 0
     assert stats.thumbnails_deleted == 0
+
+
+# =============================================================================
+# Redis Job Status Tracking Tests (lines 156-180)
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_run_cleanup_with_redis_job_tracking():
+    """Test run_cleanup tracks job status via Redis."""
+    mock_redis_client = AsyncMock()
+    service = CleanupService(retention_days=30, redis_client=mock_redis_client)
+
+    # Mock job status service
+    mock_job_service = AsyncMock()
+    mock_job_service.start_job = AsyncMock(return_value="cleanup-20250112-120000")
+    mock_job_service.update_progress = AsyncMock()
+    mock_job_service.complete_job = AsyncMock()
+
+    # Mock session and database operations
+    mock_session = AsyncMock()
+    mock_session.stream_scalars = create_stream_scalars_mock([])
+
+    mock_delete_result = MagicMock()
+    mock_delete_result.rowcount = 5
+
+    mock_session.execute = AsyncMock(
+        side_effect=[
+            mock_delete_result,  # delete detections
+            mock_delete_result,  # delete events
+            mock_delete_result,  # delete gpu stats
+        ]
+    )
+    mock_session.commit = AsyncMock()
+
+    @contextlib.asynccontextmanager
+    async def mock_get_session():
+        yield mock_session
+
+    with (
+        patch("backend.services.cleanup_service.get_session", mock_get_session),
+        patch.object(service, "_get_job_status_service", return_value=mock_job_service),
+        patch.object(service, "cleanup_old_logs", return_value=10),
+    ):
+        stats = await service.run_cleanup()
+
+    # Verify job tracking calls
+    mock_job_service.start_job.assert_called_once()
+    assert mock_job_service.update_progress.call_count >= 4  # Multiple progress updates
+    mock_job_service.complete_job.assert_called_once()
+    assert stats.detections_deleted == 5
+
+
+@pytest.mark.asyncio
+async def test_run_cleanup_with_redis_job_tracking_failure():
+    """Test run_cleanup marks job as failed when exception occurs."""
+    mock_redis_client = AsyncMock()
+    service = CleanupService(retention_days=30, redis_client=mock_redis_client)
+
+    # Mock job status service
+    mock_job_service = AsyncMock()
+    mock_job_service.start_job = AsyncMock(return_value="cleanup-20250112-120000")
+    mock_job_service.update_progress = AsyncMock()
+    mock_job_service.fail_job = AsyncMock()
+
+    # Mock session that raises exception
+    mock_session = AsyncMock()
+    mock_session.execute = AsyncMock(side_effect=Exception("Database error"))
+
+    @contextlib.asynccontextmanager
+    async def mock_get_session():
+        yield mock_session
+
+    with (
+        patch("backend.services.cleanup_service.get_session", mock_get_session),
+        patch.object(service, "_get_job_status_service", return_value=mock_job_service),
+        pytest.raises(Exception, match="Database error"),
+    ):
+        await service.run_cleanup()
+
+    # Verify job was marked as failed
+    mock_job_service.fail_job.assert_called_once_with("cleanup-20250112-120000", "Database error")
+
+
+def test_get_job_status_service_without_redis():
+    """Test _get_job_status_service returns None when no Redis client."""
+    service = CleanupService(retention_days=30)
+
+    result = service._get_job_status_service()
+
+    assert result is None
+
+
+def test_get_job_status_service_with_redis():
+    """Test _get_job_status_service creates service with Redis client."""
+    mock_redis_client = AsyncMock()
+    service = CleanupService(retention_days=30, redis_client=mock_redis_client)
+
+    mock_job_service = MagicMock()
+
+    with patch("backend.services.job_status.get_job_status_service") as mock_get:
+        mock_get.return_value = mock_job_service
+
+        result = service._get_job_status_service()
+
+        assert result is mock_job_service
+        mock_get.assert_called_once_with(mock_redis_client)
+
+
+def test_get_job_status_service_caching():
+    """Test _get_job_status_service caches the service instance."""
+    mock_redis_client = AsyncMock()
+    service = CleanupService(retention_days=30, redis_client=mock_redis_client)
+
+    mock_job_service = MagicMock()
+
+    with patch("backend.services.job_status.get_job_status_service") as mock_get:
+        mock_get.return_value = mock_job_service
+
+        # First call
+        result1 = service._get_job_status_service()
+        # Second call
+        result2 = service._get_job_status_service()
+
+        assert result1 is result2
+        # Should only be called once due to caching
+        mock_get.assert_called_once()
+
+
+def test_set_redis_client():
+    """Test set_redis_client updates Redis client and resets cache."""
+    service = CleanupService(retention_days=30)
+
+    # Set initial Redis client
+    mock_redis_client1 = AsyncMock()
+    service.set_redis_client(mock_redis_client1)
+
+    assert service._redis_client is mock_redis_client1
+    assert service._job_status_service is None
+
+    # Simulate caching by setting job status service
+    service._job_status_service = MagicMock()
+
+    # Set new Redis client
+    mock_redis_client2 = AsyncMock()
+    service.set_redis_client(mock_redis_client2)
+
+    assert service._redis_client is mock_redis_client2
+    assert service._job_status_service is None  # Cache cleared
+
+
+# =============================================================================
+# Async Context Manager Tests (lines 613-645)
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_async_context_manager():
+    """Test CleanupService can be used as async context manager."""
+    service = CleanupService(retention_days=30)
+
+    assert not service.running
+
+    async with service as ctx_service:
+        assert ctx_service is service
+        assert service.running is True
+
+    # Should be stopped after exiting context
+    assert service.running is False
+
+
+@pytest.mark.asyncio
+async def test_async_context_manager_with_exception():
+    """Test async context manager stops service even when exception occurs."""
+    service = CleanupService(retention_days=30)
+
+    with pytest.raises(ValueError, match="Test error"):
+        async with service:
+            assert service.running is True
+            raise ValueError("Test error")
+
+    # Should still be stopped after exception
+    assert service.running is False
+
+
+# =============================================================================
+# format_bytes utility tests (lines 648-670)
+# =============================================================================
+
+
+def test_format_bytes_negative():
+    """Test format_bytes handles negative values."""
+    from backend.services.cleanup_service import format_bytes
+
+    result = format_bytes(-100)
+
+    assert result == "0 B"
+
+
+def test_format_bytes_zero():
+    """Test format_bytes handles zero."""
+    from backend.services.cleanup_service import format_bytes
+
+    result = format_bytes(0)
+
+    assert result == "0 B"
+
+
+def test_format_bytes_small():
+    """Test format_bytes formats small byte values."""
+    from backend.services.cleanup_service import format_bytes
+
+    result = format_bytes(512)
+
+    assert result == "512 B"
+
+
+def test_format_bytes_kilobytes():
+    """Test format_bytes formats KB values."""
+    from backend.services.cleanup_service import format_bytes
+
+    result = format_bytes(1024)
+
+    assert result == "1.00 KB"
+
+
+def test_format_bytes_megabytes():
+    """Test format_bytes formats MB values."""
+    from backend.services.cleanup_service import format_bytes
+
+    result = format_bytes(1024 * 1024)
+
+    assert result == "1.00 MB"
+
+
+def test_format_bytes_gigabytes():
+    """Test format_bytes formats GB values."""
+    from backend.services.cleanup_service import format_bytes
+
+    result = format_bytes(1024 * 1024 * 1024)
+
+    assert result == "1.00 GB"
+
+
+def test_format_bytes_terabytes():
+    """Test format_bytes formats TB values."""
+    from backend.services.cleanup_service import format_bytes
+
+    result = format_bytes(1024 * 1024 * 1024 * 1024)
+
+    assert result == "1.00 TB"
+
+
+def test_format_bytes_petabytes():
+    """Test format_bytes formats PB values."""
+    from backend.services.cleanup_service import format_bytes
+
+    result = format_bytes(1024 * 1024 * 1024 * 1024 * 1024)
+
+    assert result == "1.00 PB"
+
+
+def test_format_bytes_max_unit():
+    """Test format_bytes stops at PB for very large values."""
+    from backend.services.cleanup_service import format_bytes
+
+    # Should not go beyond PB
+    result = format_bytes(1024**6)
+
+    assert "PB" in result
+
+
+def test_format_bytes_fractional():
+    """Test format_bytes formats fractional values."""
+    from backend.services.cleanup_service import format_bytes
+
+    result = format_bytes(1536)  # 1.5 KB
+
+    assert result == "1.50 KB"
+
+
+# =============================================================================
+# OrphanedFileCleanupStats Tests (lines 673-704)
+# =============================================================================
+
+
+def test_orphaned_file_cleanup_stats_initialization():
+    """Test OrphanedFileCleanupStats initializes with zero values."""
+    from backend.services.cleanup_service import OrphanedFileCleanupStats
+
+    stats = OrphanedFileCleanupStats()
+
+    assert stats.orphaned_count == 0
+    assert stats.total_size == 0
+    assert stats.dry_run is True
+    assert stats.orphaned_files == []
+
+
+def test_orphaned_file_cleanup_stats_to_dict():
+    """Test OrphanedFileCleanupStats converts to dictionary."""
+    from backend.services.cleanup_service import OrphanedFileCleanupStats
+
+    stats = OrphanedFileCleanupStats()
+    stats.orphaned_count = 10
+    stats.total_size = 5000
+    stats.dry_run = False
+    stats.orphaned_files = ["/path/1.jpg", "/path/2.jpg"]
+
+    result = stats.to_dict()
+
+    assert result["orphaned_count"] == 10
+    assert result["total_size"] == 5000
+    assert result["total_size_formatted"] == "4.88 KB"
+    assert result["dry_run"] is False
+    assert result["orphaned_files"] == ["/path/1.jpg", "/path/2.jpg"]
+
+
+def test_orphaned_file_cleanup_stats_to_dict_limits_files():
+    """Test OrphanedFileCleanupStats limits file list to 100 entries."""
+    from backend.services.cleanup_service import OrphanedFileCleanupStats
+
+    stats = OrphanedFileCleanupStats()
+    stats.orphaned_files = [f"/path/{i}.jpg" for i in range(200)]
+
+    result = stats.to_dict()
+
+    # Should only include first 100 files
+    assert len(result["orphaned_files"]) == 100
+
+
+def test_orphaned_file_cleanup_stats_repr():
+    """Test OrphanedFileCleanupStats string representation."""
+    from backend.services.cleanup_service import OrphanedFileCleanupStats
+
+    stats = OrphanedFileCleanupStats()
+    stats.orphaned_count = 5
+    stats.total_size = 1024000
+
+    repr_str = repr(stats)
+
+    assert "OrphanedFileCleanupStats" in repr_str
+    assert "orphaned_count=5" in repr_str
+    assert "1000.00 KB" in repr_str or "0.98 MB" in repr_str
+    assert "dry_run=True" in repr_str
+
+
+# =============================================================================
+# OrphanedFileCleanup Tests (lines 707-921)
+# =============================================================================
+
+
+def test_orphaned_file_cleanup_initialization():
+    """Test OrphanedFileCleanup initializes with default storage paths."""
+    from backend.services.cleanup_service import OrphanedFileCleanup
+
+    mock_settings = MagicMock()
+    mock_settings.video_thumbnails_dir = "/data/thumbnails"
+    mock_settings.clips_directory = "/data/clips"
+
+    with patch("backend.services.cleanup_service.get_settings", return_value=mock_settings):
+        cleanup = OrphanedFileCleanup()
+
+    assert "/data/thumbnails" in cleanup._storage_paths
+    assert "/data/clips" in cleanup._storage_paths
+
+
+def test_orphaned_file_cleanup_custom_storage_paths():
+    """Test OrphanedFileCleanup accepts custom storage paths."""
+    from backend.services.cleanup_service import OrphanedFileCleanup
+
+    custom_paths = ["/custom/path1", "/custom/path2"]
+    cleanup = OrphanedFileCleanup(storage_paths=custom_paths)
+
+    assert cleanup._storage_paths == custom_paths
+
+
+@pytest.mark.asyncio
+async def test_orphaned_file_cleanup_get_referenced_files():
+    """Test _get_referenced_files queries database for all file references."""
+    from backend.services.cleanup_service import OrphanedFileCleanup
+
+    cleanup = OrphanedFileCleanup(storage_paths=["/test"])
+
+    # Mock database results
+    mock_session = AsyncMock()
+
+    # Mock detection query
+    detection_result = MagicMock()
+    detection_result.all.return_value = [
+        ("/path/image1.jpg", "/path/thumb1.jpg"),
+        ("/path/image2.jpg", None),
+        (None, "/path/thumb2.jpg"),
+    ]
+
+    # Mock event query
+    event_result = MagicMock()
+    event_result.all.return_value = [
+        ("/path/clip1.mp4",),
+        ("/path/clip2.mp4",),
+    ]
+
+    mock_session.execute = AsyncMock(side_effect=[detection_result, event_result])
+
+    @contextlib.asynccontextmanager
+    async def mock_get_session():
+        yield mock_session
+
+    with patch("backend.services.cleanup_service.get_session", mock_get_session):
+        referenced = await cleanup._get_referenced_files()
+
+    # Should include all file paths (converted to absolute)
+    assert len(referenced) >= 5
+
+
+def test_orphaned_file_cleanup_scan_storage_directories(tmp_path):
+    """Test _scan_storage_directories finds all files recursively."""
+    from backend.services.cleanup_service import OrphanedFileCleanup
+
+    # Create test directory structure
+    dir1 = tmp_path / "dir1"
+    dir2 = tmp_path / "dir2"
+    dir1.mkdir()
+    dir2.mkdir()
+
+    file1 = dir1 / "file1.jpg"
+    file2 = dir2 / "file2.jpg"
+    file3 = dir2 / "subdir" / "file3.jpg"
+    file3.parent.mkdir()
+
+    file1.write_text("test1")
+    file2.write_text("test2")
+    file3.write_text("test3")
+
+    cleanup = OrphanedFileCleanup(storage_paths=[str(tmp_path)])
+
+    files = cleanup._scan_storage_directories()
+
+    # Should find all 3 files
+    assert len(files) == 3
+    file_paths = [f[0] for f in files]
+    assert any("file1.jpg" in p for p in file_paths)
+    assert any("file2.jpg" in p for p in file_paths)
+    assert any("file3.jpg" in p for p in file_paths)
+
+
+def test_orphaned_file_cleanup_scan_nonexistent_directory():
+    """Test _scan_storage_directories handles nonexistent directories."""
+    from backend.services.cleanup_service import OrphanedFileCleanup
+
+    cleanup = OrphanedFileCleanup(storage_paths=["/nonexistent/path"])
+
+    files = cleanup._scan_storage_directories()
+
+    # Should return empty list without error
+    assert files == []
+
+
+def test_orphaned_file_cleanup_scan_file_instead_of_directory(tmp_path):
+    """Test _scan_storage_directories handles file paths."""
+    from backend.services.cleanup_service import OrphanedFileCleanup
+
+    # Create a file instead of directory
+    test_file = tmp_path / "file.txt"
+    test_file.write_text("test")
+
+    cleanup = OrphanedFileCleanup(storage_paths=[str(test_file)])
+
+    files = cleanup._scan_storage_directories()
+
+    # Should return empty list (not a directory)
+    assert files == []
+
+
+def test_orphaned_file_cleanup_scan_with_stat_error(tmp_path):
+    """Test _scan_storage_directories handles stat errors gracefully."""
+    from backend.services.cleanup_service import OrphanedFileCleanup
+
+    # Create test file
+    test_file = tmp_path / "test.jpg"
+    test_file.write_text("test")
+
+    cleanup = OrphanedFileCleanup(storage_paths=[str(tmp_path)])
+
+    # Mock stat to raise OSError
+    original_stat = Path.stat
+
+    def mock_stat(self):
+        if self.name == "test.jpg":
+            raise OSError("Permission denied")
+        return original_stat(self)
+
+    with patch.object(Path, "stat", mock_stat):
+        files = cleanup._scan_storage_directories()
+
+    # Should handle error and return empty list
+    assert files == []
+
+
+@pytest.mark.asyncio
+async def test_orphaned_file_cleanup_run_dry_run(tmp_path):
+    """Test run_cleanup in dry run mode identifies but doesn't delete files."""
+    from backend.services.cleanup_service import OrphanedFileCleanup
+
+    # Create test files
+    orphaned1 = tmp_path / "orphaned1.jpg"
+    orphaned2 = tmp_path / "orphaned2.jpg"
+    referenced = tmp_path / "referenced.jpg"
+
+    orphaned1.write_text("o" * 1000)
+    orphaned2.write_text("o" * 2000)
+    referenced.write_text("r" * 5000)
+
+    cleanup = OrphanedFileCleanup(storage_paths=[str(tmp_path)])
+
+    # Mock _get_referenced_files to return only the referenced file
+    async def mock_get_referenced():
+        return {str(referenced.resolve())}
+
+    with patch.object(cleanup, "_get_referenced_files", side_effect=mock_get_referenced):
+        stats = await cleanup.run_cleanup(dry_run=True)
+
+    # Should identify orphaned files
+    assert stats.orphaned_count == 2
+    assert stats.total_size == 3000
+    assert stats.dry_run is True
+
+    # Files should still exist (dry run)
+    assert orphaned1.exists()
+    assert orphaned2.exists()
+
+
+@pytest.mark.asyncio
+async def test_orphaned_file_cleanup_run_delete(tmp_path):
+    """Test run_cleanup in delete mode removes orphaned files."""
+    from backend.services.cleanup_service import OrphanedFileCleanup
+
+    # Create test files
+    orphaned1 = tmp_path / "orphaned1.jpg"
+    orphaned2 = tmp_path / "orphaned2.jpg"
+    referenced = tmp_path / "referenced.jpg"
+
+    orphaned1.write_text("orphaned")
+    orphaned2.write_text("orphaned")
+    referenced.write_text("referenced")
+
+    cleanup = OrphanedFileCleanup(storage_paths=[str(tmp_path)])
+
+    # Mock _get_referenced_files
+    async def mock_get_referenced():
+        return {str(referenced.resolve())}
+
+    with patch.object(cleanup, "_get_referenced_files", side_effect=mock_get_referenced):
+        stats = await cleanup.run_cleanup(dry_run=False)
+
+    # Should identify and delete orphaned files
+    assert stats.orphaned_count == 2
+    assert stats.dry_run is False
+
+    # Orphaned files should be deleted
+    assert not orphaned1.exists()
+    assert not orphaned2.exists()
+    # Referenced file should still exist
+    assert referenced.exists()
+
+
+@pytest.mark.asyncio
+async def test_orphaned_file_cleanup_with_job_tracker(tmp_path):
+    """Test run_cleanup reports progress via job tracker."""
+    from backend.services.cleanup_service import OrphanedFileCleanup
+
+    mock_job_tracker = MagicMock()
+    mock_job_tracker.create_job = MagicMock(return_value="job-123")
+    mock_job_tracker.start_job = MagicMock()
+    mock_job_tracker.complete_job = MagicMock()
+
+    cleanup = OrphanedFileCleanup(job_tracker=mock_job_tracker, storage_paths=[str(tmp_path)])
+
+    # Mock _get_referenced_files
+    async def mock_get_referenced():
+        return set()
+
+    with patch.object(cleanup, "_get_referenced_files", side_effect=mock_get_referenced):
+        stats = await cleanup.run_cleanup(dry_run=True)
+
+    # Verify job tracker calls
+    mock_job_tracker.create_job.assert_called_once_with("orphaned_file_cleanup")
+    mock_job_tracker.start_job.assert_called_once()
+    mock_job_tracker.complete_job.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_orphaned_file_cleanup_exception_handling():
+    """Test run_cleanup handles exceptions and fails job."""
+    from backend.services.cleanup_service import OrphanedFileCleanup
+
+    mock_job_tracker = MagicMock()
+    mock_job_tracker.create_job = MagicMock(return_value="job-123")
+    mock_job_tracker.start_job = MagicMock()
+    mock_job_tracker.fail_job = MagicMock()
+
+    cleanup = OrphanedFileCleanup(job_tracker=mock_job_tracker, storage_paths=["/test"])
+
+    # Mock _get_referenced_files to raise exception
+    async def mock_get_referenced_error():
+        raise Exception("Database error")
+
+    with (
+        patch.object(cleanup, "_get_referenced_files", side_effect=mock_get_referenced_error),
+        pytest.raises(Exception, match="Database error"),
+    ):
+        await cleanup.run_cleanup(dry_run=True)
+
+    # Verify job was marked as failed
+    mock_job_tracker.fail_job.assert_called_once_with("job-123", "Database error")
+
+
+def test_orphaned_file_cleanup_update_job_progress_without_tracker():
+    """Test _update_job_progress handles missing job tracker gracefully."""
+    from backend.services.cleanup_service import OrphanedFileCleanup
+
+    cleanup = OrphanedFileCleanup(storage_paths=["/test"])
+
+    # Should not raise error
+    cleanup._update_job_progress("job-123", 50, "Test message")
+
+
+def test_orphaned_file_cleanup_update_job_progress_with_tracker():
+    """Test _update_job_progress calls job tracker when available."""
+    from backend.services.cleanup_service import OrphanedFileCleanup
+
+    mock_job_tracker = MagicMock()
+    cleanup = OrphanedFileCleanup(job_tracker=mock_job_tracker, storage_paths=["/test"])
+
+    cleanup._update_job_progress("job-123", 50, "Test message")
+
+    mock_job_tracker.update_progress.assert_called_once_with("job-123", 50, "Test message")
+
+
+def test_orphaned_file_cleanup_delete_orphaned_files(tmp_path):
+    """Test _delete_orphaned_files removes files and returns count."""
+    from backend.services.cleanup_service import OrphanedFileCleanup
+
+    # Create test files
+    file1 = tmp_path / "file1.jpg"
+    file2 = tmp_path / "file2.jpg"
+    file1.write_text("test1")
+    file2.write_text("test2")
+
+    cleanup = OrphanedFileCleanup(storage_paths=[str(tmp_path)])
+
+    orphaned_files = [(str(file1), 100), (str(file2), 200)]
+    deleted_count = cleanup._delete_orphaned_files(orphaned_files)
+
+    assert deleted_count == 2
+    assert not file1.exists()
+    assert not file2.exists()
+
+
+def test_orphaned_file_cleanup_delete_orphaned_files_with_error(tmp_path):
+    """Test _delete_orphaned_files handles deletion errors gracefully."""
+    from backend.services.cleanup_service import OrphanedFileCleanup
+
+    # Create test file
+    file1 = tmp_path / "file1.jpg"
+    file1.write_text("test")
+
+    cleanup = OrphanedFileCleanup(storage_paths=[str(tmp_path)])
+
+    # Mock unlink to raise error
+    with patch.object(Path, "unlink", side_effect=OSError("Permission denied")):
+        orphaned_files = [(str(file1), 100)]
+        deleted_count = cleanup._delete_orphaned_files(orphaned_files)
+
+    # Should return 0 since deletion failed
+    assert deleted_count == 0
+    # File should still exist
+    assert file1.exists()

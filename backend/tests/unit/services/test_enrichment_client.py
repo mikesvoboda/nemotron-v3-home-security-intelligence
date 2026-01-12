@@ -1827,3 +1827,356 @@ class TestGlobalClientManagement:
         with patch("backend.services.enrichment_client.get_settings", return_value=mock_settings):
             client = get_enrichment_client()
             assert isinstance(client, EnrichmentClient)
+
+
+# =============================================================================
+# Circuit Breaker Tests
+# =============================================================================
+
+
+class TestEnrichmentClientCircuitBreaker:
+    """Tests for circuit breaker functionality."""
+
+    def test_get_circuit_breaker_state(self, client: EnrichmentClient) -> None:
+        """Test getting circuit breaker state."""
+        from backend.services.circuit_breaker import CircuitState
+
+        state = client.get_circuit_breaker_state()
+        assert state == CircuitState.CLOSED
+
+    def test_is_circuit_open_false(self, client: EnrichmentClient) -> None:
+        """Test is_circuit_open returns False initially."""
+        assert client.is_circuit_open() is False
+
+    def test_reset_circuit_breaker(self, client: EnrichmentClient) -> None:
+        """Test manually resetting circuit breaker."""
+        from backend.services.circuit_breaker import CircuitState
+
+        client.reset_circuit_breaker()
+        assert client.get_circuit_breaker_state() == CircuitState.CLOSED
+
+    @pytest.mark.asyncio
+    async def test_circuit_breaker_blocks_requests_when_open(
+        self, client: EnrichmentClient, sample_image: Image.Image
+    ) -> None:
+        """Test that circuit breaker blocks requests when open."""
+        from backend.services.circuit_breaker import CircuitState
+
+        # Manually open the circuit
+        client._circuit_breaker._state = CircuitState.OPEN
+
+        with pytest.raises(EnrichmentUnavailableError) as exc_info:
+            await client.classify_vehicle(sample_image)
+
+        assert "circuit open" in str(exc_info.value).lower()
+
+    @pytest.mark.asyncio
+    async def test_is_healthy_false_when_circuit_open(self, client: EnrichmentClient) -> None:
+        """Test is_healthy returns False when circuit is open."""
+        from backend.services.circuit_breaker import CircuitState
+
+        # Manually open the circuit
+        client._circuit_breaker._state = CircuitState.OPEN
+
+        assert await client.is_healthy() is False
+
+    @pytest.mark.asyncio
+    async def test_check_health_includes_circuit_breaker_state(
+        self, client: EnrichmentClient
+    ) -> None:
+        """Test check_health includes circuit breaker state in response."""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "healthy"}
+        mock_response.raise_for_status = MagicMock()
+
+        client._health_http_client.get = AsyncMock(return_value=mock_response)
+
+        result = await client.check_health()
+        assert "circuit_breaker_state" in result
+
+
+# =============================================================================
+# Retry Logic Tests
+# =============================================================================
+
+
+class TestEnrichmentClientRetryLogic:
+    """Tests for retry logic with exponential backoff."""
+
+    def test_calculate_backoff_delay(self, client: EnrichmentClient) -> None:
+        """Test exponential backoff delay calculation."""
+        delay0 = client._calculate_backoff_delay(0)
+        delay1 = client._calculate_backoff_delay(1)
+        delay2 = client._calculate_backoff_delay(2)
+
+        # Base delays should be approximately 1s, 2s, 4s (with jitter)
+        assert 0.9 <= delay0 <= 1.1
+        assert 1.8 <= delay1 <= 2.2
+        assert 3.6 <= delay2 <= 4.4
+
+    def test_calculate_backoff_delay_capped_at_30_seconds(self, client: EnrichmentClient) -> None:
+        """Test that backoff delay is capped at 30 seconds."""
+        delay = client._calculate_backoff_delay(10)  # 2^10 = 1024 seconds
+        assert delay <= 30.0
+
+    def test_is_retryable_error_connect_error(self, client: EnrichmentClient) -> None:
+        """Test ConnectError is retryable."""
+        error = httpx.ConnectError("Connection refused")
+        assert client._is_retryable_error(error) is True
+
+    def test_is_retryable_error_timeout(self, client: EnrichmentClient) -> None:
+        """Test TimeoutException is retryable."""
+        error = httpx.TimeoutException("Timeout")
+        assert client._is_retryable_error(error) is True
+
+    def test_is_retryable_error_5xx(self, client: EnrichmentClient) -> None:
+        """Test 5xx HTTP errors are retryable."""
+        mock_response = MagicMock()
+        mock_response.status_code = 503
+        error = httpx.HTTPStatusError("Server error", request=MagicMock(), response=mock_response)
+        assert client._is_retryable_error(error) is True
+
+    def test_is_retryable_error_4xx_not_retryable(self, client: EnrichmentClient) -> None:
+        """Test 4xx HTTP errors are not retryable."""
+        mock_response = MagicMock()
+        mock_response.status_code = 400
+        error = httpx.HTTPStatusError("Bad request", request=MagicMock(), response=mock_response)
+        assert client._is_retryable_error(error) is False
+
+    def test_is_retryable_error_other_exceptions_not_retryable(
+        self, client: EnrichmentClient
+    ) -> None:
+        """Test other exceptions are not retryable."""
+        error = ValueError("Invalid value")
+        assert client._is_retryable_error(error) is False
+
+    @pytest.mark.asyncio
+    async def test_classify_vehicle_retries_on_server_error(
+        self, client: EnrichmentClient, sample_image: Image.Image
+    ) -> None:
+        """Test vehicle classification retries on server error."""
+        mock_request = MagicMock()
+        mock_response = MagicMock()
+        mock_response.status_code = 503
+
+        # First two calls fail with 503, third succeeds
+        success_response = MagicMock()
+        success_response.json.return_value = {
+            "vehicle_type": "sedan",
+            "display_name": "Sedan",
+            "confidence": 0.90,
+            "is_commercial": False,
+            "all_scores": {"sedan": 0.90},
+            "inference_time_ms": 45.0,
+        }
+        success_response.raise_for_status = MagicMock()
+
+        client._http_client.post = AsyncMock(
+            side_effect=[
+                httpx.HTTPStatusError(
+                    "Service unavailable", request=mock_request, response=mock_response
+                ),
+                httpx.HTTPStatusError(
+                    "Service unavailable", request=mock_request, response=mock_response
+                ),
+                success_response,
+            ]
+        )
+
+        with patch("backend.services.enrichment_client.increment_enrichment_retry"):
+            result = await client.classify_vehicle(sample_image)
+
+        assert result is not None
+        assert result.vehicle_type == "sedan"
+        assert client._http_client.post.call_count == 3
+
+    @pytest.mark.asyncio
+    async def test_classify_vehicle_asyncio_timeout_error(
+        self, client: EnrichmentClient, sample_image: Image.Image
+    ) -> None:
+        """Test vehicle classification handles asyncio.timeout() TimeoutError."""
+        # AsyncIO timeout raises TimeoutError (not httpx.TimeoutException)
+        client._http_client.post = AsyncMock(side_effect=TimeoutError("asyncio timeout"))
+
+        with pytest.raises(EnrichmentUnavailableError) as exc_info:
+            await client.classify_vehicle(sample_image)
+
+        assert "failed after" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_classify_pet_retries_with_exponential_backoff(
+        self, client: EnrichmentClient, sample_image: Image.Image
+    ) -> None:
+        """Test pet classification uses exponential backoff on retries."""
+        # Mock time.sleep to track delays
+        with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
+            client._http_client.post = AsyncMock(
+                side_effect=httpx.ConnectError("Connection refused")
+            )
+
+            with pytest.raises(EnrichmentUnavailableError):
+                await client.classify_pet(sample_image)
+
+            # Should have called sleep with increasing delays
+            assert mock_sleep.call_count == client._max_retries - 1
+
+    @pytest.mark.asyncio
+    async def test_classify_clothing_asyncio_timeout(
+        self, client: EnrichmentClient, sample_image: Image.Image
+    ) -> None:
+        """Test clothing classification handles asyncio TimeoutError."""
+        client._http_client.post = AsyncMock(side_effect=TimeoutError("asyncio timeout"))
+
+        with pytest.raises(EnrichmentUnavailableError):
+            await client.classify_clothing(sample_image)
+
+    @pytest.mark.asyncio
+    async def test_estimate_depth_retries_on_connection_error(
+        self, client: EnrichmentClient, sample_image: Image.Image
+    ) -> None:
+        """Test depth estimation retries on connection error."""
+        success_response = MagicMock()
+        success_response.json.return_value = {
+            "depth_map_base64": "dGVzdA==",
+            "min_depth": 0.1,
+            "max_depth": 0.9,
+            "mean_depth": 0.5,
+            "inference_time_ms": 60.0,
+        }
+        success_response.raise_for_status = MagicMock()
+
+        client._http_client.post = AsyncMock(
+            side_effect=[
+                httpx.ConnectError("Connection refused"),
+                success_response,
+            ]
+        )
+
+        result = await client.estimate_depth(sample_image)
+        assert result is not None
+        assert result.mean_depth == 0.5
+
+    @pytest.mark.asyncio
+    async def test_analyze_pose_asyncio_timeout(
+        self, client: EnrichmentClient, sample_image: Image.Image
+    ) -> None:
+        """Test pose analysis handles asyncio TimeoutError."""
+        client._http_client.post = AsyncMock(side_effect=TimeoutError("asyncio timeout"))
+
+        with pytest.raises(EnrichmentUnavailableError):
+            await client.analyze_pose(sample_image)
+
+    @pytest.mark.asyncio
+    async def test_classify_action_asyncio_timeout(
+        self, client: EnrichmentClient, sample_frames: list[Image.Image]
+    ) -> None:
+        """Test action classification handles asyncio TimeoutError."""
+        client._http_client.post = AsyncMock(side_effect=TimeoutError("asyncio timeout"))
+
+        with pytest.raises(EnrichmentUnavailableError):
+            await client.classify_action(sample_frames)
+
+
+# =============================================================================
+# Bbox Validation Tests
+# =============================================================================
+
+
+class TestEnrichmentClientBboxValidation:
+    """Tests for bounding box validation in object distance estimation."""
+
+    @pytest.mark.asyncio
+    async def test_estimate_object_distance_invalid_bbox_nan(
+        self, client: EnrichmentClient, sample_image: Image.Image
+    ) -> None:
+        """Test object distance estimation with NaN in bbox."""
+        result = await client.estimate_object_distance(
+            sample_image, bbox=(float("nan"), 10.0, 90.0, 90.0)
+        )
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_estimate_object_distance_invalid_bbox_zero_width(
+        self, client: EnrichmentClient, sample_image: Image.Image
+    ) -> None:
+        """Test object distance estimation with zero width bbox."""
+        result = await client.estimate_object_distance(sample_image, bbox=(50.0, 10.0, 50.0, 90.0))
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_estimate_object_distance_invalid_bbox_inverted(
+        self, client: EnrichmentClient, sample_image: Image.Image
+    ) -> None:
+        """Test object distance estimation with inverted bbox coordinates."""
+        result = await client.estimate_object_distance(sample_image, bbox=(90.0, 90.0, 10.0, 10.0))
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_estimate_object_distance_bbox_outside_image(
+        self, client: EnrichmentClient, sample_image: Image.Image
+    ) -> None:
+        """Test object distance estimation with bbox outside image boundaries."""
+        # bbox completely outside image
+        result = await client.estimate_object_distance(
+            sample_image, bbox=(200.0, 200.0, 300.0, 300.0)
+        )
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_estimate_object_distance_bbox_clamped(
+        self, client: EnrichmentClient, sample_image: Image.Image
+    ) -> None:
+        """Test object distance estimation clamps bbox to image boundaries."""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "estimated_distance_m": 5.0,
+            "relative_depth": 0.5,
+            "proximity_label": "medium",
+            "inference_time_ms": 55.0,
+        }
+        mock_response.raise_for_status = MagicMock()
+
+        client._http_client.post = AsyncMock(return_value=mock_response)
+
+        # bbox extends beyond image boundaries (100x100 image)
+        result = await client.estimate_object_distance(
+            sample_image, bbox=(-10.0, -10.0, 110.0, 110.0)
+        )
+
+        assert result is not None
+        # Verify clamped bbox was sent in request
+        call_args = client._http_client.post.call_args
+        sent_bbox = call_args.kwargs["json"]["bbox"]
+        # Should be clamped to (0, 0, 100, 100)
+        assert sent_bbox[0] >= 0
+        assert sent_bbox[1] >= 0
+        assert sent_bbox[2] <= 100
+        assert sent_bbox[3] <= 100
+
+    @pytest.mark.asyncio
+    async def test_estimate_object_distance_asyncio_timeout(
+        self, client: EnrichmentClient, sample_image: Image.Image
+    ) -> None:
+        """Test object distance estimation handles asyncio TimeoutError."""
+        client._http_client.post = AsyncMock(side_effect=TimeoutError("asyncio timeout"))
+
+        with pytest.raises(EnrichmentUnavailableError):
+            await client.estimate_object_distance(sample_image, bbox=(10.0, 10.0, 90.0, 90.0))
+
+
+# =============================================================================
+# Client Lifecycle Tests
+# =============================================================================
+
+
+class TestEnrichmentClientLifecycle:
+    """Tests for client lifecycle management."""
+
+    @pytest.mark.asyncio
+    async def test_close_client(self, client: EnrichmentClient) -> None:
+        """Test closing HTTP client connections."""
+        await client.close()
+
+        # Verify both HTTP clients were closed
+        client._http_client.aclose.assert_called_once()
+        client._health_http_client.aclose.assert_called_once()

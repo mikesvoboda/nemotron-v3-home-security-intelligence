@@ -73,7 +73,12 @@ The system is organized into four layers:
 - **GPU Services:** 5 AI inference containers (RT-DETRv2, Nemotron, Florence-2, CLIP, Enrichment)
 - **Data Layer:** PostgreSQL, Redis, and filesystem storage
 
-### Detailed Mermaid Diagram
+### Detailed System Architecture Diagram
+
+![System architecture diagram showing four layers: Camera Layer with Foscam cameras, FTP Upload storage, Docker Services (Frontend, Backend, Redis), Containerized GPU Services (RT-DETRv2, Nemotron, Florence-2, CLIP, Enrichment), and Persistent Storage (PostgreSQL, Filesystem)](../images/architecture/overview-system-architecture.svg)
+
+<!--
+Original Mermaid diagram preserved for reference:
 
 ```mermaid
 flowchart TB
@@ -108,6 +113,7 @@ flowchart TB
     end
 
     CAM1 & CAM2 & CAM3 -->|FTP Upload| FTPS
+
     FTPS -->|FileWatcher| BE
     BE <-->|Queues & Pub/Sub| RD
     BE -->|HTTP /detect| DET
@@ -119,7 +125,9 @@ flowchart TB
     BE -->|PIL/Pillow| FS
     FE <-->|REST API| BE
     FE <-->|WebSocket| BE
-```
+
+````
+-->
 
 ---
 
@@ -292,7 +300,7 @@ Used for: Real-time updates without polling
     "summary": "Person detected..."
   }
 }
-```
+````
 
 ### Redis Pub/Sub
 
@@ -328,6 +336,11 @@ Used for: AI inference requests
 
 ## Deployment Topology
 
+![Deployment topology diagram showing host machine with Docker Compose network (Frontend, Backend, Redis containers), Containerized GPU Services via CDI (RT-DETRv2, Nemotron, Florence-2, CLIP, Enrichment), Persistent Storage volumes, and NVIDIA RTX A5500 GPU](../images/architecture/overview-deployment-topology.svg)
+
+<!--
+Original Mermaid diagram preserved for reference:
+
 ```mermaid
 flowchart TB
     subgraph Host["Host Machine (with GPU)"]
@@ -355,6 +368,7 @@ flowchart TB
     end
 
     FE <--> BE
+
     BE <--> RD
     BE -->|localhost:8090| DET
     BE -->|localhost:8092 (optional)| FLO
@@ -366,7 +380,9 @@ flowchart TB
     BE --> VOL1
     BE --> VOL2
     RD --> VOL3
-```
+
+````
+-->
 
 ### What Runs Where
 
@@ -401,6 +417,11 @@ flowchart TB
 ## Data Flow
 
 ### Complete Pipeline: Camera to Dashboard
+
+![Sequence diagram showing the complete data flow from camera FTP upload through FileWatcher, detection queue, RT-DETRv2 inference, optional enrichment, fast path vs normal batching decision, Nemotron LLM analysis, and WebSocket broadcast to the dashboard](../images/architecture/overview-pipeline-sequence.svg)
+
+<!--
+Original Mermaid diagram preserved for reference:
 
 ```mermaid
 sequenceDiagram
@@ -460,7 +481,9 @@ sequenceDiagram
     EB->>WS: send to connected clients
     WS->>UI: {"type": "event", "data": {...}}
     UI->>UI: update activity feed
-```
+````
+
+-->
 
 ### Batching Logic
 
@@ -482,17 +505,25 @@ A single "person walks to door" scenario might generate 15 images over 30 second
 
 Critical detections can bypass batching for immediate alerts:
 
+![Fast path decision flowchart showing detection input flowing to a decision diamond checking if confidence is greater than 90% and type is person, with Yes leading to Fast Path immediate LLM analysis and No leading to Normal Path batch accumulation with timeout](../images/architecture/overview-fast-path-decision.svg)
+
+<!--
+Original Mermaid diagram preserved for reference:
+
 ```mermaid
 flowchart TB
     D[Detection]
     D --> C{Confidence > 90%<br/>AND<br/>type = person?}
+
     C -->|Yes| FP[Fast Path<br/>Immediate LLM analysis]
     C -->|No| NP[Normal Path<br/>Add to batch]
     FP --> E1[Event created<br/>is_fast_path=true]
     NP --> B[Batch accumulates]
     B --> T{Timeout?}
     T -->|Yes| E2[Event created<br/>is_fast_path=false]
-```
+
+````
+-->
 
 ---
 
@@ -574,7 +605,7 @@ erDiagram
         datetime created_at
         bool is_active
     }
-```
+````
 
 ### Key Indexes
 
@@ -590,6 +621,11 @@ erDiagram
 ---
 
 ## Component Interaction Diagram
+
+![Component interaction diagram showing Frontend (React pages, custom hooks, services), Backend (FastAPI routes, AI pipeline, background workers, background services), and External Services (Redis, PostgreSQL, RT-DETRv2, Nemotron LLM, Florence-2, CLIP) with connection lines showing data flow between components](../images/architecture/overview-component-interaction.svg)
+
+<!--
+Original Mermaid diagram preserved for reference:
 
 ```mermaid
 flowchart TB
@@ -668,6 +704,7 @@ flowchart TB
 
     %% Frontend connections
     DASH --> HES
+
     DASH --> HSS
     AIP --> HAI
     AIP --> HPM
@@ -711,7 +748,9 @@ flowchart TB
     %% Routes to DB
     RC & RE & RD & RS --> POSTGRES
     RM --> POSTGRES
-```
+
+````
+-->
 
 ---
 
@@ -763,7 +802,7 @@ flowchart TB
     DLQ --> API["/api/dlq/*"]
     API --> REQUEUE[Manual Requeue]
     REQUEUE --> W
-```
+````
 
 ### Health Monitoring
 

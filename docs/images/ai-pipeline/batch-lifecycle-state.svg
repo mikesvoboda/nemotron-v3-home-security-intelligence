@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 500" width="900" height="500">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#374151"/>
+    </marker>
+    <marker id="arrow-blue" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#3B82F6"/>
+    </marker>
+    <marker id="arrow-green" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#10B981"/>
+    </marker>
+    <marker id="arrow-red" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#EF4444"/>
+    </marker>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="2" dy="2" stdDeviation="3" flood-opacity="0.1"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="900" height="500" fill="#FFFFFF"/>
+
+  <!-- Title -->
+  <text x="450" y="35" font-family="Inter, system-ui, sans-serif" font-size="20" font-weight="600" fill="#111827" text-anchor="middle">Batch Lifecycle State Machine</text>
+  <text x="450" y="55" font-family="Inter, system-ui, sans-serif" font-size="12" fill="#6B7280" text-anchor="middle">States and transitions for detection batch aggregation</text>
+
+  <!-- Initial State (black dot) -->
+  <circle cx="100" cy="200" r="12" fill="#111827"/>
+  <text x="100" y="235" font-family="Inter, system-ui, sans-serif" font-size="11" fill="#6B7280" text-anchor="middle">Start</text>
+
+  <!-- No Active Batch State -->
+  <rect x="180" y="170" width="150" height="60" rx="30" fill="#F3F4F6" stroke="#9CA3AF" stroke-width="2" filter="url(#shadow)"/>
+  <text x="255" y="205" font-family="Inter, system-ui, sans-serif" font-size="13" font-weight="500" fill="#374151" text-anchor="middle">No Active Batch</text>
+
+  <!-- Batch Active State (compound) -->
+  <rect x="420" y="100" width="260" height="200" rx="12" fill="#EFF6FF" stroke="#3B82F6" stroke-width="2" filter="url(#shadow)"/>
+  <text x="550" y="130" font-family="Inter, system-ui, sans-serif" font-size="14" font-weight="600" fill="#1E40AF" text-anchor="middle">Batch Active</text>
+
+  <!-- Inner Collecting state -->
+  <rect x="450" y="155" width="200" height="50" rx="25" fill="#DBEAFE" stroke="#3B82F6" stroke-width="1.5"/>
+  <text x="550" y="185" font-family="Inter, system-ui, sans-serif" font-size="12" font-weight="500" fill="#1E40AF" text-anchor="middle">Collecting Detections</text>
+
+  <!-- Self-loop for add_detection -->
+  <path d="M 650 180 C 700 180, 700 140, 650 155" fill="none" stroke="#3B82F6" stroke-width="1.5" marker-end="url(#arrow-blue)"/>
+  <text x="720" y="165" font-family="Inter, system-ui, sans-serif" font-size="10" fill="#3B82F6">add_detection()</text>
+
+  <!-- Actions note box -->
+  <rect x="435" y="220" width="230" height="65" rx="4" fill="#FFFFFF" stroke="#BFDBFE" stroke-width="1"/>
+  <text x="550" y="240" font-family="Inter, system-ui, sans-serif" font-size="10" font-weight="500" fill="#374151" text-anchor="middle">On Entry:</text>
+  <text x="550" y="255" font-family="Inter, system-ui, sans-serif" font-size="9" fill="#6B7280" text-anchor="middle">Create batch with UUID</text>
+  <text x="550" y="268" font-family="Inter, system-ui, sans-serif" font-size="9" fill="#6B7280" text-anchor="middle">Set started_at = now()</text>
+  <text x="550" y="281" font-family="Inter, system-ui, sans-serif" font-size="9" fill="#6B7280" text-anchor="middle">Set last_activity = now()</text>
+
+  <!-- Batch Closed State -->
+  <rect x="420" y="370" width="260" height="60" rx="30" fill="#D1FAE5" stroke="#10B981" stroke-width="2" filter="url(#shadow)"/>
+  <text x="550" y="405" font-family="Inter, system-ui, sans-serif" font-size="13" font-weight="500" fill="#065F46" text-anchor="middle">Batch Closed</text>
+
+  <!-- Final State (bullseye) -->
+  <circle cx="800" cy="400" r="15" fill="none" stroke="#111827" stroke-width="2"/>
+  <circle cx="800" cy="400" r="8" fill="#111827"/>
+  <text x="800" y="435" font-family="Inter, system-ui, sans-serif" font-size="11" fill="#6B7280" text-anchor="middle">End</text>
+
+  <!-- Transition: Start to No Active Batch -->
+  <line x1="112" y1="200" x2="175" y2="200" stroke="#374151" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Transition: No Active Batch to Batch Active -->
+  <path d="M 330 185 L 415 185" fill="none" stroke="#3B82F6" stroke-width="1.5" marker-end="url(#arrow-blue)"/>
+  <rect x="335" y="150" width="100" height="30" rx="4" fill="#FFFFFF" stroke="#BFDBFE" stroke-width="1"/>
+  <text x="385" y="163" font-family="Inter, system-ui, sans-serif" font-size="9" fill="#3B82F6" text-anchor="middle">First detection</text>
+  <text x="385" y="175" font-family="Inter, system-ui, sans-serif" font-size="9" fill="#3B82F6" text-anchor="middle">arrives</text>
+
+  <!-- Transition: Batch Active to Batch Closed (window timeout) -->
+  <path d="M 480 300 L 480 365" fill="none" stroke="#EF4444" stroke-width="1.5" marker-end="url(#arrow-red)"/>
+  <rect x="370" y="315" width="90" height="35" rx="4" fill="#FEE2E2" stroke="#FECACA" stroke-width="1"/>
+  <text x="415" y="328" font-family="Inter, system-ui, sans-serif" font-size="9" fill="#991B1B" text-anchor="middle">Window timeout</text>
+  <text x="415" y="343" font-family="Inter, system-ui, sans-serif" font-size="9" fill="#991B1B" text-anchor="middle">(90s from start)</text>
+
+  <!-- Transition: Batch Active to Batch Closed (idle timeout) -->
+  <path d="M 550 300 L 550 365" fill="none" stroke="#F59E0B" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <rect x="505" y="315" width="90" height="35" rx="4" fill="#FEF3C7" stroke="#FCD34D" stroke-width="1"/>
+  <text x="550" y="328" font-family="Inter, system-ui, sans-serif" font-size="9" fill="#92400E" text-anchor="middle">Idle timeout</text>
+  <text x="550" y="343" font-family="Inter, system-ui, sans-serif" font-size="9" fill="#92400E" text-anchor="middle">(30s no activity)</text>
+
+  <!-- Transition: Batch Active to Batch Closed (force close) -->
+  <path d="M 620 300 L 620 365" fill="none" stroke="#6B7280" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <rect x="580" y="315" width="80" height="35" rx="4" fill="#F3F4F6" stroke="#D1D5DB" stroke-width="1"/>
+  <text x="620" y="328" font-family="Inter, system-ui, sans-serif" font-size="9" fill="#374151" text-anchor="middle">Force close</text>
+  <text x="620" y="343" font-family="Inter, system-ui, sans-serif" font-size="9" fill="#374151" text-anchor="middle">(API call)</text>
+
+  <!-- Transition: Batch Closed to Final -->
+  <line x1="680" y1="400" x2="782" y2="400" stroke="#10B981" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+  <rect x="695" y="410" width="80" height="40" rx="4" fill="#D1FAE5" stroke="#A7F3D0" stroke-width="1"/>
+  <text x="735" y="425" font-family="Inter, system-ui, sans-serif" font-size="9" fill="#065F46" text-anchor="middle">Push to queue</text>
+  <text x="735" y="440" font-family="Inter, system-ui, sans-serif" font-size="9" fill="#065F46" text-anchor="middle">Cleanup Redis</text>
+
+  <!-- Legend -->
+  <rect x="30" y="400" width="300" height="80" rx="6" fill="#FAFAFA" stroke="#E5E7EB" stroke-width="1"/>
+  <text x="45" y="420" font-family="Inter, system-ui, sans-serif" font-size="11" font-weight="600" fill="#374151">Legend</text>
+
+  <g font-family="Inter, system-ui, sans-serif" font-size="9">
+    <rect x="45" y="430" width="50" height="18" rx="9" fill="#F3F4F6" stroke="#9CA3AF" stroke-width="1"/>
+    <text x="110" y="443" fill="#374151">Inactive State</text>
+
+    <rect x="165" y="430" width="50" height="18" rx="9" fill="#DBEAFE" stroke="#3B82F6" stroke-width="1"/>
+    <text x="230" y="443" fill="#374151">Active State</text>
+
+    <rect x="45" y="455" width="50" height="18" rx="9" fill="#D1FAE5" stroke="#10B981" stroke-width="1"/>
+    <text x="110" y="468" fill="#374151">Terminal State</text>
+
+    <circle cx="190" cy="464" r="6" fill="#111827"/>
+    <text x="230" y="468" fill="#374151">Start/End</text>
+  </g>
+</svg>

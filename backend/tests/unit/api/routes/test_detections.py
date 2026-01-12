@@ -1,7 +1,7 @@
 """Unit tests for detections API route handlers.
 
 This test file covers the route handlers in backend/api/routes/detections.py
-to increase coverage from 10.34% to at least 80%.
+to increase coverage from 80.3% to at least 95%.
 
 Tests cover:
 - list_detections endpoint (filtering, pagination, cursor-based pagination)
@@ -11,12 +11,15 @@ Tests cover:
 - get_detection_image endpoint (image serving with thumbnails)
 - stream_detection_video endpoint (video streaming with range requests)
 - get_video_thumbnail endpoint (video thumbnail extraction)
+- search_detections endpoint (full-text search)
+- list_detection_labels endpoint (label enumeration)
+- Bulk operations (create, update, delete)
 - Helper functions (_sanitize_errors, _extract_clothing_from_enrichment, etc.)
 """
 
 from datetime import UTC, datetime
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, mock_open, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, mock_open, patch
 
 import pytest
 from fastapi import HTTPException, status
@@ -1475,3 +1478,748 @@ class TestGetVideoThumbnail:
                 )
 
         assert exc_info.value.status_code == 404
+
+
+# ============================================================================
+# Search and Labels Tests
+# ============================================================================
+
+
+class TestSearchDetections:
+    """Tests for search_detections endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_search_basic(self, mock_db_session):
+        """Test basic search functionality."""
+        from backend.api.routes.detections import search_detections
+
+        det1 = DetectionFactory(
+            id=1,
+            object_type="person",
+            confidence=0.95,
+            labels=["suspicious", "night"],
+        )
+
+        # Mock search query results
+        mock_row = MagicMock()
+        mock_row.Detection = det1
+        mock_row.rank = 0.95
+
+        mock_result = MagicMock()
+        mock_result.all.return_value = [mock_row]
+
+        # Mock count query
+        mock_count_result = MagicMock()
+        mock_count_result.scalar.return_value = 1
+
+        mock_db_session.execute.side_effect = [
+            mock_count_result,  # count query
+            mock_result,  # search query
+        ]
+
+        result = await search_detections(
+            q="person",
+            labels=None,
+            min_confidence=None,
+            camera_id=None,
+            start_date=None,
+            end_date=None,
+            limit=50,
+            offset=0,
+            db=mock_db_session,
+        )
+
+        assert result.total_count == 1
+        assert len(result.results) == 1
+        assert result.results[0].id == 1
+        assert result.results[0].relevance_score >= 0.0
+
+    @pytest.mark.asyncio
+    async def test_search_with_labels_filter(self, mock_db_session):
+        """Test search with labels filter."""
+        from backend.api.routes.detections import search_detections
+
+        det1 = DetectionFactory(
+            id=1,
+            object_type="person",
+            labels=["suspicious"],
+        )
+
+        mock_row = MagicMock()
+        mock_row.Detection = det1
+        mock_row.rank = 0.9
+
+        mock_result = MagicMock()
+        mock_result.all.return_value = [mock_row]
+
+        mock_count_result = MagicMock()
+        mock_count_result.scalar.return_value = 1
+
+        mock_db_session.execute.side_effect = [
+            mock_count_result,
+            mock_result,
+        ]
+
+        result = await search_detections(
+            q="person",
+            labels=["suspicious"],
+            min_confidence=None,
+            camera_id=None,
+            start_date=None,
+            end_date=None,
+            limit=50,
+            offset=0,
+            db=mock_db_session,
+        )
+
+        assert result.total_count == 1
+
+    @pytest.mark.asyncio
+    async def test_search_with_all_filters(self, mock_db_session):
+        """Test search with all filters applied."""
+        from backend.api.routes.detections import search_detections
+
+        start_date = datetime(2025, 12, 1, 0, 0, 0, tzinfo=UTC)
+        end_date = datetime(2025, 12, 31, 23, 59, 59, tzinfo=UTC)
+
+        mock_result = MagicMock()
+        mock_result.all.return_value = []
+
+        mock_count_result = MagicMock()
+        mock_count_result.scalar.return_value = 0
+
+        mock_db_session.execute.side_effect = [
+            mock_count_result,
+            mock_result,
+        ]
+
+        result = await search_detections(
+            q="person suspicious",
+            labels=["suspicious", "night"],
+            min_confidence=0.9,
+            camera_id="front_door",
+            start_date=start_date,
+            end_date=end_date,
+            limit=10,
+            offset=0,
+            db=mock_db_session,
+        )
+
+        assert result.total_count == 0
+        assert len(result.results) == 0
+
+    @pytest.mark.asyncio
+    async def test_search_invalid_date_range(self, mock_db_session):
+        """Test search with invalid date range."""
+        from backend.api.routes.detections import search_detections
+
+        start_date = datetime(2025, 12, 31, 0, 0, 0, tzinfo=UTC)
+        end_date = datetime(2025, 12, 1, 0, 0, 0, tzinfo=UTC)
+
+        with pytest.raises(HTTPException) as exc_info:
+            await search_detections(
+                q="person",
+                labels=None,
+                min_confidence=None,
+                camera_id=None,
+                start_date=start_date,
+                end_date=end_date,
+                limit=50,
+                offset=0,
+                db=mock_db_session,
+            )
+
+        assert exc_info.value.status_code == 400
+
+    @pytest.mark.asyncio
+    async def test_search_relevance_scoring(self, mock_db_session):
+        """Test search relevance score calculation."""
+        from backend.api.routes.detections import search_detections
+
+        det1 = DetectionFactory(id=1)
+        det2 = DetectionFactory(id=2)
+
+        mock_row1 = MagicMock()
+        mock_row1.Detection = det1
+        mock_row1.rank = 1.0
+
+        mock_row2 = MagicMock()
+        mock_row2.Detection = det2
+        mock_row2.rank = 0.5
+
+        mock_result = MagicMock()
+        mock_result.all.return_value = [mock_row1, mock_row2]
+
+        mock_count_result = MagicMock()
+        mock_count_result.scalar.return_value = 2
+
+        mock_db_session.execute.side_effect = [
+            mock_count_result,
+            mock_result,
+        ]
+
+        result = await search_detections(
+            q="test query",
+            labels=None,
+            min_confidence=None,
+            camera_id=None,
+            start_date=None,
+            end_date=None,
+            limit=50,
+            offset=0,
+            db=mock_db_session,
+        )
+
+        assert len(result.results) == 2
+        assert result.results[0].relevance_score == 1.0
+        assert result.results[1].relevance_score == 0.5
+
+
+class TestListDetectionLabels:
+    """Tests for list_detection_labels endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_list_labels(self, mock_db_session):
+        """Test listing detection labels with counts."""
+        from backend.api.routes.detections import list_detection_labels
+
+        # Mock label query results
+        mock_row1 = MagicMock()
+        mock_row1.label = "suspicious"
+        mock_row1.count = 50
+
+        mock_row2 = MagicMock()
+        mock_row2.label = "night"
+        mock_row2.count = 30
+
+        mock_result = MagicMock()
+        mock_result.all.return_value = [mock_row1, mock_row2]
+
+        mock_db_session.execute.return_value = mock_result
+
+        result = await list_detection_labels(db=mock_db_session)
+
+        assert len(result.labels) == 2
+        assert result.labels[0].label == "suspicious"
+        assert result.labels[0].count == 50
+        assert result.labels[1].label == "night"
+        assert result.labels[1].count == 30
+
+    @pytest.mark.asyncio
+    async def test_list_labels_empty(self, mock_db_session):
+        """Test listing labels when none exist."""
+        from backend.api.routes.detections import list_detection_labels
+
+        mock_result = MagicMock()
+        mock_result.all.return_value = []
+
+        mock_db_session.execute.return_value = mock_result
+
+        result = await list_detection_labels(db=mock_db_session)
+
+        assert len(result.labels) == 0
+
+
+# ============================================================================
+# Sparse Fieldsets Tests
+# ============================================================================
+
+
+class TestSparseFieldsets:
+    """Tests for sparse fieldsets functionality in list_detections."""
+
+    @pytest.mark.asyncio
+    async def test_list_detections_with_fields_filter(self, mock_db_session):
+        """Test listing detections with fields parameter.
+
+        Note: While the endpoint filters fields, Pydantic converts the dict back to
+        DetectionResponse, so we verify the filter code path executes without error.
+        """
+        det1 = DetectionFactory(
+            id=1,
+            camera_id="front_door",
+            object_type="person",
+            confidence=0.95,
+            detected_at=datetime(2025, 12, 23, 12, 0, 0, tzinfo=UTC),
+            file_path="/export/foscam/test.jpg",
+        )
+
+        mock_result = MagicMock()
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = [det1]
+        mock_result.scalars.return_value = mock_scalars
+
+        mock_db_session.execute.side_effect = [
+            MagicMock(scalar=lambda: 1),
+            mock_result,
+        ]
+
+        # This tests that the sparse fieldsets code path executes successfully
+        result = await list_detections(
+            camera_id=None,
+            object_type=None,
+            start_date=None,
+            end_date=None,
+            min_confidence=None,
+            limit=50,
+            offset=0,
+            cursor=None,
+            fields="id,camera_id,object_type,confidence,file_path,detected_at",
+            db=mock_db_session,
+        )
+
+        assert len(result.items) == 1
+        # Verify the result contains the expected data
+        item = result.items[0]
+        assert item.id == 1
+        assert item.camera_id == "front_door"
+        assert item.object_type == "person"
+        assert item.confidence == 0.95
+
+    @pytest.mark.asyncio
+    async def test_list_detections_with_invalid_fields(self, mock_db_session):
+        """Test listing detections with invalid fields parameter."""
+        with pytest.raises(HTTPException) as exc_info:
+            await list_detections(
+                camera_id=None,
+                object_type=None,
+                start_date=None,
+                end_date=None,
+                min_confidence=None,
+                limit=50,
+                offset=0,
+                cursor=None,
+                fields="id,invalid_field",
+                db=mock_db_session,
+            )
+
+        assert exc_info.value.status_code == 400
+        assert "invalid" in str(exc_info.value.detail).lower()
+
+
+# ============================================================================
+# Bulk Operations Tests
+# ============================================================================
+
+
+@pytest.fixture
+def mock_cache_service():
+    """Create a mock CacheService for DI."""
+    from backend.services.cache_service import CacheService
+
+    mock_cache = MagicMock(spec=CacheService)
+    mock_cache.invalidate_detections = MagicMock()
+    mock_cache.invalidate_event_stats = MagicMock()
+    return mock_cache
+
+
+class TestBulkCreateDetections:
+    """Tests for bulk_create_detections endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_bulk_create_success(self, mock_db_session, mock_cache_service):
+        """Test successful bulk creation of detections."""
+        from backend.api.routes.detections import bulk_create_detections
+        from backend.api.schemas.bulk import DetectionBulkCreateItem, DetectionBulkCreateRequest
+
+        # Mock camera exists check
+        mock_camera_result = MagicMock()
+        mock_camera_result.all.return_value = [("front_door",), ("back_door",)]
+
+        # Mock detection query result (empty for new detections)
+        mock_detection_result = MagicMock()
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = []
+        mock_detection_result.scalars.return_value = mock_scalars
+
+        mock_db_session.execute.return_value = mock_camera_result
+
+        request = DetectionBulkCreateRequest(
+            detections=[
+                DetectionBulkCreateItem(
+                    camera_id="front_door",
+                    object_type="person",
+                    confidence=0.95,
+                    detected_at=datetime(2025, 12, 23, 12, 0, 0, tzinfo=UTC),
+                    file_path="/export/foscam/test1.jpg",
+                    bbox_x=100,
+                    bbox_y=200,
+                    bbox_width=150,
+                    bbox_height=300,
+                ),
+                DetectionBulkCreateItem(
+                    camera_id="back_door",
+                    object_type="car",
+                    confidence=0.88,
+                    detected_at=datetime(2025, 12, 23, 12, 5, 0, tzinfo=UTC),
+                    file_path="/export/foscam/test2.jpg",
+                    bbox_x=200,
+                    bbox_y=300,
+                    bbox_width=200,
+                    bbox_height=150,
+                ),
+            ]
+        )
+
+        result = await bulk_create_detections(
+            request=request,
+            db=mock_db_session,
+            cache=mock_cache_service,
+        )
+
+        assert result.total == 2
+        assert result.succeeded == 2
+        assert result.failed == 0
+        assert len(result.results) == 2
+
+    @pytest.mark.asyncio
+    async def test_bulk_create_camera_not_found(self, mock_db_session, mock_cache_service):
+        """Test bulk creation with non-existent camera."""
+        from backend.api.routes.detections import bulk_create_detections
+        from backend.api.schemas.bulk import DetectionBulkCreateItem, DetectionBulkCreateRequest
+
+        # Mock camera exists check (empty - no cameras found)
+        mock_camera_result = MagicMock()
+        mock_camera_result.all.return_value = []
+
+        mock_db_session.execute.return_value = mock_camera_result
+
+        request = DetectionBulkCreateRequest(
+            detections=[
+                DetectionBulkCreateItem(
+                    camera_id="non_existent",
+                    object_type="person",
+                    confidence=0.95,
+                    detected_at=datetime(2025, 12, 23, 12, 0, 0, tzinfo=UTC),
+                    file_path="/export/foscam/test.jpg",
+                    bbox_x=100,
+                    bbox_y=200,
+                    bbox_width=150,
+                    bbox_height=300,
+                ),
+            ]
+        )
+
+        result = await bulk_create_detections(
+            request=request,
+            db=mock_db_session,
+            cache=mock_cache_service,
+        )
+
+        assert result.total == 1
+        assert result.succeeded == 0
+        assert result.failed == 1
+        assert "camera not found" in result.results[0].error.lower()
+
+    @pytest.mark.asyncio
+    async def test_bulk_create_partial_success(self, mock_db_session, mock_cache_service):
+        """Test bulk creation with partial success."""
+        from backend.api.routes.detections import bulk_create_detections
+        from backend.api.schemas.bulk import DetectionBulkCreateItem, DetectionBulkCreateRequest
+
+        # Mock camera exists check
+        mock_camera_result = MagicMock()
+        mock_camera_result.all.return_value = [("front_door",)]
+
+        mock_db_session.execute.return_value = mock_camera_result
+
+        request = DetectionBulkCreateRequest(
+            detections=[
+                DetectionBulkCreateItem(
+                    camera_id="front_door",
+                    object_type="person",
+                    confidence=0.95,
+                    detected_at=datetime(2025, 12, 23, 12, 0, 0, tzinfo=UTC),
+                    file_path="/export/foscam/test1.jpg",
+                    bbox_x=100,
+                    bbox_y=200,
+                    bbox_width=150,
+                    bbox_height=300,
+                ),
+                DetectionBulkCreateItem(
+                    camera_id="invalid_camera",
+                    object_type="car",
+                    confidence=0.88,
+                    detected_at=datetime(2025, 12, 23, 12, 5, 0, tzinfo=UTC),
+                    file_path="/export/foscam/test2.jpg",
+                    bbox_x=200,
+                    bbox_y=300,
+                    bbox_width=200,
+                    bbox_height=150,
+                ),
+            ]
+        )
+
+        result = await bulk_create_detections(
+            request=request,
+            db=mock_db_session,
+            cache=mock_cache_service,
+        )
+
+        assert result.total == 2
+        assert result.succeeded == 1
+        assert result.failed == 1
+
+    @pytest.mark.asyncio
+    async def test_bulk_create_exception_handling(self, mock_db_session, mock_cache_service):
+        """Test bulk creation with exception during creation."""
+        from backend.api.routes.detections import bulk_create_detections
+        from backend.api.schemas.bulk import DetectionBulkCreateItem, DetectionBulkCreateRequest
+
+        # Mock camera exists check
+        mock_camera_result = MagicMock()
+        mock_camera_result.all.return_value = [("front_door",)]
+
+        mock_db_session.execute.return_value = mock_camera_result
+        # Make db.add raise an exception
+        mock_db_session.add.side_effect = Exception("Database error")
+
+        request = DetectionBulkCreateRequest(
+            detections=[
+                DetectionBulkCreateItem(
+                    camera_id="front_door",
+                    object_type="person",
+                    confidence=0.95,
+                    detected_at=datetime(2025, 12, 23, 12, 0, 0, tzinfo=UTC),
+                    file_path="/export/foscam/test1.jpg",
+                    bbox_x=100,
+                    bbox_y=200,
+                    bbox_width=150,
+                    bbox_height=300,
+                ),
+            ]
+        )
+
+        result = await bulk_create_detections(
+            request=request,
+            db=mock_db_session,
+            cache=mock_cache_service,
+        )
+
+        assert result.total == 1
+        assert result.succeeded == 0
+        assert result.failed == 1
+        assert "database error" in result.results[0].error.lower()
+
+    @pytest.mark.asyncio
+    async def test_bulk_create_commit_failure(self, mock_db_session, mock_cache_service):
+        """Test bulk creation with commit failure."""
+        from backend.api.routes.detections import bulk_create_detections
+        from backend.api.schemas.bulk import DetectionBulkCreateItem, DetectionBulkCreateRequest
+
+        # Mock camera exists check
+        mock_camera_result = MagicMock()
+        mock_camera_result.all.return_value = [("front_door",)]
+
+        mock_db_session.execute.return_value = mock_camera_result
+        # Make commit raise an exception
+        mock_db_session.commit = AsyncMock(side_effect=Exception("Commit failed"))
+
+        request = DetectionBulkCreateRequest(
+            detections=[
+                DetectionBulkCreateItem(
+                    camera_id="front_door",
+                    object_type="person",
+                    confidence=0.95,
+                    detected_at=datetime(2025, 12, 23, 12, 0, 0, tzinfo=UTC),
+                    file_path="/export/foscam/test1.jpg",
+                    bbox_x=100,
+                    bbox_y=200,
+                    bbox_width=150,
+                    bbox_height=300,
+                ),
+            ]
+        )
+
+        result = await bulk_create_detections(
+            request=request,
+            db=mock_db_session,
+            cache=mock_cache_service,
+        )
+
+        assert result.total == 1
+        assert result.succeeded == 0
+        assert result.failed == 1
+        assert "commit failed" in result.results[0].error.lower()
+
+    @pytest.mark.asyncio
+    async def test_bulk_create_cache_invalidation_failure(
+        self, mock_db_session, mock_cache_service
+    ):
+        """Test bulk creation with cache invalidation failure (non-critical)."""
+        from backend.api.routes.detections import bulk_create_detections
+        from backend.api.schemas.bulk import DetectionBulkCreateItem, DetectionBulkCreateRequest
+
+        # Mock camera exists check
+        mock_camera_result = MagicMock()
+        mock_camera_result.all.return_value = [("front_door",)]
+
+        mock_db_session.execute.return_value = mock_camera_result
+        # Make cache invalidation fail (should not affect the operation)
+        mock_cache_service.invalidate_detections = AsyncMock(side_effect=Exception("Cache error"))
+
+        request = DetectionBulkCreateRequest(
+            detections=[
+                DetectionBulkCreateItem(
+                    camera_id="front_door",
+                    object_type="person",
+                    confidence=0.95,
+                    detected_at=datetime(2025, 12, 23, 12, 0, 0, tzinfo=UTC),
+                    file_path="/export/foscam/test1.jpg",
+                    bbox_x=100,
+                    bbox_y=200,
+                    bbox_width=150,
+                    bbox_height=300,
+                ),
+            ]
+        )
+
+        result = await bulk_create_detections(
+            request=request,
+            db=mock_db_session,
+            cache=mock_cache_service,
+        )
+
+        # Cache failure should not affect the operation result
+        assert result.total == 1
+        assert result.succeeded == 1
+        assert result.failed == 0
+
+
+class TestBulkUpdateDetections:
+    """Tests for bulk_update_detections endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_bulk_update_success(self, mock_db_session, mock_cache_service):
+        """Test successful bulk update of detections."""
+        from backend.api.routes.detections import bulk_update_detections
+        from backend.api.schemas.bulk import DetectionBulkUpdateItem, DetectionBulkUpdateRequest
+
+        det1 = DetectionFactory(id=1, object_type="person", confidence=0.90)
+        det2 = DetectionFactory(id=2, object_type="car", confidence=0.85)
+
+        # Mock detection query
+        mock_result = MagicMock()
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = [det1, det2]
+        mock_result.scalars.return_value = mock_scalars
+
+        mock_db_session.execute.return_value = mock_result
+
+        request = DetectionBulkUpdateRequest(
+            detections=[
+                DetectionBulkUpdateItem(
+                    id=1,
+                    object_type="person",
+                    confidence=0.95,
+                ),
+                DetectionBulkUpdateItem(
+                    id=2,
+                    confidence=0.92,
+                ),
+            ]
+        )
+
+        result = await bulk_update_detections(
+            request=request,
+            db=mock_db_session,
+            cache=mock_cache_service,
+        )
+
+        assert result.total == 2
+        assert result.succeeded == 2
+        assert result.failed == 0
+
+    @pytest.mark.asyncio
+    async def test_bulk_update_not_found(self, mock_db_session, mock_cache_service):
+        """Test bulk update with non-existent detection."""
+        from backend.api.routes.detections import bulk_update_detections
+        from backend.api.schemas.bulk import DetectionBulkUpdateItem, DetectionBulkUpdateRequest
+
+        # Mock detection query (empty - detection not found)
+        mock_result = MagicMock()
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = []
+        mock_result.scalars.return_value = mock_scalars
+
+        mock_db_session.execute.return_value = mock_result
+
+        request = DetectionBulkUpdateRequest(
+            detections=[
+                DetectionBulkUpdateItem(
+                    id=999,
+                    confidence=0.95,
+                ),
+            ]
+        )
+
+        result = await bulk_update_detections(
+            request=request,
+            db=mock_db_session,
+            cache=mock_cache_service,
+        )
+
+        assert result.total == 1
+        assert result.succeeded == 0
+        assert result.failed == 1
+        assert "not found" in result.results[0].error.lower()
+
+
+class TestBulkDeleteDetections:
+    """Tests for bulk_delete_detections endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_bulk_delete_success(self, mock_db_session, mock_cache_service):
+        """Test successful bulk deletion of detections."""
+        from backend.api.routes.detections import bulk_delete_detections
+        from backend.api.schemas.bulk import DetectionBulkDeleteRequest
+
+        det1 = DetectionFactory(id=1)
+        det2 = DetectionFactory(id=2)
+
+        # Mock detection query
+        mock_result = MagicMock()
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = [det1, det2]
+        mock_result.scalars.return_value = mock_scalars
+
+        mock_db_session.execute.return_value = mock_result
+
+        request = DetectionBulkDeleteRequest(detection_ids=[1, 2])
+
+        result = await bulk_delete_detections(
+            request=request,
+            db=mock_db_session,
+            cache=mock_cache_service,
+        )
+
+        assert result.total == 2
+        assert result.succeeded == 2
+        assert result.failed == 0
+
+    @pytest.mark.asyncio
+    async def test_bulk_delete_not_found(self, mock_db_session, mock_cache_service):
+        """Test bulk deletion with non-existent detection."""
+        from backend.api.routes.detections import bulk_delete_detections
+        from backend.api.schemas.bulk import DetectionBulkDeleteRequest
+
+        # Mock detection query (empty - detections not found)
+        mock_result = MagicMock()
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = []
+        mock_result.scalars.return_value = mock_scalars
+
+        mock_db_session.execute.return_value = mock_result
+
+        request = DetectionBulkDeleteRequest(detection_ids=[999])
+
+        result = await bulk_delete_detections(
+            request=request,
+            db=mock_db_session,
+            cache=mock_cache_service,
+        )
+
+        assert result.total == 1
+        assert result.succeeded == 0
+        assert result.failed == 1
+        assert "not found" in result.results[0].error.lower()

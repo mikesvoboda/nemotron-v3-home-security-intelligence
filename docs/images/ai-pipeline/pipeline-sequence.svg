@@ -1,0 +1,231 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 900" width="1400" height="900">
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#374151"/>
+    </marker>
+    <marker id="arrowhead-blue" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#3B82F6"/>
+    </marker>
+    <marker id="arrowhead-green" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#10B981"/>
+    </marker>
+    <marker id="arrowhead-amber" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#F59E0B"/>
+    </marker>
+    <linearGradient id="gpu-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#76B900;stop-opacity:0.2"/>
+      <stop offset="100%" style="stop-color:#76B900;stop-opacity:0.05"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1400" height="900" fill="#FFFFFF"/>
+
+  <!-- Title -->
+  <text x="700" y="35" font-family="Inter, system-ui, sans-serif" font-size="20" font-weight="600" fill="#111827" text-anchor="middle">AI Pipeline Sequence Diagram</text>
+  <text x="700" y="55" font-family="Inter, system-ui, sans-serif" font-size="12" fill="#6B7280" text-anchor="middle">End-to-end flow from camera upload to dashboard notification</text>
+
+  <!-- Participant Headers -->
+  <g font-family="Inter, system-ui, sans-serif" font-size="11" font-weight="500">
+    <!-- Camera -->
+    <rect x="30" y="75" width="80" height="36" rx="4" fill="#F3F4F6" stroke="#D1D5DB" stroke-width="1"/>
+    <text x="70" y="97" text-anchor="middle" fill="#374151">Camera</text>
+
+    <!-- FTP -->
+    <rect x="130" y="75" width="60" height="36" rx="4" fill="#F3F4F6" stroke="#D1D5DB" stroke-width="1"/>
+    <text x="160" y="97" text-anchor="middle" fill="#374151">FTP</text>
+
+    <!-- FileWatcher -->
+    <rect x="210" y="75" width="80" height="36" rx="4" fill="#DBEAFE" stroke="#3B82F6" stroke-width="1.5"/>
+    <text x="250" y="97" text-anchor="middle" fill="#1E40AF">FileWatcher</text>
+
+    <!-- Detection Queue -->
+    <rect x="310" y="75" width="90" height="36" rx="4" fill="#FEF3C7" stroke="#F59E0B" stroke-width="1.5"/>
+    <text x="355" y="97" text-anchor="middle" fill="#92400E">detect_queue</text>
+
+    <!-- Detection Worker -->
+    <rect x="420" y="75" width="90" height="36" rx="4" fill="#DBEAFE" stroke="#3B82F6" stroke-width="1.5"/>
+    <text x="465" y="97" text-anchor="middle" fill="#1E40AF">DetectWorker</text>
+
+    <!-- RT-DETRv2 -->
+    <rect x="530" y="75" width="90" height="36" rx="4" fill="url(#gpu-gradient)" stroke="#76B900" stroke-width="2"/>
+    <text x="575" y="93" text-anchor="middle" fill="#4D7600" font-weight="600">RT-DETRv2</text>
+    <text x="575" y="105" text-anchor="middle" fill="#6B7280" font-size="9">:8090</text>
+
+    <!-- PostgreSQL -->
+    <rect x="640" y="75" width="80" height="36" rx="4" fill="#DBEAFE" stroke="#3B82F6" stroke-width="1.5"/>
+    <text x="680" y="97" text-anchor="middle" fill="#1E40AF">PostgreSQL</text>
+
+    <!-- BatchAggregator -->
+    <rect x="740" y="75" width="100" height="36" rx="4" fill="#DBEAFE" stroke="#3B82F6" stroke-width="1.5"/>
+    <text x="790" y="97" text-anchor="middle" fill="#1E40AF">BatchAggregator</text>
+
+    <!-- Analysis Queue -->
+    <rect x="860" y="75" width="90" height="36" rx="4" fill="#FEF3C7" stroke="#F59E0B" stroke-width="1.5"/>
+    <text x="905" y="97" text-anchor="middle" fill="#92400E">analysis_queue</text>
+
+    <!-- Analysis Worker -->
+    <rect x="970" y="75" width="90" height="36" rx="4" fill="#DBEAFE" stroke="#3B82F6" stroke-width="1.5"/>
+    <text x="1015" y="97" text-anchor="middle" fill="#1E40AF">AnalysisWorker</text>
+
+    <!-- Nemotron -->
+    <rect x="1080" y="75" width="90" height="36" rx="4" fill="url(#gpu-gradient)" stroke="#76B900" stroke-width="2"/>
+    <text x="1125" y="93" text-anchor="middle" fill="#4D7600" font-weight="600">Nemotron</text>
+    <text x="1125" y="105" text-anchor="middle" fill="#6B7280" font-size="9">:8091</text>
+
+    <!-- WebSocket -->
+    <rect x="1190" y="75" width="80" height="36" rx="4" fill="#D1FAE5" stroke="#10B981" stroke-width="1.5"/>
+    <text x="1230" y="97" text-anchor="middle" fill="#065F46">WebSocket</text>
+
+    <!-- Dashboard -->
+    <rect x="1290" y="75" width="80" height="36" rx="4" fill="#D1FAE5" stroke="#10B981" stroke-width="1.5"/>
+    <text x="1330" y="97" text-anchor="middle" fill="#065F46">Dashboard</text>
+  </g>
+
+  <!-- Lifelines -->
+  <g stroke="#D1D5DB" stroke-width="1" stroke-dasharray="4,4">
+    <line x1="70" y1="111" x2="70" y2="880"/>
+    <line x1="160" y1="111" x2="160" y2="880"/>
+    <line x1="250" y1="111" x2="250" y2="880"/>
+    <line x1="355" y1="111" x2="355" y2="880"/>
+    <line x1="465" y1="111" x2="465" y2="880"/>
+    <line x1="575" y1="111" x2="575" y2="880"/>
+    <line x1="680" y1="111" x2="680" y2="880"/>
+    <line x1="790" y1="111" x2="790" y2="880"/>
+    <line x1="905" y1="111" x2="905" y2="880"/>
+    <line x1="1015" y1="111" x2="1015" y2="880"/>
+    <line x1="1125" y1="111" x2="1125" y2="880"/>
+    <line x1="1230" y1="111" x2="1230" y2="880"/>
+    <line x1="1330" y1="111" x2="1330" y2="880"/>
+  </g>
+
+  <!-- Section: Normal Path Label -->
+  <rect x="20" y="125" width="1360" height="24" rx="4" fill="#EFF6FF" stroke="#BFDBFE" stroke-width="1"/>
+  <text x="700" y="141" font-family="Inter, system-ui, sans-serif" font-size="11" font-weight="600" fill="#1E40AF" text-anchor="middle">NORMAL PATH (Batched Processing)</text>
+
+  <!-- Message 1: Camera to FTP -->
+  <line x1="70" y1="165" x2="155" y2="165" stroke="#374151" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+  <text x="112" y="160" font-family="Inter, system-ui, sans-serif" font-size="10" fill="#374151" text-anchor="middle">Upload image via FTP</text>
+
+  <!-- Message 2: FTP to FileWatcher -->
+  <line x1="160" y1="190" x2="245" y2="190" stroke="#374151" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+  <text x="202" y="185" font-family="Inter, system-ui, sans-serif" font-size="10" fill="#374151" text-anchor="middle">inotify/FSEvents</text>
+
+  <!-- FileWatcher self-processing box -->
+  <rect x="235" y="210" width="30" height="50" fill="#DBEAFE" stroke="#3B82F6" stroke-width="1"/>
+  <text x="330" y="225" font-family="Inter, system-ui, sans-serif" font-size="9" fill="#6B7280">Debounce (0.5s)</text>
+  <text x="330" y="240" font-family="Inter, system-ui, sans-serif" font-size="9" fill="#6B7280">Validate image integrity</text>
+
+  <!-- Message 3: FileWatcher to Queue -->
+  <line x1="265" y1="275" x2="350" y2="275" stroke="#F59E0B" stroke-width="1.5" marker-end="url(#arrowhead-amber)"/>
+  <text x="307" y="270" font-family="Inter, system-ui, sans-serif" font-size="10" fill="#92400E" text-anchor="middle">Queue job</text>
+
+  <!-- Message 4: Worker polls queue -->
+  <line x1="460" y1="300" x2="360" y2="300" stroke="#F59E0B" stroke-width="1.5" marker-end="url(#arrowhead-amber)"/>
+  <text x="410" y="295" font-family="Inter, system-ui, sans-serif" font-size="10" fill="#92400E" text-anchor="middle">BLPOP (5s)</text>
+
+  <!-- Message 5: Queue returns job -->
+  <line x1="355" y1="325" x2="460" y2="325" stroke="#374151" stroke-width="1.5" stroke-dasharray="4,2" marker-end="url(#arrowhead)"/>
+  <text x="407" y="320" font-family="Inter, system-ui, sans-serif" font-size="10" fill="#6B7280" text-anchor="middle">Detection job</text>
+
+  <!-- Message 6: Worker to RT-DETRv2 -->
+  <line x1="465" y1="355" x2="570" y2="355" stroke="#76B900" stroke-width="1.5" marker-end="url(#arrowhead-green)"/>
+  <text x="517" y="350" font-family="Inter, system-ui, sans-serif" font-size="10" fill="#4D7600" text-anchor="middle">POST /detect</text>
+
+  <!-- RT-DETRv2 processing box -->
+  <rect x="560" y="365" width="30" height="30" fill="url(#gpu-gradient)" stroke="#76B900" stroke-width="1"/>
+  <text x="605" y="385" font-family="Inter, system-ui, sans-serif" font-size="9" fill="#4D7600">~30-50ms inference</text>
+
+  <!-- Message 7: RT-DETRv2 response -->
+  <line x1="575" y1="410" x2="470" y2="410" stroke="#76B900" stroke-width="1.5" stroke-dasharray="4,2" marker-end="url(#arrowhead-green)"/>
+  <text x="522" y="405" font-family="Inter, system-ui, sans-serif" font-size="10" fill="#4D7600" text-anchor="middle">JSON detections</text>
+
+  <!-- Message 8: Worker to DB -->
+  <line x1="465" y1="440" x2="675" y2="440" stroke="#3B82F6" stroke-width="1.5" marker-end="url(#arrowhead-blue)"/>
+  <text x="570" y="435" font-family="Inter, system-ui, sans-serif" font-size="10" fill="#1E40AF" text-anchor="middle">INSERT Detection records</text>
+
+  <!-- Message 9: Worker to BatchAggregator -->
+  <line x1="465" y1="465" x2="785" y2="465" stroke="#3B82F6" stroke-width="1.5" marker-end="url(#arrowhead-blue)"/>
+  <text x="625" y="460" font-family="Inter, system-ui, sans-serif" font-size="10" fill="#1E40AF" text-anchor="middle">add_detection(camera_id, detection_id, confidence)</text>
+
+  <!-- Alt box for Fast Path -->
+  <rect x="745" y="485" width="630" height="115" rx="4" fill="none" stroke="#EF4444" stroke-width="1.5"/>
+  <rect x="745" y="485" width="120" height="18" rx="4" fill="#FEE2E2"/>
+  <text x="805" y="497" font-family="Inter, system-ui, sans-serif" font-size="10" font-weight="600" fill="#991B1B" text-anchor="middle">Fast Path (>=0.90)</text>
+
+  <!-- Fast path: BatchAggregator to Nemotron -->
+  <line x1="790" y1="515" x2="1120" y2="515" stroke="#76B900" stroke-width="1.5" marker-end="url(#arrowhead-green)"/>
+  <text x="955" y="510" font-family="Inter, system-ui, sans-serif" font-size="10" fill="#4D7600" text-anchor="middle">Immediate analysis</text>
+
+  <!-- Fast path: Nemotron response -->
+  <line x1="1125" y1="540" x2="795" y2="540" stroke="#76B900" stroke-width="1.5" stroke-dasharray="4,2" marker-end="url(#arrowhead-green)"/>
+  <text x="960" y="535" font-family="Inter, system-ui, sans-serif" font-size="10" fill="#4D7600" text-anchor="middle">Risk assessment JSON</text>
+
+  <!-- Fast path: to DB and WebSocket -->
+  <line x1="790" y1="565" x2="1225" y2="565" stroke="#10B981" stroke-width="1.5" marker-end="url(#arrowhead-green)"/>
+  <text x="1007" y="560" font-family="Inter, system-ui, sans-serif" font-size="10" fill="#065F46" text-anchor="middle">INSERT Event (is_fast_path=true) + Broadcast</text>
+
+  <!-- Fast path: WebSocket to Dashboard -->
+  <line x1="1230" y1="585" x2="1325" y2="585" stroke="#10B981" stroke-width="1.5" marker-end="url(#arrowhead-green)"/>
+  <text x="1277" y="580" font-family="Inter, system-ui, sans-serif" font-size="10" fill="#065F46" text-anchor="middle">Push event</text>
+
+  <!-- Else box for Normal Path -->
+  <rect x="745" y="610" width="200" height="60" rx="4" fill="none" stroke="#3B82F6" stroke-width="1.5"/>
+  <rect x="745" y="610" width="100" height="18" rx="4" fill="#DBEAFE"/>
+  <text x="795" y="622" font-family="Inter, system-ui, sans-serif" font-size="10" font-weight="600" fill="#1E40AF" text-anchor="middle">Normal Batching</text>
+
+  <!-- Normal: Add to batch -->
+  <rect x="775" y="635" width="30" height="25" fill="#DBEAFE" stroke="#3B82F6" stroke-width="1"/>
+  <text x="830" y="652" font-family="Inter, system-ui, sans-serif" font-size="9" fill="#6B7280">Add to batch, update last_activity</text>
+
+  <!-- Section: Batch Timeout -->
+  <rect x="20" y="685" width="1360" height="24" rx="4" fill="#FEF3C7" stroke="#FCD34D" stroke-width="1"/>
+  <text x="700" y="701" font-family="Inter, system-ui, sans-serif" font-size="11" font-weight="600" fill="#92400E" text-anchor="middle">BATCH TIMEOUT CHECK (every 10s)</text>
+
+  <!-- BatchAggregator self-check -->
+  <rect x="775" y="720" width="30" height="25" fill="#DBEAFE" stroke="#3B82F6" stroke-width="1"/>
+  <text x="830" y="737" font-family="Inter, system-ui, sans-serif" font-size="9" fill="#6B7280">check_batch_timeouts()</text>
+
+  <!-- Timeout condition -->
+  <rect x="745" y="755" width="250" height="18" rx="4" fill="#FEF3C7"/>
+  <text x="870" y="767" font-family="Inter, system-ui, sans-serif" font-size="9" fill="#92400E" text-anchor="middle">Window expired (90s) OR Idle timeout (30s)</text>
+
+  <!-- BatchAggregator to Analysis Queue -->
+  <line x1="790" y1="785" x2="900" y2="785" stroke="#F59E0B" stroke-width="1.5" marker-end="url(#arrowhead-amber)"/>
+  <text x="845" y="780" font-family="Inter, system-ui, sans-serif" font-size="10" fill="#92400E" text-anchor="middle">Push batch</text>
+
+  <!-- Analysis Worker polls queue -->
+  <line x1="1010" y1="810" x2="910" y2="810" stroke="#F59E0B" stroke-width="1.5" marker-end="url(#arrowhead-amber)"/>
+  <text x="960" y="805" font-family="Inter, system-ui, sans-serif" font-size="10" fill="#92400E" text-anchor="middle">BLPOP (5s)</text>
+
+  <!-- Analysis Worker to Nemotron -->
+  <line x1="1015" y1="835" x2="1120" y2="835" stroke="#76B900" stroke-width="1.5" marker-end="url(#arrowhead-green)"/>
+  <text x="1067" y="830" font-family="Inter, system-ui, sans-serif" font-size="10" fill="#4D7600" text-anchor="middle">POST /completion</text>
+
+  <!-- Nemotron processing -->
+  <rect x="1110" y="845" width="30" height="20" fill="url(#gpu-gradient)" stroke="#76B900" stroke-width="1"/>
+  <text x="1155" y="858" font-family="Inter, system-ui, sans-serif" font-size="9" fill="#4D7600">~2-5s inference</text>
+
+  <!-- Legend -->
+  <rect x="20" y="880" width="1360" height="1" fill="#E5E7EB"/>
+
+  <g font-family="Inter, system-ui, sans-serif" font-size="9">
+    <rect x="30" y="888" width="12" height="12" fill="#DBEAFE" stroke="#3B82F6" stroke-width="1"/>
+    <text x="47" y="898" fill="#374151">Service</text>
+
+    <rect x="100" y="888" width="12" height="12" fill="#FEF3C7" stroke="#F59E0B" stroke-width="1"/>
+    <text x="117" y="898" fill="#374151">Queue</text>
+
+    <rect x="165" y="888" width="12" height="12" fill="url(#gpu-gradient)" stroke="#76B900" stroke-width="1"/>
+    <text x="182" y="898" fill="#374151">GPU/AI Model</text>
+
+    <rect x="260" y="888" width="12" height="12" fill="#D1FAE5" stroke="#10B981" stroke-width="1"/>
+    <text x="277" y="898" fill="#374151">Output</text>
+
+    <line x1="340" y1="894" x2="370" y2="894" stroke="#374151" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+    <text x="375" y="898" fill="#374151">Request</text>
+
+    <line x1="430" y1="894" x2="460" y2="894" stroke="#374151" stroke-width="1.5" stroke-dasharray="4,2" marker-end="url(#arrowhead)"/>
+    <text x="465" y="898" fill="#374151">Response</text>
+  </g>
+</svg>

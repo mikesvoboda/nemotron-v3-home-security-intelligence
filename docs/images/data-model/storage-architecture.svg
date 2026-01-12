@@ -1,0 +1,265 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 700" width="1200" height="700">
+  <defs>
+    <style>
+      .title-text { fill: #111827; font-family: 'Segoe UI', Arial, sans-serif; font-size: 22px; font-weight: bold; }
+      .section-title { fill: white; font-family: 'Segoe UI', Arial, sans-serif; font-size: 16px; font-weight: bold; }
+      .storage-label { fill: #374151; font-family: 'Segoe UI', Arial, sans-serif; font-size: 14px; font-weight: 600; }
+      .item-text { fill: #374151; font-family: 'Segoe UI', Arial, sans-serif; font-size: 12px; }
+      .item-text-small { fill: #6B7280; font-family: 'Segoe UI', Arial, sans-serif; font-size: 10px; }
+      .arrow-line { stroke: #6B7280; stroke-width: 2; fill: none; }
+      .arrow-label { fill: #6B7280; font-family: 'Segoe UI', Arial, sans-serif; font-size: 10px; }
+      .postgres-header { fill: #3B82F6; }
+      .redis-header { fill: #EF4444; }
+      .postgres-body { fill: #EFF6FF; stroke: #3B82F6; stroke-width: 2; }
+      .redis-body { fill: #FEF2F2; stroke: #EF4444; stroke-width: 2; }
+      .table-item { fill: white; stroke: #3B82F6; stroke-width: 1; }
+      .queue-item { fill: white; stroke: #EF4444; stroke-width: 1; }
+      .flow-arrow { stroke: #10B981; stroke-width: 2; fill: none; marker-end: url(#arrowhead-green); }
+      .data-arrow { stroke: #6B7280; stroke-width: 1.5; fill: none; marker-end: url(#arrowhead-gray); stroke-dasharray: 5,3; }
+    </style>
+
+    <!-- Arrow markers -->
+    <marker id="arrowhead-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#10B981"/>
+    </marker>
+    <marker id="arrowhead-gray" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#6B7280"/>
+    </marker>
+
+    <!-- Drop shadow -->
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="2" dy="2" stdDeviation="3" flood-opacity="0.15"/>
+    </filter>
+
+    <!-- Cylinder gradients for database icons -->
+    <linearGradient id="pgGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#3B82F6;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#60A5FA;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#3B82F6;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="redisGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#EF4444;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#F87171;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#EF4444;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="100%" height="100%" fill="#FAFAFA"/>
+
+  <!-- Title -->
+  <text x="600" y="35" text-anchor="middle" class="title-text">Ephemeral vs Permanent Storage Architecture</text>
+
+  <!-- ============ POSTGRESQL SECTION ============ -->
+  <g transform="translate(50, 60)" filter="url(#shadow)">
+    <!-- Header -->
+    <rect x="0" y="0" width="480" height="40" rx="8" ry="8" class="postgres-header"/>
+    <text x="240" y="27" text-anchor="middle" class="section-title">PostgreSQL (Permanent Storage)</text>
+
+    <!-- Body -->
+    <rect x="0" y="40" width="480" height="280" class="postgres-body" rx="0" ry="0"/>
+
+    <!-- Database cylinder icon -->
+    <g transform="translate(30, 70)">
+      <ellipse cx="25" cy="8" rx="25" ry="8" fill="url(#pgGradient)"/>
+      <rect x="0" y="8" width="50" height="40" fill="url(#pgGradient)"/>
+      <ellipse cx="25" cy="48" rx="25" ry="8" fill="#2563EB"/>
+      <ellipse cx="25" cy="8" rx="25" ry="8" fill="#60A5FA" opacity="0.5"/>
+    </g>
+
+    <!-- Tables grid -->
+    <g transform="translate(100, 60)">
+      <!-- cameras -->
+      <rect x="0" y="0" width="110" height="35" rx="4" class="table-item"/>
+      <text x="55" y="15" text-anchor="middle" class="storage-label">cameras</text>
+      <text x="55" y="28" text-anchor="middle" class="item-text-small">Configuration</text>
+
+      <!-- detections -->
+      <rect x="125" y="0" width="110" height="35" rx="4" class="table-item"/>
+      <text x="180" y="15" text-anchor="middle" class="storage-label">detections</text>
+      <text x="180" y="28" text-anchor="middle" class="item-text-small">Object Detection</text>
+
+      <!-- events -->
+      <rect x="250" y="0" width="110" height="35" rx="4" class="table-item"/>
+      <text x="305" y="15" text-anchor="middle" class="storage-label">events</text>
+      <text x="305" y="28" text-anchor="middle" class="item-text-small">Risk Analysis</text>
+
+      <!-- alerts -->
+      <rect x="0" y="50" width="110" height="35" rx="4" class="table-item"/>
+      <text x="55" y="65" text-anchor="middle" class="storage-label">alerts</text>
+      <text x="55" y="78" text-anchor="middle" class="item-text-small">Notifications</text>
+
+      <!-- alert_rules -->
+      <rect x="125" y="50" width="110" height="35" rx="4" class="table-item"/>
+      <text x="180" y="65" text-anchor="middle" class="storage-label">alert_rules</text>
+      <text x="180" y="78" text-anchor="middle" class="item-text-small">Rule Definitions</text>
+
+      <!-- zones -->
+      <rect x="250" y="50" width="110" height="35" rx="4" class="table-item"/>
+      <text x="305" y="65" text-anchor="middle" class="storage-label">zones</text>
+      <text x="305" y="78" text-anchor="middle" class="item-text-small">ROI Definitions</text>
+
+      <!-- activity_baselines -->
+      <rect x="0" y="100" width="110" height="35" rx="4" class="table-item"/>
+      <text x="55" y="115" text-anchor="middle" class="storage-label">activity_baselines</text>
+      <text x="55" y="128" text-anchor="middle" class="item-text-small">EWMA Stats</text>
+
+      <!-- class_baselines -->
+      <rect x="125" y="100" width="110" height="35" rx="4" class="table-item"/>
+      <text x="180" y="115" text-anchor="middle" class="storage-label">class_baselines</text>
+      <text x="180" y="128" text-anchor="middle" class="item-text-small">Object Frequency</text>
+
+      <!-- audit_logs -->
+      <rect x="250" y="100" width="110" height="35" rx="4" class="table-item"/>
+      <text x="305" y="115" text-anchor="middle" class="storage-label">audit_logs</text>
+      <text x="305" y="128" text-anchor="middle" class="item-text-small">Security Trail</text>
+
+      <!-- gpu_stats -->
+      <rect x="0" y="150" width="110" height="35" rx="4" class="table-item"/>
+      <text x="55" y="165" text-anchor="middle" class="storage-label">gpu_stats</text>
+      <text x="55" y="178" text-anchor="middle" class="item-text-small">Performance</text>
+
+      <!-- logs -->
+      <rect x="125" y="150" width="110" height="35" rx="4" class="table-item"/>
+      <text x="180" y="165" text-anchor="middle" class="storage-label">logs</text>
+      <text x="180" y="178" text-anchor="middle" class="item-text-small">Application Logs</text>
+
+      <!-- api_keys -->
+      <rect x="250" y="150" width="110" height="35" rx="4" class="table-item"/>
+      <text x="305" y="165" text-anchor="middle" class="storage-label">api_keys</text>
+      <text x="305" y="178" text-anchor="middle" class="item-text-small">Authentication</text>
+    </g>
+
+    <!-- Characteristics -->
+    <g transform="translate(30, 270)">
+      <text x="0" y="0" class="item-text" font-weight="bold">Characteristics:</text>
+      <text x="0" y="18" class="item-text-small">Durable, survives restarts</text>
+      <text x="150" y="18" class="item-text-small">30-day retention</text>
+      <text x="280" y="18" class="item-text-small">ACID transactions</text>
+    </g>
+  </g>
+
+  <!-- ============ REDIS SECTION ============ -->
+  <g transform="translate(670, 60)" filter="url(#shadow)">
+    <!-- Header -->
+    <rect x="0" y="0" width="480" height="40" rx="8" ry="8" class="redis-header"/>
+    <text x="240" y="27" text-anchor="middle" class="section-title">Redis (Ephemeral Storage)</text>
+
+    <!-- Body -->
+    <rect x="0" y="40" width="480" height="280" class="redis-body" rx="0" ry="0"/>
+
+    <!-- Redis icon -->
+    <g transform="translate(30, 70)">
+      <ellipse cx="25" cy="8" rx="25" ry="8" fill="url(#redisGradient)"/>
+      <rect x="0" y="8" width="50" height="40" fill="url(#redisGradient)"/>
+      <ellipse cx="25" cy="48" rx="25" ry="8" fill="#DC2626"/>
+      <ellipse cx="25" cy="8" rx="25" ry="8" fill="#F87171" opacity="0.5"/>
+    </g>
+
+    <!-- Queues section -->
+    <g transform="translate(100, 60)">
+      <!-- Processing Queues -->
+      <text x="0" y="0" class="storage-label">Processing Queues</text>
+
+      <!-- detection_queue -->
+      <rect x="0" y="10" width="170" height="30" rx="4" class="queue-item"/>
+      <text x="85" y="30" text-anchor="middle" class="item-text">detection_queue (list)</text>
+
+      <!-- analysis_queue -->
+      <rect x="185" y="10" width="170" height="30" rx="4" class="queue-item"/>
+      <text x="270" y="30" text-anchor="middle" class="item-text">analysis_queue (list)</text>
+
+      <!-- Dead Letter Queues -->
+      <text x="0" y="65" class="storage-label">Dead Letter Queues</text>
+
+      <!-- dlq:detection_queue -->
+      <rect x="0" y="75" width="170" height="30" rx="4" class="queue-item"/>
+      <text x="85" y="95" text-anchor="middle" class="item-text">dlq:detection_queue</text>
+
+      <!-- dlq:analysis_queue -->
+      <rect x="185" y="75" width="170" height="30" rx="4" class="queue-item"/>
+      <text x="270" y="95" text-anchor="middle" class="item-text">dlq:analysis_queue</text>
+
+      <!-- Cache & State -->
+      <text x="0" y="130" class="storage-label">Cache &amp; State</text>
+
+      <!-- dedupe -->
+      <rect x="0" y="140" width="110" height="30" rx="4" class="queue-item"/>
+      <text x="55" y="160" text-anchor="middle" class="item-text">dedupe:{hash}</text>
+
+      <!-- batch state -->
+      <rect x="125" y="140" width="110" height="30" rx="4" class="queue-item"/>
+      <text x="180" y="160" text-anchor="middle" class="item-text">batch:{id}:*</text>
+
+      <!-- Pub/Sub -->
+      <text x="250" y="130" class="storage-label">Pub/Sub Channels</text>
+
+      <!-- security_events -->
+      <rect x="250" y="140" width="105" height="30" rx="4" class="queue-item"/>
+      <text x="302" y="160" text-anchor="middle" class="item-text">security_events</text>
+    </g>
+
+    <!-- TTL info -->
+    <g transform="translate(100, 240)">
+      <rect x="0" y="0" width="355" height="55" rx="4" fill="#FEE2E2" stroke="#FECACA"/>
+      <text x="10" y="18" class="item-text" font-weight="bold">Time-To-Live (TTL):</text>
+      <text x="10" y="35" class="item-text-small">dedupe:{hash} = 5 min</text>
+      <text x="130" y="35" class="item-text-small">batch:{id}:* = 1 hour</text>
+      <text x="250" y="35" class="item-text-small">Queues = No TTL</text>
+      <text x="10" y="50" class="item-text-small">Pub/Sub = Fire-and-forget (no persistence)</text>
+    </g>
+  </g>
+
+  <!-- ============ DATA FLOW ARROWS ============ -->
+
+  <!-- detection_queue -> detections -->
+  <g>
+    <path d="M 770 170 L 770 400 L 250 400 L 250 290" class="data-arrow"/>
+    <text x="510" y="415" text-anchor="middle" class="arrow-label">Processed detections</text>
+  </g>
+
+  <!-- analysis_queue -> events -->
+  <g>
+    <path d="M 940 170 L 940 430 L 380 430 L 380 290" class="data-arrow"/>
+    <text x="660" y="445" text-anchor="middle" class="arrow-label">Analyzed events</text>
+  </g>
+
+  <!-- security_events pubsub -> events (broadcast) -->
+  <g>
+    <path d="M 1020 260 L 1020 470 L 450 470 L 450 290" class="data-arrow"/>
+    <text x="730" y="485" text-anchor="middle" class="arrow-label">Real-time broadcast</text>
+  </g>
+
+  <!-- ============ LEGEND ============ -->
+  <g transform="translate(50, 530)">
+    <rect x="0" y="0" width="1100" height="140" fill="white" stroke="#E5E7EB" rx="8" filter="url(#shadow)"/>
+    <text x="550" y="25" text-anchor="middle" class="storage-label" font-size="14">Storage Decision Matrix</text>
+
+    <!-- Table headers -->
+    <text x="60" y="55" class="storage-label">Data Type</text>
+    <text x="250" y="55" class="storage-label">Storage</text>
+    <text x="400" y="55" class="storage-label">Rationale</text>
+
+    <!-- Horizontal line -->
+    <line x1="20" y1="65" x2="1080" y2="65" stroke="#E5E7EB" stroke-width="1"/>
+
+    <!-- Row 1 -->
+    <text x="60" y="85" class="item-text">Camera config, Detection results, Events</text>
+    <rect x="250" y="73" width="80" height="18" rx="3" fill="#DBEAFE"/>
+    <text x="290" y="86" text-anchor="middle" class="item-text" fill="#1D4ED8">PostgreSQL</text>
+    <text x="400" y="85" class="item-text">Permanent records, audit trail, historical analysis</text>
+
+    <!-- Row 2 -->
+    <text x="60" y="108" class="item-text">Processing queues, Batch state, Deduplication</text>
+    <rect x="250" y="96" width="80" height="18" rx="3" fill="#FEE2E2"/>
+    <text x="290" y="109" text-anchor="middle" class="item-text" fill="#DC2626">Redis</text>
+    <text x="400" y="108" class="item-text">Fast pub/sub, TTL-based cache, reconstructable on restart</text>
+
+    <!-- Row 3 -->
+    <text x="60" y="131" class="item-text">Real-time broadcasts, WebSocket messages</text>
+    <rect x="250" y="119" width="80" height="18" rx="3" fill="#FEE2E2"/>
+    <text x="290" y="132" text-anchor="middle" class="item-text" fill="#DC2626">Redis</text>
+    <text x="400" y="131" class="item-text">Fire-and-forget pub/sub, no persistence needed</text>
+  </g>
+</svg>

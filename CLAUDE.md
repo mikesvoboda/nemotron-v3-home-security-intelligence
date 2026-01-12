@@ -135,7 +135,7 @@ This project follows **Test-Driven Development (TDD)** for all feature implement
 
 - **[TDD Workflow Guide](docs/development/testing-workflow.md)** - RED-GREEN-REFACTOR cycle, test patterns by layer
 - **[Testing Guide](docs/development/testing.md)** - Test infrastructure, fixtures, running tests
-- **[TESTING_GUIDE.md](docs/TESTING_GUIDE.md)** - Comprehensive testing patterns and examples
+- **[Testing Patterns](docs/developer/patterns/README.md)** - Comprehensive testing patterns and examples
 
 ### Coverage Requirements
 
@@ -236,7 +236,7 @@ frontend/
 ai/
   rtdetr/              # RT-DETRv2 detection server
   nemotron/            # Nemotron model files
-docs/plans/            # Design and implementation docs
+docs/decisions/        # Architectural decision records
 ```
 
 ## Session Workflow

@@ -66,6 +66,22 @@ class TestEscapeIlikePattern:
         result = escape_ilike_pattern("test%value")
         assert result == "test\\%value"
 
+    def test_none_input(self) -> None:
+        """Test that None input returns empty string."""
+        result = escape_ilike_pattern(None)
+        assert result == ""
+
+    def test_integer_input(self) -> None:
+        """Test that integer input is converted to string."""
+        result = escape_ilike_pattern(123)
+        assert result == "123"
+
+    def test_non_string_input_with_special_chars(self) -> None:
+        """Test that non-string input with special characters is properly escaped."""
+        # This tests converting non-string to string and then escaping
+        result = escape_ilike_pattern(100.5)
+        assert result == "100.5"
+
 
 # =============================================================================
 # Engine and Session Factory Tests
@@ -675,3 +691,829 @@ class TestGetPoolStatus:
         finally:
             # Restore original state
             db_module._engine = original_engine
+
+
+# =============================================================================
+# Event Loop Mismatch Tests
+# =============================================================================
+
+
+class TestEventLoopMismatch:
+    """Tests for event loop mismatch detection and handling."""
+
+    @pytest.mark.asyncio
+    async def test_init_db_without_running_loop(self) -> None:
+        """Test that init_db handles case when no event loop is running."""
+
+        import backend.core.database as db_module
+        from backend.core.database import init_db
+
+        # Save original state
+        original_engine = db_module._engine
+        original_factory = db_module._async_session_factory
+        original_loop_id = db_module._bound_loop_id
+
+        try:
+            # Reset state
+            db_module._engine = None
+            db_module._async_session_factory = None
+            db_module._bound_loop_id = None
+
+            # Mock get_settings
+            with patch("backend.core.database.get_settings") as mock_settings:
+                mock_settings.return_value = MagicMock(
+                    database_url="postgresql+asyncpg://user:pass@localhost:5432/testdb",
+                    debug=False,
+                    database_pool_size=5,
+                    database_pool_overflow=10,
+                    database_pool_timeout=30,
+                    database_pool_recycle=1800,
+                )
+
+                with patch("backend.core.database.create_async_engine") as mock_create_engine:
+                    mock_engine = AsyncMock()
+                    mock_create_engine.return_value = mock_engine
+
+                    # Mock the connection context
+                    mock_conn = AsyncMock()
+                    mock_conn.execute = AsyncMock(
+                        return_value=MagicMock(scalar=MagicMock(return_value=True))
+                    )
+                    mock_conn.run_sync = AsyncMock()
+
+                    mock_ctx = AsyncMock()
+                    mock_ctx.__aenter__ = AsyncMock(return_value=mock_conn)
+                    mock_ctx.__aexit__ = AsyncMock(return_value=None)
+                    mock_engine.begin = MagicMock(return_value=mock_ctx)
+
+                    # Should work even when no loop is initially detected
+                    await init_db()
+
+                    # Engine should be set
+                    assert db_module._engine is not None
+        finally:
+            # Restore original state
+            db_module._engine = original_engine
+            db_module._async_session_factory = original_factory
+            db_module._bound_loop_id = original_loop_id
+
+    @pytest.mark.asyncio
+    async def test_init_db_disposes_engine_on_loop_mismatch(self) -> None:
+        """Test that init_db disposes old engine when event loop changes."""
+        import backend.core.database as db_module
+        from backend.core.database import init_db
+
+        # Save original state
+        original_engine = db_module._engine
+        original_factory = db_module._async_session_factory
+        original_loop_id = db_module._bound_loop_id
+
+        try:
+            # Create mock old engine with different loop ID
+            mock_old_engine = AsyncMock()
+            mock_old_engine.dispose = AsyncMock()
+
+            db_module._engine = mock_old_engine
+            db_module._bound_loop_id = 99999  # Different from current
+
+            with patch("backend.core.database.get_settings") as mock_settings:
+                mock_settings.return_value = MagicMock(
+                    database_url="postgresql+asyncpg://user:pass@localhost:5432/testdb",
+                    debug=False,
+                    database_pool_size=5,
+                    database_pool_overflow=10,
+                    database_pool_timeout=30,
+                    database_pool_recycle=1800,
+                )
+
+                with patch("backend.core.database.create_async_engine") as mock_create_engine:
+                    mock_new_engine = AsyncMock()
+                    mock_create_engine.return_value = mock_new_engine
+
+                    # Mock the connection context
+                    mock_conn = AsyncMock()
+                    mock_conn.execute = AsyncMock(
+                        return_value=MagicMock(scalar=MagicMock(return_value=True))
+                    )
+                    mock_conn.run_sync = AsyncMock()
+
+                    mock_ctx = AsyncMock()
+                    mock_ctx.__aenter__ = AsyncMock(return_value=mock_conn)
+                    mock_ctx.__aexit__ = AsyncMock(return_value=None)
+                    mock_new_engine.begin = MagicMock(return_value=mock_ctx)
+
+                    await init_db()
+
+                    # Old engine should have been disposed
+                    mock_old_engine.dispose.assert_called_once()
+                    # New engine should be set
+                    assert db_module._engine == mock_new_engine
+        finally:
+            # Restore original state
+            db_module._engine = original_engine
+            db_module._async_session_factory = original_factory
+            db_module._bound_loop_id = original_loop_id
+
+    @pytest.mark.asyncio
+    async def test_init_db_handles_dispose_runtime_error(self) -> None:
+        """Test that init_db handles RuntimeError during disposal."""
+        import backend.core.database as db_module
+        from backend.core.database import init_db
+
+        # Save original state
+        original_engine = db_module._engine
+        original_factory = db_module._async_session_factory
+        original_loop_id = db_module._bound_loop_id
+
+        try:
+            # Create mock old engine that raises RuntimeError on disposal
+            mock_old_engine = AsyncMock()
+            mock_old_engine.dispose = AsyncMock(side_effect=RuntimeError("Event loop closed"))
+
+            db_module._engine = mock_old_engine
+            db_module._bound_loop_id = 99999
+
+            with patch("backend.core.database.get_settings") as mock_settings:
+                mock_settings.return_value = MagicMock(
+                    database_url="postgresql+asyncpg://user:pass@localhost:5432/testdb",
+                    debug=False,
+                    database_pool_size=5,
+                    database_pool_overflow=10,
+                    database_pool_timeout=30,
+                    database_pool_recycle=1800,
+                )
+
+                with patch("backend.core.database.create_async_engine") as mock_create_engine:
+                    mock_new_engine = AsyncMock()
+                    mock_create_engine.return_value = mock_new_engine
+
+                    mock_conn = AsyncMock()
+                    mock_conn.execute = AsyncMock(
+                        return_value=MagicMock(scalar=MagicMock(return_value=True))
+                    )
+                    mock_conn.run_sync = AsyncMock()
+
+                    mock_ctx = AsyncMock()
+                    mock_ctx.__aenter__ = AsyncMock(return_value=mock_conn)
+                    mock_ctx.__aexit__ = AsyncMock(return_value=None)
+                    mock_new_engine.begin = MagicMock(return_value=mock_ctx)
+
+                    # Should not raise - handles disposal error gracefully
+                    await init_db()
+
+                    # New engine should still be set
+                    assert db_module._engine == mock_new_engine
+        finally:
+            # Restore original state
+            db_module._engine = original_engine
+            db_module._async_session_factory = original_factory
+            db_module._bound_loop_id = original_loop_id
+
+    @pytest.mark.asyncio
+    async def test_init_db_handles_dispose_oserror(self) -> None:
+        """Test that init_db handles OSError during disposal."""
+        import backend.core.database as db_module
+        from backend.core.database import init_db
+
+        # Save original state
+        original_engine = db_module._engine
+        original_factory = db_module._async_session_factory
+        original_loop_id = db_module._bound_loop_id
+
+        try:
+            # Create mock old engine that raises OSError on disposal
+            mock_old_engine = AsyncMock()
+            mock_old_engine.dispose = AsyncMock(side_effect=OSError("Connection cleanup failed"))
+
+            db_module._engine = mock_old_engine
+            db_module._bound_loop_id = 99999
+
+            with patch("backend.core.database.get_settings") as mock_settings:
+                mock_settings.return_value = MagicMock(
+                    database_url="postgresql+asyncpg://user:pass@localhost:5432/testdb",
+                    debug=False,
+                    database_pool_size=5,
+                    database_pool_overflow=10,
+                    database_pool_timeout=30,
+                    database_pool_recycle=1800,
+                )
+
+                with patch("backend.core.database.create_async_engine") as mock_create_engine:
+                    mock_new_engine = AsyncMock()
+                    mock_create_engine.return_value = mock_new_engine
+
+                    mock_conn = AsyncMock()
+                    mock_conn.execute = AsyncMock(
+                        return_value=MagicMock(scalar=MagicMock(return_value=True))
+                    )
+                    mock_conn.run_sync = AsyncMock()
+
+                    mock_ctx = AsyncMock()
+                    mock_ctx.__aenter__ = AsyncMock(return_value=mock_conn)
+                    mock_ctx.__aexit__ = AsyncMock(return_value=None)
+                    mock_new_engine.begin = MagicMock(return_value=mock_ctx)
+
+                    # Should not raise - handles disposal error gracefully
+                    await init_db()
+
+                    # New engine should still be set
+                    assert db_module._engine == mock_new_engine
+        finally:
+            # Restore original state
+            db_module._engine = original_engine
+            db_module._async_session_factory = original_factory
+            db_module._bound_loop_id = original_loop_id
+
+    @pytest.mark.asyncio
+    async def test_check_loop_mismatch_without_running_loop(self) -> None:
+        """Test _check_loop_mismatch when no loop is running."""
+        import backend.core.database as db_module
+
+        # Save original state
+        original_engine = db_module._engine
+        original_loop_id = db_module._bound_loop_id
+
+        try:
+            # Set up engine with a bound loop
+            mock_engine = MagicMock()
+            db_module._engine = mock_engine
+            db_module._bound_loop_id = 12345
+
+            # Mock asyncio to simulate no running loop
+            with patch("backend.core.database.asyncio.get_running_loop") as mock_get_loop:
+                mock_get_loop.side_effect = RuntimeError("no running event loop")
+
+                result = db_module._check_loop_mismatch()
+
+                # Should return False when no loop is running
+                assert result is False
+        finally:
+            # Restore original state
+            db_module._engine = original_engine
+            db_module._bound_loop_id = original_loop_id
+
+    @pytest.mark.asyncio
+    async def test_get_session_reinits_on_loop_mismatch(self) -> None:
+        """Test that get_session reinitializes DB on loop mismatch."""
+        import backend.core.database as db_module
+
+        # Save original state
+        original_engine = db_module._engine
+        original_factory = db_module._async_session_factory
+        original_loop_id = db_module._bound_loop_id
+
+        try:
+            # Set up engine first to make _check_loop_mismatch return True
+            mock_engine = MagicMock()
+            db_module._engine = mock_engine
+            db_module._bound_loop_id = 99999  # Different from current loop
+
+            with patch("backend.core.database.init_db") as mock_init:
+
+                async def mock_init_impl():
+                    # Reset to current loop after reinit
+                    import asyncio
+
+                    db_module._bound_loop_id = id(asyncio.get_running_loop())
+
+                mock_init.side_effect = mock_init_impl
+
+                # Create a mock factory after init_db
+                mock_session = AsyncMock()
+                mock_session.commit = AsyncMock()
+                mock_factory = MagicMock()
+                mock_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+                mock_factory.return_value.__aexit__ = AsyncMock(return_value=None)
+
+                db_module._async_session_factory = mock_factory
+
+                async with db_module.get_session():
+                    pass
+
+                # init_db should have been called due to loop mismatch
+                mock_init.assert_called_once()
+        finally:
+            # Restore original state
+            db_module._engine = original_engine
+            db_module._async_session_factory = original_factory
+            db_module._bound_loop_id = original_loop_id
+
+    @pytest.mark.asyncio
+    async def test_with_session_reinits_on_loop_mismatch(self) -> None:
+        """Test that with_session reinitializes DB via get_session on loop mismatch."""
+        import backend.core.database as db_module
+
+        # Save original state
+        original_engine = db_module._engine
+        original_factory = db_module._async_session_factory
+        original_loop_id = db_module._bound_loop_id
+
+        try:
+            # Set up engine first to make _check_loop_mismatch return True
+            mock_engine = MagicMock()
+            db_module._engine = mock_engine
+            db_module._bound_loop_id = 99999
+
+            with patch("backend.core.database.init_db") as mock_init:
+
+                async def mock_init_impl():
+                    import asyncio
+
+                    db_module._bound_loop_id = id(asyncio.get_running_loop())
+
+                mock_init.side_effect = mock_init_impl
+
+                mock_session = AsyncMock()
+                mock_session.commit = AsyncMock()
+                mock_factory = MagicMock()
+                mock_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+                mock_factory.return_value.__aexit__ = AsyncMock(return_value=None)
+
+                db_module._async_session_factory = mock_factory
+
+                async def test_operation(session: AsyncMock) -> str:
+                    return "success"
+
+                result = await db_module.with_session(test_operation)
+
+                assert result == "success"
+                # init_db should have been called
+                mock_init.assert_called_once()
+        finally:
+            # Restore original state
+            db_module._engine = original_engine
+            db_module._async_session_factory = original_factory
+            db_module._bound_loop_id = original_loop_id
+
+    @pytest.mark.asyncio
+    async def test_get_db_reinits_on_loop_mismatch(self) -> None:
+        """Test that get_db reinitializes DB on loop mismatch."""
+        import backend.core.database as db_module
+
+        # Save original state
+        original_engine = db_module._engine
+        original_factory = db_module._async_session_factory
+        original_loop_id = db_module._bound_loop_id
+
+        try:
+            # Set up engine first to make _check_loop_mismatch return True
+            mock_engine = MagicMock()
+            db_module._engine = mock_engine
+            db_module._bound_loop_id = 99999
+
+            with patch("backend.core.database.init_db") as mock_init:
+
+                async def mock_init_impl():
+                    import asyncio
+
+                    db_module._bound_loop_id = id(asyncio.get_running_loop())
+
+                mock_init.side_effect = mock_init_impl
+
+                mock_session = AsyncMock()
+                mock_session.commit = AsyncMock()
+                mock_session.close = AsyncMock()
+                mock_factory = MagicMock()
+                mock_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+                mock_factory.return_value.__aexit__ = AsyncMock(return_value=None)
+
+                db_module._async_session_factory = mock_factory
+
+                async for session in db_module.get_db():
+                    pass
+
+                # init_db should have been called
+                mock_init.assert_called_once()
+        finally:
+            # Restore original state
+            db_module._engine = original_engine
+            db_module._async_session_factory = original_factory
+            db_module._bound_loop_id = original_loop_id
+
+
+# =============================================================================
+# Slow Query Logging Tests
+# =============================================================================
+
+
+class TestSlowQueryLogging:
+    """Tests for slow query logging functionality."""
+
+    def test_sanitize_single_value_with_bytes(self) -> None:
+        """Test that bytes values are sanitized properly."""
+        from backend.core.database import _sanitize_single_value
+
+        result = _sanitize_single_value(b"binary data", max_string_length=100)
+        assert result == "<bytes length=11>"
+
+    def test_sanitize_single_value_with_long_string(self) -> None:
+        """Test that long strings are truncated."""
+        from backend.core.database import _sanitize_single_value
+
+        long_string = "x" * 150
+        result = _sanitize_single_value(long_string, max_string_length=100)
+        assert result == ("x" * 100) + "..."
+        assert len(result) == 103
+
+    def test_is_sensitive_key(self) -> None:
+        """Test sensitive key detection."""
+        from backend.core.database import _is_sensitive_key
+
+        assert _is_sensitive_key("password") is True
+        assert _is_sensitive_key("user_password") is True
+        assert _is_sensitive_key("secret_key") is True
+        assert _is_sensitive_key("auth_token") is True
+        assert _is_sensitive_key("api_key") is True
+        assert _is_sensitive_key("username") is False
+        assert _is_sensitive_key("email") is False
+
+    def test_sanitize_query_parameters_with_none(self) -> None:
+        """Test sanitizing None parameters."""
+        from backend.core.database import _sanitize_query_parameters
+
+        result = _sanitize_query_parameters(None)
+        assert result == {}
+
+    def test_sanitize_query_parameters_with_dict(self) -> None:
+        """Test sanitizing dict parameters."""
+        from backend.core.database import _sanitize_query_parameters
+
+        # Test data for sanitization - not real credentials
+        params = {
+            "user_id": 123,
+            "password": "test_value",  # pragma: allowlist secret
+            "email": "test@example.com",
+        }
+        result = _sanitize_query_parameters(params, max_string_length=100, max_items=10)
+
+        assert result["user_id"] == 123
+        assert result["password"] == "[REDACTED]"  # noqa: S105
+        assert result["email"] == "test@example.com"
+
+    def test_sanitize_query_parameters_with_dict_max_items(self) -> None:
+        """Test sanitizing dict with max_items limit."""
+        from backend.core.database import _sanitize_query_parameters
+
+        params = {f"key_{i}": f"value_{i}" for i in range(20)}
+        result = _sanitize_query_parameters(params, max_string_length=100, max_items=5)
+
+        # Should only have 5 items plus truncation marker
+        assert len(result) == 6
+        assert "..." in result
+        assert "(15 more items)" in result["..."]
+
+    def test_sanitize_query_parameters_with_list(self) -> None:
+        """Test sanitizing list parameters."""
+        from backend.core.database import _sanitize_query_parameters
+
+        params = [1, 2, "test", b"binary"]
+        result = _sanitize_query_parameters(params, max_string_length=100, max_items=10)
+
+        assert isinstance(result, list)
+        assert result[0] == 1
+        assert result[1] == 2
+        assert result[2] == "test"
+        assert result[3] == "<bytes length=6>"
+
+    def test_sanitize_query_parameters_with_list_max_items(self) -> None:
+        """Test sanitizing list with max_items limit."""
+        from backend.core.database import _sanitize_query_parameters
+
+        params = list(range(20))
+        result = _sanitize_query_parameters(params, max_string_length=100, max_items=5)
+
+        # Should have 5 items plus truncation marker
+        assert len(result) == 6
+        assert "...(15 more items)" in result[5]
+
+    def test_sanitize_query_parameters_with_tuple(self) -> None:
+        """Test sanitizing tuple parameters."""
+        from backend.core.database import _sanitize_query_parameters
+
+        params = (1, 2, "test")
+        result = _sanitize_query_parameters(params, max_string_length=100, max_items=10)
+
+        assert isinstance(result, list)
+        assert result == [1, 2, "test"]
+
+    def test_sanitize_query_parameters_with_scalar(self) -> None:
+        """Test sanitizing scalar parameters."""
+        from backend.core.database import _sanitize_query_parameters
+
+        result = _sanitize_query_parameters("test_value", max_string_length=100, max_items=10)
+        assert result == "test_value"
+
+    @pytest.mark.asyncio
+    async def test_setup_slow_query_logging(self) -> None:
+        """Test setting up slow query logging."""
+        import backend.core.database as db_module
+        from backend.core.database import reset_slow_query_logging_state, setup_slow_query_logging
+
+        # Reset state
+        reset_slow_query_logging_state()
+
+        # Save original state
+        original_engine = db_module._engine
+
+        try:
+            # Create mock engine
+            mock_sync_engine = MagicMock()
+            mock_engine = MagicMock()
+            mock_engine.sync_engine = mock_sync_engine
+
+            db_module._engine = mock_engine
+
+            with patch("backend.core.database.event.listen") as mock_listen:
+                with patch("backend.core.database.get_settings") as mock_settings:
+                    mock_settings.return_value = MagicMock(slow_query_threshold_ms=100)
+
+                    result = setup_slow_query_logging()
+
+                    assert result is True
+                    # Should attach both listeners
+                    assert mock_listen.call_count == 2
+
+                    # Calling again should return True immediately without attaching again
+                    mock_listen.reset_mock()
+                    result = setup_slow_query_logging()
+                    assert result is True
+                    assert mock_listen.call_count == 0
+        finally:
+            # Restore original state
+            db_module._engine = original_engine
+            reset_slow_query_logging_state()
+
+    @pytest.mark.asyncio
+    async def test_setup_slow_query_logging_without_engine(self) -> None:
+        """Test setup_slow_query_logging when no engine is available."""
+        import backend.core.database as db_module
+        from backend.core.database import reset_slow_query_logging_state, setup_slow_query_logging
+
+        # Reset state
+        reset_slow_query_logging_state()
+
+        # Save original state
+        original_engine = db_module._engine
+
+        try:
+            db_module._engine = None
+
+            result = setup_slow_query_logging()
+
+            assert result is False
+        finally:
+            # Restore original state
+            db_module._engine = original_engine
+            reset_slow_query_logging_state()
+
+    @pytest.mark.asyncio
+    async def test_setup_slow_query_logging_exception(self) -> None:
+        """Test setup_slow_query_logging exception handling."""
+        import backend.core.database as db_module
+        from backend.core.database import reset_slow_query_logging_state, setup_slow_query_logging
+
+        # Reset state
+        reset_slow_query_logging_state()
+
+        # Save original state
+        original_engine = db_module._engine
+
+        try:
+            # Create mock engine that raises exception
+            mock_engine = MagicMock()
+            mock_engine.sync_engine = MagicMock(side_effect=RuntimeError("Test error"))
+
+            db_module._engine = mock_engine
+
+            result = setup_slow_query_logging()
+
+            assert result is False
+        finally:
+            # Restore original state
+            db_module._engine = original_engine
+            reset_slow_query_logging_state()
+
+    @pytest.mark.asyncio
+    async def test_disable_slow_query_logging(self) -> None:
+        """Test disabling slow query logging."""
+        import backend.core.database as db_module
+        from backend.core.database import (
+            disable_slow_query_logging,
+            reset_slow_query_logging_state,
+            setup_slow_query_logging,
+        )
+
+        # Reset state
+        reset_slow_query_logging_state()
+
+        # Save original state
+        original_engine = db_module._engine
+
+        try:
+            # Create mock engine
+            mock_sync_engine = MagicMock()
+            mock_engine = MagicMock()
+            mock_engine.sync_engine = mock_sync_engine
+
+            db_module._engine = mock_engine
+
+            with patch("backend.core.database.event.listen"):
+                with patch("backend.core.database.get_settings") as mock_settings:
+                    mock_settings.return_value = MagicMock(slow_query_threshold_ms=100)
+                    setup_slow_query_logging()
+
+            with patch("backend.core.database.event.remove") as mock_remove:
+                result = disable_slow_query_logging()
+
+                assert result is True
+                # Should remove both listeners
+                assert mock_remove.call_count == 2
+
+                # Calling again should return True immediately
+                mock_remove.reset_mock()
+                result = disable_slow_query_logging()
+                assert result is True
+                assert mock_remove.call_count == 0
+        finally:
+            # Restore original state
+            db_module._engine = original_engine
+            reset_slow_query_logging_state()
+
+    @pytest.mark.asyncio
+    async def test_disable_slow_query_logging_without_engine(self) -> None:
+        """Test disable_slow_query_logging when no engine is available."""
+        import backend.core.database as db_module
+        from backend.core.database import (
+            disable_slow_query_logging,
+            reset_slow_query_logging_state,
+            setup_slow_query_logging,
+        )
+
+        # Reset state
+        reset_slow_query_logging_state()
+
+        # Save original state
+        original_engine = db_module._engine
+
+        try:
+            # Set up logging first
+            mock_sync_engine = MagicMock()
+            mock_engine = MagicMock()
+            mock_engine.sync_engine = mock_sync_engine
+            db_module._engine = mock_engine
+
+            with patch("backend.core.database.event.listen"):
+                with patch("backend.core.database.get_settings") as mock_settings:
+                    mock_settings.return_value = MagicMock(slow_query_threshold_ms=100)
+                    setup_slow_query_logging()
+
+            # Now remove engine and try to disable
+            db_module._engine = None
+
+            result = disable_slow_query_logging()
+
+            # Should return True and reset state
+            assert result is True
+        finally:
+            # Restore original state
+            db_module._engine = original_engine
+            reset_slow_query_logging_state()
+
+    @pytest.mark.asyncio
+    async def test_disable_slow_query_logging_exception(self) -> None:
+        """Test disable_slow_query_logging exception handling."""
+        import backend.core.database as db_module
+        from backend.core.database import (
+            disable_slow_query_logging,
+            reset_slow_query_logging_state,
+        )
+
+        # Reset state
+        reset_slow_query_logging_state()
+
+        # Save original state
+        original_engine = db_module._engine
+
+        try:
+            # Set up logging first by manually setting the flag
+            # (simpler than actually setting up listeners)
+            db_module._slow_query_logging_enabled = True
+
+            # Create engine
+            mock_sync_engine = MagicMock()
+            mock_engine = MagicMock()
+            mock_engine.sync_engine = mock_sync_engine
+            db_module._engine = mock_engine
+
+            # Mock event.remove to raise exception
+            with patch("backend.core.database.event.remove") as mock_remove:
+                mock_remove.side_effect = RuntimeError("Test error")
+
+                result = disable_slow_query_logging()
+
+                assert result is False
+                # State should still be enabled since removal failed
+                assert db_module._slow_query_logging_enabled is True
+        finally:
+            # Restore original state
+            db_module._engine = original_engine
+            reset_slow_query_logging_state()
+
+    def test_after_cursor_execute_without_metrics(self) -> None:
+        """Test _after_cursor_execute when metrics module is unavailable."""
+        import sys
+        from unittest.mock import MagicMock
+
+        import backend.core.database as db_module
+
+        # Create mock connection with start time
+        mock_conn = MagicMock()
+        mock_conn.info = {"query_start_time": 0.0}
+
+        with patch("backend.core.database.time.perf_counter", return_value=0.2):
+            with patch("backend.core.database.get_settings") as mock_settings:
+                mock_settings.return_value = MagicMock(slow_query_threshold_ms=50)
+
+                # Mock the metrics import to fail
+                original_modules = sys.modules.copy()
+                if "backend.core.metrics" in sys.modules:
+                    del sys.modules["backend.core.metrics"]
+
+                try:
+                    with patch.dict("sys.modules", {"backend.core.metrics": None}):
+                        # Should not raise even when metrics import fails
+                        db_module._after_cursor_execute(
+                            mock_conn,
+                            None,
+                            "SELECT * FROM test",
+                            {"id": 123},
+                            None,
+                            False,
+                        )
+                finally:
+                    # Restore original modules
+                    sys.modules.update(original_modules)
+
+    def test_after_cursor_execute_slow_query_without_metrics(self) -> None:
+        """Test _after_cursor_execute for slow query when record_slow_query unavailable."""
+        from backend.core.database import _after_cursor_execute
+
+        # Create mock connection with start time
+        mock_conn = MagicMock()
+        mock_conn.info = {"query_start_time": 0.0}
+
+        with patch("backend.core.database.time.perf_counter", return_value=0.2):
+            with patch("backend.core.database.get_settings") as mock_settings:
+                mock_settings.return_value = MagicMock(slow_query_threshold_ms=50)
+
+                # Import the function fresh to ensure it tries to import metrics
+                import sys
+
+                # Remove the metrics module if cached
+                original_metrics = sys.modules.get("backend.core.metrics")
+                if "backend.core.metrics" in sys.modules:
+                    del sys.modules["backend.core.metrics"]
+
+                try:
+                    # Create a mock module that has observe_db_query_duration but not record_slow_query
+                    mock_metrics = MagicMock()
+                    mock_metrics.observe_db_query_duration = MagicMock()
+
+                    # Make record_slow_query raise NameError when accessed
+                    def raise_name_error(*args, **kwargs):
+                        raise NameError("name 'record_slow_query' is not defined")
+
+                    mock_metrics.record_slow_query = raise_name_error
+
+                    sys.modules["backend.core.metrics"] = mock_metrics
+
+                    # Should not raise even when record_slow_query fails
+                    _after_cursor_execute(
+                        mock_conn,
+                        None,
+                        "SELECT * FROM test",
+                        {"id": 123},
+                        None,
+                        False,
+                    )
+
+                    # observe should be called
+                    mock_metrics.observe_db_query_duration.assert_called_once()
+                finally:
+                    # Restore original module
+                    if original_metrics is not None:
+                        sys.modules["backend.core.metrics"] = original_metrics
+                    elif "backend.core.metrics" in sys.modules:
+                        del sys.modules["backend.core.metrics"]
+
+    def test_reset_slow_query_logging_state(self) -> None:
+        """Test resetting slow query logging state."""
+        import backend.core.database as db_module
+        from backend.core.database import reset_slow_query_logging_state
+
+        # Set state to True
+        db_module._slow_query_logging_enabled = True
+
+        reset_slow_query_logging_state()
+
+        assert db_module._slow_query_logging_enabled is False

@@ -257,6 +257,27 @@ class TestPartitionManager:
             assert name.startswith("detections_y")
             assert start < end
 
+    def test_get_partitions_to_create_december_rollover(self) -> None:
+        """Test partition creation that crosses December into next year."""
+        from backend.services.partition_manager import PartitionConfig, PartitionManager
+
+        manager = PartitionManager()
+        config = PartitionConfig("detections", "detected_at", "monthly")
+
+        # Mock datetime to be in December
+        with patch("backend.services.partition_manager.datetime") as mock_datetime:
+            mock_datetime.now.return_value = datetime(2026, 12, 15, tzinfo=UTC)
+            mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
+
+            partitions = manager._get_partitions_to_create(config, months_ahead=2)
+
+            # Should create partitions including January of next year
+            assert len(partitions) >= 3
+            partition_names = [name for name, _, _ in partitions]
+            # Should have December 2026 and January 2027
+            assert any("y2026m12" in name for name in partition_names)
+            assert any("y2027m01" in name for name in partition_names)
+
     @pytest.mark.asyncio
     async def test_check_partition_exists_when_exists(self) -> None:
         """Test checking if a partition exists when it does."""
@@ -696,3 +717,499 @@ class TestPartitionManagerDatabaseIntegration:
         assert " " not in name
         # Name should end with the date suffix
         assert name.endswith("_y2026m01")
+
+
+# =============================================================================
+# Sanitization and Edge Case Tests
+# =============================================================================
+
+
+class TestSanitization:
+    """Tests for name sanitization and edge cases."""
+
+    def test_sanitize_table_name_empty_string(self) -> None:
+        """Test sanitization of completely invalid table name."""
+        from backend.services.partition_manager import PartitionManager
+
+        manager = PartitionManager()
+
+        # Completely invalid name with only special characters
+        result = manager._sanitize_table_name("!@#$%^&*()")
+
+        # Should return 'unknown' as fallback
+        assert result == "unknown"
+
+    def test_sanitize_table_name_valid(self) -> None:
+        """Test sanitization of valid table name."""
+        from backend.services.partition_manager import PartitionManager
+
+        manager = PartitionManager()
+
+        result = manager._sanitize_table_name("valid_table_123")
+        assert result == "valid_table_123"
+
+    def test_sanitize_table_name_mixed_case(self) -> None:
+        """Test sanitization converts to lowercase."""
+        from backend.services.partition_manager import PartitionManager
+
+        manager = PartitionManager()
+
+        result = manager._sanitize_table_name("MyTable123")
+        assert result == "mytable123"
+
+
+# =============================================================================
+# Weekly Partition Generation Tests
+# =============================================================================
+
+
+class TestWeeklyPartitionGeneration:
+    """Tests for weekly partition generation logic."""
+
+    def test_get_partitions_to_create_weekly(self) -> None:
+        """Test generating weekly partitions."""
+        from backend.services.partition_manager import PartitionConfig, PartitionManager
+
+        manager = PartitionManager()
+        config = PartitionConfig("gpu_stats", "recorded_at", "weekly", retention_months=3)
+
+        # Get weekly partitions for 2 months ahead
+        partitions = manager._get_partitions_to_create(config, months_ahead=2)
+
+        # Should generate multiple weeks (at least 8-10 weeks for 2 months)
+        assert len(partitions) >= 8
+        # All partition names should contain week indicator
+        for name, start, end in partitions:
+            assert "gpu_stats_y" in name
+            assert "w" in name
+            # Verify bounds are 7 days apart
+            assert (end - start).days == 7
+
+
+# =============================================================================
+# Table Check Tests
+# =============================================================================
+
+
+class TestTableChecks:
+    """Tests for table existence and partitioning checks."""
+
+    @pytest.mark.asyncio
+    async def test_check_table_is_partitioned_true(self) -> None:
+        """Test checking if a table is partitioned when it is."""
+        from backend.services.partition_manager import PartitionManager
+
+        manager = PartitionManager()
+        mock_session = AsyncMock()
+
+        # Mock result returning 'p' for partitioned table
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = "p"
+        mock_session.execute.return_value = mock_result
+
+        result = await manager._check_table_is_partitioned(mock_session, "detections")
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_check_table_is_partitioned_bytes(self) -> None:
+        """Test checking partitioned table when result is bytes."""
+        from backend.services.partition_manager import PartitionManager
+
+        manager = PartitionManager()
+        mock_session = AsyncMock()
+
+        # Mock result returning bytes b'p' for partitioned table
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = b"p"
+        mock_session.execute.return_value = mock_result
+
+        result = await manager._check_table_is_partitioned(mock_session, "detections")
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_check_table_is_partitioned_false(self) -> None:
+        """Test checking if a table is partitioned when it's not."""
+        from backend.services.partition_manager import PartitionManager
+
+        manager = PartitionManager()
+        mock_session = AsyncMock()
+
+        # Mock result returning 'r' for regular table (not partitioned)
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = "r"
+        mock_session.execute.return_value = mock_result
+
+        result = await manager._check_table_is_partitioned(mock_session, "users")
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_check_table_is_partitioned_not_exists(self) -> None:
+        """Test checking if a table is partitioned when it doesn't exist."""
+        from backend.services.partition_manager import PartitionManager
+
+        manager = PartitionManager()
+        mock_session = AsyncMock()
+
+        # Mock result returning None for non-existent table
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_session.execute.return_value = mock_result
+
+        result = await manager._check_table_is_partitioned(mock_session, "nonexistent")
+        assert result is False
+
+
+# =============================================================================
+# List Partitions Tests
+# =============================================================================
+
+
+class TestListPartitions:
+    """Tests for listing existing partitions."""
+
+    @pytest.mark.asyncio
+    async def test_list_partitions_success(self) -> None:
+        """Test listing partitions successfully."""
+        from backend.services.partition_manager import PartitionConfig, PartitionManager
+
+        manager = PartitionManager()
+        config = PartitionConfig("detections", "detected_at", "monthly")
+
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+
+        # Mock database rows
+        mock_rows = [
+            ("detections_y2026m01", "FOR VALUES FROM ('2026-01-01') TO ('2026-02-01')", 1000),
+            ("detections_y2026m02", "FOR VALUES FROM ('2026-02-01') TO ('2026-03-01')", 2000),
+        ]
+        mock_result.fetchall.return_value = mock_rows
+        mock_session.execute.return_value = mock_result
+
+        partitions = await manager._list_partitions(mock_session, config)
+
+        assert len(partitions) == 2
+        assert partitions[0].name == "detections_y2026m01"
+        assert partitions[0].row_count == 1000
+        assert partitions[1].name == "detections_y2026m02"
+        assert partitions[1].row_count == 2000
+
+    @pytest.mark.asyncio
+    async def test_list_partitions_with_null_row_count(self) -> None:
+        """Test listing partitions with NULL row count."""
+        from backend.services.partition_manager import PartitionConfig, PartitionManager
+
+        manager = PartitionManager()
+        config = PartitionConfig("detections", "detected_at", "monthly")
+
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+
+        # Mock database rows with None row count
+        mock_rows = [
+            ("detections_y2026m01", "FOR VALUES FROM ('2026-01-01') TO ('2026-02-01')", None),
+        ]
+        mock_result.fetchall.return_value = mock_rows
+        mock_session.execute.return_value = mock_result
+
+        partitions = await manager._list_partitions(mock_session, config)
+
+        assert len(partitions) == 1
+        assert partitions[0].row_count == 0  # Should default to 0
+
+    @pytest.mark.asyncio
+    async def test_list_partitions_skips_invalid_bounds(self) -> None:
+        """Test listing partitions skips entries with unparseable bounds."""
+        from backend.services.partition_manager import PartitionConfig, PartitionManager
+
+        manager = PartitionManager()
+        config = PartitionConfig("detections", "detected_at", "monthly")
+
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+
+        # Mock database rows with one valid and one invalid bounds
+        mock_rows = [
+            ("detections_y2026m01", "FOR VALUES FROM ('2026-01-01') TO ('2026-02-01')", 1000),
+            ("detections_invalid", "INVALID BOUNDS", 500),  # Should be skipped
+        ]
+        mock_result.fetchall.return_value = mock_rows
+        mock_session.execute.return_value = mock_result
+
+        partitions = await manager._list_partitions(mock_session, config)
+
+        # Should only include the valid partition
+        assert len(partitions) == 1
+        assert partitions[0].name == "detections_y2026m01"
+
+
+# =============================================================================
+# Parse Partition Bounds Tests
+# =============================================================================
+
+
+class TestParsePartitionBounds:
+    """Tests for parsing partition bounds from PostgreSQL."""
+
+    def test_parse_partition_bounds_success(self) -> None:
+        """Test parsing valid partition bounds."""
+        from backend.services.partition_manager import PartitionManager
+
+        manager = PartitionManager()
+
+        bounds = "FOR VALUES FROM ('2026-01-01') TO ('2026-02-01')"
+        start, end = manager._parse_partition_bounds(bounds)
+
+        assert start == datetime(2026, 1, 1, tzinfo=UTC)
+        assert end == datetime(2026, 2, 1, tzinfo=UTC)
+
+    def test_parse_partition_bounds_with_datetime(self) -> None:
+        """Test parsing bounds with datetime format (including time)."""
+        from backend.services.partition_manager import PartitionManager
+
+        manager = PartitionManager()
+
+        bounds = "FOR VALUES FROM ('2026-01-01T00:00:00') TO ('2026-02-01T00:00:00')"
+        start, end = manager._parse_partition_bounds(bounds)
+
+        assert start is not None
+        assert end is not None
+        assert start < end
+
+    def test_parse_partition_bounds_with_spaces(self) -> None:
+        """Test parsing bounds with space-separated datetime."""
+        from backend.services.partition_manager import PartitionManager
+
+        manager = PartitionManager()
+
+        bounds = "FOR VALUES FROM ('2026-01-01 00:00:00') TO ('2026-02-01 00:00:00')"
+        start, end = manager._parse_partition_bounds(bounds)
+
+        assert start is not None
+        assert end is not None
+
+    def test_parse_partition_bounds_invalid_format(self) -> None:
+        """Test parsing invalid bounds returns None."""
+        from backend.services.partition_manager import PartitionManager
+
+        manager = PartitionManager()
+
+        bounds = "INVALID BOUNDS STRING"
+        start, end = manager._parse_partition_bounds(bounds)
+
+        assert start is None
+        assert end is None
+
+    def test_parse_partition_bounds_missing_from(self) -> None:
+        """Test parsing bounds with missing FROM."""
+        from backend.services.partition_manager import PartitionManager
+
+        manager = PartitionManager()
+
+        bounds = "TO ('2026-02-01')"
+        start, end = manager._parse_partition_bounds(bounds)
+
+        assert start is None
+        assert end is None
+
+    def test_parse_partition_bounds_missing_to(self) -> None:
+        """Test parsing bounds with missing TO."""
+        from backend.services.partition_manager import PartitionManager
+
+        manager = PartitionManager()
+
+        bounds = "FOR VALUES FROM ('2026-01-01')"
+        start, end = manager._parse_partition_bounds(bounds)
+
+        assert start is None
+        assert end is None
+
+    def test_parse_partition_bounds_invalid_date_format(self) -> None:
+        """Test parsing bounds with invalid date format triggers exception."""
+        from backend.services.partition_manager import PartitionManager
+
+        manager = PartitionManager()
+
+        # This will match the regex but fail to parse the date
+        bounds = "FOR VALUES FROM ('not-a-date') TO ('also-not-a-date')"
+        start, end = manager._parse_partition_bounds(bounds)
+
+        # Should handle exception and return None, None
+        assert start is None
+        assert end is None
+
+
+# =============================================================================
+# Error Handling Tests
+# =============================================================================
+
+
+class TestErrorHandling:
+    """Tests for error handling in partition operations."""
+
+    @pytest.mark.asyncio
+    async def test_ensure_partitions_skips_non_partitioned_table(self) -> None:
+        """Test that ensure_partitions skips non-partitioned tables."""
+        from backend.services.partition_manager import PartitionConfig, PartitionManager
+
+        config = PartitionConfig("regular_table", "timestamp", "monthly")
+        manager = PartitionManager(configs=[config])
+
+        mock_session = AsyncMock()
+        mock_context = AsyncMock()
+        mock_context.__aenter__.return_value = mock_session
+        mock_context.__aexit__.return_value = None
+
+        with (
+            patch.object(manager, "_check_table_is_partitioned", return_value=False),
+            patch.object(manager, "_create_partition") as mock_create,
+            patch(
+                "backend.services.partition_manager.get_session",
+                return_value=mock_context,
+            ),
+        ):
+            result = await manager.ensure_partitions()
+
+            # Should not create any partitions
+            mock_create.assert_not_called()
+            assert result == []
+
+    @pytest.mark.asyncio
+    async def test_ensure_partitions_handles_create_error(self) -> None:
+        """Test that ensure_partitions handles partition creation errors."""
+        from backend.services.partition_manager import PartitionConfig, PartitionManager
+
+        config = PartitionConfig("detections", "detected_at", "monthly")
+        manager = PartitionManager(configs=[config])
+
+        mock_session = AsyncMock()
+        mock_context = AsyncMock()
+        mock_context.__aenter__.return_value = mock_session
+        mock_context.__aexit__.return_value = None
+
+        with (
+            patch.object(manager, "_check_table_is_partitioned", return_value=True),
+            patch.object(manager, "_check_partition_exists", return_value=False),
+            patch.object(
+                manager,
+                "_create_partition",
+                side_effect=Exception("Database error"),
+            ) as mock_create,
+            patch(
+                "backend.services.partition_manager.get_session",
+                return_value=mock_context,
+            ),
+        ):
+            result = await manager.ensure_partitions()
+
+            # Should attempt to create partitions but handle errors
+            assert mock_create.call_count >= 1
+            # Should return empty list since all creations failed
+            assert result == []
+
+    @pytest.mark.asyncio
+    async def test_cleanup_old_partitions_handles_drop_error(self) -> None:
+        """Test that cleanup handles partition drop errors."""
+        from backend.services.partition_manager import (
+            PartitionConfig,
+            PartitionInfo,
+            PartitionManager,
+        )
+
+        config = PartitionConfig("detections", "detected_at", "monthly", retention_months=12)
+        manager = PartitionManager(configs=[config])
+
+        # Create mock old partition
+        old_start = datetime.now(UTC) - timedelta(days=400)
+        old_partition = PartitionInfo(
+            name="detections_old",
+            table_name="detections",
+            start_date=old_start,
+            end_date=old_start + timedelta(days=31),
+            row_count=1000,
+        )
+
+        mock_session = AsyncMock()
+
+        with (
+            patch.object(manager, "_list_partitions", return_value=[old_partition]),
+            patch.object(
+                manager,
+                "_drop_partition",
+                side_effect=Exception("Cannot drop partition"),
+            ) as mock_drop,
+            patch("backend.services.partition_manager.get_session") as mock_get_session,
+        ):
+            mock_get_session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_get_session.return_value.__aexit__ = AsyncMock(return_value=None)
+
+            result = await manager.cleanup_old_partitions()
+
+            # Should attempt to drop but handle error
+            mock_drop.assert_called_once()
+            # Should return empty list since drop failed
+            assert result == []
+
+
+# =============================================================================
+# Run Maintenance Tests
+# =============================================================================
+
+
+class TestRunMaintenance:
+    """Tests for the run_maintenance method."""
+
+    @pytest.mark.asyncio
+    async def test_run_maintenance_full_cycle(self) -> None:
+        """Test running full maintenance cycle."""
+        from backend.services.partition_manager import PartitionConfig, PartitionManager
+
+        config = PartitionConfig("detections", "detected_at", "monthly")
+        manager = PartitionManager(configs=[config])
+
+        created_partitions = ["detections_y2026m03", "detections_y2026m04"]
+        dropped_partitions = ["detections_y2024m01"]
+        stats = {
+            "detections": [
+                {
+                    "name": "detections_y2026m01",
+                    "start_date": "2026-01-01T00:00:00+00:00",
+                    "end_date": "2026-02-01T00:00:00+00:00",
+                    "row_count": 1000,
+                    "is_expired": False,
+                }
+            ]
+        }
+
+        with (
+            patch.object(manager, "ensure_partitions", return_value=created_partitions),
+            patch.object(manager, "cleanup_old_partitions", return_value=dropped_partitions),
+            patch.object(manager, "get_partition_stats", return_value=stats),
+        ):
+            result = await manager.run_maintenance()
+
+            assert result["created"] == created_partitions
+            assert result["dropped"] == dropped_partitions
+            assert result["total_created"] == 2
+            assert result["total_dropped"] == 1
+            assert result["partition_counts"]["detections"] == 1
+
+    @pytest.mark.asyncio
+    async def test_run_maintenance_no_changes(self) -> None:
+        """Test running maintenance when no changes are needed."""
+        from backend.services.partition_manager import PartitionConfig, PartitionManager
+
+        config = PartitionConfig("detections", "detected_at", "monthly")
+        manager = PartitionManager(configs=[config])
+
+        with (
+            patch.object(manager, "ensure_partitions", return_value=[]),
+            patch.object(manager, "cleanup_old_partitions", return_value=[]),
+            patch.object(manager, "get_partition_stats", return_value={"detections": []}),
+        ):
+            result = await manager.run_maintenance()
+
+            assert result["created"] == []
+            assert result["dropped"] == []
+            assert result["total_created"] == 0
+            assert result["total_dropped"] == 0

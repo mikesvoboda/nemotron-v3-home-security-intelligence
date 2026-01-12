@@ -50,7 +50,7 @@ This document details the resilience patterns implemented in the Home Security I
 
 The system implements multiple layers of resilience to handle failures gracefully:
 
-![Resilience Architecture Overview](../images/architecture/resilience-overview-graphviz.png)
+![Resilience Architecture Overview](../images/resilience/resilience-overview.svg)
 
 _Layered resilience architecture showing circuit breakers, retry logic with exponential backoff, dead-letter queues, and health monitoring._
 
@@ -129,7 +129,7 @@ The circuit breaker protects external services from cascading failures by monito
 
 ### Circuit Breaker States
 
-![Circuit Breaker State Machine](../images/architecture/circuit-breaker-states.png)
+![Circuit Breaker State Machine](../images/resilience/circuit-breaker-states.svg)
 
 _State machine showing transitions between CLOSED (normal), OPEN (tripped), and HALF_OPEN (testing) states._
 
@@ -225,6 +225,13 @@ except CircuitBreakerError:
 
 The [CircuitBreakerRegistry](../../backend/services/circuit_breaker.py) at line 491 manages multiple breakers:
 
+![Circuit Breaker Registry](../images/resilience/circuit-breaker-registry.svg)
+
+_Global registry managing circuit breakers for rtdetr, nemotron, and redis services._
+
+<details>
+<summary>Mermaid source (click to expand)</summary>
+
 ```mermaid
 flowchart TB
     subgraph Registry["CircuitBreakerRegistry"]
@@ -256,6 +263,8 @@ flowchart TB
     style S3 fill:#A855F7,color:#fff
 ```
 
+</details>
+
 ---
 
 ## Retry Handler with Exponential Backoff
@@ -264,7 +273,7 @@ The [RetryHandler](../../backend/services/retry_handler.py) at line 128 provides
 
 ### Retry Flow
 
-![Exponential Backoff with Jitter](../images/architecture/retry-backoff.png)
+![Retry Handler Flow](../images/resilience/retry-handler-flow.svg)
 
 _Retry flow showing exponential backoff calculation, jitter application, cap enforcement, and dead-letter queue handling._
 
@@ -352,9 +361,12 @@ Jobs that exhaust all retry attempts are moved to dead-letter queues for manual 
 
 ### DLQ Architecture
 
-![Dead-letter queue architecture showing processing queues (detection_queue, analysis_queue) flowing through workers to the retry handler, with failed jobs moving to DLQ storage (dlq:detection_queue, dlq:analysis_queue) and the DLQ management API providing inspection, requeue, and clear operations](../images/architecture/dlq-architecture.png)
+![Dead-letter queue architecture showing processing queues (detection_queue, analysis_queue) flowing through workers to the retry handler, with failed jobs moving to DLQ storage (dlq:detection_queue, dlq:analysis_queue) and the DLQ management API providing inspection, requeue, and clear operations](../images/resilience/dlq-architecture.svg)
 
 _DLQ system architecture with queue workers, retry handling, and management API for failed job recovery._
+
+<details>
+<summary>Mermaid source (click to expand)</summary>
 
 ```mermaid
 flowchart TB
@@ -405,6 +417,8 @@ flowchart TB
     style DLQ2 fill:#E74856,color:#fff
     style API fill:#3B82F6,color:#fff
 ```
+
+</details>
 
 ### DLQ Job Format
 
@@ -457,6 +471,13 @@ The [ServiceHealthMonitor](../../backend/services/health_monitor.py) at line 25 
 
 ### Health Check Flow
 
+![Health Check Flow](../images/resilience/health-check-flow.svg)
+
+_Service health monitoring flow showing monitored services, state transitions, and recovery actions._
+
+<details>
+<summary>Mermaid source (click to expand)</summary>
+
 ```mermaid
 flowchart TB
     subgraph Monitor["ServiceHealthMonitor"]
@@ -504,6 +525,8 @@ flowchart TB
     style FAILED fill:#E74856,color:#fff
     style RESTARTING fill:#3B82F6,color:#fff
 ```
+
+</details>
 
 ### Health Monitor Implementation
 
@@ -554,6 +577,13 @@ When services are unavailable, the system degrades gracefully rather than failin
 
 ### Degradation Modes
 
+![Graceful Degradation](../images/resilience/graceful-degradation.svg)
+
+_Graceful degradation modes showing normal operation, failure scenarios, and degraded behaviors._
+
+<details>
+<summary>Mermaid source (click to expand)</summary>
+
 ```mermaid
 flowchart TB
     subgraph Normal["Normal Operation"]
@@ -587,6 +617,8 @@ flowchart TB
     style Failed fill:#E74856,color:#fff
 ```
 
+</details>
+
 ### Degradation Behavior by Component
 
 | Component      | Failure Mode | Degradation Behavior                                 |
@@ -617,6 +649,9 @@ risk_data = {
 ## Recovery Strategies
 
 ### Automatic Recovery Sequence
+
+<details>
+<summary>Mermaid source (click to expand)</summary>
 
 ```mermaid
 sequenceDiagram
@@ -653,6 +688,8 @@ sequenceDiagram
         Note over HM: Manual intervention required
     end
 ```
+
+</details>
 
 ### Service Manager Strategies
 
@@ -753,6 +790,13 @@ The system includes a dedicated WebSocket circuit breaker pattern for real-time 
 
 ### Architecture Overview
 
+![WebSocket Circuit Breaker Architecture](../images/resilience/websocket-circuit-breaker.svg)
+
+_WebSocket circuit breaker architecture showing backend services, Redis pub/sub, and frontend clients._
+
+<details>
+<summary>Mermaid source (click to expand)</summary>
+
 ```mermaid
 flowchart TB
     subgraph Backend["Backend Services"]
@@ -788,6 +832,8 @@ flowchart TB
     style WSM fill:#3B82F6,color:#fff
 ```
 
+</details>
+
 ### WebSocket Circuit Breaker States
 
 The [WebSocketCircuitBreaker](../../backend/core/websocket_circuit_breaker.py) implements the circuit breaker pattern specifically for WebSocket broadcaster services.
@@ -799,6 +845,11 @@ The [WebSocketCircuitBreaker](../../backend/core/websocket_circuit_breaker.py) i
 | **HALF_OPEN** | Testing recovery, limited operations allowed            | Single test operation allowed per recovery cycle |
 
 ### State Diagram
+
+_Note: The WebSocket circuit breaker state diagram is included in the architecture overview diagram above._
+
+<details>
+<summary>Mermaid source (click to expand)</summary>
 
 ```mermaid
 stateDiagram-v2
@@ -824,6 +875,8 @@ stateDiagram-v2
     HALF_OPEN: Track success/failure
     HALF_OPEN: Careful service probing
 ```
+
+</details>
 
 ### Configuration
 
@@ -870,6 +923,9 @@ class SystemBroadcaster:
 
 When the circuit breaker opens and recovery fails, the broadcaster enters **degraded mode**:
 
+<details>
+<summary>Mermaid source (click to expand)</summary>
+
 ```mermaid
 sequenceDiagram
     participant Redis as Redis Pub/Sub
@@ -894,6 +950,8 @@ sequenceDiagram
     Note over SB: Manual restart required
 ```
 
+</details>
+
 #### Degraded Mode Behavior
 
 1. **`is_degraded()` method** - Returns `True` when all recovery attempts are exhausted
@@ -915,6 +973,13 @@ sequenceDiagram
 ### Recovery Sequence
 
 The broadcaster attempts automatic recovery with exponential backoff:
+
+![Recovery Flow](../images/resilience/recovery-flow.svg)
+
+_Broadcaster recovery flow showing failure detection, recovery attempts, circuit breaker check, and outcomes._
+
+<details>
+<summary>Mermaid source (click to expand)</summary>
 
 ```mermaid
 flowchart TB
@@ -959,6 +1024,8 @@ flowchart TB
     style CB_BLOCK fill:#FFB800,color:#000
 ```
 
+</details>
+
 ### Frontend: Client-Side Circuit Breaker Pattern
 
 The frontend implements its own circuit breaker-like behavior through the reconnection logic in `webSocketManager.ts`. While not a traditional circuit breaker class, the `maxReconnectAttempts` mechanism provides equivalent protection:
@@ -974,6 +1041,13 @@ This approach is more appropriate for client-side WebSocket connections where:
 3. User feedback (connection status) is more important than request throttling
 
 #### Frontend Circuit Breaker State Machine
+
+![Frontend State Machine](../images/resilience/frontend-state-machine.svg)
+
+_Frontend circuit breaker state machine showing Connected, Reconnecting, and Exhausted states._
+
+<details>
+<summary>Mermaid source (click to expand)</summary>
 
 ```mermaid
 stateDiagram-v2
@@ -997,9 +1071,18 @@ stateDiagram-v2
     Exhausted: No automatic reconnection
 ```
 
+</details>
+
 #### WebSocket Manager Architecture
 
 The [WebSocketManager](../../frontend/src/hooks/webSocketManager.ts) provides connection deduplication and automatic reconnection:
+
+![WebSocket Manager Architecture](../images/resilience/websocket-manager.svg)
+
+_WebSocket Manager architecture showing React components, hook, manager singleton, and managed connection._
+
+<details>
+<summary>Mermaid source (click to expand)</summary>
 
 ```mermaid
 flowchart TB
@@ -1032,6 +1115,8 @@ flowchart TB
 
     style M fill:#3B82F6,color:#fff
 ```
+
+</details>
 
 #### Client Reconnection Configuration
 
@@ -1090,6 +1175,9 @@ export interface UseWebSocketReturn {
 
 ### End-to-End Resilience Flow
 
+<details>
+<summary>Mermaid source (click to expand)</summary>
+
 ```mermaid
 sequenceDiagram
     participant Client as Frontend Client
@@ -1140,6 +1228,8 @@ sequenceDiagram
         Backend->>Client: service_status: healthy
     end
 ```
+
+</details>
 
 ### Monitoring and Observability
 

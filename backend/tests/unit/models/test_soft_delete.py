@@ -68,6 +68,7 @@ class TestCameraSoftDeleteModel:
         assert camera.deleted_at == now
 
 
+@pytest.mark.integration  # Requires database session
 class TestCameraSoftDeleteMethods:
     """Tests for Camera soft delete, restore, and hard delete methods."""
 
@@ -189,6 +190,7 @@ class TestCameraSoftDeleteMethods:
         assert det_result.scalar_one_or_none() is not None
 
 
+@pytest.mark.integration  # Requires database session
 class TestCameraQueryFiltering:
     """Tests for automatic filtering of soft-deleted cameras in queries."""
 
@@ -314,6 +316,7 @@ class TestEventSoftDeleteModel:
         assert event.is_deleted is True
 
 
+@pytest.mark.integration  # Requires database session
 class TestEventSoftDeleteMethods:
     """Tests for Event soft delete, restore, and hard delete methods."""
 
@@ -430,6 +433,7 @@ class TestEventSoftDeleteMethods:
         assert deleted_event is None
 
 
+@pytest.mark.integration  # Requires database session
 class TestEventQueryFiltering:
     """Tests for automatic filtering of soft-deleted events in queries."""
 
@@ -514,6 +518,7 @@ class TestEventQueryFiltering:
 # =============================================================================
 
 
+@pytest.mark.integration  # Requires database session
 class TestSoftDeleteEdgeCases:
     """Tests for edge cases and complex scenarios."""
 
