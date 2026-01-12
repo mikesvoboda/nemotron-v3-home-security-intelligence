@@ -89,10 +89,10 @@ describe('FeedbackPanel', () => {
       renderWithQueryClient(<FeedbackPanel eventId={123} />);
 
       await waitFor(() => {
-        expect(screen.getByTestId('feedback-correct-button')).toBeInTheDocument();
+        expect(screen.getByTestId('feedback-accurate-button')).toBeInTheDocument();
         expect(screen.getByTestId('feedback-false_positive-button')).toBeInTheDocument();
-        expect(screen.getByTestId('feedback-missed_detection-button')).toBeInTheDocument();
-        expect(screen.getByTestId('feedback-wrong_severity-button')).toBeInTheDocument();
+        expect(screen.getByTestId('feedback-missed_threat-button')).toBeInTheDocument();
+        expect(screen.getByTestId('feedback-severity_wrong-button')).toBeInTheDocument();
       });
 
       // Check button labels
@@ -141,10 +141,10 @@ describe('FeedbackPanel', () => {
       renderWithQueryClient(<FeedbackPanel eventId={123} />);
 
       await waitFor(() => {
-        expect(screen.getByTestId('feedback-correct-button')).toBeInTheDocument();
+        expect(screen.getByTestId('feedback-accurate-button')).toBeInTheDocument();
       });
 
-      await user.click(screen.getByTestId('feedback-correct-button'));
+      await user.click(screen.getByTestId('feedback-accurate-button'));
 
       await waitFor(() => {
         expect(api.submitEventFeedback).toHaveBeenCalled();
@@ -175,10 +175,10 @@ describe('FeedbackPanel', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByTestId('feedback-correct-button')).toBeInTheDocument();
+        expect(screen.getByTestId('feedback-accurate-button')).toBeInTheDocument();
       });
 
-      await user.click(screen.getByTestId('feedback-correct-button'));
+      await user.click(screen.getByTestId('feedback-accurate-button'));
 
       await waitFor(() => {
         expect(onFeedbackSubmitted).toHaveBeenCalledWith(submittedFeedback);
@@ -212,10 +212,10 @@ describe('FeedbackPanel', () => {
       renderWithQueryClient(<FeedbackPanel eventId={123} />);
 
       await waitFor(() => {
-        expect(screen.getByTestId('feedback-missed_detection-button')).toBeInTheDocument();
+        expect(screen.getByTestId('feedback-missed_threat-button')).toBeInTheDocument();
       });
 
-      await user.click(screen.getByTestId('feedback-missed_detection-button'));
+      await user.click(screen.getByTestId('feedback-missed_threat-button'));
 
       await waitFor(() => {
         expect(screen.getByTestId('feedback-notes')).toBeInTheDocument();
@@ -230,10 +230,10 @@ describe('FeedbackPanel', () => {
       renderWithQueryClient(<FeedbackPanel eventId={123} />);
 
       await waitFor(() => {
-        expect(screen.getByTestId('feedback-wrong_severity-button')).toBeInTheDocument();
+        expect(screen.getByTestId('feedback-severity_wrong-button')).toBeInTheDocument();
       });
 
-      await user.click(screen.getByTestId('feedback-wrong_severity-button'));
+      await user.click(screen.getByTestId('feedback-severity_wrong-button'));
 
       await waitFor(() => {
         expect(screen.getByTestId('feedback-notes')).toBeInTheDocument();
@@ -352,10 +352,10 @@ describe('FeedbackPanel', () => {
       renderWithQueryClient(<FeedbackPanel eventId={123} currentRiskScore={75} />);
 
       await waitFor(() => {
-        expect(screen.getByTestId('feedback-wrong_severity-button')).toBeInTheDocument();
+        expect(screen.getByTestId('feedback-severity_wrong-button')).toBeInTheDocument();
       });
 
-      await user.click(screen.getByTestId('feedback-wrong_severity-button'));
+      await user.click(screen.getByTestId('feedback-severity_wrong-button'));
 
       // Add some notes in the form
       const textarea = screen.getByTestId('feedback-notes');
@@ -385,10 +385,10 @@ describe('FeedbackPanel', () => {
       renderWithQueryClient(<FeedbackPanel eventId={123} />);
 
       await waitFor(() => {
-        expect(screen.getByTestId('feedback-correct-button')).toBeInTheDocument();
+        expect(screen.getByTestId('feedback-accurate-button')).toBeInTheDocument();
       });
 
-      await user.click(screen.getByTestId('feedback-correct-button'));
+      await user.click(screen.getByTestId('feedback-accurate-button'));
 
       await waitFor(() => {
         expect(screen.getByText('Failed to submit feedback. Please try again.')).toBeInTheDocument();
@@ -432,13 +432,13 @@ describe('FeedbackPanel', () => {
       renderWithQueryClient(<FeedbackPanel eventId={123} />);
 
       await waitFor(() => {
-        expect(screen.getByTestId('feedback-correct-button')).toBeInTheDocument();
+        expect(screen.getByTestId('feedback-accurate-button')).toBeInTheDocument();
       });
 
-      await user.click(screen.getByTestId('feedback-correct-button'));
+      await user.click(screen.getByTestId('feedback-accurate-button'));
 
       await waitFor(() => {
-        expect(screen.getByTestId('feedback-correct-button')).toBeDisabled();
+        expect(screen.getByTestId('feedback-accurate-button')).toBeDisabled();
         expect(screen.getByTestId('feedback-false_positive-button')).toBeDisabled();
       });
 
@@ -460,7 +460,7 @@ describe('FeedbackPanel', () => {
       renderWithQueryClient(<FeedbackPanel eventId={123} />);
 
       await waitFor(() => {
-        expect(screen.getByTestId('feedback-correct-button')).toHaveAttribute(
+        expect(screen.getByTestId('feedback-accurate-button')).toHaveAttribute(
           'title',
           'Detection was correct'
         );
@@ -468,11 +468,11 @@ describe('FeedbackPanel', () => {
           'title',
           'Event was incorrectly flagged'
         );
-        expect(screen.getByTestId('feedback-missed_detection-button')).toHaveAttribute(
+        expect(screen.getByTestId('feedback-missed_threat-button')).toHaveAttribute(
           'title',
           'System failed to detect a threat'
         );
-        expect(screen.getByTestId('feedback-wrong_severity-button')).toHaveAttribute(
+        expect(screen.getByTestId('feedback-severity_wrong-button')).toHaveAttribute(
           'title',
           'Risk level was incorrect'
         );

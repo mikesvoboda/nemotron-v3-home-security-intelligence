@@ -2246,7 +2246,7 @@ describe('EventDetailModal', () => {
       renderWithQueryClient(<EventDetailModal {...mockFeedbackProps} />);
 
       await waitFor(() => {
-        expect(screen.getByTestId('feedback-correct-button')).toBeInTheDocument();
+        expect(screen.getByTestId('feedback-accurate-button')).toBeInTheDocument();
       });
       expect(screen.getByTestId('feedback-false-positive-button')).toBeInTheDocument();
       expect(screen.getByTestId('feedback-wrong-severity-button')).toBeInTheDocument();
@@ -2300,10 +2300,10 @@ describe('EventDetailModal', () => {
       renderWithQueryClient(<EventDetailModal {...mockFeedbackProps} />);
 
       await waitFor(() => {
-        expect(screen.getByTestId('feedback-correct-button')).toBeInTheDocument();
+        expect(screen.getByTestId('feedback-accurate-button')).toBeInTheDocument();
       });
 
-      const correctButton = screen.getByTestId('feedback-correct-button');
+      const correctButton = screen.getByTestId('feedback-accurate-button');
       await user.click(correctButton);
 
       await waitFor(() => {
@@ -2395,7 +2395,7 @@ describe('EventDetailModal', () => {
         expect(screen.getByTestId('existing-feedback')).toBeInTheDocument();
       });
 
-      expect(screen.queryByTestId('feedback-correct-button')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('feedback-accurate-button')).not.toBeInTheDocument();
       expect(screen.queryByTestId('feedback-false-positive-button')).not.toBeInTheDocument();
       expect(screen.queryByTestId('feedback-wrong-severity-button')).not.toBeInTheDocument();
     });

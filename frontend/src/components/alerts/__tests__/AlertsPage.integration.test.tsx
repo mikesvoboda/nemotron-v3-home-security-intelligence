@@ -120,10 +120,16 @@ function TestAlertsPage() {
 
   const handleAcknowledgeSelected = vi.fn(() => {
     // Mock API call - acknowledges selected alerts
+    const ids = Array.from(selectedAlertIds);
+    // eslint-disable-next-line no-console
+    console.log('Acknowledging alerts:', ids);
   });
 
   const handleDismissSelected = vi.fn(() => {
     // Mock API call - dismisses selected alerts
+    const ids = Array.from(selectedAlertIds);
+    // eslint-disable-next-line no-console
+    console.log('Dismissing alerts:', ids);
   });
 
   const handleClearSelection = () => {
