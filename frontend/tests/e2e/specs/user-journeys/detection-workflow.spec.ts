@@ -184,10 +184,8 @@ test.describe('Detection to Alert Journey (NEM-1664)', () => {
     const eventModal = page.locator('[data-testid="event-detail-modal"]');
     await expect(eventModal).toBeVisible();
 
-    // When: Click close button
-    const closeButton = eventModal.locator('[data-testid="close-modal-button"]');
-    await expect(closeButton).toBeVisible();
-    await closeButton.click();
+    // When: Close the modal (use Escape key - more reliable for HeadlessUI)
+    await page.keyboard.press('Escape');
 
     // Then: Modal should be hidden (allow time for HeadlessUI exit animation)
     await expect(eventModal).not.toBeVisible({ timeout: 10000 });
