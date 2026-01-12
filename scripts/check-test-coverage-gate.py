@@ -257,7 +257,12 @@ def check_coverage_diff(base_branch: str = "origin/main") -> tuple[bool, str]:
         return True, "Unable to parse coverage data"
 
     except subprocess.CalledProcessError as e:
-        return False, f"Coverage check failed: {str(e)[:200]}"
+        stderr_msg = e.stderr.decode()[:500] if e.stderr else ""
+        stdout_msg = e.stdout.decode()[-500:] if e.stdout else ""
+        return (
+            False,
+            f"Coverage check failed: {e!s}\nSTDERR: {stderr_msg}\nSTDOUT (last 500): {stdout_msg}",
+        )
 
 
 def main() -> int:
