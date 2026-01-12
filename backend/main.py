@@ -37,6 +37,7 @@ from backend.api.routes import (
     alerts,
     analytics,
     audit,
+    calibration,
     cameras,
     debug,
     detections,
@@ -894,6 +895,7 @@ app.include_router(alerts.router)
 app.include_router(alerts.alerts_instance_router)
 app.include_router(analytics.router)
 app.include_router(audit.router)
+app.include_router(calibration.router)
 app.include_router(cameras.router)
 app.include_router(debug.router)
 app.include_router(detections.router)

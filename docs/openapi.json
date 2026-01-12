@@ -2176,6 +2176,78 @@
         "title": "BulkOperationStatus",
         "type": "string"
       },
+      "CalibrationDefaultsResponse": {
+        "description": "Schema for calibration defaults response.\n\nReturns the system default threshold values.",
+        "example": {
+          "decay_factor": 0.1,
+          "high_threshold": 85,
+          "low_threshold": 30,
+          "medium_threshold": 60
+        },
+        "properties": {
+          "decay_factor": {
+            "default": 0.1,
+            "description": "Default decay factor value",
+            "title": "Decay Factor",
+            "type": "number"
+          },
+          "high_threshold": {
+            "default": 85,
+            "description": "Default high threshold value",
+            "title": "High Threshold",
+            "type": "integer"
+          },
+          "low_threshold": {
+            "default": 30,
+            "description": "Default low threshold value",
+            "title": "Low Threshold",
+            "type": "integer"
+          },
+          "medium_threshold": {
+            "default": 60,
+            "description": "Default medium threshold value",
+            "title": "Medium Threshold",
+            "type": "integer"
+          }
+        },
+        "title": "CalibrationDefaultsResponse",
+        "type": "object"
+      },
+      "CalibrationResetResponse": {
+        "description": "Schema for calibration reset response.\n\nReturned after resetting calibration to default values.",
+        "example": {
+          "calibration": {
+            "created_at": "2025-01-01T12:00:00Z",
+            "decay_factor": 0.1,
+            "false_positive_count": 5,
+            "high_threshold": 85,
+            "id": 1,
+            "low_threshold": 30,
+            "medium_threshold": 60,
+            "missed_detection_count": 3,
+            "updated_at": "2025-01-01T12:00:00Z",
+            "user_id": "default"
+          },
+          "message": "Calibration reset to default values"
+        },
+        "properties": {
+          "calibration": {
+            "$ref": "#/components/schemas/UserCalibrationResponse",
+            "description": "Reset calibration data"
+          },
+          "message": {
+            "description": "Success message",
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message",
+          "calibration"
+        ],
+        "title": "CalibrationResetResponse",
+        "type": "object"
+      },
       "CameraCreate": {
         "description": "Schema for creating a new camera.",
         "example": {
@@ -15222,6 +15294,158 @@
         "title": "TimeRange",
         "type": "string"
       },
+      "UserCalibrationResponse": {
+        "description": "Schema for user calibration response.\n\nReturned when retrieving or modifying calibration settings.\nIncludes feedback counts to show calibration history.",
+        "example": {
+          "created_at": "2025-01-01T12:00:00Z",
+          "decay_factor": 0.1,
+          "false_positive_count": 5,
+          "high_threshold": 85,
+          "id": 1,
+          "low_threshold": 30,
+          "medium_threshold": 60,
+          "missed_detection_count": 3,
+          "updated_at": "2025-01-01T12:00:00Z",
+          "user_id": "default"
+        },
+        "properties": {
+          "created_at": {
+            "description": "When calibration was created",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "decay_factor": {
+            "description": "Learning rate for threshold adjustment (0.0-1.0)",
+            "title": "Decay Factor",
+            "type": "number"
+          },
+          "false_positive_count": {
+            "description": "Number of false positive feedbacks received",
+            "title": "False Positive Count",
+            "type": "integer"
+          },
+          "high_threshold": {
+            "description": "Score threshold for high risk (0-100)",
+            "title": "High Threshold",
+            "type": "integer"
+          },
+          "id": {
+            "description": "Calibration record ID",
+            "title": "Id",
+            "type": "integer"
+          },
+          "low_threshold": {
+            "description": "Score threshold for low risk (0-100)",
+            "title": "Low Threshold",
+            "type": "integer"
+          },
+          "medium_threshold": {
+            "description": "Score threshold for medium risk (0-100)",
+            "title": "Medium Threshold",
+            "type": "integer"
+          },
+          "missed_detection_count": {
+            "description": "Number of missed detection feedbacks received",
+            "title": "Missed Detection Count",
+            "type": "integer"
+          },
+          "updated_at": {
+            "description": "When calibration was last modified",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "user_id": {
+            "description": "User identifier",
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "user_id",
+          "low_threshold",
+          "medium_threshold",
+          "high_threshold",
+          "decay_factor",
+          "false_positive_count",
+          "missed_detection_count",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "UserCalibrationResponse",
+        "type": "object"
+      },
+      "UserCalibrationUpdate": {
+        "description": "Schema for updating user calibration settings.\n\nAll fields are optional - only provided fields will be updated.\nWhen all three thresholds are provided, ordering is validated\n(low < medium < high).",
+        "example": {
+          "decay_factor": 0.15,
+          "high_threshold": 80,
+          "low_threshold": 25,
+          "medium_threshold": 55
+        },
+        "properties": {
+          "decay_factor": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Learning rate for threshold adjustment (0.0-1.0)",
+            "title": "Decay Factor"
+          },
+          "high_threshold": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Score threshold for high risk classification (0-100)",
+            "title": "High Threshold"
+          },
+          "low_threshold": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Score threshold for low risk classification (0-100)",
+            "title": "Low Threshold"
+          },
+          "medium_threshold": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Score threshold for medium risk classification (0-100)",
+            "title": "Medium Threshold"
+          }
+        },
+        "title": "UserCalibrationUpdate",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "loc": {
@@ -18141,6 +18365,117 @@
         "summary": "Get Audit Log",
         "tags": [
           "audit"
+        ]
+      }
+    },
+    "/api/calibration": {
+      "get": {
+        "description": "Get the current user's calibration settings.\n\nReturns the calibration thresholds for the default user.\nIf no calibration exists, one is automatically created with default values.\n\nReturns:\n    CalibrationResponse with current threshold settings",
+        "operationId": "get_calibration_api_calibration_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserCalibrationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get Calibration",
+        "tags": [
+          "calibration"
+        ]
+      },
+      "put": {
+        "description": "Update calibration thresholds.\n\nAllows partial updates - only provided fields will be changed.\nValidates that threshold ordering is maintained (low < medium < high).\n\nArgs:\n    update_data: Fields to update (partial updates supported)\n    db: Database session\n\nReturns:\n    Updated CalibrationResponse\n\nRaises:\n    HTTPException: 422 if threshold ordering would be violated",
+        "operationId": "update_calibration_api_calibration_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserCalibrationUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserCalibrationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation error (invalid threshold ordering)"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Update Calibration",
+        "tags": [
+          "calibration"
+        ]
+      }
+    },
+    "/api/calibration/defaults": {
+      "get": {
+        "description": "Get default calibration threshold values.\n\nReturns the default values used when creating new calibrations\nor when resetting to defaults. This endpoint is useful for\ndisplaying defaults in the UI or documentation.\n\nReturns:\n    CalibrationDefaultsResponse with default threshold values",
+        "operationId": "get_calibration_defaults_api_calibration_defaults_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalibrationDefaultsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get Calibration Defaults",
+        "tags": [
+          "calibration"
+        ]
+      }
+    },
+    "/api/calibration/reset": {
+      "post": {
+        "description": "Reset calibration to default thresholds.\n\nResets all thresholds to their default values:\n- low_threshold: 30\n- medium_threshold: 60\n- high_threshold: 85\n- decay_factor: 0.1\n\nNote: Feedback counts (false_positive_count, missed_detection_count)\nare NOT reset by this operation.\n\nReturns:\n    CalibrationResetResponse with success message and reset calibration data",
+        "operationId": "reset_calibration_api_calibration_reset_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalibrationResetResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Reset Calibration",
+        "tags": [
+          "calibration"
         ]
       }
     },

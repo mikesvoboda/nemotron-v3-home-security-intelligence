@@ -223,3 +223,38 @@ class CalibrationDefaultsResponse(BaseModel):
     medium_threshold: int = Field(default=60, description="Default medium threshold value")
     high_threshold: int = Field(default=85, description="Default high threshold value")
     decay_factor: float = Field(default=0.1, description="Default decay factor value")
+
+
+class CalibrationResetResponse(BaseModel):
+    """Schema for calibration reset response.
+
+    Returned after resetting calibration to default values.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "message": "Calibration reset to default values",
+                "calibration": {
+                    "id": 1,
+                    "user_id": "default",
+                    "low_threshold": 30,
+                    "medium_threshold": 60,
+                    "high_threshold": 85,
+                    "decay_factor": 0.1,
+                    "false_positive_count": 5,
+                    "missed_detection_count": 3,
+                    "created_at": "2025-01-01T12:00:00Z",
+                    "updated_at": "2025-01-01T12:00:00Z",
+                },
+            }
+        }
+    )
+
+    message: str = Field(..., description="Success message")
+    calibration: UserCalibrationResponse = Field(..., description="Reset calibration data")
+
+
+# Aliases for route compatibility
+CalibrationResponse = UserCalibrationResponse
+CalibrationUpdate = UserCalibrationUpdate
