@@ -1,0 +1,156 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 420" width="800" height="420">
+  <defs>
+    <linearGradient id="greenGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#10B981;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#059669;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="amberGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#F59E0B;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#D97706;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="redGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#EF4444;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#DC2626;stop-opacity:1" />
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="2" dy="3" stdDeviation="4" flood-color="#000" flood-opacity="0.4"/>
+    </filter>
+    <marker id="arrowGray" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#6B7280"/>
+    </marker>
+    <marker id="arrowAmber" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#F59E0B"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="800" height="420" fill="#111827"/>
+
+  <!-- Title -->
+  <text x="400" y="35" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="20" font-weight="bold" fill="#F9FAFB">Graceful Degradation Modes</text>
+
+  <!-- Normal Operation Section -->
+  <g transform="translate(30, 60)">
+    <rect x="0" y="0" width="220" height="145" rx="10" fill="#0F1F1A" stroke="#10B981" stroke-width="2"/>
+    <text x="110" y="22" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="600" fill="#10B981">Normal Operation</text>
+
+    <rect x="20" y="38" width="180" height="30" rx="6" fill="url(#greenGradient)" filter="url(#shadow)"/>
+    <text x="110" y="58" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="600" fill="white">Full AI Pipeline</text>
+
+    <rect x="20" y="76" width="180" height="30" rx="6" fill="url(#greenGradient)" filter="url(#shadow)"/>
+    <text x="110" y="96" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="600" fill="white">Real-time Events</text>
+
+    <rect x="20" y="114" width="180" height="30" rx="6" fill="url(#greenGradient)" filter="url(#shadow)"/>
+    <text x="110" y="134" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="600" fill="white">Risk Scoring</text>
+  </g>
+
+  <!-- Failure Scenarios Section -->
+  <g transform="translate(290, 60)">
+    <rect x="0" y="0" width="220" height="145" rx="10" fill="#1C1917" stroke="#EF4444" stroke-width="2"/>
+    <text x="110" y="22" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="600" fill="#EF4444">Failure Scenarios</text>
+
+    <rect x="20" y="38" width="180" height="30" rx="6" fill="url(#redGradient)" filter="url(#shadow)"/>
+    <text x="110" y="53" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="600" fill="white">RT-DETRv2</text>
+    <text x="110" y="64" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="8" fill="#FEE2E2">Unavailable</text>
+
+    <rect x="20" y="76" width="180" height="30" rx="6" fill="url(#redGradient)" filter="url(#shadow)"/>
+    <text x="110" y="91" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="600" fill="white">Nemotron</text>
+    <text x="110" y="102" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="8" fill="#FEE2E2">Unavailable</text>
+
+    <rect x="20" y="114" width="180" height="30" rx="6" fill="url(#redGradient)" filter="url(#shadow)"/>
+    <text x="110" y="129" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="600" fill="white">Redis</text>
+    <text x="110" y="140" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="8" fill="#FEE2E2">Unavailable</text>
+  </g>
+
+  <!-- Degraded Modes Section -->
+  <g transform="translate(550, 60)">
+    <rect x="0" y="0" width="220" height="145" rx="10" fill="#1A1815" stroke="#F59E0B" stroke-width="2"/>
+    <text x="110" y="22" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="600" fill="#F59E0B">Degraded Modes</text>
+
+    <rect x="20" y="38" width="180" height="30" rx="6" fill="url(#amberGradient)" filter="url(#shadow)"/>
+    <text x="110" y="53" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="9" font-weight="600" fill="#1F2937">Queue Buffering</text>
+    <text x="110" y="64" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="8" fill="#451A03">Service Recovery</text>
+
+    <rect x="20" y="76" width="180" height="30" rx="6" fill="url(#amberGradient)" filter="url(#shadow)"/>
+    <text x="110" y="91" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="9" font-weight="600" fill="#1F2937">Fallback Risk</text>
+    <text x="110" y="102" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="8" fill="#451A03">Score: 50, Medium</text>
+
+    <rect x="20" y="114" width="180" height="30" rx="6" fill="url(#amberGradient)" filter="url(#shadow)"/>
+    <text x="110" y="129" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="9" font-weight="600" fill="#1F2937">Detection Only</text>
+    <text x="110" y="140" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="8" fill="#451A03">No LLM Analysis</text>
+  </g>
+
+  <!-- Arrows from Normal to Failures -->
+  <line x1="250" y1="88" x2="290" y2="88" stroke="#6B7280" stroke-width="2" marker-end="url(#arrowGray)"/>
+  <line x1="250" y1="126" x2="290" y2="126" stroke="#6B7280" stroke-width="2" marker-end="url(#arrowGray)"/>
+  <line x1="250" y1="164" x2="290" y2="164" stroke="#6B7280" stroke-width="2" marker-end="url(#arrowGray)"/>
+
+  <!-- Arrows from Failures to Degraded -->
+  <line x1="510" y1="88" x2="550" y2="88" stroke="#F59E0B" stroke-width="2" marker-end="url(#arrowAmber)"/>
+  <line x1="510" y1="126" x2="550" y2="126" stroke="#F59E0B" stroke-width="2" marker-end="url(#arrowAmber)"/>
+  <line x1="510" y1="164" x2="550" y2="164" stroke="#F59E0B" stroke-width="2" marker-end="url(#arrowAmber)"/>
+
+  <!-- Labels on arrows -->
+  <text x="525" y="82" font-family="system-ui, -apple-system, sans-serif" font-size="8" fill="#F59E0B">Skip</text>
+  <text x="525" y="90" font-family="system-ui, -apple-system, sans-serif" font-size="8" fill="#F59E0B">Detection</text>
+  <text x="525" y="120" font-family="system-ui, -apple-system, sans-serif" font-size="8" fill="#F59E0B">Use</text>
+  <text x="525" y="128" font-family="system-ui, -apple-system, sans-serif" font-size="8" fill="#F59E0B">Fallback</text>
+  <text x="525" y="158" font-family="system-ui, -apple-system, sans-serif" font-size="8" fill="#F59E0B">Fail</text>
+  <text x="525" y="166" font-family="system-ui, -apple-system, sans-serif" font-size="8" fill="#F59E0B">Open</text>
+
+  <!-- Degradation Behavior Table -->
+  <g transform="translate(30, 230)">
+    <rect x="0" y="0" width="740" height="160" rx="10" fill="#1F2937" stroke="#374151" stroke-width="2"/>
+    <text x="370" y="22" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="600" fill="#9CA3AF">Degradation Behavior by Component</text>
+
+    <!-- Table Headers -->
+    <rect x="20" y="35" width="130" height="25" rx="4" fill="#374151"/>
+    <text x="85" y="52" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="600" fill="#D1D5DB">Component</text>
+
+    <rect x="160" y="35" width="110" height="25" rx="4" fill="#374151"/>
+    <text x="215" y="52" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="600" fill="#D1D5DB">Failure Mode</text>
+
+    <rect x="280" y="35" width="440" height="25" rx="4" fill="#374151"/>
+    <text x="500" y="52" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="600" fill="#D1D5DB">Degradation Behavior</text>
+
+    <!-- Row 1: RT-DETRv2 -->
+    <rect x="20" y="68" width="130" height="25" rx="4" fill="#3B82F620"/>
+    <text x="85" y="85" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" fill="#3B82F6">RT-DETRv2</text>
+
+    <rect x="160" y="68" width="110" height="25" rx="4" fill="#EF444420"/>
+    <text x="215" y="85" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="9" fill="#EF4444">Unreachable</text>
+
+    <rect x="280" y="68" width="440" height="25" rx="4" fill="#F59E0B20"/>
+    <text x="500" y="85" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="9" fill="#F59E0B">DetectorClient returns empty list, detection skipped</text>
+
+    <!-- Row 2: Nemotron -->
+    <rect x="20" y="101" width="130" height="25" rx="4" fill="#3B82F620"/>
+    <text x="85" y="118" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" fill="#3B82F6">Nemotron</text>
+
+    <rect x="160" y="101" width="110" height="25" rx="4" fill="#EF444420"/>
+    <text x="215" y="118" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="9" fill="#EF4444">Unreachable</text>
+
+    <rect x="280" y="101" width="440" height="25" rx="4" fill="#F59E0B20"/>
+    <text x="500" y="118" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="9" fill="#F59E0B">NemotronAnalyzer returns default risk (50, medium)</text>
+
+    <!-- Row 3: Redis -->
+    <rect x="20" y="134" width="130" height="25" rx="4" fill="#A855F720"/>
+    <text x="85" y="151" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" fill="#A855F7">Redis</text>
+
+    <rect x="160" y="134" width="110" height="25" rx="4" fill="#EF444420"/>
+    <text x="215" y="151" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="9" fill="#EF4444">Unreachable</text>
+
+    <rect x="280" y="134" width="440" height="25" rx="4" fill="#F59E0B20"/>
+    <text x="500" y="151" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="9" fill="#F59E0B">Deduplication fails open (allows processing)</text>
+  </g>
+
+  <!-- Legend -->
+  <g transform="translate(30, 400)">
+    <rect x="0" y="-12" width="16" height="16" rx="3" fill="url(#greenGradient)"/>
+    <text x="22" y="1" font-family="system-ui, -apple-system, sans-serif" font-size="10" fill="#9CA3AF">Normal</text>
+    <rect x="80" y="-12" width="16" height="16" rx="3" fill="url(#redGradient)"/>
+    <text x="102" y="1" font-family="system-ui, -apple-system, sans-serif" font-size="10" fill="#9CA3AF">Failure</text>
+    <rect x="155" y="-12" width="16" height="16" rx="3" fill="url(#amberGradient)"/>
+    <text x="177" y="1" font-family="system-ui, -apple-system, sans-serif" font-size="10" fill="#9CA3AF">Degraded</text>
+  </g>
+</svg>

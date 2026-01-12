@@ -1,0 +1,351 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 900" width="1400" height="900">
+  <defs>
+    <style>
+      .title-text { fill: #111827; font-family: 'Segoe UI', Arial, sans-serif; font-size: 22px; font-weight: bold; }
+      .state-box { rx: 8; ry: 8; }
+      .state-active { fill: #10B981; }
+      .state-processing { fill: #3B82F6; }
+      .state-decision { fill: #F59E0B; }
+      .state-terminal { fill: #6B7280; }
+      .state-text { fill: white; font-family: 'Segoe UI', Arial, sans-serif; font-size: 13px; font-weight: 600; }
+      .state-text-dark { fill: #111827; font-family: 'Segoe UI', Arial, sans-serif; font-size: 13px; font-weight: 600; }
+      .transition-line { stroke: #6B7280; stroke-width: 2; fill: none; }
+      .transition-label { fill: #374151; font-family: 'Segoe UI', Arial, sans-serif; font-size: 11px; }
+      .note-box { fill: #FEF3C7; stroke: #F59E0B; stroke-width: 1; rx: 4; ry: 4; }
+      .note-text { fill: #92400E; font-family: 'Segoe UI', Arial, sans-serif; font-size: 10px; }
+      .substate-container { fill: #F3F4F6; stroke: #D1D5DB; stroke-width: 2; rx: 12; ry: 12; }
+      .substate-label { fill: #6B7280; font-family: 'Segoe UI', Arial, sans-serif; font-size: 12px; font-weight: bold; }
+      .section-label { fill: #6B7280; font-family: 'Segoe UI', Arial, sans-serif; font-size: 11px; font-style: italic; }
+    </style>
+
+    <!-- Arrow markers -->
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#6B7280"/>
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#10B981"/>
+    </marker>
+    <marker id="arrow-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#EF4444"/>
+    </marker>
+
+    <!-- Drop shadow -->
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="2" dy="2" stdDeviation="2" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="100%" height="100%" fill="#FAFAFA"/>
+
+  <!-- Title -->
+  <text x="700" y="35" text-anchor="middle" class="title-text">Data Lifecycle State Machine</text>
+  <text x="700" y="55" text-anchor="middle" class="section-label">From camera upload through event broadcast</text>
+
+  <!-- ============ INITIAL STATE ============ -->
+  <g transform="translate(50, 100)">
+    <!-- Start circle -->
+    <circle cx="30" cy="30" r="15" fill="#111827"/>
+    <circle cx="30" cy="30" r="8" fill="#374151"/>
+
+    <!-- Arrow to FileUploaded -->
+    <path d="M 45 30 L 95 30" class="transition-line" marker-end="url(#arrow)"/>
+    <text x="70" y="23" text-anchor="middle" class="transition-label">FTP upload</text>
+  </g>
+
+  <!-- ============ FILE UPLOADED STATE ============ -->
+  <g transform="translate(150, 85)" filter="url(#shadow)">
+    <rect x="0" y="0" width="130" height="50" class="state-box state-active"/>
+    <text x="65" y="30" text-anchor="middle" class="state-text">FileUploaded</text>
+  </g>
+
+  <!-- Note for FileUploaded -->
+  <g transform="translate(150, 145)">
+    <rect x="0" y="0" width="130" height="30" class="note-box"/>
+    <text x="65" y="18" text-anchor="middle" class="note-text">Image arrives via FTP</text>
+  </g>
+
+  <!-- Arrow: FileUploaded -> Queued -->
+  <g>
+    <path d="M 280 110 L 340 110" class="transition-line" marker-end="url(#arrow)"/>
+    <text x="310" y="100" text-anchor="middle" class="transition-label">FileWatcher</text>
+  </g>
+
+  <!-- ============ QUEUED STATE ============ -->
+  <g transform="translate(345, 85)" filter="url(#shadow)">
+    <rect x="0" y="0" width="130" height="50" class="state-box state-processing"/>
+    <text x="65" y="30" text-anchor="middle" class="state-text">Queued</text>
+  </g>
+
+  <!-- Arrow: Queued -> Deduplication Container -->
+  <g>
+    <path d="M 475 110 L 540 110" class="transition-line" marker-end="url(#arrow)"/>
+    <text x="508" y="100" text-anchor="middle" class="transition-label">Check hash</text>
+  </g>
+
+  <!-- ============ DEDUPLICATION SUBSTATE CONTAINER ============ -->
+  <g transform="translate(545, 70)">
+    <rect x="0" y="0" width="280" height="160" class="substate-container"/>
+    <text x="140" y="20" text-anchor="middle" class="substate-label">Deduplication Check</text>
+
+    <!-- CheckHash decision diamond -->
+    <g transform="translate(100, 35)">
+      <polygon points="40,0 80,30 40,60 0,30" fill="#F59E0B" filter="url(#shadow)"/>
+      <text x="40" y="35" text-anchor="middle" class="state-text" font-size="11">Check</text>
+      <text x="40" y="47" text-anchor="middle" class="state-text" font-size="11">Hash</text>
+    </g>
+
+    <!-- Duplicate state -->
+    <g transform="translate(190, 45)" filter="url(#shadow)">
+      <rect x="0" y="0" width="70" height="40" class="state-box state-terminal"/>
+      <text x="35" y="25" text-anchor="middle" class="state-text" font-size="11">Skip</text>
+    </g>
+
+    <!-- NewFile state -->
+    <g transform="translate(100, 110)" filter="url(#shadow)">
+      <rect x="0" y="0" width="80" height="35" class="state-box state-active"/>
+      <text x="40" y="22" text-anchor="middle" class="state-text" font-size="11">New File</text>
+    </g>
+
+    <!-- Decision arrows -->
+    <path d="M 180 65 L 190 65" class="transition-line" marker-end="url(#arrow)"/>
+    <text x="185" y="58" class="transition-label" font-size="9">exists</text>
+
+    <path d="M 140 95 L 140 110" class="transition-line" marker-end="url(#arrow)"/>
+    <text x="150" y="105" class="transition-label" font-size="9">new</text>
+  </g>
+
+  <!-- Arrow: Deduplication -> Detecting -->
+  <g>
+    <path d="M 825 150 L 890 150 L 890 300 L 180 300" class="transition-line" marker-end="url(#arrow)"/>
+    <text x="850" y="230" text-anchor="middle" class="transition-label" transform="rotate(-90 850 230)">Add to Redis</text>
+  </g>
+
+  <!-- ============ DETECTION PHASE (Row 2) ============ -->
+
+  <!-- Detecting state -->
+  <g transform="translate(50, 275)" filter="url(#shadow)">
+    <rect x="0" y="0" width="130" height="50" class="state-box state-processing"/>
+    <text x="65" y="22" text-anchor="middle" class="state-text">Detecting</text>
+    <text x="65" y="38" text-anchor="middle" class="state-text" font-size="10">RT-DETRv2</text>
+  </g>
+
+  <!-- Arrow: Detecting -> DetectionStored -->
+  <g>
+    <path d="M 180 300 L 250 300" class="transition-line" marker-end="url(#arrow)"/>
+    <text x="215" y="290" text-anchor="middle" class="transition-label">Inference</text>
+  </g>
+
+  <!-- DetectionStored state -->
+  <g transform="translate(255, 275)" filter="url(#shadow)">
+    <rect x="0" y="0" width="140" height="50" class="state-box state-active"/>
+    <text x="70" y="22" text-anchor="middle" class="state-text">DetectionStored</text>
+    <text x="70" y="38" text-anchor="middle" class="state-text" font-size="10">PostgreSQL</text>
+  </g>
+
+  <!-- Note for DetectionStored -->
+  <g transform="translate(255, 335)">
+    <rect x="0" y="0" width="140" height="30" class="note-box"/>
+    <text x="70" y="18" text-anchor="middle" class="note-text">Detection in PostgreSQL</text>
+  </g>
+
+  <!-- Arrow: DetectionStored -> Enriching (optional) -->
+  <g>
+    <path d="M 395 300 L 460 300" class="transition-line" marker-end="url(#arrow)" stroke-dasharray="5,3"/>
+    <text x="428" y="290" text-anchor="middle" class="transition-label">optional</text>
+  </g>
+
+  <!-- Enriching state (optional) -->
+  <g transform="translate(465, 275)" filter="url(#shadow)">
+    <rect x="0" y="0" width="120" height="50" class="state-box" fill="#8B5CF6" stroke-dasharray="5,3"/>
+    <text x="60" y="22" text-anchor="middle" class="state-text">Enriching</text>
+    <text x="60" y="38" text-anchor="middle" class="state-text" font-size="10">(optional)</text>
+  </g>
+
+  <!-- Arrow: Enriching -> Batching -->
+  <g>
+    <path d="M 585 300 L 650 300" class="transition-line" marker-end="url(#arrow)"/>
+    <text x="618" y="290" text-anchor="middle" class="transition-label">Aggregate</text>
+  </g>
+
+  <!-- ============ BATCHING SUBSTATE CONTAINER ============ -->
+  <g transform="translate(655, 245)">
+    <rect x="0" y="0" width="340" height="130" class="substate-container"/>
+    <text x="170" y="20" text-anchor="middle" class="substate-label">Batch Aggregation</text>
+
+    <!-- ActiveBatch state -->
+    <g transform="translate(30, 35)" filter="url(#shadow)">
+      <rect x="0" y="0" width="100" height="45" class="state-box state-active"/>
+      <text x="50" y="18" text-anchor="middle" class="state-text" font-size="11">ActiveBatch</text>
+      <text x="50" y="33" text-anchor="middle" class="state-text" font-size="9">Redis state</text>
+    </g>
+
+    <!-- Self-loop for AddDetection -->
+    <g>
+      <path d="M 80 35 C 80 5, 130 5, 130 35" class="transition-line" fill="none" marker-end="url(#arrow)"/>
+      <text x="105" y="0" text-anchor="middle" class="transition-label" font-size="9">+detection</text>
+    </g>
+
+    <!-- BatchClosed state -->
+    <g transform="translate(200, 35)" filter="url(#shadow)">
+      <rect x="0" y="0" width="110" height="45" class="state-box state-processing"/>
+      <text x="55" y="18" text-anchor="middle" class="state-text" font-size="11">BatchClosed</text>
+      <text x="55" y="33" text-anchor="middle" class="state-text" font-size="9">Ready for LLM</text>
+    </g>
+
+    <!-- Arrow: ActiveBatch -> BatchClosed -->
+    <path d="M 130 57 L 200 57" class="transition-line" marker-end="url(#arrow)"/>
+    <text x="165" y="50" text-anchor="middle" class="transition-label" font-size="9">timeout</text>
+
+    <!-- Timeout notes -->
+    <text x="170" y="100" text-anchor="middle" class="note-text">Window: 90s | Idle: 30s</text>
+  </g>
+
+  <!-- Arrow: Batching -> Analyzing -->
+  <g>
+    <path d="M 995 310 L 1050 310 L 1050 475 L 180 475" class="transition-line" marker-end="url(#arrow)"/>
+    <text x="1020" y="400" text-anchor="middle" class="transition-label" transform="rotate(-90 1020 400)">analysis_queue</text>
+  </g>
+
+  <!-- ============ ANALYSIS PHASE (Row 3) ============ -->
+
+  <!-- Analyzing state -->
+  <g transform="translate(50, 450)" filter="url(#shadow)">
+    <rect x="0" y="0" width="130" height="50" class="state-box state-processing"/>
+    <text x="65" y="22" text-anchor="middle" class="state-text">Analyzing</text>
+    <text x="65" y="38" text-anchor="middle" class="state-text" font-size="10">Nemotron LLM</text>
+  </g>
+
+  <!-- Arrow: Analyzing -> EventCreated -->
+  <g>
+    <path d="M 180 475 L 270 475" class="transition-line" marker-end="url(#arrow)"/>
+    <text x="225" y="465" text-anchor="middle" class="transition-label">Risk score</text>
+  </g>
+
+  <!-- EventCreated state -->
+  <g transform="translate(275, 450)" filter="url(#shadow)">
+    <rect x="0" y="0" width="130" height="50" class="state-box state-active"/>
+    <text x="65" y="22" text-anchor="middle" class="state-text">EventCreated</text>
+    <text x="65" y="38" text-anchor="middle" class="state-text" font-size="10">PostgreSQL</text>
+  </g>
+
+  <!-- Note for EventCreated -->
+  <g transform="translate(275, 510)">
+    <rect x="0" y="0" width="130" height="30" class="note-box"/>
+    <text x="65" y="18" text-anchor="middle" class="note-text">Event in PostgreSQL</text>
+  </g>
+
+  <!-- Arrow: EventCreated -> Broadcast -->
+  <g>
+    <path d="M 405 475 L 500 475" class="transition-line" marker-end="url(#arrow)"/>
+    <text x="453" y="465" text-anchor="middle" class="transition-label">Redis pub/sub</text>
+  </g>
+
+  <!-- Broadcast state -->
+  <g transform="translate(505, 450)" filter="url(#shadow)">
+    <rect x="0" y="0" width="130" height="50" class="state-box state-active"/>
+    <text x="65" y="22" text-anchor="middle" class="state-text">Broadcast</text>
+    <text x="65" y="38" text-anchor="middle" class="state-text" font-size="10">WebSocket</text>
+  </g>
+
+  <!-- Arrow: Broadcast -> End -->
+  <g>
+    <path d="M 635 475 L 700 475" class="transition-line" marker-end="url(#arrow)"/>
+  </g>
+
+  <!-- End circle -->
+  <g transform="translate(705, 455)">
+    <circle cx="20" cy="20" r="15" fill="white" stroke="#111827" stroke-width="3"/>
+    <circle cx="20" cy="20" r="8" fill="#111827"/>
+  </g>
+
+  <!-- ============ LEGEND ============ -->
+  <g transform="translate(50, 600)">
+    <rect x="0" y="0" width="1300" height="280" fill="white" stroke="#E5E7EB" rx="8" filter="url(#shadow)"/>
+    <text x="650" y="30" text-anchor="middle" class="title-text" font-size="16">State Legend &amp; Processing Details</text>
+
+    <!-- State types -->
+    <g transform="translate(30, 50)">
+      <text x="0" y="0" class="substate-label">State Types:</text>
+
+      <rect x="0" y="15" width="80" height="25" rx="4" class="state-active"/>
+      <text x="40" y="32" text-anchor="middle" class="state-text" font-size="10">Active/Stored</text>
+
+      <rect x="100" y="15" width="80" height="25" rx="4" class="state-processing"/>
+      <text x="140" y="32" text-anchor="middle" class="state-text" font-size="10">Processing</text>
+
+      <rect x="200" y="15" width="80" height="25" rx="4" fill="#F59E0B"/>
+      <text x="240" y="32" text-anchor="middle" class="state-text" font-size="10">Decision</text>
+
+      <rect x="300" y="15" width="80" height="25" rx="4" class="state-terminal"/>
+      <text x="340" y="32" text-anchor="middle" class="state-text" font-size="10">Terminal</text>
+
+      <rect x="400" y="15" width="80" height="25" rx="4" fill="#8B5CF6" stroke-dasharray="5,3"/>
+      <text x="440" y="32" text-anchor="middle" class="state-text" font-size="10">Optional</text>
+    </g>
+
+    <!-- Processing details table -->
+    <g transform="translate(30, 100)">
+      <text x="0" y="0" class="substate-label">Processing Pipeline Details:</text>
+
+      <!-- Header row -->
+      <text x="0" y="25" class="transition-label" font-weight="bold">Stage</text>
+      <text x="150" y="25" class="transition-label" font-weight="bold">Component</text>
+      <text x="350" y="25" class="transition-label" font-weight="bold">Storage</text>
+      <text x="500" y="25" class="transition-label" font-weight="bold">Output</text>
+      <line x1="0" y1="32" x2="700" y2="32" stroke="#E5E7EB"/>
+
+      <!-- Row 1: File Watch -->
+      <text x="0" y="50" class="transition-label">1. File Watch</text>
+      <text x="150" y="50" class="transition-label">FileWatcher (watchdog)</text>
+      <text x="350" y="50" class="transition-label">detection_queue (Redis)</text>
+      <text x="500" y="50" class="transition-label">Queued file path + camera_id</text>
+
+      <!-- Row 2: Deduplication -->
+      <text x="0" y="70" class="transition-label">2. Deduplication</text>
+      <text x="150" y="70" class="transition-label">SHA256 hash check</text>
+      <text x="350" y="70" class="transition-label">dedupe:{hash} (Redis, 5min TTL)</text>
+      <text x="500" y="70" class="transition-label">Skip or process decision</text>
+
+      <!-- Row 3: Detection -->
+      <text x="0" y="90" class="transition-label">3. Object Detection</text>
+      <text x="150" y="90" class="transition-label">RT-DETRv2 inference</text>
+      <text x="350" y="90" class="transition-label">detections table (PostgreSQL)</text>
+      <text x="500" y="90" class="transition-label">Detection record(s) + thumbnails</text>
+
+      <!-- Row 4: Batching -->
+      <text x="0" y="110" class="transition-label">4. Batch Aggregation</text>
+      <text x="150" y="110" class="transition-label">BatchAggregator</text>
+      <text x="350" y="110" class="transition-label">batch:{id}:* (Redis, 1hr TTL)</text>
+      <text x="500" y="110" class="transition-label">Grouped detection IDs</text>
+
+      <!-- Row 5: Analysis -->
+      <text x="0" y="130" class="transition-label">5. LLM Analysis</text>
+      <text x="150" y="130" class="transition-label">Nemotron via llama.cpp</text>
+      <text x="350" y="130" class="transition-label">events table (PostgreSQL)</text>
+      <text x="500" y="130" class="transition-label">Risk score, summary, reasoning</text>
+
+      <!-- Row 6: Broadcast -->
+      <text x="0" y="150" class="transition-label">6. Broadcast</text>
+      <text x="150" y="150" class="transition-label">Redis pub/sub</text>
+      <text x="350" y="150" class="transition-label">security_events channel</text>
+      <text x="500" y="150" class="transition-label">Real-time WebSocket update</text>
+    </g>
+
+    <!-- Timing info -->
+    <g transform="translate(750, 100)">
+      <text x="0" y="0" class="substate-label">Timing Configuration:</text>
+
+      <rect x="0" y="15" width="200" height="70" fill="#F3F4F6" stroke="#D1D5DB" rx="4"/>
+      <text x="10" y="35" class="transition-label">Batch window timeout: 90 seconds</text>
+      <text x="10" y="55" class="transition-label">Batch idle timeout: 30 seconds</text>
+      <text x="10" y="75" class="transition-label">Deduplication TTL: 5 minutes</text>
+
+      <rect x="220" y="15" width="200" height="70" fill="#F3F4F6" stroke="#D1D5DB" rx="4"/>
+      <text x="230" y="35" class="transition-label">Batch state TTL: 1 hour</text>
+      <text x="230" y="55" class="transition-label">Queue max size: 10,000</text>
+      <text x="230" y="75" class="transition-label">Retention: 30 days</text>
+    </g>
+  </g>
+</svg>

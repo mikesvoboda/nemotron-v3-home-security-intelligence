@@ -162,6 +162,19 @@ ENVIRONMENT_QUERIES = {
     "weather": "What are the weather conditions?",
 }
 
+# Security-focused VQA queries for threat assessment
+# These questions help identify suspicious behavior or potential threats
+SECURITY_VQA_QUERIES = {
+    "looking_at_camera": "Is this person looking at the camera?",
+    "weapons_or_tools": "Are there any weapons or tools visible?",
+    "face_covering": "Is this person wearing a mask or face covering?",
+    "bags_or_packages": "Are there any bags or packages being carried?",
+    "gloves": "Is this person wearing gloves?",
+    "interaction_with_property": "Is this person interacting with doors, windows, or locks?",
+    "flashlight": "Is this person carrying or using a flashlight?",
+    "crouching_or_hiding": "Is this person crouching, hiding, or trying to stay out of view?",
+}
+
 
 class VisionExtractor:
     """Service for extracting visual attributes using Florence-2.
@@ -365,6 +378,68 @@ class VisionExtractor:
             action=action.strip() if action else None,
             caption=caption,
         )
+
+    async def extract_with_vqa(
+        self,
+        image: Image.Image,
+        questions: list[str],
+        bbox: tuple[int, int, int, int] | None = None,
+    ) -> dict[str, str]:
+        """Ask custom questions about an image using Florence-2 VQA.
+
+        This method allows querying the image with arbitrary security-focused
+        questions, returning the model's responses for each question.
+
+        Args:
+            image: PIL Image to analyze (full frame or cropped)
+            questions: List of questions to ask about the image
+            bbox: Optional bounding box to crop (x1, y1, x2, y2)
+
+        Returns:
+            Dictionary mapping each question to its answer.
+            Empty answers are filtered out.
+
+        Example:
+            >>> questions = [
+            ...     "Is this person looking at the camera?",
+            ...     "Are there any weapons visible?",
+            ... ]
+            >>> results = await extractor.extract_with_vqa(image, questions)
+            >>> # {'Is this person looking at the camera?': 'Yes, directly', ...}
+        """
+        if bbox is not None:
+            image = self._crop_image(image, bbox)
+
+        results: dict[str, str] = {}
+        for question in questions:
+            answer = await self._query_florence(image, VQA_TASK, question)
+            # Only include non-empty answers
+            if answer and answer.strip():
+                results[question] = answer.strip()
+
+        logger.debug(
+            f"VQA extraction completed: {len(results)}/{len(questions)} questions answered"
+        )
+        return results
+
+    async def extract_security_vqa(
+        self,
+        image: Image.Image,
+        bbox: tuple[int, int, int, int] | None = None,
+    ) -> dict[str, str]:
+        """Extract security-specific VQA answers using predefined questions.
+
+        This is a convenience method that uses the default security-focused
+        questions defined in SECURITY_VQA_QUERIES for threat assessment.
+
+        Args:
+            image: PIL Image to analyze
+            bbox: Optional bounding box to crop (x1, y1, x2, y2)
+
+        Returns:
+            Dictionary mapping security questions to answers
+        """
+        return await self.extract_with_vqa(image, list(SECURITY_VQA_QUERIES.values()), bbox)
 
     async def extract_scene_caption(
         self,
