@@ -2,13 +2,13 @@
 #    uv export --no-hashes
 accelerate==1.12.0
     # via home-security-intelligence
-alembic==1.17.2
+alembic==1.18.0
     # via home-security-intelligence
 annotated-doc==0.0.4
     # via fastapi
 annotated-types==0.7.0
     # via pydantic
-anyio==4.12.0
+anyio==4.12.1
     # via
     #   httpx
     #   starlette
@@ -46,7 +46,7 @@ docker==7.1.0
     # via home-security-intelligence
 fastapi==0.128.0
     # via home-security-intelligence
-filelock==3.20.1
+filelock==3.20.3
     # via
     #   gdown
     #   huggingface-hub
@@ -60,7 +60,7 @@ fsspec==2025.12.0
     #   torch
 ftfy==6.3.1
     # via open-clip-torch
-gdown==5.2.0
+gdown==5.2.1
     # via home-security-intelligence
 googleapis-common-protos==1.72.0
     # via
@@ -129,7 +129,7 @@ networkx==3.6.1
     # via
     #   scikit-image
     #   torch
-numpy==2.3.5
+numpy==2.4.1
     # via
     #   accelerate
     #   contourpy
@@ -143,50 +143,50 @@ numpy==2.3.5
     #   transformers
     #   ultralytics
     #   ultralytics-thop
-nvidia-cublas-cu12==12.8.4.1 ; platform_machine == 'x86_64' and sys_platform == 'linux'
+nvidia-cublas-cu12==12.9.1.4 ; platform_machine == 'x86_64' and sys_platform == 'linux'
     # via
     #   nvidia-cudnn-cu12
     #   nvidia-cusolver-cu12
     #   torch
-nvidia-cuda-cupti-cu12==12.8.90 ; platform_machine == 'x86_64' and sys_platform == 'linux'
+nvidia-cuda-cupti-cu12==12.9.79 ; platform_machine == 'x86_64' and sys_platform == 'linux'
     # via torch
-nvidia-cuda-nvrtc-cu12==12.8.93 ; platform_machine == 'x86_64' and sys_platform == 'linux'
+nvidia-cuda-nvrtc-cu12==12.9.86 ; platform_machine == 'x86_64' and sys_platform == 'linux'
     # via torch
-nvidia-cuda-runtime-cu12==12.8.90 ; platform_machine == 'x86_64' and sys_platform == 'linux'
+nvidia-cuda-runtime-cu12==12.9.79 ; platform_machine == 'x86_64' and sys_platform == 'linux'
     # via torch
-nvidia-cudnn-cu12==9.10.2.21 ; platform_machine == 'x86_64' and sys_platform == 'linux'
+nvidia-cudnn-cu12==9.17.1.4 ; platform_machine == 'x86_64' and sys_platform == 'linux'
     # via torch
-nvidia-cufft-cu12==11.3.3.83 ; platform_machine == 'x86_64' and sys_platform == 'linux'
+nvidia-cufft-cu12==11.4.1.4 ; platform_machine == 'x86_64' and sys_platform == 'linux'
     # via torch
-nvidia-cufile-cu12==1.13.1.3 ; platform_machine == 'x86_64' and sys_platform == 'linux'
+nvidia-cufile-cu12==1.14.1.1 ; platform_machine == 'x86_64' and sys_platform == 'linux'
     # via torch
-nvidia-curand-cu12==10.3.9.90 ; platform_machine == 'x86_64' and sys_platform == 'linux'
+nvidia-curand-cu12==10.3.10.19 ; platform_machine == 'x86_64' and sys_platform == 'linux'
     # via torch
-nvidia-cusolver-cu12==11.7.3.90 ; platform_machine == 'x86_64' and sys_platform == 'linux'
+nvidia-cusolver-cu12==11.7.5.82 ; platform_machine == 'x86_64' and sys_platform == 'linux'
     # via torch
-nvidia-cusparse-cu12==12.5.8.93 ; platform_machine == 'x86_64' and sys_platform == 'linux'
+nvidia-cusparse-cu12==12.5.10.65 ; platform_machine == 'x86_64' and sys_platform == 'linux'
     # via
     #   nvidia-cusolver-cu12
     #   torch
-nvidia-cusparselt-cu12==0.7.1 ; platform_machine == 'x86_64' and sys_platform == 'linux'
+nvidia-cusparselt-cu12==0.8.1 ; platform_machine == 'x86_64' and sys_platform == 'linux'
     # via torch
 nvidia-ml-py==13.590.44
     # via home-security-intelligence
-nvidia-nccl-cu12==2.27.5 ; platform_machine == 'x86_64' and sys_platform == 'linux'
+nvidia-nccl-cu12==2.29.2 ; platform_machine == 'x86_64' and sys_platform == 'linux'
     # via torch
-nvidia-nvjitlink-cu12==12.8.93 ; platform_machine == 'x86_64' and sys_platform == 'linux'
+nvidia-nvjitlink-cu12==12.9.86 ; platform_machine == 'x86_64' and sys_platform == 'linux'
     # via
     #   nvidia-cufft-cu12
     #   nvidia-cusolver-cu12
     #   nvidia-cusparse-cu12
     #   torch
-nvidia-nvshmem-cu12==3.3.20 ; platform_machine == 'x86_64' and sys_platform == 'linux'
+nvidia-nvshmem-cu12==3.5.19 ; platform_machine == 'x86_64' and sys_platform == 'linux'
     # via torch
-nvidia-nvtx-cu12==12.8.90 ; platform_machine == 'x86_64' and sys_platform == 'linux'
+nvidia-nvtx-cu12==12.9.79 ; platform_machine == 'x86_64' and sys_platform == 'linux'
     # via torch
 open-clip-torch==3.2.0
     # via home-security-intelligence
-opencv-python==4.11.0.86
+opencv-python==4.12.0.88
     # via ultralytics
 opentelemetry-api==1.39.1
     # via
@@ -263,7 +263,7 @@ packaging==25.0
     #   pytest
     #   scikit-image
     #   transformers
-pillow==12.0.0
+pillow==12.1.0
     # via
     #   home-security-intelligence
     #   imageio
@@ -275,15 +275,15 @@ piq==0.8.0
     # via home-security-intelligence
 pluggy==1.6.0
     # via pytest
-polars==1.36.1
+polars==1.37.0
     # via ultralytics
-polars-runtime-32==1.36.1
+polars-runtime-32==1.37.0
     # via polars
 pprintpp==0.4.0
     # via pytest-clarity
 prometheus-client==0.23.1
     # via home-security-intelligence
-protobuf==6.33.2
+protobuf==6.33.3
     # via
     #   googleapis-common-protos
     #   opentelemetry-proto
@@ -370,7 +370,7 @@ safetensors==0.7.0
     #   transformers
 scikit-image==0.26.0
     # via home-security-intelligence
-scipy==1.16.3
+scipy==1.17.0
     # via
     #   scikit-image
     #   ultralytics
@@ -384,7 +384,7 @@ sqlalchemy==2.0.45
     # via
     #   alembic
     #   home-security-intelligence
-starlette==0.50.0
+starlette==0.51.0
     # via fastapi
 sympy==1.14.0
     # via torch
@@ -394,9 +394,9 @@ tifffile==2025.12.20
     # via scikit-image
 tiktoken==0.12.0
     # via home-security-intelligence
-timm==1.0.22
+timm==1.0.24
     # via open-clip-torch
-tokenizers==0.22.1
+tokenizers==0.22.2
     # via transformers
 torch==2.9.1
     # via
@@ -445,7 +445,7 @@ typing-inspection==0.4.2
     # via
     #   pydantic
     #   pydantic-settings
-ultralytics==8.3.245
+ultralytics==8.3.252
     # via home-security-intelligence
 ultralytics-thop==2.0.18
     # via ultralytics
