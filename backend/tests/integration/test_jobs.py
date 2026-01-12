@@ -340,3 +340,195 @@ async def test_job_progress_tracking(client: AsyncClient, mock_redis, integratio
     assert "progress" in data
     assert isinstance(data["progress"], (int, float))
     assert 0 <= data["progress"] <= 100
+
+
+# =============================================================================
+# Job Detail Endpoint Tests (NEM-2390)
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_get_job_detail_not_found(client: AsyncClient, mock_redis):
+    """Test get job detail endpoint returns 404 for non-existent job."""
+    response = await client.get("/api/jobs/nonexistent-job-id/detail")
+
+    assert response.status_code == 404
+    data = response.json()
+    assert "detail" in data
+
+
+@pytest.mark.asyncio
+async def test_get_job_detail_success(client: AsyncClient, mock_redis, integration_db):
+    """Test get job detail endpoint returns detailed job information."""
+    # Create an export job first
+    job_request = {
+        "format": "csv",
+        "camera_id": "test_cam",
+    }
+    create_response = await client.post("/api/events/export", json=job_request)
+    assert create_response.status_code == 202
+
+    job_data = create_response.json()
+    job_id = job_data["job_id"]
+
+    # Get the detailed job info
+    response = await client.get(f"/api/jobs/{job_id}/detail")
+
+    assert response.status_code == 200
+    data = response.json()
+
+    # Verify required fields in detail response
+    assert data["id"] == job_id
+    assert data["job_type"] == "export"
+    assert "status" in data
+    assert "progress" in data
+    assert "timing" in data
+    assert "retry_info" in data
+    assert "metadata" in data
+
+
+@pytest.mark.asyncio
+async def test_get_job_detail_progress_structure(client: AsyncClient, mock_redis, integration_db):
+    """Test job detail progress has correct nested structure."""
+    # Create an export job
+    job_request = {
+        "format": "csv",
+    }
+    create_response = await client.post("/api/events/export", json=job_request)
+    assert create_response.status_code == 202
+
+    job_data = create_response.json()
+    job_id = job_data["job_id"]
+
+    # Get detailed job info
+    response = await client.get(f"/api/jobs/{job_id}/detail")
+    assert response.status_code == 200
+
+    data = response.json()
+
+    # Verify progress structure
+    progress = data["progress"]
+    assert "percent" in progress
+    assert isinstance(progress["percent"], int)
+    assert 0 <= progress["percent"] <= 100
+    # current_step, items_processed, items_total can be null
+    assert "current_step" in progress
+    assert "items_processed" in progress
+    assert "items_total" in progress
+
+
+@pytest.mark.asyncio
+async def test_get_job_detail_timing_structure(client: AsyncClient, mock_redis, integration_db):
+    """Test job detail timing has correct nested structure."""
+    # Create an export job
+    job_request = {
+        "format": "csv",
+    }
+    create_response = await client.post("/api/events/export", json=job_request)
+    assert create_response.status_code == 202
+
+    job_data = create_response.json()
+    job_id = job_data["job_id"]
+
+    # Get detailed job info
+    response = await client.get(f"/api/jobs/{job_id}/detail")
+    assert response.status_code == 200
+
+    data = response.json()
+
+    # Verify timing structure
+    timing = data["timing"]
+    assert "created_at" in timing
+    assert timing["created_at"] is not None
+    assert "started_at" in timing
+    assert "completed_at" in timing
+    assert "duration_seconds" in timing
+    assert "estimated_remaining_seconds" in timing
+
+
+@pytest.mark.asyncio
+async def test_get_job_detail_retry_info_structure(client: AsyncClient, mock_redis, integration_db):
+    """Test job detail retry_info has correct nested structure."""
+    # Create an export job
+    job_request = {
+        "format": "csv",
+    }
+    create_response = await client.post("/api/events/export", json=job_request)
+    assert create_response.status_code == 202
+
+    job_data = create_response.json()
+    job_id = job_data["job_id"]
+
+    # Get detailed job info
+    response = await client.get(f"/api/jobs/{job_id}/detail")
+    assert response.status_code == 200
+
+    data = response.json()
+
+    # Verify retry_info structure
+    retry_info = data["retry_info"]
+    assert "attempt_number" in retry_info
+    assert retry_info["attempt_number"] >= 1
+    assert "max_attempts" in retry_info
+    assert retry_info["max_attempts"] >= 1
+    assert "next_retry_at" in retry_info
+    assert "previous_errors" in retry_info
+    assert isinstance(retry_info["previous_errors"], list)
+
+
+@pytest.mark.asyncio
+async def test_get_job_detail_metadata_structure(client: AsyncClient, mock_redis, integration_db):
+    """Test job detail metadata has correct nested structure."""
+    # Create an export job
+    job_request = {
+        "format": "csv",
+    }
+    create_response = await client.post("/api/events/export", json=job_request)
+    assert create_response.status_code == 202
+
+    job_data = create_response.json()
+    job_id = job_data["job_id"]
+
+    # Get detailed job info
+    response = await client.get(f"/api/jobs/{job_id}/detail")
+    assert response.status_code == 200
+
+    data = response.json()
+
+    # Verify metadata structure
+    metadata = data["metadata"]
+    assert "input_params" in metadata
+    assert "worker_id" in metadata
+
+
+@pytest.mark.asyncio
+async def test_get_job_detail_after_completion(client: AsyncClient, mock_redis, integration_db):
+    """Test job detail endpoint returns complete info after job finishes."""
+    # Create an export job
+    job_request = {
+        "format": "csv",
+        "camera_id": "nonexistent_cam",  # Should complete quickly with no data
+    }
+    create_response = await client.post("/api/events/export", json=job_request)
+    assert create_response.status_code == 202
+
+    job_data = create_response.json()
+    job_id = job_data["job_id"]
+
+    # Wait for job to complete
+    await asyncio.sleep(0.5)
+
+    # Get detailed job info
+    response = await client.get(f"/api/jobs/{job_id}/detail")
+    assert response.status_code == 200
+
+    data = response.json()
+
+    # Verify job has proper status
+    assert data["status"] in ("pending", "running", "completed", "failed")
+
+    # If completed, timing should have duration
+    if data["status"] == "completed":
+        assert data["timing"]["completed_at"] is not None
+        assert data["timing"]["duration_seconds"] is not None
+        assert data["progress"]["percent"] == 100
