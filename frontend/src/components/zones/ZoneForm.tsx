@@ -1,4 +1,5 @@
 import { clsx } from 'clsx';
+import { AlertCircle, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { validateZoneColor, validateZoneName, VALIDATION_LIMITS } from '../../utils/validation';
@@ -25,6 +26,10 @@ export interface ZoneFormProps {
   isSubmitting?: boolean;
   /** Submit button text */
   submitText?: string;
+  /** API error message to display */
+  apiError?: string | null;
+  /** Callback to clear the API error */
+  onClearApiError?: () => void;
 }
 
 /** Zone type options with labels */
@@ -74,6 +79,8 @@ export default function ZoneForm({
   onCancel,
   isSubmitting = false,
   submitText = 'Save Zone',
+  apiError,
+  onClearApiError,
 }: ZoneFormProps) {
   const [formData, setFormData] = useState<ZoneFormData>({
     ...DEFAULT_FORM_DATA,
@@ -119,6 +126,27 @@ export default function ZoneForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {/* API Error Display */}
+      {apiError && (
+        <div
+          role="alert"
+          className="flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-2"
+        >
+          <AlertCircle className="h-4 w-4 shrink-0 text-red-500" />
+          <span className="flex-1 text-sm text-red-400">{apiError}</span>
+          {onClearApiError && (
+            <button
+              type="button"
+              onClick={onClearApiError}
+              className="text-red-400 hover:text-red-300"
+              aria-label="Dismiss error"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Name Input */}
       <div>
         <label htmlFor="zone-name" className="block text-sm font-medium text-text-primary">
