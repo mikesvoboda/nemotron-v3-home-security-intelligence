@@ -438,7 +438,7 @@ class TestCalibrationAdjustRequest:
             event_risk_score=45,
         )
 
-        assert request.feedback_type == FeedbackType.MISSED_DETECTION
+        assert request.feedback_type == FeedbackType.MISSED_THREAT
         assert request.event_risk_score == 45
 
     def test_adjust_request_all_feedback_types(self):
@@ -494,13 +494,13 @@ class TestCalibrationAdjustRequest:
 
         # Valid boundary values
         request_zero = CalibrationAdjustRequest(
-            feedback_type=FeedbackType.CORRECT,
+            feedback_type=FeedbackType.ACCURATE,
             event_risk_score=0,
         )
         assert request_zero.event_risk_score == 0
 
         request_hundred = CalibrationAdjustRequest(
-            feedback_type=FeedbackType.CORRECT,
+            feedback_type=FeedbackType.ACCURATE,
             event_risk_score=100,
         )
         assert request_hundred.event_risk_score == 100
@@ -545,7 +545,7 @@ class TestCalibrationAdjustRequest:
         from backend.api.schemas.feedback import FeedbackType
 
         request = CalibrationAdjustRequest(
-            feedback_type=FeedbackType.WRONG_SEVERITY,
+            feedback_type=FeedbackType.SEVERITY_WRONG,
             event_risk_score=65,
         )
 

@@ -90,7 +90,7 @@ class TestThresholdAdjustment:
             low_delta=-3,
             medium_delta=-3,
             high_delta=-3,
-            feedback_type=FeedbackType.MISSED_DETECTION,
+            feedback_type=FeedbackType.MISSED_THREAT,
             original_risk_score=25,
         )
         result = adjustment.to_dict()
@@ -293,14 +293,14 @@ class TestCalculateAdjustment:
         """Test that MISSED_DETECTION feedback results in negative deltas."""
         service = CalibrationService()
         adjustment = service.calculate_adjustment(
-            feedback_type=FeedbackType.MISSED_DETECTION,
+            feedback_type=FeedbackType.MISSED_THREAT,
             risk_score=25,
             decay_factor=0.1,
         )
         assert adjustment.low_delta < 0
         assert adjustment.medium_delta < 0
         assert adjustment.high_delta < 0
-        assert adjustment.feedback_type == FeedbackType.MISSED_DETECTION
+        assert adjustment.feedback_type == FeedbackType.MISSED_THREAT
 
     def test_higher_risk_score_larger_false_positive_adjustment(self) -> None:
         """Test that higher risk scores lead to larger adjustments for false positives."""
@@ -321,12 +321,12 @@ class TestCalculateAdjustment:
         """Test that lower risk scores lead to larger adjustments for missed detections."""
         service = CalibrationService()
         high_score_adj = service.calculate_adjustment(
-            feedback_type=FeedbackType.MISSED_DETECTION,
+            feedback_type=FeedbackType.MISSED_THREAT,
             risk_score=50,
             decay_factor=0.1,
         )
         low_score_adj = service.calculate_adjustment(
-            feedback_type=FeedbackType.MISSED_DETECTION,
+            feedback_type=FeedbackType.MISSED_THREAT,
             risk_score=10,
             decay_factor=0.1,
         )
@@ -364,7 +364,7 @@ class TestCalculateAdjustment:
         ("feedback_type", "expected_sign"),
         [
             (FeedbackType.FALSE_POSITIVE, 1),
-            (FeedbackType.MISSED_DETECTION, -1),
+            (FeedbackType.MISSED_THREAT, -1),
         ],
     )
     def test_adjustment_direction_by_feedback_type(
@@ -415,7 +415,7 @@ class TestApplyAdjustment:
             low_delta=-5,
             medium_delta=-5,
             high_delta=-5,
-            feedback_type=FeedbackType.MISSED_DETECTION,
+            feedback_type=FeedbackType.MISSED_THREAT,
             original_risk_score=25,
         )
         new_low, new_medium, new_high = service._apply_adjustment(30, 60, 85, adjustment)
@@ -430,7 +430,7 @@ class TestApplyAdjustment:
             low_delta=-50,
             medium_delta=-50,
             high_delta=-50,
-            feedback_type=FeedbackType.MISSED_DETECTION,
+            feedback_type=FeedbackType.MISSED_THREAT,
             original_risk_score=10,
         )
         new_low, _new_medium, _new_high = service._apply_adjustment(10, 40, 70, adjustment)
@@ -518,7 +518,7 @@ class TestApplyAdjustment:
             low_delta=-100,
             medium_delta=-100,
             high_delta=-100,
-            feedback_type=FeedbackType.MISSED_DETECTION,
+            feedback_type=FeedbackType.MISSED_THREAT,
             original_risk_score=0,
         )
         new_low, new_medium, new_high = service._apply_adjustment(30, 60, 85, adjustment)
@@ -693,7 +693,7 @@ class TestAdjustFromFeedback:
         mock_event.risk_score = 25
 
         mock_feedback = MagicMock(spec=EventFeedback)
-        mock_feedback.feedback_type = FeedbackType.MISSED_DETECTION
+        mock_feedback.feedback_type = FeedbackType.MISSED_THREAT
 
         result = await service.adjust_from_feedback(
             mock_session, mock_feedback, mock_event, "test_user"
@@ -850,7 +850,7 @@ class TestEdgeCases:
             low_delta=-10,
             medium_delta=-10,
             high_delta=-10,
-            feedback_type=FeedbackType.MISSED_DETECTION,
+            feedback_type=FeedbackType.MISSED_THREAT,
             original_risk_score=5,
         )
         new_low, new_medium, new_high = service._apply_adjustment(5, 35, 65, adjustment)
@@ -929,7 +929,7 @@ class TestEdgeCases:
             low_delta=-10,
             medium_delta=-10,
             high_delta=-10,
-            feedback_type=FeedbackType.MISSED_DETECTION,
+            feedback_type=FeedbackType.MISSED_THREAT,
             original_risk_score=20,
         )
         new_low2, new_medium2, new_high2 = service._apply_adjustment(
