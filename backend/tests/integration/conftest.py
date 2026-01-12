@@ -72,6 +72,10 @@ HARDCODED_TABLE_DELETION_ORDER = [
     "prompt_configs",
     "quiet_hours_periods",
     "notification_preferences",
+    "job_transitions",  # Job transition history
+    "job_logs",  # Job execution logs
+    "job_attempts",  # Job attempt records
+    "jobs",  # Job tracking
     # Last: Delete parent tables
     "cameras",
 ]

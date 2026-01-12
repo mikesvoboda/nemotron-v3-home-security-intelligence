@@ -13,6 +13,10 @@ from .event_audit import EventAudit
 from .event_detection import EventDetection, event_detections
 from .event_feedback import EventFeedback, FeedbackType
 from .gpu_stats import GPUStats
+from .job import Job, JobStatus
+from .job_attempt import JobAttempt, JobAttemptStatus
+from .job_log import JobLog, LogLevel
+from .job_transition import JobTransition, JobTransitionTrigger
 from .log import Log
 from .notification_preferences import (
     CameraNotificationSetting,
@@ -52,7 +56,15 @@ __all__ = [
     "EventFeedback",
     "FeedbackType",
     "GPUStats",
+    "Job",
+    "JobAttempt",
+    "JobAttemptStatus",
+    "JobLog",
+    "JobStatus",
+    "JobTransition",
+    "JobTransitionTrigger",
     "Log",
+    "LogLevel",
     "NotificationPreferences",
     "NotificationSound",
     "PromptConfig",

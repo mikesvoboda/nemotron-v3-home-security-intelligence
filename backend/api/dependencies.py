@@ -736,6 +736,65 @@ def get_yolo_world_service_dep() -> YOLOWorldService:
     return cast("YWS", container.get("yolo_world_service"))
 
 
+def get_job_service_dep(
+    job_tracker: JobTracker = Depends(get_job_tracker_dep),
+    redis: RedisClient = Depends(get_redis),
+) -> JobService:
+    """FastAPI dependency for JobService (NEM-2390).
+
+    Returns a JobService instance with the injected JobTracker and Redis client.
+    Provides detailed job information retrieval and transformation.
+
+    Args:
+        job_tracker: JobTracker instance injected via Depends.
+        redis: Redis client for job persistence.
+
+    Returns:
+        JobService instance
+    """
+    from backend.services.job_service import JobService
+
+    return JobService(job_tracker=job_tracker, redis_client=redis)
+
+
+def get_job_search_service_dep(
+    job_tracker: JobTracker = Depends(get_job_tracker_dep),
+) -> JobSearchService:
+    """FastAPI dependency for JobSearchService (NEM-2392).
+
+    Returns a JobSearchService instance with the injected JobTracker.
+    Provides job search, filtering, and aggregation capabilities.
+
+    Args:
+        job_tracker: JobTracker instance injected via Depends.
+
+    Returns:
+        JobSearchService instance
+    """
+    from backend.services.job_search_service import JobSearchService
+
+    return JobSearchService(job_tracker=job_tracker)
+
+
+async def get_job_history_service_dep(
+    db: AsyncSession = Depends(get_db),
+) -> AsyncGenerator[JobHistoryService]:
+    """FastAPI dependency for JobHistoryService (NEM-2396).
+
+    Returns a JobHistoryService instance with the injected database session.
+    Provides job history, transitions, attempts, and logs retrieval.
+
+    Args:
+        db: Database session injected via Depends(get_db).
+
+    Yields:
+        JobHistoryService instance
+    """
+    from backend.services.job_history_service import JobHistoryService
+
+    yield JobHistoryService(db)
+
+
 # Type-hint-only imports for dependency injection return types
 if TYPE_CHECKING:
     from backend.services.ai_services import (
@@ -745,4 +804,7 @@ if TYPE_CHECKING:
         YOLOWorldService,
     )
     from backend.services.export_service import ExportService
+    from backend.services.job_history_service import JobHistoryService
+    from backend.services.job_search_service import JobSearchService
+    from backend.services.job_service import JobService
     from backend.services.job_tracker import JobTracker
