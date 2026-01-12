@@ -846,31 +846,58 @@ class TestAnalyzeBatchStreaming:
 
     def test_analyze_batch_streaming_invalid_detection_ids(self, client: TestClient):
         """Test analyze_batch_streaming with invalid detection IDs format."""
-        # This will be handled by the event_generator
-        response = client.get("/api/events/analyze/batch1/stream?detection_ids=invalid,not_numbers")
+        from backend.api.dependencies import get_nemotron_analyzer_dep
 
-        assert response.status_code == 200
-        # SSE response, check content type
-        assert "text/event-stream" in response.headers["content-type"]
+        # Mock the analyzer dependency to avoid Redis connection
+        mock_analyzer = AsyncMock()
+        mock_analyzer.analyze_batch_streaming = AsyncMock(return_value=AsyncMock())
 
-    @patch("backend.api.routes.events.get_nemotron_analyzer_dep")
-    def test_analyze_batch_streaming_exception_handling(
-        self, mock_get_analyzer, client: TestClient
-    ):
+        async def override_get_analyzer():
+            return mock_analyzer
+
+        client.app.dependency_overrides[get_nemotron_analyzer_dep] = override_get_analyzer
+        try:
+            # This will be handled by the event_generator (invalid detection_ids parsing)
+            response = client.get(
+                "/api/events/analyze/batch1/stream?detection_ids=invalid,not_numbers"
+            )
+
+            assert response.status_code == 200
+            # SSE response, check content type
+            assert "text/event-stream" in response.headers["content-type"]
+            # Verify error event is returned for invalid detection IDs
+            content = response.text
+            assert "INVALID_DETECTION_IDS" in content
+        finally:
+            # Clean up the override
+            client.app.dependency_overrides.pop(get_nemotron_analyzer_dep, None)
+
+    def test_analyze_batch_streaming_exception_handling(self, client: TestClient):
         """Test analyze_batch_streaming handles exceptions properly."""
+        from backend.api.dependencies import get_nemotron_analyzer_dep
 
-        async def mock_streaming_generator():
+        # Create an async generator that raises an exception
+        async def mock_streaming_generator(*args, **kwargs):
             raise Exception("Test exception")
-            yield {}  # Never reached
+            yield {}  # Never reached (makes this an async generator)
 
         mock_analyzer = Mock()
         mock_analyzer.analyze_batch_streaming = mock_streaming_generator
-        mock_get_analyzer.return_value = mock_analyzer
 
-        response = client.get("/api/events/analyze/batch1/stream")
+        async def override_get_analyzer():
+            return mock_analyzer
 
-        assert response.status_code == 200
-        # Should return error event in SSE format
+        client.app.dependency_overrides[get_nemotron_analyzer_dep] = override_get_analyzer
+        try:
+            response = client.get("/api/events/analyze/batch1/stream")
+
+            assert response.status_code == 200
+            # Should return error event in SSE format
+            content = response.text
+            assert "INTERNAL_ERROR" in content
+        finally:
+            # Clean up the override
+            client.app.dependency_overrides.pop(get_nemotron_analyzer_dep, None)
 
 
 # =============================================================================
