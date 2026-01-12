@@ -98,7 +98,7 @@ class TestThresholdAdjustment:
             "low_delta": -3,
             "medium_delta": -3,
             "high_delta": -3,
-            "feedback_type": "missed_detection",
+            "feedback_type": "missed_threat",
             "original_risk_score": 25,
         }
 

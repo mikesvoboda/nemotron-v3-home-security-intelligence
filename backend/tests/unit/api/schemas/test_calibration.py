@@ -434,7 +434,7 @@ class TestCalibrationAdjustRequest:
         from backend.api.schemas.feedback import FeedbackType
 
         request = CalibrationAdjustRequest(
-            feedback_type="missed_detection",
+            feedback_type="missed_threat",
             event_risk_score=45,
         )
 
@@ -551,5 +551,5 @@ class TestCalibrationAdjustRequest:
 
         data = request.model_dump(mode="json")
 
-        assert data["feedback_type"] == "wrong_severity"
+        assert data["feedback_type"] == "severity_wrong"
         assert data["event_risk_score"] == 65
