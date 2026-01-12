@@ -21,6 +21,18 @@ vi.mock('./NotificationSettings', () => ({
   default: () => <div data-testid="notification-settings">Notification Settings</div>,
 }));
 
+vi.mock('./AmbientStatusSettings', () => ({
+  default: () => <div data-testid="ambient-settings">Ambient Status Settings</div>,
+}));
+
+vi.mock('./CalibrationPanel', () => ({
+  default: () => <div data-testid="calibration-panel">Calibration Panel</div>,
+}));
+
+vi.mock('./PromptManagementPanel', () => ({
+  default: () => <div data-testid="prompt-management">Prompt Management</div>,
+}));
+
 describe('SettingsPage', () => {
   it('should render the page title and description', () => {
     render(<SettingsPage />);
@@ -29,13 +41,15 @@ describe('SettingsPage', () => {
     expect(screen.getByText('Configure your security monitoring system')).toBeInTheDocument();
   });
 
-  it('should render all five tabs', () => {
+  it('should render all seven tabs', () => {
     render(<SettingsPage />);
 
     expect(screen.getByRole('tab', { name: /cameras/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /rules/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /processing/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /notifications/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /ambient/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /calibration/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /prompts/i })).toBeInTheDocument();
   });
 
@@ -126,6 +140,28 @@ describe('SettingsPage', () => {
     await user.click(notificationsTab);
 
     expect(screen.getByTestId('notification-settings')).toBeInTheDocument();
+    expect(screen.queryByTestId('cameras-settings')).not.toBeInTheDocument();
+  });
+
+  it('should switch to calibration panel when tab is clicked', async () => {
+    const user = userEvent.setup();
+    render(<SettingsPage />);
+
+    const calibrationTab = screen.getByRole('tab', { name: /calibration/i });
+    await user.click(calibrationTab);
+
+    expect(screen.getByTestId('calibration-panel')).toBeInTheDocument();
+    expect(screen.queryByTestId('cameras-settings')).not.toBeInTheDocument();
+  });
+
+  it('should switch to ambient settings when tab is clicked', async () => {
+    const user = userEvent.setup();
+    render(<SettingsPage />);
+
+    const ambientTab = screen.getByRole('tab', { name: /ambient/i });
+    await user.click(ambientTab);
+
+    expect(screen.getByTestId('ambient-settings')).toBeInTheDocument();
     expect(screen.queryByTestId('cameras-settings')).not.toBeInTheDocument();
   });
 });

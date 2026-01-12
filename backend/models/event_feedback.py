@@ -18,12 +18,16 @@ if TYPE_CHECKING:
 class FeedbackType(str, Enum):
     """Types of feedback users can provide on events.
 
+    - ACCURATE: Event was correctly classified with appropriate severity
     - FALSE_POSITIVE: Event was incorrectly flagged as concerning
-    - MISSED_DETECTION: System failed to detect a concerning event
+    - MISSED_THREAT: System failed to detect a concerning event
+    - SEVERITY_WRONG: Event was flagged but with incorrect severity level
     """
 
+    ACCURATE = "accurate"
     FALSE_POSITIVE = "false_positive"
-    MISSED_DETECTION = "missed_detection"
+    MISSED_THREAT = "missed_threat"
+    SEVERITY_WRONG = "severity_wrong"
 
     def __str__(self) -> str:
         """Return string representation of feedback type."""
@@ -65,7 +69,7 @@ class EventFeedback(Base):
         Index("idx_event_feedback_created_at", "created_at"),
         # CHECK constraint for valid feedback types
         CheckConstraint(
-            "feedback_type IN ('false_positive', 'missed_detection')",
+            "feedback_type IN ('accurate', 'false_positive', 'missed_threat', 'severity_wrong')",
             name="ck_event_feedback_type",
         ),
     )

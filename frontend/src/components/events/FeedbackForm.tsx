@@ -7,7 +7,7 @@
  *
  * Displays appropriate form fields based on feedback type:
  * - false_positive: Notes field only
- * - wrong_severity: Expected severity slider + notes field
+ * - severity_wrong: Expected severity slider + notes field
  */
 
 import { clsx } from 'clsx';
@@ -38,11 +38,11 @@ function getFeedbackTypeLabel(type: FeedbackType): string {
   switch (type) {
     case 'false_positive':
       return 'False Positive';
-    case 'wrong_severity':
+    case 'severity_wrong':
       return 'Wrong Severity';
-    case 'missed_detection':
+    case 'missed_threat':
       return 'Missed Detection';
-    case 'correct':
+    case 'accurate':
       return 'Correct Detection';
     default:
       return type;
@@ -95,7 +95,7 @@ export default function FeedbackForm({
   const [notes, setNotes] = useState('');
   const [expectedSeverity, setExpectedSeverity] = useState(currentSeverity);
 
-  const isWrongSeverity = feedbackType === 'wrong_severity';
+  const isWrongSeverity = feedbackType === 'severity_wrong';
   const severityDisplay = getSeverityDisplay(expectedSeverity);
 
   const handleSubmit = (e: React.FormEvent) => {

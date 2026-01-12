@@ -40,7 +40,7 @@ interface FeedbackOption {
 
 const FEEDBACK_OPTIONS: FeedbackOption[] = [
   {
-    type: 'correct',
+    type: 'accurate',
     label: 'Correct',
     icon: Check,
     description: 'Classification was accurate',
@@ -52,13 +52,13 @@ const FEEDBACK_OPTIONS: FeedbackOption[] = [
     description: 'Event incorrectly flagged',
   },
   {
-    type: 'missed_detection',
+    type: 'missed_threat',
     label: 'Missed Detection',
     icon: Flag,
     description: 'System failed to detect threat',
   },
   {
-    type: 'wrong_severity',
+    type: 'severity_wrong',
     label: 'Wrong Level',
     icon: ThumbsDown,
     description: 'Risk level was incorrect',

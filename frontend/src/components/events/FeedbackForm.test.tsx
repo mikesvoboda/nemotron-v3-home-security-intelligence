@@ -28,8 +28,8 @@ describe('FeedbackForm', () => {
       expect(screen.getByText('False Positive Feedback')).toBeInTheDocument();
     });
 
-    it('renders the form with correct title for wrong_severity', () => {
-      render(<FeedbackForm {...defaultProps} feedbackType="wrong_severity" />);
+    it('renders the form with correct title for severity_wrong', () => {
+      render(<FeedbackForm {...defaultProps} feedbackType="severity_wrong" />);
 
       expect(screen.getByText('Wrong Severity Feedback')).toBeInTheDocument();
     });
@@ -49,9 +49,9 @@ describe('FeedbackForm', () => {
     });
   });
 
-  describe('wrong_severity feedback type', () => {
-    it('renders severity slider for wrong_severity type', () => {
-      render(<FeedbackForm {...defaultProps} feedbackType="wrong_severity" />);
+  describe('severity_wrong feedback type', () => {
+    it('renders severity slider for severity_wrong type', () => {
+      render(<FeedbackForm {...defaultProps} feedbackType="severity_wrong" />);
 
       expect(screen.getByTestId('severity-slider')).toBeInTheDocument();
       expect(screen.getByLabelText(/expected severity/i)).toBeInTheDocument();
@@ -64,14 +64,14 @@ describe('FeedbackForm', () => {
     });
 
     it('displays current severity value', () => {
-      render(<FeedbackForm {...defaultProps} feedbackType="wrong_severity" />);
+      render(<FeedbackForm {...defaultProps} feedbackType="severity_wrong" />);
 
       expect(screen.getByText(/current:/i)).toBeInTheDocument();
       expect(screen.getByText('65')).toBeInTheDocument();
     });
 
     it('slider has correct min and max attributes', () => {
-      render(<FeedbackForm {...defaultProps} feedbackType="wrong_severity" />);
+      render(<FeedbackForm {...defaultProps} feedbackType="severity_wrong" />);
 
       const slider = screen.getByTestId('severity-slider');
       // Verify slider has correct attributes
@@ -95,9 +95,9 @@ describe('FeedbackForm', () => {
       expect(defaultProps.onSubmit).toHaveBeenCalledWith('This is my cat, not an intruder');
     });
 
-    it('calls onSubmit with notes and expectedSeverity for wrong_severity', async () => {
+    it('calls onSubmit with notes and expectedSeverity for severity_wrong', async () => {
       const user = userEvent.setup();
-      render(<FeedbackForm {...defaultProps} feedbackType="wrong_severity" />);
+      render(<FeedbackForm {...defaultProps} feedbackType="severity_wrong" />);
 
       const notesInput = screen.getByTestId('feedback-notes');
       await user.type(notesInput, 'This should be low risk');
@@ -171,8 +171,8 @@ describe('FeedbackForm', () => {
       expect(screen.getByPlaceholderText(/explain why this is a false positive/i)).toBeInTheDocument();
     });
 
-    it('shows generic placeholder for wrong_severity', () => {
-      render(<FeedbackForm {...defaultProps} feedbackType="wrong_severity" />);
+    it('shows generic placeholder for severity_wrong', () => {
+      render(<FeedbackForm {...defaultProps} feedbackType="severity_wrong" />);
 
       expect(screen.getByPlaceholderText(/add any additional context/i)).toBeInTheDocument();
     });
@@ -189,7 +189,7 @@ describe('FeedbackForm', () => {
       render(
         <FeedbackForm
           {...defaultProps}
-          feedbackType="wrong_severity"
+          feedbackType="severity_wrong"
           currentSeverity={score}
         />
       );
