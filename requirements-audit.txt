@@ -465,7 +465,7 @@ wcwidth==0.2.14
     # via ftfy
 websockets==15.0.1
     # via uvicorn
-wrapt==1.17.3
+wrapt==2.0.1
     # via
     #   opentelemetry-instrumentation
     #   opentelemetry-instrumentation-httpx
