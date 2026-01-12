@@ -55,7 +55,7 @@ def mock_settings():
     mock.nemotron_read_timeout = 120.0
     mock.ai_health_timeout = 5.0
     # Retry settings (NEM-1343)
-    mock.nemotron_max_retries = 1  # Minimal retries for faster tests
+    mock.nemotron_max_retries = 2  # Need at least 2 for retry test
     # Severity settings for tests that use _validate_risk_data
     mock.severity_low_max = 29
     mock.severity_medium_max = 59
@@ -3385,3 +3385,709 @@ class TestTokenCountingIntegration:
 
             # Verify validation was called
             mock_counter.validate_prompt.assert_called_once()
+
+
+# =========================================================================
+# Test: Cold Start and Warmup (NEM-1670)
+# =========================================================================
+
+
+@pytest.mark.asyncio
+async def test_track_inference_updates_timestamp(analyzer):
+    """Test that _track_inference records the current time."""
+    import time
+
+    # Initially should be None
+    assert analyzer._last_inference_time is None
+
+    # Track an inference
+    before = time.monotonic()
+    analyzer._track_inference()
+    after = time.monotonic()
+
+    # Should be set to a value between before and after
+    assert analyzer._last_inference_time is not None
+    assert before <= analyzer._last_inference_time <= after
+
+
+def test_is_cold_returns_true_when_never_used(analyzer):
+    """Test is_cold returns True when model has never been used."""
+    assert analyzer.is_cold() is True
+
+
+def test_is_cold_returns_false_when_recently_used(analyzer):
+    """Test is_cold returns False when model was recently used."""
+    analyzer._track_inference()
+    assert analyzer.is_cold() is False
+
+
+def test_is_cold_returns_true_when_threshold_exceeded(analyzer):
+    """Test is_cold returns True when time since last inference exceeds threshold."""
+    import time
+
+    # Set last inference time to far in the past
+    analyzer._last_inference_time = time.monotonic() - 400.0  # 400 seconds ago
+    assert analyzer.is_cold() is True
+
+
+def test_get_warmth_state_cold(analyzer):
+    """Test get_warmth_state returns 'cold' when never used."""
+    state = analyzer.get_warmth_state()
+    assert state["state"] == "cold"
+    assert state["last_inference_seconds_ago"] is None
+
+
+def test_get_warmth_state_warm(analyzer):
+    """Test get_warmth_state returns 'warm' when recently used."""
+    analyzer._track_inference()
+    state = analyzer.get_warmth_state()
+    assert state["state"] == "warm"
+    assert state["last_inference_seconds_ago"] is not None
+    assert state["last_inference_seconds_ago"] < 10.0  # Should be very recent
+
+
+def test_get_warmth_state_warming(analyzer):
+    """Test get_warmth_state returns 'warming' during warmup."""
+    analyzer._is_warming = True
+    state = analyzer.get_warmth_state()
+    assert state["state"] == "warming"
+    assert state["last_inference_seconds_ago"] is None
+
+
+@pytest.mark.asyncio
+async def test_model_readiness_probe_success(analyzer):
+    """Test model_readiness_probe succeeds with valid response."""
+    mock_response = {"content": "test response"}
+
+    with patch("httpx.AsyncClient.post") as mock_post:
+        mock_resp = MagicMock(spec=httpx.Response)
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = mock_response
+        mock_post.return_value = mock_resp
+
+        result = await analyzer.model_readiness_probe()
+
+    assert result is True
+
+
+@pytest.mark.asyncio
+async def test_model_readiness_probe_connection_error(analyzer):
+    """Test model_readiness_probe returns False on connection error."""
+    with patch("httpx.AsyncClient.post") as mock_post:
+        mock_post.side_effect = httpx.ConnectError("Connection refused")
+
+        result = await analyzer.model_readiness_probe()
+
+    assert result is False
+
+
+@pytest.mark.asyncio
+async def test_model_readiness_probe_timeout(analyzer):
+    """Test model_readiness_probe returns False on timeout."""
+    with patch("httpx.AsyncClient.post") as mock_post:
+        mock_post.side_effect = httpx.TimeoutException("Request timeout")
+
+        result = await analyzer.model_readiness_probe()
+
+    assert result is False
+
+
+@pytest.mark.asyncio
+async def test_model_readiness_probe_http_error(analyzer):
+    """Test model_readiness_probe returns False on HTTP error."""
+    with patch("httpx.AsyncClient.post") as mock_post:
+        mock_resp = MagicMock(spec=httpx.Response)
+        mock_resp.status_code = 500
+        mock_resp.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "Server Error", request=MagicMock(spec=httpx.Request), response=mock_resp
+        )
+        mock_post.return_value = mock_resp
+
+        result = await analyzer.model_readiness_probe()
+
+    assert result is False
+
+
+@pytest.mark.asyncio
+async def test_warmup_success(analyzer):
+    """Test warmup succeeds and records metrics."""
+    mock_response = {"content": "warmup response"}
+
+    with patch("httpx.AsyncClient.post") as mock_post:
+        mock_resp = MagicMock(spec=httpx.Response)
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = mock_response
+        mock_post.return_value = mock_resp
+
+        result = await analyzer.warmup()
+
+    assert result is True
+    assert analyzer.is_cold() is False
+
+
+@pytest.mark.asyncio
+async def test_warmup_failure(analyzer):
+    """Test warmup handles failure gracefully."""
+    with patch("httpx.AsyncClient.post") as mock_post:
+        mock_post.side_effect = httpx.ConnectError("Connection refused")
+
+        result = await analyzer.warmup()
+
+    assert result is False
+    # Should still be cold after failed warmup
+    assert analyzer.is_cold() is True
+
+
+@pytest.mark.asyncio
+async def test_warmup_disabled(analyzer):
+    """Test warmup skips when disabled in settings."""
+    analyzer._warmup_enabled = False
+
+    result = await analyzer.warmup()
+
+    # Should return True (success) but not actually warm up
+    assert result is True
+
+
+# =========================================================================
+# Test: A/B Testing (NEM-1667)
+# =========================================================================
+
+
+def test_set_ab_test_config_success(analyzer):
+    """Test setting A/B test configuration."""
+    from backend.services.prompt_service import ABTestConfig
+
+    config = ABTestConfig(
+        control_version=1,
+        treatment_version=2,
+        traffic_split=0.5,
+        model="nemotron",
+        enabled=True,
+    )
+
+    analyzer.set_ab_test_config(config)
+
+    assert analyzer._ab_config is not None
+    assert analyzer._ab_tester is not None
+
+
+def test_set_ab_test_config_invalid_type(analyzer):
+    """Test set_ab_test_config raises TypeError for invalid config."""
+    with pytest.raises(TypeError, match="config must be an ABTestConfig instance"):
+        analyzer.set_ab_test_config({"invalid": "dict"})
+
+
+@pytest.mark.asyncio
+async def test_get_prompt_version_default(analyzer):
+    """Test get_prompt_version returns default when no A/B test configured."""
+    version, is_treatment = await analyzer.get_prompt_version()
+
+    assert version == 1
+    assert is_treatment is False
+
+
+@pytest.mark.asyncio
+async def test_get_prompt_version_with_ab_testing(analyzer):
+    """Test get_prompt_version uses A/B tester when configured."""
+    from backend.services.prompt_service import ABTestConfig
+
+    config = ABTestConfig(
+        control_version=1,
+        treatment_version=2,
+        traffic_split=0.5,
+        model="nemotron",
+        enabled=True,
+    )
+    analyzer.set_ab_test_config(config)
+
+    version, is_treatment = await analyzer.get_prompt_version()
+
+    # Should return either control (1) or treatment (2)
+    assert version in (1, 2)
+    assert isinstance(is_treatment, bool)
+
+
+def test_record_analysis_metrics(analyzer):
+    """Test _record_analysis_metrics records prompt latency."""
+    from backend.core import metrics
+
+    with patch.object(metrics, "record_prompt_latency") as mock_record:
+        analyzer._record_analysis_metrics(
+            prompt_version=1,
+            latency_seconds=1.5,
+            risk_score=75,
+        )
+
+        mock_record.assert_called_once_with("v1", 1.5)
+
+
+# =========================================================================
+# Test: Context Enricher and Pipeline Getters
+# =========================================================================
+
+
+def test_get_context_enricher_uses_existing(analyzer):
+    """Test _get_context_enricher returns existing enricher if set."""
+    from backend.services.context_enricher import ContextEnricher
+
+    mock_enricher = MagicMock(spec=ContextEnricher)
+    analyzer._context_enricher = mock_enricher
+
+    result = analyzer._get_context_enricher()
+
+    assert result is mock_enricher
+
+
+def test_get_context_enricher_creates_singleton(analyzer):
+    """Test _get_context_enricher creates global singleton if needed."""
+    analyzer._context_enricher = None
+
+    with patch("backend.services.nemotron_analyzer.get_context_enricher") as mock_get:
+        from backend.services.context_enricher import ContextEnricher
+
+        mock_enricher = MagicMock(spec=ContextEnricher)
+        mock_get.return_value = mock_enricher
+
+        result = analyzer._get_context_enricher()
+
+        assert result is mock_enricher
+        mock_get.assert_called_once()
+
+
+def test_get_enrichment_pipeline_uses_existing(analyzer):
+    """Test _get_enrichment_pipeline returns existing pipeline if set."""
+    from backend.services.enrichment_pipeline import EnrichmentPipeline
+
+    mock_pipeline = MagicMock(spec=EnrichmentPipeline)
+    analyzer._enrichment_pipeline = mock_pipeline
+
+    result = analyzer._get_enrichment_pipeline()
+
+    assert result is mock_pipeline
+
+
+def test_get_enrichment_pipeline_creates_singleton(analyzer):
+    """Test _get_enrichment_pipeline creates global singleton if needed."""
+    analyzer._enrichment_pipeline = None
+
+    with patch("backend.services.nemotron_analyzer.get_enrichment_pipeline") as mock_get:
+        from backend.services.enrichment_pipeline import EnrichmentPipeline
+
+        mock_pipeline = MagicMock(spec=EnrichmentPipeline)
+        mock_get.return_value = mock_pipeline
+
+        result = analyzer._get_enrichment_pipeline()
+
+        assert result is mock_pipeline
+        mock_get.assert_called_once()
+
+
+# =========================================================================
+# Test: Auth Headers (NEM-1729)
+# =========================================================================
+
+
+def test_get_auth_headers_no_api_key(analyzer):
+    """Test _get_auth_headers without API key configured."""
+    with patch(
+        "backend.services.nemotron_analyzer.get_correlation_headers",
+        return_value={"X-Correlation-ID": "test-123"},
+    ):
+        headers = analyzer._get_auth_headers()
+
+        assert "X-Correlation-ID" in headers
+        assert "X-API-Key" not in headers
+
+
+def test_get_auth_headers_with_api_key(analyzer):
+    """Test _get_auth_headers includes API key when configured."""
+    test_api_key = "test-api-key-value"  # pragma: allowlist secret
+    analyzer._api_key = test_api_key
+
+    with patch(
+        "backend.services.nemotron_analyzer.get_correlation_headers",
+        return_value={"X-Correlation-ID": "test-123"},
+    ):
+        headers = analyzer._get_auth_headers()
+
+        assert "X-Correlation-ID" in headers
+        assert headers["X-API-Key"] == test_api_key
+
+
+# =========================================================================
+# Test: Prompt Validation and Truncation (NEM-1666, NEM-1723)
+# =========================================================================
+
+
+def test_validate_and_truncate_prompt_valid(analyzer):
+    """Test _validate_and_truncate_prompt with valid prompt."""
+    from backend.services.token_counter import TokenValidationResult
+
+    prompt = "This is a short test prompt"
+
+    mock_validation = TokenValidationResult(
+        is_valid=True,
+        prompt_tokens=10,
+        available_tokens=2560,
+        context_window=4096,
+        max_output_tokens=1536,
+        utilization=0.004,
+        warning=None,
+    )
+
+    with patch("backend.services.token_counter.get_token_counter") as mock_get_counter:
+        mock_counter = MagicMock()
+        mock_counter.validate_prompt.return_value = mock_validation
+        mock_get_counter.return_value = mock_counter
+
+        result = analyzer._validate_and_truncate_prompt(prompt)
+
+        assert result == prompt
+        mock_counter.validate_prompt.assert_called_once()
+
+
+def test_validate_and_truncate_prompt_exceeds_with_truncation_enabled(analyzer):
+    """Test _validate_and_truncate_prompt truncates when prompt exceeds limits."""
+    from backend.services.token_counter import TokenValidationResult, TruncationResult
+
+    prompt = "A" * 10000  # Very long prompt
+
+    mock_validation = TokenValidationResult(
+        is_valid=False,
+        prompt_tokens=5000,
+        available_tokens=2560,
+        context_window=4096,
+        max_output_tokens=1536,
+        utilization=2.0,
+        warning="Prompt exceeds context window",
+    )
+
+    truncated_prompt = "Truncated version"
+    mock_truncation = TruncationResult(
+        truncated_prompt=truncated_prompt,
+        was_truncated=True,
+        original_tokens=5000,
+        final_tokens=2000,
+        sections_removed=["enrichment_context"],
+    )
+
+    with patch("backend.services.token_counter.get_token_counter") as mock_get_counter:
+        mock_counter = MagicMock()
+        mock_counter.validate_prompt.return_value = mock_validation
+        mock_counter.truncate_enrichment_data.return_value = mock_truncation
+        mock_get_counter.return_value = mock_counter
+
+        result = analyzer._validate_and_truncate_prompt(prompt)
+
+        assert result == truncated_prompt
+        mock_counter.truncate_enrichment_data.assert_called_once()
+
+
+def test_validate_and_truncate_prompt_exceeds_with_truncation_disabled(
+    mock_redis_client, mock_settings
+):
+    """Test _validate_and_truncate_prompt raises error when truncation disabled."""
+    from backend.services.token_counter import TokenValidationResult
+
+    # Disable truncation
+    mock_settings.context_truncation_enabled = False
+
+    with (
+        patch("backend.services.nemotron_analyzer.get_settings", return_value=mock_settings),
+        patch("backend.services.severity.get_settings", return_value=mock_settings),
+        patch("backend.services.token_counter.get_settings", return_value=mock_settings),
+        patch("backend.core.config.get_settings", return_value=mock_settings),
+    ):
+        from backend.services.severity import reset_severity_service
+        from backend.services.token_counter import reset_token_counter
+
+        reset_severity_service()
+        reset_token_counter()
+
+        analyzer = NemotronAnalyzer(redis_client=mock_redis_client)
+
+        prompt = "A" * 10000  # Very long prompt
+
+        mock_validation = TokenValidationResult(
+            is_valid=False,
+            prompt_tokens=5000,
+            available_tokens=2560,
+            context_window=4096,
+            max_output_tokens=1536,
+            utilization=2.0,
+            warning="Prompt exceeds context window",
+        )
+
+        with patch("backend.services.token_counter.get_token_counter") as mock_get_counter:
+            mock_counter = MagicMock()
+            mock_counter.validate_prompt.return_value = mock_validation
+            mock_get_counter.return_value = mock_counter
+
+            with pytest.raises(ValueError, match="Prompt exceeds context window limits"):
+                analyzer._validate_and_truncate_prompt(prompt)
+
+        reset_severity_service()
+        reset_token_counter()
+
+
+# =========================================================================
+# Test: Evaluation Queue (NEM-1673)
+# =========================================================================
+
+
+@pytest.mark.asyncio
+async def test_enqueue_for_evaluation_success(analyzer, mock_redis_client):
+    """Test _enqueue_for_evaluation queues event for background evaluation."""
+    from backend.services.evaluation_queue import EvaluationQueue
+
+    mock_queue = MagicMock(spec=EvaluationQueue)
+    mock_queue.enqueue = AsyncMock()
+
+    with (
+        patch(
+            "backend.services.evaluation_queue.get_evaluation_queue",
+            return_value=mock_queue,
+        ),
+        patch("backend.core.config.get_settings") as mock_get_settings,
+    ):
+        mock_settings = MagicMock()
+        mock_settings.background_evaluation_enabled = True
+        mock_get_settings.return_value = mock_settings
+
+        await analyzer._enqueue_for_evaluation(event_id=123, risk_score=75)
+
+        mock_queue.enqueue.assert_called_once_with(event_id=123, priority=75)
+
+
+@pytest.mark.asyncio
+async def test_enqueue_for_evaluation_disabled(analyzer, mock_redis_client):
+    """Test _enqueue_for_evaluation skips when background evaluation disabled."""
+    with patch("backend.core.config.get_settings") as mock_get_settings:
+        mock_settings = MagicMock()
+        mock_settings.background_evaluation_enabled = False
+        mock_get_settings.return_value = mock_settings
+
+        # Should not raise any errors, just log and skip
+        await analyzer._enqueue_for_evaluation(event_id=123, risk_score=75)
+
+
+@pytest.mark.asyncio
+async def test_enqueue_for_evaluation_handles_failure(analyzer, mock_redis_client):
+    """Test _enqueue_for_evaluation handles queue failure gracefully."""
+    from backend.services.evaluation_queue import EvaluationQueue
+
+    mock_queue = MagicMock(spec=EvaluationQueue)
+    mock_queue.enqueue = AsyncMock(side_effect=Exception("Queue error"))
+
+    with (
+        patch(
+            "backend.services.evaluation_queue.get_evaluation_queue",
+            return_value=mock_queue,
+        ),
+        patch("backend.core.config.get_settings") as mock_get_settings,
+    ):
+        mock_settings = MagicMock()
+        mock_settings.background_evaluation_enabled = True
+        mock_get_settings.return_value = mock_settings
+
+        # Should not raise, just log warning
+        await analyzer._enqueue_for_evaluation(event_id=123, risk_score=75)
+
+
+# =========================================================================
+# Test: LLM Response Parsing Edge Cases
+# =========================================================================
+
+
+def test_parse_llm_response_with_think_tags(analyzer):
+    """Test parsing LLM response with <think> tags."""
+    response_text = """
+    <think>
+    Let me analyze this carefully. The person detection at night is suspicious.
+    I should assign a high risk score.
+    </think>
+    {
+      "risk_score": 75,
+      "risk_level": "high",
+      "summary": "Person detected at night",
+      "reasoning": "Unusual nighttime activity"
+    }
+    """
+
+    result = analyzer._parse_llm_response(response_text)
+
+    assert result["risk_score"] == 75
+    assert result["risk_level"] == "high"
+
+
+def test_parse_llm_response_with_incomplete_think_tag(analyzer):
+    """Test parsing LLM response with incomplete think tag."""
+    response_text = """
+    <think>
+    This is my reasoning process...
+    {
+      "risk_score": 60,
+      "risk_level": "high",
+      "summary": "Medium risk event",
+      "reasoning": "Some suspicious activity"
+    }
+    """
+
+    result = analyzer._parse_llm_response(response_text)
+
+    assert result["risk_score"] == 60
+    assert result["risk_level"] == "high"
+
+
+def test_parse_llm_response_with_preamble(analyzer):
+    """Test parsing LLM response with preamble text before JSON."""
+    response_text = """
+    Based on my analysis of the detections, here is my assessment:
+
+    {
+      "risk_score": 45,
+      "risk_level": "medium",
+      "summary": "Normal activity",
+      "reasoning": "Routine detections during business hours"
+    }
+    """
+
+    result = analyzer._parse_llm_response(response_text)
+
+    assert result["risk_score"] == 45
+    assert result["risk_level"] == "medium"
+
+
+# =========================================================================
+# Test: LLM Call Error Paths
+# =========================================================================
+
+
+@pytest.mark.asyncio
+async def test_call_llm_asyncio_timeout(analyzer):
+    """Test _call_llm handles asyncio.timeout() TimeoutError."""
+
+    async def mock_post_with_timeout(*args, **kwargs):
+        # Simulate asyncio.timeout() raising TimeoutError
+        raise TimeoutError("Request timed out")
+
+    with patch("httpx.AsyncClient.post", side_effect=mock_post_with_timeout):
+        with pytest.raises(
+            AnalyzerUnavailableError, match=r"Nemotron LLM call failed after \d+ attempts"
+        ):
+            await analyzer._call_llm(
+                camera_name="Front Door",
+                start_time="2025-12-23T14:30:00",
+                end_time="2025-12-23T14:31:00",
+                detections_list="1. 14:30:00 - person",
+            )
+
+
+@pytest.mark.asyncio
+async def test_call_llm_client_error_no_retry(analyzer):
+    """Test _call_llm does not retry on 4xx client errors."""
+    with patch("httpx.AsyncClient.post") as mock_post:
+        mock_resp = MagicMock(spec=httpx.Response)
+        mock_resp.status_code = 400
+        mock_resp.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "Bad Request", request=MagicMock(spec=httpx.Request), response=mock_resp
+        )
+        mock_post.return_value = mock_resp
+
+        with pytest.raises(httpx.HTTPStatusError):
+            await analyzer._call_llm(
+                camera_name="Front Door",
+                start_time="2025-12-23T14:30:00",
+                end_time="2025-12-23T14:31:00",
+                detections_list="1. 14:30:00 - person",
+            )
+
+        # Should only be called once (no retry for 4xx)
+        assert mock_post.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_call_llm_unexpected_error_with_retry(analyzer):
+    """Test _call_llm retries on unexpected errors."""
+    call_count = 0
+
+    async def mock_post_side_effect(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count < 2:
+            raise RuntimeError("Unexpected error")
+        # Succeed on second attempt
+        mock_resp = MagicMock(spec=httpx.Response)
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "content": json.dumps(
+                {
+                    "risk_score": 50,
+                    "risk_level": "medium",
+                    "summary": "Test",
+                    "reasoning": "Test",
+                }
+            ),
+            "usage": {"prompt_tokens": 100, "completion_tokens": 50},
+        }
+        return mock_resp
+
+    with patch("httpx.AsyncClient.post", side_effect=mock_post_side_effect):
+        result = await analyzer._call_llm(
+            camera_name="Front Door",
+            start_time="2025-12-23T14:30:00",
+            end_time="2025-12-23T14:31:00",
+            detections_list="1. 14:30:00 - person",
+        )
+
+        assert result["risk_score"] == 50
+        assert call_count == 2  # Should have retried once
+
+
+# =========================================================================
+# Test: Streaming Methods (NEM-1665)
+# =========================================================================
+
+
+def test_build_prompt_basic(analyzer):
+    """Test _build_prompt generates basic prompt."""
+    prompt = analyzer._build_prompt(
+        camera_name="Front Door",
+        start_time="2025-12-23T14:30:00",
+        end_time="2025-12-23T14:31:00",
+        detections_list="1. 14:30:00 - person (confidence: 0.95)",
+    )
+
+    assert "Front Door" in prompt
+    assert "14:30:00" in prompt
+    assert "person" in prompt
+
+
+@pytest.mark.asyncio
+async def test_analyze_batch_streaming_delegates_to_streaming_module(analyzer, mock_redis_client):
+    """Test analyze_batch_streaming delegates to nemotron_streaming module."""
+
+    async def mock_streaming_generator():
+        yield {"type": "progress", "data": {"status": "analyzing"}}
+        yield {"type": "complete", "data": {"event_id": 123}}
+
+    with patch(
+        "backend.services.nemotron_streaming.analyze_batch_streaming",
+        return_value=mock_streaming_generator(),
+    ) as mock_streaming:
+        updates = []
+        async for update in analyzer.analyze_batch_streaming(
+            batch_id="test-batch",
+            camera_id="front_door",
+            detection_ids=[1, 2, 3],
+        ):
+            updates.append(update)
+
+        # Should have called the streaming module
+        mock_streaming.assert_called_once()
+
+        # Should have received updates
+        assert len(updates) == 2
+        assert updates[0]["type"] == "progress"
+        assert updates[1]["type"] == "complete"

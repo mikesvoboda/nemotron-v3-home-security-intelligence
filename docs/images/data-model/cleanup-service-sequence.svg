@@ -1,0 +1,245 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 750" width="1200" height="750">
+  <defs>
+    <style>
+      .title-text { fill: #111827; font-family: 'Segoe UI', Arial, sans-serif; font-size: 22px; font-weight: bold; }
+      .participant-box { fill: white; stroke: #374151; stroke-width: 2; rx: 6; ry: 6; }
+      .participant-text { fill: #111827; font-family: 'Segoe UI', Arial, sans-serif; font-size: 14px; font-weight: bold; }
+      .lifeline { stroke: #9CA3AF; stroke-width: 2; stroke-dasharray: 8,4; }
+      .activation { fill: #3B82F6; }
+      .message-line { stroke: #374151; stroke-width: 2; }
+      .message-line-return { stroke: #6B7280; stroke-width: 2; stroke-dasharray: 5,3; }
+      .message-text { fill: #374151; font-family: 'Segoe UI', Arial, sans-serif; font-size: 12px; }
+      .note-box { fill: #FEF3C7; stroke: #F59E0B; stroke-width: 1; rx: 4; ry: 4; }
+      .note-text { fill: #92400E; font-family: 'Segoe UI', Arial, sans-serif; font-size: 10px; }
+      .opt-frame { fill: none; stroke: #6B7280; stroke-width: 1; stroke-dasharray: 5,3; }
+      .opt-label { fill: white; }
+      .opt-text { fill: #374151; font-family: 'Segoe UI', Arial, sans-serif; font-size: 11px; font-weight: bold; }
+      .section-label { fill: #6B7280; font-family: 'Segoe UI', Arial, sans-serif; font-size: 11px; font-style: italic; }
+      .self-call { stroke: #374151; stroke-width: 2; fill: none; }
+      .db-icon { fill: #3B82F6; }
+      .fs-icon { fill: #10B981; }
+      .cleanup-icon { fill: #EF4444; }
+    </style>
+
+    <!-- Arrow markers -->
+    <marker id="arrow-solid" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#374151"/>
+    </marker>
+    <marker id="arrow-hollow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="none" stroke="#6B7280" stroke-width="1"/>
+    </marker>
+
+    <!-- Drop shadow -->
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="2" dy="2" stdDeviation="2" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="100%" height="100%" fill="#FAFAFA"/>
+
+  <!-- Title -->
+  <text x="600" y="35" text-anchor="middle" class="title-text">CleanupService Daily Operation Sequence</text>
+  <text x="600" y="55" text-anchor="middle" class="section-label">Runs daily at configurable time (default: 03:00 AM)</text>
+
+  <!-- ============ PARTICIPANTS ============ -->
+
+  <!-- CleanupService participant -->
+  <g transform="translate(100, 80)" filter="url(#shadow)">
+    <rect x="0" y="0" width="130" height="50" class="participant-box"/>
+    <!-- Clock icon -->
+    <circle cx="25" cy="25" r="12" fill="none" stroke="#EF4444" stroke-width="2"/>
+    <line x1="25" y1="17" x2="25" y2="25" stroke="#EF4444" stroke-width="2"/>
+    <line x1="25" y1="25" x2="31" y2="25" stroke="#EF4444" stroke-width="2"/>
+    <text x="75" y="30" text-anchor="middle" class="participant-text">CleanupService</text>
+  </g>
+
+  <!-- PostgreSQL participant -->
+  <g transform="translate(400, 80)" filter="url(#shadow)">
+    <rect x="0" y="0" width="130" height="50" class="participant-box"/>
+    <!-- Database icon -->
+    <ellipse cx="25" cy="18" rx="12" ry="5" fill="#3B82F6"/>
+    <rect x="13" y="18" width="24" height="15" fill="#3B82F6"/>
+    <ellipse cx="25" cy="33" rx="12" ry="5" fill="#2563EB"/>
+    <text x="75" y="30" text-anchor="middle" class="participant-text">PostgreSQL</text>
+  </g>
+
+  <!-- Filesystem participant -->
+  <g transform="translate(700, 80)" filter="url(#shadow)">
+    <rect x="0" y="0" width="130" height="50" class="participant-box"/>
+    <!-- Folder icon -->
+    <path d="M 13 17 L 13 35 L 37 35 L 37 22 L 27 22 L 25 17 Z" fill="#10B981"/>
+    <path d="M 13 22 L 37 22" stroke="#059669" stroke-width="1"/>
+    <text x="75" y="30" text-anchor="middle" class="participant-text">Filesystem</text>
+  </g>
+
+  <!-- ============ LIFELINES ============ -->
+  <line x1="165" y1="130" x2="165" y2="650" class="lifeline"/>
+  <line x1="465" y1="130" x2="465" y2="650" class="lifeline"/>
+  <line x1="765" y1="130" x2="765" y2="650" class="lifeline"/>
+
+  <!-- ============ SEQUENCE MESSAGES ============ -->
+
+  <!-- Self-call: Wait until cleanup_time -->
+  <g transform="translate(100, 145)">
+    <!-- Activation bar -->
+    <rect x="60" y="0" width="10" height="40" class="activation"/>
+    <!-- Self-loop -->
+    <path d="M 70 10 L 100 10 L 100 30 L 70 30" class="self-call" marker-end="url(#arrow-solid)"/>
+    <text x="110" y="25" class="message-text">Wait until cleanup_time</text>
+
+    <!-- Note -->
+    <rect x="200" y="5" width="100" height="30" class="note-box"/>
+    <text x="250" y="25" text-anchor="middle" class="note-text">Default: 03:00 AM</text>
+  </g>
+
+  <!-- Message 1: Query detections -->
+  <g transform="translate(0, 200)">
+    <!-- Activation bar on CS -->
+    <rect x="160" y="0" width="10" height="420" class="activation"/>
+
+    <!-- Arrow to DB -->
+    <line x1="170" y1="10" x2="460" y2="10" class="message-line" marker-end="url(#arrow-solid)"/>
+    <text x="315" y="5" text-anchor="middle" class="message-text">Query detections older than retention_days</text>
+
+    <!-- Activation bar on DB -->
+    <rect x="460" y="5" width="10" height="25" class="activation" opacity="0.7"/>
+
+    <!-- Return arrow -->
+    <line x1="460" y1="25" x2="170" y2="25" class="message-line-return" marker-end="url(#arrow-hollow)"/>
+    <text x="315" y="40" text-anchor="middle" class="message-text" fill="#6B7280">thumbnail_paths[], image_paths[]</text>
+  </g>
+
+  <!-- Self-call: Collect paths -->
+  <g transform="translate(100, 265)">
+    <path d="M 70 0 L 100 0 L 100 20 L 70 20" class="self-call" marker-end="url(#arrow-solid)"/>
+    <text x="110" y="15" class="message-text">Collect thumbnail/image paths</text>
+  </g>
+
+  <!-- Message 2: DELETE detections -->
+  <g transform="translate(0, 300)">
+    <line x1="170" y1="10" x2="460" y2="10" class="message-line" marker-end="url(#arrow-solid)"/>
+    <text x="315" y="5" text-anchor="middle" class="message-text">DELETE detections WHERE detected_at &lt; cutoff</text>
+    <rect x="460" y="5" width="10" height="20" class="activation" opacity="0.7"/>
+  </g>
+
+  <!-- Message 3: DELETE events -->
+  <g transform="translate(0, 340)">
+    <line x1="170" y1="10" x2="460" y2="10" class="message-line" marker-end="url(#arrow-solid)"/>
+    <text x="315" y="5" text-anchor="middle" class="message-text">DELETE events WHERE started_at &lt; cutoff</text>
+    <rect x="460" y="5" width="10" height="20" class="activation" opacity="0.7"/>
+  </g>
+
+  <!-- Message 4: DELETE gpu_stats -->
+  <g transform="translate(0, 380)">
+    <line x1="170" y1="10" x2="460" y2="10" class="message-line" marker-end="url(#arrow-solid)"/>
+    <text x="315" y="5" text-anchor="middle" class="message-text">DELETE gpu_stats WHERE recorded_at &lt; cutoff</text>
+    <rect x="460" y="5" width="10" height="20" class="activation" opacity="0.7"/>
+  </g>
+
+  <!-- Message 5: COMMIT transaction -->
+  <g transform="translate(0, 420)">
+    <line x1="170" y1="10" x2="460" y2="10" class="message-line" marker-end="url(#arrow-solid)"/>
+    <text x="315" y="5" text-anchor="middle" class="message-text" font-weight="bold">COMMIT transaction</text>
+    <rect x="460" y="5" width="10" height="20" class="activation" opacity="0.7"/>
+
+    <!-- Return -->
+    <line x1="460" y1="25" x2="170" y2="25" class="message-line-return" marker-end="url(#arrow-hollow)"/>
+  </g>
+
+  <!-- Message 6: DELETE logs (separate transaction) -->
+  <g transform="translate(0, 460)">
+    <line x1="170" y1="10" x2="460" y2="10" class="message-line" marker-end="url(#arrow-solid)"/>
+    <text x="315" y="5" text-anchor="middle" class="message-text">DELETE logs WHERE timestamp &lt; log_retention_days</text>
+    <rect x="460" y="5" width="10" height="20" class="activation" opacity="0.7"/>
+
+    <!-- Note for different retention -->
+    <rect x="520" y="0" width="130" height="30" class="note-box"/>
+    <text x="585" y="12" text-anchor="middle" class="note-text">Default: 7 days</text>
+    <text x="585" y="24" text-anchor="middle" class="note-text">(LOG_RETENTION_DAYS)</text>
+  </g>
+
+  <!-- Message 7: Delete thumbnail files -->
+  <g transform="translate(0, 500)">
+    <line x1="170" y1="10" x2="760" y2="10" class="message-line" marker-end="url(#arrow-solid)"/>
+    <text x="465" y="5" text-anchor="middle" class="message-text">Delete thumbnail files</text>
+    <rect x="760" y="5" width="10" height="20" fill="#10B981" opacity="0.7"/>
+
+    <!-- Return -->
+    <line x1="760" y1="25" x2="170" y2="25" class="message-line-return" marker-end="url(#arrow-hollow)"/>
+    <text x="465" y="40" text-anchor="middle" class="message-text" fill="#6B7280">thumbnails_deleted count</text>
+  </g>
+
+  <!-- Optional frame for delete_images -->
+  <g transform="translate(140, 545)">
+    <rect x="0" y="0" width="660" height="55" class="opt-frame"/>
+    <rect x="0" y="0" width="110" height="18" fill="#6B7280"/>
+    <text x="55" y="13" text-anchor="middle" class="opt-text" fill="white">opt [delete_images]</text>
+
+    <!-- Message: Delete original images -->
+    <line x1="30" y1="30" x2="620" y2="30" class="message-line" marker-end="url(#arrow-solid)"/>
+    <text x="325" y="25" text-anchor="middle" class="message-text">Delete original image files</text>
+    <rect x="620" y="25" width="10" height="20" fill="#10B981" opacity="0.7"/>
+  </g>
+
+  <!-- Self-call: Log cleanup statistics -->
+  <g transform="translate(100, 615)">
+    <path d="M 70 0 L 100 0 L 100 20 L 70 20" class="self-call" marker-end="url(#arrow-solid)"/>
+    <text x="110" y="15" class="message-text">Log cleanup statistics</text>
+  </g>
+
+  <!-- ============ STATISTICS BOX ============ -->
+  <g transform="translate(880, 150)" filter="url(#shadow)">
+    <rect x="0" y="0" width="280" height="260" fill="white" stroke="#E5E7EB" rx="8"/>
+    <rect x="0" y="0" width="280" height="35" fill="#374151" rx="8" ry="8"/>
+    <rect x="0" y="25" width="280" height="10" fill="#374151"/>
+    <text x="140" y="24" text-anchor="middle" class="participant-text" fill="white">Cleanup Statistics</text>
+
+    <text x="20" y="60" class="message-text" font-weight="bold">Metrics Logged:</text>
+
+    <text x="20" y="85" class="message-text">events_deleted</text>
+    <text x="170" y="85" class="message-text" fill="#6B7280">Events removed</text>
+
+    <text x="20" y="105" class="message-text">detections_deleted</text>
+    <text x="170" y="105" class="message-text" fill="#6B7280">Detections removed</text>
+
+    <text x="20" y="125" class="message-text">gpu_stats_deleted</text>
+    <text x="170" y="125" class="message-text" fill="#6B7280">GPU stats removed</text>
+
+    <text x="20" y="145" class="message-text">logs_deleted</text>
+    <text x="170" y="145" class="message-text" fill="#6B7280">Log entries removed</text>
+
+    <text x="20" y="165" class="message-text">thumbnails_deleted</text>
+    <text x="170" y="165" class="message-text" fill="#6B7280">Thumbnail files</text>
+
+    <text x="20" y="185" class="message-text">images_deleted</text>
+    <text x="170" y="185" class="message-text" fill="#6B7280">Original images (if enabled)</text>
+
+    <text x="20" y="205" class="message-text">space_reclaimed</text>
+    <text x="170" y="205" class="message-text" fill="#6B7280">Estimated bytes freed</text>
+
+    <line x1="20" y1="220" x2="260" y2="220" stroke="#E5E7EB"/>
+
+    <text x="20" y="245" class="note-text" fill="#059669">API: GET /api/system/cleanup?dry_run=true</text>
+  </g>
+
+  <!-- ============ RETENTION CONFIG BOX ============ -->
+  <g transform="translate(880, 430)" filter="url(#shadow)">
+    <rect x="0" y="0" width="280" height="140" fill="white" stroke="#E5E7EB" rx="8"/>
+    <rect x="0" y="0" width="280" height="35" fill="#3B82F6" rx="8" ry="8"/>
+    <rect x="0" y="25" width="280" height="10" fill="#3B82F6"/>
+    <text x="140" y="24" text-anchor="middle" class="participant-text" fill="white">Retention Configuration</text>
+
+    <text x="20" y="60" class="message-text">RETENTION_DAYS</text>
+    <text x="170" y="60" class="message-text" fill="#6B7280">30 days (default)</text>
+
+    <text x="20" y="85" class="message-text">LOG_RETENTION_DAYS</text>
+    <text x="170" y="85" class="message-text" fill="#6B7280">7 days (default)</text>
+
+    <text x="20" y="110" class="message-text">delete_images</text>
+    <text x="170" y="110" class="message-text" fill="#6B7280">False (default)</text>
+
+    <text x="20" y="135" class="note-text" fill="#DC2626">Cleanup runs at CLEANUP_TIME (03:00)</text>
+  </g>
+</svg>

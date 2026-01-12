@@ -289,8 +289,8 @@ class TestCalculateAdjustment:
         assert adjustment.high_delta > 0
         assert adjustment.feedback_type == FeedbackType.FALSE_POSITIVE
 
-    def test_missed_detection_lowers_thresholds(self) -> None:
-        """Test that MISSED_DETECTION feedback results in negative deltas."""
+    def test_missed_threat_lowers_thresholds(self) -> None:
+        """Test that MISSED_THREAT feedback results in negative deltas."""
         service = CalibrationService()
         adjustment = service.calculate_adjustment(
             feedback_type=FeedbackType.MISSED_THREAT,
@@ -317,8 +317,8 @@ class TestCalculateAdjustment:
         )
         assert high_adj.low_delta >= low_adj.low_delta
 
-    def test_lower_risk_score_larger_missed_detection_adjustment(self) -> None:
-        """Test that lower risk scores lead to larger adjustments for missed detections."""
+    def test_lower_risk_score_larger_missed_threat_adjustment(self) -> None:
+        """Test that lower risk scores lead to larger adjustments for missed threats."""
         service = CalibrationService()
         high_score_adj = service.calculate_adjustment(
             feedback_type=FeedbackType.MISSED_THREAT,
@@ -396,19 +396,6 @@ class TestCalculateAdjustment:
         assert adjustment.medium_delta == 0
         assert adjustment.high_delta == 0
         assert adjustment.feedback_type == FeedbackType.ACCURATE
-
-    def test_correct_feedback_no_adjustment(self) -> None:
-        """Test that CORRECT feedback results in zero deltas."""
-        service = CalibrationService()
-        adjustment = service.calculate_adjustment(
-            feedback_type=FeedbackType.CORRECT,
-            risk_score=50,
-            decay_factor=0.1,
-        )
-        assert adjustment.low_delta == 0
-        assert adjustment.medium_delta == 0
-        assert adjustment.high_delta == 0
-        assert adjustment.feedback_type == FeedbackType.CORRECT
 
     def test_accurate_feedback_no_adjustment_any_score(self) -> None:
         """Test that ACCURATE feedback results in zero deltas regardless of score."""
@@ -744,8 +731,8 @@ class TestAdjustFromFeedback:
         assert result.missed_threat_count == 0
 
     @pytest.mark.asyncio
-    async def test_adjusts_on_missed_detection(self) -> None:
-        """Test that thresholds are lowered on missed detection feedback."""
+    async def test_adjusts_on_missed_threat(self) -> None:
+        """Test that thresholds are lowered on missed threat feedback."""
         service = CalibrationService()
 
         from backend.models.user_calibration import UserCalibration

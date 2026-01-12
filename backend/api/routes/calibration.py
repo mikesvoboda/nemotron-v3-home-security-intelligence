@@ -1,11 +1,12 @@
-"""API routes for UserCalibration management (NEM-2316).
+"""API routes for UserCalibration management (NEM-2316, NEM-2350).
 
 This module provides CRUD endpoints for managing user-specific risk thresholds
 that are used to categorize risk scores from the AI pipeline.
 
 Endpoints:
     GET    /api/calibration           - Get current user's calibration
-    PUT    /api/calibration           - Update calibration thresholds
+    PUT    /api/calibration           - Update calibration thresholds (full update)
+    PATCH  /api/calibration           - Partial update calibration thresholds
     POST   /api/calibration/reset     - Reset to default thresholds
     GET    /api/calibration/defaults  - Get default threshold values
 

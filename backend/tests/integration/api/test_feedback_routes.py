@@ -132,7 +132,7 @@ async def test_create_feedback_with_notes(client):
 
     feedback_data = {
         "event_id": event["id"],
-        "feedback_type": "missed_detection",
+        "feedback_type": "missed_threat",
         "notes": "There was a person in the corner of the frame",
     }
 
@@ -141,7 +141,7 @@ async def test_create_feedback_with_notes(client):
     assert response.status_code == 201
     data = response.json()
     assert data["event_id"] == event["id"]
-    assert data["feedback_type"] == "missed_detection"
+    assert data["feedback_type"] == "missed_threat"
     assert data["notes"] == "There was a person in the corner of the frame"
 
 
@@ -149,13 +149,13 @@ async def test_create_feedback_with_notes(client):
 async def test_create_feedback_all_feedback_types(client):
     """Test feedback creation with all valid feedback types.
 
-    Note: Currently only testing false_positive and missed_detection as these
+    Note: Currently only testing false_positive and missed_threat as these
     are the types validated by the database check constraint. Additional types
     (wrong_severity, correct) are defined in the schema but require a database
     migration to update the constraint.
     """
     # Core feedback types supported by the database constraint
-    feedback_types = ["false_positive", "missed_detection"]
+    feedback_types = ["false_positive", "missed_threat"]
 
     for feedback_type in feedback_types:
         _, event = await create_test_camera_and_event(client)
@@ -266,14 +266,14 @@ async def test_get_feedback_by_id_not_found(client):
 async def test_get_feedback_by_event_id_success(client):
     """Test getting feedback for a specific event."""
     _, event = await create_test_camera_and_event(client)
-    feedback = await create_test_feedback(client, event["id"], feedback_type="missed_detection")
+    feedback = await create_test_feedback(client, event["id"], feedback_type="missed_threat")
 
     response = await client.get(f"/api/feedback/event/{event['id']}")
 
     assert response.status_code == 200
     data = response.json()
     assert data["event_id"] == event["id"]
-    assert data["feedback_type"] == "missed_detection"
+    assert data["feedback_type"] == "missed_threat"
     assert data["id"] == feedback["id"]
 
 
@@ -301,7 +301,7 @@ async def test_list_feedback_success(client):
     _, event2 = await create_test_camera_and_event(client)
 
     await create_test_feedback(client, event1["id"], feedback_type="false_positive")
-    await create_test_feedback(client, event2["id"], feedback_type="missed_detection")
+    await create_test_feedback(client, event2["id"], feedback_type="missed_threat")
 
     response = await client.get("/api/feedback")
 
@@ -414,7 +414,7 @@ async def test_get_feedback_stats_success(client):
 
     await create_test_feedback(client, event1["id"], feedback_type="false_positive")
     await create_test_feedback(client, event2["id"], feedback_type="false_positive")
-    await create_test_feedback(client, event3["id"], feedback_type="missed_detection")
+    await create_test_feedback(client, event3["id"], feedback_type="missed_threat")
 
     response = await client.get("/api/feedback/stats")
 
@@ -431,13 +431,13 @@ async def test_get_feedback_stats_success(client):
 @pytest.mark.asyncio
 async def test_get_feedback_stats_by_type_aggregation(client):
     """Test that stats correctly aggregate by feedback type."""
-    # Create 2 false_positive and 1 missed_detection
+    # Create 2 false_positive and 1 missed_threat
     for _ in range(2):
         _, event = await create_test_camera_and_event(client)
         await create_test_feedback(client, event["id"], feedback_type="false_positive")
 
     _, event = await create_test_camera_and_event(client)
-    await create_test_feedback(client, event["id"], feedback_type="missed_detection")
+    await create_test_feedback(client, event["id"], feedback_type="missed_threat")
 
     response = await client.get("/api/feedback/stats")
 

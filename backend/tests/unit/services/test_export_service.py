@@ -696,6 +696,653 @@ class TestExportService:
         assert header == 'inline; filename="events.csv"'
 
 
+class TestEventsToCSVStreaming:
+    """Tests for CSV streaming generation."""
+
+    @pytest.fixture
+    def sample_events(self) -> list[EventExportRow]:
+        """Create sample events for testing."""
+        return [
+            EventExportRow(
+                event_id=1,
+                camera_name="Front Door",
+                started_at=datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC),
+                ended_at=datetime(2024, 1, 15, 10, 31, 30, tzinfo=UTC),
+                risk_score=75,
+                risk_level="high",
+                summary="Person detected at entrance",
+                detection_count=3,
+                reviewed=False,
+            ),
+            EventExportRow(
+                event_id=2,
+                camera_name="Back Yard",
+                started_at=datetime(2024, 1, 15, 11, 0, 0, tzinfo=UTC),
+                ended_at=None,
+                risk_score=25,
+                risk_level="low",
+                summary="Cat in garden",
+                detection_count=1,
+                reviewed=True,
+            ),
+        ]
+
+    def test_streaming_yields_chunks(self, sample_events: list[EventExportRow]):
+        """Test that streaming yields chunks of CSV data."""
+        from backend.services.export_service import events_to_csv_streaming
+
+        chunks = list(events_to_csv_streaming(sample_events))
+
+        # Should have at least header + 2 data rows
+        assert len(chunks) >= 3
+
+    def test_streaming_first_chunk_is_header(self, sample_events: list[EventExportRow]):
+        """Test that first chunk contains header row."""
+        from backend.services.export_service import events_to_csv_streaming
+
+        chunks = list(events_to_csv_streaming(sample_events))
+        first_chunk = chunks[0]
+
+        assert "Event ID" in first_chunk
+        assert "Camera" in first_chunk
+
+    def test_streaming_contains_data(self, sample_events: list[EventExportRow]):
+        """Test that streaming contains event data."""
+        from backend.services.export_service import events_to_csv_streaming
+
+        chunks = list(events_to_csv_streaming(sample_events))
+        all_content = "".join(chunks)
+
+        assert "Front Door" in all_content
+        assert "Back Yard" in all_content
+
+    def test_streaming_with_empty_list(self):
+        """Test streaming with empty event list."""
+        from backend.services.export_service import events_to_csv_streaming
+
+        chunks = list(events_to_csv_streaming([]))
+
+        # Should only yield header
+        assert len(chunks) == 1
+        assert "Event ID" in chunks[0]
+
+    def test_streaming_with_custom_columns(self, sample_events: list[EventExportRow]):
+        """Test streaming with custom columns."""
+        from backend.services.export_service import events_to_csv_streaming
+
+        columns = [
+            ("event_id", "ID"),
+            ("camera_name", "Camera"),
+        ]
+
+        chunks = list(events_to_csv_streaming(sample_events, columns=columns))
+        first_chunk = chunks[0]
+
+        assert "ID" in first_chunk
+        assert "Camera" in first_chunk
+        assert "Risk Score" not in first_chunk
+
+
+@pytest.mark.asyncio
+class TestExportServiceWithProgress:
+    """Tests for export service with progress tracking."""
+
+    @pytest.fixture
+    async def mock_db(self):
+        """Create a mock database session."""
+        from unittest.mock import AsyncMock
+
+        db = AsyncMock()
+        db.execute = AsyncMock()
+        return db
+
+    @pytest.fixture
+    def mock_job_tracker(self):
+        """Create a mock job tracker."""
+        from unittest.mock import MagicMock
+
+        tracker = MagicMock()
+        tracker.update_progress = MagicMock()
+        return tracker
+
+    async def test_export_with_progress_no_db_raises_error(self):
+        """Test that export with progress raises error without database."""
+        from unittest.mock import MagicMock
+
+        service = ExportService()
+        tracker = MagicMock()
+
+        with pytest.raises(ValueError, match="Database session required"):
+            await service.export_events_with_progress(
+                job_id="test-job",
+                job_tracker=tracker,
+                export_format="csv",
+            )
+
+    async def test_export_with_progress_empty_results(self, mock_db, mock_job_tracker):
+        """Test export with progress when no events match filters."""
+        from unittest.mock import MagicMock
+
+        # Mock empty count result
+        count_result = MagicMock()
+        count_result.scalar.return_value = 0
+        mock_db.execute.return_value = count_result
+
+        service = ExportService(db=mock_db)
+
+        result = await service.export_events_with_progress(
+            job_id="test-job",
+            job_tracker=mock_job_tracker,
+            export_format="csv",
+        )
+
+        # Should create empty export
+        assert result["event_count"] == 0
+        assert result["format"] == "csv"
+        assert "file_path" in result
+
+        # Should update progress
+        mock_job_tracker.update_progress.assert_called()
+
+    async def test_export_with_progress_invalid_format(self, mock_db, mock_job_tracker):
+        """Test export with progress with invalid format."""
+        from unittest.mock import MagicMock
+
+        # Mock empty count
+        count_result = MagicMock()
+        count_result.scalar.return_value = 0
+        mock_db.execute.return_value = count_result
+
+        service = ExportService(db=mock_db)
+
+        with pytest.raises(ValueError, match="Unsupported export format"):
+            await service.export_events_with_progress(
+                job_id="test-job",
+                job_tracker=mock_job_tracker,
+                export_format="invalid",
+            )
+
+    async def test_export_with_progress_csv_format(self, mock_db, mock_job_tracker):
+        """Test export with progress for CSV format."""
+        from unittest.mock import AsyncMock, MagicMock
+
+        # Mock event query result using MagicMock
+        event = MagicMock()
+        event.id = 1
+        event.camera_id = "cam-1"
+        event.started_at = datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC)
+        event.ended_at = datetime(2024, 1, 15, 10, 31, 30, tzinfo=UTC)
+        event.risk_score = 75
+        event.risk_level = "high"
+        event.summary = "Test event"
+        event.detection_count = 3
+        event.reviewed = False
+        event.object_types = None
+        event.reasoning = None
+
+        event_result = MagicMock()
+        event_result.scalars.return_value.all.return_value = [event]
+
+        # Mock camera query result
+        camera_result = MagicMock()
+        camera_result.scalar.return_value = "Front Door"
+
+        # Mock count result
+        count_result = MagicMock()
+        count_result.scalar.return_value = 1
+
+        # Setup mock side_effect to return different results per call
+        # Order: count query, events query, camera query (for each event)
+        mock_db.execute = AsyncMock(side_effect=[count_result, event_result, camera_result])
+
+        service = ExportService(db=mock_db)
+
+        result = await service.export_events_with_progress(
+            job_id="test-job",
+            job_tracker=mock_job_tracker,
+            export_format="csv",
+        )
+
+        assert result["format"] == "csv"
+        assert result["event_count"] == 1
+        assert result["file_path"].endswith(".csv")
+        assert result["file_size"] > 0
+
+    async def test_export_with_progress_json_format(self, mock_db, mock_job_tracker):
+        """Test export with progress for JSON format."""
+        from unittest.mock import AsyncMock, MagicMock
+
+        # Mock event query result
+        event = MagicMock()
+        event.id = 1
+        event.camera_id = "cam-1"
+        event.started_at = datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC)
+        event.ended_at = None
+        event.risk_score = 75
+        event.risk_level = "high"
+        event.summary = "Test"
+        event.detection_count = 1
+        event.reviewed = False
+        event.object_types = None
+        event.reasoning = None
+
+        event_result = MagicMock()
+        event_result.scalars.return_value.all.return_value = [event]
+
+        # Mock camera query result
+        camera_result = MagicMock()
+        camera_result.scalar.return_value = "Camera"
+
+        # Mock count result
+        count_result = MagicMock()
+        count_result.scalar.return_value = 1
+
+        mock_db.execute = AsyncMock(side_effect=[count_result, event_result, camera_result])
+
+        service = ExportService(db=mock_db)
+
+        result = await service.export_events_with_progress(
+            job_id="test-job",
+            job_tracker=mock_job_tracker,
+            export_format="json",
+        )
+
+        assert result["format"] == "json"
+        assert result["file_path"].endswith(".json")
+
+    async def test_export_with_progress_zip_format(self, mock_db, mock_job_tracker):
+        """Test export with progress for ZIP format."""
+        from unittest.mock import AsyncMock, MagicMock
+
+        # Mock event query result
+        event = MagicMock()
+        event.id = 1
+        event.camera_id = "cam-1"
+        event.started_at = datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC)
+        event.ended_at = None
+        event.risk_score = 50
+        event.risk_level = "medium"
+        event.summary = "Test"
+        event.detection_count = 1
+        event.reviewed = False
+        event.object_types = None
+        event.reasoning = None
+
+        event_result = MagicMock()
+        event_result.scalars.return_value.all.return_value = [event]
+
+        # Mock camera query result
+        camera_result = MagicMock()
+        camera_result.scalar.return_value = "Camera"
+
+        # Mock count result
+        count_result = MagicMock()
+        count_result.scalar.return_value = 1
+
+        mock_db.execute = AsyncMock(side_effect=[count_result, event_result, camera_result])
+
+        service = ExportService(db=mock_db)
+
+        result = await service.export_events_with_progress(
+            job_id="test-job",
+            job_tracker=mock_job_tracker,
+            export_format="zip",
+        )
+
+        assert result["format"] == "zip"
+        assert result["file_path"].endswith(".zip")
+
+    async def test_export_with_progress_applies_camera_filter(self, mock_db, mock_job_tracker):
+        """Test that camera filter is applied in query."""
+        from unittest.mock import MagicMock
+
+        # Mock empty count
+        count_result = MagicMock()
+        count_result.scalar.return_value = 0
+        mock_db.execute.return_value = count_result
+
+        service = ExportService(db=mock_db)
+
+        await service.export_events_with_progress(
+            job_id="test-job",
+            job_tracker=mock_job_tracker,
+            export_format="csv",
+            camera_id="cam-123",
+        )
+
+        # Should have called execute (filter logic is in SQL)
+        assert mock_db.execute.called
+
+    async def test_export_with_progress_applies_risk_level_filter(self, mock_db, mock_job_tracker):
+        """Test that risk level filter is applied in query."""
+        from unittest.mock import MagicMock
+
+        # Mock empty count
+        count_result = MagicMock()
+        count_result.scalar.return_value = 0
+        mock_db.execute.return_value = count_result
+
+        service = ExportService(db=mock_db)
+
+        await service.export_events_with_progress(
+            job_id="test-job",
+            job_tracker=mock_job_tracker,
+            export_format="csv",
+            risk_level="high",
+        )
+
+        assert mock_db.execute.called
+
+    async def test_export_with_progress_applies_date_filters(self, mock_db, mock_job_tracker):
+        """Test that date filters are applied in query."""
+        from unittest.mock import MagicMock
+
+        # Mock empty count
+        count_result = MagicMock()
+        count_result.scalar.return_value = 0
+        mock_db.execute.return_value = count_result
+
+        service = ExportService(db=mock_db)
+
+        await service.export_events_with_progress(
+            job_id="test-job",
+            job_tracker=mock_job_tracker,
+            export_format="csv",
+            start_date="2024-01-15T00:00:00Z",
+            end_date="2024-01-16T00:00:00Z",
+        )
+
+        assert mock_db.execute.called
+
+    async def test_export_with_progress_applies_reviewed_filter(self, mock_db, mock_job_tracker):
+        """Test that reviewed filter is applied in query."""
+        from unittest.mock import MagicMock
+
+        # Mock empty count
+        count_result = MagicMock()
+        count_result.scalar.return_value = 0
+        mock_db.execute.return_value = count_result
+
+        service = ExportService(db=mock_db)
+
+        await service.export_events_with_progress(
+            job_id="test-job",
+            job_tracker=mock_job_tracker,
+            export_format="csv",
+            reviewed=True,
+        )
+
+        assert mock_db.execute.called
+
+
+@pytest.mark.asyncio
+class TestCreateEmptyExport:
+    """Tests for _create_empty_export method."""
+
+    async def test_create_empty_csv(self):
+        """Test creating empty CSV export."""
+        service = ExportService()
+
+        result = await service._create_empty_export("csv")
+
+        assert result["format"] == "csv"
+        assert result["event_count"] == 0
+        assert result["file_path"].endswith(".csv")
+        assert result["file_size"] > 0
+
+    async def test_create_empty_json(self):
+        """Test creating empty JSON export."""
+        service = ExportService()
+
+        result = await service._create_empty_export("json")
+
+        assert result["format"] == "json"
+        assert result["event_count"] == 0
+        assert result["file_path"].endswith(".json")
+        assert result["file_size"] > 0
+
+    async def test_create_empty_zip(self):
+        """Test creating empty ZIP export."""
+        service = ExportService()
+
+        result = await service._create_empty_export("zip")
+
+        assert result["format"] == "zip"
+        assert result["event_count"] == 0
+        assert result["file_path"].endswith(".zip")
+        assert result["file_size"] > 0
+
+    async def test_create_empty_invalid_format(self):
+        """Test creating empty export with invalid format."""
+        service = ExportService()
+
+        with pytest.raises(ValueError, match="Unsupported export format"):
+            await service._create_empty_export("invalid")
+
+
+@pytest.mark.asyncio
+class TestExportServiceWithWebSocket:
+    """Tests for export service with WebSocket progress reporting."""
+
+    @pytest.fixture
+    async def mock_db(self):
+        """Create a mock database session."""
+        from unittest.mock import AsyncMock
+
+        db = AsyncMock()
+        db.execute = AsyncMock()
+        return db
+
+    @pytest.fixture
+    def mock_progress_reporter(self):
+        """Create a mock progress reporter."""
+        from unittest.mock import AsyncMock, MagicMock
+
+        reporter = MagicMock()
+        reporter.start = AsyncMock()
+        reporter.report_progress = AsyncMock()
+        reporter.complete = AsyncMock()
+        reporter.fail = AsyncMock()
+        reporter.job_id = "test-job-123"
+        reporter.duration_seconds = 1.23
+        return reporter
+
+    async def test_export_with_websocket_no_db_raises_error(self, mock_progress_reporter):
+        """Test that export with websocket raises error without database."""
+        service = ExportService()
+
+        with pytest.raises(ValueError, match="Database session required"):
+            await service.export_events_with_websocket(
+                progress_reporter=mock_progress_reporter,
+                export_format="csv",
+            )
+
+    async def test_export_with_websocket_starts_reporter(self, mock_db, mock_progress_reporter):
+        """Test that reporter is started with metadata."""
+        from unittest.mock import MagicMock
+
+        # Mock empty count
+        count_result = MagicMock()
+        count_result.scalar.return_value = 0
+        mock_db.execute.return_value = count_result
+
+        service = ExportService(db=mock_db)
+
+        await service.export_events_with_websocket(
+            progress_reporter=mock_progress_reporter,
+            export_format="csv",
+        )
+
+        # Verify reporter was started with metadata
+        mock_progress_reporter.start.assert_called_once()
+        call_args = mock_progress_reporter.start.call_args
+        assert "metadata" in call_args[1]
+        assert call_args[1]["metadata"]["export_format"] == "csv"
+
+    async def test_export_with_websocket_completes_successfully(
+        self, mock_db, mock_progress_reporter
+    ):
+        """Test that successful export completes the reporter."""
+        from unittest.mock import MagicMock
+
+        # Mock empty count
+        count_result = MagicMock()
+        count_result.scalar.return_value = 0
+        mock_db.execute.return_value = count_result
+
+        service = ExportService(db=mock_db)
+
+        result = await service.export_events_with_websocket(
+            progress_reporter=mock_progress_reporter,
+            export_format="csv",
+        )
+
+        # Verify reporter was completed
+        mock_progress_reporter.complete.assert_called_once()
+        assert result["event_count"] == 0
+
+    async def test_export_with_websocket_reports_progress(self, mock_db, mock_progress_reporter):
+        """Test that progress is reported during export."""
+        from unittest.mock import AsyncMock, MagicMock
+
+        # Mock event
+        event = MagicMock()
+        event.id = 1
+        event.camera_id = "cam-1"
+        event.started_at = datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC)
+        event.ended_at = None
+        event.risk_score = 75
+        event.risk_level = "high"
+        event.summary = "Test"
+        event.detection_count = 1
+        event.reviewed = False
+        event.object_types = None
+        event.reasoning = None
+
+        event_result = MagicMock()
+        event_result.scalars.return_value.all.return_value = [event]
+
+        camera_result = MagicMock()
+        camera_result.scalar.return_value = "Camera"
+
+        # Mock count result
+        count_result = MagicMock()
+        count_result.scalar.return_value = 1
+
+        mock_db.execute = AsyncMock(side_effect=[count_result, event_result, camera_result])
+
+        service = ExportService(db=mock_db)
+
+        await service.export_events_with_websocket(
+            progress_reporter=mock_progress_reporter,
+            export_format="csv",
+        )
+
+        # Verify progress was reported
+        assert mock_progress_reporter.report_progress.call_count > 0
+
+    async def test_export_with_websocket_handles_exception(self, mock_db, mock_progress_reporter):
+        """Test that exceptions are handled and reporter fails."""
+
+        # Mock database to raise exception
+        mock_db.execute.side_effect = RuntimeError("Database error")
+
+        service = ExportService(db=mock_db)
+
+        with pytest.raises(RuntimeError, match="Database error"):
+            await service.export_events_with_websocket(
+                progress_reporter=mock_progress_reporter,
+                export_format="csv",
+            )
+
+        # Verify reporter was failed
+        mock_progress_reporter.fail.assert_called_once()
+        call_args = mock_progress_reporter.fail.call_args
+        assert isinstance(call_args[0][0], RuntimeError)
+
+    async def test_export_with_websocket_invalid_format(self, mock_db, mock_progress_reporter):
+        """Test export with websocket with invalid format."""
+        from unittest.mock import AsyncMock, MagicMock
+
+        # Mock event
+        event = MagicMock()
+        event.id = 1
+        event.camera_id = "cam-1"
+        event.started_at = datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC)
+        event.ended_at = None
+        event.risk_score = 75
+        event.risk_level = "high"
+        event.summary = "Test"
+        event.detection_count = 1
+        event.reviewed = False
+        event.object_types = None
+        event.reasoning = None
+
+        event_result = MagicMock()
+        event_result.scalars.return_value.all.return_value = [event]
+
+        camera_result = MagicMock()
+        camera_result.scalar.return_value = "Camera"
+
+        # Mock count result
+        count_result = MagicMock()
+        count_result.scalar.return_value = 1
+
+        mock_db.execute = AsyncMock(side_effect=[count_result, event_result, camera_result])
+
+        service = ExportService(db=mock_db)
+
+        with pytest.raises(ValueError, match="Unsupported export format"):
+            await service.export_events_with_websocket(
+                progress_reporter=mock_progress_reporter,
+                export_format="invalid",
+            )
+
+        # Verify reporter was failed
+        mock_progress_reporter.fail.assert_called_once()
+
+    async def test_export_with_websocket_includes_duration(self, mock_db, mock_progress_reporter):
+        """Test that result includes duration from reporter when events exist."""
+        from unittest.mock import AsyncMock, MagicMock
+
+        # Mock event
+        event = MagicMock()
+        event.id = 1
+        event.camera_id = "cam-1"
+        event.started_at = datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC)
+        event.ended_at = None
+        event.risk_score = 75
+        event.risk_level = "high"
+        event.summary = "Test"
+        event.detection_count = 1
+        event.reviewed = False
+        event.object_types = None
+        event.reasoning = None
+
+        event_result = MagicMock()
+        event_result.scalars.return_value.all.return_value = [event]
+
+        camera_result = MagicMock()
+        camera_result.scalar.return_value = "Camera"
+
+        # Mock count result with 1 event
+        count_result = MagicMock()
+        count_result.scalar.return_value = 1
+
+        mock_db.execute = AsyncMock(side_effect=[count_result, event_result, camera_result])
+
+        service = ExportService(db=mock_db)
+
+        result = await service.export_events_with_websocket(
+            progress_reporter=mock_progress_reporter,
+            export_format="csv",
+        )
+
+        # Verify duration is included when events exist
+        assert "duration_seconds" in result
+        assert result["duration_seconds"] == 1.23
+
+
 class TestExportConstants:
     """Tests for export constant definitions."""
 

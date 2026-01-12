@@ -1716,3 +1716,892 @@ async def test_poll_loop_error_logging_includes_context(mock_pynvml, mock_databa
 
     # Should have logged an error from the poll loop
     assert any("Error in GPU monitor poll loop" in record.message for record in caplog.records)
+
+
+# =============================================================================
+# Async Context Manager Tests
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_gpu_monitor_async_context_manager(mock_pynvml, mock_database_session):
+    """Test GPUMonitor as async context manager.
+
+    Given: A GPUMonitor instance
+    When: Used with async with statement
+    Then: Starts automatically on enter, stops on exit
+    """
+    async with GPUMonitor(poll_interval=0.05) as monitor:
+        assert monitor.running is True
+        assert monitor._poll_task is not None
+
+    # After exiting context, should be stopped
+    assert monitor.running is False
+
+
+@pytest.mark.asyncio
+async def test_gpu_monitor_async_context_manager_with_exception(mock_pynvml, mock_database_session):
+    """Test GPUMonitor async context manager handles exceptions gracefully.
+
+    Given: A GPUMonitor instance used as async context manager
+    When: An exception is raised inside the context
+    Then: Monitor is still properly cleaned up and stopped
+    """
+    monitor = None
+    try:
+        async with GPUMonitor(poll_interval=0.05) as mon:
+            monitor = mon
+            assert monitor.running is True
+            raise ValueError("Test exception")
+    except ValueError:
+        pass
+
+    # Should still have stopped despite exception
+    assert monitor is not None
+    assert monitor.running is False
+
+
+# =============================================================================
+# Memory Pressure Monitoring Tests (NEM-1727)
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_check_memory_pressure_normal(mock_pynvml):
+    """Test memory pressure detection when usage is normal (<85%).
+
+    Given: GPU memory usage is 50% (normal level)
+    When: check_memory_pressure() is called
+    Then: Returns NORMAL pressure level
+    """
+    from backend.services.gpu_monitor import MemoryPressureLevel
+
+    monitor = GPUMonitor()
+
+    # Mock stats with 50% memory usage (12288 MB used of 24576 MB)
+    mock_stats = {
+        "gpu_name": "Test GPU",
+        "gpu_utilization": 50.0,
+        "memory_used": 12288,  # 50% of 24576 MB
+        "memory_total": 24576,
+        "temperature": 60.0,
+        "power_usage": 100.0,
+        "recorded_at": datetime.now(UTC),
+    }
+
+    with patch.object(monitor, "get_current_stats_async", return_value=mock_stats):
+        level = await monitor.check_memory_pressure()
+
+    assert level == MemoryPressureLevel.NORMAL
+
+
+@pytest.mark.asyncio
+async def test_check_memory_pressure_warning(mock_pynvml):
+    """Test memory pressure detection when usage is in warning range (85-95%).
+
+    Given: GPU memory usage is 90% (warning level)
+    When: check_memory_pressure() is called
+    Then: Returns WARNING pressure level
+    """
+    from backend.services.gpu_monitor import MemoryPressureLevel
+
+    monitor = GPUMonitor()
+
+    # Mock stats with 90% memory usage (22118 MB used of 24576 MB)
+    mock_stats = {
+        "gpu_name": "Test GPU",
+        "gpu_utilization": 80.0,
+        "memory_used": 22118,  # 90% of 24576 MB
+        "memory_total": 24576,
+        "temperature": 70.0,
+        "power_usage": 150.0,
+        "recorded_at": datetime.now(UTC),
+    }
+
+    with patch.object(monitor, "get_current_stats_async", return_value=mock_stats):
+        level = await monitor.check_memory_pressure()
+
+    assert level == MemoryPressureLevel.WARNING
+
+
+@pytest.mark.asyncio
+async def test_check_memory_pressure_critical(mock_pynvml):
+    """Test memory pressure detection when usage is critical (>=95%).
+
+    Given: GPU memory usage is 96% (critical level)
+    When: check_memory_pressure() is called
+    Then: Returns CRITICAL pressure level
+    """
+    from backend.services.gpu_monitor import MemoryPressureLevel
+
+    monitor = GPUMonitor()
+
+    # Mock stats with 96% memory usage (23592 MB used of 24576 MB)
+    mock_stats = {
+        "gpu_name": "Test GPU",
+        "gpu_utilization": 95.0,
+        "memory_used": 23592,  # 96% of 24576 MB
+        "memory_total": 24576,
+        "temperature": 85.0,
+        "power_usage": 200.0,
+        "recorded_at": datetime.now(UTC),
+    }
+
+    with patch.object(monitor, "get_current_stats_async", return_value=mock_stats):
+        level = await monitor.check_memory_pressure()
+
+    assert level == MemoryPressureLevel.CRITICAL
+
+
+@pytest.mark.asyncio
+async def test_check_memory_pressure_missing_memory_stats(mock_pynvml):
+    """Test memory pressure when memory stats are unavailable.
+
+    Given: GPU stats have None for memory_used or memory_total
+    When: check_memory_pressure() is called
+    Then: Returns NORMAL to avoid unnecessary throttling
+    """
+    from backend.services.gpu_monitor import MemoryPressureLevel
+
+    monitor = GPUMonitor()
+
+    # Mock stats with missing memory data
+    mock_stats = {
+        "gpu_name": "Test GPU",
+        "gpu_utilization": 50.0,
+        "memory_used": None,
+        "memory_total": None,
+        "temperature": 60.0,
+        "power_usage": 100.0,
+        "recorded_at": datetime.now(UTC),
+    }
+
+    with patch.object(monitor, "get_current_stats_async", return_value=mock_stats):
+        level = await monitor.check_memory_pressure()
+
+    assert level == MemoryPressureLevel.NORMAL
+
+
+@pytest.mark.asyncio
+async def test_check_memory_pressure_zero_total_memory(mock_pynvml):
+    """Test memory pressure when total memory is zero.
+
+    Given: GPU stats have memory_total = 0
+    When: check_memory_pressure() is called
+    Then: Returns NORMAL to avoid division by zero
+    """
+    from backend.services.gpu_monitor import MemoryPressureLevel
+
+    monitor = GPUMonitor()
+
+    # Mock stats with zero total memory
+    mock_stats = {
+        "gpu_name": "Test GPU",
+        "gpu_utilization": 50.0,
+        "memory_used": 1000,
+        "memory_total": 0,
+        "temperature": 60.0,
+        "power_usage": 100.0,
+        "recorded_at": datetime.now(UTC),
+    }
+
+    with patch.object(monitor, "get_current_stats_async", return_value=mock_stats):
+        level = await monitor.check_memory_pressure()
+
+    assert level == MemoryPressureLevel.NORMAL
+
+
+@pytest.mark.asyncio
+async def test_check_memory_pressure_error_returns_normal(mock_pynvml):
+    """Test that memory pressure check returns NORMAL on error.
+
+    Given: get_current_stats_async raises an exception
+    When: check_memory_pressure() is called
+    Then: Returns NORMAL to avoid unnecessary throttling, error is logged
+    """
+    from backend.services.gpu_monitor import MemoryPressureLevel
+
+    monitor = GPUMonitor()
+
+    with patch.object(monitor, "get_current_stats_async", side_effect=Exception("GPU stats error")):
+        level = await monitor.check_memory_pressure()
+
+    assert level == MemoryPressureLevel.NORMAL
+
+
+@pytest.mark.asyncio
+async def test_memory_pressure_callback_on_level_change(mock_pynvml):
+    """Test that callbacks are invoked when memory pressure level changes.
+
+    Given: A callback is registered for memory pressure changes
+    When: Memory pressure transitions from NORMAL to WARNING
+    Then: Callback is invoked with new and old levels
+    """
+    from backend.services.gpu_monitor import MemoryPressureLevel
+
+    monitor = GPUMonitor()
+
+    callback_invoked = False
+    new_level_received = None
+    old_level_received = None
+
+    def memory_pressure_callback(new_level, old_level):
+        nonlocal callback_invoked, new_level_received, old_level_received
+        callback_invoked = True
+        new_level_received = new_level
+        old_level_received = old_level
+
+    monitor.register_memory_pressure_callback(memory_pressure_callback)
+
+    # Start at NORMAL
+    mock_normal_stats = {
+        "gpu_name": "Test GPU",
+        "memory_used": 12288,  # 50%
+        "memory_total": 24576,
+        "recorded_at": datetime.now(UTC),
+    }
+
+    # Transition to WARNING
+    mock_warning_stats = {
+        "gpu_name": "Test GPU",
+        "memory_used": 22118,  # 90%
+        "memory_total": 24576,
+        "recorded_at": datetime.now(UTC),
+    }
+
+    with patch.object(monitor, "get_current_stats_async", return_value=mock_normal_stats):
+        await monitor.check_memory_pressure()
+
+    # Now trigger warning
+    with patch.object(monitor, "get_current_stats_async", return_value=mock_warning_stats):
+        await monitor.check_memory_pressure()
+
+    assert callback_invoked is True
+    assert new_level_received == MemoryPressureLevel.WARNING
+    assert old_level_received == MemoryPressureLevel.NORMAL
+
+
+@pytest.mark.asyncio
+async def test_memory_pressure_callback_async_support(mock_pynvml):
+    """Test that async callbacks are supported for memory pressure changes.
+
+    Given: An async callback is registered for memory pressure changes
+    When: Memory pressure level changes
+    Then: Async callback is awaited properly
+    """
+
+    monitor = GPUMonitor()
+
+    callback_invoked = False
+
+    async def async_memory_pressure_callback(new_level, old_level):
+        nonlocal callback_invoked
+        await asyncio.sleep(0.01)  # Simulate async work
+        callback_invoked = True
+
+    monitor.register_memory_pressure_callback(async_memory_pressure_callback)
+
+    # Transition from NORMAL to CRITICAL
+    mock_critical_stats = {
+        "gpu_name": "Test GPU",
+        "memory_used": 23592,  # 96%
+        "memory_total": 24576,
+        "recorded_at": datetime.now(UTC),
+    }
+
+    with patch.object(monitor, "get_current_stats_async", return_value=mock_critical_stats):
+        await monitor.check_memory_pressure()
+
+    assert callback_invoked is True
+
+
+@pytest.mark.asyncio
+async def test_memory_pressure_callback_error_handling(mock_pynvml, caplog):
+    """Test that callback errors don't crash memory pressure monitoring.
+
+    Given: A callback that raises an exception
+    When: Memory pressure level changes
+    Then: Error is logged but monitoring continues
+    """
+    import logging
+
+    from backend.services.gpu_monitor import MemoryPressureLevel
+
+    monitor = GPUMonitor()
+
+    def failing_callback(new_level, old_level):
+        raise ValueError("Callback error")
+
+    monitor.register_memory_pressure_callback(failing_callback)
+
+    # Transition to WARNING
+    mock_warning_stats = {
+        "gpu_name": "Test GPU",
+        "memory_used": 22118,  # 90%
+        "memory_total": 24576,
+        "recorded_at": datetime.now(UTC),
+    }
+
+    with (
+        patch.object(monitor, "get_current_stats_async", return_value=mock_warning_stats),
+        caplog.at_level(logging.ERROR),
+    ):
+        level = await monitor.check_memory_pressure()
+
+    # Should still return the correct level despite callback error
+    assert level == MemoryPressureLevel.WARNING
+    assert any("Memory pressure callback failed" in record.message for record in caplog.records)
+
+
+@pytest.mark.asyncio
+async def test_memory_pressure_metrics(mock_pynvml):
+    """Test memory pressure metrics tracking.
+
+    Given: Multiple memory pressure transitions occur
+    When: get_memory_pressure_metrics() is called
+    Then: Returns metrics including current level, thresholds, and event counts
+    """
+
+    monitor = GPUMonitor()
+
+    # Initial metrics
+    metrics = monitor.get_memory_pressure_metrics()
+    assert metrics["current_level"] == "normal"
+    assert metrics["total_warning_events"] == 0
+    assert metrics["total_critical_events"] == 0
+
+    # Trigger WARNING
+    mock_warning_stats = {
+        "gpu_name": "Test GPU",
+        "memory_used": 22118,  # 90%
+        "memory_total": 24576,
+        "recorded_at": datetime.now(UTC),
+    }
+
+    with patch.object(monitor, "get_current_stats_async", return_value=mock_warning_stats):
+        await monitor.check_memory_pressure()
+
+    metrics = monitor.get_memory_pressure_metrics()
+    assert metrics["current_level"] == "warning"
+    assert metrics["total_warning_events"] == 1
+    assert metrics["last_warning_event_at"] is not None
+
+    # Trigger CRITICAL
+    mock_critical_stats = {
+        "gpu_name": "Test GPU",
+        "memory_used": 23592,  # 96%
+        "memory_total": 24576,
+        "recorded_at": datetime.now(UTC),
+    }
+
+    with patch.object(monitor, "get_current_stats_async", return_value=mock_critical_stats):
+        await monitor.check_memory_pressure()
+
+    metrics = monitor.get_memory_pressure_metrics()
+    assert metrics["current_level"] == "critical"
+    assert metrics["total_critical_events"] == 1
+    assert metrics["last_critical_event_at"] is not None
+
+
+@pytest.mark.asyncio
+async def test_memory_pressure_no_callback_on_same_level(mock_pynvml):
+    """Test that callbacks are NOT invoked when pressure level stays the same.
+
+    Given: Memory pressure is at WARNING
+    When: check_memory_pressure() is called again with WARNING level stats
+    Then: Callback is not invoked (no level change)
+    """
+
+    monitor = GPUMonitor()
+
+    callback_count = 0
+
+    def memory_pressure_callback(new_level, old_level):
+        nonlocal callback_count
+        callback_count += 1
+
+    monitor.register_memory_pressure_callback(memory_pressure_callback)
+
+    # Set to WARNING
+    mock_warning_stats = {
+        "gpu_name": "Test GPU",
+        "memory_used": 22118,  # 90%
+        "memory_total": 24576,
+        "recorded_at": datetime.now(UTC),
+    }
+
+    with patch.object(monitor, "get_current_stats_async", return_value=mock_warning_stats):
+        await monitor.check_memory_pressure()
+
+    # Should have been called once (transition from NORMAL to WARNING)
+    assert callback_count == 1
+
+    # Call again with same WARNING level
+    with patch.object(monitor, "get_current_stats_async", return_value=mock_warning_stats):
+        await monitor.check_memory_pressure()
+
+    # Should still be 1 (no level change)
+    assert callback_count == 1
+
+
+# =============================================================================
+# Database Filtering Tests
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_get_stats_from_db_with_time_filter(mock_pynvml):
+    """Test database retrieval with time-based filtering.
+
+    Given: Database contains GPU stats with various timestamps
+    When: get_stats_from_db(minutes=30) is called
+    Then: Only returns stats from last 30 minutes
+    """
+    from backend.models.gpu_stats import GPUStats
+
+    monitor = GPUMonitor()
+
+    # Mock stats from different times
+    now = datetime.now(UTC)
+    mock_stats = [
+        GPUStats(
+            id=1,
+            recorded_at=now - timedelta(minutes=10),
+            gpu_name="NVIDIA RTX A5500",
+            gpu_utilization=75.0,
+            memory_used=8192,
+            memory_total=24576,
+            temperature=65.0,
+            power_usage=150.0,
+        ),
+        GPUStats(
+            id=2,
+            recorded_at=now - timedelta(minutes=20),
+            gpu_name="NVIDIA RTX A5500",
+            gpu_utilization=70.0,
+            memory_used=8000,
+            memory_total=24576,
+            temperature=63.0,
+            power_usage=145.0,
+        ),
+    ]
+
+    with patch("backend.services.gpu_monitor.get_session") as mock_get_session:
+        mock_session = AsyncMock()
+        mock_session.__aenter__.return_value = mock_session
+        mock_session.__aexit__.return_value = None
+
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = mock_stats
+        mock_session.execute.return_value = mock_result
+
+        mock_get_session.return_value = mock_session
+
+        stats = await monitor.get_stats_from_db(minutes=30)
+
+        assert len(stats) == 2
+        # Verify query was executed (filtering should be in the query)
+        mock_session.execute.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_get_stats_from_db_with_limit(mock_pynvml):
+    """Test database retrieval with result limit.
+
+    Given: Database contains many GPU stats records
+    When: get_stats_from_db(limit=5) is called
+    Then: Returns at most 5 records
+    """
+    from backend.models.gpu_stats import GPUStats
+
+    monitor = GPUMonitor()
+
+    now = datetime.now(UTC)
+    mock_stats = [
+        GPUStats(
+            id=i,
+            recorded_at=now - timedelta(minutes=i),
+            gpu_name="NVIDIA RTX A5500",
+            gpu_utilization=70.0 + i,
+            memory_used=8000 + i * 100,
+            memory_total=24576,
+            temperature=60.0 + i,
+            power_usage=140.0 + i,
+        )
+        for i in range(5)
+    ]
+
+    with patch("backend.services.gpu_monitor.get_session") as mock_get_session:
+        mock_session = AsyncMock()
+        mock_session.__aenter__.return_value = mock_session
+        mock_session.__aexit__.return_value = None
+
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = mock_stats
+        mock_session.execute.return_value = mock_result
+
+        mock_get_session.return_value = mock_session
+
+        stats = await monitor.get_stats_from_db(limit=5)
+
+        assert len(stats) == 5
+
+
+# =============================================================================
+# nvidia-smi Fallback Error Path Tests
+# =============================================================================
+
+
+def test_nvidia_smi_not_available_raises_error():
+    """Test that nvidia-smi methods raise RuntimeError when not available.
+
+    Given: nvidia-smi is not available
+    When: _get_gpu_stats_nvidia_smi() is called
+    Then: Raises RuntimeError
+    """
+    monitor = GPUMonitor.__new__(GPUMonitor)
+    monitor._nvidia_smi_available = False
+    monitor._nvidia_smi_path = None
+
+    with pytest.raises(RuntimeError, match="nvidia-smi not available"):
+        monitor._get_gpu_stats_nvidia_smi()
+
+
+@pytest.mark.asyncio
+async def test_nvidia_smi_async_not_available_raises_error():
+    """Test that async nvidia-smi methods raise RuntimeError when not available.
+
+    Given: nvidia-smi is not available
+    When: _get_gpu_stats_nvidia_smi_async() is called
+    Then: Raises RuntimeError
+    """
+    monitor = GPUMonitor.__new__(GPUMonitor)
+    monitor._nvidia_smi_available = False
+    monitor._nvidia_smi_path = None
+
+    with pytest.raises(RuntimeError, match="nvidia-smi not available"):
+        await monitor._get_gpu_stats_nvidia_smi_async()
+
+
+def test_nvidia_smi_subprocess_error():
+    """Test nvidia-smi subprocess returning error code.
+
+    Given: nvidia-smi subprocess returns non-zero exit code
+    When: _get_gpu_stats_nvidia_smi() is called
+    Then: Raises RuntimeError with stderr message
+    """
+    monitor = GPUMonitor.__new__(GPUMonitor)
+    monitor._nvidia_smi_available = True
+    monitor._nvidia_smi_path = "/usr/bin/nvidia-smi"
+    monitor._gpu_name = "Test GPU"
+
+    mock_result = MagicMock()
+    mock_result.returncode = 1
+    mock_result.stderr = (
+        "NVIDIA-SMI has failed because it couldn't communicate with the NVIDIA driver"
+    )
+
+    with (
+        patch("subprocess.run", return_value=mock_result),
+        pytest.raises(RuntimeError, match="nvidia-smi returned error"),
+    ):
+        monitor._get_gpu_stats_nvidia_smi()
+
+
+def test_nvidia_smi_unexpected_output_format():
+    """Test nvidia-smi with unexpected output format.
+
+    Given: nvidia-smi returns output with too few fields
+    When: _get_gpu_stats_nvidia_smi() is called
+    Then: Raises RuntimeError about unexpected format
+    """
+    monitor = GPUMonitor.__new__(GPUMonitor)
+    monitor._nvidia_smi_available = True
+    monitor._nvidia_smi_path = "/usr/bin/nvidia-smi"
+    monitor._gpu_name = "Test GPU"
+
+    mock_result = MagicMock()
+    mock_result.returncode = 0
+    mock_result.stdout = "39, 29.61"  # Only 2 fields instead of expected 5+
+
+    with (
+        patch("subprocess.run", return_value=mock_result),
+        pytest.raises(RuntimeError, match="Unexpected nvidia-smi output format"),
+    ):
+        monitor._get_gpu_stats_nvidia_smi()
+
+
+@pytest.mark.asyncio
+async def test_nvidia_smi_async_unexpected_output_format():
+    """Test async nvidia-smi with unexpected output format.
+
+    Given: nvidia-smi returns output with too few fields
+    When: _get_gpu_stats_nvidia_smi_async() is called
+    Then: Raises RuntimeError about unexpected format
+    """
+    monitor = GPUMonitor.__new__(GPUMonitor)
+    monitor._nvidia_smi_available = True
+    monitor._nvidia_smi_path = "/usr/bin/nvidia-smi"
+    monitor._gpu_name = "Test GPU"
+
+    mock_result = MagicMock()
+    mock_result.returncode = 0
+    mock_result.stdout = "39, 29.61"  # Only 2 fields
+    mock_result.stderr = ""
+
+    with (
+        patch(
+            "backend.core.async_utils.async_subprocess_run",
+            new_callable=AsyncMock,
+            return_value=mock_result,
+        ),
+        pytest.raises(RuntimeError, match="Unexpected nvidia-smi output format"),
+    ):
+        await monitor._get_gpu_stats_nvidia_smi_async()
+
+
+@pytest.mark.asyncio
+async def test_nvidia_smi_async_timeout():
+    """Test async nvidia-smi subprocess timeout handling.
+
+    Given: nvidia-smi subprocess times out
+    When: _get_gpu_stats_nvidia_smi_async() is called
+    Then: Raises RuntimeError about timeout
+    """
+    import subprocess
+
+    monitor = GPUMonitor.__new__(GPUMonitor)
+    monitor._nvidia_smi_available = True
+    monitor._nvidia_smi_path = "/usr/bin/nvidia-smi"
+    monitor._gpu_name = "Test GPU"
+
+    with (
+        patch(
+            "backend.core.async_utils.async_subprocess_run",
+            side_effect=subprocess.TimeoutExpired("nvidia-smi", 5.0),
+        ),
+        pytest.raises(RuntimeError, match="nvidia-smi timed out"),
+    ):
+        await monitor._get_gpu_stats_nvidia_smi_async()
+
+
+def test_nvidia_smi_generic_exception():
+    """Test nvidia-smi handling of generic exceptions.
+
+    Given: nvidia-smi subprocess raises unexpected exception
+    When: _get_gpu_stats_nvidia_smi() is called
+    Then: Raises RuntimeError wrapping the original exception
+    """
+    monitor = GPUMonitor.__new__(GPUMonitor)
+    monitor._nvidia_smi_available = True
+    monitor._nvidia_smi_path = "/usr/bin/nvidia-smi"
+    monitor._gpu_name = "Test GPU"
+
+    with (
+        patch("subprocess.run", side_effect=OSError("Permission denied")),
+        pytest.raises(RuntimeError, match="Failed to get GPU stats via nvidia-smi"),
+    ):
+        monitor._get_gpu_stats_nvidia_smi()
+
+
+@pytest.mark.asyncio
+async def test_nvidia_smi_async_generic_exception():
+    """Test async nvidia-smi handling of generic exceptions.
+
+    Given: nvidia-smi subprocess raises unexpected exception
+    When: _get_gpu_stats_nvidia_smi_async() is called
+    Then: Raises RuntimeError wrapping the original exception
+    """
+    monitor = GPUMonitor.__new__(GPUMonitor)
+    monitor._nvidia_smi_available = True
+    monitor._nvidia_smi_path = "/usr/bin/nvidia-smi"
+    monitor._gpu_name = "Test GPU"
+
+    with (
+        patch(
+            "backend.core.async_utils.async_subprocess_run",
+            side_effect=OSError("Permission denied"),
+        ),
+        pytest.raises(RuntimeError, match="Failed to get GPU stats via nvidia-smi"),
+    ):
+        await monitor._get_gpu_stats_nvidia_smi_async()
+
+
+def test_check_nvidia_smi_found_and_working(mock_pynvml_not_available):
+    """Test _check_nvidia_smi when nvidia-smi is found and works.
+
+    Given: pynvml is not available but nvidia-smi is in PATH
+    When: GPUMonitor is initialized (calls _check_nvidia_smi)
+    Then: _nvidia_smi_available is True and GPU name is set
+    """
+    mock_result = MagicMock()
+    mock_result.returncode = 0
+    mock_result.stdout = "NVIDIA RTX A5500"
+    mock_result.stderr = ""
+
+    with (
+        patch("shutil.which", return_value="/usr/bin/nvidia-smi"),
+        patch("subprocess.run", return_value=mock_result),
+    ):
+        monitor = GPUMonitor()
+
+        assert monitor._nvidia_smi_available is True
+        assert monitor._nvidia_smi_path == "/usr/bin/nvidia-smi"
+        assert monitor._gpu_name == "NVIDIA RTX A5500"
+
+
+def test_nvidia_smi_parsing_all_na_values():
+    """Test nvidia-smi parsing when all values are [N/A].
+
+    Given: nvidia-smi returns [N/A] for all metrics
+    When: _get_gpu_stats_nvidia_smi() is called
+    Then: Returns stats with all None values except GPU name
+    """
+    monitor = GPUMonitor.__new__(GPUMonitor)
+    monitor._nvidia_smi_available = True
+    monitor._nvidia_smi_path = "/usr/bin/nvidia-smi"
+    monitor._gpu_name = "Test GPU"
+
+    mock_result = MagicMock()
+    mock_result.returncode = 0
+    mock_result.stdout = "[N/A], [N/A], [N/A], [N/A], [N/A], Test GPU"
+
+    with patch("subprocess.run", return_value=mock_result):
+        stats = monitor._get_gpu_stats_nvidia_smi()
+
+        assert stats["temperature"] is None
+        assert stats["power_usage"] is None
+        assert stats["gpu_utilization"] is None
+        assert stats["memory_used"] is None
+        assert stats["memory_total"] is None
+        assert stats["gpu_name"] == "Test GPU"
+
+
+@pytest.mark.asyncio
+async def test_nvidia_smi_async_parsing_all_na_values():
+    """Test async nvidia-smi parsing when all values are [N/A].
+
+    Given: nvidia-smi returns [N/A] for all metrics
+    When: _get_gpu_stats_nvidia_smi_async() is called
+    Then: Returns stats with all None values except GPU name
+    """
+    monitor = GPUMonitor.__new__(GPUMonitor)
+    monitor._nvidia_smi_available = True
+    monitor._nvidia_smi_path = "/usr/bin/nvidia-smi"
+    monitor._gpu_name = "Test GPU"
+
+    mock_result = MagicMock()
+    mock_result.returncode = 0
+    mock_result.stdout = "[N/A], [N/A], [N/A], [N/A], [N/A], Test GPU"
+    mock_result.stderr = ""
+
+    with patch(
+        "backend.core.async_utils.async_subprocess_run",
+        new_callable=AsyncMock,
+        return_value=mock_result,
+    ):
+        stats = await monitor._get_gpu_stats_nvidia_smi_async()
+
+        assert stats["temperature"] is None
+        assert stats["power_usage"] is None
+        assert stats["gpu_utilization"] is None
+        assert stats["memory_used"] is None
+        assert stats["memory_total"] is None
+        assert stats["gpu_name"] == "Test GPU"
+
+
+def test_nvidia_smi_check_subprocess_error(mock_pynvml_not_available):
+    """Test nvidia-smi check during init when subprocess returns error.
+
+    Given: nvidia-smi found in PATH but returns error on test query
+    When: GPUMonitor is initialized
+    Then: _nvidia_smi_available is False
+    """
+    mock_result = MagicMock()
+    mock_result.returncode = 1
+    mock_result.stderr = "Error message"
+
+    with (
+        patch("shutil.which", return_value="/usr/bin/nvidia-smi"),
+        patch("subprocess.run", return_value=mock_result),
+    ):
+        monitor = GPUMonitor()
+
+        # nvidia-smi should not be marked as available
+        assert monitor._nvidia_smi_available is False
+
+
+@pytest.mark.asyncio
+async def test_get_current_stats_async_with_nvidia_smi_error(mock_pynvml_not_available):
+    """Test async stats retrieval when nvidia-smi fails.
+
+    Given: pynvml not available and nvidia-smi subprocess fails
+    When: get_current_stats_async() is called
+    Then: Falls back to AI containers or mock data
+    """
+    with patch("shutil.which", return_value="/usr/bin/nvidia-smi"):
+        monitor = GPUMonitor()
+        monitor._nvidia_smi_available = True
+
+        # Make nvidia-smi async fail
+        with patch.object(
+            monitor,
+            "_get_gpu_stats_nvidia_smi_async",
+            side_effect=RuntimeError("nvidia-smi failed"),
+        ):
+            # Mock AI containers returning None
+            with patch.object(monitor, "_get_gpu_stats_from_ai_containers", return_value=None):
+                stats = await monitor.get_current_stats_async()
+
+                # Should fall back to mock
+                assert stats["gpu_name"] == "Mock GPU (Development Mode)"
+
+
+def test_get_current_stats_with_nvidia_smi_error(mock_pynvml_not_available):
+    """Test sync stats retrieval when nvidia-smi fails.
+
+    Given: pynvml not available and nvidia-smi subprocess fails
+    When: get_current_stats() is called
+    Then: Falls back to mock data
+    """
+    with patch("shutil.which", return_value="/usr/bin/nvidia-smi"):
+        monitor = GPUMonitor()
+        monitor._nvidia_smi_available = True
+
+        # Make nvidia-smi fail
+        with patch.object(
+            monitor, "_get_gpu_stats_nvidia_smi", side_effect=RuntimeError("nvidia-smi failed")
+        ):
+            stats = monitor.get_current_stats()
+
+            # Should fall back to mock
+            assert stats["gpu_name"] == "Mock GPU (Development Mode)"
+
+
+@pytest.mark.asyncio
+async def test_get_gpu_stats_from_ai_containers_with_gpu_utilization_only():
+    """Test AI container stats when only GPU utilization is provided.
+
+    Given: RT-DETRv2 returns only gpu_utilization (no VRAM)
+    When: _get_gpu_stats_from_ai_containers() is called
+    Then: Returns stats with GPU utilization data
+    """
+    monitor = GPUMonitor()
+
+    rtdetr_response = {"gpu_utilization": 75.0}
+
+    with patch("httpx.AsyncClient") as mock_client_class:
+        mock_client = AsyncMock()
+        mock_client_class.return_value.__aenter__.return_value = mock_client
+
+        mock_rtdetr_resp = MagicMock()
+        mock_rtdetr_resp.status_code = 200
+        mock_rtdetr_resp.json.return_value = rtdetr_response
+
+        mock_client.get.return_value = mock_rtdetr_resp
+
+        stats = await monitor._get_gpu_stats_from_ai_containers()
+
+        # Should still return stats even without VRAM (gpu_utilization alone is sufficient)
+        assert stats is not None
+        assert stats["gpu_utilization"] == 75.0

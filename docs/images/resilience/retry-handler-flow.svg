@@ -1,0 +1,201 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 550" width="800" height="550">
+  <defs>
+    <linearGradient id="greenGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#10B981;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#059669;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="amberGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#F59E0B;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#D97706;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="redGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#EF4444;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#DC2626;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="blueGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3B82F6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2563EB;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="purpleGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#A855F7;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#9333EA;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="grayGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4B5563;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#374151;stop-opacity:1" />
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="2" dy="3" stdDeviation="4" flood-color="#000" flood-opacity="0.4"/>
+    </filter>
+    <marker id="arrowGray" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#6B7280"/>
+    </marker>
+    <marker id="arrowGreen" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#10B981"/>
+    </marker>
+    <marker id="arrowRed" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#EF4444"/>
+    </marker>
+    <marker id="arrowAmber" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#F59E0B"/>
+    </marker>
+    <marker id="arrowPurple" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#A855F7"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="800" height="550" fill="#111827"/>
+
+  <!-- Title -->
+  <text x="400" y="35" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="20" font-weight="bold" fill="#F9FAFB">Retry Handler with Exponential Backoff</text>
+
+  <!-- Job Processing Section -->
+  <g transform="translate(50, 60)">
+    <rect x="0" y="0" width="180" height="80" rx="10" fill="#1F2937" stroke="#374151" stroke-width="2"/>
+    <text x="90" y="22" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="600" fill="#9CA3AF">Job Processing</text>
+    <rect x="20" y="35" width="140" height="35" rx="6" fill="url(#blueGradient)" filter="url(#shadow)"/>
+    <text x="90" y="52" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="600" fill="white">Detection/Analysis</text>
+    <text x="90" y="65" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="600" fill="white">Job</text>
+  </g>
+
+  <!-- Arrow from Job to Retry Handler -->
+  <line x1="230" y1="100" x2="280" y2="100" stroke="#6B7280" stroke-width="2" marker-end="url(#arrowGray)"/>
+
+  <!-- Retry Handler Section -->
+  <g transform="translate(290, 60)">
+    <rect x="0" y="0" width="350" height="260" rx="10" fill="#1F2937" stroke="#374151" stroke-width="2"/>
+    <text x="175" y="22" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="600" fill="#9CA3AF">Retry Handler</text>
+
+    <!-- Attempt Decision -->
+    <g transform="translate(110, 40)">
+      <polygon points="65,0 130,45 65,90 0,45" fill="url(#grayGradient)" filter="url(#shadow)"/>
+      <text x="65" y="38" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="600" fill="white">Attempt</text>
+      <text x="65" y="52" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="600" fill="white">N of Max?</text>
+    </g>
+
+    <!-- Execute Operation -->
+    <g transform="translate(200, 150)">
+      <rect x="0" y="0" width="120" height="50" rx="8" fill="url(#blueGradient)" filter="url(#shadow)"/>
+      <text x="60" y="22" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="600" fill="white">Execute</text>
+      <text x="60" y="38" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="600" fill="white">Operation</text>
+    </g>
+
+    <!-- Success Check Decision -->
+    <g transform="translate(200, 210)">
+      <polygon points="60,0 120,30 60,60 0,30" fill="url(#grayGradient)" filter="url(#shadow)"/>
+      <text x="60" y="35" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="600" fill="white">Success?</text>
+    </g>
+
+    <!-- Calculate Backoff -->
+    <g transform="translate(30, 150)">
+      <rect x="0" y="0" width="120" height="50" rx="8" fill="url(#amberGradient)" filter="url(#shadow)"/>
+      <text x="60" y="22" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="600" fill="#1F2937">Calculate</text>
+      <text x="60" y="38" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="600" fill="#1F2937">Backoff Delay</text>
+    </g>
+
+    <!-- Wait with Jitter -->
+    <g transform="translate(30, 210)">
+      <rect x="0" y="0" width="120" height="40" rx="8" fill="url(#amberGradient)" filter="url(#shadow)"/>
+      <text x="60" y="17" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="600" fill="#1F2937">Wait with</text>
+      <text x="60" y="32" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="600" fill="#1F2937">Jitter</text>
+    </g>
+
+    <!-- Internal arrows -->
+    <!-- Attempt N -> Execute -->
+    <line x1="240" y1="85" x2="260" y2="150" stroke="#6B7280" stroke-width="2" marker-end="url(#arrowGray)"/>
+    <text x="265" y="115" font-family="system-ui, -apple-system, sans-serif" font-size="9" fill="#9CA3AF">Attempt N</text>
+
+    <!-- Execute -> Success Check -->
+    <line x1="260" y1="200" x2="260" y2="210" stroke="#6B7280" stroke-width="2" marker-end="url(#arrowGray)"/>
+
+    <!-- Success Check -> No -> Calculate Backoff -->
+    <line x1="200" y1="240" x2="150" y2="200" stroke="#F59E0B" stroke-width="2" marker-end="url(#arrowAmber)"/>
+    <text x="160" y="225" font-family="system-ui, -apple-system, sans-serif" font-size="9" fill="#F59E0B">No</text>
+
+    <!-- Calculate -> Wait -->
+    <line x1="90" y1="200" x2="90" y2="210" stroke="#F59E0B" stroke-width="2" marker-end="url(#arrowAmber)"/>
+
+    <!-- Wait -> Attempt (loop back) -->
+    <path d="M30 230 Q10 230 10 130 Q10 50 110 85" fill="none" stroke="#F59E0B" stroke-width="2" marker-end="url(#arrowAmber)"/>
+  </g>
+
+  <!-- DLQ Arrow from Max Exceeded -->
+  <line x1="420" y1="130" x2="420" y2="380" stroke="#A855F7" stroke-width="2"/>
+  <line x1="420" y1="380" x2="530" y2="380" stroke="#A855F7" stroke-width="2" marker-end="url(#arrowPurple)"/>
+  <text x="330" y="125" font-family="system-ui, -apple-system, sans-serif" font-size="9" fill="#A855F7">Max Exceeded</text>
+
+  <!-- Final Outcome Section -->
+  <g transform="translate(50, 380)">
+    <rect x="0" y="0" width="300" height="140" rx="10" fill="#1F2937" stroke="#374151" stroke-width="2"/>
+    <text x="150" y="22" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="600" fill="#9CA3AF">Final Outcome</text>
+
+    <!-- Success -->
+    <g transform="translate(20, 40)">
+      <rect x="0" y="0" width="120" height="80" rx="8" fill="url(#greenGradient)" filter="url(#shadow)"/>
+      <text x="60" y="30" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="600" fill="white">Success</text>
+      <text x="60" y="52" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" fill="#D1FAE5">Return Result</text>
+      <text x="60" y="68" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="9" fill="#A7F3D0">Reset Counters</text>
+    </g>
+
+    <!-- DLQ -->
+    <g transform="translate(160, 40)">
+      <rect x="0" y="0" width="120" height="80" rx="8" fill="url(#redGradient)" filter="url(#shadow)"/>
+      <text x="60" y="25" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="600" fill="white">Move to DLQ</text>
+      <text x="60" y="48" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" fill="#FEE2E2">dlq:queue_name</text>
+      <text x="60" y="68" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="9" fill="#FECACA">Manual Recovery</text>
+    </g>
+  </g>
+
+  <!-- Arrow from Success Check to Success -->
+  <path d="M550 290 Q580 330 500 370 Q350 420 170 420" fill="none" stroke="#10B981" stroke-width="2" marker-end="url(#arrowGreen)"/>
+  <text x="540" y="310" font-family="system-ui, -apple-system, sans-serif" font-size="9" fill="#10B981">Yes</text>
+
+  <!-- Backoff Formula Box -->
+  <g transform="translate(540, 60)">
+    <rect x="0" y="0" width="220" height="150" rx="10" fill="#1F2937" stroke="#F59E0B" stroke-width="2"/>
+    <text x="110" y="22" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="600" fill="#F59E0B">Exponential Backoff</text>
+
+    <text x="15" y="48" font-family="monospace" font-size="10" fill="#D1D5DB">delay = base * (2 ^ attempt)</text>
+    <text x="15" y="68" font-family="monospace" font-size="10" fill="#D1D5DB">delay = min(delay, max_delay)</text>
+    <text x="15" y="88" font-family="monospace" font-size="10" fill="#D1D5DB">jitter = delay * 0.25 * rand()</text>
+
+    <line x1="15" y1="98" x2="205" y2="98" stroke="#374151" stroke-width="1"/>
+
+    <text x="15" y="118" font-family="system-ui, -apple-system, sans-serif" font-size="9" fill="#9CA3AF">base_delay: 1.0s</text>
+    <text x="15" y="132" font-family="system-ui, -apple-system, sans-serif" font-size="9" fill="#9CA3AF">max_delay: 30.0s</text>
+    <text x="110" y="118" font-family="system-ui, -apple-system, sans-serif" font-size="9" fill="#9CA3AF">max_retries: 3</text>
+    <text x="110" y="132" font-family="system-ui, -apple-system, sans-serif" font-size="9" fill="#9CA3AF">jitter: enabled</text>
+  </g>
+
+  <!-- Timing Example -->
+  <g transform="translate(540, 230)">
+    <rect x="0" y="0" width="220" height="110" rx="10" fill="#1F2937" stroke="#374151" stroke-width="2"/>
+    <text x="110" y="22" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="600" fill="#9CA3AF">Timing Example</text>
+
+    <text x="15" y="45" font-family="system-ui, -apple-system, sans-serif" font-size="10" fill="#D1D5DB">Attempt 1:</text>
+    <text x="80" y="45" font-family="system-ui, -apple-system, sans-serif" font-size="10" fill="#F59E0B">1.0s - 1.25s</text>
+
+    <text x="15" y="62" font-family="system-ui, -apple-system, sans-serif" font-size="10" fill="#D1D5DB">Attempt 2:</text>
+    <text x="80" y="62" font-family="system-ui, -apple-system, sans-serif" font-size="10" fill="#F59E0B">2.0s - 2.5s</text>
+
+    <text x="15" y="79" font-family="system-ui, -apple-system, sans-serif" font-size="10" fill="#D1D5DB">Attempt 3:</text>
+    <text x="80" y="79" font-family="system-ui, -apple-system, sans-serif" font-size="10" fill="#F59E0B">4.0s - 5.0s</text>
+
+    <text x="15" y="96" font-family="system-ui, -apple-system, sans-serif" font-size="10" fill="#EF4444">Max Exceeded:</text>
+    <text x="100" y="96" font-family="system-ui, -apple-system, sans-serif" font-size="10" fill="#EF4444">Move to DLQ</text>
+  </g>
+
+  <!-- Legend -->
+  <g transform="translate(400, 500)">
+    <text x="-370" y="0" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="600" fill="#9CA3AF">Legend:</text>
+    <rect x="-315" y="-12" width="16" height="16" rx="3" fill="url(#blueGradient)"/>
+    <text x="-295" y="1" font-family="system-ui, -apple-system, sans-serif" font-size="10" fill="#9CA3AF">Processing</text>
+    <rect x="-225" y="-12" width="16" height="16" rx="3" fill="url(#amberGradient)"/>
+    <text x="-205" y="1" font-family="system-ui, -apple-system, sans-serif" font-size="10" fill="#9CA3AF">Backoff/Wait</text>
+    <rect x="-125" y="-12" width="16" height="16" rx="3" fill="url(#greenGradient)"/>
+    <text x="-105" y="1" font-family="system-ui, -apple-system, sans-serif" font-size="10" fill="#9CA3AF">Success</text>
+    <rect x="-45" y="-12" width="16" height="16" rx="3" fill="url(#redGradient)"/>
+    <text x="-25" y="1" font-family="system-ui, -apple-system, sans-serif" font-size="10" fill="#9CA3AF">DLQ/Failure</text>
+  </g>
+</svg>

@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 750 450" width="750" height="450">
+  <defs>
+    <linearGradient id="greenGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#10B981;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#059669;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="blueGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3B82F6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2563EB;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="purpleGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#A855F7;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#9333EA;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="grayGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4B5563;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#374151;stop-opacity:1" />
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="2" dy="3" stdDeviation="4" flood-color="#000" flood-opacity="0.4"/>
+    </filter>
+    <marker id="arrowGray" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#6B7280"/>
+    </marker>
+    <marker id="arrowBlue" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#3B82F6"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="750" height="450" fill="#111827"/>
+
+  <!-- Title -->
+  <text x="375" y="35" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="20" font-weight="bold" fill="#F9FAFB">Circuit Breaker Registry</text>
+
+  <!-- Registry Section -->
+  <g transform="translate(250, 60)">
+    <rect x="0" y="0" width="250" height="90" rx="12" fill="#1F2937" stroke="#374151" stroke-width="2"/>
+    <text x="125" y="25" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="600" fill="#9CA3AF">CircuitBreakerRegistry</text>
+
+    <rect x="30" y="40" width="190" height="40" rx="8" fill="url(#grayGradient)" filter="url(#shadow)"/>
+    <text x="125" y="58" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="600" fill="white">Global Registry</text>
+    <text x="125" y="73" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="9" fill="#D1D5DB">Singleton Instance</text>
+  </g>
+
+  <!-- Arrows from Registry to Breakers -->
+  <line x1="300" y1="150" x2="150" y2="200" stroke="#6B7280" stroke-width="2" marker-end="url(#arrowGray)"/>
+  <line x1="375" y1="150" x2="375" y2="200" stroke="#6B7280" stroke-width="2" marker-end="url(#arrowGray)"/>
+  <line x1="450" y1="150" x2="600" y2="200" stroke="#6B7280" stroke-width="2" marker-end="url(#arrowGray)"/>
+
+  <!-- Breakers Section Label -->
+  <text x="375" y="185" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="12" fill="#6B7280">manages</text>
+
+  <!-- Individual Circuit Breakers -->
+  <g transform="translate(50, 210)">
+    <rect x="0" y="0" width="200" height="100" rx="12" fill="#1F2937" stroke="#374151" stroke-width="2"/>
+    <text x="100" y="25" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="600" fill="#9CA3AF">Individual Circuit Breakers</text>
+
+    <rect x="30" y="40" width="140" height="50" rx="8" fill="url(#greenGradient)" filter="url(#shadow)"/>
+    <text x="100" y="60" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="600" fill="white">rtdetr</text>
+    <text x="100" y="78" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="9" fill="#D1FAE5">breaker</text>
+  </g>
+
+  <g transform="translate(275, 210)">
+    <rect x="0" y="0" width="200" height="100" rx="12" fill="#1F2937" stroke="#374151" stroke-width="2"/>
+
+    <rect x="30" y="40" width="140" height="50" rx="8" fill="url(#greenGradient)" filter="url(#shadow)"/>
+    <text x="100" y="60" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="600" fill="white">nemotron</text>
+    <text x="100" y="78" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="9" fill="#D1FAE5">breaker</text>
+  </g>
+
+  <g transform="translate(500, 210)">
+    <rect x="0" y="0" width="200" height="100" rx="12" fill="#1F2937" stroke="#374151" stroke-width="2"/>
+
+    <rect x="30" y="40" width="140" height="50" rx="8" fill="url(#greenGradient)" filter="url(#shadow)"/>
+    <text x="100" y="60" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="600" fill="white">redis</text>
+    <text x="100" y="78" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="9" fill="#D1FAE5">breaker</text>
+  </g>
+
+  <!-- Arrows from Breakers to Services -->
+  <line x1="150" y1="310" x2="150" y2="340" stroke="#3B82F6" stroke-width="2" marker-end="url(#arrowBlue)"/>
+  <line x1="375" y1="310" x2="375" y2="340" stroke="#3B82F6" stroke-width="2" marker-end="url(#arrowBlue)"/>
+  <line x1="600" y1="310" x2="600" y2="340" stroke="#A855F7" stroke-width="2"/>
+  <path d="M600 340 L600 350" stroke="#A855F7" stroke-width="2" marker-end="url(#arrowGray)"/>
+
+  <!-- Protected Services Label -->
+  <text x="375" y="335" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="12" fill="#6B7280">protects</text>
+
+  <!-- Protected Services -->
+  <g transform="translate(50, 355)">
+    <rect x="0" y="0" width="200" height="70" rx="12" fill="#1F2937" stroke="#3B82F6" stroke-width="2"/>
+    <text x="100" y="22" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="600" fill="#9CA3AF">Protected Services</text>
+
+    <rect x="25" y="32" width="150" height="30" rx="6" fill="url(#blueGradient)" filter="url(#shadow)"/>
+    <text x="100" y="52" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="600" fill="white">RT-DETRv2 :8090</text>
+  </g>
+
+  <g transform="translate(275, 355)">
+    <rect x="0" y="0" width="200" height="70" rx="12" fill="#1F2937" stroke="#3B82F6" stroke-width="2"/>
+
+    <rect x="25" y="32" width="150" height="30" rx="6" fill="url(#blueGradient)" filter="url(#shadow)"/>
+    <text x="100" y="52" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="600" fill="white">Nemotron LLM :8091</text>
+  </g>
+
+  <g transform="translate(500, 355)">
+    <rect x="0" y="0" width="200" height="70" rx="12" fill="#1F2937" stroke="#A855F7" stroke-width="2"/>
+
+    <rect x="25" y="32" width="150" height="30" rx="6" fill="url(#purpleGradient)" filter="url(#shadow)"/>
+    <text x="100" y="52" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="600" fill="white">Redis :6379</text>
+  </g>
+
+  <!-- Legend -->
+  <g transform="translate(30, 15)">
+    <rect x="0" y="0" width="14" height="14" rx="3" fill="url(#greenGradient)"/>
+    <text x="20" y="12" font-family="system-ui, -apple-system, sans-serif" font-size="10" fill="#9CA3AF">Circuit Breaker</text>
+    <rect x="115" y="0" width="14" height="14" rx="3" fill="url(#blueGradient)"/>
+    <text x="135" y="12" font-family="system-ui, -apple-system, sans-serif" font-size="10" fill="#9CA3AF">AI Service</text>
+    <rect x="205" y="0" width="14" height="14" rx="3" fill="url(#purpleGradient)"/>
+    <text x="225" y="12" font-family="system-ui, -apple-system, sans-serif" font-size="10" fill="#9CA3AF">Cache Service</text>
+  </g>
+</svg>
