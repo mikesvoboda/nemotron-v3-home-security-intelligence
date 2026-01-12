@@ -404,6 +404,7 @@ class TestGetDirectoryStats:
 # =============================================================================
 
 
+@pytest.mark.integration  # Requires isolated_db fixture (real database)
 class TestGetStorageStats:
     """Tests for GET /api/system/storage endpoint."""
 
@@ -477,6 +478,7 @@ class TestGetStorageStats:
 # =============================================================================
 
 
+@pytest.mark.integration  # Requires isolated_db fixture (real database)
 class TestSeverityThresholds:
     """Tests for severity threshold configuration."""
 
@@ -786,6 +788,7 @@ class TestHelperFunctions:
 # =============================================================================
 
 
+@pytest.mark.integration  # Requires isolated_db fixture (real database)
 class TestGetHealthEndpoint:
     """Tests for GET /api/system/health endpoint."""
 
@@ -889,6 +892,7 @@ class TestGetHealthEndpoint:
             assert data["status"] == "degraded"
 
 
+@pytest.mark.integration  # Requires isolated_db fixture (real database)
 class TestGetReadinessEndpoint:
     """Tests for GET /api/system/health/ready endpoint."""
 
@@ -1064,6 +1068,7 @@ class TestListWebSocketEventTypesEndpoint:
         assert isinstance(data["event_types"], list)
 
 
+@pytest.mark.integration  # Requires isolated_db fixture (real database)
 class TestGetStatsEndpoint:
     """Tests for GET /api/system/stats endpoint."""
 
@@ -1087,6 +1092,7 @@ class TestGetStatsEndpoint:
             assert isinstance(data["uptime_seconds"], (int, float))
 
 
+@pytest.mark.integration  # Requires isolated_db fixture (real database)
 class TestGetGPUStatsEndpoint:
     """Tests for GET /api/system/gpu endpoint."""
 
