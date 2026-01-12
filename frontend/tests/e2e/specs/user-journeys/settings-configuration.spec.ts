@@ -63,41 +63,48 @@ test.describe('Settings Configuration Journey (NEM-1664)', () => {
     await expect(settingsPage.first()).toBeVisible({ timeout: 5000 });
   });
 
-  test('settings page displays all configuration sections @flaky', async ({ page }) => {
+  test('settings page displays all configuration sections', async ({ page, browserName }) => {
     /**
      * Given: User is on the settings page
      * When: Page loads
      * Then: All configuration sections are visible (cameras, alerts, system)
      */
 
-    // Given: Navigate to settings
-    await page.goto('/settings');
+    // Given: Navigate to settings with extended timeout for Firefox/WebKit
+    // Wait for the cameras API response during navigation (it's triggered on page load)
+    const navigationTimeout = (browserName === 'firefox' || browserName === 'webkit') ? 30000 : 15000;
 
-    const settingsPage = page.locator('[data-testid="settings-page"]').or(
-      page.locator('[data-testid="settings-container"]')
-    );
-    await expect(settingsPage.first()).toBeVisible({ timeout: 5000 });
+    const [_, camerasResponse] = await Promise.all([
+      page.goto('/settings', { timeout: navigationTimeout }),
+      page.waitForResponse(
+        (response) => response.url().includes('/api/cameras') && response.status() === 200,
+        { timeout: 15000 }
+      ),
+    ]);
 
-    // When/Then: Verify configuration sections exist
-    const camerasSection = page.locator('[data-testid="settings-cameras"]').or(
-      page.locator('[data-testid*="camera"]')
-    );
+    // Verify the cameras API returned data
+    expect(camerasResponse.status()).toBe(200);
 
-    const alertsSection = page.locator('[data-testid="settings-alerts"]').or(
-      page.locator('[data-testid*="alert"]')
-    );
+    // Wait for settings page container to be visible
+    const settingsPage = page.locator('[data-testid="settings-page"]');
+    await expect(settingsPage).toBeVisible({ timeout: 10000 });
 
-    const systemSection = page.locator('[data-testid="settings-system"]').or(
-      page.locator('[data-testid*="system"]')
-    );
+    // Wait for tab list to be visible (indicates tabs are rendered)
+    const tabList = page.locator('[role="tablist"]');
+    await expect(tabList).toBeVisible({ timeout: 5000 });
 
-    // At least one section should be visible
-    const sectionsVisible =
-      (await camerasSection.count() > 0) ||
-      (await alertsSection.count() > 0) ||
-      (await systemSection.count() > 0);
+    // Wait for the active tab panel to be visible (Cameras tab is active by default)
+    const activeTabPanel = page.locator('[role="tabpanel"]:not([aria-hidden="true"])');
+    await expect(activeTabPanel).toBeVisible({ timeout: 5000 });
 
-    expect(sectionsVisible).toBeTruthy();
+    // When/Then: Verify the cameras section is visible in the active tab panel
+    // This is more reliable than checking for multiple sections that may not be loaded yet
+    const camerasSection = page.locator('[data-testid="settings-cameras"]');
+    await expect(camerasSection).toBeVisible({ timeout: 5000 });
+
+    // Verify the cameras section has loaded content (table should be present)
+    const camerasTable = camerasSection.locator('table');
+    await expect(camerasTable).toBeVisible({ timeout: 5000 });
   });
 
   test('user can modify camera settings and see immediate feedback', async ({ page }) => {

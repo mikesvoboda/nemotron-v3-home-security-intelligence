@@ -289,10 +289,21 @@ export default function DashboardPage() {
   }
 
   // Loading state with skeleton loaders (legacy wrapper for test compatibility)
+  // Include the page heading for accessibility and test compatibility (NEM-XXXX)
   if (loading) {
     return (
       <div data-testid="dashboard-container" className="min-h-screen bg-[#121212] p-4 md:p-8">
-        <div className="mx-auto max-w-[1920px]">{renderLoadingSkeleton()}</div>
+        <div className="mx-auto max-w-[1920px]">
+          {/* Page heading - always visible for accessibility */}
+          {/* Use explicit colors to ensure WCAG AA contrast during loading state */}
+          <div className="mb-6 md:mb-8">
+            <h1 className="text-4xl font-bold tracking-tight text-white">Security Dashboard</h1>
+            <p className="mt-1 text-sm leading-normal text-gray-400 sm:mt-2">
+              Real-time AI-powered home security monitoring
+            </p>
+          </div>
+          {renderLoadingSkeleton()}
+        </div>
       </div>
     );
   }

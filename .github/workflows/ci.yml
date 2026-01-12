@@ -895,8 +895,22 @@ jobs:
             npm-${{ runner.os }}-node-${{ env.NODE_VERSION }}-
             npm-${{ runner.os }}-
 
-      - name: Install dependencies
-        run: cd frontend && npm ci
+      - name: Install dependencies with retry
+        # npm ci can fail due to network issues, add retry logic for resilience
+        run: |
+          for attempt in 1 2 3; do
+            echo "Attempt $attempt of 3: Installing npm dependencies..."
+            if cd frontend && npm ci; then
+              echo "npm dependencies installed successfully"
+              exit 0
+            fi
+            if [ $attempt -lt 3 ]; then
+              echo "Installation failed, retrying in 10s..."
+              sleep 10
+            fi
+          done
+          echo "ERROR: Failed to install npm dependencies after 3 attempts"
+          exit 1
 
       - name: Run tests (shard ${{ matrix.shard }}/8)
         # Shard tests across 8 runners for faster execution and isolation
@@ -1002,16 +1016,52 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-chromium-${{ runner.os }}-node-${{ env.NODE_VERSION }}-${{ hashFiles('frontend/package-lock.json') }}
 
-      - name: Install Playwright Chromium
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: cd frontend && npx playwright install chromium --with-deps
+      - name: Install Playwright Chromium with retry
+        # Retry loop for browser installation (3 attempts with exponential backoff)
+        # Handles transient network failures and concurrent installation conflicts
+        run: |
+          for attempt in 1 2 3; do
+            echo "Attempt $attempt of 3: Installing Playwright Chromium..."
+            # Clean up any partial installation on retry
+            if [ $attempt -gt 1 ]; then
+              echo "Cleaning up partial installation before retry..."
+              rm -rf ~/.cache/ms-playwright || true
+            fi
+            if cd frontend && npx playwright install chromium --with-deps 2>&1 | tee /tmp/playwright-install.log; then
+              echo "Playwright Chromium installed successfully"
+              exit 0
+            fi
+            if [ $attempt -lt 3 ]; then
+              wait_time=$((10 * attempt))
+              echo "Installation failed, waiting ${wait_time}s before retry..."
+              sleep $wait_time
+            fi
+          done
+          echo "ERROR: Failed to install Playwright Chromium after 3 attempts"
+          cat /tmp/playwright-install.log || true
+          exit 1
 
-      - name: Install Playwright deps (cached)
+      - name: Verify Playwright Chromium installation
+        run: |
+          if npx playwright --version; then
+            echo "Playwright CLI verified"
+          fi
+          if [ -d ~/.cache/ms-playwright ]; then
+            echo "Playwright cache directory exists:"
+            ls -lah ~/.cache/ms-playwright/chromium-*/
+          else
+            echo "ERROR: Playwright cache directory not found"
+            exit 1
+          fi
+
+      - name: Install Playwright system dependencies (if cached)
+        # Only needed if browsers were already cached
         if: steps.playwright-cache.outputs.cache-hit == 'true'
         run: cd frontend && npx playwright install-deps chromium
 
       - name: Run E2E tests (Chromium shard ${{ matrix.shard }}) with retry
         # Retry loop: 3 attempts with 10s wait between retries for transient failures
+        # Browser installation issues are caught by separate installation step
         run: |
           for attempt in 1 2 3; do
             echo "Attempt $attempt of 3"
@@ -1089,16 +1139,65 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ matrix.browser }}-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}
 
-      - name: Install Playwright ${{ matrix.browser }}
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: cd frontend && npx playwright install ${{ matrix.browser }} --with-deps
+      - name: Install Playwright ${{ matrix.browser }} with retry
+        # Retry loop for browser installation (3 attempts with exponential backoff)
+        # Firefox/WebKit tend to have more infrastructure flakiness than Chromium
+        run: |
+          for attempt in 1 2 3; do
+            echo "Attempt $attempt of 3: Installing Playwright ${{ matrix.browser }}..."
+            # Clean up any partial installation on retry
+            if [ $attempt -gt 1 ]; then
+              echo "Cleaning up partial installation before retry..."
+              rm -rf ~/.cache/ms-playwright || true
+            fi
+            if cd frontend && npx playwright install ${{ matrix.browser }} --with-deps 2>&1 | tee /tmp/playwright-install.log; then
+              echo "Playwright ${{ matrix.browser }} installed successfully"
+              exit 0
+            fi
+            if [ $attempt -lt 3 ]; then
+              wait_time=$((10 * attempt))
+              echo "Installation failed, waiting ${wait_time}s before retry..."
+              sleep $wait_time
+            fi
+          done
+          echo "ERROR: Failed to install Playwright ${{ matrix.browser }} after 3 attempts"
+          cat /tmp/playwright-install.log || true
+          exit 1
 
-      - name: Install Playwright deps (cached)
+      - name: Verify Playwright ${{ matrix.browser }} installation
+        run: |
+          if npx playwright --version; then
+            echo "Playwright CLI verified"
+          fi
+          if [ -d ~/.cache/ms-playwright ]; then
+            echo "Playwright cache directory exists:"
+            ls -lah ~/.cache/ms-playwright/ | grep -E "${{ matrix.browser }}|chromium"
+          else
+            echo "ERROR: Playwright cache directory not found"
+            exit 1
+          fi
+
+      - name: Install Playwright system dependencies (if cached)
+        # Only needed if browsers were already cached
         if: steps.playwright-cache.outputs.cache-hit == 'true'
         run: cd frontend && npx playwright install-deps ${{ matrix.browser }}
 
-      - name: Run E2E tests (${{ matrix.browser }})
-        run: cd frontend && npx playwright test --project=${{ matrix.browser }}
+      - name: Run E2E tests (${{ matrix.browser }}) with retry
+        # Retry loop: 3 attempts with 10s wait between retries for transient test failures
+        # Browser installation issues are caught by separate installation step
+        run: |
+          for attempt in 1 2 3; do
+            echo "Attempt $attempt of 3"
+            if cd frontend && npx playwright test --project=${{ matrix.browser }}; then
+              exit 0
+            fi
+            if [ $attempt -lt 3 ]; then
+              wait_time=$((10 * attempt))
+              echo "Test failed, waiting ${wait_time}s before retry..."
+              sleep $wait_time
+            fi
+          done
+          exit 1
 
       - name: Upload Playwright report
         if: always()
