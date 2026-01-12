@@ -425,18 +425,60 @@ class WebSocketCameraStatus(StrEnum):
     UNKNOWN = auto()
 
 
+class WebSocketCameraEventType(StrEnum):
+    """Camera event types for WebSocket messages (NEM-2295).
+
+    Distinguishes between different types of camera status changes:
+    - camera.online: Camera came online
+    - camera.offline: Camera went offline
+    - camera.error: Camera encountered an error
+    - camera.updated: Camera configuration was updated
+    """
+
+    CAMERA_ONLINE = "camera.online"
+    CAMERA_OFFLINE = "camera.offline"
+    CAMERA_ERROR = "camera.error"
+    CAMERA_UPDATED = "camera.updated"
+
+
 class WebSocketCameraStatusData(BaseModel):
     """Data payload for camera status messages.
 
     Broadcast when a camera's status changes (online, offline, error, unknown).
+
+    NEM-2295: Added event_type, camera_name, timestamp, and details fields.
     """
 
+    event_type: WebSocketCameraEventType = Field(
+        ...,
+        description="Type of camera event (camera.online, camera.offline, camera.error, camera.updated)",
+    )
     camera_id: str = Field(..., description="Normalized camera ID (e.g., 'front_door')")
+    camera_name: str = Field(..., description="Human-readable camera name")
     status: WebSocketCameraStatus = Field(..., description="Current camera status")
+    timestamp: str = Field(..., description="ISO 8601 timestamp when the event occurred")
     previous_status: WebSocketCameraStatus | None = Field(
         None, description="Previous camera status before this change"
     )
     reason: str | None = Field(None, description="Optional reason for the status change")
+    details: dict[str, Any] | None = Field(None, description="Optional additional details")
+
+    @field_validator("event_type", mode="before")
+    @classmethod
+    def validate_event_type(cls, v: str | WebSocketCameraEventType) -> WebSocketCameraEventType:
+        """Validate and convert event_type to WebSocketCameraEventType enum."""
+        if isinstance(v, WebSocketCameraEventType):
+            return v
+        if isinstance(v, str):
+            # Try direct value match first
+            for event_type in WebSocketCameraEventType:
+                if event_type.value == v:
+                    return event_type
+            valid_values = [e.value for e in WebSocketCameraEventType]
+            raise ValueError(f"Invalid event_type '{v}'. Must be one of: {valid_values}")
+        raise ValueError(
+            f"event_type must be a string or WebSocketCameraEventType enum, got {type(v)}"
+        )
 
     @field_validator("status", "previous_status", mode="before")
     @classmethod
@@ -457,10 +499,14 @@ class WebSocketCameraStatusData(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
+                "event_type": "camera.offline",
                 "camera_id": "front_door",
+                "camera_name": "Front Door Camera",
                 "status": "offline",
+                "timestamp": "2026-01-09T10:30:00Z",
                 "previous_status": "online",
                 "reason": "No activity detected for 5 minutes",
+                "details": None,
             }
         }
     )
@@ -472,14 +518,20 @@ class WebSocketCameraStatusMessage(BaseModel):
     This is the canonical format for camera status messages broadcast via WebSocket.
     Consistent with other message types, data is wrapped in a standard envelope.
 
+    NEM-2295: Added event_type, camera_name, timestamp, and details fields.
+
     Format:
         {
             "type": "camera_status",
             "data": {
+                "event_type": "camera.offline",
                 "camera_id": "front_door",
+                "camera_name": "Front Door Camera",
                 "status": "offline",
+                "timestamp": "2026-01-09T10:30:00Z",
                 "previous_status": "online",
-                "reason": "No activity detected"
+                "reason": "No activity detected",
+                "details": null
             }
         }
     """
@@ -495,10 +547,14 @@ class WebSocketCameraStatusMessage(BaseModel):
             "example": {
                 "type": "camera_status",
                 "data": {
+                    "event_type": "camera.offline",
                     "camera_id": "front_door",
+                    "camera_name": "Front Door Camera",
                     "status": "offline",
+                    "timestamp": "2026-01-09T10:30:00Z",
                     "previous_status": "online",
                     "reason": "No activity detected for 5 minutes",
+                    "details": None,
                 },
             }
         }
@@ -589,10 +645,20 @@ class WebSocketSceneChangeMessage(BaseModel):
 
 
 class WebSocketAlertEventType(StrEnum):
-    """WebSocket event types for alert state changes."""
+    """WebSocket event types for alert state changes.
+
+    Event types:
+    - ALERT_CREATED: New alert triggered from rule evaluation
+    - ALERT_UPDATED: Alert modified (e.g., metadata, channels updated)
+    - ALERT_ACKNOWLEDGED: Alert marked as seen by user
+    - ALERT_RESOLVED: Alert resolved (long-running issues cleared)
+    - ALERT_DISMISSED: Alert dismissed by user
+    """
 
     ALERT_CREATED = auto()
+    ALERT_UPDATED = auto()
     ALERT_ACKNOWLEDGED = auto()
+    ALERT_RESOLVED = auto()
     ALERT_DISMISSED = auto()
 
 
@@ -844,6 +910,103 @@ class WebSocketAlertDismissedMessage(BaseModel):
     )
 
 
+class WebSocketAlertUpdatedMessage(BaseModel):
+    """Complete alert updated message envelope sent to /ws/events clients.
+
+    This is the canonical format for alert update messages broadcast via WebSocket.
+    Sent when an alert is modified (e.g., metadata, channels, or other properties updated).
+    The message wraps alert data in a standard envelope with a type field.
+
+    Format:
+        {
+            "type": "alert_updated",
+            "data": {
+                "id": "550e8400-e29b-41d4-a716-446655440000",
+                "event_id": 123,
+                "rule_id": "550e8400-e29b-41d4-a716-446655440001",
+                "severity": "high",
+                "status": "pending",
+                "dedup_key": "front_door:person:rule1",
+                "created_at": "2026-01-09T12:00:00Z",
+                "updated_at": "2026-01-09T12:00:30Z"
+            }
+        }
+    """
+
+    type: Literal["alert_updated"] = Field(
+        default="alert_updated",
+        description="Message type, always 'alert_updated' for alert update messages",
+    )
+    data: WebSocketAlertData = Field(..., description="Alert data payload")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "type": "alert_updated",
+                "data": {
+                    "id": "550e8400-e29b-41d4-a716-446655440000",
+                    "event_id": 123,
+                    "rule_id": "550e8400-e29b-41d4-a716-446655440001",
+                    "severity": "high",
+                    "status": "pending",
+                    "dedup_key": "front_door:person:rule1",
+                    "created_at": "2026-01-09T12:00:00Z",
+                    "updated_at": "2026-01-09T12:00:30Z",
+                },
+            }
+        }
+    )
+
+
+class WebSocketAlertResolvedMessage(BaseModel):
+    """Complete alert resolved message envelope sent to /ws/events clients.
+
+    This is the canonical format for alert resolution messages broadcast via WebSocket.
+    Sent when an alert is resolved/dismissed. Semantically similar to dismissed but
+    provides a clearer event name for resolution workflows.
+    The message wraps alert data in a standard envelope with a type field.
+
+    Format:
+        {
+            "type": "alert_resolved",
+            "data": {
+                "id": "550e8400-e29b-41d4-a716-446655440000",
+                "event_id": 123,
+                "rule_id": "550e8400-e29b-41d4-a716-446655440001",
+                "severity": "high",
+                "status": "dismissed",
+                "dedup_key": "front_door:person:rule1",
+                "created_at": "2026-01-09T12:00:00Z",
+                "updated_at": "2026-01-09T12:02:00Z"
+            }
+        }
+    """
+
+    type: Literal["alert_resolved"] = Field(
+        default="alert_resolved",
+        description="Message type, always 'alert_resolved' for alert resolution messages",
+    )
+    data: WebSocketAlertData = Field(..., description="Alert data payload")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "type": "alert_resolved",
+                "data": {
+                    "id": "550e8400-e29b-41d4-a716-446655440000",
+                    "event_id": 123,
+                    "rule_id": "550e8400-e29b-41d4-a716-446655440001",
+                    "severity": "high",
+                    "status": "dismissed",
+                    "dedup_key": "front_door:person:rule1",
+                    "created_at": "2026-01-09T12:00:00Z",
+                    "updated_at": "2026-01-09T12:02:00Z",
+                },
+            }
+        }
+    )
+
+
 # Job tracking WebSocket schemas
 
 
@@ -1057,8 +1220,10 @@ class WSEventType(StrEnum):
 
     # Alert events - Alert notifications
     ALERT_CREATED = "alert.created"
+    ALERT_UPDATED = "alert.updated"
     ALERT_ACKNOWLEDGED = "alert.acknowledged"
-    ALERT_DISMISSED = "alert.dismissed"
+    ALERT_RESOLVED = "alert.resolved"
+    ALERT_DISMISSED = "alert.dismissed"  # Alias for alert.resolved (backward compat)
 
     # Camera events - Camera status changes
     CAMERA_STATUS_CHANGED = "camera.status_changed"
@@ -1308,24 +1473,84 @@ EVENT_REGISTRY: dict[WSEventType, dict[str, Any]] = {
             "created_at": "2026-01-09T12:00:00.000Z",
         },
     },
+    WSEventType.ALERT_UPDATED: {
+        "description": "Alert modified (metadata, channels, or properties updated)",
+        "channel": "alerts",
+        "payload_schema": {
+            "alert_id": {"type": "string", "format": "uuid", "description": "Alert UUID"},
+            "event_id": {"type": "integer", "description": "Associated event ID"},
+            "rule_id": {
+                "type": "string",
+                "format": "uuid",
+                "description": "Alert rule UUID (nullable)",
+            },
+            "severity": {
+                "type": "string",
+                "enum": ["low", "medium", "high", "critical"],
+                "description": "Alert severity level",
+            },
+            "status": {
+                "type": "string",
+                "enum": ["pending", "delivered", "acknowledged", "dismissed"],
+                "description": "Alert status",
+            },
+            "updated_at": {
+                "type": "string",
+                "format": "date-time",
+                "description": "Update timestamp",
+            },
+        },
+        "example": {
+            "alert_id": "550e8400-e29b-41d4-a716-446655440000",
+            "event_id": 1,
+            "rule_id": "550e8400-e29b-41d4-a716-446655440001",
+            "severity": "high",
+            "status": "pending",
+            "updated_at": "2026-01-09T12:00:30.000Z",
+        },
+    },
     WSEventType.ALERT_ACKNOWLEDGED: {
         "description": "Alert acknowledged by user",
         "channel": "alerts",
         "payload_schema": {
-            "alert_id": {"type": "integer", "description": "Alert database ID"},
+            "alert_id": {"type": "string", "format": "uuid", "description": "Alert UUID"},
+            "event_id": {"type": "integer", "description": "Associated event ID"},
             "acknowledged_at": {
                 "type": "string",
                 "format": "date-time",
                 "description": "Acknowledgment timestamp",
             },
         },
-        "example": {"alert_id": 42, "acknowledged_at": "2026-01-09T12:05:00.000Z"},
+        "example": {
+            "alert_id": "550e8400-e29b-41d4-a716-446655440000",
+            "event_id": 42,
+            "acknowledged_at": "2026-01-09T12:05:00.000Z",
+        },
     },
-    WSEventType.ALERT_DISMISSED: {
-        "description": "Alert dismissed by user",
+    WSEventType.ALERT_RESOLVED: {
+        "description": "Alert resolved/dismissed by user",
         "channel": "alerts",
         "payload_schema": {
-            "alert_id": {"type": "integer", "description": "Alert database ID"},
+            "alert_id": {"type": "string", "format": "uuid", "description": "Alert UUID"},
+            "event_id": {"type": "integer", "description": "Associated event ID"},
+            "resolved_at": {
+                "type": "string",
+                "format": "date-time",
+                "description": "Resolution timestamp",
+            },
+        },
+        "example": {
+            "alert_id": "550e8400-e29b-41d4-a716-446655440000",
+            "event_id": 42,
+            "resolved_at": "2026-01-09T12:05:00.000Z",
+        },
+    },
+    WSEventType.ALERT_DISMISSED: {
+        "description": "Alert dismissed by user (alias for alert.resolved)",
+        "channel": "alerts",
+        "payload_schema": {
+            "alert_id": {"type": "string", "format": "uuid", "description": "Alert UUID"},
+            "event_id": {"type": "integer", "description": "Associated event ID"},
             "dismissed_at": {
                 "type": "string",
                 "format": "date-time",
@@ -1334,7 +1559,8 @@ EVENT_REGISTRY: dict[WSEventType, dict[str, Any]] = {
             "reason": {"type": "string", "description": "Dismissal reason (optional)"},
         },
         "example": {
-            "alert_id": 42,
+            "alert_id": "550e8400-e29b-41d4-a716-446655440000",
+            "event_id": 42,
             "dismissed_at": "2026-01-09T12:05:00.000Z",
             "reason": "False positive",
         },

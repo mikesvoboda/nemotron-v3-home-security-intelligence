@@ -34,6 +34,11 @@ def mock_redis():
     redis.zadd = AsyncMock()
     redis.zpopmax = AsyncMock()
     redis.zcard = AsyncMock()
+    # Support for job status service
+    redis.set = AsyncMock(return_value=True)
+    redis.get = AsyncMock(return_value=None)
+    redis.zrem = AsyncMock(return_value=1)
+    redis.zrangebyscore = AsyncMock(return_value=[])
     return redis
 
 
@@ -83,7 +88,20 @@ def mock_audit_service():
 
 
 @pytest.fixture
-def background_evaluator(mock_redis, mock_gpu_monitor, mock_evaluation_queue, mock_audit_service):
+def mock_job_status_service():
+    """Create a mock JobStatusService."""
+    service = MagicMock()
+    service.start_job = AsyncMock(return_value="mock-job-id")
+    service.update_progress = AsyncMock()
+    service.complete_job = AsyncMock()
+    service.fail_job = AsyncMock()
+    return service
+
+
+@pytest.fixture
+def background_evaluator(
+    mock_redis, mock_gpu_monitor, mock_evaluation_queue, mock_audit_service, mock_job_status_service
+):
     """Create a BackgroundEvaluator instance with mock dependencies."""
     from backend.services.background_evaluator import BackgroundEvaluator
 
@@ -93,6 +111,8 @@ def background_evaluator(mock_redis, mock_gpu_monitor, mock_evaluation_queue, mo
         evaluation_queue=mock_evaluation_queue,
         audit_service=mock_audit_service,
     )
+    # Inject mock job status service
+    evaluator._job_status_service = mock_job_status_service
     return evaluator
 
 
@@ -740,7 +760,12 @@ class TestProcessingLoop:
 
     @pytest.mark.asyncio
     async def test_run_loop_processes_successfully(
-        self, mock_redis, mock_gpu_monitor, mock_evaluation_queue, mock_audit_service
+        self,
+        mock_redis,
+        mock_gpu_monitor,
+        mock_evaluation_queue,
+        mock_audit_service,
+        mock_job_status_service,
     ):
         """Test that loop successfully processes an evaluation and logs success."""
         import asyncio
@@ -757,6 +782,8 @@ class TestProcessingLoop:
             poll_interval=0.01,
             idle_duration_required=0.01,
         )
+        # Inject mock job status service
+        evaluator._job_status_service = mock_job_status_service
 
         # Setup for successful processing
         mock_redis.llen.return_value = 0  # Queues empty

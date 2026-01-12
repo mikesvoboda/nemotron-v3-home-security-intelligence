@@ -32,6 +32,7 @@ from backend.core.logging import get_logger
 from backend.core.redis import RedisClient
 from backend.models.event import Event
 from backend.models.event_audit import EventAudit
+from backend.services.job_status import JobStatusService, get_job_status_service
 
 if TYPE_CHECKING:
     from backend.services.evaluation_queue import EvaluationQueue
@@ -97,6 +98,19 @@ class BackgroundEvaluator:
         self.running = False
         self._task: asyncio.Task | None = None
         self._idle_since: float | None = None
+
+        # Job status service for tracking evaluation jobs
+        self._job_status_service: JobStatusService | None = None
+
+    def _get_job_status_service(self) -> JobStatusService:
+        """Get or create the job status service.
+
+        Returns:
+            JobStatusService instance.
+        """
+        if self._job_status_service is None:
+            self._job_status_service = get_job_status_service(self._redis)
+        return self._job_status_service
 
     async def is_gpu_idle(self) -> bool:
         """Check if GPU utilization is below the idle threshold.
@@ -166,6 +180,7 @@ class BackgroundEvaluator:
         """Process a single evaluation from the queue.
 
         Dequeues the highest priority event and runs full AI audit evaluation.
+        Tracks job status in Redis for monitoring.
 
         Returns:
             True if an evaluation was processed, False if queue was empty.
@@ -180,7 +195,18 @@ class BackgroundEvaluator:
             extra={"event_id": event_id},
         )
 
+        # Start job tracking
+        job_service = self._get_job_status_service()
+        job_id = await job_service.start_job(
+            job_id=f"evaluation-{event_id}",
+            job_type="background_evaluation",
+            metadata={"event_id": event_id},
+        )
+
         try:
+            # Update progress: starting
+            await job_service.update_progress(job_id, 10, "Fetching event data")
+
             async with get_session() as session:
                 # Fetch event
                 result = await session.execute(select(Event).where(Event.id == event_id))
@@ -191,7 +217,11 @@ class BackgroundEvaluator:
                         f"Event {event_id} not found in database, skipping evaluation",
                         extra={"event_id": event_id},
                     )
+                    await job_service.fail_job(job_id, f"Event {event_id} not found")
                     return True  # Item was processed (removed from queue)
+
+                # Update progress: event found
+                await job_service.update_progress(job_id, 25, "Fetching audit record")
 
                 # Fetch existing audit record
                 audit_result = await session.execute(
@@ -204,10 +234,23 @@ class BackgroundEvaluator:
                         f"No audit record for event {event_id}, skipping evaluation",
                         extra={"event_id": event_id},
                     )
+                    await job_service.fail_job(job_id, f"No audit record for event {event_id}")
                     return True
+
+                # Update progress: running evaluation
+                await job_service.update_progress(job_id, 40, "Running AI evaluation")
 
                 # Run full evaluation (4 LLM calls)
                 await self._audit_service.run_full_evaluation(audit, event, session)
+
+                # Update progress: complete
+                await job_service.complete_job(
+                    job_id,
+                    result={
+                        "event_id": event_id,
+                        "overall_quality_score": audit.overall_quality_score,
+                    },
+                )
 
                 logger.info(
                     f"Completed background evaluation for event {event_id}",
@@ -225,6 +268,8 @@ class BackgroundEvaluator:
                 extra={"event_id": event_id, "error": str(e)},
                 exc_info=True,
             )
+            # Mark job as failed
+            await job_service.fail_job(job_id, str(e))
             # Re-queue the event for retry? For now, skip it
             return True  # Mark as processed to avoid infinite loop
 

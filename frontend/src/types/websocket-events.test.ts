@@ -26,8 +26,9 @@ describe('WebSocket Event Types', () => {
       expect(WEBSOCKET_EVENT_KEYS).toContain('pong');
     });
 
-    it('should have exactly 7 event keys', () => {
-      expect(WEBSOCKET_EVENT_KEYS).toHaveLength(7);
+    it('should have exactly 8 event keys', () => {
+      // NEM-2295: Added camera_status event type
+      expect(WEBSOCKET_EVENT_KEYS).toHaveLength(8);
     });
   });
 

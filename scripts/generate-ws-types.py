@@ -38,6 +38,15 @@ os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 # Import all WebSocket schemas
 from backend.api.schemas.websocket import (  # noqa: E402
     RiskLevel,
+    WebSocketAlertAcknowledgedMessage,
+    WebSocketAlertCreatedMessage,
+    WebSocketAlertData,
+    WebSocketAlertDismissedMessage,
+    WebSocketAlertEventType,
+    WebSocketAlertResolvedMessage,
+    WebSocketAlertSeverity,
+    WebSocketAlertStatus,
+    WebSocketAlertUpdatedMessage,
     WebSocketErrorCode,
     WebSocketErrorResponse,
     WebSocketEventData,
@@ -450,6 +459,61 @@ export function isErrorMessage(value: unknown): value is WebSocketErrorResponse 
   const msg = value as { type: 'error'; message?: unknown };
   return typeof msg.message === 'string';
 }
+
+/**
+ * Type guard for WebSocketAlertMessage (any alert event type).
+ */
+export function isAlertMessage(value: unknown): value is WebSocketAlertMessage {
+  if (!hasTypeProperty(value)) return false;
+  const alertTypes = ['alert_created', 'alert_updated', 'alert_acknowledged', 'alert_dismissed', 'alert_resolved'];
+  if (!alertTypes.includes(value.type as string)) return false;
+
+  const msg = value as { type: string; data?: unknown };
+  if (!msg.data || typeof msg.data !== 'object') return false;
+
+  const data = msg.data as Record<string, unknown>;
+  return 'id' in data && 'event_id' in data && 'severity' in data && 'status' in data;
+}
+
+/**
+ * Type guard for WebSocketAlertCreatedMessage.
+ */
+export function isAlertCreatedMessage(value: unknown): value is WebSocketAlertCreatedMessage {
+  if (!hasTypeProperty(value)) return false;
+  return value.type === 'alert_created' && isAlertMessage(value);
+}
+
+/**
+ * Type guard for WebSocketAlertUpdatedMessage.
+ */
+export function isAlertUpdatedMessage(value: unknown): value is WebSocketAlertUpdatedMessage {
+  if (!hasTypeProperty(value)) return false;
+  return value.type === 'alert_updated' && isAlertMessage(value);
+}
+
+/**
+ * Type guard for WebSocketAlertAcknowledgedMessage.
+ */
+export function isAlertAcknowledgedMessage(value: unknown): value is WebSocketAlertAcknowledgedMessage {
+  if (!hasTypeProperty(value)) return false;
+  return value.type === 'alert_acknowledged' && isAlertMessage(value);
+}
+
+/**
+ * Type guard for WebSocketAlertDismissedMessage.
+ */
+export function isAlertDismissedMessage(value: unknown): value is WebSocketAlertDismissedMessage {
+  if (!hasTypeProperty(value)) return false;
+  return value.type === 'alert_dismissed' && isAlertMessage(value);
+}
+
+/**
+ * Type guard for WebSocketAlertResolvedMessage.
+ */
+export function isAlertResolvedMessage(value: unknown): value is WebSocketAlertResolvedMessage {
+  if (!hasTypeProperty(value)) return false;
+  return value.type === 'alert_resolved' && isAlertMessage(value);
+}
 """
 
 
@@ -465,6 +529,16 @@ def generate_discriminated_union() -> str:
 // ============================================================================
 
 /**
+ * All alert-related WebSocket message types.
+ */
+export type WebSocketAlertMessage =
+  | WebSocketAlertCreatedMessage
+  | WebSocketAlertUpdatedMessage
+  | WebSocketAlertAcknowledgedMessage
+  | WebSocketAlertDismissedMessage
+  | WebSocketAlertResolvedMessage;
+
+/**
  * All server-to-client WebSocket message types.
  * The `type` field serves as the discriminant for type narrowing.
  */
@@ -472,6 +546,7 @@ export type WebSocketServerMessage =
   | WebSocketEventMessage
   | WebSocketServiceStatusMessage
   | WebSocketSceneChangeMessage
+  | WebSocketAlertMessage
   | WebSocketPongResponse
   | WebSocketErrorResponse
   | { type: 'ping' };  // Server heartbeat
@@ -518,6 +593,7 @@ export type MessageHandlerMap = {
  * const dispatch = createMessageDispatcher({
  *   event: (msg) => console.log(msg.data.risk_score),
  *   service_status: (msg) => console.log(msg.data.status),
+ *   alert_created: (msg) => console.log('New alert:', msg.data.id),
  *   ping: () => ws.send(JSON.stringify({ type: 'pong' })),
  * });
  *
@@ -568,6 +644,12 @@ def generate_typescript_file() -> str:
     parts.append("")
     parts.append(generate_enum(WebSocketServiceStatus))
     parts.append("")
+    parts.append(generate_enum(WebSocketAlertEventType))
+    parts.append("")
+    parts.append(generate_enum(WebSocketAlertSeverity))
+    parts.append("")
+    parts.append(generate_enum(WebSocketAlertStatus))
+    parts.append("")
     parts.append(generate_error_codes(WebSocketErrorCode))
     parts.append("")
 
@@ -581,6 +663,8 @@ def generate_typescript_file() -> str:
     parts.append(generate_interface(WebSocketServiceStatusData))
     parts.append("")
     parts.append(generate_interface(WebSocketSceneChangeData))
+    parts.append("")
+    parts.append(generate_interface(WebSocketAlertData))
     parts.append("")
 
     # Add message interfaces
@@ -603,6 +687,16 @@ def generate_typescript_file() -> str:
     parts.append(generate_interface(WebSocketServiceStatusMessage))
     parts.append("")
     parts.append(generate_interface(WebSocketSceneChangeMessage))
+    parts.append("")
+    parts.append(generate_interface(WebSocketAlertCreatedMessage))
+    parts.append("")
+    parts.append(generate_interface(WebSocketAlertUpdatedMessage))
+    parts.append("")
+    parts.append(generate_interface(WebSocketAlertAcknowledgedMessage))
+    parts.append("")
+    parts.append(generate_interface(WebSocketAlertDismissedMessage))
+    parts.append("")
+    parts.append(generate_interface(WebSocketAlertResolvedMessage))
     parts.append("")
     parts.append(generate_interface(WebSocketMessage))
     parts.append("")

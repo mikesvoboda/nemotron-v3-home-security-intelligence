@@ -1,19 +1,23 @@
 """Job status tracking service for background jobs.
 
 This module provides Redis-backed job status tracking for background jobs.
-It tracks job state (pending, running, completed, failed), progress percentage,
-metadata, and timestamps. Completed/failed jobs have TTL for auto-cleanup.
+It tracks job state (queued, pending, running, completed, failed, cancelled),
+progress percentage, metadata, and timestamps. Completed/failed/cancelled jobs
+have TTL for auto-cleanup.
 
 Redis Key Structure:
-- job:status:{job_id} - Hash containing job metadata
+- job:{job_id}:status - JSON object containing job metadata
 - job:status:list - Sorted set of job IDs by creation timestamp
+- jobs:active - Sorted set of active job IDs (queued, pending, running)
+- jobs:completed - Sorted set of completed job IDs (completed, failed, cancelled)
 
 Features:
-- Store job status (pending, running, completed, failed)
+- Store job status (queued, pending, running, completed, failed, cancelled)
 - Store job progress percentage (0-100)
 - Store job metadata (start time, end time, error messages, custom data)
-- TTL for completed/failed jobs (auto-cleanup after 1 hour)
+- TTL for completed/failed/cancelled jobs (auto-cleanup after 1 hour)
 - List jobs with optional status filter and limit
+- Job registry for tracking active and completed jobs
 """
 
 from __future__ import annotations
@@ -32,8 +36,13 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 # Redis key prefixes
-JOB_STATUS_KEY_PREFIX = "job:status:"
+JOB_STATUS_KEY_PREFIX = "job:"
+JOB_STATUS_SUFFIX = ":status"
 JOB_STATUS_LIST_KEY = "job:status:list"
+
+# Job registry keys (sets of job IDs by state)
+JOBS_ACTIVE_KEY = "jobs:active"
+JOBS_COMPLETED_KEY = "jobs:completed"
 
 # TTL for completed/failed jobs (1 hour)
 DEFAULT_COMPLETED_JOB_TTL = 3600
@@ -42,10 +51,12 @@ DEFAULT_COMPLETED_JOB_TTL = 3600
 class JobState(StrEnum):
     """Status of a background job."""
 
+    QUEUED = auto()
     PENDING = auto()
     RUNNING = auto()
     COMPLETED = auto()
     FAILED = auto()
+    CANCELLED = auto()
 
 
 @dataclass
@@ -168,9 +179,65 @@ class JobStatusService:
             job_id: The job ID.
 
         Returns:
-            Redis key string.
+            Redis key string in format job:{job_id}:status.
         """
-        return f"{JOB_STATUS_KEY_PREFIX}{job_id}"
+        return f"{JOB_STATUS_KEY_PREFIX}{job_id}{JOB_STATUS_SUFFIX}"
+
+    async def _add_to_active_registry(self, job_id: str) -> None:
+        """Add a job ID to the active jobs registry.
+
+        Args:
+            job_id: The job ID to add.
+        """
+        await self._redis.zadd(JOBS_ACTIVE_KEY, {job_id: datetime.now(UTC).timestamp()})
+
+    async def _remove_from_active_registry(self, job_id: str) -> None:
+        """Remove a job ID from the active jobs registry.
+
+        Args:
+            job_id: The job ID to remove.
+        """
+        await self._redis.zrem(JOBS_ACTIVE_KEY, job_id)
+
+    async def _add_to_completed_registry(self, job_id: str) -> None:
+        """Add a job ID to the completed jobs registry.
+
+        Args:
+            job_id: The job ID to add.
+        """
+        await self._redis.zadd(JOBS_COMPLETED_KEY, {job_id: datetime.now(UTC).timestamp()})
+
+    async def get_active_job_ids(self, limit: int = 100) -> list[str]:
+        """Get IDs of all active (queued, pending, running) jobs.
+
+        Args:
+            limit: Maximum number of job IDs to return.
+
+        Returns:
+            List of active job IDs, sorted by creation time (oldest first).
+        """
+        job_ids = await self._redis.zrangebyscore(
+            JOBS_ACTIVE_KEY,
+            "-inf",
+            "+inf",
+        )
+        return job_ids[:limit] if job_ids else []
+
+    async def get_completed_job_ids(self, limit: int = 100) -> list[str]:
+        """Get IDs of all completed/failed/cancelled jobs.
+
+        Args:
+            limit: Maximum number of job IDs to return.
+
+        Returns:
+            List of completed job IDs, sorted by completion time (oldest first).
+        """
+        job_ids = await self._redis.zrangebyscore(
+            JOBS_COMPLETED_KEY,
+            "-inf",
+            "+inf",
+        )
+        return job_ids[:limit] if job_ids else []
 
     async def start_job(
         self,
@@ -216,6 +283,9 @@ class JobStatusService:
             JOB_STATUS_LIST_KEY,
             {job_id: now.timestamp()},
         )
+
+        # Add to active jobs registry
+        await self._add_to_active_registry(job_id)
 
         logger.info(
             "Job created",
@@ -303,6 +373,10 @@ class JobStatusService:
         # Store with TTL for auto-cleanup
         await self._redis.set(key, data, expire=self._completed_job_ttl)
 
+        # Update job registries
+        await self._remove_from_active_registry(job_id)
+        await self._add_to_completed_registry(job_id)
+
         logger.info(
             "Job completed",
             extra={"job_id": job_id, "job_type": data["job_type"]},
@@ -340,6 +414,10 @@ class JobStatusService:
 
         # Store with TTL for auto-cleanup
         await self._redis.set(key, data, expire=self._completed_job_ttl)
+
+        # Update job registries
+        await self._remove_from_active_registry(job_id)
+        await self._add_to_completed_registry(job_id)
 
         logger.error(
             "Job failed",
@@ -427,6 +505,53 @@ class JobStatusService:
                 continue
 
         return jobs
+
+    async def cancel_job(self, job_id: str) -> bool:
+        """Cancel a job if it's still active.
+
+        Sets status to CANCELLED and moves to completed registry.
+        Can only cancel jobs that are QUEUED, PENDING, or RUNNING.
+
+        Args:
+            job_id: The job ID to cancel.
+
+        Returns:
+            True if the job was cancelled, False if already completed/failed/cancelled.
+
+        Raises:
+            KeyError: If the job ID is not found.
+        """
+        key = self._get_job_key(job_id)
+        data = await self._redis.get(key)
+
+        if data is None:
+            raise KeyError(f"Job not found: {job_id}")
+
+        # Check if job can be cancelled
+        current_status = JobState(data["status"])
+        if current_status in (JobState.COMPLETED, JobState.FAILED, JobState.CANCELLED):
+            return False
+
+        now = datetime.now(UTC)
+
+        data["status"] = str(JobState.CANCELLED)
+        data["completed_at"] = now.isoformat()
+        data["error"] = "Cancelled by user"
+        data["message"] = "Job cancelled by user request"
+
+        # Store with TTL for auto-cleanup
+        await self._redis.set(key, data, expire=self._completed_job_ttl)
+
+        # Update job registries
+        await self._remove_from_active_registry(job_id)
+        await self._add_to_completed_registry(job_id)
+
+        logger.info(
+            "Job cancelled",
+            extra={"job_id": job_id, "job_type": data["job_type"]},
+        )
+
+        return True
 
 
 # Module-level singleton

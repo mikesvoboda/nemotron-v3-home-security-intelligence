@@ -19,6 +19,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
+from backend.api.schemas.websocket import WebSocketCameraEventType
 from backend.core.logging import get_logger
 from backend.models import Camera
 from backend.repositories.camera_repository import CameraRepository
@@ -30,6 +31,26 @@ if TYPE_CHECKING:
     from backend.core.redis import RedisClient
 
 logger = get_logger(__name__)
+
+
+def _get_event_type_for_status(status: str) -> WebSocketCameraEventType:
+    """Map camera status to the appropriate WebSocket event type.
+
+    Args:
+        status: Camera status string (online, offline, error, unknown).
+
+    Returns:
+        The corresponding WebSocketCameraEventType.
+    """
+    status_lower = status.lower()
+    if status_lower == "online":
+        return WebSocketCameraEventType.CAMERA_ONLINE
+    if status_lower == "offline":
+        return WebSocketCameraEventType.CAMERA_OFFLINE
+    if status_lower == "error":
+        return WebSocketCameraEventType.CAMERA_ERROR
+    # Default to updated for unknown statuses
+    return WebSocketCameraEventType.CAMERA_UPDATED
 
 
 class CameraStatusService:
@@ -189,6 +210,7 @@ class CameraStatusService:
         camera: Camera,
         previous_status: str,
         reason: str | None = None,
+        details: dict[str, object] | None = None,
     ) -> None:
         """Broadcast a camera status change to WebSocket clients.
 
@@ -196,18 +218,24 @@ class CameraStatusService:
             camera: The camera with updated status.
             previous_status: The previous status before the change.
             reason: Optional reason for the status change.
+            details: Optional additional details about the status change.
         """
         try:
             broadcaster = await get_broadcaster(self._redis)
-            changed_at = datetime.now(UTC).isoformat()
+            timestamp = datetime.now(UTC).isoformat()
+
+            # Determine event type based on the new status
+            event_type = _get_event_type_for_status(camera.status)
 
             status_data = {
+                "event_type": event_type.value,
                 "camera_id": camera.id,
                 "camera_name": camera.name,
                 "status": camera.status,
+                "timestamp": timestamp,
                 "previous_status": previous_status,
-                "changed_at": changed_at,
                 "reason": reason,
+                "details": details,
             }
 
             subscriber_count = await broadcaster.broadcast_camera_status(status_data)
@@ -216,6 +244,7 @@ class CameraStatusService:
                 f"Broadcast camera status change: {camera.id} {previous_status} -> {camera.status}",
                 extra={
                     "camera_id": camera.id,
+                    "event_type": event_type.value,
                     "previous_status": previous_status,
                     "new_status": camera.status,
                     "reason": reason,
@@ -243,6 +272,8 @@ async def broadcast_camera_status_change(
     status: str,
     previous_status: str | None = None,
     reason: str | None = None,
+    details: dict[str, object] | None = None,
+    event_type: WebSocketCameraEventType | None = None,
 ) -> int:
     """Standalone function to broadcast a camera status change.
 
@@ -257,6 +288,8 @@ async def broadcast_camera_status_change(
         status: The new camera status.
         previous_status: The previous status (optional).
         reason: Optional reason for the status change.
+        details: Optional additional details about the status change.
+        event_type: Optional explicit event type. If not provided, derived from status.
 
     Returns:
         Number of Redis subscribers that received the message.
@@ -272,15 +305,20 @@ async def broadcast_camera_status_change(
         )
     """
     broadcaster = await get_broadcaster(redis)
-    changed_at = datetime.now(UTC).isoformat()
+    timestamp = datetime.now(UTC).isoformat()
+
+    # Use provided event type or derive from status
+    resolved_event_type = event_type or _get_event_type_for_status(status)
 
     status_data = {
+        "event_type": resolved_event_type.value,
         "camera_id": camera_id,
         "camera_name": camera_name,
         "status": status,
+        "timestamp": timestamp,
         "previous_status": previous_status,
-        "changed_at": changed_at,
         "reason": reason,
+        "details": details,
     }
 
     return await broadcaster.broadcast_camera_status(status_data)

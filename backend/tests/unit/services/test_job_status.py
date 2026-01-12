@@ -14,6 +14,9 @@ import pytest
 from backend.services.job_status import (
     DEFAULT_COMPLETED_JOB_TTL,
     JOB_STATUS_KEY_PREFIX,
+    JOB_STATUS_SUFFIX,
+    JOBS_ACTIVE_KEY,
+    JOBS_COMPLETED_KEY,
     JobMetadata,
     JobState,
     JobStatusService,
@@ -55,10 +58,22 @@ class TestJobState:
 
     def test_state_values(self) -> None:
         """Should have expected state values."""
+        assert JobState.QUEUED == "queued"
         assert JobState.PENDING == "pending"
         assert JobState.RUNNING == "running"
         assert JobState.COMPLETED == "completed"
         assert JobState.FAILED == "failed"
+        assert JobState.CANCELLED == "cancelled"
+
+    def test_all_states_exist(self) -> None:
+        """Should have all required states."""
+        states = [s.value for s in JobState]
+        assert "queued" in states
+        assert "pending" in states
+        assert "running" in states
+        assert "completed" in states
+        assert "failed" in states
+        assert "cancelled" in states
 
 
 class TestJobMetadata:
@@ -184,7 +199,7 @@ class TestJobStatusServiceStartJob:
         set_call = mock_redis.set.call_args
         assert set_call is not None
         key = set_call[0][0]
-        assert key == f"{JOB_STATUS_KEY_PREFIX}job-123"
+        assert key == f"{JOB_STATUS_KEY_PREFIX}job-123{JOB_STATUS_SUFFIX}"
 
 
 class TestJobStatusServiceUpdateProgress:
@@ -743,3 +758,305 @@ class TestJobStatusServiceEdgeCases:
         assert set_call is not None
         stored_data = set_call[0][1]
         assert stored_data["job_type"] == "custom_job_type_with_underscores"
+
+
+class TestJobStatusServiceRedisKeyFormat:
+    """Tests for Redis key format (NEM-2292)."""
+
+    def test_job_key_format(self, job_status_service: JobStatusService) -> None:
+        """Should use job:{job_id}:status key format."""
+        key = job_status_service._get_job_key("test-123")
+        assert key == f"{JOB_STATUS_KEY_PREFIX}test-123{JOB_STATUS_SUFFIX}"
+        assert key == "job:test-123:status"
+
+
+class TestJobStatusServiceRegistry:
+    """Tests for job registry functionality (NEM-2292)."""
+
+    @pytest.mark.asyncio
+    async def test_start_job_adds_to_active_registry(
+        self, job_status_service: JobStatusService, mock_redis: AsyncMock
+    ) -> None:
+        """Should add job to active registry on creation."""
+        await job_status_service.start_job(
+            job_id="job-123",
+            job_type="export",
+            metadata=None,
+        )
+
+        # Should have called zadd for both job list and active registry
+        zadd_calls = mock_redis.zadd.call_args_list
+        keys_added = [call[0][0] for call in zadd_calls]
+        assert JOBS_ACTIVE_KEY in keys_added
+
+    @pytest.mark.asyncio
+    async def test_complete_job_moves_to_completed_registry(
+        self, job_status_service: JobStatusService, mock_redis: AsyncMock
+    ) -> None:
+        """Should move job from active to completed registry on completion."""
+        existing_job = {
+            "job_id": "job-123",
+            "job_type": "export",
+            "status": "running",
+            "progress": 90,
+            "message": None,
+            "created_at": datetime.now(UTC).isoformat(),
+            "started_at": datetime.now(UTC).isoformat(),
+            "completed_at": None,
+            "result": None,
+            "error": None,
+            "extra": None,
+        }
+        mock_redis.get.return_value = existing_job
+
+        await job_status_service.complete_job(job_id="job-123", result={"done": True})
+
+        # Should remove from active registry
+        mock_redis.zrem.assert_called_with(JOBS_ACTIVE_KEY, "job-123")
+
+        # Should add to completed registry
+        zadd_calls = mock_redis.zadd.call_args_list
+        keys_added = [call[0][0] for call in zadd_calls]
+        assert JOBS_COMPLETED_KEY in keys_added
+
+    @pytest.mark.asyncio
+    async def test_fail_job_moves_to_completed_registry(
+        self, job_status_service: JobStatusService, mock_redis: AsyncMock
+    ) -> None:
+        """Should move job from active to completed registry on failure."""
+        existing_job = {
+            "job_id": "job-123",
+            "job_type": "export",
+            "status": "running",
+            "progress": 50,
+            "message": None,
+            "created_at": datetime.now(UTC).isoformat(),
+            "started_at": datetime.now(UTC).isoformat(),
+            "completed_at": None,
+            "result": None,
+            "error": None,
+            "extra": None,
+        }
+        mock_redis.get.return_value = existing_job
+
+        await job_status_service.fail_job(job_id="job-123", error="Something went wrong")
+
+        # Should remove from active registry
+        mock_redis.zrem.assert_called_with(JOBS_ACTIVE_KEY, "job-123")
+
+        # Should add to completed registry
+        zadd_calls = mock_redis.zadd.call_args_list
+        keys_added = [call[0][0] for call in zadd_calls]
+        assert JOBS_COMPLETED_KEY in keys_added
+
+    @pytest.mark.asyncio
+    async def test_get_active_job_ids(
+        self, job_status_service: JobStatusService, mock_redis: AsyncMock
+    ) -> None:
+        """Should return active job IDs from registry."""
+        mock_redis.zrangebyscore.return_value = ["job-1", "job-2", "job-3"]
+
+        job_ids = await job_status_service.get_active_job_ids(limit=10)
+
+        assert job_ids == ["job-1", "job-2", "job-3"]
+        mock_redis.zrangebyscore.assert_called_with(JOBS_ACTIVE_KEY, "-inf", "+inf")
+
+    @pytest.mark.asyncio
+    async def test_get_active_job_ids_respects_limit(
+        self, job_status_service: JobStatusService, mock_redis: AsyncMock
+    ) -> None:
+        """Should respect limit parameter."""
+        mock_redis.zrangebyscore.return_value = ["job-1", "job-2", "job-3", "job-4", "job-5"]
+
+        job_ids = await job_status_service.get_active_job_ids(limit=3)
+
+        assert len(job_ids) == 3
+        assert job_ids == ["job-1", "job-2", "job-3"]
+
+    @pytest.mark.asyncio
+    async def test_get_completed_job_ids(
+        self, job_status_service: JobStatusService, mock_redis: AsyncMock
+    ) -> None:
+        """Should return completed job IDs from registry."""
+        mock_redis.zrangebyscore.return_value = ["job-a", "job-b"]
+
+        job_ids = await job_status_service.get_completed_job_ids(limit=50)
+
+        assert job_ids == ["job-a", "job-b"]
+        mock_redis.zrangebyscore.assert_called_with(JOBS_COMPLETED_KEY, "-inf", "+inf")
+
+
+class TestJobStatusServiceCancelJob:
+    """Tests for job cancellation (NEM-2292)."""
+
+    @pytest.mark.asyncio
+    async def test_cancel_job_sets_cancelled_status(
+        self, job_status_service: JobStatusService, mock_redis: AsyncMock
+    ) -> None:
+        """Should set job status to CANCELLED."""
+        existing_job = {
+            "job_id": "job-123",
+            "job_type": "export",
+            "status": "running",
+            "progress": 50,
+            "message": "Processing...",
+            "created_at": datetime.now(UTC).isoformat(),
+            "started_at": datetime.now(UTC).isoformat(),
+            "completed_at": None,
+            "result": None,
+            "error": None,
+            "extra": None,
+        }
+        mock_redis.get.return_value = existing_job
+
+        result = await job_status_service.cancel_job(job_id="job-123")
+
+        assert result is True
+        set_call = mock_redis.set.call_args
+        assert set_call is not None
+        stored_data = set_call[0][1]
+        assert stored_data["status"] == "cancelled"
+        assert stored_data["error"] == "Cancelled by user"
+        assert stored_data["completed_at"] is not None
+
+    @pytest.mark.asyncio
+    async def test_cancel_job_moves_to_completed_registry(
+        self, job_status_service: JobStatusService, mock_redis: AsyncMock
+    ) -> None:
+        """Should move cancelled job to completed registry."""
+        existing_job = {
+            "job_id": "job-123",
+            "job_type": "export",
+            "status": "pending",
+            "progress": 0,
+            "message": None,
+            "created_at": datetime.now(UTC).isoformat(),
+            "started_at": None,
+            "completed_at": None,
+            "result": None,
+            "error": None,
+            "extra": None,
+        }
+        mock_redis.get.return_value = existing_job
+
+        await job_status_service.cancel_job(job_id="job-123")
+
+        # Should remove from active registry
+        mock_redis.zrem.assert_called_with(JOBS_ACTIVE_KEY, "job-123")
+
+        # Should add to completed registry
+        zadd_calls = mock_redis.zadd.call_args_list
+        keys_added = [call[0][0] for call in zadd_calls]
+        assert JOBS_COMPLETED_KEY in keys_added
+
+    @pytest.mark.asyncio
+    async def test_cancel_job_returns_false_if_already_completed(
+        self, job_status_service: JobStatusService, mock_redis: AsyncMock
+    ) -> None:
+        """Should return False if job already completed."""
+        existing_job = {
+            "job_id": "job-123",
+            "job_type": "export",
+            "status": "completed",
+            "progress": 100,
+            "message": "Done",
+            "created_at": datetime.now(UTC).isoformat(),
+            "started_at": datetime.now(UTC).isoformat(),
+            "completed_at": datetime.now(UTC).isoformat(),
+            "result": None,
+            "error": None,
+            "extra": None,
+        }
+        mock_redis.get.return_value = existing_job
+
+        result = await job_status_service.cancel_job(job_id="job-123")
+
+        assert result is False
+        # Should not update the job
+        mock_redis.set.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_cancel_job_returns_false_if_already_failed(
+        self, job_status_service: JobStatusService, mock_redis: AsyncMock
+    ) -> None:
+        """Should return False if job already failed."""
+        existing_job = {
+            "job_id": "job-123",
+            "job_type": "export",
+            "status": "failed",
+            "progress": 50,
+            "message": "Error",
+            "created_at": datetime.now(UTC).isoformat(),
+            "started_at": datetime.now(UTC).isoformat(),
+            "completed_at": datetime.now(UTC).isoformat(),
+            "result": None,
+            "error": "Some error",
+            "extra": None,
+        }
+        mock_redis.get.return_value = existing_job
+
+        result = await job_status_service.cancel_job(job_id="job-123")
+
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_cancel_job_returns_false_if_already_cancelled(
+        self, job_status_service: JobStatusService, mock_redis: AsyncMock
+    ) -> None:
+        """Should return False if job already cancelled."""
+        existing_job = {
+            "job_id": "job-123",
+            "job_type": "export",
+            "status": "cancelled",
+            "progress": 30,
+            "message": "Cancelled",
+            "created_at": datetime.now(UTC).isoformat(),
+            "started_at": datetime.now(UTC).isoformat(),
+            "completed_at": datetime.now(UTC).isoformat(),
+            "result": None,
+            "error": "Cancelled by user",
+            "extra": None,
+        }
+        mock_redis.get.return_value = existing_job
+
+        result = await job_status_service.cancel_job(job_id="job-123")
+
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_cancel_job_raises_if_not_found(
+        self, job_status_service: JobStatusService, mock_redis: AsyncMock
+    ) -> None:
+        """Should raise KeyError if job not found."""
+        mock_redis.get.return_value = None
+
+        with pytest.raises(KeyError, match="Job not found"):
+            await job_status_service.cancel_job(job_id="nonexistent")
+
+    @pytest.mark.asyncio
+    async def test_cancel_queued_job(
+        self, job_status_service: JobStatusService, mock_redis: AsyncMock
+    ) -> None:
+        """Should be able to cancel a queued job."""
+        existing_job = {
+            "job_id": "job-123",
+            "job_type": "export",
+            "status": "queued",
+            "progress": 0,
+            "message": None,
+            "created_at": datetime.now(UTC).isoformat(),
+            "started_at": None,
+            "completed_at": None,
+            "result": None,
+            "error": None,
+            "extra": None,
+        }
+        mock_redis.get.return_value = existing_job
+
+        result = await job_status_service.cancel_job(job_id="job-123")
+
+        assert result is True
+        set_call = mock_redis.set.call_args
+        assert set_call is not None
+        stored_data = set_call[0][1]
+        assert stored_data["status"] == "cancelled"

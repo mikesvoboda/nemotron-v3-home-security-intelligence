@@ -32,17 +32,20 @@ pytestmark = pytest.mark.integration
 
 @pytest.mark.asyncio
 async def test_list_jobs_empty(client: AsyncClient, mock_redis):
-    """Test list jobs endpoint returns valid structure."""
+    """Test list jobs endpoint returns valid structure with pagination."""
     response = await client.get("/api/jobs")
 
     assert response.status_code == 200
     data = response.json()
-    assert "jobs" in data
-    assert "total" in data
-    assert isinstance(data["jobs"], list)
-    assert isinstance(data["total"], int)
-    assert data["total"] >= 0
-    assert len(data["jobs"]) == data["total"]
+    assert "items" in data
+    assert "pagination" in data
+    assert isinstance(data["items"], list)
+    assert isinstance(data["pagination"]["total"], int)
+    assert data["pagination"]["total"] >= 0
+    # Verify pagination structure
+    assert "limit" in data["pagination"]
+    assert "offset" in data["pagination"]
+    assert "has_more" in data["pagination"]
 
 
 @pytest.mark.asyncio
@@ -52,10 +55,10 @@ async def test_list_jobs_with_type_filter(client: AsyncClient, mock_redis):
 
     assert response.status_code == 200
     data = response.json()
-    assert "jobs" in data
-    assert "total" in data
+    assert "items" in data
+    assert "pagination" in data
     # All returned jobs should be export type
-    for job in data["jobs"]:
+    for job in data["items"]:
         assert job["job_type"] == "export"
 
 
@@ -66,9 +69,9 @@ async def test_list_jobs_with_status_filter(client: AsyncClient, mock_redis):
 
     assert response.status_code == 200
     data = response.json()
-    assert "jobs" in data
+    assert "items" in data
     # All returned jobs should be running
-    for job in data["jobs"]:
+    for job in data["items"]:
         assert job["status"] == "running"
 
 
@@ -79,8 +82,8 @@ async def test_list_jobs_with_multiple_filters(client: AsyncClient, mock_redis):
 
     assert response.status_code == 200
     data = response.json()
-    assert "jobs" in data
-    for job in data["jobs"]:
+    assert "items" in data
+    for job in data["items"]:
         assert job["job_type"] == "export"
         assert job["status"] == "completed"
 

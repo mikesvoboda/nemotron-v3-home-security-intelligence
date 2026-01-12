@@ -1,4 +1,4 @@
-"""Unit tests for WebSocket alert message schemas.
+"""Unit tests for WebSocket alert message schemas (NEM-1981, NEM-2294).
 
 Tests cover:
 - WebSocketAlertEventType enum values
@@ -6,8 +6,10 @@ Tests cover:
 - WebSocketAlertStatus enum validation
 - WebSocketAlertData model validation
 - WebSocketAlertCreatedMessage schema
+- WebSocketAlertUpdatedMessage schema (NEM-2294)
 - WebSocketAlertAcknowledgedMessage schema
 - WebSocketAlertDismissedMessage schema
+- WebSocketAlertResolvedMessage schema (NEM-2294)
 """
 
 from __future__ import annotations
@@ -21,8 +23,10 @@ from backend.api.schemas.websocket import (
     WebSocketAlertData,
     WebSocketAlertDismissedMessage,
     WebSocketAlertEventType,
+    WebSocketAlertResolvedMessage,
     WebSocketAlertSeverity,
     WebSocketAlertStatus,
+    WebSocketAlertUpdatedMessage,
 )
 
 
@@ -37,13 +41,23 @@ class TestWebSocketAlertEventType:
         """Test ALERT_ACKNOWLEDGED enum value."""
         assert WebSocketAlertEventType.ALERT_ACKNOWLEDGED == "alert_acknowledged"
 
-    def test_alert_dismissed_value(self) -> None:
-        """Test ALERT_DISMISSED enum value."""
-        assert WebSocketAlertEventType.ALERT_DISMISSED == "alert_dismissed"
+    def test_alert_updated_value(self) -> None:
+        """Test ALERT_UPDATED enum value (NEM-2294)."""
+        assert WebSocketAlertEventType.ALERT_UPDATED == "alert_updated"
+
+    def test_alert_resolved_value(self) -> None:
+        """Test ALERT_RESOLVED enum value (NEM-2294)."""
+        assert WebSocketAlertEventType.ALERT_RESOLVED == "alert_resolved"
 
     def test_all_event_types_exist(self) -> None:
         """Test that all expected event types exist."""
-        expected_types = {"alert_created", "alert_acknowledged", "alert_dismissed"}
+        expected_types = {
+            "alert_created",
+            "alert_updated",
+            "alert_acknowledged",
+            "alert_resolved",
+            "alert_dismissed",
+        }
         actual_types = {e.value for e in WebSocketAlertEventType}
         assert actual_types == expected_types
 
@@ -335,6 +349,86 @@ class TestWebSocketAlertDismissedMessage:
         assert json_data["data"]["severity"] == "low"
 
 
+class TestWebSocketAlertUpdatedMessage:
+    """Tests for WebSocketAlertUpdatedMessage schema (NEM-2294)."""
+
+    @pytest.fixture
+    def valid_alert_data(self) -> dict:
+        """Create valid alert data for testing."""
+        return {
+            "id": "550e8400-e29b-41d4-a716-446655440000",
+            "event_id": 123,
+            "rule_id": "550e8400-e29b-41d4-a716-446655440001",
+            "severity": "high",
+            "status": "pending",
+            "dedup_key": "front_door:person:rule1",
+            "created_at": "2026-01-09T12:00:00Z",
+            "updated_at": "2026-01-09T12:00:30Z",
+        }
+
+    def test_valid_message(self, valid_alert_data: dict) -> None:
+        """Test valid alert updated message."""
+        data = WebSocketAlertData.model_validate(valid_alert_data)
+        message = WebSocketAlertUpdatedMessage(data=data)
+        assert message.type == "alert_updated"
+        assert message.data.id == valid_alert_data["id"]
+
+    def test_default_type(self, valid_alert_data: dict) -> None:
+        """Test that type defaults to alert_updated."""
+        data = WebSocketAlertData.model_validate(valid_alert_data)
+        message = WebSocketAlertUpdatedMessage(data=data)
+        assert message.type == "alert_updated"
+
+    def test_json_serialization(self, valid_alert_data: dict) -> None:
+        """Test JSON serialization of alert updated message."""
+        data = WebSocketAlertData.model_validate(valid_alert_data)
+        message = WebSocketAlertUpdatedMessage(data=data)
+        json_data = message.model_dump(mode="json")
+        assert json_data["type"] == "alert_updated"
+        assert json_data["data"]["id"] == valid_alert_data["id"]
+        assert json_data["data"]["severity"] == "high"
+
+
+class TestWebSocketAlertResolvedMessage:
+    """Tests for WebSocketAlertResolvedMessage schema (NEM-2294)."""
+
+    @pytest.fixture
+    def valid_alert_data(self) -> dict:
+        """Create valid alert data for testing."""
+        return {
+            "id": "550e8400-e29b-41d4-a716-446655440000",
+            "event_id": 456,
+            "rule_id": None,
+            "severity": "medium",
+            "status": "dismissed",
+            "dedup_key": "garage:person:rule3",
+            "created_at": "2026-01-09T12:00:00Z",
+            "updated_at": "2026-01-09T12:02:00Z",
+        }
+
+    def test_valid_message(self, valid_alert_data: dict) -> None:
+        """Test valid alert resolved message."""
+        data = WebSocketAlertData.model_validate(valid_alert_data)
+        message = WebSocketAlertResolvedMessage(data=data)
+        assert message.type == "alert_resolved"
+        assert message.data.status == WebSocketAlertStatus.DISMISSED
+
+    def test_default_type(self, valid_alert_data: dict) -> None:
+        """Test that type defaults to alert_resolved."""
+        data = WebSocketAlertData.model_validate(valid_alert_data)
+        message = WebSocketAlertResolvedMessage(data=data)
+        assert message.type == "alert_resolved"
+
+    def test_json_serialization(self, valid_alert_data: dict) -> None:
+        """Test JSON serialization of alert resolved message."""
+        data = WebSocketAlertData.model_validate(valid_alert_data)
+        message = WebSocketAlertResolvedMessage(data=data)
+        json_data = message.model_dump(mode="json")
+        assert json_data["type"] == "alert_resolved"
+        assert json_data["data"]["status"] == "dismissed"
+        assert json_data["data"]["severity"] == "medium"
+
+
 class TestWebSocketAlertMessageRoundTrip:
     """Tests for round-trip serialization of alert messages."""
 
@@ -362,6 +456,15 @@ class TestWebSocketAlertMessageRoundTrip:
         assert restored.data.id == original.data.id
         assert restored.data.event_id == original.data.event_id
 
+    def test_alert_updated_round_trip(self, sample_alert_data: dict) -> None:
+        """Test that alert updated message survives round-trip serialization (NEM-2294)."""
+        data = WebSocketAlertData.model_validate(sample_alert_data)
+        original = WebSocketAlertUpdatedMessage(data=data)
+        json_str = original.model_dump_json()
+        restored = WebSocketAlertUpdatedMessage.model_validate_json(json_str)
+        assert restored.type == original.type
+        assert restored.data.id == original.data.id
+
     def test_alert_acknowledged_round_trip(self, sample_alert_data: dict) -> None:
         """Test that alert acknowledged message survives round-trip serialization."""
         sample_alert_data["status"] = "acknowledged"
@@ -371,6 +474,16 @@ class TestWebSocketAlertMessageRoundTrip:
         restored = WebSocketAlertAcknowledgedMessage.model_validate_json(json_str)
         assert restored.type == original.type
         assert restored.data.status == WebSocketAlertStatus.ACKNOWLEDGED
+
+    def test_alert_resolved_round_trip(self, sample_alert_data: dict) -> None:
+        """Test that alert resolved message survives round-trip serialization (NEM-2294)."""
+        sample_alert_data["status"] = "dismissed"
+        data = WebSocketAlertData.model_validate(sample_alert_data)
+        original = WebSocketAlertResolvedMessage(data=data)
+        json_str = original.model_dump_json()
+        restored = WebSocketAlertResolvedMessage.model_validate_json(json_str)
+        assert restored.type == original.type
+        assert restored.data.status == WebSocketAlertStatus.DISMISSED
 
     def test_alert_dismissed_round_trip(self, sample_alert_data: dict) -> None:
         """Test that alert dismissed message survives round-trip serialization."""
