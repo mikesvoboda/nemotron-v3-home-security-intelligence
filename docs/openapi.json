@@ -7299,6 +7299,19 @@
             "description": "Risk score (0-100)",
             "title": "Risk Score"
           },
+          "snooze_until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Timestamp until which alerts for this event are snoozed (NEM-2359)",
+            "title": "Snooze Until"
+          },
           "started_at": {
             "description": "Event start timestamp",
             "format": "date-time",
@@ -7486,7 +7499,8 @@
         "description": "Schema for updating an event (PATCH).",
         "example": {
           "notes": "Verified - delivery person",
-          "reviewed": true
+          "reviewed": true,
+          "snooze_until": "2025-12-24T12:00:00Z"
         },
         "properties": {
           "notes": {
@@ -7512,6 +7526,19 @@
             ],
             "description": "Mark event as reviewed or not reviewed",
             "title": "Reviewed"
+          },
+          "snooze_until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set or clear the alert snooze timestamp (NEM-2359)",
+            "title": "Snooze Until"
           }
         },
         "title": "EventUpdate",

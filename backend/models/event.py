@@ -69,6 +69,12 @@ class Event(Base):
         DateTime(timezone=True), nullable=True, default=None
     )
 
+    # Alert snooze timestamp (NEM-2359)
+    # When set, alerts for this event are snoozed until this timestamp
+    snooze_until: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
+
     # Relationships
     camera: Mapped[Camera] = relationship("Camera", back_populates="events")
     alerts: Mapped[list[Alert]] = relationship(
@@ -160,6 +166,20 @@ class Event(Base):
             True if deleted_at is set, False otherwise
         """
         return self.deleted_at is not None
+
+    @property
+    def is_snoozed(self) -> bool:
+        """Check if this event's alerts are currently snoozed.
+
+        An event is considered snoozed if snooze_until is set and is
+        in the future (greater than the current time).
+
+        Returns:
+            True if event is currently snoozed, False otherwise
+        """
+        if self.snooze_until is None:
+            return False
+        return self.snooze_until > datetime.now(UTC)
 
     def soft_delete(self) -> None:
         """Soft delete this event by setting deleted_at timestamp.

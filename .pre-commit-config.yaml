@@ -209,6 +209,17 @@ repos:
         files: ^backend/tests/.*\.py$
         pass_filenames: true
 
+      # Validation alignment hook - detects drift between Pydantic and Zod schemas
+      # Warns when backend Pydantic schemas are modified to verify frontend Zod alignment
+      # This is a warning-only hook - commits are not blocked
+      # Set VALIDATION_DRIFT_VERBOSE=1 for detailed info messages
+      - id: check-validation-drift
+        name: Check validation drift (Pydantic/Zod)
+        entry: python3 scripts/check-validation-drift.py
+        language: system
+        files: ^(backend/api/schemas/.*\.py|frontend/src/schemas/.*\.ts)$
+        pass_filenames: true
+
       # Test automation enforcement hooks
       # These ensure new files include proper test stubs and integration tests
 
