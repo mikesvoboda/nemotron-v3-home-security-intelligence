@@ -14,11 +14,7 @@ Features:
     - Detailed statistics on cleanup operations
     - Streaming queries to avoid loading all records into memory (NEM-1539)
     - Batch deletes for improved performance with large datasets (NEM-1539)
-<<<<<<< HEAD
     - Job status tracking via Redis for monitoring (NEM-2292)
-=======
-    - Job tracking with progress reporting and cancellation support (NEM-1974)
->>>>>>> 79a0e149b (feat: implement 4 parallel tasks - AlertsPage, FeedbackUI, JobTracking, OrphanedCleanup)
 
 Cleanup Stats:
     - events_deleted: Number of events removed
@@ -44,13 +40,13 @@ from backend.models.detection import Detection
 from backend.models.event import Event
 from backend.models.gpu_stats import GPUStats
 from backend.models.log import Log
-from backend.services.job_tracker import JobTracker
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
     from backend.core.redis import RedisClient
     from backend.services.job_status import JobStatusService
+    from backend.services.job_tracker import JobTracker
 
 logger = get_logger(__name__)
 
@@ -112,13 +108,7 @@ class CleanupService:
     This service runs on a schedule to delete old records and files,
     maintaining database size and freeing disk space. All deletions
     are performed in transactions with proper error handling.
-
-    Optionally integrates with JobTracker for progress reporting and
-    cancellation support.
     """
-
-    # Job type identifier for tracking
-    JOB_TYPE = "cleanup"
 
     def __init__(
         self,
@@ -127,11 +117,7 @@ class CleanupService:
         thumbnail_dir: str = "data/thumbnails",
         delete_images: bool = False,
         batch_size: int = 1000,
-<<<<<<< HEAD
         redis_client: RedisClient | None = None,
-=======
-        job_tracker: JobTracker | None = None,
->>>>>>> 79a0e149b (feat: implement 4 parallel tasks - AlertsPage, FeedbackUI, JobTracking, OrphanedCleanup)
     ):
         """Initialize cleanup service.
 
@@ -142,11 +128,7 @@ class CleanupService:
             delete_images: Whether to delete original image files (default: False)
             batch_size: Number of records to process per batch (default: 1000).
                         Used for streaming queries to limit memory usage.
-<<<<<<< HEAD
             redis_client: Optional Redis client for job status tracking.
-=======
-            job_tracker: Optional job tracker for progress reporting.
->>>>>>> 79a0e149b (feat: implement 4 parallel tasks - AlertsPage, FeedbackUI, JobTracking, OrphanedCleanup)
         """
         settings = get_settings()
         self.cleanup_time = cleanup_time
@@ -154,12 +136,10 @@ class CleanupService:
         self.thumbnail_dir = Path(thumbnail_dir)
         self.delete_images = delete_images
         self.batch_size = batch_size
-        self._job_tracker = job_tracker
 
         # Task tracking
         self._cleanup_task: asyncio.Task | None = None
         self.running = False
-        self._current_job_id: str | None = None
 
         # Optional Redis client for job status tracking
         self._redis_client = redis_client
@@ -250,39 +230,12 @@ class CleanupService:
 
         await asyncio.sleep(wait_seconds)
 
-<<<<<<< HEAD
     async def run_cleanup(self) -> CleanupStats:  # noqa: PLR0912
-=======
-    def _is_job_cancelled(self, job_id: str | None) -> bool:
-        """Check if the current job has been cancelled.
-
-        Args:
-            job_id: The job ID to check, or None if no job tracking.
-
-        Returns:
-            True if the job was cancelled, False otherwise.
-        """
-        if job_id is None or self._job_tracker is None:
-            return False
-        return self._job_tracker.is_cancelled(job_id)
-
-    async def run_cleanup(  # noqa: PLR0912 - complexity due to job tracking and cancellation
-        self, job_id: str | None = None
-    ) -> CleanupStats:
->>>>>>> 79a0e149b (feat: implement 4 parallel tasks - AlertsPage, FeedbackUI, JobTracking, OrphanedCleanup)
         """Execute cleanup operation.
 
         Deletes old records and files based on retention policy.
         Uses streaming queries to avoid loading all records into memory.
-<<<<<<< HEAD
         Tracks job status in Redis if available.
-=======
-        Reports progress via JobTracker if configured.
-
-        Args:
-            job_id: Optional job ID for tracking. If None and job_tracker is
-                   configured, a new job will be created.
->>>>>>> 79a0e149b (feat: implement 4 parallel tasks - AlertsPage, FeedbackUI, JobTracking, OrphanedCleanup)
 
         Returns:
             CleanupStats object with operation statistics
@@ -290,16 +243,7 @@ class CleanupService:
         Raises:
             Exception: If cleanup fails (transaction is rolled back)
         """
-        # Create job for tracking if not provided
-        if job_id is None and self._job_tracker is not None:
-            job_id = self._job_tracker.create_job(self.JOB_TYPE)
-            self._current_job_id = job_id
-            self._job_tracker.start_job(job_id, "Starting cleanup operation")
-
-        logger.info(
-            f"Starting cleanup (retention: {self.retention_days} days)",
-            extra={"job_id": job_id},
-        )
+        logger.info(f"Starting cleanup (retention: {self.retention_days} days)")
         stats = CleanupStats()
 
         # Start job tracking if Redis is available
@@ -317,44 +261,19 @@ class CleanupService:
         logger.info(f"Deleting records older than {cutoff_date}")
 
         try:
-<<<<<<< HEAD
             if job_service is not None and job_id is not None:
                 await job_service.update_progress(job_id, 5, "Scanning for files to delete")
-=======
-            # Check for cancellation before starting
-            if self._is_job_cancelled(job_id):
-                logger.info("Cleanup cancelled before starting", extra={"job_id": job_id})
-                return stats
->>>>>>> 79a0e149b (feat: implement 4 parallel tasks - AlertsPage, FeedbackUI, JobTracking, OrphanedCleanup)
 
             async with get_session() as session:
                 # Step 1: Stream detection file paths without loading all into memory
-                if self._job_tracker is not None and job_id is not None:
-                    self._job_tracker.update_progress(
-                        job_id, 10, "Collecting file paths for cleanup"
-                    )
-
                 thumbnail_paths, image_paths = await self._get_detection_file_paths_streaming(
                     session, cutoff_date
                 )
 
-<<<<<<< HEAD
                 if job_service is not None and job_id is not None:
                     await job_service.update_progress(job_id, 15, "Deleting old detections")
-=======
-                # Check for cancellation
-                if self._is_job_cancelled(job_id):
-                    logger.info(
-                        "Cleanup cancelled after collecting file paths",
-                        extra={"job_id": job_id},
-                    )
-                    return stats
->>>>>>> 79a0e149b (feat: implement 4 parallel tasks - AlertsPage, FeedbackUI, JobTracking, OrphanedCleanup)
 
                 # Step 2: Delete old detections
-                if self._job_tracker is not None and job_id is not None:
-                    self._job_tracker.update_progress(job_id, 20, "Deleting old detections")
-
                 delete_detections_stmt = delete(Detection).where(
                     Detection.detected_at < cutoff_date
                 )
@@ -362,93 +281,39 @@ class CleanupService:
                 stats.detections_deleted = detections_result.rowcount or 0  # type: ignore[attr-defined]
                 logger.info(f"Deleted {stats.detections_deleted} old detections")
 
-<<<<<<< HEAD
                 if job_service is not None and job_id is not None:
                     await job_service.update_progress(job_id, 30, "Deleting old events")
-=======
-                # Check for cancellation
-                if self._is_job_cancelled(job_id):
-                    logger.info(
-                        "Cleanup cancelled after deleting detections",
-                        extra={"job_id": job_id},
-                    )
-                    await session.rollback()
-                    return stats
->>>>>>> 79a0e149b (feat: implement 4 parallel tasks - AlertsPage, FeedbackUI, JobTracking, OrphanedCleanup)
 
                 # Step 3: Delete old events
-                if self._job_tracker is not None and job_id is not None:
-                    self._job_tracker.update_progress(job_id, 30, "Deleting old events")
-
                 delete_events_stmt = delete(Event).where(Event.started_at < cutoff_date)
                 events_result = await session.execute(delete_events_stmt)
                 stats.events_deleted = events_result.rowcount or 0  # type: ignore[attr-defined]
                 logger.info(f"Deleted {stats.events_deleted} old events")
 
-<<<<<<< HEAD
                 if job_service is not None and job_id is not None:
                     await job_service.update_progress(job_id, 45, "Deleting old GPU stats")
-=======
-                # Check for cancellation
-                if self._is_job_cancelled(job_id):
-                    logger.info(
-                        "Cleanup cancelled after deleting events",
-                        extra={"job_id": job_id},
-                    )
-                    await session.rollback()
-                    return stats
->>>>>>> 79a0e149b (feat: implement 4 parallel tasks - AlertsPage, FeedbackUI, JobTracking, OrphanedCleanup)
 
                 # Step 4: Delete old GPU stats
-                if self._job_tracker is not None and job_id is not None:
-                    self._job_tracker.update_progress(job_id, 40, "Deleting old GPU stats")
-
                 delete_gpu_stats_stmt = delete(GPUStats).where(GPUStats.recorded_at < cutoff_date)
                 gpu_stats_result = await session.execute(delete_gpu_stats_stmt)
                 stats.gpu_stats_deleted = gpu_stats_result.rowcount or 0  # type: ignore[attr-defined]
                 logger.info(f"Deleted {stats.gpu_stats_deleted} old GPU stats")
 
                 # Commit database deletions
-                if self._job_tracker is not None and job_id is not None:
-                    self._job_tracker.update_progress(job_id, 50, "Committing database changes")
-
                 await session.commit()
                 logger.info("Database cleanup committed successfully")
 
-<<<<<<< HEAD
             if job_service is not None and job_id is not None:
                 await job_service.update_progress(job_id, 55, "Deleting old logs")
-=======
-            # Check for cancellation before file cleanup
-            if self._is_job_cancelled(job_id):
-                logger.info(
-                    "Cleanup cancelled before file cleanup",
-                    extra={"job_id": job_id},
-                )
-                return stats
->>>>>>> 79a0e149b (feat: implement 4 parallel tasks - AlertsPage, FeedbackUI, JobTracking, OrphanedCleanup)
 
             # Step 5: Delete old logs
-            if self._job_tracker is not None and job_id is not None:
-                self._job_tracker.update_progress(job_id, 60, "Cleaning up old logs")
-
             stats.logs_deleted = await self.cleanup_old_logs()
 
             if job_service is not None and job_id is not None:
                 await job_service.update_progress(job_id, 70, "Deleting thumbnail files")
 
             # Step 6: Delete thumbnail files (after successful DB commit)
-            if self._job_tracker is not None and job_id is not None:
-                self._job_tracker.update_progress(job_id, 70, "Deleting thumbnail files")
-
-            for i, thumbnail_path in enumerate(thumbnail_paths):
-                # Check for cancellation periodically during file deletion
-                if i > 0 and i % 100 == 0 and self._is_job_cancelled(job_id):
-                    logger.info(
-                        f"Cleanup cancelled during thumbnail deletion ({i}/{len(thumbnail_paths)})",
-                        extra={"job_id": job_id},
-                    )
-                    break
+            for thumbnail_path in thumbnail_paths:
                 if self._delete_file(thumbnail_path):
                     stats.thumbnails_deleted += 1
 
@@ -456,30 +321,15 @@ class CleanupService:
 
             # Step 7: Delete original image files (if enabled)
             if self.delete_images:
-<<<<<<< HEAD
                 if job_service is not None and job_id is not None:
                     await job_service.update_progress(job_id, 85, "Deleting image files")
 
                 for image_path in image_paths:
-=======
-                if self._job_tracker is not None and job_id is not None:
-                    self._job_tracker.update_progress(job_id, 85, "Deleting original image files")
-
-                for i, image_path in enumerate(image_paths):
-                    # Check for cancellation periodically during file deletion
-                    if i > 0 and i % 100 == 0 and self._is_job_cancelled(job_id):
-                        logger.info(
-                            f"Cleanup cancelled during image deletion ({i}/{len(image_paths)})",
-                            extra={"job_id": job_id},
-                        )
-                        break
->>>>>>> 79a0e149b (feat: implement 4 parallel tasks - AlertsPage, FeedbackUI, JobTracking, OrphanedCleanup)
                     if self._delete_file(image_path):
                         stats.images_deleted += 1
 
                 logger.info(f"Deleted {stats.images_deleted} original image files")
 
-<<<<<<< HEAD
             # Mark job as completed
             if job_service is not None and job_id is not None:
                 await job_service.complete_job(job_id, result=stats.to_dict())
@@ -492,24 +342,7 @@ class CleanupService:
             # Mark job as failed
             if job_service is not None and job_id is not None:
                 await job_service.fail_job(job_id, str(e))
-=======
-            logger.info(f"Cleanup completed: {stats}", extra={"job_id": job_id})
-
-            # Complete the job
-            if self._job_tracker is not None and job_id is not None:
-                self._job_tracker.complete_job(job_id, result=stats.to_dict())
-
-            return stats
-
-        except Exception as e:
-            logger.error(f"Cleanup failed: {e}", exc_info=True, extra={"job_id": job_id})
-            # Fail the job with error details
-            if self._job_tracker is not None and job_id is not None:
-                self._job_tracker.fail_job(job_id, str(e))
->>>>>>> 79a0e149b (feat: implement 4 parallel tasks - AlertsPage, FeedbackUI, JobTracking, OrphanedCleanup)
             raise
-        finally:
-            self._current_job_id = None
 
     async def _get_detection_file_paths_streaming(
         self, session: AsyncSession, cutoff_date: datetime
