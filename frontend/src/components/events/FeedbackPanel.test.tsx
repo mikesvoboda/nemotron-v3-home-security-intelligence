@@ -60,7 +60,7 @@ describe('FeedbackPanel', () => {
     vi.mocked(api.submitEventFeedback).mockResolvedValue({
       id: 1,
       event_id: 123,
-      feedback_type: 'correct',
+      feedback_type: 'accurate',
       notes: null,
       created_at: '2024-01-01T00:00:00Z',
     });
@@ -83,10 +83,10 @@ describe('FeedbackPanel', () => {
       renderWithQueryClient(<FeedbackPanel {...defaultProps} />);
 
       await waitFor(() => {
-        expect(screen.getByTestId('feedback-btn-correct')).toBeInTheDocument();
+        expect(screen.getByTestId('feedback-btn-accurate')).toBeInTheDocument();
         expect(screen.getByTestId('feedback-btn-false_positive')).toBeInTheDocument();
-        expect(screen.getByTestId('feedback-btn-missed_detection')).toBeInTheDocument();
-        expect(screen.getByTestId('feedback-btn-wrong_severity')).toBeInTheDocument();
+        expect(screen.getByTestId('feedback-btn-missed_threat')).toBeInTheDocument();
+        expect(screen.getByTestId('feedback-btn-severity_wrong')).toBeInTheDocument();
       });
     });
 
@@ -94,7 +94,7 @@ describe('FeedbackPanel', () => {
       renderWithQueryClient(<FeedbackPanel {...defaultProps} />);
 
       await waitFor(() => {
-        expect(screen.getByText('Correct')).toBeInTheDocument();
+        expect(screen.getByText('Accurate')).toBeInTheDocument();
         expect(screen.getByText('False Positive')).toBeInTheDocument();
         expect(screen.getByText('Missed Threat')).toBeInTheDocument();
         expect(screen.getByText('Severity Wrong')).toBeInTheDocument();
@@ -136,7 +136,7 @@ describe('FeedbackPanel', () => {
       vi.mocked(api.getEventFeedback).mockResolvedValue({
         id: 1,
         event_id: 123,
-        feedback_type: 'correct',
+        feedback_type: 'accurate',
         notes: null,
         created_at: '2024-01-15T10:00:00Z',
       });
@@ -144,7 +144,7 @@ describe('FeedbackPanel', () => {
       renderWithQueryClient(<FeedbackPanel {...defaultProps} />);
 
       await waitFor(() => {
-        expect(screen.getByText('Correct')).toBeInTheDocument();
+        expect(screen.getByText('Accurate')).toBeInTheDocument();
         // Should not show the buttons grid when feedback exists
         expect(screen.queryByTestId('feedback-buttons')).not.toBeInTheDocument();
       });
@@ -170,7 +170,7 @@ describe('FeedbackPanel', () => {
       vi.mocked(api.getEventFeedback).mockResolvedValue({
         id: 1,
         event_id: 123,
-        feedback_type: 'correct',
+        feedback_type: 'accurate',
         notes: null,
         created_at: '2024-01-15T10:00:00Z',
       });
@@ -189,10 +189,10 @@ describe('FeedbackPanel', () => {
       renderWithQueryClient(<FeedbackPanel {...defaultProps} />);
 
       await waitFor(() => {
-        expect(screen.getByTestId('feedback-btn-correct')).toBeInTheDocument();
+        expect(screen.getByTestId('feedback-btn-accurate')).toBeInTheDocument();
       });
 
-      await user.click(screen.getByTestId('feedback-btn-correct'));
+      await user.click(screen.getByTestId('feedback-btn-accurate'));
 
       await waitFor(() => {
         expect(api.submitEventFeedback).toHaveBeenCalled();
@@ -200,7 +200,7 @@ describe('FeedbackPanel', () => {
         const call = vi.mocked(api.submitEventFeedback).mock.calls[0];
         expect(call[0]).toEqual({
           event_id: 123,
-          feedback_type: 'correct',
+          feedback_type: 'accurate',
         });
       });
     });
@@ -210,10 +210,10 @@ describe('FeedbackPanel', () => {
       renderWithQueryClient(<FeedbackPanel {...defaultProps} />);
 
       await waitFor(() => {
-        expect(screen.getByTestId('feedback-btn-correct')).toBeInTheDocument();
+        expect(screen.getByTestId('feedback-btn-accurate')).toBeInTheDocument();
       });
 
-      await user.click(screen.getByTestId('feedback-btn-correct'));
+      await user.click(screen.getByTestId('feedback-btn-accurate'));
 
       await waitFor(() => {
         expect(mockToastSuccess).toHaveBeenCalledWith('Feedback submitted successfully');
@@ -227,10 +227,10 @@ describe('FeedbackPanel', () => {
       renderWithQueryClient(<FeedbackPanel {...defaultProps} />);
 
       await waitFor(() => {
-        expect(screen.getByTestId('feedback-btn-correct')).toBeInTheDocument();
+        expect(screen.getByTestId('feedback-btn-accurate')).toBeInTheDocument();
       });
 
-      await user.click(screen.getByTestId('feedback-btn-correct'));
+      await user.click(screen.getByTestId('feedback-btn-accurate'));
 
       await waitFor(() => {
         expect(mockToastError).toHaveBeenCalledWith('Failed to submit feedback: Network error');
@@ -259,10 +259,10 @@ describe('FeedbackPanel', () => {
       renderWithQueryClient(<FeedbackPanel {...defaultProps} />);
 
       await waitFor(() => {
-        expect(screen.getByTestId('feedback-btn-missed_detection')).toBeInTheDocument();
+        expect(screen.getByTestId('feedback-btn-missed_threat')).toBeInTheDocument();
       });
 
-      await user.click(screen.getByTestId('feedback-btn-missed_detection'));
+      await user.click(screen.getByTestId('feedback-btn-missed_threat'));
 
       await waitFor(() => {
         expect(screen.getByTestId('feedback-form')).toBeInTheDocument();
@@ -274,10 +274,10 @@ describe('FeedbackPanel', () => {
       renderWithQueryClient(<FeedbackPanel {...defaultProps} />);
 
       await waitFor(() => {
-        expect(screen.getByTestId('feedback-btn-wrong_severity')).toBeInTheDocument();
+        expect(screen.getByTestId('feedback-btn-severity_wrong')).toBeInTheDocument();
       });
 
-      await user.click(screen.getByTestId('feedback-btn-wrong_severity'));
+      await user.click(screen.getByTestId('feedback-btn-severity_wrong'));
 
       await waitFor(() => {
         expect(screen.getByTestId('feedback-form')).toBeInTheDocument();
@@ -355,7 +355,7 @@ describe('FeedbackPanel', () => {
       });
 
       // Even if button is visible, clicking should not submit
-      const correctBtn = screen.queryByTestId('feedback-btn-correct');
+      const correctBtn = screen.queryByTestId('feedback-btn-accurate');
       if (correctBtn) {
         await user.click(correctBtn);
         expect(api.submitEventFeedback).not.toHaveBeenCalled();
@@ -370,7 +370,7 @@ describe('FeedbackPanel', () => {
         expect(screen.getByTestId('feedback-panel')).toBeInTheDocument();
       });
 
-      const correctBtn = screen.queryByTestId('feedback-btn-correct');
+      const correctBtn = screen.queryByTestId('feedback-btn-accurate');
       if (correctBtn) {
         await user.click(correctBtn);
         expect(api.submitEventFeedback).not.toHaveBeenCalled();
