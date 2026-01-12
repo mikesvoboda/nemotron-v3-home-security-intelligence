@@ -196,6 +196,7 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
         <button
           onClick={handleRefresh}
           disabled={isFetching}
+          aria-label="Refresh alerts"
           className="flex items-center gap-2 rounded-md bg-[#76B900]/10 px-4 py-2 text-sm font-medium text-[#76B900] transition-colors hover:bg-[#76B900]/20 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
