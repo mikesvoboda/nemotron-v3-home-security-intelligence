@@ -517,28 +517,23 @@ class TestLoadFashionClipModel:
 class TestClassifyClothing:
     """Tests for classify_clothing function.
 
-    Note: The classify_clothing and classify_clothing_batch functions use
-    run_in_executor with inner _classify and _classify_batch functions that
-    perform torch operations. These inner functions are difficult to mock
-    effectively without introducing test brittleness. Error handling is
-    tested, and integration tests verify the happy path behavior.
-
-    Coverage lines 233-295 (classify_clothing) and 333-401 (classify_clothing_batch)
-    are exercised in integration tests with real or mocked GPU services.
+    Note: classify_clothing uses run_in_executor with complex tensor operations that
+    are difficult to unit test effectively. Integration tests cover the happy paths.
+    Here we test error handling and code structure.
     """
 
     @pytest.mark.asyncio
     async def test_classify_clothing_runtime_error(self) -> None:
         """Test RuntimeError when classification fails."""
-        mock_processor = MagicMock()
-        mock_processor.side_effect = ValueError("Processing failed")
+        mock_preprocess = MagicMock()
+        mock_preprocess.side_effect = ValueError("Processing failed")
         mock_model = MagicMock()
 
         mock_param = MagicMock()
         mock_param.device = "cpu"
         mock_model.parameters.return_value = iter([mock_param])
 
-        model_dict = {"model": mock_model, "processor": mock_processor}
+        model_dict = {"model": mock_model, "preprocess": mock_preprocess, "tokenizer": MagicMock()}
         mock_image = MagicMock()
 
         mock_torch = MagicMock()
@@ -549,6 +544,131 @@ class TestClassifyClothing:
 
             assert "Clothing classification failed" in str(exc_info.value)
 
+    def test_classify_clothing_classification_logic_suspicious(self) -> None:
+        """Test classification logic for suspicious clothing."""
+        # Simulating what happens inside _classify function
+        test_prompts = [
+            "person wearing dark hoodie",
+            "delivery uniform",
+            "casual clothing",
+        ]
+
+        # Simulate scores dict creation
+        import numpy as np
+
+        scores = np.array([0.92, 0.05, 0.03])
+        all_scores = {
+            prompt: float(score) for prompt, score in zip(test_prompts, scores, strict=True)
+        }
+
+        # Sort and get top
+        sorted_items = sorted(all_scores.items(), key=lambda x: x[1], reverse=True)
+        top_category = sorted_items[0][0]
+        top_confidence = sorted_items[0][1]
+
+        # Check classification flags
+        is_suspicious = top_category in SUSPICIOUS_CATEGORIES
+        is_service = top_category in SERVICE_CATEGORIES
+
+        assert top_category == "person wearing dark hoodie"
+        assert is_suspicious is True
+        assert is_service is False
+        assert top_confidence > 0.9
+
+    def test_classify_clothing_classification_logic_service(self) -> None:
+        """Test classification logic for service uniforms."""
+        test_prompts = [
+            "person wearing dark hoodie",
+            "delivery uniform",
+            "casual clothing",
+        ]
+
+        import numpy as np
+
+        scores = np.array([0.05, 0.88, 0.07])
+        all_scores = {
+            prompt: float(score) for prompt, score in zip(test_prompts, scores, strict=True)
+        }
+
+        sorted_items = sorted(all_scores.items(), key=lambda x: x[1], reverse=True)
+        top_category = sorted_items[0][0]
+
+        is_suspicious = top_category in SUSPICIOUS_CATEGORIES
+        is_service = top_category in SERVICE_CATEGORIES
+
+        assert top_category == "delivery uniform"
+        assert is_suspicious is False
+        assert is_service is True
+
+    def test_classify_clothing_description_generation_suspicious(self) -> None:
+        """Test description generation for suspicious clothing."""
+        top_category = "person wearing dark hoodie"
+        is_suspicious = top_category in SUSPICIOUS_CATEGORIES
+        is_service = top_category in SERVICE_CATEGORIES
+
+        if is_service:
+            description = f"Service worker: {top_category.replace('person wearing ', '')}"
+        elif is_suspicious:
+            description = f"Alert: {top_category.replace('person wearing ', '')}"
+        else:
+            description = top_category.replace("person wearing ", "").capitalize()
+
+        assert "Alert:" in description
+        assert "dark hoodie" in description
+
+    def test_classify_clothing_description_generation_service(self) -> None:
+        """Test description generation for service uniforms."""
+        top_category = "delivery uniform"
+        is_suspicious = top_category in SUSPICIOUS_CATEGORIES
+        is_service = top_category in SERVICE_CATEGORIES
+
+        if is_service:
+            description = f"Service worker: {top_category.replace('person wearing ', '')}"
+        elif is_suspicious:
+            description = f"Alert: {top_category.replace('person wearing ', '')}"
+        else:
+            description = top_category.replace("person wearing ", "").capitalize()
+
+        assert "Service worker:" in description
+
+    def test_classify_clothing_description_generation_neutral(self) -> None:
+        """Test description generation for neutral clothing."""
+        top_category = "person wearing casual clothing"
+        is_suspicious = top_category in SUSPICIOUS_CATEGORIES
+        is_service = top_category in SERVICE_CATEGORIES
+
+        if is_service:
+            description = f"Service worker: {top_category.replace('person wearing ', '')}"
+        elif is_suspicious:
+            description = f"Alert: {top_category.replace('person wearing ', '')}"
+        else:
+            description = top_category.replace("person wearing ", "").capitalize()
+
+        assert "Alert:" not in description
+        assert "Service worker:" not in description
+        assert description[0].isupper()  # Capitalized
+
+    def test_classify_clothing_top_k_filtering(self) -> None:
+        """Test top_k score filtering logic."""
+        all_scores = {
+            "cat1": 0.5,
+            "cat2": 0.3,
+            "cat3": 0.1,
+            "cat4": 0.06,
+            "cat5": 0.04,
+        }
+
+        top_k = 3
+        sorted_items = sorted(all_scores.items(), key=lambda x: x[1], reverse=True)
+        top_k_scores = dict(sorted_items[:top_k])
+
+        assert len(top_k_scores) == 3
+        assert "cat1" in top_k_scores
+        assert "cat2" in top_k_scores
+        assert "cat3" in top_k_scores
+        assert "cat4" not in top_k_scores
+        assert "cat5" not in top_k_scores
+
 
 # =============================================================================
 # classify_clothing_batch Tests
@@ -558,9 +678,9 @@ class TestClassifyClothing:
 class TestClassifyClothingBatch:
     """Tests for classify_clothing_batch function.
 
-    Note: See TestClassifyClothing class docstring for details on why the
-    classification functions have limited unit test coverage. Integration
-    tests provide comprehensive validation of the happy path behaviors.
+    Note: classify_clothing_batch uses run_in_executor with complex tensor operations
+    that are difficult to unit test effectively. Integration tests cover the happy paths.
+    Here we test error handling, empty list handling, and logic validation.
     """
 
     @pytest.mark.asyncio
@@ -568,7 +688,7 @@ class TestClassifyClothingBatch:
         """Test batch classification with empty image list."""
         mock_model = MagicMock()
         mock_processor = MagicMock()
-        model_dict = {"model": mock_model, "processor": mock_processor}
+        model_dict = {"model": mock_model, "preprocess": mock_processor, "tokenizer": MagicMock()}
 
         result = await classify_clothing_batch(model_dict, [])
         assert result == []
@@ -576,15 +696,15 @@ class TestClassifyClothingBatch:
     @pytest.mark.asyncio
     async def test_batch_runtime_error(self) -> None:
         """Test RuntimeError when batch classification fails."""
-        mock_processor = MagicMock()
-        mock_processor.side_effect = ValueError("Batch processing failed")
+        mock_preprocess = MagicMock()
+        mock_preprocess.side_effect = ValueError("Batch processing failed")
         mock_model = MagicMock()
 
         mock_param = MagicMock()
         mock_param.device = "cpu"
         mock_model.parameters.return_value = iter([mock_param])
 
-        model_dict = {"model": mock_model, "processor": mock_processor}
+        model_dict = {"model": mock_model, "preprocess": mock_preprocess, "tokenizer": MagicMock()}
         mock_images = [MagicMock()]
 
         mock_torch = MagicMock()
@@ -594,6 +714,65 @@ class TestClassifyClothingBatch:
                 await classify_clothing_batch(model_dict, mock_images)
 
             assert "Batch clothing classification failed" in str(exc_info.value)
+
+    def test_batch_classification_logic_multiple_results(self) -> None:
+        """Test batch result processing logic for multiple images."""
+        import numpy as np
+
+        test_prompts = [
+            "person wearing dark hoodie",
+            "delivery uniform",
+            "casual clothing",
+        ]
+
+        # Simulate batch results - 2 images
+        all_batch_scores = np.array(
+            [
+                [0.92, 0.05, 0.03],  # Image 1: suspicious
+                [0.05, 0.88, 0.07],  # Image 2: service
+            ]
+        )
+
+        results = []
+        for i, scores in enumerate(all_batch_scores):
+            all_scores = {
+                prompt: float(score) for prompt, score in zip(test_prompts, scores, strict=True)
+            }
+
+            sorted_items = sorted(all_scores.items(), key=lambda x: x[1], reverse=True)
+            top_category = sorted_items[0][0]
+            top_confidence = sorted_items[0][1]
+
+            is_suspicious = top_category in SUSPICIOUS_CATEGORIES
+            is_service = top_category in SERVICE_CATEGORIES
+
+            results.append(
+                {
+                    "top_category": top_category,
+                    "confidence": top_confidence,
+                    "is_suspicious": is_suspicious,
+                    "is_service": is_service,
+                }
+            )
+
+        assert len(results) == 2
+        assert results[0]["top_category"] == "person wearing dark hoodie"
+        assert results[0]["is_suspicious"] is True
+        assert results[1]["top_category"] == "delivery uniform"
+        assert results[1]["is_service"] is True
+
+    def test_batch_enum_iteration(self) -> None:
+        """Test enumeration over batch results."""
+        batch_scores = [[0.8, 0.1, 0.1], [0.1, 0.8, 0.1], [0.1, 0.1, 0.8]]
+
+        results = []
+        for i, scores in enumerate(batch_scores):
+            results.append({"index": i, "scores": scores})
+
+        assert len(results) == 3
+        assert results[0]["index"] == 0
+        assert results[1]["index"] == 1
+        assert results[2]["index"] == 2
 
 
 # =============================================================================

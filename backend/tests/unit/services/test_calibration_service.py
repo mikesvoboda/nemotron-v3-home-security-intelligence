@@ -198,7 +198,7 @@ class TestGetThresholds:
             high_threshold=80,
             decay_factor=0.15,
             false_positive_count=3,
-            missed_detection_count=2,
+            missed_threat_count=2,
         )
 
         mock_session = AsyncMock()
@@ -228,7 +228,7 @@ class TestGetThresholds:
             high_threshold=85,
             decay_factor=0.1,
             false_positive_count=0,
-            missed_detection_count=0,
+            missed_threat_count=0,
         )
 
         mock_session = AsyncMock()
@@ -625,7 +625,7 @@ class TestGetOrCreateCalibration:
         assert calibration.high_threshold == DEFAULT_HIGH_THRESHOLD
         assert calibration.decay_factor == DEFAULT_DECAY_FACTOR
         assert calibration.false_positive_count == 0
-        assert calibration.missed_detection_count == 0
+        assert calibration.missed_threat_count == 0
 
         mock_session.add.assert_called_once()
         mock_session.flush.assert_called_once()
@@ -646,7 +646,7 @@ class TestGetOrCreateCalibration:
             high_threshold=80,
             decay_factor=0.15,
             false_positive_count=5,
-            missed_detection_count=3,
+            missed_threat_count=3,
         )
 
         # Mock database session
@@ -699,7 +699,7 @@ class TestAdjustFromFeedback:
             high_threshold=85,
             decay_factor=0.1,
             false_positive_count=0,
-            missed_detection_count=0,
+            missed_threat_count=0,
         )
 
         # Mock database session
@@ -728,7 +728,7 @@ class TestAdjustFromFeedback:
         assert result.medium_threshold >= 60
         assert result.high_threshold >= 85
         assert result.false_positive_count == 1
-        assert result.missed_detection_count == 0
+        assert result.missed_threat_count == 0
 
     @pytest.mark.asyncio
     async def test_adjusts_on_missed_threat(self) -> None:
@@ -745,7 +745,7 @@ class TestAdjustFromFeedback:
             high_threshold=85,
             decay_factor=0.1,
             false_positive_count=0,
-            missed_detection_count=0,
+            missed_threat_count=0,
         )
 
         mock_session = AsyncMock()
@@ -772,7 +772,7 @@ class TestAdjustFromFeedback:
         assert result.medium_threshold <= 60
         assert result.high_threshold <= 85
         assert result.false_positive_count == 0
-        assert result.missed_detection_count == 1
+        assert result.missed_threat_count == 1
 
     @pytest.mark.asyncio
     async def test_handles_null_risk_score(self) -> None:
@@ -789,7 +789,7 @@ class TestAdjustFromFeedback:
             high_threshold=85,
             decay_factor=0.1,
             false_positive_count=0,
-            missed_detection_count=0,
+            missed_threat_count=0,
         )
 
         mock_session = AsyncMock()
@@ -816,7 +816,7 @@ class TestAdjustFromFeedback:
         assert result.medium_threshold == 60
         assert result.high_threshold == 85
         assert result.false_positive_count == 0
-        assert result.missed_detection_count == 0
+        assert result.missed_threat_count == 0
 
 
 # =============================================================================
@@ -842,7 +842,7 @@ class TestResetCalibration:
             high_threshold=80,
             decay_factor=0.2,
             false_positive_count=10,
-            missed_detection_count=5,
+            missed_threat_count=5,
         )
 
         mock_session = AsyncMock()
@@ -857,7 +857,7 @@ class TestResetCalibration:
         assert result.high_threshold == DEFAULT_HIGH_THRESHOLD
         assert result.decay_factor == DEFAULT_DECAY_FACTOR
         assert result.false_positive_count == 0
-        assert result.missed_detection_count == 0
+        assert result.missed_threat_count == 0
 
     @pytest.mark.asyncio
     async def test_creates_if_not_exists(self) -> None:

@@ -40,6 +40,7 @@ from backend.api.routes.system import (
 )
 from backend.api.schemas.system import (
     DegradationModeEnum,
+    HealthCheckServiceStatus,
 )
 from backend.core.config import Settings
 from backend.core.redis import get_redis
@@ -785,6 +786,327 @@ class TestHelperFunctions:
 # =============================================================================
 
 
+class TestGetHealthEndpoint:
+    """Tests for GET /api/system/health endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_health_endpoint_all_healthy(
+        self,
+        async_client: AsyncClient,
+        isolated_db: AsyncSession,
+        mock_settings: Settings,
+    ) -> None:
+        """Test health endpoint returns 200 when all services healthy."""
+        with (
+            patch("backend.api.routes.system.get_db", return_value=isolated_db),
+            patch("backend.api.routes.system.check_database_health") as mock_db,
+            patch("backend.api.routes.system.check_redis_health") as mock_redis,
+            patch("backend.api.routes.system.check_ai_services_health") as mock_ai,
+            patch("backend.api.routes.system._emit_health_status_changes", new=AsyncMock()),
+        ):
+            # Mock all services as healthy
+            mock_db.return_value = HealthCheckServiceStatus(
+                status="healthy", message="Connected", details=None
+            )
+            mock_redis.return_value = HealthCheckServiceStatus(
+                status="healthy", message="Connected", details=None
+            )
+            mock_ai.return_value = HealthCheckServiceStatus(
+                status="healthy", message="All services operational", details=None
+            )
+
+            response = await async_client.get("/api/system/health")
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["status"] == "healthy"
+            assert data["services"]["database"]["status"] == "healthy"
+            assert data["services"]["redis"]["status"] == "healthy"
+            assert data["services"]["ai"]["status"] == "healthy"
+
+    @pytest.mark.asyncio
+    async def test_health_endpoint_database_unhealthy(
+        self,
+        async_client: AsyncClient,
+        isolated_db: AsyncSession,
+        mock_settings: Settings,
+    ) -> None:
+        """Test health endpoint returns 503 when database is unhealthy."""
+        with (
+            patch("backend.api.routes.system.get_db", return_value=isolated_db),
+            patch("backend.api.routes.system.check_database_health") as mock_db,
+            patch("backend.api.routes.system.check_redis_health") as mock_redis,
+            patch("backend.api.routes.system.check_ai_services_health") as mock_ai,
+            patch("backend.api.routes.system._emit_health_status_changes", new=AsyncMock()),
+        ):
+            # Database unhealthy
+            mock_db.return_value = HealthCheckServiceStatus(
+                status="unhealthy", message="Connection failed", details=None
+            )
+            mock_redis.return_value = HealthCheckServiceStatus(
+                status="healthy", message="Connected", details=None
+            )
+            mock_ai.return_value = HealthCheckServiceStatus(
+                status="healthy", message="All services operational", details=None
+            )
+
+            response = await async_client.get("/api/system/health")
+
+            assert response.status_code == 503
+            data = response.json()
+            assert data["status"] == "unhealthy"
+
+    @pytest.mark.asyncio
+    async def test_health_endpoint_degraded(
+        self,
+        async_client: AsyncClient,
+        isolated_db: AsyncSession,
+        mock_settings: Settings,
+    ) -> None:
+        """Test health endpoint returns 503 degraded when AI services down."""
+        with (
+            patch("backend.api.routes.system.get_db", return_value=isolated_db),
+            patch("backend.api.routes.system.check_database_health") as mock_db,
+            patch("backend.api.routes.system.check_redis_health") as mock_redis,
+            patch("backend.api.routes.system.check_ai_services_health") as mock_ai,
+            patch("backend.api.routes.system._emit_health_status_changes", new=AsyncMock()),
+        ):
+            # AI services unhealthy
+            mock_db.return_value = HealthCheckServiceStatus(
+                status="healthy", message="Connected", details=None
+            )
+            mock_redis.return_value = HealthCheckServiceStatus(
+                status="healthy", message="Connected", details=None
+            )
+            mock_ai.return_value = HealthCheckServiceStatus(
+                status="unhealthy", message="Services not responding", details=None
+            )
+
+            response = await async_client.get("/api/system/health")
+
+            assert response.status_code == 503
+            data = response.json()
+            assert data["status"] == "degraded"
+
+
+class TestGetReadinessEndpoint:
+    """Tests for GET /api/system/health/ready endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_readiness_endpoint_ready(
+        self,
+        async_client: AsyncClient,
+        isolated_db: AsyncSession,
+        mock_settings: Settings,
+    ) -> None:
+        """Test readiness endpoint returns 200 when ready."""
+        mock_manager = MagicMock()
+        mock_manager.get_status.return_value = {
+            "running": True,
+            "workers": {
+                "detection": {"state": "running"},
+                "analysis": {"state": "running"},
+            },
+        }
+
+        with (
+            patch("backend.api.routes.system.get_db", return_value=isolated_db),
+            patch("backend.api.routes.system.check_database_health") as mock_db,
+            patch("backend.api.routes.system.check_redis_health") as mock_redis,
+            patch("backend.api.routes.system.check_ai_services_health") as mock_ai,
+        ):
+            mock_db.return_value = HealthCheckServiceStatus(
+                status="healthy", message="Connected", details=None
+            )
+            mock_redis.return_value = HealthCheckServiceStatus(
+                status="healthy", message="Connected", details=None
+            )
+            mock_ai.return_value = HealthCheckServiceStatus(
+                status="healthy", message="All services operational", details=None
+            )
+
+            register_workers(pipeline_manager=mock_manager)
+
+            response = await async_client.get("/api/system/health/ready")
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["ready"] is True
+            assert data["status"] == "ready"
+
+    @pytest.mark.asyncio
+    async def test_readiness_endpoint_not_ready_pipeline_down(
+        self,
+        async_client: AsyncClient,
+        isolated_db: AsyncSession,
+        mock_settings: Settings,
+    ) -> None:
+        """Test readiness endpoint returns 503 when pipeline workers down."""
+        mock_manager = MagicMock()
+        mock_manager.get_status.return_value = {
+            "running": False,
+            "workers": {},
+        }
+
+        with (
+            patch("backend.api.routes.system.get_db", return_value=isolated_db),
+            patch("backend.api.routes.system.check_database_health") as mock_db,
+            patch("backend.api.routes.system.check_redis_health") as mock_redis,
+            patch("backend.api.routes.system.check_ai_services_health") as mock_ai,
+        ):
+            mock_db.return_value = HealthCheckServiceStatus(
+                status="healthy", message="Connected", details=None
+            )
+            mock_redis.return_value = HealthCheckServiceStatus(
+                status="healthy", message="Connected", details=None
+            )
+            mock_ai.return_value = HealthCheckServiceStatus(
+                status="healthy", message="All services operational", details=None
+            )
+
+            register_workers(pipeline_manager=mock_manager)
+
+            response = await async_client.get("/api/system/health/ready")
+
+            assert response.status_code == 503
+            data = response.json()
+            assert data["ready"] is False
+            assert data["status"] == "not_ready"
+
+
+class TestWebSocketHealthEndpoint:
+    """Tests for GET /api/system/health/websocket endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_websocket_health_broadcasters_available(
+        self, async_client: AsyncClient, mock_settings: Settings
+    ) -> None:
+        """Test websocket health when broadcasters are available."""
+        mock_event_broadcaster = MagicMock()
+        mock_event_broadcaster.get_circuit_state.return_value = MagicMock(value="closed")
+        mock_event_broadcaster.circuit_breaker.failure_count = 0
+        mock_event_broadcaster.is_degraded.return_value = False
+
+        mock_system_broadcaster = MagicMock()
+        mock_system_broadcaster.get_circuit_state.return_value = MagicMock(value="closed")
+        mock_system_broadcaster.circuit_breaker.failure_count = 0
+        mock_system_broadcaster._pubsub_listening = True
+
+        # Patch the imported modules in the get_websocket_health function
+        with (
+            patch(
+                "backend.services.event_broadcaster._broadcaster",
+                mock_event_broadcaster,
+            ),
+            patch(
+                "backend.services.system_broadcaster._system_broadcaster",
+                mock_system_broadcaster,
+            ),
+        ):
+            response = await async_client.get("/api/system/health/websocket")
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["event_broadcaster"]["state"] == "closed"
+            assert data["system_broadcaster"]["state"] == "closed"
+
+    @pytest.mark.asyncio
+    async def test_websocket_health_broadcasters_unavailable(
+        self, async_client: AsyncClient, mock_settings: Settings
+    ) -> None:
+        """Test websocket health when broadcasters are not initialized."""
+        with (
+            patch("backend.services.event_broadcaster._broadcaster", None),
+            patch("backend.services.system_broadcaster._system_broadcaster", None),
+        ):
+            response = await async_client.get("/api/system/health/websocket")
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["event_broadcaster"]["state"] == "unavailable"
+            assert data["system_broadcaster"]["state"] == "unavailable"
+
+
+class TestGetConfigEndpoint:
+    """Tests for GET /api/system/config endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_get_config_success(
+        self, async_client: AsyncClient, mock_settings: Settings
+    ) -> None:
+        """Test successful config retrieval."""
+        response = await async_client.get("/api/system/config")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "app_name" in data
+        assert "version" in data
+        assert "retention_days" in data
+        assert "batch_window_seconds" in data
+        assert data["batch_window_seconds"] == 90
+
+
+class TestListWebSocketEventTypesEndpoint:
+    """Tests for GET /api/system/websocket/events endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_list_event_types_success(
+        self, async_client: AsyncClient, mock_settings: Settings
+    ) -> None:
+        """Test successful event types listing."""
+        response = await async_client.get("/api/system/websocket/events")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "event_types" in data
+        assert "channels" in data
+        assert "total_count" in data
+        assert isinstance(data["event_types"], list)
+
+
+class TestGetStatsEndpoint:
+    """Tests for GET /api/system/stats endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_get_stats_success(
+        self,
+        async_client: AsyncClient,
+        isolated_db: AsyncSession,
+        mock_settings: Settings,
+    ) -> None:
+        """Test successful stats retrieval."""
+        with patch("backend.api.routes.system.get_db", return_value=isolated_db):
+            response = await async_client.get("/api/system/stats")
+
+            assert response.status_code == 200
+            data = response.json()
+            assert "total_cameras" in data
+            assert "total_events" in data
+            assert "total_detections" in data
+            assert "uptime_seconds" in data
+            assert isinstance(data["uptime_seconds"], (int, float))
+
+
+class TestGetGPUStatsEndpoint:
+    """Tests for GET /api/system/gpu endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_get_gpu_stats_no_data(
+        self,
+        async_client: AsyncClient,
+        isolated_db: AsyncSession,
+        mock_settings: Settings,
+    ) -> None:
+        """Test GPU stats endpoint when no data available."""
+        with patch("backend.api.routes.system.get_db", return_value=isolated_db):
+            response = await async_client.get("/api/system/gpu")
+
+            assert response.status_code == 200
+            data = response.json()
+            # Should have null values when no stats available
+            assert data["gpu_name"] is None or isinstance(data["gpu_name"], str)
+
+
 class TestPerformanceMetricsEndpoint:
     """Tests for GET /api/system/performance endpoint."""
 
@@ -1019,3 +1341,229 @@ class TestPerformanceMetricsEndpoint:
             assert data["alerts"][0]["severity"] == "warning"
         finally:
             system_module._performance_collector = original_collector
+
+
+# =============================================================================
+# Additional Endpoint Coverage Tests
+# =============================================================================
+
+
+class TestGetSeverityMetadataEndpoint:
+    """Tests for GET /api/system/severity endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_get_severity_metadata_success(
+        self, async_client: AsyncClient, mock_settings: Settings
+    ) -> None:
+        """Test successful severity metadata retrieval."""
+        from backend.models.enums import Severity
+        from backend.services.severity import SeverityDefinition
+
+        mock_service = MagicMock()
+        mock_service.get_severity_definitions.return_value = [
+            SeverityDefinition(
+                severity=Severity.LOW,
+                label="Low",
+                description="Minor concern",
+                color="#00FF00",
+                priority=1,
+                min_score=0,
+                max_score=30,
+            ),
+            SeverityDefinition(
+                severity=Severity.MEDIUM,
+                label="Medium",
+                description="Moderate concern",
+                color="#FFFF00",
+                priority=2,
+                min_score=31,
+                max_score=60,
+            ),
+        ]
+        mock_service.get_thresholds.return_value = {
+            "low_max": 30,
+            "medium_max": 60,
+            "high_max": 90,
+        }
+
+        with patch(
+            "backend.services.severity.get_severity_service",
+            return_value=mock_service,
+        ):
+            response = await async_client.get("/api/system/severity")
+
+            assert response.status_code == 200
+            data = response.json()
+            assert "definitions" in data
+            assert "thresholds" in data
+            assert len(data["definitions"]) == 2
+            assert data["thresholds"]["low_max"] == 30
+
+
+class TestTriggerCleanupEndpoint:
+    """Tests for POST /api/system/cleanup endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_cleanup_dry_run(
+        self, async_client: AsyncClient, mock_settings: Settings
+    ) -> None:
+        """Test cleanup dry run returns expected counts without deleting."""
+        from backend.services.cleanup_service import CleanupStats
+
+        # Create stats object properly (no init args)
+        mock_stats = CleanupStats()
+        mock_stats.events_deleted = 10
+        mock_stats.detections_deleted = 50
+        mock_stats.gpu_stats_deleted = 100
+        mock_stats.logs_deleted = 200
+        mock_stats.thumbnails_deleted = 50
+        mock_stats.images_deleted = 0
+        mock_stats.space_reclaimed = 1024000
+
+        mock_service = MagicMock()
+        mock_service.dry_run_cleanup = AsyncMock(return_value=mock_stats)
+
+        # Disable API key for this test
+        mock_settings.api_key_enabled = False
+
+        with patch(
+            "backend.services.cleanup_service.CleanupService",
+            return_value=mock_service,
+        ):
+            response = await async_client.post("/api/system/cleanup", params={"dry_run": True})
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["dry_run"] is True
+            assert data["events_deleted"] == 10
+            assert data["detections_deleted"] == 50
+            assert data["space_reclaimed"] == 1024000
+
+    @pytest.mark.asyncio
+    async def test_cleanup_dry_run_error(
+        self, async_client: AsyncClient, mock_settings: Settings
+    ) -> None:
+        """Test cleanup dry run handles errors."""
+        mock_service = MagicMock()
+        mock_service.dry_run_cleanup = AsyncMock(side_effect=OSError("Disk error"))
+
+        mock_settings.api_key_enabled = False
+
+        with (
+            patch(
+                "backend.services.cleanup_service.CleanupService",
+                return_value=mock_service,
+            ),
+            pytest.raises(OSError),
+        ):
+            await async_client.post("/api/system/cleanup", params={"dry_run": True})
+
+
+class TestCheckDatabaseHealthFunction:
+    """Tests for check_database_health helper function."""
+
+    @pytest.mark.asyncio
+    async def test_database_health_check_success(self) -> None:
+        """Test database health check when database is healthy."""
+        from backend.api.routes.system import check_database_health
+
+        # Create a proper mock session
+        mock_session = AsyncMock()
+        mock_result = AsyncMock()
+        mock_result.scalar.return_value = 1
+        mock_session.execute.return_value = mock_result
+
+        result = await check_database_health(mock_session)
+
+        assert result.status == "healthy"
+        assert "operational" in result.message.lower() or "connected" in result.message.lower()
+
+
+class TestCheckRedisHealthFunction:
+    """Tests for check_redis_health helper function."""
+
+    @pytest.mark.asyncio
+    async def test_redis_health_check_with_redis(self) -> None:
+        """Test Redis health check when Redis is available."""
+        from backend.api.routes.system import check_redis_health
+
+        mock_redis = AsyncMock()
+        mock_redis.health_check = AsyncMock(return_value={"status": "healthy", "connected": True})
+
+        result = await check_redis_health(mock_redis)
+
+        assert result.status == "healthy"
+
+    @pytest.mark.asyncio
+    async def test_redis_health_check_without_redis(self) -> None:
+        """Test Redis health check when Redis is not available."""
+        from backend.api.routes.system import check_redis_health
+
+        result = await check_redis_health(None)
+
+        assert result.status == "unhealthy"
+        assert "unavailable" in result.message.lower() or "failed" in result.message.lower()
+
+
+class TestCheckAIServicesHealth:
+    """Tests for check_ai_services_health function."""
+
+    @pytest.mark.asyncio
+    async def test_ai_services_health_all_healthy(self, mock_settings: Settings) -> None:
+        """Test AI services health when all services are healthy."""
+        from backend.api.routes.system import check_ai_services_health
+
+        # Mock the circuit breaker checks
+        with (
+            patch(
+                "backend.api.routes.system._check_rtdetr_health_with_circuit_breaker",
+                new=AsyncMock(return_value=(True, None)),
+            ),
+            patch(
+                "backend.api.routes.system._check_nemotron_health_with_circuit_breaker",
+                new=AsyncMock(return_value=(True, None)),
+            ),
+        ):
+            result = await check_ai_services_health()
+
+            assert result.status == "healthy"
+
+    @pytest.mark.asyncio
+    async def test_ai_services_health_one_unhealthy(self, mock_settings: Settings) -> None:
+        """Test AI services health when one service is unhealthy."""
+        from backend.api.routes.system import check_ai_services_health
+
+        # Mock the circuit breaker checks - RT-DETR healthy, Nemotron unhealthy
+        with (
+            patch(
+                "backend.api.routes.system._check_rtdetr_health_with_circuit_breaker",
+                new=AsyncMock(return_value=(True, None)),
+            ),
+            patch(
+                "backend.api.routes.system._check_nemotron_health_with_circuit_breaker",
+                new=AsyncMock(return_value=(False, "Connection refused")),
+            ),
+        ):
+            result = await check_ai_services_health()
+
+            # When one service is down, status is "degraded" not "unhealthy"
+            assert result.status == "degraded"
+            assert "nemotron" in result.message.lower()
+
+
+class TestCircuitBreakerState:
+    """Tests for circuit breaker state helper function."""
+
+    def test_get_circuit_state_closed(self, circuit_breaker: CircuitBreaker) -> None:
+        """Test getting circuit state when closed."""
+        state = circuit_breaker.get_state("test-service")
+        assert state == "closed"
+
+    def test_get_circuit_state_open(self, circuit_breaker: CircuitBreaker) -> None:
+        """Test getting circuit state when open."""
+        # Open the circuit
+        for _ in range(circuit_breaker.failure_threshold):
+            circuit_breaker.record_failure("test-service")
+
+        state = circuit_breaker.get_state("test-service")
+        assert state == "open"

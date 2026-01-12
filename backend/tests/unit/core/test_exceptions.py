@@ -16,9 +16,12 @@ from backend.core.exceptions import (
     AIServiceError,
     AlertCreationError,
     AnalyzerUnavailableError,
+    AuthenticationError,
+    AuthorizationError,
     BaselineNotFoundError,
     BoundingBoxOutOfBoundsError,
     BoundingBoxValidationError,
+    CacheError,
     CameraNotFoundError,
     CertificateNotFoundError,
     CertificateValidationError,
@@ -26,9 +29,12 @@ from backend.core.exceptions import (
     ClipGenerationError,
     CLIPUnavailableError,
     ConfigurationError,
+    ConflictError,
     DatabaseError,
+    DateRangeValidationError,
     DetectionNotFoundError,
     DetectorUnavailableError,
+    DuplicateResourceError,
     EnrichmentUnavailableError,
     EventNotFoundError,
     ExternalServiceError,
@@ -36,12 +42,16 @@ from backend.core.exceptions import (
     InternalError,
     InvalidBoundingBoxError,
     InvalidEmbeddingError,
+    InvalidInputError,
+    InvalidStateTransition,
     LLMResponseParseError,
+    MediaNotFoundError,
     NotFoundError,
     ProcessingError,
     PromptVersionConflictError,
     RateLimitError,
     ResourceExhaustedError,
+    ResourceNotFoundError,
     SceneBaselineError,
     SecurityIntelligenceError,
     ServiceRequestContext,
@@ -517,6 +527,13 @@ class TestPromptConflictErrors:
         assert exc.details["expected_version"] == 5
         assert exc.details["actual_version"] == 3
 
+    def test_prompt_version_conflict_error_defaults(self) -> None:
+        """PromptVersionConflictError works with default message."""
+        exc = PromptVersionConflictError()
+        assert exc.status_code == 409
+        assert exc.error_code == "PROMPT_VERSION_CONFLICT"
+        assert exc.message == "Prompt version conflict"
+
 
 class TestConsolidatedExceptionsHierarchy:
     """Test that all consolidated exceptions inherit properly (NEM-1441)."""
@@ -786,3 +803,450 @@ class TestServiceUnavailableErrorContext:
         # EnrichmentUnavailableError
         exc4 = EnrichmentUnavailableError()
         assert exc4.context is None
+
+
+# =============================================================================
+# Additional Coverage Tests for Missing Lines
+# =============================================================================
+
+
+class TestInvalidInputError:
+    """Test InvalidInputError with all parameter combinations."""
+
+    def test_invalid_input_error_defaults(self) -> None:
+        exc = InvalidInputError()
+        assert exc.status_code == 400
+        assert exc.error_code == "INVALID_INPUT"
+        assert exc.message == "Invalid input provided"
+
+    def test_invalid_input_error_with_field(self) -> None:
+        exc = InvalidInputError("Invalid email", field="email")
+        assert exc.message == "Invalid email"
+        assert exc.details["field"] == "email"
+
+    def test_invalid_input_error_with_value(self) -> None:
+        exc = InvalidInputError("Invalid value", field="age", value=200)
+        assert exc.details["field"] == "age"
+        assert exc.details["value"] == "200"
+
+    def test_invalid_input_error_with_long_value(self) -> None:
+        """Long values are truncated to 100 characters."""
+        long_value = "x" * 150
+        exc = InvalidInputError("Too long", field="description", value=long_value)
+        assert len(exc.details["value"]) == 100
+
+    def test_invalid_input_error_with_constraint(self) -> None:
+        exc = InvalidInputError(
+            "Value out of range",
+            field="age",
+            value=200,
+            constraint="must be between 0 and 120",
+        )
+        assert exc.details["constraint"] == "must be between 0 and 120"
+
+    def test_invalid_input_error_with_custom_details(self) -> None:
+        """Custom details are merged with auto-generated details."""
+        exc = InvalidInputError(
+            "Invalid input",
+            field="email",
+            details={"custom_key": "custom_value"},
+        )
+        assert exc.details["field"] == "email"
+        assert exc.details["custom_key"] == "custom_value"
+
+
+class TestDateRangeValidationError:
+    """Test DateRangeValidationError with date parameters."""
+
+    def test_date_range_validation_error_defaults(self) -> None:
+        exc = DateRangeValidationError()
+        assert exc.status_code == 400
+        assert exc.error_code == "INVALID_DATE_RANGE"
+        assert "start_date must be before end_date" in exc.message
+
+    def test_date_range_validation_error_with_dates(self) -> None:
+        from datetime import datetime
+
+        start = datetime(2025, 1, 15)
+        end = datetime(2025, 1, 10)
+        exc = DateRangeValidationError(
+            "Invalid date range",
+            start_date=start,
+            end_date=end,
+        )
+        assert exc.details["start_date"] == str(start)
+        assert exc.details["end_date"] == str(end)
+
+    def test_date_range_validation_error_with_custom_details(self) -> None:
+        """Custom details are merged properly."""
+        exc = DateRangeValidationError(
+            details={"custom": "value"},
+            start_date="2025-01-15",
+        )
+        assert exc.details["start_date"] == "2025-01-15"
+        assert exc.details["custom"] == "value"
+
+
+class TestAuthErrors:
+    """Test authentication and authorization errors."""
+
+    def test_authentication_error(self) -> None:
+        exc = AuthenticationError()
+        assert exc.status_code == 401
+        assert exc.error_code == "AUTHENTICATION_REQUIRED"
+        assert exc.message == "Authentication required"
+
+    def test_authentication_error_custom_message(self) -> None:
+        exc = AuthenticationError("Invalid credentials")
+        assert exc.message == "Invalid credentials"
+
+    def test_authorization_error(self) -> None:
+        exc = AuthorizationError()
+        assert exc.status_code == 403
+        assert exc.error_code == "ACCESS_DENIED"
+        assert exc.message == "Access denied"
+
+    def test_authorization_error_custom_message(self) -> None:
+        exc = AuthorizationError("Insufficient permissions")
+        assert exc.message == "Insufficient permissions"
+
+
+class TestResourceNotFoundError:
+    """Test ResourceNotFoundError with various resource types."""
+
+    def test_resource_not_found_with_string_id(self) -> None:
+        exc = ResourceNotFoundError("camera", "backyard")
+        assert exc.status_code == 404
+        assert "Camera" in exc.message
+        assert "backyard" in exc.message
+        assert exc.details["resource_type"] == "camera"
+        assert exc.details["resource_id"] == "backyard"
+
+    def test_resource_not_found_with_int_id(self) -> None:
+        exc = ResourceNotFoundError("event", 123)
+        assert "Event" in exc.message
+        assert "123" in exc.message
+        assert exc.details["resource_id"] == "123"
+
+    def test_resource_not_found_with_custom_message(self) -> None:
+        exc = ResourceNotFoundError("user", 456, message="User does not exist")
+        assert exc.message == "User does not exist"
+        assert exc.details["resource_type"] == "user"
+
+    def test_resource_not_found_with_custom_details(self) -> None:
+        exc = ResourceNotFoundError(
+            "session",
+            "abc123",
+            details={"expired": True},
+        )
+        assert exc.details["resource_type"] == "session"
+        assert exc.details["expired"] is True
+
+
+class TestMediaNotFoundError:
+    """Test MediaNotFoundError with file path handling."""
+
+    def test_media_not_found_basic(self) -> None:
+        exc = MediaNotFoundError("/path/to/image.jpg")
+        assert exc.status_code == 404
+        assert exc.error_code == "MEDIA_NOT_FOUND"
+        assert exc.details["filename"] == "image.jpg"
+
+    def test_media_not_found_with_media_type(self) -> None:
+        exc = MediaNotFoundError("/path/to/video.mp4", media_type="video")
+        assert "Video " in exc.message
+        assert exc.details["media_type"] == "video"
+        assert exc.details["filename"] == "video.mp4"
+
+    def test_media_not_found_with_empty_path(self) -> None:
+        """Empty path results in 'unknown' filename."""
+        exc = MediaNotFoundError("")
+        assert exc.details["filename"] == "unknown"
+
+    def test_media_not_found_custom_message(self) -> None:
+        exc = MediaNotFoundError(
+            "/path/to/file.jpg",
+            message="Custom not found message",
+        )
+        assert exc.message == "Custom not found message"
+
+
+class TestConflictErrors:
+    """Test conflict error hierarchy."""
+
+    def test_conflict_error_base(self) -> None:
+        exc = ConflictError()
+        assert exc.status_code == 409
+        assert exc.error_code == "CONFLICT"
+        assert exc.message == "Request conflicts with current state"
+
+    def test_conflict_error_custom(self) -> None:
+        exc = ConflictError("Resource is locked")
+        assert exc.message == "Resource is locked"
+
+
+class TestDuplicateResourceError:
+    """Test DuplicateResourceError with various parameter combinations."""
+
+    def test_duplicate_resource_basic(self) -> None:
+        exc = DuplicateResourceError("camera")
+        assert exc.status_code == 409
+        assert exc.error_code == "DUPLICATE_RESOURCE"
+        assert "Camera already exists" in exc.message
+        assert exc.details["resource_type"] == "camera"
+
+    def test_duplicate_resource_with_field_and_value(self) -> None:
+        exc = DuplicateResourceError("user", field="email", value="test@example.com")
+        assert "User" in exc.message
+        assert "email" in exc.message
+        assert "test@example.com" in exc.message
+        assert exc.details["field"] == "email"
+        assert exc.details["value"] == "test@example.com"
+
+    def test_duplicate_resource_with_existing_id(self) -> None:
+        exc = DuplicateResourceError(
+            "camera",
+            field="name",
+            value="backyard",
+            existing_id="abc-123",
+        )
+        assert "(id: abc-123)" in exc.message
+        assert exc.details["existing_id"] == "abc-123"
+
+    def test_duplicate_resource_custom_message(self) -> None:
+        exc = DuplicateResourceError(
+            "resource",
+            message="Custom duplicate message",
+        )
+        assert exc.message == "Custom duplicate message"
+
+
+class TestRateLimitErrorDetails:
+    """Test RateLimitError with all optional parameters."""
+
+    def test_rate_limit_with_retry_after(self) -> None:
+        exc = RateLimitError(retry_after=60)
+        assert exc.details["retry_after"] == 60
+
+    def test_rate_limit_with_limit(self) -> None:
+        exc = RateLimitError(limit=100)
+        assert exc.details["limit"] == 100
+
+    def test_rate_limit_with_window(self) -> None:
+        exc = RateLimitError(window_seconds=3600)
+        assert exc.details["window_seconds"] == 3600
+
+    def test_rate_limit_with_all_params(self) -> None:
+        exc = RateLimitError(
+            "Too many requests",
+            retry_after=120,
+            limit=50,
+            window_seconds=60,
+        )
+        assert exc.message == "Too many requests"
+        assert exc.details["retry_after"] == 120
+        assert exc.details["limit"] == 50
+        assert exc.details["window_seconds"] == 60
+
+
+class TestExternalServiceErrorWithServiceName:
+    """Test ExternalServiceError with service_name parameter."""
+
+    def test_external_service_error_with_service_name(self) -> None:
+        exc = ExternalServiceError(service_name="custom_service")
+        assert exc.service_name == "custom_service"
+        assert exc.details["service"] == "custom_service"
+
+    def test_external_service_error_without_service_name(self) -> None:
+        exc = ExternalServiceError()
+        assert exc.service_name is None
+
+
+class TestCacheError:
+    """Test CacheError initialization."""
+
+    def test_cache_error_defaults(self) -> None:
+        exc = CacheError()
+        assert exc.status_code == 503
+        assert exc.error_code == "CACHE_ERROR"
+        assert exc.service_name == "redis"
+
+    def test_cache_error_custom_message(self) -> None:
+        exc = CacheError("Redis connection failed")
+        assert exc.message == "Redis connection failed"
+
+
+class TestCircuitBreakerOpenErrorDetails:
+    """Test CircuitBreakerOpenError message generation."""
+
+    def test_circuit_breaker_default_message(self) -> None:
+        exc = CircuitBreakerOpenError("test_service")
+        assert "test_service" in exc.message
+        assert "Circuit breaker" in exc.message
+        assert exc.service_name == "test_service"
+
+    def test_circuit_breaker_without_recovery_timeout(self) -> None:
+        exc = CircuitBreakerOpenError("api_service")
+        assert "recovery_timeout_seconds" not in exc.details
+
+
+class TestProcessingErrorWithOperation:
+    """Test ProcessingError with operation parameter."""
+
+    def test_processing_error_with_operation(self) -> None:
+        exc = ProcessingError("Processing failed", operation="image_resize")
+        assert exc.details["operation"] == "image_resize"
+
+    def test_processing_error_without_operation(self) -> None:
+        exc = ProcessingError("Processing failed")
+        assert "operation" not in exc.details
+
+
+class TestInvalidStateTransition:
+    """Test InvalidStateTransition error."""
+
+    def test_invalid_state_transition_auto_message(self) -> None:
+        exc = InvalidStateTransition(
+            from_status="completed",
+            to_status="running",
+        )
+        assert "Cannot transition from 'completed' to 'running'" in exc.message
+        assert exc.from_status == "completed"
+        assert exc.to_status == "running"
+        assert exc.details["from_status"] == "completed"
+        assert exc.details["to_status"] == "running"
+
+    def test_invalid_state_transition_with_job_id(self) -> None:
+        exc = InvalidStateTransition(
+            from_status="pending",
+            to_status="completed",
+            job_id="job-123",
+        )
+        assert exc.job_id == "job-123"
+        assert exc.details["job_id"] == "job-123"
+
+    def test_invalid_state_transition_custom_message(self) -> None:
+        exc = InvalidStateTransition(
+            message="Custom transition error",
+            from_status="a",
+            to_status="b",
+        )
+        assert exc.message == "Custom transition error"
+
+    def test_invalid_state_transition_defaults(self) -> None:
+        exc = InvalidStateTransition()
+        assert exc.status_code == 409
+        assert exc.error_code == "INVALID_STATE_TRANSITION"
+
+
+class TestURLValidationErrorTruncation:
+    """Test URL validation error URL truncation."""
+
+    def test_url_truncation_long_url(self) -> None:
+        long_url = "http://example.com/" + "x" * 250
+        exc = URLValidationError(url=long_url)
+        assert len(exc.details["url"]) == 200
+
+    def test_url_no_truncation_short_url(self) -> None:
+        short_url = "http://example.com/short"
+        exc = URLValidationError(url=short_url)
+        assert exc.details["url"] == short_url
+
+
+class TestUtilityFunctionsEdgeCases:
+    """Test utility functions with non-SecurityIntelligenceError exceptions."""
+
+    def test_get_exception_status_code_standard_exception(self) -> None:
+        """Standard Python exceptions return 500."""
+        exc = ValueError("Some error")
+        assert get_exception_status_code(exc) == 500
+
+    def test_get_exception_error_code_standard_exception(self) -> None:
+        """Standard Python exceptions return INTERNAL_ERROR."""
+        exc = RuntimeError("Some error")
+        assert get_exception_error_code(exc) == "INTERNAL_ERROR"
+
+
+class TestToDictWithoutDetails:
+    """Test to_dict() method when details is empty."""
+
+    def test_to_dict_empty_details(self) -> None:
+        """Empty details dict is not included in to_dict() output."""
+        exc = SecurityIntelligenceError("Error without details")
+        result = exc.to_dict()
+        assert "code" in result
+        assert "message" in result
+        assert "details" not in result
+
+
+class TestEnrichmentUnavailableToLogDict:
+    """Test EnrichmentUnavailableError.to_log_dict() method."""
+
+    def test_enrichment_to_log_dict_with_context_and_error(self) -> None:
+        context = ServiceRequestContext(
+            service_name="enrichment",
+            endpoint="/classify",
+            method="POST",
+            duration_ms=1500.0,
+            attempt_number=2,
+            max_attempts=3,
+            circuit_state="half_open",
+        )
+        original = TimeoutError("Request timeout")
+        exc = EnrichmentUnavailableError(
+            "Enrichment failed",
+            original_error=original,
+            context=context,
+        )
+        log_dict = exc.to_log_dict()
+
+        assert log_dict["error_code"] == "ENRICHMENT_UNAVAILABLE"
+        assert log_dict["message"] == "Enrichment failed"
+        assert log_dict["service_name"] == "enrichment"
+        assert log_dict["context"]["endpoint"] == "/classify"
+        assert log_dict["original_error"]["type"] == "TimeoutError"
+
+    def test_enrichment_to_log_dict_without_context_or_error(self) -> None:
+        exc = EnrichmentUnavailableError()
+        log_dict = exc.to_log_dict()
+
+        assert log_dict["error_code"] == "ENRICHMENT_UNAVAILABLE"
+        assert log_dict["context"] is None
+        assert log_dict["original_error"] is None
+
+
+class TestAnalyzerUnavailableToLogDict:
+    """Test AnalyzerUnavailableError.to_log_dict() method edge cases."""
+
+    def test_analyzer_to_log_dict_with_only_context(self) -> None:
+        context = ServiceRequestContext(
+            service_name="nemotron",
+            endpoint="/completion",
+            method="POST",
+            duration_ms=5000.0,
+            attempt_number=1,
+            max_attempts=3,
+        )
+        exc = AnalyzerUnavailableError(context=context)
+        log_dict = exc.to_log_dict()
+
+        assert log_dict["context"] is not None
+        assert log_dict["original_error"] is None
+
+
+class TestExceptionWithCustomErrorCodeAndStatus:
+    """Test exceptions with custom error_code and status_code parameters."""
+
+    def test_security_intelligence_error_with_custom_codes(self) -> None:
+        exc = SecurityIntelligenceError(
+            "Custom error",
+            error_code="CUSTOM_CODE",
+            status_code=418,
+        )
+        assert exc.error_code == "CUSTOM_CODE"
+        assert exc.status_code == 418
+
+    def test_security_intelligence_error_with_custom_details(self) -> None:
+        details = {"key1": "value1", "key2": "value2"}
+        exc = SecurityIntelligenceError("Error", details=details)
+        assert exc.details == details

@@ -1620,3 +1620,566 @@ class TestResourceCleanup:
             with patch("pynvml.nvmlShutdown", side_effect=Exception("Shutdown error")):
                 # Should not raise
                 await collector.close()
+
+
+# =============================================================================
+# Collect All Integration Tests
+# =============================================================================
+
+
+class TestCollectAll:
+    """Tests for collect_all method."""
+
+    @pytest.mark.asyncio
+    async def test_collect_all_with_all_metrics(self) -> None:
+        """Test collect_all returns complete performance update."""
+        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock()
+
+            from backend.api.schemas.performance import (
+                AiModelMetrics,
+                ContainerMetrics,
+                DatabaseMetrics,
+                GpuMetrics,
+                HostMetrics,
+                InferenceMetrics,
+                NemotronMetrics,
+                RedisMetrics,
+            )
+
+            collector = PerformanceCollector()
+
+            # Mock all collector methods
+            gpu_metrics = GpuMetrics(
+                name="Test GPU",
+                utilization=50.0,
+                vram_used_gb=10.0,
+                vram_total_gb=24.0,
+                temperature=60,
+                power_watts=150,
+            )
+
+            rtdetr_metrics = AiModelMetrics(
+                status="healthy", vram_gb=5.0, model="rtdetr", device="cuda:0"
+            )
+
+            nemotron_metrics = NemotronMetrics(
+                status="healthy", slots_active=1, slots_total=2, context_size=8192
+            )
+
+            host_metrics = HostMetrics(
+                cpu_percent=45.0,
+                ram_used_gb=8.0,
+                ram_total_gb=16.0,
+                disk_used_gb=100.0,
+                disk_total_gb=500.0,
+            )
+
+            postgresql_metrics = DatabaseMetrics(
+                status="healthy",
+                connections_active=5,
+                connections_max=50,
+                cache_hit_ratio=95.0,
+                transactions_per_min=100,
+            )
+
+            redis_metrics = RedisMetrics(
+                status="healthy",
+                connected_clients=3,
+                memory_mb=50.0,
+                hit_ratio=90.0,
+                blocked_clients=0,
+            )
+
+            container_metrics = [
+                ContainerMetrics(name="backend", status="running", health="healthy"),
+                ContainerMetrics(name="postgres", status="running", health="healthy"),
+            ]
+
+            inference_metrics = InferenceMetrics(
+                rtdetr_latency_ms={"avg": 100, "p95": 150, "p99": 200},
+                nemotron_latency_ms={"avg": 1000, "p95": 1500, "p99": 2000},
+                pipeline_latency_ms={"avg": 1100, "p95": 1650},
+                throughput={"images_per_min": 30, "events_per_min": 5},
+                queues={"detection": 0, "analysis": 0},
+            )
+
+            with (
+                patch.object(collector, "collect_gpu_metrics", return_value=gpu_metrics),
+                patch.object(collector, "collect_rtdetr_metrics", return_value=rtdetr_metrics),
+                patch.object(collector, "collect_nemotron_metrics", return_value=nemotron_metrics),
+                patch.object(collector, "collect_host_metrics", return_value=host_metrics),
+                patch.object(
+                    collector, "collect_postgresql_metrics", return_value=postgresql_metrics
+                ),
+                patch.object(collector, "collect_redis_metrics", return_value=redis_metrics),
+                patch.object(collector, "collect_container_health", return_value=container_metrics),
+                patch.object(
+                    collector, "collect_inference_metrics", return_value=inference_metrics
+                ),
+            ):
+                result = await collector.collect_all()
+
+                assert result is not None
+                assert result.gpu == gpu_metrics
+                assert "rtdetr" in result.ai_models
+                assert "nemotron" in result.ai_models
+                assert result.nemotron == nemotron_metrics
+                assert result.inference == inference_metrics
+                assert "postgresql" in result.databases
+                assert "redis" in result.databases
+                assert result.host == host_metrics
+                assert result.containers == container_metrics
+                assert isinstance(result.alerts, list)
+
+    @pytest.mark.asyncio
+    async def test_collect_all_with_missing_metrics(self) -> None:
+        """Test collect_all handles missing metrics gracefully."""
+        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock()
+
+            collector = PerformanceCollector()
+
+            # Mock all collector methods to return None
+            with (
+                patch.object(collector, "collect_gpu_metrics", return_value=None),
+                patch.object(collector, "collect_rtdetr_metrics", return_value=None),
+                patch.object(collector, "collect_nemotron_metrics", return_value=None),
+                patch.object(collector, "collect_host_metrics", return_value=None),
+                patch.object(collector, "collect_postgresql_metrics", return_value=None),
+                patch.object(collector, "collect_redis_metrics", return_value=None),
+                patch.object(collector, "collect_container_health", return_value=[]),
+                patch.object(collector, "collect_inference_metrics", return_value=None),
+            ):
+                result = await collector.collect_all()
+
+                assert result is not None
+                assert result.gpu is None
+                assert result.ai_models == {}
+                assert result.nemotron is None
+                assert result.inference is None
+                assert result.databases == {}
+                assert result.host is None
+                assert result.containers == []
+                assert result.alerts == []
+
+    @pytest.mark.asyncio
+    async def test_collect_all_generates_alerts(self) -> None:
+        """Test collect_all generates alerts for threshold violations."""
+        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock()
+
+            from backend.api.schemas.performance import (
+                DatabaseMetrics,
+                GpuMetrics,
+                HostMetrics,
+                RedisMetrics,
+            )
+
+            collector = PerformanceCollector()
+
+            # Create metrics with threshold violations
+            gpu_metrics = GpuMetrics(
+                name="Test GPU",
+                utilization=50.0,
+                vram_used_gb=10.0,
+                vram_total_gb=24.0,
+                temperature=90,  # Critical temperature
+                power_watts=150,
+            )
+
+            host_metrics = HostMetrics(
+                cpu_percent=98.0,  # Critical CPU
+                ram_used_gb=8.0,
+                ram_total_gb=16.0,
+                disk_used_gb=100.0,
+                disk_total_gb=500.0,
+            )
+
+            postgresql_metrics = DatabaseMetrics(
+                status="healthy",
+                connections_active=48,  # 96% - critical
+                connections_max=50,
+                cache_hit_ratio=75.0,  # Below critical threshold
+                transactions_per_min=100,
+            )
+
+            redis_metrics = RedisMetrics(
+                status="healthy",
+                connected_clients=3,
+                memory_mb=550.0,  # Above critical threshold
+                hit_ratio=5.0,  # Below critical threshold
+                blocked_clients=0,
+            )
+
+            with (
+                patch.object(collector, "collect_gpu_metrics", return_value=gpu_metrics),
+                patch.object(collector, "collect_rtdetr_metrics", return_value=None),
+                patch.object(collector, "collect_nemotron_metrics", return_value=None),
+                patch.object(collector, "collect_host_metrics", return_value=host_metrics),
+                patch.object(
+                    collector, "collect_postgresql_metrics", return_value=postgresql_metrics
+                ),
+                patch.object(collector, "collect_redis_metrics", return_value=redis_metrics),
+                patch.object(collector, "collect_container_health", return_value=[]),
+                patch.object(collector, "collect_inference_metrics", return_value=None),
+            ):
+                result = await collector.collect_all()
+
+                # Should have multiple alerts
+                assert len(result.alerts) > 0
+                # Check for expected alert types
+                alert_metrics = {a.metric for a in result.alerts}
+                assert "gpu_temperature" in alert_metrics or "host_cpu" in alert_metrics
+
+
+# =============================================================================
+# pynvml Collection Tests
+# =============================================================================
+
+
+class TestCollectGpuPynvmlSuccess:
+    """Tests for successful pynvml GPU collection."""
+
+    def test_collect_gpu_pynvml_success(self) -> None:
+        """Test successful GPU metrics collection via pynvml."""
+        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock()
+
+            # Mock pynvml module and its functions
+            with patch("pynvml.nvmlInit") as mock_init:
+                mock_init.return_value = None
+
+                collector = PerformanceCollector()
+                collector._pynvml_available = True
+
+                with patch("pynvml.nvmlDeviceGetHandleByIndex") as mock_get_handle:
+                    mock_handle = MagicMock()
+                    mock_get_handle.return_value = mock_handle
+
+                    with (
+                        patch("pynvml.nvmlDeviceGetName", return_value=b"NVIDIA RTX A5500"),
+                        patch(
+                            "pynvml.nvmlDeviceGetUtilizationRates",
+                            return_value=MagicMock(gpu=50, memory=60),
+                        ),
+                        patch(
+                            "pynvml.nvmlDeviceGetMemoryInfo",
+                            return_value=MagicMock(used=10 * 1024**3, total=24 * 1024**3),
+                        ),
+                        patch("pynvml.nvmlDeviceGetTemperature", return_value=65),
+                        patch("pynvml.nvmlDeviceGetPowerUsage", return_value=150000),
+                        patch(
+                            "pynvml.NVML_TEMPERATURE_GPU",
+                            0,
+                        ),
+                    ):
+                        result = collector._collect_gpu_pynvml()
+
+                        assert result is not None
+                        assert result["name"] == "NVIDIA RTX A5500"
+                        assert result["utilization"] == 50.0
+                        assert result["vram_used_gb"] == 10.0
+                        assert result["vram_total_gb"] == 24.0
+                        assert result["temperature"] == 65
+                        assert result["power_watts"] == 150
+
+    def test_collect_gpu_pynvml_bytes_name(self) -> None:
+        """Test GPU name is decoded from bytes if needed."""
+        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock()
+
+            collector = PerformanceCollector()
+            collector._pynvml_available = True
+
+            with patch("pynvml.nvmlDeviceGetHandleByIndex") as mock_get_handle:
+                mock_handle = MagicMock()
+                mock_get_handle.return_value = mock_handle
+
+                with (
+                    patch(
+                        "pynvml.nvmlDeviceGetName",
+                        return_value=b"NVIDIA GeForce RTX 3090",
+                    ),
+                    patch(
+                        "pynvml.nvmlDeviceGetUtilizationRates",
+                        return_value=MagicMock(gpu=40, memory=50),
+                    ),
+                    patch(
+                        "pynvml.nvmlDeviceGetMemoryInfo",
+                        return_value=MagicMock(used=8 * 1024**3, total=24 * 1024**3),
+                    ),
+                    patch("pynvml.nvmlDeviceGetTemperature", return_value=60),
+                    patch("pynvml.nvmlDeviceGetPowerUsage", return_value=200000),
+                    patch("pynvml.NVML_TEMPERATURE_GPU", 0),
+                ):
+                    result = collector._collect_gpu_pynvml()
+
+                    assert result is not None
+                    assert result["name"] == "NVIDIA GeForce RTX 3090"
+                    assert isinstance(result["name"], str)
+
+    def test_collect_gpu_pynvml_error_handling(self) -> None:
+        """Test pynvml collection handles errors gracefully."""
+        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock()
+
+            collector = PerformanceCollector()
+            collector._pynvml_available = True
+
+            with patch(
+                "pynvml.nvmlDeviceGetHandleByIndex",
+                side_effect=Exception("NVML error"),
+            ):
+                result = collector._collect_gpu_pynvml()
+
+                assert result is None
+
+
+# =============================================================================
+# Inference Metrics Error Handling Tests
+# =============================================================================
+
+
+class TestCollectInferenceMetricsErrors:
+    """Tests for error handling in collect_inference_metrics."""
+
+    @pytest.mark.asyncio
+    async def test_collect_inference_metrics_tracker_error(self) -> None:
+        """Test inference metrics returns None on tracker error."""
+        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock()
+
+            with patch(
+                "backend.core.metrics.get_pipeline_latency_tracker",
+                side_effect=Exception("Tracker error"),
+            ):
+                collector = PerformanceCollector()
+                result = await collector.collect_inference_metrics()
+
+                assert result is None
+
+    @pytest.mark.asyncio
+    async def test_collect_inference_metrics_missing_stats(self) -> None:
+        """Test inference metrics handles missing stats gracefully."""
+        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock()
+
+            with patch("backend.core.metrics.get_pipeline_latency_tracker") as mock_tracker:
+                mock_tracker_instance = MagicMock()
+                # Return empty dicts for stats
+                mock_tracker_instance.get_stage_stats.return_value = {}
+                mock_tracker.return_value = mock_tracker_instance
+
+                mock_session = AsyncMock()
+                mock_session.__aenter__.return_value = mock_session
+                mock_session.__aexit__.return_value = None
+
+                with patch("backend.core.database.get_session", return_value=mock_session):
+                    collector = PerformanceCollector()
+
+                    async def mock_get_detections(session):
+                        return 0
+
+                    async def mock_get_events(session):
+                        return 0
+
+                    with (
+                        patch.object(
+                            collector, "_get_detections_per_minute", side_effect=mock_get_detections
+                        ),
+                        patch.object(
+                            collector, "_get_events_per_minute", side_effect=mock_get_events
+                        ),
+                    ):
+                        result = await collector.collect_inference_metrics()
+
+                        assert result is not None
+                        # Should use 0 for missing values
+                        assert result.rtdetr_latency_ms["avg"] == 0
+                        assert result.nemotron_latency_ms["p95"] == 0
+
+
+# =============================================================================
+# Host Metrics Edge Cases
+# =============================================================================
+
+
+class TestCollectHostMetricsEdgeCases:
+    """Tests for edge cases in host metrics collection."""
+
+    @pytest.mark.asyncio
+    async def test_collect_host_metrics_memory_failure(self) -> None:
+        """Test host metrics when memory measurement fails."""
+        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock()
+
+            with patch("backend.services.performance_collector.psutil") as mock_psutil:
+                mock_psutil.cpu_percent.return_value = 45.0
+
+                # Mock memory failure
+                mock_psutil.virtual_memory.side_effect = Exception("Memory access denied")
+
+                # Mock disk
+                mock_disk = MagicMock()
+                mock_disk.used = 100 * 1024**3
+                mock_disk.total = 500 * 1024**3
+                mock_psutil.disk_usage.return_value = mock_disk
+
+                collector = PerformanceCollector()
+                result = await collector.collect_host_metrics()
+
+                assert result is not None
+                assert result.cpu_percent == 45.0
+                assert result.ram_used_gb == 0.0
+                assert result.ram_total_gb == 1.0  # Fallback
+                assert result.disk_used_gb == 100.0
+
+    @pytest.mark.asyncio
+    async def test_collect_host_metrics_disk_failure(self) -> None:
+        """Test host metrics when disk measurement fails."""
+        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock()
+
+            with patch("backend.services.performance_collector.psutil") as mock_psutil:
+                mock_psutil.cpu_percent.return_value = 45.0
+
+                # Mock memory
+                mock_mem = MagicMock()
+                mock_mem.used = 8 * 1024**3
+                mock_mem.total = 16 * 1024**3
+                mock_psutil.virtual_memory.return_value = mock_mem
+
+                # Mock disk failure
+                mock_psutil.disk_usage.side_effect = Exception("Disk access denied")
+
+                collector = PerformanceCollector()
+                result = await collector.collect_host_metrics()
+
+                assert result is not None
+                assert result.cpu_percent == 45.0
+                assert result.ram_used_gb == 8.0
+                assert result.disk_used_gb == 0.0
+                assert result.disk_total_gb == 1.0  # Fallback
+
+
+# =============================================================================
+# PostgreSQL Metrics Edge Cases
+# =============================================================================
+
+
+class TestCollectPostgresqlMetricsEdgeCases:
+    """Tests for edge cases in PostgreSQL metrics collection."""
+
+    @pytest.mark.asyncio
+    async def test_collect_postgresql_metrics_connection_count_error(self) -> None:
+        """Test PostgreSQL metrics when connection count query fails."""
+        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock(database_pool_size=10, database_pool_overflow=20)
+
+            with patch("backend.core.database.get_session_factory") as mock_factory:
+                mock_session = AsyncMock()
+                mock_session.__aenter__.return_value = mock_session
+                mock_session.__aexit__.return_value = None
+
+                # First execute (connection count) fails
+                # Second and third execute succeed
+                mock_result = MagicMock()
+                mock_result.scalar.return_value = 95.0
+
+                async def mock_execute(query):
+                    if "pg_stat_activity" in str(query):
+                        raise Exception("Connection count query failed")
+                    return mock_result
+
+                mock_session.execute = mock_execute
+
+                mock_factory.return_value = lambda: mock_session
+
+                collector = PerformanceCollector()
+                result = await collector.collect_postgresql_metrics()
+
+                assert result is not None
+                assert result.status == "healthy"
+                assert result.connections_active == 0  # Fallback
+                assert result.cache_hit_ratio == 95.0
+
+    @pytest.mark.asyncio
+    async def test_collect_postgresql_metrics_cache_hit_error(self) -> None:
+        """Test PostgreSQL metrics when cache hit query fails."""
+        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock(database_pool_size=10, database_pool_overflow=20)
+
+            with patch("backend.core.database.get_session_factory") as mock_factory:
+                mock_session = AsyncMock()
+                mock_session.__aenter__.return_value = mock_session
+                mock_session.__aexit__.return_value = None
+
+                mock_result = MagicMock()
+
+                async def mock_execute(query):
+                    if "pg_stat_database" in str(query) and "blks_hit" in str(query):
+                        raise Exception("Cache hit query failed")
+                    mock_result.scalar.return_value = (
+                        10 if "pg_stat_activity" in str(query) else 100
+                    )
+                    return mock_result
+
+                mock_session.execute = mock_execute
+
+                mock_factory.return_value = lambda: mock_session
+
+                collector = PerformanceCollector()
+                result = await collector.collect_postgresql_metrics()
+
+                assert result is not None
+                assert result.connections_active == 10
+                assert result.cache_hit_ratio == 0.0  # Fallback
+
+    @pytest.mark.asyncio
+    async def test_collect_postgresql_metrics_transaction_count_error(self) -> None:
+        """Test PostgreSQL metrics when transaction count query fails."""
+        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock(database_pool_size=10, database_pool_overflow=20)
+
+            with patch("backend.core.database.get_session_factory") as mock_factory:
+                mock_session = AsyncMock()
+                mock_session.__aenter__.return_value = mock_session
+                mock_session.__aexit__.return_value = None
+
+                mock_result = MagicMock()
+
+                async def mock_execute(query):
+                    if "xact_commit" in str(query):
+                        raise Exception("Transaction count query failed")
+                    if "pg_stat_activity" in str(query):
+                        mock_result.scalar.return_value = 5
+                    else:
+                        mock_result.scalar.return_value = 95.0
+                    return mock_result
+
+                mock_session.execute = mock_execute
+
+                mock_factory.return_value = lambda: mock_session
+
+                collector = PerformanceCollector()
+                result = await collector.collect_postgresql_metrics()
+
+                assert result is not None
+                assert result.transactions_per_min == 0.0  # Fallback
+
+    @pytest.mark.asyncio
+    async def test_collect_postgresql_metrics_exception(self) -> None:
+        """Test PostgreSQL metrics returns unreachable on exception."""
+        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock()
+
+            with patch(
+                "backend.core.database.get_session_factory",
+                side_effect=Exception("Database error"),
+            ):
+                collector = PerformanceCollector()
+                result = await collector.collect_postgresql_metrics()
+
+                assert result is not None
+                assert result.status == "unreachable"

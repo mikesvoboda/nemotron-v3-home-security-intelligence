@@ -2048,3 +2048,573 @@ async def test_setex_integration():
     # Cleanup
     await fake_server.delete(key)
     await fake_server.aclose()
+
+
+# ==============================================================================
+# SSL Certificate Path Loading Tests
+# ==============================================================================
+
+
+def test_redis_client_create_ssl_context_with_ca_cert(tmp_path):
+    """Test SSL context loads CA certificate when provided."""
+    import ssl
+
+    # Create a temporary CA certificate file
+    ca_cert_file = tmp_path / "ca.crt"
+    ca_cert_file.write_text("FAKE CA CERTIFICATE")
+
+    client = RedisClient(
+        redis_url="redis://localhost:6379/0",
+        ssl_enabled=True,
+        ssl_cert_reqs="required",
+        ssl_ca_certs=str(ca_cert_file),
+    )
+
+    # Mock load_verify_locations to avoid actual SSL operations
+    with patch("ssl.SSLContext.load_verify_locations") as mock_load:
+        ssl_context = client._create_ssl_context()
+
+        assert ssl_context is not None
+        assert isinstance(ssl_context, ssl.SSLContext)
+        # Verify load_verify_locations was called with the correct path
+        mock_load.assert_called_once_with(cafile=str(ca_cert_file))
+
+
+def test_redis_client_create_ssl_context_with_client_cert(tmp_path):
+    """Test SSL context loads client certificate when provided."""
+    import ssl
+
+    # Create temporary certificate files
+    cert_file = tmp_path / "client.crt"
+    cert_file.write_text("FAKE CLIENT CERTIFICATE")
+
+    client = RedisClient(
+        redis_url="redis://localhost:6379/0",
+        ssl_enabled=True,
+        ssl_cert_reqs="none",
+        ssl_check_hostname=False,
+        ssl_certfile=str(cert_file),
+    )
+
+    # Mock load_cert_chain to avoid actual SSL operations
+    with patch("ssl.SSLContext.load_cert_chain") as mock_load:
+        ssl_context = client._create_ssl_context()
+
+        assert ssl_context is not None
+        assert isinstance(ssl_context, ssl.SSLContext)
+        # Verify load_cert_chain was called with the correct path
+        mock_load.assert_called_once_with(certfile=str(cert_file), keyfile=None)
+
+
+def test_redis_client_create_ssl_context_with_client_cert_and_key(tmp_path):
+    """Test SSL context loads client certificate and key when both provided."""
+    import ssl
+
+    # Create temporary certificate files
+    cert_file = tmp_path / "client.crt"
+    cert_file.write_text("FAKE CLIENT CERTIFICATE")
+    key_file = tmp_path / "client.key"
+    key_file.write_text("FAKE CLIENT KEY")
+
+    client = RedisClient(
+        redis_url="redis://localhost:6379/0",
+        ssl_enabled=True,
+        ssl_cert_reqs="none",
+        ssl_check_hostname=False,
+        ssl_certfile=str(cert_file),
+        ssl_keyfile=str(key_file),
+    )
+
+    # Mock load_cert_chain to avoid actual SSL operations
+    with patch("ssl.SSLContext.load_cert_chain") as mock_load:
+        ssl_context = client._create_ssl_context()
+
+        assert ssl_context is not None
+        assert isinstance(ssl_context, ssl.SSLContext)
+        # Verify load_cert_chain was called with both cert and key
+        mock_load.assert_called_once_with(certfile=str(cert_file), keyfile=str(key_file))
+
+
+# ==============================================================================
+# Retry Logic Tests
+# ==============================================================================
+
+
+@pytest.mark.asyncio
+async def test_with_retry_raises_runtime_error_on_no_error(redis_client):
+    """Test with_retry raises RuntimeError when all retries exhausted without error."""
+    # This is an edge case that should never happen in practice
+
+    async def operation_that_never_succeeds():
+        # Simulate an operation that doesn't raise but also doesn't return
+        raise RuntimeError("Simulated failure")
+
+    with pytest.raises(RuntimeError, match="Simulated failure"):
+        await redis_client.with_retry(
+            operation=operation_that_never_succeeds,
+            operation_name="test_operation",
+            max_retries=1,
+        )
+
+
+# ==============================================================================
+# Non-blocking Pop Operation Tests
+# ==============================================================================
+
+
+@pytest.mark.asyncio
+async def test_pop_from_queue_nonblocking_with_data(redis_client, mock_redis_client):
+    """Test pop_from_queue_nonblocking returns data immediately."""
+    mock_redis_client.lpop.return_value = '{"key": "value"}'
+
+    result = await redis_client.pop_from_queue_nonblocking("test_queue")
+
+    assert result == {"key": "value"}
+    mock_redis_client.lpop.assert_awaited_once_with("test_queue")
+
+
+@pytest.mark.asyncio
+async def test_pop_from_queue_nonblocking_empty(redis_client, mock_redis_client):
+    """Test pop_from_queue_nonblocking returns None for empty queue."""
+    mock_redis_client.lpop.return_value = None
+
+    result = await redis_client.pop_from_queue_nonblocking("test_queue")
+
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_pop_from_queue_nonblocking_plain_string(redis_client, mock_redis_client):
+    """Test pop_from_queue_nonblocking handles plain strings."""
+    mock_redis_client.lpop.return_value = "plain_string"
+
+    result = await redis_client.pop_from_queue_nonblocking("test_queue")
+
+    assert result == "plain_string"
+
+
+# ==============================================================================
+# Sorted Set Operations Tests
+# ==============================================================================
+
+
+@pytest.mark.asyncio
+async def test_zadd_adds_members_to_sorted_set(redis_client, mock_redis_client):
+    """Test zadd adds members to sorted set."""
+    mock_redis_client.zadd = AsyncMock(return_value=2)
+
+    result = await redis_client.zadd("sorted_set", {"member1": 1.0, "member2": 2.0})
+
+    assert result == 2
+    mock_redis_client.zadd.assert_awaited_once_with("sorted_set", {"member1": 1.0, "member2": 2.0})
+
+
+@pytest.mark.asyncio
+async def test_zpopmax_pops_highest_score(redis_client, mock_redis_client):
+    """Test zpopmax removes and returns highest score members."""
+    mock_redis_client.zpopmax = AsyncMock(return_value=[("member1", 5.0)])
+
+    result = await redis_client.zpopmax("sorted_set", count=1)
+
+    assert result == [("member1", 5.0)]
+    mock_redis_client.zpopmax.assert_awaited_once_with("sorted_set", 1)
+
+
+@pytest.mark.asyncio
+async def test_zcard_returns_set_size(redis_client, mock_redis_client):
+    """Test zcard returns number of elements in sorted set."""
+    mock_redis_client.zcard = AsyncMock(return_value=10)
+
+    result = await redis_client.zcard("sorted_set")
+
+    assert result == 10
+    mock_redis_client.zcard.assert_awaited_once_with("sorted_set")
+
+
+@pytest.mark.asyncio
+async def test_zrange_returns_elements(redis_client, mock_redis_client):
+    """Test zrange returns elements in index range."""
+    mock_redis_client.zrange = AsyncMock(return_value=["member1", "member2"])
+
+    result = await redis_client.zrange("sorted_set", 0, 10)
+
+    assert result == ["member1", "member2"]
+    mock_redis_client.zrange.assert_awaited_once_with("sorted_set", 0, 10)
+
+
+@pytest.mark.asyncio
+async def test_zrem_removes_members(redis_client, mock_redis_client):
+    """Test zrem removes members from sorted set."""
+    mock_redis_client.zrem = AsyncMock(return_value=2)
+
+    result = await redis_client.zrem("sorted_set", "member1", "member2")
+
+    assert result == 2
+    mock_redis_client.zrem.assert_awaited_once_with("sorted_set", "member1", "member2")
+
+
+@pytest.mark.asyncio
+async def test_zscore_returns_member_score(redis_client, mock_redis_client):
+    """Test zscore returns score of a member."""
+    mock_redis_client.zscore = AsyncMock(return_value=5.0)
+
+    result = await redis_client.zscore("sorted_set", "member1")
+
+    assert result == 5.0
+    mock_redis_client.zscore.assert_awaited_once_with("sorted_set", "member1")
+
+
+@pytest.mark.asyncio
+async def test_zscore_returns_none_for_nonexistent_member(redis_client, mock_redis_client):
+    """Test zscore returns None for non-existent member."""
+    mock_redis_client.zscore = AsyncMock(return_value=None)
+
+    result = await redis_client.zscore("sorted_set", "nonexistent")
+
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_zrangebyscore_returns_elements_in_score_range(redis_client, mock_redis_client):
+    """Test zrangebyscore returns elements within score range."""
+    mock_redis_client.zrangebyscore = AsyncMock(return_value=["member1", "member2"])
+
+    result = await redis_client.zrangebyscore("sorted_set", 0.0, 10.0)
+
+    assert result == ["member1", "member2"]
+    mock_redis_client.zrangebyscore.assert_awaited_once_with("sorted_set", 0.0, 10.0)
+
+
+@pytest.mark.asyncio
+async def test_zrangebyscore_with_pagination(redis_client, mock_redis_client):
+    """Test zrangebyscore with pagination parameters."""
+    mock_redis_client.zrangebyscore = AsyncMock(return_value=["member1", "member2"])
+
+    result = await redis_client.zrangebyscore("sorted_set", 0.0, 10.0, start=0, num=2)
+
+    assert result == ["member1", "member2"]
+    mock_redis_client.zrangebyscore.assert_awaited_once_with(
+        "sorted_set", 0.0, 10.0, start=0, num=2
+    )
+
+
+@pytest.mark.asyncio
+async def test_zrangebyscore_with_infinite_bounds(redis_client, mock_redis_client):
+    """Test zrangebyscore with infinite score bounds."""
+    mock_redis_client.zrangebyscore = AsyncMock(return_value=["member1"])
+
+    result = await redis_client.zrangebyscore("sorted_set", "-inf", "+inf")
+
+    assert result == ["member1"]
+    mock_redis_client.zrangebyscore.assert_awaited_once_with("sorted_set", "-inf", "+inf")
+
+
+@pytest.mark.asyncio
+async def test_llen_returns_list_length(redis_client, mock_redis_client):
+    """Test llen returns length of a list."""
+    mock_redis_client.llen = AsyncMock(return_value=5)
+
+    result = await redis_client.llen("list_key")
+
+    assert result == 5
+    mock_redis_client.llen.assert_awaited_once_with("list_key")
+
+
+# ==============================================================================
+# Server Info Operations Tests
+# ==============================================================================
+
+
+@pytest.mark.asyncio
+async def test_info_all_sections(redis_client, mock_redis_client):
+    """Test info returns all sections when no section specified."""
+    mock_redis_client.info = AsyncMock(return_value={"server": {}, "memory": {}})
+
+    result = await redis_client.info()
+
+    assert "server" in result
+    assert "memory" in result
+    mock_redis_client.info.assert_awaited_once_with()
+
+
+@pytest.mark.asyncio
+async def test_info_specific_section(redis_client, mock_redis_client):
+    """Test info returns specific section when requested."""
+    mock_redis_client.info = AsyncMock(return_value={"redis_version": "7.0.0"})
+
+    result = await redis_client.info("server")
+
+    assert "redis_version" in result
+    mock_redis_client.info.assert_awaited_once_with("server")
+
+
+@pytest.mark.asyncio
+async def test_pubsub_channels_returns_active_channels(redis_client, mock_redis_client):
+    """Test pubsub_channels returns list of active channels."""
+    mock_redis_client.pubsub_channels = AsyncMock(return_value=["channel1", "channel2"])
+
+    result = await redis_client.pubsub_channels()
+
+    assert result == ["channel1", "channel2"]
+    mock_redis_client.pubsub_channels.assert_awaited_once_with("*")
+
+
+@pytest.mark.asyncio
+async def test_pubsub_channels_with_pattern(redis_client, mock_redis_client):
+    """Test pubsub_channels with custom pattern."""
+    mock_redis_client.pubsub_channels = AsyncMock(return_value=["test:channel1"])
+
+    result = await redis_client.pubsub_channels("test:*")
+
+    assert result == ["test:channel1"]
+    mock_redis_client.pubsub_channels.assert_awaited_once_with("test:*")
+
+
+@pytest.mark.asyncio
+async def test_pubsub_numsub_returns_subscriber_counts(redis_client, mock_redis_client):
+    """Test pubsub_numsub returns subscriber counts for channels."""
+    mock_redis_client.pubsub_numsub = AsyncMock(return_value=[("channel1", 5), ("channel2", 3)])
+
+    result = await redis_client.pubsub_numsub("channel1", "channel2")
+
+    assert result == [("channel1", 5), ("channel2", 3)]
+    mock_redis_client.pubsub_numsub.assert_awaited_once_with("channel1", "channel2")
+
+
+# ==============================================================================
+# get_redis_optional Error Handling Tests
+# ==============================================================================
+
+
+@pytest.mark.asyncio
+async def test_get_redis_optional_returns_none_on_connection_error(
+    mock_redis_pool, mock_redis_client, reset_redis_global_state
+):
+    """Test get_redis_optional returns None on connection error."""
+    mock_redis_client.ping.side_effect = ConnectionError("Connection failed")
+
+    with patch("backend.core.redis.Redis", return_value=mock_redis_client):
+        redis_generator = get_redis_optional()
+        client = await anext(redis_generator)
+
+        assert client is None
+
+        # Cleanup
+        with contextlib.suppress(StopAsyncIteration):
+            await redis_generator.asend(None)
+
+
+@pytest.mark.asyncio
+async def test_get_redis_optional_returns_none_on_timeout_error(
+    mock_redis_pool, mock_redis_client, reset_redis_global_state
+):
+    """Test get_redis_optional returns None on timeout error."""
+    from redis.exceptions import TimeoutError as RedisTimeoutError
+
+    mock_redis_client.ping.side_effect = RedisTimeoutError("Timeout")
+
+    with patch("backend.core.redis.Redis", return_value=mock_redis_client):
+        redis_generator = get_redis_optional()
+        client = await anext(redis_generator)
+
+        assert client is None
+
+        # Cleanup
+        with contextlib.suppress(StopAsyncIteration):
+            await redis_generator.asend(None)
+
+
+@pytest.mark.asyncio
+async def test_get_redis_optional_returns_none_on_generic_exception(
+    mock_redis_pool, mock_redis_client, reset_redis_global_state
+):
+    """Test get_redis_optional returns None on generic exception."""
+    mock_redis_client.ping.side_effect = Exception("Generic error")
+
+    with patch("backend.core.redis.Redis", return_value=mock_redis_client):
+        redis_generator = get_redis_optional()
+        client = await anext(redis_generator)
+
+        assert client is None
+
+        # Cleanup
+        with contextlib.suppress(StopAsyncIteration):
+            await redis_generator.asend(None)
+
+
+# ==============================================================================
+# Additional Retry Logic Tests
+# ==============================================================================
+
+
+@pytest.mark.asyncio
+async def test_with_retry_executes_with_connection_error(redis_client):
+    """Test with_retry handles ConnectionError retries properly."""
+    from redis.exceptions import ConnectionError as RedisConnectionError
+
+    call_count = 0
+
+    async def operation_with_retries():
+        nonlocal call_count
+        call_count += 1
+        if call_count < 2:
+            raise RedisConnectionError("Connection failed")
+        return "success"
+
+    result = await redis_client.with_retry(
+        operation=operation_with_retries,
+        operation_name="test_operation",
+        max_retries=3,
+    )
+
+    assert result == "success"
+    assert call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_with_retry_executes_with_timeout_error(redis_client):
+    """Test with_retry handles TimeoutError retries properly."""
+    from redis.exceptions import TimeoutError as RedisTimeoutError
+
+    call_count = 0
+
+    async def operation_with_timeouts():
+        nonlocal call_count
+        call_count += 1
+        if call_count < 2:
+            raise RedisTimeoutError("Operation timed out")
+        return "success"
+
+    result = await redis_client.with_retry(
+        operation=operation_with_timeouts,
+        operation_name="test_operation",
+        max_retries=3,
+    )
+
+    assert result == "success"
+    assert call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_with_retry_executes_with_redis_error(redis_client):
+    """Test with_retry handles generic RedisError retries properly."""
+    from redis.exceptions import RedisError
+
+    call_count = 0
+
+    async def operation_with_redis_errors():
+        nonlocal call_count
+        call_count += 1
+        if call_count < 2:
+            raise RedisError("Redis error")
+        return "success"
+
+    result = await redis_client.with_retry(
+        operation=operation_with_redis_errors,
+        operation_name="test_operation",
+        max_retries=3,
+    )
+
+    assert result == "success"
+    assert call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_with_retry_all_retries_exhausted_connection_error(redis_client):
+    """Test with_retry raises ConnectionError after all retries exhausted."""
+    from redis.exceptions import ConnectionError as RedisConnectionError
+
+    async def operation_always_fails():
+        raise RedisConnectionError("Connection failed")
+
+    redis_client._base_delay = 0.01  # Speed up test
+    with pytest.raises(RedisConnectionError, match="Connection failed"):
+        await redis_client.with_retry(
+            operation=operation_always_fails,
+            operation_name="test_operation",
+            max_retries=2,
+        )
+
+
+@pytest.mark.asyncio
+async def test_with_retry_all_retries_exhausted_timeout_error(redis_client):
+    """Test with_retry raises TimeoutError after all retries exhausted."""
+    from redis.exceptions import TimeoutError as RedisTimeoutError
+
+    async def operation_always_times_out():
+        raise RedisTimeoutError("Timeout")
+
+    redis_client._base_delay = 0.01  # Speed up test
+    with pytest.raises(RedisTimeoutError, match="Timeout"):
+        await redis_client.with_retry(
+            operation=operation_always_times_out,
+            operation_name="test_operation",
+            max_retries=2,
+        )
+
+
+@pytest.mark.asyncio
+async def test_get_from_queue_with_retry_success(redis_client, mock_redis_client):
+    """Test get_from_queue_with_retry returns data successfully."""
+    mock_redis_client.blpop.return_value = ("queue", '{"key": "value"}')
+
+    result = await redis_client.get_from_queue_with_retry("queue", timeout=5)
+
+    assert result == {"key": "value"}
+
+
+@pytest.mark.asyncio
+async def test_get_queue_length_with_retry_success(redis_client, mock_redis_client):
+    """Test get_queue_length_with_retry returns length successfully."""
+    mock_redis_client.llen.return_value = 10
+
+    result = await redis_client.get_queue_length_with_retry("queue")
+
+    assert result == 10
+
+
+@pytest.mark.asyncio
+async def test_get_with_retry_success(redis_client, mock_redis_client):
+    """Test get_with_retry returns value successfully."""
+    mock_redis_client.get.return_value = '{"key": "value"}'
+
+    result = await redis_client.get_with_retry("key")
+
+    assert result == {"key": "value"}
+
+
+@pytest.mark.asyncio
+async def test_set_with_retry_success(redis_client, mock_redis_client):
+    """Test set_with_retry sets value successfully."""
+    mock_redis_client.set.return_value = True
+
+    result = await redis_client.set_with_retry("key", {"data": "value"}, expire=300)
+
+    assert result is True
+
+
+@pytest.mark.asyncio
+async def test_add_to_queue_safe_with_retry_success(redis_client, mock_redis_client):
+    """Test add_to_queue_safe_with_retry adds successfully."""
+    mock_redis_client.llen.return_value = 5
+    mock_redis_client.rpush.return_value = 6
+
+    result = await redis_client.add_to_queue_safe_with_retry("queue", {"data": "test"})
+
+    assert result.success is True
+    assert result.queue_length == 6
+
+
+# ==============================================================================
+# Cache JSON Decode Error Tests
+# ==============================================================================
+
+
+@pytest.mark.asyncio
+async def test_get_returns_string_on_json_decode_error(redis_client, mock_redis_client):
+    """Test get returns plain string when JSON decode fails."""
+    mock_redis_client.get.return_value = "not json content"
+
+    result = await redis_client.get("key")
+
+    assert result == "not json content"
