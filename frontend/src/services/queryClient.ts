@@ -248,7 +248,8 @@ export const DEFAULT_RATE_LIMIT_RETRY_SECONDS = 60;
  */
 export function updateRateLimitStoreFromError(error: unknown): void {
   // Only handle ApiError instances with 429 status
-  if (!(error instanceof ApiError) || error.status !== 429) {
+  // Defensive check: ensure ApiError is defined before instanceof (module init timing)
+  if (typeof ApiError !== 'function' || !(error instanceof ApiError) || error.status !== 429) {
     return;
   }
 

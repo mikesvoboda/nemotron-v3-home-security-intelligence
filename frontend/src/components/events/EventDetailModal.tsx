@@ -1,5 +1,7 @@
 import { Dialog, Transition } from '@headlessui/react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  AlertCircle,
   ArrowLeft,
   ArrowRight,
   CheckCircle2,
@@ -9,6 +11,8 @@ import {
   Flag,
   RefreshCw,
   Save,
+  ThumbsDown,
+  ThumbsUp,
   Timer,
   TrendingUp,
   X,
@@ -18,14 +22,18 @@ import { Fragment, useEffect, useMemo, useState } from 'react';
 import EnrichmentPanel from './EnrichmentPanel';
 import EntityTrackingPanel from './EntityTrackingPanel';
 import EventVideoPlayer from './EventVideoPlayer';
+import FeedbackForm from './FeedbackForm';
 import ReidMatchesPanel from './ReidMatchesPanel';
 import ThumbnailStrip from './ThumbnailStrip';
+import { useToast } from '../../hooks/useToast';
 import {
   fetchEventDetections,
   getDetectionFullImageUrl,
   getDetectionImageUrl,
   getDetectionVideoThumbnailUrl,
   getDetectionVideoUrl,
+  getEventFeedback,
+  submitEventFeedback,
 } from '../../services/api';
 import { triggerEvaluation, AuditApiError } from '../../services/auditApi';
 import {
@@ -51,7 +59,7 @@ import VideoPlayer from '../video/VideoPlayer';
 import type { DetectionThumbnail } from './ThumbnailStrip';
 import type { EntityDetail } from '../../services/api';
 import type { EnrichmentData } from '../../types/enrichment';
-import type { Detection as ApiDetection } from '../../types/generated';
+import type { Detection as ApiDetection, FeedbackType, EventFeedbackResponse } from '../../types/generated';
 import type { LightboxImage } from '../common/Lightbox';
 import type { BoundingBox } from '../detection/BoundingBoxOverlay';
 
@@ -141,6 +149,41 @@ export default function EventDetailModal({
   const [entityDetailOpen, setEntityDetailOpen] = useState<boolean>(false);
   const [selectedEntity, setSelectedEntity] = useState<EntityDetail | null>(null);
 
+  // State for feedback
+  const [feedbackFormType, setFeedbackFormType] = useState<FeedbackType | null>(null);
+
+  // Hooks for feedback
+  const { success: toastSuccess, error: toastError } = useToast();
+  const queryClient = useQueryClient();
+
+  // Parse event ID for API calls
+  const eventIdNumber = event ? parseInt(event.id, 10) : NaN;
+
+  // Query for existing feedback
+  const {
+    data: existingFeedback,
+    isLoading: isLoadingFeedback,
+  } = useQuery<EventFeedbackResponse | null>({
+    queryKey: ['eventFeedback', eventIdNumber],
+    queryFn: () => getEventFeedback(eventIdNumber),
+    enabled: !isNaN(eventIdNumber) && isOpen,
+    staleTime: 30000, // 30 seconds
+  });
+
+  // Mutation for submitting feedback
+  const feedbackMutation = useMutation({
+    mutationFn: submitEventFeedback,
+    onSuccess: () => {
+      toastSuccess('Feedback submitted successfully');
+      setFeedbackFormType(null);
+      // Invalidate the feedback query to refetch
+      void queryClient.invalidateQueries({ queryKey: ['eventFeedback', eventIdNumber] });
+    },
+    onError: (error: Error) => {
+      toastError(`Failed to submit feedback: ${error.message}`);
+    },
+  });
+
   // Initialize notes text and reset re-evaluate state when event changes
   useEffect(() => {
     if (event) {
@@ -148,6 +191,7 @@ export default function EventDetailModal({
       setNotesSaved(false);
       setReEvaluateError(null);
       setReEvaluateSuccess(false);
+      setFeedbackFormType(null);
     }
   }, [event]);
 
@@ -301,6 +345,41 @@ export default function EventDetailModal({
       setThumbnailLightboxIndex(index);
       setThumbnailLightboxOpen(true);
     }
+  };
+
+  // Handle quick feedback submission (for "Correct Detection")
+  const handleQuickFeedback = (type: FeedbackType) => {
+    if (isNaN(eventIdNumber)) return;
+    feedbackMutation.mutate({
+      event_id: eventIdNumber,
+      feedback_type: type,
+    });
+  };
+
+  // Handle feedback form submission
+  const handleFeedbackSubmit = (notes: string, expectedSeverity?: number) => {
+    if (isNaN(eventIdNumber) || !feedbackFormType) return;
+    feedbackMutation.mutate({
+      event_id: eventIdNumber,
+      feedback_type: feedbackFormType,
+      notes: notes || undefined,
+      // Note: The backend doesn't have expected_severity in the schema currently,
+      // so we include it in the notes for now
+      ...(expectedSeverity !== undefined && feedbackFormType === 'wrong_severity'
+        ? { notes: notes ? `Expected severity: ${expectedSeverity}. ${notes}` : `Expected severity: ${expectedSeverity}` }
+        : {}),
+    });
+  };
+
+  // Get display label for existing feedback
+  const getFeedbackTypeLabel = (type: string): string => {
+    const labels: Record<string, string> = {
+      correct: 'Correct Detection',
+      false_positive: 'False Positive',
+      wrong_severity: 'Wrong Severity',
+      missed_detection: 'Missed Detection',
+    };
+    return labels[type] || type;
   };
 
   // Build lightbox images array from detection sequence (images only, not videos)
@@ -852,6 +931,92 @@ export default function EventDetailModal({
                         )}
                       </div>
                     </div>
+                  </div>
+
+                  {/* Event Feedback */}
+                  <div className="mb-6" data-testid="feedback-section">
+                    <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">
+                      Detection Feedback
+                    </h3>
+
+                    {/* Loading state */}
+                    {isLoadingFeedback && (
+                      <div className="flex items-center gap-2 text-sm text-gray-400">
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-600 border-t-[#76B900]" />
+                        Loading feedback...
+                      </div>
+                    )}
+
+                    {/* Existing feedback display */}
+                    {!isLoadingFeedback && existingFeedback && (
+                      <div
+                        className="flex items-center gap-3 rounded-lg border border-gray-700 bg-[#1F1F1F] p-4"
+                        data-testid="existing-feedback"
+                      >
+                        <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-[#76B900]" />
+                        <div>
+                          <div className="font-medium text-white">
+                            {getFeedbackTypeLabel(existingFeedback.feedback_type)}
+                          </div>
+                          {existingFeedback.notes && (
+                            <p className="mt-1 text-sm text-gray-400">{existingFeedback.notes}</p>
+                          )}
+                          <p className="mt-1 text-xs text-gray-500">
+                            Submitted {new Date(existingFeedback.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Feedback form (when a type is selected) */}
+                    {!isLoadingFeedback && !existingFeedback && feedbackFormType && (
+                      <FeedbackForm
+                        eventId={eventIdNumber}
+                        feedbackType={feedbackFormType}
+                        currentSeverity={event.risk_score}
+                        onSubmit={handleFeedbackSubmit}
+                        onCancel={() => setFeedbackFormType(null)}
+                        isSubmitting={feedbackMutation.isPending}
+                      />
+                    )}
+
+                    {/* Feedback buttons (when no feedback exists and no form is open) */}
+                    {!isLoadingFeedback && !existingFeedback && !feedbackFormType && (
+                      <div className="space-y-3">
+                        <p className="text-sm text-gray-400">
+                          Help improve AI accuracy by providing feedback on this detection.
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            onClick={() => handleQuickFeedback('correct')}
+                            disabled={feedbackMutation.isPending}
+                            className="flex items-center gap-2 rounded-lg border border-green-600/40 bg-green-600/10 px-3 py-2 text-sm font-medium text-green-400 transition-colors hover:bg-green-600/20 disabled:cursor-not-allowed disabled:opacity-50"
+                            data-testid="feedback-correct-button"
+                          >
+                            <ThumbsUp className="h-4 w-4" />
+                            Correct Detection
+                          </button>
+                          <button
+                            onClick={() => setFeedbackFormType('false_positive')}
+                            disabled={feedbackMutation.isPending}
+                            className="flex items-center gap-2 rounded-lg border border-red-600/40 bg-red-600/10 px-3 py-2 text-sm font-medium text-red-400 transition-colors hover:bg-red-600/20 disabled:cursor-not-allowed disabled:opacity-50"
+                            data-testid="feedback-false-positive-button"
+                          >
+                            <ThumbsDown className="h-4 w-4" />
+                            False Positive
+                          </button>
+                          <button
+                            onClick={() => setFeedbackFormType('wrong_severity')}
+                            disabled={feedbackMutation.isPending}
+                            className="flex items-center gap-2 rounded-lg border border-yellow-600/40 bg-yellow-600/10 px-3 py-2 text-sm font-medium text-yellow-400 transition-colors hover:bg-yellow-600/20 disabled:cursor-not-allowed disabled:opacity-50"
+                            data-testid="feedback-wrong-severity-button"
+                          >
+                            <AlertCircle className="h-4 w-4" />
+                            Wrong Severity
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Event Metadata */}

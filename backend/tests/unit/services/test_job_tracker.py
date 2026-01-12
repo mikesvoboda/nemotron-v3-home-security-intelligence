@@ -461,6 +461,53 @@ class TestJobTrackerThreadSafety:
         assert 0 <= job["progress"] <= 100
 
 
+class TestJobTrackerCancellation:
+    """Tests for job cancellation checking (NEM-1974)."""
+
+    def test_is_cancelled_returns_false_for_pending_job(self, job_tracker: JobTracker) -> None:
+        """Should return False for pending job."""
+        job_id = job_tracker.create_job("export")
+        assert job_tracker.is_cancelled(job_id) is False
+
+    def test_is_cancelled_returns_false_for_running_job(self, job_tracker: JobTracker) -> None:
+        """Should return False for running job."""
+        job_id = job_tracker.create_job("export")
+        job_tracker.start_job(job_id)
+        assert job_tracker.is_cancelled(job_id) is False
+
+    def test_is_cancelled_returns_false_for_completed_job(self, job_tracker: JobTracker) -> None:
+        """Should return False for completed job."""
+        job_id = job_tracker.create_job("export")
+        job_tracker.complete_job(job_id)
+        assert job_tracker.is_cancelled(job_id) is False
+
+    def test_is_cancelled_returns_false_for_failed_job(self, job_tracker: JobTracker) -> None:
+        """Should return False for job failed with error (not cancellation)."""
+        job_id = job_tracker.create_job("export")
+        job_tracker.fail_job(job_id, "Database error")
+        assert job_tracker.is_cancelled(job_id) is False
+
+    def test_is_cancelled_returns_true_for_cancelled_job(self, job_tracker: JobTracker) -> None:
+        """Should return True for cancelled job."""
+        job_id = job_tracker.create_job("export")
+        job_tracker.start_job(job_id)
+        job_tracker.cancel_job(job_id)
+        assert job_tracker.is_cancelled(job_id) is True
+
+    def test_is_cancelled_returns_false_for_unknown_job(self, job_tracker: JobTracker) -> None:
+        """Should return False for unknown job ID."""
+        assert job_tracker.is_cancelled("unknown-id") is False
+
+    def test_is_cancelled_returns_true_for_cancelled_pending_job(
+        self, job_tracker: JobTracker
+    ) -> None:
+        """Should return True for cancelled pending job."""
+        job_id = job_tracker.create_job("export")
+        # Cancel without starting
+        job_tracker.cancel_job(job_id)
+        assert job_tracker.is_cancelled(job_id) is True
+
+
 class TestJobTrackerMessageField:
     """Tests for the message field (NEM-1989)."""
 

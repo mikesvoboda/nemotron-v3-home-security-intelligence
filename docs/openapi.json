@@ -10779,6 +10779,80 @@
         "title": "ObjectDistributionResponse",
         "type": "object"
       },
+      "OrphanedFileCleanupResponse": {
+        "description": "Response schema for orphaned file cleanup endpoint.\n\nReturns statistics about orphaned files found (and optionally deleted).\nOrphaned files are files on disk not referenced in the database.",
+        "example": {
+          "dry_run": true,
+          "job_id": "550e8400-e29b-41d4-a716-446655440000",
+          "orphaned_count": 25,
+          "orphaned_files": [
+            "/data/thumbnails/orphaned1.jpg",
+            "/data/thumbnails/orphaned2.jpg"
+          ],
+          "timestamp": "2025-12-30T10:30:00Z",
+          "total_size": 524288000,
+          "total_size_formatted": "500.00 MB"
+        },
+        "properties": {
+          "dry_run": {
+            "description": "Whether this was a dry run (no actual deletion performed)",
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Background job ID for tracking progress",
+            "title": "Job Id"
+          },
+          "orphaned_count": {
+            "description": "Number of orphaned files found (or deleted if dry_run=False)",
+            "minimum": 0.0,
+            "title": "Orphaned Count",
+            "type": "integer"
+          },
+          "orphaned_files": {
+            "description": "List of orphaned file paths (limited to first 100)",
+            "items": {
+              "type": "string"
+            },
+            "title": "Orphaned Files",
+            "type": "array"
+          },
+          "timestamp": {
+            "description": "Timestamp of cleanup operation",
+            "format": "date-time",
+            "title": "Timestamp",
+            "type": "string"
+          },
+          "total_size": {
+            "description": "Total size of orphaned files in bytes",
+            "minimum": 0.0,
+            "title": "Total Size",
+            "type": "integer"
+          },
+          "total_size_formatted": {
+            "description": "Human-readable total size (e.g., '1.5 GB')",
+            "title": "Total Size Formatted",
+            "type": "string"
+          }
+        },
+        "required": [
+          "orphaned_count",
+          "total_size",
+          "total_size_formatted",
+          "dry_run",
+          "timestamp"
+        ],
+        "title": "OrphanedFileCleanupResponse",
+        "type": "object"
+      },
       "PaginationInfo": {
         "description": "Pagination metadata for list responses (NEM-2075).",
         "properties": {
@@ -23770,6 +23844,68 @@
           }
         },
         "summary": "Trigger Cleanup",
+        "tags": [
+          "system"
+        ]
+      }
+    },
+    "/api/system/cleanup/orphaned-files": {
+      "post": {
+        "description": "Find and clean up orphaned files (files on disk not referenced in database).\n\nRequires API key authentication when api_key_enabled is True in settings.\nProvide the API key via X-API-Key header.\n\nThis endpoint scans storage directories for files that are not referenced\nin the database and optionally deletes them to reclaim disk space.\n\nStorage directories scanned:\n- Thumbnails directory (video_thumbnails_dir setting)\n- Clips directory (clips_directory setting)\n\nDatabase tables checked for file references:\n- Detection.file_path (source images)\n- Detection.thumbnail_path (thumbnails)\n- Event.clip_path (generated clips)\n\n**Safety Features:**\n- dry_run=True by default to prevent accidental deletion\n- Progress tracking via job system\n- Detailed reporting of orphaned files\n\nArgs:\n    dry_run: If True, calculate and return what would be deleted without\n             actually performing the deletion. Default is True for safety.\n             Set to False to actually delete orphaned files.\n\nReturns:\n    OrphanedFileCleanupResponse with statistics about orphaned files.\n    When dry_run=True, shows what would be deleted.\n    When dry_run=False, shows what was deleted.",
+        "operationId": "run_orphaned_file_cleanup_api_system_cleanup_orphaned_files_post",
+        "parameters": [
+          {
+            "description": "If True, only report what would be deleted without deleting. Default is True for safety.",
+            "in": "query",
+            "name": "dry_run",
+            "required": false,
+            "schema": {
+              "default": true,
+              "description": "If True, only report what would be deleted without deleting. Default is True for safety.",
+              "title": "Dry Run",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrphanedFileCleanupResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Run Orphaned File Cleanup",
         "tags": [
           "system"
         ]

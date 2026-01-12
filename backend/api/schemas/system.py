@@ -1590,6 +1590,67 @@ class CleanupStatusResponse(BaseModel):
 
 
 # =============================================================================
+# Orphaned File Cleanup Schemas
+# =============================================================================
+
+
+class OrphanedFileCleanupResponse(BaseModel):
+    """Response schema for orphaned file cleanup endpoint.
+
+    Returns statistics about orphaned files found (and optionally deleted).
+    Orphaned files are files on disk not referenced in the database.
+    """
+
+    orphaned_count: int = Field(
+        ...,
+        description="Number of orphaned files found (or deleted if dry_run=False)",
+        ge=0,
+    )
+    total_size: int = Field(
+        ...,
+        description="Total size of orphaned files in bytes",
+        ge=0,
+    )
+    total_size_formatted: str = Field(
+        ...,
+        description="Human-readable total size (e.g., '1.5 GB')",
+    )
+    dry_run: bool = Field(
+        ...,
+        description="Whether this was a dry run (no actual deletion performed)",
+    )
+    orphaned_files: list[str] = Field(
+        default_factory=list,
+        description="List of orphaned file paths (limited to first 100)",
+    )
+    job_id: str | None = Field(
+        None,
+        description="Background job ID for tracking progress",
+    )
+    timestamp: datetime = Field(
+        ...,
+        description="Timestamp of cleanup operation",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "orphaned_count": 25,
+                "total_size": 524288000,
+                "total_size_formatted": "500.00 MB",
+                "dry_run": True,
+                "orphaned_files": [
+                    "/data/thumbnails/orphaned1.jpg",
+                    "/data/thumbnails/orphaned2.jpg",
+                ],
+                "job_id": "550e8400-e29b-41d4-a716-446655440000",
+                "timestamp": "2025-12-30T10:30:00Z",
+            }
+        }
+    )
+
+
+# =============================================================================
 # Pipeline Status Schemas
 # =============================================================================
 

@@ -80,6 +80,7 @@ from backend.api.schemas.system import (
     ModelStatusResponse,
     ModelZooStatusItem,
     ModelZooStatusResponse,
+    OrphanedFileCleanupResponse,
     PipelineLatencies,
     PipelineLatencyHistoryResponse,
     PipelineLatencyResponse,
@@ -2132,6 +2133,91 @@ async def trigger_cleanup(dry_run: bool = False) -> CleanupResponse:
                 extra={"retention_days": settings.retention_days},
             )
             raise
+
+
+# =============================================================================
+# Orphaned File Cleanup Endpoint
+# =============================================================================
+
+
+@router.post(
+    "/cleanup/orphaned-files",
+    response_model=OrphanedFileCleanupResponse,
+    dependencies=[Depends(verify_api_key)],
+)
+async def run_orphaned_file_cleanup(
+    dry_run: bool = Query(
+        default=True,
+        description="If True, only report what would be deleted without deleting. Default is True for safety.",
+    ),
+) -> OrphanedFileCleanupResponse:
+    """Find and clean up orphaned files (files on disk not referenced in database).
+
+    Requires API key authentication when api_key_enabled is True in settings.
+    Provide the API key via X-API-Key header.
+
+    This endpoint scans storage directories for files that are not referenced
+    in the database and optionally deletes them to reclaim disk space.
+
+    Storage directories scanned:
+    - Thumbnails directory (video_thumbnails_dir setting)
+    - Clips directory (clips_directory setting)
+
+    Database tables checked for file references:
+    - Detection.file_path (source images)
+    - Detection.thumbnail_path (thumbnails)
+    - Event.clip_path (generated clips)
+
+    **Safety Features:**
+    - dry_run=True by default to prevent accidental deletion
+    - Progress tracking via job system
+    - Detailed reporting of orphaned files
+
+    Args:
+        dry_run: If True, calculate and return what would be deleted without
+                 actually performing the deletion. Default is True for safety.
+                 Set to False to actually delete orphaned files.
+
+    Returns:
+        OrphanedFileCleanupResponse with statistics about orphaned files.
+        When dry_run=True, shows what would be deleted.
+        When dry_run=False, shows what was deleted.
+    """
+    from backend.services.cleanup_service import OrphanedFileCleanup, format_bytes
+    from backend.services.job_tracker import get_job_tracker
+
+    job_tracker = get_job_tracker()
+
+    if dry_run:
+        logger.info("Orphaned file cleanup dry run triggered")
+    else:
+        logger.info("Orphaned file cleanup triggered (will delete files)")
+
+    # Create cleanup service with job tracker for progress reporting
+    cleanup_service = OrphanedFileCleanup(job_tracker=job_tracker)
+
+    try:
+        # Run cleanup (blocking in this implementation)
+        stats = await cleanup_service.run_cleanup(dry_run=dry_run)
+
+        logger.info(f"Orphaned file cleanup completed: {stats}")
+
+        return OrphanedFileCleanupResponse(
+            orphaned_count=stats.orphaned_count,
+            total_size=stats.total_size,
+            total_size_formatted=format_bytes(stats.total_size),
+            dry_run=stats.dry_run,
+            orphaned_files=stats.orphaned_files[:100],  # Limit to 100 files
+            job_id=None,  # Job already completed
+            timestamp=datetime.now(UTC),
+        )
+
+    except (OSError, RuntimeError, ConnectionError) as e:
+        logger.error(f"Orphaned file cleanup failed: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Orphaned file cleanup failed: {e}",
+        ) from e
 
 
 # =============================================================================
