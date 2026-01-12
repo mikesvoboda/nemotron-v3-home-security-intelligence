@@ -25,9 +25,6 @@ export type {
   UseGpuHistoryReturn,
 } from './useGpuHistory';
 
-export { useHealthStatus } from './useHealthStatus';
-export type { UseHealthStatusOptions, UseHealthStatusReturn } from './useHealthStatus';
-
 export { useHealthStatusQuery } from './useHealthStatusQuery';
 export type {
   UseHealthStatusQueryOptions,
@@ -96,13 +93,6 @@ export type {
   UseDetectionEnrichmentOptions,
   UseDetectionEnrichmentReturn,
 } from './useDetectionEnrichment';
-
-export { useModelZooStatus } from './useModelZooStatus';
-export type {
-  VRAMStats,
-  UseModelZooStatusOptions,
-  UseModelZooStatusReturn,
-} from './useModelZooStatus';
 
 export { useSavedSearches } from './useSavedSearches';
 export type { SavedSearch, LoadedSearch, UseSavedSearchesReturn } from './useSavedSearches';
@@ -176,6 +166,20 @@ export type {
   ExtractItemType,
 } from './useCursorPaginatedQuery';
 
+// Pagination state with URL persistence
+export { usePaginationState, default as usePaginationStateDefault } from './usePaginationState';
+export type {
+  PaginationType,
+  UsePaginationStateOptions,
+  BasePaginationState,
+  CursorPaginationState,
+  OffsetPaginationState,
+  PaginationState,
+  UseCursorPaginationStateReturn,
+  UseOffsetPaginationStateReturn,
+  UsePaginationStateReturn,
+} from './usePaginationState';
+
 export { useEventsInfiniteQuery, eventsQueryKeys } from './useEventsQuery';
 export type {
   EventFilters,
@@ -201,6 +205,13 @@ export type {
   UseAlertsInfiniteQueryOptions,
   UseAlertsInfiniteQueryReturn,
 } from './useAlertsQuery';
+
+export { useAlertWebSocket } from './useAlertWebSocket';
+export type {
+  AlertEventHandler,
+  UseAlertWebSocketOptions,
+  UseAlertWebSocketReturn,
+} from './useAlertWebSocket';
 
 export { useEntitiesInfiniteQuery, entitiesInfiniteQueryKeys } from './useEntitiesInfiniteQuery';
 export type {
@@ -233,6 +244,13 @@ export type {
   UseSceneChangeAlertsOptions,
   UseSceneChangeAlertsReturn,
 } from './useSceneChangeAlerts';
+
+export { useCameraStatusWebSocket } from './useCameraStatusWebSocket';
+export type {
+  CameraStatusState,
+  UseCameraStatusWebSocketOptions,
+  UseCameraStatusWebSocketReturn,
+} from './useCameraStatusWebSocket';
 
 export { useRateLimitCountdown, formatCountdown } from './useRateLimitCountdown';
 export type { UseRateLimitCountdownReturn } from './useRateLimitCountdown';
@@ -279,3 +297,23 @@ export type {
   UseApiMutationOptions,
   UseApiMutationResult,
 } from './useFormWithApiErrors';
+
+// Retry with backoff hooks
+export {
+  useRetry,
+  useRetryStore,
+  useActiveRetries,
+  useHasActiveRetries,
+  parseRetryAfter,
+  calculateBackoff,
+  formatRetryCountdown,
+  generateRetryId,
+  DEFAULT_RETRY_CONFIG,
+} from './useRetry';
+export type {
+  RetryConfig,
+  RetryState,
+  PendingRetry,
+  RetryStoreState,
+  UseRetryReturn,
+} from './useRetry';

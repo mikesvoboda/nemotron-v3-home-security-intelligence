@@ -10,7 +10,7 @@
  * Source schemas:
  *   backend/api/schemas/websocket.py
  *
- * Generated at: 2026-01-09T20:31:20Z
+ * Generated at: 2026-01-12T02:13:14Z
  *
  * Note: WebSocket messages are not covered by OpenAPI, so we generate these
  * types separately to ensure frontend/backend type synchronization.
@@ -42,6 +42,32 @@ export type WebSocketMessageType = 'ping' | 'pong' | 'subscribe' | 'unsubscribe'
  * Valid service status values for WebSocket health monitoring messages.
  */
 export type WebSocketServiceStatus = 'healthy' | 'unhealthy' | 'restarting' | 'restart_failed' | 'failed';
+
+/**
+ * WebSocket event types for alert state changes.
+ *
+ * Event types:
+ * - ALERT_CREATED: New alert triggered from rule evaluation
+ * - ALERT_UPDATED: Alert modified (e.g., metadata, channels updated)
+ * - ALERT_ACKNOWLEDGED: Alert marked as seen by user
+ * - ALERT_RESOLVED: Alert resolved (long-running issues cleared)
+ * - ALERT_DISMISSED: Alert dismissed by user
+ */
+export type WebSocketAlertEventType = 'alert_created' | 'alert_updated' | 'alert_acknowledged' | 'alert_resolved' | 'alert_dismissed';
+
+/**
+ * Alert severity levels for WebSocket messages.
+ *
+ * Mirrors backend.models.alert.AlertSeverityEnum for WebSocket message validation.
+ */
+export type WebSocketAlertSeverity = 'low' | 'medium' | 'high' | 'critical';
+
+/**
+ * Alert status values for WebSocket messages.
+ *
+ * Mirrors backend.models.alert.AlertStatusEnum for WebSocket message validation.
+ */
+export type WebSocketAlertStatus = 'pending' | 'delivered' | 'acknowledged' | 'dismissed';
 
 /**
  * Standard error codes for WebSocket validation errors.
@@ -138,6 +164,41 @@ export interface WebSocketSceneChangeData {
   change_type: string;
   /** SSIM score (0-1, lower means more different) */
   similarity_score: number;
+}
+
+/**
+ * Data payload for alert messages broadcast to /ws/events clients.
+ *
+ * This schema defines the contract for alert data sent from the backend
+ * to WebSocket clients when alerts are created, acknowledged, or dismissed.
+ *
+ * Fields:
+ *     id: Unique alert identifier (UUID)
+ *     event_id: Event ID that triggered this alert
+ *     rule_id: Alert rule UUID that matched (nullable)
+ *     severity: Alert severity level (low, medium, high, critical)
+ *     status: Current alert status (pending, delivered, acknowledged, dismissed)
+ *     dedup_key: Deduplication key for alert grouping
+ *     created_at: ISO 8601 timestamp when the alert was created
+ *     updated_at: ISO 8601 timestamp when the alert was last updated
+ */
+export interface WebSocketAlertData {
+  /** Unique alert identifier (UUID) */
+  id: string;
+  /** Event ID that triggered this alert */
+  event_id: number;
+  /** Alert rule UUID that matched */
+  rule_id?: string | null;
+  /** Alert severity level ("low", "medium", "high", "critical") */
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  /** Current alert status ("pending", "delivered", "acknowledged", "dismissed") */
+  status: 'pending' | 'delivered' | 'acknowledged' | 'dismissed';
+  /** Deduplication key for alert grouping */
+  dedup_key: string;
+  /** ISO 8601 timestamp when the alert was created */
+  created_at: string;
+  /** ISO 8601 timestamp when the alert was last updated */
+  updated_at: string;
 }
 
 // ============================================================================
@@ -280,6 +341,149 @@ export interface WebSocketSceneChangeMessage {
 }
 
 /**
+ * Complete alert created message envelope sent to /ws/events clients.
+ *
+ * This is the canonical format for alert creation messages broadcast via WebSocket.
+ * The message wraps alert data in a standard envelope with a type field.
+ *
+ * Format:
+ *     {
+ *         "type": "alert_created",
+ *         "data": {
+ *             "id": "550e8400-e29b-41d4-a716-446655440000",
+ *             "event_id": 123,
+ *             "rule_id": "550e8400-e29b-41d4-a716-446655440001",
+ *             "severity": "high",
+ *             "status": "pending",
+ *             "dedup_key": "front_door:person:rule1",
+ *             "created_at": "2026-01-09T12:00:00Z",
+ *             "updated_at": "2026-01-09T12:00:00Z"
+ *         }
+ *     }
+ */
+export interface WebSocketAlertCreatedMessage {
+  /** Message type, always 'alert_created' for alert creation messages */
+  type: 'alert_created';
+  /** Alert data payload */
+  data: WebSocketAlertData;
+}
+
+/**
+ * Complete alert updated message envelope sent to /ws/events clients.
+ *
+ * This is the canonical format for alert update messages broadcast via WebSocket.
+ * Sent when an alert is modified (e.g., metadata, channels, or other properties updated).
+ * The message wraps alert data in a standard envelope with a type field.
+ *
+ * Format:
+ *     {
+ *         "type": "alert_updated",
+ *         "data": {
+ *             "id": "550e8400-e29b-41d4-a716-446655440000",
+ *             "event_id": 123,
+ *             "rule_id": "550e8400-e29b-41d4-a716-446655440001",
+ *             "severity": "high",
+ *             "status": "pending",
+ *             "dedup_key": "front_door:person:rule1",
+ *             "created_at": "2026-01-09T12:00:00Z",
+ *             "updated_at": "2026-01-09T12:00:30Z"
+ *         }
+ *     }
+ */
+export interface WebSocketAlertUpdatedMessage {
+  /** Message type, always 'alert_updated' for alert update messages */
+  type: 'alert_updated';
+  /** Alert data payload */
+  data: WebSocketAlertData;
+}
+
+/**
+ * Complete alert acknowledged message envelope sent to /ws/events clients.
+ *
+ * This is the canonical format for alert acknowledgment messages broadcast via WebSocket.
+ * The message wraps alert data in a standard envelope with a type field.
+ *
+ * Format:
+ *     {
+ *         "type": "alert_acknowledged",
+ *         "data": {
+ *             "id": "550e8400-e29b-41d4-a716-446655440000",
+ *             "event_id": 123,
+ *             "rule_id": "550e8400-e29b-41d4-a716-446655440001",
+ *             "severity": "high",
+ *             "status": "acknowledged",
+ *             "dedup_key": "front_door:person:rule1",
+ *             "created_at": "2026-01-09T12:00:00Z",
+ *             "updated_at": "2026-01-09T12:01:00Z"
+ *         }
+ *     }
+ */
+export interface WebSocketAlertAcknowledgedMessage {
+  /** Message type, always 'alert_acknowledged' for alert acknowledgment messages */
+  type: 'alert_acknowledged';
+  /** Alert data payload */
+  data: WebSocketAlertData;
+}
+
+/**
+ * Complete alert dismissed message envelope sent to /ws/events clients.
+ *
+ * This is the canonical format for alert dismissal messages broadcast via WebSocket.
+ * The message wraps alert data in a standard envelope with a type field.
+ *
+ * Format:
+ *     {
+ *         "type": "alert_dismissed",
+ *         "data": {
+ *             "id": "550e8400-e29b-41d4-a716-446655440000",
+ *             "event_id": 123,
+ *             "rule_id": "550e8400-e29b-41d4-a716-446655440001",
+ *             "severity": "high",
+ *             "status": "dismissed",
+ *             "dedup_key": "front_door:person:rule1",
+ *             "created_at": "2026-01-09T12:00:00Z",
+ *             "updated_at": "2026-01-09T12:02:00Z"
+ *         }
+ *     }
+ */
+export interface WebSocketAlertDismissedMessage {
+  /** Message type, always 'alert_dismissed' for alert dismissal messages */
+  type: 'alert_dismissed';
+  /** Alert data payload */
+  data: WebSocketAlertData;
+}
+
+/**
+ * Complete alert resolved message envelope sent to /ws/events clients.
+ *
+ * This is the canonical format for alert resolution messages broadcast via WebSocket.
+ * Sent when an alert is resolved/dismissed. Semantically similar to dismissed but
+ * provides a clearer event name for resolution workflows.
+ * The message wraps alert data in a standard envelope with a type field.
+ *
+ * Format:
+ *     {
+ *         "type": "alert_resolved",
+ *         "data": {
+ *             "id": "550e8400-e29b-41d4-a716-446655440000",
+ *             "event_id": 123,
+ *             "rule_id": "550e8400-e29b-41d4-a716-446655440001",
+ *             "severity": "high",
+ *             "status": "dismissed",
+ *             "dedup_key": "front_door:person:rule1",
+ *             "created_at": "2026-01-09T12:00:00Z",
+ *             "updated_at": "2026-01-09T12:02:00Z"
+ *         }
+ *     }
+ */
+export interface WebSocketAlertResolvedMessage {
+  /** Message type, always 'alert_resolved' for alert resolution messages */
+  type: 'alert_resolved';
+  /** Alert data payload */
+  data: WebSocketAlertData;
+}
+
+/**
  * Generic WebSocket message for initial type detection.
  *
  * This schema is used to validate the basic structure of incoming messages
@@ -298,6 +502,16 @@ export interface WebSocketMessage {
 // ============================================================================
 
 /**
+ * All alert-related WebSocket message types.
+ */
+export type WebSocketAlertMessage =
+  | WebSocketAlertCreatedMessage
+  | WebSocketAlertUpdatedMessage
+  | WebSocketAlertAcknowledgedMessage
+  | WebSocketAlertDismissedMessage
+  | WebSocketAlertResolvedMessage;
+
+/**
  * All server-to-client WebSocket message types.
  * The `type` field serves as the discriminant for type narrowing.
  */
@@ -305,6 +519,7 @@ export type WebSocketServerMessage =
   | WebSocketEventMessage
   | WebSocketServiceStatusMessage
   | WebSocketSceneChangeMessage
+  | WebSocketAlertMessage
   | WebSocketPongResponse
   | WebSocketErrorResponse
   | { type: 'ping' };  // Server heartbeat
@@ -351,6 +566,7 @@ export type MessageHandlerMap = {
  * const dispatch = createMessageDispatcher({
  *   event: (msg) => console.log(msg.data.risk_score),
  *   service_status: (msg) => console.log(msg.data.status),
+ *   alert_created: (msg) => console.log('New alert:', msg.data.id),
  *   ping: () => ws.send(JSON.stringify({ type: 'pong' })),
  * });
  *
@@ -463,4 +679,59 @@ export function isErrorMessage(value: unknown): value is WebSocketErrorResponse 
 
   const msg = value as { type: 'error'; message?: unknown };
   return typeof msg.message === 'string';
+}
+
+/**
+ * Type guard for WebSocketAlertMessage (any alert event type).
+ */
+export function isAlertMessage(value: unknown): value is WebSocketAlertMessage {
+  if (!hasTypeProperty(value)) return false;
+  const alertTypes = ['alert_created', 'alert_updated', 'alert_acknowledged', 'alert_dismissed', 'alert_resolved'];
+  if (!alertTypes.includes(value.type as string)) return false;
+
+  const msg = value as { type: string; data?: unknown };
+  if (!msg.data || typeof msg.data !== 'object') return false;
+
+  const data = msg.data as Record<string, unknown>;
+  return 'id' in data && 'event_id' in data && 'severity' in data && 'status' in data;
+}
+
+/**
+ * Type guard for WebSocketAlertCreatedMessage.
+ */
+export function isAlertCreatedMessage(value: unknown): value is WebSocketAlertCreatedMessage {
+  if (!hasTypeProperty(value)) return false;
+  return value.type === 'alert_created' && isAlertMessage(value);
+}
+
+/**
+ * Type guard for WebSocketAlertUpdatedMessage.
+ */
+export function isAlertUpdatedMessage(value: unknown): value is WebSocketAlertUpdatedMessage {
+  if (!hasTypeProperty(value)) return false;
+  return value.type === 'alert_updated' && isAlertMessage(value);
+}
+
+/**
+ * Type guard for WebSocketAlertAcknowledgedMessage.
+ */
+export function isAlertAcknowledgedMessage(value: unknown): value is WebSocketAlertAcknowledgedMessage {
+  if (!hasTypeProperty(value)) return false;
+  return value.type === 'alert_acknowledged' && isAlertMessage(value);
+}
+
+/**
+ * Type guard for WebSocketAlertDismissedMessage.
+ */
+export function isAlertDismissedMessage(value: unknown): value is WebSocketAlertDismissedMessage {
+  if (!hasTypeProperty(value)) return false;
+  return value.type === 'alert_dismissed' && isAlertMessage(value);
+}
+
+/**
+ * Type guard for WebSocketAlertResolvedMessage.
+ */
+export function isAlertResolvedMessage(value: unknown): value is WebSocketAlertResolvedMessage {
+  if (!hasTypeProperty(value)) return false;
+  return value.type === 'alert_resolved' && isAlertMessage(value);
 }

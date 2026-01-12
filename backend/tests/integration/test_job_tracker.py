@@ -660,3 +660,122 @@ class TestSingletonPattern:
 
         # Old job should not exist in new instance
         assert tracker2.get_job(job_id) is None
+
+
+# =============================================================================
+# Job Cancellation Tests (NEM-1974)
+# =============================================================================
+
+
+class TestJobCancellation:
+    """Test job cancellation and is_cancelled method (NEM-1974)."""
+
+    @pytest.mark.asyncio
+    async def test_is_cancelled_returns_false_for_active_job(self, job_tracker: JobTracker) -> None:
+        """Test that is_cancelled returns False for active (pending/running) jobs."""
+        job_id = _unique_job_id()
+
+        # Pending job
+        job_tracker.create_job("test_job", job_id=job_id)
+        assert job_tracker.is_cancelled(job_id) is False
+
+        # Running job
+        job_tracker.start_job(job_id)
+        assert job_tracker.is_cancelled(job_id) is False
+
+    @pytest.mark.asyncio
+    async def test_is_cancelled_returns_false_for_completed_job(
+        self, job_tracker: JobTracker
+    ) -> None:
+        """Test that is_cancelled returns False for completed jobs."""
+        job_id = _unique_job_id()
+
+        job_tracker.create_job("test_job", job_id=job_id)
+        job_tracker.start_job(job_id)
+        job_tracker.complete_job(job_id)
+
+        assert job_tracker.is_cancelled(job_id) is False
+
+    @pytest.mark.asyncio
+    async def test_is_cancelled_returns_false_for_failed_job_with_error(
+        self, job_tracker: JobTracker
+    ) -> None:
+        """Test that is_cancelled returns False for jobs that failed with an error."""
+        job_id = _unique_job_id()
+
+        job_tracker.create_job("test_job", job_id=job_id)
+        job_tracker.start_job(job_id)
+        job_tracker.fail_job(job_id, "Database connection error")
+
+        assert job_tracker.is_cancelled(job_id) is False
+
+    @pytest.mark.asyncio
+    async def test_is_cancelled_returns_true_for_cancelled_job(
+        self, job_tracker: JobTracker
+    ) -> None:
+        """Test that is_cancelled returns True for cancelled jobs."""
+        job_id = _unique_job_id()
+
+        job_tracker.create_job("test_job", job_id=job_id)
+        job_tracker.start_job(job_id)
+        job_tracker.cancel_job(job_id)
+
+        assert job_tracker.is_cancelled(job_id) is True
+
+    @pytest.mark.asyncio
+    async def test_is_cancelled_returns_false_for_unknown_job(
+        self, job_tracker: JobTracker
+    ) -> None:
+        """Test that is_cancelled returns False for non-existent jobs."""
+        unknown_id = _unique_job_id()
+        assert job_tracker.is_cancelled(unknown_id) is False
+
+    @pytest.mark.asyncio
+    async def test_cancel_job_during_lifecycle(self, job_tracker: JobTracker) -> None:
+        """Test cancellation during job lifecycle transitions."""
+        job_id = _unique_job_id()
+
+        # Create job
+        job_tracker.create_job("test_job", job_id=job_id)
+        assert job_tracker.is_cancelled(job_id) is False
+
+        # Cancel before starting
+        job_tracker.cancel_job(job_id)
+        assert job_tracker.is_cancelled(job_id) is True
+
+        # Job should have failed status
+        job = job_tracker.get_job(job_id)
+        assert job["status"] == JobStatus.FAILED
+        assert job["error"] == "Cancelled by user"
+
+    @pytest.mark.asyncio
+    async def test_concurrent_cancellation_check(self, job_tracker: JobTracker) -> None:
+        """Test checking cancellation from multiple async tasks concurrently."""
+        job_id = _unique_job_id()
+        job_tracker.create_job("test_job", job_id=job_id)
+        job_tracker.start_job(job_id)
+
+        check_results = []
+
+        async def check_cancelled() -> bool:
+            result = job_tracker.is_cancelled(job_id)
+            check_results.append(result)
+            return result
+
+        # Check cancellation concurrently multiple times
+        results_before = await asyncio.gather(*[check_cancelled() for _ in range(10)])
+
+        # All should return False before cancellation
+        assert all(r is False for r in results_before)
+
+        # Now cancel
+        job_tracker.cancel_job(job_id)
+
+        # Clear results
+        check_results.clear()
+
+        # Check again concurrently
+        results_after = await asyncio.gather(*[check_cancelled() for _ in range(10)])
+
+        # All should return True after cancellation
+        assert all(r is True for r in results_after)

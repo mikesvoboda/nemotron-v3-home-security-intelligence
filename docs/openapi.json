@@ -8852,9 +8852,9 @@
         "type": "object"
       },
       "JobListResponse": {
-        "description": "Response model for listing jobs.",
+        "description": "Response model for listing jobs with pagination.\n\nUses the standardized pagination envelope format (NEM-2178).",
         "example": {
-          "jobs": [
+          "items": [
             {
               "created_at": "2024-01-15T10:30:00Z",
               "job_id": "550e8400-e29b-41d4-a716-446655440000",
@@ -8865,27 +8865,30 @@
               "status": "running"
             }
           ],
-          "total": 1
+          "pagination": {
+            "has_more": true,
+            "limit": 50,
+            "offset": 0,
+            "total": 100
+          }
         },
         "properties": {
-          "jobs": {
+          "items": {
             "description": "List of jobs",
             "items": {
               "$ref": "#/components/schemas/JobResponse"
             },
-            "title": "Jobs",
+            "title": "Items",
             "type": "array"
           },
-          "total": {
-            "description": "Total number of jobs matching filter",
-            "minimum": 0.0,
-            "title": "Total",
-            "type": "integer"
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationMeta",
+            "description": "Pagination metadata"
           }
         },
         "required": [
-          "jobs",
-          "total"
+          "items",
+          "pagination"
         ],
         "title": "JobListResponse",
         "type": "object"
@@ -8997,6 +9000,126 @@
         "title": "JobResponse",
         "type": "object"
       },
+      "JobStatsResponse": {
+        "description": "Response model for job statistics.\n\nProvides aggregate statistics about jobs including counts by status,\ncounts by type, and timing information.",
+        "example": {
+          "average_duration_seconds": 45.5,
+          "by_status": [
+            {
+              "count": 75,
+              "status": "completed"
+            },
+            {
+              "count": 5,
+              "status": "running"
+            },
+            {
+              "count": 10,
+              "status": "pending"
+            },
+            {
+              "count": 10,
+              "status": "failed"
+            }
+          ],
+          "by_type": [
+            {
+              "count": 60,
+              "job_type": "export"
+            },
+            {
+              "count": 30,
+              "job_type": "cleanup"
+            },
+            {
+              "count": 10,
+              "job_type": "backup"
+            }
+          ],
+          "oldest_pending_job_age_seconds": 120.0,
+          "total_jobs": 100
+        },
+        "properties": {
+          "average_duration_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Average job duration in seconds (for completed jobs)",
+            "title": "Average Duration Seconds"
+          },
+          "by_status": {
+            "description": "Job counts by status",
+            "items": {
+              "$ref": "#/components/schemas/JobStatusCount"
+            },
+            "title": "By Status",
+            "type": "array"
+          },
+          "by_type": {
+            "description": "Job counts by type",
+            "items": {
+              "$ref": "#/components/schemas/JobTypeCount"
+            },
+            "title": "By Type",
+            "type": "array"
+          },
+          "oldest_pending_job_age_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Age of the oldest pending job in seconds",
+            "title": "Oldest Pending Job Age Seconds"
+          },
+          "total_jobs": {
+            "description": "Total number of jobs tracked",
+            "minimum": 0.0,
+            "title": "Total Jobs",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total_jobs",
+          "by_status",
+          "by_type"
+        ],
+        "title": "JobStatsResponse",
+        "type": "object"
+      },
+      "JobStatusCount": {
+        "description": "Count of jobs by status.",
+        "example": {
+          "count": 42,
+          "status": "completed"
+        },
+        "properties": {
+          "count": {
+            "description": "Number of jobs with this status",
+            "minimum": 0.0,
+            "title": "Count",
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatusEnum",
+            "description": "Job status"
+          }
+        },
+        "required": [
+          "status",
+          "count"
+        ],
+        "title": "JobStatusCount",
+        "type": "object"
+      },
       "JobStatusEnum": {
         "description": "Status of a background job.",
         "enum": [
@@ -9007,6 +9130,32 @@
         ],
         "title": "JobStatusEnum",
         "type": "string"
+      },
+      "JobTypeCount": {
+        "description": "Count of jobs by type.",
+        "example": {
+          "count": 25,
+          "job_type": "export"
+        },
+        "properties": {
+          "count": {
+            "description": "Number of jobs of this type",
+            "minimum": 0.0,
+            "title": "Count",
+            "type": "integer"
+          },
+          "job_type": {
+            "description": "Job type name",
+            "title": "Job Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_type",
+          "count"
+        ],
+        "title": "JobTypeCount",
+        "type": "object"
       },
       "JobTypeInfo": {
         "description": "Information about a job type.",
@@ -10628,6 +10777,80 @@
           "end_date"
         ],
         "title": "ObjectDistributionResponse",
+        "type": "object"
+      },
+      "OrphanedFileCleanupResponse": {
+        "description": "Response schema for orphaned file cleanup endpoint.\n\nReturns statistics about orphaned files found (and optionally deleted).\nOrphaned files are files on disk not referenced in the database.",
+        "example": {
+          "dry_run": true,
+          "job_id": "550e8400-e29b-41d4-a716-446655440000",
+          "orphaned_count": 25,
+          "orphaned_files": [
+            "/data/thumbnails/orphaned1.jpg",
+            "/data/thumbnails/orphaned2.jpg"
+          ],
+          "timestamp": "2025-12-30T10:30:00Z",
+          "total_size": 524288000,
+          "total_size_formatted": "500.00 MB"
+        },
+        "properties": {
+          "dry_run": {
+            "description": "Whether this was a dry run (no actual deletion performed)",
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Background job ID for tracking progress",
+            "title": "Job Id"
+          },
+          "orphaned_count": {
+            "description": "Number of orphaned files found (or deleted if dry_run=False)",
+            "minimum": 0.0,
+            "title": "Orphaned Count",
+            "type": "integer"
+          },
+          "orphaned_files": {
+            "description": "List of orphaned file paths (limited to first 100)",
+            "items": {
+              "type": "string"
+            },
+            "title": "Orphaned Files",
+            "type": "array"
+          },
+          "timestamp": {
+            "description": "Timestamp of cleanup operation",
+            "format": "date-time",
+            "title": "Timestamp",
+            "type": "string"
+          },
+          "total_size": {
+            "description": "Total size of orphaned files in bytes",
+            "minimum": 0.0,
+            "title": "Total Size",
+            "type": "integer"
+          },
+          "total_size_formatted": {
+            "description": "Human-readable total size (e.g., '1.5 GB')",
+            "title": "Total Size Formatted",
+            "type": "string"
+          }
+        },
+        "required": [
+          "orphaned_count",
+          "total_size",
+          "total_size_formatted",
+          "dry_run",
+          "timestamp"
+        ],
+        "title": "OrphanedFileCleanupResponse",
         "type": "object"
       },
       "PaginationInfo": {
@@ -22218,6 +22441,33 @@
               "description": "Filter by job status",
               "title": "Status"
             }
+          },
+          {
+            "description": "Maximum number of jobs to return",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "description": "Maximum number of jobs to return",
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Number of jobs to skip (for pagination)",
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Number of jobs to skip (for pagination)",
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -22243,6 +22493,28 @@
           }
         },
         "summary": "List all jobs",
+        "tags": [
+          "jobs"
+        ]
+      }
+    },
+    "/api/jobs/stats": {
+      "get": {
+        "description": "Get aggregate statistics about jobs including counts by status, counts by type, and timing information.",
+        "operationId": "get_job_stats_api_jobs_stats_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobStatsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get job statistics",
         "tags": [
           "jobs"
         ]
@@ -23572,6 +23844,68 @@
           }
         },
         "summary": "Trigger Cleanup",
+        "tags": [
+          "system"
+        ]
+      }
+    },
+    "/api/system/cleanup/orphaned-files": {
+      "post": {
+        "description": "Find and clean up orphaned files (files on disk not referenced in database).\n\nRequires API key authentication when api_key_enabled is True in settings.\nProvide the API key via X-API-Key header.\n\nThis endpoint scans storage directories for files that are not referenced\nin the database and optionally deletes them to reclaim disk space.\n\nStorage directories scanned:\n- Thumbnails directory (video_thumbnails_dir setting)\n- Clips directory (clips_directory setting)\n\nDatabase tables checked for file references:\n- Detection.file_path (source images)\n- Detection.thumbnail_path (thumbnails)\n- Event.clip_path (generated clips)\n\n**Safety Features:**\n- dry_run=True by default to prevent accidental deletion\n- Progress tracking via job system\n- Detailed reporting of orphaned files\n\nArgs:\n    dry_run: If True, calculate and return what would be deleted without\n             actually performing the deletion. Default is True for safety.\n             Set to False to actually delete orphaned files.\n\nReturns:\n    OrphanedFileCleanupResponse with statistics about orphaned files.\n    When dry_run=True, shows what would be deleted.\n    When dry_run=False, shows what was deleted.",
+        "operationId": "run_orphaned_file_cleanup_api_system_cleanup_orphaned_files_post",
+        "parameters": [
+          {
+            "description": "If True, only report what would be deleted without deleting. Default is True for safety.",
+            "in": "query",
+            "name": "dry_run",
+            "required": false,
+            "schema": {
+              "default": true,
+              "description": "If True, only report what would be deleted without deleting. Default is True for safety.",
+              "title": "Dry Run",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrphanedFileCleanupResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Run Orphaned File Cleanup",
         "tags": [
           "system"
         ]

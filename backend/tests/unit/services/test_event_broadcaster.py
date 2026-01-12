@@ -2300,14 +2300,20 @@ def _create_valid_camera_status_data(
     previous_status: str | None = "online",
     changed_at: str = "2026-01-09T10:30:00Z",
     reason: str | None = None,
+    event_type: str = "camera.offline",
+    timestamp: str = "2026-01-09T10:30:00Z",
 ) -> dict[str, Any]:
-    """Create valid camera status data for testing."""
+    """Create valid camera status data for testing.
+
+    NEM-2295: Updated to include required event_type and timestamp fields.
+    """
     return {
+        "event_type": event_type,
         "camera_id": camera_id,
         "camera_name": camera_name,
         "status": status,
+        "timestamp": timestamp,
         "previous_status": previous_status,
-        "changed_at": changed_at,
         "reason": reason,
     }
 
@@ -2360,13 +2366,22 @@ async def test_broadcast_camera_status_validates_all_status_types() -> None:
     """Test broadcast_camera_status accepts all valid camera status types.
 
     NEM-1982: Verify all valid status values are accepted.
+    NEM-2295: Updated to include matching event_type for each status.
     """
     redis = _FakeRedis()
     broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
 
-    for status_type in ["online", "offline", "error", "unknown"]:
+    # Map status to corresponding event_type
+    status_event_map = {
+        "online": "camera.online",
+        "offline": "camera.offline",
+        "error": "camera.error",
+        "unknown": "camera.updated",  # unknown status uses updated event type
+    }
+
+    for status_type, event_type in status_event_map.items():
         redis.publish.reset_mock()
-        status_data = _create_valid_camera_status_data(status=status_type)
+        status_data = _create_valid_camera_status_data(status=status_type, event_type=event_type)
         count = await broadcaster.broadcast_camera_status(status_data)
         assert count == 1
         _, published = redis.publish.await_args.args

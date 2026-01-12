@@ -3,6 +3,8 @@
 Provides endpoints for querying job status, listing jobs, and job management.
 """
 
+from datetime import UTC, datetime
+
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 
 from backend.api.dependencies import get_export_service_dep, get_job_tracker_dep
@@ -13,10 +15,14 @@ from backend.api.schemas.jobs import (
     JobCancelResponse,
     JobListResponse,
     JobResponse,
+    JobStatsResponse,
+    JobStatusCount,
     JobStatusEnum,
+    JobTypeCount,
     JobTypeInfo,
     JobTypesResponse,
 )
+from backend.api.schemas.pagination import create_pagination_meta
 from backend.core.logging import get_logger
 from backend.services.export_service import ExportService
 from backend.services.job_tracker import JobStatus, JobTracker
@@ -50,25 +56,45 @@ async def list_jobs(
         alias="status",
         description="Filter by job status",
     ),
+    limit: int = Query(
+        50,
+        ge=1,
+        le=1000,
+        description="Maximum number of jobs to return",
+    ),
+    offset: int = Query(
+        0,
+        ge=0,
+        description="Number of jobs to skip (for pagination)",
+    ),
     job_tracker: JobTracker = Depends(get_job_tracker_dep),
 ) -> JobListResponse:
-    """List all jobs with optional filtering.
+    """List all jobs with optional filtering and pagination.
 
     Args:
         job_type: Optional filter by job type.
         status_filter: Optional filter by job status.
+        limit: Maximum number of jobs to return.
+        offset: Number of jobs to skip for pagination.
         job_tracker: Job tracker service.
 
     Returns:
-        List of jobs matching the filters.
+        Paginated list of jobs matching the filters.
     """
     # Convert schema enum to service enum if provided
     service_status = JobStatus(status_filter.value) if status_filter else None
 
-    jobs = job_tracker.get_all_jobs(
+    # Get all jobs matching filters (sorted by created_at descending)
+    all_jobs = job_tracker.get_all_jobs(
         job_type=job_type,
         status_filter=service_status,
     )
+
+    # Calculate total before pagination
+    total = len(all_jobs)
+
+    # Apply pagination
+    paginated_jobs = all_jobs[offset : offset + limit]
 
     # Convert to response models
     job_responses = [
@@ -84,10 +110,18 @@ async def list_jobs(
             result=job.get("result"),
             error=job.get("error"),
         )
-        for job in jobs
+        for job in paginated_jobs
     ]
 
-    return JobListResponse(jobs=job_responses, total=len(job_responses))
+    return JobListResponse(
+        items=job_responses,
+        pagination=create_pagination_meta(
+            total=total,
+            limit=limit,
+            offset=offset,
+            items_count=len(job_responses),
+        ),
+    )
 
 
 @router.get(
@@ -105,6 +139,109 @@ async def list_job_types() -> JobTypesResponse:
     job_type_list = [JobTypeInfo(name=name, description=desc) for name, desc in JOB_TYPES.items()]
 
     return JobTypesResponse(job_types=job_type_list)
+
+
+@router.get(
+    "/jobs/stats",
+    response_model=JobStatsResponse,
+    summary="Get job statistics",
+    description="Get aggregate statistics about jobs including counts by status, counts by type, and timing information.",
+)
+async def get_job_stats(
+    job_tracker: JobTracker = Depends(get_job_tracker_dep),
+) -> JobStatsResponse:
+    """Get aggregate statistics about tracked jobs.
+
+    Provides counts by status and type, average duration for completed jobs,
+    and the age of the oldest pending job.
+
+    Args:
+        job_tracker: Job tracker service.
+
+    Returns:
+        Job statistics including counts and timing information.
+    """
+    # Get all jobs (no filtering)
+    all_jobs = job_tracker.get_all_jobs()
+
+    # Count by status
+    status_counts: dict[JobStatusEnum, int] = {}
+    for job_status in JobStatusEnum:
+        status_counts[job_status] = 0
+
+    # Count by type
+    type_counts: dict[str, int] = {}
+
+    # Track completed job durations for average calculation
+    completed_durations: list[float] = []
+
+    # Track oldest pending job
+    oldest_pending_created_at: datetime | None = None
+    now = datetime.now(UTC)
+
+    for job in all_jobs:
+        # Count by status
+        job_status_enum = JobStatusEnum(job["status"])
+        status_counts[job_status_enum] = status_counts.get(job_status_enum, 0) + 1
+
+        # Count by type
+        job_type = job["job_type"]
+        type_counts[job_type] = type_counts.get(job_type, 0) + 1
+
+        # Calculate duration for completed jobs
+        if job_status_enum == JobStatusEnum.COMPLETED:
+            started_at = job.get("started_at")
+            completed_at = job.get("completed_at")
+            if started_at and completed_at:
+                try:
+                    start_dt = datetime.fromisoformat(started_at.replace("Z", "+00:00"))
+                    end_dt = datetime.fromisoformat(completed_at.replace("Z", "+00:00"))
+                    duration = (end_dt - start_dt).total_seconds()
+                    if duration >= 0:
+                        completed_durations.append(duration)
+                except (ValueError, TypeError):
+                    pass
+
+        # Track oldest pending job
+        if job_status_enum == JobStatusEnum.PENDING:
+            created_at_str = job.get("created_at")
+            if created_at_str:
+                try:
+                    created_at = datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
+                    if oldest_pending_created_at is None or created_at < oldest_pending_created_at:
+                        oldest_pending_created_at = created_at
+                except (ValueError, TypeError):
+                    pass
+
+    # Calculate average duration
+    average_duration: float | None = None
+    if completed_durations:
+        average_duration = sum(completed_durations) / len(completed_durations)
+
+    # Calculate oldest pending age
+    oldest_pending_age: float | None = None
+    if oldest_pending_created_at:
+        oldest_pending_age = (now - oldest_pending_created_at).total_seconds()
+
+    # Build response
+    by_status = [
+        JobStatusCount(status=status, count=count)
+        for status, count in status_counts.items()
+        if count > 0
+    ]
+
+    by_type = [
+        JobTypeCount(job_type=job_type, count=count)
+        for job_type, count in sorted(type_counts.items())
+    ]
+
+    return JobStatsResponse(
+        total_jobs=len(all_jobs),
+        by_status=by_status,
+        by_type=by_type,
+        average_duration_seconds=average_duration,
+        oldest_pending_job_age_seconds=oldest_pending_age,
+    )
 
 
 @router.get(

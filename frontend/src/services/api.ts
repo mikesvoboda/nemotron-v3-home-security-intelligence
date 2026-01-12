@@ -179,6 +179,8 @@ import type {
   JobListResponse,
   JobStatusEnum,
   CleanupStatusResponse,
+  EventFeedbackCreate,
+  EventFeedbackResponse,
 } from '../types/generated';
 
 // Re-export entity types for consumers of this module
@@ -186,6 +188,9 @@ export type { EntityAppearance, EntitySummary, EntityDetail, EntityListResponse,
 
 // Re-export job types for consumers of this module
 export type { JobResponse, JobListResponse, JobStatusEnum, CleanupStatusResponse };
+
+// Re-export feedback types for consumers of this module
+export type { EventFeedbackCreate, EventFeedbackResponse };
 
 // ============================================================================
 // Additional types not in OpenAPI (client-side only)
@@ -1689,7 +1694,15 @@ export interface LogsQueryParams {
   start_date?: string;
   end_date?: string;
   limit?: number;
+  /**
+   * @deprecated Use cursor parameter instead for better performance with large datasets.
+   */
   offset?: number;
+  /**
+   * Cursor for pagination. Pass the `next_cursor` value from the previous response.
+   * Recommended over offset pagination for better performance.
+   */
+  cursor?: string;
 }
 
 export async function fetchLogs(params?: LogsQueryParams): Promise<GeneratedLogsResponse> {
@@ -1704,7 +1717,12 @@ export async function fetchLogs(params?: LogsQueryParams): Promise<GeneratedLogs
     if (params.start_date) queryParams.append('start_date', params.start_date);
     if (params.end_date) queryParams.append('end_date', params.end_date);
     if (params.limit !== undefined) queryParams.append('limit', String(params.limit));
-    if (params.offset !== undefined) queryParams.append('offset', String(params.offset));
+    // Prefer cursor over offset for pagination
+    if (params.cursor) {
+      queryParams.append('cursor', params.cursor);
+    } else if (params.offset !== undefined) {
+      queryParams.append('offset', String(params.offset));
+    }
   }
 
   const queryString = queryParams.toString();
@@ -1972,8 +1990,15 @@ export interface EventSearchParams {
   reviewed?: boolean;
   /** Maximum number of results (default 50) */
   limit?: number;
-  /** Number of results to skip for pagination */
+  /**
+   * @deprecated Use cursor parameter instead for better performance with large datasets.
+   */
   offset?: number;
+  /**
+   * Cursor for pagination. Pass the `next_cursor` value from the previous response.
+   * Recommended over offset pagination for better performance.
+   */
+  cursor?: string;
 }
 
 /**
@@ -2008,9 +2033,60 @@ export async function searchEvents(
   if (params.object_type) queryParams.append('object_type', params.object_type);
   if (params.reviewed !== undefined) queryParams.append('reviewed', String(params.reviewed));
   if (params.limit !== undefined) queryParams.append('limit', String(params.limit));
-  if (params.offset !== undefined) queryParams.append('offset', String(params.offset));
+  // Prefer cursor over offset for pagination
+  if (params.cursor) {
+    queryParams.append('cursor', params.cursor);
+  } else if (params.offset !== undefined) {
+    queryParams.append('offset', String(params.offset));
+  }
 
   return fetchApi<GeneratedSearchResponse>(`/api/events/search?${queryParams.toString()}`, options);
+}
+
+// ============================================================================
+// Event Feedback Endpoints
+// ============================================================================
+
+/**
+ * Submit feedback for an event.
+ *
+ * Allows users to mark events as correct, false positive, wrong severity,
+ * or missed detection. This feedback is used to improve AI model performance.
+ *
+ * @param feedback - The feedback data including event_id, feedback_type, and optional notes
+ * @returns EventFeedbackResponse with the created feedback record
+ * @throws ApiError with 404 if event not found, 409 if feedback already exists
+ */
+export async function submitEventFeedback(
+  feedback: EventFeedbackCreate
+): Promise<EventFeedbackResponse> {
+  return fetchApi<EventFeedbackResponse>('/api/feedback', {
+    method: 'POST',
+    body: JSON.stringify(feedback),
+  });
+}
+
+/**
+ * Get existing feedback for an event.
+ *
+ * Retrieves any previously submitted feedback for the specified event.
+ * Returns null if no feedback exists (404 response is handled as null).
+ *
+ * @param eventId - The event ID to get feedback for
+ * @returns EventFeedbackResponse if feedback exists, null if not found
+ */
+export async function getEventFeedback(
+  eventId: number
+): Promise<EventFeedbackResponse | null> {
+  try {
+    return await fetchApi<EventFeedbackResponse>(`/api/feedback/event/${eventId}`);
+  } catch (error) {
+    // Return null for 404 (no feedback found) - this is expected behavior
+    if (error instanceof ApiError && error.status === 404) {
+      return null;
+    }
+    throw error;
+  }
 }
 
 // ============================================================================
@@ -2341,8 +2417,15 @@ export interface AuditLogsQueryParams {
   end_date?: string;
   /** Page size (default 100, max 1000) */
   limit?: number;
-  /** Page offset */
+  /**
+   * @deprecated Use cursor parameter instead for better performance with large datasets.
+   */
   offset?: number;
+  /**
+   * Cursor for pagination. Pass the `next_cursor` value from the previous response.
+   * Recommended over offset pagination for better performance.
+   */
+  cursor?: string;
 }
 
 /**
@@ -2366,7 +2449,12 @@ export async function fetchAuditLogs(
     if (params.start_date) queryParams.append('start_date', params.start_date);
     if (params.end_date) queryParams.append('end_date', params.end_date);
     if (params.limit !== undefined) queryParams.append('limit', String(params.limit));
-    if (params.offset !== undefined) queryParams.append('offset', String(params.offset));
+    // Prefer cursor over offset for pagination
+    if (params.cursor) {
+      queryParams.append('cursor', params.cursor);
+    } else if (params.offset !== undefined) {
+      queryParams.append('offset', String(params.offset));
+    }
   }
 
   const queryString = queryParams.toString();
@@ -2408,8 +2496,15 @@ export interface AlertRulesQueryParams {
   severity?: AlertSeverity;
   /** Maximum number of results (default 50) */
   limit?: number;
-  /** Number of results to skip for pagination */
+  /**
+   * @deprecated Use cursor parameter instead for better performance with large datasets.
+   */
   offset?: number;
+  /**
+   * Cursor for pagination. Pass the `next_cursor` value from the previous response.
+   * Recommended over offset pagination for better performance.
+   */
+  cursor?: string;
 }
 
 /**
@@ -2427,7 +2522,12 @@ export async function fetchAlertRules(
     if (params.enabled !== undefined) queryParams.append('enabled', String(params.enabled));
     if (params.severity) queryParams.append('severity', params.severity);
     if (params.limit !== undefined) queryParams.append('limit', String(params.limit));
-    if (params.offset !== undefined) queryParams.append('offset', String(params.offset));
+    // Prefer cursor over offset for pagination
+    if (params.cursor) {
+      queryParams.append('cursor', params.cursor);
+    } else if (params.offset !== undefined) {
+      queryParams.append('offset', String(params.offset));
+    }
   }
 
   const queryString = queryParams.toString();
@@ -3395,8 +3495,15 @@ export interface EntitiesQueryParams {
   since?: string;
   /** Maximum number of results (1-1000, default 50) */
   limit?: number;
-  /** Number of results to skip for pagination */
+  /**
+   * @deprecated Use cursor parameter instead for better performance with large datasets.
+   */
   offset?: number;
+  /**
+   * Cursor for pagination. Pass the `next_cursor` value from the previous response.
+   * Recommended over offset pagination for better performance.
+   */
+  cursor?: string;
 }
 
 /**
@@ -3420,7 +3527,12 @@ export async function fetchEntities(
     if (params.camera_id) queryParams.append('camera_id', params.camera_id);
     if (params.since) queryParams.append('since', params.since);
     if (params.limit !== undefined) queryParams.append('limit', String(params.limit));
-    if (params.offset !== undefined) queryParams.append('offset', String(params.offset));
+    // Prefer cursor over offset for pagination
+    if (params.cursor) {
+      queryParams.append('cursor', params.cursor);
+    } else if (params.offset !== undefined) {
+      queryParams.append('offset', String(params.offset));
+    }
   }
 
   const queryString = queryParams.toString();
@@ -3840,8 +3952,15 @@ export interface EntityQueryParams {
   since?: string;
   /** Maximum number of results (1-1000, default 50) */
   limit?: number;
-  /** Number of results to skip for pagination (default 0) */
+  /**
+   * @deprecated Use cursor parameter instead for better performance with large datasets.
+   */
   offset?: number;
+  /**
+   * Cursor for pagination. Pass the `next_cursor` value from the previous response.
+   * Recommended over offset pagination for better performance.
+   */
+  cursor?: string;
 }
 
 /**
@@ -3887,7 +4006,10 @@ export async function fetchTrackedEntities(
   if (params?.limit !== undefined) {
     searchParams.append('limit', String(params.limit));
   }
-  if (params?.offset !== undefined) {
+  // Prefer cursor over offset for pagination
+  if (params?.cursor) {
+    searchParams.append('cursor', params.cursor);
+  } else if (params?.offset !== undefined) {
     searchParams.append('offset', String(params.offset));
   }
 

@@ -310,7 +310,7 @@ export default function FileOperationsPanel({
     try {
       const [storageData, jobsData] = await Promise.all([
         fetchStorageStats(),
-        fetchJobs().catch(() => ({ jobs: [], total: 0 })),
+        fetchJobs().catch(() => ({ items: [], pagination: { total: 0, offset: 0, limit: 50, has_more: false } })),
       ]);
 
       setStorageStats(storageData);
@@ -374,7 +374,7 @@ export default function FileOperationsPanel({
   };
 
   // Filter export jobs
-  const exportJobs = jobs?.jobs.filter((job) => job.job_type === 'export') || [];
+  const exportJobs = jobs?.items.filter((job) => job.job_type === 'export') || [];
   const activeExports = exportJobs.filter((job) => job.status === 'running' || job.status === 'pending');
   const hasActiveExports = activeExports.length > 0;
 

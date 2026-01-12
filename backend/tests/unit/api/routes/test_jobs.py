@@ -58,8 +58,11 @@ class TestListJobs:
         assert response.status_code == 200
 
         data = response.json()
-        assert data["jobs"] == []
-        assert data["total"] == 0
+        assert data["items"] == []
+        assert data["pagination"]["total"] == 0
+        assert data["pagination"]["limit"] == 50
+        assert data["pagination"]["offset"] == 0
+        assert data["pagination"]["has_more"] is False
 
     def test_list_jobs_returns_jobs(self, client: TestClient, mock_job_tracker: MagicMock) -> None:
         """Should return list of jobs."""
@@ -94,10 +97,10 @@ class TestListJobs:
         assert response.status_code == 200
 
         data = response.json()
-        assert len(data["jobs"]) == 2
-        assert data["total"] == 2
-        assert data["jobs"][0]["job_id"] == "job-1"
-        assert data["jobs"][1]["job_id"] == "job-2"
+        assert len(data["items"]) == 2
+        assert data["pagination"]["total"] == 2
+        assert data["items"][0]["job_id"] == "job-1"
+        assert data["items"][1]["job_id"] == "job-2"
 
     def test_list_jobs_filter_by_type(
         self, client: TestClient, mock_job_tracker: MagicMock
@@ -148,6 +151,189 @@ class TestListJobs:
         mock_job_tracker.get_all_jobs.assert_called_once_with(
             job_type="export", status_filter=JobStatus.PENDING
         )
+
+    def test_list_jobs_with_pagination(
+        self, client: TestClient, mock_job_tracker: MagicMock
+    ) -> None:
+        """Should support pagination with limit and offset."""
+        # Create 5 jobs
+        jobs = [
+            JobInfo(
+                job_id=f"job-{i}",
+                job_type="export",
+                status=JobStatus.COMPLETED,
+                progress=100,
+                message="Done",
+                created_at=f"2024-01-15T10:{i:02d}:00Z",
+                started_at=f"2024-01-15T10:{i:02d}:01Z",
+                completed_at=f"2024-01-15T10:{i:02d}:30Z",
+                result=None,
+                error=None,
+            )
+            for i in range(5)
+        ]
+        mock_job_tracker.get_all_jobs.return_value = jobs
+
+        # Request with limit=2, offset=1
+        response = client.get("/api/jobs?limit=2&offset=1")
+        assert response.status_code == 200
+
+        data = response.json()
+        assert len(data["items"]) == 2
+        assert data["pagination"]["total"] == 5
+        assert data["pagination"]["limit"] == 2
+        assert data["pagination"]["offset"] == 1
+        assert data["pagination"]["has_more"] is True
+
+    def test_list_jobs_pagination_last_page(
+        self, client: TestClient, mock_job_tracker: MagicMock
+    ) -> None:
+        """Should indicate no more items on last page."""
+        # Create 3 jobs
+        jobs = [
+            JobInfo(
+                job_id=f"job-{i}",
+                job_type="export",
+                status=JobStatus.COMPLETED,
+                progress=100,
+                message="Done",
+                created_at=f"2024-01-15T10:{i:02d}:00Z",
+                started_at=None,
+                completed_at=None,
+                result=None,
+                error=None,
+            )
+            for i in range(3)
+        ]
+        mock_job_tracker.get_all_jobs.return_value = jobs
+
+        # Request page that spans to end
+        response = client.get("/api/jobs?limit=50&offset=0")
+        assert response.status_code == 200
+
+        data = response.json()
+        assert len(data["items"]) == 3
+        assert data["pagination"]["has_more"] is False
+
+
+class TestGetJobStats:
+    """Tests for GET /api/jobs/stats."""
+
+    def test_get_job_stats_empty(self, client: TestClient, mock_job_tracker: MagicMock) -> None:
+        """Should return zero stats when no jobs exist."""
+        mock_job_tracker.get_all_jobs.return_value = []
+
+        response = client.get("/api/jobs/stats")
+        assert response.status_code == 200
+
+        data = response.json()
+        assert data["total_jobs"] == 0
+        assert data["by_status"] == []
+        assert data["by_type"] == []
+        assert data["average_duration_seconds"] is None
+        assert data["oldest_pending_job_age_seconds"] is None
+
+    def test_get_job_stats_with_jobs(self, client: TestClient, mock_job_tracker: MagicMock) -> None:
+        """Should return correct stats for multiple jobs."""
+        mock_job_tracker.get_all_jobs.return_value = [
+            JobInfo(
+                job_id="job-1",
+                job_type="export",
+                status=JobStatus.COMPLETED,
+                progress=100,
+                message="Done",
+                created_at="2024-01-15T10:00:00+00:00",
+                started_at="2024-01-15T10:00:01+00:00",
+                completed_at="2024-01-15T10:00:31+00:00",  # 30 second duration
+                result=None,
+                error=None,
+            ),
+            JobInfo(
+                job_id="job-2",
+                job_type="export",
+                status=JobStatus.COMPLETED,
+                progress=100,
+                message="Done",
+                created_at="2024-01-15T10:01:00+00:00",
+                started_at="2024-01-15T10:01:01+00:00",
+                completed_at="2024-01-15T10:02:01+00:00",  # 60 second duration
+                result=None,
+                error=None,
+            ),
+            JobInfo(
+                job_id="job-3",
+                job_type="cleanup",
+                status=JobStatus.RUNNING,
+                progress=50,
+                message="Processing...",
+                created_at="2024-01-15T10:02:00+00:00",
+                started_at="2024-01-15T10:02:01+00:00",
+                completed_at=None,
+                result=None,
+                error=None,
+            ),
+            JobInfo(
+                job_id="job-4",
+                job_type="backup",
+                status=JobStatus.FAILED,
+                progress=20,
+                message="Failed",
+                created_at="2024-01-15T10:03:00+00:00",
+                started_at="2024-01-15T10:03:01+00:00",
+                completed_at="2024-01-15T10:03:05+00:00",
+                result=None,
+                error="Connection error",
+            ),
+        ]
+
+        response = client.get("/api/jobs/stats")
+        assert response.status_code == 200
+
+        data = response.json()
+        assert data["total_jobs"] == 4
+
+        # Check status counts
+        status_map = {s["status"]: s["count"] for s in data["by_status"]}
+        assert status_map.get("completed", 0) == 2
+        assert status_map.get("running", 0) == 1
+        assert status_map.get("failed", 0) == 1
+
+        # Check type counts
+        type_map = {t["job_type"]: t["count"] for t in data["by_type"]}
+        assert type_map["export"] == 2
+        assert type_map["cleanup"] == 1
+        assert type_map["backup"] == 1
+
+        # Average duration should be (30 + 60) / 2 = 45 seconds
+        assert data["average_duration_seconds"] == 45.0
+
+    def test_get_job_stats_with_pending_job(
+        self, client: TestClient, mock_job_tracker: MagicMock
+    ) -> None:
+        """Should calculate oldest pending job age."""
+        mock_job_tracker.get_all_jobs.return_value = [
+            JobInfo(
+                job_id="job-pending",
+                job_type="export",
+                status=JobStatus.PENDING,
+                progress=0,
+                message=None,
+                created_at="2024-01-15T10:00:00+00:00",
+                started_at=None,
+                completed_at=None,
+                result=None,
+                error=None,
+            ),
+        ]
+
+        response = client.get("/api/jobs/stats")
+        assert response.status_code == 200
+
+        data = response.json()
+        assert data["total_jobs"] == 1
+        # oldest_pending_job_age_seconds should be a positive number
+        assert data["oldest_pending_job_age_seconds"] is not None
+        assert data["oldest_pending_job_age_seconds"] > 0
 
 
 class TestListJobTypes:
@@ -449,6 +635,7 @@ class TestJobSchemas:
     def test_job_list_response(self) -> None:
         """Should serialize JobListResponse correctly."""
         from backend.api.schemas.jobs import JobListResponse, JobResponse, JobStatusEnum
+        from backend.api.schemas.pagination import create_pagination_meta
 
         job = JobResponse(
             job_id="test-123",
@@ -459,12 +646,13 @@ class TestJobSchemas:
             created_at="2024-01-15T10:30:00Z",
         )
 
-        response = JobListResponse(jobs=[job], total=1)
+        pagination = create_pagination_meta(total=1, limit=50, offset=0, items_count=1)
+        response = JobListResponse(items=[job], pagination=pagination)
 
         data = response.model_dump()
-        assert data["total"] == 1
-        assert len(data["jobs"]) == 1
-        assert data["jobs"][0]["job_id"] == "test-123"
+        assert data["pagination"]["total"] == 1
+        assert len(data["items"]) == 1
+        assert data["items"][0]["job_id"] == "test-123"
 
     def test_job_types_response(self) -> None:
         """Should serialize JobTypesResponse correctly."""

@@ -60,3 +60,11 @@ _.device_tokens
 # Mock function parameters (required by interface signature but unused in mock body)
 # e.g., async def mock_seek(pos): pass - pos is required by UploadFile.seek signature
 _.pos
+
+# DI container service aliases (imported for cast() type safety but referenced as strings)
+# These are imported locally in FastAPI dependencies to avoid circular imports
+# and used with cast("Alias", ...) for type checking
+_.FDS  # FaceDetectorService alias
+_.PDS  # PlateDetectorService alias
+_.OCRS  # OCRService alias
+_.YWS  # YOLOWorldService alias

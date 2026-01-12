@@ -49,7 +49,7 @@ describe('FileOperationsPanel', () => {
 
   // Sample jobs data with export jobs
   const mockJobsWithExports: api.JobListResponse = {
-    jobs: [
+    items: [
       {
         job_id: 'export-123',
         job_type: 'export',
@@ -75,12 +75,12 @@ describe('FileOperationsPanel', () => {
         error: null,
       },
     ],
-    total: 2,
+    pagination: { total: 2, offset: 0, limit: 50, has_more: false },
   };
 
   const mockJobsEmpty: api.JobListResponse = {
-    jobs: [],
-    total: 0,
+    items: [],
+    pagination: { total: 0, offset: 0, limit: 50, has_more: false },
   };
 
   // Sample cleanup response
