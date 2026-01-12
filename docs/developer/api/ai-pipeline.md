@@ -2,8 +2,6 @@
 
 This guide covers the AI processing pipeline including enrichment, batch aggregation, AI audit logging, and the dead letter queue for failed jobs.
 
-<!-- TODO: Add Detection -> Batch -> Enrichment -> Risk flow diagram -->
-
 ## Pipeline Overview
 
 The AI pipeline processes camera images through these stages:
@@ -13,6 +11,55 @@ The AI pipeline processes camera images through these stages:
 3. **Batching** - Group detections within 90-second time windows
 4. **Enrichment** - Vision model extracts attributes (clothing, carrying items)
 5. **Analysis** - Nemotron LLM generates risk assessments
+
+### AI Pipeline Flow Diagram
+
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': {'primaryColor': '#3B82F6', 'primaryTextColor': '#FFFFFF', 'primaryBorderColor': '#60A5FA', 'secondaryColor': '#A855F7', 'tertiaryColor': '#009688', 'background': '#121212', 'mainBkg': '#1a1a2e', 'lineColor': '#666666'}}}%%
+flowchart LR
+    subgraph Input["Image Input"]
+        CAM[Camera FTP Upload]
+        FW[File Watcher]
+    end
+
+    subgraph Detection["Object Detection"]
+        DQ[detection_queue]
+        RT[RT-DETRv2<br/>30-50ms]
+    end
+
+    subgraph Processing["Batch Processing"]
+        ENR[Enrichment<br/>Vision Model]
+        BA[Batch Aggregator<br/>90s window]
+    end
+
+    subgraph Analysis["Risk Analysis"]
+        AQ[analysis_queue]
+        NEM[Nemotron LLM<br/>2-5s]
+    end
+
+    subgraph Output["Output"]
+        EVT[Security Event]
+        WS[WebSocket<br/>Broadcast]
+    end
+
+    CAM --> FW
+    FW --> DQ
+    DQ --> RT
+    RT --> ENR
+    ENR --> BA
+    BA --> AQ
+    AQ --> NEM
+    NEM --> EVT
+    EVT --> WS
+
+    style RT fill:#A855F7,color:#fff
+    style NEM fill:#A855F7,color:#fff
+    style BA fill:#009688,color:#fff
+    style ENR fill:#009688,color:#fff
+    style EVT fill:#76B900,color:#fff
+```
+
+_End-to-end AI pipeline flow from camera image upload through detection, batching, enrichment, and LLM analysis to WebSocket broadcast._
 
 ---
 
@@ -126,6 +173,35 @@ POST /api/enrichment/reprocess/123
 
 Batches group detections from the same camera within configurable time windows (default: 90 seconds) before sending to the LLM for analysis.
 
+### Batch Processing Lifecycle
+
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': {'primaryColor': '#3B82F6', 'primaryTextColor': '#FFFFFF', 'primaryBorderColor': '#60A5FA', 'secondaryColor': '#A855F7', 'tertiaryColor': '#009688', 'background': '#121212', 'mainBkg': '#1a1a2e', 'lineColor': '#666666'}}}%%
+stateDiagram-v2
+    [*] --> Idle: No active batch
+
+    Idle --> Aggregating: First detection arrives
+    note right of Aggregating: Create batch_id<br/>Start 90s window timer
+
+    Aggregating --> Aggregating: Detection added
+    note right of Aggregating: Update last_activity<br/>Append detection_id
+
+    Aggregating --> Completed: Window timeout (90s)
+    Aggregating --> Completed: Idle timeout (30s)
+    Aggregating --> Completed: Max size reached
+    Aggregating --> Completed: Manual flush API
+
+    Completed --> [*]: Push to analysis_queue
+
+    state Aggregating {
+        [*] --> Collecting
+        Collecting --> Collecting: add_detection()
+        Collecting --> [*]: Timeout triggered
+    }
+```
+
+_State machine showing batch lifecycle from creation through collection to closure, with multiple timeout triggers._
+
 ### Endpoints
 
 | Method | Endpoint                        | Description            |
@@ -235,6 +311,44 @@ POST /api/batches/batch_xyz789/flush
 
 The AI audit log provides transparency into LLM decision-making for security and compliance.
 
+### AI Audit Workflow
+
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': {'primaryColor': '#3B82F6', 'primaryTextColor': '#FFFFFF', 'primaryBorderColor': '#60A5FA', 'secondaryColor': '#A855F7', 'tertiaryColor': '#009688', 'background': '#121212', 'mainBkg': '#1a1a2e', 'lineColor': '#666666'}}}%%
+sequenceDiagram
+    participant BA as Batch Aggregator
+    participant NEM as Nemotron LLM
+    participant DB as PostgreSQL
+    participant API as Audit API
+
+    Note over BA,API: AI Decision Audit Trail
+
+    BA->>NEM: Send batch for analysis
+    activate NEM
+    NEM->>NEM: Generate risk assessment
+    NEM-->>BA: Risk score + reasoning
+    deactivate NEM
+
+    BA->>DB: INSERT ai_audit_log
+    Note right of DB: Stores:<br/>- input_summary<br/>- model output<br/>- tokens used<br/>- latency_ms
+
+    rect rgb(26, 26, 46)
+        Note over API,DB: Later: Compliance Review
+        API->>DB: GET /api/ai-audit
+        DB-->>API: Audit entries
+        API->>API: Filter by model, action, date
+    end
+
+    rect rgb(26, 46, 42)
+        Note over API,DB: Later: Performance Analysis
+        API->>DB: GET /api/ai-audit/stats
+        DB-->>API: Aggregated metrics
+        Note right of API: avg_latency_ms<br/>token_usage_today<br/>by_model breakdown
+    end
+```
+
+_Sequence diagram showing how AI decisions are logged for audit and later retrieved for compliance review and performance analysis._
+
 ### Endpoints
 
 | Method | Endpoint                   | Description           |
@@ -338,19 +452,43 @@ The DLQ holds failed AI pipeline jobs for inspection and reprocessing.
 
 ### Queue Architecture
 
-```
-Image Detected -> detection_queue -> RT-DETR
-                       |
-                       | (failure after retries)
-                       v
-                 dlq:detection_queue
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': {'primaryColor': '#3B82F6', 'primaryTextColor': '#FFFFFF', 'primaryBorderColor': '#60A5FA', 'secondaryColor': '#A855F7', 'tertiaryColor': '#009688', 'background': '#121212', 'mainBkg': '#1a1a2e', 'lineColor': '#666666'}}}%%
+flowchart TB
+    subgraph Processing["Normal Processing"]
+        DQ[detection_queue]
+        AQ[analysis_queue]
+        RT[RT-DETRv2]
+        NEM[Nemotron LLM]
+    end
 
-Batch Ready -> analysis_queue -> Nemotron
-                    |
-                    | (failure after retries)
-                    v
-              dlq:analysis_queue
+    subgraph Retry["Retry with Backoff"]
+        R1{Retry<br/>Attempt?}
+        BACK[Exponential<br/>Backoff]
+    end
+
+    subgraph DLQ["Dead Letter Queues"]
+        DLQ1[dlq:detection_queue]
+        DLQ2[dlq:analysis_queue]
+    end
+
+    DQ --> RT
+    RT -->|Success| AQ
+    RT -->|Failure| R1
+    R1 -->|Retry| BACK --> RT
+    R1 -->|Max Retries| DLQ1
+
+    AQ --> NEM
+    NEM -->|Failure| R1
+    R1 -->|Max Retries| DLQ2
+
+    style DLQ1 fill:#E74856,color:#fff
+    style DLQ2 fill:#E74856,color:#fff
+    style RT fill:#A855F7,color:#fff
+    style NEM fill:#A855F7,color:#fff
 ```
+
+_Queue architecture showing normal processing flow and failure paths to dead letter queues._
 
 ### Endpoints
 
@@ -478,6 +616,61 @@ Before jobs reach the DLQ, the system retries with exponential backoff:
 | Model loading failed    | VRAM exhausted        | Restart AI services       |
 
 ### Recovery Workflow
+
+The following diagram illustrates the DLQ recovery process:
+
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': {'primaryColor': '#3B82F6', 'primaryTextColor': '#FFFFFF', 'primaryBorderColor': '#60A5FA', 'secondaryColor': '#A855F7', 'tertiaryColor': '#009688', 'background': '#121212', 'mainBkg': '#1a1a2e', 'lineColor': '#666666'}}}%%
+flowchart TB
+    subgraph Monitor["1. Monitor"]
+        CHK[Check Service Health<br/>GET /api/system/health]
+        STATS[Review DLQ Stats<br/>GET /api/dlq/stats]
+    end
+
+    subgraph Inspect["2. Inspect"]
+        LIST[List Failed Jobs<br/>GET /api/dlq/jobs/{queue}]
+        ANALYZE[Analyze Error Patterns]
+    end
+
+    subgraph Fix["3. Fix Root Cause"]
+        SVC[Restart Service]
+        CFG[Fix Configuration]
+        CLEAN[Clear Corrupted Data]
+    end
+
+    subgraph Recover["4. Recover"]
+        REQ[Requeue Jobs<br/>POST /api/dlq/requeue-all]
+        MON[Monitor Processing]
+    end
+
+    subgraph Outcome["5. Verify"]
+        OK{Jobs<br/>Processed?}
+        SUCCESS[Recovery Complete]
+        RETRY[Retry Fix]
+    end
+
+    CHK --> STATS
+    STATS --> LIST
+    LIST --> ANALYZE
+    ANALYZE --> SVC
+    ANALYZE --> CFG
+    ANALYZE --> CLEAN
+    SVC --> REQ
+    CFG --> REQ
+    CLEAN --> REQ
+    REQ --> MON
+    MON --> OK
+    OK -->|Yes| SUCCESS
+    OK -->|No| RETRY
+    RETRY --> ANALYZE
+
+    style SUCCESS fill:#76B900,color:#fff
+    style REQ fill:#3B82F6,color:#fff
+```
+
+_Step-by-step DLQ recovery workflow from monitoring through inspection, fix, and verification._
+
+**CLI Commands:**
 
 ```bash
 # 1. Check service health

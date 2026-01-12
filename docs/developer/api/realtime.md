@@ -2,7 +2,55 @@
 
 This guide covers WebSocket endpoints for streaming security events and system status updates in real-time.
 
-<!-- TODO: Add WebSocket lifecycle diagram -->
+## WebSocket Architecture Overview
+
+```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#3B82F6',
+    'primaryTextColor': '#FFFFFF',
+    'primaryBorderColor': '#60A5FA',
+    'secondaryColor': '#A855F7',
+    'tertiaryColor': '#009688',
+    'background': '#121212',
+    'mainBkg': '#1a1a2e',
+    'lineColor': '#666666'
+  }
+}}%%
+flowchart TB
+    subgraph Backend["Backend Services"]
+        EB[EventBroadcaster]
+        SB[SystemBroadcaster]
+    end
+
+    subgraph WebSocket["WebSocket Endpoints"]
+        WS1["/ws/events"]
+        WS2["/ws/system"]
+    end
+
+    subgraph Clients["Dashboard Clients"]
+        C1[Browser 1]
+        C2[Browser 2]
+        C3[Browser N]
+    end
+
+    EB --> WS1
+    SB --> WS2
+
+    WS1 --> C1
+    WS1 --> C2
+    WS1 --> C3
+
+    WS2 --> C1
+    WS2 --> C2
+    WS2 --> C3
+
+    style WS1 fill:#3B82F6,color:#fff
+    style WS2 fill:#3B82F6,color:#fff
+    style EB fill:#009688,color:#fff
+    style SB fill:#009688,color:#fff
+```
 
 ## Overview
 
@@ -49,6 +97,49 @@ Stream security events as they are detected and analyzed.
 4. **Stream** - Server pushes events as they occur
 5. **Keepalive** - Periodic pings maintain connection
 6. **Close** - Idle timeout or client disconnect
+
+```mermaid
+%%{init: {'theme': 'dark'}}%%
+sequenceDiagram
+    participant Client as Browser Client
+    participant WS as WebSocket Endpoint
+    participant Auth as Auth Middleware
+    participant EB as EventBroadcaster
+
+    Client->>WS: WebSocket Upgrade Request
+    WS->>Auth: Validate API Key
+
+    alt API Key Valid
+        Auth-->>WS: Authorized
+        WS->>EB: register(websocket)
+        EB-->>Client: Connection Accepted
+
+        loop Event Streaming
+            Note over EB: New security event
+            EB->>Client: {"type": "event", "data": {...}}
+        end
+
+        loop Every 30 seconds
+            EB->>Client: {"type": "ping"}
+        end
+
+        alt Client sends ping
+            Client->>WS: {"type": "ping"}
+            WS-->>Client: {"type": "pong"}
+        end
+
+        alt Idle Timeout (300s)
+            WS->>Client: Close (1000)
+        else Client Disconnect
+            Client->>WS: Close
+        end
+
+        WS->>EB: unregister(websocket)
+
+    else API Key Invalid
+        Auth-->>Client: Close (1008 Policy Violation)
+    end
+```
 
 ### Server-Sent Messages
 
@@ -138,6 +229,55 @@ Sent when client message validation fails:
 | `invalid_message_format` | Message schema invalid    |
 | `unknown_message_type`   | Unrecognized message type |
 | `validation_error`       | Schema validation failed  |
+
+### Event Streaming Flow
+
+The following diagram shows how security events flow from the AI pipeline through the WebSocket to connected clients:
+
+```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#3B82F6',
+    'primaryTextColor': '#FFFFFF',
+    'primaryBorderColor': '#60A5FA',
+    'secondaryColor': '#A855F7',
+    'tertiaryColor': '#009688',
+    'background': '#121212',
+    'mainBkg': '#1a1a2e',
+    'lineColor': '#666666'
+  }
+}}%%
+flowchart LR
+    subgraph AI["AI Pipeline"]
+        NA[NemotronAnalyzer]
+    end
+
+    subgraph Backend["Backend"]
+        EB[EventBroadcaster]
+        DB[(PostgreSQL)]
+    end
+
+    subgraph WebSocket["WebSocket Layer"]
+        WS["/ws/events"]
+    end
+
+    subgraph Clients["Connected Clients"]
+        C1[Dashboard]
+        C2[Mobile]
+    end
+
+    NA -->|1. Create Event| DB
+    NA -->|2. Broadcast| EB
+    EB -->|3. Push| WS
+    WS -->|4. Deliver| C1
+    WS -->|4. Deliver| C2
+
+    style NA fill:#A855F7,color:#fff
+    style EB fill:#009688,color:#fff
+    style WS fill:#3B82F6,color:#fff
+    style DB fill:#FFB800,color:#000
+```
 
 ### JavaScript Example
 
@@ -370,6 +510,53 @@ WebSocket connections are rate-limited to prevent abuse:
 
 ## Reconnection Strategy
 
+The following diagram illustrates the exponential backoff reconnection strategy:
+
+```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#3B82F6',
+    'primaryTextColor': '#FFFFFF',
+    'primaryBorderColor': '#60A5FA',
+    'secondaryColor': '#A855F7',
+    'tertiaryColor': '#009688',
+    'background': '#121212',
+    'mainBkg': '#1a1a2e',
+    'lineColor': '#666666'
+  }
+}}%%
+flowchart TD
+    START([Connection Lost]) --> CHECK{Close Code = 1000?}
+    CHECK -->|Yes - Normal Close| END([Stay Disconnected])
+    CHECK -->|No - Abnormal| ATTEMPT{Attempts < Max?}
+    ATTEMPT -->|No| FAIL([Give Up])
+    ATTEMPT -->|Yes| CALC[Calculate Delay]
+    CALC --> WAIT[Wait: min delay * 2^attempts, maxDelay]
+    WAIT --> RECONNECT[Attempt Reconnection]
+    RECONNECT --> SUCCESS{Connected?}
+    SUCCESS -->|Yes| RESET[Reset delay to 1000ms<br/>Reset attempts to 0]
+    RESET --> ACTIVE([Active Connection])
+    SUCCESS -->|No| INCREMENT[Increment attempts]
+    INCREMENT --> ATTEMPT
+
+    style START fill:#E74856,color:#fff
+    style END fill:#6B7280,color:#fff
+    style FAIL fill:#E74856,color:#fff
+    style ACTIVE fill:#4ADE80,color:#000
+    style RECONNECT fill:#3B82F6,color:#fff
+    style RESET fill:#4ADE80,color:#000
+```
+
+**Reconnection Parameters:**
+
+| Parameter       | Default  | Description                        |
+| --------------- | -------- | ---------------------------------- |
+| `initialDelay`  | 1000ms   | First reconnection delay           |
+| `maxDelay`      | 30000ms  | Maximum delay between attempts     |
+| `maxAttempts`   | Infinity | Maximum reconnection attempts      |
+| `backoffFactor` | 2        | Multiplier for exponential backoff |
+
 Implement exponential backoff for reliable reconnection:
 
 ```javascript
@@ -431,6 +618,63 @@ class ReconnectingWebSocket {
 ---
 
 ## Message Schema Reference
+
+### Message Type Relationships
+
+```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#3B82F6',
+    'primaryTextColor': '#FFFFFF',
+    'primaryBorderColor': '#60A5FA',
+    'secondaryColor': '#A855F7',
+    'tertiaryColor': '#009688',
+    'background': '#121212',
+    'mainBkg': '#1a1a2e',
+    'lineColor': '#666666'
+  }
+}}%%
+flowchart TB
+    subgraph ClientToServer["Client to Server"]
+        PING[ping]
+    end
+
+    subgraph ServerToClient["Server to Client"]
+        PONG[pong]
+        EVENT[event]
+        SYS[system_status]
+        SVC[service_status]
+        ERR[error]
+    end
+
+    subgraph EventEndpoint["/ws/events"]
+        E_PING[ping]
+        E_PONG[pong]
+        E_EVENT[event]
+        E_ERR[error]
+    end
+
+    subgraph SystemEndpoint["/ws/system"]
+        S_PING[ping]
+        S_PONG[pong]
+        S_SYS[system_status]
+        S_SVC[service_status]
+        S_ERR[error]
+    end
+
+    PING -.->|request| E_PING
+    PING -.->|request| S_PING
+    E_PING -->|response| E_PONG
+    S_PING -->|response| S_PONG
+
+    style PING fill:#3B82F6,color:#fff
+    style PONG fill:#4ADE80,color:#000
+    style EVENT fill:#A855F7,color:#fff
+    style SYS fill:#009688,color:#fff
+    style SVC fill:#FFB800,color:#000
+    style ERR fill:#E74856,color:#fff
+```
 
 ### Client-to-Server Messages
 

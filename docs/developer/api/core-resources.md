@@ -2,7 +2,84 @@
 
 This guide covers the fundamental data resources in the Home Security Intelligence system: cameras, events, detections, zones, entities, and analytics.
 
-<!-- TODO: Add Camera -> Event -> Detection lifecycle diagram -->
+## Entity Relationships
+
+The core data model follows a hierarchical structure where cameras produce detections, which are aggregated into events by the AI pipeline.
+
+```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#3B82F6',
+    'primaryTextColor': '#FFFFFF',
+    'primaryBorderColor': '#60A5FA',
+    'secondaryColor': '#A855F7',
+    'tertiaryColor': '#009688',
+    'background': '#121212',
+    'mainBkg': '#1a1a2e',
+    'lineColor': '#666666'
+  }
+}}%%
+erDiagram
+    CAMERA ||--o{ DETECTION : produces
+    CAMERA ||--o{ EVENT : generates
+    CAMERA ||--o{ ZONE : contains
+    EVENT ||--o{ DETECTION : groups
+    DETECTION ||--o| ENTITY : "tracked as"
+
+    CAMERA {
+        string id PK
+        string name
+        string folder_path
+        string status
+        datetime last_seen_at
+    }
+
+    DETECTION {
+        int id PK
+        string camera_id FK
+        string object_type
+        float confidence
+        datetime detected_at
+        string thumbnail_path
+    }
+
+    EVENT {
+        int id PK
+        string camera_id FK
+        int risk_score
+        string risk_level
+        text summary
+        text reasoning
+        json detection_ids
+    }
+
+    ZONE {
+        string id PK
+        string camera_id FK
+        string name
+        string zone_type
+        json coordinates
+    }
+
+    ENTITY {
+        string id PK
+        string entity_type
+        datetime first_seen
+        datetime last_seen
+        json cameras_seen
+    }
+```
+
+**Data Flow:**
+
+1. **Camera** uploads images via FTP to its configured `folder_path`
+2. **Detection** records are created when RT-DETRv2 identifies objects in images
+3. **Events** aggregate multiple detections within time windows (90s) and include LLM-generated risk assessments
+4. **Zones** define regions of interest within camera views for targeted detection
+5. **Entities** track persons/vehicles across cameras using CLIP-based re-identification
+
+---
 
 ## Cameras
 
@@ -119,6 +196,46 @@ GET /api/cameras/front_door/scene-changes?acknowledged=false
 ## Events
 
 Events are aggregated from detections within time windows and contain LLM-generated risk assessments.
+
+### Event Retrieval Flow
+
+The following diagram illustrates the typical API flow for fetching events with filters, including how the backend processes pagination and joins detection data.
+
+```mermaid
+%%{init: {'theme': 'dark'}}%%
+sequenceDiagram
+    participant Client as Frontend Client
+    participant API as FastAPI Backend
+    participant DB as PostgreSQL
+    participant Cache as Redis Cache
+
+    Client->>API: GET /api/events?camera_id=front_door&risk_level=high&limit=50
+    API->>API: Validate query parameters
+
+    alt Cache hit for query
+        API->>Cache: Check cached result
+        Cache-->>API: Return cached events
+    else Cache miss
+        API->>DB: SELECT events WHERE camera_id AND risk_level
+        Note right of DB: Uses idx_events_camera_id<br/>and idx_events_risk_score
+        DB-->>API: Event records with count
+        API->>Cache: Store result (5min TTL)
+    end
+
+    API->>DB: SELECT detections WHERE id IN (detection_ids)
+    Note right of DB: Fetches detection details<br/>for each event
+    DB-->>API: Detection records
+
+    API->>API: Assemble response with pagination
+    API-->>Client: JSON {events, count, limit, offset}
+
+    opt Client requests event details
+        Client->>API: GET /api/events/{event_id}
+        API->>DB: SELECT event, detections, enrichments
+        DB-->>API: Full event data
+        API-->>Client: JSON with full event details
+    end
+```
 
 ### Endpoints
 
@@ -311,6 +428,74 @@ Returns `206 Partial Content` with `Content-Range` header.
 ## Zones
 
 Zones define areas of interest within camera views for targeted detection and alerting.
+
+### Zone Configuration Architecture
+
+Zones enable fine-grained detection filtering and contextual risk assessment. The following diagram shows how zones integrate with cameras and affect detection processing.
+
+```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#3B82F6',
+    'primaryTextColor': '#FFFFFF',
+    'primaryBorderColor': '#60A5FA',
+    'secondaryColor': '#A855F7',
+    'tertiaryColor': '#009688',
+    'background': '#121212',
+    'mainBkg': '#1a1a2e',
+    'lineColor': '#666666'
+  }
+}}%%
+flowchart TB
+    subgraph Camera["Camera View (front_door)"]
+        direction TB
+        IMG[Camera Image<br/>1920x1080]
+    end
+
+    subgraph Zones["Defined Zones"]
+        direction LR
+        Z1[Zone: Front Door<br/>type: entry_point<br/>priority: 1<br/>color: #3B82F6]
+        Z2[Zone: Driveway<br/>type: driveway<br/>priority: 2<br/>color: #FFB800]
+        Z3[Zone: Sidewalk<br/>type: walkway<br/>priority: 3<br/>color: #64748B]
+    end
+
+    subgraph Processing["Detection Processing"]
+        direction TB
+        DET[Detection<br/>bbox: x,y,w,h]
+        CHECK{Detection in Zone?}
+        CONTEXT[Add Zone Context<br/>to LLM Prompt]
+        ALERT[Trigger Alert Rule<br/>if zone_ids match]
+    end
+
+    IMG --> Z1
+    IMG --> Z2
+    IMG --> Z3
+
+    Z1 --> DET
+    Z2 --> DET
+    Z3 --> DET
+
+    DET --> CHECK
+    CHECK -->|Yes| CONTEXT
+    CHECK -->|Yes| ALERT
+    CHECK -->|No| SKIP[Standard Processing]
+
+    style Z1 fill:#3B82F6
+    style Z2 fill:#FFB800,color:#000000
+    style Z3 fill:#64748B
+```
+
+**Zone Types and Use Cases:**
+
+| Zone Type     | Typical Use                     | Risk Impact                   |
+| ------------- | ------------------------------- | ----------------------------- |
+| `entry_point` | Doors, gates, windows           | Higher risk for unknowns      |
+| `restricted`  | Private areas, off-limits zones | Maximum risk elevation        |
+| `driveway`    | Vehicle areas, parking          | Vehicle-focused alerts        |
+| `walkway`     | Sidewalks, common paths         | Lower risk (expected traffic) |
+| `perimeter`   | Property boundaries             | Boundary breach detection     |
+| `other`       | General purpose zones           | User-defined behavior         |
 
 ### Endpoints
 

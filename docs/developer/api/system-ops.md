@@ -2,7 +2,53 @@
 
 This guide covers system health monitoring, configuration, alerts, logging, and notification preferences.
 
-<!-- TODO: Add health check and alert routing diagram -->
+## System Operations Overview
+
+The following diagram illustrates the key system operations components and their relationships:
+
+<details>
+<summary>Mermaid source (click to expand)</summary>
+
+```mermaid
+flowchart TB
+    subgraph HealthChecks["Health Check Hierarchy"]
+        LIVE["/health<br/>Liveness Probe"]
+        READY["/api/system/health/ready<br/>Readiness Probe"]
+        FULL["/api/system/health<br/>Full Health Check"]
+    end
+
+    subgraph Services["Monitored Services"]
+        DB[(PostgreSQL)]
+        REDIS[(Redis)]
+        AI[AI Services<br/>RT-DETRv2 + Nemotron]
+    end
+
+    subgraph Workers["Pipeline Workers"]
+        GPU[gpu_monitor]
+        CLEAN[cleanup_service]
+        DET[detection_worker]
+        ANAL[analysis_worker]
+    end
+
+    LIVE -->|"Process alive?"| READY
+    READY -->|"Services + Workers"| FULL
+    FULL --> DB
+    FULL --> REDIS
+    FULL --> AI
+    READY --> GPU
+    READY --> CLEAN
+    READY --> DET
+    READY --> ANAL
+
+    style LIVE fill:#4ADE80,color:#000
+    style READY fill:#FFB800,color:#000
+    style FULL fill:#3B82F6,color:#fff
+    style DB fill:#FFB800,color:#000
+    style REDIS fill:#DC382D,color:#fff
+    style AI fill:#A855F7,color:#fff
+```
+
+</details>
 
 ## Health Checks
 
@@ -73,6 +119,42 @@ GET /api/system/health
 | `healthy`   | All services functioning normally         |
 | `degraded`  | Some services impaired, limited operation |
 | `unhealthy` | Critical services down                    |
+
+### Health Status State Machine
+
+The following state diagram shows how the system transitions between health states:
+
+<details>
+<summary>Mermaid source (click to expand)</summary>
+
+```mermaid
+stateDiagram-v2
+    [*] --> Healthy: System Startup Complete
+
+    Healthy --> Degraded: Non-critical service fails
+    Healthy --> Unhealthy: Critical service fails
+
+    Degraded --> Healthy: All services recover
+    Degraded --> Unhealthy: Critical service fails
+
+    Unhealthy --> Degraded: Critical service recovers<br/>but non-critical still down
+    Unhealthy --> Healthy: All services recover
+
+    Healthy: All Services Operational
+    Healthy: Database: healthy
+    Healthy: Redis: healthy
+    Healthy: AI: healthy
+
+    Degraded: Partial Operation
+    Degraded: Some services impaired
+    Degraded: Core functionality available
+
+    Unhealthy: Service Unavailable
+    Unhealthy: Returns 503
+    Unhealthy: Requires intervention
+```
+
+</details>
 
 ### Readiness Probe
 
@@ -177,6 +259,68 @@ GET /api/system/gpu/history?since=2025-12-23T09:00:00Z&limit=100
 ## Configuration
 
 Runtime configuration management.
+
+### Configuration Relationships
+
+The following diagram shows how system configuration parameters relate to each other and affect system behavior:
+
+<details>
+<summary>Mermaid source (click to expand)</summary>
+
+```mermaid
+flowchart LR
+    subgraph Global["Global Configuration"]
+        APP[app_name]
+        VER[version]
+        RET[retention_days<br/>1-365]
+    end
+
+    subgraph Pipeline["Pipeline Configuration"]
+        BATCH[batch_window_seconds<br/>Default: 90s]
+        IDLE[batch_idle_timeout_seconds<br/>Default: 30s]
+        CONF[detection_confidence_threshold<br/>0.0-1.0]
+    end
+
+    subgraph Severity["Severity Mapping"]
+        LOW[low<br/>0-29]
+        MED[medium<br/>30-59]
+        HIGH[high<br/>60-84]
+        CRIT[critical<br/>85-100]
+    end
+
+    subgraph Cleanup["Data Lifecycle"]
+        CLEAN[Cleanup Service]
+        EVENTS[Events Table]
+        DETECT[Detections Table]
+        LOGS[Logs Table]
+    end
+
+    RET --> CLEAN
+    CLEAN -->|"Delete older than"| EVENTS
+    CLEAN -->|"Delete older than"| DETECT
+    CLEAN -->|"Delete older than"| LOGS
+
+    CONF -->|"Filter below"| DETECT
+    BATCH -->|"Aggregate into"| EVENTS
+    IDLE -->|"Close after"| EVENTS
+
+    EVENTS -->|"risk_score"| LOW
+    EVENTS -->|"risk_score"| MED
+    EVENTS -->|"risk_score"| HIGH
+    EVENTS -->|"risk_score"| CRIT
+
+    style RET fill:#FFB800,color:#000
+    style BATCH fill:#3B82F6,color:#fff
+    style IDLE fill:#3B82F6,color:#fff
+    style CONF fill:#3B82F6,color:#fff
+    style LOW fill:#4ADE80,color:#000
+    style MED fill:#FBBF24,color:#000
+    style HIGH fill:#F97316,color:#fff
+    style CRIT fill:#E74856,color:#fff
+    style CLEAN fill:#64748B,color:#fff
+```
+
+</details>
 
 ### Endpoints
 
@@ -433,6 +577,75 @@ Thresholds must be strictly ordered: `low_max < medium_max < high_max`
 ## Alert Rules
 
 Configure automated alert triggers based on security events.
+
+### Alert Flow Diagram
+
+The following diagram shows how detections flow through the alert system, from initial detection through risk assessment to notification delivery:
+
+<details>
+<summary>Mermaid source (click to expand)</summary>
+
+```mermaid
+flowchart TB
+    subgraph Detection["Detection Stage"]
+        CAM[Camera Image]
+        RTDETR[RT-DETRv2<br/>Object Detection]
+    end
+
+    subgraph RiskAssessment["Risk Assessment"]
+        NEM[Nemotron LLM<br/>Risk Analysis]
+        SCORE{Risk Score<br/>0-100}
+    end
+
+    subgraph AlertMatching["Alert Rule Matching"]
+        RULES[Alert Rules Engine]
+        THRESH{Score >= Threshold?}
+        TYPE{Object Type Match?}
+        SCHED{Within Schedule?}
+        COOL{Cooldown Elapsed?}
+    end
+
+    subgraph Notification["Notification Delivery"]
+        EMAIL[Email Channel]
+        WEBHOOK[Webhook Channel]
+        PUSH[Push Channel]
+    end
+
+    CAM --> RTDETR
+    RTDETR -->|Detections| NEM
+    NEM --> SCORE
+
+    SCORE -->|"85+"| RULES
+    SCORE -->|"60-84"| RULES
+    SCORE -->|"30-59"| RULES
+    SCORE -->|"0-29"| RULES
+
+    RULES --> THRESH
+    THRESH -->|Yes| TYPE
+    THRESH -->|No| DROP1[No Alert]
+    TYPE -->|Yes| SCHED
+    TYPE -->|No| DROP2[No Alert]
+    SCHED -->|Yes| COOL
+    SCHED -->|No| DROP3[No Alert]
+    COOL -->|Yes| EMAIL
+    COOL -->|Yes| WEBHOOK
+    COOL -->|Yes| PUSH
+    COOL -->|No| DROP4[Cooldown Active]
+
+    style CAM fill:#64748B,color:#fff
+    style RTDETR fill:#A855F7,color:#fff
+    style NEM fill:#A855F7,color:#fff
+    style RULES fill:#3B82F6,color:#fff
+    style EMAIL fill:#4ADE80,color:#000
+    style WEBHOOK fill:#4ADE80,color:#000
+    style PUSH fill:#4ADE80,color:#000
+    style DROP1 fill:#6B7280,color:#fff
+    style DROP2 fill:#6B7280,color:#fff
+    style DROP3 fill:#6B7280,color:#fff
+    style DROP4 fill:#FFB800,color:#000
+```
+
+</details>
 
 ### Endpoints
 
@@ -750,8 +963,58 @@ Content-Type: application/json
 
 ---
 
+## Circuit Breaker Pattern
+
+The system uses circuit breakers to protect external services from cascading failures. This is critical for maintaining system stability when AI services (RT-DETRv2, Nemotron) or Redis experience issues.
+
+### Circuit Breaker States
+
+<details>
+<summary>Mermaid source (click to expand)</summary>
+
+```mermaid
+stateDiagram-v2
+    [*] --> CLOSED: Initial State
+
+    CLOSED --> OPEN: failures >= threshold (5)
+    OPEN --> HALF_OPEN: recovery_timeout (30s) elapsed
+    HALF_OPEN --> CLOSED: success_threshold met
+    HALF_OPEN --> OPEN: any failure
+
+    CLOSED: Normal Operation
+    CLOSED: Calls pass through
+    CLOSED: Track consecutive failures
+    CLOSED: Reset on success
+
+    OPEN: Circuit Tripped
+    OPEN: Calls rejected immediately
+    OPEN: CircuitBreakerError raised
+    OPEN: Waiting for recovery timeout
+
+    HALF_OPEN: Recovery Testing
+    HALF_OPEN: Limited calls allowed
+    HALF_OPEN: Track success/failure
+    HALF_OPEN: Careful service probing
+```
+
+</details>
+
+### Circuit Breaker Configuration
+
+| Parameter             | Default | Description                          |
+| --------------------- | ------- | ------------------------------------ |
+| `failure_threshold`   | 5       | Consecutive failures before opening  |
+| `recovery_timeout`    | 30s     | Wait time before testing recovery    |
+| `half_open_max_calls` | 3       | Max calls allowed in half-open state |
+| `success_threshold`   | 2       | Successes needed to close circuit    |
+
+For detailed circuit breaker implementation and WebSocket resilience patterns, see the [Resilience Architecture](../../architecture/resilience.md) documentation.
+
+---
+
 ## Related Documentation
 
 - [Core Resources API](core-resources.md) - Cameras, events, detections
 - [AI Pipeline API](ai-pipeline.md) - Enrichment and batch processing
 - [Real-time API](realtime.md) - WebSocket streams
+- [Resilience Architecture](../../architecture/resilience.md) - Circuit breakers, retry logic, DLQ management
