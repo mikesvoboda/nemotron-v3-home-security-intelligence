@@ -10,7 +10,7 @@
  * Source schemas:
  *   backend/api/schemas/websocket.py
  *
- * Generated at: 2026-01-11T23:44:41Z
+ * Generated at: 2026-01-12T02:13:14Z
  *
  * Note: WebSocket messages are not covered by OpenAPI, so we generate these
  * types separately to ensure frontend/backend type synchronization.
@@ -50,9 +50,10 @@ export type WebSocketServiceStatus = 'healthy' | 'unhealthy' | 'restarting' | 'r
  * - ALERT_CREATED: New alert triggered from rule evaluation
  * - ALERT_UPDATED: Alert modified (e.g., metadata, channels updated)
  * - ALERT_ACKNOWLEDGED: Alert marked as seen by user
- * - ALERT_RESOLVED: Alert resolved/dismissed (alias for dismissed for semantic clarity)
+ * - ALERT_RESOLVED: Alert resolved (long-running issues cleared)
+ * - ALERT_DISMISSED: Alert dismissed by user
  */
-export type WebSocketAlertEventType = 'alert_created' | 'alert_updated' | 'alert_acknowledged' | 'alert_resolved';
+export type WebSocketAlertEventType = 'alert_created' | 'alert_updated' | 'alert_acknowledged' | 'alert_resolved' | 'alert_dismissed';
 
 /**
  * Alert severity levels for WebSocket messages.
