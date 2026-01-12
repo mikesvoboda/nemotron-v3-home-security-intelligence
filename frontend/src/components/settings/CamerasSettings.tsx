@@ -4,28 +4,28 @@ import { AlertCircle, Camera as CameraIcon, Edit2, MapPin, Plus, Search, Trash2,
 import { Fragment, useState } from 'react';
 
 import { useCamerasQuery, useCameraMutation } from '../../hooks';
-import { formatRelativeTime, isTimestampStale } from '../../utils/time';
 import {
-  validateCameraFolderPath,
-  validateCameraName,
-  VALIDATION_LIMITS,
-} from '../../utils/validation';
+  cameraFormSchema,
+  CAMERA_NAME_CONSTRAINTS,
+  CAMERA_FOLDER_PATH_CONSTRAINTS,
+  CAMERA_STATUS_VALUES,
+  type CameraStatusValue,
+} from '../../schemas/camera';
+import { formatRelativeTime, isTimestampStale } from '../../utils/time';
 import { ZoneEditor } from '../zones';
 
 import type { Camera, CameraCreate, CameraUpdate } from '../../services/api';
 
-/** Valid camera status values matching backend CameraStatus enum */
-type CameraStatusValue = 'online' | 'offline' | 'error' | 'unknown';
-
 interface CameraFormData {
   name: string;
   folder_path: string;
-  status?: CameraStatusValue;
+  status: CameraStatusValue;
 }
 
 interface CameraFormErrors {
   name?: string;
   folder_path?: string;
+  status?: string;
 }
 
 /**
@@ -73,16 +73,15 @@ export default function CamerasSettings() {
   const validateForm = (data: CameraFormData): CameraFormErrors => {
     const errors: CameraFormErrors = {};
 
-    // Validate name using centralized validation (aligned with backend)
-    const nameResult = validateCameraName(data.name);
-    if (!nameResult.isValid) {
-      errors.name = nameResult.error;
-    }
-
-    // Validate folder path using centralized validation (aligned with backend)
-    const pathResult = validateCameraFolderPath(data.folder_path);
-    if (!pathResult.isValid) {
-      errors.folder_path = pathResult.error;
+    // Validate using Zod schema (aligned with backend Pydantic schema)
+    const result = cameraFormSchema.safeParse(data);
+    if (!result.success) {
+      for (const issue of result.error.issues) {
+        const field = issue.path[0] as keyof CameraFormErrors;
+        if (field && !errors[field]) {
+          errors[field] = issue.message;
+        }
+      }
     }
 
     return errors;
@@ -443,7 +442,7 @@ export default function CamerasSettings() {
                         data-testid="camera-name-input"
                         value={formData.name}
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        maxLength={VALIDATION_LIMITS.camera.name.maxLength}
+                        maxLength={CAMERA_NAME_CONSTRAINTS.maxLength}
                         className={clsx(
                           'mt-1 block w-full rounded-lg border bg-card px-3 py-2 text-text-primary focus:outline-none focus:ring-2',
                           formErrors.name
@@ -468,9 +467,10 @@ export default function CamerasSettings() {
                       <input
                         type="text"
                         id="folder_path"
+                        data-testid="camera-folder-path-input"
                         value={formData.folder_path}
                         onChange={(e) => setFormData({ ...formData, folder_path: e.target.value })}
-                        maxLength={VALIDATION_LIMITS.camera.folderPath.maxLength}
+                        maxLength={CAMERA_FOLDER_PATH_CONSTRAINTS.maxLength}
                         className={clsx(
                           'mt-1 block w-full rounded-lg border bg-card px-3 py-2 font-mono text-sm text-text-primary focus:outline-none focus:ring-2',
                           formErrors.folder_path
@@ -494,14 +494,25 @@ export default function CamerasSettings() {
                       </label>
                       <select
                         id="status"
+                        data-testid="camera-status-select"
                         value={formData.status}
                         onChange={(e) => setFormData({ ...formData, status: e.target.value as CameraStatusValue })}
-                        className="mt-1 block w-full rounded-lg border border-gray-800 bg-card px-3 py-2 text-text-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                        className={clsx(
+                          'mt-1 block w-full rounded-lg border bg-card px-3 py-2 text-text-primary focus:outline-none focus:ring-2',
+                          formErrors.status
+                            ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
+                            : 'border-gray-800 focus:border-primary focus:ring-primary'
+                        )}
                       >
-                        <option value="online">Online</option>
-                        <option value="offline">Offline</option>
-                        <option value="error">Error</option>
+                        {CAMERA_STATUS_VALUES.map((status) => (
+                          <option key={status} value={status}>
+                            {status.charAt(0).toUpperCase() + status.slice(1)}
+                          </option>
+                        ))}
                       </select>
+                      {formErrors.status && (
+                        <p className="mt-1 text-sm text-red-500">{formErrors.status}</p>
+                      )}
                     </div>
 
                     {/* Action Buttons */}

@@ -80,6 +80,7 @@ export interface PongPayload {
  * - 'event' -> SecurityEventData (from EventMessage.data)
  * - 'service_status' -> ServiceStatusData (from ServiceStatusMessage.data)
  * - 'system_status' -> SystemStatusData (from SystemStatusMessage.data)
+ * - 'camera_status' -> CameraStatusEventPayload (NEM-2295)
  * - 'ping' -> HeartbeatPayload
  * - 'gpu_stats' -> GpuStatsPayload (derived from system status)
  * - 'error' -> WebSocketErrorPayload
@@ -92,6 +93,8 @@ export interface WebSocketEventMap {
   service_status: ServiceStatusData;
   /** System status broadcast */
   system_status: SystemStatusData;
+  /** Camera status change event (NEM-2295) */
+  camera_status: CameraStatusEventPayload;
   /** Server heartbeat ping */
   ping: HeartbeatPayload;
   /** GPU statistics (can be extracted from system_status or dedicated) */
@@ -163,6 +166,7 @@ export const WEBSOCKET_EVENT_KEYS: readonly WebSocketEventKey[] = [
   'event',
   'service_status',
   'system_status',
+  'camera_status',
   'ping',
   'gpu_stats',
   'error',
@@ -284,7 +288,12 @@ export enum WSEventType {
   ALERT_ACKNOWLEDGED = 'alert.acknowledged',
   ALERT_DISMISSED = 'alert.dismissed',
 
-  // Camera events - Camera status changes
+  // Camera events - Camera status changes (NEM-2295)
+  CAMERA_ONLINE = 'camera.online',
+  CAMERA_OFFLINE = 'camera.offline',
+  CAMERA_ERROR = 'camera.error',
+  CAMERA_UPDATED = 'camera.updated',
+  // Legacy camera events
   CAMERA_STATUS_CHANGED = 'camera.status_changed',
   CAMERA_ENABLED = 'camera.enabled',
   CAMERA_DISABLED = 'camera.disabled',
@@ -312,6 +321,7 @@ export enum WSEventType {
   // These map to the existing message types in the codebase
   EVENT = 'event',
   SERVICE_STATUS = 'service_status',
+  CAMERA_STATUS = 'camera_status',
   SCENE_CHANGE = 'scene_change',
   PING = 'ping',
   PONG = 'pong',
@@ -427,12 +437,59 @@ export interface AlertDismissedPayload {
 }
 
 /**
+ * Camera event types for WebSocket messages (NEM-2295).
+ *
+ * Distinguishes between different types of camera status changes:
+ * - camera.online: Camera came online
+ * - camera.offline: Camera went offline
+ * - camera.error: Camera encountered an error
+ * - camera.updated: Camera configuration was updated
+ */
+export type CameraEventType =
+  | 'camera.online'
+  | 'camera.offline'
+  | 'camera.error'
+  | 'camera.updated';
+
+/**
+ * Camera status values.
+ */
+export type CameraStatusValue = 'online' | 'offline' | 'error' | 'unknown';
+
+/**
+ * Payload for camera status events (NEM-2295).
+ *
+ * This is the new unified payload format for all camera status WebSocket events.
+ * Includes event_type to distinguish between camera.online, camera.offline,
+ * camera.error, and camera.updated events.
+ */
+export interface CameraStatusEventPayload {
+  /** Type of camera event */
+  event_type: CameraEventType;
+  /** Normalized camera ID (e.g., 'front_door') */
+  camera_id: string;
+  /** Human-readable camera name */
+  camera_name: string;
+  /** Current camera status */
+  status: CameraStatusValue;
+  /** ISO 8601 timestamp when the event occurred */
+  timestamp: string;
+  /** Previous camera status before this change */
+  previous_status?: CameraStatusValue | null;
+  /** Optional reason for the status change */
+  reason?: string | null;
+  /** Optional additional details */
+  details?: Record<string, unknown> | null;
+}
+
+/**
  * Payload for camera.status_changed events.
+ * @deprecated Use CameraStatusEventPayload instead (NEM-2295)
  */
 export interface CameraStatusChangedPayload {
   camera_id: string;
-  status: 'online' | 'offline' | 'error' | 'unknown';
-  previous_status: 'online' | 'offline' | 'error' | 'unknown';
+  status: CameraStatusValue;
+  previous_status: CameraStatusValue;
   message?: string;
 }
 
@@ -621,6 +678,12 @@ export interface WSEventPayloadMap {
   [WSEventType.ALERT_CREATED]: AlertCreatedPayload;
   [WSEventType.ALERT_ACKNOWLEDGED]: AlertAcknowledgedPayload;
   [WSEventType.ALERT_DISMISSED]: AlertDismissedPayload;
+  // Camera events (NEM-2295)
+  [WSEventType.CAMERA_ONLINE]: CameraStatusEventPayload;
+  [WSEventType.CAMERA_OFFLINE]: CameraStatusEventPayload;
+  [WSEventType.CAMERA_ERROR]: CameraStatusEventPayload;
+  [WSEventType.CAMERA_UPDATED]: CameraStatusEventPayload;
+  // Legacy camera events
   [WSEventType.CAMERA_STATUS_CHANGED]: CameraStatusChangedPayload;
   [WSEventType.CAMERA_ENABLED]: CameraEnabledPayload;
   [WSEventType.CAMERA_DISABLED]: CameraDisabledPayload;
@@ -636,6 +699,7 @@ export interface WSEventPayloadMap {
   // Legacy types
   [WSEventType.EVENT]: SecurityEventData;
   [WSEventType.SERVICE_STATUS]: ServiceStatusData;
+  [WSEventType.CAMERA_STATUS]: CameraStatusEventPayload;
   [WSEventType.SCENE_CHANGE]: SceneChangeDetectedPayload;
   [WSEventType.PING]: HeartbeatPayload;
   [WSEventType.PONG]: PongPayload;

@@ -3448,6 +3448,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/jobs/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get job statistics
+         * @description Get aggregate statistics about jobs including counts by status, counts by type, and timing information.
+         */
+        get: operations["get_job_stats_api_jobs_stats_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/jobs/types": {
         parameters: {
             query?: never;
@@ -11322,9 +11342,11 @@ export interface components {
         };
         /**
          * JobListResponse
-         * @description Response model for listing jobs.
+         * @description Response model for listing jobs with pagination.
+         *
+         *     Uses the standardized pagination envelope format (NEM-2178).
          * @example {
-         *       "jobs": [
+         *       "items": [
          *         {
          *           "created_at": "2024-01-15T10:30:00Z",
          *           "job_id": "550e8400-e29b-41d4-a716-446655440000",
@@ -11335,20 +11357,22 @@ export interface components {
          *           "status": "running"
          *         }
          *       ],
-         *       "total": 1
+         *       "pagination": {
+         *         "has_more": true,
+         *         "limit": 50,
+         *         "offset": 0,
+         *         "total": 100
+         *       }
          *     }
          */
         JobListResponse: {
             /**
-             * Jobs
+             * Items
              * @description List of jobs
              */
-            jobs: components["schemas"]["JobResponse"][];
-            /**
-             * Total
-             * @description Total number of jobs matching filter
-             */
-            total: number;
+            items: components["schemas"]["JobResponse"][];
+            /** @description Pagination metadata */
+            pagination: components["schemas"]["PaginationMeta"];
         };
         /**
          * JobResponse
@@ -11413,11 +11437,119 @@ export interface components {
             status: components["schemas"]["JobStatusEnum"];
         };
         /**
+         * JobStatsResponse
+         * @description Response model for job statistics.
+         *
+         *     Provides aggregate statistics about jobs including counts by status,
+         *     counts by type, and timing information.
+         * @example {
+         *       "average_duration_seconds": 45.5,
+         *       "by_status": [
+         *         {
+         *           "count": 75,
+         *           "status": "completed"
+         *         },
+         *         {
+         *           "count": 5,
+         *           "status": "running"
+         *         },
+         *         {
+         *           "count": 10,
+         *           "status": "pending"
+         *         },
+         *         {
+         *           "count": 10,
+         *           "status": "failed"
+         *         }
+         *       ],
+         *       "by_type": [
+         *         {
+         *           "count": 60,
+         *           "job_type": "export"
+         *         },
+         *         {
+         *           "count": 30,
+         *           "job_type": "cleanup"
+         *         },
+         *         {
+         *           "count": 10,
+         *           "job_type": "backup"
+         *         }
+         *       ],
+         *       "oldest_pending_job_age_seconds": 120,
+         *       "total_jobs": 100
+         *     }
+         */
+        JobStatsResponse: {
+            /**
+             * Average Duration Seconds
+             * @description Average job duration in seconds (for completed jobs)
+             */
+            average_duration_seconds?: number | null;
+            /**
+             * By Status
+             * @description Job counts by status
+             */
+            by_status: components["schemas"]["JobStatusCount"][];
+            /**
+             * By Type
+             * @description Job counts by type
+             */
+            by_type: components["schemas"]["JobTypeCount"][];
+            /**
+             * Oldest Pending Job Age Seconds
+             * @description Age of the oldest pending job in seconds
+             */
+            oldest_pending_job_age_seconds?: number | null;
+            /**
+             * Total Jobs
+             * @description Total number of jobs tracked
+             */
+            total_jobs: number;
+        };
+        /**
+         * JobStatusCount
+         * @description Count of jobs by status.
+         * @example {
+         *       "count": 42,
+         *       "status": "completed"
+         *     }
+         */
+        JobStatusCount: {
+            /**
+             * Count
+             * @description Number of jobs with this status
+             */
+            count: number;
+            /** @description Job status */
+            status: components["schemas"]["JobStatusEnum"];
+        };
+        /**
          * JobStatusEnum
          * @description Status of a background job.
          * @enum {string}
          */
         JobStatusEnum: "pending" | "running" | "completed" | "failed";
+        /**
+         * JobTypeCount
+         * @description Count of jobs by type.
+         * @example {
+         *       "count": 25,
+         *       "job_type": "export"
+         *     }
+         */
+        JobTypeCount: {
+            /**
+             * Count
+             * @description Number of jobs of this type
+             */
+            count: number;
+            /**
+             * Job Type
+             * @description Job type name
+             */
+            job_type: string;
+        };
         /**
          * JobTypeInfo
          * @description Information about a job type.
@@ -20787,6 +20919,10 @@ export interface operations {
                 job_type?: string | null;
                 /** @description Filter by job status */
                 status?: components["schemas"]["JobStatusEnum"] | null;
+                /** @description Maximum number of jobs to return */
+                limit?: number;
+                /** @description Number of jobs to skip (for pagination) */
+                offset?: number;
             };
             header?: never;
             path?: never;
@@ -20810,6 +20946,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_job_stats_api_jobs_stats_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobStatsResponse"];
                 };
             };
         };

@@ -9,7 +9,14 @@ import {
   VideoOff,
   WifiOff,
 } from 'lucide-react';
-import { memo, useState } from 'react';
+import { memo, useCallback, useEffect, useState } from 'react';
+
+import { useCameraStatusWebSocket } from '../../hooks/useCameraStatusWebSocket';
+
+import type {
+  CameraStatusEventPayload,
+  CameraStatusValue,
+} from '../../types/websocket-events';
 
 /**
  * Camera status information for the grid
@@ -31,6 +38,16 @@ export interface CameraGridProps {
   selectedCameraId?: string;
   onCameraClick?: (cameraId: string) => void;
   className?: string;
+  /**
+   * Enable real-time WebSocket updates for camera status (NEM-2295).
+   * When enabled, camera status changes will be reflected immediately.
+   * @default false
+   */
+  enableWebSocketUpdates?: boolean;
+  /**
+   * Callback when a camera status changes via WebSocket (NEM-2295).
+   */
+  onCameraStatusChange?: (event: CameraStatusEventPayload) => void;
 }
 
 /**
@@ -172,12 +189,22 @@ interface CameraCardProps {
   camera: CameraStatus;
   isSelected: boolean;
   onClick?: () => void;
+  /**
+   * Whether this camera recently changed status (NEM-2295).
+   * Used to show a visual indicator for real-time updates.
+   */
+  recentlyChanged?: boolean;
 }
 
 /**
  * Individual camera card component
  */
-const CameraCard = memo(function CameraCard({ camera, isSelected, onClick }: CameraCardProps) {
+const CameraCard = memo(function CameraCard({
+  camera,
+  isSelected,
+  onClick,
+  recentlyChanged = false,
+}: CameraCardProps) {
   const StatusIcon = getStatusIcon(camera.status);
   // Only attempt to load thumbnail for online or recording cameras
   // Offline/error/unknown cameras won't have accessible snapshots
@@ -196,7 +223,9 @@ const CameraCard = memo(function CameraCard({ camera, isSelected, onClick }: Cam
         'relative flex w-full flex-col overflow-hidden rounded-lg border transition-all duration-250',
         'bg-card hover:bg-gray-850 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background',
         isSelected ? 'border-primary shadow-nvidia-glow' : 'border-gray-800 hover:border-gray-700',
-        onClick && 'cursor-pointer'
+        onClick && 'cursor-pointer',
+        // NEM-2295: Visual indicator for recently changed status
+        recentlyChanged && 'ring-2 ring-yellow-500/50 ring-offset-1 ring-offset-background'
       )}
       aria-label={`Camera ${camera.name}, status: ${getStatusLabel(camera.status)}`}
       aria-pressed={isSelected}
@@ -284,6 +313,12 @@ const CameraCard = memo(function CameraCard({ camera, isSelected, onClick }: Cam
 });
 
 /**
+ * Duration in milliseconds to show the "recently changed" visual indicator.
+ * After this time, the highlight animation will fade out.
+ */
+const RECENTLY_CHANGED_DURATION_MS = 5000;
+
+/**
  * CameraGrid component displays a responsive grid of camera thumbnails
  * with status indicators and selection highlighting.
  *
@@ -295,13 +330,88 @@ const CameraCard = memo(function CameraCard({ camera, isSelected, onClick }: Cam
  * - Click handlers for camera selection
  * - Placeholder for cameras without thumbnails
  * - NVIDIA theme with dark backgrounds and subtle borders
+ * - Real-time WebSocket updates for camera status (NEM-2295)
  */
 export default function CameraGrid({
   cameras,
   selectedCameraId,
   onCameraClick,
   className,
+  enableWebSocketUpdates = false,
+  onCameraStatusChange,
 }: CameraGridProps) {
+  // Track which cameras have recently changed status (NEM-2295)
+  const [recentlyChangedCameras, setRecentlyChangedCameras] = useState<Set<string>>(new Set());
+
+  // Track status overrides from WebSocket updates
+  const [statusOverrides, setStatusOverrides] = useState<
+    Record<string, CameraStatusValue>
+  >({});
+
+  // Handle status changes from WebSocket
+  const handleCameraStatusChange = useCallback(
+    (event: CameraStatusEventPayload) => {
+      // Update status override
+      setStatusOverrides((prev) => ({
+        ...prev,
+        [event.camera_id]: event.status,
+      }));
+
+      // Mark camera as recently changed
+      setRecentlyChangedCameras((prev) => {
+        const next = new Set(prev);
+        next.add(event.camera_id);
+        return next;
+      });
+
+      // Clear the "recently changed" indicator after a delay
+      setTimeout(() => {
+        setRecentlyChangedCameras((prev) => {
+          const next = new Set(prev);
+          next.delete(event.camera_id);
+          return next;
+        });
+      }, RECENTLY_CHANGED_DURATION_MS);
+
+      // Call external callback if provided
+      onCameraStatusChange?.(event);
+    },
+    [onCameraStatusChange]
+  );
+
+  // Subscribe to camera status WebSocket events
+  // The hook manages the WebSocket connection lifecycle automatically
+  useCameraStatusWebSocket({
+    enabled: enableWebSocketUpdates,
+    onCameraStatusChange: handleCameraStatusChange,
+  });
+
+  // Merge camera props with status overrides
+  const mergedCameras = cameras.map((camera) => {
+    const override = statusOverrides[camera.id];
+    if (override) {
+      return {
+        ...camera,
+        status: override,
+      };
+    }
+    return camera;
+  });
+
+  // Clear status overrides when cameras prop changes (to avoid stale data)
+  useEffect(() => {
+    const cameraIds = new Set(cameras.map((c) => c.id));
+    setStatusOverrides((prev) => {
+      const next: Record<string, CameraStatusValue> = {};
+      for (const [id, status] of Object.entries(prev)) {
+        if (cameraIds.has(id)) {
+          next[id] = status;
+        }
+      }
+      return next;
+    });
+  }, [cameras]);
+
   if (cameras.length === 0) {
     return (
       <div
@@ -339,12 +449,13 @@ export default function CameraGrid({
       aria-label="Camera grid"
       data-testid="camera-grid"
     >
-      {cameras.map((camera) => (
+      {mergedCameras.map((camera) => (
         <CameraCard
           key={camera.id}
           camera={camera}
           isSelected={camera.id === selectedCameraId}
           onClick={onCameraClick ? () => onCameraClick(camera.id) : undefined}
+          recentlyChanged={recentlyChangedCameras.has(camera.id)}
         />
       ))}
     </div>
