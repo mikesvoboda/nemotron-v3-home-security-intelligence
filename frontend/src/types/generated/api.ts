@@ -11446,29 +11446,32 @@ export interface components {
         };
         /**
          * ExportJobStartResponse
-         * @description Response when starting an export job.
+         * @description Response when creating an export job.
+         *
+         *     Returns the job ID that can be used to track progress via
+         *     GET /api/exports/{job_id}.
          * @example {
          *       "job_id": "550e8400-e29b-41d4-a716-446655440000",
-         *       "message": "Export job created. Use GET /api/jobs/{job_id} to track progress.",
+         *       "message": "Export job created. Use GET /api/exports/{job_id} to track progress.",
          *       "status": "pending"
          *     }
          */
         ExportJobStartResponse: {
             /**
              * Job Id
-             * @description Job ID for tracking progress
+             * @description Unique job identifier for tracking progress
              */
             job_id: string;
             /**
              * Message
-             * @description Status message
+             * @description Human-readable status message
              */
             message: string;
             /**
-             * @description Initial job status
+             * @description Initial job status (always pending)
              * @default pending
              */
-            status: components["schemas"]["JobStatusEnum"];
+            status: components["schemas"]["ExportJobStatusEnum"];
         };
         /**
          * ExportJobStatusEnum
@@ -18328,32 +18331,29 @@ export interface components {
         };
         /**
          * ExportJobStartResponse
-         * @description Response when creating an export job.
-         *
-         *     Returns the job ID that can be used to track progress via
-         *     GET /api/exports/{job_id}.
+         * @description Response when starting an export job.
          * @example {
          *       "job_id": "550e8400-e29b-41d4-a716-446655440000",
-         *       "message": "Export job created. Use GET /api/exports/{job_id} to track progress.",
+         *       "message": "Export job created. Use GET /api/jobs/{job_id} to track progress.",
          *       "status": "pending"
          *     }
          */
-        backend__api__schemas__export__ExportJobStartResponse: {
+        backend__api__schemas__jobs__ExportJobStartResponse: {
             /**
              * Job Id
-             * @description Unique job identifier for tracking progress
+             * @description Job ID for tracking progress
              */
             job_id: string;
             /**
              * Message
-             * @description Human-readable status message
+             * @description Status message
              */
             message: string;
             /**
-             * @description Initial job status (always pending)
+             * @description Initial job status
              * @default pending
              */
-            status: components["schemas"]["ExportJobStatusEnum"];
+            status: components["schemas"]["JobStatusEnum"];
         };
     };
     responses: never;
@@ -22596,7 +22596,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ExportJobStartResponse"];
+                    "application/json": components["schemas"]["backend__api__schemas__jobs__ExportJobStartResponse"];
                 };
             };
             /** @description Validation Error */
@@ -23070,7 +23070,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["backend__api__schemas__export__ExportJobStartResponse"];
+                    "application/json": components["schemas"]["ExportJobStartResponse"];
                 };
             };
             /** @description Validation Error */
