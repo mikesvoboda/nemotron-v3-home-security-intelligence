@@ -103,8 +103,8 @@ afterEach(() => {
 
   // Force garbage collection if available (requires --expose-gc flag)
   // This helps prevent memory accumulation between tests
-  if (typeof globalThis.gc === 'function') {
-    globalThis.gc();
+  if (typeof (globalThis as any).gc === 'function') {
+    (globalThis as any).gc();
   }
 });
 
@@ -126,7 +126,7 @@ afterAll(() => {
   vi.unstubAllGlobals();
 
   // Force garbage collection after all tests complete
-  if (typeof globalThis.gc === 'function') {
-    globalThis.gc();
+  if (typeof (globalThis as any).gc === 'function') {
+    (globalThis as any).gc();
   }
 });
