@@ -344,7 +344,9 @@ class TestVisionExtractorIntegration:
             # Should not have vision extraction but should have error
             assert not result.has_vision_extraction
             assert len(result.errors) > 0
-            assert "Vision extraction failed" in result.errors[0]
+            # Error message may be "Vision extraction failed" or
+            # "vision_extraction failed: Unexpected error: ..."
+            assert "vision" in result.errors[0].lower() and "fail" in result.errors[0].lower()
 
 
 # =============================================================================
