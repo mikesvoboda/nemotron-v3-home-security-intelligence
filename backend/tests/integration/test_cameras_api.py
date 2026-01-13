@@ -924,7 +924,7 @@ async def test_validate_camera_paths_detects_no_images(client, integration_env, 
     # Verify the issue is reported
     invalid_cam = next(c for c in data["invalid_cameras"] if c["id"] == f"empty_camera_{unique_id}")
     assert "issues" in invalid_cam
-    assert any("no image files" in issue for issue in invalid_cam["issues"])
+    assert any("no image or video files found" in issue for issue in invalid_cam["issues"])
 
 
 @pytest.mark.asyncio
