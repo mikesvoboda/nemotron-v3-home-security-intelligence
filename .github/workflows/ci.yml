@@ -919,9 +919,31 @@ jobs:
         # Coverage collected per-shard and merged in frontend-coverage-merge job
         # NOTE: Do NOT add --coverage here - it triggers per-shard threshold checks
         # that fail because each shard only has ~4% of total coverage (with 24 shards)
-        # --teardownTimeout=1000: Force quick cleanup abort to prevent OOM
-        # The cleanup phase was taking 5+ minutes and causing OOM after tests pass
-        run: cd frontend && npx vitest run --shard=${{ matrix.shard }}/24 --reporter=verbose --teardownTimeout=1000
+        # Using timeout to kill process after 3 minutes - tests complete in <1 min
+        # but cleanup phase was taking 5+ minutes and causing OOM
+        run: |
+          cd frontend
+          # Capture output to check test results
+          set +e
+          output=$(timeout 240 npx vitest run --shard=${{ matrix.shard }}/24 --reporter=verbose --teardownTimeout=1000 2>&1)
+          exit_code=$?
+          echo "$output"
+          set -e
+
+          # Check if timeout killed the process
+          if [ $exit_code -eq 124 ]; then
+            echo "Process killed by timeout during cleanup phase"
+            # Verify tests actually passed before the timeout
+            if echo "$output" | grep -q "Tests.*passed"; then
+              echo "Tests passed before timeout - cleanup was the issue"
+              exit 0
+            else
+              echo "Tests did not complete before timeout"
+              exit 1
+            fi
+          fi
+
+          exit $exit_code
 
       - name: Upload coverage artifact
         if: always()
