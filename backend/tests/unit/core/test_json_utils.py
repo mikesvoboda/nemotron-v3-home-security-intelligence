@@ -10,9 +10,11 @@ Tests cover:
 - Unicode and special character handling
 - Multiple JSON objects extraction
 - Error recovery strategies
+- safe_json_loads() - Safe JSON parsing with error logging
 """
 
 import json
+from typing import Any
 
 import pytest
 from hypothesis import assume, given, settings
@@ -26,6 +28,7 @@ from backend.core.json_utils import (
     _fix_trailing_commas,
     extract_json_field,
     extract_json_from_llm_response,
+    safe_json_loads,
 )
 
 # Mark all tests as unit tests
@@ -1217,3 +1220,396 @@ class TestMarkdownCodeBlockVariations:
         result = extract_json_from_llm_response(response)
 
         assert "`git status`" in result["command"]
+
+
+# =============================================================================
+# Tests for safe_json_loads()
+# =============================================================================
+
+
+class TestSafeJsonLoadsHappyPath:
+    """Tests for successful JSON parsing with safe_json_loads."""
+
+    def test_simple_json_object(self) -> None:
+        """Test parsing a simple, valid JSON object."""
+        text = '{"key": "value", "number": 42}'
+        result = safe_json_loads(text)
+
+        assert result == {"key": "value", "number": 42}
+
+    def test_json_array(self) -> None:
+        """Test parsing a valid JSON array."""
+        text = '[1, 2, 3, "four"]'
+        result = safe_json_loads(text)
+
+        assert result == [1, 2, 3, "four"]
+
+    def test_nested_json(self) -> None:
+        """Test parsing nested JSON structures."""
+        text = '{"outer": {"inner": [1, 2, {"deep": true}]}}'
+        result = safe_json_loads(text)
+
+        assert result["outer"]["inner"][2]["deep"] is True
+
+    def test_json_with_null(self) -> None:
+        """Test parsing JSON with null values."""
+        text = '{"value": null}'
+        result = safe_json_loads(text)
+
+        assert result == {"value": None}
+
+    def test_json_with_boolean(self) -> None:
+        """Test parsing JSON with boolean values."""
+        text = '{"active": true, "deleted": false}'
+        result = safe_json_loads(text)
+
+        assert result["active"] is True
+        assert result["deleted"] is False
+
+    def test_empty_object(self) -> None:
+        """Test parsing an empty JSON object."""
+        text = "{}"
+        result = safe_json_loads(text)
+
+        assert result == {}
+
+    def test_empty_array(self) -> None:
+        """Test parsing an empty JSON array."""
+        text = "[]"
+        result = safe_json_loads(text)
+
+        assert result == []
+
+    def test_unicode_characters(self) -> None:
+        """Test parsing JSON with unicode characters."""
+        text = '{"message": "Hello \\u4e16\\u754c"}'
+        result = safe_json_loads(text)
+
+        assert result["message"] == "Hello \u4e16\u754c"
+
+
+class TestSafeJsonLoadsDefaultValues:
+    """Tests for default value handling in safe_json_loads."""
+
+    def test_returns_default_on_invalid_json(self) -> None:
+        """Test that default is returned when JSON is invalid."""
+        text = "not valid json {{"
+        result = safe_json_loads(text, default={})
+
+        assert result == {}
+
+    def test_returns_default_none_by_default(self) -> None:
+        """Test that None is returned by default when no default specified."""
+        text = "invalid json"
+        result = safe_json_loads(text)
+
+        assert result is None
+
+    def test_returns_custom_default_dict(self) -> None:
+        """Test returning custom dict default on failure."""
+        text = "invalid"
+        result = safe_json_loads(text, default={"status": "unknown"})
+
+        assert result == {"status": "unknown"}
+
+    def test_returns_custom_default_list(self) -> None:
+        """Test returning custom list default on failure."""
+        text = "invalid"
+        result = safe_json_loads(text, default=[])
+
+        assert result == []
+
+    def test_returns_default_on_empty_string(self) -> None:
+        """Test that default is returned for empty string."""
+        result = safe_json_loads("", default={"empty": True})
+
+        assert result == {"empty": True}
+
+    def test_returns_default_on_none(self) -> None:
+        """Test that default is returned when text is None-like."""
+        # Python's truthiness check catches empty strings
+        result = safe_json_loads("", default="fallback")
+
+        assert result == "fallback"
+
+
+class TestSafeJsonLoadsLogging:
+    """Tests for error logging in safe_json_loads."""
+
+    def test_logs_context_on_parse_failure(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Test that context is logged when JSON parsing fails."""
+        import logging
+
+        with caplog.at_level(logging.WARNING):
+            safe_json_loads("invalid json", context="AI service response")
+
+        assert "JSON parse failed" in caplog.text
+        assert len(caplog.records) == 1
+        record = caplog.records[0]
+        # Context is logged in the extra dict
+        assert getattr(record, "context", None) == "AI service response"
+
+    def test_logs_error_position(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Test that error position is logged."""
+        import logging
+
+        with caplog.at_level(logging.WARNING):
+            safe_json_loads('{"key": invalid}', context="test")
+
+        # Check that the log contains error position info
+        assert len(caplog.records) == 1
+        record = caplog.records[0]
+        assert "error_position" in record.__dict__ or hasattr(record, "error_position")
+
+    def test_logs_error_message(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Test that error message is logged."""
+        import logging
+
+        with caplog.at_level(logging.WARNING):
+            safe_json_loads('{"unclosed": "string', context="test")
+
+        assert len(caplog.records) == 1
+        record = caplog.records[0]
+        # The error_message should be in the extra dict
+        assert hasattr(record, "error_message") or "error_message" in getattr(
+            record, "__dict__", {}
+        )
+
+    def test_logs_default_context_when_not_provided(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Test that 'unspecified' is logged when no context provided."""
+        import logging
+
+        with caplog.at_level(logging.WARNING):
+            safe_json_loads("invalid")
+
+        assert len(caplog.records) == 1
+        record = caplog.records[0]
+        assert getattr(record, "context", None) == "unspecified"
+
+    def test_no_log_on_successful_parse(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Test that no warning is logged on successful parse."""
+        import logging
+
+        with caplog.at_level(logging.WARNING):
+            safe_json_loads('{"valid": true}', context="test")
+
+        assert len(caplog.records) == 0
+
+    def test_no_log_on_empty_input(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Test that no warning is logged for empty input."""
+        import logging
+
+        with caplog.at_level(logging.WARNING):
+            safe_json_loads("", default={})
+
+        # Empty input should not log a warning (it's a common case)
+        assert len(caplog.records) == 0
+
+
+class TestSafeJsonLoadsTextPreview:
+    """Tests for text preview truncation in safe_json_loads."""
+
+    def test_truncates_long_text_in_log(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Test that long text is truncated to 100 characters in preview."""
+        import logging
+
+        # Create invalid JSON that's longer than 100 characters
+        long_text = "x" * 200
+
+        with caplog.at_level(logging.WARNING):
+            safe_json_loads(long_text, context="test")
+
+        assert len(caplog.records) == 1
+        record = caplog.records[0]
+        text_preview = getattr(record, "text_preview", "")
+        assert len(text_preview) == 100
+        assert text_preview == "x" * 100
+
+    def test_preserves_short_text_in_log(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Test that short text is preserved in full."""
+        import logging
+
+        short_text = "short invalid json"
+
+        with caplog.at_level(logging.WARNING):
+            safe_json_loads(short_text, context="test")
+
+        assert len(caplog.records) == 1
+        record = caplog.records[0]
+        text_preview = getattr(record, "text_preview", "")
+        assert text_preview == short_text
+
+    def test_logs_full_text_length(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Test that full text length is logged even when truncated."""
+        import logging
+
+        long_text = "x" * 500
+
+        with caplog.at_level(logging.WARNING):
+            safe_json_loads(long_text, context="test")
+
+        assert len(caplog.records) == 1
+        record = caplog.records[0]
+        text_length = getattr(record, "text_length", 0)
+        assert text_length == 500
+
+
+class TestSafeJsonLoadsEdgeCases:
+    """Tests for edge cases in safe_json_loads."""
+
+    def test_whitespace_only_string(self) -> None:
+        """Test handling of whitespace-only string."""
+        # Whitespace-only is truthy, so it will attempt to parse
+        result = safe_json_loads("   ", default="default")
+
+        assert result == "default"
+
+    def test_json_with_leading_whitespace(self) -> None:
+        """Test parsing JSON with leading whitespace."""
+        text = '   {"key": "value"}'
+        result = safe_json_loads(text)
+
+        assert result == {"key": "value"}
+
+    def test_json_with_trailing_whitespace(self) -> None:
+        """Test parsing JSON with trailing whitespace."""
+        text = '{"key": "value"}   '
+        result = safe_json_loads(text)
+
+        assert result == {"key": "value"}
+
+    def test_numeric_json_value(self) -> None:
+        """Test parsing a bare numeric JSON value."""
+        text = "42"
+        result = safe_json_loads(text)
+
+        assert result == 42
+
+    def test_string_json_value(self) -> None:
+        """Test parsing a bare string JSON value."""
+        text = '"hello"'
+        result = safe_json_loads(text)
+
+        assert result == "hello"
+
+    def test_boolean_json_value(self) -> None:
+        """Test parsing a bare boolean JSON value."""
+        result_true = safe_json_loads("true")
+        result_false = safe_json_loads("false")
+
+        assert result_true is True
+        assert result_false is False
+
+    def test_null_json_value(self) -> None:
+        """Test parsing a bare null JSON value."""
+        result = safe_json_loads("null")
+
+        assert result is None
+
+    def test_partial_json_returns_default(self) -> None:
+        """Test that partial/truncated JSON returns default."""
+        text = '{"key": "val'
+        result = safe_json_loads(text, default={})
+
+        assert result == {}
+
+    def test_extra_data_after_json(self) -> None:
+        """Test that extra data after valid JSON causes failure."""
+        text = '{"key": "value"} extra stuff'
+        result = safe_json_loads(text, default="failed")
+
+        # Standard json.loads fails on extra data
+        assert result == "failed"
+
+
+class TestSafeJsonLoadsPropertyBased:
+    """Property-based tests for safe_json_loads using Hypothesis."""
+
+    @given(obj=json_objects(max_depth=2))
+    @settings(max_examples=50)
+    def test_valid_json_always_parses(self, obj: dict) -> None:
+        """Property: Valid JSON objects always parse successfully."""
+        json_str = json.dumps(obj)
+        result = safe_json_loads(json_str)
+        assert result == obj
+
+    @given(
+        key=st.text(min_size=1, max_size=20, alphabet=st.characters(blacklist_categories=("Cs",))),
+        value=st.integers(min_value=-1_000_000, max_value=1_000_000),
+    )
+    @settings(max_examples=25)
+    def test_preserves_integer_values(self, key: str, value: int) -> None:
+        """Property: Integer values are preserved through parsing."""
+        obj = {key: value}
+        json_str = json.dumps(obj)
+        result = safe_json_loads(json_str)
+        assert result[key] == value
+
+    @given(
+        default=st.one_of(
+            st.none(),
+            st.dictionaries(st.text(min_size=1, max_size=5), st.integers(), min_size=0, max_size=2),
+            st.lists(st.integers(), min_size=0, max_size=3),
+        )
+    )
+    @settings(max_examples=25)
+    def test_returns_exact_default_on_failure(self, default: Any) -> None:
+        """Property: Returns exact default value (not a copy) on parse failure."""
+        result = safe_json_loads("invalid json", default=default)
+        assert result is default or result == default
+
+
+class TestSafeJsonLoadsRealWorldExamples:
+    """Tests based on real-world usage patterns from the codebase."""
+
+    def test_redis_cache_value(self) -> None:
+        """Test parsing a value from Redis cache."""
+        redis_value = '{"user_id": 123, "preferences": {"theme": "dark"}}'
+        result = safe_json_loads(redis_value, default={}, context="Redis cache value")
+
+        assert result["user_id"] == 123
+        assert result["preferences"]["theme"] == "dark"
+
+    def test_detection_ids_array(self) -> None:
+        """Test parsing detection IDs from database."""
+        detection_ids = "[1, 2, 3, 4, 5]"
+        result = safe_json_loads(detection_ids, default=[], context="detection IDs")
+
+        assert result == [1, 2, 3, 4, 5]
+
+    def test_prompt_config(self) -> None:
+        """Test parsing prompt configuration."""
+        config = '{"temperature": 0.7, "max_tokens": 1024}'
+        result = safe_json_loads(config, default={}, context="prompt config")
+
+        assert result["temperature"] == 0.7
+        assert result["max_tokens"] == 1024
+
+    def test_websocket_message(self) -> None:
+        """Test parsing WebSocket message."""
+        message = '{"type": "subscribe", "channel": "events"}'
+        result = safe_json_loads(message, default=None, context="WebSocket message")
+
+        assert result["type"] == "subscribe"
+        assert result["channel"] == "events"
+
+    def test_corrupted_redis_value(self) -> None:
+        """Test handling corrupted Redis value gracefully."""
+        corrupted = '{"partial": "data", "broken'
+        result = safe_json_loads(corrupted, default={"fallback": True}, context="Redis cache")
+
+        assert result == {"fallback": True}
+
+    def test_empty_detection_ids(self) -> None:
+        """Test handling empty detection IDs field."""
+        result = safe_json_loads("", default=[], context="detection IDs")
+
+        assert result == []
+
+    def test_ai_service_error_response(self) -> None:
+        """Test parsing AI service error response."""
+        error_response = '{"error": "Model overloaded", "retry_after": 30}'
+        result = safe_json_loads(error_response, default=None, context="AI service response")
+
+        assert result["error"] == "Model overloaded"
+        assert result["retry_after"] == 30

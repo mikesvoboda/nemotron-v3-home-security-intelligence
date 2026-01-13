@@ -1610,6 +1610,9 @@ async def get_monitoring_targets(
                 # Duration is in seconds as a float string
                 scrape_duration = float(duration_str)
             except (ValueError, TypeError):
+                # Scrape duration is optional metadata - if parsing fails,
+                # we continue with None rather than failing the entire response.
+                # See: NEM-2540 for rationale
                 pass
 
         targets.append(
@@ -2950,10 +2953,12 @@ def _get_directory_stats(directory: Path) -> tuple[int, int]:
                     total_size += entry.stat().st_size
                     file_count += 1
                 except (OSError, PermissionError):
-                    # Skip files we can't access
+                    # Skip files we can't access - partial results are better than failure.
+                    # See: NEM-2540 for rationale
                     pass
     except (OSError, PermissionError):
-        # Return zeros if we can't access the directory
+        # Return zeros if we can't access the directory - caller handles empty results.
+        # See: NEM-2540 for rationale
         pass
 
     return total_size, file_count

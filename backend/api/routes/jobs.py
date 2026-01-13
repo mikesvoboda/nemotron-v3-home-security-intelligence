@@ -222,6 +222,9 @@ async def get_job_stats(
                     if duration >= 0:
                         completed_durations.append(duration)
                 except (ValueError, TypeError):
+                    # Job duration calculation is optional - malformed timestamps skip this job's
+                    # contribution to average duration stats without failing the entire response.
+                    # See: NEM-2540 for rationale
                     pass
 
         # Track oldest pending job
@@ -233,6 +236,9 @@ async def get_job_stats(
                     if oldest_pending_created_at is None or created_at < oldest_pending_created_at:
                         oldest_pending_created_at = created_at
                 except (ValueError, TypeError):
+                    # Oldest pending job tracking is optional - malformed timestamps skip this job
+                    # without failing the entire statistics response.
+                    # See: NEM-2540 for rationale
                     pass
 
     # Calculate average duration

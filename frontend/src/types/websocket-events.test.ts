@@ -29,17 +29,20 @@ describe('WebSocket Event Types', () => {
     it('should have correct number of event keys', () => {
       // NEM-2295: Added camera_status event type
       // NEM-2382: Added hierarchical event types (alert.*, camera.*, job.*, system.*)
-      // 8 legacy keys + 15 new hierarchical keys = 23 total
-      expect(WEBSOCKET_EVENT_KEYS).toHaveLength(23);
+      // NEM-2504: Added alert.resolved event type
+      // 8 legacy keys + 16 new hierarchical keys = 24 total
+      expect(WEBSOCKET_EVENT_KEYS).toHaveLength(24);
     });
 
     it('should include new hierarchical event keys', () => {
       // NEM-2382: Verify new event types
+      // NEM-2504: Added alert.resolved event type
       expect(WEBSOCKET_EVENT_KEYS).toContain('alert.created');
       expect(WEBSOCKET_EVENT_KEYS).toContain('alert.updated');
       expect(WEBSOCKET_EVENT_KEYS).toContain('alert.deleted');
       expect(WEBSOCKET_EVENT_KEYS).toContain('alert.acknowledged');
       expect(WEBSOCKET_EVENT_KEYS).toContain('alert.dismissed');
+      expect(WEBSOCKET_EVENT_KEYS).toContain('alert.resolved');
       expect(WEBSOCKET_EVENT_KEYS).toContain('camera.online');
       expect(WEBSOCKET_EVENT_KEYS).toContain('camera.offline');
       expect(WEBSOCKET_EVENT_KEYS).toContain('camera.status_changed');
@@ -66,8 +69,10 @@ describe('WebSocket Event Types', () => {
 
     it('should return true for new hierarchical event keys', () => {
       // NEM-2382: Test new event types
+      // NEM-2504: Added alert.resolved event type
       expect(isWebSocketEventKey('alert.created')).toBe(true);
       expect(isWebSocketEventKey('alert.updated')).toBe(true);
+      expect(isWebSocketEventKey('alert.resolved')).toBe(true);
       expect(isWebSocketEventKey('camera.online')).toBe(true);
       expect(isWebSocketEventKey('camera.offline')).toBe(true);
       expect(isWebSocketEventKey('job.started')).toBe(true);

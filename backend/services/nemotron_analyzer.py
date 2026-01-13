@@ -1981,8 +1981,9 @@ class NemotronAnalyzer:
             validated = LLMRiskResponse.model_validate(data)
             return validated.model_dump()
         except ValidationError:
-            # Fall back to lenient parsing with LLMRawResponse
-            # This handles malformed responses (out-of-range scores, invalid levels)
+            # Fall back to lenient parsing with LLMRawResponse.
+            # This handles malformed responses (out-of-range scores, invalid levels).
+            # See: NEM-2540 for rationale
             pass
 
         try:
@@ -2007,6 +2008,9 @@ class NemotronAnalyzer:
                     elif isinstance(score, str):
                         risk_score = max(0, min(100, int(float(score))))
                 except (ValueError, TypeError):
+                    # Risk score extraction failed - use default score.
+                    # Partial LLM response recovery is better than complete failure.
+                    # See: NEM-2540 for rationale
                     pass
 
             # Infer risk_level from score using SeverityService for consistency

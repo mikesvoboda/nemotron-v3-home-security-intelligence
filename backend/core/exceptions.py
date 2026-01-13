@@ -552,6 +552,46 @@ class CacheError(ExternalServiceError):
         super().__init__(message, service_name="redis", **kwargs)
 
 
+class CacheUnavailableError(CacheError):
+    """Raised when cache is required but Redis is unavailable.
+
+    This exception is raised when:
+    - Redis connection fails and degraded mode is not allowed
+    - Critical cache operations fail without fallback
+
+    For non-critical paths, use allow_degraded=True to get NullCache fallback.
+
+    NEM-2538: Adds graceful degradation support for cache dependencies.
+    """
+
+    default_message = "Cache service unavailable and degraded mode not allowed"
+    default_error_code = "CACHE_UNAVAILABLE"
+
+    def __init__(
+        self,
+        message: str | None = None,
+        *,
+        original_error: Exception | None = None,
+        allow_degraded: bool = False,
+        **kwargs: Any,
+    ) -> None:
+        """Initialize the error.
+
+        Args:
+            message: Human-readable error description
+            original_error: The underlying exception that caused this error
+            allow_degraded: Whether degraded mode was requested but failed anyway
+            **kwargs: Additional keyword arguments passed to parent
+        """
+        self.original_error = original_error
+        self.allow_degraded = allow_degraded
+        details = kwargs.pop("details", {}) or {}
+        details["allow_degraded"] = allow_degraded
+        if original_error:
+            details["original_error_type"] = type(original_error).__name__
+        super().__init__(message, details=details, **kwargs)
+
+
 class CircuitBreakerOpenError(ExternalServiceError):
     default_message = "Service temporarily unavailable due to repeated failures"
     default_error_code = "CIRCUIT_BREAKER_OPEN"

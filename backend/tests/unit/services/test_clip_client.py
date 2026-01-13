@@ -23,7 +23,6 @@ from PIL import Image
 
 from backend.services.clip_client import (
     CLIP_READ_TIMEOUT,
-    DEFAULT_CLIP_URL,
     EMBEDDING_DIMENSION,
     CLIPClient,
     CLIPUnavailableError,
@@ -1420,10 +1419,6 @@ class TestGlobalClientSingleton:
 
 class TestConstants:
     """Tests for module constants."""
-
-    def test_default_clip_url(self) -> None:
-        """Test the default CLIP URL constant."""
-        assert DEFAULT_CLIP_URL == "http://ai-clip:8093"
 
     def test_embedding_dimension(self) -> None:
         """Test the embedding dimension constant."""

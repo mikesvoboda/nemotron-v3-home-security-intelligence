@@ -11,6 +11,7 @@ from sqlalchemy import DateTime, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column
 
+from backend.core.json_utils import safe_json_loads
 from backend.core.time_utils import utc_now
 
 from .camera import Base
@@ -80,11 +81,12 @@ class PromptVersion(Base):
     @property
     def config(self) -> dict[str, Any]:
         """Parse config_json and return as dict."""
-        try:
-            result: dict[str, Any] = json.loads(self.config_json)
-            return result
-        except json.JSONDecodeError:
-            return {}
+        result = safe_json_loads(
+            self.config_json,
+            default={},
+            context=f"PromptVersion config (model={self.model}, version={self.version})",
+        )
+        return result if isinstance(result, dict) else {}
 
     def set_config(self, config: dict[str, Any]) -> None:
         """Set config from dict, serializing to JSON."""

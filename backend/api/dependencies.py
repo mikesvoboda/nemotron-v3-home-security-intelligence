@@ -14,6 +14,9 @@ This module provides:
 4. Service dependencies - FastAPI dependency injection functions for services,
    enabling proper DI patterns and easier testing through dependency overrides.
 
+5. NullCache and graceful degradation - NEM-2538: When Redis is unavailable,
+   non-critical paths can use NullCache as a no-op fallback.
+
 Usage (Orchestrator DI):
     from backend.api.dependencies import get_orchestrator
 
@@ -55,10 +58,23 @@ Usage (Service DI):
         cached = await cache.get("key")
         ...
 
+Usage (Cache with graceful degradation - NEM-2538):
+    from backend.api.dependencies import get_cache, NullCache
+
+    @router.get("/data")
+    async def get_data():
+        cache = await anext(get_cache(allow_degraded=True))
+        # cache will be NullCache if Redis unavailable
+        if isinstance(cache, NullCache):
+            logger.warning("Operating in degraded mode without cache")
+        cached = await cache.get("key")  # Returns None for NullCache
+        ...
+
 These patterns simplify the common patterns and enable:
 - Clean testability via FastAPI dependency_overrides
 - Proper separation of concerns
 - Consistent error handling
+- Graceful degradation when cache is unavailable (NEM-2538)
 """
 
 from __future__ import annotations
@@ -68,10 +84,14 @@ from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID
 
 from fastapi import Depends, HTTPException, Request, status
+from redis.exceptions import ConnectionError as RedisConnectionError
+from redis.exceptions import TimeoutError as RedisTimeoutError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.database import get_db
+from backend.core.exceptions import CacheUnavailableError
+from backend.core.logging import get_logger
 from backend.core.redis import RedisClient, get_redis
 from backend.models.alert import AlertRule
 from backend.models.audit import AuditLog
@@ -82,6 +102,240 @@ from backend.models.event_audit import EventAudit
 from backend.models.prompt_version import PromptVersion
 from backend.models.zone import Zone
 from backend.services.cache_service import CacheService
+
+logger = get_logger(__name__)
+
+
+# =============================================================================
+# Cache Availability Tracking (NEM-2538)
+# =============================================================================
+#
+# Module-level state to track cache availability for health checks.
+# This allows health endpoints to report degraded status without failing.
+# =============================================================================
+
+_cache_available: bool = True
+_cache_degraded_since: float | None = None
+
+
+def is_cache_available() -> bool:
+    """Check if cache is currently available.
+
+    Returns:
+        True if cache is available, False if operating in degraded mode.
+    """
+    return _cache_available
+
+
+def get_cache_degraded_since() -> float | None:
+    """Get the timestamp when cache entered degraded mode.
+
+    Returns:
+        Unix timestamp when degraded mode started, or None if cache is available.
+    """
+    return _cache_degraded_since
+
+
+def _set_cache_available(available: bool) -> None:
+    """Update cache availability state (internal use only).
+
+    Args:
+        available: Whether cache is available.
+    """
+    global _cache_available, _cache_degraded_since  # noqa: PLW0603
+    import time
+
+    if available and not _cache_available:
+        logger.info(
+            "Cache connectivity restored, exiting degraded mode",
+            extra={"degraded_duration_seconds": time.time() - (_cache_degraded_since or 0)},
+        )
+        _cache_degraded_since = None
+    elif not available and _cache_available:
+        logger.warning(
+            "Cache unavailable, entering degraded mode",
+            extra={"timestamp": time.time()},
+        )
+        _cache_degraded_since = time.time()
+
+    _cache_available = available
+
+
+# =============================================================================
+# NullCache Pattern (NEM-2538)
+# =============================================================================
+#
+# Null object pattern for cache when Redis is unavailable.
+# All operations are no-ops that return safe default values.
+# =============================================================================
+
+
+class NullCache:
+    """Null object pattern for cache when Redis is unavailable.
+
+    This class implements the same interface as RedisClient cache operations
+    but performs no-op operations. This enables graceful degradation when
+    Redis is unavailable - code can continue to function without caching.
+
+    NEM-2538: Added for graceful degradation support.
+
+    Example:
+        cache = NullCache()
+        await cache.set("key", "value")  # No-op, returns None
+        result = await cache.get("key")   # Always returns None
+        exists = await cache.exists("key")  # Always returns False
+    """
+
+    async def get(self, _key: str) -> None:
+        """Get a value from cache (always returns None).
+
+        Args:
+            _key: Cache key (ignored).
+
+        Returns:
+            Always None since cache is unavailable.
+        """
+        return None
+
+    async def set(self, _key: str, _value: Any, expire: int | None = None) -> None:
+        """Set a value in cache (no-op).
+
+        Args:
+            _key: Cache key (ignored).
+            _value: Value to store (ignored).
+            expire: Expiration time in seconds (ignored).
+        """
+        del expire  # Unused but part of interface
+
+    async def delete(self, *_keys: str) -> int:
+        """Delete keys from cache (no-op).
+
+        Args:
+            *_keys: Keys to delete (ignored).
+
+        Returns:
+            Always 0 since no keys are deleted.
+        """
+        return 0
+
+    async def exists(self, *_keys: str) -> int:
+        """Check if keys exist in cache (always returns 0).
+
+        Args:
+            *_keys: Keys to check (ignored).
+
+        Returns:
+            Always 0 since cache is unavailable.
+        """
+        return 0
+
+    async def expire(self, _key: str, _seconds: int) -> bool:
+        """Set TTL on a key (no-op).
+
+        Args:
+            _key: Key to set TTL on (ignored).
+            _seconds: TTL in seconds (ignored).
+
+        Returns:
+            Always False since key doesn't exist.
+        """
+        return False
+
+    async def health_check(self) -> dict[str, Any]:
+        """Check cache health (returns degraded status).
+
+        Returns:
+            Dictionary indicating cache is in degraded mode.
+        """
+        return {
+            "status": "degraded",
+            "connected": False,
+            "mode": "null_cache",
+            "error": "Redis unavailable, using NullCache fallback",
+        }
+
+
+# =============================================================================
+# Cache Dependency with Graceful Degradation (NEM-2538)
+# =============================================================================
+
+
+async def get_cache(
+    allow_degraded: bool = True,
+) -> AsyncGenerator[RedisClient | NullCache]:
+    """Get cache client with optional graceful degradation.
+
+    This dependency provides a cache client that can gracefully degrade
+    to a NullCache when Redis is unavailable. Use allow_degraded=True
+    for non-critical paths where caching is optional.
+
+    Args:
+        allow_degraded: If True, returns NullCache when Redis is unavailable.
+            If False, raises CacheUnavailableError when Redis is unavailable.
+            Default is True for backward compatibility.
+
+    Yields:
+        RedisClient if connected, or NullCache if Redis unavailable and
+        allow_degraded=True.
+
+    Raises:
+        CacheUnavailableError: If Redis is unavailable and allow_degraded=False.
+
+    Example (non-critical path - allow degradation)::
+
+        @router.get("/data")
+        async def get_data(
+            cache: RedisClient | NullCache = Depends(lambda: get_cache(allow_degraded=True))
+        ):
+            # Will use NullCache if Redis unavailable
+            cached = await cache.get("key")
+
+    Example (critical path - require cache)::
+
+        @router.post("/critical")
+        async def critical_operation(
+            cache: RedisClient = Depends(lambda: get_cache(allow_degraded=False))
+        ):
+            # Will raise CacheUnavailableError if Redis unavailable
+            await cache.set("lock", "1", expire=60)
+    """
+    try:
+        # Try to get Redis client via the existing dependency
+        async for redis_client in get_redis():
+            # Test connectivity
+            await redis_client.health_check()
+            _set_cache_available(True)
+            yield redis_client
+            return
+    except (RedisConnectionError, RedisTimeoutError, RuntimeError) as e:
+        _set_cache_available(False)
+
+        if allow_degraded:
+            logger.warning(
+                "Redis unavailable, using NullCache fallback",
+                extra={
+                    "error_type": type(e).__name__,
+                    "error_message": str(e),
+                    "allow_degraded": allow_degraded,
+                },
+            )
+            yield NullCache()
+            return
+        else:
+            logger.error(
+                "Redis unavailable and degraded mode not allowed",
+                extra={
+                    "error_type": type(e).__name__,
+                    "error_message": str(e),
+                    "allow_degraded": allow_degraded,
+                },
+            )
+            raise CacheUnavailableError(
+                "Cache service unavailable and degraded mode not allowed",
+                original_error=e,
+                allow_degraded=allow_degraded,
+            ) from e
+
 
 if TYPE_CHECKING:
     from backend.services.alert_engine import AlertRuleEngine

@@ -718,8 +718,10 @@ def _get_local_ips() -> list[str]:
                 ip = str(sockaddr[0])
                 if ip not in local_ips and not ip.startswith("127."):
                     local_ips.append(ip)
-        except Exception:  # noqa: S110
-            # Network interface lookup failed - non-critical, continue with other interfaces
+        except Exception:  # noqa: S110 - Intentional: non-critical network interface lookup
+            # Network interface lookup failed - non-critical, continue with other interfaces.
+            # Local IP discovery is best-effort; missing IPs won't break TLS functionality.
+            # See: NEM-2540 for rationale
             pass
 
     except Exception as e:

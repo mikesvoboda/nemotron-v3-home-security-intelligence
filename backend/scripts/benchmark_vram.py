@@ -165,7 +165,10 @@ def clear_gpu_cache() -> None:
             torch.cuda.empty_cache()
             torch.cuda.synchronize()
     except ImportError:
-        pass  # torch not installed, skip CUDA cleanup
+        # torch not installed - no CUDA cache to clear.
+        # Benchmark continues without CUDA cleanup.
+        # See: NEM-2540 for rationale
+        pass
 
 
 async def benchmark_model(

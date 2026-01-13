@@ -133,17 +133,16 @@ class FlorenceClient:
 
         Args:
             base_url: Optional base URL for the Florence service.
-                     Defaults to FLORENCE_URL setting or http://ai-florence:8092
+                     Defaults to settings.florence_url (http://localhost:8092 by default).
         """
         settings = get_settings()
 
-        # Use provided URL, or settings, or default
+        # Use provided URL or get from settings (which has default configured)
         if base_url is not None:
             self._base_url = base_url.rstrip("/")
         else:
-            # Check for FLORENCE_URL in settings (we'll add this later if needed)
-            # For now, use the default service URL
-            self._base_url = getattr(settings, "florence_url", DEFAULT_FLORENCE_URL).rstrip("/")
+            # Use florence_url from settings (configured in config.py with proper default)
+            self._base_url = settings.florence_url.rstrip("/")
 
         # Use httpx.Timeout for proper timeout configuration
         self._timeout = httpx.Timeout(
