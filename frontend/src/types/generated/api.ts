@@ -177,17 +177,53 @@ export interface paths {
          * Trigger Batch Audit
          * @description Trigger batch audit processing for multiple events.
          *
-         *     Queues events for audit processing based on the provided criteria.
-         *     Events are processed asynchronously.
+         *     This endpoint returns immediately with a job ID that can be used to
+         *     track progress via GET /api/ai-audit/batch/{job_id}. Events are
+         *     processed asynchronously in the background.
          *
          *     Args:
          *         request: Batch audit request with filtering criteria
+         *         background_tasks: FastAPI background tasks
          *         db: Database session
+         *         job_tracker: Job tracker for progress tracking
          *
          *     Returns:
-         *         BatchAuditResponse with number of queued events
+         *         BatchAuditJobResponse with job ID for tracking progress
          */
         post: operations["trigger_batch_audit_api_ai_audit_batch_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai-audit/batch/{job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Batch Audit Status
+         * @description Get the status of a batch audit job.
+         *
+         *     Provides progress information for an ongoing or completed batch audit,
+         *     including the number of events processed and any errors.
+         *
+         *     Args:
+         *         job_id: The job ID returned by trigger_batch_audit
+         *         job_tracker: Job tracker for retrieving job status
+         *
+         *     Returns:
+         *         BatchAuditJobStatusResponse with current progress
+         *
+         *     Raises:
+         *         HTTPException: 404 if job not found
+         */
+        get: operations["get_batch_audit_status_api_ai_audit_batch__job_id__get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2385,6 +2421,7 @@ export interface paths {
          *     - Per-class avg confidence, then combined using weighted average formula
          *
          *     Args:
+         *         camera_id: Optional camera ID filter (for camera-specific stats)
          *         db: Database session
          *
          *     Returns:
@@ -3227,6 +3264,7 @@ export interface paths {
          *     Args:
          *         start_date: Optional start date for date range filter
          *         end_date: Optional end date for date range filter
+         *         camera_id: Optional camera ID filter (for camera-specific stats)
          *         db: Database session
          *         cache: Cache service injected via FastAPI DI
          *
@@ -5049,6 +5087,77 @@ export interface paths {
          *         HTTPException: 404 if model not found in registry
          */
         get: operations["get_model_api_system_models__model_name__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/system/monitoring/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Monitoring Health
+         * @description Get comprehensive monitoring stack health status.
+         *
+         *     Checks the health of the monitoring infrastructure including:
+         *     - Prometheus server reachability
+         *     - Scrape target status (UP/DOWN counts by job)
+         *     - Exporter status (redis-exporter, json-exporter, blackbox-exporter)
+         *     - Metrics collection status
+         *
+         *     This endpoint provides operators with a quick view of monitoring
+         *     stack health without needing to access the Prometheus UI directly.
+         *
+         *     Returns:
+         *         MonitoringHealthResponse with full monitoring stack status.
+         *         The 'healthy' field is True if Prometheus is reachable and
+         *         the majority of critical targets are up.
+         */
+        get: operations["get_monitoring_health_api_system_monitoring_health_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/system/monitoring/targets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Monitoring Targets
+         * @description Get detailed status of all Prometheus scrape targets.
+         *
+         *     Returns complete information about every target Prometheus is
+         *     configured to scrape, including:
+         *     - Job and instance identifiers
+         *     - Health status (up/down)
+         *     - All labels associated with the target
+         *     - Last scrape timestamp and duration
+         *     - Any scrape errors
+         *
+         *     This endpoint is useful for debugging specific target issues
+         *     or getting a comprehensive view of all monitored endpoints.
+         *
+         *     Returns:
+         *         MonitoringTargetsResponse with detailed target information.
+         *
+         *     Raises:
+         *         HTTPException: 503 if Prometheus is unreachable
+         */
+        get: operations["get_monitoring_targets_api_system_monitoring_targets_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -6959,6 +7068,118 @@ export interface components {
             idle_timeout_seconds: number;
         };
         /**
+         * BatchAuditJobResponse
+         * @description Response for async batch audit job creation.
+         *
+         *     Returned immediately when triggering a batch audit, containing
+         *     the job ID for progress tracking via GET /api/ai-audit/batch/{job_id}.
+         * @example {
+         *       "job_id": "550e8400-e29b-41d4-a716-446655440000",
+         *       "message": "Batch audit job created. Use GET /api/ai-audit/batch/550e8400-e29b-41d4-a716-446655440000 to track progress.",
+         *       "status": "pending",
+         *       "total_events": 75
+         *     }
+         */
+        BatchAuditJobResponse: {
+            /**
+             * Job Id
+             * @description Unique job ID for tracking progress
+             */
+            job_id: string;
+            /**
+             * Message
+             * @description Human-readable status message
+             */
+            message: string;
+            /**
+             * Status
+             * @description Initial job status (pending)
+             */
+            status: string;
+            /**
+             * Total Events
+             * @description Number of events queued for processing
+             */
+            total_events: number;
+        };
+        /**
+         * BatchAuditJobStatusResponse
+         * @description Response for batch audit job status query.
+         *
+         *     Provides detailed progress information for an ongoing or completed
+         *     batch audit job.
+         * @example {
+         *       "created_at": "2026-01-03T10:30:00Z",
+         *       "failed_events": 2,
+         *       "job_id": "550e8400-e29b-41d4-a716-446655440000",
+         *       "message": "Processing event 45 of 100",
+         *       "processed_events": 45,
+         *       "progress": 45,
+         *       "started_at": "2026-01-03T10:30:01Z",
+         *       "status": "running",
+         *       "total_events": 100
+         *     }
+         */
+        BatchAuditJobStatusResponse: {
+            /**
+             * Completed At
+             * @description When processing completed
+             */
+            completed_at?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             * @description When the job was created
+             */
+            created_at: string;
+            /**
+             * Error
+             * @description Error message if job failed
+             */
+            error?: string | null;
+            /**
+             * Failed Events
+             * @description Events that failed processing
+             * @default 0
+             */
+            failed_events: number;
+            /**
+             * Job Id
+             * @description Unique job ID
+             */
+            job_id: string;
+            /**
+             * Message
+             * @description Current status message
+             */
+            message?: string | null;
+            /**
+             * Processed Events
+             * @description Events successfully processed
+             */
+            processed_events: number;
+            /**
+             * Progress
+             * @description Progress percentage (0-100)
+             */
+            progress: number;
+            /**
+             * Started At
+             * @description When processing started
+             */
+            started_at?: string | null;
+            /**
+             * Status
+             * @description Current job status (pending, running, completed, failed)
+             */
+            status: string;
+            /**
+             * Total Events
+             * @description Total events to process
+             */
+            total_events: number;
+        };
+        /**
          * BatchAuditRequest
          * @description Request for batch audit processing.
          * @example {
@@ -6980,20 +7201,6 @@ export interface components {
             limit: number;
             /** Min Risk Score */
             min_risk_score?: number | null;
-        };
-        /**
-         * BatchAuditResponse
-         * @description Response for batch audit request.
-         * @example {
-         *       "message": "Queued 75 events for audit processing",
-         *       "queued_count": 75
-         *     }
-         */
-        BatchAuditResponse: {
-            /** Message */
-            message: string;
-            /** Queued Count */
-            queued_count: number;
         };
         /**
          * BatchInfoResponse
@@ -11493,6 +11700,49 @@ export interface components {
          */
         ExportTypeEnum: "events" | "alerts" | "full_backup";
         /**
+         * ExporterStatus
+         * @description Status information for a single Prometheus exporter.
+         *
+         *     Represents the health status of an exporter that provides metrics
+         *     to Prometheus (e.g., redis-exporter, json-exporter, blackbox-exporter).
+         * @example {
+         *       "endpoint": "http://redis-exporter:9121",
+         *       "last_scrape": "2026-01-13T10:30:00Z",
+         *       "name": "redis-exporter",
+         *       "status": "up"
+         *     }
+         */
+        ExporterStatus: {
+            /**
+             * Endpoint
+             * @description Scrape endpoint URL for this exporter
+             */
+            endpoint?: string | null;
+            /**
+             * Error
+             * @description Error message if exporter is down
+             */
+            error?: string | null;
+            /**
+             * Last Scrape
+             * @description Timestamp of last successful scrape (if available)
+             */
+            last_scrape?: string | null;
+            /**
+             * Name
+             * @description Exporter name (e.g., 'redis-exporter', 'json-exporter')
+             */
+            name: string;
+            /** @description Current status: up, down, or unknown */
+            status: components["schemas"]["ExporterStatusEnum"];
+        };
+        /**
+         * ExporterStatusEnum
+         * @description Exporter status states.
+         * @enum {string}
+         */
+        ExporterStatusEnum: "up" | "down" | "unknown";
+        /**
          * FaceEnrichment
          * @description Face detection results.
          * @example {
@@ -13026,6 +13276,45 @@ export interface components {
          */
         JobStatusEnum: "pending" | "running" | "completed" | "failed";
         /**
+         * JobTargetSummary
+         * @description Summary of target health for a specific Prometheus job.
+         * @example {
+         *       "down": 0,
+         *       "job": "hsi-backend-metrics",
+         *       "total": 1,
+         *       "unknown": 0,
+         *       "up": 1
+         *     }
+         */
+        JobTargetSummary: {
+            /**
+             * Down
+             * @description Number of targets that are down
+             */
+            down: number;
+            /**
+             * Job
+             * @description Prometheus job name
+             */
+            job: string;
+            /**
+             * Total
+             * @description Total number of targets in this job
+             */
+            total: number;
+            /**
+             * Unknown
+             * @description Number of targets with unknown status
+             * @default 0
+             */
+            unknown: number;
+            /**
+             * Up
+             * @description Number of targets that are up
+             */
+            up: number;
+        };
+        /**
          * JobTiming
          * @description Timing information for a job.
          *
@@ -13526,6 +13815,39 @@ export interface components {
             path: string;
         };
         /**
+         * MetricsCollectionStatus
+         * @description Status of metrics collection from Prometheus.
+         * @example {
+         *       "collecting": true,
+         *       "last_successful_scrape": "2026-01-13T10:30:00Z",
+         *       "scrape_interval_seconds": 15,
+         *       "total_series": 15000
+         *     }
+         */
+        MetricsCollectionStatus: {
+            /**
+             * Collecting
+             * @description Whether Prometheus is actively collecting metrics
+             */
+            collecting: boolean;
+            /**
+             * Last Successful Scrape
+             * @description Timestamp of most recent successful scrape across all targets
+             */
+            last_successful_scrape?: string | null;
+            /**
+             * Scrape Interval Seconds
+             * @description Configured global scrape interval in seconds
+             * @default 15
+             */
+            scrape_interval_seconds: number;
+            /**
+             * Total Series
+             * @description Total number of time series in Prometheus (if available)
+             */
+            total_series?: number | null;
+        };
+        /**
          * ModelContributions
          * @description Model contribution flags.
          * @example {
@@ -14001,6 +14323,179 @@ export interface components {
              * @description Currently used VRAM
              */
             vram_used_mb: number;
+        };
+        /**
+         * MonitoringHealthResponse
+         * @description Response schema for monitoring stack health endpoint.
+         *
+         *     Provides comprehensive health status of the monitoring infrastructure:
+         *     - Prometheus server reachability and status
+         *     - Scrape target health summary by job
+         *     - Exporter status (redis-exporter, json-exporter, blackbox-exporter)
+         *     - Metrics collection status
+         *
+         *     This endpoint helps operators quickly identify issues with the
+         *     monitoring stack without accessing Prometheus UI directly.
+         * @example {
+         *       "exporters": [
+         *         {
+         *           "endpoint": "http://redis-exporter:9121",
+         *           "last_scrape": "2026-01-13T10:30:00Z",
+         *           "name": "redis-exporter",
+         *           "status": "up"
+         *         },
+         *         {
+         *           "endpoint": "http://json-exporter:7979",
+         *           "last_scrape": "2026-01-13T10:30:00Z",
+         *           "name": "json-exporter",
+         *           "status": "up"
+         *         }
+         *       ],
+         *       "healthy": true,
+         *       "issues": [],
+         *       "metrics_collection": {
+         *         "collecting": true,
+         *         "last_successful_scrape": "2026-01-13T10:30:00Z",
+         *         "scrape_interval_seconds": 15,
+         *         "total_series": 15000
+         *       },
+         *       "prometheus_reachable": true,
+         *       "prometheus_url": "http://prometheus:9090",
+         *       "targets_summary": [
+         *         {
+         *           "down": 0,
+         *           "job": "hsi-backend-metrics",
+         *           "total": 1,
+         *           "unknown": 0,
+         *           "up": 1
+         *         },
+         *         {
+         *           "down": 0,
+         *           "job": "redis",
+         *           "total": 1,
+         *           "unknown": 0,
+         *           "up": 1
+         *         },
+         *         {
+         *           "down": 0,
+         *           "job": "blackbox-http-health",
+         *           "total": 1,
+         *           "unknown": 0,
+         *           "up": 1
+         *         }
+         *       ],
+         *       "timestamp": "2026-01-13T10:30:00Z"
+         *     }
+         */
+        MonitoringHealthResponse: {
+            /**
+             * Exporters
+             * @description Status of known exporters
+             */
+            exporters: components["schemas"]["ExporterStatus"][];
+            /**
+             * Healthy
+             * @description Overall monitoring stack health: True if Prometheus reachable and majority of targets up
+             */
+            healthy: boolean;
+            /**
+             * Issues
+             * @description List of identified issues with the monitoring stack
+             */
+            issues?: string[];
+            /** @description Metrics collection status */
+            metrics_collection: components["schemas"]["MetricsCollectionStatus"];
+            /**
+             * Prometheus Reachable
+             * @description Whether Prometheus server is reachable
+             */
+            prometheus_reachable: boolean;
+            /**
+             * Prometheus Url
+             * @description Configured Prometheus server URL
+             */
+            prometheus_url: string;
+            /**
+             * Targets Summary
+             * @description Summary of target health by job
+             */
+            targets_summary: components["schemas"]["JobTargetSummary"][];
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description Timestamp of health check
+             */
+            timestamp: string;
+        };
+        /**
+         * MonitoringTargetsResponse
+         * @description Response schema for detailed monitoring targets endpoint.
+         *
+         *     Returns complete information about all Prometheus scrape targets
+         *     including their health status, labels, and scrape timing.
+         * @example {
+         *       "down": 0,
+         *       "jobs": [
+         *         "hsi-backend-metrics",
+         *         "redis"
+         *       ],
+         *       "targets": [
+         *         {
+         *           "health": "up",
+         *           "instance": "backend:8000",
+         *           "job": "hsi-backend-metrics",
+         *           "labels": {
+         *             "service": "home-security-intelligence"
+         *           },
+         *           "last_scrape": "2026-01-13T10:30:00Z",
+         *           "scrape_duration_seconds": 0.025
+         *         },
+         *         {
+         *           "health": "up",
+         *           "instance": "redis-exporter:9121",
+         *           "job": "redis",
+         *           "labels": {},
+         *           "last_scrape": "2026-01-13T10:30:00Z",
+         *           "scrape_duration_seconds": 0.015
+         *         }
+         *       ],
+         *       "timestamp": "2026-01-13T10:30:00Z",
+         *       "total": 2,
+         *       "up": 2
+         *     }
+         */
+        MonitoringTargetsResponse: {
+            /**
+             * Down
+             * @description Number of targets that are down
+             */
+            down: number;
+            /**
+             * Jobs
+             * @description List of unique job names
+             */
+            jobs: string[];
+            /**
+             * Targets
+             * @description Detailed status of all scrape targets
+             */
+            targets: components["schemas"]["TargetHealth"][];
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description Timestamp of targets query
+             */
+            timestamp: string;
+            /**
+             * Total
+             * @description Total number of targets
+             */
+            total: number;
+            /**
+             * Up
+             * @description Number of targets that are up
+             */
+            up: number;
         };
         /**
          * NemotronMetrics
@@ -17553,6 +18048,59 @@ export interface components {
             uptime_seconds: number;
         };
         /**
+         * TargetHealth
+         * @description Health status for a single Prometheus scrape target.
+         * @example {
+         *       "health": "up",
+         *       "instance": "backend:8000",
+         *       "job": "hsi-backend-metrics",
+         *       "labels": {
+         *         "service": "home-security-intelligence"
+         *       },
+         *       "last_scrape": "2026-01-13T10:30:00Z",
+         *       "scrape_duration_seconds": 0.025
+         *     }
+         */
+        TargetHealth: {
+            /**
+             * Health
+             * @description Target health: 'up' or 'down'
+             */
+            health: string;
+            /**
+             * Instance
+             * @description Target instance identifier (typically host:port)
+             */
+            instance: string;
+            /**
+             * Job
+             * @description Job name this target belongs to
+             */
+            job: string;
+            /**
+             * Labels
+             * @description Labels associated with this target
+             */
+            labels?: {
+                [key: string]: string;
+            };
+            /**
+             * Last Error
+             * @description Error from last failed scrape (if any)
+             */
+            last_error?: string | null;
+            /**
+             * Last Scrape
+             * @description Timestamp of last scrape attempt
+             */
+            last_scrape?: string | null;
+            /**
+             * Scrape Duration Seconds
+             * @description Duration of last scrape in seconds
+             */
+            scrape_duration_seconds?: number | null;
+        };
+        /**
          * TelemetryResponse
          * @description Response schema for pipeline telemetry endpoint.
          *
@@ -18612,14 +19160,57 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Batch audit job created successfully */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BatchAuditJobResponse"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_batch_audit_status_api_ai_audit_batch__job_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
             /** @description Successful Response */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BatchAuditResponse"];
+                    "application/json": components["schemas"]["BatchAuditJobStatusResponse"];
                 };
+            };
+            /** @description Job not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation error */
             422: {
@@ -21564,7 +22155,10 @@ export interface operations {
     };
     get_detection_stats_api_detections_stats_get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Filter by camera ID */
+                camera_id?: string | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -21578,6 +22172,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DetectionStatsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -22648,6 +23251,8 @@ export interface operations {
                 start_date?: string | null;
                 /** @description Filter by end date (ISO format) */
                 end_date?: string | null;
+                /** @description Filter by camera ID */
+                camera_id?: string | null;
             };
             header?: never;
             path?: never;
@@ -25197,6 +25802,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_monitoring_health_api_system_monitoring_health_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MonitoringHealthResponse"];
+                };
+            };
+        };
+    };
+    get_monitoring_targets_api_system_monitoring_targets_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MonitoringTargetsResponse"];
                 };
             };
         };

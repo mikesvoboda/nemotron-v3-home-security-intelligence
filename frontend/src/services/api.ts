@@ -1487,6 +1487,7 @@ export async function fetchEvent(id: number): Promise<Event> {
 export interface EventStatsQueryParams {
   start_date?: string;
   end_date?: string;
+  camera_id?: string;
 }
 
 export async function fetchEventStats(
@@ -1497,6 +1498,7 @@ export async function fetchEventStats(
   if (params) {
     if (params.start_date) queryParams.append('start_date', params.start_date);
     if (params.end_date) queryParams.append('end_date', params.end_date);
+    if (params.camera_id) queryParams.append('camera_id', params.camera_id);
   }
 
   const queryString = queryParams.toString();
@@ -1699,16 +1701,32 @@ export interface DetectionStatsResponse {
   average_confidence: number | null;
 }
 
+export interface DetectionStatsQueryParams {
+  camera_id?: string;
+}
+
 /**
  * Fetch detection statistics including class distribution.
  *
  * Returns aggregate statistics about detections including counts by object class.
  * Used by the AI Performance page to display detection class distribution charts.
  *
+ * @param params Optional query parameters including camera_id filter
  * @returns DetectionStatsResponse with detection statistics
  */
-export async function fetchDetectionStats(): Promise<DetectionStatsResponse> {
-  return fetchApi<DetectionStatsResponse>('/api/detections/stats');
+export async function fetchDetectionStats(
+  params?: DetectionStatsQueryParams
+): Promise<DetectionStatsResponse> {
+  const queryParams = new URLSearchParams();
+
+  if (params?.camera_id) {
+    queryParams.append('camera_id', params.camera_id);
+  }
+
+  const queryString = queryParams.toString();
+  const endpoint = queryString ? `/api/detections/stats?${queryString}` : '/api/detections/stats';
+
+  return fetchApi<DetectionStatsResponse>(endpoint);
 }
 
 // ============================================================================

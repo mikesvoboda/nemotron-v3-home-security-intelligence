@@ -435,7 +435,7 @@ restart_backend_with_internal_urls() {
         --name "$frontend_name" \
         --network "$network_name" \
         --network-alias frontend \
-        -p "${FRONTEND_PORT:-5173}:80" \
+        -p "${FRONTEND_PORT:-5173}:8080" \
         --restart unless-stopped \
         "ghcr.io/${GHCR_OWNER:-mikesvoboda}/${GHCR_REPO:-nemotron-v3-home-security-intelligence}/frontend:${IMAGE_TAG:-latest}"
     print_success "Frontend started"

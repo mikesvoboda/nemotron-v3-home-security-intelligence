@@ -8,7 +8,26 @@ This migration creates the entities table for person/object re-identification tr
 The table stores unique entities (persons, vehicles, animals, etc.) that can be tracked
 across multiple cameras over time using embedding vectors.
 
-Related Linear issue: NEM-2210
+IMPORTANT: No FK constraint on primary_detection_id
+============================================
+The primary_detection_id column does NOT have a foreign key constraint to detections.id.
+This is intentional because:
+
+1. The detections table is partitioned by detected_at with a composite primary key
+   (id, detected_at). PostgreSQL does not support FK constraints that reference only
+   part of a composite key on partitioned tables.
+
+2. Referential integrity is enforced at the application level in the Entity model
+   via the validate_primary_detection() method.
+
+3. The relationship is optional and used primarily for display purposes (showing
+   the best thumbnail for an entity), so strict database-level enforcement is not
+   critical.
+
+See docs/decisions/entity-detection-referential-integrity.md
+for the full architectural decision record.
+
+Related Linear issue: NEM-2210, NEM-2431
 """
 
 from collections.abc import Sequence
@@ -33,8 +52,14 @@ def upgrade() -> None:
     - B-tree indexes for common query patterns
     - GIN index on metadata JSONB for flexible attribute queries
     - CHECK constraints for entity_type and detection_count
+
+    Note: primary_detection_id has no FK constraint due to detections being a
+    partitioned table. See migration docstring and ADR-0012 for details.
     """
     # Create the entities table
+    # NOTE: No FK constraint on primary_detection_id because detections is partitioned
+    # by detected_at with composite PK (id, detected_at). PostgreSQL doesn't support
+    # FK references to partial keys on partitioned tables.
     op.create_table(
         "entities",
         sa.Column("id", UUID(as_uuid=True), primary_key=True),
@@ -64,13 +89,8 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("entity_metadata", JSONB, nullable=True),
+        # No ForeignKeyConstraint here - see migration docstring for explanation
         sa.Column("primary_detection_id", sa.Integer(), nullable=True),
-        sa.ForeignKeyConstraint(
-            ["primary_detection_id"],
-            ["detections.id"],
-            name="fk_entities_primary_detection_id",
-            ondelete="SET NULL",
-        ),
         sa.PrimaryKeyConstraint("id"),
         # CHECK constraint for valid entity types
         sa.CheckConstraint(
@@ -82,6 +102,15 @@ def upgrade() -> None:
             "detection_count >= 0",
             name="ck_entities_detection_count",
         ),
+    )
+
+    # Create index on primary_detection_id for efficient lookups when joining
+    # with detections table (even without FK, we still need efficient queries)
+    op.create_index(
+        "idx_entities_primary_detection_id",
+        "entities",
+        ["primary_detection_id"],
+        postgresql_where=sa.text("primary_detection_id IS NOT NULL"),
     )
 
     # Create B-tree indexes for common query patterns
@@ -120,6 +149,7 @@ def downgrade() -> None:
     op.drop_index("idx_entities_last_seen_at", table_name="entities")
     op.drop_index("idx_entities_first_seen_at", table_name="entities")
     op.drop_index("idx_entities_entity_type", table_name="entities")
+    op.drop_index("idx_entities_primary_detection_id", table_name="entities")
 
     # Drop the table
     op.drop_table("entities")

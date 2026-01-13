@@ -1154,7 +1154,7 @@ class TestParametrized:
         self, client: TestClient, days: int, expected_status: int
     ) -> None:
         """Test various days parameter values for stats endpoint."""
-        if expected_status == 200:
+        if expected_status == 202:
             mock_stats = {
                 "total_events": 0,
                 "audited_events": 0,
@@ -1179,9 +1179,9 @@ class TestParametrized:
     @pytest.mark.parametrize(
         "limit,expected_status",
         [
-            (1, 200),
-            (100, 200),
-            (1000, 200),
+            (1, 202),
+            (100, 202),
+            (1000, 202),
             (0, 422),
             (-1, 422),
             (1001, 422),
@@ -1195,7 +1195,7 @@ class TestParametrized:
         expected_status: int,
     ) -> None:
         """Test various limit parameter values for batch endpoint."""
-        if expected_status == 200:
+        if expected_status == 202:
             mock_result = MagicMock()
             mock_result.scalars.return_value.all.return_value = []
             mock_db_session.execute.return_value = mock_result
@@ -1216,12 +1216,12 @@ class TestParametrized:
     @pytest.mark.parametrize(
         "min_risk_score,expected_status",
         [
-            (0, 200),
-            (50, 200),
-            (100, 200),
+            (0, 202),
+            (50, 202),
+            (100, 202),
             (-1, 422),
             (101, 422),
-            (None, 200),
+            (None, 202),
         ],
     )
     def test_batch_min_risk_score_values(
@@ -1232,7 +1232,7 @@ class TestParametrized:
         expected_status: int,
     ) -> None:
         """Test various min_risk_score parameter values for batch endpoint."""
-        if expected_status == 200:
+        if expected_status == 202:
             mock_result = MagicMock()
             mock_result.scalars.return_value.all.return_value = []
             mock_db_session.execute.return_value = mock_result

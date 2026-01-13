@@ -124,15 +124,18 @@ services:
   frontend:
     image: ghcr.io/${GHCR_OWNER:-mikesvoboda}/${GHCR_REPO:-nemotron-v3-home-security-intelligence}/frontend:${IMAGE_TAG:-latest}
     ports:
-      - '${FRONTEND_PORT:-5173}:80'
-    environment:
-      - VITE_API_BASE_URL=${VITE_API_BASE_URL:-http://localhost:8000}
-      - VITE_WS_BASE_URL=${VITE_WS_BASE_URL:-ws://localhost:8000}
+      # Map external port to internal 8080 (nginx-unprivileged runs on 8080)
+      - '${FRONTEND_PORT:-5173}:8080'
+    # NOTE: VITE_* environment variables are NOT used at runtime.
+    # Vite bakes these values at build time. The frontend uses relative URLs
+    # (empty BASE_URL), and nginx proxies /api and /ws to the backend.
+    # See frontend/nginx.conf for proxy configuration.
     depends_on:
       backend:
         condition: service_healthy
     healthcheck:
-      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:80']
+      # nginx-unprivileged listens on port 8080
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:8080']
       interval: 30s
       timeout: 10s
       retries: 3

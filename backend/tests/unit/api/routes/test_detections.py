@@ -824,6 +824,40 @@ class TestGetDetectionStats:
         assert result.detections_by_class == {}
         assert result.average_confidence is None
 
+    @pytest.mark.asyncio
+    async def test_get_stats_with_camera_id_filter(self, mock_db_session):
+        """Test getting stats with camera_id filter (NEM-2434).
+
+        When camera_id is provided, stats should be filtered to that camera only.
+        """
+        # Mock query result with filtered class distribution
+        mock_row1 = MagicMock()
+        mock_row1.object_type = "person"
+        mock_row1.class_count = 25  # Filtered subset
+        mock_row1.class_avg_confidence = 0.92
+        mock_row1.total_count = 40
+        mock_row1.avg_confidence = 0.88
+
+        mock_row2 = MagicMock()
+        mock_row2.object_type = "car"
+        mock_row2.class_count = 15
+        mock_row2.class_avg_confidence = 0.85
+        mock_row2.total_count = 40
+        mock_row2.avg_confidence = 0.88
+
+        mock_result = MagicMock()
+        mock_result.all.return_value = [mock_row1, mock_row2]
+
+        mock_db_session.execute.return_value = mock_result
+
+        result = await get_detection_stats(camera_id="cam1", db=mock_db_session)
+
+        # Should return filtered stats
+        assert result.total_detections == 40
+        assert result.detections_by_class["person"] == 25
+        assert result.detections_by_class["car"] == 15
+        assert result.average_confidence == 0.88
+
 
 class TestGetDetection:
     """Tests for get_detection endpoint."""
