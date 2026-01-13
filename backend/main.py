@@ -420,8 +420,11 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:  # noqa: PLR0912 - Co
         - Kubernetes: SIGTERM sent on pod termination (30s default grace period)
         - The application should complete shutdown within the grace period
     """
+    from backend.core.logging import get_logger
+
     # Initialize logging first (before any other initialization)
     setup_logging()
+    lifespan_logger = get_logger(__name__)
 
     # Install signal handlers for graceful shutdown (SIGTERM/SIGINT)
     # This must be done early, after the event loop is running
@@ -436,8 +439,8 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:  # noqa: PLR0912 - Co
     log_config_summary(config_result)
     if not config_result.valid:
         # Log critical errors but don't fail startup - let individual services fail gracefully
-        print(
-            f"WARNING: Configuration validation found {len(config_result.errors)} error(s). "
+        lifespan_logger.warning(
+            f"Configuration validation found {len(config_result.errors)} error(s). "
             "Check logs for details."
         )
 
@@ -445,7 +448,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:  # noqa: PLR0912 - Co
     # Must be done early, before other services are initialized
     otel_initialized = setup_telemetry(_app, settings)
     if otel_initialized:
-        print(
+        lifespan_logger.info(
             f"OpenTelemetry tracing enabled: {settings.otel_service_name} -> "
             f"{settings.otel_exporter_otlp_endpoint}"
         )
@@ -453,10 +456,10 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:  # noqa: PLR0912 - Co
     # Pre-register circuit breakers for known services
     # This ensures they appear in monitoring UI even before first use
     breaker_names = init_circuit_breakers()
-    print(f"Circuit breakers initialized: {', '.join(breaker_names)}")
+    lifespan_logger.info(f"Circuit breakers initialized: {', '.join(breaker_names)}")
 
     await init_db()
-    print(f"Database initialized: {redact_url(settings.database_url)}")
+    lifespan_logger.info(f"Database initialized: {redact_url(settings.database_url)}")
 
     # Re-enable database logging now that tables exist (NEM-2442)
     # This handles the case where logging was deferred because the logs table
@@ -466,13 +469,13 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:  # noqa: PLR0912 - Co
     # Auto-seed cameras from filesystem if database is empty
     seeded = await seed_cameras_if_empty()
     if seeded > 0:
-        print(f"Auto-seeded {seeded} cameras from {settings.foscam_base_path}")
+        lifespan_logger.info(f"Auto-seeded {seeded} cameras from {settings.foscam_base_path}")
 
     # Validate camera paths against configured base path
     # This logs warnings once at startup for cameras with mismatched paths
     valid_count, invalid_count = await validate_camera_paths_on_startup()
     if invalid_count > 0:
-        print(
+        lifespan_logger.warning(
             f"Camera path validation: {valid_count} valid, {invalid_count} invalid "
             f"(see logs or GET /api/cameras/validation/paths)"
         )
@@ -484,20 +487,20 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:  # noqa: PLR0912 - Co
 
     try:
         redis_client = await init_redis()
-        print(f"Redis initialized: {redact_url(settings.redis_url)}")
+        lifespan_logger.info(f"Redis initialized: {redact_url(settings.redis_url)}")
 
         # Wire up DI container with all application services (NEM-2003)
         # This must happen after Redis is initialized since some services depend on it
         container = get_container()
         await wire_services(container)
-        print("DI container services wired")
+        lifespan_logger.info("DI container services wired")
 
         # Initialize and start event broadcaster for WebSocket real-time events
         # Note: get_broadcaster() both creates AND starts the broadcaster
         # (subscribes to Redis pub/sub channel)
         event_broadcaster = await get_broadcaster(redis_client)
         channel = event_broadcaster.channel_name
-        print(f"Event broadcaster started, listening on channel: {channel}")
+        lifespan_logger.info(f"Event broadcaster started, listening on channel: {channel}")
 
         # Initialize file watcher (monitors camera directories for new images)
         # Pass camera_creator callback to enable auto-creation of camera records
@@ -506,45 +509,47 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:  # noqa: PLR0912 - Co
             camera_creator=create_camera_callback,
         )
         await file_watcher.start()
-        print(f"File watcher started: {settings.foscam_base_path}")
+        lifespan_logger.info(f"File watcher started: {settings.foscam_base_path}")
 
         # Initialize pipeline workers (detection queue, analysis queue, batch timeout)
         pipeline_manager = await get_pipeline_manager(redis_client)
         await pipeline_manager.start()
-        print("Pipeline workers started (detection, analysis, batch timeout, metrics)")
+        lifespan_logger.info(
+            "Pipeline workers started (detection, analysis, batch timeout, metrics)"
+        )
 
     except Exception as e:
-        print(f"Redis connection failed: {e}")
-        print("Continuing without Redis - some features may be unavailable")
+        lifespan_logger.error(f"Redis connection failed: {e}")
+        lifespan_logger.warning("Continuing without Redis - some features may be unavailable")
 
     # Initialize system broadcaster (runs independently of Redis, but uses it when available)
     # Pass the Redis client if it was successfully initialized
     system_broadcaster = get_system_broadcaster(redis_client=redis_client)
     await system_broadcaster.start_broadcasting(interval=5.0)
-    print("System status broadcaster initialized (5s interval)")
+    lifespan_logger.info("System status broadcaster initialized (5s interval)")
 
     # Initialize job tracker with WebSocket broadcasting (NEM-2261)
     # This enables export progress updates to be sent to connected clients
     await init_job_tracker_websocket(redis_client=redis_client)
-    print("Job tracker initialized with WebSocket broadcasting")
+    lifespan_logger.info("Job tracker initialized with WebSocket broadcasting")
 
     # Initialize performance collector and attach to system broadcaster
     # This enables detailed performance metrics broadcasting alongside system status
     performance_collector = PerformanceCollector()
     system_broadcaster.set_performance_collector(performance_collector)
-    print("Performance collector initialized and attached to system broadcaster")
+    lifespan_logger.info("Performance collector initialized and attached to system broadcaster")
 
     # Initialize GPU monitor
     # Note: broadcaster=None to avoid duplicate GPU stats broadcasts
     # (system_broadcaster already handles GPU stats in periodic status updates)
     gpu_monitor = GPUMonitor(broadcaster=None)
     await gpu_monitor.start()
-    print("GPU monitor initialized")
+    lifespan_logger.info("GPU monitor initialized")
 
     # Initialize cleanup service
     cleanup_service = CleanupService()
     await cleanup_service.start()
-    print("Cleanup service initialized")
+    lifespan_logger.info("Cleanup service initialized")
 
     # Initialize background evaluator for AI audit evaluation when GPU is idle
     # This processes pending evaluations automatically instead of requiring manual clicks
@@ -563,7 +568,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:  # noqa: PLR0912 - Co
             enabled=settings.background_evaluation_enabled,
         )
         await background_evaluator.start()
-        print(
+        lifespan_logger.info(
             f"Background evaluator initialized "
             f"(idle threshold: {settings.background_evaluation_gpu_idle_threshold}%, "
             f"idle duration: {settings.background_evaluation_idle_duration}s)"
@@ -612,7 +617,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:  # noqa: PLR0912 - Co
         restart_status = (
             "enabled" if settings.ai_restart_enabled else "disabled (AI_RESTART_ENABLED=false)"
         )
-        print(
+        lifespan_logger.info(
             f"Service health monitor initialized (RT-DETRv2, Nemotron) - restart: {restart_status}"
         )
 
@@ -639,10 +644,10 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:  # noqa: PLR0912 - Co
             _app.state.orchestrator = container_orchestrator
 
             await container_orchestrator.start()
-            print("Container orchestrator started")
+            lifespan_logger.info("Container orchestrator started")
         except Exception as e:
-            print(f"Container orchestrator initialization failed: {e}")
-            print("Continuing without orchestrator")
+            lifespan_logger.error(f"Container orchestrator initialization failed: {e}")
+            lifespan_logger.warning("Continuing without orchestrator")
 
     # Register workers with health service registry (NEM-2611: dependency injection)
     # Get the registry from the DI container instead of using globals
@@ -669,7 +674,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:  # noqa: PLR0912 - Co
         service_health_monitor=service_health_monitor,
         performance_collector=performance_collector,
     )
-    print("Workers registered for readiness monitoring (DI + legacy)")
+    lifespan_logger.info("Workers registered for readiness monitoring (DI + legacy)")
 
     yield
 
@@ -677,50 +682,50 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:  # noqa: PLR0912 - Co
     # Stop container orchestrator first (before stopping docker client)
     if container_orchestrator is not None:
         await container_orchestrator.stop()
-        print("Container orchestrator stopped")
+        lifespan_logger.info("Container orchestrator stopped")
     if docker_client is not None:
         await docker_client.close()
-        print("Docker client closed")
+        lifespan_logger.info("Docker client closed")
 
     # Stop service health monitor (before stopping services it monitors)
     if service_health_monitor is not None:
         await service_health_monitor.stop()
-        print("Service health monitor stopped")
+        lifespan_logger.info("Service health monitor stopped")
 
     # Stop background evaluator (before GPU monitor since it depends on it)
     if background_evaluator is not None:
         await background_evaluator.stop()
-        print("Background evaluator stopped")
+        lifespan_logger.info("Background evaluator stopped")
 
     await cleanup_service.stop()
-    print("Cleanup service stopped")
+    lifespan_logger.info("Cleanup service stopped")
     await gpu_monitor.stop()
-    print("GPU monitor stopped")
+    lifespan_logger.info("GPU monitor stopped")
 
     # Drain queues gracefully before stopping workers (NEM-2006)
     # This ensures in-flight tasks complete and logs any tasks that couldn't finish
     remaining_tasks = await drain_queues(timeout=30.0)
     if remaining_tasks > 0:
-        print(f"Queue drain timeout: {remaining_tasks} tasks remaining")
+        lifespan_logger.warning(f"Queue drain timeout: {remaining_tasks} tasks remaining")
     else:
-        print("Queue drain completed successfully")
+        lifespan_logger.info("Queue drain completed successfully")
 
     # Stop pipeline workers (after queue draining)
     await stop_pipeline_manager()
-    print("Pipeline workers stopped")
+    lifespan_logger.info("Pipeline workers stopped")
 
     # Stop file watcher
     if file_watcher:
         await file_watcher.stop()
-        print("File watcher stopped")
+        lifespan_logger.info("File watcher stopped")
 
     await stop_broadcaster()
-    print("Event broadcaster stopped")
+    lifespan_logger.info("Event broadcaster stopped")
     await stop_system_broadcaster()
-    print("System status broadcaster stopped")
+    lifespan_logger.info("System status broadcaster stopped")
     # Close performance collector (cleanup HTTP client and pynvml)
     await performance_collector.close()
-    print("Performance collector closed")
+    lifespan_logger.info("Performance collector closed")
 
     # Unload AI models from GPU memory (NEM-1996)
     # This prevents GPU memory leaks on shutdown and ensures clean restarts
@@ -729,9 +734,9 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:  # noqa: PLR0912 - Co
 
         model_manager = get_model_manager()
         await model_manager.unload_all()
-        print("AI models unloaded from GPU")
+        lifespan_logger.info("AI models unloaded from GPU")
     except Exception as e:
-        print(f"Warning: Error unloading models: {e}")
+        lifespan_logger.warning(f"Error unloading models: {e}")
 
     # Clear CUDA cache after model unload (NEM-2022)
     # Separated from model unloading for better error isolation
@@ -742,32 +747,32 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:  # noqa: PLR0912 - Co
         if torch.cuda.is_available():
             torch.cuda.synchronize()  # Wait for all GPU operations to complete
             torch.cuda.empty_cache()  # Release cached memory back to GPU
-            print("CUDA cache cleared")
+            lifespan_logger.info("CUDA cache cleared")
         else:
-            print("CUDA not available, skipping cache clear")
+            lifespan_logger.debug("CUDA not available, skipping cache clear")
     except ImportError:
-        print("torch not installed, skipping CUDA cleanup")
+        lifespan_logger.debug("torch not installed, skipping CUDA cleanup")
     except Exception as e:
         # Log but don't prevent shutdown - CUDA cleanup is best-effort
-        print(f"Warning: Error clearing CUDA cache: {e}")
+        lifespan_logger.warning(f"Error clearing CUDA cache: {e}")
 
     # Shutdown DI container services (NEM-2003)
     # This gracefully closes all services that have close() or disconnect() methods
     try:
         di_container = get_container()
         await di_container.shutdown()
-        print("DI container services shut down")
+        lifespan_logger.info("DI container services shut down")
     except Exception as e:
-        print(f"Warning: Error shutting down DI container: {e}")
+        lifespan_logger.warning(f"Error shutting down DI container: {e}")
 
     await close_db()
-    print("Database connections closed")
+    lifespan_logger.info("Database connections closed")
     await close_redis()
-    print("Redis connection closed")
+    lifespan_logger.info("Redis connection closed")
 
     # Shutdown OpenTelemetry (flushes pending traces)
     shutdown_telemetry()
-    print("OpenTelemetry tracing shut down")
+    lifespan_logger.info("OpenTelemetry tracing shut down")
 
 
 def _get_openapi_servers() -> list[dict[str, str]]:
@@ -1076,7 +1081,10 @@ def get_ssl_context() -> ssl.SSLContext | None:
 
         # Generate certificate if it doesn't exist
         if not Path(cert_path).exists() or not Path(key_path).exists():
-            print(f"Generating self-signed certificate: {cert_path}")
+            from backend.core.logging import get_logger
+
+            ssl_logger = get_logger(__name__)
+            ssl_logger.info(f"Generating self-signed certificate: {cert_path}")
             hostname = os.environ.get("TLS_HOSTNAME", "localhost")
             san_hosts_str = os.environ.get("TLS_SAN_HOSTS", "127.0.0.1,::1")
             san_hosts = [h.strip() for h in san_hosts_str.split(",") if h.strip()]
@@ -1104,11 +1112,14 @@ def get_ssl_context() -> ssl.SSLContext | None:
 if __name__ == "__main__":
     import uvicorn
 
+    from backend.core.logging import get_logger
+
+    main_logger = get_logger(__name__)
     settings = get_settings()
     ssl_context = get_ssl_context()
 
     if ssl_context:
-        print(f"Starting HTTPS server on {settings.api_host}:{settings.api_port}")
+        main_logger.info(f"Starting HTTPS server on {settings.api_host}:{settings.api_port}")
         uvicorn.run(
             app,
             host=settings.api_host,
@@ -1117,5 +1128,5 @@ if __name__ == "__main__":
             ssl_certfile=settings.tls_cert_path,
         )
     else:
-        print(f"Starting HTTP server on {settings.api_host}:{settings.api_port}")
+        main_logger.info(f"Starting HTTP server on {settings.api_host}:{settings.api_port}")
         uvicorn.run(app, host=settings.api_host, port=settings.api_port)
