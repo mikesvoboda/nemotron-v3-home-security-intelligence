@@ -1197,3 +1197,229 @@ class TestSanitizeLogValue:
         printable = "".join(chr(i) for i in range(32, 127))
         result = sanitize_log_value(printable)
         assert result == printable
+
+
+class TestDatabaseHandlerTableNotExists:
+    """Tests for DatabaseHandler handling missing logs table (NEM-2442)."""
+
+    def test_handler_initializes_with_table_exists_true(self):
+        """Test that handler assumes table exists on initialization."""
+        handler = SQLiteHandler()
+        assert handler._table_exists is True
+        assert handler._db_available is True
+
+    def test_emit_skips_when_table_not_exists(self):
+        """Test that emit returns early when _table_exists is False."""
+        handler = SQLiteHandler(min_level="DEBUG")
+        handler._db_available = True
+        handler._table_exists = False
+
+        # Mock _get_session to ensure it's never called
+        handler._get_session = MagicMock()
+
+        record = logging.LogRecord(
+            name="test",
+            level=logging.INFO,
+            pathname="/test/path.py",
+            lineno=10,
+            msg="Test message",
+            args=(),
+            exc_info=None,
+        )
+
+        handler.emit(record)
+
+        # _get_session should not be called when table doesn't exist
+        handler._get_session.assert_not_called()
+
+    def test_emit_handles_relation_does_not_exist_error(self):
+        """Test that emit handles 'relation does not exist' ProgrammingError."""
+        handler = SQLiteHandler(min_level="DEBUG")
+        handler._db_available = True
+        handler._table_exists = True
+        handler.setFormatter(logging.Formatter("%(message)s"))
+
+        mock_session = MagicMock()
+        # Simulate PostgreSQL ProgrammingError for missing table
+        mock_session.add.side_effect = Exception(
+            'relation "logs" does not exist\nLINE 1: INSERT INTO logs'
+        )
+        handler._get_session = MagicMock(return_value=mock_session)
+
+        with patch("backend.models.log.Log") as MockLog:
+            mock_log_instance = MagicMock()
+            MockLog.return_value = mock_log_instance
+
+            record = logging.LogRecord(
+                name="test",
+                level=logging.INFO,
+                pathname="/test/path.py",
+                lineno=10,
+                msg="Test message",
+                args=(),
+                exc_info=None,
+            )
+
+            # Should not raise - just mark table as not existing
+            handler.emit(record)
+
+            # _table_exists should be False, but _db_available should remain True
+            assert handler._table_exists is False
+            assert handler._db_available is True
+
+    def test_emit_handles_other_exceptions_by_disabling_db(self):
+        """Test that emit disables DB for non-table-related exceptions."""
+        handler = SQLiteHandler(min_level="DEBUG")
+        handler._db_available = True
+        handler._table_exists = True
+        handler.setFormatter(logging.Formatter("%(message)s"))
+
+        mock_session = MagicMock()
+        # Simulate a different database error (not table-related)
+        mock_session.add.side_effect = Exception("Connection refused")
+        handler._get_session = MagicMock(return_value=mock_session)
+
+        with patch("backend.models.log.Log") as MockLog:
+            mock_log_instance = MagicMock()
+            MockLog.return_value = mock_log_instance
+
+            record = logging.LogRecord(
+                name="test",
+                level=logging.INFO,
+                pathname="/test/path.py",
+                lineno=10,
+                msg="Test message",
+                args=(),
+                exc_info=None,
+            )
+
+            handler.emit(record)
+
+            # Both should be False for non-table-related errors
+            assert handler._db_available is False
+
+    def test_enable_db_logging_resets_flags(self):
+        """Test that enable_db_logging resets both flags."""
+        handler = SQLiteHandler()
+        handler._db_available = False
+        handler._table_exists = False
+
+        handler.enable_db_logging()
+
+        assert handler._table_exists is True
+        assert handler._db_available is True
+
+
+class TestEnableDeferredDbLogging:
+    """Tests for enable_deferred_db_logging function (NEM-2442)."""
+
+    def test_enable_deferred_db_logging_enables_deferred_handlers(self):
+        """Test that enable_deferred_db_logging re-enables handlers with _table_exists=False."""
+        from backend.core.logging import enable_deferred_db_logging
+
+        root = logging.getLogger()
+        original_handlers = root.handlers.copy()
+
+        try:
+            # Clear handlers and add a deferred handler
+            root.handlers.clear()
+
+            deferred_handler = SQLiteHandler(min_level="DEBUG")
+            deferred_handler._table_exists = False
+            deferred_handler._db_available = True
+            root.addHandler(deferred_handler)
+
+            # Call the function
+            enabled_count = enable_deferred_db_logging()
+
+            # Should have enabled 1 handler
+            assert enabled_count == 1
+            assert deferred_handler._table_exists is True
+            assert deferred_handler._db_available is True
+        finally:
+            root.handlers = original_handlers
+
+    def test_enable_deferred_db_logging_skips_active_handlers(self):
+        """Test that enable_deferred_db_logging skips handlers with _table_exists=True."""
+        from backend.core.logging import enable_deferred_db_logging
+
+        root = logging.getLogger()
+        original_handlers = root.handlers.copy()
+
+        try:
+            # Clear handlers and add an active handler
+            root.handlers.clear()
+
+            active_handler = SQLiteHandler(min_level="DEBUG")
+            active_handler._table_exists = True
+            active_handler._db_available = True
+            root.addHandler(active_handler)
+
+            # Call the function
+            enabled_count = enable_deferred_db_logging()
+
+            # Should not have enabled any handlers
+            assert enabled_count == 0
+        finally:
+            root.handlers = original_handlers
+
+    def test_enable_deferred_db_logging_returns_zero_when_no_handlers(self):
+        """Test that enable_deferred_db_logging returns 0 with no DatabaseHandlers."""
+        from backend.core.logging import enable_deferred_db_logging
+
+        root = logging.getLogger()
+        original_handlers = root.handlers.copy()
+
+        try:
+            # Clear all handlers
+            root.handlers.clear()
+
+            # Add only a non-database handler
+            root.addHandler(logging.StreamHandler())
+
+            # Call the function
+            enabled_count = enable_deferred_db_logging()
+
+            # Should return 0
+            assert enabled_count == 0
+        finally:
+            root.handlers = original_handlers
+
+    def test_enable_deferred_db_logging_handles_multiple_handlers(self):
+        """Test that enable_deferred_db_logging handles multiple DatabaseHandlers."""
+        from backend.core.logging import enable_deferred_db_logging
+
+        root = logging.getLogger()
+        original_handlers = root.handlers.copy()
+
+        try:
+            root.handlers.clear()
+
+            # Add multiple handlers - some deferred, some active
+            deferred1 = SQLiteHandler(min_level="DEBUG")
+            deferred1._table_exists = False
+            deferred1._db_available = True
+
+            active = SQLiteHandler(min_level="INFO")
+            active._table_exists = True
+            active._db_available = True
+
+            deferred2 = SQLiteHandler(min_level="WARNING")
+            deferred2._table_exists = False
+            deferred2._db_available = True
+
+            root.addHandler(deferred1)
+            root.addHandler(active)
+            root.addHandler(deferred2)
+
+            # Call the function
+            enabled_count = enable_deferred_db_logging()
+
+            # Should have enabled 2 handlers
+            assert enabled_count == 2
+            assert deferred1._table_exists is True
+            assert deferred2._table_exists is True
+            # Active handler should remain unchanged
+            assert active._table_exists is True
+        finally:
+            root.handlers = original_handlers
