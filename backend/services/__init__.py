@@ -187,6 +187,15 @@ from .model_zoo import (
     reset_model_manager,
     reset_model_zoo,
 )
+from .monitoring_stack_validator import (
+    AlertingRulesStatus,
+    GrafanaStatus,
+    MonitoringStackHealth,
+    MonitoringStackValidator,
+    PrometheusStatus,
+    ScrapeTarget,
+    ScrapeTargetHealth,
+)
 from .nemotron_analyzer import NemotronAnalyzer
 from .notification import (
     DeliveryResult,
@@ -268,6 +277,14 @@ from .severity import (
     severity_lte,
 )
 from .thumbnail_generator import ThumbnailGenerator
+from .worker_supervisor import (
+    SupervisorConfig,
+    WorkerInfo,
+    WorkerStatus,
+    WorkerSupervisor,
+    get_worker_supervisor,
+    reset_worker_supervisor,
+)
 from .zone_service import (
     bbox_center,
     detection_in_zone,
@@ -415,6 +432,19 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "VehicleAttributes",
     "VehicleDetection",
     "ZoneContext",
+    # Monitoring Stack Validator
+    "AlertingRulesStatus",
+    "GrafanaStatus",
+    "MonitoringStackHealth",
+    "MonitoringStackValidator",
+    "PrometheusStatus",
+    "ScrapeTarget",
+    "ScrapeTargetHealth",
+    # Worker Supervisor
+    "SupervisorConfig",
+    "WorkerInfo",
+    "WorkerStatus",
+    "WorkerSupervisor",
     # Functions
     "audit_service",
     "bbox_center",
@@ -460,6 +490,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "get_severity_priority",
     "get_severity_service",
     "get_total_vram_if_loaded",
+    "get_worker_supervisor",
     "get_zones_for_detection",
     "is_image_file",
     "is_person_class",
@@ -499,6 +530,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "reset_scene_change_detector",
     "reset_audit_service",
     "reset_severity_service",
+    "reset_worker_supervisor",
     "search_events",
     "severity_from_string",
     "severity_gt",
