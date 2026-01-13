@@ -4920,3 +4920,307 @@ class TestEnrichmentResultAdditionalProperties:
         )
         result = EnrichmentResult(image_quality=quality)
         assert result.has_motion_blur is True
+
+
+# =============================================================================
+# Video File Handling Tests (NEM-2444)
+# =============================================================================
+
+
+class TestEnrichmentPipelineVideoHandling:
+    """Tests for video file handling in the enrichment pipeline.
+
+    The enrichment pipeline should detect when input is a video file
+    and extract frames from it rather than trying to open it directly
+    with PIL (which fails for video files).
+    """
+
+    @pytest.mark.asyncio
+    async def test_load_image_detects_video_extension_mp4(self) -> None:
+        """Test _load_image detects .mp4 video files by extension."""
+        from pathlib import Path
+        from unittest.mock import AsyncMock, patch
+
+        pipeline = EnrichmentPipeline()
+
+        # Mock the _extract_frame_from_video method
+        mock_image = Image.new("RGB", (640, 480), color=(128, 128, 128))
+        with patch.object(
+            pipeline, "_extract_frame_from_video", new_callable=AsyncMock
+        ) as mock_extract:
+            mock_extract.return_value = mock_image
+
+            result = await pipeline._load_image("/path/to/video.mp4")
+
+            # Should have called _extract_frame_from_video
+            mock_extract.assert_called_once_with(Path("/path/to/video.mp4"))
+            assert result is mock_image
+
+    @pytest.mark.asyncio
+    async def test_load_image_detects_video_extension_mkv(self) -> None:
+        """Test _load_image detects .mkv video files by extension."""
+        from pathlib import Path
+        from unittest.mock import AsyncMock, patch
+
+        pipeline = EnrichmentPipeline()
+
+        mock_image = Image.new("RGB", (1280, 720))
+        with patch.object(
+            pipeline, "_extract_frame_from_video", new_callable=AsyncMock
+        ) as mock_extract:
+            mock_extract.return_value = mock_image
+
+            result = await pipeline._load_image("/path/to/video.mkv")
+
+            mock_extract.assert_called_once_with(Path("/path/to/video.mkv"))
+            assert result is mock_image
+
+    @pytest.mark.asyncio
+    async def test_load_image_detects_video_extension_avi(self) -> None:
+        """Test _load_image detects .avi video files by extension."""
+        from pathlib import Path
+        from unittest.mock import AsyncMock, patch
+
+        pipeline = EnrichmentPipeline()
+
+        mock_image = Image.new("RGB", (800, 600))
+        with patch.object(
+            pipeline, "_extract_frame_from_video", new_callable=AsyncMock
+        ) as mock_extract:
+            mock_extract.return_value = mock_image
+
+            result = await pipeline._load_image("/path/to/video.avi")
+
+            mock_extract.assert_called_once_with(Path("/path/to/video.avi"))
+            assert result is mock_image
+
+    @pytest.mark.asyncio
+    async def test_load_image_detects_video_extension_mov(self) -> None:
+        """Test _load_image detects .mov video files by extension."""
+        from pathlib import Path
+        from unittest.mock import AsyncMock, patch
+
+        pipeline = EnrichmentPipeline()
+
+        mock_image = Image.new("RGB", (1920, 1080))
+        with patch.object(
+            pipeline, "_extract_frame_from_video", new_callable=AsyncMock
+        ) as mock_extract:
+            mock_extract.return_value = mock_image
+
+            result = await pipeline._load_image("/path/to/video.mov")
+
+            mock_extract.assert_called_once_with(Path("/path/to/video.mov"))
+            assert result is mock_image
+
+    @pytest.mark.asyncio
+    async def test_load_image_handles_uppercase_video_extension(self) -> None:
+        """Test _load_image handles uppercase video extensions."""
+        from pathlib import Path
+        from unittest.mock import AsyncMock, patch
+
+        pipeline = EnrichmentPipeline()
+
+        mock_image = Image.new("RGB", (640, 480))
+        with patch.object(
+            pipeline, "_extract_frame_from_video", new_callable=AsyncMock
+        ) as mock_extract:
+            mock_extract.return_value = mock_image
+
+            result = await pipeline._load_image("/path/to/VIDEO.MP4")
+
+            mock_extract.assert_called_once_with(Path("/path/to/VIDEO.MP4"))
+            assert result is mock_image
+
+    @pytest.mark.asyncio
+    async def test_load_image_still_loads_regular_images(self, tmp_path: Any) -> None:
+        """Test _load_image still works normally for image files."""
+        # Create a test image file
+        image_path = tmp_path / "test.jpg"
+        test_img = Image.new("RGB", (100, 100), color=(255, 0, 0))
+        test_img.save(image_path)
+
+        pipeline = EnrichmentPipeline()
+        result = await pipeline._load_image(str(image_path))
+
+        assert result is not None
+        assert isinstance(result, Image.Image)
+        assert result.size == (100, 100)
+
+    @pytest.mark.asyncio
+    async def test_extract_frame_from_video_success(self) -> None:
+        """Test _extract_frame_from_video extracts frame successfully."""
+        from pathlib import Path
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        pipeline = EnrichmentPipeline()
+
+        # Mock VideoProcessor
+        mock_processor = MagicMock()
+        mock_processor.extract_thumbnail = AsyncMock(
+            return_value="/tmp/frame.jpg"  # noqa: S108
+        )
+
+        # Mock Image.open to return a test image
+        test_image = Image.new("RGB", (640, 480), color=(0, 128, 255))
+
+        with (
+            patch(
+                "backend.services.video_processor.VideoProcessor",
+                return_value=mock_processor,
+            ),
+            patch("PIL.Image.open", return_value=test_image),
+            patch("tempfile.TemporaryDirectory") as mock_temp_dir,
+        ):
+            # Configure the context manager
+            mock_temp_dir.return_value.__enter__ = MagicMock(
+                return_value="/tmp/test_dir"  # noqa: S108
+            )
+            mock_temp_dir.return_value.__exit__ = MagicMock(return_value=False)
+
+            result = await pipeline._extract_frame_from_video(Path("/test/video.mp4"))
+
+            # Verify VideoProcessor was called correctly
+            mock_processor.extract_thumbnail.assert_called_once()
+            assert result is not None
+
+    @pytest.mark.asyncio
+    async def test_extract_frame_from_video_returns_none_on_failure(self) -> None:
+        """Test _extract_frame_from_video returns None when extraction fails."""
+        from pathlib import Path
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        pipeline = EnrichmentPipeline()
+
+        # Mock VideoProcessor to fail thumbnail extraction
+        mock_processor = MagicMock()
+        mock_processor.extract_thumbnail = AsyncMock(return_value=None)
+
+        with (
+            patch(
+                "backend.services.video_processor.VideoProcessor",
+                return_value=mock_processor,
+            ),
+            patch("tempfile.TemporaryDirectory") as mock_temp_dir,
+        ):
+            mock_temp_dir.return_value.__enter__ = MagicMock(
+                return_value="/tmp/test_dir"  # noqa: S108
+            )
+            mock_temp_dir.return_value.__exit__ = MagicMock(return_value=False)
+
+            result = await pipeline._extract_frame_from_video(Path("/test/video.mp4"))
+
+            assert result is None
+
+    @pytest.mark.asyncio
+    async def test_extract_frame_from_video_handles_video_processing_error(
+        self,
+    ) -> None:
+        """Test _extract_frame_from_video handles VideoProcessingError."""
+        from pathlib import Path
+        from unittest.mock import MagicMock, patch
+
+        from backend.services.video_processor import VideoProcessingError
+
+        pipeline = EnrichmentPipeline()
+
+        with (
+            patch(
+                "backend.services.video_processor.VideoProcessor",
+                side_effect=VideoProcessingError("ffmpeg not found"),
+            ),
+            patch("tempfile.TemporaryDirectory") as mock_temp_dir,
+        ):
+            mock_temp_dir.return_value.__enter__ = MagicMock(
+                return_value="/tmp/test_dir"  # noqa: S108
+            )
+            mock_temp_dir.return_value.__exit__ = MagicMock(return_value=False)
+
+            result = await pipeline._extract_frame_from_video(Path("/test/video.mp4"))
+
+            assert result is None
+
+    @pytest.mark.asyncio
+    async def test_extract_frame_from_video_handles_generic_exception(self) -> None:
+        """Test _extract_frame_from_video handles generic exceptions."""
+        from pathlib import Path
+        from unittest.mock import MagicMock, patch
+
+        pipeline = EnrichmentPipeline()
+
+        with (
+            patch(
+                "backend.services.video_processor.VideoProcessor",
+                side_effect=Exception("Unexpected error"),
+            ),
+            patch("tempfile.TemporaryDirectory") as mock_temp_dir,
+        ):
+            mock_temp_dir.return_value.__enter__ = MagicMock(
+                return_value="/tmp/test_dir"  # noqa: S108
+            )
+            mock_temp_dir.return_value.__exit__ = MagicMock(return_value=False)
+
+            result = await pipeline._extract_frame_from_video(Path("/test/video.mp4"))
+
+            assert result is None
+
+    @pytest.mark.asyncio
+    async def test_load_image_video_returns_none_on_extraction_failure(self) -> None:
+        """Test _load_image returns None when video frame extraction fails."""
+        from unittest.mock import AsyncMock, patch
+
+        pipeline = EnrichmentPipeline()
+
+        # Mock _extract_frame_from_video to return None (failure)
+        with patch.object(
+            pipeline, "_extract_frame_from_video", new_callable=AsyncMock
+        ) as mock_extract:
+            mock_extract.return_value = None
+
+            result = await pipeline._load_image("/path/to/corrupted_video.mp4")
+
+            assert result is None
+
+    @pytest.mark.asyncio
+    async def test_enrich_batch_with_video_path(self) -> None:
+        """Test enrich_batch handles video file paths correctly."""
+        from unittest.mock import AsyncMock, patch
+
+        pipeline = EnrichmentPipeline(
+            # Disable most features to simplify test
+            license_plate_enabled=False,
+            face_detection_enabled=False,
+            vision_extraction_enabled=False,
+            reid_enabled=False,
+            scene_change_enabled=False,
+            violence_detection_enabled=False,
+            weather_classification_enabled=False,
+            clothing_classification_enabled=False,
+            clothing_segmentation_enabled=False,
+            vehicle_damage_detection_enabled=False,
+            vehicle_classification_enabled=False,
+            image_quality_enabled=False,
+            pet_classification_enabled=False,
+        )
+
+        # Create detection
+        detection = DetectionInput(
+            id=1,
+            class_name="person",
+            confidence=0.9,
+            bbox=BoundingBox(x1=100, y1=100, x2=200, y2=300),
+        )
+
+        # Mock _load_image to simulate video handling
+        mock_frame = Image.new("RGB", (640, 480))
+        with patch.object(pipeline, "_load_image", new_callable=AsyncMock) as mock_load:
+            mock_load.return_value = mock_frame
+
+            result = await pipeline.enrich_batch(
+                [detection],
+                {None: "/path/to/video.mp4"},  # Video path as shared image
+            )
+
+            # Should have called _load_image with the video path
+            mock_load.assert_called()
+            assert isinstance(result, EnrichmentResult)
