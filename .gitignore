@@ -84,3 +84,6 @@ coverage.json
 # Accidental connection string paths
 postgresql+asyncpg:*
 .mypy_cache
+
+# Local docker-compose overrides (machine-specific)
+docker-compose.override.yml
