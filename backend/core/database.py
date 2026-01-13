@@ -40,6 +40,14 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 from sqlalchemy import event, text
+from sqlalchemy.exc import (
+    IntegrityError,
+    OperationalError,
+    ProgrammingError,
+)
+from sqlalchemy.exc import (
+    TimeoutError as SQLAlchemyTimeoutError,
+)
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -309,6 +317,13 @@ async def get_session() -> AsyncGenerator[AsyncSession]:
     database engine when the current loop differs from where the engine
     was created (common in pytest-asyncio with function-scoped loops).
 
+    Includes structured logging for database errors:
+    - IntegrityError: WARNING (expected, e.g., duplicate key, FK violation)
+    - OperationalError: ERROR (infrastructure issue)
+    - SQLAlchemyTimeoutError: ERROR (performance/infrastructure issue)
+    - ProgrammingError: ERROR with stack trace (indicates bug in application code)
+    - Other exceptions: ERROR with exception details
+
     Usage:
         async with get_session() as session:
             result = await session.execute(select(Model))
@@ -319,6 +334,10 @@ async def get_session() -> AsyncGenerator[AsyncSession]:
 
     Raises:
         RuntimeError: If database has not been initialized.
+        IntegrityError: On constraint violations (logged at WARNING).
+        OperationalError: On connection/infrastructure issues (logged at ERROR).
+        SQLAlchemyTimeoutError: On database timeout (logged at ERROR).
+        ProgrammingError: On SQL syntax errors or bugs (logged at ERROR with traceback).
     """
     # Check for event loop mismatch and auto-reinitialize if needed
     if _check_loop_mismatch():
@@ -329,8 +348,66 @@ async def get_session() -> AsyncGenerator[AsyncSession]:
         try:
             yield session
             await session.commit()
-        except Exception:
+        except IntegrityError as e:
             await session.rollback()
+            # Extract constraint name from the original database error if available
+            constraint_name = getattr(e.orig, "constraint_name", None)
+            if constraint_name is None and e.orig is not None and hasattr(e.orig, "diag"):
+                # PostgreSQL asyncpg errors store constraint info in diag
+                diag = getattr(e.orig, "diag", None)
+                if diag is not None:
+                    constraint_name = getattr(diag, "constraint_name", None)
+            _logger.warning(
+                "Database integrity error",
+                extra={
+                    "error_type": "integrity_error",
+                    "constraint": constraint_name,
+                    "detail": str(e.orig) if e.orig else str(e),
+                },
+            )
+            raise
+        except OperationalError as e:
+            await session.rollback()
+            _logger.error(
+                "Database operational error",
+                extra={
+                    "error_type": "operational_error",
+                    "detail": str(e.orig) if e.orig else str(e),
+                },
+            )
+            raise
+        except SQLAlchemyTimeoutError as e:
+            await session.rollback()
+            _logger.error(
+                "Database timeout error",
+                extra={
+                    "error_type": "timeout_error",
+                    "detail": str(e),
+                },
+            )
+            raise
+        except ProgrammingError as e:
+            await session.rollback()
+            # ProgrammingError indicates a bug in application code (bad SQL, wrong column names, etc.)
+            # Log with exception to capture full stack trace for debugging
+            _logger.exception(
+                "Database programming error (possible bug in application code)",
+                extra={
+                    "error_type": "programming_error",
+                    "detail": str(e.orig) if e.orig else str(e),
+                },
+            )
+            raise
+        except Exception as e:
+            await session.rollback()
+            # Catch-all for unexpected database errors
+            _logger.exception(
+                "Unexpected database error",
+                extra={
+                    "error_type": "unexpected_error",
+                    "exception_class": type(e).__name__,
+                },
+            )
             raise
 
 
@@ -386,6 +463,13 @@ async def get_db() -> AsyncGenerator[AsyncSession]:
 
     This function is designed to be used with FastAPI's Depends():
 
+    Includes structured logging for database errors:
+    - IntegrityError: WARNING (expected, e.g., duplicate key, FK violation)
+    - OperationalError: ERROR (infrastructure issue)
+    - SQLAlchemyTimeoutError: ERROR (performance/infrastructure issue)
+    - ProgrammingError: ERROR with stack trace (indicates bug in application code)
+    - Other exceptions: ERROR with exception details
+
     Usage:
         @app.get("/items")
         async def get_items(db: AsyncSession = Depends(get_db)):
@@ -404,8 +488,66 @@ async def get_db() -> AsyncGenerator[AsyncSession]:
         try:
             yield session
             await session.commit()
-        except Exception:
+        except IntegrityError as e:
             await session.rollback()
+            # Extract constraint name from the original database error if available
+            constraint_name = getattr(e.orig, "constraint_name", None)
+            if constraint_name is None and e.orig is not None and hasattr(e.orig, "diag"):
+                # PostgreSQL asyncpg errors store constraint info in diag
+                diag = getattr(e.orig, "diag", None)
+                if diag is not None:
+                    constraint_name = getattr(diag, "constraint_name", None)
+            _logger.warning(
+                "Database integrity error",
+                extra={
+                    "error_type": "integrity_error",
+                    "constraint": constraint_name,
+                    "detail": str(e.orig) if e.orig else str(e),
+                },
+            )
+            raise
+        except OperationalError as e:
+            await session.rollback()
+            _logger.error(
+                "Database operational error",
+                extra={
+                    "error_type": "operational_error",
+                    "detail": str(e.orig) if e.orig else str(e),
+                },
+            )
+            raise
+        except SQLAlchemyTimeoutError as e:
+            await session.rollback()
+            _logger.error(
+                "Database timeout error",
+                extra={
+                    "error_type": "timeout_error",
+                    "detail": str(e),
+                },
+            )
+            raise
+        except ProgrammingError as e:
+            await session.rollback()
+            # ProgrammingError indicates a bug in application code (bad SQL, wrong column names, etc.)
+            # Log with exception to capture full stack trace for debugging
+            _logger.exception(
+                "Database programming error (possible bug in application code)",
+                extra={
+                    "error_type": "programming_error",
+                    "detail": str(e.orig) if e.orig else str(e),
+                },
+            )
+            raise
+        except Exception as e:
+            await session.rollback()
+            # Catch-all for unexpected database errors
+            _logger.exception(
+                "Unexpected database error",
+                extra={
+                    "error_type": "unexpected_error",
+                    "exception_class": type(e).__name__,
+                },
+            )
             raise
         finally:
             await session.close()
@@ -612,7 +754,9 @@ def _after_cursor_execute(
 
         observe_db_query_duration(duration_seconds)
     except ImportError:
-        # Metrics module not available (e.g., during testing without full setup)
+        # Metrics module not available (e.g., during testing without full setup).
+        # Query execution should not fail just because metrics are unavailable.
+        # See: NEM-2540 for rationale
         pass
 
     # Check if query exceeds slow query threshold
@@ -624,6 +768,8 @@ def _after_cursor_execute(
         try:
             record_slow_query()
         except (ImportError, NameError):
+            # Metrics not available - slow query logging continues without metric recording.
+            # See: NEM-2540 for rationale
             pass
 
         # Truncate query for logging (max 500 chars)

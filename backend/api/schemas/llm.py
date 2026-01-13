@@ -345,7 +345,10 @@ class LLMRiskResponse(BaseModel):
             try:
                 return RiskLevel(normalized)
             except ValueError:
-                pass  # Fall through to error
+                # Invalid risk level string - fall through to raise a more descriptive error
+                # that lists valid options rather than showing the raw ValueError.
+                # See: NEM-2540 for rationale
+                pass
 
         raise ValueError(f"risk_level must be one of: low, medium, high, critical. Got: {v}")
 

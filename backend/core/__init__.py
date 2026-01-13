@@ -31,6 +31,7 @@ from backend.core.database import (
 from backend.core.json_utils import (
     extract_json_field,
     extract_json_from_llm_response,
+    safe_json_loads,
 )
 from backend.core.logging import (
     SENSITIVE_FIELD_NAMES,
@@ -205,6 +206,7 @@ __all__ = [
     "redact_url",
     "reset_container",
     "reset_profiling_manager",
+    "safe_json_loads",
     "sanitize_error",
     "set_queue_depth",
     "set_request_id",

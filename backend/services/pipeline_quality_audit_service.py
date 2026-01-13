@@ -15,7 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.config import get_settings
-from backend.core.json_utils import extract_json_from_llm_response
+from backend.core.json_utils import extract_json_from_llm_response, safe_json_loads
 from backend.core.logging import get_logger
 from backend.models.event import Event
 from backend.models.event_audit import EventAudit
@@ -568,12 +568,14 @@ class PipelineQualityAuditService:
             for cat in categories:
                 items_json = getattr(audit, cat, None)
                 if items_json:
-                    try:
-                        items = json.loads(items_json)
+                    items = safe_json_loads(
+                        items_json,
+                        default=[],
+                        context=f"EventAudit.{cat} (audit_id={audit.id})",
+                    )
+                    if isinstance(items, list):
                         for item in items:
                             suggestions[cat][item] = suggestions[cat].get(item, 0) + 1
-                    except json.JSONDecodeError:
-                        pass
 
         # Build recommendations list
         recommendations = []

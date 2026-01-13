@@ -420,7 +420,9 @@ class CleanupService:
                             try:
                                 stats.space_reclaimed += path.stat().st_size
                             except OSError:
-                                # File inaccessible during dry run - skip size estimation
+                                # File inaccessible during dry run - skip size estimation.
+                                # Partial estimates are acceptable for dry run preview.
+                                # See: NEM-2540 for rationale
                                 pass
                     if self.delete_images and detection.file_path:
                         path = Path(detection.file_path)
@@ -430,7 +432,9 @@ class CleanupService:
                             try:
                                 stats.space_reclaimed += path.stat().st_size
                             except OSError:
-                                # File inaccessible during dry run - skip size estimation
+                                # File inaccessible during dry run - skip size estimation.
+                                # Partial estimates are acceptable for dry run preview.
+                                # See: NEM-2540 for rationale
                                 pass
 
                 logger.info(f"Dry run: would delete {stats.thumbnails_deleted} thumbnail files")

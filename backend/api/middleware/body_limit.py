@@ -94,8 +94,9 @@ class BodySizeLimitMiddleware(BaseHTTPMiddleware):
                         },
                     )
             except ValueError:
-                # Invalid Content-Length header - let the request proceed
-                # The framework will handle malformed headers
+                # Invalid Content-Length header - let the request proceed.
+                # The framework will handle malformed headers appropriately.
+                # See: NEM-2540 for rationale
                 pass
 
         # Body size is within limits, proceed with the request

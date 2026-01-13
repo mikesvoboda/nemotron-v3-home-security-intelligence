@@ -1517,3 +1517,399 @@ class TestSlowQueryLogging:
         reset_slow_query_logging_state()
 
         assert db_module._slow_query_logging_enabled is False
+
+
+# =============================================================================
+# Database Error Logging Tests (NEM-2539)
+# =============================================================================
+
+
+class TestDatabaseErrorLogging:
+    """Tests for structured database error logging in session context managers.
+
+    NEM-2539: Verifies that database errors are logged with appropriate severity
+    and structured context information.
+    """
+
+    @pytest.mark.asyncio
+    async def test_get_session_logs_integrity_error_with_constraint(self) -> None:
+        """Test that IntegrityError is logged at WARNING with constraint info."""
+        from sqlalchemy.exc import IntegrityError
+
+        import backend.core.database as db_module
+
+        # Save original state
+        original_factory = db_module._async_session_factory
+
+        try:
+            # Create mock session that raises IntegrityError
+            mock_session = AsyncMock()
+            mock_session.commit = AsyncMock(
+                side_effect=IntegrityError(
+                    "duplicate key", None, Exception("unique_constraint_violation")
+                )
+            )
+            mock_session.rollback = AsyncMock()
+
+            mock_factory = MagicMock()
+            mock_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_factory.return_value.__aexit__ = AsyncMock(return_value=None)
+
+            db_module._async_session_factory = mock_factory
+
+            with patch.object(db_module._logger, "warning") as mock_logger:
+                with pytest.raises(IntegrityError):
+                    async with db_module.get_session():
+                        pass  # commit will raise
+
+                # Verify warning was logged with structured context
+                mock_logger.assert_called_once()
+                call_args = mock_logger.call_args
+                assert call_args[0][0] == "Database integrity error"
+                assert call_args[1]["extra"]["error_type"] == "integrity_error"
+                assert "constraint" in call_args[1]["extra"]
+                assert "detail" in call_args[1]["extra"]
+
+            # Verify rollback was called
+            mock_session.rollback.assert_called_once()
+        finally:
+            db_module._async_session_factory = original_factory
+
+    @pytest.mark.asyncio
+    async def test_get_session_logs_operational_error(self) -> None:
+        """Test that OperationalError is logged at ERROR level."""
+        from sqlalchemy.exc import OperationalError
+
+        import backend.core.database as db_module
+
+        # Save original state
+        original_factory = db_module._async_session_factory
+
+        try:
+            # Create mock session that raises OperationalError
+            mock_session = AsyncMock()
+            mock_session.commit = AsyncMock(
+                side_effect=OperationalError("connection lost", None, Exception("lost"))
+            )
+            mock_session.rollback = AsyncMock()
+
+            mock_factory = MagicMock()
+            mock_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_factory.return_value.__aexit__ = AsyncMock(return_value=None)
+
+            db_module._async_session_factory = mock_factory
+
+            with patch.object(db_module._logger, "error") as mock_logger:
+                with pytest.raises(OperationalError):
+                    async with db_module.get_session():
+                        pass
+
+                mock_logger.assert_called_once()
+                call_args = mock_logger.call_args
+                assert call_args[0][0] == "Database operational error"
+                assert call_args[1]["extra"]["error_type"] == "operational_error"
+                assert "detail" in call_args[1]["extra"]
+
+            mock_session.rollback.assert_called_once()
+        finally:
+            db_module._async_session_factory = original_factory
+
+    @pytest.mark.asyncio
+    async def test_get_session_logs_timeout_error(self) -> None:
+        """Test that SQLAlchemyTimeoutError is logged at ERROR level."""
+        from sqlalchemy.exc import TimeoutError as SQLAlchemyTimeoutError
+
+        import backend.core.database as db_module
+
+        # Save original state
+        original_factory = db_module._async_session_factory
+
+        try:
+            # Create mock session that raises TimeoutError
+            mock_session = AsyncMock()
+            mock_session.commit = AsyncMock(side_effect=SQLAlchemyTimeoutError("pool timeout"))
+            mock_session.rollback = AsyncMock()
+
+            mock_factory = MagicMock()
+            mock_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_factory.return_value.__aexit__ = AsyncMock(return_value=None)
+
+            db_module._async_session_factory = mock_factory
+
+            with patch.object(db_module._logger, "error") as mock_logger:
+                with pytest.raises(SQLAlchemyTimeoutError):
+                    async with db_module.get_session():
+                        pass
+
+                mock_logger.assert_called_once()
+                call_args = mock_logger.call_args
+                assert call_args[0][0] == "Database timeout error"
+                assert call_args[1]["extra"]["error_type"] == "timeout_error"
+                assert "detail" in call_args[1]["extra"]
+
+            mock_session.rollback.assert_called_once()
+        finally:
+            db_module._async_session_factory = original_factory
+
+    @pytest.mark.asyncio
+    async def test_get_session_logs_programming_error_with_exception(self) -> None:
+        """Test that ProgrammingError is logged with logger.exception for stack trace."""
+        from sqlalchemy.exc import ProgrammingError
+
+        import backend.core.database as db_module
+
+        # Save original state
+        original_factory = db_module._async_session_factory
+
+        try:
+            # Create mock session that raises ProgrammingError
+            mock_session = AsyncMock()
+            mock_session.commit = AsyncMock(
+                side_effect=ProgrammingError("bad SQL", None, Exception("syntax error"))
+            )
+            mock_session.rollback = AsyncMock()
+
+            mock_factory = MagicMock()
+            mock_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_factory.return_value.__aexit__ = AsyncMock(return_value=None)
+
+            db_module._async_session_factory = mock_factory
+
+            with patch.object(db_module._logger, "exception") as mock_logger:
+                with pytest.raises(ProgrammingError):
+                    async with db_module.get_session():
+                        pass
+
+                mock_logger.assert_called_once()
+                call_args = mock_logger.call_args
+                assert "programming error" in call_args[0][0].lower()
+                assert call_args[1]["extra"]["error_type"] == "programming_error"
+                assert "detail" in call_args[1]["extra"]
+
+            mock_session.rollback.assert_called_once()
+        finally:
+            db_module._async_session_factory = original_factory
+
+    @pytest.mark.asyncio
+    async def test_get_session_logs_unexpected_error_with_exception(self) -> None:
+        """Test that unexpected errors are logged with logger.exception."""
+        import backend.core.database as db_module
+
+        # Save original state
+        original_factory = db_module._async_session_factory
+
+        try:
+            # Create mock session that raises unexpected error
+            mock_session = AsyncMock()
+            mock_session.commit = AsyncMock(side_effect=RuntimeError("unexpected"))
+            mock_session.rollback = AsyncMock()
+
+            mock_factory = MagicMock()
+            mock_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_factory.return_value.__aexit__ = AsyncMock(return_value=None)
+
+            db_module._async_session_factory = mock_factory
+
+            with patch.object(db_module._logger, "exception") as mock_logger:
+                with pytest.raises(RuntimeError):
+                    async with db_module.get_session():
+                        pass
+
+                mock_logger.assert_called_once()
+                call_args = mock_logger.call_args
+                assert call_args[0][0] == "Unexpected database error"
+                assert call_args[1]["extra"]["error_type"] == "unexpected_error"
+                assert call_args[1]["extra"]["exception_class"] == "RuntimeError"
+
+            mock_session.rollback.assert_called_once()
+        finally:
+            db_module._async_session_factory = original_factory
+
+    @pytest.mark.asyncio
+    async def test_get_db_logs_integrity_error(self) -> None:
+        """Test that get_db logs IntegrityError at WARNING level."""
+        from sqlalchemy.exc import IntegrityError
+
+        import backend.core.database as db_module
+
+        # Save original state
+        original_factory = db_module._async_session_factory
+
+        try:
+            # Create mock session that raises IntegrityError
+            mock_session = AsyncMock()
+            mock_session.commit = AsyncMock(
+                side_effect=IntegrityError("fk violation", None, Exception("foreign_key"))
+            )
+            mock_session.rollback = AsyncMock()
+            mock_session.close = AsyncMock()
+
+            mock_factory = MagicMock()
+            mock_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_factory.return_value.__aexit__ = AsyncMock(return_value=None)
+
+            db_module._async_session_factory = mock_factory
+
+            with patch.object(db_module._logger, "warning") as mock_logger:
+                with pytest.raises(IntegrityError):
+                    async for _session in db_module.get_db():
+                        pass  # commit will raise
+
+                mock_logger.assert_called_once()
+                call_args = mock_logger.call_args
+                assert call_args[0][0] == "Database integrity error"
+                assert call_args[1]["extra"]["error_type"] == "integrity_error"
+
+            # Verify close was still called in finally block
+            mock_session.close.assert_called_once()
+        finally:
+            db_module._async_session_factory = original_factory
+
+    @pytest.mark.asyncio
+    async def test_get_db_logs_operational_error(self) -> None:
+        """Test that get_db logs OperationalError at ERROR level."""
+        from sqlalchemy.exc import OperationalError
+
+        import backend.core.database as db_module
+
+        # Save original state
+        original_factory = db_module._async_session_factory
+
+        try:
+            mock_session = AsyncMock()
+            mock_session.commit = AsyncMock(
+                side_effect=OperationalError("db down", None, Exception("connection refused"))
+            )
+            mock_session.rollback = AsyncMock()
+            mock_session.close = AsyncMock()
+
+            mock_factory = MagicMock()
+            mock_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_factory.return_value.__aexit__ = AsyncMock(return_value=None)
+
+            db_module._async_session_factory = mock_factory
+
+            with patch.object(db_module._logger, "error") as mock_logger:
+                with pytest.raises(OperationalError):
+                    async for _session in db_module.get_db():
+                        pass
+
+                mock_logger.assert_called_once()
+                assert mock_logger.call_args[1]["extra"]["error_type"] == "operational_error"
+
+            mock_session.close.assert_called_once()
+        finally:
+            db_module._async_session_factory = original_factory
+
+    @pytest.mark.asyncio
+    async def test_get_db_logs_unexpected_error(self) -> None:
+        """Test that get_db logs unexpected errors with exception info."""
+        import backend.core.database as db_module
+
+        # Save original state
+        original_factory = db_module._async_session_factory
+
+        try:
+            mock_session = AsyncMock()
+            mock_session.commit = AsyncMock(side_effect=KeyError("missing"))
+            mock_session.rollback = AsyncMock()
+            mock_session.close = AsyncMock()
+
+            mock_factory = MagicMock()
+            mock_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_factory.return_value.__aexit__ = AsyncMock(return_value=None)
+
+            db_module._async_session_factory = mock_factory
+
+            with patch.object(db_module._logger, "exception") as mock_logger:
+                with pytest.raises(KeyError):
+                    async for _session in db_module.get_db():
+                        pass
+
+                mock_logger.assert_called_once()
+                call_args = mock_logger.call_args
+                assert call_args[1]["extra"]["error_type"] == "unexpected_error"
+                assert call_args[1]["extra"]["exception_class"] == "KeyError"
+
+            mock_session.close.assert_called_once()
+        finally:
+            db_module._async_session_factory = original_factory
+
+    @pytest.mark.asyncio
+    async def test_integrity_error_extracts_constraint_from_diag(self) -> None:
+        """Test that constraint name is extracted from asyncpg diag attribute."""
+        from sqlalchemy.exc import IntegrityError
+
+        import backend.core.database as db_module
+
+        # Save original state
+        original_factory = db_module._async_session_factory
+
+        try:
+            # Create a mock orig with diag attribute (asyncpg style)
+            mock_diag = MagicMock()
+            mock_diag.constraint_name = "uq_cameras_name"
+            mock_orig = MagicMock()
+            mock_orig.diag = mock_diag
+            # Don't set constraint_name directly so it falls through to diag
+            del mock_orig.constraint_name
+
+            error = IntegrityError("duplicate key", None, mock_orig)
+
+            mock_session = AsyncMock()
+            mock_session.commit = AsyncMock(side_effect=error)
+            mock_session.rollback = AsyncMock()
+
+            mock_factory = MagicMock()
+            mock_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_factory.return_value.__aexit__ = AsyncMock(return_value=None)
+
+            db_module._async_session_factory = mock_factory
+
+            with patch.object(db_module._logger, "warning") as mock_logger:
+                with pytest.raises(IntegrityError):
+                    async with db_module.get_session():
+                        pass
+
+                call_args = mock_logger.call_args
+                # Should have extracted constraint from diag
+                assert call_args[1]["extra"]["constraint"] == "uq_cameras_name"
+        finally:
+            db_module._async_session_factory = original_factory
+
+    @pytest.mark.asyncio
+    async def test_integrity_error_handles_missing_constraint_info(self) -> None:
+        """Test that IntegrityError is logged even without constraint info."""
+        from sqlalchemy.exc import IntegrityError
+
+        import backend.core.database as db_module
+
+        # Save original state
+        original_factory = db_module._async_session_factory
+
+        try:
+            # Create error with no constraint information available
+            error = IntegrityError("integrity error", None, None)
+
+            mock_session = AsyncMock()
+            mock_session.commit = AsyncMock(side_effect=error)
+            mock_session.rollback = AsyncMock()
+
+            mock_factory = MagicMock()
+            mock_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_factory.return_value.__aexit__ = AsyncMock(return_value=None)
+
+            db_module._async_session_factory = mock_factory
+
+            with patch.object(db_module._logger, "warning") as mock_logger:
+                with pytest.raises(IntegrityError):
+                    async with db_module.get_session():
+                        pass
+
+                call_args = mock_logger.call_args
+                # Constraint should be None when not available
+                assert call_args[1]["extra"]["constraint"] is None
+                # Should still have detail
+                assert "detail" in call_args[1]["extra"]
+        finally:
+            db_module._async_session_factory = original_factory

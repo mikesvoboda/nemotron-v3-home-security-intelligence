@@ -109,6 +109,9 @@ def _parse_datetime(value: str | datetime | None) -> datetime | None:
             value = value.replace("Z", "+00:00")
             return datetime.fromisoformat(value)
     except (ValueError, TypeError):
+        # Malformed timestamp - return None to allow caller to handle gracefully.
+        # Job search results can still be returned without exact timestamps.
+        # See: NEM-2540 for rationale
         pass
     return None
 

@@ -127,8 +127,10 @@ def get_system_font(size: int = 14) -> Any:
             font = ImageFont.truetype(font_path, size)
             logger.debug(f"Using system font: {font_path}")
             return font
-        except Exception:  # noqa: S110
-            # Font not found at this path, try next one
+        except Exception:  # noqa: S110 - Intentional: font discovery fallback
+            # Font not found at this path - try next path in search list.
+            # Eventually falls back to default PIL font if no TrueType fonts found.
+            # See: NEM-2540 for rationale
             pass
 
     # Fall back to default PIL font

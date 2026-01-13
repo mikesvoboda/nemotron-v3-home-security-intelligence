@@ -342,7 +342,10 @@ async def seed_cameras(
             try:
                 folder_path.mkdir(parents=True, exist_ok=True)
             except OSError:
-                pass  # Continue even if folder creation fails
+                # Folder creation is optional - continue with camera registration even if
+                # filesystem operations fail. Camera will be created in DB regardless.
+                # See: NEM-2540 for rationale
+                pass
 
         # Create camera in database
         camera = Camera(

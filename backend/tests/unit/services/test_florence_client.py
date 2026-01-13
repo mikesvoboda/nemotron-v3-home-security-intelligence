@@ -264,18 +264,18 @@ class TestFlorenceClientInit:
         assert client._timeout is not None
         assert client._health_timeout is not None
 
-    def test_init_fallback_to_default_url(self) -> None:
-        """Test initialization falls back to DEFAULT_FLORENCE_URL when settings missing attribute."""
+    def test_init_uses_settings_florence_url(self) -> None:
+        """Test initialization uses florence_url from settings."""
         with patch("backend.services.florence_client.get_settings") as mock:
-            # Create a mock that doesn't have florence_url attribute
+            # Create a mock with florence_url configured
             settings_obj = MagicMock()
-            del settings_obj.florence_url  # Remove the attribute
+            settings_obj.florence_url = "http://custom-florence:9999"
             settings_obj.ai_connect_timeout = 10.0
             settings_obj.ai_health_timeout = 5.0
             mock.return_value = settings_obj
 
             client = FlorenceClient()
-            assert client._base_url == "http://ai-florence:8092"
+            assert client._base_url == "http://custom-florence:9999"
 
 
 # =============================================================================

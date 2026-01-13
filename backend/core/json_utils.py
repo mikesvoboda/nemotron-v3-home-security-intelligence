@@ -9,13 +9,20 @@ handling common issues like:
 - Single quotes instead of double quotes
 - Incomplete/truncated JSON
 - <think>...</think> blocks from reasoning models
+
+It also provides safe JSON parsing utilities with error logging for general use.
 """
 
 from __future__ import annotations
 
 import json
+import logging
 import re
 from typing import Any
+
+# Logger for this module - use standard logging to avoid circular imports
+# with backend.core.logging during module initialization
+_logger = logging.getLogger(__name__)
 
 
 def extract_json_from_llm_response(text: str) -> dict[str, Any]:
@@ -163,6 +170,9 @@ def _try_parse_json(json_str: str) -> dict[str, Any] | None:
         if isinstance(result, dict):
             return result
     except json.JSONDecodeError:
+        # JSON parsing failed - return None to allow caller to try alternative strategies.
+        # This is part of a multi-fallback JSON parsing pipeline for LLM responses.
+        # See: NEM-2540 for rationale
         pass
     return None
 
@@ -297,4 +307,77 @@ def extract_json_field(
         data = extract_json_from_llm_response(text)
         return data.get(field_name, default)
     except ValueError:
+        return default
+
+
+# Default preview length for truncating JSON text in log messages
+_DEFAULT_TEXT_PREVIEW_LENGTH = 100
+
+
+def safe_json_loads(
+    text: str,
+    default: Any = None,
+    context: str = "",
+) -> Any:
+    """Parse JSON with error logging and fallback.
+
+    This function provides a safe way to parse JSON strings that may fail,
+    logging detailed error context for debugging while gracefully returning
+    a default value on failure.
+
+    The logged information includes:
+    - The context description (what was being parsed)
+    - The character position where parsing failed
+    - The specific error message from the JSON decoder
+    - A preview of the text (truncated to 100 characters)
+
+    Args:
+        text: JSON string to parse
+        default: Value to return on parse failure (default: None)
+        context: Description of what's being parsed (for logging).
+            Examples: "AI service response", "Redis cache value",
+            "WebSocket message", "prompt config"
+
+    Returns:
+        Parsed JSON (dict, list, etc.) or the default value if parsing fails.
+
+    Example:
+        # Basic usage
+        data = safe_json_loads(response.text, default={}, context="AI service response")
+
+        # With list default
+        items = safe_json_loads(json_str, default=[], context="detection IDs")
+
+        # Without context (less helpful logs)
+        result = safe_json_loads(text, default=None)
+
+    Note:
+        This function uses WARNING level logging for parse failures, as these
+        typically indicate data issues that should be investigated but don't
+        require immediate action.
+    """
+    if not text:
+        # Empty/None text is a common case that doesn't need logging
+        return default
+
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError as e:
+        # Truncate text preview to avoid logging huge payloads
+        text_preview = (
+            text[:_DEFAULT_TEXT_PREVIEW_LENGTH]
+            if len(text) > _DEFAULT_TEXT_PREVIEW_LENGTH
+            else text
+        )
+
+        _logger.warning(
+            "JSON parse failed, using default",
+            extra={
+                "context": context or "unspecified",
+                "error_position": e.pos,
+                "error_message": e.msg,
+                "text_preview": text_preview,
+                "text_length": len(text),
+            },
+        )
         return default

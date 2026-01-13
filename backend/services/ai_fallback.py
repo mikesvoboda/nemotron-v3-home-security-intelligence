@@ -335,6 +335,9 @@ class AIFallbackService:
             try:
                 await self._health_check_task
             except asyncio.CancelledError:
+                # Task was intentionally cancelled via cancel().
+                # This is normal cleanup behavior, not an error condition.
+                # See: NEM-2540 for rationale
                 pass
             self._health_check_task = None
 

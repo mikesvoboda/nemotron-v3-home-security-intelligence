@@ -333,10 +333,11 @@ class FallbackQueue:
                 with open(f) as fp:
                     data = json.load(fp)
                     items.append(data.get("item", {}))
-            except Exception:  # noqa: S110
+            except Exception:  # noqa: S110 - Intentional: graceful file skip during peek
                 # Intentionally ignore corrupted/unreadable files during peek operation.
                 # Peek is non-destructive and should not fail if individual files are
                 # malformed - we simply skip them and continue with remaining files.
+                # See: NEM-2540 for rationale
                 pass
 
         return items
@@ -1075,7 +1076,10 @@ class DegradationManager:
             try:
                 await self._task
             except asyncio.CancelledError:
-                pass  # Expected when stop() cancels the task; no action needed
+                # Expected when stop() cancels the task; no action needed.
+                # This is normal cleanup behavior, not an error condition.
+                # See: NEM-2540 for rationale
+                pass
             self._task = None
 
         logger.info("DegradationManager stopped")

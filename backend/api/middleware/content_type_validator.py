@@ -117,6 +117,8 @@ class ContentTypeValidationMiddleware(BaseHTTPMiddleware):
             if int(content_length) > 0:
                 return True
         except ValueError:
+            # Invalid Content-Length value - fall through to other body detection methods.
+            # See: NEM-2540 for rationale
             pass
 
         # Check for chunked transfer encoding

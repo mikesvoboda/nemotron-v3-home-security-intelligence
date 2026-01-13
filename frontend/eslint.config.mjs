@@ -15,6 +15,7 @@ export default tseslint.config(
       'dist/**',
       'node_modules/**',
       'coverage/**',
+      '.vitest/**',
       'vite.config.ts',
       'vite.config.e2e.ts',
       'tailwind.config.js',

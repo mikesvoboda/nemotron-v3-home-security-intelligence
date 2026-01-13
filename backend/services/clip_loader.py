@@ -56,7 +56,10 @@ async def load_clip_model(model_path: str) -> Any:
                     model = model.cuda()
                     logger.info("CLIP model moved to CUDA")
             except ImportError:
-                pass  # torch not installed, model will run on CPU
+                # torch not installed, model will run on CPU.
+                # CPU fallback is acceptable for CLIP model inference.
+                # See: NEM-2540 for rationale
+                pass
 
             return {"model": model, "processor": processor}
 
@@ -141,7 +144,10 @@ class CLIPLoader(ModelLoaderBase[dict[str, Any]]):
 
                 self._model["model"] = model
             except (ImportError, ValueError):
-                pass  # Keep model on default device
+                # torch not installed or invalid device spec - keep model on default device.
+                # Model will still function, just potentially on different device than requested.
+                # See: NEM-2540 for rationale
+                pass
 
         return self._model
 
@@ -163,4 +169,7 @@ class CLIPLoader(ModelLoaderBase[dict[str, Any]]):
                 if torch.cuda.is_available():
                     torch.cuda.empty_cache()
             except ImportError:
+                # torch not installed - no CUDA cache to clear.
+                # Model unload completes successfully without CUDA cleanup.
+                # See: NEM-2540 for rationale
                 pass
