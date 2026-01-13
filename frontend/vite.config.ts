@@ -28,12 +28,15 @@ export default defineConfig(({ mode }) => {
 
   // Enable bundle analysis when running with --mode analyze
   const isAnalyze = mode === 'analyze';
+  // Disable PWA in test mode to prevent service worker interference with test cleanup
+  const isTest = mode === 'test';
 
   // Build plugins array
-  const plugins: PluginOption[] = [
-    react(),
-    // PWA plugin for service worker and offline support
-    VitePWA({
+  const plugins: PluginOption[] = [react()];
+
+  // PWA plugin for service worker and offline support (disabled in test mode)
+  if (!isTest) {
+    plugins.push(VitePWA({
       registerType: 'autoUpdate',
       includeAssets: [
         'favicon.svg',
@@ -114,8 +117,8 @@ export default defineConfig(({ mode }) => {
         enabled: true,
         type: 'module',
       },
-    }) as PluginOption,
-  ];
+    }) as PluginOption);
+  }
 
   // Add visualizer plugin for bundle analysis
   if (isAnalyze) {
@@ -184,22 +187,21 @@ export default defineConfig(({ mode }) => {
       // Exclude Playwright E2E tests - they should only be run via `npm run test:e2e`
       // Also exclude contract tests (Playwright-based API contract validation)
       exclude: ['**/node_modules/**', '**/dist/**', 'tests/e2e/**', 'tests/contract/**'],
-      // Thread-based parallelization for faster execution
-      pool: 'threads',
-      poolOptions: {
-        threads: {
-          // Ensure worker threads inherit increased memory limits
-          execArgv: ['--max-old-space-size=8192'],
-          // Limit max threads to prevent memory exhaustion
-          // Default is os.cpus().length - using fewer to reduce memory pressure
-          maxThreads: 4,
-          minThreads: 1,
-        },
-      },
+      // Fork-based parallelization for better memory isolation (each fork is separate process)
+      // Threads share memory which can cause accumulation issues during cleanup
+      pool: 'forks',
+      // Run test files sequentially within each shard to prevent memory accumulation
+      // This is slower but prevents OOM by allowing cleanup between files
+      fileParallelism: false,
+      // Restart worker after each test file to prevent memory accumulation
+      // This is critical for preventing OOM during long test runs
+      isolate: true,
       // Test timeouts
       testTimeout: 30000,
       hookTimeout: 30000,
-      teardownTimeout: 5000,
+      // Force quick cleanup to prevent OOM during teardown
+      // A shorter timeout forces cleanup to abort before OOM
+      teardownTimeout: 3000,
       coverage: {
         provider: 'v8',
         reporter: ['text', 'json', 'html'],
