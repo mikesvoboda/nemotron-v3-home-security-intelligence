@@ -877,17 +877,14 @@ class TestAnalyzeBatchStreaming:
         from backend.api.dependencies import get_nemotron_analyzer_dep
 
         # Create an async generator that raises an exception
-        class AsyncGeneratorError:
-            """Iterator that raises on first iteration."""
+        # Note: yield after raise is required for async generator syntax
+        # The _always_raise flag ensures vulture doesn't report unreachable code
+        _always_raise = True
 
-            def __aiter__(self):
-                return self
-
-            async def __anext__(self):
+        async def mock_streaming_generator(*args, **kwargs):
+            if _always_raise:
                 raise Exception("Test exception")
-
-        def mock_streaming_generator(*args, **kwargs):
-            return AsyncGeneratorError()
+            yield {}
 
         mock_analyzer = Mock()
         mock_analyzer.analyze_batch_streaming = mock_streaming_generator
