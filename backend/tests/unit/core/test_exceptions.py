@@ -12,6 +12,8 @@ Tests for ServiceRequestContext per NEM-1446:
 - to_log_dict() method for structured logging
 """
 
+import pytest
+
 from backend.core.exceptions import (
     AIServiceError,
     AlertCreationError,
@@ -42,6 +44,7 @@ from backend.core.exceptions import (
     InternalError,
     InvalidBoundingBoxError,
     InvalidEmbeddingError,
+    InvalidImageSizeError,
     InvalidInputError,
     InvalidStateTransition,
     LLMResponseParseError,
@@ -63,6 +66,8 @@ from backend.core.exceptions import (
     VideoProcessingError,
     get_exception_error_code,
     get_exception_status_code,
+    validate_bounding_box,
+    validate_image_size,
 )
 
 
@@ -1250,3 +1255,267 @@ class TestExceptionWithCustomErrorCodeAndStatus:
         details = {"key1": "value1", "key2": "value2"}
         exc = SecurityIntelligenceError("Error", details=details)
         assert exc.details == details
+
+
+# =============================================================================
+# NEM-2605 Bounding Box Edge Case Tests
+# =============================================================================
+
+
+class TestInvalidImageSizeError:
+    """Test InvalidImageSizeError exception (NEM-2605)."""
+
+    def test_invalid_image_size_error_defaults(self) -> None:
+        exc = InvalidImageSizeError()
+        assert exc.status_code == 400
+        assert exc.error_code == "INVALID_IMAGE_SIZE"
+        assert exc.message == "Invalid image size"
+        assert isinstance(exc, ValidationError)
+
+    def test_invalid_image_size_error_with_image_size(self) -> None:
+        exc = InvalidImageSizeError("Width is zero", image_size=(0, 480))
+        assert exc.image_size == (0, 480)
+        assert exc.details["image_size"] == [0, 480]
+        assert exc.message == "Width is zero"
+
+    def test_invalid_image_size_error_with_reason(self) -> None:
+        exc = InvalidImageSizeError(reason="non-positive width")
+        assert exc.reason == "non-positive width"
+        assert exc.details["reason"] == "non-positive width"
+
+    def test_invalid_image_size_error_with_all_params(self) -> None:
+        exc = InvalidImageSizeError(
+            "Invalid dimensions",
+            image_size=(-1, 100),
+            reason="negative width",
+        )
+        assert exc.message == "Invalid dimensions"
+        assert exc.image_size == (-1, 100)
+        assert exc.reason == "negative width"
+        assert exc.details["image_size"] == [-1, 100]
+        assert exc.details["reason"] == "negative width"
+
+
+class TestValidateBoundingBox:
+    """Test validate_bounding_box function (NEM-2605)."""
+
+    def test_valid_bbox_passes(self) -> None:
+        """Valid bbox should not raise."""
+        validate_bounding_box((10, 20, 100, 200))  # Should not raise
+
+    def test_valid_bbox_with_floats_passes(self) -> None:
+        """Valid bbox with float coordinates should not raise."""
+        validate_bounding_box((10.5, 20.5, 100.5, 200.5))  # Should not raise
+
+    def test_zero_width_raises(self) -> None:
+        """Zero-width bbox (x1 == x2) should raise InvalidBoundingBoxError."""
+        with pytest.raises(InvalidBoundingBoxError) as exc_info:
+            validate_bounding_box((50, 0, 50, 100))
+        assert "zero or negative width" in str(exc_info.value)
+        assert exc_info.value.bbox == (50, 0, 50, 100)
+
+    def test_zero_height_raises(self) -> None:
+        """Zero-height bbox (y1 == y2) should raise InvalidBoundingBoxError."""
+        with pytest.raises(InvalidBoundingBoxError) as exc_info:
+            validate_bounding_box((0, 50, 100, 50))
+        assert "zero or negative height" in str(exc_info.value)
+        assert exc_info.value.bbox == (0, 50, 100, 50)
+
+    def test_negative_width_raises(self) -> None:
+        """Negative-width bbox (x2 < x1) should raise InvalidBoundingBoxError."""
+        with pytest.raises(InvalidBoundingBoxError) as exc_info:
+            validate_bounding_box((100, 0, 50, 100))
+        assert "zero or negative width" in str(exc_info.value)
+
+    def test_negative_height_raises(self) -> None:
+        """Negative-height bbox (y2 < y1) should raise InvalidBoundingBoxError."""
+        with pytest.raises(InvalidBoundingBoxError) as exc_info:
+            validate_bounding_box((0, 100, 100, 50))
+        assert "zero or negative height" in str(exc_info.value)
+
+    def test_negative_coordinates_raises_by_default(self) -> None:
+        """Negative coordinates should raise by default."""
+        with pytest.raises(InvalidBoundingBoxError) as exc_info:
+            validate_bounding_box((-10, 0, 100, 100))
+        assert "negative coordinates" in str(exc_info.value)
+
+    def test_negative_coordinates_allowed_when_enabled(self) -> None:
+        """Negative coordinates should pass when allow_negative=True."""
+        validate_bounding_box((-10, -10, 100, 100), allow_negative=True)
+
+    def test_all_negative_coordinates_raises_by_default(self) -> None:
+        """All negative coordinates should raise by default."""
+        with pytest.raises(InvalidBoundingBoxError) as exc_info:
+            validate_bounding_box((-100, -100, -10, -10))
+        assert "negative coordinates" in str(exc_info.value)
+
+    def test_all_negative_coordinates_allowed_when_enabled(self) -> None:
+        """All negative coordinates pass when allow_negative=True."""
+        validate_bounding_box((-100, -100, -10, -10), allow_negative=True)
+
+    def test_with_valid_image_size(self) -> None:
+        """Valid bbox with valid image_size should pass."""
+        validate_bounding_box((10, 20, 100, 200), image_size=(640, 480))
+
+    def test_with_zero_width_image_size_raises(self) -> None:
+        """Zero-width image_size should raise InvalidImageSizeError."""
+        with pytest.raises(InvalidImageSizeError) as exc_info:
+            validate_bounding_box((10, 20, 100, 200), image_size=(0, 480))
+        assert "positive" in str(exc_info.value)
+        assert exc_info.value.image_size == (0, 480)
+
+    def test_with_zero_height_image_size_raises(self) -> None:
+        """Zero-height image_size should raise InvalidImageSizeError."""
+        with pytest.raises(InvalidImageSizeError) as exc_info:
+            validate_bounding_box((10, 20, 100, 200), image_size=(640, 0))
+        assert "positive" in str(exc_info.value)
+
+    def test_with_negative_width_image_size_raises(self) -> None:
+        """Negative-width image_size should raise InvalidImageSizeError."""
+        with pytest.raises(InvalidImageSizeError) as exc_info:
+            validate_bounding_box((10, 20, 100, 200), image_size=(-1, 480))
+        assert "positive" in str(exc_info.value)
+
+    def test_with_negative_height_image_size_raises(self) -> None:
+        """Negative-height image_size should raise InvalidImageSizeError."""
+        with pytest.raises(InvalidImageSizeError) as exc_info:
+            validate_bounding_box((10, 20, 100, 200), image_size=(640, -1))
+        assert "positive" in str(exc_info.value)
+
+
+class TestValidateImageSize:
+    """Test validate_image_size function (NEM-2605)."""
+
+    def test_valid_image_size_passes(self) -> None:
+        """Valid image_size should not raise."""
+        validate_image_size((640, 480))  # Should not raise
+
+    def test_large_image_size_passes(self) -> None:
+        """Large valid image_size should not raise."""
+        validate_image_size((4096, 2160))  # Should not raise
+
+    def test_none_image_size_raises(self) -> None:
+        """None image_size should raise InvalidImageSizeError."""
+        with pytest.raises(InvalidImageSizeError) as exc_info:
+            validate_image_size(None)
+        assert "cannot be None" in str(exc_info.value)
+        assert exc_info.value.reason == "image_size is required"
+
+    def test_zero_width_raises(self) -> None:
+        """Zero width should raise InvalidImageSizeError."""
+        with pytest.raises(InvalidImageSizeError) as exc_info:
+            validate_image_size((0, 480))
+        assert "positive" in str(exc_info.value)
+        assert exc_info.value.reason == "non-positive width"
+        assert exc_info.value.image_size == (0, 480)
+
+    def test_zero_height_raises(self) -> None:
+        """Zero height should raise InvalidImageSizeError."""
+        with pytest.raises(InvalidImageSizeError) as exc_info:
+            validate_image_size((640, 0))
+        assert "positive" in str(exc_info.value)
+        assert exc_info.value.reason == "non-positive height"
+        assert exc_info.value.image_size == (640, 0)
+
+    def test_negative_width_raises(self) -> None:
+        """Negative width should raise InvalidImageSizeError."""
+        with pytest.raises(InvalidImageSizeError) as exc_info:
+            validate_image_size((-10, 480))
+        assert "positive" in str(exc_info.value)
+        assert exc_info.value.reason == "non-positive width"
+
+    def test_negative_height_raises(self) -> None:
+        """Negative height should raise InvalidImageSizeError."""
+        with pytest.raises(InvalidImageSizeError) as exc_info:
+            validate_image_size((640, -10))
+        assert "positive" in str(exc_info.value)
+        assert exc_info.value.reason == "non-positive height"
+
+    def test_both_zero_raises(self) -> None:
+        """Both dimensions zero should raise (width checked first)."""
+        with pytest.raises(InvalidImageSizeError) as exc_info:
+            validate_image_size((0, 0))
+        assert "width" in str(exc_info.value)
+        assert exc_info.value.reason == "non-positive width"
+
+    def test_both_negative_raises(self) -> None:
+        """Both dimensions negative should raise (width checked first)."""
+        with pytest.raises(InvalidImageSizeError) as exc_info:
+            validate_image_size((-1, -1))
+        assert "width" in str(exc_info.value)
+
+    def test_non_tuple_raises(self) -> None:
+        """Non-tuple image_size should raise InvalidImageSizeError."""
+        with pytest.raises(InvalidImageSizeError) as exc_info:
+            validate_image_size(640)  # type: ignore[arg-type]
+        assert "must be a 2-tuple" in str(exc_info.value)
+        assert exc_info.value.reason == "not iterable"
+
+    def test_wrong_length_tuple_raises(self) -> None:
+        """Tuple with wrong length should raise InvalidImageSizeError."""
+        with pytest.raises(InvalidImageSizeError) as exc_info:
+            validate_image_size((640, 480, 3))  # type: ignore[arg-type]
+        assert "2-tuple" in str(exc_info.value)
+        assert "got 3 elements" in str(exc_info.value)
+        assert exc_info.value.reason == "must be 2-tuple"
+
+    def test_single_element_tuple_raises(self) -> None:
+        """Single-element tuple should raise InvalidImageSizeError."""
+        with pytest.raises(InvalidImageSizeError) as exc_info:
+            validate_image_size((640,))  # type: ignore[arg-type]
+        assert "got 1 elements" in str(exc_info.value)
+
+    def test_empty_tuple_raises(self) -> None:
+        """Empty tuple should raise InvalidImageSizeError."""
+        with pytest.raises(InvalidImageSizeError) as exc_info:
+            validate_image_size(())  # type: ignore[arg-type]
+        assert "got 0 elements" in str(exc_info.value)
+
+
+class TestBoundingBoxEdgeCasesNEM2605:
+    """Integration tests for NEM-2605 edge cases."""
+
+    def test_edge_case_zero_area_x1_equals_x2(self) -> None:
+        """Edge case: x1 == x2 creates zero-area box."""
+        with pytest.raises(InvalidBoundingBoxError):
+            validate_bounding_box((100, 50, 100, 150))
+
+    def test_edge_case_zero_area_y1_equals_y2(self) -> None:
+        """Edge case: y1 == y2 creates zero-area box."""
+        with pytest.raises(InvalidBoundingBoxError):
+            validate_bounding_box((50, 100, 150, 100))
+
+    def test_edge_case_inverted_bbox(self) -> None:
+        """Edge case: inverted bbox (x2 < x1, y2 < y1)."""
+        with pytest.raises(InvalidBoundingBoxError):
+            validate_bounding_box((100, 100, 50, 50))
+
+    def test_edge_case_image_size_one_pixel(self) -> None:
+        """Edge case: 1x1 image size is valid."""
+        validate_image_size((1, 1))  # Should not raise
+
+    def test_edge_case_bbox_with_image_size_validation_order(self) -> None:
+        """Edge case: bbox validation happens before image_size validation."""
+        # Invalid bbox should raise before image_size is checked
+        with pytest.raises(InvalidBoundingBoxError):
+            validate_bounding_box((100, 100, 50, 50), image_size=(0, 0))
+
+    def test_edge_case_valid_bbox_invalid_image_size(self) -> None:
+        """Edge case: valid bbox with invalid image_size should raise InvalidImageSizeError."""
+        with pytest.raises(InvalidImageSizeError):
+            validate_bounding_box((10, 10, 50, 50), image_size=(0, 100))
+
+    def test_error_messages_are_descriptive(self) -> None:
+        """Error messages should contain useful information."""
+        # Test bbox error message
+        try:
+            validate_bounding_box((50, 0, 50, 100))
+        except InvalidBoundingBoxError as e:
+            assert "x1=50" in str(e)
+            assert "x2=50" in str(e)
+
+        # Test image_size error message
+        try:
+            validate_image_size((0, 480))
+        except InvalidImageSizeError as e:
+            assert "0" in str(e) or "positive" in str(e)

@@ -18,7 +18,6 @@ WebSocket events are broadcast for:
 from __future__ import annotations
 
 import asyncio
-import threading
 import uuid
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
@@ -106,7 +105,7 @@ class JobFailedData(TypedDict):
 class JobTracker:
     """Tracks background job lifecycle and broadcasts WebSocket events.
 
-    Thread-safe implementation for tracking multiple concurrent jobs.
+    Async-safe implementation using asyncio.Lock for tracking multiple concurrent jobs.
     Progress updates are throttled to prevent excessive WebSocket traffic.
 
     The broadcast callback can be either sync or async. When async, it will
@@ -136,7 +135,7 @@ class JobTracker:
         self._redis_client = redis_client
         self._jobs: dict[str, JobInfo] = {}
         self._last_broadcast_progress: dict[str, int] = {}
-        self._lock = threading.Lock()
+        self._lock = asyncio.Lock()
 
     def set_broadcast_callback(self, callback: BroadcastCallback) -> None:
         """Set the broadcast callback after initialization.
@@ -207,13 +206,15 @@ class JobTracker:
         if self._redis_client is None:
             return
 
-        with self._lock:
+        # Minimal critical section - only dict access
+        async with self._lock:
             job = self._jobs.get(job_id)
             if job is None:
                 return
             # Create a copy for serialization
             job_data = dict(job)
 
+        # Redis I/O outside the lock
         try:
             key = self._get_redis_key(job_id)
             await self._redis_client.set(key, job_data, expire=ttl)
@@ -253,12 +254,12 @@ class JobTracker:
         Returns:
             Job information or None if not found.
         """
-        # First check in-memory cache
-        with self._lock:
+        # First check in-memory cache - minimal critical section
+        async with self._lock:
             if job_id in self._jobs:
                 return self._jobs[job_id]
 
-        # Then check Redis
+        # Redis I/O outside the lock
         if self._redis_client is None:
             return None
 
@@ -290,6 +291,9 @@ class JobTracker:
     def create_job(self, job_type: str, job_id: str | None = None) -> str:
         """Create a new job and return its ID.
 
+        This method is synchronous for backward compatibility with existing code.
+        Uses a simple dict assignment which is atomic in CPython due to the GIL.
+
         Args:
             job_type: Type of job (e.g., 'export', 'cleanup', 'backup')
             job_id: Optional job ID. If not provided, a UUID will be generated.
@@ -302,20 +306,21 @@ class JobTracker:
 
         now = datetime.now(UTC).isoformat()
 
-        with self._lock:
-            self._jobs[job_id] = JobInfo(
-                job_id=job_id,
-                job_type=job_type,
-                status=JobStatus.PENDING,
-                progress=0,
-                message=None,
-                created_at=now,
-                started_at=None,
-                completed_at=None,
-                result=None,
-                error=None,
-            )
-            self._last_broadcast_progress[job_id] = 0
+        # Simple dict assignments are atomic in CPython due to GIL
+        # This maintains backward compatibility while being safe
+        self._jobs[job_id] = JobInfo(
+            job_id=job_id,
+            job_type=job_type,
+            status=JobStatus.PENDING,
+            progress=0,
+            message=None,
+            created_at=now,
+            started_at=None,
+            completed_at=None,
+            result=None,
+            error=None,
+        )
+        self._last_broadcast_progress[job_id] = 0
 
         logger.info(
             "Job created",
@@ -330,6 +335,8 @@ class JobTracker:
     def start_job(self, job_id: str, message: str | None = None) -> None:
         """Mark a job as started/running.
 
+        This method is synchronous for backward compatibility.
+
         Args:
             job_id: The job ID to start.
             message: Optional status message.
@@ -339,14 +346,13 @@ class JobTracker:
         """
         now = datetime.now(UTC).isoformat()
 
-        with self._lock:
-            if job_id not in self._jobs:
-                raise KeyError(f"Job not found: {job_id}")
+        if job_id not in self._jobs:
+            raise KeyError(f"Job not found: {job_id}")
 
-            self._jobs[job_id]["status"] = JobStatus.RUNNING
-            self._jobs[job_id]["started_at"] = now
-            if message is not None:
-                self._jobs[job_id]["message"] = message
+        self._jobs[job_id]["status"] = JobStatus.RUNNING
+        self._jobs[job_id]["started_at"] = now
+        if message is not None:
+            self._jobs[job_id]["message"] = message
 
         logger.info("Job started", extra={"job_id": job_id})
 
@@ -359,6 +365,8 @@ class JobTracker:
         Progress is clamped to 0-100 range. Broadcasts are throttled to
         only occur when progress crosses a 10% threshold.
 
+        This method is synchronous for backward compatibility.
+
         Args:
             job_id: The job ID to update.
             progress: New progress value (0-100).
@@ -369,17 +377,16 @@ class JobTracker:
         """
         progress = max(0, min(100, progress))
 
-        with self._lock:
-            if job_id not in self._jobs:
-                raise KeyError(f"Job not found: {job_id}")
+        if job_id not in self._jobs:
+            raise KeyError(f"Job not found: {job_id}")
 
-            self._jobs[job_id]["progress"] = progress
-            if message is not None:
-                self._jobs[job_id]["message"] = message
+        self._jobs[job_id]["progress"] = progress
+        if message is not None:
+            self._jobs[job_id]["message"] = message
 
-            should_broadcast = self._should_broadcast_progress(job_id, progress)
-            if should_broadcast:
-                self._last_broadcast_progress[job_id] = progress
+        should_broadcast = self._should_broadcast_progress(job_id, progress)
+        if should_broadcast:
+            self._last_broadcast_progress[job_id] = progress
 
         if should_broadcast:
             self._broadcast_progress(job_id)
@@ -406,17 +413,16 @@ class JobTracker:
 
     def _broadcast_progress(self, job_id: str) -> None:
         """Broadcast a job progress event via WebSocket."""
-        with self._lock:
-            job = self._jobs.get(job_id)
-            if not job:
-                return
+        job = self._jobs.get(job_id)
+        if not job:
+            return
 
-            data = JobProgressData(
-                job_id=job_id,
-                job_type=job["job_type"],
-                progress=job["progress"],
-                status=str(job["status"]),
-            )
+        data = JobProgressData(
+            job_id=job_id,
+            job_type=job["job_type"],
+            progress=job["progress"],
+            status=str(job["status"]),
+        )
 
         logger.debug(
             "Broadcasting job progress",
@@ -431,6 +437,8 @@ class JobTracker:
     def complete_job(self, job_id: str, result: Any = None) -> None:
         """Mark a job as completed and broadcast.
 
+        This method is synchronous for backward compatibility.
+
         Args:
             job_id: The job ID to complete.
             result: Optional result data to include in the broadcast.
@@ -440,17 +448,16 @@ class JobTracker:
         """
         now = datetime.now(UTC).isoformat()
 
-        with self._lock:
-            if job_id not in self._jobs:
-                raise KeyError(f"Job not found: {job_id}")
+        if job_id not in self._jobs:
+            raise KeyError(f"Job not found: {job_id}")
 
-            self._jobs[job_id]["status"] = JobStatus.COMPLETED
-            self._jobs[job_id]["progress"] = 100
-            self._jobs[job_id]["completed_at"] = now
-            self._jobs[job_id]["result"] = result
-            self._jobs[job_id]["message"] = "Completed successfully"
+        self._jobs[job_id]["status"] = JobStatus.COMPLETED
+        self._jobs[job_id]["progress"] = 100
+        self._jobs[job_id]["completed_at"] = now
+        self._jobs[job_id]["result"] = result
+        self._jobs[job_id]["message"] = "Completed successfully"
 
-            job = self._jobs[job_id]
+        job = self._jobs[job_id]
 
         logger.info(
             "Job completed",
@@ -474,6 +481,8 @@ class JobTracker:
     def fail_job(self, job_id: str, error: str) -> None:
         """Mark a job as failed and broadcast.
 
+        This method is synchronous for backward compatibility.
+
         Args:
             job_id: The job ID to fail.
             error: Error message describing the failure.
@@ -483,16 +492,15 @@ class JobTracker:
         """
         now = datetime.now(UTC).isoformat()
 
-        with self._lock:
-            if job_id not in self._jobs:
-                raise KeyError(f"Job not found: {job_id}")
+        if job_id not in self._jobs:
+            raise KeyError(f"Job not found: {job_id}")
 
-            self._jobs[job_id]["status"] = JobStatus.FAILED
-            self._jobs[job_id]["completed_at"] = now
-            self._jobs[job_id]["error"] = error
-            self._jobs[job_id]["message"] = f"Failed: {error}"
+        self._jobs[job_id]["status"] = JobStatus.FAILED
+        self._jobs[job_id]["completed_at"] = now
+        self._jobs[job_id]["error"] = error
+        self._jobs[job_id]["message"] = f"Failed: {error}"
 
-            job = self._jobs[job_id]
+        job = self._jobs[job_id]
 
         logger.error(
             "Job failed",
@@ -516,14 +524,16 @@ class JobTracker:
     def get_job(self, job_id: str) -> JobInfo | None:
         """Get information about a job.
 
+        This method is synchronous for backward compatibility.
+        Dict access is atomic in CPython due to the GIL.
+
         Args:
             job_id: The job ID to look up.
 
         Returns:
             Job information or None if not found.
         """
-        with self._lock:
-            return self._jobs.get(job_id)
+        return self._jobs.get(job_id)
 
     def is_cancelled(self, job_id: str) -> bool:
         """Check if a job has been cancelled.
@@ -532,6 +542,8 @@ class JobTracker:
         message indicates cancellation. This allows long-running tasks to
         check for cancellation and exit gracefully.
 
+        This method is synchronous for backward compatibility.
+
         Args:
             job_id: The job ID to check.
 
@@ -539,41 +551,42 @@ class JobTracker:
             True if the job was cancelled, False otherwise.
             Returns False if job is not found.
         """
-        with self._lock:
-            job = self._jobs.get(job_id)
-            if job is None:
-                return False
+        job = self._jobs.get(job_id)
+        if job is None:
+            return False
 
-            return job["status"] == JobStatus.FAILED and job.get("error") == "Cancelled by user"
+        return job["status"] == JobStatus.FAILED and job.get("error") == "Cancelled by user"
 
     def get_active_jobs(self) -> list[JobInfo]:
         """Get all jobs that are pending or running.
 
+        This method is synchronous for backward compatibility.
+
         Returns:
             List of active job information.
         """
-        with self._lock:
-            return [
-                job
-                for job in self._jobs.values()
-                if job["status"] in (JobStatus.PENDING, JobStatus.RUNNING)
-            ]
+        return [
+            job
+            for job in self._jobs.values()
+            if job["status"] in (JobStatus.PENDING, JobStatus.RUNNING)
+        ]
 
     def cleanup_completed_jobs(self) -> int:
         """Remove all completed and failed jobs from tracking.
 
+        This method is synchronous for backward compatibility.
+
         Returns:
             Number of jobs removed.
         """
-        with self._lock:
-            to_remove = [
-                job_id
-                for job_id, job in self._jobs.items()
-                if job["status"] in (JobStatus.COMPLETED, JobStatus.FAILED)
-            ]
-            for job_id in to_remove:
-                del self._jobs[job_id]
-                self._last_broadcast_progress.pop(job_id, None)
+        to_remove = [
+            job_id
+            for job_id, job in self._jobs.items()
+            if job["status"] in (JobStatus.COMPLETED, JobStatus.FAILED)
+        ]
+        for job_id in to_remove:
+            del self._jobs[job_id]
+            self._last_broadcast_progress.pop(job_id, None)
 
         if to_remove:
             logger.info("Cleaned up completed jobs", extra={"count": len(to_remove)})
@@ -587,6 +600,8 @@ class JobTracker:
     ) -> list[JobInfo]:
         """Get all jobs with optional filtering.
 
+        This method is synchronous for backward compatibility.
+
         Args:
             job_type: Optional filter by job type (e.g., 'export', 'cleanup')
             status_filter: Optional filter by job status
@@ -594,8 +609,7 @@ class JobTracker:
         Returns:
             List of jobs matching the filters, sorted by created_at descending
         """
-        with self._lock:
-            jobs = list(self._jobs.values())
+        jobs = list(self._jobs.values())
 
         # Apply filters
         if job_type is not None:
@@ -616,6 +630,8 @@ class JobTracker:
         Note: Actual cancellation of running tasks depends on the task
         implementation checking for cancellation status.
 
+        This method is synchronous for backward compatibility.
+
         Args:
             job_id: The job ID to cancel.
 
@@ -627,20 +643,19 @@ class JobTracker:
         """
         now = datetime.now(UTC).isoformat()
 
-        with self._lock:
-            if job_id not in self._jobs:
-                raise KeyError(f"Job not found: {job_id}")
+        if job_id not in self._jobs:
+            raise KeyError(f"Job not found: {job_id}")
 
-            job = self._jobs[job_id]
+        job = self._jobs[job_id]
 
-            # Can only cancel pending or running jobs
-            if job["status"] in (JobStatus.COMPLETED, JobStatus.FAILED):
-                return False
+        # Can only cancel pending or running jobs
+        if job["status"] in (JobStatus.COMPLETED, JobStatus.FAILED):
+            return False
 
-            self._jobs[job_id]["status"] = JobStatus.FAILED
-            self._jobs[job_id]["completed_at"] = now
-            self._jobs[job_id]["error"] = "Cancelled by user"
-            self._jobs[job_id]["message"] = "Job cancelled by user request"
+        self._jobs[job_id]["status"] = JobStatus.FAILED
+        self._jobs[job_id]["completed_at"] = now
+        self._jobs[job_id]["error"] = "Cancelled by user"
+        self._jobs[job_id]["message"] = "Job cancelled by user request"
 
         logger.info(
             "Job cancelled",
@@ -670,6 +685,8 @@ class JobTracker:
         Only cancels jobs that are in PENDING status. Running jobs should
         be aborted instead using abort_job().
 
+        This method is synchronous for backward compatibility.
+
         Args:
             job_id: The job ID to cancel.
 
@@ -682,24 +699,23 @@ class JobTracker:
         """
         now = datetime.now(UTC).isoformat()
 
-        with self._lock:
-            if job_id not in self._jobs:
-                raise KeyError(f"Job not found: {job_id}")
+        if job_id not in self._jobs:
+            raise KeyError(f"Job not found: {job_id}")
 
-            job = self._jobs[job_id]
-            status = job["status"]
+        job = self._jobs[job_id]
+        status = job["status"]
 
-            # Can only cancel pending/queued jobs
-            if status == JobStatus.RUNNING:
-                return False, "Cannot cancel running job - use abort instead"
-            if status in (JobStatus.COMPLETED, JobStatus.FAILED):
-                return False, f"Cannot cancel job with status: {status}"
+        # Can only cancel pending/queued jobs
+        if status == JobStatus.RUNNING:
+            return False, "Cannot cancel running job - use abort instead"
+        if status in (JobStatus.COMPLETED, JobStatus.FAILED):
+            return False, f"Cannot cancel job with status: {status}"
 
-            self._jobs[job_id]["status"] = JobStatus.FAILED
-            self._jobs[job_id]["completed_at"] = now
-            self._jobs[job_id]["error"] = "Cancelled by user"
-            self._jobs[job_id]["message"] = "Job cancelled by user request"
-            job_type = job["job_type"]
+        self._jobs[job_id]["status"] = JobStatus.FAILED
+        self._jobs[job_id]["completed_at"] = now
+        self._jobs[job_id]["error"] = "Cancelled by user"
+        self._jobs[job_id]["message"] = "Job cancelled by user request"
+        job_type = job["job_type"]
 
         logger.info(
             "Queued job cancelled",
@@ -746,22 +762,21 @@ class JobTracker:
         """
         import json
 
-        with self._lock:
-            if job_id not in self._jobs:
-                raise KeyError(f"Job not found: {job_id}")
+        if job_id not in self._jobs:
+            raise KeyError(f"Job not found: {job_id}")
 
-            job = self._jobs[job_id]
-            status = job["status"]
+        job = self._jobs[job_id]
+        status = job["status"]
 
-            # Can only abort running jobs
-            if status == JobStatus.PENDING:
-                return False, "Cannot abort queued job - use cancel instead"
-            if status in (JobStatus.COMPLETED, JobStatus.FAILED):
-                return False, f"Cannot abort job with status: {status}"
+        # Can only abort running jobs
+        if status == JobStatus.PENDING:
+            return False, "Cannot abort queued job - use cancel instead"
+        if status in (JobStatus.COMPLETED, JobStatus.FAILED):
+            return False, f"Cannot abort job with status: {status}"
 
-            job_type = job["job_type"]
+        job_type = job["job_type"]
 
-        # Send abort signal via Redis pub/sub
+        # Send abort signal via Redis pub/sub (I/O operation)
         if self._redis_client is not None:
             try:
                 channel = f"job:{job_id}:control"
@@ -784,9 +799,7 @@ class JobTracker:
             )
 
         # Mark job as aborting (will be set to FAILED when worker acknowledges)
-        with self._lock:
-            # Update message to indicate aborting
-            self._jobs[job_id]["message"] = f"Aborting: {reason}"
+        self._jobs[job_id]["message"] = f"Aborting: {reason}"
 
         logger.info(
             "Job abort requested",
@@ -801,17 +814,18 @@ class JobTracker:
     def get_job_status_string(self, job_id: str) -> str | None:
         """Get the status string of a job.
 
+        This method is synchronous for backward compatibility.
+
         Args:
             job_id: The job ID to look up.
 
         Returns:
             Job status string or None if not found.
         """
-        with self._lock:
-            job = self._jobs.get(job_id)
-            if job is None:
-                return None
-            return str(job["status"])
+        job = self._jobs.get(job_id)
+        if job is None:
+            return None
+        return str(job["status"])
 
 
 # Module-level singleton

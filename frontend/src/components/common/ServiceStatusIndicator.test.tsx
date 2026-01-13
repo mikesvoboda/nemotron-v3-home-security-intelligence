@@ -46,7 +46,8 @@ describe('ServiceStatusIndicator', () => {
     );
 
     expect(screen.getByText('Online')).toBeInTheDocument();
-    expect(screen.getByTestId('service-status-dot')).toHaveClass('bg-green-500');
+    // Uses emerald instead of green for WCAG 4.5:1 contrast compliance
+    expect(screen.getByTestId('service-status-dot')).toHaveClass('bg-emerald-500');
   });
 
   it('shows online status when all services are healthy', () => {
@@ -63,7 +64,8 @@ describe('ServiceStatusIndicator', () => {
     );
 
     expect(screen.getByText('Online')).toBeInTheDocument();
-    expect(screen.getByTestId('service-status-dot')).toHaveClass('bg-green-500');
+    // Uses emerald instead of green for WCAG 4.5:1 contrast compliance
+    expect(screen.getByTestId('service-status-dot')).toHaveClass('bg-emerald-500');
   });
 
   it('shows degraded status when any service is restarting', () => {
@@ -238,7 +240,8 @@ describe('ServiceStatusIndicator', () => {
       expect(screen.getByText('Nemotron')).toBeInTheDocument();
 
       // Check status indicators
-      expect(screen.getByTestId('service-indicator-redis')).toHaveClass('bg-green-500');
+      // Uses emerald instead of green for WCAG 4.5:1 contrast compliance
+      expect(screen.getByTestId('service-indicator-redis')).toHaveClass('bg-emerald-500');
       expect(screen.getByTestId('service-indicator-rtdetr')).toHaveClass('bg-red-500');
       expect(screen.getByTestId('service-indicator-nemotron')).toHaveClass('bg-yellow-500');
     });

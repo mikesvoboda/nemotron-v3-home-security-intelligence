@@ -14,6 +14,7 @@ from backend.api.pagination import (
     decode_cursor,
     encode_cursor,
     get_deprecation_warning,
+    validate_pagination_params,
 )
 
 
@@ -183,3 +184,54 @@ class TestCursorDataModel:
         d = {"id": 100, "created_at": datetime(2025, 6, 15, tzinfo=UTC)}
         data = CursorData(**d)
         assert data.id == 100
+
+
+class TestValidatePaginationParams:
+    """Tests for pagination parameter validation (NEM-2613).
+
+    Ensures that simultaneous offset and cursor pagination is rejected.
+    """
+
+    def test_validation_raises_when_both_offset_and_cursor_provided(self):
+        """Test that providing both non-zero offset and cursor raises ValueError."""
+        with pytest.raises(ValueError) as exc_info:
+            validate_pagination_params(cursor="some_cursor", offset=10)
+        assert "Cannot use both 'offset' and 'cursor' pagination" in str(exc_info.value)
+
+    def test_validation_raises_for_any_positive_offset_with_cursor(self):
+        """Test that any positive offset with cursor raises ValueError."""
+        with pytest.raises(ValueError) as exc_info:
+            validate_pagination_params(cursor="abc123", offset=1)
+        assert "Cannot use both 'offset' and 'cursor' pagination" in str(exc_info.value)
+
+    def test_validation_allows_cursor_only(self):
+        """Test that cursor-only pagination is allowed."""
+        # Should not raise
+        validate_pagination_params(cursor="some_cursor", offset=None)
+        validate_pagination_params(cursor="some_cursor", offset=0)
+
+    def test_validation_allows_offset_only(self):
+        """Test that offset-only pagination is allowed."""
+        # Should not raise
+        validate_pagination_params(cursor=None, offset=10)
+        validate_pagination_params(cursor=None, offset=100)
+
+    def test_validation_allows_no_pagination_params(self):
+        """Test that no pagination params is allowed (defaults)."""
+        # Should not raise
+        validate_pagination_params(cursor=None, offset=None)
+        validate_pagination_params(cursor=None, offset=0)
+
+    def test_validation_allows_zero_offset_with_cursor(self):
+        """Test that zero offset with cursor is allowed (default offset value)."""
+        # Should not raise - offset=0 is the default value
+        validate_pagination_params(cursor="some_cursor", offset=0)
+
+    def test_validation_error_message_is_clear(self):
+        """Test that the error message clearly explains the conflict."""
+        with pytest.raises(ValueError) as exc_info:
+            validate_pagination_params(cursor="cursor123", offset=50)
+        error_message = str(exc_info.value)
+        assert "offset" in error_message.lower()
+        assert "cursor" in error_message.lower()
+        assert "Choose one" in error_message

@@ -415,9 +415,9 @@ def get_trace_id() -> str | None:
             span_context = span.get_span_context()
             if span_context and span_context.is_valid:
                 return format(span_context.trace_id, "032x")
-    except Exception:  # noqa: S110 - intentional silent catch for non-critical utility
-        # Silently return None if anything fails - trace_id is optional debugging info
-        pass
+    except Exception as e:
+        # Log at debug level to avoid noise while still providing visibility
+        logger.debug("Failed to get trace_id: %s", e)
     return None
 
 
@@ -441,9 +441,9 @@ def get_span_id() -> str | None:
             span_context = span.get_span_context()
             if span_context and span_context.is_valid:
                 return format(span_context.span_id, "016x")
-    except Exception:  # noqa: S110 - intentional silent catch for non-critical utility
-        # Silently return None if anything fails - span_id is optional debugging info
-        pass
+    except Exception as e:
+        # Log at debug level to avoid noise while still providing visibility
+        logger.debug("Failed to get span_id: %s", e)
     return None
 
 
