@@ -570,3 +570,60 @@ export function validateMaxTokens(maxTokens: number): ValidationResult {
 
   return { isValid: true };
 }
+
+// =============================================================================
+// Event ID Validation Functions
+// =============================================================================
+
+/**
+ * Result type for parseEventId function.
+ * Returns eventId as number if valid, null otherwise.
+ */
+export interface ParseEventIdResult {
+  eventId: number | null;
+  isValid: boolean;
+}
+
+/**
+ * Safely parses an event ID from a string parameter.
+ *
+ * Validates that the input:
+ * - Is a non-empty string
+ * - Contains only numeric characters (no trailing letters like "123abc")
+ * - Parses to a valid positive integer
+ * - Is not NaN
+ *
+ * This prevents crashes from invalid URL parameters and avoids
+ * exposing internal state through error messages.
+ *
+ * @param eventParam - The string to parse as an event ID
+ * @returns ParseEventIdResult with eventId (number or null) and isValid flag
+ */
+export function parseEventId(eventParam: string | null | undefined): ParseEventIdResult {
+  // Handle null, undefined, or empty string
+  if (!eventParam || eventParam.trim() === '') {
+    return { eventId: null, isValid: false };
+  }
+
+  const trimmed = eventParam.trim();
+
+  // Check that the string contains only digits (no letters, special chars, etc.)
+  // This catches cases like "123abc" which parseInt would parse as 123
+  if (!/^\d+$/.test(trimmed)) {
+    return { eventId: null, isValid: false };
+  }
+
+  const parsed = parseInt(trimmed, 10);
+
+  // Double-check for NaN (shouldn't happen with regex above, but defensive)
+  if (isNaN(parsed)) {
+    return { eventId: null, isValid: false };
+  }
+
+  // Check for negative values (shouldn't happen with regex above, but defensive)
+  if (parsed < 0) {
+    return { eventId: null, isValid: false };
+  }
+
+  return { eventId: parsed, isValid: true };
+}

@@ -12,6 +12,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  parseEventId,
   validateAlertRuleName,
   validateCameraFolderPath,
   validateCameraName,
@@ -641,5 +642,95 @@ describe('VALID_DAYS', () => {
     expect(VALID_DAYS).toContain('saturday');
     expect(VALID_DAYS).toContain('sunday');
     expect(VALID_DAYS.length).toBe(7);
+  });
+});
+
+// =============================================================================
+// Event ID Validation Tests (NEM-2561)
+// =============================================================================
+
+describe('Event ID Validation', () => {
+  describe('parseEventId', () => {
+    it('should parse valid positive integer strings', () => {
+      expect(parseEventId('1')).toEqual({ eventId: 1, isValid: true });
+      expect(parseEventId('123')).toEqual({ eventId: 123, isValid: true });
+      expect(parseEventId('999999')).toEqual({ eventId: 999999, isValid: true });
+      expect(parseEventId('0')).toEqual({ eventId: 0, isValid: true });
+    });
+
+    it('should handle whitespace in input', () => {
+      expect(parseEventId('  123  ')).toEqual({ eventId: 123, isValid: true });
+      expect(parseEventId('\t456\n')).toEqual({ eventId: 456, isValid: true });
+    });
+
+    it('should reject null input', () => {
+      expect(parseEventId(null)).toEqual({ eventId: null, isValid: false });
+    });
+
+    it('should reject undefined input', () => {
+      expect(parseEventId(undefined)).toEqual({ eventId: null, isValid: false });
+    });
+
+    it('should reject empty string', () => {
+      expect(parseEventId('')).toEqual({ eventId: null, isValid: false });
+    });
+
+    it('should reject whitespace-only string', () => {
+      expect(parseEventId('   ')).toEqual({ eventId: null, isValid: false });
+      expect(parseEventId('\t\n')).toEqual({ eventId: null, isValid: false });
+    });
+
+    it('should reject strings with trailing letters (e.g., "123abc")', () => {
+      expect(parseEventId('123abc')).toEqual({ eventId: null, isValid: false });
+      expect(parseEventId('1a')).toEqual({ eventId: null, isValid: false });
+      expect(parseEventId('999x')).toEqual({ eventId: null, isValid: false });
+    });
+
+    it('should reject strings with leading letters', () => {
+      expect(parseEventId('abc123')).toEqual({ eventId: null, isValid: false });
+      expect(parseEventId('a1')).toEqual({ eventId: null, isValid: false });
+    });
+
+    it('should reject negative number strings', () => {
+      expect(parseEventId('-1')).toEqual({ eventId: null, isValid: false });
+      expect(parseEventId('-123')).toEqual({ eventId: null, isValid: false });
+    });
+
+    it('should reject floating point number strings', () => {
+      expect(parseEventId('1.5')).toEqual({ eventId: null, isValid: false });
+      expect(parseEventId('123.456')).toEqual({ eventId: null, isValid: false });
+    });
+
+    it('should reject strings with special characters', () => {
+      expect(parseEventId('123!')).toEqual({ eventId: null, isValid: false });
+      expect(parseEventId('12@34')).toEqual({ eventId: null, isValid: false });
+      expect(parseEventId('$123')).toEqual({ eventId: null, isValid: false });
+    });
+
+    it('should reject strings with spaces between digits', () => {
+      expect(parseEventId('12 34')).toEqual({ eventId: null, isValid: false });
+      expect(parseEventId('1 2 3')).toEqual({ eventId: null, isValid: false });
+    });
+
+    it('should reject completely non-numeric strings', () => {
+      expect(parseEventId('abc')).toEqual({ eventId: null, isValid: false });
+      expect(parseEventId('event')).toEqual({ eventId: null, isValid: false });
+      expect(parseEventId('NaN')).toEqual({ eventId: null, isValid: false });
+    });
+
+    it('should reject SQL injection attempts', () => {
+      expect(parseEventId("1; DROP TABLE events;")).toEqual({ eventId: null, isValid: false });
+      expect(parseEventId("1' OR '1'='1")).toEqual({ eventId: null, isValid: false });
+    });
+
+    it('should reject XSS attempts', () => {
+      expect(parseEventId('<script>alert(1)</script>')).toEqual({ eventId: null, isValid: false });
+      expect(parseEventId('1<img src=x onerror=alert(1)>')).toEqual({ eventId: null, isValid: false });
+    });
+
+    it('should reject path traversal attempts', () => {
+      expect(parseEventId('../../../etc/passwd')).toEqual({ eventId: null, isValid: false });
+      expect(parseEventId('1/../../../')).toEqual({ eventId: null, isValid: false });
+    });
   });
 });

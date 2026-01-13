@@ -115,9 +115,9 @@ def _get_otel_current_span() -> Any:
         The current span object if available, None otherwise.
     """
     try:
-        from opentelemetry import trace
+        from opentelemetry.trace import get_current_span
 
-        return trace.get_current_span()
+        return get_current_span()
     except ImportError:
         return None
     except Exception:
