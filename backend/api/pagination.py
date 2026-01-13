@@ -102,6 +102,26 @@ def decode_cursor(cursor: str | None) -> CursorData | None:
         raise ValueError(f"Invalid cursor: {e}") from e
 
 
+def validate_pagination_params(cursor: str | None, offset: int | None) -> None:
+    """Validate that offset and cursor pagination are not used simultaneously.
+
+    This function should be called at the start of paginated endpoints to ensure
+    clients don't provide conflicting pagination parameters.
+
+    Args:
+        cursor: The cursor parameter from the request
+        offset: The offset parameter from the request
+
+    Raises:
+        ValueError: If both offset (non-zero) and cursor are provided
+    """
+    # Check if both cursor and non-zero offset are provided
+    # Handle case where offset might be a Query object in direct function calls (tests)
+    offset_value = offset if isinstance(offset, int) else 0
+    if cursor is not None and offset_value > 0:
+        raise ValueError("Cannot use both 'offset' and 'cursor' pagination. Choose one.")
+
+
 def get_deprecation_warning(cursor: str | None, offset: int) -> str | None:
     """Get deprecation warning message if offset pagination is used without cursor.
 

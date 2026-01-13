@@ -170,6 +170,66 @@ describe('ActivityFeed', () => {
       render(<ActivityFeed events={mockEvents} />);
       expect(screen.getByAltText('Thumbnail for Front Door')).toBeInTheDocument();
     });
+
+    it('shows placeholder when thumbnail fails to load', async () => {
+      const singleEvent: ActivityEvent[] = [{
+        id: '1',
+        timestamp: new Date(BASE_TIME - 2 * 60 * 1000).toISOString(),
+        camera_name: 'Front Door',
+        risk_score: 15,
+        summary: 'Person detected approaching the front entrance',
+        thumbnail_url: 'https://example.com/invalid-image.jpg',
+      }];
+
+      const { container } = render(<ActivityFeed events={singleEvent} />);
+
+      // Initially renders with image
+      const img = screen.getByAltText('Thumbnail for Front Door');
+      expect(img).toBeInTheDocument();
+
+      // Simulate image load error
+      const { fireEvent } = await import('@testing-library/react');
+      fireEvent.error(img);
+
+      // Should now show placeholder
+      const placeholder = screen.getByTestId('card-thumbnail-placeholder');
+      expect(placeholder).toBeInTheDocument();
+
+      // Image should no longer be present
+      expect(screen.queryByAltText('Thumbnail for Front Door')).not.toBeInTheDocument();
+
+      // Layout should still be intact (placeholder has correct size)
+      expect(placeholder).toHaveClass('h-20', 'w-20');
+
+      // Camera icon should be visible
+      const cameraIcons = container.querySelectorAll('svg.lucide-camera');
+      expect(cameraIcons.length).toBeGreaterThan(0);
+    });
+
+    it('maintains layout when thumbnail fails to load', async () => {
+      const singleEvent: ActivityEvent[] = [{
+        id: '1',
+        timestamp: new Date(BASE_TIME - 2 * 60 * 1000).toISOString(),
+        camera_name: 'Front Door',
+        risk_score: 15,
+        summary: 'Person detected approaching the front entrance',
+        thumbnail_url: 'https://example.com/broken-url.jpg',
+      }];
+
+      render(<ActivityFeed events={singleEvent} />);
+
+      const img = screen.getByAltText('Thumbnail for Front Door');
+      const { fireEvent } = await import('@testing-library/react');
+      fireEvent.error(img);
+
+      // Verify the detection card is still intact
+      const detectionCard = screen.getByTestId('detection-card-1');
+      expect(detectionCard).toBeInTheDocument();
+
+      // Verify camera name and summary are still visible
+      expect(screen.getByText('Front Door')).toBeInTheDocument();
+      expect(screen.getByText('Person detected approaching the front entrance')).toBeInTheDocument();
+    });
   });
 
   describe('timestamp formatting', () => {

@@ -2,6 +2,8 @@ import { Card, Title, Text, Badge, AreaChart } from '@tremor/react';
 import { clsx } from 'clsx';
 import { Activity, Layers, Clock, AlertTriangle, Zap, TrendingUp } from 'lucide-react';
 
+import { getQueueStatusColor, getLatencyStatusColor } from '../../theme/colors';
+
 /**
  * Queue depths data
  */
@@ -73,29 +75,25 @@ function formatLatency(ms: number | null | undefined): string {
 }
 
 /**
- * Gets badge color based on queue depth
+ * Gets badge color based on queue depth.
+ * Uses centralized color constants from theme/colors.ts for WCAG 4.5:1 compliance.
  */
 function getQueueBadgeColor(
   depth: number,
   threshold: number
 ): 'gray' | 'emerald' | 'yellow' | 'red' {
-  if (depth === 0) return 'gray';
-  if (depth <= threshold / 2) return 'emerald'; // Changed from 'green' for WCAG 4.5:1 contrast
-  if (depth <= threshold) return 'yellow';
-  return 'red';
+  return getQueueStatusColor(depth, threshold);
 }
 
 /**
- * Gets badge color based on latency value
+ * Gets badge color based on latency value.
+ * Uses centralized color constants from theme/colors.ts for WCAG 4.5:1 compliance.
  */
 function getLatencyColor(
   ms: number | null | undefined,
   threshold: number
 ): 'gray' | 'emerald' | 'yellow' | 'red' {
-  if (ms === null || ms === undefined) return 'gray';
-  if (ms < threshold / 2) return 'emerald'; // Changed from 'green' for WCAG 4.5:1 contrast
-  if (ms < threshold) return 'yellow';
-  return 'red';
+  return getLatencyStatusColor(ms, threshold);
 }
 
 /**

@@ -79,6 +79,40 @@ export default {
           100: '#E0E0E0',
           50: '#F0F0F0',
         },
+
+        // Semantic Status Colors (WCAG 2.1 AA compliant - 4.5:1 contrast on dark backgrounds)
+        // Use these for consistent status indicators across the application
+        // Import from theme/colors.ts for programmatic usage
+        status: {
+          // Healthy/Online states - emerald for better contrast than green
+          healthy: {
+            DEFAULT: '#10B981', // emerald-500
+            light: 'rgba(16, 185, 129, 0.1)', // 10% opacity for backgrounds
+            text: '#34D399', // emerald-400 for text on dark bg
+            border: 'rgba(16, 185, 129, 0.3)', // 30% opacity for borders
+          },
+          // Warning/Degraded states
+          warning: {
+            DEFAULT: '#F59E0B', // amber-500
+            light: 'rgba(245, 158, 11, 0.1)',
+            text: '#FBBF24', // amber-400
+            border: 'rgba(245, 158, 11, 0.3)',
+          },
+          // Error/Offline states
+          error: {
+            DEFAULT: '#EF4444', // red-500
+            light: 'rgba(239, 68, 68, 0.1)',
+            text: '#F87171', // red-400
+            border: 'rgba(239, 68, 68, 0.3)',
+          },
+          // Inactive/Unknown states
+          inactive: {
+            DEFAULT: '#6B7280', // gray-500
+            light: 'rgba(107, 114, 128, 0.1)',
+            text: '#9CA3AF', // gray-400
+            border: 'rgba(107, 114, 128, 0.3)',
+          },
+        },
       },
 
       // Custom Spacing for Dashboard Layout

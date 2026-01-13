@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import { getRiskLevel } from '../../utils/risk';
 import RiskBadge from '../common/RiskBadge';
+import ThumbnailImage from '../common/ThumbnailImage';
 
 // ============================================================================
 // Types
@@ -175,29 +176,12 @@ export default function ActivityFeed({
                   data-testid={`detection-card-${event.id}`}
                 >
                   {/* Thumbnail */}
-                  <div className="flex-shrink-0" data-testid="card-thumbnail">
-                    {event.thumbnail_url ? (
-                      <img
-                        src={event.thumbnail_url}
-                        alt={`Thumbnail for ${event.camera_name}`}
-                        className="h-20 w-20 rounded-md bg-gray-900 object-cover"
-                        onError={(e) => {
-                          // Fallback to placeholder if image fails to load
-                          const target = e.target as HTMLImageElement;
-                          target.style.display = 'none';
-                          target.nextElementSibling?.classList.remove('hidden');
-                        }}
-                      />
-                    ) : null}
-                    <div
-                      className={clsx(
-                        'flex h-20 w-20 items-center justify-center rounded-md bg-gray-900',
-                        event.thumbnail_url && 'hidden'
-                      )}
-                    >
-                      <Camera className="h-8 w-8 text-gray-700" />
-                    </div>
-                  </div>
+                  <ThumbnailImage
+                    src={event.thumbnail_url}
+                    alt={`Thumbnail for ${event.camera_name}`}
+                    size="md"
+                    testId="card-thumbnail"
+                  />
 
                   {/* Event Details */}
                   <div className="min-w-0 flex-1">

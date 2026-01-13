@@ -630,14 +630,20 @@ class TestGetTraceId:
             assert trace_id is None
 
     def test_get_trace_id_handles_exception(self) -> None:
-        """Should return None when exception occurs."""
+        """Should return None and log at debug level when exception occurs."""
         mock_span = MagicMock()
-        mock_span.get_span_context.side_effect = Exception("Error")
+        mock_span.get_span_context.side_effect = Exception("Test error")
 
-        with patch("backend.core.telemetry.get_current_span", return_value=mock_span):
+        with (
+            patch("backend.core.telemetry.get_current_span", return_value=mock_span),
+            patch("backend.core.telemetry.logger") as mock_logger,
+        ):
             trace_id = get_trace_id()
 
             assert trace_id is None
+            mock_logger.debug.assert_called_once()
+            call_args = mock_logger.debug.call_args
+            assert "Failed to get trace_id" in call_args[0][0]
 
 
 class TestGetSpanId:
@@ -680,14 +686,20 @@ class TestGetSpanId:
             assert span_id is None
 
     def test_get_span_id_handles_exception(self) -> None:
-        """Should return None when exception occurs."""
+        """Should return None and log at debug level when exception occurs."""
         mock_span = MagicMock()
-        mock_span.get_span_context.side_effect = Exception("Error")
+        mock_span.get_span_context.side_effect = Exception("Test error")
 
-        with patch("backend.core.telemetry.get_current_span", return_value=mock_span):
+        with (
+            patch("backend.core.telemetry.get_current_span", return_value=mock_span),
+            patch("backend.core.telemetry.logger") as mock_logger,
+        ):
             span_id = get_span_id()
 
             assert span_id is None
+            mock_logger.debug.assert_called_once()
+            call_args = mock_logger.debug.call_args
+            assert "Failed to get span_id" in call_args[0][0]
 
 
 class TestGetTraceContext:

@@ -18,7 +18,13 @@ from backend.api.dependencies import (
     get_video_processor_dep,
 )
 from backend.api.middleware import RateLimiter, RateLimitTier
-from backend.api.pagination import CursorData, decode_cursor, encode_cursor, get_deprecation_warning
+from backend.api.pagination import (
+    CursorData,
+    decode_cursor,
+    encode_cursor,
+    get_deprecation_warning,
+    validate_pagination_params,
+)
 from backend.api.schemas.bulk import (
     BulkOperationResponse,
     BulkOperationStatus,
@@ -211,6 +217,15 @@ async def list_detections(  # noqa: PLR0912
     """
     # Validate date range
     validate_date_range(start_date, end_date)
+
+    # Validate pagination params - reject simultaneous offset and cursor (NEM-2613)
+    try:
+        validate_pagination_params(cursor, offset)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        ) from e
 
     # Parse and validate fields parameter for sparse fieldsets (NEM-1434)
     requested_fields = parse_fields_param(fields)

@@ -145,6 +145,39 @@ class BoundingBoxValidationError(ValidationError):
     default_error_code = "INVALID_BOUNDING_BOX"
 
 
+class InvalidImageSizeError(ValidationError):
+    """Raised when image_size parameter is invalid.
+
+    This exception is raised when image dimensions are invalid:
+    - None value
+    - Not a 2-tuple
+    - Negative dimensions
+    - Zero dimensions
+    """
+
+    default_message = "Invalid image size"
+    default_error_code = "INVALID_IMAGE_SIZE"
+
+    def __init__(
+        self,
+        message: str | None = None,
+        *,
+        image_size: tuple[int, int] | None = None,
+        reason: str | None = None,
+        **kwargs: Any,
+    ) -> None:
+        self.image_size = image_size
+        self.reason = reason
+        details = kwargs.pop("details", {}) or {}
+        if image_size is not None:
+            details["image_size"] = (
+                list(image_size) if hasattr(image_size, "__iter__") else str(image_size)
+            )  # type: ignore[arg-type]
+        if reason is not None:
+            details["reason"] = reason
+        super().__init__(message, details=details, **kwargs)
+
+
 # Auth Errors
 class AuthenticationError(SecurityIntelligenceError):
     default_message = "Authentication required"
@@ -999,6 +1032,118 @@ class PromptVersionConflictError(ConflictError):
         if actual_version is not None:
             details["actual_version"] = actual_version
         super().__init__(message, details=details, **kwargs)
+
+
+# =============================================================================
+# Bounding Box Validation Helpers (NEM-2605)
+# =============================================================================
+
+
+def validate_bounding_box(
+    bbox: tuple[float, float, float, float],
+    image_size: tuple[int, int] | None = None,
+    allow_negative: bool = False,
+) -> None:
+    """Validate a bounding box and optionally its relationship to image size.
+
+    This function validates:
+    1. Bounding box has positive area (x1 < x2 and y1 < y2)
+    2. Optionally: coordinates are non-negative
+    3. Optionally: image_size is valid (2-tuple with positive dimensions)
+    4. Optionally: bbox is within image bounds
+
+    Args:
+        bbox: Bounding box as (x1, y1, x2, y2)
+        image_size: Optional image dimensions as (width, height)
+        allow_negative: If False, negative coordinates raise InvalidBoundingBoxError
+
+    Raises:
+        InvalidBoundingBoxError: If bbox has zero or negative area, or invalid coordinates
+        InvalidImageSizeError: If image_size is provided but invalid
+
+    Example:
+        >>> validate_bounding_box((10, 20, 100, 200))  # Valid
+        >>> validate_bounding_box((100, 200, 10, 20))  # Raises InvalidBoundingBoxError
+        >>> validate_bounding_box((10, 20, 100, 200), image_size=(0, 100))  # Raises InvalidImageSizeError
+    """
+    x1, y1, x2, y2 = bbox
+
+    # Check for zero-area or inverted boxes
+    if x1 >= x2:
+        raise InvalidBoundingBoxError(
+            f"Bounding box has zero or negative width: x1={x1}, x2={x2}",
+            bbox=bbox,
+        )
+
+    if y1 >= y2:
+        raise InvalidBoundingBoxError(
+            f"Bounding box has zero or negative height: y1={y1}, y2={y2}",
+            bbox=bbox,
+        )
+
+    # Check for negative coordinates if not allowed
+    if not allow_negative and (x1 < 0 or y1 < 0 or x2 < 0 or y2 < 0):
+        raise InvalidBoundingBoxError(
+            f"Bounding box has negative coordinates: ({x1}, {y1}, {x2}, {y2})",
+            bbox=bbox,
+        )
+
+    # Validate image_size if provided
+    if image_size is not None:
+        validate_image_size(image_size)
+
+
+def validate_image_size(image_size: tuple[int, int] | None) -> None:
+    """Validate that image_size is a valid 2-tuple with positive dimensions.
+
+    Args:
+        image_size: Image dimensions as (width, height)
+
+    Raises:
+        InvalidImageSizeError: If image_size is None, not a 2-tuple,
+            or has non-positive dimensions
+
+    Example:
+        >>> validate_image_size((640, 480))  # Valid
+        >>> validate_image_size((0, 480))    # Raises InvalidImageSizeError
+        >>> validate_image_size((-1, 480))   # Raises InvalidImageSizeError
+        >>> validate_image_size(None)        # Raises InvalidImageSizeError
+    """
+    if image_size is None:
+        raise InvalidImageSizeError(
+            "Image size cannot be None",
+            reason="image_size is required",
+        )
+
+    try:
+        if len(image_size) != 2:
+            raise InvalidImageSizeError(
+                f"Image size must be a 2-tuple (width, height), got {len(image_size)} elements",
+                image_size=image_size,  # type: ignore[arg-type]
+                reason="must be 2-tuple",
+            )
+    except TypeError:
+        # image_size is not iterable
+        raise InvalidImageSizeError(
+            f"Image size must be a 2-tuple, got {type(image_size).__name__}",
+            reason="not iterable",
+        ) from None
+
+    width, height = image_size
+
+    if width <= 0:
+        raise InvalidImageSizeError(
+            f"Image width must be positive, got {width}",
+            image_size=image_size,
+            reason="non-positive width",
+        )
+
+    if height <= 0:
+        raise InvalidImageSizeError(
+            f"Image height must be positive, got {height}",
+            image_size=image_size,
+            reason="non-positive height",
+        )
 
 
 # Utility functions
