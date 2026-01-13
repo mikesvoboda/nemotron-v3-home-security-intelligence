@@ -65,7 +65,7 @@ def test_generate_password_unique():
 def test_generate_env_content():
     """Test .env file content generation."""
     config = {
-        "camera_path": "/export/foscam",
+        "foscam_base_path": "/export/foscam",
         "ai_models_path": "/export/ai_models",
         "postgres_password": "testpass123",
         "ftp_password": "ftppass456",
@@ -82,7 +82,7 @@ def test_generate_env_content():
         },
     }
     content = generate_env_content(config)
-    assert "CAMERA_PATH=/export/foscam" in content
+    assert "FOSCAM_BASE_PATH=/export/foscam" in content  # pragma: allowlist secret
     assert "POSTGRES_PASSWORD=testpass123" in content
     assert "GRAFANA_URL=http://localhost:3002" in content
     assert "RTDETR_URL=http://ai-detector:8090" in content
@@ -91,7 +91,7 @@ def test_generate_env_content():
 def test_generate_docker_override_content():
     """Test docker-compose.override.yml generation."""
     config = {
-        "camera_path": "/export/foscam",
+        "foscam_base_path": "/export/foscam",
         "ai_models_path": "/export/ai_models",
         "ports": {
             "backend": 8000,
@@ -152,7 +152,7 @@ def test_run_quick_mode_returns_config():
     ):
         config = run_quick_mode()
 
-    assert "camera_path" in config
+    assert "foscam_base_path" in config
     assert "ai_models_path" in config
     assert "postgres_password" in config
     assert "ftp_password" in config
@@ -171,7 +171,7 @@ def test_run_quick_mode_accepts_custom_paths():
     ):
         config = run_quick_mode()
 
-    assert config["camera_path"] == "/custom/cameras"
+    assert config["foscam_base_path"] == "/custom/cameras"
     assert config["ai_models_path"] == "/custom/models"
 
 
@@ -202,7 +202,7 @@ def test_write_config_files_creates_env():
     """Test that write_config_files creates .env file."""
     with tempfile.TemporaryDirectory() as tmpdir:
         config = {
-            "camera_path": "/test/cameras",
+            "foscam_base_path": "/test/cameras",
             "ai_models_path": "/test/models",
             "postgres_password": "testpass",
             "ftp_password": "ftppass",
@@ -213,14 +213,14 @@ def test_write_config_files_creates_env():
         env_path = Path(tmpdir) / ".env"
         assert env_path.exists()
         content = env_path.read_text()
-        assert "CAMERA_PATH=/test/cameras" in content
+        assert "FOSCAM_BASE_PATH=/test/cameras" in content
 
 
 def test_write_config_files_creates_docker_override():
     """Test that write_config_files creates docker-compose.override.yml."""
     with tempfile.TemporaryDirectory() as tmpdir:
         config = {
-            "camera_path": "/test/cameras",
+            "foscam_base_path": "/test/cameras",
             "ai_models_path": "/test/models",
             "postgres_password": "testpass",
             "ftp_password": "ftppass",
@@ -238,7 +238,7 @@ def test_write_config_files_returns_paths():
     """Test that write_config_files returns the created file paths."""
     with tempfile.TemporaryDirectory() as tmpdir:
         config = {
-            "camera_path": "/test/cameras",
+            "foscam_base_path": "/test/cameras",
             "ai_models_path": "/test/models",
             "postgres_password": "testpass",
             "ftp_password": "ftppass",
@@ -256,7 +256,7 @@ def test_write_config_files_creates_output_dir():
     with tempfile.TemporaryDirectory() as tmpdir:
         nested_dir = Path(tmpdir) / "nested" / "path"
         config = {
-            "camera_path": "/test/cameras",
+            "foscam_base_path": "/test/cameras",
             "ai_models_path": "/test/models",
             "postgres_password": "testpass",
             "ftp_password": "ftppass",
@@ -330,11 +330,13 @@ def test_configure_firewall_ufw_success():
 def test_run_guided_mode_returns_config():
     """Test guided mode returns complete config dict."""
     inputs = [
-        "/test/cameras",  # camera path
+        "/test/cameras",  # foscam base path
         "n",  # don't create dir
         "/test/models",  # ai models path
-        "",  # accept generated password
-        "",  # accept generated password
+        "",  # accept generated postgres password
+        "",  # redis password (optional)
+        "",  # grafana password (optional)
+        "",  # ftp password (accept generated)
         # 14 ports (all default - no input needed since ports are available)
         "y",  # confirm
     ]
@@ -345,10 +347,10 @@ def test_run_guided_mode_returns_config():
     ):
         config = run_guided_mode()
 
-    assert "camera_path" in config
+    assert "foscam_base_path" in config
     assert "ai_models_path" in config
     assert "postgres_password" in config
     assert "ftp_password" in config
     assert "ports" in config
-    assert config["camera_path"] == "/test/cameras"
+    assert config["foscam_base_path"] == "/test/cameras"
     assert config["ai_models_path"] == "/test/models"
