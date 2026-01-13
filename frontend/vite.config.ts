@@ -187,13 +187,14 @@ export default defineConfig(({ mode }) => {
       // Exclude Playwright E2E tests - they should only be run via `npm run test:e2e`
       // Also exclude contract tests (Playwright-based API contract validation)
       exclude: ['**/node_modules/**', '**/dist/**', 'tests/e2e/**', 'tests/contract/**'],
-      // Thread-based parallelization for faster execution
-      pool: 'threads',
+      // Fork-based parallelization for better memory isolation (each fork is separate process)
+      // Threads share memory which can cause accumulation issues during cleanup
+      pool: 'forks',
       // Vitest 4 moved poolOptions to top-level
-      // Limit max threads to prevent memory exhaustion
+      // Limit max forks to prevent memory exhaustion (2 is conservative for CI runners)
       // Default is os.cpus().length - using fewer to reduce memory pressure
-      maxThreads: 4,
-      minThreads: 1,
+      maxForks: 2,
+      minForks: 1,
       // Test timeouts
       testTimeout: 30000,
       hookTimeout: 30000,

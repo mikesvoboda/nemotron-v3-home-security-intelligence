@@ -872,9 +872,10 @@ jobs:
         shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
     env:
       NODE_VERSION: '20'
-      # Increase Node.js heap size to prevent OOM errors during test cleanup
+      # Increase Node.js heap size and enable GC hints for test cleanup
       # 6GB fits within GitHub Actions standard runner (7GB RAM)
-      NODE_OPTIONS: '--max-old-space-size=6144'
+      # --expose-gc allows manual garbage collection calls
+      NODE_OPTIONS: '--max-old-space-size=6144 --expose-gc'
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
