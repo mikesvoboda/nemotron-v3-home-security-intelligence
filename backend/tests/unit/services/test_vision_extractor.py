@@ -13,6 +13,7 @@ import pytest
 
 from backend.services.vision_extractor import (
     PERSON_CLASS,
+    SECURITY_VQA_QUERIES,
     VEHICLE_CLASSES,
     BatchExtractionResult,
     EnvironmentContext,
@@ -896,3 +897,221 @@ class TestVisionExtractorExtraction:
         assert result.environment_context is not None
         assert call_count["vehicle"] == 2
         assert call_count["person"] == 1
+
+
+class TestSecurityVQAQueries:
+    """Tests for SECURITY_VQA_QUERIES constant."""
+
+    def test_security_vqa_queries_contains_expected_keys(self) -> None:
+        """Test SECURITY_VQA_QUERIES contains all expected security question keys."""
+        expected_keys = [
+            "looking_at_camera",
+            "weapons_or_tools",
+            "face_covering",
+            "bags_or_packages",
+            "gloves",
+            "interaction_with_property",
+            "flashlight",
+            "crouching_or_hiding",
+        ]
+        for key in expected_keys:
+            assert key in SECURITY_VQA_QUERIES, f"Missing key: {key}"
+
+    def test_security_vqa_queries_all_are_questions(self) -> None:
+        """Test all security VQA queries end with question marks."""
+        for key, question in SECURITY_VQA_QUERIES.items():
+            assert question.endswith("?"), f"Query '{key}' should end with '?'"
+
+    def test_security_vqa_queries_not_empty(self) -> None:
+        """Test SECURITY_VQA_QUERIES is not empty."""
+        assert len(SECURITY_VQA_QUERIES) >= 5, "Should have at least 5 security queries"
+
+
+class TestVisionExtractorVQA:
+    """Tests for VisionExtractor VQA methods."""
+
+    def setup_method(self) -> None:
+        """Reset service before each test."""
+        reset_vision_extractor()
+
+    def teardown_method(self) -> None:
+        """Reset service after each test."""
+        reset_vision_extractor()
+
+    @pytest.mark.asyncio
+    async def test_extract_with_vqa_returns_answers(self) -> None:
+        """Test extract_with_vqa returns dictionary of question-answer pairs."""
+        from PIL import Image
+
+        extractor = VisionExtractor()
+
+        async def mock_query(image, task, text_input=""):
+            """Mock _query_florence for VQA queries."""
+            if "looking at the camera" in text_input.lower():
+                return "Yes, the person is looking directly at the camera"
+            elif "weapons" in text_input.lower():
+                return "No weapons visible"
+            elif "mask" in text_input.lower():
+                return "The person is not wearing a mask"
+            return ""
+
+        extractor._query_florence = mock_query
+
+        img = Image.new("RGB", (200, 200), color="black")
+        questions = [
+            "Is this person looking at the camera?",
+            "Are there any weapons or tools visible?",
+            "Is this person wearing a mask or face covering?",
+        ]
+
+        result = await extractor.extract_with_vqa(img, questions)
+
+        assert len(result) == 3
+        assert "Is this person looking at the camera?" in result
+        assert "Yes" in result["Is this person looking at the camera?"]
+
+    @pytest.mark.asyncio
+    async def test_extract_with_vqa_filters_empty_answers(self) -> None:
+        """Test extract_with_vqa filters out empty answers."""
+        from PIL import Image
+
+        extractor = VisionExtractor()
+
+        async def mock_query(image, task, text_input=""):
+            """Mock _query_florence - some questions return empty."""
+            if "looking at the camera" in text_input.lower():
+                return "Yes"
+            elif "weapons" in text_input.lower():
+                return ""  # Empty answer
+            elif "mask" in text_input.lower():
+                return "   "  # Whitespace only
+            return ""
+
+        extractor._query_florence = mock_query
+
+        img = Image.new("RGB", (200, 200), color="black")
+        questions = [
+            "Is this person looking at the camera?",
+            "Are there any weapons or tools visible?",
+            "Is this person wearing a mask or face covering?",
+        ]
+
+        result = await extractor.extract_with_vqa(img, questions)
+
+        # Only one question should have an answer
+        assert len(result) == 1
+        assert "Is this person looking at the camera?" in result
+
+    @pytest.mark.asyncio
+    async def test_extract_with_vqa_with_bbox(self) -> None:
+        """Test extract_with_vqa crops image when bbox provided."""
+        from PIL import Image
+
+        extractor = VisionExtractor()
+        crop_called = {"called": False, "bbox": None}
+
+        original_crop = extractor._crop_image
+
+        def mock_crop(image, bbox):
+            crop_called["called"] = True
+            crop_called["bbox"] = bbox
+            return original_crop(image, bbox)
+
+        extractor._crop_image = mock_crop
+
+        async def mock_query(image, task, text_input=""):
+            return "Yes"
+
+        extractor._query_florence = mock_query
+
+        img = Image.new("RGB", (400, 400), color="gray")
+        questions = ["Is this person looking at the camera?"]
+        bbox = (100, 100, 200, 200)
+
+        await extractor.extract_with_vqa(img, questions, bbox=bbox)
+
+        assert crop_called["called"] is True
+        assert crop_called["bbox"] == bbox
+
+    @pytest.mark.asyncio
+    async def test_extract_with_vqa_empty_questions_list(self) -> None:
+        """Test extract_with_vqa handles empty questions list."""
+        from PIL import Image
+
+        extractor = VisionExtractor()
+
+        img = Image.new("RGB", (200, 200), color="black")
+
+        result = await extractor.extract_with_vqa(img, [])
+
+        assert result == {}
+
+    @pytest.mark.asyncio
+    async def test_extract_with_vqa_strips_whitespace(self) -> None:
+        """Test extract_with_vqa strips leading/trailing whitespace from answers."""
+        from PIL import Image
+
+        extractor = VisionExtractor()
+
+        async def mock_query(image, task, text_input=""):
+            return "  Yes, looking at camera  \n"
+
+        extractor._query_florence = mock_query
+
+        img = Image.new("RGB", (200, 200), color="black")
+        questions = ["Is this person looking at the camera?"]
+
+        result = await extractor.extract_with_vqa(img, questions)
+
+        assert result["Is this person looking at the camera?"] == "Yes, looking at camera"
+
+    @pytest.mark.asyncio
+    async def test_extract_security_vqa_uses_predefined_questions(self) -> None:
+        """Test extract_security_vqa uses SECURITY_VQA_QUERIES."""
+        from PIL import Image
+
+        extractor = VisionExtractor()
+        asked_questions = []
+
+        async def mock_query(image, task, text_input=""):
+            asked_questions.append(text_input)
+            return "Yes"
+
+        extractor._query_florence = mock_query
+
+        img = Image.new("RGB", (200, 200), color="black")
+
+        await extractor.extract_security_vqa(img)
+
+        # Should have asked all security questions
+        assert len(asked_questions) == len(SECURITY_VQA_QUERIES)
+        for question in SECURITY_VQA_QUERIES.values():
+            assert question in asked_questions
+
+    @pytest.mark.asyncio
+    async def test_extract_security_vqa_with_bbox(self) -> None:
+        """Test extract_security_vqa passes bbox to extract_with_vqa."""
+        from PIL import Image
+
+        extractor = VisionExtractor()
+        crop_called = {"called": False}
+
+        original_crop = extractor._crop_image
+
+        def mock_crop(image, bbox):
+            crop_called["called"] = True
+            return original_crop(image, bbox)
+
+        extractor._crop_image = mock_crop
+
+        async def mock_query(image, task, text_input=""):
+            return "Yes"
+
+        extractor._query_florence = mock_query
+
+        img = Image.new("RGB", (400, 400), color="gray")
+        bbox = (50, 50, 150, 150)
+
+        await extractor.extract_security_vqa(img, bbox=bbox)
+
+        assert crop_called["called"] is True

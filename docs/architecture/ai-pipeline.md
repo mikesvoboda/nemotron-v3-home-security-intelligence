@@ -65,6 +65,11 @@ The pipeline processes images through two paths:
 
 ### Complete Pipeline Sequence Diagram
 
+![AI Pipeline Sequence Diagram](../images/ai-pipeline/pipeline-sequence.svg)
+
+_End-to-end sequence showing FTP upload, FileWatcher processing, RT-DETRv2 detection, batch aggregation with fast-path logic, Nemotron LLM analysis, and WebSocket broadcast to dashboard._
+
+<!-- Original Mermaid diagram preserved for reference:
 ```mermaid
 sequenceDiagram
     participant Camera as Foscam Camera
@@ -89,6 +94,7 @@ sequenceDiagram
 
     DW->>DQ: BLPOP (5s timeout)
     DQ-->>DW: Detection job
+
     DW->>RT: POST /detect (multipart image)
     Note right of RT: ~30-50ms inference
     RT-->>DW: JSON {detections, inference_time_ms}
@@ -122,7 +128,9 @@ sequenceDiagram
     NEM-->>AW: JSON {risk_score, risk_level, summary, reasoning}
     AW->>DB: INSERT Event record
     AW->>WS: Broadcast new event
+
 ```
+-->
 
 ### Pipeline Timing Characteristics
 
@@ -175,12 +183,14 @@ The FileWatcher service monitors camera upload directories for new images and in
 ### Directory Structure
 
 ```
-/export/foscam/                    # FOSCAM_BASE_PATH
-    front_door/                    # Camera ID = "front_door"
-        MDAlarm_20251228_120000.jpg
-        MDAlarm_20251228_120030.jpg
-    backyard/                      # Camera ID = "backyard"
-        snap_20251228_120015.jpg
+
+/export/foscam/ # FOSCAM_BASE_PATH
+front_door/ # Camera ID = "front_door"
+MDAlarm_20251228_120000.jpg
+MDAlarm_20251228_120030.jpg
+backyard/ # Camera ID = "backyard"
+snap_20251228_120015.jpg
+
 ```
 
 ### Deduplication
@@ -188,10 +198,12 @@ The FileWatcher service monitors camera upload directories for new images and in
 Files are deduplicated using SHA256 content hashes stored in Redis:
 
 ```
+
 Redis Key: dedupe:{sha256_hash}
 Value: file_path
 TTL: 300 seconds (5 minutes, configurable)
-```
+
+````
 
 This prevents duplicate processing from:
 
@@ -208,7 +220,7 @@ This prevents duplicate processing from:
   "timestamp": "2025-12-28T12:00:00.500000",
   "file_hash": "a3f9c8b2d1e4..."
 }
-```
+````
 
 ---
 
@@ -375,6 +387,11 @@ The BatchAggregator groups related detections into batches before sending them t
 
 ### Batch Lifecycle State Machine
 
+![Batch Lifecycle State Machine](../images/ai-pipeline/batch-lifecycle-state.svg)
+
+_State machine showing batch lifecycle from creation through collection to closure, with timeout triggers and Redis cleanup._
+
+<!-- Original Mermaid diagram preserved for reference:
 ```mermaid
 stateDiagram-v2
     [*] --> NoActiveBatch: No batch exists
@@ -396,7 +413,9 @@ stateDiagram-v2
         Collecting --> Collecting: add_detection()
         Collecting --> [*]: Timeout check triggers
     }
+
 ```
+-->
 
 ### Timing Parameters
 
@@ -411,17 +430,24 @@ stateDiagram-v2
 All batch keys have a 1-hour TTL for orphan cleanup if service crashes:
 
 ```
-batch:{camera_id}:current       -> batch_id (string)
-batch:{batch_id}:camera_id      -> camera_id (string)
-batch:{batch_id}:detections     -> ["det_1", "det_2", ...] (JSON array)
-batch:{batch_id}:started_at     -> 1703764800.123 (Unix timestamp float)
-batch:{batch_id}:last_activity  -> 1703764845.456 (Unix timestamp float)
-```
+
+batch:{camera_id}:current -> batch_id (string)
+batch:{batch_id}:camera_id -> camera_id (string)
+batch:{batch_id}:detections -> ["det_1", "det_2", ...] (JSON array)
+batch:{batch_id}:started_at -> 1703764800.123 (Unix timestamp float)
+batch:{batch_id}:last_activity -> 1703764845.456 (Unix timestamp float)
+
+````
 
 ### Fast-Path for Critical Detections
 
 High-confidence detections of critical object types bypass normal batching for immediate analysis:
 
+![Fast-Path Decision Flow](../images/ai-pipeline/fast-path-decision.svg)
+
+_Decision flowchart showing how high-confidence critical detections bypass batching for immediate LLM analysis._
+
+<!-- Original Mermaid diagram preserved for reference:
 ```mermaid
 flowchart TD
     A[Detection arrives] --> B{confidence >= 0.90?}
@@ -436,7 +462,9 @@ flowchart TD
     D --> I[Add to batch]
     I --> J[Wait for batch timeout]
     J --> K[Normal analysis flow]
-```
+````
+
+-->
 
 **Fast-Path Configuration:**
 
@@ -663,9 +691,15 @@ The pipeline is designed for graceful degradation - failures at any stage should
 
 ### Detection Errors Diagram
 
+![Detection Error Handling Flow](../images/ai-pipeline/detection-errors.svg)
+
+_Flowchart showing graceful error handling through validation stages, with all errors returning empty arrays._
+
+<!-- Original Mermaid diagram preserved for reference:
 ```mermaid
 flowchart TD
     A[Detection Request] --> B{File exists?}
+
     B -->|No| C[Log error, return []]
     B -->|Yes| D{RT-DETRv2 reachable?}
     D -->|No| E[Log connection error, return []]
@@ -679,7 +713,9 @@ flowchart TD
     L --> M{Above confidence threshold?}
     M -->|No| N[Filter out, continue]
     M -->|Yes| O[Create Detection record]
-```
+
+````
+-->
 
 ### Error Scenarios and Responses
 
@@ -707,7 +743,7 @@ When LLM analysis fails, the analyzer creates an event with default values:
     "summary": "Analysis unavailable - LLM service error",
     "reasoning": "Failed to analyze detections due to service error"
 }
-```
+````
 
 ### Dead Letter Queue (DLQ)
 
@@ -776,6 +812,11 @@ Database table: `events`
 
 ### Detection to Event Transformation
 
+![Detection to Event Transformation](../images/ai-pipeline/detection-event-transform.svg)
+
+_Visualization showing how multiple raw detections aggregate into batches, which transform into risk-scored events through LLM analysis._
+
+<!-- Original Mermaid diagram preserved for reference:
 ```mermaid
 flowchart TB
     subgraph "Raw Detections"
@@ -795,12 +836,15 @@ flowchart TB
     end
 
     D1 --> B
+
     D2 --> B
     D3 --> B
     D4 --> B
     D5 --> B
     B --> E
-```
+
+````
+-->
 
 ---
 
@@ -850,6 +894,13 @@ and `ai/AGENTS.md`.
 
 ## AI Service Interaction Diagram
 
+![AI Service Interaction Diagram](../images/ai-pipeline/ai-service-interaction.svg)
+
+_Host machine architecture showing GPU-accelerated AI services (RT-DETRv2, Nemotron), Docker containers (Backend, Frontend, Redis), and data flow from cameras through the processing pipeline._
+
+\*Production uses NVIDIA Nemotron-3-Nano-30B-A3B (~14.7GB); development uses Nemotron Mini 4B (~3GB).
+
+<!-- Original Mermaid diagram preserved for reference:
 ```mermaid
 flowchart TB
     subgraph "Host Machine"
@@ -879,9 +930,9 @@ flowchart TB
 
     style RT fill:#76B900
     style NEM fill:#76B900
-```
+````
 
-\*Production uses NVIDIA Nemotron-3-Nano-30B-A3B (~14.7GB); development uses Nemotron Mini 4B (~3GB).
+-->
 
 ---
 

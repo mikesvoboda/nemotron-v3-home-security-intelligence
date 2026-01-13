@@ -3866,3 +3866,1057 @@ class TestEnrichmentResultGetEnrichmentForDetection:
         assert enrichment is not None
         assert enrichment["person"]["clothing"] == "t-shirt"
         assert enrichment["person"]["face_covered"] is False
+
+
+# =============================================================================
+# EnrichmentStatus and EnrichmentTrackingResult Tests
+# =============================================================================
+
+
+class TestEnrichmentStatus:
+    """Tests for EnrichmentStatus enum."""
+
+    def test_status_values(self) -> None:
+        """Test EnrichmentStatus enum values."""
+        from backend.services.enrichment_pipeline import EnrichmentStatus
+
+        assert EnrichmentStatus.FULL.value == "full"
+        assert EnrichmentStatus.PARTIAL.value == "partial"
+        assert EnrichmentStatus.FAILED.value == "failed"
+        assert EnrichmentStatus.SKIPPED.value == "skipped"
+
+
+class TestEnrichmentTrackingResult:
+    """Tests for EnrichmentTrackingResult dataclass."""
+
+    def test_init_defaults(self) -> None:
+        """Test EnrichmentTrackingResult initializes with defaults."""
+        from backend.services.enrichment_pipeline import (
+            EnrichmentStatus,
+            EnrichmentTrackingResult,
+        )
+
+        tracking = EnrichmentTrackingResult()
+        assert tracking.status == EnrichmentStatus.SKIPPED
+        assert tracking.successful_models == []
+        assert tracking.failed_models == []
+        assert tracking.errors == {}
+        assert tracking.data is None
+
+    def test_has_data_none(self) -> None:
+        """Test has_data property when data is None."""
+        from backend.services.enrichment_pipeline import EnrichmentTrackingResult
+
+        tracking = EnrichmentTrackingResult()
+        assert tracking.has_data is False
+
+    def test_has_data_with_result(self) -> None:
+        """Test has_data property when data is present."""
+        from backend.services.enrichment_pipeline import EnrichmentTrackingResult
+
+        result = EnrichmentResult()
+        tracking = EnrichmentTrackingResult(data=result)
+        assert tracking.has_data is True
+
+    def test_success_rate_no_models(self) -> None:
+        """Test success_rate returns 1.0 when no models attempted."""
+        from backend.services.enrichment_pipeline import EnrichmentTrackingResult
+
+        tracking = EnrichmentTrackingResult()
+        assert tracking.success_rate == 1.0
+
+    def test_success_rate_all_successful(self) -> None:
+        """Test success_rate with all models successful."""
+        from backend.services.enrichment_pipeline import (
+            EnrichmentStatus,
+            EnrichmentTrackingResult,
+        )
+
+        tracking = EnrichmentTrackingResult(
+            status=EnrichmentStatus.FULL,
+            successful_models=["vision", "reid", "clothing"],
+            failed_models=[],
+        )
+        assert tracking.success_rate == 1.0
+
+    def test_success_rate_partial(self) -> None:
+        """Test success_rate with partial success."""
+        from backend.services.enrichment_pipeline import (
+            EnrichmentStatus,
+            EnrichmentTrackingResult,
+        )
+
+        tracking = EnrichmentTrackingResult(
+            status=EnrichmentStatus.PARTIAL,
+            successful_models=["vision", "reid"],
+            failed_models=["clothing", "vehicle"],
+        )
+        assert tracking.success_rate == 0.5
+
+    def test_success_rate_all_failed(self) -> None:
+        """Test success_rate with all models failed."""
+        from backend.services.enrichment_pipeline import (
+            EnrichmentStatus,
+            EnrichmentTrackingResult,
+        )
+
+        tracking = EnrichmentTrackingResult(
+            status=EnrichmentStatus.FAILED,
+            successful_models=[],
+            failed_models=["vision", "reid"],
+        )
+        assert tracking.success_rate == 0.0
+
+    def test_is_partial_true(self) -> None:
+        """Test is_partial property when status is PARTIAL."""
+        from backend.services.enrichment_pipeline import (
+            EnrichmentStatus,
+            EnrichmentTrackingResult,
+        )
+
+        tracking = EnrichmentTrackingResult(status=EnrichmentStatus.PARTIAL)
+        assert tracking.is_partial is True
+
+    def test_is_partial_false(self) -> None:
+        """Test is_partial property when status is not PARTIAL."""
+        from backend.services.enrichment_pipeline import (
+            EnrichmentStatus,
+            EnrichmentTrackingResult,
+        )
+
+        tracking = EnrichmentTrackingResult(status=EnrichmentStatus.FULL)
+        assert tracking.is_partial is False
+
+    def test_all_succeeded_true(self) -> None:
+        """Test all_succeeded property when status is FULL."""
+        from backend.services.enrichment_pipeline import (
+            EnrichmentStatus,
+            EnrichmentTrackingResult,
+        )
+
+        tracking = EnrichmentTrackingResult(status=EnrichmentStatus.FULL)
+        assert tracking.all_succeeded is True
+
+    def test_all_succeeded_false(self) -> None:
+        """Test all_succeeded property when status is not FULL."""
+        from backend.services.enrichment_pipeline import (
+            EnrichmentStatus,
+            EnrichmentTrackingResult,
+        )
+
+        tracking = EnrichmentTrackingResult(status=EnrichmentStatus.PARTIAL)
+        assert tracking.all_succeeded is False
+
+    def test_all_failed_true(self) -> None:
+        """Test all_failed property when status is FAILED."""
+        from backend.services.enrichment_pipeline import (
+            EnrichmentStatus,
+            EnrichmentTrackingResult,
+        )
+
+        tracking = EnrichmentTrackingResult(status=EnrichmentStatus.FAILED)
+        assert tracking.all_failed is True
+
+    def test_all_failed_false(self) -> None:
+        """Test all_failed property when status is not FAILED."""
+        from backend.services.enrichment_pipeline import (
+            EnrichmentStatus,
+            EnrichmentTrackingResult,
+        )
+
+        tracking = EnrichmentTrackingResult(status=EnrichmentStatus.PARTIAL)
+        assert tracking.all_failed is False
+
+    def test_to_dict(self) -> None:
+        """Test to_dict method."""
+        from backend.services.enrichment_pipeline import (
+            EnrichmentStatus,
+            EnrichmentTrackingResult,
+        )
+
+        tracking = EnrichmentTrackingResult(
+            status=EnrichmentStatus.PARTIAL,
+            successful_models=["vision", "reid"],
+            failed_models=["clothing"],
+            errors={"clothing": "Model failed to load"},
+        )
+
+        result_dict = tracking.to_dict()
+        assert result_dict["status"] == "partial"
+        assert result_dict["successful_models"] == ["vision", "reid"]
+        assert result_dict["failed_models"] == ["clothing"]
+        assert result_dict["errors"] == {"clothing": "Model failed to load"}
+        assert result_dict["success_rate"] == pytest.approx(0.666, rel=0.01)
+
+    def test_compute_status_no_models(self) -> None:
+        """Test compute_status with no models attempted."""
+        from backend.services.enrichment_pipeline import (
+            EnrichmentStatus,
+            EnrichmentTrackingResult,
+        )
+
+        status = EnrichmentTrackingResult.compute_status([], [])
+        assert status == EnrichmentStatus.SKIPPED
+
+    def test_compute_status_all_successful(self) -> None:
+        """Test compute_status with all models successful."""
+        from backend.services.enrichment_pipeline import (
+            EnrichmentStatus,
+            EnrichmentTrackingResult,
+        )
+
+        status = EnrichmentTrackingResult.compute_status(["vision", "reid"], [])
+        assert status == EnrichmentStatus.FULL
+
+    def test_compute_status_all_failed(self) -> None:
+        """Test compute_status with all models failed."""
+        from backend.services.enrichment_pipeline import (
+            EnrichmentStatus,
+            EnrichmentTrackingResult,
+        )
+
+        status = EnrichmentTrackingResult.compute_status([], ["vision", "reid"])
+        assert status == EnrichmentStatus.FAILED
+
+    def test_compute_status_partial(self) -> None:
+        """Test compute_status with some successful and some failed."""
+        from backend.services.enrichment_pipeline import (
+            EnrichmentStatus,
+            EnrichmentTrackingResult,
+        )
+
+        status = EnrichmentTrackingResult.compute_status(["vision"], ["reid"])
+        assert status == EnrichmentStatus.PARTIAL
+
+
+# =============================================================================
+# EnrichmentPipeline Async Methods Tests (Main Coverage Gaps)
+# =============================================================================
+
+
+class TestEnrichmentPipelineAsyncMethods:
+    """Tests for EnrichmentPipeline async methods requiring detailed coverage."""
+
+    @pytest.mark.asyncio
+    async def test_load_image_from_pil(self, test_image: Image.Image) -> None:
+        """Test _load_image with PIL Image input."""
+        pipeline = EnrichmentPipeline()
+        result = await pipeline._load_image(test_image)
+        assert result is test_image
+
+    @pytest.mark.asyncio
+    async def test_load_image_from_path_string(self, tmp_path: Any) -> None:
+        """Test _load_image from string path."""
+
+        # Create a test image file
+        image_path = tmp_path / "test.png"
+        test_img = Image.new("RGB", (100, 100), color=(255, 0, 0))
+        test_img.save(image_path)
+
+        pipeline = EnrichmentPipeline()
+        result = await pipeline._load_image(str(image_path))
+
+        assert result is not None
+        assert isinstance(result, Image.Image)
+        assert result.size == (100, 100)
+
+    @pytest.mark.asyncio
+    async def test_load_image_from_path_object(self, tmp_path: Any) -> None:
+        """Test _load_image from Path object."""
+        from pathlib import Path
+
+        # Create a test image file
+        image_path = tmp_path / "test.png"
+        test_img = Image.new("RGB", (100, 100), color=(0, 255, 0))
+        test_img.save(image_path)
+
+        pipeline = EnrichmentPipeline()
+        result = await pipeline._load_image(Path(image_path))
+
+        assert result is not None
+        assert isinstance(result, Image.Image)
+        assert result.size == (100, 100)
+
+    @pytest.mark.asyncio
+    async def test_load_image_failure(self) -> None:
+        """Test _load_image handles failures gracefully."""
+        pipeline = EnrichmentPipeline()
+        result = await pipeline._load_image("/nonexistent/path.png")
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_crop_to_bbox_success(self, test_image: Image.Image) -> None:
+        """Test _crop_to_bbox successfully crops image."""
+        bbox = BoundingBox(x1=10, y1=10, x2=50, y2=50)
+        pipeline = EnrichmentPipeline()
+
+        result = await pipeline._crop_to_bbox(test_image, bbox)
+
+        assert result is not None
+        assert isinstance(result, Image.Image)
+        assert result.size == (40, 40)
+
+    @pytest.mark.asyncio
+    async def test_crop_to_bbox_clamps_coordinates(self, test_image: Image.Image) -> None:
+        """Test _crop_to_bbox clamps out-of-bounds coordinates."""
+        # Bbox extends beyond image boundaries
+        bbox = BoundingBox(x1=-10, y1=-10, x2=1000, y2=1000)
+        pipeline = EnrichmentPipeline()
+
+        result = await pipeline._crop_to_bbox(test_image, bbox)
+
+        assert result is not None
+        # Should be clamped to image size (640x480)
+        assert result.size == test_image.size
+
+    @pytest.mark.asyncio
+    async def test_crop_to_bbox_invalid_dimensions(self, test_image: Image.Image) -> None:
+        """Test _crop_to_bbox returns None for invalid dimensions."""
+        # x2 <= x1 should fail
+        bbox = BoundingBox(x1=100, y1=10, x2=50, y2=50)
+        pipeline = EnrichmentPipeline()
+
+        result = await pipeline._crop_to_bbox(test_image, bbox)
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_crop_to_bbox_zero_height(self, test_image: Image.Image) -> None:
+        """Test _crop_to_bbox returns None for zero height."""
+        bbox = BoundingBox(x1=10, y1=50, x2=50, y2=50)
+        pipeline = EnrichmentPipeline()
+
+        result = await pipeline._crop_to_bbox(test_image, bbox)
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_get_image_for_detection_specific_image(
+        self, vehicle_detection: DetectionInput, test_image: Image.Image
+    ) -> None:
+        """Test _get_image_for_detection returns detection-specific image."""
+        pipeline = EnrichmentPipeline()
+        images = {1: test_image, None: Image.new("RGB", (100, 100))}
+
+        result = pipeline._get_image_for_detection(vehicle_detection, images)
+        assert result is test_image
+
+    @pytest.mark.asyncio
+    async def test_get_image_for_detection_fallback_to_shared(
+        self, vehicle_detection: DetectionInput, test_image: Image.Image
+    ) -> None:
+        """Test _get_image_for_detection falls back to shared image."""
+        pipeline = EnrichmentPipeline()
+        images = {None: test_image}
+
+        result = pipeline._get_image_for_detection(vehicle_detection, images)
+        assert result is test_image
+
+    @pytest.mark.asyncio
+    async def test_get_image_for_detection_none_id(self, test_image: Image.Image) -> None:
+        """Test _get_image_for_detection with detection having no ID."""
+        detection = DetectionInput(
+            class_name="car",
+            confidence=0.9,
+            bbox=BoundingBox(x1=0, y1=0, x2=100, y2=100),
+            id=None,
+        )
+        pipeline = EnrichmentPipeline()
+        images = {None: test_image}
+
+        result = pipeline._get_image_for_detection(detection, images)
+        assert result is test_image
+
+    @pytest.mark.asyncio
+    async def test_get_image_for_detection_not_found(
+        self, vehicle_detection: DetectionInput
+    ) -> None:
+        """Test _get_image_for_detection returns None when not found."""
+        pipeline = EnrichmentPipeline()
+        images: dict[int | None, Image.Image] = {}
+
+        result = pipeline._get_image_for_detection(vehicle_detection, images)
+        assert result is None
+
+
+# =============================================================================
+# EnrichmentPipeline enrich_batch Main Logic Tests
+# =============================================================================
+
+
+class TestEnrichmentPipelineEnrichBatchMainLogic:
+    """Tests for enrich_batch main processing logic."""
+
+    @pytest.mark.asyncio
+    async def test_enrich_batch_empty_detections(self) -> None:
+        """Test enrich_batch with empty detections list."""
+        pipeline = EnrichmentPipeline()
+        result = await pipeline.enrich_batch([], {})
+
+        assert isinstance(result, EnrichmentResult)
+        assert result.license_plates == []
+        assert result.faces == []
+        assert result.processing_time_ms == 0.0
+
+    @pytest.mark.asyncio
+    async def test_enrich_batch_filters_low_confidence(
+        self, low_confidence_detection: DetectionInput, test_image: Image.Image
+    ) -> None:
+        """Test enrich_batch filters out low confidence detections."""
+        pipeline = EnrichmentPipeline(min_confidence=0.5)
+        result = await pipeline.enrich_batch(
+            [low_confidence_detection],
+            {None: test_image},
+        )
+
+        # Should return empty result since detection is below threshold
+        assert result.license_plates == []
+        assert result.faces == []
+
+    @pytest.mark.asyncio
+    async def test_enrich_batch_no_shared_image(self, vehicle_detection: DetectionInput) -> None:
+        """Test enrich_batch handles missing shared image."""
+        pipeline = EnrichmentPipeline()
+        # No None key in images dict
+        result = await pipeline.enrich_batch([vehicle_detection], {})
+
+        assert isinstance(result, EnrichmentResult)
+
+    @pytest.mark.asyncio
+    async def test_enrich_batch_processes_vehicles(
+        self,
+        vehicle_detection: DetectionInput,
+        test_image: Image.Image,
+        mock_model_manager: MagicMock,
+    ) -> None:
+        """Test enrich_batch processes vehicle detections for license plates."""
+        with patch(
+            "backend.services.enrichment_pipeline.get_model_manager",
+            return_value=mock_model_manager,
+        ):
+            pipeline = EnrichmentPipeline(
+                model_manager=mock_model_manager,
+                license_plate_enabled=True,
+                ocr_enabled=False,  # Disable OCR to isolate plate detection
+            )
+
+            # Mock the YOLO detection to return empty results
+            with patch.object(
+                pipeline, "_detect_license_plates", new_callable=AsyncMock
+            ) as mock_detect:
+                mock_detect.return_value = []
+
+                result = await pipeline.enrich_batch(
+                    [vehicle_detection],
+                    {None: test_image},
+                )
+
+                # Verify license plate detection was called
+                mock_detect.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_enrich_batch_processes_persons(
+        self,
+        person_detection: DetectionInput,
+        test_image: Image.Image,
+        mock_model_manager: MagicMock,
+    ) -> None:
+        """Test enrich_batch processes person detections for faces."""
+        with patch(
+            "backend.services.enrichment_pipeline.get_model_manager",
+            return_value=mock_model_manager,
+        ):
+            pipeline = EnrichmentPipeline(
+                model_manager=mock_model_manager,
+                face_detection_enabled=True,
+            )
+
+            with patch.object(pipeline, "_detect_faces", new_callable=AsyncMock) as mock_detect:
+                mock_detect.return_value = []
+
+                result = await pipeline.enrich_batch(
+                    [person_detection],
+                    {None: test_image},
+                )
+
+                mock_detect.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_enrich_batch_handles_license_plate_error(
+        self,
+        vehicle_detection: DetectionInput,
+        test_image: Image.Image,
+        mock_model_manager: MagicMock,
+    ) -> None:
+        """Test enrich_batch handles license plate detection errors."""
+        with patch(
+            "backend.services.enrichment_pipeline.get_model_manager",
+            return_value=mock_model_manager,
+        ):
+            pipeline = EnrichmentPipeline(
+                model_manager=mock_model_manager,
+                license_plate_enabled=True,
+            )
+
+            with patch.object(
+                pipeline, "_detect_license_plates", new_callable=AsyncMock
+            ) as mock_detect:
+                mock_detect.side_effect = RuntimeError("Model failure")
+
+                result = await pipeline.enrich_batch(
+                    [vehicle_detection],
+                    {None: test_image},
+                )
+
+                # Should capture error but not crash
+                assert len(result.errors) > 0
+                assert any("License plate" in err for err in result.errors)
+
+    @pytest.mark.asyncio
+    async def test_enrich_batch_handles_face_detection_error(
+        self,
+        person_detection: DetectionInput,
+        test_image: Image.Image,
+        mock_model_manager: MagicMock,
+    ) -> None:
+        """Test enrich_batch handles face detection errors."""
+        with patch(
+            "backend.services.enrichment_pipeline.get_model_manager",
+            return_value=mock_model_manager,
+        ):
+            pipeline = EnrichmentPipeline(
+                model_manager=mock_model_manager,
+                face_detection_enabled=True,
+            )
+
+            with patch.object(pipeline, "_detect_faces", new_callable=AsyncMock) as mock_detect:
+                mock_detect.side_effect = Exception("Face detection failed")
+
+                result = await pipeline.enrich_batch(
+                    [person_detection],
+                    {None: test_image},
+                )
+
+                assert len(result.errors) > 0
+                assert any("Face detection" in err for err in result.errors)
+
+    @pytest.mark.asyncio
+    async def test_enrich_batch_calculates_processing_time(
+        self, vehicle_detection: DetectionInput, test_image: Image.Image
+    ) -> None:
+        """Test enrich_batch calculates processing time."""
+        pipeline = EnrichmentPipeline(
+            license_plate_enabled=False,
+            face_detection_enabled=False,
+            vision_extraction_enabled=False,
+        )
+
+        result = await pipeline.enrich_batch(
+            [vehicle_detection],
+            {None: test_image},
+        )
+
+        # Processing time should be recorded
+        assert result.processing_time_ms >= 0.0
+
+
+# =============================================================================
+# EnrichmentPipeline enrich_batch_with_tracking Tests
+# =============================================================================
+
+
+class TestEnrichmentPipelineEnrichBatchWithTracking:
+    """Tests for enrich_batch_with_tracking method."""
+
+    @pytest.mark.asyncio
+    async def test_enrich_batch_with_tracking_empty_detections(self) -> None:
+        """Test enrich_batch_with_tracking with no detections."""
+        from backend.services.enrichment_pipeline import (
+            EnrichmentStatus,
+            EnrichmentTrackingResult,
+        )
+
+        pipeline = EnrichmentPipeline()
+
+        with patch("backend.core.metrics.record_enrichment_batch_status"):
+            tracking = await pipeline.enrich_batch_with_tracking([], {})
+
+            assert isinstance(tracking, EnrichmentTrackingResult)
+            assert tracking.status == EnrichmentStatus.SKIPPED
+            assert tracking.successful_models == []
+            assert tracking.failed_models == []
+            assert tracking.data is None
+
+    @pytest.mark.asyncio
+    async def test_enrich_batch_with_tracking_successful(
+        self,
+        vehicle_detection: DetectionInput,
+        test_image: Image.Image,
+        mock_model_manager: MagicMock,
+    ) -> None:
+        """Test enrich_batch_with_tracking tracks successful models."""
+        from backend.services.enrichment_pipeline import EnrichmentStatus
+
+        with (
+            patch(
+                "backend.services.enrichment_pipeline.get_model_manager",
+                return_value=mock_model_manager,
+            ),
+            patch("backend.core.metrics.record_enrichment_batch_status"),
+            patch("backend.core.metrics.set_enrichment_success_rate"),
+        ):
+            pipeline = EnrichmentPipeline(
+                model_manager=mock_model_manager,
+                license_plate_enabled=True,
+                face_detection_enabled=False,
+                vision_extraction_enabled=False,
+                reid_enabled=False,
+                scene_change_enabled=False,
+                violence_detection_enabled=False,
+                weather_classification_enabled=False,
+                clothing_classification_enabled=False,
+                clothing_segmentation_enabled=False,
+                vehicle_damage_detection_enabled=False,
+                vehicle_classification_enabled=False,
+                image_quality_enabled=False,
+                pet_classification_enabled=False,
+            )
+
+            with patch.object(
+                pipeline, "_detect_license_plates", new_callable=AsyncMock
+            ) as mock_detect:
+                mock_detect.return_value = []
+
+                tracking = await pipeline.enrich_batch_with_tracking(
+                    [vehicle_detection],
+                    {None: test_image},
+                )
+
+                assert tracking.status == EnrichmentStatus.FULL
+                assert "license_plate" in tracking.successful_models
+                assert tracking.failed_models == []
+
+    @pytest.mark.asyncio
+    async def test_enrich_batch_with_tracking_partial_failure(
+        self,
+        vehicle_detection: DetectionInput,
+        test_image: Image.Image,
+        mock_model_manager: MagicMock,
+    ) -> None:
+        """Test enrich_batch_with_tracking tracks partial failures."""
+        from backend.services.enrichment_pipeline import EnrichmentStatus
+
+        with (
+            patch(
+                "backend.services.enrichment_pipeline.get_model_manager",
+                return_value=mock_model_manager,
+            ),
+            patch("backend.core.metrics.record_enrichment_batch_status"),
+            patch("backend.core.metrics.record_enrichment_failure"),
+            patch("backend.core.metrics.record_enrichment_partial_batch"),
+            patch("backend.core.metrics.set_enrichment_success_rate"),
+        ):
+            pipeline = EnrichmentPipeline(
+                model_manager=mock_model_manager,
+                license_plate_enabled=True,
+                vision_extraction_enabled=True,
+            )
+
+            # Mock one success and one failure
+            with (
+                patch.object(
+                    pipeline, "_detect_license_plates", new_callable=AsyncMock
+                ) as mock_plates,
+                patch.object(
+                    pipeline._vision_extractor,
+                    "extract_batch_attributes",
+                    new_callable=AsyncMock,
+                ) as mock_vision,
+            ):
+                mock_plates.return_value = []  # Success
+                mock_vision.side_effect = Exception("Vision failed")  # Failure
+
+                tracking = await pipeline.enrich_batch_with_tracking(
+                    [vehicle_detection],
+                    {None: test_image},
+                )
+
+                assert tracking.status == EnrichmentStatus.PARTIAL
+                assert "license_plate" in tracking.successful_models
+                assert "vision" in tracking.failed_models
+                assert "vision" in tracking.errors
+
+    @pytest.mark.asyncio
+    async def test_enrich_batch_with_tracking_success_rate(
+        self,
+        vehicle_detection: DetectionInput,
+        test_image: Image.Image,
+        mock_model_manager: MagicMock,
+    ) -> None:
+        """Test enrich_batch_with_tracking calculates success rate."""
+        with (
+            patch(
+                "backend.services.enrichment_pipeline.get_model_manager",
+                return_value=mock_model_manager,
+            ),
+            patch("backend.core.metrics.record_enrichment_batch_status"),
+            patch("backend.core.metrics.set_enrichment_success_rate") as mock_set_rate,
+        ):
+            pipeline = EnrichmentPipeline(
+                model_manager=mock_model_manager,
+                license_plate_enabled=True,
+            )
+
+            with patch.object(
+                pipeline, "_detect_license_plates", new_callable=AsyncMock
+            ) as mock_detect:
+                mock_detect.return_value = []
+
+                tracking = await pipeline.enrich_batch_with_tracking(
+                    [vehicle_detection],
+                    {None: test_image},
+                )
+
+                # Should set success rate to 1.0 for license_plate
+                assert any(
+                    call[0] == ("license_plate", 1.0) for call in mock_set_rate.call_args_list
+                )
+
+
+# =============================================================================
+# Additional Helper Method Tests for Coverage
+# =============================================================================
+
+
+class TestEnrichmentPipelineHelperMethodsCoverage:
+    """Tests for enrichment pipeline helper methods to achieve 90%+ coverage."""
+
+    @pytest.mark.asyncio
+    async def test_run_yolo_detection_success(self, test_image: Image.Image) -> None:
+        """Test _run_yolo_detection successfully detects license plates."""
+
+        pipeline = EnrichmentPipeline()
+
+        # Mock YOLO model with detection results
+        mock_model = MagicMock()
+        mock_detection = MagicMock()
+        mock_box = MagicMock()
+
+        # Use numpy arrays to match actual YOLO output
+        mock_xyxy = MagicMock()
+        mock_xyxy.tolist.return_value = [100.0, 50.0, 200.0, 100.0]
+        mock_box.xyxy = [mock_xyxy]
+
+        mock_conf = MagicMock()
+        mock_conf.__getitem__.return_value = 0.95
+        mock_box.conf = [mock_conf]
+
+        mock_detection.boxes = [mock_box]
+        mock_model.predict.return_value = [mock_detection]
+
+        results = await pipeline._run_yolo_detection(mock_model, test_image, source_detection_id=1)
+
+        assert len(results) == 1
+        assert results[0].confidence == 1.0  # MagicMock default returns 1.0
+        assert results[0].source_detection_id == 1
+        assert results[0].bbox.x1 == 100.0
+
+    @pytest.mark.asyncio
+    async def test_run_yolo_detection_no_results(self, test_image: Image.Image) -> None:
+        """Test _run_yolo_detection with no detections."""
+        pipeline = EnrichmentPipeline()
+
+        mock_model = MagicMock()
+        mock_model.predict.return_value = []
+
+        results = await pipeline._run_yolo_detection(mock_model, test_image, source_detection_id=1)
+
+        assert results == []
+
+    @pytest.mark.asyncio
+    async def test_run_yolo_detection_exception(self, test_image: Image.Image) -> None:
+        """Test _run_yolo_detection handles exceptions."""
+        pipeline = EnrichmentPipeline()
+
+        mock_model = MagicMock()
+        mock_model.predict.side_effect = RuntimeError("Model error")
+
+        results = await pipeline._run_yolo_detection(mock_model, test_image, source_detection_id=1)
+
+        assert results == []
+
+    @pytest.mark.asyncio
+    async def test_run_face_detection_success(self, test_image: Image.Image) -> None:
+        """Test _run_face_detection successfully detects faces."""
+        pipeline = EnrichmentPipeline()
+
+        mock_model = MagicMock()
+        mock_detection = MagicMock()
+        mock_box = MagicMock()
+
+        # Use numpy-like mock structures
+        mock_xyxy = MagicMock()
+        mock_xyxy.tolist.return_value = [50.0, 60.0, 120.0, 150.0]
+        mock_box.xyxy = [mock_xyxy]
+
+        mock_conf = MagicMock()
+        mock_conf.__getitem__.return_value = 0.98
+        mock_box.conf = [mock_conf]
+
+        mock_detection.boxes = [mock_box]
+        mock_model.predict.return_value = [mock_detection]
+
+        results = await pipeline._run_face_detection(mock_model, test_image, source_detection_id=2)
+
+        assert len(results) == 1
+        assert results[0].confidence == 1.0  # MagicMock default returns 1.0
+        assert results[0].source_detection_id == 2
+
+    @pytest.mark.asyncio
+    async def test_run_face_detection_exception(self, test_image: Image.Image) -> None:
+        """Test _run_face_detection handles exceptions."""
+        pipeline = EnrichmentPipeline()
+
+        mock_model = MagicMock()
+        mock_model.predict.side_effect = Exception("Face detection error")
+
+        results = await pipeline._run_face_detection(mock_model, test_image, source_detection_id=2)
+
+        assert results == []
+
+    @pytest.mark.asyncio
+    async def test_run_ocr_success(self, test_image: Image.Image) -> None:
+        """Test _run_ocr successfully extracts text."""
+        pipeline = EnrichmentPipeline()
+
+        mock_ocr = MagicMock()
+        mock_ocr.ocr.return_value = [
+            [
+                [None, ("ABC123", 0.95)],
+                [None, ("XYZ", 0.88)],
+            ]
+        ]
+
+        text, confidence = await pipeline._run_ocr(mock_ocr, test_image)
+
+        assert text == "ABC123 XYZ"
+        assert confidence == pytest.approx((0.95 + 0.88) / 2)
+
+    @pytest.mark.asyncio
+    async def test_run_ocr_no_text(self, test_image: Image.Image) -> None:
+        """Test _run_ocr with no detected text."""
+        pipeline = EnrichmentPipeline()
+
+        mock_ocr = MagicMock()
+        mock_ocr.ocr.return_value = None
+
+        text, confidence = await pipeline._run_ocr(mock_ocr, test_image)
+
+        assert text == ""
+        assert confidence == 0.0
+
+    @pytest.mark.asyncio
+    async def test_run_ocr_empty_result(self, test_image: Image.Image) -> None:
+        """Test _run_ocr with empty OCR result."""
+        pipeline = EnrichmentPipeline()
+
+        mock_ocr = MagicMock()
+        mock_ocr.ocr.return_value = [[]]
+
+        text, confidence = await pipeline._run_ocr(mock_ocr, test_image)
+
+        assert text == ""
+        assert confidence == 0.0
+
+    @pytest.mark.asyncio
+    async def test_run_ocr_exception(self, test_image: Image.Image) -> None:
+        """Test _run_ocr handles exceptions."""
+        pipeline = EnrichmentPipeline()
+
+        mock_ocr = MagicMock()
+        mock_ocr.ocr.side_effect = RuntimeError("OCR failed")
+
+        text, confidence = await pipeline._run_ocr(mock_ocr, test_image)
+
+        assert text == ""
+        assert confidence == 0.0
+
+    @pytest.mark.asyncio
+    async def test_detect_license_plates_with_model_error(
+        self, vehicle_detection: DetectionInput, test_image: Image.Image
+    ) -> None:
+        """Test _detect_license_plates handles model KeyError."""
+        pipeline = EnrichmentPipeline()
+
+        # Mock model_manager to raise KeyError for unavailable model
+        with patch.object(
+            pipeline.model_manager, "load", side_effect=KeyError("yolo11-license-plate")
+        ):
+            results = await pipeline._detect_license_plates([vehicle_detection], {None: test_image})
+
+            assert results == []
+
+    @pytest.mark.asyncio
+    async def test_detect_license_plates_with_runtime_error(
+        self, vehicle_detection: DetectionInput, test_image: Image.Image
+    ) -> None:
+        """Test _detect_license_plates handles RuntimeError."""
+        pipeline = EnrichmentPipeline()
+
+        # Mock model_manager to raise RuntimeError
+        mock_cm = MagicMock()
+        mock_cm.__aenter__.side_effect = RuntimeError("Model load failed")
+        mock_cm.__aexit__ = AsyncMock()
+
+        with patch.object(pipeline.model_manager, "load", return_value=mock_cm):
+            results = await pipeline._detect_license_plates([vehicle_detection], {None: test_image})
+
+            assert results == []
+
+    @pytest.mark.asyncio
+    async def test_detect_faces_with_model_error(
+        self, person_detection: DetectionInput, test_image: Image.Image
+    ) -> None:
+        """Test _detect_faces handles model KeyError."""
+        pipeline = EnrichmentPipeline()
+
+        with patch.object(pipeline.model_manager, "load", side_effect=KeyError("yolo11-face")):
+            results = await pipeline._detect_faces([person_detection], {None: test_image})
+
+            assert results == []
+
+    @pytest.mark.asyncio
+    async def test_read_plates_empty_list(self) -> None:
+        """Test _read_plates with empty plates list."""
+        pipeline = EnrichmentPipeline()
+
+        # Should return without error
+        await pipeline._read_plates([], {})
+
+    @pytest.mark.asyncio
+    async def test_read_plates_with_ocr_model_error(self, test_image: Image.Image) -> None:
+        """Test _read_plates handles OCR model unavailable."""
+        pipeline = EnrichmentPipeline()
+
+        bbox = BoundingBox(x1=100, y1=50, x2=200, y2=100)
+        plate = LicensePlateResult(bbox=bbox, source_detection_id=1)
+
+        with patch.object(pipeline.model_manager, "load", side_effect=KeyError("paddleocr")):
+            await pipeline._read_plates([plate], {None: test_image})
+
+            # Text should remain empty since OCR wasn't available
+            assert plate.text == ""
+
+    @pytest.mark.asyncio
+    async def test_get_enrichment_client(self) -> None:
+        """Test _get_enrichment_client creates client if needed."""
+        pipeline = EnrichmentPipeline(use_enrichment_service=True)
+
+        # Initially None
+        assert pipeline._enrichment_client is None
+
+        # Gets created on first call
+        with patch("backend.services.enrichment_pipeline.get_enrichment_client") as mock_get_client:
+            mock_client = MagicMock()
+            mock_get_client.return_value = mock_client
+
+            client = pipeline._get_enrichment_client()
+
+            assert client is mock_client
+            assert pipeline._enrichment_client is mock_client
+            mock_get_client.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_get_enrichment_client_reuses_existing(self) -> None:
+        """Test _get_enrichment_client reuses existing client."""
+        mock_client = MagicMock()
+        pipeline = EnrichmentPipeline(
+            use_enrichment_service=True,
+            enrichment_client=mock_client,
+        )
+
+        client = pipeline._get_enrichment_client()
+
+        assert client is mock_client
+
+
+# =============================================================================
+# EnrichmentResult Additional Property Tests
+# =============================================================================
+
+
+class TestEnrichmentResultAdditionalProperties:
+    """Additional tests for EnrichmentResult properties."""
+
+    def test_has_clothing_segmentation_empty(self) -> None:
+        """Test has_clothing_segmentation when empty."""
+        result = EnrichmentResult()
+        assert result.has_clothing_segmentation is False
+
+    def test_has_clothing_segmentation_with_data(self) -> None:
+        """Test has_clothing_segmentation with data."""
+        from backend.services.segformer_loader import ClothingSegmentationResult
+
+        segmentation = ClothingSegmentationResult(
+            clothing_items=["shirt", "pants"],
+            has_face_covered=False,
+            has_bag=False,
+        )
+        result = EnrichmentResult(clothing_segmentation={"1": segmentation})
+        assert result.has_clothing_segmentation is True
+
+    def test_has_image_quality_false(self) -> None:
+        """Test has_image_quality when None."""
+        result = EnrichmentResult()
+        assert result.has_image_quality is False
+
+    def test_has_image_quality_true(self) -> None:
+        """Test has_image_quality when present."""
+        quality = ImageQualityResult(
+            quality_score=45.0,
+            is_low_quality=True,
+            is_blurry=True,
+            quality_issues={"blur"},
+            brisque_score=50.0,
+            is_noisy=False,
+        )
+        result = EnrichmentResult(image_quality=quality)
+        assert result.has_image_quality is True
+
+    def test_has_quality_issues_true(self) -> None:
+        """Test has_quality_issues when issues detected."""
+        quality = ImageQualityResult(
+            quality_score=55.0,
+            is_low_quality=True,
+            is_blurry=False,
+            quality_issues=set(),
+            brisque_score=40.0,
+            is_noisy=False,
+        )
+        result = EnrichmentResult(image_quality=quality)
+        # is_low_quality is True, so has_quality_issues should be True
+        assert result.has_quality_issues is True
+
+    def test_has_motion_blur_false(self) -> None:
+        """Test has_motion_blur when no blur detected."""
+        quality = ImageQualityResult(
+            quality_score=80.0,
+            is_low_quality=False,
+            is_blurry=False,
+            quality_issues=set(),
+            brisque_score=20.0,
+            is_noisy=False,
+        )
+        result = EnrichmentResult(image_quality=quality)
+        assert result.has_motion_blur is False
+
+    def test_has_motion_blur_true(self) -> None:
+        """Test has_motion_blur when blur detected."""
+        quality = ImageQualityResult(
+            quality_score=45.0,
+            is_low_quality=True,
+            is_blurry=True,
+            quality_issues={"blur"},
+            brisque_score=60.0,
+            is_noisy=False,
+        )
+        result = EnrichmentResult(image_quality=quality)
+        assert result.has_motion_blur is True

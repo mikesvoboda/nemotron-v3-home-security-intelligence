@@ -597,9 +597,17 @@ class PartitionManager:
             "partition_counts": {table: len(partitions) for table, partitions in stats.items()},
         }
 
+        # Use prefixed keys for logging to avoid Python 3.14 LogRecord attribute conflicts
+        # (LogRecord has built-in 'created' attribute)
         logger.info(
             "Partition maintenance completed",
-            extra=result,
+            extra={
+                "partitions_created": created,
+                "partitions_dropped": dropped,
+                "total_created": len(created),
+                "total_dropped": len(dropped),
+                "partition_counts": result["partition_counts"],
+            },
         )
 
         return result

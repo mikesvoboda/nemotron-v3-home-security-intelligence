@@ -1,0 +1,181 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 850 550" width="850" height="550">
+  <defs>
+    <linearGradient id="greenGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#10B981;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#059669;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="amberGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#F59E0B;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#D97706;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="redGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#EF4444;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#DC2626;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="blueGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3B82F6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2563EB;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="grayGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4B5563;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#374151;stop-opacity:1" />
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="2" dy="3" stdDeviation="4" flood-color="#000" flood-opacity="0.4"/>
+    </filter>
+    <marker id="arrowGray" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#6B7280"/>
+    </marker>
+    <marker id="arrowGreen" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#10B981"/>
+    </marker>
+    <marker id="arrowRed" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#EF4444"/>
+    </marker>
+    <marker id="arrowAmber" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#F59E0B"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="850" height="550" fill="#111827"/>
+
+  <!-- Title -->
+  <text x="425" y="35" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="20" font-weight="bold" fill="#F9FAFB">Broadcaster Recovery Flow</text>
+
+  <!-- Failure Detection Section -->
+  <g transform="translate(30, 60)">
+    <rect x="0" y="0" width="200" height="120" rx="10" fill="#1F2937" stroke="#EF4444" stroke-width="2"/>
+    <text x="100" y="22" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="600" fill="#EF4444">Failure Detection</text>
+
+    <rect x="15" y="42" width="170" height="30" rx="6" fill="url(#redGradient)" filter="url(#shadow)"/>
+    <text x="100" y="62" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="600" fill="white">Redis Connection Error</text>
+
+    <rect x="15" y="80" width="170" height="30" rx="6" fill="url(#redGradient)" filter="url(#shadow)"/>
+    <text x="100" y="100" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="600" fill="white">Pub/Sub Listener Dies</text>
+  </g>
+
+  <!-- Arrow to Recovery -->
+  <line x1="230" y1="120" x2="280" y2="120" stroke="#6B7280" stroke-width="2" marker-end="url(#arrowGray)"/>
+
+  <!-- Recovery Attempts Section -->
+  <g transform="translate(290, 60)">
+    <rect x="0" y="0" width="280" height="230" rx="10" fill="#1F2937" stroke="#F59E0B" stroke-width="2"/>
+    <text x="140" y="22" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="600" fill="#F59E0B">Recovery Attempts</text>
+
+    <!-- Attempt Check Decision -->
+    <g transform="translate(75, 40)">
+      <polygon points="65,0 130,40 65,80 0,40" fill="url(#grayGradient)" filter="url(#shadow)"/>
+      <text x="65" y="35" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="600" fill="white">Attempt</text>
+      <text x="65" y="50" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="600" fill="white">&lt; 5?</text>
+    </g>
+
+    <!-- Record Failure -->
+    <rect x="15" y="135" width="110" height="35" rx="6" fill="url(#amberGradient)" filter="url(#shadow)"/>
+    <text x="70" y="158" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="600" fill="#1F2937">Record Failure</text>
+
+    <!-- Exponential Backoff -->
+    <rect x="15" y="180" width="110" height="40" rx="6" fill="url(#amberGradient)" filter="url(#shadow)"/>
+    <text x="70" y="197" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="9" font-weight="600" fill="#1F2937">Exponential Backoff</text>
+    <text x="70" y="212" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="8" fill="#451A03">1s, 2s, 4s, 8s...</text>
+
+    <!-- Reset Pub/Sub -->
+    <rect x="155" y="135" width="110" height="35" rx="6" fill="url(#blueGradient)" filter="url(#shadow)"/>
+    <text x="210" y="152" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="9" font-weight="600" fill="white">Reset Pub/Sub</text>
+    <text x="210" y="165" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="9" font-weight="600" fill="white">Connection</text>
+
+    <!-- Restart Listener -->
+    <rect x="155" y="180" width="110" height="40" rx="6" fill="url(#blueGradient)" filter="url(#shadow)"/>
+    <text x="210" y="197" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="9" font-weight="600" fill="white">Restart Listener</text>
+    <text x="210" y="212" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="9" font-weight="600" fill="white">Task</text>
+
+    <!-- Internal arrows -->
+    <line x1="140" y1="80" x2="70" y2="135" stroke="#F59E0B" stroke-width="2" marker-end="url(#arrowAmber)"/>
+    <text x="85" y="105" font-family="system-ui, -apple-system, sans-serif" font-size="8" fill="#F59E0B">Yes</text>
+
+    <line x1="70" y1="170" x2="70" y2="180" stroke="#6B7280" stroke-width="1.5" marker-end="url(#arrowGray)"/>
+    <line x1="125" y1="200" x2="155" y2="165" stroke="#6B7280" stroke-width="1.5" marker-end="url(#arrowGray)"/>
+    <line x1="210" y1="170" x2="210" y2="180" stroke="#6B7280" stroke-width="1.5" marker-end="url(#arrowGray)"/>
+  </g>
+
+  <!-- Circuit Breaker Check Section -->
+  <g transform="translate(290, 305)">
+    <rect x="0" y="0" width="280" height="100" rx="10" fill="#1F2937" stroke="#374151" stroke-width="2"/>
+    <text x="140" y="22" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="600" fill="#9CA3AF">Circuit Breaker Check</text>
+
+    <!-- is_call_permitted Decision -->
+    <g transform="translate(75, 35)">
+      <polygon points="65,0 130,30 65,60 0,30" fill="url(#grayGradient)" filter="url(#shadow)"/>
+      <text x="65" y="26" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="9" font-weight="600" fill="white">is_call_permitted?</text>
+    </g>
+
+    <!-- Block Recovery -->
+    <rect x="180" y="50" width="90" height="40" rx="6" fill="url(#amberGradient)" filter="url(#shadow)"/>
+    <text x="225" y="67" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="8" font-weight="600" fill="#1F2937">Block Recovery</text>
+    <text x="225" y="82" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="8" fill="#451A03">Circuit OPEN</text>
+  </g>
+
+  <!-- Connection from Decision to Block -->
+  <line x1="495" y1="365" x2="520" y2="365" stroke="#F59E0B" stroke-width="2"/>
+  <text x="505" y="355" font-family="system-ui, -apple-system, sans-serif" font-size="8" fill="#F59E0B">No</text>
+
+  <!-- Arrow from Recovery to Circuit Breaker -->
+  <line x1="430" y1="100" x2="430" y2="40" stroke="#6B7280" stroke-width="2"/>
+  <line x1="430" y1="40" x2="500" y2="40" stroke="#6B7280" stroke-width="2"/>
+  <line x1="500" y1="40" x2="500" y2="305" stroke="#6B7280" stroke-width="2"/>
+  <line x1="500" y1="305" x2="495" y2="335" stroke="#6B7280" stroke-width="2" marker-end="url(#arrowGray)"/>
+
+  <!-- Arrow from Circuit Breaker Yes to Recovery -->
+  <line x1="365" y1="335" x2="365" y2="300" stroke="#10B981" stroke-width="2"/>
+  <line x1="365" y1="300" x2="280" y2="300" stroke="#10B981" stroke-width="2"/>
+  <line x1="280" y1="300" x2="280" y2="120" stroke="#10B981" stroke-width="2"/>
+  <line x1="280" y1="120" x2="290" y2="120" stroke="#10B981" stroke-width="2" marker-end="url(#arrowGreen)"/>
+  <text x="320" y="325" font-family="system-ui, -apple-system, sans-serif" font-size="8" fill="#10B981">Yes</text>
+
+  <!-- Outcome Section -->
+  <g transform="translate(600, 60)">
+    <rect x="0" y="0" width="220" height="230" rx="10" fill="#1F2937" stroke="#374151" stroke-width="2"/>
+    <text x="110" y="22" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="600" fill="#9CA3AF">Outcome</text>
+
+    <!-- Recovery Success -->
+    <rect x="15" y="45" width="190" height="75" rx="8" fill="url(#greenGradient)" filter="url(#shadow)"/>
+    <text x="110" y="70" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="bold" fill="white">Recovery Success</text>
+    <text x="110" y="90" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="9" fill="#D1FAE5">Reset Counters</text>
+    <text x="110" y="108" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="9" fill="#D1FAE5">Resume Normal Operation</text>
+
+    <!-- Enter Degraded Mode -->
+    <rect x="15" y="135" width="190" height="80" rx="8" fill="url(#redGradient)" filter="url(#shadow)"/>
+    <text x="110" y="160" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="bold" fill="white">Enter Degraded Mode</text>
+    <text x="110" y="180" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="9" fill="#FEE2E2">Broadcast Status</text>
+    <text x="110" y="198" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="9" fill="#FEE2E2">Manual Restart Required</text>
+  </g>
+
+  <!-- Arrow from Restart to Success -->
+  <line x1="500" y1="200" x2="600" y2="82" stroke="#10B981" stroke-width="2" marker-end="url(#arrowGreen)"/>
+  <text x="540" y="125" font-family="system-ui, -apple-system, sans-serif" font-size="8" fill="#10B981">Success</text>
+
+  <!-- Arrow from Restart to Failure (loop back) -->
+  <path d="M500 220 Q520 240 500 260 Q480 280 430 260 Q380 240 355 152" fill="none" stroke="#EF4444" stroke-width="2" marker-end="url(#arrowRed)"/>
+  <text x="520" y="265" font-family="system-ui, -apple-system, sans-serif" font-size="8" fill="#EF4444">Failure</text>
+
+  <!-- Arrow from Attempt No to Degraded -->
+  <line x1="505" y1="80" x2="600" y2="175" stroke="#EF4444" stroke-width="2" marker-end="url(#arrowRed)"/>
+  <text x="560" y="110" font-family="system-ui, -apple-system, sans-serif" font-size="8" fill="#EF4444">No</text>
+
+  <!-- Arrow from Block to Degraded -->
+  <line x1="560" y1="370" x2="600" y2="370" stroke="#EF4444" stroke-width="2"/>
+  <line x1="600" y1="370" x2="710" y2="215" stroke="#EF4444" stroke-width="2" marker-end="url(#arrowRed)"/>
+
+  <!-- Legend -->
+  <g transform="translate(30, 505)">
+    <text x="0" y="0" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="600" fill="#9CA3AF">Legend:</text>
+    <rect x="60" y="-12" width="16" height="16" rx="3" fill="url(#redGradient)"/>
+    <text x="82" y="1" font-family="system-ui, -apple-system, sans-serif" font-size="10" fill="#9CA3AF">Failure</text>
+    <rect x="135" y="-12" width="16" height="16" rx="3" fill="url(#amberGradient)"/>
+    <text x="157" y="1" font-family="system-ui, -apple-system, sans-serif" font-size="10" fill="#9CA3AF">Recovery/Wait</text>
+    <rect x="250" y="-12" width="16" height="16" rx="3" fill="url(#blueGradient)"/>
+    <text x="272" y="1" font-family="system-ui, -apple-system, sans-serif" font-size="10" fill="#9CA3AF">Action</text>
+    <rect x="325" y="-12" width="16" height="16" rx="3" fill="url(#greenGradient)"/>
+    <text x="347" y="1" font-family="system-ui, -apple-system, sans-serif" font-size="10" fill="#9CA3AF">Success</text>
+  </g>
+</svg>

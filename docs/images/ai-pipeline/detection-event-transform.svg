@@ -1,0 +1,216 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 950 500" width="950" height="500">
+  <defs>
+    <marker id="arr-t" markerWidth="12" markerHeight="8" refX="11" refY="4" orient="auto">
+      <polygon points="0 0, 12 4, 0 8" fill="#374151"/>
+    </marker>
+    <filter id="card-shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="1" dy="1" stdDeviation="2" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="950" height="500" fill="#FFFFFF"/>
+
+  <!-- Title -->
+  <text x="475" y="35" font-family="Inter, system-ui, sans-serif" font-size="20" font-weight="600" fill="#111827" text-anchor="middle">Detection to Event Transformation</text>
+  <text x="475" y="55" font-family="Inter, system-ui, sans-serif" font-size="12" fill="#6B7280" text-anchor="middle">Multiple detections aggregate into batches, which transform into risk-scored events</text>
+
+  <!-- Section Labels -->
+  <rect x="30" y="75" width="260" height="24" rx="4" fill="#DBEAFE"/>
+  <text x="160" y="91" font-family="Inter, system-ui, sans-serif" font-size="12" font-weight="600" fill="#1E40AF" text-anchor="middle">Raw Detections</text>
+
+  <rect x="340" y="75" width="260" height="24" rx="4" fill="#FEF3C7"/>
+  <text x="470" y="91" font-family="Inter, system-ui, sans-serif" font-size="12" font-weight="600" fill="#92400E" text-anchor="middle">Batch Aggregation</text>
+
+  <rect x="650" y="75" width="270" height="24" rx="4" fill="#D1FAE5"/>
+  <text x="785" y="91" font-family="Inter, system-ui, sans-serif" font-size="12" font-weight="600" fill="#065F46" text-anchor="middle">Risk-Scored Event</text>
+
+  <!-- Detection Cards -->
+  <!-- Detection 1 -->
+  <rect x="40" y="115" width="110" height="65" rx="6" fill="#FFFFFF" stroke="#3B82F6" stroke-width="1.5" filter="url(#card-shadow)"/>
+  <text x="50" y="133" font-family="Inter, system-ui, sans-serif" font-size="11" font-weight="600" fill="#1E40AF">Detection 1</text>
+  <circle cx="140" cy="128" r="4" fill="#10B981"/>
+  <text x="50" y="150" font-family="Inter, system-ui, sans-serif" font-size="10" fill="#374151">person</text>
+  <rect x="90" y="140" width="50" height="14" rx="3" fill="#D1FAE5"/>
+  <text x="115" y="150" font-family="Inter, system-ui, sans-serif" font-size="9" font-weight="500" fill="#065F46" text-anchor="middle">0.95</text>
+  <text x="50" y="170" font-family="Inter, system-ui, sans-serif" font-size="9" fill="#6B7280">14:30:00</text>
+
+  <!-- Detection 2 -->
+  <rect x="160" y="115" width="110" height="65" rx="6" fill="#FFFFFF" stroke="#3B82F6" stroke-width="1.5" filter="url(#card-shadow)"/>
+  <text x="170" y="133" font-family="Inter, system-ui, sans-serif" font-size="11" font-weight="600" fill="#1E40AF">Detection 2</text>
+  <circle cx="260" cy="128" r="4" fill="#10B981"/>
+  <text x="170" y="150" font-family="Inter, system-ui, sans-serif" font-size="10" fill="#374151">person</text>
+  <rect x="210" y="140" width="50" height="14" rx="3" fill="#D1FAE5"/>
+  <text x="235" y="150" font-family="Inter, system-ui, sans-serif" font-size="9" font-weight="500" fill="#065F46" text-anchor="middle">0.92</text>
+  <text x="170" y="170" font-family="Inter, system-ui, sans-serif" font-size="9" fill="#6B7280">14:30:15</text>
+
+  <!-- Detection 3 -->
+  <rect x="40" y="195" width="110" height="65" rx="6" fill="#FFFFFF" stroke="#3B82F6" stroke-width="1.5" filter="url(#card-shadow)"/>
+  <text x="50" y="213" font-family="Inter, system-ui, sans-serif" font-size="11" font-weight="600" fill="#1E40AF">Detection 3</text>
+  <circle cx="140" cy="208" r="4" fill="#F59E0B"/>
+  <text x="50" y="230" font-family="Inter, system-ui, sans-serif" font-size="10" fill="#374151">car</text>
+  <rect x="90" y="220" width="50" height="14" rx="3" fill="#FEF3C7"/>
+  <text x="115" y="230" font-family="Inter, system-ui, sans-serif" font-size="9" font-weight="500" fill="#92400E" text-anchor="middle">0.87</text>
+  <text x="50" y="250" font-family="Inter, system-ui, sans-serif" font-size="9" fill="#6B7280">14:30:30</text>
+
+  <!-- Detection 4 -->
+  <rect x="160" y="195" width="110" height="65" rx="6" fill="#FFFFFF" stroke="#3B82F6" stroke-width="1.5" filter="url(#card-shadow)"/>
+  <text x="170" y="213" font-family="Inter, system-ui, sans-serif" font-size="11" font-weight="600" fill="#1E40AF">Detection 4</text>
+  <circle cx="260" cy="208" r="4" fill="#10B981"/>
+  <text x="170" y="230" font-family="Inter, system-ui, sans-serif" font-size="10" fill="#374151">person</text>
+  <rect x="210" y="220" width="50" height="14" rx="3" fill="#D1FAE5"/>
+  <text x="235" y="230" font-family="Inter, system-ui, sans-serif" font-size="9" font-weight="500" fill="#065F46" text-anchor="middle">0.89</text>
+  <text x="170" y="250" font-family="Inter, system-ui, sans-serif" font-size="9" fill="#6B7280">14:30:45</text>
+
+  <!-- Detection 5 -->
+  <rect x="100" y="275" width="110" height="65" rx="6" fill="#FFFFFF" stroke="#3B82F6" stroke-width="1.5" filter="url(#card-shadow)"/>
+  <text x="110" y="293" font-family="Inter, system-ui, sans-serif" font-size="11" font-weight="600" fill="#1E40AF">Detection 5</text>
+  <circle cx="200" cy="288" r="4" fill="#10B981"/>
+  <text x="110" y="310" font-family="Inter, system-ui, sans-serif" font-size="10" fill="#374151">person</text>
+  <rect x="150" y="300" width="50" height="14" rx="3" fill="#D1FAE5"/>
+  <text x="175" y="310" font-family="Inter, system-ui, sans-serif" font-size="9" font-weight="500" fill="#065F46" text-anchor="middle">0.91</text>
+  <text x="110" y="330" font-family="Inter, system-ui, sans-serif" font-size="9" fill="#6B7280">14:31:00</text>
+
+  <!-- Arrows from detections to batch -->
+  <path d="M 150 175 C 250 175, 300 200, 340 200" fill="none" stroke="#374151" stroke-width="1" stroke-dasharray="3,2"/>
+  <path d="M 215 175 C 280 180, 300 195, 340 200" fill="none" stroke="#374151" stroke-width="1" stroke-dasharray="3,2"/>
+  <path d="M 150 255 C 250 255, 300 220, 340 220" fill="none" stroke="#374151" stroke-width="1" stroke-dasharray="3,2"/>
+  <path d="M 215 255 C 280 250, 300 225, 340 225" fill="none" stroke="#374151" stroke-width="1" stroke-dasharray="3,2"/>
+  <path d="M 210 300 C 280 300, 310 250, 340 250" fill="none" stroke="#374151" stroke-width="1" stroke-dasharray="3,2"/>
+
+  <!-- Batch Card -->
+  <rect x="350" y="120" width="240" height="240" rx="8" fill="#FFFBEB" stroke="#F59E0B" stroke-width="2" filter="url(#card-shadow)"/>
+
+  <!-- Batch Header -->
+  <rect x="350" y="120" width="240" height="35" rx="8" fill="#F59E0B"/>
+  <rect x="350" y="143" width="240" height="12" fill="#F59E0B"/>
+  <text x="470" y="143" font-family="Inter, system-ui, sans-serif" font-size="13" font-weight="600" fill="#FFFFFF" text-anchor="middle">Batch</text>
+
+  <!-- Batch content -->
+  <text x="365" y="175" font-family="Inter, system-ui, sans-serif" font-size="10" font-weight="500" fill="#374151">batch_id:</text>
+  <text x="425" y="175" font-family="Inter, system-ui, sans-serif" font-size="10" fill="#6B7280" font-family="monospace">abc123</text>
+
+  <text x="365" y="195" font-family="Inter, system-ui, sans-serif" font-size="10" font-weight="500" fill="#374151">camera_id:</text>
+  <text x="435" y="195" font-family="Inter, system-ui, sans-serif" font-size="10" fill="#6B7280">front_door</text>
+
+  <text x="365" y="215" font-family="Inter, system-ui, sans-serif" font-size="10" font-weight="500" fill="#374151">started_at:</text>
+  <text x="430" y="215" font-family="Inter, system-ui, sans-serif" font-size="10" fill="#6B7280">14:30:00</text>
+
+  <text x="365" y="235" font-family="Inter, system-ui, sans-serif" font-size="10" font-weight="500" fill="#374151">ended_at:</text>
+  <text x="423" y="235" font-family="Inter, system-ui, sans-serif" font-size="10" fill="#6B7280">14:31:30</text>
+
+  <text x="365" y="260" font-family="Inter, system-ui, sans-serif" font-size="10" font-weight="500" fill="#374151">detection_ids:</text>
+
+  <!-- Detection ID chips -->
+  <rect x="365" y="268" width="24" height="18" rx="4" fill="#DBEAFE" stroke="#3B82F6" stroke-width="1"/>
+  <text x="377" y="281" font-family="Inter, system-ui, sans-serif" font-size="9" font-weight="500" fill="#1E40AF" text-anchor="middle">1</text>
+
+  <rect x="395" y="268" width="24" height="18" rx="4" fill="#DBEAFE" stroke="#3B82F6" stroke-width="1"/>
+  <text x="407" y="281" font-family="Inter, system-ui, sans-serif" font-size="9" font-weight="500" fill="#1E40AF" text-anchor="middle">2</text>
+
+  <rect x="425" y="268" width="24" height="18" rx="4" fill="#DBEAFE" stroke="#3B82F6" stroke-width="1"/>
+  <text x="437" y="281" font-family="Inter, system-ui, sans-serif" font-size="9" font-weight="500" fill="#1E40AF" text-anchor="middle">3</text>
+
+  <rect x="455" y="268" width="24" height="18" rx="4" fill="#DBEAFE" stroke="#3B82F6" stroke-width="1"/>
+  <text x="467" y="281" font-family="Inter, system-ui, sans-serif" font-size="9" font-weight="500" fill="#1E40AF" text-anchor="middle">4</text>
+
+  <rect x="485" y="268" width="24" height="18" rx="4" fill="#DBEAFE" stroke="#3B82F6" stroke-width="1"/>
+  <text x="497" y="281" font-family="Inter, system-ui, sans-serif" font-size="9" font-weight="500" fill="#1E40AF" text-anchor="middle">5</text>
+
+  <!-- Time window indicator -->
+  <rect x="365" y="300" width="210" height="45" rx="4" fill="#FFFFFF" stroke="#FCD34D" stroke-width="1"/>
+  <text x="470" y="318" font-family="Inter, system-ui, sans-serif" font-size="10" font-weight="500" fill="#92400E" text-anchor="middle">Time Window</text>
+  <text x="470" y="335" font-family="Inter, system-ui, sans-serif" font-size="11" font-weight="600" fill="#374151" text-anchor="middle">90 seconds (14:30:00 - 14:31:30)</text>
+
+  <!-- Arrow from batch to event -->
+  <line x1="590" y1="240" x2="655" y2="240" stroke="#374151" stroke-width="2" marker-end="url(#arr-t)"/>
+  <text x="622" y="230" font-family="Inter, system-ui, sans-serif" font-size="10" font-weight="500" fill="#374151" text-anchor="middle">LLM</text>
+  <text x="622" y="255" font-family="Inter, system-ui, sans-serif" font-size="10" font-weight="500" fill="#374151" text-anchor="middle">Analysis</text>
+
+  <!-- Event Card -->
+  <rect x="660" y="120" width="250" height="260" rx="8" fill="#ECFDF5" stroke="#10B981" stroke-width="2" filter="url(#card-shadow)"/>
+
+  <!-- Event Header -->
+  <rect x="660" y="120" width="250" height="35" rx="8" fill="#10B981"/>
+  <rect x="660" y="143" width="250" height="12" fill="#10B981"/>
+  <text x="785" y="143" font-family="Inter, system-ui, sans-serif" font-size="13" font-weight="600" fill="#FFFFFF" text-anchor="middle">Event #42</text>
+
+  <!-- Event content -->
+  <text x="675" y="175" font-family="Inter, system-ui, sans-serif" font-size="10" font-weight="500" fill="#374151">batch_id:</text>
+  <text x="735" y="175" font-family="Inter, system-ui, sans-serif" font-size="10" fill="#6B7280" font-family="monospace">abc123</text>
+
+  <!-- Risk Score Gauge -->
+  <rect x="675" y="190" width="220" height="70" rx="4" fill="#FFFFFF" stroke="#A7F3D0" stroke-width="1"/>
+
+  <text x="785" y="210" font-family="Inter, system-ui, sans-serif" font-size="11" font-weight="600" fill="#374151" text-anchor="middle">Risk Assessment</text>
+
+  <!-- Score bar background -->
+  <rect x="695" y="220" width="180" height="12" rx="6" fill="#E5E7EB"/>
+
+  <!-- Score bar fill (65%) -->
+  <rect x="695" y="220" width="117" height="12" rx="6" fill="#F59E0B"/>
+
+  <!-- Score markers -->
+  <text x="695" y="248" font-family="Inter, system-ui, sans-serif" font-size="8" fill="#9CA3AF">0</text>
+  <text x="740" y="248" font-family="Inter, system-ui, sans-serif" font-size="8" fill="#9CA3AF">25</text>
+  <text x="785" y="248" font-family="Inter, system-ui, sans-serif" font-size="8" fill="#9CA3AF">50</text>
+  <text x="830" y="248" font-family="Inter, system-ui, sans-serif" font-size="8" fill="#9CA3AF">75</text>
+  <text x="865" y="248" font-family="Inter, system-ui, sans-serif" font-size="8" fill="#9CA3AF">100</text>
+
+  <!-- Score value -->
+  <rect x="800" y="218" width="35" height="16" rx="3" fill="#374151"/>
+  <text x="817" y="230" font-family="Inter, system-ui, sans-serif" font-size="10" font-weight="600" fill="#FFFFFF" text-anchor="middle">65</text>
+
+  <!-- Risk level badge -->
+  <rect x="675" y="265" width="60" height="20" rx="4" fill="#FEF3C7" stroke="#F59E0B" stroke-width="1"/>
+  <text x="705" y="279" font-family="Inter, system-ui, sans-serif" font-size="10" font-weight="600" fill="#92400E" text-anchor="middle">HIGH</text>
+
+  <!-- Summary -->
+  <text x="675" y="300" font-family="Inter, system-ui, sans-serif" font-size="10" font-weight="500" fill="#374151">summary:</text>
+  <text x="675" y="315" font-family="Inter, system-ui, sans-serif" font-size="9" fill="#6B7280">"Multiple persons detected</text>
+  <text x="675" y="328" font-family="Inter, system-ui, sans-serif" font-size="9" fill="#6B7280">approaching front door..."</text>
+
+  <!-- Reasoning -->
+  <text x="675" y="350" font-family="Inter, system-ui, sans-serif" font-size="10" font-weight="500" fill="#374151">reasoning:</text>
+  <text x="675" y="365" font-family="Inter, system-ui, sans-serif" font-size="9" fill="#6B7280">"Activity pattern and time</text>
+  <text x="675" y="378" font-family="Inter, system-ui, sans-serif" font-size="9" fill="#6B7280">of day warrant attention..."</text>
+
+  <!-- Legend -->
+  <rect x="30" y="400" width="890" height="80" rx="6" fill="#FAFAFA" stroke="#E5E7EB" stroke-width="1"/>
+  <text x="475" y="420" font-family="Inter, system-ui, sans-serif" font-size="11" font-weight="600" fill="#374151" text-anchor="middle">Transformation Summary</text>
+
+  <g font-family="Inter, system-ui, sans-serif" font-size="10">
+    <!-- Detection count -->
+    <rect x="60" y="435" width="20" height="20" rx="4" fill="#DBEAFE" stroke="#3B82F6" stroke-width="1"/>
+    <text x="70" y="450" font-weight="600" fill="#1E40AF" text-anchor="middle">5</text>
+    <text x="95" y="450" fill="#374151">Detections</text>
+
+    <!-- Arrow -->
+    <text x="180" y="450" fill="#6B7280">--></text>
+
+    <!-- Batch -->
+    <rect x="210" y="435" width="20" height="20" rx="4" fill="#FEF3C7" stroke="#F59E0B" stroke-width="1"/>
+    <text x="220" y="450" font-weight="600" fill="#92400E" text-anchor="middle">1</text>
+    <text x="245" y="450" fill="#374151">Batch (90s window)</text>
+
+    <!-- Arrow -->
+    <text x="365" y="450" fill="#6B7280">--></text>
+
+    <!-- Event -->
+    <rect x="395" y="435" width="20" height="20" rx="4" fill="#D1FAE5" stroke="#10B981" stroke-width="1"/>
+    <text x="405" y="450" font-weight="600" fill="#065F46" text-anchor="middle">1</text>
+    <text x="430" y="450" fill="#374151">Event (risk-scored)</text>
+
+    <!-- Object type legend -->
+    <circle cx="580" cy="445" r="6" fill="#10B981"/>
+    <text x="595" y="450" fill="#374151">person</text>
+
+    <circle cx="660" cy="445" r="6" fill="#F59E0B"/>
+    <text x="675" y="450" fill="#374151">car</text>
+
+    <!-- Risk levels -->
+    <text x="740" y="450" fill="#6B7280">Risk levels:</text>
+    <text x="810" y="450" fill="#10B981">Low(0-29)</text>
+    <text x="870" y="450" fill="#F59E0B">High(60-84)</text>
+  </g>
+</svg>

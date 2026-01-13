@@ -115,11 +115,12 @@ describe('StorageDashboard (MSW)', () => {
   });
 
   it('renders loading state initially', () => {
-    // Override handler to delay response indefinitely (simulating loading)
+    // Override handler to delay response (simulating loading)
+    // Use 60s delay instead of 'infinite' to prevent cleanup hangs
+    // The test completes before the delay resolves, but cleanup can finish
     server.use(
       http.get('/api/system/storage', async () => {
-        // Delay forever to test loading state
-        await delay('infinite');
+        await delay(60000);
         return HttpResponse.json(mockStorageStats);
       })
     );

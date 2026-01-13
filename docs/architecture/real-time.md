@@ -49,8 +49,11 @@ The real-time system enables instant dashboard updates without polling by using 
 
 ![WebSocket real-time architecture diagram showing the data flow from AI pipeline components (NemotronAnalyzer, GPUMonitor, HealthMonitor) publishing to Redis pub/sub channels (security_events, system_status), which fan out to multiple EventBroadcaster and SystemBroadcaster instances, ultimately delivering messages through WebSocket endpoints to connected dashboard clients](../images/arch-websocket-flow.png)
 
-### Detailed Mermaid Diagram
+### Detailed Architecture Diagram
 
+![WebSocket architecture diagram showing data flow from AI pipeline through Redis Pub/Sub to backend broadcasters and WebSocket clients](../images/real-time/websocket-architecture.svg)
+
+<!-- Original Mermaid diagram preserved for reference:
 ```mermaid
 flowchart TB
     subgraph Pipeline["AI Pipeline"]
@@ -82,26 +85,27 @@ flowchart TB
         C3[Browser N]
     end
 
-    NA -->|publish| CH1
-    GPU -->|publish| CH2
-    HM -->|publish| CH2
+    NA - -|publish| CH1
+    GPU - -|publish| CH2
+    HM - -|publish| CH2
 
-    CH1 -->|subscribe| EB1
-    CH1 -->|subscribe| EB2
-    CH2 -->|subscribe| SB1
-    CH2 -->|subscribe| SB2
+    CH1 - -|subscribe| EB1
+    CH1 - -|subscribe| EB2
+    CH2 - -|subscribe| SB1
+    CH2 - -|subscribe| SB2
 
-    EB1 & EB2 --> WS1
-    SB1 & SB2 --> WS2
+    EB1 & EB2 - -> WS1
+    SB1 & SB2 - -> WS2
 
-    WS1 --> C1 & C2 & C3
-    WS2 --> C1 & C2 & C3
+    WS1 - -> C1 & C2 & C3
+    WS2 - -> C1 & C2 & C3
 
     style CH1 fill:#A855F7,color:#fff
     style CH2 fill:#A855F7,color:#fff
     style WS1 fill:#3B82F6,color:#fff
     style WS2 fill:#3B82F6,color:#fff
 ```
+-->
 
 ### Communication Patterns
 
@@ -129,6 +133,9 @@ The system exposes two WebSocket endpoints for real-time updates.
 
 Delivers real-time security event notifications as they are created by the AI pipeline.
 
+![Events channel sequence diagram showing browser connection, EventBroadcaster registration, and event flow](../images/real-time/events-channel-sequence.svg)
+
+<!-- Original Mermaid diagram preserved for reference:
 ```mermaid
 sequenceDiagram
     participant Client as Browser
@@ -139,7 +146,7 @@ sequenceDiagram
 
     Client->>WS: Connect (upgrade)
     WS->>EB: register(websocket)
-    EB-->>Client: Connection accepted
+    EB- ->>Client: Connection accepted
 
     Note over NA: Event created from batch
 
@@ -153,11 +160,15 @@ sequenceDiagram
     Client->>WS: Disconnect
     WS->>EB: unregister(websocket)
 ```
+-->
 
 ### System Channel (`/ws/system`)
 
 Delivers periodic system status updates including GPU statistics and service health.
 
+![System channel sequence diagram showing GPUMonitor and HealthMonitor periodic updates](../images/real-time/system-channel-sequence.svg)
+
+<!-- Original Mermaid diagram preserved for reference:
 ```mermaid
 sequenceDiagram
     participant Client as Browser
@@ -168,13 +179,13 @@ sequenceDiagram
 
     Client->>WS: Connect (upgrade)
     WS->>SB: register(websocket)
-    SB-->>Client: Connection accepted
+    SB- ->>Client: Connection accepted
 
     loop Every 5 seconds
         SB->>GPU: get_current_stats()
-        GPU-->>SB: GPU metrics
+        GPU- ->>SB: GPU metrics
         SB->>HM: get_status()
-        HM-->>SB: Service health
+        HM- ->>SB: Service health
 
         SB->>WS: send_text(json)
         WS->>Client: {"type": "system_status", "data": {...}}
@@ -183,6 +194,7 @@ sequenceDiagram
     Client->>WS: Disconnect
     WS->>SB: unregister(websocket)
 ```
+-->
 
 ---
 
@@ -207,6 +219,9 @@ def get_event_channel() -> str:
 
 ### Pub/Sub Flow
 
+![Redis pub/sub flow diagram showing publishers, Redis channels, subscribers, and WebSocket clients](../images/real-time/redis-pubsub-flow.svg)
+
+<!-- Original Mermaid diagram preserved for reference:
 ```mermaid
 flowchart TB
     subgraph Publishers["Event Publishers"]
@@ -232,18 +247,19 @@ flowchart TB
         C3[Clients on Instance N]
     end
 
-    P1 & P2 --> PUB
-    PUB --> CH
-    CH --> SUB
-    SUB --> S1 & S2 & S3
+    P1 & P2 - -> PUB
+    PUB - -> CH
+    CH - -> SUB
+    SUB - -> S1 & S2 & S3
 
-    S1 --> C1
-    S2 --> C2
-    S3 --> C3
+    S1 - -> C1
+    S2 - -> C2
+    S3 - -> C3
 
     style CH fill:#A855F7,color:#fff
     style SUB fill:#A855F7,color:#fff
 ```
+-->
 
 ### Redis Message Format
 
@@ -737,7 +753,6 @@ Sent when service health changes:
 
 ### Performance Update Message
 
-<<<<<<< HEAD
 Sent periodically (every 5 seconds) with detailed system performance metrics. This message provides comprehensive monitoring data for the AI Performance dashboard.
 
 **Message Type:** `performance_update`
@@ -971,11 +986,6 @@ Array of alerts when metrics exceed configured thresholds:
 
 #### Complete Example
 
-=======
-Sent periodically with detailed system performance metrics:
-
-> > > > > > > 414ed391 (docs: expand AGENTS.md and architecture documentation (NEM-1165, NEM-1167, NEM-1168, NEM-1169, NEM-1170, NEM-1171, NEM-1172))
-
 ```json
 {
   "type": "performance_update",
@@ -983,7 +993,6 @@ Sent periodically with detailed system performance metrics:
     "timestamp": "2024-01-15T10:30:00.000000",
     "gpu": {
       "name": "NVIDIA RTX A5500",
-<<<<<<< HEAD
       "utilization": 38.0,
       "vram_used_gb": 22.7,
       "vram_total_gb": 24.0,
@@ -1016,40 +1025,11 @@ Sent periodically with detailed system performance metrics:
       "pipeline_latency_ms": { "avg": 3200, "p95": 6100 },
       "throughput": { "images_per_min": 12.4, "events_per_min": 2.1 },
       "queues": { "detection": 0, "analysis": 0 }
-=======
-      "utilization": 45.2,
-      "vram_used_gb": 7.5,
-      "vram_total_gb": 24.0,
-      "temperature": 65,
-      "power_watts": 125.5
-    },
-    "ai_models": {
-      "rtdetr": {
-        "status": "loaded",
-        "vram_gb": 4.2,
-        "model": "RT-DETRv2-L",
-        "device": "cuda:0"
-      }
-    },
-    "nemotron": {
-      "status": "running",
-      "slots_active": 1,
-      "slots_total": 4,
-      "context_size": 4096
-    },
-    "inference": {
-      "rtdetr_latency_ms": { "p50": 35, "p95": 52, "p99": 68 },
-      "nemotron_latency_ms": { "p50": 2100, "p95": 3500, "p99": 4200 },
-      "pipeline_latency_ms": { "avg": 2500, "p95": 4000 },
-      "throughput": { "detections_per_min": 45, "events_per_hour": 12 },
-      "queues": { "detection_queue": 3, "analysis_queue": 1 }
->>>>>>> 414ed391 (docs: expand AGENTS.md and architecture documentation (NEM-1165, NEM-1167, NEM-1168, NEM-1169, NEM-1170, NEM-1171, NEM-1172))
     },
     "databases": {
       "postgresql": {
         "status": "healthy",
         "connections_active": 5,
-<<<<<<< HEAD
         "connections_max": 30,
         "cache_hit_ratio": 98.2,
         "transactions_per_min": 1200
@@ -1059,22 +1039,10 @@ Sent periodically with detailed system performance metrics:
         "connected_clients": 8,
         "memory_mb": 1.5,
         "hit_ratio": 99.5,
-=======
-        "connections_max": 100,
-        "cache_hit_ratio": 0.98,
-        "transactions_per_min": 120
-      },
-      "redis": {
-        "status": "healthy",
-        "connected_clients": 3,
-        "memory_mb": 128,
-        "hit_ratio": 0.95,
->>>>>>> 414ed391 (docs: expand AGENTS.md and architecture documentation (NEM-1165, NEM-1167, NEM-1168, NEM-1169, NEM-1170, NEM-1171, NEM-1172))
         "blocked_clients": 0
       }
     },
     "host": {
-<<<<<<< HEAD
       "cpu_percent": 12.0,
       "ram_used_gb": 8.2,
       "ram_total_gb": 32.0,
@@ -1090,27 +1058,6 @@ Sent periodically with detailed system performance metrics:
       { "name": "ai-llm", "status": "running", "health": "healthy" }
     ],
     "alerts": []
-=======
-      "cpu_percent": 25.5,
-      "ram_used_gb": 12.5,
-      "ram_total_gb": 64.0,
-      "disk_used_gb": 250.0,
-      "disk_total_gb": 1000.0
-    },
-    "containers": [
-      { "name": "backend", "status": "running", "health": "healthy" },
-      { "name": "rtdetr", "status": "running", "health": "healthy" }
-    ],
-    "alerts": [
-      {
-        "severity": "warning",
-        "metric": "gpu_temperature",
-        "value": 82,
-        "threshold": 80,
-        "message": "GPU temperature above threshold"
-      }
-    ]
->>>>>>> 414ed391 (docs: expand AGENTS.md and architecture documentation (NEM-1165, NEM-1167, NEM-1168, NEM-1169, NEM-1170, NEM-1171, NEM-1172))
   }
 }
 ```

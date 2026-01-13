@@ -1,0 +1,242 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 700" width="1200" height="700">
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="2" dy="2" stdDeviation="3" flood-opacity="0.15"/>
+    </filter>
+    <linearGradient id="blueGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#60A5FA"/>
+      <stop offset="100%" style="stop-color:#3B82F6"/>
+    </linearGradient>
+    <linearGradient id="greenGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#34D399"/>
+      <stop offset="100%" style="stop-color:#10B981"/>
+    </linearGradient>
+    <linearGradient id="amberGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#FBBF24"/>
+      <stop offset="100%" style="stop-color:#F59E0B"/>
+    </linearGradient>
+    <linearGradient id="grayGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#9CA3AF"/>
+      <stop offset="100%" style="stop-color:#6B7280"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="700" fill="#F9FAFB"/>
+
+  <!-- Title -->
+  <text x="600" y="35" font-family="system-ui, -apple-system, sans-serif" font-size="24" font-weight="600" fill="#1F2937" text-anchor="middle">System Architecture Overview</text>
+
+  <!-- Camera Layer -->
+  <g transform="translate(40, 70)">
+    <rect x="0" y="0" width="200" height="180" rx="12" fill="#F3F4F6" stroke="#E5E7EB" stroke-width="2" filter="url(#shadow)"/>
+    <text x="100" y="28" font-family="system-ui, sans-serif" font-size="14" font-weight="600" fill="#374151" text-anchor="middle">Camera Layer</text>
+
+    <!-- Camera icons -->
+    <g transform="translate(30, 50)">
+      <rect x="0" y="0" width="60" height="40" rx="6" fill="url(#grayGrad)"/>
+      <circle cx="30" cy="20" r="10" fill="#374151"/>
+      <circle cx="30" cy="20" r="6" fill="#1F2937"/>
+      <text x="30" y="55" font-family="system-ui, sans-serif" font-size="10" fill="#6B7280" text-anchor="middle">Camera 1</text>
+    </g>
+    <g transform="translate(110, 50)">
+      <rect x="0" y="0" width="60" height="40" rx="6" fill="url(#grayGrad)"/>
+      <circle cx="30" cy="20" r="10" fill="#374151"/>
+      <circle cx="30" cy="20" r="6" fill="#1F2937"/>
+      <text x="30" y="55" font-family="system-ui, sans-serif" font-size="10" fill="#6B7280" text-anchor="middle">Camera 2</text>
+    </g>
+    <g transform="translate(70, 110)">
+      <rect x="0" y="0" width="60" height="40" rx="6" fill="url(#grayGrad)"/>
+      <circle cx="30" cy="20" r="10" fill="#374151"/>
+      <circle cx="30" cy="20" r="6" fill="#1F2937"/>
+      <text x="30" y="55" font-family="system-ui, sans-serif" font-size="10" fill="#6B7280" text-anchor="middle">Camera N</text>
+    </g>
+  </g>
+
+  <!-- FTP Upload Arrow -->
+  <g transform="translate(240, 140)">
+    <line x1="0" y1="0" x2="70" y2="0" stroke="#6B7280" stroke-width="2" marker-end="url(#arrowGray)"/>
+    <text x="35" y="-8" font-family="system-ui, sans-serif" font-size="11" fill="#6B7280" text-anchor="middle">FTP Upload</text>
+  </g>
+
+  <!-- FTP Storage -->
+  <g transform="translate(320, 100)">
+    <rect x="0" y="0" width="140" height="80" rx="8" fill="#FEF3C7" stroke="#F59E0B" stroke-width="2" filter="url(#shadow)"/>
+    <text x="70" y="28" font-family="system-ui, sans-serif" font-size="12" font-weight="600" fill="#92400E" text-anchor="middle">FTP Upload</text>
+    <!-- Folder icon -->
+    <g transform="translate(45, 38)">
+      <path d="M0,8 L0,35 Q0,38 3,38 L47,38 Q50,38 50,35 L50,12 Q50,8 47,8 L25,8 L20,2 Q18,0 15,0 L3,0 Q0,0 0,3 Z" fill="#FCD34D"/>
+      <path d="M0,12 L50,12 L50,35 Q50,38 47,38 L3,38 Q0,38 0,35 Z" fill="#FBBF24"/>
+    </g>
+    <text x="70" y="90" font-family="monospace" font-size="9" fill="#78350F" text-anchor="middle">/export/foscam/{camera}/</text>
+  </g>
+
+  <!-- FileWatcher Arrow -->
+  <g transform="translate(460, 140)">
+    <line x1="0" y1="0" x2="50" y2="0" stroke="#6B7280" stroke-width="2"/>
+    <polygon points="50,0 42,-5 42,5" fill="#6B7280"/>
+    <text x="25" y="-8" font-family="system-ui, sans-serif" font-size="10" fill="#6B7280" text-anchor="middle">FileWatcher</text>
+  </g>
+
+  <!-- Docker Services Container -->
+  <g transform="translate(520, 60)">
+    <rect x="0" y="0" width="280" height="280" rx="12" fill="#EFF6FF" stroke="#3B82F6" stroke-width="2" filter="url(#shadow)"/>
+    <text x="140" y="28" font-family="system-ui, sans-serif" font-size="14" font-weight="600" fill="#1E40AF" text-anchor="middle">Docker Services</text>
+
+    <!-- Frontend -->
+    <g transform="translate(20, 45)">
+      <rect x="0" y="0" width="115" height="65" rx="8" fill="url(#blueGrad)" filter="url(#shadow)"/>
+      <text x="57" y="25" font-family="system-ui, sans-serif" font-size="12" font-weight="600" fill="white" text-anchor="middle">Frontend</text>
+      <text x="57" y="42" font-family="system-ui, sans-serif" font-size="10" fill="#DBEAFE" text-anchor="middle">React + Vite</text>
+      <text x="57" y="56" font-family="monospace" font-size="9" fill="#BFDBFE" text-anchor="middle">:5173</text>
+    </g>
+
+    <!-- Backend -->
+    <g transform="translate(145, 45)">
+      <rect x="0" y="0" width="115" height="65" rx="8" fill="url(#blueGrad)" filter="url(#shadow)"/>
+      <text x="57" y="25" font-family="system-ui, sans-serif" font-size="12" font-weight="600" fill="white" text-anchor="middle">Backend</text>
+      <text x="57" y="42" font-family="system-ui, sans-serif" font-size="10" fill="#DBEAFE" text-anchor="middle">FastAPI</text>
+      <text x="57" y="56" font-family="monospace" font-size="9" fill="#BFDBFE" text-anchor="middle">:8000</text>
+    </g>
+
+    <!-- Redis -->
+    <g transform="translate(82, 125)">
+      <rect x="0" y="0" width="115" height="55" rx="8" fill="url(#blueGrad)" filter="url(#shadow)"/>
+      <text x="57" y="22" font-family="system-ui, sans-serif" font-size="12" font-weight="600" fill="white" text-anchor="middle">Redis</text>
+      <text x="57" y="40" font-family="monospace" font-size="9" fill="#BFDBFE" text-anchor="middle">:6379</text>
+    </g>
+
+    <!-- Connection lines within Docker -->
+    <line x1="77" y1="85" x2="145" y2="85" stroke="#93C5FD" stroke-width="1.5" stroke-dasharray="4,2"/>
+    <line x1="140" y1="110" x2="140" y2="125" stroke="#93C5FD" stroke-width="1.5" stroke-dasharray="4,2"/>
+
+    <!-- Labels -->
+    <text x="140" y="200" font-family="system-ui, sans-serif" font-size="9" fill="#6B7280" text-anchor="middle">REST API + WebSocket</text>
+    <text x="140" y="215" font-family="system-ui, sans-serif" font-size="9" fill="#6B7280" text-anchor="middle">Queues + Pub/Sub</text>
+  </g>
+
+  <!-- GPU Services Container -->
+  <g transform="translate(520, 360)">
+    <rect x="0" y="0" width="280" height="290" rx="12" fill="#ECFDF5" stroke="#10B981" stroke-width="2" filter="url(#shadow)"/>
+    <text x="140" y="28" font-family="system-ui, sans-serif" font-size="14" font-weight="600" fill="#065F46" text-anchor="middle">Containerized GPU Services</text>
+
+    <!-- RT-DETRv2 -->
+    <g transform="translate(20, 45)">
+      <rect x="0" y="0" width="115" height="60" rx="8" fill="url(#amberGrad)" filter="url(#shadow)"/>
+      <text x="57" y="20" font-family="system-ui, sans-serif" font-size="11" font-weight="600" fill="white" text-anchor="middle">RT-DETRv2</text>
+      <text x="57" y="36" font-family="system-ui, sans-serif" font-size="9" fill="#FEF3C7" text-anchor="middle">Object Detection</text>
+      <text x="57" y="50" font-family="monospace" font-size="9" fill="#FDE68A" text-anchor="middle">:8090</text>
+    </g>
+
+    <!-- Nemotron -->
+    <g transform="translate(145, 45)">
+      <rect x="0" y="0" width="115" height="60" rx="8" fill="url(#amberGrad)" filter="url(#shadow)"/>
+      <text x="57" y="20" font-family="system-ui, sans-serif" font-size="11" font-weight="600" fill="white" text-anchor="middle">Nemotron LLM</text>
+      <text x="57" y="36" font-family="system-ui, sans-serif" font-size="9" fill="#FEF3C7" text-anchor="middle">Risk Analysis</text>
+      <text x="57" y="50" font-family="monospace" font-size="9" fill="#FDE68A" text-anchor="middle">:8091</text>
+    </g>
+
+    <!-- Florence-2 -->
+    <g transform="translate(20, 115)">
+      <rect x="0" y="0" width="115" height="55" rx="8" fill="url(#amberGrad)" opacity="0.7" filter="url(#shadow)"/>
+      <text x="57" y="18" font-family="system-ui, sans-serif" font-size="10" font-weight="600" fill="white" text-anchor="middle">Florence-2</text>
+      <text x="57" y="32" font-family="system-ui, sans-serif" font-size="8" fill="#FEF3C7" text-anchor="middle">Vision (optional)</text>
+      <text x="57" y="45" font-family="monospace" font-size="8" fill="#FDE68A" text-anchor="middle">:8092</text>
+    </g>
+
+    <!-- CLIP -->
+    <g transform="translate(145, 115)">
+      <rect x="0" y="0" width="115" height="55" rx="8" fill="url(#amberGrad)" opacity="0.7" filter="url(#shadow)"/>
+      <text x="57" y="18" font-family="system-ui, sans-serif" font-size="10" font-weight="600" fill="white" text-anchor="middle">CLIP</text>
+      <text x="57" y="32" font-family="system-ui, sans-serif" font-size="8" fill="#FEF3C7" text-anchor="middle">Re-ID (optional)</text>
+      <text x="57" y="45" font-family="monospace" font-size="8" fill="#FDE68A" text-anchor="middle">:8093</text>
+    </g>
+
+    <!-- Enrichment -->
+    <g transform="translate(82, 180)">
+      <rect x="0" y="0" width="115" height="55" rx="8" fill="url(#amberGrad)" opacity="0.7" filter="url(#shadow)"/>
+      <text x="57" y="18" font-family="system-ui, sans-serif" font-size="10" font-weight="600" fill="white" text-anchor="middle">Enrichment API</text>
+      <text x="57" y="32" font-family="system-ui, sans-serif" font-size="8" fill="#FEF3C7" text-anchor="middle">Model-zoo (optional)</text>
+      <text x="57" y="45" font-family="monospace" font-size="8" fill="#FDE68A" text-anchor="middle">:8094</text>
+    </g>
+
+    <!-- GPU indicator -->
+    <g transform="translate(90, 248)">
+      <rect x="0" y="0" width="100" height="28" rx="4" fill="#76B900"/>
+      <text x="50" y="18" font-family="system-ui, sans-serif" font-size="10" font-weight="600" fill="white" text-anchor="middle">NVIDIA GPU</text>
+    </g>
+  </g>
+
+  <!-- Connection from Docker to GPU -->
+  <line x1="660" y1="340" x2="660" y2="360" stroke="#6B7280" stroke-width="2"/>
+  <polygon points="660,360 655,352 665,352" fill="#6B7280"/>
+  <text x="680" y="352" font-family="system-ui, sans-serif" font-size="9" fill="#6B7280">HTTP</text>
+
+  <!-- Persistent Storage -->
+  <g transform="translate(860, 200)">
+    <rect x="0" y="0" width="280" height="200" rx="12" fill="#F3F4F6" stroke="#9CA3AF" stroke-width="2" filter="url(#shadow)"/>
+    <text x="140" y="28" font-family="system-ui, sans-serif" font-size="14" font-weight="600" fill="#374151" text-anchor="middle">Persistent Storage</text>
+
+    <!-- PostgreSQL -->
+    <g transform="translate(30, 50)">
+      <ellipse cx="50" cy="10" rx="40" ry="10" fill="url(#greenGrad)"/>
+      <rect x="10" y="10" width="80" height="50" fill="url(#greenGrad)"/>
+      <ellipse cx="50" cy="60" rx="40" ry="10" fill="#059669"/>
+      <ellipse cx="50" cy="10" rx="40" ry="10" fill="#34D399"/>
+      <text x="50" y="40" font-family="system-ui, sans-serif" font-size="11" font-weight="600" fill="white" text-anchor="middle">PostgreSQL</text>
+      <text x="50" y="85" font-family="system-ui, sans-serif" font-size="9" fill="#6B7280" text-anchor="middle">security database</text>
+    </g>
+
+    <!-- Filesystem -->
+    <g transform="translate(150, 50)">
+      <path d="M10,15 L10,65 Q10,70 15,70 L85,70 Q90,70 90,65 L90,20 Q90,15 85,15 L50,15 L45,8 Q43,5 40,5 L15,5 Q10,5 10,10 Z" fill="url(#greenGrad)"/>
+      <path d="M10,20 L90,20 L90,65 Q90,70 85,70 L15,70 Q10,70 10,65 Z" fill="#10B981"/>
+      <text x="50" y="50" font-family="system-ui, sans-serif" font-size="11" font-weight="600" fill="white" text-anchor="middle">Filesystem</text>
+      <text x="50" y="85" font-family="system-ui, sans-serif" font-size="9" fill="#6B7280" text-anchor="middle">thumbnails/</text>
+    </g>
+
+    <!-- Labels -->
+    <text x="140" y="165" font-family="system-ui, sans-serif" font-size="10" fill="#6B7280" text-anchor="middle">SQLAlchemy ORM</text>
+    <text x="140" y="180" font-family="system-ui, sans-serif" font-size="10" fill="#6B7280" text-anchor="middle">PIL/Pillow</text>
+  </g>
+
+  <!-- Connection from Backend to Storage -->
+  <line x1="800" y1="180" x2="860" y2="250" stroke="#6B7280" stroke-width="2"/>
+  <polygon points="860,250 850,248 854,240" fill="#6B7280"/>
+
+  <!-- Frontend to Browser Arrow -->
+  <g transform="translate(870, 80)">
+    <rect x="0" y="0" width="120" height="70" rx="8" fill="#F3F4F6" stroke="#E5E7EB" stroke-width="2" filter="url(#shadow)"/>
+    <!-- Browser window -->
+    <rect x="10" y="10" width="100" height="50" rx="4" fill="white" stroke="#D1D5DB" stroke-width="1"/>
+    <rect x="10" y="10" width="100" height="12" rx="4" fill="#E5E7EB"/>
+    <circle cx="20" cy="16" r="3" fill="#EF4444"/>
+    <circle cx="30" cy="16" r="3" fill="#F59E0B"/>
+    <circle cx="40" cy="16" r="3" fill="#10B981"/>
+    <text x="60" y="42" font-family="system-ui, sans-serif" font-size="8" fill="#6B7280" text-anchor="middle">Dashboard</text>
+    <text x="60" y="85" font-family="system-ui, sans-serif" font-size="10" fill="#374151" text-anchor="middle">Browser</text>
+  </g>
+
+  <!-- Connection from Frontend to Browser -->
+  <line x1="800" y1="100" x2="870" y2="100" stroke="#3B82F6" stroke-width="2"/>
+  <polygon points="870,100 862,95 862,105" fill="#3B82F6"/>
+  <text x="835" y="92" font-family="system-ui, sans-serif" font-size="9" fill="#3B82F6" text-anchor="middle">WebSocket</text>
+
+  <!-- Legend -->
+  <g transform="translate(40, 600)">
+    <rect x="0" y="0" width="350" height="80" rx="8" fill="white" stroke="#E5E7EB" stroke-width="1"/>
+    <text x="175" y="20" font-family="system-ui, sans-serif" font-size="12" font-weight="600" fill="#374151" text-anchor="middle">Legend</text>
+
+    <rect x="15" y="35" width="30" height="16" rx="4" fill="url(#blueGrad)"/>
+    <text x="55" y="47" font-family="system-ui, sans-serif" font-size="10" fill="#6B7280">Application Services</text>
+
+    <rect x="175" y="35" width="30" height="16" rx="4" fill="url(#amberGrad)"/>
+    <text x="215" y="47" font-family="system-ui, sans-serif" font-size="10" fill="#6B7280">AI/GPU Services</text>
+
+    <rect x="15" y="55" width="30" height="16" rx="4" fill="url(#greenGrad)"/>
+    <text x="55" y="67" font-family="system-ui, sans-serif" font-size="10" fill="#6B7280">Data Stores</text>
+
+    <rect x="175" y="55" width="30" height="16" rx="4" fill="url(#grayGrad)"/>
+    <text x="215" y="67" font-family="system-ui, sans-serif" font-size="10" fill="#6B7280">External/Cameras</text>
+  </g>
+</svg>

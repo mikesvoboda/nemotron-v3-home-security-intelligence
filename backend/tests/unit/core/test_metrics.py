@@ -708,3 +708,846 @@ class TestMetricsServiceCacheMethods:
         metrics.record_cache_invalidation("event_stats", "event_created")
         metrics.record_cache_invalidation("cameras", "camera_updated")
         # No assertion needed - no exception means success
+
+
+# =============================================================================
+# MetricsService Full Coverage Tests
+# =============================================================================
+
+
+class TestMetricsServiceQueueMethods:
+    """Test MetricsService queue-related methods."""
+
+    def test_set_queue_depth_detection(self) -> None:
+        """MetricsService should set detection queue depth."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.set_queue_depth("detection", 5)
+        metrics.set_queue_depth("detection", 0)
+
+    def test_set_queue_depth_analysis(self) -> None:
+        """MetricsService should set analysis queue depth."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.set_queue_depth("analysis", 10)
+        metrics.set_queue_depth("analysis", 0)
+
+    def test_set_queue_depth_unknown(self) -> None:
+        """MetricsService should handle unknown queue name gracefully."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.set_queue_depth("unknown_queue", 5)  # Should log warning but not crash
+
+    def test_record_queue_overflow(self) -> None:
+        """MetricsService should record queue overflow events."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.record_queue_overflow("detection", "dlq")
+        metrics.record_queue_overflow("analysis", "drop_oldest")
+        metrics.record_queue_overflow("detection", "reject")
+
+    def test_record_queue_items_moved_to_dlq(self) -> None:
+        """MetricsService should record items moved to DLQ."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.record_queue_items_moved_to_dlq("detection", 1)
+        metrics.record_queue_items_moved_to_dlq("analysis", 5)
+
+    def test_record_queue_items_dropped(self) -> None:
+        """MetricsService should record dropped items."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.record_queue_items_dropped("detection", 1)
+        metrics.record_queue_items_dropped("analysis", 3)
+
+    def test_record_queue_items_rejected(self) -> None:
+        """MetricsService should record rejected items."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.record_queue_items_rejected("detection", 1)
+        metrics.record_queue_items_rejected("analysis", 2)
+
+
+class TestMetricsServiceStageDuration:
+    """Test MetricsService stage duration methods."""
+
+    def test_observe_stage_duration(self) -> None:
+        """MetricsService should observe stage durations."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.observe_stage_duration("detect", 0.5)
+        metrics.observe_stage_duration("batch", 1.2)
+        metrics.observe_stage_duration("analyze", 2.0)
+
+
+class TestMetricsServiceEventDetection:
+    """Test MetricsService event and detection methods."""
+
+    def test_record_event_created(self) -> None:
+        """MetricsService should record event creation."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.record_event_created()
+
+    def test_record_detection_processed(self) -> None:
+        """MetricsService should record detection processing."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.record_detection_processed()
+        metrics.record_detection_processed(count=5)
+
+    def test_record_detection_by_class(self) -> None:
+        """MetricsService should record detections by class."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.record_detection_by_class("person")
+        metrics.record_detection_by_class("car")
+
+    def test_observe_detection_confidence(self) -> None:
+        """MetricsService should observe detection confidence."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.observe_detection_confidence(0.75)
+        metrics.observe_detection_confidence(0.95)
+
+    def test_record_detection_filtered(self) -> None:
+        """MetricsService should record filtered detections."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.record_detection_filtered()
+
+
+class TestMetricsServiceAI:
+    """Test MetricsService AI-related methods."""
+
+    def test_observe_ai_request_duration(self) -> None:
+        """MetricsService should observe AI request durations."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.observe_ai_request_duration("rtdetr", 0.3)
+        metrics.observe_ai_request_duration("nemotron", 1.5)
+
+    def test_record_pipeline_error(self) -> None:
+        """MetricsService should record pipeline errors."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.record_pipeline_error("connection_error")
+        metrics.record_pipeline_error("timeout_error")
+
+
+class TestMetricsServiceRisk:
+    """Test MetricsService risk analysis methods."""
+
+    def test_observe_risk_score(self) -> None:
+        """MetricsService should observe risk scores."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.observe_risk_score(25)
+        metrics.observe_risk_score(75)
+        metrics.observe_risk_score(95.5)
+
+    def test_record_event_by_risk_level(self) -> None:
+        """MetricsService should record events by risk level."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.record_event_by_risk_level("low")
+        metrics.record_event_by_risk_level("high")
+
+    def test_record_prompt_template_used(self) -> None:
+        """MetricsService should record prompt template usage."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.record_prompt_template_used("basic")
+        metrics.record_prompt_template_used("enriched")
+
+
+class TestMetricsServiceBusiness:
+    """Test MetricsService business metrics methods."""
+
+    def test_record_florence_task(self) -> None:
+        """MetricsService should record Florence task invocations."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.record_florence_task("caption")
+        metrics.record_florence_task("ocr")
+
+    def test_record_enrichment_model_call(self) -> None:
+        """MetricsService should record enrichment model calls."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.record_enrichment_model_call("brisque")
+        metrics.record_enrichment_model_call("violence")
+
+    def test_set_enrichment_success_rate(self) -> None:
+        """MetricsService should set enrichment success rate."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.set_enrichment_success_rate("brisque", 0.95)
+        metrics.set_enrichment_success_rate("violence", 0.88)
+
+    def test_record_enrichment_partial_batch(self) -> None:
+        """MetricsService should record partial enrichment batches."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.record_enrichment_partial_batch()
+
+    def test_record_enrichment_failure(self) -> None:
+        """MetricsService should record enrichment failures."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.record_enrichment_failure("brisque")
+        metrics.record_enrichment_failure("violence")
+
+    def test_record_enrichment_batch_status(self) -> None:
+        """MetricsService should record enrichment batch status."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.record_enrichment_batch_status("full")
+        metrics.record_enrichment_batch_status("partial")
+        metrics.record_enrichment_batch_status("failed")
+
+    def test_record_event_by_camera(self) -> None:
+        """MetricsService should record events by camera."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.record_event_by_camera("cam1", "Front Door")
+        metrics.record_event_by_camera("cam2", "Back Yard")
+
+    def test_record_event_reviewed(self) -> None:
+        """MetricsService should record reviewed events."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.record_event_reviewed()
+
+
+class TestMetricsServiceTokens:
+    """Test MetricsService token usage methods."""
+
+    def test_record_nemotron_tokens_basic(self) -> None:
+        """MetricsService should record basic token usage."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.record_nemotron_tokens("cam1", 100, 50)
+
+    def test_record_nemotron_tokens_with_duration(self) -> None:
+        """MetricsService should calculate throughput with duration."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.record_nemotron_tokens("cam1", 100, 50, duration_seconds=1.5)
+
+    def test_record_nemotron_tokens_with_zero_duration(self) -> None:
+        """MetricsService should skip throughput with zero duration."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.record_nemotron_tokens("cam1", 100, 50, duration_seconds=0)
+
+    def test_record_nemotron_tokens_with_negative_duration(self) -> None:
+        """MetricsService should skip throughput with negative duration."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.record_nemotron_tokens("cam1", 100, 50, duration_seconds=-1.0)
+
+    def test_record_nemotron_tokens_with_costs(self) -> None:
+        """MetricsService should calculate costs with pricing."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.record_nemotron_tokens(
+            "cam1", 1000, 500, input_cost_per_1k=0.01, output_cost_per_1k=0.02
+        )
+
+    def test_record_nemotron_tokens_with_input_cost_only(self) -> None:
+        """MetricsService should handle input cost only."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.record_nemotron_tokens("cam1", 1000, 500, input_cost_per_1k=0.01)
+
+    def test_record_nemotron_tokens_with_output_cost_only(self) -> None:
+        """MetricsService should handle output cost only."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.record_nemotron_tokens("cam1", 1000, 500, output_cost_per_1k=0.02)
+
+
+class TestMetricsServiceCostTracking:
+    """Test MetricsService cost tracking methods."""
+
+    def test_record_gpu_seconds(self) -> None:
+        """MetricsService should record GPU seconds."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.record_gpu_seconds("nemotron", 1.5)
+        metrics.record_gpu_seconds("rtdetr", 0.3)
+
+    def test_record_gpu_seconds_zero(self) -> None:
+        """MetricsService should skip zero GPU seconds."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.record_gpu_seconds("nemotron", 0)
+
+    def test_record_gpu_seconds_negative(self) -> None:
+        """MetricsService should skip negative GPU seconds."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.record_gpu_seconds("nemotron", -1.0)
+
+    def test_record_estimated_cost(self) -> None:
+        """MetricsService should record estimated costs."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.record_estimated_cost("nemotron", 0.05)
+        metrics.record_estimated_cost("rtdetr", 0.01)
+
+    def test_record_estimated_cost_zero(self) -> None:
+        """MetricsService should skip zero cost."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.record_estimated_cost("nemotron", 0)
+
+    def test_record_event_analysis_cost(self) -> None:
+        """MetricsService should record event analysis cost."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.record_event_analysis_cost("cam1", 0.05)
+
+    def test_record_event_analysis_cost_zero(self) -> None:
+        """MetricsService should skip zero event cost."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.record_event_analysis_cost("cam1", 0)
+
+    def test_set_daily_cost(self) -> None:
+        """MetricsService should set daily cost gauge."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.set_daily_cost(1.50)
+
+    def test_set_monthly_cost(self) -> None:
+        """MetricsService should set monthly cost gauge."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.set_monthly_cost(45.00)
+
+    def test_set_budget_utilization(self) -> None:
+        """MetricsService should set budget utilization ratio."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.set_budget_utilization("daily", 0.75)
+        metrics.set_budget_utilization("monthly", 0.60)
+
+    def test_record_budget_exceeded(self) -> None:
+        """MetricsService should record budget exceeded events."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.record_budget_exceeded("daily")
+        metrics.record_budget_exceeded("monthly")
+
+
+# =============================================================================
+# Legacy Helper Functions Coverage Tests
+# =============================================================================
+
+
+class TestContextUtilizationHelpers:
+    """Test context utilization helper functions."""
+
+    def test_observe_context_utilization_below_threshold(self) -> None:
+        """observe_context_utilization should record low utilization."""
+        from backend.core.metrics import observe_context_utilization
+
+        observe_context_utilization(0.5)
+        observe_context_utilization(0.7)
+
+    def test_observe_context_utilization_above_threshold(self) -> None:
+        """observe_context_utilization should record high utilization warning."""
+        from backend.core.metrics import observe_context_utilization
+
+        observe_context_utilization(0.85)
+        observe_context_utilization(0.95)
+        observe_context_utilization(1.0)
+
+    def test_record_prompt_truncated(self) -> None:
+        """record_prompt_truncated should increment counter."""
+        from backend.core.metrics import record_prompt_truncated
+
+        record_prompt_truncated()
+
+
+class TestBusinessMetricHelpers:
+    """Test business metric helper functions."""
+
+    def test_increment_enrichment_retry(self) -> None:
+        """increment_enrichment_retry should increment counter."""
+        from backend.core.metrics import increment_enrichment_retry
+
+        increment_enrichment_retry("vehicle")
+        increment_enrichment_retry("pet")
+        increment_enrichment_retry("clothing")
+
+
+class TestQueueOverflowHelpers:
+    """Test queue overflow helper functions."""
+
+    def test_record_queue_overflow_helper(self) -> None:
+        """record_queue_overflow should increment counter."""
+        from backend.core.metrics import record_queue_overflow
+
+        record_queue_overflow("detection", "dlq")
+        record_queue_overflow("analysis", "drop_oldest")
+
+    def test_record_queue_items_moved_to_dlq_helper(self) -> None:
+        """record_queue_items_moved_to_dlq should increment counter."""
+        from backend.core.metrics import record_queue_items_moved_to_dlq
+
+        record_queue_items_moved_to_dlq("detection")
+        record_queue_items_moved_to_dlq("analysis", 5)
+
+    def test_record_queue_items_dropped_helper(self) -> None:
+        """record_queue_items_dropped should increment counter."""
+        from backend.core.metrics import record_queue_items_dropped
+
+        record_queue_items_dropped("detection")
+        record_queue_items_dropped("analysis", 3)
+
+    def test_record_queue_items_rejected_helper(self) -> None:
+        """record_queue_items_rejected should increment counter."""
+        from backend.core.metrics import record_queue_items_rejected
+
+        record_queue_items_rejected("detection")
+        record_queue_items_rejected("analysis", 2)
+
+
+class TestTokenUsageHelpers:
+    """Test token usage helper functions."""
+
+    def test_record_nemotron_tokens_basic(self) -> None:
+        """record_nemotron_tokens should record basic token usage."""
+        from backend.core.metrics import record_nemotron_tokens
+
+        record_nemotron_tokens("cam1", 100, 50)
+
+    def test_record_nemotron_tokens_with_duration(self) -> None:
+        """record_nemotron_tokens should calculate throughput."""
+        from backend.core.metrics import record_nemotron_tokens
+
+        record_nemotron_tokens("cam1", 1000, 500, duration_seconds=2.5)
+
+    def test_record_nemotron_tokens_with_costs(self) -> None:
+        """record_nemotron_tokens should calculate costs."""
+        from backend.core.metrics import record_nemotron_tokens
+
+        record_nemotron_tokens(
+            "cam1", 2000, 1000, input_cost_per_1k=0.005, output_cost_per_1k=0.015
+        )
+
+
+# =============================================================================
+# Model Latency Tracker Tests
+# =============================================================================
+
+
+class TestModelLatencyTracker:
+    """Test ModelLatencyTracker class for Model Zoo observability."""
+
+    def test_record_model_latency(self) -> None:
+        """Recording model latency should work for any model name."""
+        from backend.core.metrics import ModelLatencyTracker
+
+        tracker = ModelLatencyTracker()
+        tracker.record_model_latency("yolo11-license-plate", 45.5)
+        tracker.record_model_latency("yolo11-face", 38.2)
+        # Should not raise
+
+    def test_get_model_stats_empty(self) -> None:
+        """Getting stats for unknown model should return None values."""
+        from backend.core.metrics import ModelLatencyTracker
+
+        tracker = ModelLatencyTracker()
+        stats = tracker.get_model_stats("unknown-model")
+        assert stats["avg_ms"] is None
+        assert stats["p50_ms"] is None
+        assert stats["p95_ms"] is None
+        assert stats["sample_count"] == 0
+
+    def test_get_model_stats_single_sample(self) -> None:
+        """Getting stats with single sample should work."""
+        from backend.core.metrics import ModelLatencyTracker
+
+        tracker = ModelLatencyTracker()
+        tracker.record_model_latency("clip-vit-l", 120.0)
+        stats = tracker.get_model_stats("clip-vit-l")
+        assert stats["avg_ms"] == 120.0
+        assert stats["p50_ms"] == 120.0
+        assert stats["p95_ms"] == 120.0
+        assert stats["sample_count"] == 1
+
+    def test_get_model_stats_multiple_samples(self) -> None:
+        """Getting stats with multiple samples should calculate correctly."""
+        from backend.core.metrics import ModelLatencyTracker
+
+        tracker = ModelLatencyTracker()
+        for latency in [10, 20, 30, 40, 50]:
+            tracker.record_model_latency("paddleocr", float(latency))
+
+        stats = tracker.get_model_stats("paddleocr")
+        assert stats["avg_ms"] == 30.0
+        assert stats["sample_count"] == 5
+
+    def test_circular_buffer_max_samples(self) -> None:
+        """Tracker should respect max_samples limit."""
+        from backend.core.metrics import ModelLatencyTracker
+
+        max_samples = 5
+        tracker = ModelLatencyTracker(max_samples=max_samples)
+
+        # Add 10 samples, should only keep last 5
+        for i in range(10):
+            tracker.record_model_latency("test-model", float(i))
+
+        stats = tracker.get_model_stats("test-model")
+        assert stats["sample_count"] == max_samples
+
+    def test_window_minutes_filter(self) -> None:
+        """Samples should be filtered by time window."""
+        from backend.core.metrics import ModelLatencyTracker
+
+        tracker = ModelLatencyTracker()
+
+        # Mock time to control timestamps
+        mock_time = MagicMock()
+        current_time = time.time()
+        tracker._time = mock_time
+
+        # Add old sample (70 minutes ago)
+        mock_time.time.return_value = current_time - (70 * 60)
+        tracker.record_model_latency("model-a", 1000.0)
+
+        # Add recent sample (5 minutes ago)
+        mock_time.time.return_value = current_time - (5 * 60)
+        tracker.record_model_latency("model-a", 500.0)
+
+        # Query with current time
+        mock_time.time.return_value = current_time
+
+        # Default 60-minute window should only include recent sample
+        stats = tracker.get_model_stats("model-a", window_minutes=60)
+        assert stats["sample_count"] == 1
+        assert stats["avg_ms"] == 500.0
+
+    def test_get_model_latency_history_empty(self) -> None:
+        """Getting history for unknown model should return empty buckets."""
+        from backend.core.metrics import ModelLatencyTracker
+
+        tracker = ModelLatencyTracker()
+        history = tracker.get_model_latency_history("unknown", window_minutes=5)
+        assert len(history) > 0
+        assert all(entry["stats"] is None for entry in history)
+
+    def test_get_model_latency_history_with_data(self) -> None:
+        """Getting history with data should return stats."""
+        from backend.core.metrics import ModelLatencyTracker
+
+        tracker = ModelLatencyTracker()
+        tracker.record_model_latency("model-b", 100.0)
+        tracker.record_model_latency("model-b", 200.0)
+
+        history = tracker.get_model_latency_history("model-b", window_minutes=5, bucket_seconds=60)
+        assert len(history) > 0
+        # At least one bucket should have data
+        assert any(entry["stats"] is not None for entry in history)
+
+    def test_get_or_create_deque(self) -> None:
+        """_get_or_create_deque should create deque on first access."""
+        from backend.core.metrics import ModelLatencyTracker
+
+        tracker = ModelLatencyTracker()
+        deque1 = tracker._get_or_create_deque("new-model")
+        deque2 = tracker._get_or_create_deque("new-model")
+        assert deque1 is deque2  # Should return same instance
+
+
+class TestModelLatencyGlobalFunctions:
+    """Test global helper functions for model latency tracking."""
+
+    def test_get_model_latency_tracker_returns_singleton(self) -> None:
+        """get_model_latency_tracker should return the same instance."""
+        from backend.core.metrics import get_model_latency_tracker
+
+        tracker1 = get_model_latency_tracker()
+        tracker2 = get_model_latency_tracker()
+        assert tracker1 is tracker2
+        assert tracker1 is not None
+
+    def test_record_model_zoo_latency(self) -> None:
+        """record_model_zoo_latency should record to global tracker."""
+        from backend.core.metrics import get_model_latency_tracker, record_model_zoo_latency
+
+        unique_model = f"test-model-{int(time.time())}"
+        record_model_zoo_latency(unique_model, 123.45)
+
+        tracker = get_model_latency_tracker()
+        assert tracker is not None
+        stats = tracker.get_model_stats(unique_model, window_minutes=1)
+        assert stats["sample_count"] >= 1
+
+
+# =============================================================================
+# Additional Metric Function Coverage Tests
+# =============================================================================
+
+
+class TestBatchSizeLimitMetrics:
+    """Test batch size limit metrics."""
+
+    def test_record_batch_max_reached(self) -> None:
+        """record_batch_max_reached should increment counter."""
+        from backend.core.metrics import record_batch_max_reached
+
+        record_batch_max_reached("cam1")
+        record_batch_max_reached("cam2")
+
+
+class TestDatabaseQueryMetrics:
+    """Test database query metrics."""
+
+    def test_observe_db_query_duration(self) -> None:
+        """observe_db_query_duration should record histogram observation."""
+        from backend.core.metrics import observe_db_query_duration
+
+        observe_db_query_duration(0.05)
+        observe_db_query_duration(0.5)
+        observe_db_query_duration(2.0)
+
+    def test_record_slow_query(self) -> None:
+        """record_slow_query should increment counter."""
+        from backend.core.metrics import record_slow_query
+
+        record_slow_query()
+
+
+class TestTokenCountingMetrics:
+    """Test token counting metrics."""
+
+    def test_observe_prompt_tokens(self) -> None:
+        """observe_prompt_tokens should record histogram observation."""
+        from backend.core.metrics import observe_prompt_tokens
+
+        observe_prompt_tokens(500)
+        observe_prompt_tokens(1500)
+        observe_prompt_tokens(3000)
+
+    def test_record_prompt_section_truncated(self) -> None:
+        """record_prompt_section_truncated should increment counter."""
+        from backend.core.metrics import record_prompt_section_truncated
+
+        record_prompt_section_truncated("cross_camera")
+        record_prompt_section_truncated("baseline")
+        record_prompt_section_truncated("zones")
+
+
+class TestAIModelWarmupMetrics:
+    """Test AI model warmup and cold start metrics."""
+
+    def test_observe_model_warmup_duration(self) -> None:
+        """observe_model_warmup_duration should record histogram observation."""
+        from backend.core.metrics import observe_model_warmup_duration
+
+        observe_model_warmup_duration("rtdetr", 1.5)
+        observe_model_warmup_duration("nemotron", 5.0)
+
+    def test_record_model_cold_start(self) -> None:
+        """record_model_cold_start should increment counter."""
+        from backend.core.metrics import record_model_cold_start
+
+        record_model_cold_start("rtdetr")
+        record_model_cold_start("nemotron")
+
+    def test_set_model_warmth_state(self) -> None:
+        """set_model_warmth_state should set gauge value."""
+        from backend.core.metrics import set_model_warmth_state
+
+        set_model_warmth_state("rtdetr", "cold")
+        set_model_warmth_state("nemotron", "warming")
+        set_model_warmth_state("rtdetr", "warm")
+
+    def test_set_model_warmth_state_invalid(self) -> None:
+        """set_model_warmth_state should handle invalid state."""
+        from backend.core.metrics import set_model_warmth_state
+
+        set_model_warmth_state("rtdetr", "invalid_state")  # Should default to 0
+
+    def test_set_model_last_inference_ago(self) -> None:
+        """set_model_last_inference_ago should set gauge value."""
+        from backend.core.metrics import set_model_last_inference_ago
+
+        set_model_last_inference_ago("rtdetr", 30.5)
+        set_model_last_inference_ago("nemotron", 120.0)
+
+    def test_set_model_last_inference_ago_none(self) -> None:
+        """set_model_last_inference_ago should handle None (never used)."""
+        from backend.core.metrics import set_model_last_inference_ago
+
+        set_model_last_inference_ago("new_model", None)  # Should set to -1
+
+
+class TestRUMMetrics:
+    """Test Real User Monitoring (RUM) metrics."""
+
+    def test_observe_rum_lcp(self) -> None:
+        """observe_rum_lcp should record LCP metric."""
+        from backend.core.metrics import observe_rum_lcp
+
+        observe_rum_lcp(1500.0, "/", "good")
+        observe_rum_lcp(3000.0, "/dashboard", "needs-improvement")
+        observe_rum_lcp(5000.0, "/events", "poor")
+
+    def test_observe_rum_fid(self) -> None:
+        """observe_rum_fid should record FID metric."""
+        from backend.core.metrics import observe_rum_fid
+
+        observe_rum_fid(50.0, "/", "good")
+        observe_rum_fid(150.0, "/dashboard", "needs-improvement")
+        observe_rum_fid(400.0, "/events", "poor")
+
+    def test_observe_rum_inp(self) -> None:
+        """observe_rum_inp should record INP metric."""
+        from backend.core.metrics import observe_rum_inp
+
+        observe_rum_inp(80.0, "/", "good")
+        observe_rum_inp(200.0, "/dashboard", "needs-improvement")
+        observe_rum_inp(450.0, "/events", "poor")
+
+    def test_observe_rum_cls(self) -> None:
+        """observe_rum_cls should record CLS metric."""
+        from backend.core.metrics import observe_rum_cls
+
+        observe_rum_cls(0.05, "/", "good")
+        observe_rum_cls(0.15, "/dashboard", "needs-improvement")
+        observe_rum_cls(0.3, "/events", "poor")
+
+    def test_observe_rum_ttfb(self) -> None:
+        """observe_rum_ttfb should record TTFB metric."""
+        from backend.core.metrics import observe_rum_ttfb
+
+        observe_rum_ttfb(500.0, "/", "good")
+        observe_rum_ttfb(1200.0, "/api/events", "needs-improvement")
+        observe_rum_ttfb(2500.0, "/api/stats", "poor")
+
+    def test_observe_rum_fcp(self) -> None:
+        """observe_rum_fcp should record FCP metric."""
+        from backend.core.metrics import observe_rum_fcp
+
+        observe_rum_fcp(1200.0, "/", "good")
+        observe_rum_fcp(2200.0, "/dashboard", "needs-improvement")
+        observe_rum_fcp(3500.0, "/events", "poor")
+
+
+class TestPromptABTestingMetrics:
+    """Test prompt A/B testing metrics."""
+
+    def test_record_prompt_latency(self) -> None:
+        """record_prompt_latency should record histogram observation."""
+        from backend.core.metrics import record_prompt_latency
+
+        record_prompt_latency("v1", 1.5)
+        record_prompt_latency("v2", 1.2)
+        record_prompt_latency("v2-experimental", 2.0)
+
+    def test_record_risk_score_variance(self) -> None:
+        """record_risk_score_variance should set gauge value."""
+        from backend.core.metrics import record_risk_score_variance
+
+        record_risk_score_variance("v1", "v2", 5.5)
+        record_risk_score_variance("v1", "v3", 12.3)
+
+    def test_record_prompt_ab_traffic(self) -> None:
+        """record_prompt_ab_traffic should increment counter."""
+        from backend.core.metrics import record_prompt_ab_traffic
+
+        record_prompt_ab_traffic("v1", False)
+        record_prompt_ab_traffic("v2", True)
+
+    def test_record_shadow_comparison(self) -> None:
+        """record_shadow_comparison should increment counter."""
+        from backend.core.metrics import record_shadow_comparison
+
+        record_shadow_comparison("nemotron")
+
+    def test_record_prompt_rollback(self) -> None:
+        """record_prompt_rollback should increment counter."""
+        from backend.core.metrics import record_prompt_rollback
+
+        record_prompt_rollback("nemotron", "latency")
+        record_prompt_rollback("nemotron", "variance")
+
+
+class TestPipelineLatencyHistoryMethods:
+    """Test pipeline latency history methods."""
+
+    def test_get_latency_history_empty(self) -> None:
+        """get_latency_history should return empty snapshots."""
+        from backend.core.metrics import PipelineLatencyTracker
+
+        tracker = PipelineLatencyTracker()
+        history = tracker.get_latency_history(window_minutes=5, bucket_seconds=60)
+        assert isinstance(history, list)
+        assert len(history) >= 0
+
+    def test_get_latency_history_with_data(self) -> None:
+        """get_latency_history should return stats for each bucket."""
+        from backend.core.metrics import PipelineLatencyTracker
+
+        tracker = PipelineLatencyTracker()
+        tracker.record_stage_latency("watch_to_detect", 100.0)
+        tracker.record_stage_latency("watch_to_detect", 200.0)
+
+        history = tracker.get_latency_history(window_minutes=5, bucket_seconds=60)
+        assert isinstance(history, list)
+        # Each entry should have timestamp and stages
+        for entry in history:
+            assert "timestamp" in entry
+            assert "stages" in entry
+            assert "watch_to_detect" in entry["stages"]

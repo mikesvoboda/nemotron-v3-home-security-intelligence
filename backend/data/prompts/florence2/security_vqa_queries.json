@@ -1,0 +1,93 @@
+{
+  "model_name": "florence2",
+  "query_type": "security_vqa",
+  "description": "Security-focused VQA queries for threat assessment in home security monitoring",
+  "version": 1,
+  "created_at": "2026-01-12T00:00:00.000000+00:00",
+  "created_by": "system",
+  "queries": {
+    "person_queries": {
+      "looking_at_camera": {
+        "question": "Is this person looking at the camera?",
+        "purpose": "Detect awareness of surveillance - suspicious if avoiding or targeting cameras",
+        "risk_weight": "medium"
+      },
+      "face_covering": {
+        "question": "Is this person wearing a mask or face covering?",
+        "purpose": "Identify attempts to conceal identity",
+        "risk_weight": "high"
+      },
+      "gloves": {
+        "question": "Is this person wearing gloves?",
+        "purpose": "Detect fingerprint concealment - suspicious outside cold weather",
+        "risk_weight": "medium"
+      },
+      "bags_or_packages": {
+        "question": "Are there any bags or packages being carried?",
+        "purpose": "Identify items that could be used to carry stolen goods or tools",
+        "risk_weight": "low"
+      },
+      "crouching_or_hiding": {
+        "question": "Is this person crouching, hiding, or trying to stay out of view?",
+        "purpose": "Detect evasive behavior indicating potential threat",
+        "risk_weight": "high"
+      },
+      "interaction_with_property": {
+        "question": "Is this person interacting with doors, windows, or locks?",
+        "purpose": "Detect potential unauthorized entry attempts",
+        "risk_weight": "high"
+      },
+      "flashlight": {
+        "question": "Is this person carrying or using a flashlight?",
+        "purpose": "Suspicious at night - may indicate casing or break-in attempt",
+        "risk_weight": "medium"
+      }
+    },
+    "scene_queries": {
+      "weapons_or_tools": {
+        "question": "Are there any weapons or tools visible?",
+        "purpose": "Identify potential break-in tools (crowbar, pry bar, etc.)",
+        "risk_weight": "high"
+      },
+      "vehicle_running": {
+        "question": "Is there a vehicle with its engine running or lights on?",
+        "purpose": "Detect getaway vehicle or surveillance",
+        "risk_weight": "medium"
+      },
+      "multiple_people": {
+        "question": "Are there multiple people in the scene?",
+        "purpose": "Group activity may indicate coordinated threat",
+        "risk_weight": "medium"
+      },
+      "open_doors_windows": {
+        "question": "Are any doors or windows open or damaged?",
+        "purpose": "Detect signs of forced entry",
+        "risk_weight": "high"
+      }
+    },
+    "vehicle_queries": {
+      "license_plate_visible": {
+        "question": "Is the license plate visible and readable?",
+        "purpose": "Hidden plates may indicate criminal intent",
+        "risk_weight": "medium"
+      },
+      "commercial_markings": {
+        "question": "Are there any company logos or commercial markings?",
+        "purpose": "Legitimate service vehicles have visible branding",
+        "risk_weight": "low"
+      },
+      "vehicle_modifications": {
+        "question": "Does the vehicle have any unusual modifications or damage?",
+        "purpose": "May indicate stolen or frequently used for crimes",
+        "risk_weight": "low"
+      }
+    }
+  },
+  "usage_notes": [
+    "Questions are designed for Florence-2 VQA task format",
+    "Risk weights help prioritize alerts in the Nemotron risk assessment",
+    "Person queries should be applied to detected person bounding boxes",
+    "Scene queries should be applied to full frame analysis",
+    "Vehicle queries should be applied to detected vehicle bounding boxes"
+  ]
+}
