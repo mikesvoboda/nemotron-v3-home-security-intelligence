@@ -21,16 +21,142 @@ Error Handling:
 --------------
 - Redis unavailable: Falls back to database check
 - Database unavailable: Allows processing (fail-open for availability)
-- File read errors: Returns False (don't process corrupted files)
+- File read errors: Returns HashResult with explicit status (file_not_found,
+  permission_denied, read_error, or empty_file)
 """
+
+from __future__ import annotations
 
 import asyncio
 import hashlib
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 from backend.core.config import get_settings
 from backend.core.logging import get_logger
 from backend.core.redis import RedisClient
+
+# Type alias for hash status literals
+HashStatus = Literal[
+    "success",
+    "file_not_found",
+    "permission_denied",
+    "read_error",
+    "empty_file",
+]
+
+
+@dataclass(frozen=True, slots=True)
+class HashResult:
+    """Result of a hash computation operation.
+
+    This dataclass provides explicit status information about hash computation,
+    making it possible to distinguish between different failure modes:
+    - success: Hash was computed successfully
+    - file_not_found: The file does not exist
+    - permission_denied: Insufficient permissions to read the file
+    - read_error: I/O error while reading the file (OSError)
+    - empty_file: The file exists but is empty (0 bytes)
+
+    Attributes:
+        hash: The computed SHA256 hash (hex string) or None on failure
+        status: The status of the hash computation
+        error_message: Optional error message with details about the failure
+    """
+
+    hash: str | None
+    status: HashStatus
+    error_message: str | None = None
+
+    @property
+    def is_success(self) -> bool:
+        """Check if the hash computation was successful."""
+        return self.status == "success"
+
+    @property
+    def is_failure(self) -> bool:
+        """Check if the hash computation failed."""
+        return self.status != "success"
+
+    @classmethod
+    def success_result(cls, hash_value: str) -> HashResult:
+        """Create a successful HashResult.
+
+        Args:
+            hash_value: The computed SHA256 hash (hex string)
+
+        Returns:
+            HashResult with status="success"
+        """
+        return cls(hash=hash_value, status="success")
+
+    @classmethod
+    def file_not_found_result(cls, file_path: str) -> HashResult:
+        """Create a HashResult for file not found error.
+
+        Args:
+            file_path: Path to the file that was not found
+
+        Returns:
+            HashResult with status="file_not_found"
+        """
+        return cls(
+            hash=None,
+            status="file_not_found",
+            error_message=f"File not found: {file_path}",
+        )
+
+    @classmethod
+    def permission_denied_result(cls, file_path: str, error: PermissionError) -> HashResult:
+        """Create a HashResult for permission denied error.
+
+        Args:
+            file_path: Path to the file that could not be read
+            error: The PermissionError that was raised
+
+        Returns:
+            HashResult with status="permission_denied"
+        """
+        return cls(
+            hash=None,
+            status="permission_denied",
+            error_message=f"Permission denied for {file_path}: {error}",
+        )
+
+    @classmethod
+    def read_error_result(cls, file_path: str, error: OSError) -> HashResult:
+        """Create a HashResult for read error.
+
+        Args:
+            file_path: Path to the file that could not be read
+            error: The OSError that was raised
+
+        Returns:
+            HashResult with status="read_error"
+        """
+        return cls(
+            hash=None,
+            status="read_error",
+            error_message=f"Read error for {file_path}: {error}",
+        )
+
+    @classmethod
+    def empty_file_result(cls, file_path: str) -> HashResult:
+        """Create a HashResult for empty file.
+
+        Args:
+            file_path: Path to the empty file
+
+        Returns:
+            HashResult with status="empty_file"
+        """
+        return cls(
+            hash=None,
+            status="empty_file",
+            error_message=f"Empty file cannot be hashed: {file_path}",
+        )
+
 
 logger = get_logger(__name__)
 
@@ -48,24 +174,35 @@ ORPHAN_CLEANUP_MAX_AGE_SECONDS = 3600
 ORPHAN_CLEANUP_INTERVAL_SECONDS = 600
 
 
-def compute_file_hash(file_path: str) -> str | None:
+def compute_file_hash(file_path: str) -> HashResult:  # noqa: PLR0911
     """Compute SHA256 hash of file content.
 
     Args:
         file_path: Path to the file to hash
 
     Returns:
-        Hex-encoded SHA256 hash string, or None if file cannot be read
+        HashResult with status indicating success or specific failure type:
+        - success: Hash computed successfully
+        - file_not_found: File does not exist
+        - permission_denied: Insufficient permissions to read file
+        - read_error: I/O error reading file
+        - empty_file: File is empty (0 bytes)
     """
     try:
         path = Path(file_path)
         if not path.exists():
-            logger.warning(f"File not found for hashing: {file_path}")
-            return None
+            logger.warning(
+                f"File not found for hashing: {file_path}",
+                extra={"file_path": file_path, "status": "file_not_found"},
+            )
+            return HashResult.file_not_found_result(file_path)
 
         if path.stat().st_size == 0:
-            logger.warning(f"Empty file, cannot hash: {file_path}")
-            return None
+            logger.warning(
+                f"Empty file, cannot hash: {file_path}",
+                extra={"file_path": file_path, "status": "empty_file"},
+            )
+            return HashResult.empty_file_result(file_path)
 
         # Read file and compute hash
         sha256_hash = hashlib.sha256()
@@ -74,19 +211,44 @@ def compute_file_hash(file_path: str) -> str | None:
             for chunk in iter(lambda: f.read(8192), b""):
                 sha256_hash.update(chunk)
 
-        return sha256_hash.hexdigest()
+        return HashResult.success_result(sha256_hash.hexdigest())
 
-    except OSError:
-        logger.error("Error reading file for hash", exc_info=True, extra={"file_path": file_path})
-        return None
-    except Exception:
-        logger.error(
-            "Unexpected error computing hash", exc_info=True, extra={"file_path": file_path}
+    except FileNotFoundError:
+        # This can occur if file is deleted between exists() check and open()
+        logger.warning(
+            f"File not found for hashing (race condition): {file_path}",
+            extra={"file_path": file_path, "status": "file_not_found"},
         )
-        return None
+        return HashResult.file_not_found_result(file_path)
+
+    except PermissionError as e:
+        logger.error(
+            f"Permission denied reading file for hash: {file_path}",
+            exc_info=True,
+            extra={"file_path": file_path, "status": "permission_denied"},
+        )
+        return HashResult.permission_denied_result(file_path, e)
+
+    except OSError as e:
+        logger.error(
+            f"Error reading file for hash: {file_path}",
+            exc_info=True,
+            extra={"file_path": file_path, "status": "read_error"},
+        )
+        return HashResult.read_error_result(file_path, e)
+
+    except Exception as e:
+        # Catch any unexpected exceptions and treat as read error
+        logger.error(
+            f"Unexpected error computing hash: {file_path}",
+            exc_info=True,
+            extra={"file_path": file_path, "status": "read_error"},
+        )
+        # Convert unexpected exceptions to OSError for consistent handling
+        return HashResult.read_error_result(file_path, OSError(str(e)))
 
 
-async def compute_file_hash_async(file_path: str) -> str | None:
+async def compute_file_hash_async(file_path: str) -> HashResult:
     """Compute SHA256 hash of file content asynchronously.
 
     This is the non-blocking version that runs the hash computation in a
@@ -97,11 +259,20 @@ async def compute_file_hash_async(file_path: str) -> str | None:
         file_path: Path to the file to hash
 
     Returns:
-        Hex-encoded SHA256 hash string, or None if file cannot be read
+        HashResult with status indicating success or specific failure type:
+        - success: Hash computed successfully
+        - file_not_found: File does not exist
+        - permission_denied: Insufficient permissions to read file
+        - read_error: I/O error reading file
+        - empty_file: File is empty (0 bytes)
 
     Example:
         # Use in async code instead of compute_file_hash
-        file_hash = await compute_file_hash_async("/path/to/image.jpg")
+        result = await compute_file_hash_async("/path/to/image.jpg")
+        if result.is_success:
+            print(f"Hash: {result.hash}")
+        else:
+            print(f"Failed: {result.status} - {result.error_message}")
     """
     return await asyncio.to_thread(compute_file_hash, file_path)
 
@@ -165,10 +336,22 @@ class DedupeService:
         """
         # Compute hash if not provided (using async version to avoid blocking)
         if file_hash is None:
-            file_hash = await compute_file_hash_async(file_path)
+            hash_result = await compute_file_hash_async(file_path)
+            if hash_result.is_failure:
+                # Log with specific status for better debugging
+                logger.warning(
+                    f"Could not compute hash for {file_path}, cannot dedupe: {hash_result.status}",
+                    extra={
+                        "file_path": file_path,
+                        "hash_status": hash_result.status,
+                        "error_message": hash_result.error_message,
+                    },
+                )
+                return (False, None)
+            file_hash = hash_result.hash
 
         if file_hash is None:
-            # Could not compute hash - likely file issue, let caller decide
+            # This shouldn't happen after a successful hash computation, but guard anyway
             logger.warning(f"Could not compute hash for {file_path}, cannot dedupe")
             return (False, None)
 
@@ -229,9 +412,22 @@ class DedupeService:
         """
         # Compute hash if not provided (using async version to avoid blocking)
         if file_hash is None:
-            file_hash = await compute_file_hash_async(file_path)
+            hash_result = await compute_file_hash_async(file_path)
+            if hash_result.is_failure:
+                logger.warning(
+                    f"Could not compute hash to mark as processed: {file_path}: "
+                    f"{hash_result.status}",
+                    extra={
+                        "file_path": file_path,
+                        "hash_status": hash_result.status,
+                        "error_message": hash_result.error_message,
+                    },
+                )
+                return False
+            file_hash = hash_result.hash
 
         if file_hash is None:
+            # This shouldn't happen after a successful hash computation, but guard anyway
             logger.warning(f"Could not compute hash to mark as processed: {file_path}")
             return False
 
@@ -271,8 +467,21 @@ class DedupeService:
             - file_hash: The SHA256 hash of the file
         """
         # Compute hash once (using async version to avoid blocking)
-        file_hash = await compute_file_hash_async(file_path)
+        hash_result = await compute_file_hash_async(file_path)
+        if hash_result.is_failure:
+            logger.warning(
+                f"Could not compute hash for {file_path}, skipping dedupe: {hash_result.status}",
+                extra={
+                    "file_path": file_path,
+                    "hash_status": hash_result.status,
+                    "error_message": hash_result.error_message,
+                },
+            )
+            return (False, None)
+
+        file_hash = hash_result.hash
         if file_hash is None:
+            # This shouldn't happen after a successful hash computation, but guard anyway
             return (False, None)
 
         # Check if duplicate

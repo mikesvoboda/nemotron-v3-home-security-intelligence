@@ -52,16 +52,28 @@ class RequestTimingMiddleware(BaseHTTPMiddleware):
         """
         super().__init__(app)
 
+        # Default threshold constant for when settings are unavailable
+        default_threshold_ms = 500
+
         if slow_request_threshold_ms is not None:
             self.slow_request_threshold_ms = slow_request_threshold_ms
         else:
             # Try to get from settings, default to 500ms
             try:
                 settings = get_settings()
-                self.slow_request_threshold_ms = getattr(settings, "slow_request_threshold_ms", 500)
-            except Exception:
+                self.slow_request_threshold_ms = getattr(
+                    settings, "slow_request_threshold_ms", default_threshold_ms
+                )
+            except Exception as e:
                 # Fallback if settings unavailable (e.g., during testing)
-                self.slow_request_threshold_ms = 500
+                logger.debug(
+                    "Settings unavailable, using default threshold",
+                    extra={
+                        "default_threshold_ms": default_threshold_ms,
+                        "error": str(e),
+                    },
+                )
+                self.slow_request_threshold_ms = default_threshold_ms
 
     async def dispatch(
         self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
@@ -93,22 +105,21 @@ class RequestTimingMiddleware(BaseHTTPMiddleware):
 
             return response
 
-        except Exception:
+        except Exception as e:
             # Calculate duration even on error
             duration_ms = (time.perf_counter() - start_time) * 1000
 
-            # Log the slow request if it was slow before error
-            if duration_ms >= self.slow_request_threshold_ms:
-                logger.warning(
-                    f"Slow request (error): {request.method} {request.url.path} "
-                    f"- {duration_ms:.2f}ms",
-                    extra={
-                        "method": request.method,
-                        "path": request.url.path,
-                        "duration_ms": round(duration_ms, 2),
-                        "error": True,
-                    },
-                )
+            # Always log request processing failures at ERROR level
+            logger.error(
+                "Request processing failed",
+                extra={
+                    "duration_ms": round(duration_ms, 2),
+                    "path": request.url.path,
+                    "method": request.method,
+                    "error_type": type(e).__name__,
+                    "error": str(e),
+                },
+            )
 
             # Re-raise the exception
             raise

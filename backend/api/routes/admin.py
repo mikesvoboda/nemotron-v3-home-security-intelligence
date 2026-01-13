@@ -22,11 +22,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.config import get_settings
 from backend.core.database import get_db
+from backend.core.logging import get_logger
 from backend.models.audit import AuditAction
 from backend.models.camera import Camera
 from backend.models.detection import Detection
 from backend.models.event import Event
 from backend.services.audit import get_db_audit_service
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -576,18 +579,30 @@ async def clear_seeded_data(
     await db.execute(delete(Camera))
 
     # Log deletion to audit log
-    await get_db_audit_service().log_action(
-        db=db,
-        action=AuditAction.DATA_CLEARED,
-        resource_type="admin",
-        actor="admin",
-        details={
-            "cameras_cleared": cameras_cleared,
-            "events_cleared": events_cleared,
-            "detections_cleared": detections_cleared,
-        },
-        request=request,
-    )
+    try:
+        await get_db_audit_service().log_action(
+            db=db,
+            action=AuditAction.DATA_CLEARED,
+            resource_type="admin",
+            actor="admin",
+            details={
+                "cameras_cleared": cameras_cleared,
+                "events_cleared": events_cleared,
+                "detections_cleared": detections_cleared,
+            },
+            request=request,
+        )
+    except Exception as e:
+        logger.warning(
+            "Audit log write failed",
+            extra={
+                "action": AuditAction.DATA_CLEARED.value,
+                "resource_id": None,
+                "resource_type": "admin",
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+            },
+        )
 
     await db.commit()
 
@@ -654,20 +669,32 @@ async def cleanup_orphans(
     report = await job.run()
 
     # Log to audit
-    await get_db_audit_service().log_action(
-        db=db,
-        action=AuditAction.DATA_CLEARED,
-        resource_type="orphan_cleanup",
-        actor="admin",
-        details={
-            "dry_run": request.dry_run,
-            "scanned_files": report.scanned_files,
-            "orphaned_files": report.orphaned_files,
-            "deleted_files": report.deleted_files,
-            "deleted_bytes": report.deleted_bytes,
-        },
-        request=http_request,
-    )
+    try:
+        await get_db_audit_service().log_action(
+            db=db,
+            action=AuditAction.DATA_CLEARED,
+            resource_type="orphan_cleanup",
+            actor="admin",
+            details={
+                "dry_run": request.dry_run,
+                "scanned_files": report.scanned_files,
+                "orphaned_files": report.orphaned_files,
+                "deleted_files": report.deleted_files,
+                "deleted_bytes": report.deleted_bytes,
+            },
+            request=http_request,
+        )
+    except Exception as e:
+        logger.warning(
+            "Audit log write failed",
+            extra={
+                "action": AuditAction.DATA_CLEARED.value,
+                "resource_id": None,
+                "resource_type": "orphan_cleanup",
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+            },
+        )
 
     return OrphanCleanupResponse(
         scanned_files=report.scanned_files,

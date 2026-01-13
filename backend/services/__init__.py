@@ -68,7 +68,14 @@ from .cost_tracker import (
     get_cost_tracker,
     reset_cost_tracker,
 )
-from .dedupe import DedupeService, compute_file_hash, get_dedupe_service, reset_dedupe_service
+from .dedupe import (
+    DedupeService,
+    HashResult,
+    compute_file_hash,
+    compute_file_hash_async,
+    get_dedupe_service,
+    reset_dedupe_service,
+)
 from .degradation_manager import (
     DegradationManager,
     DegradationMode,
@@ -360,6 +367,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "DLQStats",
     "DedupResult",
     "DedupeService",
+    "HashResult",
     "DegradationManager",
     "DegradationMode",
     "DeliveryResult",
@@ -452,6 +460,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "build_dedup_key",
     "clean_plate_text",
     "compute_file_hash",
+    "compute_file_hash_async",
     "cosine_similarity",
     "detect_faces",
     "detect_plates",
