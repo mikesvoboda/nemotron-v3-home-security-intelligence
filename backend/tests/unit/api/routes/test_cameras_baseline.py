@@ -28,6 +28,11 @@ from backend.api.schemas.baseline import (
     ObjectBaseline,
 )
 
+# Test UUIDs for consistent test data (NEM-2563: UUID validation requirement)
+TEST_CAMERA_UUID = "550e8400-e29b-41d4-a716-446655440001"
+TEST_FRONT_DOOR_UUID = "550e8400-e29b-41d4-a716-446655440002"
+TEST_NONEXISTENT_UUID = "550e8400-e29b-41d4-a716-446655440099"
+
 
 class TestGetCameraBaseline:
     """Tests for GET /api/cameras/{camera_id}/baseline endpoint."""
@@ -46,7 +51,7 @@ class TestGetCameraBaseline:
 
         with pytest.raises(Exception) as exc_info:
             await get_camera_baseline(
-                "nonexistent_camera",
+                TEST_NONEXISTENT_UUID,
                 db=mock_db,
                 baseline_service=mock_baseline_service,
             )
@@ -63,7 +68,7 @@ class TestGetCameraBaseline:
 
         # Mock camera query
         mock_camera = MagicMock()
-        mock_camera.id = "test_camera"
+        mock_camera.id = TEST_CAMERA_UUID
         mock_camera.name = "Test Camera"
         mock_camera_result = MagicMock()
         mock_camera_result.scalar_one_or_none.return_value = mock_camera
@@ -73,7 +78,7 @@ class TestGetCameraBaseline:
         mock_baseline_service = MagicMock()
         mock_baseline_service.get_camera_baseline_summary = AsyncMock(
             return_value={
-                "camera_id": "test_camera",
+                "camera_id": TEST_CAMERA_UUID,
                 "activity_baseline_count": 0,
                 "class_baseline_count": 0,
                 "unique_classes": 0,
@@ -88,13 +93,13 @@ class TestGetCameraBaseline:
         mock_baseline_service.get_baseline_established_date = AsyncMock(return_value=None)
 
         result = await get_camera_baseline(
-            "test_camera",
+            TEST_CAMERA_UUID,
             db=mock_db,
             baseline_service=mock_baseline_service,
         )
 
         assert isinstance(result, BaselineSummaryResponse)
-        assert result.camera_id == "test_camera"
+        assert result.camera_id == TEST_CAMERA_UUID
         assert result.camera_name == "Test Camera"
         assert result.data_points == 0
         assert result.hourly_patterns == {}
@@ -111,7 +116,7 @@ class TestGetCameraBaseline:
 
         # Mock camera query
         mock_camera = MagicMock()
-        mock_camera.id = "front_door"
+        mock_camera.id = TEST_FRONT_DOOR_UUID
         mock_camera.name = "Front Door"
         mock_camera_result = MagicMock()
         mock_camera_result.scalar_one_or_none.return_value = mock_camera
@@ -122,7 +127,7 @@ class TestGetCameraBaseline:
         mock_baseline_service = MagicMock()
         mock_baseline_service.get_camera_baseline_summary = AsyncMock(
             return_value={
-                "camera_id": "front_door",
+                "camera_id": TEST_FRONT_DOOR_UUID,
                 "activity_baseline_count": 168,
                 "class_baseline_count": 48,
                 "unique_classes": 2,
@@ -166,11 +171,11 @@ class TestGetCameraBaseline:
         )
 
         result = await get_camera_baseline(
-            "front_door", db=mock_db, baseline_service=mock_baseline_service
+            TEST_FRONT_DOOR_UUID, db=mock_db, baseline_service=mock_baseline_service
         )
 
         assert isinstance(result, BaselineSummaryResponse)
-        assert result.camera_id == "front_door"
+        assert result.camera_id == TEST_FRONT_DOOR_UUID
         assert result.camera_name == "Front Door"
         assert result.data_points == 168 + 48  # activity + class baselines
         assert "0" in result.hourly_patterns
@@ -201,7 +206,7 @@ class TestGetCameraBaselineAnomalies:
 
         with pytest.raises(Exception) as exc_info:
             await get_camera_baseline_anomalies(
-                "nonexistent_camera",
+                TEST_NONEXISTENT_UUID,
                 days=7,
                 db=mock_db,
                 baseline_service=mock_baseline_service,
@@ -218,7 +223,7 @@ class TestGetCameraBaselineAnomalies:
 
         # Mock camera query
         mock_camera = MagicMock()
-        mock_camera.id = "test_camera"
+        mock_camera.id = TEST_CAMERA_UUID
         mock_camera_result = MagicMock()
         mock_camera_result.scalar_one_or_none.return_value = mock_camera
         mock_db.execute.return_value = mock_camera_result
@@ -228,14 +233,14 @@ class TestGetCameraBaselineAnomalies:
 
         # Pass mock service directly via DI parameter (NEM-2032)
         result = await get_camera_baseline_anomalies(
-            "test_camera",
+            TEST_CAMERA_UUID,
             days=7,
             db=mock_db,
             baseline_service=mock_baseline_service,
         )
 
         assert isinstance(result, AnomalyListResponse)
-        assert result.camera_id == "test_camera"
+        assert result.camera_id == TEST_CAMERA_UUID
         assert result.anomalies == []
         assert result.count == 0
         assert result.period_days == 7
@@ -250,7 +255,7 @@ class TestGetCameraBaselineAnomalies:
 
         # Mock camera query
         mock_camera = MagicMock()
-        mock_camera.id = "front_door"
+        mock_camera.id = TEST_FRONT_DOOR_UUID
         mock_camera_result = MagicMock()
         mock_camera_result.scalar_one_or_none.return_value = mock_camera
         mock_db.execute.return_value = mock_camera_result
@@ -280,14 +285,14 @@ class TestGetCameraBaselineAnomalies:
 
         # Pass mock service directly via DI parameter (NEM-2032)
         result = await get_camera_baseline_anomalies(
-            "front_door",
+            TEST_FRONT_DOOR_UUID,
             days=7,
             db=mock_db,
             baseline_service=mock_baseline_service,
         )
 
         assert isinstance(result, AnomalyListResponse)
-        assert result.camera_id == "front_door"
+        assert result.camera_id == TEST_FRONT_DOOR_UUID
         assert result.count == 2
         assert len(result.anomalies) == 2
         assert result.anomalies[0].detection_class == "vehicle"
@@ -303,7 +308,7 @@ class TestGetCameraBaselineAnomalies:
 
         # Mock camera query
         mock_camera = MagicMock()
-        mock_camera.id = "test_camera"
+        mock_camera.id = TEST_CAMERA_UUID
         mock_camera_result = MagicMock()
         mock_camera_result.scalar_one_or_none.return_value = mock_camera
         mock_db.execute.return_value = mock_camera_result
@@ -313,7 +318,7 @@ class TestGetCameraBaselineAnomalies:
 
         # Pass mock service directly via DI parameter (NEM-2032)
         result = await get_camera_baseline_anomalies(
-            "test_camera",
+            TEST_CAMERA_UUID,
             days=14,
             db=mock_db,
             baseline_service=mock_baseline_service,
@@ -491,7 +496,7 @@ class TestGetCameraActivityBaseline:
 
         with pytest.raises(Exception) as exc_info:
             await get_camera_activity_baseline(
-                "nonexistent_camera",
+                TEST_NONEXISTENT_UUID,
                 db=mock_db,
                 baseline_service=mock_baseline_service,
             )
@@ -508,7 +513,7 @@ class TestGetCameraActivityBaseline:
 
         # Mock camera query
         mock_camera = MagicMock()
-        mock_camera.id = "test_camera"
+        mock_camera.id = TEST_CAMERA_UUID
         mock_camera.name = "Test Camera"
         mock_camera_result = MagicMock()
         mock_camera_result.scalar_one_or_none.return_value = mock_camera
@@ -520,13 +525,13 @@ class TestGetCameraActivityBaseline:
         mock_baseline_service.min_samples = 10
 
         result = await get_camera_activity_baseline(
-            "test_camera",
+            TEST_CAMERA_UUID,
             db=mock_db,
             baseline_service=mock_baseline_service,
         )
 
         assert isinstance(result, ActivityBaselineResponse)
-        assert result.camera_id == "test_camera"
+        assert result.camera_id == TEST_CAMERA_UUID
         assert result.entries == []
         assert result.total_samples == 0
         assert result.peak_hour is None
@@ -542,7 +547,7 @@ class TestGetCameraActivityBaseline:
 
         # Mock camera query
         mock_camera = MagicMock()
-        mock_camera.id = "front_door"
+        mock_camera.id = TEST_FRONT_DOOR_UUID
         mock_camera.name = "Front Door"
         mock_camera_result = MagicMock()
         mock_camera_result.scalar_one_or_none.return_value = mock_camera
@@ -565,11 +570,11 @@ class TestGetCameraActivityBaseline:
 
         # Pass mock service directly via DI parameter (NEM-2032)
         result = await get_camera_activity_baseline(
-            "front_door", db=mock_db, baseline_service=mock_baseline_service
+            TEST_FRONT_DOOR_UUID, db=mock_db, baseline_service=mock_baseline_service
         )
 
         assert isinstance(result, ActivityBaselineResponse)
-        assert result.camera_id == "front_door"
+        assert result.camera_id == TEST_FRONT_DOOR_UUID
         assert len(result.entries) == 168  # 24 hours * 7 days
         assert result.total_samples == 168 * 15  # 15 samples per entry
         assert result.peak_hour == 23  # Highest hour due to formula
@@ -594,7 +599,7 @@ class TestGetCameraClassBaseline:
 
         with pytest.raises(Exception) as exc_info:
             await get_camera_class_baseline(
-                "nonexistent_camera",
+                TEST_NONEXISTENT_UUID,
                 db=mock_db,
                 baseline_service=mock_baseline_service,
             )
@@ -611,7 +616,7 @@ class TestGetCameraClassBaseline:
 
         # Mock camera query
         mock_camera = MagicMock()
-        mock_camera.id = "test_camera"
+        mock_camera.id = TEST_CAMERA_UUID
         mock_camera.name = "Test Camera"
         mock_camera_result = MagicMock()
         mock_camera_result.scalar_one_or_none.return_value = mock_camera
@@ -622,13 +627,13 @@ class TestGetCameraClassBaseline:
         mock_baseline_service.get_class_baselines_raw = AsyncMock(return_value=[])
 
         result = await get_camera_class_baseline(
-            "test_camera",
+            TEST_CAMERA_UUID,
             db=mock_db,
             baseline_service=mock_baseline_service,
         )
 
         assert isinstance(result, ClassBaselineResponse)
-        assert result.camera_id == "test_camera"
+        assert result.camera_id == TEST_CAMERA_UUID
         assert result.entries == []
         assert result.unique_classes == []
         assert result.total_samples == 0
@@ -643,7 +648,7 @@ class TestGetCameraClassBaseline:
 
         # Mock camera query
         mock_camera = MagicMock()
-        mock_camera.id = "front_door"
+        mock_camera.id = TEST_FRONT_DOOR_UUID
         mock_camera.name = "Front Door"
         mock_camera_result = MagicMock()
         mock_camera_result.scalar_one_or_none.return_value = mock_camera
@@ -665,11 +670,11 @@ class TestGetCameraClassBaseline:
 
         # Pass mock service directly via DI parameter (NEM-2032)
         result = await get_camera_class_baseline(
-            "front_door", db=mock_db, baseline_service=mock_baseline_service
+            TEST_FRONT_DOOR_UUID, db=mock_db, baseline_service=mock_baseline_service
         )
 
         assert isinstance(result, ClassBaselineResponse)
-        assert result.camera_id == "front_door"
+        assert result.camera_id == TEST_FRONT_DOOR_UUID
         assert len(result.entries) == 72  # 3 classes * 24 hours
         assert set(result.unique_classes) == {"person", "vehicle", "animal"}
         assert result.most_common_class == "person"  # Most sample_count

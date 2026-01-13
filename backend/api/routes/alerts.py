@@ -41,6 +41,7 @@ from backend.api.schemas.alerts import (
 )
 from backend.api.schemas.pagination import PaginationMeta
 from backend.api.schemas.websocket import WebSocketAlertEventType
+from backend.core.constants import CacheInvalidationReason
 from backend.core.database import get_db
 from backend.core.logging import get_logger
 from backend.models import Alert, AlertRule, Event
@@ -205,7 +206,7 @@ async def create_rule(
 
     # Invalidate alert-related caches after successful create (NEM-1952)
     try:
-        await cache.invalidate_alerts(reason="alert_rule_created")
+        await cache.invalidate_alerts(reason=CacheInvalidationReason.ALERT_RULE_CREATED)
     except Exception as e:
         # Cache invalidation is non-critical - log but don't fail the request
         logger.warning(f"Cache invalidation failed after alert rule create: {e}")
@@ -314,7 +315,7 @@ async def update_rule(
 
     # Invalidate alert-related caches after successful update (NEM-1952)
     try:
-        await cache.invalidate_alerts(reason="alert_rule_updated")
+        await cache.invalidate_alerts(reason=CacheInvalidationReason.ALERT_RULE_UPDATED)
     except Exception as e:
         # Cache invalidation is non-critical - log but don't fail the request
         logger.warning(f"Cache invalidation failed after alert rule update: {e}")
@@ -351,7 +352,7 @@ async def delete_rule(
 
     # Invalidate alert-related caches after successful delete (NEM-1952)
     try:
-        await cache.invalidate_alerts(reason="alert_rule_deleted")
+        await cache.invalidate_alerts(reason=CacheInvalidationReason.ALERT_RULE_DELETED)
     except Exception as e:
         # Cache invalidation is non-critical - log but don't fail the request
         logger.warning(f"Cache invalidation failed after alert rule delete: {e}")

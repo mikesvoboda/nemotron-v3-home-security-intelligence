@@ -40,7 +40,7 @@ from backend.core.websocket_circuit_breaker import (
     WebSocketCircuitBreaker,
     WebSocketCircuitState,
 )
-from backend.models import Camera, GPUStats
+from backend.models import Camera, CameraStatus, GPUStats
 
 # Timeout for AI service health checks in seconds
 # Keep this short to avoid blocking the broadcast loop
@@ -917,7 +917,11 @@ class SystemBroadcaster:
             total_cameras = total_result.scalar_one()
 
             # Count active cameras (status = 'online')
-            active_stmt = select(func.count()).select_from(Camera).where(Camera.status == "online")
+            active_stmt = (
+                select(func.count())
+                .select_from(Camera)
+                .where(Camera.status == CameraStatus.ONLINE.value)
+            )
             active_result = await session.execute(active_stmt)
             active_cameras = active_result.scalar_one()
 

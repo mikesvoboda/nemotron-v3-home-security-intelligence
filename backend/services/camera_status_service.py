@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING
 from backend.api.schemas.websocket import WebSocketCameraEventType
 from backend.core.logging import get_logger
 from backend.models import Camera
+from backend.models.enums import CameraStatus
 from backend.repositories.camera_repository import CameraRepository
 from backend.services.event_broadcaster import get_broadcaster
 
@@ -43,11 +44,11 @@ def _get_event_type_for_status(status: str) -> WebSocketCameraEventType:
         The corresponding WebSocketCameraEventType.
     """
     status_lower = status.lower()
-    if status_lower == "online":
+    if status_lower == CameraStatus.ONLINE.value:
         return WebSocketCameraEventType.CAMERA_ONLINE
-    if status_lower == "offline":
+    if status_lower == CameraStatus.OFFLINE.value:
         return WebSocketCameraEventType.CAMERA_OFFLINE
-    if status_lower == "error":
+    if status_lower == CameraStatus.ERROR.value:
         return WebSocketCameraEventType.CAMERA_ERROR
     # Default to updated for unknown statuses
     return WebSocketCameraEventType.CAMERA_UPDATED
@@ -167,7 +168,7 @@ class CameraStatusService:
         Returns:
             The updated Camera if found, None if the camera doesn't exist.
         """
-        return await self.set_camera_status(camera_id, "online", reason)
+        return await self.set_camera_status(camera_id, CameraStatus.ONLINE.value, reason)
 
     async def set_camera_offline(
         self,
@@ -185,7 +186,7 @@ class CameraStatusService:
         Returns:
             The updated Camera if found, None if the camera doesn't exist.
         """
-        return await self.set_camera_status(camera_id, "offline", reason)
+        return await self.set_camera_status(camera_id, CameraStatus.OFFLINE.value, reason)
 
     async def set_camera_error(
         self,
@@ -203,7 +204,7 @@ class CameraStatusService:
         Returns:
             The updated Camera if found, None if the camera doesn't exist.
         """
-        return await self.set_camera_status(camera_id, "error", reason)
+        return await self.set_camera_status(camera_id, CameraStatus.ERROR.value, reason)
 
     async def _broadcast_status_change(
         self,

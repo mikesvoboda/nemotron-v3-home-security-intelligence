@@ -15,6 +15,7 @@ from fastapi.testclient import TestClient
 
 from backend.api.dependencies import get_cache_service_dep
 from backend.api.routes.events import router
+from backend.core.constants import CacheInvalidationReason
 from backend.core.database import get_db
 from backend.models.event import Event
 
@@ -272,5 +273,9 @@ class TestCacheInvalidationReason:
         assert response.status_code == 200
 
         # Verify the correct reason was passed
-        mock_cache_service.invalidate_event_stats.assert_called_once_with(reason="event_updated")
-        mock_cache_service.invalidate_events.assert_called_once_with(reason="event_updated")
+        mock_cache_service.invalidate_event_stats.assert_called_once_with(
+            reason=CacheInvalidationReason.EVENT_UPDATED
+        )
+        mock_cache_service.invalidate_events.assert_called_once_with(
+            reason=CacheInvalidationReason.EVENT_UPDATED
+        )

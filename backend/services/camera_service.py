@@ -27,8 +27,8 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from backend.core.logging import get_logger
-from backend.core.websocket.event_schemas import CameraStatus
 from backend.core.websocket.event_types import WebSocketEventType
+from backend.models.enums import CameraStatus
 from backend.repositories.camera_repository import CameraRepository
 
 if TYPE_CHECKING:
@@ -216,7 +216,7 @@ class CameraService:
         Returns:
             A tuple of (updated: bool, camera: Camera | None).
         """
-        return await self.update_camera_status(camera_id, "online", timestamp)
+        return await self.update_camera_status(camera_id, CameraStatus.ONLINE.value, timestamp)
 
     async def set_camera_offline(
         self,
@@ -234,7 +234,7 @@ class CameraService:
         Returns:
             A tuple of (updated: bool, camera: Camera | None).
         """
-        return await self.update_camera_status(camera_id, "offline", timestamp)
+        return await self.update_camera_status(camera_id, CameraStatus.OFFLINE.value, timestamp)
 
     async def set_camera_error(
         self,
@@ -252,7 +252,7 @@ class CameraService:
         Returns:
             A tuple of (updated: bool, camera: Camera | None).
         """
-        return await self.update_camera_status(camera_id, "error", timestamp)
+        return await self.update_camera_status(camera_id, CameraStatus.ERROR.value, timestamp)
 
     # =========================================================================
     # WebSocket Event Emission (Private Methods)
@@ -417,14 +417,14 @@ class CameraService:
         status_lower = camera.status.lower()
         specific_event_type: WebSocketEventType | None = None
 
-        if status_lower == "online":
+        if status_lower == CameraStatus.ONLINE.value:
             specific_event_type = WebSocketEventType.CAMERA_ONLINE
             specific_payload: dict[str, Any] = {
                 "camera_id": camera.id,
                 "camera_name": camera.name,
                 "timestamp": timestamp,
             }
-        elif status_lower == "offline":
+        elif status_lower == CameraStatus.OFFLINE.value:
             specific_event_type = WebSocketEventType.CAMERA_OFFLINE
             specific_payload = {
                 "camera_id": camera.id,
@@ -432,7 +432,7 @@ class CameraService:
                 "timestamp": timestamp,
                 "reason": reason,
             }
-        elif status_lower == "error":
+        elif status_lower == CameraStatus.ERROR.value:
             specific_event_type = WebSocketEventType.CAMERA_ERROR
             specific_payload = {
                 "camera_id": camera.id,

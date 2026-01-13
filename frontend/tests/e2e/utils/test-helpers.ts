@@ -159,7 +159,7 @@ export async function clearTestState(
   // Clear storage - wrap in try-catch for security restrictions
   try {
     await page.evaluate(
-      ({ keepAuth, clearIDB }) => {
+      async ({ keepAuth, clearIDB }) => {
         try {
           // Clear localStorage
           if (!keepAuth) {
@@ -176,15 +176,27 @@ export async function clearTestState(
           // Clear sessionStorage
           sessionStorage.clear();
 
-          // Clear IndexedDB
-          if (clearIDB && window.indexedDB) {
-            indexedDB.databases().then((databases) => {
-              databases.forEach((db) => {
-                if (db.name) {
-                  indexedDB.deleteDatabase(db.name);
+          // Clear IndexedDB - properly await all deletions
+          if (clearIDB && window.indexedDB && typeof indexedDB.databases === 'function') {
+            const databases = await indexedDB.databases();
+            await Promise.all(
+              databases.map((db) => {
+                if (!db.name) {
+                  return Promise.resolve();
                 }
-              });
-            });
+                return new Promise<void>((resolve, reject) => {
+                  const request = indexedDB.deleteDatabase(db.name!);
+                  request.onsuccess = () => resolve();
+                  request.onerror = () => reject(request.error);
+                  request.onblocked = () => {
+                    // Database is blocked by open connections, resolve anyway
+                    // to avoid hanging tests
+                    console.warn(`IndexedDB "${db.name}" deletion blocked by open connections`);
+                    resolve();
+                  };
+                });
+              })
+            );
           }
         } catch {
           // Ignore security errors (e.g., cross-origin frames)

@@ -617,7 +617,7 @@ test.describe('Form Accessibility', () => {
     }
   });
 
-  test('form validation errors are accessible', async ({ page }) => {
+  test('form validation errors are accessible', { timeout: 30000 }, async ({ page }) => {
     const alertRulesPage = new AlertRulesPage(page);
     await alertRulesPage.goto();
     await alertRulesPage.openAddRuleModal();

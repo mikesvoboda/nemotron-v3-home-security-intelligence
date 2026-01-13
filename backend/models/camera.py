@@ -9,6 +9,8 @@ from typing import TYPE_CHECKING
 from sqlalchemy import CheckConstraint, DateTime, Index, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
+from .enums import CameraStatus
+
 if TYPE_CHECKING:
     from .baseline import ActivityBaseline, ClassBaseline
     from .detection import Detection
@@ -91,7 +93,7 @@ class Camera(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
     folder_path: Mapped[str] = mapped_column(String, nullable=False)
-    status: Mapped[str] = mapped_column(String, default="online", nullable=False)
+    status: Mapped[str] = mapped_column(String, default=CameraStatus.ONLINE.value, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
     )
@@ -172,7 +174,7 @@ class Camera(Base):
             id=camera_id,
             name=folder_name,
             folder_path=folder_path,
-            status="online",
+            status=CameraStatus.ONLINE.value,
         )
 
     def __repr__(self) -> str:

@@ -38,6 +38,7 @@ from collections.abc import Awaitable, Callable
 from typing import Any, ParamSpec, TypeVar
 
 from backend.core.config import get_settings
+from backend.core.constants import CacheInvalidationReason
 from backend.core.logging import get_logger
 from backend.core.metrics import record_cache_hit, record_cache_invalidation, record_cache_miss
 from backend.core.redis import RedisClient, init_redis
@@ -240,7 +241,10 @@ class CacheService:
             return False
 
     async def invalidate_pattern(
-        self, pattern: str, reason: str = "manual", cache_type: str | None = None
+        self,
+        pattern: str,
+        reason: str | CacheInvalidationReason = CacheInvalidationReason.MANUAL,
+        cache_type: str | None = None,
     ) -> int:
         """Invalidate all cache keys matching a pattern.
 
@@ -250,8 +254,9 @@ class CacheService:
         Args:
             pattern: Glob-style pattern (e.g., "cameras:*")
                      Will be prefixed with 'cache:'
-            reason: Reason for invalidation for metrics tracking
-                    (e.g., "event_created", "camera_updated", "manual")
+            reason: Reason for invalidation for metrics tracking.
+                    Use CacheInvalidationReason enum constants
+                    (e.g., CacheInvalidationReason.EVENT_CREATED).
             cache_type: Optional cache type for metrics. If not provided,
                        will be inferred from the pattern prefix.
 
@@ -261,6 +266,8 @@ class CacheService:
         full_pattern = f"{CACHE_PREFIX}{pattern}"
         # Infer cache type from pattern if not provided
         metric_type = cache_type or self._infer_cache_type(pattern.rstrip("*"))
+        # Convert enum to string for metrics (str(enum) returns value)
+        reason_str = str(reason)
         try:
             client = self._redis._ensure_connected()
             keys_to_delete: list[str] = []
@@ -273,21 +280,25 @@ class CacheService:
                 deleted = await self._redis.delete(*keys_to_delete)
                 logger.debug(f"Cache invalidated {deleted} keys matching pattern: {pattern}")
                 # Record invalidation metric
-                record_cache_invalidation(metric_type, reason)
+                record_cache_invalidation(metric_type, reason_str)
                 return deleted
             return 0
         except Exception as e:
             logger.warning(f"Cache pattern invalidation failed for {pattern}: {e}")
             return 0
 
-    async def invalidate_event_stats(self, reason: str = "event_created") -> int:
+    async def invalidate_event_stats(
+        self,
+        reason: str | CacheInvalidationReason = CacheInvalidationReason.EVENT_CREATED,
+    ) -> int:
         """Invalidate all event statistics cache entries.
 
         Should be called when events are created, updated, or deleted
         to ensure event stats endpoints return fresh data.
 
         Args:
-            reason: Reason for invalidation (default: "event_created")
+            reason: Reason for invalidation. Use CacheInvalidationReason enum.
+                   (default: CacheInvalidationReason.EVENT_CREATED)
 
         Returns:
             Number of keys deleted
@@ -296,67 +307,87 @@ class CacheService:
             "stats:events:*", reason=reason, cache_type="event_stats"
         )
 
-    async def invalidate_events(self, reason: str = "event_created") -> int:
+    async def invalidate_events(
+        self,
+        reason: str | CacheInvalidationReason = CacheInvalidationReason.EVENT_CREATED,
+    ) -> int:
         """Invalidate all events cache entries.
 
         Should be called when events are created, updated, or deleted.
 
         Args:
-            reason: Reason for invalidation (default: "event_created")
+            reason: Reason for invalidation. Use CacheInvalidationReason enum.
+                   (default: CacheInvalidationReason.EVENT_CREATED)
 
         Returns:
             Number of keys deleted
         """
         return await self.invalidate_pattern("events:*", reason=reason, cache_type="events")
 
-    async def invalidate_cameras(self, reason: str = "camera_updated") -> int:
+    async def invalidate_cameras(
+        self,
+        reason: str | CacheInvalidationReason = CacheInvalidationReason.CAMERA_UPDATED,
+    ) -> int:
         """Invalidate all cameras cache entries.
 
         Should be called when cameras are created, updated, or deleted.
 
         Args:
-            reason: Reason for invalidation (default: "camera_updated")
+            reason: Reason for invalidation. Use CacheInvalidationReason enum.
+                   (default: CacheInvalidationReason.CAMERA_UPDATED)
 
         Returns:
             Number of keys deleted
         """
         return await self.invalidate_pattern("cameras:*", reason=reason, cache_type="cameras")
 
-    async def invalidate_system_status(self, reason: str = "status_changed") -> int:
+    async def invalidate_system_status(
+        self,
+        reason: str | CacheInvalidationReason = CacheInvalidationReason.STATUS_CHANGED,
+    ) -> int:
         """Invalidate system status cache.
 
         Should be called when system status changes.
 
         Args:
-            reason: Reason for invalidation (default: "status_changed")
+            reason: Reason for invalidation. Use CacheInvalidationReason enum.
+                   (default: CacheInvalidationReason.STATUS_CHANGED)
 
         Returns:
             Number of keys deleted
         """
         return await self.invalidate_pattern("system:*", reason=reason, cache_type="system")
 
-    async def invalidate_alerts(self, reason: str = "alert_rule_created") -> int:
+    async def invalidate_alerts(
+        self,
+        reason: str | CacheInvalidationReason = CacheInvalidationReason.ALERT_RULE_CREATED,
+    ) -> int:
         """Invalidate all alert rules cache entries.
 
         Should be called when alert rules are created, updated, or deleted
         to ensure alert rule endpoints return fresh data.
 
         Args:
-            reason: Reason for invalidation (default: "alert_rule_created")
+            reason: Reason for invalidation. Use CacheInvalidationReason enum.
+                   (default: CacheInvalidationReason.ALERT_RULE_CREATED)
 
         Returns:
             Number of keys deleted
         """
         return await self.invalidate_pattern("alerts:*", reason=reason, cache_type="alerts")
 
-    async def invalidate_detections(self, reason: str = "detection_created") -> int:
+    async def invalidate_detections(
+        self,
+        reason: str | CacheInvalidationReason = CacheInvalidationReason.DETECTION_CREATED,
+    ) -> int:
         """Invalidate all detections cache entries.
 
         Should be called when detections are created, updated, or deleted
         to ensure detection endpoints return fresh data.
 
         Args:
-            reason: Reason for invalidation (default: "detection_created")
+            reason: Reason for invalidation. Use CacheInvalidationReason enum.
+                   (default: CacheInvalidationReason.DETECTION_CREATED)
 
         Returns:
             Number of keys deleted
