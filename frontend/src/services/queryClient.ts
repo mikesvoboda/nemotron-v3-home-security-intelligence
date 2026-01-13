@@ -437,12 +437,24 @@ export const queryKeys = {
    * Detection-related query keys
    */
   detections: {
+    /** Base key for all detection queries */
+    all: ['detections'] as const,
+    /** List of detections with filters */
+    list: (filters?: Record<string, unknown>) =>
+      filters ? (['detections', 'list', filters] as const) : (['detections', 'list'] as const),
+    /** Single detection by ID */
+    detail: (detectionId: number) => ['detections', 'detail', detectionId] as const,
     /** Detections for an event */
     forEvent: (eventId: number) => ['detections', 'event', eventId] as const,
     /** Detection enrichment data */
     enrichment: (detectionId: number) => ['detections', 'enrichment', detectionId] as const,
     /** Detection statistics */
     stats: ['detections', 'stats'] as const,
+    /** Search detections */
+    search: (params?: Record<string, unknown>) =>
+      params ? (['detections', 'search', params] as const) : (['detections', 'search'] as const),
+    /** Detection labels */
+    labels: ['detections', 'labels'] as const,
   },
 
   /**

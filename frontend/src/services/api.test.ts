@@ -28,6 +28,8 @@ import {
   updateEvent,
   bulkUpdateEvents,
   fetchEventDetections,
+  fetchEventEnrichments,
+  createAnalysisStream,
   fetchLogStats,
   fetchLogs,
   getMediaUrl,
@@ -64,6 +66,9 @@ import {
   type EventUpdateData,
   type Detection,
   type DetectionListResponse,
+  type EventEnrichmentsResponse,
+  type EventEnrichmentsQueryParams,
+  type AnalysisStreamParams,
   type LogStats,
   type LogsResponse,
   type LogsQueryParams,
@@ -3691,5 +3696,235 @@ describe('Rate Limit Header Extraction', () => {
         expect((caughtError!.data as Record<string, unknown>).retry_after).toBeUndefined();
       }
     });
+  });
+});
+
+// ============================================================================
+// Event Enrichments Tests (NEM-2488)
+// ============================================================================
+
+describe('fetchEventEnrichments', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const mockEnrichmentsResponse: EventEnrichmentsResponse = {
+    event_id: 123,
+    enrichments: [
+      {
+        detection_id: 1,
+        enriched_at: '2025-01-01T10:00:00Z',
+        license_plate: {
+          detected: true,
+          text: 'ABC-1234',
+          confidence: 0.95,
+        },
+        face: {
+          detected: false,
+          count: 0,
+        },
+        violence: {
+          detected: false,
+          score: 0,
+        },
+      },
+      {
+        detection_id: 2,
+        enriched_at: '2025-01-01T10:01:00Z',
+        license_plate: {
+          detected: false,
+        },
+        face: {
+          detected: true,
+          count: 2,
+        },
+        violence: {
+          detected: false,
+          score: 0,
+        },
+      },
+    ],
+    count: 2,
+    total: 10,
+    limit: 50,
+    offset: 0,
+    has_more: true,
+  };
+
+  it('fetches event enrichments without params', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockEnrichmentsResponse));
+
+    const result = await fetchEventEnrichments(123);
+
+    expect(fetch).toHaveBeenCalledWith('/api/events/123/enrichments', expect.any(Object));
+    expect(result).toEqual(mockEnrichmentsResponse);
+  });
+
+  it('fetches event enrichments with pagination params', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockEnrichmentsResponse));
+
+    const params: EventEnrichmentsQueryParams = { limit: 10, offset: 20 };
+    const result = await fetchEventEnrichments(123, params);
+
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/events/123/enrichments?limit=10&offset=20',
+      expect.any(Object)
+    );
+    expect(result).toEqual(mockEnrichmentsResponse);
+  });
+
+  it('fetches event enrichments with only limit param', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockEnrichmentsResponse));
+
+    const params: EventEnrichmentsQueryParams = { limit: 25 };
+    await fetchEventEnrichments(456, params);
+
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/events/456/enrichments?limit=25',
+      expect.any(Object)
+    );
+  });
+
+  it('fetches event enrichments with only offset param', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockEnrichmentsResponse));
+
+    const params: EventEnrichmentsQueryParams = { offset: 50 };
+    await fetchEventEnrichments(789, params);
+
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/events/789/enrichments?offset=50',
+      expect.any(Object)
+    );
+  });
+
+  it('throws ApiError on 404 for non-existent event', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      createMockErrorResponse(404, 'Not Found', 'Event not found')
+    );
+
+    await expect(fetchEventEnrichments(999)).rejects.toThrow(ApiError);
+  });
+});
+
+// ============================================================================
+// Analysis Stream Tests (NEM-2488)
+// ============================================================================
+
+describe('createAnalysisStream', () => {
+  // Store original EventSource for restoration
+  let originalEventSource: typeof EventSource | undefined;
+  let MockEventSourceClass: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    // Save original EventSource if it exists
+    originalEventSource = (globalThis as { EventSource?: typeof EventSource }).EventSource;
+
+    // Create a proper mock EventSource class that can be used with `new`
+    MockEventSourceClass = vi.fn();
+    MockEventSourceClass.mockImplementation(function (
+      this: {
+        url: string;
+        close: ReturnType<typeof vi.fn>;
+        onmessage: null;
+        onerror: null;
+        onopen: null;
+        readyState: number;
+        CONNECTING: number;
+        OPEN: number;
+        CLOSED: number;
+      },
+      url: string
+    ) {
+      this.url = url;
+      this.close = vi.fn();
+      this.onmessage = null;
+      this.onerror = null;
+      this.onopen = null;
+      this.readyState = 0;
+      this.CONNECTING = 0;
+      this.OPEN = 1;
+      this.CLOSED = 2;
+      return this;
+    });
+
+    (globalThis as { EventSource: typeof EventSource }).EventSource =
+      MockEventSourceClass as unknown as typeof EventSource;
+  });
+
+  afterEach(() => {
+    // Restore original EventSource
+    if (originalEventSource) {
+      (globalThis as { EventSource: typeof EventSource }).EventSource = originalEventSource;
+    }
+  });
+
+  it('creates EventSource with batch ID only', () => {
+    const params: AnalysisStreamParams = { batchId: 'batch-123' };
+    const eventSource = createAnalysisStream(params);
+
+    expect(MockEventSourceClass).toHaveBeenCalledWith('/api/events/analyze/batch-123/stream');
+    expect(eventSource).toBeDefined();
+  });
+
+  it('creates EventSource with camera ID parameter', () => {
+    const params: AnalysisStreamParams = {
+      batchId: 'batch-456',
+      cameraId: 'cam-front',
+    };
+    createAnalysisStream(params);
+
+    expect(MockEventSourceClass).toHaveBeenCalledWith(
+      '/api/events/analyze/batch-456/stream?camera_id=cam-front'
+    );
+  });
+
+  it('creates EventSource with detection IDs parameter', () => {
+    const params: AnalysisStreamParams = {
+      batchId: 'batch-789',
+      detectionIds: [1, 2, 3],
+    };
+    createAnalysisStream(params);
+
+    expect(MockEventSourceClass).toHaveBeenCalledWith(
+      '/api/events/analyze/batch-789/stream?detection_ids=1%2C2%2C3'
+    );
+  });
+
+  it('creates EventSource with all parameters', () => {
+    const params: AnalysisStreamParams = {
+      batchId: 'batch-full',
+      cameraId: 'cam-back',
+      detectionIds: [10, 20],
+    };
+    createAnalysisStream(params);
+
+    expect(MockEventSourceClass).toHaveBeenCalledWith(
+      '/api/events/analyze/batch-full/stream?camera_id=cam-back&detection_ids=10%2C20'
+    );
+  });
+
+  it('encodes special characters in batch ID', () => {
+    const params: AnalysisStreamParams = {
+      batchId: 'batch/with/slashes',
+    };
+    createAnalysisStream(params);
+
+    expect(MockEventSourceClass).toHaveBeenCalledWith(
+      '/api/events/analyze/batch%2Fwith%2Fslashes/stream'
+    );
+  });
+
+  it('handles empty detection IDs array', () => {
+    const params: AnalysisStreamParams = {
+      batchId: 'batch-empty',
+      detectionIds: [],
+    };
+    createAnalysisStream(params);
+
+    expect(MockEventSourceClass).toHaveBeenCalledWith('/api/events/analyze/batch-empty/stream');
   });
 });
