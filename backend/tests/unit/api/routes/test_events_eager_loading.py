@@ -10,16 +10,23 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
+from starlette.responses import Response
 
 from backend.models.camera import Camera
 from backend.models.event import Event
+
+
+@pytest.fixture
+def mock_response() -> MagicMock:
+    """Create a mock Response object for deprecation header tests."""
+    return MagicMock(spec=Response)
 
 
 class TestListEventsEagerLoading:
     """Tests for list_events endpoint using joinedload for camera relationship."""
 
     @pytest.mark.asyncio
-    async def test_list_events_uses_joinedload(self):
+    async def test_list_events_uses_joinedload(self, mock_response: MagicMock):
         """Verify list_events uses joinedload to prevent N+1 for camera relationship.
 
         RED: This test should fail before adding joinedload to the query.
@@ -66,6 +73,7 @@ class TestListEventsEagerLoading:
 
         # Call the function
         result = await list_events(
+            response=mock_response,
             camera_id=None,
             risk_level=None,
             start_date=None,
@@ -103,7 +111,7 @@ class TestListEventsEagerLoading:
         assert isinstance(option, type(joinedload(Event.camera)))
 
     @pytest.mark.asyncio
-    async def test_list_events_with_cursor_uses_joinedload(self):
+    async def test_list_events_with_cursor_uses_joinedload(self, mock_response: MagicMock):
         """Verify list_events uses joinedload even with cursor-based pagination.
 
         Cursor-based pagination should still apply eager loading for the camera relationship.
@@ -144,6 +152,7 @@ class TestListEventsEagerLoading:
 
         # Call with cursor
         result = await list_events(
+            response=mock_response,
             camera_id=None,
             risk_level=None,
             start_date=None,
@@ -173,7 +182,7 @@ class TestListEventsEagerLoading:
         assert len(options) > 0
 
     @pytest.mark.asyncio
-    async def test_list_events_with_filters_uses_joinedload(self):
+    async def test_list_events_with_filters_uses_joinedload(self, mock_response: MagicMock):
         """Verify list_events uses joinedload with various filters applied.
 
         Filters should not affect eager loading optimization.
@@ -215,6 +224,7 @@ class TestListEventsEagerLoading:
 
         # Call with multiple filters
         result = await list_events(
+            response=mock_response,
             camera_id="cam1",
             risk_level="high",
             start_date=datetime(2025, 12, 23, 0, 0, 0, tzinfo=UTC),
@@ -244,7 +254,7 @@ class TestListEventsEagerLoading:
         assert len(options) > 0
 
     @pytest.mark.asyncio
-    async def test_list_events_camera_data_accessible(self):
+    async def test_list_events_camera_data_accessible(self, mock_response: MagicMock):
         """Verify that camera data is accessible in response without additional queries.
 
         This tests the functional aspect - that camera information is available
@@ -286,6 +296,7 @@ class TestListEventsEagerLoading:
 
         # Call the function
         result = await list_events(
+            response=mock_response,
             camera_id=None,
             risk_level=None,
             start_date=None,
