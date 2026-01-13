@@ -1968,6 +1968,164 @@
         "title": "BatchAggregatorStatusResponse",
         "type": "object"
       },
+      "BatchAuditJobResponse": {
+        "description": "Response for async batch audit job creation.\n\nReturned immediately when triggering a batch audit, containing\nthe job ID for progress tracking via GET /api/ai-audit/batch/{job_id}.",
+        "example": {
+          "job_id": "550e8400-e29b-41d4-a716-446655440000",
+          "message": "Batch audit job created. Use GET /api/ai-audit/batch/550e8400-e29b-41d4-a716-446655440000 to track progress.",
+          "status": "pending",
+          "total_events": 75
+        },
+        "properties": {
+          "job_id": {
+            "description": "Unique job ID for tracking progress",
+            "title": "Job Id",
+            "type": "string"
+          },
+          "message": {
+            "description": "Human-readable status message",
+            "title": "Message",
+            "type": "string"
+          },
+          "status": {
+            "description": "Initial job status (pending)",
+            "title": "Status",
+            "type": "string"
+          },
+          "total_events": {
+            "description": "Number of events queued for processing",
+            "minimum": 0.0,
+            "title": "Total Events",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "job_id",
+          "status",
+          "message",
+          "total_events"
+        ],
+        "title": "BatchAuditJobResponse",
+        "type": "object"
+      },
+      "BatchAuditJobStatusResponse": {
+        "description": "Response for batch audit job status query.\n\nProvides detailed progress information for an ongoing or completed\nbatch audit job.",
+        "example": {
+          "created_at": "2026-01-03T10:30:00Z",
+          "failed_events": 2,
+          "job_id": "550e8400-e29b-41d4-a716-446655440000",
+          "message": "Processing event 45 of 100",
+          "processed_events": 45,
+          "progress": 45,
+          "started_at": "2026-01-03T10:30:01Z",
+          "status": "running",
+          "total_events": 100
+        },
+        "properties": {
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When processing completed",
+            "title": "Completed At"
+          },
+          "created_at": {
+            "description": "When the job was created",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Error message if job failed",
+            "title": "Error"
+          },
+          "failed_events": {
+            "default": 0,
+            "description": "Events that failed processing",
+            "minimum": 0.0,
+            "title": "Failed Events",
+            "type": "integer"
+          },
+          "job_id": {
+            "description": "Unique job ID",
+            "title": "Job Id",
+            "type": "string"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Current status message",
+            "title": "Message"
+          },
+          "processed_events": {
+            "description": "Events successfully processed",
+            "minimum": 0.0,
+            "title": "Processed Events",
+            "type": "integer"
+          },
+          "progress": {
+            "description": "Progress percentage (0-100)",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Progress",
+            "type": "integer"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When processing started",
+            "title": "Started At"
+          },
+          "status": {
+            "description": "Current job status (pending, running, completed, failed)",
+            "title": "Status",
+            "type": "string"
+          },
+          "total_events": {
+            "description": "Total events to process",
+            "minimum": 0.0,
+            "title": "Total Events",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "job_id",
+          "status",
+          "progress",
+          "total_events",
+          "processed_events",
+          "created_at"
+        ],
+        "title": "BatchAuditJobStatusResponse",
+        "type": "object"
+      },
       "BatchAuditRequest": {
         "description": "Request for batch audit processing.",
         "example": {
@@ -2003,29 +2161,6 @@
           }
         },
         "title": "BatchAuditRequest",
-        "type": "object"
-      },
-      "BatchAuditResponse": {
-        "description": "Response for batch audit request.",
-        "example": {
-          "message": "Queued 75 events for audit processing",
-          "queued_count": 75
-        },
-        "properties": {
-          "message": {
-            "title": "Message",
-            "type": "string"
-          },
-          "queued_count": {
-            "title": "Queued Count",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "queued_count",
-          "message"
-        ],
-        "title": "BatchAuditResponse",
         "type": "object"
       },
       "BatchInfoResponse": {
@@ -8406,6 +8541,79 @@
         "title": "ExportTypeEnum",
         "type": "string"
       },
+      "ExporterStatus": {
+        "description": "Status information for a single Prometheus exporter.\n\nRepresents the health status of an exporter that provides metrics\nto Prometheus (e.g., redis-exporter, json-exporter, blackbox-exporter).",
+        "example": {
+          "endpoint": "http://redis-exporter:9121",
+          "last_scrape": "2026-01-13T10:30:00Z",
+          "name": "redis-exporter",
+          "status": "up"
+        },
+        "properties": {
+          "endpoint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Scrape endpoint URL for this exporter",
+            "title": "Endpoint"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Error message if exporter is down",
+            "title": "Error"
+          },
+          "last_scrape": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Timestamp of last successful scrape (if available)",
+            "title": "Last Scrape"
+          },
+          "name": {
+            "description": "Exporter name (e.g., 'redis-exporter', 'json-exporter')",
+            "title": "Name",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ExporterStatusEnum",
+            "description": "Current status: up, down, or unknown"
+          }
+        },
+        "required": [
+          "name",
+          "status"
+        ],
+        "title": "ExporterStatus",
+        "type": "object"
+      },
+      "ExporterStatusEnum": {
+        "description": "Exporter status states.",
+        "enum": [
+          "up",
+          "down",
+          "unknown"
+        ],
+        "title": "ExporterStatusEnum",
+        "type": "string"
+      },
       "FaceEnrichment": {
         "description": "Face detection results.",
         "example": {
@@ -10580,6 +10788,56 @@
         "title": "JobStatusEnum",
         "type": "string"
       },
+      "JobTargetSummary": {
+        "description": "Summary of target health for a specific Prometheus job.",
+        "example": {
+          "down": 0,
+          "job": "hsi-backend-metrics",
+          "total": 1,
+          "unknown": 0,
+          "up": 1
+        },
+        "properties": {
+          "down": {
+            "description": "Number of targets that are down",
+            "minimum": 0.0,
+            "title": "Down",
+            "type": "integer"
+          },
+          "job": {
+            "description": "Prometheus job name",
+            "title": "Job",
+            "type": "string"
+          },
+          "total": {
+            "description": "Total number of targets in this job",
+            "minimum": 0.0,
+            "title": "Total",
+            "type": "integer"
+          },
+          "unknown": {
+            "default": 0,
+            "description": "Number of targets with unknown status",
+            "minimum": 0.0,
+            "title": "Unknown",
+            "type": "integer"
+          },
+          "up": {
+            "description": "Number of targets that are up",
+            "minimum": 0.0,
+            "title": "Up",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "job",
+          "total",
+          "up",
+          "down"
+        ],
+        "title": "JobTargetSummary",
+        "type": "object"
+      },
       "JobTiming": {
         "description": "Timing information for a job.\n\nTracks job lifecycle timestamps and duration calculations.",
         "example": {
@@ -11335,6 +11593,60 @@
         "title": "MediaErrorResponse",
         "type": "object"
       },
+      "MetricsCollectionStatus": {
+        "description": "Status of metrics collection from Prometheus.",
+        "example": {
+          "collecting": true,
+          "last_successful_scrape": "2026-01-13T10:30:00Z",
+          "scrape_interval_seconds": 15,
+          "total_series": 15000
+        },
+        "properties": {
+          "collecting": {
+            "description": "Whether Prometheus is actively collecting metrics",
+            "title": "Collecting",
+            "type": "boolean"
+          },
+          "last_successful_scrape": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Timestamp of most recent successful scrape across all targets",
+            "title": "Last Successful Scrape"
+          },
+          "scrape_interval_seconds": {
+            "default": 15,
+            "description": "Configured global scrape interval in seconds",
+            "minimum": 1.0,
+            "title": "Scrape Interval Seconds",
+            "type": "integer"
+          },
+          "total_series": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Total number of time series in Prometheus (if available)",
+            "title": "Total Series"
+          }
+        },
+        "required": [
+          "collecting"
+        ],
+        "title": "MetricsCollectionStatus",
+        "type": "object"
+      },
       "ModelContributions": {
         "description": "Model contribution flags.",
         "example": {
@@ -11936,6 +12248,206 @@
           "timestamp"
         ],
         "title": "ModelZooStatusResponse",
+        "type": "object"
+      },
+      "MonitoringHealthResponse": {
+        "description": "Response schema for monitoring stack health endpoint.\n\nProvides comprehensive health status of the monitoring infrastructure:\n- Prometheus server reachability and status\n- Scrape target health summary by job\n- Exporter status (redis-exporter, json-exporter, blackbox-exporter)\n- Metrics collection status\n\nThis endpoint helps operators quickly identify issues with the\nmonitoring stack without accessing Prometheus UI directly.",
+        "example": {
+          "exporters": [
+            {
+              "endpoint": "http://redis-exporter:9121",
+              "last_scrape": "2026-01-13T10:30:00Z",
+              "name": "redis-exporter",
+              "status": "up"
+            },
+            {
+              "endpoint": "http://json-exporter:7979",
+              "last_scrape": "2026-01-13T10:30:00Z",
+              "name": "json-exporter",
+              "status": "up"
+            }
+          ],
+          "healthy": true,
+          "issues": [],
+          "metrics_collection": {
+            "collecting": true,
+            "last_successful_scrape": "2026-01-13T10:30:00Z",
+            "scrape_interval_seconds": 15,
+            "total_series": 15000
+          },
+          "prometheus_reachable": true,
+          "prometheus_url": "http://prometheus:9090",
+          "targets_summary": [
+            {
+              "down": 0,
+              "job": "hsi-backend-metrics",
+              "total": 1,
+              "unknown": 0,
+              "up": 1
+            },
+            {
+              "down": 0,
+              "job": "redis",
+              "total": 1,
+              "unknown": 0,
+              "up": 1
+            },
+            {
+              "down": 0,
+              "job": "blackbox-http-health",
+              "total": 1,
+              "unknown": 0,
+              "up": 1
+            }
+          ],
+          "timestamp": "2026-01-13T10:30:00Z"
+        },
+        "properties": {
+          "exporters": {
+            "description": "Status of known exporters",
+            "items": {
+              "$ref": "#/components/schemas/ExporterStatus"
+            },
+            "title": "Exporters",
+            "type": "array"
+          },
+          "healthy": {
+            "description": "Overall monitoring stack health: True if Prometheus reachable and majority of targets up",
+            "title": "Healthy",
+            "type": "boolean"
+          },
+          "issues": {
+            "description": "List of identified issues with the monitoring stack",
+            "items": {
+              "type": "string"
+            },
+            "title": "Issues",
+            "type": "array"
+          },
+          "metrics_collection": {
+            "$ref": "#/components/schemas/MetricsCollectionStatus",
+            "description": "Metrics collection status"
+          },
+          "prometheus_reachable": {
+            "description": "Whether Prometheus server is reachable",
+            "title": "Prometheus Reachable",
+            "type": "boolean"
+          },
+          "prometheus_url": {
+            "description": "Configured Prometheus server URL",
+            "title": "Prometheus Url",
+            "type": "string"
+          },
+          "targets_summary": {
+            "description": "Summary of target health by job",
+            "items": {
+              "$ref": "#/components/schemas/JobTargetSummary"
+            },
+            "title": "Targets Summary",
+            "type": "array"
+          },
+          "timestamp": {
+            "description": "Timestamp of health check",
+            "format": "date-time",
+            "title": "Timestamp",
+            "type": "string"
+          }
+        },
+        "required": [
+          "healthy",
+          "prometheus_reachable",
+          "prometheus_url",
+          "targets_summary",
+          "exporters",
+          "metrics_collection",
+          "timestamp"
+        ],
+        "title": "MonitoringHealthResponse",
+        "type": "object"
+      },
+      "MonitoringTargetsResponse": {
+        "description": "Response schema for detailed monitoring targets endpoint.\n\nReturns complete information about all Prometheus scrape targets\nincluding their health status, labels, and scrape timing.",
+        "example": {
+          "down": 0,
+          "jobs": [
+            "hsi-backend-metrics",
+            "redis"
+          ],
+          "targets": [
+            {
+              "health": "up",
+              "instance": "backend:8000",
+              "job": "hsi-backend-metrics",
+              "labels": {
+                "service": "home-security-intelligence"
+              },
+              "last_scrape": "2026-01-13T10:30:00Z",
+              "scrape_duration_seconds": 0.025
+            },
+            {
+              "health": "up",
+              "instance": "redis-exporter:9121",
+              "job": "redis",
+              "labels": {},
+              "last_scrape": "2026-01-13T10:30:00Z",
+              "scrape_duration_seconds": 0.015
+            }
+          ],
+          "timestamp": "2026-01-13T10:30:00Z",
+          "total": 2,
+          "up": 2
+        },
+        "properties": {
+          "down": {
+            "description": "Number of targets that are down",
+            "minimum": 0.0,
+            "title": "Down",
+            "type": "integer"
+          },
+          "jobs": {
+            "description": "List of unique job names",
+            "items": {
+              "type": "string"
+            },
+            "title": "Jobs",
+            "type": "array"
+          },
+          "targets": {
+            "description": "Detailed status of all scrape targets",
+            "items": {
+              "$ref": "#/components/schemas/TargetHealth"
+            },
+            "title": "Targets",
+            "type": "array"
+          },
+          "timestamp": {
+            "description": "Timestamp of targets query",
+            "format": "date-time",
+            "title": "Timestamp",
+            "type": "string"
+          },
+          "total": {
+            "description": "Total number of targets",
+            "minimum": 0.0,
+            "title": "Total",
+            "type": "integer"
+          },
+          "up": {
+            "description": "Number of targets that are up",
+            "minimum": 0.0,
+            "title": "Up",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "targets",
+          "total",
+          "up",
+          "down",
+          "jobs",
+          "timestamp"
+        ],
+        "title": "MonitoringTargetsResponse",
         "type": "object"
       },
       "NemotronMetrics": {
@@ -16993,6 +17505,89 @@
         "title": "SystemStatsResponse",
         "type": "object"
       },
+      "TargetHealth": {
+        "description": "Health status for a single Prometheus scrape target.",
+        "example": {
+          "health": "up",
+          "instance": "backend:8000",
+          "job": "hsi-backend-metrics",
+          "labels": {
+            "service": "home-security-intelligence"
+          },
+          "last_scrape": "2026-01-13T10:30:00Z",
+          "scrape_duration_seconds": 0.025
+        },
+        "properties": {
+          "health": {
+            "description": "Target health: 'up' or 'down'",
+            "title": "Health",
+            "type": "string"
+          },
+          "instance": {
+            "description": "Target instance identifier (typically host:port)",
+            "title": "Instance",
+            "type": "string"
+          },
+          "job": {
+            "description": "Job name this target belongs to",
+            "title": "Job",
+            "type": "string"
+          },
+          "labels": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Labels associated with this target",
+            "title": "Labels",
+            "type": "object"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Error from last failed scrape (if any)",
+            "title": "Last Error"
+          },
+          "last_scrape": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Timestamp of last scrape attempt",
+            "title": "Last Scrape"
+          },
+          "scrape_duration_seconds": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Duration of last scrape in seconds",
+            "title": "Scrape Duration Seconds"
+          }
+        },
+        "required": [
+          "job",
+          "instance",
+          "health"
+        ],
+        "title": "TargetHealth",
+        "type": "object"
+      },
       "TelemetryResponse": {
         "description": "Response schema for pipeline telemetry endpoint.\n\nProvides real-time visibility into:\n- Queue depths: How many items are waiting in detection/analysis queues\n- Stage latencies: How long each pipeline stage is taking\n\nThis helps operators:\n- Identify pipeline bottlenecks\n- Detect backlog situations\n- Monitor processing performance\n- Debug pipeline stalls",
         "example": {
@@ -18482,7 +19077,7 @@
     },
     "/api/ai-audit/batch": {
       "post": {
-        "description": "Trigger batch audit processing for multiple events.\n\nQueues events for audit processing based on the provided criteria.\nEvents are processed asynchronously.\n\nArgs:\n    request: Batch audit request with filtering criteria\n    db: Database session\n\nReturns:\n    BatchAuditResponse with number of queued events",
+        "description": "Trigger batch audit processing for multiple events.\n\nThis endpoint returns immediately with a job ID that can be used to\ntrack progress via GET /api/ai-audit/batch/{job_id}. Events are\nprocessed asynchronously in the background.\n\nArgs:\n    request: Batch audit request with filtering criteria\n    background_tasks: FastAPI background tasks\n    db: Database session\n    job_tracker: Job tracker for progress tracking\n\nReturns:\n    BatchAuditJobResponse with job ID for tracking progress",
         "operationId": "trigger_batch_audit_api_ai_audit_batch_post",
         "requestBody": {
           "content": {
@@ -18495,15 +19090,15 @@
           "required": true
         },
         "responses": {
-          "200": {
+          "202": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BatchAuditResponse"
+                  "$ref": "#/components/schemas/BatchAuditJobResponse"
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Batch audit job created successfully"
           },
           "422": {
             "description": "Validation error"
@@ -18513,6 +19108,48 @@
           }
         },
         "summary": "Trigger Batch Audit",
+        "tags": [
+          "ai-audit"
+        ]
+      }
+    },
+    "/api/ai-audit/batch/{job_id}": {
+      "get": {
+        "description": "Get the status of a batch audit job.\n\nProvides progress information for an ongoing or completed batch audit,\nincluding the number of events processed and any errors.\n\nArgs:\n    job_id: The job ID returned by trigger_batch_audit\n    job_tracker: Job tracker for retrieving job status\n\nReturns:\n    BatchAuditJobStatusResponse with current progress\n\nRaises:\n    HTTPException: 404 if job not found",
+        "operationId": "get_batch_audit_status_api_ai_audit_batch__job_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchAuditJobStatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Job not found"
+          },
+          "422": {
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get Batch Audit Status",
         "tags": [
           "ai-audit"
         ]
@@ -22340,8 +22977,28 @@
     },
     "/api/detections/stats": {
       "get": {
-        "description": "Get aggregate detection statistics including class distribution.\n\nReturns:\n- Total detection count\n- Detection counts grouped by object class (person, car, truck, etc.)\n- Average confidence score across all detections\n\nUsed by the AI Performance page to display detection class distribution charts.\n\nOptimized to use a single query with window functions instead of 3 separate queries\n(NEM-1321). The query combines:\n- Per-class counts via GROUP BY\n- Total count via SUM(COUNT(*)) OVER() window function\n- Per-class avg confidence, then combined using weighted average formula\n\nArgs:\n    db: Database session\n\nReturns:\n    DetectionStatsResponse with aggregate detection statistics",
+        "description": "Get aggregate detection statistics including class distribution.\n\nReturns:\n- Total detection count\n- Detection counts grouped by object class (person, car, truck, etc.)\n- Average confidence score across all detections\n\nUsed by the AI Performance page to display detection class distribution charts.\n\nOptimized to use a single query with window functions instead of 3 separate queries\n(NEM-1321). The query combines:\n- Per-class counts via GROUP BY\n- Total count via SUM(COUNT(*)) OVER() window function\n- Per-class avg confidence, then combined using weighted average formula\n\nArgs:\n    camera_id: Optional camera ID filter (for camera-specific stats)\n    db: Database session\n\nReturns:\n    DetectionStatsResponse with aggregate detection statistics",
         "operationId": "get_detection_stats_api_detections_stats_get",
+        "parameters": [
+          {
+            "description": "Filter by camera ID",
+            "in": "query",
+            "name": "camera_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by camera ID",
+              "title": "Camera Id"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -22352,6 +23009,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Get Detection Stats",
@@ -24068,7 +24735,7 @@
     },
     "/api/events/stats": {
       "get": {
-        "description": "Get aggregated event statistics.\n\nReturns statistics about events including:\n- Total event count\n- Events grouped by risk level (critical, high, medium, low)\n- Events grouped by camera with camera names\n\nUses Redis cache with cache-aside pattern to improve performance\nand generate cache hit metrics.\n\nArgs:\n    start_date: Optional start date for date range filter\n    end_date: Optional end date for date range filter\n    db: Database session\n    cache: Cache service injected via FastAPI DI\n\nReturns:\n    EventStatsResponse with aggregated statistics\n\nRaises:\n    HTTPException: 400 if start_date is after end_date",
+        "description": "Get aggregated event statistics.\n\nReturns statistics about events including:\n- Total event count\n- Events grouped by risk level (critical, high, medium, low)\n- Events grouped by camera with camera names\n\nUses Redis cache with cache-aside pattern to improve performance\nand generate cache hit metrics.\n\nArgs:\n    start_date: Optional start date for date range filter\n    end_date: Optional end date for date range filter\n    camera_id: Optional camera ID filter (for camera-specific stats)\n    db: Database session\n    cache: Cache service injected via FastAPI DI\n\nReturns:\n    EventStatsResponse with aggregated statistics\n\nRaises:\n    HTTPException: 400 if start_date is after end_date",
         "operationId": "get_event_stats_api_events_stats_get",
         "parameters": [
           {
@@ -24107,6 +24774,24 @@
               ],
               "description": "Filter by end date (ISO format)",
               "title": "End Date"
+            }
+          },
+          {
+            "description": "Filter by camera ID",
+            "in": "query",
+            "name": "camera_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by camera ID",
+              "title": "Camera Id"
             }
           }
         ],
@@ -27611,6 +28296,50 @@
           }
         },
         "summary": "Get Model Status",
+        "tags": [
+          "system"
+        ]
+      }
+    },
+    "/api/system/monitoring/health": {
+      "get": {
+        "description": "Get comprehensive monitoring stack health status.\n\nChecks the health of the monitoring infrastructure including:\n- Prometheus server reachability\n- Scrape target status (UP/DOWN counts by job)\n- Exporter status (redis-exporter, json-exporter, blackbox-exporter)\n- Metrics collection status\n\nThis endpoint provides operators with a quick view of monitoring\nstack health without needing to access the Prometheus UI directly.\n\nReturns:\n    MonitoringHealthResponse with full monitoring stack status.\n    The 'healthy' field is True if Prometheus is reachable and\n    the majority of critical targets are up.",
+        "operationId": "get_monitoring_health_api_system_monitoring_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonitoringHealthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Monitoring Health",
+        "tags": [
+          "system"
+        ]
+      }
+    },
+    "/api/system/monitoring/targets": {
+      "get": {
+        "description": "Get detailed status of all Prometheus scrape targets.\n\nReturns complete information about every target Prometheus is\nconfigured to scrape, including:\n- Job and instance identifiers\n- Health status (up/down)\n- All labels associated with the target\n- Last scrape timestamp and duration\n- Any scrape errors\n\nThis endpoint is useful for debugging specific target issues\nor getting a comprehensive view of all monitored endpoints.\n\nReturns:\n    MonitoringTargetsResponse with detailed target information.\n\nRaises:\n    HTTPException: 503 if Prometheus is unreachable",
+        "operationId": "get_monitoring_targets_api_system_monitoring_targets_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonitoringTargetsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Monitoring Targets",
         "tags": [
           "system"
         ]
