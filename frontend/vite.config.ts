@@ -190,10 +190,9 @@ export default defineConfig(({ mode }) => {
       // Fork-based parallelization for better memory isolation (each fork is separate process)
       // Threads share memory which can cause accumulation issues during cleanup
       pool: 'forks',
-      // Limit to 2 workers to prevent memory exhaustion on CI (7GB RAM limit)
-      // With isolate: true, each worker restarts between test files
-      maxWorkers: 2,
-      minWorkers: 1,
+      // Run test files sequentially within each shard to prevent memory accumulation
+      // This is slower but prevents OOM by allowing cleanup between files
+      fileParallelism: false,
       // Restart worker after each test file to prevent memory accumulation
       // This is critical for preventing OOM during long test runs
       isolate: true,

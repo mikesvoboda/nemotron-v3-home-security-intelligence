@@ -872,9 +872,9 @@ jobs:
         shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]
     env:
       NODE_VERSION: '20'
-      # 4GB heap with GC exposure - smaller heap encourages more aggressive GC
-      # GitHub Actions runner has 7GB RAM, leaving headroom for OS/processes
-      NODE_OPTIONS: '--max-old-space-size=4096 --expose-gc'
+      # 6GB heap with GC exposure - needed for Vitest itself
+      # GitHub Actions runner has 7GB RAM
+      NODE_OPTIONS: '--max-old-space-size=6144 --expose-gc'
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
