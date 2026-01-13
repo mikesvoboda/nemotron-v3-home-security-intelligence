@@ -34,7 +34,7 @@ vi.mock('react-joyride', () => ({
           </button>
           <button
             data-testid="joyride-close"
-            onClick={() => callback({ action: 'close', index: 0, status: 'finished', type: 'tour:end', lifecycle: 'complete' })}
+            onClick={() => callback({ action: 'close', index: 0, status: 'running', type: 'tour:end', lifecycle: 'complete' })}
           >
             Close
           </button>
@@ -56,6 +56,17 @@ vi.mock('react-joyride', () => ({
     SKIP: 'skip',
     RESET: 'reset',
     UPDATE: 'update',
+  },
+  EVENTS: {
+    TOUR_START: 'tour:start',
+    STEP_BEFORE: 'step:before',
+    BEACON: 'beacon',
+    TOOLTIP: 'tooltip',
+    STEP_AFTER: 'step:after',
+    TOUR_END: 'tour:end',
+    TOUR_STATUS: 'tour:status',
+    TARGET_NOT_FOUND: 'error:target_not_found',
+    ERROR: 'error',
   },
   STATUS: {
     FINISHED: 'finished',

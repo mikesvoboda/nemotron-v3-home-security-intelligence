@@ -1419,7 +1419,10 @@ export interface paths {
          *     This endpoint checks each camera's folder_path to determine:
          *     1. Whether the path is under the configured FOSCAM_BASE_PATH
          *     2. Whether the directory exists on disk
-         *     3. Whether the directory contains any images
+         *     3. Whether the directory contains any images or video files
+         *
+         *     NEM-2446: Video files (.mkv, .mp4, etc.) are now valid for snapshot
+         *     extraction, so cameras with only video files pass validation.
          *
          *     Use this to diagnose cameras that show "No snapshot available" errors.
          *
@@ -1761,6 +1764,8 @@ export interface paths {
          *
          *     This endpoint uses the camera's configured `folder_path` and returns the most recently
          *     modified image file under that directory.
+         *
+         *     NEM-2446: Now supports video-only cameras by extracting and caching frames.
          */
         get: operations["get_camera_snapshot_api_cameras__camera_id__snapshot_get"];
         put?: never;

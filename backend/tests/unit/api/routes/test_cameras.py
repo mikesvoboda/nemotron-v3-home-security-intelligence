@@ -13,6 +13,7 @@ These tests follow TDD methodology - comprehensive coverage of happy paths,
 error cases, and edge cases with proper mocking.
 """
 
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -739,7 +740,7 @@ class TestGetCameraSnapshot:
 
     @pytest.mark.asyncio
     async def test_get_snapshot_success(self) -> None:
-        """Test successfully retrieving camera snapshot."""
+        """Test successfully retrieving camera snapshot (from image file)."""
         from fastapi.responses import FileResponse
 
         from backend.api.routes.cameras import get_camera_snapshot
@@ -752,38 +753,47 @@ class TestGetCameraSnapshot:
         mock_camera.folder_path = "/export/foscam/front_door"
 
         # Create a temporary directory structure
-        with patch("backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera):
-            with patch("backend.api.routes.cameras.get_settings") as mock_settings:
-                mock_settings.return_value.foscam_base_path = "/export/foscam"
+        with (
+            patch("backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera),
+            patch("backend.api.routes.cameras.get_settings") as mock_settings,
+            patch("backend.api.routes.cameras._get_snapshot_cache_path") as mock_cache_path,
+            patch("backend.api.routes.cameras._is_cache_valid") as mock_is_valid,
+            patch("backend.api.routes.cameras.Path") as mock_path,
+        ):
+            mock_settings.return_value.foscam_base_path = "/export/foscam"
 
-                # Mock Path operations
-                with patch("backend.api.routes.cameras.Path") as mock_path:
-                    mock_camera_dir = MagicMock()
-                    mock_camera_dir.exists.return_value = True
-                    mock_camera_dir.is_dir.return_value = True
-                    mock_camera_dir.resolve.return_value = mock_camera_dir
-                    mock_camera_dir.relative_to.return_value = Path("front_door")
+            # Cache is not valid - will search for images
+            cache_path = MagicMock()
+            mock_cache_path.return_value = cache_path
+            mock_is_valid.return_value = False
 
-                    mock_file = MagicMock()
-                    mock_file.is_file.return_value = True
-                    mock_file.suffix = ".jpg"
-                    mock_file.stat.return_value.st_mtime = 1234567890
-                    mock_file.name = "snapshot.jpg"
+            # Mock Path operations
+            mock_camera_dir = MagicMock()
+            mock_camera_dir.exists.return_value = True
+            mock_camera_dir.is_dir.return_value = True
+            mock_camera_dir.resolve.return_value = mock_camera_dir
+            mock_camera_dir.relative_to.return_value = Path("front_door")
 
-                    mock_camera_dir.rglob.return_value = [mock_file]
+            mock_file = MagicMock()
+            mock_file.is_file.return_value = True
+            mock_file.suffix = ".jpg"
+            mock_file.stat.return_value.st_mtime = 1234567890
+            mock_file.name = "snapshot.jpg"
 
-                    mock_path.return_value.resolve.side_effect = [
-                        Path("/export/foscam"),
-                        mock_camera_dir,
-                    ]
+            mock_camera_dir.rglob.return_value = [mock_file]
 
-                    result = await get_camera_snapshot(
-                        camera_id="front_door",
-                        db=mock_db,
-                        _rate_limit=None,
-                    )
+            mock_path.return_value.resolve.side_effect = [
+                Path("/export/foscam"),
+                mock_camera_dir,
+            ]
 
-                    assert isinstance(result, FileResponse)
+            result = await get_camera_snapshot(
+                camera_id="front_door",
+                db=mock_db,
+                _rate_limit=None,
+            )
+
+            assert isinstance(result, FileResponse)
 
     @pytest.mark.asyncio
     async def test_get_snapshot_camera_not_found(self) -> None:
@@ -847,7 +857,7 @@ class TestGetCameraSnapshot:
 
     @pytest.mark.asyncio
     async def test_get_snapshot_no_images_found(self) -> None:
-        """Test snapshot endpoint returns 404 when no images found."""
+        """Test snapshot endpoint returns 404 when no images or videos found."""
         from fastapi import HTTPException
 
         from backend.api.routes.cameras import get_camera_snapshot
@@ -858,32 +868,42 @@ class TestGetCameraSnapshot:
         mock_camera.id = "front_door"
         mock_camera.folder_path = "/export/foscam/front_door"
 
-        with patch("backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera):
-            with patch("backend.api.routes.cameras.get_settings") as mock_settings:
-                mock_settings.return_value.foscam_base_path = "/export/foscam"
+        with (
+            patch("backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera),
+            patch("backend.api.routes.cameras.get_settings") as mock_settings,
+            patch("backend.api.routes.cameras._get_snapshot_cache_path") as mock_cache_path,
+            patch("backend.api.routes.cameras._is_cache_valid") as mock_is_valid,
+            patch("backend.api.routes.cameras.Path") as mock_path,
+        ):
+            mock_settings.return_value.foscam_base_path = "/export/foscam"
 
-                with patch("backend.api.routes.cameras.Path") as mock_path:
-                    mock_camera_dir = MagicMock()
-                    mock_camera_dir.exists.return_value = True
-                    mock_camera_dir.is_dir.return_value = True
-                    mock_camera_dir.resolve.return_value = mock_camera_dir
-                    mock_camera_dir.relative_to.return_value = Path("front_door")
-                    mock_camera_dir.rglob.return_value = []  # No images
+            # Cache is not valid
+            cache_path = MagicMock()
+            mock_cache_path.return_value = cache_path
+            mock_is_valid.return_value = False
 
-                    mock_path.return_value.resolve.side_effect = [
-                        Path("/export/foscam"),
-                        mock_camera_dir,
-                    ]
+            mock_camera_dir = MagicMock()
+            mock_camera_dir.exists.return_value = True
+            mock_camera_dir.is_dir.return_value = True
+            mock_camera_dir.resolve.return_value = mock_camera_dir
+            mock_camera_dir.relative_to.return_value = Path("front_door")
+            mock_camera_dir.rglob.return_value = []  # No images or videos
 
-                    with pytest.raises(HTTPException) as exc_info:
-                        await get_camera_snapshot(
-                            camera_id="front_door",
-                            db=mock_db,
-                            _rate_limit=None,
-                        )
+            mock_path.return_value.resolve.side_effect = [
+                Path("/export/foscam"),
+                mock_camera_dir,
+            ]
 
-                    assert exc_info.value.status_code == 404
-                    assert "No snapshot images found" in str(exc_info.value.detail)
+            with pytest.raises(HTTPException) as exc_info:
+                await get_camera_snapshot(
+                    camera_id="front_door",
+                    db=mock_db,
+                    _rate_limit=None,
+                )
+
+            # NEM-2446: Message now includes video files
+            assert exc_info.value.status_code == 404
+            assert "No snapshot images or video files found" in str(exc_info.value.detail)
 
     @pytest.mark.asyncio
     async def test_get_snapshot_path_traversal_protection(self) -> None:
@@ -1120,4 +1140,351 @@ class TestValidateCameraPaths:
                 result = await validate_camera_paths(db=mock_db)
 
         assert result.invalid_count == 1
-        assert "no image files found" in result.invalid_cameras[0].issues[0]
+        assert "no image or video files found" in result.invalid_cameras[0].issues[0]
+
+
+class TestGetCameraSnapshotVideoFallback:
+    """Tests for GET /api/cameras/{camera_id}/snapshot video fallback (NEM-2446)."""
+
+    @pytest.mark.asyncio
+    async def test_get_snapshot_returns_cached_snapshot(self) -> None:
+        """Test that a cached snapshot is returned if valid."""
+        from backend.api.routes.cameras import get_camera_snapshot
+
+        mock_db = AsyncMock()
+        mock_camera = MagicMock(spec=Camera)
+        mock_camera.id = "front_door"
+        mock_camera.folder_path = "/export/foscam/front_door"
+
+        with (
+            patch("backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera),
+            patch("backend.api.routes.cameras.get_settings") as mock_settings,
+            patch("backend.api.routes.cameras._get_snapshot_cache_path") as mock_cache_path,
+            patch("backend.api.routes.cameras._is_cache_valid") as mock_is_valid,
+            patch("backend.api.routes.cameras.Path") as mock_path,
+        ):
+            mock_settings.return_value.foscam_base_path = "/export/foscam"
+
+            # Setup cache path mock
+            cache_path = MagicMock()
+            cache_path.__str__ = lambda _: "/export/foscam/.snapshot_cache/front_door_snapshot.jpg"
+            mock_cache_path.return_value = cache_path
+            mock_is_valid.return_value = True
+
+            # Mock camera directory
+            mock_camera_dir = MagicMock()
+            mock_camera_dir.exists.return_value = True
+            mock_camera_dir.is_dir.return_value = True
+            mock_camera_dir.resolve.return_value = mock_camera_dir
+            mock_camera_dir.relative_to.return_value = Path("front_door")
+
+            mock_path.return_value.resolve.side_effect = [
+                Path("/export/foscam"),
+                mock_camera_dir,
+            ]
+
+            result = await get_camera_snapshot(
+                camera_id="front_door",
+                db=mock_db,
+                _rate_limit=None,
+            )
+
+            assert result.media_type == "image/jpeg"
+            mock_is_valid.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_get_snapshot_extracts_from_video_when_no_images(self) -> None:
+        """Test that snapshot is extracted from video when no images exist."""
+        from backend.api.routes.cameras import get_camera_snapshot
+
+        mock_db = AsyncMock()
+        mock_camera = MagicMock(spec=Camera)
+        mock_camera.id = "front_door"
+        mock_camera.folder_path = "/export/foscam/front_door"
+
+        with (
+            patch("backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera),
+            patch("backend.api.routes.cameras.get_settings") as mock_settings,
+            patch("backend.api.routes.cameras._get_snapshot_cache_path") as mock_cache_path,
+            patch("backend.api.routes.cameras._is_cache_valid") as mock_is_valid,
+            patch("backend.api.routes.cameras._extract_frame_from_video") as mock_extract,
+            patch("backend.api.routes.cameras.Path") as mock_path,
+        ):
+            mock_settings.return_value.foscam_base_path = "/export/foscam"
+
+            # Cache is not valid - should trigger extraction
+            cache_path = MagicMock()
+            cache_path.__str__ = lambda _: "/export/foscam/.snapshot_cache/front_door_snapshot.jpg"
+            cache_path.exists.return_value = True
+            mock_cache_path.return_value = cache_path
+            mock_is_valid.return_value = False
+
+            # Mock camera directory - no images, but has video
+            mock_camera_dir = MagicMock()
+            mock_camera_dir.exists.return_value = True
+            mock_camera_dir.is_dir.return_value = True
+            mock_camera_dir.resolve.return_value = mock_camera_dir
+            mock_camera_dir.relative_to.return_value = Path("front_door")
+
+            # No images
+            mock_video_file = MagicMock()
+            mock_video_file.is_file.return_value = True
+            mock_video_file.suffix = ".mkv"
+            mock_video_file.stat.return_value.st_mtime = 1234567890
+            mock_video_file.name = "recording.mkv"
+
+            def rglob_side_effect(pattern):
+                if (
+                    ".jpg" in pattern
+                    or ".jpeg" in pattern
+                    or ".png" in pattern
+                    or ".gif" in pattern
+                ):
+                    return []  # No images
+                elif ".mkv" in pattern:
+                    return [mock_video_file]  # Has video
+                return []
+
+            mock_camera_dir.rglob.side_effect = rglob_side_effect
+
+            mock_path.return_value.resolve.side_effect = [
+                Path("/export/foscam"),
+                mock_camera_dir,
+            ]
+
+            # Extraction succeeds
+            mock_extract.return_value = True
+
+            result = await get_camera_snapshot(
+                camera_id="front_door",
+                db=mock_db,
+                _rate_limit=None,
+            )
+
+            assert result.media_type == "image/jpeg"
+            mock_extract.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_get_snapshot_returns_404_when_no_images_or_videos(self) -> None:
+        """Test that 404 is returned when no images or videos exist."""
+        from fastapi import HTTPException
+
+        from backend.api.routes.cameras import get_camera_snapshot
+
+        mock_db = AsyncMock()
+        mock_camera = MagicMock(spec=Camera)
+        mock_camera.id = "front_door"
+        mock_camera.folder_path = "/export/foscam/front_door"
+
+        with (
+            patch("backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera),
+            patch("backend.api.routes.cameras.get_settings") as mock_settings,
+            patch("backend.api.routes.cameras._get_snapshot_cache_path") as mock_cache_path,
+            patch("backend.api.routes.cameras._is_cache_valid") as mock_is_valid,
+            patch("backend.api.routes.cameras.Path") as mock_path,
+        ):
+            mock_settings.return_value.foscam_base_path = "/export/foscam"
+
+            cache_path = MagicMock()
+            mock_cache_path.return_value = cache_path
+            mock_is_valid.return_value = False
+
+            # Mock camera directory - no images, no videos
+            mock_camera_dir = MagicMock()
+            mock_camera_dir.exists.return_value = True
+            mock_camera_dir.is_dir.return_value = True
+            mock_camera_dir.resolve.return_value = mock_camera_dir
+            mock_camera_dir.relative_to.return_value = Path("front_door")
+            mock_camera_dir.rglob.return_value = []  # Nothing found
+
+            mock_path.return_value.resolve.side_effect = [
+                Path("/export/foscam"),
+                mock_camera_dir,
+            ]
+
+            with pytest.raises(HTTPException) as exc_info:
+                await get_camera_snapshot(
+                    camera_id="front_door",
+                    db=mock_db,
+                    _rate_limit=None,
+                )
+
+            assert exc_info.value.status_code == 404
+            assert "No snapshot images or video files found" in str(exc_info.value.detail)
+
+    @pytest.mark.asyncio
+    async def test_get_snapshot_returns_404_when_video_extraction_fails(self) -> None:
+        """Test that 404 is returned when video exists but extraction fails."""
+        from fastapi import HTTPException
+
+        from backend.api.routes.cameras import get_camera_snapshot
+
+        mock_db = AsyncMock()
+        mock_camera = MagicMock(spec=Camera)
+        mock_camera.id = "front_door"
+        mock_camera.folder_path = "/export/foscam/front_door"
+
+        with (
+            patch("backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera),
+            patch("backend.api.routes.cameras.get_settings") as mock_settings,
+            patch("backend.api.routes.cameras._get_snapshot_cache_path") as mock_cache_path,
+            patch("backend.api.routes.cameras._is_cache_valid") as mock_is_valid,
+            patch("backend.api.routes.cameras._extract_frame_from_video") as mock_extract,
+            patch("backend.api.routes.cameras.Path") as mock_path,
+        ):
+            mock_settings.return_value.foscam_base_path = "/export/foscam"
+
+            cache_path = MagicMock()
+            cache_path.exists.return_value = False
+            mock_cache_path.return_value = cache_path
+            mock_is_valid.return_value = False
+
+            # Mock camera directory - no images, has video
+            mock_camera_dir = MagicMock()
+            mock_camera_dir.exists.return_value = True
+            mock_camera_dir.is_dir.return_value = True
+            mock_camera_dir.resolve.return_value = mock_camera_dir
+            mock_camera_dir.relative_to.return_value = Path("front_door")
+
+            mock_video_file = MagicMock()
+            mock_video_file.is_file.return_value = True
+            mock_video_file.suffix = ".mkv"
+            mock_video_file.stat.return_value.st_mtime = 1234567890
+
+            def rglob_side_effect(pattern):
+                if ".mkv" in pattern:
+                    return [mock_video_file]
+                return []
+
+            mock_camera_dir.rglob.side_effect = rglob_side_effect
+
+            mock_path.return_value.resolve.side_effect = [
+                Path("/export/foscam"),
+                mock_camera_dir,
+            ]
+
+            # Extraction fails
+            mock_extract.return_value = False
+
+            with pytest.raises(HTTPException) as exc_info:
+                await get_camera_snapshot(
+                    camera_id="front_door",
+                    db=mock_db,
+                    _rate_limit=None,
+                )
+
+            assert exc_info.value.status_code == 404
+            assert "frame extraction failed" in str(exc_info.value.detail)
+
+
+class TestCameraSnapshotHelpers:
+    """Tests for camera snapshot helper functions (NEM-2446)."""
+
+    def test_is_cache_valid_with_fresh_file(self, tmp_path: Path) -> None:
+        """Test that a recently created cache file is considered valid."""
+        from backend.api.routes.cameras import _is_cache_valid
+
+        # Create a temporary file
+        cache_file = tmp_path / "test_snapshot.jpg"
+        cache_file.write_text("test")
+
+        # Should be valid (just created)
+        assert _is_cache_valid(cache_file, ttl_seconds=3600) is True
+
+    def test_is_cache_valid_with_nonexistent_file(self, tmp_path: Path) -> None:
+        """Test that a nonexistent file is not valid."""
+        from backend.api.routes.cameras import _is_cache_valid
+
+        cache_file = tmp_path / "nonexistent.jpg"
+        assert _is_cache_valid(cache_file) is False
+
+    def test_is_cache_valid_with_expired_file(self, tmp_path: Path) -> None:
+        """Test that an old cache file is considered expired."""
+        import os
+
+        from backend.api.routes.cameras import _is_cache_valid
+
+        # Create a temporary file
+        cache_file = tmp_path / "test_snapshot.jpg"
+        cache_file.write_text("test")
+
+        # Set modification time to 2 hours ago
+        old_time = time.time() - 7200
+        os.utime(cache_file, (old_time, old_time))
+
+        # Should be invalid with 1 hour TTL
+        assert _is_cache_valid(cache_file, ttl_seconds=3600) is False
+
+    @pytest.mark.asyncio
+    async def test_extract_frame_from_video_success(self, tmp_path: Path) -> None:
+        """Test successful frame extraction from video."""
+        from backend.api.routes.cameras import _extract_frame_from_video
+
+        video_path = tmp_path / "test.mkv"
+        output_path = tmp_path / "output" / "snapshot.jpg"
+
+        with patch("backend.api.routes.cameras.asyncio.to_thread") as mock_thread:
+            # Mock successful ffmpeg execution
+            mock_result = MagicMock()
+            mock_result.returncode = 0
+            mock_thread.return_value = mock_result
+
+            # Create the output file to simulate ffmpeg creating it
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text("fake image data")
+
+            result = await _extract_frame_from_video(video_path, output_path)
+
+            assert result is True
+            mock_thread.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_extract_frame_from_video_ffmpeg_fails(self, tmp_path: Path) -> None:
+        """Test frame extraction when ffmpeg fails."""
+        from backend.api.routes.cameras import _extract_frame_from_video
+
+        video_path = tmp_path / "test.mkv"
+        output_path = tmp_path / "output" / "snapshot.jpg"
+
+        with patch("backend.api.routes.cameras.asyncio.to_thread") as mock_thread:
+            # Mock failed ffmpeg execution
+            mock_result = MagicMock()
+            mock_result.returncode = 1
+            mock_result.stderr = "ffmpeg error"
+            mock_thread.return_value = mock_result
+
+            result = await _extract_frame_from_video(video_path, output_path)
+
+            assert result is False
+
+    @pytest.mark.asyncio
+    async def test_extract_frame_from_video_timeout(self, tmp_path: Path) -> None:
+        """Test frame extraction when ffmpeg times out."""
+        import subprocess
+
+        from backend.api.routes.cameras import _extract_frame_from_video
+
+        video_path = tmp_path / "test.mkv"
+        output_path = tmp_path / "output" / "snapshot.jpg"
+
+        with patch("backend.api.routes.cameras.asyncio.to_thread") as mock_thread:
+            mock_thread.side_effect = subprocess.TimeoutExpired("ffmpeg", 30)
+
+            result = await _extract_frame_from_video(video_path, output_path)
+
+            assert result is False
+
+    @pytest.mark.asyncio
+    async def test_extract_frame_from_video_ffmpeg_not_found(self, tmp_path: Path) -> None:
+        """Test frame extraction when ffmpeg is not installed."""
+        from backend.api.routes.cameras import _extract_frame_from_video
+
+        video_path = tmp_path / "test.mkv"
+        output_path = tmp_path / "output" / "snapshot.jpg"
+
+        with patch("backend.api.routes.cameras.asyncio.to_thread") as mock_thread:
+            mock_thread.side_effect = FileNotFoundError("ffmpeg not found")
+
+            result = await _extract_frame_from_video(video_path, output_path)
+
+            assert result is False

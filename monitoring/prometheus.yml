@@ -118,15 +118,6 @@ scrape_configs:
       - target_label: __address__
         replacement: json-exporter:7979
 
-  # Direct backend liveness check (for up/down status)
-  # NOTE: /api/system/health/live was removed. Use /health instead.
-  - job_name: 'backend-liveness'
-    metrics_path: /health
-    scrape_interval: 10s
-    static_configs:
-      - targets:
-          - 'backend:8000'
-
   # Redis metrics via redis_exporter
   - job_name: 'redis'
     scrape_interval: 15s
@@ -201,6 +192,8 @@ scrape_configs:
         replacement: blackbox-exporter:9115
 
   # HTTP Liveness probes - simple availability checks
+  # This is the canonical backend liveness check (replaces removed backend-liveness job)
+  # The /health endpoint returns JSON, so we use blackbox-exporter for proper probing
   - job_name: 'blackbox-http-live'
     metrics_path: /probe
     params:
