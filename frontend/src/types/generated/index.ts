@@ -80,6 +80,10 @@ export type EventsByCamera = components['schemas']['EventsByCamera'];
 // Detection types
 export type Detection = components['schemas']['DetectionResponse'];
 export type DetectionListResponse = components['schemas']['DetectionListResponse'];
+export type DetectionSearchResult = components['schemas']['DetectionSearchResult'];
+export type DetectionSearchResponse = components['schemas']['DetectionSearchResponse'];
+export type DetectionLabelCount = components['schemas']['DetectionLabelCount'];
+export type DetectionLabelsResponse = components['schemas']['DetectionLabelsResponse'];
 
 // Enrichment types
 export type EnrichmentResponse = components['schemas']['EnrichmentResponse'];
