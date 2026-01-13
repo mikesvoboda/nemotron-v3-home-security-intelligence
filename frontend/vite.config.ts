@@ -28,12 +28,15 @@ export default defineConfig(({ mode }) => {
 
   // Enable bundle analysis when running with --mode analyze
   const isAnalyze = mode === 'analyze';
+  // Disable PWA in test mode to prevent service worker interference with test cleanup
+  const isTest = mode === 'test';
 
   // Build plugins array
-  const plugins: PluginOption[] = [
-    react(),
-    // PWA plugin for service worker and offline support
-    VitePWA({
+  const plugins: PluginOption[] = [react()];
+
+  // PWA plugin for service worker and offline support (disabled in test mode)
+  if (!isTest) {
+    plugins.push(VitePWA({
       registerType: 'autoUpdate',
       includeAssets: [
         'favicon.svg',
@@ -114,8 +117,8 @@ export default defineConfig(({ mode }) => {
         enabled: true,
         type: 'module',
       },
-    }) as PluginOption,
-  ];
+    }) as PluginOption);
+  }
 
   // Add visualizer plugin for bundle analysis
   if (isAnalyze) {

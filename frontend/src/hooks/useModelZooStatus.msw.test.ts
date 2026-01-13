@@ -135,9 +135,11 @@ describe('useModelZooStatus (MSW)', () => {
     });
 
     it('shows loading state while fetching', () => {
+      // Use 60s delay instead of 'infinite' to prevent cleanup hangs
+      // The test completes before the delay resolves, but cleanup can finish
       server.use(
         http.get('/api/system/models', async () => {
-          await delay('infinite');
+          await delay(60000);
           return HttpResponse.json(mockModelRegistry);
         })
       );
