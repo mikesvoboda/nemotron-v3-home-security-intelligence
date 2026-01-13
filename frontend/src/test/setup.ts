@@ -100,6 +100,12 @@ afterEach(() => {
 
   // Reset factory counter to ensure unique IDs across tests
   resetCounter();
+
+  // Force garbage collection if available (requires --expose-gc flag)
+  // This helps prevent memory accumulation between tests
+  if (typeof (globalThis as any).gc === 'function') {
+    (globalThis as any).gc();
+  }
 });
 
 /**
@@ -118,4 +124,9 @@ afterAll(() => {
 
   // Clear any remaining global stubs
   vi.unstubAllGlobals();
+
+  // Force garbage collection after all tests complete
+  if (typeof (globalThis as any).gc === 'function') {
+    (globalThis as any).gc();
+  }
 });

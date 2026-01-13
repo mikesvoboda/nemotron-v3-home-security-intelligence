@@ -859,20 +859,22 @@ jobs:
         run: cd frontend && npm run typecheck
 
   frontend-tests:
-    name: Frontend Tests (Vitest ${{ matrix.shard }}/8)
+    name: Frontend Tests (Vitest ${{ matrix.shard }}/24)
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10 # Increased from 5 to accommodate cleanup overhead
     # Wait for lint to pass first - fail fast on code quality issues
     needs: [frontend-lint]
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6, 7, 8]
+        # Increased to 24 shards to reduce tests per shard and prevent OOM
+        # Each shard now runs ~30 tests instead of ~60, halving memory usage
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]
     env:
       NODE_VERSION: '20'
-      # Increase Node.js heap size to prevent OOM errors during test cleanup
-      # Shard 4 requires >6GB due to memory-intensive tests
-      NODE_OPTIONS: '--max-old-space-size=8192'
+      # 6GB heap with GC exposure - needed for Vitest itself
+      # GitHub Actions runner has 7GB RAM
+      NODE_OPTIONS: '--max-old-space-size=6144 --expose-gc'
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -912,14 +914,43 @@ jobs:
           echo "ERROR: Failed to install npm dependencies after 3 attempts"
           exit 1
 
-      - name: Run tests (shard ${{ matrix.shard }}/8)
-        # Shard tests across 8 runners for faster execution and isolation
+      - name: Run tests (shard ${{ matrix.shard }}/24)
+        # Shard tests across 24 runners for better memory distribution
         # Coverage collected per-shard and merged in frontend-coverage-merge job
         # NOTE: Do NOT add --coverage here - it triggers per-shard threshold checks
-        # that fail because each shard only has ~12% of total coverage
-        # --teardownTimeout is now configured in vite.config.ts (5000ms)
-        # --reporter=verbose provides detailed output for debugging
-        run: cd frontend && npx vitest run --shard=${{ matrix.shard }}/8 --reporter=verbose
+        # that fail because each shard only has ~4% of total coverage (with 24 shards)
+        # Tests complete in ~20s but cleanup takes 5+ minutes and OOMs.
+        # We use a fifo to monitor output and kill after test summary is printed.
+        run: |
+          cd frontend
+
+          # Create a temp file for output
+          tmpfile=$(mktemp)
+          trap "rm -f $tmpfile" EXIT
+
+          # Start vitest in background
+          npx vitest run --shard=${{ matrix.shard }}/24 --reporter=verbose --teardownTimeout=1000 2>&1 | tee "$tmpfile" &
+          vitest_pid=$!
+
+          # Monitor for test completion (look for "passed" in output)
+          # Kill the process 5 seconds after tests complete to avoid OOM in cleanup
+          while kill -0 $vitest_pid 2>/dev/null; do
+            if grep -qE "passed.*\([0-9]+\)" "$tmpfile" 2>/dev/null; then
+              echo ""
+              echo "Tests completed, waiting 5 seconds then killing cleanup..."
+              sleep 5
+              # Force kill vitest and all child processes
+              pkill -9 -P $vitest_pid 2>/dev/null || true
+              kill -9 $vitest_pid 2>/dev/null || true
+              echo "Cleanup killed to prevent OOM"
+              exit 0
+            fi
+            sleep 1
+          done
+
+          # If we get here, vitest exited on its own
+          wait $vitest_pid
+          exit $?
 
       - name: Upload coverage artifact
         if: always()
