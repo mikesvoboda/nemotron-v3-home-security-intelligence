@@ -155,12 +155,16 @@ import type {
   CircuitBreakerResetResponse as GeneratedCircuitBreakerResetResponse,
   CircuitBreakersResponse as GeneratedCircuitBreakersResponse,
   CleanupResponse,
+  Detection as GeneratedDetection,
   DetectionListResponse as GeneratedDetectionListResponse,
+  DetectionSearchResponse as GeneratedDetectionSearchResponse,
+  DetectionLabelsResponse as GeneratedDetectionLabelsResponse,
   DLQClearResponse as GeneratedDLQClearResponse,
   DLQJobsResponse as GeneratedDLQJobsResponse,
   DLQRequeueResponse as GeneratedDLQRequeueResponse,
   DLQStatsResponse as GeneratedDLQStatsResponse,
   Event,
+  EventEnrichmentsResponse as GeneratedEventEnrichmentsResponse,
   EventListResponse as GeneratedEventListResponse,
   EventStatsResponse as GeneratedEventStatsResponse,
   GPUStats,
@@ -223,6 +227,18 @@ export type { EventFeedbackCreate, EventFeedbackResponse, FeedbackType, Feedback
 // Re-export calibration types for consumers of this module
 export type { CalibrationResponse, CalibrationUpdate, CalibrationDefaultsResponse, CalibrationResetResponse };
 
+// Re-export enrichment types for consumers of this module
+// Note: EnrichmentResponse is already defined in this file (see fetchDetectionEnrichment)
+export type { EventEnrichmentsResponse } from '../types/generated';
+
+// Re-export detection search and labels types for consumers of this module
+export type {
+  DetectionSearchResult,
+  DetectionSearchResponse,
+  DetectionLabelCount,
+  DetectionLabelsResponse,
+} from '../types/generated';
+
 // ============================================================================
 // Additional types not in OpenAPI (client-side only)
 // ============================================================================
@@ -260,6 +276,48 @@ export interface DetectionQueryParams {
    * Recommended over offset pagination for better performance.
    */
   cursor?: string;
+}
+
+/**
+ * Query parameters for event enrichments endpoint.
+ */
+export interface EventEnrichmentsQueryParams {
+  /** Maximum number of enrichments to return (1-200, default 50) */
+  limit?: number;
+  /** Number of enrichments to skip (default 0) */
+  offset?: number;
+}
+
+/**
+ * Analysis stream event types for SSE streaming analysis (NEM-1665).
+ */
+export type AnalysisStreamEventType = 'progress' | 'complete' | 'error';
+
+/**
+ * Analysis stream event data structure for SSE streaming analysis.
+ * Sent via Server-Sent Events during LLM inference.
+ */
+export interface AnalysisStreamEvent {
+  /** Event type indicating the stage of analysis */
+  event_type: AnalysisStreamEventType;
+  /** Batch ID being analyzed */
+  batch_id: string;
+  /** Accumulated LLM response text (for progress events) */
+  accumulated_text?: string;
+  /** Final risk score (for complete events) */
+  risk_score?: number;
+  /** Risk level derived from score (for complete events) */
+  risk_level?: string;
+  /** Event ID created from analysis (for complete events) */
+  event_id?: number;
+  /** Summary text (for complete events) */
+  summary?: string;
+  /** Error code (for error events) */
+  error_code?: string;
+  /** Error message (for error events) */
+  error_message?: string;
+  /** Whether the error is recoverable (for error events) */
+  recoverable?: boolean;
 }
 
 // ============================================================================
@@ -1690,6 +1748,51 @@ export async function fetchEventDetections(
 }
 
 /**
+ * Fetch enrichment data for all detections in an event with pagination.
+ *
+ * Returns structured vision model results from the enrichment pipeline for
+ * each detection in the event, including:
+ * - License plate detection and OCR
+ * - Face detection
+ * - Vehicle classification
+ * - Clothing analysis
+ * - Violence detection
+ * - Image quality assessment
+ * - Pet classification
+ *
+ * @param eventId - Event ID
+ * @param params - Optional pagination parameters (limit, offset)
+ * @returns EventEnrichmentsResponse with enrichment data per detection
+ *
+ * @example
+ * ```typescript
+ * // Fetch first page of enrichments
+ * const enrichments = await fetchEventEnrichments(123);
+ *
+ * // Fetch with pagination
+ * const page2 = await fetchEventEnrichments(123, { limit: 10, offset: 10 });
+ * ```
+ */
+export async function fetchEventEnrichments(
+  eventId: number,
+  params?: EventEnrichmentsQueryParams
+): Promise<GeneratedEventEnrichmentsResponse> {
+  const queryParams = new URLSearchParams();
+
+  if (params) {
+    if (params.limit !== undefined) queryParams.append('limit', String(params.limit));
+    if (params.offset !== undefined) queryParams.append('offset', String(params.offset));
+  }
+
+  const queryString = queryParams.toString();
+  const endpoint = queryString
+    ? `/api/events/${eventId}/enrichments?${queryString}`
+    : `/api/events/${eventId}/enrichments`;
+
+  return fetchApi<GeneratedEventEnrichmentsResponse>(endpoint);
+}
+
+/**
  * Detection statistics response from /api/detections/stats
  */
 export interface DetectionStatsResponse {
@@ -1727,6 +1830,213 @@ export async function fetchDetectionStats(
   const endpoint = queryString ? `/api/detections/stats?${queryString}` : '/api/detections/stats';
 
   return fetchApi<DetectionStatsResponse>(endpoint);
+}
+
+// ============================================================================
+// Detection List, Search, Labels, and Detail Endpoints (NEM-2487)
+// ============================================================================
+
+/**
+ * Parameters for listing detections with filtering.
+ */
+export interface DetectionsListParams {
+  /** Filter by camera ID */
+  camera_id?: string;
+  /** Filter by object type (e.g., person, car, truck) */
+  object_type?: string;
+  /** Filter detections after this date (ISO format) */
+  start_date?: string;
+  /** Filter detections before this date (ISO format) */
+  end_date?: string;
+  /** Minimum confidence score (0-1) */
+  min_confidence?: number;
+  /** Maximum number of results per page */
+  limit?: number;
+  /** Number of results to skip (deprecated, use cursor) */
+  offset?: number;
+  /** Cursor for pagination */
+  cursor?: string;
+}
+
+/**
+ * Fetch detections with optional filtering.
+ *
+ * @param params - Query parameters for filtering and pagination
+ * @returns DetectionListResponse with paginated detection results
+ */
+export async function fetchDetections(
+  params?: DetectionsListParams
+): Promise<GeneratedDetectionListResponse> {
+  const queryParams = new URLSearchParams();
+
+  if (params) {
+    if (params.camera_id) queryParams.append('camera_id', params.camera_id);
+    if (params.object_type) queryParams.append('object_type', params.object_type);
+    if (params.start_date) queryParams.append('start_date', params.start_date);
+    if (params.end_date) queryParams.append('end_date', params.end_date);
+    if (params.min_confidence !== undefined) {
+      queryParams.append('min_confidence', String(params.min_confidence));
+    }
+    if (params.limit !== undefined) queryParams.append('limit', String(params.limit));
+    if (params.cursor) {
+      queryParams.append('cursor', params.cursor);
+    } else if (params.offset !== undefined) {
+      queryParams.append('offset', String(params.offset));
+    }
+  }
+
+  const queryString = queryParams.toString();
+  const endpoint = queryString ? `/api/detections?${queryString}` : '/api/detections';
+
+  return fetchApi<GeneratedDetectionListResponse>(endpoint);
+}
+
+/**
+ * Parameters for searching detections.
+ */
+export interface DetectionSearchParams {
+  /** Search query string */
+  query: string;
+  /** Filter by labels */
+  labels?: string[];
+  /** Minimum confidence score (0-1) */
+  min_confidence?: number;
+  /** Filter by camera ID */
+  camera_id?: string;
+  /** Filter detections after this date (ISO format) */
+  start_date?: string;
+  /** Filter detections before this date (ISO format) */
+  end_date?: string;
+  /** Maximum number of results per page */
+  limit?: number;
+  /** Number of results to skip */
+  offset?: number;
+}
+
+/**
+ * Search detections with full-text search and filtering.
+ *
+ * @param params - Search parameters including query and filters
+ * @returns DetectionSearchResponse with search results
+ */
+export async function searchDetections(
+  params: DetectionSearchParams
+): Promise<GeneratedDetectionSearchResponse> {
+  const queryParams = new URLSearchParams();
+
+  queryParams.append('q', params.query);
+
+  if (params.labels && params.labels.length > 0) {
+    for (const label of params.labels) {
+      queryParams.append('labels', label);
+    }
+  }
+  if (params.min_confidence !== undefined) {
+    queryParams.append('min_confidence', String(params.min_confidence));
+  }
+  if (params.camera_id) queryParams.append('camera_id', params.camera_id);
+  if (params.start_date) queryParams.append('start_date', params.start_date);
+  if (params.end_date) queryParams.append('end_date', params.end_date);
+  if (params.limit !== undefined) queryParams.append('limit', String(params.limit));
+  if (params.offset !== undefined) queryParams.append('offset', String(params.offset));
+
+  return fetchApi<GeneratedDetectionSearchResponse>(
+    `/api/detections/search?${queryParams.toString()}`
+  );
+}
+
+/**
+ * Fetch available detection labels with counts.
+ *
+ * @returns DetectionLabelsResponse with labels and their counts
+ */
+export async function fetchDetectionLabels(): Promise<GeneratedDetectionLabelsResponse> {
+  return fetchApi<GeneratedDetectionLabelsResponse>('/api/detections/labels');
+}
+
+/**
+ * Fetch a single detection by ID.
+ *
+ * @param detectionId - The detection ID
+ * @returns Detection object
+ */
+export async function fetchDetection(detectionId: number): Promise<GeneratedDetection> {
+  return fetchApi<GeneratedDetection>(`/api/detections/${detectionId}`);
+}
+
+// ============================================================================
+// Analysis Streaming (SSE) Endpoints
+// ============================================================================
+
+/**
+ * Parameters for the streaming analysis endpoint.
+ */
+export interface AnalysisStreamParams {
+  /** Batch ID to analyze */
+  batchId: string;
+  /** Camera ID for the batch (optional - uses Redis lookup if not provided) */
+  cameraId?: string;
+  /** Comma-separated detection IDs (optional) */
+  detectionIds?: number[];
+}
+
+/**
+ * Creates an EventSource connection for streaming LLM analysis progress (NEM-1665).
+ *
+ * This endpoint provides progressive LLM response updates during long inference
+ * times, allowing the frontend to display partial results and show typing
+ * indicators while the analysis is in progress.
+ *
+ * Event Types:
+ * - progress: Partial LLM response chunk with accumulated_text
+ * - complete: Final event with risk assessment and event_id
+ * - error: Error information with error_code and recoverable flag
+ *
+ * @param params - Analysis stream parameters
+ * @returns EventSource object for SSE connection. Caller is responsible for
+ *          closing the connection when done.
+ *
+ * @example
+ * ```typescript
+ * const eventSource = createAnalysisStream({ batchId: 'batch-123', cameraId: 'cam-1' });
+ *
+ * eventSource.onmessage = (event) => {
+ *   const data = JSON.parse(event.data) as AnalysisStreamEvent;
+ *   if (data.event_type === 'progress') {
+ *     console.log('Progress:', data.accumulated_text);
+ *   } else if (data.event_type === 'complete') {
+ *     console.log('Complete:', data.risk_score, data.summary);
+ *   } else if (data.event_type === 'error') {
+ *     console.error('Error:', data.error_message);
+ *   }
+ * };
+ *
+ * eventSource.onerror = (error) => {
+ *   console.error('SSE Error:', error);
+ *   eventSource.close();
+ * };
+ *
+ * // Clean up when done
+ * eventSource.close();
+ * ```
+ */
+export function createAnalysisStream(params: AnalysisStreamParams): EventSource {
+  const queryParams = new URLSearchParams();
+
+  if (params.cameraId) {
+    queryParams.append('camera_id', params.cameraId);
+  }
+
+  if (params.detectionIds && params.detectionIds.length > 0) {
+    queryParams.append('detection_ids', params.detectionIds.join(','));
+  }
+
+  const queryString = queryParams.toString();
+  const endpoint = queryString
+    ? `${BASE_URL}/api/events/analyze/${encodeURIComponent(params.batchId)}/stream?${queryString}`
+    : `${BASE_URL}/api/events/analyze/${encodeURIComponent(params.batchId)}/stream`;
+
+  return new EventSource(endpoint);
 }
 
 // ============================================================================

@@ -4296,6 +4296,18 @@ class TestEnrichmentPipelineEnrichBatchMainLogic:
                 model_manager=mock_model_manager,
                 license_plate_enabled=True,
                 ocr_enabled=False,  # Disable OCR to isolate plate detection
+                face_detection_enabled=False,
+                vision_extraction_enabled=False,
+                reid_enabled=False,
+                scene_change_enabled=False,
+                violence_detection_enabled=False,
+                weather_classification_enabled=False,
+                clothing_classification_enabled=False,
+                clothing_segmentation_enabled=False,
+                vehicle_damage_detection_enabled=False,
+                vehicle_classification_enabled=False,
+                image_quality_enabled=False,
+                pet_classification_enabled=False,
             )
 
             # Mock the YOLO detection to return empty results
@@ -4327,6 +4339,18 @@ class TestEnrichmentPipelineEnrichBatchMainLogic:
             pipeline = EnrichmentPipeline(
                 model_manager=mock_model_manager,
                 face_detection_enabled=True,
+                license_plate_enabled=False,
+                vision_extraction_enabled=False,
+                reid_enabled=False,
+                scene_change_enabled=False,
+                violence_detection_enabled=False,
+                weather_classification_enabled=False,
+                clothing_classification_enabled=False,
+                clothing_segmentation_enabled=False,
+                vehicle_damage_detection_enabled=False,
+                vehicle_classification_enabled=False,
+                image_quality_enabled=False,
+                pet_classification_enabled=False,
             )
 
             with patch.object(pipeline, "_detect_faces", new_callable=AsyncMock) as mock_detect:
@@ -4354,6 +4378,18 @@ class TestEnrichmentPipelineEnrichBatchMainLogic:
             pipeline = EnrichmentPipeline(
                 model_manager=mock_model_manager,
                 license_plate_enabled=True,
+                face_detection_enabled=False,
+                vision_extraction_enabled=False,
+                reid_enabled=False,
+                scene_change_enabled=False,
+                violence_detection_enabled=False,
+                weather_classification_enabled=False,
+                clothing_classification_enabled=False,
+                clothing_segmentation_enabled=False,
+                vehicle_damage_detection_enabled=False,
+                vehicle_classification_enabled=False,
+                image_quality_enabled=False,
+                pet_classification_enabled=False,
             )
 
             with patch.object(
@@ -4385,6 +4421,18 @@ class TestEnrichmentPipelineEnrichBatchMainLogic:
             pipeline = EnrichmentPipeline(
                 model_manager=mock_model_manager,
                 face_detection_enabled=True,
+                license_plate_enabled=False,
+                vision_extraction_enabled=False,
+                reid_enabled=False,
+                scene_change_enabled=False,
+                violence_detection_enabled=False,
+                weather_classification_enabled=False,
+                clothing_classification_enabled=False,
+                clothing_segmentation_enabled=False,
+                vehicle_damage_detection_enabled=False,
+                vehicle_classification_enabled=False,
+                image_quality_enabled=False,
+                pet_classification_enabled=False,
             )
 
             with patch.object(pipeline, "_detect_faces", new_callable=AsyncMock) as mock_detect:
@@ -4407,6 +4455,16 @@ class TestEnrichmentPipelineEnrichBatchMainLogic:
             license_plate_enabled=False,
             face_detection_enabled=False,
             vision_extraction_enabled=False,
+            reid_enabled=False,
+            scene_change_enabled=False,
+            violence_detection_enabled=False,
+            weather_classification_enabled=False,
+            clothing_classification_enabled=False,
+            clothing_segmentation_enabled=False,
+            vehicle_damage_detection_enabled=False,
+            vehicle_classification_enabled=False,
+            image_quality_enabled=False,
+            pet_classification_enabled=False,
         )
 
         result = await pipeline.enrich_batch(
@@ -4563,6 +4621,18 @@ class TestEnrichmentPipelineEnrichBatchWithTracking:
             pipeline = EnrichmentPipeline(
                 model_manager=mock_model_manager,
                 license_plate_enabled=True,
+                face_detection_enabled=False,
+                vision_extraction_enabled=False,
+                reid_enabled=False,
+                scene_change_enabled=False,
+                violence_detection_enabled=False,
+                weather_classification_enabled=False,
+                clothing_classification_enabled=False,
+                clothing_segmentation_enabled=False,
+                vehicle_damage_detection_enabled=False,
+                vehicle_classification_enabled=False,
+                image_quality_enabled=False,
+                pet_classification_enabled=False,
             )
 
             with patch.object(
