@@ -248,7 +248,7 @@ services:
       - FLORENCE_URL=http://ai-florence:8092
       - CLIP_URL=http://ai-clip:8093
       - ENRICHMENT_URL=http://ai-enrichment:8094
-      - FRONTEND_URL=http://frontend:8080
+      - FRONTEND_URL=http://frontend:5173
       - FOSCAM_BASE_PATH=${FOSCAM_BASE_PATH:-/cameras}
       - DEBUG=${DEBUG:-false}
       - FAST_PATH_CONFIDENCE_THRESHOLD=${FAST_PATH_CONFIDENCE_THRESHOLD:-0.90}
@@ -352,8 +352,8 @@ services:
       dockerfile: Dockerfile
       target: prod
     ports:
-      # Map external port to internal 8080 (nginx-unprivileged runs on 8080)
-      - '${FRONTEND_PORT:-5173}:8080'
+      # Map external port to internal 5173 (nginx-unprivileged runs on 5173)
+      - '${FRONTEND_PORT:-5173}:5173'
     # NOTE: VITE_* environment variables are NOT used at runtime.
     # Vite bakes these values at build time. The frontend uses relative URLs
     # (empty BASE_URL), and nginx proxies /api and /ws to the backend.
@@ -362,8 +362,8 @@ services:
       backend:
         condition: service_healthy
     healthcheck:
-      # nginx-unprivileged listens on port 8080
-      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:8080']
+      # nginx-unprivileged listens on port 5173
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:5173']
       interval: 30s
       timeout: 10s
       retries: 3

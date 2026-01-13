@@ -260,7 +260,7 @@ services:
       - FLORENCE_URL=http://ai-florence:8092
       - CLIP_URL=http://ai-clip:8093
       - ENRICHMENT_URL=http://ai-enrichment:8094
-      - FRONTEND_URL=http://frontend:8080
+      - FRONTEND_URL=http://frontend:5173
       - FOSCAM_BASE_PATH=${FOSCAM_BASE_PATH:-/cameras}
       - DEBUG=${DEBUG:-false}
       - ENVIRONMENT=staging
@@ -299,12 +299,12 @@ services:
   frontend:
     image: ${REGISTRY:-ghcr.io}/${IMAGE_PREFIX:-mikesvoboda/nemotron-v3-home-security-intelligence}/frontend:${IMAGE_TAG:-latest}
     ports:
-      - '${FRONTEND_PORT:-5173}:8080'
+      - '${FRONTEND_PORT:-5173}:5173'
     depends_on:
       backend:
         condition: service_healthy
     healthcheck:
-      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:8080']
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:5173']
       interval: 30s
       timeout: 10s
       retries: 3
