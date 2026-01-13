@@ -4,15 +4,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import VideoPlayer from './VideoPlayer';
 
-// MediaError codes are not available in jsdom, so we define them for testing
-// These values match the standard MediaError code constants
-const MEDIA_ERROR_CODES = {
-  MEDIA_ERR_ABORTED: 1,
-  MEDIA_ERR_NETWORK: 2,
-  MEDIA_ERR_DECODE: 3,
-  MEDIA_ERR_SRC_NOT_SUPPORTED: 4,
-} as const;
-
 describe('VideoPlayer', () => {
   const mockSrc = 'https://example.com/video.mp4';
   const mockPoster = 'https://example.com/poster.jpg';
