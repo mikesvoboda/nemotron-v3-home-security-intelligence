@@ -1183,7 +1183,7 @@ class TestParametrized:
         self, client: TestClient, days: int, expected_status: int
     ) -> None:
         """Test various days parameter values for stats endpoint."""
-        if expected_status == 200:
+        if expected_status == 202:
             mock_stats = {
                 "total_events": 0,
                 "audited_events": 0,
