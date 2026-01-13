@@ -11,10 +11,17 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi import HTTPException
+from starlette.responses import Response
 
 from backend.api.routes import logs as logs_routes
 from backend.api.schemas.logs import FrontendLogCreate, LogEntry, LogsResponse, LogStats
 from backend.models.log import Log
+
+
+@pytest.fixture
+def mock_response() -> MagicMock:
+    """Create a mock Response object for deprecation header tests."""
+    return MagicMock(spec=Response)
 
 
 def _create_mock_log(
@@ -57,7 +64,7 @@ def _create_mock_log(
 
 
 @pytest.mark.asyncio
-async def test_list_logs_empty_database() -> None:
+async def test_list_logs_empty_database(mock_response: MagicMock) -> None:
     """Test listing logs when database is empty."""
     db = AsyncMock()
 
@@ -73,6 +80,7 @@ async def test_list_logs_empty_database() -> None:
     db.execute = AsyncMock(side_effect=[count_result, logs_result])
 
     result = await logs_routes.list_logs(
+        response=mock_response,
         level=None,
         component=None,
         camera_id=None,
@@ -93,7 +101,7 @@ async def test_list_logs_empty_database() -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_logs_with_results() -> None:
+async def test_list_logs_with_results(mock_response: MagicMock) -> None:
     """Test listing logs returns logs from database."""
     db = AsyncMock()
 
@@ -112,6 +120,7 @@ async def test_list_logs_with_results() -> None:
     db.execute = AsyncMock(side_effect=[count_result, logs_result])
 
     result = await logs_routes.list_logs(
+        response=mock_response,
         level=None,
         component=None,
         camera_id=None,
@@ -130,7 +139,7 @@ async def test_list_logs_with_results() -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_logs_filter_by_level() -> None:
+async def test_list_logs_filter_by_level(mock_response: MagicMock) -> None:
     """Test listing logs filtered by level."""
     db = AsyncMock()
 
@@ -145,6 +154,7 @@ async def test_list_logs_filter_by_level() -> None:
     db.execute = AsyncMock(side_effect=[count_result, logs_result])
 
     result = await logs_routes.list_logs(
+        response=mock_response,
         level="error",  # Should be converted to uppercase
         component=None,
         camera_id=None,
@@ -163,7 +173,7 @@ async def test_list_logs_filter_by_level() -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_logs_filter_by_component() -> None:
+async def test_list_logs_filter_by_component(mock_response: MagicMock) -> None:
     """Test listing logs filtered by component."""
     db = AsyncMock()
 
@@ -178,6 +188,7 @@ async def test_list_logs_filter_by_component() -> None:
     db.execute = AsyncMock(side_effect=[count_result, logs_result])
 
     result = await logs_routes.list_logs(
+        response=mock_response,
         level=None,
         component="file_watcher",
         camera_id=None,
@@ -195,7 +206,7 @@ async def test_list_logs_filter_by_component() -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_logs_filter_by_camera_id() -> None:
+async def test_list_logs_filter_by_camera_id(mock_response: MagicMock) -> None:
     """Test listing logs filtered by camera_id."""
     db = AsyncMock()
 
@@ -210,6 +221,7 @@ async def test_list_logs_filter_by_camera_id() -> None:
     db.execute = AsyncMock(side_effect=[count_result, logs_result])
 
     result = await logs_routes.list_logs(
+        response=mock_response,
         level=None,
         component=None,
         camera_id="front_door",
@@ -227,7 +239,7 @@ async def test_list_logs_filter_by_camera_id() -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_logs_filter_by_source() -> None:
+async def test_list_logs_filter_by_source(mock_response: MagicMock) -> None:
     """Test listing logs filtered by source."""
     db = AsyncMock()
 
@@ -242,6 +254,7 @@ async def test_list_logs_filter_by_source() -> None:
     db.execute = AsyncMock(side_effect=[count_result, logs_result])
 
     result = await logs_routes.list_logs(
+        response=mock_response,
         level=None,
         component=None,
         camera_id=None,
@@ -259,7 +272,7 @@ async def test_list_logs_filter_by_source() -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_logs_filter_by_search() -> None:
+async def test_list_logs_filter_by_search(mock_response: MagicMock) -> None:
     """Test listing logs filtered by search text."""
     db = AsyncMock()
 
@@ -274,6 +287,7 @@ async def test_list_logs_filter_by_search() -> None:
     db.execute = AsyncMock(side_effect=[count_result, logs_result])
 
     result = await logs_routes.list_logs(
+        response=mock_response,
         level=None,
         component=None,
         camera_id=None,
@@ -291,7 +305,7 @@ async def test_list_logs_filter_by_search() -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_logs_filter_by_start_date() -> None:
+async def test_list_logs_filter_by_start_date(mock_response: MagicMock) -> None:
     """Test listing logs filtered by start_date."""
     db = AsyncMock()
 
@@ -308,6 +322,7 @@ async def test_list_logs_filter_by_start_date() -> None:
     start_date = datetime.now(UTC) - timedelta(hours=1)
 
     result = await logs_routes.list_logs(
+        response=mock_response,
         level=None,
         component=None,
         camera_id=None,
@@ -325,7 +340,7 @@ async def test_list_logs_filter_by_start_date() -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_logs_filter_by_end_date() -> None:
+async def test_list_logs_filter_by_end_date(mock_response: MagicMock) -> None:
     """Test listing logs filtered by end_date."""
     db = AsyncMock()
 
@@ -342,6 +357,7 @@ async def test_list_logs_filter_by_end_date() -> None:
     end_date = datetime.now(UTC) - timedelta(hours=1)
 
     result = await logs_routes.list_logs(
+        response=mock_response,
         level=None,
         component=None,
         camera_id=None,
@@ -359,7 +375,7 @@ async def test_list_logs_filter_by_end_date() -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_logs_filter_by_date_range() -> None:
+async def test_list_logs_filter_by_date_range(mock_response: MagicMock) -> None:
     """Test listing logs filtered by both start and end date."""
     db = AsyncMock()
 
@@ -377,6 +393,7 @@ async def test_list_logs_filter_by_date_range() -> None:
     end_date = datetime.now(UTC) - timedelta(hours=1)
 
     result = await logs_routes.list_logs(
+        response=mock_response,
         level=None,
         component=None,
         camera_id=None,
@@ -394,7 +411,7 @@ async def test_list_logs_filter_by_date_range() -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_logs_with_all_filters() -> None:
+async def test_list_logs_with_all_filters(mock_response: MagicMock) -> None:
     """Test listing logs with all filters applied."""
     db = AsyncMock()
 
@@ -416,6 +433,7 @@ async def test_list_logs_with_all_filters() -> None:
     db.execute = AsyncMock(side_effect=[count_result, logs_result])
 
     result = await logs_routes.list_logs(
+        response=mock_response,
         level="ERROR",
         component="file_watcher",
         camera_id="front_door",
@@ -435,7 +453,7 @@ async def test_list_logs_with_all_filters() -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_logs_pagination() -> None:
+async def test_list_logs_pagination(mock_response: MagicMock) -> None:
     """Test listing logs with pagination parameters."""
     db = AsyncMock()
 
@@ -451,6 +469,7 @@ async def test_list_logs_pagination() -> None:
     db.execute = AsyncMock(side_effect=[count_result, logs_result])
 
     result = await logs_routes.list_logs(
+        response=mock_response,
         level=None,
         component=None,
         camera_id=None,
@@ -471,7 +490,7 @@ async def test_list_logs_pagination() -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_logs_null_count() -> None:
+async def test_list_logs_null_count(mock_response: MagicMock) -> None:
     """Test listing logs when count returns None."""
     db = AsyncMock()
 
@@ -484,6 +503,7 @@ async def test_list_logs_null_count() -> None:
     db.execute = AsyncMock(side_effect=[count_result, logs_result])
 
     result = await logs_routes.list_logs(
+        response=mock_response,
         level=None,
         component=None,
         camera_id=None,

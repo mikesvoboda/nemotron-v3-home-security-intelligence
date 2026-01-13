@@ -10,6 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 import pytest
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.responses import Response
 
 from backend.api.routes.events import (
     get_detection_ids_from_event,
@@ -18,6 +19,12 @@ from backend.api.routes.events import (
     sanitize_csv_value,
 )
 from backend.models.event import Event
+
+
+@pytest.fixture
+def mock_response() -> MagicMock:
+    """Create a mock Response object for deprecation header tests."""
+    return MagicMock(spec=Response)
 
 
 class TestParseDetectionIds:
@@ -157,7 +164,7 @@ class TestListEventsRoute:
     """Tests for list_events route handler."""
 
     @pytest.mark.asyncio
-    async def test_list_events_validates_date_range(self):
+    async def test_list_events_validates_date_range(self, mock_response: MagicMock):
         """Test that invalid date range raises HTTPException."""
         from backend.api.routes.events import list_events
 
@@ -166,6 +173,7 @@ class TestListEventsRoute:
         # start_date after end_date should raise
         with pytest.raises(HTTPException) as exc_info:
             await list_events(
+                response=mock_response,
                 camera_id=None,
                 risk_level=None,
                 start_date=datetime(2025, 12, 25, 0, 0, 0, tzinfo=UTC),
@@ -180,7 +188,7 @@ class TestListEventsRoute:
         assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
 
     @pytest.mark.asyncio
-    async def test_list_events_invalid_cursor_raises(self):
+    async def test_list_events_invalid_cursor_raises(self, mock_response: MagicMock):
         """Test that invalid cursor raises HTTPException."""
         from backend.api.routes.events import list_events
 
@@ -188,6 +196,7 @@ class TestListEventsRoute:
 
         with pytest.raises(HTTPException) as exc_info:
             await list_events(
+                response=mock_response,
                 camera_id=None,
                 risk_level=None,
                 start_date=None,
@@ -669,7 +678,7 @@ class TestListEventsRouteComprehensive:
     """Comprehensive tests for list_events with proper DB mocking."""
 
     @pytest.mark.asyncio
-    async def test_list_events_basic_query_execution(self):
+    async def test_list_events_basic_query_execution(self, mock_response: MagicMock):
         """Test that list_events executes queries and returns results."""
         from backend.api.routes.events import list_events
 
@@ -701,6 +710,7 @@ class TestListEventsRouteComprehensive:
         mock_db.execute = AsyncMock(side_effect=[mock_count_result, mock_events_result])
 
         result = await list_events(
+            response=mock_response,
             camera_id=None,
             risk_level=None,
             start_date=None,
@@ -720,7 +730,7 @@ class TestListEventsRouteComprehensive:
         assert result.pagination.has_more is False
 
     @pytest.mark.asyncio
-    async def test_list_events_with_object_type_filter(self):
+    async def test_list_events_with_object_type_filter(self, mock_response: MagicMock):
         """Test that object_type filter constructs proper LIKE queries."""
         from backend.api.routes.events import list_events
 
@@ -735,6 +745,7 @@ class TestListEventsRouteComprehensive:
         mock_db.execute = AsyncMock(side_effect=[mock_count_result, mock_events_result])
 
         result = await list_events(
+            response=mock_response,
             camera_id=None,
             risk_level=None,
             start_date=None,
