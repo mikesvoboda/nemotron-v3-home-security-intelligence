@@ -14,6 +14,8 @@ import { clsx } from 'clsx';
 import { AlertTriangle, CheckCircle, Server, XCircle } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
+import { getStatusClasses, STATUS_BG_CLASSES, STATUS_TEXT_CLASSES } from '../../theme/colors';
+
 import type { ServiceName, ServiceStatus as ServiceStatusType } from '../../hooks/useServiceStatus';
 
 /**
@@ -69,6 +71,7 @@ function deriveOverallStatus(
 
 /**
  * Get display configuration for a status value.
+ * Uses centralized color constants from theme/colors.ts for WCAG 4.5:1 compliance.
  */
 function getStatusConfig(status: OverallStatus): {
   label: string;
@@ -80,22 +83,22 @@ function getStatusConfig(status: OverallStatus): {
     case 'online':
       return {
         label: 'Online',
-        dotColor: 'bg-green-500',
-        textColor: 'text-green-400',
+        dotColor: STATUS_BG_CLASSES.online,
+        textColor: STATUS_TEXT_CLASSES.online,
         icon: CheckCircle,
       };
     case 'degraded':
       return {
         label: 'Degraded',
-        dotColor: 'bg-yellow-500',
-        textColor: 'text-yellow-400',
+        dotColor: STATUS_BG_CLASSES.degraded,
+        textColor: STATUS_TEXT_CLASSES.degraded,
         icon: AlertTriangle,
       };
     case 'offline':
       return {
         label: 'Offline',
-        dotColor: 'bg-red-500',
-        textColor: 'text-red-400',
+        dotColor: STATUS_BG_CLASSES.offline,
+        textColor: STATUS_TEXT_CLASSES.offline,
         icon: XCircle,
       };
   }
@@ -103,37 +106,41 @@ function getStatusConfig(status: OverallStatus): {
 
 /**
  * Get display configuration for individual service status.
+ * Uses centralized color constants from theme/colors.ts for WCAG 4.5:1 compliance.
  */
 function getServiceStatusConfig(status: string): {
   dotColor: string;
   textColor: string;
   icon: typeof CheckCircle;
 } {
+  // Use centralized status classes for consistent WCAG compliance
+  const statusClasses = getStatusClasses(status);
+
   switch (status) {
     case 'healthy':
       return {
-        dotColor: 'bg-green-500',
-        textColor: 'text-green-400',
+        dotColor: statusClasses.bgClass,
+        textColor: statusClasses.textClass,
         icon: CheckCircle,
       };
     case 'restarting':
       return {
-        dotColor: 'bg-yellow-500',
-        textColor: 'text-yellow-400',
+        dotColor: STATUS_BG_CLASSES.degraded,
+        textColor: STATUS_TEXT_CLASSES.degraded,
         icon: AlertTriangle,
       };
     case 'unhealthy':
     case 'restart_failed':
     case 'failed':
       return {
-        dotColor: 'bg-red-500',
-        textColor: 'text-red-400',
+        dotColor: STATUS_BG_CLASSES.error,
+        textColor: STATUS_TEXT_CLASSES.error,
         icon: XCircle,
       };
     default:
       return {
-        dotColor: 'bg-gray-500',
-        textColor: 'text-gray-400',
+        dotColor: STATUS_BG_CLASSES.inactive,
+        textColor: STATUS_TEXT_CLASSES.inactive,
         icon: Server,
       };
   }

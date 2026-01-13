@@ -1,8 +1,9 @@
 name: AI Code Review
 
 on:
-  push:
+  pull_request:
     branches: [main]
+    types: [opened, synchronize, reopened]
 
 permissions:
   contents: read

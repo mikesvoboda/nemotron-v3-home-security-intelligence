@@ -378,26 +378,48 @@ class TestEventsCursorPagination:
         assert "cursor" in data["deprecation_warning"].lower()
 
     @pytest.mark.asyncio
-    async def test_cursor_overrides_offset(self, client: AsyncClient, test_events: list[Event]):
-        """Test that cursor parameter takes precedence over offset."""
+    async def test_simultaneous_offset_and_cursor_returns_400(
+        self, client: AsyncClient, test_events: list[Event]
+    ):
+        """Test that providing both offset and cursor returns 400 error (NEM-2613).
+
+        Per NEM-2613, the API should reject requests that provide both offset
+        and cursor parameters to prevent undefined pagination behavior.
+        """
+        # Get first page to get a valid cursor
+        response1 = await client.get("/api/events?limit=10")
+        assert response1.status_code == 200
+        data1 = response1.json()
+        cursor = data1["pagination"]["next_cursor"]
+
+        # Try to use both cursor and non-zero offset (should fail)
+        response2 = await client.get(f"/api/events?limit=10&offset=50&cursor={cursor}")
+        assert response2.status_code == 400
+        data2 = response2.json()
+
+        # Verify error message explains the conflict
+        assert "offset" in data2["detail"].lower()
+        assert "cursor" in data2["detail"].lower()
+        assert "choose one" in data2["detail"].lower()
+
+    @pytest.mark.asyncio
+    async def test_cursor_with_zero_offset_allowed(
+        self, client: AsyncClient, test_events: list[Event]
+    ):
+        """Test that cursor with offset=0 is allowed (NEM-2613).
+
+        offset=0 is the default value, so it should not cause validation failure.
+        """
         # Get first page to get a cursor
         response1 = await client.get("/api/events?limit=10")
         assert response1.status_code == 200
         data1 = response1.json()
         cursor = data1["pagination"]["next_cursor"]
 
-        # Use both cursor and offset (cursor should take precedence)
-        response2 = await client.get(f"/api/events?limit=10&offset=50&cursor={cursor}")
+        # Use cursor with offset=0 (should succeed - 0 is the default)
+        response2 = await client.get(f"/api/events?limit=10&offset=0&cursor={cursor}")
         assert response2.status_code == 200
         data2 = response2.json()
-
-        # Get same page with cursor only
-        response3 = await client.get(f"/api/events?limit=10&cursor={cursor}")
-        assert response3.status_code == 200
-        data3 = response3.json()
-
-        # Results should be identical (cursor ignored offset)
-        assert data2["items"] == data3["items"]
 
         # Verify no deprecation warning when cursor is provided
         assert data2["deprecation_warning"] is None
@@ -491,6 +513,26 @@ class TestDetectionsCursorPagination:
         # Verify second page matches filter
         assert all(det["object_type"] == "person" for det in data2["items"])
         assert len(data2["items"]) == 5  # Remaining 5 person detections
+
+    @pytest.mark.asyncio
+    async def test_detections_simultaneous_offset_and_cursor_returns_400(
+        self, client: AsyncClient, test_detections: list[Detection]
+    ):
+        """Test that detections endpoint rejects simultaneous offset and cursor (NEM-2613)."""
+        # Get first page to get a valid cursor
+        response1 = await client.get("/api/detections?limit=10")
+        assert response1.status_code == 200
+        data1 = response1.json()
+        cursor = data1["pagination"]["next_cursor"]
+
+        # Try to use both cursor and non-zero offset (should fail)
+        response2 = await client.get(f"/api/detections?limit=10&offset=20&cursor={cursor}")
+        assert response2.status_code == 400
+        data2 = response2.json()
+
+        # Verify error message explains the conflict
+        assert "offset" in data2["detail"].lower()
+        assert "cursor" in data2["detail"].lower()
 
 
 class TestCursorEncodingDecoding:

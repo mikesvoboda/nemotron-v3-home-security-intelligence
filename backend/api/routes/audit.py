@@ -7,7 +7,13 @@ from sqlalchemy import func, literal, select, union_all
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.dependencies import get_audit_log_or_404
-from backend.api.pagination import CursorData, decode_cursor, encode_cursor, get_deprecation_warning
+from backend.api.pagination import (
+    CursorData,
+    decode_cursor,
+    encode_cursor,
+    get_deprecation_warning,
+    validate_pagination_params,
+)
 from backend.api.schemas.audit import (
     AuditLogListResponse,
     AuditLogResponse,
@@ -74,6 +80,15 @@ async def list_audit_logs(  # noqa: PLR0912
     """
     # Validate date range
     validate_date_range(start_date, end_date)
+
+    # Validate pagination params - reject simultaneous offset and cursor (NEM-2613)
+    try:
+        validate_pagination_params(cursor, offset)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        ) from e
 
     # Decode cursor if provided
     cursor_data: CursorData | None = None

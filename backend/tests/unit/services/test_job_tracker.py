@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import threading
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -421,43 +420,37 @@ class TestJobTrackerSingleton:
         assert tracker1 is not tracker2
 
 
-class TestJobTrackerThreadSafety:
-    """Tests for thread safety."""
+class TestJobTrackerAsyncSafety:
+    """Tests for async safety with asyncio.Lock."""
 
-    def test_concurrent_job_creation(self) -> None:
+    @pytest.mark.asyncio
+    async def test_concurrent_job_creation(self) -> None:
         """Should handle concurrent job creation."""
         tracker = JobTracker()
         job_ids: list[str] = []
-        lock = threading.Lock()
 
-        def create_job() -> None:
+        async def create_job() -> None:
             job_id = tracker.create_job("export")
-            with lock:
-                job_ids.append(job_id)
+            job_ids.append(job_id)
 
-        threads = [threading.Thread(target=create_job) for _ in range(10)]
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
+        # Create jobs concurrently using asyncio
+        await asyncio.gather(*[create_job() for _ in range(10)])
 
         # All jobs should be created with unique IDs
         assert len(job_ids) == 10
         assert len(set(job_ids)) == 10
 
-    def test_concurrent_progress_updates(self) -> None:
+    @pytest.mark.asyncio
+    async def test_concurrent_progress_updates(self) -> None:
         """Should handle concurrent progress updates."""
         tracker = JobTracker()
         job_id = tracker.create_job("export")
 
-        def update_progress(progress: int) -> None:
+        async def update_progress(progress: int) -> None:
             tracker.update_progress(job_id, progress)
 
-        threads = [threading.Thread(target=update_progress, args=(i * 10,)) for i in range(1, 11)]
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
+        # Update progress concurrently using asyncio
+        await asyncio.gather(*[update_progress(i * 10) for i in range(1, 11)])
 
         job = tracker.get_job(job_id)
         assert job is not None
