@@ -20,10 +20,18 @@ vi.mock('./sentry', () => ({
 describe('API Sentry Breadcrumbs', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Ensure Sentry is enabled for all tests (reset to default mock behavior)
+    vi.mocked(sentryModule.isSentryEnabled).mockReturnValue(true);
   });
 
   afterEach(() => {
     server.resetHandlers();
+    // Explicitly restore Sentry mock to prevent leakage
+    vi.mocked(sentryModule.isSentryEnabled).mockRestore();
+    // Clear any pending timers from retry logic
+    vi.clearAllTimers();
+    // Ensure real timers are restored
+    vi.useRealTimers();
   });
 
   describe('successful requests', () => {
@@ -116,14 +124,29 @@ describe('API Sentry Breadcrumbs', () => {
         })
       );
 
-      await expect(fetchHealth()).rejects.toThrow(ApiError);
+      // Use fake timers to skip retry delays
+      vi.useFakeTimers();
 
-      // The request may be retried, so check the last call
-      const calls = vi.mocked(sentryModule.addApiBreadcrumb).mock.calls;
-      const lastCall = calls[calls.length - 1];
-      expect(lastCall[0]).toBe('GET');
-      expect(lastCall[1]).toContain('/api/system/health');
-      expect(lastCall[2]).toBe(500);
+      try {
+        // Start the request and immediately advance timers
+        const promise = expect(fetchHealth()).rejects.toThrow(ApiError);
+
+        // Fast-forward through all retry delays
+        await vi.runAllTimersAsync();
+
+        // Wait for the final rejection
+        await promise;
+
+        // The request may be retried, so check the last call
+        const calls = vi.mocked(sentryModule.addApiBreadcrumb).mock.calls;
+        const lastCall = calls[calls.length - 1];
+        expect(lastCall[0]).toBe('GET');
+        expect(lastCall[1]).toContain('/api/system/health');
+        expect(lastCall[2]).toBe(500);
+      } finally {
+        // Restore real timers
+        vi.useRealTimers();
+      }
     });
   });
 
