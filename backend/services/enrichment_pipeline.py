@@ -42,6 +42,7 @@ from PIL import Image
 
 from backend.core.logging import get_logger
 from backend.core.metrics import record_enrichment_model_call
+from backend.core.mime_types import VIDEO_MIME_TYPES
 
 # Import enrichment client for remote HTTP service
 from backend.services.enrichment_client import (
@@ -1711,6 +1712,9 @@ class EnrichmentPipeline:
     async def _load_image(self, image: Image.Image | Path | str) -> Image.Image | None:
         """Load image from path or return if already PIL Image.
 
+        Handles both image and video files. For video files, extracts
+        a frame at 10% into the video (or 1 second, whichever is smaller).
+
         Args:
             image: PIL Image, Path, or string path
 
@@ -1722,10 +1726,62 @@ class EnrichmentPipeline:
 
         try:
             path = Path(image) if isinstance(image, str) else image
+
+            # Check if this is a video file by extension
+            if path.suffix.lower() in VIDEO_MIME_TYPES:
+                return await self._extract_frame_from_video(path)
+
             loop = asyncio.get_event_loop()
             return await loop.run_in_executor(None, lambda: Image.open(path))
         except Exception as e:
             logger.warning(f"Failed to load image: {e}")
+            return None
+
+    async def _extract_frame_from_video(self, video_path: Path) -> Image.Image | None:
+        """Extract a single frame from a video file for enrichment processing.
+
+        Uses ffmpeg to extract a frame at 10% into the video or 1 second,
+        whichever is smaller. This avoids black frames at the start.
+
+        Args:
+            video_path: Path to the video file
+
+        Returns:
+            PIL Image of the extracted frame, or None if extraction fails
+        """
+        import tempfile
+
+        from backend.services.video_processor import VideoProcessingError, VideoProcessor
+
+        try:
+            # Create a temporary VideoProcessor for frame extraction
+            # Use a temp directory for the extracted frame
+            with tempfile.TemporaryDirectory() as temp_dir:
+                processor = VideoProcessor(output_dir=temp_dir)
+
+                # Extract thumbnail (uses smart timestamp selection)
+                output_path = Path(temp_dir) / f"{video_path.stem}_enrichment_frame.jpg"
+                thumbnail_path = await processor.extract_thumbnail(
+                    str(video_path),
+                    output_path=str(output_path),
+                )
+
+                if thumbnail_path is None:
+                    logger.warning(f"Failed to extract frame from video: {video_path}")
+                    return None
+
+                # Load the extracted frame as PIL Image
+                loop = asyncio.get_event_loop()
+                pil_image = await loop.run_in_executor(
+                    None, lambda: Image.open(thumbnail_path).copy()
+                )
+                return pil_image
+
+        except VideoProcessingError as e:
+            logger.warning(f"Video processing error extracting frame from {video_path}: {e}")
+            return None
+        except Exception as e:
+            logger.warning(f"Failed to extract frame from video {video_path}: {e}")
             return None
 
     async def _crop_to_bbox(
