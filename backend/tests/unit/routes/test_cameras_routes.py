@@ -804,7 +804,9 @@ class TestGetCameraSnapshot:
 
         assert response.status_code == 404
         data = response.json()
-        assert "no snapshot" in data["detail"].lower() or "not found" in data["detail"].lower()
+        # NEM-2446: Message now says "Camera folder does not exist" for invalid paths
+        detail_lower = data["detail"].lower()
+        assert any(msg in detail_lower for msg in ["no snapshot", "not found", "does not exist"])
 
     def test_get_snapshot_folder_outside_base_path_with_fallback(
         self, client: TestClient, mock_db_session: AsyncMock, tmp_path: Path
@@ -1883,7 +1885,8 @@ class TestValidateCameraPaths:
         assert response.status_code == 200
         data = response.json()
         assert data["invalid_count"] == 1
-        assert "no image files found" in data["invalid_cameras"][0]["issues"]
+        # NEM-2446: Message now includes video files
+        assert "no image or video files found" in data["invalid_cameras"][0]["issues"]
 
     def test_validate_paths_mixed_valid_invalid(
         self, client: TestClient, mock_db_session: AsyncMock, tmp_path: Path

@@ -52,6 +52,7 @@ logs/
 
 # Testing/Coverage
 .coverage
+.coverage.*
 coverage/
 htmlcov/
 .pytest_cache/

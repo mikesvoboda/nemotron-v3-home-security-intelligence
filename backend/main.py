@@ -63,7 +63,7 @@ from backend.api.routes.system import register_workers
 from backend.core import close_db, get_container, get_settings, init_db, wire_services
 from backend.core.config_validation import log_config_summary, validate_config
 from backend.core.docker_client import DockerClient
-from backend.core.logging import redact_url, setup_logging
+from backend.core.logging import enable_deferred_db_logging, redact_url, setup_logging
 from backend.core.redis import close_redis, init_redis
 from backend.core.telemetry import setup_telemetry, shutdown_telemetry
 from backend.models.camera import Camera
@@ -456,6 +456,11 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:  # noqa: PLR0912 - Co
 
     await init_db()
     print(f"Database initialized: {redact_url(settings.database_url)}")
+
+    # Re-enable database logging now that tables exist (NEM-2442)
+    # This handles the case where logging was deferred because the logs table
+    # didn't exist when setup_logging() was called on a fresh database
+    enable_deferred_db_logging()
 
     # Auto-seed cameras from filesystem if database is empty
     seeded = await seed_cameras_if_empty()

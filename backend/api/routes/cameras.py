@@ -1,5 +1,8 @@
 """API routes for camera management."""
 
+import asyncio
+import subprocess
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -87,6 +90,15 @@ _SNAPSHOT_TYPES = {
     ".png": "image/png",
     ".gif": "image/gif",
 }
+
+# Video file extensions for fallback snapshot extraction (NEM-2446)
+_VIDEO_EXTENSIONS = {".mkv", ".mp4", ".avi", ".mov", ".webm"}
+
+# Snapshot cache TTL in seconds (1 hour) - cached snapshots extracted from videos
+_SNAPSHOT_CACHE_TTL = 3600
+
+# Thumbnail size for extracted video frames
+_SNAPSHOT_THUMBNAIL_SIZE = (640, 480)
 
 
 @router.get("", response_model=CameraListResponse)
@@ -575,6 +587,211 @@ async def delete_camera(
         logger.warning("Cache invalidation failed", exc_info=True, extra={"camera_id": camera_id})
 
 
+def _resolve_camera_dir(
+    camera_folder_path: str,
+    camera_id: str,
+    base_root: Path,
+) -> Path | None:
+    """Resolve the camera directory, handling fallback scenarios.
+
+    NEM-2446: Extracted to reduce branch complexity in get_camera_snapshot.
+
+    Args:
+        camera_folder_path: The stored folder path from the camera record
+        camera_id: The camera ID (used as fallback)
+        base_root: The resolved base FOSCAM_BASE_PATH
+
+    Returns:
+        Resolved camera directory Path, or None if not found
+    """
+    camera_dir = Path(camera_folder_path).resolve()
+    try:
+        camera_dir.relative_to(base_root)
+        # Path is valid and within base_root
+        if camera_dir.exists() and camera_dir.is_dir():
+            return camera_dir
+        return None
+    except ValueError:
+        # Path outside base_root - try fallback strategies
+        pass
+
+    # Extract folder name for fallback lookup
+    stored_folder_name = Path(camera_folder_path).name
+    if ".." in stored_folder_name or "/" in stored_folder_name or "\\" in stored_folder_name:
+        logger.warning(
+            "Invalid folder name detected, skipping fallback",
+            extra={
+                "camera_id": camera_id,
+                "folder_name": sanitize_log_value(stored_folder_name),
+            },
+        )
+        return None
+
+    # Try fallback by folder name first
+    fallback_candidates = [
+        (base_root / stored_folder_name).resolve(),
+        (base_root / camera_id).resolve(),
+    ]
+
+    for fallback_path in fallback_candidates:
+        try:
+            fallback_path.relative_to(base_root)
+            if fallback_path.exists() and fallback_path.is_dir():
+                logger.debug(
+                    "Using fallback camera path",
+                    extra={
+                        "camera_id": camera_id,
+                        "stored_path": sanitize_log_value(camera_folder_path),
+                        "fallback_path": str(fallback_path),
+                        "base_path": str(base_root),
+                    },
+                )
+                return fallback_path
+        except ValueError:
+            continue
+
+    logger.debug(
+        "Camera folder_path outside base_path and no fallback found",
+        extra={
+            "camera_id": camera_id,
+            "folder_path": sanitize_log_value(camera_folder_path),
+            "base_path": str(base_root),
+        },
+    )
+    return None
+
+
+def _get_snapshot_cache_path(camera_id: str) -> Path:
+    """Get the path for a cached camera snapshot.
+
+    Args:
+        camera_id: Camera identifier
+
+    Returns:
+        Path to the cached snapshot file
+    """
+    settings = get_settings()
+    cache_dir = Path(settings.foscam_base_path) / ".snapshot_cache"
+    return cache_dir / f"{camera_id}_snapshot.jpg"
+
+
+def _is_cache_valid(cache_path: Path, ttl_seconds: int = _SNAPSHOT_CACHE_TTL) -> bool:
+    """Check if a cached snapshot is still valid (not expired).
+
+    Args:
+        cache_path: Path to the cached file
+        ttl_seconds: Time-to-live in seconds
+
+    Returns:
+        True if cache is valid, False otherwise
+    """
+    if not cache_path.exists():
+        return False
+    try:
+        mtime = cache_path.stat().st_mtime
+        return (time.time() - mtime) < ttl_seconds
+    except OSError:
+        return False
+
+
+async def _extract_frame_from_video(
+    video_path: Path,
+    output_path: Path,
+    size: tuple[int, int] = _SNAPSHOT_THUMBNAIL_SIZE,
+) -> bool:
+    """Extract a frame from a video file using ffmpeg.
+
+    NEM-2446: Fallback for cameras with only video files.
+
+    Args:
+        video_path: Path to the video file
+        output_path: Path to save the extracted frame
+        size: Output size (width, height)
+
+    Returns:
+        True if extraction succeeded, False otherwise
+    """
+    try:
+        # Ensure output directory exists
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Build ffmpeg command
+        # -ss 1: Seek to 1 second (avoid black frames at start)
+        # -vframes 1: Extract only 1 frame
+        # format=yuvj420p: Convert to full-range YUV for JPEG encoding
+        # scale with pad: Maintain aspect ratio with padding
+        cmd = [
+            "ffmpeg",
+            "-y",  # Overwrite output file
+            "-ss",
+            "1",  # Seek to 1 second
+            "-i",
+            str(video_path),  # Input file
+            "-vframes",
+            "1",  # Extract only 1 frame
+            "-vf",
+            f"format=yuvj420p,scale={size[0]}:{size[1]}:force_original_aspect_ratio=decrease,"
+            f"pad={size[0]}:{size[1]}:(ow-iw)/2:(oh-ih)/2",
+            "-q:v",
+            "2",  # High quality JPEG
+            str(output_path),
+        ]
+
+        result = await asyncio.to_thread(
+            subprocess.run,
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+
+        if result.returncode != 0:
+            logger.warning(
+                "ffmpeg frame extraction failed",
+                extra={
+                    "video_path": str(video_path),
+                    "stderr": result.stderr[:500] if result.stderr else "",
+                },
+            )
+            return False
+
+        if not output_path.exists():
+            logger.warning(
+                "ffmpeg succeeded but output file not created",
+                extra={"output_path": str(output_path)},
+            )
+            return False
+
+        logger.debug(
+            "Extracted snapshot from video",
+            extra={
+                "video_path": str(video_path),
+                "output_path": str(output_path),
+            },
+        )
+        return True
+
+    except subprocess.TimeoutExpired:
+        logger.warning(
+            "ffmpeg timed out extracting frame",
+            extra={"video_path": str(video_path)},
+        )
+        return False
+    except FileNotFoundError:
+        logger.warning(
+            "ffmpeg not found - video snapshot extraction unavailable",
+            extra={"video_path": str(video_path)},
+        )
+        return False
+    except Exception:
+        logger.error(
+            "Failed to extract frame from video",
+            exc_info=True,
+            extra={"video_path": str(video_path)},
+        )
+        return False
+
+
 @router.get(
     "/{camera_id}/snapshot",
     response_class=FileResponse,
@@ -598,128 +815,94 @@ async def get_camera_snapshot(
 
     This endpoint uses the camera's configured `folder_path` and returns the most recently
     modified image file under that directory.
+
+    NEM-2446: Now supports video-only cameras by extracting and caching frames.
     """
     camera = await get_camera_or_404(camera_id, db)
     settings = get_settings()
     base_root = Path(settings.foscam_base_path).resolve()
 
-    camera_dir = Path(camera.folder_path).resolve()
-    try:
-        camera_dir.relative_to(base_root)
-    except ValueError:
-        # Stored folder_path is outside the current FOSCAM_BASE_PATH.
-        # This commonly happens when:
-        # - Database has cameras from a different environment (Docker vs native)
-        # - Container FOSCAM_BASE_PATH (/cameras) differs from dev path (/export/foscam)
-        #
-        # Fallback strategy:
-        # 1. First, try to extract the folder name from the stored path and look for it
-        #    under base_path. This handles cases where the camera name differs from the
-        #    folder name (e.g., camera name "Den Camera" but folder is "den").
-        # 2. If that fails, try the camera_id directly (works when name == folder name).
-        #
-        # This is safe because we only look within FOSCAM_BASE_PATH (no traversal).
-        # Extract folder name and validate it doesn't contain path traversal
-        stored_folder_name = Path(camera.folder_path).name
-        # Validate folder name doesn't contain path separators or traversal sequences
-        if ".." in stored_folder_name or "/" in stored_folder_name or "\\" in stored_folder_name:
-            logger.warning(
-                "Invalid folder name detected, skipping fallback",
-                extra={
-                    "camera_id": camera_id,
-                    "folder_name": sanitize_log_value(stored_folder_name),
-                },
-            )
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="No snapshot available for this camera",
-            ) from None
-
-        # Construct fallback paths and verify they resolve within base_root
-        fallback_by_folder_name = (base_root / stored_folder_name).resolve()
-        fallback_by_camera_id = (base_root / camera_id).resolve()
-
-        # Security check: ensure resolved paths are within base_root
-        try:
-            fallback_by_folder_name.relative_to(base_root)
-        except ValueError:
-            fallback_by_folder_name = None  # type: ignore[assignment]
-        try:
-            fallback_by_camera_id.relative_to(base_root)
-        except ValueError:
-            fallback_by_camera_id = None  # type: ignore[assignment]
-
-        if (
-            fallback_by_folder_name
-            and fallback_by_folder_name.exists()
-            and fallback_by_folder_name.is_dir()
-        ):
-            # Found camera folder by stored folder name
-            logger.debug(
-                "Using fallback camera path by folder name",
-                extra={
-                    "camera_id": camera_id,
-                    "stored_path": sanitize_log_value(camera.folder_path),
-                    "stored_folder_name": sanitize_log_value(stored_folder_name),
-                    "fallback_path": str(fallback_by_folder_name),
-                    "base_path": str(base_root),
-                },
-            )
-            camera_dir = fallback_by_folder_name
-        elif (
-            fallback_by_camera_id
-            and fallback_by_camera_id.exists()
-            and fallback_by_camera_id.is_dir()
-        ):
-            # Found camera folder by camera ID
-            logger.debug(
-                "Using fallback camera path by camera ID",
-                extra={
-                    "camera_id": camera_id,
-                    "stored_path": sanitize_log_value(camera.folder_path),
-                    "fallback_path": str(fallback_by_camera_id),
-                    "base_path": str(base_root),
-                },
-            )
-            camera_dir = fallback_by_camera_id
-        else:
-            # No fallback available - return 404
-            logger.debug(
-                "Camera folder_path outside base_path and no fallback found",
-                extra={
-                    "camera_id": camera_id,
-                    "folder_path": sanitize_log_value(camera.folder_path),
-                    "base_path": str(base_root),
-                    "fallback_by_folder_name_tried": str(fallback_by_folder_name),
-                    "fallback_by_camera_id_tried": str(fallback_by_camera_id),
-                },
-            )
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="No snapshot available for this camera",
-            ) from None
-
-    if not camera_dir.exists() or not camera_dir.is_dir():
+    # Resolve camera directory with fallback handling
+    camera_dir = _resolve_camera_dir(camera.folder_path, camera_id, base_root)
+    if camera_dir is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Camera folder does not exist",
         )
 
+    # NEM-2446: Implement fallback chain for snapshot retrieval
+    # 1. Check for cached snapshot (fast response for video-only cameras)
+    cache_path = _get_snapshot_cache_path(camera_id)
+    if _is_cache_valid(cache_path):
+        logger.debug(
+            "Returning cached snapshot",
+            extra={"camera_id": camera_id, "cache_path": str(cache_path)},
+        )
+        return FileResponse(
+            path=str(cache_path),
+            media_type="image/jpeg",
+            filename=f"{camera_id}_snapshot.jpg",
+        )
+
+    # 2. Search for image files (.jpg, .png, etc.)
     candidates: list[Path] = []
     for ext in _SNAPSHOT_TYPES:
         candidates.extend(camera_dir.rglob(f"*{ext}"))
 
     candidates = [p for p in candidates if p.is_file()]
-    if not candidates:
+    if candidates:
+        latest = max(candidates, key=lambda p: p.stat().st_mtime)
+        media_type = _SNAPSHOT_TYPES.get(latest.suffix.lower(), "application/octet-stream")
+        return FileResponse(path=str(latest), media_type=media_type, filename=latest.name)
+
+    # 3. No images found - try to extract frame from video files
+    logger.debug(
+        "No image files found, searching for video files",
+        extra={"camera_id": camera_id, "camera_dir": str(camera_dir)},
+    )
+
+    video_candidates: list[Path] = []
+    for ext in _VIDEO_EXTENSIONS:
+        video_candidates.extend(camera_dir.rglob(f"*{ext}"))
+
+    video_candidates = [p for p in video_candidates if p.is_file()]
+    if not video_candidates:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="No snapshot images found for camera",
+            detail="No snapshot images or video files found for camera",
         )
 
-    latest = max(candidates, key=lambda p: p.stat().st_mtime)
-    media_type = _SNAPSHOT_TYPES.get(latest.suffix.lower(), "application/octet-stream")
+    # Get the most recent video file
+    latest_video = max(video_candidates, key=lambda p: p.stat().st_mtime)
+    logger.info(
+        "Extracting snapshot from video file",
+        extra={
+            "camera_id": camera_id,
+            "video_path": str(latest_video),
+        },
+    )
 
-    return FileResponse(path=str(latest), media_type=media_type, filename=latest.name)
+    # Extract frame and cache it
+    extraction_success = await _extract_frame_from_video(latest_video, cache_path)
+    if extraction_success and cache_path.exists():
+        logger.debug(
+            "Successfully extracted and cached snapshot from video",
+            extra={
+                "camera_id": camera_id,
+                "cache_path": str(cache_path),
+            },
+        )
+        return FileResponse(
+            path=str(cache_path),
+            media_type="image/jpeg",
+            filename=f"{camera_id}_snapshot.jpg",
+        )
+
+    # 4. Video exists but frame extraction failed
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="Video files found but frame extraction failed",
+    )
 
 
 @router.get(
@@ -737,7 +920,10 @@ async def validate_camera_paths(
     This endpoint checks each camera's folder_path to determine:
     1. Whether the path is under the configured FOSCAM_BASE_PATH
     2. Whether the directory exists on disk
-    3. Whether the directory contains any images
+    3. Whether the directory contains any images or video files
+
+    NEM-2446: Video files (.mkv, .mp4, etc.) are now valid for snapshot
+    extraction, so cameras with only video files pass validation.
 
     Use this to diagnose cameras that show "No snapshot available" errors.
 
@@ -777,7 +963,10 @@ async def validate_camera_paths(
                 list(camera_path.rglob(f"*{ext}")) for ext in [".jpg", ".jpeg", ".png", ".gif"]
             )
             if not has_images:
-                issues.append("no image files found")
+                # NEM-2446: Also check for video files (valid for snapshot extraction)
+                has_videos = any(list(camera_path.rglob(f"*{ext}")) for ext in _VIDEO_EXTENSIONS)
+                if not has_videos:
+                    issues.append("no image or video files found")
 
         camera_info = CameraValidationInfo(
             id=camera.id,

@@ -8,7 +8,7 @@
  */
 
 import { useState, useCallback, useEffect } from 'react';
-import Joyride, { CallBackProps, ACTIONS, STATUS } from 'react-joyride';
+import Joyride, { CallBackProps, ACTIONS, EVENTS, STATUS } from 'react-joyride';
 
 import {
   tourSteps,
@@ -150,35 +150,36 @@ export default function ProductTour({
     (data: CallBackProps) => {
       const { action, index, status, type } = data;
 
-      // Handle step changes
-      if (type === 'step:after' && action === ACTIONS.NEXT) {
-        setStepIndex(index + 1);
-        onStepChange?.(index + 1);
-      } else if (type === 'step:after' && action === ACTIONS.PREV) {
-        setStepIndex(index - 1);
-        onStepChange?.(index - 1);
+      // Handle step changes - only advance on step:after events
+      if (type === EVENTS.STEP_AFTER) {
+        if (action === ACTIONS.NEXT) {
+          setStepIndex(index + 1);
+          onStepChange?.(index + 1);
+        } else if (action === ACTIONS.PREV) {
+          setStepIndex(index - 1);
+          onStepChange?.(index - 1);
+        }
       }
 
-      // Handle tour completion
-      if (status === STATUS.FINISHED) {
-        setInternalRun(false);
-        markTourCompleted();
-        onComplete?.();
-      }
-
-      // Handle tour skip
-      if (status === STATUS.SKIPPED) {
-        setInternalRun(false);
-        markTourSkipped();
-        onSkip?.();
-      }
-
-      // Handle close action (user clicks X)
-      if (action === ACTIONS.CLOSE) {
-        setInternalRun(false);
-        // Mark as completed if user closed on purpose
-        markTourCompleted();
-        onComplete?.();
+      // Handle tour end events (completion, skip, or close)
+      // Only process these when the tour actually ends, not on intermediate callbacks
+      if (type === EVENTS.TOUR_END) {
+        if (status === STATUS.FINISHED) {
+          // User completed the tour by clicking through all steps
+          setInternalRun(false);
+          markTourCompleted();
+          onComplete?.();
+        } else if (status === STATUS.SKIPPED) {
+          // User clicked the Skip button
+          setInternalRun(false);
+          markTourSkipped();
+          onSkip?.();
+        } else if (action === ACTIONS.CLOSE) {
+          // User clicked the X button or overlay to close
+          setInternalRun(false);
+          markTourCompleted();
+          onComplete?.();
+        }
       }
     },
     [onComplete, onSkip, onStepChange]

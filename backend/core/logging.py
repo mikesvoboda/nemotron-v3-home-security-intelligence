@@ -20,6 +20,7 @@ __all__ = [
     "DatabaseHandler",
     "SQLiteHandler",  # Backwards compatibility alias
     # Functions
+    "enable_deferred_db_logging",
     "get_current_trace_context",
     "get_log_context",
     "get_logger",
@@ -495,13 +496,18 @@ class DatabaseHandler(logging.Handler):
     """Custom handler that writes logs to PostgreSQL database.
 
     Uses synchronous database sessions to avoid blocking async context.
-    Falls back gracefully if database is unavailable.
+    Falls back gracefully if database is unavailable or if the logs table
+    doesn't exist yet (e.g., during fresh database startup before init_db()).
+
+    The handler tracks table existence separately from database availability
+    to support automatic recovery once tables are created.
     """
 
     def __init__(self, min_level: str = "DEBUG") -> None:
         super().__init__()
         self.min_level = getattr(logging, min_level.upper(), logging.DEBUG)
         self._db_available = True
+        self._table_exists = True  # Assume table exists until we know otherwise
         self._engine: Any = None
         self._session_factory: Any = None
 
@@ -528,12 +534,24 @@ class DatabaseHandler(logging.Handler):
 
         return self._session_factory()
 
-    def emit(self, record: logging.LogRecord) -> None:
-        """Write log record to database."""
+    def emit(self, record: logging.LogRecord) -> None:  # noqa: PLR0912
+        """Write log record to database.
+
+        Gracefully handles the case where the logs table doesn't exist yet
+        (e.g., during startup before init_db() creates tables). When a
+        ProgrammingError is detected (table not found), database logging is
+        temporarily disabled but can be re-enabled by calling enable_db_logging()
+        after tables are created.
+        """
         if record.levelno < self.min_level:
             return
 
         if not self._db_available:
+            return
+
+        # Skip if we know the table doesn't exist yet
+        # This avoids repeated error logging during startup
+        if not self._table_exists:
             return
 
         try:
@@ -584,6 +602,32 @@ class DatabaseHandler(logging.Handler):
             # Disable DB logging if it fails repeatedly
             logging.getLogger(__name__).debug(f"DB log emit failed, disabling: {e}")
             self._db_available = False
+        except Exception as e:
+            # Catch ProgrammingError and other SQLAlchemy errors
+            # ProgrammingError occurs when the logs table doesn't exist yet
+            # (common during fresh database startup before init_db())
+            error_str = str(e).lower()
+            if "relation" in error_str and "does not exist" in error_str:
+                # Table doesn't exist yet - this is expected during startup
+                # Mark table as not existing (can be re-enabled later)
+                self._table_exists = False
+                logging.getLogger(__name__).debug(
+                    "Logs table does not exist yet, deferring DB logging until after init_db()"
+                )
+            else:
+                # Other database errors - disable DB logging entirely
+                logging.getLogger(__name__).debug(f"DB log emit failed, disabling: {e}")
+                self._db_available = False
+
+    def enable_db_logging(self) -> None:
+        """Re-enable database logging after tables are created.
+
+        This method should be called after init_db() completes to enable
+        database logging that was deferred because the logs table didn't
+        exist during startup.
+        """
+        self._table_exists = True
+        self._db_available = True
 
 
 # Backwards compatibility alias
@@ -660,6 +704,44 @@ def setup_logging() -> None:
         f"Logging configured: level={settings.log_level}, "
         f"file={settings.log_file_path}, db_enabled={settings.log_db_enabled}"
     )
+
+
+def enable_deferred_db_logging() -> int:
+    """Re-enable database logging on all handlers after tables are created.
+
+    This function should be called after init_db() completes to enable
+    database logging that was deferred because the logs table didn't
+    exist during startup. It iterates through all handlers on the root
+    logger and enables any DatabaseHandler instances that were deferred.
+
+    Returns:
+        Number of handlers that were re-enabled.
+
+    Example:
+        # In main.py lifespan:
+        setup_logging()  # May defer DB logging if table doesn't exist
+        await init_db()  # Creates tables including logs
+        enable_deferred_db_logging()  # Re-enable deferred DB handlers
+    """
+    root_logger = logging.getLogger()
+    enabled_count = 0
+
+    for handler in root_logger.handlers:
+        # Check if this handler was deferred due to missing table
+        if isinstance(handler, DatabaseHandler) and not handler._table_exists:
+            handler.enable_db_logging()
+            enabled_count += 1
+            root_logger.debug(
+                "Re-enabled deferred database logging handler",
+                extra={"handler": type(handler).__name__},
+            )
+
+    if enabled_count > 0:
+        root_logger.info(
+            f"Enabled {enabled_count} deferred database logging handler(s) after init_db()"
+        )
+
+    return enabled_count
 
 
 def sanitize_error(error: Exception, max_length: int = 500) -> str:
