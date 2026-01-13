@@ -1311,24 +1311,24 @@ class TestDatabaseHandlerTableNotExists:
 
 
 class TestEnableDeferredDbLogging:
-    """Tests for enable_deferred_db_logging function (NEM-2442)."""
+    """Tests for enable_deferred_db_logging function (NEM-2442).
+
+    These tests mock logging.getLogger() to avoid race conditions with
+    global logging state during parallel test execution.
+    """
 
     def test_enable_deferred_db_logging_enables_deferred_handlers(self):
         """Test that enable_deferred_db_logging re-enables handlers with _table_exists=False."""
         from backend.core.logging import enable_deferred_db_logging
 
-        root = logging.getLogger()
-        original_handlers = root.handlers.copy()
+        # Create a mock root logger with isolated handlers
+        mock_root = MagicMock()
+        deferred_handler = SQLiteHandler(min_level="DEBUG")
+        deferred_handler._table_exists = False
+        deferred_handler._db_available = True
+        mock_root.handlers = [deferred_handler]
 
-        try:
-            # Clear handlers and add a deferred handler
-            root.handlers.clear()
-
-            deferred_handler = SQLiteHandler(min_level="DEBUG")
-            deferred_handler._table_exists = False
-            deferred_handler._db_available = True
-            root.addHandler(deferred_handler)
-
+        with patch("backend.core.logging.logging.getLogger", return_value=mock_root):
             # Call the function
             enabled_count = enable_deferred_db_logging()
 
@@ -1336,82 +1336,62 @@ class TestEnableDeferredDbLogging:
             assert enabled_count == 1
             assert deferred_handler._table_exists is True
             assert deferred_handler._db_available is True
-        finally:
-            root.handlers = original_handlers
 
     def test_enable_deferred_db_logging_skips_active_handlers(self):
         """Test that enable_deferred_db_logging skips handlers with _table_exists=True."""
         from backend.core.logging import enable_deferred_db_logging
 
-        root = logging.getLogger()
-        original_handlers = root.handlers.copy()
+        # Create a mock root logger with isolated handlers
+        mock_root = MagicMock()
+        active_handler = SQLiteHandler(min_level="DEBUG")
+        active_handler._table_exists = True
+        active_handler._db_available = True
+        mock_root.handlers = [active_handler]
 
-        try:
-            # Clear handlers and add an active handler
-            root.handlers.clear()
-
-            active_handler = SQLiteHandler(min_level="DEBUG")
-            active_handler._table_exists = True
-            active_handler._db_available = True
-            root.addHandler(active_handler)
-
+        with patch("backend.core.logging.logging.getLogger", return_value=mock_root):
             # Call the function
             enabled_count = enable_deferred_db_logging()
 
             # Should not have enabled any handlers
             assert enabled_count == 0
-        finally:
-            root.handlers = original_handlers
 
     def test_enable_deferred_db_logging_returns_zero_when_no_handlers(self):
         """Test that enable_deferred_db_logging returns 0 with no DatabaseHandlers."""
         from backend.core.logging import enable_deferred_db_logging
 
-        root = logging.getLogger()
-        original_handlers = root.handlers.copy()
+        # Create a mock root logger with only non-database handlers
+        mock_root = MagicMock()
+        mock_root.handlers = [logging.StreamHandler()]
 
-        try:
-            # Clear all handlers
-            root.handlers.clear()
-
-            # Add only a non-database handler
-            root.addHandler(logging.StreamHandler())
-
+        with patch("backend.core.logging.logging.getLogger", return_value=mock_root):
             # Call the function
             enabled_count = enable_deferred_db_logging()
 
             # Should return 0
             assert enabled_count == 0
-        finally:
-            root.handlers = original_handlers
 
     def test_enable_deferred_db_logging_handles_multiple_handlers(self):
         """Test that enable_deferred_db_logging handles multiple DatabaseHandlers."""
         from backend.core.logging import enable_deferred_db_logging
 
-        root = logging.getLogger()
-        original_handlers = root.handlers.copy()
+        # Create handlers - some deferred, some active
+        deferred1 = SQLiteHandler(min_level="DEBUG")
+        deferred1._table_exists = False
+        deferred1._db_available = True
 
-        try:
-            root.handlers.clear()
+        active = SQLiteHandler(min_level="INFO")
+        active._table_exists = True
+        active._db_available = True
 
-            # Add multiple handlers - some deferred, some active
-            deferred1 = SQLiteHandler(min_level="DEBUG")
-            deferred1._table_exists = False
-            deferred1._db_available = True
+        deferred2 = SQLiteHandler(min_level="WARNING")
+        deferred2._table_exists = False
+        deferred2._db_available = True
 
-            active = SQLiteHandler(min_level="INFO")
-            active._table_exists = True
-            active._db_available = True
+        # Create a mock root logger with isolated handlers
+        mock_root = MagicMock()
+        mock_root.handlers = [deferred1, active, deferred2]
 
-            deferred2 = SQLiteHandler(min_level="WARNING")
-            deferred2._table_exists = False
-            deferred2._db_available = True
-
-            root.addHandler(deferred1)
-            root.addHandler(active)
-            root.addHandler(deferred2)
-
+        with patch("backend.core.logging.logging.getLogger", return_value=mock_root):
             # Call the function
             enabled_count = enable_deferred_db_logging()
 
@@ -1421,5 +1401,3 @@ class TestEnableDeferredDbLogging:
             assert deferred2._table_exists is True
             # Active handler should remain unchanged
             assert active._table_exists is True
-        finally:
-            root.handlers = original_handlers
