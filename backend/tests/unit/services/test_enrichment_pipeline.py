@@ -1667,7 +1667,8 @@ class TestEnrichmentPipelineErrorHandling:
             # Pipeline should complete but with error
             assert isinstance(result, EnrichmentResult)
             assert len(result.errors) >= 1
-            assert "Vision extraction failed" in result.errors[0]
+            # New error format from structured error handling
+            assert any("vision_extraction" in err for err in result.errors)
 
     async def test_multiple_errors_collected(
         self,
@@ -1720,8 +1721,9 @@ class TestEnrichmentPipelineErrorHandling:
 
             # Multiple errors should be recorded (vision extraction + scene change)
             assert len(result.errors) >= 2
-            assert any("Vision extraction failed" in e for e in result.errors)
-            assert any("Scene change detection failed" in e for e in result.errors)
+            # New error format from structured error handling
+            assert any("vision_extraction" in e for e in result.errors)
+            assert any("scene_change_detection" in e for e in result.errors)
 
 
 # =============================================================================
@@ -3193,9 +3195,9 @@ class TestEnrichmentPipelineErrorHandlingExtended:
                 images={None: test_image},
             )
 
-            # Error should be recorded
+            # Error should be recorded (new structured error format)
             assert len(result.errors) >= 1
-            assert any("Image quality assessment failed" in e for e in result.errors)
+            assert any("image_quality_assessment" in e for e in result.errors)
 
 
 # =============================================================================
@@ -4402,9 +4404,9 @@ class TestEnrichmentPipelineEnrichBatchMainLogic:
                     {None: test_image},
                 )
 
-                # Should capture error but not crash
+                # Should capture error but not crash (new structured error format)
                 assert len(result.errors) > 0
-                assert any("License plate" in err for err in result.errors)
+                assert any("license_plate_detection" in err for err in result.errors)
 
     @pytest.mark.asyncio
     async def test_enrich_batch_handles_face_detection_error(
@@ -4443,8 +4445,9 @@ class TestEnrichmentPipelineEnrichBatchMainLogic:
                     {None: test_image},
                 )
 
+                # New structured error format
                 assert len(result.errors) > 0
-                assert any("Face detection" in err for err in result.errors)
+                assert any("face_detection" in err for err in result.errors)
 
     @pytest.mark.asyncio
     async def test_enrich_batch_calculates_processing_time(

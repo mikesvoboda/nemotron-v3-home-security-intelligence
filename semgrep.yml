@@ -276,6 +276,9 @@ rules:
     severity: WARNING
     metadata:
       cwe: 'CWE-330: Use of Insufficiently Random Values'
+    paths:
+      exclude:
+        - backend/api/routes/admin.py # Mock data generation uses non-crypto random intentionally
 
   # =============================================================================
   # HARDCODED SECRETS

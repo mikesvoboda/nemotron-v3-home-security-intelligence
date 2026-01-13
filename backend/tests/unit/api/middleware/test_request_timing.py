@@ -464,3 +464,164 @@ class TestRequestTimingMiddlewareEdgeCases:
             ws.send_text("Hello")
             response = ws.receive_text()
             assert response == "Echo: Hello"
+
+
+class TestRequestTimingMiddlewareErrorHandling:
+    """Tests for error handling in request timing middleware (NEM-2546)."""
+
+    def test_settings_unavailable_uses_fallback_with_debug_log(self, caplog):
+        """Test that when settings are unavailable, fallback is used and logged at DEBUG."""
+        with patch("backend.api.middleware.request_timing.get_settings") as mock_settings:
+            # Simulate settings fetch failure
+            mock_settings.side_effect = RuntimeError("Settings unavailable")
+
+            app = FastAPI()
+            with caplog.at_level(logging.DEBUG):
+                middleware = RequestTimingMiddleware(app)
+
+            # Should use default fallback
+            assert middleware.slow_request_threshold_ms == 500
+
+            # Should log at DEBUG level
+            debug_logs = [
+                r
+                for r in caplog.records
+                if r.levelno == logging.DEBUG and "settings unavailable" in r.message.lower()
+            ]
+            assert len(debug_logs) == 1
+
+            # Log should contain useful context
+            log_record = debug_logs[0]
+            assert hasattr(log_record, "default_threshold_ms") or "500" in str(log_record)
+
+    def test_settings_unavailable_logs_error_message(self, caplog):
+        """Test that settings unavailable log includes the error message."""
+        error_message = "Connection refused to config server"
+        with patch("backend.api.middleware.request_timing.get_settings") as mock_settings:
+            mock_settings.side_effect = ConnectionError(error_message)
+
+            app = FastAPI()
+            with caplog.at_level(logging.DEBUG):
+                RequestTimingMiddleware(app)
+
+            debug_logs = [
+                r
+                for r in caplog.records
+                if r.levelno == logging.DEBUG and "settings unavailable" in r.message.lower()
+            ]
+            assert len(debug_logs) == 1
+            # Error should be captured in extra fields
+            assert hasattr(debug_logs[0], "error") or error_message in str(debug_logs[0])
+
+    @pytest.mark.asyncio
+    async def test_response_processing_error_logs_and_reraises(self, caplog):
+        """Test that response processing errors are logged at ERROR level and re-raised."""
+        app = FastAPI()
+        middleware = RequestTimingMiddleware(app)
+
+        mock_request = MagicMock(spec=Request)
+        mock_request.method = "POST"
+        mock_request.url = MagicMock()
+        mock_request.url.path = "/api/process"
+
+        error_message = "Database connection lost"
+
+        async def mock_call_next_raises(request):
+            raise ConnectionError(error_message)
+
+        with caplog.at_level(logging.ERROR):
+            with pytest.raises(ConnectionError, match=error_message):
+                await middleware.dispatch(mock_request, mock_call_next_raises)
+
+        # Should have logged at ERROR level before re-raising
+        error_logs = [
+            r
+            for r in caplog.records
+            if r.levelno == logging.ERROR and "request processing failed" in r.message.lower()
+        ]
+        assert len(error_logs) == 1
+
+        # Log should contain context about where exception occurred
+        log_record = error_logs[0]
+        assert hasattr(log_record, "path") or "/api/process" in str(log_record)
+        assert hasattr(log_record, "method") or "POST" in str(log_record)
+        assert hasattr(log_record, "error_type") or "ConnectionError" in str(log_record)
+
+    @pytest.mark.asyncio
+    async def test_response_processing_error_includes_duration(self, caplog):
+        """Test that error log includes request duration for diagnostics."""
+        app = FastAPI()
+        middleware = RequestTimingMiddleware(app)
+
+        mock_request = MagicMock(spec=Request)
+        mock_request.method = "GET"
+        mock_request.url = MagicMock()
+        mock_request.url.path = "/test"
+
+        async def mock_call_next_raises(request):
+            await asyncio.sleep(0.05)  # 50ms delay before error
+            raise ValueError("Test error")
+
+        with caplog.at_level(logging.ERROR):
+            with pytest.raises(ValueError):
+                await middleware.dispatch(mock_request, mock_call_next_raises)
+
+        error_logs = [
+            r
+            for r in caplog.records
+            if r.levelno == logging.ERROR and "request processing failed" in r.message.lower()
+        ]
+        assert len(error_logs) == 1
+
+        # Log should contain duration_ms
+        log_record = error_logs[0]
+        assert hasattr(log_record, "duration_ms")
+        # Duration should be at least 50ms (the sleep time)
+        assert log_record.duration_ms >= 45  # Allow some tolerance
+
+    @pytest.mark.asyncio
+    async def test_response_processing_error_includes_error_type(self, caplog):
+        """Test that error log includes the exception type name."""
+        app = FastAPI()
+        middleware = RequestTimingMiddleware(app)
+
+        mock_request = MagicMock(spec=Request)
+        mock_request.method = "GET"
+        mock_request.url = MagicMock()
+        mock_request.url.path = "/test"
+
+        async def mock_call_next_raises(request):
+            raise KeyError("missing_key")
+
+        with caplog.at_level(logging.ERROR):
+            with pytest.raises(KeyError):
+                await middleware.dispatch(mock_request, mock_call_next_raises)
+
+        error_logs = [
+            r
+            for r in caplog.records
+            if r.levelno == logging.ERROR and "request processing failed" in r.message.lower()
+        ]
+        assert len(error_logs) == 1
+
+        # Log should contain error_type
+        log_record = error_logs[0]
+        assert hasattr(log_record, "error_type")
+        assert log_record.error_type == "KeyError"
+
+    def test_init_and_dispatch_exception_handling_consistency(self):
+        """Test that both init and dispatch handle exceptions consistently.
+
+        Init logs at DEBUG (expected during testing), dispatch logs at ERROR (unexpected).
+        Both capture exception details in structured extra fields.
+        """
+        # Init exception handling - logs at DEBUG (expected scenario)
+        with patch("backend.api.middleware.request_timing.get_settings") as mock_settings:
+            mock_settings.side_effect = RuntimeError("Test error")
+            app = FastAPI()
+            middleware = RequestTimingMiddleware(app)
+            # Should succeed with fallback
+            assert middleware.slow_request_threshold_ms == 500
+
+        # Dispatch exception handling is tested in other tests
+        # Both use structured logging with extra fields for consistency

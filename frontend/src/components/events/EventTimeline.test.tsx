@@ -1383,6 +1383,96 @@ describe('EventTimeline', () => {
     });
   });
 
+  describe('Event Parameter Validation (NEM-2561)', () => {
+    it('opens modal when valid event parameter is provided', async () => {
+      renderWithProviders(<EventTimeline />, { route: '/timeline?event=1' });
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+    });
+
+    it('handles invalid event parameter gracefully - non-numeric string', async () => {
+      renderWithProviders(<EventTimeline />, { route: '/timeline?event=abc' });
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Modal should NOT be open since event param is invalid
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('handles invalid event parameter gracefully - mixed alphanumeric', async () => {
+      renderWithProviders(<EventTimeline />, { route: '/timeline?event=123abc' });
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Modal should NOT be open since event param is invalid
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('handles invalid event parameter gracefully - negative number', async () => {
+      renderWithProviders(<EventTimeline />, { route: '/timeline?event=-1' });
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Modal should NOT be open since event param is invalid
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('handles invalid event parameter gracefully - floating point', async () => {
+      renderWithProviders(<EventTimeline />, { route: '/timeline?event=1.5' });
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Modal should NOT be open since event param is invalid
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('handles invalid event parameter gracefully - special characters', async () => {
+      renderWithProviders(<EventTimeline />, { route: '/timeline?event=1%3B%20DROP%20TABLE' });
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Modal should NOT be open since event param is invalid
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('handles invalid event parameter gracefully - empty string', async () => {
+      renderWithProviders(<EventTimeline />, { route: '/timeline?event=' });
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Modal should NOT be open since event param is empty
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('does not expose internal state in error messages for invalid event parameter', async () => {
+      // This test ensures no error messages or internal state leaks when given invalid input
+      renderWithProviders(<EventTimeline />, { route: '/timeline?event=<script>alert(1)</script>' });
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Should not have any error messages visible
+      expect(screen.queryByText(/error/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/script/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/alert/i)).not.toBeInTheDocument();
+    });
+  });
+
   describe('Event Detail Modal', () => {
     it('opens modal when clicking on event card', async () => {
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });

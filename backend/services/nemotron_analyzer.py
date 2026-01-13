@@ -894,7 +894,16 @@ class NemotronAnalyzer:
                 await self._enqueue_for_evaluation(event.id, event.risk_score or 50)
 
             except Exception as e:
-                logger.warning(f"Failed to create audit for event {event.id}: {e}")
+                logger.warning(
+                    "Audit log write failed",
+                    extra={
+                        "action": "create_partial_audit",
+                        "resource_id": str(event.id),
+                        "resource_type": "event_audit",
+                        "error_type": type(e).__name__,
+                        "error_message": str(e),
+                    },
+                )
 
             total_duration_ms = int((time.time() - analysis_start) * 1000)
             total_duration_seconds = time.time() - analysis_start
@@ -1158,7 +1167,16 @@ class NemotronAnalyzer:
                 await self._enqueue_for_evaluation(event.id, event.risk_score or 50)
 
             except Exception as e:
-                logger.warning(f"Failed to create audit for event {event.id}: {e}")
+                logger.warning(
+                    "Audit log write failed",
+                    extra={
+                        "action": "create_partial_audit",
+                        "resource_id": str(event.id),
+                        "resource_type": "event_audit",
+                        "error_type": type(e).__name__,
+                        "error_message": str(e),
+                    },
+                )
 
             total_duration_ms = int((time.time() - analysis_start) * 1000)
             total_duration_seconds = time.time() - analysis_start

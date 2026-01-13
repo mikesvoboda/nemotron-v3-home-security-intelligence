@@ -21,10 +21,12 @@ from __future__ import annotations
 __all__ = [
     "BoundingBox",
     "DetectionInput",
+    "EnrichmentError",
     "EnrichmentPipeline",
     "EnrichmentResult",
     "EnrichmentStatus",
     "EnrichmentTrackingResult",
+    "ErrorCategory",
     "FaceResult",
     "LicensePlateResult",
     "get_enrichment_pipeline",
@@ -32,22 +34,30 @@ __all__ = [
 ]
 
 import asyncio
+import json
 from dataclasses import dataclass, field
 from datetime import UTC
 from enum import Enum
 from pathlib import Path
 from typing import Any
 
+import httpx
 from PIL import Image
+from pydantic import ValidationError
 
-from backend.core.logging import get_logger
-from backend.core.metrics import record_enrichment_model_call
+from backend.core.exceptions import (
+    AIServiceError,
+    CLIPUnavailableError,
+    EnrichmentUnavailableError,
+    FlorenceUnavailableError,
+)
+from backend.core.logging import get_logger, sanitize_error
+from backend.core.metrics import record_enrichment_model_call, record_pipeline_error
 from backend.core.mime_types import VIDEO_MIME_TYPES
 
 # Import enrichment client for remote HTTP service
 from backend.services.enrichment_client import (
     EnrichmentClient,
-    EnrichmentUnavailableError,
     get_enrichment_client,
 )
 from backend.services.fashion_clip_loader import (
@@ -125,6 +135,197 @@ class EnrichmentStatus(str, Enum):
     PARTIAL = "partial"
     FAILED = "failed"
     SKIPPED = "skipped"
+
+
+class ErrorCategory(str, Enum):
+    """Category of enrichment error for observability.
+
+    Error categories help distinguish between transient failures that
+    can be retried and permanent failures that indicate bugs.
+    """
+
+    # Transient errors (use fallback, retry later)
+    SERVICE_UNAVAILABLE = "service_unavailable"  # Connection errors, service down
+    TIMEOUT = "timeout"  # Request timed out
+    RATE_LIMITED = "rate_limited"  # HTTP 429, back off
+    SERVER_ERROR = "server_error"  # HTTP 5xx, transient issue
+
+    # Permanent errors (likely a bug, requires investigation)
+    CLIENT_ERROR = "client_error"  # HTTP 4xx, bad request
+    PARSE_ERROR = "parse_error"  # JSON/response parsing failed
+    VALIDATION_ERROR = "validation_error"  # Invalid input data
+
+    # Unexpected errors (catch-all, needs investigation)
+    UNEXPECTED = "unexpected"  # Unknown error type
+
+
+@dataclass(slots=True)
+class EnrichmentError:
+    """Structured error information for enrichment failures.
+
+    Provides detailed error context for observability and debugging,
+    including the error category, reason, and original exception type.
+
+    Attributes:
+        operation: The operation that failed (e.g., "license_plate_detection")
+        category: Error category for classification
+        reason: Human-readable reason for the failure
+        error_type: The type name of the original exception
+        is_transient: Whether the error is transient (retry may succeed)
+        details: Additional context-specific details
+    """
+
+    operation: str
+    category: ErrorCategory
+    reason: str
+    error_type: str
+    is_transient: bool = True
+    details: dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "operation": self.operation,
+            "category": self.category.value,
+            "reason": self.reason,
+            "error_type": self.error_type,
+            "is_transient": self.is_transient,
+            "details": self.details,
+        }
+
+    @classmethod
+    def from_exception(  # noqa: PLR0911
+        cls,
+        operation: str,
+        exc: Exception,
+        *,
+        details: dict[str, Any] | None = None,
+    ) -> EnrichmentError:
+        """Create an EnrichmentError from an exception.
+
+        Classifies the exception into the appropriate category and determines
+        whether it is transient (retry may succeed) or permanent (likely a bug).
+
+        Args:
+            operation: The operation that failed
+            exc: The exception that was raised
+            details: Additional context-specific details
+
+        Returns:
+            EnrichmentError with appropriate category and reason
+        """
+        error_details = details or {}
+
+        # Handle httpx connection errors (transient)
+        if isinstance(exc, httpx.ConnectError):
+            return cls(
+                operation=operation,
+                category=ErrorCategory.SERVICE_UNAVAILABLE,
+                reason=f"Service connection failed: {sanitize_error(exc)}",
+                error_type=type(exc).__name__,
+                is_transient=True,
+                details=error_details,
+            )
+
+        # Handle timeout errors (transient)
+        if isinstance(exc, (httpx.TimeoutException, TimeoutError, asyncio.TimeoutError)):
+            return cls(
+                operation=operation,
+                category=ErrorCategory.TIMEOUT,
+                reason=f"Request timed out: {sanitize_error(exc)}",
+                error_type=type(exc).__name__,
+                is_transient=True,
+                details=error_details,
+            )
+
+        # Handle HTTP status errors
+        if isinstance(exc, httpx.HTTPStatusError):
+            status_code = exc.response.status_code
+            error_details["status_code"] = status_code
+
+            # Rate limiting (429)
+            if status_code == 429:
+                return cls(
+                    operation=operation,
+                    category=ErrorCategory.RATE_LIMITED,
+                    reason=f"Rate limited (HTTP {status_code})",
+                    error_type=type(exc).__name__,
+                    is_transient=True,
+                    details=error_details,
+                )
+
+            # Server errors (5xx) - transient
+            if 500 <= status_code < 600:
+                return cls(
+                    operation=operation,
+                    category=ErrorCategory.SERVER_ERROR,
+                    reason=f"Server error (HTTP {status_code})",
+                    error_type=type(exc).__name__,
+                    is_transient=True,
+                    details=error_details,
+                )
+
+            # Client errors (4xx) - permanent, likely a bug
+            if 400 <= status_code < 500:
+                return cls(
+                    operation=operation,
+                    category=ErrorCategory.CLIENT_ERROR,
+                    reason=f"Client error (HTTP {status_code})",
+                    error_type=type(exc).__name__,
+                    is_transient=False,  # This is likely a bug!
+                    details=error_details,
+                )
+
+        # Handle AI service unavailable errors (transient)
+        if isinstance(
+            exc,
+            (
+                AIServiceError,
+                EnrichmentUnavailableError,
+                FlorenceUnavailableError,
+                CLIPUnavailableError,
+            ),
+        ):
+            return cls(
+                operation=operation,
+                category=ErrorCategory.SERVICE_UNAVAILABLE,
+                reason=str(exc),
+                error_type=type(exc).__name__,
+                is_transient=True,
+                details=error_details,
+            )
+
+        # Handle parsing errors (permanent)
+        if isinstance(exc, (ValueError, KeyError, TypeError, json.JSONDecodeError)):
+            return cls(
+                operation=operation,
+                category=ErrorCategory.PARSE_ERROR,
+                reason=f"Response parsing failed: {sanitize_error(exc)}",
+                error_type=type(exc).__name__,
+                is_transient=False,
+                details=error_details,
+            )
+
+        # Handle validation errors (permanent)
+        if isinstance(exc, (ValidationError, AttributeError)):
+            return cls(
+                operation=operation,
+                category=ErrorCategory.VALIDATION_ERROR,
+                reason=f"Validation failed: {sanitize_error(exc)}",
+                error_type=type(exc).__name__,
+                is_transient=False,
+                details=error_details,
+            )
+
+        # Unexpected errors (needs investigation)
+        return cls(
+            operation=operation,
+            category=ErrorCategory.UNEXPECTED,
+            reason=f"Unexpected error: {sanitize_error(exc)}",
+            error_type=type(exc).__name__,
+            is_transient=True,  # Assume transient unless proven otherwise
+            details=error_details,
+        )
 
 
 @dataclass(slots=True)
@@ -313,7 +514,8 @@ class EnrichmentResult:
         person_reid_matches: Re-identification matches for persons
         vehicle_reid_matches: Re-identification matches for vehicles
         scene_change: Scene change detection result
-        errors: List of error messages during processing
+        errors: List of error messages during processing (deprecated, use structured_errors)
+        structured_errors: List of structured error objects with category and reason
         processing_time_ms: Total processing time in milliseconds
     """
 
@@ -334,6 +536,7 @@ class EnrichmentResult:
     quality_change_detected: bool = False
     quality_change_description: str = ""
     errors: list[str] = field(default_factory=list)
+    structured_errors: list[EnrichmentError] = field(default_factory=list)
     processing_time_ms: float = 0.0
 
     @property
@@ -446,6 +649,68 @@ class EnrichmentResult:
             and not self.has_violence
             and not self.has_clothing_classifications
         )
+
+    @property
+    def has_structured_errors(self) -> bool:
+        """Check if any structured errors were recorded."""
+        return bool(self.structured_errors)
+
+    @property
+    def has_transient_errors(self) -> bool:
+        """Check if any transient errors occurred (retry may succeed)."""
+        return any(e.is_transient for e in self.structured_errors)
+
+    @property
+    def has_permanent_errors(self) -> bool:
+        """Check if any permanent errors occurred (likely bugs)."""
+        return any(not e.is_transient for e in self.structured_errors)
+
+    @property
+    def transient_error_count(self) -> int:
+        """Count of transient errors."""
+        return sum(1 for e in self.structured_errors if e.is_transient)
+
+    @property
+    def permanent_error_count(self) -> int:
+        """Count of permanent errors (likely bugs)."""
+        return sum(1 for e in self.structured_errors if not e.is_transient)
+
+    def get_errors_by_category(self, category: ErrorCategory) -> list[EnrichmentError]:
+        """Get all errors of a specific category.
+
+        Args:
+            category: The error category to filter by
+
+        Returns:
+            List of errors matching the category
+        """
+        return [e for e in self.structured_errors if e.category == category]
+
+    def add_error(
+        self,
+        operation: str,
+        exc: Exception,
+        *,
+        details: dict[str, Any] | None = None,
+    ) -> EnrichmentError:
+        """Add an error from an exception with structured tracking.
+
+        Creates an EnrichmentError from the exception and adds it to both
+        the structured_errors list (new) and errors list (legacy compatibility).
+
+        Args:
+            operation: The operation that failed
+            exc: The exception that was raised
+            details: Additional context-specific details
+
+        Returns:
+            The created EnrichmentError
+        """
+        error = EnrichmentError.from_exception(operation, exc, details=details)
+        self.structured_errors.append(error)
+        # Legacy compatibility: also add to errors list
+        self.errors.append(f"{operation} failed: {error.reason}")
+        return error
 
     def to_context_string(self) -> str:  # noqa: PLR0912
         """Generate context string for LLM prompt.
@@ -1042,6 +1307,80 @@ class EnrichmentPipeline:
             self._enrichment_client = get_enrichment_client()
         return self._enrichment_client
 
+    def _handle_enrichment_error(
+        self,
+        operation: str,
+        exc: Exception,
+        result: EnrichmentResult,
+    ) -> EnrichmentError:
+        """Handle enrichment errors with structured logging and metrics.
+
+        This helper function provides consistent error handling for all enrichment
+        operations, including proper classification, structured logging, and metrics.
+
+        Args:
+            operation: The operation that failed (e.g., "face_detection")
+            exc: The exception that was raised
+            result: The EnrichmentResult to add the error to
+
+        Returns:
+            The created EnrichmentError
+        """
+        error = result.add_error(operation, exc)
+        metric_name = f"{operation.replace('_', '_')}_error"
+
+        # Log based on error category and transience
+        match error.category:
+            case ErrorCategory.SERVICE_UNAVAILABLE | ErrorCategory.TIMEOUT:
+                record_pipeline_error(f"{metric_name}_transient")
+                logger.warning(
+                    f"{operation} service unavailable or timed out",
+                    extra={"error": error.to_dict()},
+                )
+            case ErrorCategory.RATE_LIMITED:
+                record_pipeline_error(f"{metric_name}_rate_limited")
+                logger.warning(
+                    f"{operation} rate limited - backing off",
+                    extra={"error": error.to_dict()},
+                )
+            case ErrorCategory.SERVER_ERROR:
+                record_pipeline_error(f"{metric_name}_server_error")
+                logger.warning(
+                    f"{operation} server error (transient)",
+                    extra={"error": error.to_dict()},
+                )
+            case ErrorCategory.CLIENT_ERROR:
+                # Client errors are likely bugs - log with full traceback
+                record_pipeline_error(f"{metric_name}_client_error")
+                logger.error(
+                    f"{operation} client error (likely a bug)",
+                    extra={"error": error.to_dict()},
+                    exc_info=True,
+                )
+            case ErrorCategory.PARSE_ERROR:
+                record_pipeline_error(f"{metric_name}_parse_error")
+                logger.error(
+                    f"{operation} response parsing failed",
+                    extra={"error": error.to_dict()},
+                    exc_info=True,
+                )
+            case ErrorCategory.VALIDATION_ERROR:
+                record_pipeline_error(f"{metric_name}_validation_error")
+                logger.error(
+                    f"{operation} validation failed",
+                    extra={"error": error.to_dict()},
+                    exc_info=True,
+                )
+            case ErrorCategory.UNEXPECTED:
+                record_pipeline_error(f"{metric_name}_unexpected")
+                logger.error(
+                    f"{operation} unexpected error: {sanitize_error(exc)}",
+                    extra={"error": error.to_dict()},
+                    exc_info=True,
+                )
+
+        return error
+
     async def _classify_vehicle_via_service(
         self,
         vehicles: list[DetectionInput],
@@ -1092,10 +1431,45 @@ class EnrichmentPipeline:
                         f"({remote_result.confidence:.0%})"
                     )
 
-            except EnrichmentUnavailableError as e:
-                logger.warning(f"Enrichment service unavailable for vehicle {det_id}: {e}")
+            except (
+                httpx.ConnectError,
+                httpx.TimeoutException,
+                EnrichmentUnavailableError,
+            ) as e:
+                # Transient error - log warning, continue to next vehicle
+                logger.warning(
+                    f"Enrichment service unavailable for vehicle {det_id}",
+                    extra={"error_type": type(e).__name__, "detection_id": det_id},
+                )
+            except httpx.HTTPStatusError as e:
+                status_code = e.response.status_code
+                if 400 <= status_code < 500:
+                    # Client error - likely a bug, log with traceback
+                    logger.error(
+                        f"Vehicle classification client error for {det_id} (HTTP {status_code})",
+                        extra={"detection_id": det_id, "status_code": status_code},
+                        exc_info=True,
+                    )
+                else:
+                    # Server error - transient, log warning
+                    logger.warning(
+                        f"Vehicle classification server error for {det_id} (HTTP {status_code})",
+                        extra={"detection_id": det_id, "status_code": status_code},
+                    )
+            except (ValueError, KeyError, TypeError) as e:
+                # Parse error - log with details
+                logger.error(
+                    f"Vehicle classification parse error for {det_id}",
+                    extra={"error_type": type(e).__name__, "detection_id": det_id},
+                    exc_info=True,
+                )
             except Exception as e:
-                logger.warning(f"Vehicle classification via service failed for {det_id}: {e}")
+                # Unexpected error - log with full details
+                logger.error(
+                    f"Vehicle classification unexpected error for {det_id}: {sanitize_error(e)}",
+                    extra={"error_type": type(e).__name__, "detection_id": det_id},
+                    exc_info=True,
+                )
 
         return results
 
@@ -1148,10 +1522,45 @@ class EnrichmentPipeline:
                         f"({remote_result.confidence:.0%} confidence)"
                     )
 
-            except EnrichmentUnavailableError as e:
-                logger.warning(f"Enrichment service unavailable for animal {det_id}: {e}")
+            except (
+                httpx.ConnectError,
+                httpx.TimeoutException,
+                EnrichmentUnavailableError,
+            ) as e:
+                # Transient error - log warning, continue to next animal
+                logger.warning(
+                    f"Enrichment service unavailable for animal {det_id}",
+                    extra={"error_type": type(e).__name__, "detection_id": det_id},
+                )
+            except httpx.HTTPStatusError as e:
+                status_code = e.response.status_code
+                if 400 <= status_code < 500:
+                    # Client error - likely a bug
+                    logger.error(
+                        f"Pet classification client error for {det_id} (HTTP {status_code})",
+                        extra={"detection_id": det_id, "status_code": status_code},
+                        exc_info=True,
+                    )
+                else:
+                    # Server error - transient
+                    logger.warning(
+                        f"Pet classification server error for {det_id} (HTTP {status_code})",
+                        extra={"detection_id": det_id, "status_code": status_code},
+                    )
+            except (ValueError, KeyError, TypeError) as e:
+                # Parse error
+                logger.error(
+                    f"Pet classification parse error for {det_id}",
+                    extra={"error_type": type(e).__name__, "detection_id": det_id},
+                    exc_info=True,
+                )
             except Exception as e:
-                logger.warning(f"Pet classification via service failed for {det_id}: {e}")
+                # Unexpected error
+                logger.error(
+                    f"Pet classification unexpected error for {det_id}: {sanitize_error(e)}",
+                    extra={"error_type": type(e).__name__, "detection_id": det_id},
+                    exc_info=True,
+                )
 
         return results
 
@@ -1205,10 +1614,45 @@ class EnrichmentPipeline:
                         f"({remote_result.confidence:.0%})"
                     )
 
-            except EnrichmentUnavailableError as e:
-                logger.warning(f"Enrichment service unavailable for person {det_id}: {e}")
+            except (
+                httpx.ConnectError,
+                httpx.TimeoutException,
+                EnrichmentUnavailableError,
+            ) as e:
+                # Transient error - log warning, continue to next person
+                logger.warning(
+                    f"Enrichment service unavailable for person {det_id}",
+                    extra={"error_type": type(e).__name__, "detection_id": det_id},
+                )
+            except httpx.HTTPStatusError as e:
+                status_code = e.response.status_code
+                if 400 <= status_code < 500:
+                    # Client error - likely a bug
+                    logger.error(
+                        f"Clothing classification client error for {det_id} (HTTP {status_code})",
+                        extra={"detection_id": det_id, "status_code": status_code},
+                        exc_info=True,
+                    )
+                else:
+                    # Server error - transient
+                    logger.warning(
+                        f"Clothing classification server error for {det_id} (HTTP {status_code})",
+                        extra={"detection_id": det_id, "status_code": status_code},
+                    )
+            except (ValueError, KeyError, TypeError) as e:
+                # Parse error
+                logger.error(
+                    f"Clothing classification parse error for {det_id}",
+                    extra={"error_type": type(e).__name__, "detection_id": det_id},
+                    exc_info=True,
+                )
             except Exception as e:
-                logger.warning(f"Clothing classification via service failed for {det_id}: {e}")
+                # Unexpected error
+                logger.error(
+                    f"Clothing classification unexpected error for {det_id}: {sanitize_error(e)}",
+                    extra={"error_type": type(e).__name__, "detection_id": det_id},
+                    exc_info=True,
+                )
 
         return results
 
@@ -1269,10 +1713,51 @@ class EnrichmentPipeline:
                     if self.ocr_enabled and plates:
                         await self._read_plates(result.license_plates, images)
 
+                except httpx.ConnectError as e:
+                    error = result.add_error("license_plate_detection", e)
+                    record_pipeline_error("license_plate_connection_error")
+                    logger.warning(
+                        "License plate detection service unavailable",
+                        extra={"error": error.to_dict()},
+                    )
+                except httpx.TimeoutException as e:
+                    error = result.add_error("license_plate_detection", e)
+                    record_pipeline_error("license_plate_timeout")
+                    logger.warning(
+                        "License plate detection timed out",
+                        extra={"error": error.to_dict()},
+                    )
+                except httpx.HTTPStatusError as e:
+                    error = result.add_error("license_plate_detection", e)
+                    record_pipeline_error("license_plate_http_error")
+                    if not error.is_transient:
+                        # Client errors (4xx) are likely bugs - log as error
+                        logger.error(
+                            f"License plate detection client error (HTTP {e.response.status_code})",
+                            extra={"error": error.to_dict()},
+                            exc_info=True,
+                        )
+                    else:
+                        logger.warning(
+                            f"License plate detection server error (HTTP {e.response.status_code})",
+                            extra={"error": error.to_dict()},
+                        )
+                except (ValueError, KeyError, TypeError) as e:
+                    error = result.add_error("license_plate_detection", e)
+                    record_pipeline_error("license_plate_parse_error")
+                    logger.error(
+                        "License plate detection response parsing failed",
+                        extra={"error": error.to_dict()},
+                        exc_info=True,
+                    )
                 except Exception as e:
-                    error_msg = f"License plate detection failed: {e}"
-                    logger.error(error_msg)
-                    result.errors.append(error_msg)
+                    error = result.add_error("license_plate_detection", e)
+                    record_pipeline_error("license_plate_unexpected_error")
+                    logger.error(
+                        f"License plate detection unexpected error: {sanitize_error(e)}",
+                        extra={"error": error.to_dict()},
+                        exc_info=True,
+                    )
 
         # Process persons for faces
         if self.face_detection_enabled:
@@ -1281,10 +1766,17 @@ class EnrichmentPipeline:
                 try:
                     faces = await self._detect_faces(persons, images)
                     result.faces.extend(faces)
+                except (
+                    httpx.ConnectError,
+                    httpx.TimeoutException,
+                    httpx.HTTPStatusError,
+                    AIServiceError,
+                ) as e:
+                    self._handle_enrichment_error("face_detection", e, result)
+                except (ValueError, KeyError, TypeError) as e:
+                    self._handle_enrichment_error("face_detection", e, result)
                 except Exception as e:
-                    error_msg = f"Face detection failed: {e}"
-                    logger.error(error_msg)
-                    result.errors.append(error_msg)
+                    self._handle_enrichment_error("face_detection", e, result)
 
         # Run Florence-2 vision extraction
         if self.vision_extraction_enabled and pil_image:
@@ -1302,19 +1794,35 @@ class EnrichmentPipeline:
                 result.vision_extraction = await self._vision_extractor.extract_batch_attributes(
                     pil_image, det_dicts
                 )
+            except (
+                httpx.ConnectError,
+                httpx.TimeoutException,
+                httpx.HTTPStatusError,
+                FlorenceUnavailableError,
+                AIServiceError,
+            ) as e:
+                self._handle_enrichment_error("vision_extraction", e, result)
+            except (ValueError, KeyError, TypeError) as e:
+                self._handle_enrichment_error("vision_extraction", e, result)
             except Exception as e:
-                error_msg = f"Vision extraction failed: {e}"
-                logger.error(error_msg)
-                result.errors.append(error_msg)
+                self._handle_enrichment_error("vision_extraction", e, result)
 
         # Run CLIP re-identification
         if self.reid_enabled and self.redis_client and pil_image:
             try:
                 await self._run_reid(high_conf_detections, pil_image, camera_id, result)
+            except (
+                httpx.ConnectError,
+                httpx.TimeoutException,
+                httpx.HTTPStatusError,
+                CLIPUnavailableError,
+                AIServiceError,
+            ) as e:
+                self._handle_enrichment_error("re_identification", e, result)
+            except (ValueError, KeyError, TypeError) as e:
+                self._handle_enrichment_error("re_identification", e, result)
             except Exception as e:
-                error_msg = f"Re-identification failed: {e}"
-                logger.error(error_msg)
-                result.errors.append(error_msg)
+                self._handle_enrichment_error("re_identification", e, result)
 
         # Run scene change detection
         if self.scene_change_enabled and camera_id and pil_image:
@@ -1323,10 +1831,10 @@ class EnrichmentPipeline:
 
                 frame_array = np.array(pil_image)
                 result.scene_change = self._scene_detector.detect_changes(camera_id, frame_array)
+            except (ValueError, KeyError, TypeError) as e:
+                self._handle_enrichment_error("scene_change_detection", e, result)
             except Exception as e:
-                error_msg = f"Scene change detection failed: {e}"
-                logger.error(error_msg)
-                result.errors.append(error_msg)
+                self._handle_enrichment_error("scene_change_detection", e, result)
 
         # Run violence detection when 2+ persons are detected (optimization)
         if self.violence_detection_enabled and pil_image:
@@ -1334,19 +1842,33 @@ class EnrichmentPipeline:
             if len(persons) >= 2:
                 try:
                     result.violence_detection = await self._detect_violence(pil_image)
+                except (
+                    httpx.ConnectError,
+                    httpx.TimeoutException,
+                    httpx.HTTPStatusError,
+                    AIServiceError,
+                ) as e:
+                    self._handle_enrichment_error("violence_detection", e, result)
+                except (ValueError, KeyError, TypeError) as e:
+                    self._handle_enrichment_error("violence_detection", e, result)
                 except Exception as e:
-                    error_msg = f"Violence detection failed: {e}"
-                    logger.error(error_msg)
-                    result.errors.append(error_msg)
+                    self._handle_enrichment_error("violence_detection", e, result)
 
         # Run weather classification on full frame (environmental context)
         if self.weather_classification_enabled and pil_image:
             try:
                 result.weather_classification = await self._classify_weather(pil_image)
+            except (
+                httpx.ConnectError,
+                httpx.TimeoutException,
+                httpx.HTTPStatusError,
+                AIServiceError,
+            ) as e:
+                self._handle_enrichment_error("weather_classification", e, result)
+            except (ValueError, KeyError, TypeError) as e:
+                self._handle_enrichment_error("weather_classification", e, result)
             except Exception as e:
-                error_msg = f"Weather classification failed: {e}"
-                logger.error(error_msg)
-                result.errors.append(error_msg)
+                self._handle_enrichment_error("weather_classification", e, result)
 
         # Run clothing classification on person crops
         if self.clothing_classification_enabled and pil_image:
@@ -1361,10 +1883,18 @@ class EnrichmentPipeline:
                         result.clothing_classifications = await self._classify_person_clothing(
                             persons, pil_image
                         )
+                except (
+                    httpx.ConnectError,
+                    httpx.TimeoutException,
+                    httpx.HTTPStatusError,
+                    EnrichmentUnavailableError,
+                    AIServiceError,
+                ) as e:
+                    self._handle_enrichment_error("clothing_classification", e, result)
+                except (ValueError, KeyError, TypeError) as e:
+                    self._handle_enrichment_error("clothing_classification", e, result)
                 except Exception as e:
-                    error_msg = f"Clothing classification failed: {e}"
-                    logger.error(error_msg)
-                    result.errors.append(error_msg)
+                    self._handle_enrichment_error("clothing_classification", e, result)
 
         # Run SegFormer clothing segmentation on person crops
         if self.clothing_segmentation_enabled and pil_image:
@@ -1374,10 +1904,17 @@ class EnrichmentPipeline:
                     result.clothing_segmentation = await self._segment_person_clothing(
                         persons, pil_image
                     )
+                except (
+                    httpx.ConnectError,
+                    httpx.TimeoutException,
+                    httpx.HTTPStatusError,
+                    AIServiceError,
+                ) as e:
+                    self._handle_enrichment_error("clothing_segmentation", e, result)
+                except (ValueError, KeyError, TypeError) as e:
+                    self._handle_enrichment_error("clothing_segmentation", e, result)
                 except Exception as e:
-                    error_msg = f"Clothing segmentation failed: {e}"
-                    logger.error(error_msg)
-                    result.errors.append(error_msg)
+                    self._handle_enrichment_error("clothing_segmentation", e, result)
 
         # Run vehicle damage detection on vehicle crops
         if self.vehicle_damage_detection_enabled and pil_image:
@@ -1385,10 +1922,17 @@ class EnrichmentPipeline:
             if vehicles:
                 try:
                     result.vehicle_damage = await self._detect_vehicle_damage(vehicles, pil_image)
+                except (
+                    httpx.ConnectError,
+                    httpx.TimeoutException,
+                    httpx.HTTPStatusError,
+                    AIServiceError,
+                ) as e:
+                    self._handle_enrichment_error("vehicle_damage_detection", e, result)
+                except (ValueError, KeyError, TypeError) as e:
+                    self._handle_enrichment_error("vehicle_damage_detection", e, result)
                 except Exception as e:
-                    error_msg = f"Vehicle damage detection failed: {e}"
-                    logger.error(error_msg)
-                    result.errors.append(error_msg)
+                    self._handle_enrichment_error("vehicle_damage_detection", e, result)
 
         # Run vehicle segment classification on vehicle crops
         if self.vehicle_classification_enabled and pil_image:
@@ -1403,10 +1947,18 @@ class EnrichmentPipeline:
                         result.vehicle_classifications = await self._classify_vehicle_types(
                             vehicles, pil_image
                         )
+                except (
+                    httpx.ConnectError,
+                    httpx.TimeoutException,
+                    httpx.HTTPStatusError,
+                    EnrichmentUnavailableError,
+                    AIServiceError,
+                ) as e:
+                    self._handle_enrichment_error("vehicle_classification", e, result)
+                except (ValueError, KeyError, TypeError) as e:
+                    self._handle_enrichment_error("vehicle_classification", e, result)
                 except Exception as e:
-                    error_msg = f"Vehicle classification failed: {e}"
-                    logger.error(error_msg)
-                    result.errors.append(error_msg)
+                    self._handle_enrichment_error("vehicle_classification", e, result)
 
         # Run BRISQUE image quality assessment (CPU-based, no VRAM)
         if self.image_quality_enabled and pil_image:
@@ -1432,14 +1984,20 @@ class EnrichmentPipeline:
                     blur_context = interpret_blur_with_motion(quality_result, has_person=True)
                     logger.info(f"Motion context: {blur_context}")
 
-            except Exception as e:
+            except RuntimeError as e:
                 # Model disabled is expected behavior when pyiqa is incompatible
                 if "disabled" in str(e).lower():
                     logger.debug(f"Image quality assessment skipped (model disabled): {e}")
                 else:
-                    error_msg = f"Image quality assessment failed: {e}"
-                    logger.error(error_msg)
-                    result.errors.append(error_msg)
+                    self._handle_enrichment_error("image_quality_assessment", e, result)
+            except (ValueError, KeyError, TypeError) as e:
+                self._handle_enrichment_error("image_quality_assessment", e, result)
+            except Exception as e:
+                # Check if model is disabled
+                if "disabled" in str(e).lower():
+                    logger.debug(f"Image quality assessment skipped (model disabled): {e}")
+                else:
+                    self._handle_enrichment_error("image_quality_assessment", e, result)
 
         # Run pet classification on dog/cat detections for false positive reduction
         if self.pet_classification_enabled and pil_image:
@@ -1454,10 +2012,18 @@ class EnrichmentPipeline:
                         result.pet_classifications = await self._classify_pets(animals, pil_image)
                     if result.pet_only_event:
                         logger.info("Pet-only event detected - can skip Nemotron risk analysis")
+                except (
+                    httpx.ConnectError,
+                    httpx.TimeoutException,
+                    httpx.HTTPStatusError,
+                    EnrichmentUnavailableError,
+                    AIServiceError,
+                ) as e:
+                    self._handle_enrichment_error("pet_classification", e, result)
+                except (ValueError, KeyError, TypeError) as e:
+                    self._handle_enrichment_error("pet_classification", e, result)
                 except Exception as e:
-                    error_msg = f"Pet classification failed: {e}"
-                    logger.error(error_msg)
-                    result.errors.append(error_msg)
+                    self._handle_enrichment_error("pet_classification", e, result)
 
         result.processing_time_ms = (time.monotonic() - start_time) * 1000
         logger.info(
@@ -1477,7 +2043,7 @@ class EnrichmentPipeline:
 
         return result
 
-    async def _run_reid(
+    async def _run_reid(  # noqa: PLR0912
         self,
         detections: list[DetectionInput],
         image: Image.Image,
@@ -1563,8 +2129,44 @@ class EnrichmentPipeline:
                     )
                     await self._reid_service.store_embedding(redis, entity_embedding)
 
+                except (
+                    httpx.ConnectError,
+                    httpx.TimeoutException,
+                    httpx.HTTPStatusError,
+                    CLIPUnavailableError,
+                    AIServiceError,
+                ) as e:
+                    # Transient error - log as warning, continue processing other detections
+                    logger.warning(
+                        f"Re-id failed for detection {det_id} (transient)",
+                        extra={
+                            "error_type": type(e).__name__,
+                            "detection_id": det_id,
+                            "entity_type": entity_type,
+                        },
+                    )
+                except (ValueError, KeyError, TypeError) as e:
+                    # Parse/validation error - log as error with traceback
+                    logger.error(
+                        f"Re-id failed for detection {det_id} (parse error)",
+                        extra={
+                            "error_type": type(e).__name__,
+                            "detection_id": det_id,
+                            "entity_type": entity_type,
+                        },
+                        exc_info=True,
+                    )
                 except Exception as e:
-                    logger.warning(f"Re-id failed for detection {det_id}: {e}")
+                    # Unexpected error - log with full details
+                    logger.error(
+                        f"Re-id failed for detection {det_id}: {sanitize_error(e)}",
+                        extra={
+                            "error_type": type(e).__name__,
+                            "detection_id": det_id,
+                            "entity_type": entity_type,
+                        },
+                        exc_info=True,
+                    )
 
     async def _detect_license_plates(
         self,
@@ -2431,27 +3033,28 @@ class EnrichmentPipeline:
         # Analyze which models succeeded/failed based on result.errors
         # and the presence of enrichment data
 
-        # Map of error message prefixes to model names
+        # Map of error message operation names to model names
+        # New structured error format: "{operation} failed: ..."
         error_model_mapping = {
-            "License plate detection": "license_plate",
-            "Face detection": "face",
-            "Vision extraction": "vision",
-            "Re-identification": "reid",
-            "Scene change detection": "scene_change",
-            "Violence detection": "violence",
-            "Weather classification": "weather",
-            "Clothing classification": "clothing",
-            "Clothing segmentation": "segformer",
-            "Vehicle damage detection": "vehicle_damage",
-            "Vehicle classification": "vehicle_class",
-            "Image quality assessment": "image_quality",
-            "Pet classification": "pet",
+            "license_plate_detection": "license_plate",
+            "face_detection": "face",
+            "vision_extraction": "vision",
+            "re_identification": "reid",
+            "scene_change_detection": "scene_change",
+            "violence_detection": "violence",
+            "weather_classification": "weather",
+            "clothing_classification": "clothing",
+            "clothing_segmentation": "segformer",
+            "vehicle_damage_detection": "vehicle_damage",
+            "vehicle_classification": "vehicle_class",
+            "image_quality_assessment": "image_quality",
+            "pet_classification": "pet",
         }
 
-        # Track failed models from errors list
+        # Track failed models from errors list (new format: "{operation} failed: ...")
         for error_msg in result.errors:
-            for prefix, model_name in error_model_mapping.items():
-                if error_msg.startswith(prefix):
+            for operation, model_name in error_model_mapping.items():
+                if error_msg.startswith(operation):
                     failed_models.append(model_name)
                     errors[model_name] = error_msg
                     record_enrichment_failure(model_name)

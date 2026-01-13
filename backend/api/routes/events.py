@@ -22,6 +22,7 @@ from backend.api.pagination import (
     decode_cursor,
     encode_cursor,
     get_deprecation_warning,
+    validate_cursor_format,
     validate_pagination_params,
 )
 from backend.api.schemas.bulk import (
@@ -309,9 +310,19 @@ async def list_events(  # noqa: PLR0912
             detail=str(e),
         ) from e
 
-    # Decode cursor if provided
+    # Validate and decode cursor if provided (NEM-2585)
     cursor_data: CursorData | None = None
     if cursor:
+        # First validate cursor format (security check)
+        try:
+            validate_cursor_format(cursor)
+        except ValueError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid cursor format: {e}",
+            ) from e
+
+        # Then decode cursor to extract pagination data
         try:
             cursor_data = decode_cursor(cursor)
         except ValueError as e:

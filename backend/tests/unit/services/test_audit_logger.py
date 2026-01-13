@@ -535,3 +535,213 @@ class TestAuditActionEnum:
         assert AuditAction.ZONE_CREATED.value == "zone_created"
         assert AuditAction.ZONE_UPDATED.value == "zone_updated"
         assert AuditAction.ZONE_DELETED.value == "zone_deleted"
+
+
+# =============================================================================
+# Audit Failure Doesn't Block Operation Tests (NEM-2541)
+# =============================================================================
+
+
+class TestAuditFailureDoesNotBlockOperations:
+    """Tests verifying audit log failures don't block main operations (NEM-2541).
+
+    These tests ensure that when an audit log write fails:
+    1. The failure is logged at WARNING level with full context
+    2. The main operation continues to completion
+    3. No exception is raised to the caller
+    """
+
+    @pytest.mark.asyncio
+    async def test_log_rate_limit_continues_on_audit_failure(
+        self, audit_logger_instance, mock_db, mock_request
+    ):
+        """Test log_rate_limit_exceeded completes even when audit fails."""
+        with patch.object(
+            audit_logger_instance._audit_service,
+            "log_action",
+            new_callable=AsyncMock,
+        ) as mock_log:
+            mock_log.side_effect = Exception("Database connection lost")
+
+            # Should NOT raise an exception
+            await audit_logger_instance.log_rate_limit_exceeded(
+                db=mock_db,
+                request=mock_request,
+                tier="default",
+                current_count=65,
+                limit=60,
+            )
+
+            # log_action was called and raised, but method completed
+            mock_log.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_log_content_type_continues_on_audit_failure(
+        self, audit_logger_instance, mock_db, mock_request
+    ):
+        """Test log_content_type_rejected completes even when audit fails."""
+        with patch.object(
+            audit_logger_instance._audit_service,
+            "log_action",
+            new_callable=AsyncMock,
+        ) as mock_log:
+            mock_log.side_effect = RuntimeError("Connection timeout")
+
+            # Should NOT raise an exception
+            await audit_logger_instance.log_content_type_rejected(
+                db=mock_db,
+                request=mock_request,
+                content_type="text/plain",
+            )
+
+            mock_log.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_log_file_magic_continues_on_audit_failure(
+        self, audit_logger_instance, mock_db, mock_request
+    ):
+        """Test log_file_magic_rejected completes even when audit fails."""
+        with patch.object(
+            audit_logger_instance._audit_service,
+            "log_action",
+            new_callable=AsyncMock,
+        ) as mock_log:
+            mock_log.side_effect = OSError("Disk full")
+
+            # Should NOT raise an exception
+            await audit_logger_instance.log_file_magic_rejected(
+                db=mock_db,
+                request=mock_request,
+                claimed_type="image/png",
+                detected_type="application/pdf",
+                filename="malicious.png",
+            )
+
+            mock_log.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_log_config_change_continues_on_audit_failure(
+        self, audit_logger_instance, mock_db, mock_request
+    ):
+        """Test log_config_change completes even when audit fails."""
+        with patch.object(
+            audit_logger_instance._audit_service,
+            "log_action",
+            new_callable=AsyncMock,
+        ) as mock_log:
+            mock_log.side_effect = ValueError("Invalid data")
+
+            # Should NOT raise an exception
+            await audit_logger_instance.log_config_change(
+                db=mock_db,
+                request=mock_request,
+                setting_name="batch_window_seconds",
+                old_value=90,
+                new_value=120,
+            )
+
+            mock_log.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_log_security_alert_continues_on_audit_failure(
+        self, audit_logger_instance, mock_db, mock_request
+    ):
+        """Test log_security_alert completes even when audit fails."""
+        with patch.object(
+            audit_logger_instance._audit_service,
+            "log_action",
+            new_callable=AsyncMock,
+        ) as mock_log:
+            mock_log.side_effect = ConnectionError("Network unreachable")
+
+            # Should NOT raise an exception
+            await audit_logger_instance.log_security_alert(
+                db=mock_db,
+                request=mock_request,
+                alert_type="brute_force_attempt",
+                details={"attempts": 100},
+                severity="high",
+            )
+
+            mock_log.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_log_bulk_export_continues_on_audit_failure(
+        self, audit_logger_instance, mock_db, mock_request
+    ):
+        """Test log_bulk_export completes even when audit fails."""
+        with patch.object(
+            audit_logger_instance._audit_service,
+            "log_action",
+            new_callable=AsyncMock,
+        ) as mock_log:
+            mock_log.side_effect = TimeoutError("Query timed out")
+
+            # Should NOT raise an exception
+            await audit_logger_instance.log_bulk_export(
+                db=mock_db,
+                request=mock_request,
+                export_type="events",
+                record_count=1000,
+                filters={"camera_id": "front_door"},
+            )
+
+            mock_log.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_log_cleanup_executed_continues_on_audit_failure(
+        self, audit_logger_instance, mock_db, mock_request
+    ):
+        """Test log_cleanup_executed completes even when audit fails."""
+        with patch.object(
+            audit_logger_instance._audit_service,
+            "log_action",
+            new_callable=AsyncMock,
+        ) as mock_log:
+            mock_log.side_effect = PermissionError("Access denied")
+
+            # Should NOT raise an exception
+            await audit_logger_instance.log_cleanup_executed(
+                db=mock_db,
+                request=mock_request,
+                dry_run=False,
+                deleted_counts={"events": 50, "detections": 200},
+                freed_bytes=1024 * 1024 * 10,
+            )
+
+            mock_log.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_audit_failure_logs_warning_with_full_context(
+        self, audit_logger_instance, mock_db, mock_request
+    ):
+        """Test that audit failures are logged with full context (NEM-2541)."""
+        with (
+            patch.object(
+                audit_logger_instance._audit_service,
+                "log_action",
+                new_callable=AsyncMock,
+            ) as mock_log,
+            patch("backend.services.audit_logger.logger.warning") as mock_warning,
+        ):
+            mock_log.side_effect = Exception("Database error")
+
+            await audit_logger_instance.log_rate_limit_exceeded(
+                db=mock_db,
+                request=mock_request,
+                tier="default",
+                current_count=65,
+                limit=60,
+            )
+
+            # Verify warning was called with full context
+            mock_warning.assert_called()
+            call_args = mock_warning.call_args
+            assert call_args[0][0] == "Audit log write failed"
+            extra = call_args[1]["extra"]
+            assert "action" in extra
+            assert "resource_type" in extra
+            assert "error_type" in extra
+            assert "error_message" in extra
+            assert extra["error_type"] == "Exception"
+            assert extra["error_message"] == "Database error"
