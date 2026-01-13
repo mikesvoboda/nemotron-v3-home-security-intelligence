@@ -1,982 +1,539 @@
-"""Comprehensive unit tests for WorkerSupervisor (PipelineWorkerManager).
+"""Unit tests for WorkerSupervisor service.
 
-This test suite focuses on supervisor-level functionality including:
-- Worker registration and deregistration
-- Health check logic and state transitions
-- Restart behavior and backoff
-- Graceful shutdown and queue draining
-- Error handling and edge cases
-- Global singleton management
-
-These tests complement the existing pipeline_workers tests by focusing
-specifically on the supervisor/manager aspects of worker lifecycle management.
-
-NEM-2463: Create Comprehensive Test Suite for WorkerSupervisor
+Tests cover:
+- Worker registration and unregistration
+- Supervisor start/stop lifecycle
+- Worker crash detection and restart
+- Exponential backoff calculation
+- Max restart limit enforcement
+- Status broadcasting
+- Thread-safe restart handling
 """
 
+from __future__ import annotations
+
 import asyncio
-from collections.abc import Callable
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 
-from backend.core.redis import RedisClient
-from backend.services.pipeline_workers import (
-    AnalysisQueueWorker,
-    BatchTimeoutWorker,
-    DetectionQueueWorker,
-    PipelineWorkerManager,
-    QueueMetricsWorker,
-    WorkerState,
-    drain_queues,
-    get_pipeline_manager,
-    reset_pipeline_manager_state,
-    stop_pipeline_manager,
+from backend.services.worker_supervisor import (
+    SupervisorConfig,
+    WorkerInfo,
+    WorkerStatus,
+    WorkerSupervisor,
+    get_worker_supervisor,
+    reset_worker_supervisor,
 )
 
-# =============================================================================
-# Test Constants
-# =============================================================================
-
-TEST_STOP_TIMEOUT = 0.5  # Fast stop timeout for tests
-TEST_POLL_TIMEOUT = 1  # Fast poll timeout for tests
+pytestmark = pytest.mark.unit
 
 
-# =============================================================================
-# Test Helpers
-# =============================================================================
-
-
-async def wait_for_condition(
-    condition: Callable[[], bool],
-    timeout: float = 2.0,
-    poll_interval: float = 0.01,
-    description: str = "condition",
-) -> bool:
-    """Wait for a condition to become true with a timeout.
-
-    Args:
-        condition: A callable that returns True when the condition is met
-        timeout: Maximum time to wait in seconds
-        poll_interval: How often to check the condition
-        description: Description for error messages
-
-    Returns:
-        True if condition was met within timeout
-
-    Raises:
-        TimeoutError: If the condition is not met within the timeout
-    """
-    deadline = asyncio.get_event_loop().time() + timeout
-    while asyncio.get_event_loop().time() < deadline:
-        if condition():
-            return True
-        await asyncio.sleep(poll_interval)
-    raise TimeoutError(f"Timeout waiting for {description}")
-
-
-# =============================================================================
+# ============================================================================
 # Fixtures
-# =============================================================================
+# ============================================================================
 
 
 @pytest.fixture
-def mock_redis_client():
-    """Create a mock Redis client with proper async behavior."""
-    client = MagicMock(spec=RedisClient)
+def supervisor_config() -> SupervisorConfig:
+    """Create a test configuration with short intervals."""
+    return SupervisorConfig(
+        check_interval=0.1,  # Fast for tests
+        default_max_restarts=3,
+        default_backoff_base=0.1,  # Fast for tests
+        default_backoff_max=1.0,
+    )
 
-    async def mock_get_from_queue(*args, **kwargs):
-        """Mock that yields control like real BLPOP would."""
-        await asyncio.sleep(0.01)
 
-    client.get_from_queue = mock_get_from_queue
-    client.get = AsyncMock(return_value=None)
-    client.set = AsyncMock(return_value=True)
-    client.delete = AsyncMock(return_value=1)
-    client.get_queue_length = AsyncMock(return_value=0)
-    client._client = MagicMock()
-    client._client.keys = AsyncMock(return_value=[])
-    return client
+@pytest.fixture
+def mock_broadcaster() -> AsyncMock:
+    """Create a mock EventBroadcaster."""
+    broadcaster = AsyncMock()
+    broadcaster.broadcast_service_status = AsyncMock()
+    return broadcaster
+
+
+@pytest.fixture
+def supervisor(
+    supervisor_config: SupervisorConfig,
+    mock_broadcaster: AsyncMock,
+) -> WorkerSupervisor:
+    """Create a WorkerSupervisor instance for testing."""
+    reset_worker_supervisor()
+    return WorkerSupervisor(config=supervisor_config, broadcaster=mock_broadcaster)
 
 
 @pytest.fixture(autouse=True)
-def reset_global_state():
-    """Reset global pipeline manager state before and after each test."""
-    reset_pipeline_manager_state()
+def reset_singleton():
+    """Reset the singleton before and after each test."""
+    reset_worker_supervisor()
     yield
-    reset_pipeline_manager_state()
+    reset_worker_supervisor()
 
 
-# =============================================================================
+# ============================================================================
 # Worker Registration Tests
-# =============================================================================
+# ============================================================================
 
 
 class TestWorkerRegistration:
-    """Tests for worker registration and deregistration behavior."""
+    """Tests for worker registration and unregistration."""
 
-    @pytest.mark.asyncio
-    async def test_manager_initializes_with_all_workers_by_default(self, mock_redis_client):
-        """Test that manager creates all workers by default."""
-        manager = PipelineWorkerManager(
-            redis_client=mock_redis_client,
-            worker_stop_timeout=TEST_STOP_TIMEOUT,
+    async def test_register_worker_success(self, supervisor: WorkerSupervisor) -> None:
+        """Test successful worker registration."""
+
+        async def worker() -> None:
+            pass
+
+        await supervisor.register_worker("test_worker", worker)
+
+        assert "test_worker" in supervisor._workers
+        assert supervisor.worker_count == 1
+
+        info = supervisor.get_worker_info("test_worker")
+        assert info is not None
+        assert info.name == "test_worker"
+        assert info.status == WorkerStatus.STOPPED
+
+    async def test_register_duplicate_worker_raises(self, supervisor: WorkerSupervisor) -> None:
+        """Test that registering duplicate worker raises ValueError."""
+
+        async def worker() -> None:
+            pass
+
+        await supervisor.register_worker("test_worker", worker)
+
+        with pytest.raises(ValueError, match="already registered"):
+            await supervisor.register_worker("test_worker", worker)
+
+    async def test_register_worker_custom_config(self, supervisor: WorkerSupervisor) -> None:
+        """Test registering worker with custom configuration."""
+
+        async def worker() -> None:
+            pass
+
+        await supervisor.register_worker(
+            "test_worker",
+            worker,
+            max_restarts=10,
+            backoff_base=2.0,
+            backoff_max=120.0,
         )
 
-        assert manager._detection_worker is not None
-        assert manager._analysis_worker is not None
-        assert manager._timeout_worker is not None
-        assert manager._metrics_worker is not None
+        info = supervisor.get_worker_info("test_worker")
+        assert info is not None
+        assert info.max_restarts == 10
+        assert info.backoff_base == 2.0
+        assert info.backoff_max == 120.0
 
-    @pytest.mark.asyncio
-    async def test_manager_selective_worker_creation(self, mock_redis_client):
-        """Test that workers can be selectively enabled/disabled."""
-        manager = PipelineWorkerManager(
-            redis_client=mock_redis_client,
-            enable_detection_worker=True,
-            enable_analysis_worker=False,
-            enable_timeout_worker=True,
-            enable_metrics_worker=False,
-            worker_stop_timeout=TEST_STOP_TIMEOUT,
-        )
+    async def test_unregister_worker_success(self, supervisor: WorkerSupervisor) -> None:
+        """Test successful worker unregistration."""
 
-        assert manager._detection_worker is not None
-        assert manager._analysis_worker is None
-        assert manager._timeout_worker is not None
-        assert manager._metrics_worker is None
+        async def worker() -> None:
+            pass
 
-    @pytest.mark.asyncio
-    async def test_manager_no_workers_enabled(self, mock_redis_client):
-        """Test manager with all workers disabled."""
-        manager = PipelineWorkerManager(
-            redis_client=mock_redis_client,
-            enable_detection_worker=False,
-            enable_analysis_worker=False,
-            enable_timeout_worker=False,
-            enable_metrics_worker=False,
-            worker_stop_timeout=TEST_STOP_TIMEOUT,
-        )
+        await supervisor.register_worker("test_worker", worker)
+        await supervisor.unregister_worker("test_worker")
 
-        assert manager._detection_worker is None
-        assert manager._analysis_worker is None
-        assert manager._timeout_worker is None
-        assert manager._metrics_worker is None
+        assert "test_worker" not in supervisor._workers
+        assert supervisor.worker_count == 0
 
-        # Should still be able to start/stop
-        await manager.start()
-        assert manager.running is True
-        await manager.stop()
-        assert manager.running is False
-
-    @pytest.mark.asyncio
-    async def test_manager_shares_batch_aggregator_between_workers(self, mock_redis_client):
-        """Test that detection and timeout workers share the same batch aggregator."""
-        manager = PipelineWorkerManager(
-            redis_client=mock_redis_client,
-            enable_detection_worker=True,
-            enable_analysis_worker=False,
-            enable_timeout_worker=True,
-            enable_metrics_worker=False,
-            worker_stop_timeout=TEST_STOP_TIMEOUT,
-        )
-
-        # Both workers should use the same aggregator instance
-        assert manager._detection_worker._aggregator is manager._aggregator
-        assert manager._timeout_worker._aggregator is manager._aggregator
-
-
-# =============================================================================
-# Health Check and State Transition Tests
-# =============================================================================
-
-
-class TestHealthCheckLogic:
-    """Tests for worker health monitoring and state transitions."""
-
-    @pytest.mark.asyncio
-    async def test_worker_state_transitions_through_lifecycle(self, mock_redis_client):
-        """Test worker state transitions from STOPPED -> STARTING -> RUNNING -> STOPPING -> STOPPED."""
-        worker = DetectionQueueWorker(
-            redis_client=mock_redis_client,
-            poll_timeout=TEST_POLL_TIMEOUT,
-            stop_timeout=TEST_STOP_TIMEOUT,
-        )
-
-        # Initial state
-        assert worker.stats.state == WorkerState.STOPPED
-        assert worker.running is False
-
-        # Start
-        await worker.start()
-        assert worker.stats.state == WorkerState.RUNNING
-        assert worker.running is True
-
-        # Stop
-        await worker.stop()
-        assert worker.stats.state == WorkerState.STOPPED
-        assert worker.running is False
-
-    @pytest.mark.asyncio
-    async def test_worker_stats_tracking(self, mock_redis_client):
-        """Test that worker stats are properly tracked."""
-        worker = DetectionQueueWorker(
-            redis_client=mock_redis_client,
-            poll_timeout=TEST_POLL_TIMEOUT,
-            stop_timeout=TEST_STOP_TIMEOUT,
-        )
-
-        # Initial stats
-        assert worker.stats.items_processed == 0
-        assert worker.stats.errors == 0
-        assert worker.stats.last_processed_at is None
-
-        # Stats should be accessible via to_dict
-        stats_dict = worker.stats.to_dict()
-        assert "items_processed" in stats_dict
-        assert "errors" in stats_dict
-        assert "last_processed_at" in stats_dict
-        assert "state" in stats_dict
-
-    @pytest.mark.asyncio
-    async def test_worker_error_state_recovery(self, mock_redis_client):
-        """Test that worker recovers from error state."""
-        call_count = 0
-
-        async def mock_get_from_queue_that_fails_then_succeeds(*args, **kwargs):
-            nonlocal call_count
-            call_count += 1
-            if call_count == 1:
-                raise RuntimeError("Simulated failure")
-            await asyncio.sleep(0.01)
-
-        mock_redis_client.get_from_queue = mock_get_from_queue_that_fails_then_succeeds
-
-        worker = DetectionQueueWorker(
-            redis_client=mock_redis_client,
-            poll_timeout=TEST_POLL_TIMEOUT,
-            stop_timeout=TEST_STOP_TIMEOUT,
-        )
-
-        await worker.start()
-
-        # Wait for error to be recorded
-        await wait_for_condition(
-            lambda: worker.stats.errors >= 1,
-            timeout=2.0,
-            description="worker error recorded",
-        )
-
-        # Worker should recover and continue running
-        assert worker.running is True
-        await worker.stop()
-
-    @pytest.mark.asyncio
-    async def test_manager_get_status_reflects_worker_states(self, mock_redis_client):
-        """Test that manager status accurately reflects worker states."""
-        manager = PipelineWorkerManager(
-            redis_client=mock_redis_client,
-            worker_stop_timeout=TEST_STOP_TIMEOUT,
-        )
-
-        # Before start
-        status = manager.get_status()
-        assert status["running"] is False
-        assert status["workers"]["detection"]["state"] == "stopped"
-
-        # After start
-        await manager.start()
-        status = manager.get_status()
-        assert status["running"] is True
-        assert status["workers"]["detection"]["state"] == "running"
-
-        await manager.stop()
-
-
-# =============================================================================
-# Restart Behavior and Backoff Tests
-# =============================================================================
-
-
-class TestRestartBehavior:
-    """Tests for worker restart behavior and backoff logic."""
-
-    @pytest.mark.asyncio
-    async def test_worker_idempotent_start(self, mock_redis_client):
-        """Test that starting a running worker is idempotent."""
-        worker = DetectionQueueWorker(
-            redis_client=mock_redis_client,
-            poll_timeout=TEST_POLL_TIMEOUT,
-            stop_timeout=TEST_STOP_TIMEOUT,
-        )
-
-        await worker.start()
-        first_task = worker._task
-
-        # Start again - should not create new task
-        await worker.start()
-        assert worker._task is first_task
-        assert worker.running is True
-
-        await worker.stop()
-
-    @pytest.mark.asyncio
-    async def test_worker_idempotent_stop(self, mock_redis_client):
-        """Test that stopping a stopped worker is safe."""
-        worker = DetectionQueueWorker(
-            redis_client=mock_redis_client,
-            poll_timeout=TEST_POLL_TIMEOUT,
-            stop_timeout=TEST_STOP_TIMEOUT,
-        )
-
-        # Stop without starting
-        await worker.stop()
-        assert worker.running is False
-
-        # Start and stop multiple times
-        await worker.start()
-        await worker.stop()
-        await worker.stop()  # Double stop
-        assert worker.running is False
-
-    @pytest.mark.asyncio
-    async def test_manager_idempotent_start(self, mock_redis_client):
-        """Test that starting a running manager is idempotent."""
-        manager = PipelineWorkerManager(
-            redis_client=mock_redis_client,
-            worker_stop_timeout=TEST_STOP_TIMEOUT,
-        )
-
-        await manager.start()
-        assert manager.running is True
-
-        # Start again
-        await manager.start()
-        assert manager.running is True
-
-        await manager.stop()
-
-    @pytest.mark.asyncio
-    async def test_manager_idempotent_stop(self, mock_redis_client):
-        """Test that stopping a stopped manager is safe."""
-        manager = PipelineWorkerManager(
-            redis_client=mock_redis_client,
-            worker_stop_timeout=TEST_STOP_TIMEOUT,
-        )
-
-        # Stop without starting
-        await manager.stop()
-        assert manager.running is False
-
-        # Start and stop multiple times
-        await manager.start()
-        await manager.stop()
-        await manager.stop()  # Double stop
-        assert manager.running is False
-
-
-# =============================================================================
-# Graceful Shutdown Tests
-# =============================================================================
-
-
-class TestGracefulShutdown:
-    """Tests for graceful shutdown behavior including queue draining."""
-
-    @pytest.mark.asyncio
-    async def test_stop_accepting_sets_flag(self, mock_redis_client):
-        """Test that stop_accepting sets the accepting flag to False."""
-        manager = PipelineWorkerManager(
-            redis_client=mock_redis_client,
-            worker_stop_timeout=TEST_STOP_TIMEOUT,
-        )
-
-        assert manager.accepting is True
-
-        manager.stop_accepting()
-        assert manager.accepting is False
-
-    @pytest.mark.asyncio
-    async def test_stop_accepting_is_idempotent(self, mock_redis_client):
-        """Test that stop_accepting can be called multiple times safely."""
-        manager = PipelineWorkerManager(
-            redis_client=mock_redis_client,
-            worker_stop_timeout=TEST_STOP_TIMEOUT,
-        )
-
-        manager.stop_accepting()
-        assert manager.accepting is False
-
-        # Call again - should not raise
-        manager.stop_accepting()
-        assert manager.accepting is False
-
-    @pytest.mark.asyncio
-    async def test_get_pending_count_returns_queue_depths(self, mock_redis_client):
-        """Test that get_pending_count returns sum of queue depths."""
-        mock_redis_client.get_queue_length = AsyncMock(side_effect=[5, 3])
-
-        manager = PipelineWorkerManager(
-            redis_client=mock_redis_client,
-            worker_stop_timeout=TEST_STOP_TIMEOUT,
-        )
-
-        count = await manager.get_pending_count()
-        assert count == 8  # 5 + 3
-
-    @pytest.mark.asyncio
-    async def test_get_pending_count_handles_redis_error(self, mock_redis_client):
-        """Test that get_pending_count handles Redis errors gracefully."""
-        mock_redis_client.get_queue_length = AsyncMock(side_effect=RuntimeError("Redis error"))
-
-        manager = PipelineWorkerManager(
-            redis_client=mock_redis_client,
-            worker_stop_timeout=TEST_STOP_TIMEOUT,
-        )
-
-        count = await manager.get_pending_count()
-        assert count == 0  # Returns 0 on error
-
-    @pytest.mark.asyncio
-    async def test_drain_queues_empty_queues(self, mock_redis_client):
-        """Test drain_queues returns immediately when queues are empty."""
-        mock_redis_client.get_queue_length = AsyncMock(return_value=0)
-
-        manager = PipelineWorkerManager(
-            redis_client=mock_redis_client,
-            worker_stop_timeout=TEST_STOP_TIMEOUT,
-        )
-
-        remaining = await manager.drain_queues(timeout=1.0)
-        assert remaining == 0
-        assert manager.accepting is False  # stop_accepting is called
-
-    @pytest.mark.asyncio
-    async def test_drain_queues_waits_for_completion(self, mock_redis_client):
-        """Test drain_queues waits for queues to drain."""
-        call_count = 0
-
-        async def mock_queue_length(queue_name):
-            nonlocal call_count
-            call_count += 1
-            # First few calls return pending items, then empty
-            if call_count <= 2:
-                return 5 if "detection" in queue_name else 3
-            return 0
-
-        mock_redis_client.get_queue_length = mock_queue_length
-
-        manager = PipelineWorkerManager(
-            redis_client=mock_redis_client,
-            worker_stop_timeout=TEST_STOP_TIMEOUT,
-        )
-
-        remaining = await manager.drain_queues(timeout=2.0)
-        assert remaining == 0
-
-    @pytest.mark.asyncio
-    async def test_drain_queues_timeout(self, mock_redis_client):
-        """Test drain_queues returns remaining count on timeout."""
-        # Always return items, simulating queues that never drain
-        mock_redis_client.get_queue_length = AsyncMock(return_value=10)
-
-        manager = PipelineWorkerManager(
-            redis_client=mock_redis_client,
-            worker_stop_timeout=TEST_STOP_TIMEOUT,
-        )
-
-        remaining = await manager.drain_queues(timeout=0.2)
-        assert remaining > 0  # Should have remaining items
-
-    @pytest.mark.asyncio
-    async def test_global_drain_queues_function(self, mock_redis_client):
-        """Test the global drain_queues function."""
-        import backend.services.pipeline_workers as module
-
-        # Set up the global manager
-        module._pipeline_manager = PipelineWorkerManager(
-            redis_client=mock_redis_client,
-            worker_stop_timeout=TEST_STOP_TIMEOUT,
-        )
-        mock_redis_client.get_queue_length = AsyncMock(return_value=0)
-
-        remaining = await drain_queues(timeout=1.0)
-        assert remaining == 0
-
-    @pytest.mark.asyncio
-    async def test_global_drain_queues_no_manager(self):
-        """Test drain_queues returns 0 when no manager exists."""
-        import backend.services.pipeline_workers as module
-
-        module._pipeline_manager = None
-
-        remaining = await drain_queues(timeout=1.0)
-        assert remaining == 0
-
-    @pytest.mark.asyncio
-    async def test_worker_stop_timeout_forces_cancel(self, mock_redis_client):
-        """Test that worker cancels task when stop times out."""
-        worker = DetectionQueueWorker(
-            redis_client=mock_redis_client,
-            poll_timeout=TEST_POLL_TIMEOUT,
-            stop_timeout=0.01,  # Very short timeout
-        )
-
-        async def long_running_loop():
-            while True:
-                await asyncio.sleep(0.1)
-
-        await worker.start()
-
-        # Replace task with one that won't stop easily
-        original_task = worker._task
-        worker._task = asyncio.create_task(long_running_loop())
-
-        if original_task:
-            original_task.cancel()
-            try:
-                await original_task
-            except asyncio.CancelledError:
-                pass
-
-        # Stop should timeout and force cancel
-        await worker.stop()
-
-        assert worker.running is False
-        assert worker.stats.state == WorkerState.STOPPED
-        assert worker._task is None
-
-
-# =============================================================================
-# Error Handling Tests
-# =============================================================================
-
-
-class TestErrorHandling:
-    """Tests for error handling in supervisor operations."""
-
-    @pytest.mark.asyncio
-    async def test_manager_handles_worker_start_failure(self, mock_redis_client):
-        """Test that manager handles worker start failures gracefully."""
-        manager = PipelineWorkerManager(
-            redis_client=mock_redis_client,
-            worker_stop_timeout=TEST_STOP_TIMEOUT,
-        )
-
-        # Mock a worker to fail on start
-        original_start = manager._detection_worker.start
-
-        async def failing_start():
-            raise RuntimeError("Start failed")
-
-        manager._detection_worker.start = failing_start
-
-        # Should raise ExceptionGroup with the TaskGroup
-        with pytest.raises(ExceptionGroup):
-            await manager.start()
-
-        # Restore for cleanup
-        manager._detection_worker.start = original_start
-
-    @pytest.mark.asyncio
-    async def test_manager_continues_stop_on_worker_error(self, mock_redis_client):
-        """Test that manager continues stopping other workers when one fails."""
-        manager = PipelineWorkerManager(
-            redis_client=mock_redis_client,
-            worker_stop_timeout=TEST_STOP_TIMEOUT,
-        )
-
-        await manager.start()
-
-        # Mock detection worker stop to fail
-        original_stop = manager._detection_worker.stop
-
-        async def failing_stop():
-            raise RuntimeError("Stop failed")
-
-        manager._detection_worker.stop = failing_stop
-
-        # Stop should complete without raising (best-effort shutdown)
-        await manager.stop()
-        assert manager.running is False
-
-        # Restore for cleanup
-        manager._detection_worker.stop = original_stop
-
-    @pytest.mark.asyncio
-    async def test_worker_loop_handles_cancelled_error(self, mock_redis_client):
-        """Test that worker loop handles CancelledError gracefully."""
-        call_count = 0
-
-        async def mock_get_that_raises_cancelled(*args, **kwargs):
-            nonlocal call_count
-            call_count += 1
-            if call_count == 1:
-                await asyncio.sleep(0.01)
-                return None
-            raise asyncio.CancelledError()
-
-        mock_redis_client.get_from_queue = mock_get_that_raises_cancelled
-
-        worker = DetectionQueueWorker(
-            redis_client=mock_redis_client,
-            poll_timeout=TEST_POLL_TIMEOUT,
-            stop_timeout=TEST_STOP_TIMEOUT,
-        )
-
-        await worker.start()
-        await wait_for_condition(lambda: call_count >= 1, timeout=2.0)
-
-        # Manually clean up since loop exited due to CancelledError
-        worker._running = False
-        if worker._task and not worker._task.done():
-            worker._task.cancel()
-            try:
-                await worker._task
-            except asyncio.CancelledError:
-                pass
-        worker._task = None
-        worker._stats.state = WorkerState.STOPPED
-
-
-# =============================================================================
-# Global Singleton Tests
-# =============================================================================
-
-
-class TestGlobalSingleton:
-    """Tests for global pipeline manager singleton management."""
-
-    @pytest.mark.asyncio
-    async def test_get_pipeline_manager_creates_singleton(self, mock_redis_client):
-        """Test that get_pipeline_manager creates a singleton."""
-        manager1 = await get_pipeline_manager(mock_redis_client)
-        manager2 = await get_pipeline_manager(mock_redis_client)
-
-        assert manager1 is manager2
-
-    @pytest.mark.asyncio
-    @pytest.mark.timeout(15)
-    async def test_stop_pipeline_manager_clears_singleton(self, mock_redis_client):
-        """Test that stop_pipeline_manager clears the singleton."""
-        import backend.services.pipeline_workers as module
-
-        # Create a fast manager directly to avoid slow default timeouts
-        fast_manager = PipelineWorkerManager(
-            redis_client=mock_redis_client,
-            worker_stop_timeout=TEST_STOP_TIMEOUT,
-        )
-        module._pipeline_manager = fast_manager
-
-        await fast_manager.start()
-
-        await stop_pipeline_manager()
-
-        assert module._pipeline_manager is None
-
-    @pytest.mark.asyncio
-    async def test_stop_pipeline_manager_when_none(self):
-        """Test that stop_pipeline_manager is safe when no manager exists."""
-        import backend.services.pipeline_workers as module
-
-        module._pipeline_manager = None
-
+    async def test_unregister_unknown_worker(self, supervisor: WorkerSupervisor) -> None:
+        """Test unregistering unknown worker logs warning but doesn't raise."""
         # Should not raise
-        await stop_pipeline_manager()
-
-    @pytest.mark.asyncio
-    async def test_reset_pipeline_manager_state(self, mock_redis_client):
-        """Test that reset_pipeline_manager_state clears all state."""
-        import backend.services.pipeline_workers as module
-
-        await get_pipeline_manager(mock_redis_client)
-        assert module._pipeline_manager is not None
-
-        reset_pipeline_manager_state()
-
-        assert module._pipeline_manager is None
-        assert module._pipeline_manager_lock is None
-
-    @pytest.mark.asyncio
-    async def test_concurrent_get_pipeline_manager(self, mock_redis_client):
-        """Test that concurrent calls to get_pipeline_manager return same instance."""
-        import backend.services.pipeline_workers as module
-
-        module._pipeline_manager = None
-
-        # Create a fast manager to avoid slow defaults
-        fast_manager = PipelineWorkerManager(
-            redis_client=mock_redis_client,
-            worker_stop_timeout=TEST_STOP_TIMEOUT,
-        )
-
-        # Manually set to test concurrent access
-        module._pipeline_manager = fast_manager
-
-        results = await asyncio.gather(
-            get_pipeline_manager(mock_redis_client),
-            get_pipeline_manager(mock_redis_client),
-            get_pipeline_manager(mock_redis_client),
-        )
-
-        # All should be the same instance
-        assert results[0] is results[1] is results[2]
+        await supervisor.unregister_worker("unknown_worker")
 
 
-# =============================================================================
-# Edge Case Tests
-# =============================================================================
+# ============================================================================
+# Supervisor Lifecycle Tests
+# ============================================================================
 
 
-class TestEdgeCases:
-    """Tests for edge cases and boundary conditions."""
+class TestSupervisorLifecycle:
+    """Tests for supervisor start and stop."""
 
-    @pytest.mark.asyncio
-    async def test_manager_with_custom_stop_timeout(self, mock_redis_client):
-        """Test that custom stop timeout is passed to workers."""
-        custom_timeout = 1.5
+    async def test_start_supervisor(self, supervisor: WorkerSupervisor) -> None:
+        """Test starting the supervisor."""
+        started = asyncio.Event()
 
-        manager = PipelineWorkerManager(
-            redis_client=mock_redis_client,
-            worker_stop_timeout=custom_timeout,
-        )
+        async def worker() -> None:
+            started.set()
+            await asyncio.sleep(10)  # cancelled by supervisor.stop()
 
-        assert manager._detection_worker._stop_timeout == custom_timeout
-        assert manager._analysis_worker._stop_timeout == custom_timeout
-        assert manager._timeout_worker._stop_timeout == custom_timeout
-        assert manager._metrics_worker._stop_timeout == custom_timeout
+        await supervisor.register_worker("test_worker", worker)
+        await supervisor.start()
 
-    @pytest.mark.asyncio
-    async def test_manager_status_includes_accepting_flag(self, mock_redis_client):
-        """Test that manager status includes accepting flag."""
-        manager = PipelineWorkerManager(
-            redis_client=mock_redis_client,
-            worker_stop_timeout=TEST_STOP_TIMEOUT,
-        )
+        try:
+            # Wait for worker to start
+            await asyncio.wait_for(started.wait(), timeout=1.0)
 
-        status = manager.get_status()
-        assert "accepting" in status
-        assert status["accepting"] is True
+            assert supervisor.is_running
+            assert supervisor.get_worker_status("test_worker") == WorkerStatus.RUNNING
+        finally:
+            await supervisor.stop()
 
-        manager.stop_accepting()
-        status = manager.get_status()
-        assert status["accepting"] is False
+    async def test_stop_supervisor(self, supervisor: WorkerSupervisor) -> None:
+        """Test stopping the supervisor."""
 
-    @pytest.mark.asyncio
-    async def test_worker_stats_update_on_processing(self, mock_redis_client):
-        """Test that worker stats are updated during processing."""
+        async def worker() -> None:
+            await asyncio.sleep(10)  # cancelled by supervisor.stop()
+
+        await supervisor.register_worker("test_worker", worker)
+        await supervisor.start()
+        await supervisor.stop()
+
+        assert not supervisor.is_running
+        assert supervisor.get_worker_status("test_worker") == WorkerStatus.STOPPED
+
+    async def test_start_already_running(self, supervisor: WorkerSupervisor) -> None:
+        """Test that starting when already running logs warning."""
+
+        async def worker() -> None:
+            await asyncio.sleep(10)  # cancelled by supervisor.stop()
+
+        await supervisor.register_worker("test_worker", worker)
+        await supervisor.start()
+
+        try:
+            # Should not raise, just log warning
+            await supervisor.start()
+            assert supervisor.is_running
+        finally:
+            await supervisor.stop()
+
+    async def test_stop_not_running(self, supervisor: WorkerSupervisor) -> None:
+        """Test stopping when not running is safe."""
+        # Should not raise
+        await supervisor.stop()
+        assert not supervisor.is_running
+
+
+# ============================================================================
+# Worker Crash and Restart Tests
+# ============================================================================
+
+
+class TestWorkerCrashRestart:
+    """Tests for worker crash detection and restart."""
+
+    async def test_worker_crash_detected(
+        self,
+        supervisor: WorkerSupervisor,
+        mock_broadcaster: AsyncMock,
+    ) -> None:
+        """Test that worker crashes are detected."""
+        crash_count = 0
+
+        async def crashing_worker() -> None:
+            nonlocal crash_count
+            crash_count += 1
+            raise RuntimeError("Test crash")
+
+        await supervisor.register_worker("crashing_worker", crashing_worker)
+        await supervisor.start()
+
+        try:
+            # Wait for crash detection
+            await asyncio.sleep(0.3)
+
+            info = supervisor.get_worker_info("crashing_worker")
+            assert info is not None
+            assert info.error == "Test crash"
+            assert info.last_crashed_at is not None
+        finally:
+            await supervisor.stop()
+
+    async def test_worker_auto_restart(
+        self,
+        supervisor: WorkerSupervisor,
+    ) -> None:
+        """Test that crashed workers are auto-restarted."""
         call_count = 0
+        started = asyncio.Event()
 
-        async def mock_get_from_queue(*args, **kwargs):
+        async def flaky_worker() -> None:
             nonlocal call_count
             call_count += 1
-            await asyncio.sleep(0.01)
             if call_count == 1:
-                return {
-                    "batch_id": "batch_123",
-                    "camera_id": "cam1",
-                    "detection_ids": [1, 2, 3],
-                }
-            return None
+                raise RuntimeError("First crash")
+            started.set()
+            await asyncio.sleep(10)  # cancelled by supervisor.stop()
 
-        mock_redis_client.get_from_queue = mock_get_from_queue
+        await supervisor.register_worker("flaky_worker", flaky_worker)
+        await supervisor.start()
 
-        mock_analyzer = MagicMock()
-        event = MagicMock()
-        event.id = 1
-        event.risk_score = 50
-        mock_analyzer.analyze_batch = AsyncMock(return_value=event)
+        try:
+            # Wait for restart
+            await asyncio.wait_for(started.wait(), timeout=2.0)
 
-        worker = AnalysisQueueWorker(
-            redis_client=mock_redis_client,
-            analyzer=mock_analyzer,
-            poll_timeout=TEST_POLL_TIMEOUT,
-            stop_timeout=TEST_STOP_TIMEOUT,
+            info = supervisor.get_worker_info("flaky_worker")
+            assert info is not None
+            assert info.restart_count == 1
+            assert info.status == WorkerStatus.RUNNING
+        finally:
+            await supervisor.stop()
+
+    async def test_max_restarts_exceeded(
+        self,
+        supervisor: WorkerSupervisor,
+    ) -> None:
+        """Test that workers stop restarting after max_restarts."""
+
+        async def always_crashes() -> None:
+            raise RuntimeError("Always fails")
+
+        await supervisor.register_worker(
+            "always_crashes",
+            always_crashes,
+            max_restarts=2,
+            backoff_base=0.05,
+        )
+        await supervisor.start()
+
+        try:
+            # Wait for all restart attempts - short wait since backoff_base=0.05
+            await asyncio.sleep(1.0)  # intentionally short for test
+
+            info = supervisor.get_worker_info("always_crashes")
+            assert info is not None
+            assert info.status == WorkerStatus.FAILED
+            assert info.restart_count >= 2
+        finally:
+            await supervisor.stop()
+
+
+# ============================================================================
+# Backoff Calculation Tests
+# ============================================================================
+
+
+class TestBackoffCalculation:
+    """Tests for exponential backoff calculation."""
+
+    def test_backoff_first_restart(self, supervisor: WorkerSupervisor) -> None:
+        """Test backoff for first restart."""
+        worker = WorkerInfo(
+            name="test",
+            factory=AsyncMock(),
+            restart_count=0,
+            backoff_base=1.0,
+            backoff_max=60.0,
         )
 
-        await worker.start()
-        await wait_for_condition(
-            lambda: worker.stats.items_processed >= 1,
-            timeout=2.0,
-            description="item processed",
-        )
-        await worker.stop()
+        backoff = supervisor._calculate_backoff(worker)
+        assert backoff == 1.0  # 1.0 * 2^0 = 1.0
 
-        assert worker.stats.items_processed == 1
-        assert worker.stats.last_processed_at is not None
-
-    @pytest.mark.asyncio
-    async def test_batch_timeout_worker_maintains_interval(self, mock_redis_client):
-        """Test that batch timeout worker maintains consistent check interval."""
-        import time
-
-        call_times: list[float] = []
-
-        mock_aggregator = MagicMock()
-
-        async def mock_check_timeouts():
-            call_times.append(time.time())
-            await asyncio.sleep(0.02)  # Simulate processing time
-            return []
-
-        mock_aggregator.check_batch_timeouts = mock_check_timeouts
-
-        check_interval = 0.1
-        worker = BatchTimeoutWorker(
-            redis_client=mock_redis_client,
-            batch_aggregator=mock_aggregator,
-            check_interval=check_interval,
-            stop_timeout=TEST_STOP_TIMEOUT,
+    def test_backoff_exponential_growth(self, supervisor: WorkerSupervisor) -> None:
+        """Test exponential backoff growth."""
+        worker = WorkerInfo(
+            name="test",
+            factory=AsyncMock(),
+            restart_count=3,
+            backoff_base=1.0,
+            backoff_max=60.0,
         )
 
-        await worker.start()
-        await asyncio.sleep(0.35)  # Allow multiple check cycles
-        await worker.stop()
+        backoff = supervisor._calculate_backoff(worker)
+        assert backoff == 8.0  # 1.0 * 2^3 = 8.0
 
-        # Should have at least 3 calls
-        assert len(call_times) >= 3
-
-        # Check intervals are approximately correct
-        for i in range(1, len(call_times)):
-            interval = call_times[i] - call_times[i - 1]
-            # Should be close to check_interval, not check_interval + processing_time
-            assert interval < check_interval + 0.05
-
-    @pytest.mark.asyncio
-    async def test_queue_metrics_worker_updates_both_queues(self, mock_redis_client):
-        """Test that queue metrics worker updates both detection and analysis queues."""
-        mock_redis_client.get_queue_length = AsyncMock(side_effect=[10, 5, 8, 3])
-
-        worker = QueueMetricsWorker(
-            redis_client=mock_redis_client,
-            update_interval=0.05,
-            stop_timeout=TEST_STOP_TIMEOUT,
+    def test_backoff_capped_at_max(self, supervisor: WorkerSupervisor) -> None:
+        """Test backoff is capped at max value."""
+        worker = WorkerInfo(
+            name="test",
+            factory=AsyncMock(),
+            restart_count=10,
+            backoff_base=1.0,
+            backoff_max=60.0,
         )
 
-        with patch("backend.services.pipeline_workers.set_queue_depth") as mock_set:
-            await worker.start()
-            await wait_for_condition(
-                lambda: mock_set.call_count >= 2,
-                timeout=2.0,
-                description="metrics updated",
-            )
-            await worker.stop()
-
-            queue_names = [call[0][0] for call in mock_set.call_args_list]
-            assert "detection" in queue_names
-            assert "analysis" in queue_names
+        backoff = supervisor._calculate_backoff(worker)
+        assert backoff == 60.0  # Capped at max
 
 
-# =============================================================================
-# Integration Tests
-# =============================================================================
+# ============================================================================
+# Status Broadcast Tests
+# ============================================================================
 
 
-class TestIntegration:
-    """Integration tests for supervisor functionality."""
+class TestStatusBroadcast:
+    """Tests for status broadcasting."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.timeout(15)
-    async def test_full_lifecycle_with_all_workers(self, mock_redis_client):
-        """Test complete lifecycle with all workers enabled."""
-        manager = PipelineWorkerManager(
-            redis_client=mock_redis_client,
-            enable_detection_worker=True,
-            enable_analysis_worker=True,
-            enable_timeout_worker=True,
-            enable_metrics_worker=True,
-            worker_stop_timeout=TEST_STOP_TIMEOUT,
+    async def test_broadcast_on_start(
+        self,
+        supervisor: WorkerSupervisor,
+        mock_broadcaster: AsyncMock,
+    ) -> None:
+        """Test that status is broadcast when worker starts."""
+
+        async def worker() -> None:
+            await asyncio.sleep(10)  # cancelled by supervisor.stop()
+
+        await supervisor.register_worker("test_worker", worker)
+        await supervisor.start()
+
+        try:
+            await asyncio.sleep(0.1)
+
+            mock_broadcaster.broadcast_service_status.assert_called()
+            call_args = mock_broadcaster.broadcast_service_status.call_args[0][0]
+            assert call_args["data"]["service"] == "worker:test_worker"
+            assert call_args["data"]["status"] == "running"
+        finally:
+            await supervisor.stop()
+
+    async def test_broadcast_on_crash(
+        self,
+        supervisor: WorkerSupervisor,
+        mock_broadcaster: AsyncMock,
+    ) -> None:
+        """Test that status is broadcast when worker crashes."""
+
+        async def crashing_worker() -> None:
+            raise RuntimeError("Test crash")
+
+        await supervisor.register_worker(
+            "crashing_worker",
+            crashing_worker,
+            max_restarts=0,  # Don't restart
         )
+        await supervisor.start()
 
-        # Start
-        await manager.start()
-        assert manager.running is True
-        assert manager._detection_worker.running is True
-        assert manager._analysis_worker.running is True
-        assert manager._timeout_worker.running is True
-        assert manager._metrics_worker.running is True
+        try:
+            await asyncio.sleep(0.3)
 
-        # Get status
-        status = manager.get_status()
-        assert status["running"] is True
-        assert len(status["workers"]) == 4
+            # Check that crash was broadcast
+            calls = mock_broadcaster.broadcast_service_status.call_args_list
+            crash_calls = [c for c in calls if c[0][0]["data"]["status"] == "crashed"]
+            assert len(crash_calls) > 0
+        finally:
+            await supervisor.stop()
 
-        # Stop accepting
-        manager.stop_accepting()
-        assert manager.accepting is False
+    async def test_broadcast_failure_handled(
+        self,
+        supervisor: WorkerSupervisor,
+        mock_broadcaster: AsyncMock,
+    ) -> None:
+        """Test that broadcast failures don't crash the supervisor."""
+        mock_broadcaster.broadcast_service_status.side_effect = Exception("Broadcast failed")
 
-        # Drain queues
-        mock_redis_client.get_queue_length = AsyncMock(return_value=0)
-        remaining = await manager.drain_queues(timeout=1.0)
-        assert remaining == 0
+        async def worker() -> None:
+            await asyncio.sleep(10)  # cancelled by supervisor.stop()
 
-        # Stop
-        await manager.stop()
-        assert manager.running is False
-        assert manager._detection_worker.running is False
-        assert manager._analysis_worker.running is False
-        assert manager._timeout_worker.running is False
-        assert manager._metrics_worker.running is False
+        await supervisor.register_worker("test_worker", worker)
+        await supervisor.start()
 
-    @pytest.mark.asyncio
-    @pytest.mark.timeout(10)
-    async def test_manager_restart_after_stop(self, mock_redis_client):
-        """Test that manager can be restarted after stop."""
-        manager = PipelineWorkerManager(
-            redis_client=mock_redis_client,
-            worker_stop_timeout=TEST_STOP_TIMEOUT,
-        )
+        try:
+            await asyncio.sleep(0.1)
+            # Should not crash despite broadcast failure
+            assert supervisor.is_running
+        finally:
+            await supervisor.stop()
 
-        # First lifecycle
-        await manager.start()
-        assert manager.running is True
-        await manager.stop()
-        assert manager.running is False
 
-        # Second lifecycle
-        await manager.start()
-        assert manager.running is True
-        await manager.stop()
-        assert manager.running is False
+# ============================================================================
+# Worker Status Query Tests
+# ============================================================================
 
-    @pytest.mark.asyncio
-    async def test_signal_handler_installation(self, mock_redis_client):
-        """Test that signal handlers are installed during start."""
-        import signal
 
-        manager = PipelineWorkerManager(
-            redis_client=mock_redis_client,
-            worker_stop_timeout=TEST_STOP_TIMEOUT,
-        )
+class TestWorkerStatusQuery:
+    """Tests for querying worker status."""
 
-        with patch.object(asyncio, "get_running_loop") as mock_get_loop:
-            mock_loop = MagicMock()
-            mock_get_loop.return_value = mock_loop
+    async def test_get_worker_status(self, supervisor: WorkerSupervisor) -> None:
+        """Test getting worker status."""
 
-            await manager.start()
+        async def worker() -> None:
+            pass
 
-            # Verify signal handlers were installed
-            assert mock_loop.add_signal_handler.call_count == 2
-            signals = [call[0][0] for call in mock_loop.add_signal_handler.call_args_list]
-            assert signal.SIGTERM in signals
-            assert signal.SIGINT in signals
+        await supervisor.register_worker("test_worker", worker)
 
-        await manager.stop()
+        status = supervisor.get_worker_status("test_worker")
+        assert status == WorkerStatus.STOPPED
 
-    @pytest.mark.asyncio
-    async def test_signal_handler_not_supported(self, mock_redis_client):
-        """Test graceful handling when signal handlers are not supported."""
-        manager = PipelineWorkerManager(
-            redis_client=mock_redis_client,
-            worker_stop_timeout=TEST_STOP_TIMEOUT,
-        )
+    async def test_get_unknown_worker_status(self, supervisor: WorkerSupervisor) -> None:
+        """Test getting status of unknown worker returns None."""
+        status = supervisor.get_worker_status("unknown")
+        assert status is None
 
-        with patch.object(asyncio, "get_running_loop") as mock_get_loop:
-            mock_loop = MagicMock()
-            mock_loop.add_signal_handler.side_effect = NotImplementedError()
-            mock_get_loop.return_value = mock_loop
+    async def test_get_all_workers(self, supervisor: WorkerSupervisor) -> None:
+        """Test getting all workers."""
 
-            # Should not raise
-            await manager.start()
-            assert manager._signal_handlers_installed is False
+        async def worker1() -> None:
+            pass
 
-        await manager.stop()
+        async def worker2() -> None:
+            pass
+
+        await supervisor.register_worker("worker1", worker1)
+        await supervisor.register_worker("worker2", worker2)
+
+        all_workers = supervisor.get_all_workers()
+        assert len(all_workers) == 2
+        assert "worker1" in all_workers
+        assert "worker2" in all_workers
+
+
+# ============================================================================
+# Reset Worker Tests
+# ============================================================================
+
+
+class TestResetWorker:
+    """Tests for resetting failed workers."""
+
+    async def test_reset_worker(self, supervisor: WorkerSupervisor) -> None:
+        """Test resetting a worker's restart count."""
+
+        async def worker() -> None:
+            pass
+
+        await supervisor.register_worker("test_worker", worker)
+
+        # Manually set to failed state
+        supervisor._workers["test_worker"].restart_count = 5
+        supervisor._workers["test_worker"].status = WorkerStatus.FAILED
+
+        result = supervisor.reset_worker("test_worker")
+
+        assert result is True
+        info = supervisor.get_worker_info("test_worker")
+        assert info is not None
+        assert info.restart_count == 0
+        assert info.status == WorkerStatus.STOPPED
+
+    async def test_reset_unknown_worker(self, supervisor: WorkerSupervisor) -> None:
+        """Test resetting unknown worker returns False."""
+        result = supervisor.reset_worker("unknown")
+        assert result is False
+
+
+# ============================================================================
+# Singleton Tests
+# ============================================================================
+
+
+class TestSingleton:
+    """Tests for singleton pattern."""
+
+    def test_get_worker_supervisor_creates_instance(self) -> None:
+        """Test that get_worker_supervisor creates instance."""
+        reset_worker_supervisor()
+
+        supervisor = get_worker_supervisor()
+        assert supervisor is not None
+        assert isinstance(supervisor, WorkerSupervisor)
+
+    def test_get_worker_supervisor_returns_same_instance(self) -> None:
+        """Test that get_worker_supervisor returns same instance."""
+        reset_worker_supervisor()
+
+        supervisor1 = get_worker_supervisor()
+        supervisor2 = get_worker_supervisor()
+        assert supervisor1 is supervisor2
+
+    def test_reset_worker_supervisor(self) -> None:
+        """Test that reset clears the singleton."""
+        supervisor1 = get_worker_supervisor()
+        reset_worker_supervisor()
+        supervisor2 = get_worker_supervisor()
+
+        assert supervisor1 is not supervisor2
