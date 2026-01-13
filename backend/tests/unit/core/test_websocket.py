@@ -40,6 +40,7 @@ class MockEventBroadcaster:
     - broadcast_scene_change(scene_change_data) -> int
     - broadcast_camera_status(camera_status_data) -> int
     - broadcast_alert(alert_data, event_type) -> int
+    - broadcast_worker_status(worker_status_data) -> int (NEM-2461)
     - get_circuit_state() -> str
     - get_instance() -> EventBroadcaster (class method)
     """
@@ -265,6 +266,29 @@ class MockEventBroadcaster:
         for connection in self._connections:
             try:
                 await connection.send_json(message)
+                count += 1
+            except Exception:  # Intentionally ignore send failures
+                pass
+        return count
+
+    async def broadcast_worker_status(self, worker_status_data: dict[str, Any]) -> int:
+        """Broadcast a worker status message to all connected WebSocket clients (NEM-2461).
+
+        Args:
+            worker_status_data: Worker status data dictionary containing worker state details
+
+        Returns:
+            Number of clients that received the message
+        """
+        # Ensure the message has the correct structure (matches real implementation)
+        if "type" not in worker_status_data:
+            worker_status_data = {"type": "worker_status", "data": worker_status_data}
+
+        self.messages.append(worker_status_data)
+        count = 0
+        for connection in self._connections:
+            try:
+                await connection.send_json(worker_status_data)
                 count += 1
             except Exception:  # Intentionally ignore send failures
                 pass

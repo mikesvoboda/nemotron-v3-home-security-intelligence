@@ -382,6 +382,23 @@ deadline = 5000
 database = "directory:.hypothesis"
 
 # =============================================================================
+# Vulture Configuration (dead code detection)
+# =============================================================================
+# Vulture finds unused code (dead code) in Python projects.
+# Some test files use intentional "unreachable code" patterns for testing
+# exception handling in async generators/context managers.
+#
+# Usage: uv run vulture backend/ vulture_whitelist.py --min-confidence 80
+[tool.vulture]
+min_confidence = 80
+paths = ["backend/"]
+# Exclude test files with intentional unreachable code patterns
+exclude = [
+    "backend/tests/unit/api/routes/test_events_coverage.py",
+    "backend/tests/unit/services/test_orphan_scanner_service.py",
+]
+
+# =============================================================================
 # Mutation Testing Configuration (mutmut 3.x)
 # =============================================================================
 # Mutation testing verifies test effectiveness by making small changes (mutants)

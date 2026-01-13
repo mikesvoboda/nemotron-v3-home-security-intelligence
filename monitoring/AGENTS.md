@@ -87,6 +87,27 @@ Backend API --> JSON Exporter --> Prometheus --> Grafana
    | RedisUnhealthy       | critical | Redis unreachable for 2m      |
    | PrometheusTargetDown | warning  | Any scrape target down for 5m |
 
+3. **prometheus_self_monitoring_alerts** - Prometheus health (NEM-2468)
+
+   | Alert                                | Severity | Description                            |
+   | ------------------------------------ | -------- | -------------------------------------- |
+   | PrometheusNotScrapingSelf            | critical | Prometheus not scraping itself for 2m  |
+   | PrometheusConfigReloadFailed         | critical | Config reload failing for 5m           |
+   | PrometheusRuleEvaluationFailures     | warning  | Rule evaluation errors in 5m window    |
+   | PrometheusRuleEvaluationSlow         | warning  | Rule eval exceeds interval for 10m     |
+   | PrometheusScrapeFailuresHigh         | critical | >10% scrape sync failures for 5m       |
+   | PrometheusTargetsUnhealthy           | warning  | >20% targets down for 5m               |
+   | PrometheusNotificationQueueFull      | warning  | Notification queue >90% for 5m         |
+   | PrometheusNotificationsFailing       | critical | >5 notification failures in 5m         |
+   | PrometheusTSDBCompactionsFailing     | warning  | TSDB compaction failures in 6h         |
+   | PrometheusTSDBHeadTruncationsFailing | critical | TSDB head truncation failures in 1h    |
+   | PrometheusTSDBWALCorruptions         | warning  | WAL corruptions detected in 1h         |
+   | PrometheusStorageFillingUp           | warning  | TSDB storage >80% full for 15m         |
+   | PrometheusQueryLoadHigh              | warning  | Avg query duration >10s for 10m        |
+   | PrometheusRestarted                  | info     | Prometheus instance restarted          |
+   | PrometheusAlertmanagerDown           | warning  | No Alertmanager discovered for 5m      |
+   | PrometheusSamplesRejected            | warning  | Out-of-order/duplicate samples for 10m |
+
 **Severity Levels:**
 
 - **critical**: Immediate action required. System down or data loss imminent.

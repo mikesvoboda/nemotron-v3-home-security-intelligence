@@ -348,3 +348,243 @@ groups:
         annotations:
           summary: 'HSI No active WebSocket connections'
           description: 'No clients have been connected via WebSocket for 30 minutes. This may be expected during low-traffic periods.'
+
+  # =============================================================================
+  # Prometheus Self-Monitoring Alerts (NEM-2468)
+  # =============================================================================
+  # Monitor Prometheus itself to ensure observability infrastructure is healthy.
+  # These alerts help detect issues with the monitoring system before they
+  # impact visibility into the main application.
+  - name: prometheus_self_monitoring_alerts
+    rules:
+      # Critical: Prometheus is not scraping itself
+      - alert: PrometheusNotScrapingSelf
+        expr: up{job="prometheus"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: monitoring
+          service: prometheus
+        annotations:
+          summary: 'Prometheus is not scraping itself'
+          description: 'Prometheus self-monitoring target has been down for more than 2 minutes. This indicates Prometheus may be unhealthy or misconfigured.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/prometheus-self-scrape-down'
+
+      # Critical: Prometheus configuration reload failed
+      - alert: PrometheusConfigReloadFailed
+        expr: prometheus_config_last_reload_successful == 0
+        for: 5m
+        labels:
+          severity: critical
+          component: monitoring
+          service: prometheus
+        annotations:
+          summary: 'Prometheus configuration reload failed'
+          description: 'Prometheus configuration reload has been failing for more than 5 minutes. New alerting rules or scrape configurations are not being applied.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/prometheus-config-reload-failed'
+
+      # Warning: Prometheus rule evaluation failures
+      - alert: PrometheusRuleEvaluationFailures
+        expr: increase(prometheus_rule_evaluation_failures_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          component: monitoring
+          service: prometheus
+        annotations:
+          summary: 'Prometheus rule evaluation failures detected'
+          description: 'Prometheus has encountered rule evaluation failures in the last 5 minutes. Some recording rules or alerts may not be evaluated correctly.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/prometheus-rule-eval-failures'
+
+      # Warning: Prometheus rule evaluation slow
+      - alert: PrometheusRuleEvaluationSlow
+        expr: |
+          prometheus_rule_group_last_duration_seconds
+          >
+          prometheus_rule_group_interval_seconds
+        for: 10m
+        labels:
+          severity: warning
+          component: monitoring
+          service: prometheus
+        annotations:
+          summary: 'Prometheus rule evaluation is taking too long'
+          description: 'Prometheus rule group evaluation is taking longer than the group interval for more than 10 minutes. This may cause gaps in alerting and recording rules.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/prometheus-rule-eval-slow'
+
+      # Critical: Prometheus scrape failures high
+      - alert: PrometheusScrapeFailuresHigh
+        expr: |
+          (
+            sum(increase(prometheus_target_scrape_pool_sync_total{status="failed"}[5m]))
+            /
+            (sum(increase(prometheus_target_scrape_pool_sync_total[5m])) + 0.001)
+          ) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+          component: monitoring
+          service: prometheus
+        annotations:
+          summary: 'Prometheus scrape sync failures are high'
+          description: 'More than 10% of Prometheus scrape pool sync operations are failing for more than 5 minutes. Metrics collection may be degraded.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/prometheus-scrape-failures'
+
+      # Warning: Prometheus targets down
+      - alert: PrometheusTargetsUnhealthy
+        expr: |
+          (
+            count(up == 0)
+            /
+            count(up)
+          ) > 0.2
+        for: 5m
+        labels:
+          severity: warning
+          component: monitoring
+          service: prometheus
+        annotations:
+          summary: 'High percentage of Prometheus targets are down'
+          description: 'More than 20% of Prometheus scrape targets are down for more than 5 minutes. Current unhealthy: {{ $value | humanizePercentage }}.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/prometheus-targets-unhealthy'
+
+      # Warning: Prometheus notification queue full
+      - alert: PrometheusNotificationQueueFull
+        expr: prometheus_notifications_queue_length > prometheus_notifications_queue_capacity * 0.9
+        for: 5m
+        labels:
+          severity: warning
+          component: monitoring
+          service: prometheus
+        annotations:
+          summary: 'Prometheus notification queue is nearly full'
+          description: 'Prometheus notification queue is above 90% capacity for more than 5 minutes. Alerts may be delayed or dropped.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/prometheus-notification-queue-full'
+
+      # Critical: Prometheus notification failures
+      - alert: PrometheusNotificationsFailing
+        expr: increase(prometheus_notifications_errors_total[5m]) > 5
+        for: 5m
+        labels:
+          severity: critical
+          component: monitoring
+          service: prometheus
+        annotations:
+          summary: 'Prometheus is failing to send notifications'
+          description: 'Prometheus has failed to send more than 5 notifications to Alertmanager in the last 5 minutes. Alerts may not be delivered.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/prometheus-notifications-failing'
+
+      # Warning: Prometheus TSDB compaction failures
+      - alert: PrometheusTSDBCompactionsFailing
+        expr: increase(prometheus_tsdb_compactions_failed_total[6h]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          component: monitoring
+          service: prometheus
+        annotations:
+          summary: 'Prometheus TSDB compactions are failing'
+          description: 'Prometheus TSDB has experienced compaction failures in the last 6 hours. This may lead to increased disk usage and query performance degradation.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/prometheus-tsdb-compactions-failing'
+
+      # Critical: Prometheus TSDB head truncation failures
+      - alert: PrometheusTSDBHeadTruncationsFailing
+        expr: increase(prometheus_tsdb_head_truncations_failed_total[1h]) > 0
+        for: 5m
+        labels:
+          severity: critical
+          component: monitoring
+          service: prometheus
+        annotations:
+          summary: 'Prometheus TSDB head truncations are failing'
+          description: 'Prometheus TSDB head truncations have failed. This is a critical issue that may lead to memory exhaustion and data corruption.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/prometheus-tsdb-head-truncations-failing'
+
+      # Warning: Prometheus TSDB WAL corruptions
+      - alert: PrometheusTSDBWALCorruptions
+        expr: increase(prometheus_tsdb_wal_corruptions_total[1h]) > 0
+        for: 1m
+        labels:
+          severity: warning
+          component: monitoring
+          service: prometheus
+        annotations:
+          summary: 'Prometheus TSDB WAL corruptions detected'
+          description: 'Prometheus TSDB has detected WAL (Write-Ahead Log) corruptions. Some metrics data may be lost.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/prometheus-tsdb-wal-corruptions'
+
+      # Warning: Prometheus storage is filling up
+      - alert: PrometheusStorageFillingUp
+        expr: |
+          (
+            prometheus_tsdb_storage_blocks_bytes
+            /
+            (prometheus_tsdb_storage_blocks_bytes + prometheus_tsdb_storage_blocks_bytes_free)
+          ) > 0.8
+        for: 15m
+        labels:
+          severity: warning
+          component: monitoring
+          service: prometheus
+        annotations:
+          summary: 'Prometheus storage is filling up'
+          description: 'Prometheus TSDB storage is more than 80% full for more than 15 minutes. Consider increasing retention or storage capacity.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/prometheus-storage-filling'
+
+      # Warning: Prometheus query load high
+      - alert: PrometheusQueryLoadHigh
+        expr: |
+          rate(prometheus_engine_query_duration_seconds_sum[5m])
+          /
+          rate(prometheus_engine_query_duration_seconds_count[5m])
+          > 10
+        for: 10m
+        labels:
+          severity: warning
+          component: monitoring
+          service: prometheus
+        annotations:
+          summary: 'Prometheus query load is high'
+          description: 'Average Prometheus query duration exceeds 10 seconds for more than 10 minutes. Dashboard and API queries may be slow.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/prometheus-query-load-high'
+
+      # Info: Prometheus has restarted
+      - alert: PrometheusRestarted
+        expr: changes(prometheus_build_info[15m]) > 0
+        for: 0m
+        labels:
+          severity: info
+          component: monitoring
+          service: prometheus
+        annotations:
+          summary: 'Prometheus has restarted'
+          description: 'Prometheus instance has restarted within the last 15 minutes. Check for any configuration changes or issues that may have caused the restart.'
+
+      # Warning: Alertmanager connectivity issues
+      - alert: PrometheusAlertmanagerDown
+        expr: prometheus_notifications_alertmanagers_discovered < 1
+        for: 5m
+        labels:
+          severity: warning
+          component: monitoring
+          service: prometheus
+        annotations:
+          summary: 'Prometheus cannot discover Alertmanager'
+          description: 'Prometheus has no discovered Alertmanager instances for more than 5 minutes. Alerts will not be delivered.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/prometheus-alertmanager-down'
+
+      # Critical: Too many samples rejected
+      - alert: PrometheusSamplesRejected
+        expr: |
+          rate(prometheus_target_scrapes_sample_out_of_order_total[5m]) > 0
+          or
+          rate(prometheus_target_scrapes_sample_duplicate_timestamp_total[5m]) > 0
+        for: 10m
+        labels:
+          severity: warning
+          component: monitoring
+          service: prometheus
+        annotations:
+          summary: 'Prometheus is rejecting samples'
+          description: 'Prometheus is rejecting samples due to out-of-order timestamps or duplicates. This may indicate clock drift or incorrect metric exposition.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/prometheus-samples-rejected'

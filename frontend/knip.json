@@ -7,9 +7,17 @@
   "project": ["src/**/*.{ts,tsx}", "tests/**/*.{ts,tsx}"],
   "ignore": [
     "src/types/generated/**",
+    "src/schemas/generated/**",
     "src/**/index.ts",
     "src/test/mocks/index.ts",
-    "src/hooks/useFullHealthQuery.ts"
+    "src/hooks/useFullHealthQuery.ts",
+    "src/hooks/useZones.ts",
+    "src/schemas/alert.ts",
+    "src/types/entity.ts",
+    "src/components/exports/ExportModal.tsx",
+    "src/components/settings/CameraNotificationSettings.tsx",
+    "src/components/settings/GlobalNotificationPreferences.tsx",
+    "src/components/settings/QuietHoursScheduler.tsx"
   ],
   "ignoreDependencies": [
     "openapi-typescript"

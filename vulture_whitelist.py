@@ -37,6 +37,7 @@ _.slow_query_test_db
 _.reset_redis_global
 _.sample_nemotron_config
 _.reset_signal_handler_state
+_.clean_job_data
 
 # Variables from tuple unpacking (required by signature but unused in tests)
 _.shard_hint

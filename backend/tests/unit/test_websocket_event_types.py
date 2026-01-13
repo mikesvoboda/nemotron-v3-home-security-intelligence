@@ -101,6 +101,28 @@ class TestWebSocketEventType:
         """Verify scene change event type is defined."""
         assert WebSocketEventType.SCENE_CHANGE_DETECTED.value == "scene_change.detected"
 
+    def test_all_worker_event_types_exist(self):
+        """Verify all worker event types are defined (NEM-2461)."""
+        worker_types = [
+            WebSocketEventType.WORKER_STARTED,
+            WebSocketEventType.WORKER_STOPPED,
+            WebSocketEventType.WORKER_HEALTH_CHECK_FAILED,
+            WebSocketEventType.WORKER_RESTARTING,
+            WebSocketEventType.WORKER_RECOVERED,
+            WebSocketEventType.WORKER_ERROR,
+        ]
+        for event_type in worker_types:
+            assert event_type.value.startswith("worker.")
+
+    def test_worker_event_type_values(self):
+        """Verify worker event type specific values (NEM-2461)."""
+        assert WebSocketEventType.WORKER_STARTED.value == "worker.started"
+        assert WebSocketEventType.WORKER_STOPPED.value == "worker.stopped"
+        assert WebSocketEventType.WORKER_HEALTH_CHECK_FAILED.value == "worker.health_check_failed"
+        assert WebSocketEventType.WORKER_RESTARTING.value == "worker.restarting"
+        assert WebSocketEventType.WORKER_RECOVERED.value == "worker.recovered"
+        assert WebSocketEventType.WORKER_ERROR.value == "worker.error"
+
     def test_control_message_types_exist(self):
         """Verify control message types are defined."""
         control_types = [
@@ -148,7 +170,16 @@ class TestEventTypeMetadata:
 
     def test_metadata_channels_are_valid(self):
         """Verify all metadata channels are valid values."""
-        valid_channels = {"alerts", "cameras", "jobs", "system", "events", "detections", None}
+        valid_channels = {
+            "alerts",
+            "cameras",
+            "jobs",
+            "system",
+            "events",
+            "detections",
+            "workers",  # NEM-2461: Worker events channel
+            None,
+        }
         for event_type, metadata in EVENT_TYPE_METADATA.items():
             channel = metadata.get("channel")
             assert channel in valid_channels, f"Invalid channel {channel} for {event_type}"
@@ -371,7 +402,7 @@ class TestGetAllChannels:
     def test_returns_expected_channels(self):
         """Verify expected channels are returned."""
         channels = get_all_channels()
-        expected = {"alerts", "cameras", "jobs", "system", "events", "detections"}
+        expected = {"alerts", "cameras", "jobs", "system", "events", "detections", "workers"}
         assert set(channels) == expected
 
     def test_returns_sorted_list(self):
