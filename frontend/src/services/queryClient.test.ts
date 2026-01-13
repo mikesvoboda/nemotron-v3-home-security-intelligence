@@ -59,9 +59,24 @@ describe('queryClient configuration', () => {
     });
 
     it('defines detections key factory', () => {
+      expect(queryKeys.detections.all).toEqual(['detections']);
+      expect(queryKeys.detections.list()).toEqual(['detections', 'list']);
+      expect(queryKeys.detections.list({ camera_id: 'cam-1' })).toEqual([
+        'detections',
+        'list',
+        { camera_id: 'cam-1' },
+      ]);
+      expect(queryKeys.detections.detail(123)).toEqual(['detections', 'detail', 123]);
       expect(queryKeys.detections.forEvent(123)).toEqual(['detections', 'event', 123]);
       expect(queryKeys.detections.enrichment(456)).toEqual(['detections', 'enrichment', 456]);
       expect(queryKeys.detections.stats).toEqual(['detections', 'stats']);
+      expect(queryKeys.detections.search()).toEqual(['detections', 'search']);
+      expect(queryKeys.detections.search({ query: 'person' })).toEqual([
+        'detections',
+        'search',
+        { query: 'person' },
+      ]);
+      expect(queryKeys.detections.labels).toEqual(['detections', 'labels']);
     });
   });
 
