@@ -17,6 +17,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from backend.api.dependencies import get_job_tracker_dep
 from backend.api.routes.ai_audit import router
 from backend.core.database import get_db
 from backend.models.event import Event
@@ -39,7 +40,25 @@ def mock_db_session() -> AsyncMock:
 
 
 @pytest.fixture
-def client(mock_db_session: AsyncMock) -> TestClient:
+def mock_job_tracker() -> MagicMock:
+    """Create a mock job tracker."""
+    tracker = MagicMock()
+    tracker.create_job.return_value = "test-job-id"
+    tracker.start_job.return_value = None
+    tracker.complete_job.return_value = None
+    tracker.fail_job.return_value = None
+    tracker.get_job.return_value = {
+        "job_id": "test-job-id",
+        "status": "completed",
+        "created_at": datetime.now(UTC).isoformat(),
+        "result": {"total_events": 0, "processed_events": 0, "failed_events": 0},
+    }
+    tracker.get_job_from_redis = AsyncMock(return_value=None)
+    return tracker
+
+
+@pytest.fixture
+def client(mock_db_session: AsyncMock, mock_job_tracker: MagicMock) -> TestClient:
     """Create a test client with mocked dependencies."""
     app = FastAPI()
     app.include_router(router)
@@ -47,7 +66,11 @@ def client(mock_db_session: AsyncMock) -> TestClient:
     async def override_get_db():
         yield mock_db_session
 
+    def override_get_job_tracker():
+        return mock_job_tracker
+
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_job_tracker_dep] = override_get_job_tracker
 
     with TestClient(app) as test_client:
         yield test_client
@@ -850,10 +873,11 @@ class TestTriggerBatchAudit:
                 json={"limit": 10},
             )
 
-        assert response.status_code == 200
+        assert response.status_code == 202
         data = response.json()
-        assert data["queued_count"] == 1
-        assert "Successfully processed" in data["message"]
+        assert "job_id" in data
+        assert data["total_events"] == 1
+        assert data["status"] in ["pending", "completed"]
 
     def test_batch_audit_creates_missing_audits(
         self,
@@ -905,10 +929,10 @@ class TestTriggerBatchAudit:
                 json={"limit": 10},
             )
 
-        assert response.status_code == 200
-        # Should have called create_partial_audit
-        mock_service.create_partial_audit.assert_called_once()
-        mock_db_session.add.assert_called()
+        assert response.status_code == 202
+        data = response.json()
+        assert "job_id" in data
+        assert data["total_events"] == 1
 
     def test_batch_audit_with_min_risk_score(
         self,
@@ -929,9 +953,10 @@ class TestTriggerBatchAudit:
                 json={"limit": 50, "min_risk_score": 70},
             )
 
-        assert response.status_code == 200
+        assert response.status_code == 202
         data = response.json()
-        assert data["queued_count"] == 0
+        assert "job_id" in data
+        assert data["total_events"] == 0
 
     def test_batch_audit_force_reevaluate(
         self,
@@ -952,7 +977,9 @@ class TestTriggerBatchAudit:
                 json={"limit": 100, "force_reevaluate": True},
             )
 
-        assert response.status_code == 200
+        assert response.status_code == 202
+        data = response.json()
+        assert "job_id" in data
 
     def test_batch_audit_limit_validation(self, client: TestClient) -> None:
         """Test batch audit limit validation."""
@@ -1002,10 +1029,12 @@ class TestTriggerBatchAudit:
                 json={"limit": 10},
             )
 
-        assert response.status_code == 200
+        assert response.status_code == 202
         data = response.json()
-        assert data["queued_count"] == 0
-        # New message is more informative when no events match criteria
+        assert "job_id" in data
+        assert data["total_events"] == 0
+        # When no events match, the job is immediately marked as completed
+        assert data["status"] == "completed"
         assert "No events found matching criteria" in data["message"]
 
 
