@@ -24,6 +24,8 @@ os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://test:test@localhost:
 from backend.api.routes.ai_audit import router
 from backend.api.schemas.ai_audit import (
     AuditStatsResponse,
+    BatchAuditJobResponse,
+    BatchAuditJobStatusResponse,
     BatchAuditRequest,
     BatchAuditResponse,
     EventAuditResponse,
@@ -143,8 +145,74 @@ def mock_audit_service() -> MagicMock:
 
 
 @pytest.fixture
-def client(mock_db_session: MagicMock, mock_audit_service: MagicMock) -> TestClient:
+def mock_job_tracker() -> MagicMock:
+    """Create a mock job tracker."""
+    job_tracker = MagicMock()
+    # Track created jobs for testing
+    job_tracker._jobs = {}
+
+    def create_job_side_effect(job_type: str) -> str:
+        import uuid
+
+        job_id = str(uuid.uuid4())
+        job_tracker._jobs[job_id] = {
+            "job_id": job_id,
+            "job_type": job_type,
+            "status": "pending",
+            "progress": 0,
+            "message": None,
+            "created_at": "2026-01-03T12:00:00Z",
+            "started_at": None,
+            "completed_at": None,
+            "result": None,
+            "error": None,
+        }
+        return job_id
+
+    def start_job_side_effect(job_id: str, message: str | None = None) -> None:
+        if job_id in job_tracker._jobs:
+            job_tracker._jobs[job_id]["status"] = "running"
+            job_tracker._jobs[job_id]["message"] = message
+            job_tracker._jobs[job_id]["started_at"] = "2026-01-03T12:00:01Z"
+
+    def update_progress_side_effect(job_id: str, progress: int, message: str | None = None) -> None:
+        if job_id in job_tracker._jobs:
+            job_tracker._jobs[job_id]["progress"] = progress
+            job_tracker._jobs[job_id]["message"] = message
+
+    def complete_job_side_effect(job_id: str, result: dict | None = None) -> None:
+        if job_id in job_tracker._jobs:
+            job_tracker._jobs[job_id]["status"] = "completed"
+            job_tracker._jobs[job_id]["progress"] = 100
+            job_tracker._jobs[job_id]["completed_at"] = "2026-01-03T12:05:00Z"
+            job_tracker._jobs[job_id]["result"] = result
+
+    def fail_job_side_effect(job_id: str, error: str) -> None:
+        if job_id in job_tracker._jobs:
+            job_tracker._jobs[job_id]["status"] = "failed"
+            job_tracker._jobs[job_id]["completed_at"] = "2026-01-03T12:05:00Z"
+            job_tracker._jobs[job_id]["error"] = error
+
+    def get_job_side_effect(job_id: str):
+        return job_tracker._jobs.get(job_id)
+
+    job_tracker.create_job = MagicMock(side_effect=create_job_side_effect)
+    job_tracker.start_job = MagicMock(side_effect=start_job_side_effect)
+    job_tracker.update_progress = MagicMock(side_effect=update_progress_side_effect)
+    job_tracker.complete_job = MagicMock(side_effect=complete_job_side_effect)
+    job_tracker.fail_job = MagicMock(side_effect=fail_job_side_effect)
+    job_tracker.get_job = MagicMock(side_effect=get_job_side_effect)
+    job_tracker.get_job_from_redis = AsyncMock(return_value=None)
+
+    return job_tracker
+
+
+@pytest.fixture
+def client(
+    mock_db_session: MagicMock, mock_audit_service: MagicMock, mock_job_tracker: MagicMock
+) -> TestClient:
     """Create a test client with mocked dependencies."""
+    from backend.api.dependencies import get_job_tracker_dep
     from backend.core.database import get_db
 
     app = FastAPI()
@@ -154,7 +222,12 @@ def client(mock_db_session: MagicMock, mock_audit_service: MagicMock) -> TestCli
     async def override_get_db():
         yield mock_db_session
 
+    # Override the job tracker dependency
+    def override_get_job_tracker():
+        return mock_job_tracker
+
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_job_tracker_dep] = override_get_job_tracker
 
     with (
         patch("backend.api.routes.ai_audit.get_audit_service", return_value=mock_audit_service),
@@ -779,15 +852,19 @@ class TestGetRecommendationsEndpoint:
 
 
 class TestBatchAuditEndpoint:
-    """Tests for POST /api/ai-audit/batch endpoint."""
+    """Tests for POST /api/ai-audit/batch endpoint (async version).
 
-    def test_batch_audit_success(
+    NEM-2473: Batch audit now runs asynchronously and returns 202 Accepted
+    with a job ID that can be used to track progress.
+    """
+
+    def test_batch_audit_returns_202_with_job_id(
         self,
         client: TestClient,
         mock_db_session: MagicMock,
-        mock_audit_service: MagicMock,
+        mock_job_tracker: MagicMock,
     ) -> None:
-        """Test successful batch audit processing."""
+        """Test batch audit returns 202 with job ID for async processing."""
         mock_event1 = create_mock_event(event_id=1)
         mock_event2 = create_mock_event(event_id=2)
 
@@ -797,35 +874,49 @@ class TestBatchAuditEndpoint:
         mock_events_scalars.all.return_value = [mock_event1, mock_event2]
         mock_events_result.scalars.return_value = mock_events_scalars
 
-        # Mock existing audits lookup
-        mock_audit1 = create_mock_audit(audit_id=1, event_id=1)
-        mock_audits_result = MagicMock()
-        mock_audits_scalars = MagicMock()
-        mock_audits_scalars.all.return_value = [mock_audit1]  # Only event 1 has audit
-        mock_audits_result.scalars.return_value = mock_audits_scalars
-
-        mock_db_session.execute = AsyncMock(side_effect=[mock_events_result, mock_audits_result])
-
-        # Mock audit service for creating new audit
-        new_audit = create_mock_audit(audit_id=2, event_id=2)
-        mock_audit_service.create_partial_audit.return_value = new_audit
-        mock_audit_service.run_full_evaluation.return_value = new_audit
+        mock_db_session.execute = AsyncMock(return_value=mock_events_result)
 
         response = client.post(
             "/api/ai-audit/batch",
             json={"limit": 100, "force_reevaluate": False},
         )
 
-        assert response.status_code == 200
+        assert response.status_code == 202
         data = response.json()
-        assert data["queued_count"] == 2
-        assert "processed" in data["message"].lower()
+        assert "job_id" in data
+        assert data["status"] == "pending"
+        assert data["total_events"] == 2
+        assert "/api/ai-audit/batch/" in data["message"]
+
+    def test_batch_audit_creates_job_with_correct_type(
+        self,
+        client: TestClient,
+        mock_db_session: MagicMock,
+        mock_job_tracker: MagicMock,
+    ) -> None:
+        """Test that batch audit creates a job with type 'batch_audit'."""
+        mock_event = create_mock_event(event_id=1)
+
+        mock_events_result = MagicMock()
+        mock_events_scalars = MagicMock()
+        mock_events_scalars.all.return_value = [mock_event]
+        mock_events_result.scalars.return_value = mock_events_scalars
+
+        mock_db_session.execute = AsyncMock(return_value=mock_events_result)
+
+        response = client.post(
+            "/api/ai-audit/batch",
+            json={"limit": 100},
+        )
+
+        assert response.status_code == 202
+        mock_job_tracker.create_job.assert_called_once_with("batch_audit")
 
     def test_batch_audit_with_min_risk_score(
         self,
         client: TestClient,
         mock_db_session: MagicMock,
-        mock_audit_service: MagicMock,
+        mock_job_tracker: MagicMock,
     ) -> None:
         """Test batch audit with minimum risk score filter."""
         mock_event = create_mock_event(event_id=1, risk_score=80)
@@ -835,32 +926,24 @@ class TestBatchAuditEndpoint:
         mock_events_scalars.all.return_value = [mock_event]
         mock_events_result.scalars.return_value = mock_events_scalars
 
-        mock_audits_result = MagicMock()
-        mock_audits_scalars = MagicMock()
-        mock_audits_scalars.all.return_value = []
-        mock_audits_result.scalars.return_value = mock_audits_scalars
-
-        mock_db_session.execute = AsyncMock(side_effect=[mock_events_result, mock_audits_result])
-
-        mock_audit = create_mock_audit(audit_id=1, event_id=1)
-        mock_audit_service.create_partial_audit.return_value = mock_audit
-        mock_audit_service.run_full_evaluation.return_value = mock_audit
+        mock_db_session.execute = AsyncMock(return_value=mock_events_result)
 
         response = client.post(
             "/api/ai-audit/batch",
             json={"limit": 50, "min_risk_score": 70, "force_reevaluate": False},
         )
 
-        assert response.status_code == 200
+        assert response.status_code == 202
         data = response.json()
-        assert data["queued_count"] == 1
+        assert data["total_events"] == 1
 
-    def test_batch_audit_no_matching_events(
+    def test_batch_audit_no_matching_events_returns_completed(
         self,
         client: TestClient,
         mock_db_session: MagicMock,
+        mock_job_tracker: MagicMock,
     ) -> None:
-        """Test batch audit when no events match criteria."""
+        """Test batch audit when no events match criteria returns completed immediately."""
         mock_result = MagicMock()
         mock_scalars = MagicMock()
         mock_scalars.all.return_value = []
@@ -873,42 +956,37 @@ class TestBatchAuditEndpoint:
             json={"limit": 100},
         )
 
-        assert response.status_code == 200
+        # Still returns 202 but status is 'completed' since no work to do
+        assert response.status_code == 202
         data = response.json()
-        assert data["queued_count"] == 0
+        assert data["status"] == "completed"
+        assert data["total_events"] == 0
         assert "no events found" in data["message"].lower()
 
     def test_batch_audit_force_reevaluate(
         self,
         client: TestClient,
         mock_db_session: MagicMock,
-        mock_audit_service: MagicMock,
+        mock_job_tracker: MagicMock,
     ) -> None:
-        """Test batch audit with force re-evaluation."""
+        """Test batch audit with force re-evaluation flag."""
         mock_event = create_mock_event(event_id=1)
-        mock_audit = create_mock_audit(audit_id=1, event_id=1, is_evaluated=True, overall_score=4.0)
 
         mock_events_result = MagicMock()
         mock_events_scalars = MagicMock()
         mock_events_scalars.all.return_value = [mock_event]
         mock_events_result.scalars.return_value = mock_events_scalars
 
-        mock_audits_result = MagicMock()
-        mock_audits_scalars = MagicMock()
-        mock_audits_scalars.all.return_value = [mock_audit]
-        mock_audits_result.scalars.return_value = mock_audits_scalars
-
-        mock_db_session.execute = AsyncMock(side_effect=[mock_events_result, mock_audits_result])
-        mock_audit_service.run_full_evaluation.return_value = mock_audit
+        mock_db_session.execute = AsyncMock(return_value=mock_events_result)
 
         response = client.post(
             "/api/ai-audit/batch",
             json={"limit": 100, "force_reevaluate": True},
         )
 
-        assert response.status_code == 200
+        assert response.status_code == 202
         data = response.json()
-        assert data["queued_count"] == 1
+        assert data["total_events"] == 1
 
     def test_batch_audit_invalid_limit(
         self,
@@ -943,6 +1021,109 @@ class TestBatchAuditEndpoint:
             json={"limit": 100, "min_risk_score": 150},
         )
         assert response.status_code == 422
+
+
+class TestBatchAuditStatusEndpoint:
+    """Tests for GET /api/ai-audit/batch/{job_id} endpoint.
+
+    NEM-2473: Added status endpoint for polling batch audit job progress.
+    """
+
+    def test_get_batch_audit_status_success(
+        self,
+        client: TestClient,
+        mock_job_tracker: MagicMock,
+    ) -> None:
+        """Test successful retrieval of batch audit job status."""
+        # Set up a job in the mock job tracker
+        job_id = mock_job_tracker.create_job("batch_audit")
+        mock_job_tracker.start_job(job_id, message="Processing events...")
+        mock_job_tracker.update_progress(job_id, 50, message="Processing event 5 of 10")
+
+        response = client.get(f"/api/ai-audit/batch/{job_id}")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["job_id"] == job_id
+        assert data["status"] == "running"
+        assert data["progress"] == 50
+        assert data["message"] == "Processing event 5 of 10"
+
+    def test_get_batch_audit_status_completed(
+        self,
+        client: TestClient,
+        mock_job_tracker: MagicMock,
+    ) -> None:
+        """Test retrieval of completed batch audit job status."""
+        job_id = mock_job_tracker.create_job("batch_audit")
+        mock_job_tracker.start_job(job_id, message="Starting...")
+        mock_job_tracker.complete_job(
+            job_id,
+            result={
+                "total_events": 10,
+                "processed_events": 10,
+                "failed_events": 0,
+            },
+        )
+
+        response = client.get(f"/api/ai-audit/batch/{job_id}")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["job_id"] == job_id
+        assert data["status"] == "completed"
+        assert data["progress"] == 100
+        assert data["total_events"] == 10
+        assert data["processed_events"] == 10
+        assert data["failed_events"] == 0
+        assert data["completed_at"] is not None
+
+    def test_get_batch_audit_status_failed(
+        self,
+        client: TestClient,
+        mock_job_tracker: MagicMock,
+    ) -> None:
+        """Test retrieval of failed batch audit job status."""
+        job_id = mock_job_tracker.create_job("batch_audit")
+        mock_job_tracker.start_job(job_id, message="Starting...")
+        mock_job_tracker.fail_job(job_id, error="Database connection failed")
+
+        response = client.get(f"/api/ai-audit/batch/{job_id}")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["job_id"] == job_id
+        assert data["status"] == "failed"
+        assert data["error"] == "Database connection failed"
+
+    def test_get_batch_audit_status_not_found(
+        self,
+        client: TestClient,
+        mock_job_tracker: MagicMock,
+    ) -> None:
+        """Test 404 when job not found."""
+        response = client.get("/api/ai-audit/batch/non-existent-job-id")
+
+        assert response.status_code == 404
+        data = response.json()
+        # Check that the error message indicates job was not found
+        assert "no batch audit job found" in data["detail"].lower()
+
+    def test_get_batch_audit_status_pending(
+        self,
+        client: TestClient,
+        mock_job_tracker: MagicMock,
+    ) -> None:
+        """Test retrieval of pending batch audit job status."""
+        job_id = mock_job_tracker.create_job("batch_audit")
+
+        response = client.get(f"/api/ai-audit/batch/{job_id}")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["job_id"] == job_id
+        assert data["status"] == "pending"
+        assert data["progress"] == 0
 
 
 class TestAuditSchemas:
@@ -1086,13 +1267,65 @@ class TestAuditSchemas:
         assert request.force_reevaluate is True
 
     def test_batch_audit_response(self) -> None:
-        """Test BatchAuditResponse creation."""
+        """Test BatchAuditResponse creation (legacy sync response)."""
         response = BatchAuditResponse(
             queued_count=10,
             message="Successfully processed 10 events",
         )
         assert response.queued_count == 10
         assert "10" in response.message
+
+    def test_batch_audit_job_response(self) -> None:
+        """Test BatchAuditJobResponse creation (NEM-2473 async response)."""
+        response = BatchAuditJobResponse(
+            job_id="550e8400-e29b-41d4-a716-446655440000",
+            status="pending",
+            message="Batch audit job created",
+            total_events=25,
+        )
+        assert response.job_id == "550e8400-e29b-41d4-a716-446655440000"
+        assert response.status == "pending"
+        assert response.total_events == 25
+
+    def test_batch_audit_job_status_response(self) -> None:
+        """Test BatchAuditJobStatusResponse creation (NEM-2473 status response)."""
+        response = BatchAuditJobStatusResponse(
+            job_id="550e8400-e29b-41d4-a716-446655440000",
+            status="running",
+            progress=45,
+            message="Processing event 45 of 100",
+            total_events=100,
+            processed_events=44,
+            failed_events=1,
+            created_at=datetime(2026, 1, 3, 12, 0, 0, tzinfo=UTC),
+            started_at=datetime(2026, 1, 3, 12, 0, 1, tzinfo=UTC),
+            completed_at=None,
+            error=None,
+        )
+        assert response.job_id == "550e8400-e29b-41d4-a716-446655440000"
+        assert response.status == "running"
+        assert response.progress == 45
+        assert response.total_events == 100
+        assert response.processed_events == 44
+        assert response.failed_events == 1
+        assert response.started_at is not None
+        assert response.completed_at is None
+
+    def test_batch_audit_job_status_response_defaults(self) -> None:
+        """Test BatchAuditJobStatusResponse uses correct defaults."""
+        response = BatchAuditJobStatusResponse(
+            job_id="test-job-id",
+            status="pending",
+            progress=0,
+            total_events=10,
+            processed_events=0,
+            created_at=datetime(2026, 1, 3, 12, 0, 0, tzinfo=UTC),
+        )
+        assert response.message is None
+        assert response.failed_events == 0
+        assert response.started_at is None
+        assert response.completed_at is None
+        assert response.error is None
 
 
 class TestAuditToResponseConversion:

@@ -125,10 +125,12 @@ test.describe('Analytics Empty State', () => {
     await expect(analyticsPage.pageTitle).toBeVisible({ timeout: 10000 });
   });
 
-  test('shows no cameras found when no cameras', async () => {
+  test('shows all cameras option as default when no cameras configured', async () => {
     await analyticsPage.goto();
     await analyticsPage.waitForPageLoad();
-    // With empty config, should show no cameras message
-    await expect(analyticsPage.noCamerasState).toBeVisible({ timeout: 10000 });
+    // With empty config, "All Cameras" should be selected by default showing aggregate stats
+    await expect(analyticsPage.cameraSelector).toBeVisible({ timeout: 10000 });
+    // The selector should have "All Cameras" as default option
+    await expect(analyticsPage.cameraSelector).toHaveText(/All Cameras/i);
   });
 });

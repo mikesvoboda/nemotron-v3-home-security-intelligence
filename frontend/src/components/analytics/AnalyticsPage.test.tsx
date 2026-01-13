@@ -140,7 +140,7 @@ describe('AnalyticsPage', () => {
     expect(screen.getAllByTestId('chart-skeleton').length).toBeGreaterThan(0);
   });
 
-  it('loads and displays camera selector', async () => {
+  it('loads and displays camera selector with All Cameras default', async () => {
     render(<AnalyticsPage />);
 
     await waitFor(() => {
@@ -148,16 +148,54 @@ describe('AnalyticsPage', () => {
     });
 
     const selector = screen.getByTestId('camera-selector');
-    expect(selector).toHaveValue('cam1');
+    // Default selection is "All Cameras" (empty string value)
+    expect(selector).toHaveValue('');
   });
 
-  it('fetches baseline data for selected camera', async () => {
+  it('shows All Cameras option in dropdown', async () => {
     render(<AnalyticsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('All Cameras')).toBeInTheDocument();
+    });
+  });
+
+  it('fetches global stats when All Cameras is selected (default)', async () => {
+    render(<AnalyticsPage />);
+
+    await waitFor(() => {
+      // Should fetch global stats without camera_id filter
+      expect(api.fetchAnomalyConfig).toHaveBeenCalled();
+      expect(api.fetchEventStats).toHaveBeenCalledWith(expect.objectContaining({
+        camera_id: undefined,
+      }));
+      expect(api.fetchDetectionStats).toHaveBeenCalledWith({ camera_id: undefined });
+      // Should NOT fetch camera-specific baselines for "All Cameras" view
+      expect(api.fetchCameraActivityBaseline).not.toHaveBeenCalled();
+      expect(api.fetchCameraClassBaseline).not.toHaveBeenCalled();
+    });
+  });
+
+  it('fetches camera-specific data when a camera is selected', async () => {
+    const user = userEvent.setup();
+    render(<AnalyticsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('camera-selector')).toBeInTheDocument();
+    });
+
+    // Select a specific camera
+    const selector = screen.getByTestId('camera-selector');
+    await user.selectOptions(selector, 'cam1');
 
     await waitFor(() => {
       expect(api.fetchCameraActivityBaseline).toHaveBeenCalledWith('cam1');
       expect(api.fetchCameraClassBaseline).toHaveBeenCalledWith('cam1');
       expect(api.fetchAnomalyConfig).toHaveBeenCalled();
+      expect(api.fetchEventStats).toHaveBeenCalledWith(expect.objectContaining({
+        camera_id: 'cam1',
+      }));
+      expect(api.fetchDetectionStats).toHaveBeenCalledWith({ camera_id: 'cam1' });
     });
   });
 
@@ -185,12 +223,21 @@ describe('AnalyticsPage', () => {
     });
   });
 
-  it('displays activity heatmap in camera performance tab', async () => {
+  it('displays activity heatmap in camera performance tab when camera is selected', async () => {
     const user = userEvent.setup();
     render(<AnalyticsPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('analytics-tab-camera-performance')).toBeInTheDocument();
+    });
+
+    // First select a specific camera to see activity heatmap
+    const selector = screen.getByTestId('camera-selector');
+    await user.selectOptions(selector, 'cam1');
+
+    // Wait for baseline data to load
+    await waitFor(() => {
+      expect(api.fetchCameraActivityBaseline).toHaveBeenCalledWith('cam1');
     });
 
     // Click on Camera Performance tab
@@ -201,16 +248,32 @@ describe('AnalyticsPage', () => {
     });
   });
 
-  it('shows learning status badge', async () => {
+  it('shows learning status badge when camera is selected', async () => {
+    const user = userEvent.setup();
     render(<AnalyticsPage />);
+
+    // Select a specific camera to see learning status
+    await waitFor(() => {
+      expect(screen.getByTestId('camera-selector')).toBeInTheDocument();
+    });
+    const selector = screen.getByTestId('camera-selector');
+    await user.selectOptions(selector, 'cam1');
 
     await waitFor(() => {
       expect(screen.getByText('Learning Complete')).toBeInTheDocument();
     });
   });
 
-  it('shows total samples count', async () => {
+  it('shows total samples count when camera is selected', async () => {
+    const user = userEvent.setup();
     render(<AnalyticsPage />);
+
+    // Select a specific camera to see sample count
+    await waitFor(() => {
+      expect(screen.getByTestId('camera-selector')).toBeInTheDocument();
+    });
+    const selector = screen.getByTestId('camera-selector');
+    await user.selectOptions(selector, 'cam1');
 
     await waitFor(() => {
       expect(screen.getByText('60')).toBeInTheDocument();
@@ -221,13 +284,30 @@ describe('AnalyticsPage', () => {
     const user = userEvent.setup();
     render(<AnalyticsPage />);
 
-    // Wait for cameras to load (selector should have cam1 selected)
+    // Wait for initial load with All Cameras
     await waitFor(() => {
       const selector = screen.getByTestId('camera-selector');
-      expect(selector).toHaveValue('cam1');
+      expect(selector).toHaveValue('');
     });
 
+    // Select cam1
     const selector = screen.getByTestId('camera-selector');
+    await user.selectOptions(selector, 'cam1');
+
+    await waitFor(() => {
+      expect(api.fetchCameraActivityBaseline).toHaveBeenCalledWith('cam1');
+    });
+
+    // Clear mocks and switch to cam2
+    vi.clearAllMocks();
+    vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
+    vi.mocked(api.fetchCameraActivityBaseline).mockResolvedValue(mockActivityBaseline);
+    vi.mocked(api.fetchCameraClassBaseline).mockResolvedValue(mockClassBaseline);
+    vi.mocked(api.fetchAnomalyConfig).mockResolvedValue(mockAnomalyConfig);
+    vi.mocked(api.fetchEventStats).mockResolvedValue(mockEventStats);
+    vi.mocked(api.fetchDetectionStats).mockResolvedValue(mockDetectionStats);
+    vi.mocked(api.fetchEvents).mockResolvedValue(mockEvents);
+
     await user.selectOptions(selector, 'cam2');
 
     await waitFor(() => {
@@ -236,7 +316,8 @@ describe('AnalyticsPage', () => {
   });
 
   it('shows error state when fetch fails', async () => {
-    vi.mocked(api.fetchCameraActivityBaseline).mockRejectedValue(new Error('Network error'));
+    // Error in a required API call (anomaly config is always fetched)
+    vi.mocked(api.fetchAnomalyConfig).mockRejectedValue(new Error('Network error'));
 
     render(<AnalyticsPage />);
 
@@ -265,17 +346,45 @@ describe('AnalyticsPage', () => {
     await user.click(refreshButton);
 
     await waitFor(() => {
-      expect(api.fetchCameraActivityBaseline).toHaveBeenCalledTimes(2);
+      // Since default is "All Cameras", anomaly config should be fetched twice (initial + refresh)
+      expect(api.fetchAnomalyConfig).toHaveBeenCalledTimes(2);
     });
   });
 
-  it('shows empty state when no cameras', async () => {
+  it('shows aggregate stats indicator when All Cameras is selected', async () => {
+    render(<AnalyticsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Showing aggregate stats across all cameras')).toBeInTheDocument();
+    });
+  });
+
+  it('shows camera-specific empty state message in Camera Performance tab', async () => {
+    const user = userEvent.setup();
+    render(<AnalyticsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('analytics-tab-camera-performance')).toBeInTheDocument();
+    });
+
+    // Click on Camera Performance tab while "All Cameras" is selected
+    await user.click(screen.getByTestId('analytics-tab-camera-performance'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Select a specific camera to view activity heatmap')).toBeInTheDocument();
+      expect(screen.getByText('Select a specific camera to view scene changes')).toBeInTheDocument();
+    });
+  });
+
+  it('still loads and shows stats when no cameras available', async () => {
     vi.mocked(api.fetchCameras).mockResolvedValue([]);
 
     render(<AnalyticsPage />);
 
+    // Should still show the stats (aggregate across no data)
     await waitFor(() => {
-      expect(screen.getByText('No Cameras Found')).toBeInTheDocument();
+      expect(screen.getByText('Total Events')).toBeInTheDocument();
+      expect(screen.getByText('All Cameras')).toBeInTheDocument();
     });
   });
 });

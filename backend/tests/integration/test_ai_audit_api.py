@@ -492,12 +492,12 @@ class TestBatchAudit:
             "/api/ai-audit/batch",
             json={"limit": 10},
         )
-        assert response.status_code == 200
+        assert response.status_code == 202
 
         data = response.json()
-        assert "queued_count" in data
+        assert "job_id" in data
         assert "message" in data
-        assert data["queued_count"] == 0
+        assert data["total_events"] == 0
 
     async def test_batch_audit_validation(
         self,
@@ -532,10 +532,10 @@ class TestBatchAudit:
                 "force_reevaluate": False,
             },
         )
-        assert response.status_code == 200
+        assert response.status_code == 202
 
         data = response.json()
-        assert "queued_count" in data
+        assert "job_id" in data
 
 
 class TestEvaluateEvent:
@@ -1112,11 +1112,11 @@ class TestBatchAuditAdvanced:
                 json={"limit": 10, "force_reevaluate": False},
             )
 
-        assert response.status_code == 200
+        assert response.status_code == 202
         data = response.json()
-        # Should process events without full evaluation
+        assert "job_id" in data
         # Events 1 (no evaluation), 2, 3, 4 (no audit at all) = 4 events
-        assert data["queued_count"] >= 1
+        assert data["total_events"] >= 1
 
     async def test_batch_audit_respects_min_risk_score(
         self,
@@ -1138,11 +1138,11 @@ class TestBatchAuditAdvanced:
                 json={"limit": 10, "min_risk_score": 60},
             )
 
-        assert response.status_code == 200
+        assert response.status_code == 202
         data = response.json()
+        assert "job_id" in data
         # Only events with risk_score >= 60 (events 2, 3, 4 with scores 60, 80, 100)
-        # But events 0 and 1 already have audits, so we should process fewer
-        assert data["queued_count"] >= 0
+        assert data["total_events"] >= 0
 
     async def test_batch_audit_force_reevaluate_all(
         self,
@@ -1164,10 +1164,11 @@ class TestBatchAuditAdvanced:
                 json={"limit": 10, "force_reevaluate": True},
             )
 
-        assert response.status_code == 200
+        assert response.status_code == 202
         data = response.json()
+        assert "job_id" in data
         # Should process all 5 events when force_reevaluate is True
-        assert data["queued_count"] <= 5
+        assert data["total_events"] <= 5
 
     async def test_batch_audit_respects_limit(
         self,
@@ -1189,10 +1190,11 @@ class TestBatchAuditAdvanced:
                 json={"limit": 2, "force_reevaluate": True},
             )
 
-        assert response.status_code == 200
+        assert response.status_code == 202
         data = response.json()
+        assert "job_id" in data
         # Should not process more than the limit
-        assert data["queued_count"] <= 2
+        assert data["total_events"] <= 2
 
 
 class TestLeaderboardRanking:
@@ -1428,7 +1430,9 @@ class TestEdgeCasesAndErrorHandling:
             json={},
         )
         # Should use default limit=100, which is valid
-        assert response.status_code == 200
+        assert response.status_code == 202
+        data = response.json()
+        assert "job_id" in data
 
     async def test_consistency_score_calculation(
         self,

@@ -344,6 +344,7 @@ async def list_detections(  # noqa: PLR0912
 
 @router.get("/stats", response_model=DetectionStatsResponse)
 async def get_detection_stats(
+    camera_id: str | None = Query(None, description="Filter by camera ID"),
     db: AsyncSession = Depends(get_db),
 ) -> DetectionStatsResponse:
     """Get aggregate detection statistics including class distribution.
@@ -362,6 +363,7 @@ async def get_detection_stats(
     - Per-class avg confidence, then combined using weighted average formula
 
     Args:
+        camera_id: Optional camera ID filter (for camera-specific stats)
         db: Database session
 
     Returns:
@@ -374,6 +376,13 @@ async def get_detection_stats(
     # then use window functions to compute totals across all groups.
     #
     # For weighted average: sum(class_count * class_avg) / sum(class_count)
+    #
+    # Build base query with optional camera_id filter
+    # Use list[Any] to accommodate both ColumnElement and BinaryExpression types
+    base_conditions: list[Any] = [Detection.object_type.isnot(None)]
+    if camera_id:
+        base_conditions.append(Detection.camera_id == camera_id)
+
     combined_query = (
         select(
             Detection.object_type,
@@ -387,7 +396,7 @@ async def get_detection_stats(
                 / func.sum(func.count()).over()
             ).label("avg_confidence"),
         )
-        .where(Detection.object_type.isnot(None))
+        .where(*base_conditions)
         .group_by(Detection.object_type)
         .order_by(func.count().desc())
     )

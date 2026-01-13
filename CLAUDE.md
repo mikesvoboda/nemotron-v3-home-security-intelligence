@@ -135,7 +135,7 @@ This project follows **Test-Driven Development (TDD)** for all feature implement
 
 - **[TDD Workflow Guide](docs/development/testing-workflow.md)** - RED-GREEN-REFACTOR cycle, test patterns by layer
 - **[Testing Guide](docs/development/testing.md)** - Test infrastructure, fixtures, running tests
-- **[Testing Patterns](docs/developer/patterns/README.md)** - Comprehensive testing patterns and examples
+- **[Testing Patterns](docs/developer/patterns/AGENTS.md)** - Comprehensive testing patterns and examples
 
 ### Coverage Requirements
 

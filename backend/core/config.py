@@ -513,6 +513,12 @@ class Settings(BaseSettings):
         except URLValidationError as e:
             raise ValueError(f"Invalid Grafana URL: {e}") from None
 
+    prometheus_url: str = Field(
+        default="http://prometheus:9090",
+        description="Prometheus server URL for monitoring health checks. "
+        "Use 'http://prometheus:9090' for Docker/Podman, or 'http://localhost:9090' for local dev.",
+    )
+
     # Frontend URL for health checks (internal Docker network URL)
     frontend_url: str = Field(
         default="http://frontend:80",

@@ -406,28 +406,27 @@ export default function SystemSummaryRow({
   }, [current?.inference, isConnected]);
 
   // Calculate AI Models indicator data
+  // This tracks CORE AI models (RT-DETR + Nemotron), not the Model Zoo enrichment models
   const aiModelsIndicator = useMemo((): IndicatorData => {
-    const loadedModels = models.filter(
-      (m) => m.status === 'loaded' || m.status === 'loading'
-    );
-    const totalModels = models.length;
-    const loadedCount = loadedModels.length;
-
-    // Check for model errors
-    const errorModels = models.filter((m) => m.status === 'error');
-    const hasErrors = errorModels.length > 0;
-
-    // Check RT-DETR and Nemotron specifically
+    // Count core AI models from performance metrics
     const rtdetr = current?.ai_models?.rtdetr;
     const nemotron = current?.nemotron;
-    const criticalModelsOk =
-      (rtdetr && (rtdetr as { status?: string }).status !== 'error') &&
-      (nemotron && nemotron.status !== 'error');
 
+    // Core models status
+    const rtdetrStatus = rtdetr ? (rtdetr as { status?: string }).status : 'unknown';
+    const nemotronStatus = nemotron ? nemotron.status : 'unknown';
+
+    const rtdetrHealthy = rtdetrStatus === 'healthy';
+    const nemotronHealthy = nemotronStatus === 'healthy';
+
+    const loadedCount = (rtdetrHealthy ? 1 : 0) + (nemotronHealthy ? 1 : 0);
+    const totalCoreModels = 2; // RT-DETR + Nemotron
+
+    // Determine state based on core model health
     let state: IndicatorState = 'healthy';
-    if (hasErrors || !criticalModelsOk) {
+    if (loadedCount === 0) {
       state = 'critical';
-    } else if (loadedCount === 0) {
+    } else if (loadedCount < totalCoreModels) {
       state = 'degraded';
     }
 
@@ -436,21 +435,33 @@ export default function SystemSummaryRow({
     const nemotronInf = current?.inference?.throughput?.analyses_total ?? 0;
     const totalInferences = rtdetrInf + nemotronInf;
 
+    // Build tooltip with core model status
+    const tooltipContent = [
+      `RT-DETR: ${rtdetrStatus}`,
+      `Nemotron: ${nemotronStatus}`,
+    ];
+
+    // Add Model Zoo enrichment count if available
+    if (models.length > 0) {
+      const loadedEnrichmentModels = models.filter(
+        (m) => m.status === 'loaded' || m.status === 'loading'
+      );
+      tooltipContent.push(`Enrichment models: ${loadedEnrichmentModels.length}/${models.length} loaded`);
+    }
+
+    // Add VRAM info if available
+    if (vramStats) {
+      tooltipContent.push(`VRAM: ${formatGB(vramStats.usedMb / 1024)} / ${formatGB(vramStats.budgetMb / 1024)}`);
+    }
+
     return {
       type: 'ai-models',
       label: 'AI Models',
       state,
-      primaryMetric: `${loadedCount}/${totalModels || '?'}`,
+      primaryMetric: `${loadedCount}/${totalCoreModels}`,
       secondaryMetric: totalInferences > 0 ? `${formatCount(totalInferences)} inf` : undefined,
-      tooltipContent: [
-        `Loaded models: ${loadedCount}`,
-        `Total models: ${totalModels}`,
-        vramStats ? `VRAM used: ${formatGB(vramStats.usedMb / 1024)}` : 'VRAM: N/A',
-        vramStats ? `VRAM available: ${formatGB(vramStats.availableMb / 1024)}` : '',
-        ...loadedModels.slice(0, 3).map((m) => `- ${m.display_name || m.name}`),
-        loadedModels.length > 3 ? `...and ${loadedModels.length - 3} more` : '',
-      ].filter(Boolean),
-      sectionId: 'section-ai-models',
+      tooltipContent,
+      sectionId: 'section-model-zoo', // Scroll to the model zoo section since there's no dedicated AI models section
     };
   }, [models, vramStats, current?.ai_models, current?.nemotron, current?.inference?.throughput]);
 

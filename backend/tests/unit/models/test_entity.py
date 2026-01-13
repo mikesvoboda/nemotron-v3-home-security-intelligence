@@ -529,3 +529,38 @@ class TestEntityRelationships:
     def test_entity_has_primary_detection_relationship(self, sample_entity):
         """Test entity has primary_detection relationship defined."""
         assert hasattr(sample_entity, "primary_detection")
+
+    def test_entity_has_validation_methods(self, sample_entity):
+        """Test entity has validation methods for primary_detection_id."""
+        assert hasattr(sample_entity, "validate_primary_detection_async")
+        assert hasattr(sample_entity, "set_primary_detection_validated")
+        assert callable(sample_entity.validate_primary_detection_async)
+        assert callable(sample_entity.set_primary_detection_validated)
+
+    def test_entity_primary_detection_no_fk_constraint(self):
+        """Test that primary_detection_id column has no FK constraint.
+
+        This is intentional because detections is a partitioned table.
+        See entity-detection-referential-integrity.md for details.
+        """
+        from sqlalchemy import inspect
+
+        mapper = inspect(Entity)
+        primary_detection_id_col = mapper.columns["primary_detection_id"]
+
+        # The column should NOT have any foreign keys
+        assert len(primary_detection_id_col.foreign_keys) == 0
+
+    def test_entity_relationship_is_viewonly(self):
+        """Test that primary_detection relationship is viewonly.
+
+        Since there's no FK constraint, the relationship should be viewonly
+        to prevent cascade issues.
+        """
+        from sqlalchemy import inspect
+
+        mapper = inspect(Entity)
+        relationships = {r.key: r for r in mapper.relationships}
+
+        assert "primary_detection" in relationships
+        assert relationships["primary_detection"].viewonly is True

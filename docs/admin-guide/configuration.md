@@ -491,28 +491,31 @@ Frontend variables use the `VITE_` prefix and are embedded at **build time**.
 
 The frontend serves on different ports depending on the environment:
 
-| Environment | Port | Server    | Configuration             |
-| ----------- | ---- | --------- | ------------------------- |
-| Development | 5173 | Vite dev  | Default Vite port         |
-| Production  | 80   | Nginx     | Container exposes port 80 |
-| Production  | 443  | Nginx+TLS | When TLS is enabled       |
+| Environment | Port | Server   | Configuration                     |
+| ----------- | ---- | -------- | --------------------------------- |
+| Development | 5173 | Vite dev | Default Vite port                 |
+| Production  | 8080 | Nginx    | Container internal (unprivileged) |
+| Production  | 5173 | Host     | Default mapped host port          |
 
 #### Changing the Production Port
 
-To change the production frontend port (default: 80), modify `docker-compose.prod.yml`:
+To change the production frontend port (default: 5173), modify `docker-compose.prod.yml`:
 
 ```yaml
 # docker-compose.prod.yml
 services:
   frontend:
     ports:
-      - '${FRONTEND_PORT:-80}:80' # Use FRONTEND_PORT env var or default to 80
+      - '${FRONTEND_PORT:-5173}:8080' # Use FRONTEND_PORT env var or default to 5173
 ```
+
+Note: The container always listens on port 8080 internally (nginx-unprivileged cannot
+bind to ports below 1024). The external port can be configured via `FRONTEND_PORT`.
 
 Then set the environment variable:
 
 ```bash
-# Serve frontend on port 3000 instead of 80
+# Serve frontend on port 3000 instead of 5173
 export FRONTEND_PORT=3000
 podman-compose -f docker-compose.prod.yml up -d
 ```

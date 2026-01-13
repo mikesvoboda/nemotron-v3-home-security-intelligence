@@ -58,6 +58,7 @@ JOB_TYPES: dict[str, str] = {
     "cleanup": "Clean up old data and temporary files",
     "backup": "Create a backup of system data",
     "import": "Import events from external files",
+    "batch_audit": "Batch AI pipeline audit processing for multiple events",
 }
 
 

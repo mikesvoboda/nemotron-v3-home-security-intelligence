@@ -454,7 +454,7 @@ class BatchAuditRequest(BaseModel):
 
 
 class BatchAuditResponse(BaseModel):
-    """Response for batch audit request."""
+    """Response for batch audit request (legacy synchronous response)."""
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -467,6 +467,68 @@ class BatchAuditResponse(BaseModel):
 
     queued_count: int
     message: str
+
+
+class BatchAuditJobResponse(BaseModel):
+    """Response for async batch audit job creation.
+
+    Returned immediately when triggering a batch audit, containing
+    the job ID for progress tracking via GET /api/ai-audit/batch/{job_id}.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "job_id": "550e8400-e29b-41d4-a716-446655440000",
+                "status": "pending",
+                "message": "Batch audit job created. Use GET /api/ai-audit/batch/550e8400-e29b-41d4-a716-446655440000 to track progress.",
+                "total_events": 75,
+            }
+        }
+    )
+
+    job_id: str = Field(..., description="Unique job ID for tracking progress")
+    status: str = Field(..., description="Initial job status (pending)")
+    message: str = Field(..., description="Human-readable status message")
+    total_events: int = Field(..., ge=0, description="Number of events queued for processing")
+
+
+class BatchAuditJobStatusResponse(BaseModel):
+    """Response for batch audit job status query.
+
+    Provides detailed progress information for an ongoing or completed
+    batch audit job.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "job_id": "550e8400-e29b-41d4-a716-446655440000",
+                "status": "running",
+                "progress": 45,
+                "message": "Processing event 45 of 100",
+                "total_events": 100,
+                "processed_events": 45,
+                "failed_events": 2,
+                "created_at": "2026-01-03T10:30:00Z",
+                "started_at": "2026-01-03T10:30:01Z",
+                "completed_at": None,
+                "error": None,
+            }
+        }
+    )
+
+    job_id: str = Field(..., description="Unique job ID")
+    status: str = Field(..., description="Current job status (pending, running, completed, failed)")
+    progress: int = Field(..., ge=0, le=100, description="Progress percentage (0-100)")
+    message: str | None = Field(None, description="Current status message")
+    total_events: int = Field(..., ge=0, description="Total events to process")
+    processed_events: int = Field(..., ge=0, description="Events successfully processed")
+    failed_events: int = Field(0, ge=0, description="Events that failed processing")
+    created_at: datetime = Field(..., description="When the job was created")
+    started_at: datetime | None = Field(None, description="When processing started")
+    completed_at: datetime | None = Field(None, description="When processing completed")
+    error: str | None = Field(None, description="Error message if job failed")
 
 
 # =============================================================================

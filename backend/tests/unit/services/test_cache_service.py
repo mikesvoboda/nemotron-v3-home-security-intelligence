@@ -533,24 +533,32 @@ def test_cache_keys_event_stats_with_dates():
     """Test CacheKeys.event_stats() with date range."""
     key = CacheKeys.event_stats("2024-01-01", "2024-01-31")
 
-    # Keys now include global prefix (NEM-1621)
-    assert key == f"{CacheKeys.PREFIX}:cache:event_stats:2024-01-01:2024-01-31"
+    # Keys now include global prefix (NEM-1621) and camera_id (NEM-2434)
+    assert key == f"{CacheKeys.PREFIX}:cache:event_stats:2024-01-01:2024-01-31:all"
 
 
 def test_cache_keys_event_stats_no_dates():
     """Test CacheKeys.event_stats() without dates."""
     key = CacheKeys.event_stats()
 
-    # Keys now include global prefix (NEM-1621)
-    assert key == f"{CacheKeys.PREFIX}:cache:event_stats:none:none"
+    # Keys now include global prefix (NEM-1621) and camera_id (NEM-2434)
+    assert key == f"{CacheKeys.PREFIX}:cache:event_stats:none:none:all"
 
 
 def test_cache_keys_event_stats_partial_dates():
     """Test CacheKeys.event_stats() with only start date."""
     key = CacheKeys.event_stats(start_date="2024-01-01")
 
-    # Keys now include global prefix (NEM-1621)
-    assert key == f"{CacheKeys.PREFIX}:cache:event_stats:2024-01-01:none"
+    # Keys now include global prefix (NEM-1621) and camera_id (NEM-2434)
+    assert key == f"{CacheKeys.PREFIX}:cache:event_stats:2024-01-01:none:all"
+
+
+def test_cache_keys_event_stats_with_camera_id():
+    """Test CacheKeys.event_stats() with camera_id filter (NEM-2434)."""
+    key = CacheKeys.event_stats("2024-01-01", "2024-01-31", "cam1")
+
+    # Keys include date range and camera_id
+    assert key == f"{CacheKeys.PREFIX}:cache:event_stats:2024-01-01:2024-01-31:cam1"
 
 
 def test_cache_keys_system_status():
