@@ -919,9 +919,9 @@ jobs:
         # Coverage collected per-shard and merged in frontend-coverage-merge job
         # NOTE: Do NOT add --coverage here - it triggers per-shard threshold checks
         # that fail because each shard only has ~4% of total coverage (with 24 shards)
-        # --teardownTimeout is configured in vite.config.ts (3000ms)
-        # --reporter=verbose provides detailed output for debugging
-        run: cd frontend && npx vitest run --shard=${{ matrix.shard }}/24 --reporter=verbose
+        # --teardownTimeout=1000: Force quick cleanup abort to prevent OOM
+        # The cleanup phase was taking 5+ minutes and causing OOM after tests pass
+        run: cd frontend && npx vitest run --shard=${{ matrix.shard }}/24 --reporter=verbose --teardownTimeout=1000
 
       - name: Upload coverage artifact
         if: always()
