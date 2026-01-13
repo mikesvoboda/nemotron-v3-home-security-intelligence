@@ -24,7 +24,7 @@
 set -e
 
 # Configuration
-FOSCAM_PATH="${CAMERA_PATH:-/export/foscam}"
+FOSCAM_PATH="${FOSCAM_BASE_PATH:-/export/foscam}"
 COUNT=100
 CAMERA=""
 DRY_RUN=false

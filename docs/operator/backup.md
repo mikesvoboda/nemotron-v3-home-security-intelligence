@@ -11,12 +11,12 @@
 
 The Home Security Intelligence system stores data in multiple locations:
 
-| Data Type           | Location                         | Priority     |
-| ------------------- | -------------------------------- | ------------ |
-| PostgreSQL Database | `postgres_data` volume           | **Critical** |
-| Generated Media     | `./backend/data/`                | **High**     |
-| Configuration       | `.env`                           | **Critical** |
-| Camera FTP Uploads  | `${CAMERA_PATH:-/export/foscam}` | **Medium**   |
+| Data Type           | Location                              | Priority     |
+| ------------------- | ------------------------------------- | ------------ |
+| PostgreSQL Database | `postgres_data` volume                | **Critical** |
+| Generated Media     | `./backend/data/`                     | **High**     |
+| Configuration       | `.env`                                | **Critical** |
+| Camera FTP Uploads  | `${FOSCAM_BASE_PATH:-/export/foscam}` | **Medium**   |
 
 > [!NOTE]
 > Redis is ephemeral cache - it does **not** require backup.

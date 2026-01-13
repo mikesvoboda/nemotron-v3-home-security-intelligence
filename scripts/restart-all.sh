@@ -53,7 +53,7 @@ load_env() {
     export POSTGRES_DB="${POSTGRES_DB:-security}"
     export AI_MODELS_PATH="${AI_MODELS_PATH:-/export/ai_models}"
     export HF_CACHE="${HF_CACHE:-$HOME/.cache/huggingface}"
-    export CAMERA_PATH="${CAMERA_PATH:-/export/foscam}"
+    export FOSCAM_BASE_PATH="${FOSCAM_BASE_PATH:-/export/foscam}"
 }
 
 # Check if podman-compose is available
