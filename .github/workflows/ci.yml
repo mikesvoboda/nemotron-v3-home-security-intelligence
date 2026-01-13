@@ -919,32 +919,38 @@ jobs:
         # Coverage collected per-shard and merged in frontend-coverage-merge job
         # NOTE: Do NOT add --coverage here - it triggers per-shard threshold checks
         # that fail because each shard only has ~4% of total coverage (with 24 shards)
-        # Using timeout to kill process after 3 minutes - tests complete in <1 min
-        # but cleanup phase was taking 5+ minutes and causing OOM
+        # Tests complete in ~20s but cleanup takes 5+ minutes and OOMs.
+        # We use a fifo to monitor output and kill after test summary is printed.
         run: |
           cd frontend
-          # Capture output to check test results
-          set +e
-          output=$(timeout 420 npx vitest run --shard=${{ matrix.shard }}/24 --reporter=verbose --teardownTimeout=1000 2>&1)
-          exit_code=$?
-          echo "$output"
-          set -e
 
-          # Check if timeout killed the process
-          if [ $exit_code -eq 124 ]; then
-            echo "Process killed by timeout during cleanup phase"
-            # Verify tests actually passed before the timeout
-            # Vitest output format: "Tests  X passed" with ANSI codes
-            if echo "$output" | grep -qE "passed.*\([0-9]+\)"; then
-              echo "Tests passed before timeout - cleanup was the issue"
+          # Create a temp file for output
+          tmpfile=$(mktemp)
+          trap "rm -f $tmpfile" EXIT
+
+          # Start vitest in background
+          npx vitest run --shard=${{ matrix.shard }}/24 --reporter=verbose --teardownTimeout=1000 2>&1 | tee "$tmpfile" &
+          vitest_pid=$!
+
+          # Monitor for test completion (look for "passed" in output)
+          # Kill the process 5 seconds after tests complete to avoid OOM in cleanup
+          while kill -0 $vitest_pid 2>/dev/null; do
+            if grep -qE "passed.*\([0-9]+\)" "$tmpfile" 2>/dev/null; then
+              echo ""
+              echo "Tests completed, waiting 5 seconds then killing cleanup..."
+              sleep 5
+              # Force kill vitest and all child processes
+              pkill -9 -P $vitest_pid 2>/dev/null || true
+              kill -9 $vitest_pid 2>/dev/null || true
+              echo "Cleanup killed to prevent OOM"
               exit 0
-            else
-              echo "Tests did not complete before timeout"
-              exit 1
             fi
-          fi
+            sleep 1
+          done
 
-          exit $exit_code
+          # If we get here, vitest exited on its own
+          wait $vitest_pid
+          exit $?
 
       - name: Upload coverage artifact
         if: always()
