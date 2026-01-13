@@ -413,3 +413,135 @@ class TestCameraFromFolderNameProperties:
         """Property: Factory method always sets status to 'online'."""
         camera = Camera.from_folder_name(folder_name, "/path")
         assert camera.status == "online"
+
+
+# =============================================================================
+# Timezone Column Tests
+# =============================================================================
+
+
+class TestCameraTimezoneColumns:
+    """Tests for Camera model timezone-aware datetime columns.
+
+    These tests verify that datetime columns are correctly defined with
+    timezone=True in the SQLAlchemy model, ensuring compatibility with
+    TIMESTAMPTZ in PostgreSQL.
+
+    Related Linear issue: NEM-2555
+    """
+
+    def test_created_at_column_is_timezone_aware(self):
+        """Test that created_at column is defined with timezone=True."""
+        from sqlalchemy import inspect
+
+        mapper = inspect(Camera)
+        created_at_col = mapper.columns["created_at"]
+
+        # Verify the column type is DateTime with timezone=True
+        assert hasattr(created_at_col.type, "timezone"), (
+            "DateTime column should have timezone attribute"
+        )
+        assert created_at_col.type.timezone is True, "created_at must be timezone-aware"
+
+    def test_last_seen_at_column_is_timezone_aware(self):
+        """Test that last_seen_at column is defined with timezone=True."""
+        from sqlalchemy import inspect
+
+        mapper = inspect(Camera)
+        last_seen_at_col = mapper.columns["last_seen_at"]
+
+        # Verify the column type is DateTime with timezone=True
+        assert hasattr(last_seen_at_col.type, "timezone"), (
+            "DateTime column should have timezone attribute"
+        )
+        assert last_seen_at_col.type.timezone is True, "last_seen_at must be timezone-aware"
+
+    def test_deleted_at_column_is_timezone_aware(self):
+        """Test that deleted_at column is defined with timezone=True."""
+        from sqlalchemy import inspect
+
+        mapper = inspect(Camera)
+        deleted_at_col = mapper.columns["deleted_at"]
+
+        # Verify the column type is DateTime with timezone=True
+        assert hasattr(deleted_at_col.type, "timezone"), (
+            "DateTime column should have timezone attribute"
+        )
+        assert deleted_at_col.type.timezone is True, "deleted_at must be timezone-aware"
+
+    def test_timezone_aware_datetime_preserved_on_assignment(self):
+        """Test that timezone-aware datetimes are preserved when assigned."""
+
+        # Create a timezone-aware datetime (UTC)
+        utc_time = datetime(2026, 1, 13, 12, 0, 0, tzinfo=UTC)
+
+        camera = Camera(
+            id="test_tz",
+            name="Test TZ Camera",
+            folder_path="/path",
+            created_at=utc_time,
+            last_seen_at=utc_time,
+        )
+
+        # Verify timezone info is preserved
+        assert camera.created_at.tzinfo is not None, "created_at should preserve timezone"
+        assert camera.last_seen_at.tzinfo is not None, "last_seen_at should preserve timezone"
+
+        # Verify the datetime values match
+        assert camera.created_at == utc_time
+        assert camera.last_seen_at == utc_time
+
+    def test_timezone_aware_datetime_with_different_timezone(self):
+        """Test that timezone-aware datetimes from different timezones are handled."""
+        from datetime import timedelta, timezone
+
+        # Create a datetime in UTC+5 timezone
+        utc_plus_5 = timezone(timedelta(hours=5))
+        local_time = datetime(2026, 1, 13, 17, 0, 0, tzinfo=utc_plus_5)
+
+        camera = Camera(
+            id="test_tz_offset",
+            name="Test TZ Offset Camera",
+            folder_path="/path",
+            last_seen_at=local_time,
+        )
+
+        # Verify timezone info is preserved
+        assert camera.last_seen_at.tzinfo is not None
+        # The datetime should be equal when compared (different representations of same instant)
+        assert camera.last_seen_at == local_time
+
+    def test_created_at_default_is_timezone_aware(self):
+        """Test that the created_at default function produces timezone-aware datetime."""
+        # The model's default is defined as: default=lambda: datetime.now(UTC)
+        # We verify this by checking that datetime.now(UTC) produces timezone-aware datetimes
+        now_utc = datetime.now(UTC)
+
+        # Verify the result is timezone-aware
+        assert now_utc.tzinfo is not None, "datetime.now(UTC) should be timezone-aware"
+        assert now_utc.tzinfo == UTC, "datetime.now(UTC) should use UTC"
+
+        # Verify the Camera model's created_at default column is properly configured
+        from sqlalchemy import inspect
+
+        mapper = inspect(Camera)
+        created_at_col = mapper.columns["created_at"]
+
+        # Check that a default is configured (callable)
+        assert created_at_col.default is not None, "created_at should have a default"
+        assert callable(created_at_col.default.arg), "created_at default should be callable"
+
+    def test_all_datetime_columns_have_consistent_timezone_setting(self):
+        """Test that all datetime columns consistently use timezone=True."""
+        from sqlalchemy import inspect
+
+        mapper = inspect(Camera)
+
+        datetime_columns = ["created_at", "last_seen_at", "deleted_at"]
+
+        for col_name in datetime_columns:
+            col = mapper.columns[col_name]
+            # Check it's a DateTime type
+            assert col.type.__class__.__name__ == "DateTime", f"{col_name} should be DateTime type"
+            # Check timezone is True
+            assert col.type.timezone is True, f"{col_name} must have timezone=True"

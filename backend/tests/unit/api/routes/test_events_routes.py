@@ -59,28 +59,29 @@ class TestParseDetectionIds:
 
 
 class TestGetDetectionIdsFromEvent:
-    """Tests for get_detection_ids_from_event helper function."""
+    """Tests for get_detection_ids_from_event helper function.
+
+    Note: Legacy detection_ids column was removed in NEM-1592.
+    Now uses only the detections relationship via detection_id_list property.
+    """
 
     def test_get_detection_ids_from_relationship(self):
         """Test getting detection IDs from detections relationship."""
-        # Create mock event with detections relationship
         mock_event = Mock(spec=Event)
         mock_event.detections = [Mock(id=1), Mock(id=2), Mock(id=3)]
         mock_event.detection_id_list = [1, 2, 3]
-        mock_event.detection_ids = "[1, 2, 3]"
 
         result = get_detection_ids_from_event(mock_event)
         assert result == [1, 2, 3]
 
-    def test_get_detection_ids_from_legacy_column(self):
-        """Test fallback to legacy detection_ids column."""
-        # Create mock event without detections relationship
+    def test_get_detection_ids_empty_relationship(self):
+        """Test empty relationship returns empty list (no legacy fallback)."""
         mock_event = Mock(spec=Event)
         mock_event.detections = []
-        mock_event.detection_ids = "[1, 2, 3]"
+        mock_event.detection_id_list = []
 
         result = get_detection_ids_from_event(mock_event)
-        assert result == [1, 2, 3]
+        assert result == []
 
 
 class TestParseSeverityFilter:
@@ -418,7 +419,7 @@ class TestGetEventRoute:
         mock_request.url_for = MagicMock(return_value="/api/events/1")
         mock_db = AsyncMock(spec=AsyncSession)
 
-        # Mock event
+        # Mock event with detections relationship (not legacy column)
         mock_event = Mock(spec=Event)
         mock_event.id = 1
         mock_event.camera_id = "cam123"
@@ -431,8 +432,8 @@ class TestGetEventRoute:
         mock_event.reviewed = False
         mock_event.notes = None
         mock_event.snooze_until = None
-        mock_event.detections = []
-        mock_event.detection_ids = "[1, 2, 3]"
+        mock_event.detections = [Mock(id=1), Mock(id=2), Mock(id=3)]
+        mock_event.detection_id_list = [1, 2, 3]
 
         with patch("backend.api.routes.events.get_event_or_404", return_value=mock_event):
             result = await get_event(event_id=1, request=mock_request, db=mock_db)
@@ -468,8 +469,8 @@ class TestUpdateEventRoute:
         mock_event.reviewed = False
         mock_event.notes = None
         mock_event.snooze_until = None
-        mock_event.detections = []
-        mock_event.detection_ids = "[1, 2, 3]"
+        mock_event.detections = [Mock(id=1), Mock(id=2), Mock(id=3)]
+        mock_event.detection_id_list = [1, 2, 3]
 
         update_data = EventUpdate(reviewed=True)
 
@@ -539,8 +540,8 @@ class TestGetEventEnrichmentsRoute:
         # Mock event with detections but offset beyond
         mock_event = Mock(spec=Event)
         mock_event.id = 1
-        mock_event.detections = []
-        mock_event.detection_ids = "[1, 2, 3]"
+        mock_event.detections = [Mock(id=1), Mock(id=2), Mock(id=3)]
+        mock_event.detection_id_list = [1, 2, 3]
 
         with patch("backend.api.routes.events.get_event_or_404", return_value=mock_event):
             result = await get_event_enrichments(event_id=1, limit=50, offset=100, db=mock_db)
@@ -689,8 +690,8 @@ class TestListEventsRouteComprehensive:
         mock_event1.summary = "Test event"
         mock_event1.reasoning = "Test reasoning"
         mock_event1.reviewed = False
-        mock_event1.detections = []
-        mock_event1.detection_ids = "[1, 2, 3]"
+        mock_event1.detections = [Mock(id=1), Mock(id=2), Mock(id=3)]
+        mock_event1.detection_id_list = [1, 2, 3]
         mock_event1.camera = Mock(name="Front Door")
 
         mock_events_result = MagicMock()
@@ -1080,10 +1081,10 @@ class TestGetEventDetectionsRouteComprehensive:
 
         mock_db = AsyncMock(spec=AsyncSession)
 
-        # Mock event with detections
+        # Mock event with detections (use relationship instead of legacy column)
         mock_event = Mock(spec=Event)
-        mock_event.detections = []
-        mock_event.detection_ids = "[1, 2, 3, 4, 5]"
+        mock_event.detections = [Mock(id=i) for i in range(1, 6)]
+        mock_event.detection_id_list = [1, 2, 3, 4, 5]
 
         # Mock count query
         mock_count_result = MagicMock()

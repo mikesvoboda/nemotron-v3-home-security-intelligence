@@ -401,6 +401,195 @@ describe('TypedWebSocketEmitter', () => {
 
       consoleSpy.mockRestore();
     });
+
+    it('should include event type in error log', () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const errorHandler = vi.fn<(data: SecurityEventData) => void>().mockImplementation(() => {
+        throw new Error('Test error');
+      });
+
+      emitter.on('event', errorHandler);
+      emitter.emit('event', {
+        id: '123',
+        camera_id: 'front_door',
+        risk_score: 75,
+        risk_level: 'high',
+        summary: 'Person detected',
+      });
+
+      // Verify the log includes the event type
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('event'),
+        expect.any(Error)
+      );
+
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe('error handler configuration', () => {
+    it('should call custom error handler when provided', () => {
+      const customErrorHandler = vi.fn();
+      const emitterWithHandler = new TypedWebSocketEmitter({
+        onError: customErrorHandler,
+      });
+      const errorHandler = vi.fn<(data: SecurityEventData) => void>().mockImplementation(() => {
+        throw new Error('Test error');
+      });
+
+      emitterWithHandler.on('event', errorHandler);
+      emitterWithHandler.emit('event', {
+        id: '123',
+        camera_id: 'front_door',
+        risk_score: 75,
+        risk_level: 'high',
+        summary: 'Person detected',
+      });
+
+      expect(customErrorHandler).toHaveBeenCalledWith({
+        event: 'event',
+        error: expect.any(Error),
+        handlerName: expect.any(String),
+      });
+    });
+
+    it('should suppress console logging when debug is false', () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const emitterWithDebugOff = new TypedWebSocketEmitter({ debug: false });
+      const errorHandler = vi.fn<(data: SecurityEventData) => void>().mockImplementation(() => {
+        throw new Error('Test error');
+      });
+
+      emitterWithDebugOff.on('event', errorHandler);
+      emitterWithDebugOff.emit('event', {
+        id: '123',
+        camera_id: 'front_door',
+        risk_score: 75,
+        risk_level: 'high',
+        summary: 'Person detected',
+      });
+
+      expect(consoleSpy).not.toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
+
+    it('should enable console logging when debug is true', () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const emitterWithDebugOn = new TypedWebSocketEmitter({ debug: true });
+      const errorHandler = vi.fn<(data: SecurityEventData) => void>().mockImplementation(() => {
+        throw new Error('Test error');
+      });
+
+      emitterWithDebugOn.on('event', errorHandler);
+      emitterWithDebugOn.emit('event', {
+        id: '123',
+        camera_id: 'front_door',
+        risk_score: 75,
+        risk_level: 'high',
+        summary: 'Person detected',
+      });
+
+      expect(consoleSpy).toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
+
+    it('should default to debug enabled in development mode', () => {
+      // Default emitter (debug defaults based on NODE_ENV)
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const errorHandler = vi.fn<(data: SecurityEventData) => void>().mockImplementation(() => {
+        throw new Error('Test error');
+      });
+
+      // Default emitter without explicit debug option
+      const defaultEmitter = new TypedWebSocketEmitter();
+      defaultEmitter.on('event', errorHandler);
+      defaultEmitter.emit('event', {
+        id: '123',
+        camera_id: 'front_door',
+        risk_score: 75,
+        risk_level: 'high',
+        summary: 'Person detected',
+      });
+
+      // In test environment (development), debug should be enabled by default
+      expect(consoleSpy).toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
+
+    it('should call both custom error handler and console.error when debug is enabled', () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const customErrorHandler = vi.fn();
+      const emitterWithBoth = new TypedWebSocketEmitter({
+        onError: customErrorHandler,
+        debug: true,
+      });
+      const errorHandler = vi.fn<(data: SecurityEventData) => void>().mockImplementation(() => {
+        throw new Error('Test error');
+      });
+
+      emitterWithBoth.on('event', errorHandler);
+      emitterWithBoth.emit('event', {
+        id: '123',
+        camera_id: 'front_door',
+        risk_score: 75,
+        risk_level: 'high',
+        summary: 'Person detected',
+      });
+
+      expect(customErrorHandler).toHaveBeenCalled();
+      expect(consoleSpy).toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
+
+    it('should extract handler name from named function', () => {
+      const customErrorHandler = vi.fn();
+      const emitterWithHandler = new TypedWebSocketEmitter({
+        onError: customErrorHandler,
+      });
+
+      function myNamedHandler(_data: SecurityEventData): void {
+        throw new Error('Test error');
+      }
+
+      emitterWithHandler.on('event', myNamedHandler);
+      emitterWithHandler.emit('event', {
+        id: '123',
+        camera_id: 'front_door',
+        risk_score: 75,
+        risk_level: 'high',
+        summary: 'Person detected',
+      });
+
+      expect(customErrorHandler).toHaveBeenCalledWith(
+        expect.objectContaining({
+          handlerName: 'myNamedHandler',
+        })
+      );
+    });
+
+    it('should use "anonymous" for anonymous handlers', () => {
+      const customErrorHandler = vi.fn();
+      const emitterWithHandler = new TypedWebSocketEmitter({
+        onError: customErrorHandler,
+      });
+
+      emitterWithHandler.on('event', () => {
+        throw new Error('Test error');
+      });
+      emitterWithHandler.emit('event', {
+        id: '123',
+        camera_id: 'front_door',
+        risk_score: 75,
+        risk_level: 'high',
+        summary: 'Person detected',
+      });
+
+      expect(customErrorHandler).toHaveBeenCalledWith(
+        expect.objectContaining({
+          handlerName: 'anonymous',
+        })
+      );
+    });
   });
 });
 

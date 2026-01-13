@@ -644,7 +644,22 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:  # noqa: PLR0912 - Co
             print(f"Container orchestrator initialization failed: {e}")
             print("Continuing without orchestrator")
 
-    # Register workers with system routes for readiness checks
+    # Register workers with health service registry (NEM-2611: dependency injection)
+    # Get the registry from the DI container instead of using globals
+    health_registry = container.get("health_service_registry")
+    health_registry.register_gpu_monitor(gpu_monitor)
+    health_registry.register_cleanup_service(cleanup_service)
+    health_registry.register_system_broadcaster(system_broadcaster)
+    if file_watcher is not None:
+        health_registry.register_file_watcher(file_watcher)
+    if pipeline_manager is not None:
+        health_registry.register_pipeline_manager(pipeline_manager)
+    if service_health_monitor is not None:
+        health_registry.register_service_health_monitor(service_health_monitor)
+    health_registry.register_performance_collector(performance_collector)
+
+    # Also register with the legacy register_workers for backward compatibility
+    # This will be removed once all routes are migrated to use the registry
     register_workers(
         gpu_monitor=gpu_monitor,
         cleanup_service=cleanup_service,
@@ -654,7 +669,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:  # noqa: PLR0912 - Co
         service_health_monitor=service_health_monitor,
         performance_collector=performance_collector,
     )
-    print("Workers registered for readiness monitoring")
+    print("Workers registered for readiness monitoring (DI + legacy)")
 
     yield
 

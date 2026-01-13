@@ -611,10 +611,15 @@ class TestRowToSearchResult:
         mock_event.summary = "Person detected near entrance"
         mock_event.reasoning = "Unknown individual during nighttime"
         mock_event.reviewed = False
-        mock_event.detection_ids = "[1, 2, 3]"
         mock_event.object_types = "person, vehicle"
-        # NEM-1592: Set detections to empty to use fallback to detection_ids column
-        mock_event.detections = []
+        # NEM-1592: Use detections relationship (detection_ids column was dropped)
+        mock_detection_1 = MagicMock()
+        mock_detection_1.id = 1
+        mock_detection_2 = MagicMock()
+        mock_detection_2.id = 2
+        mock_detection_3 = MagicMock()
+        mock_detection_3.id = 3
+        mock_event.detections = [mock_detection_1, mock_detection_2, mock_detection_3]
 
         # Create row tuple (event, relevance_score, camera_name)
         row = (mock_event, 0.85, "Front Door Camera")
@@ -648,9 +653,8 @@ class TestRowToSearchResult:
         mock_event.summary = None
         mock_event.reasoning = None
         mock_event.reviewed = True
-        mock_event.detection_ids = None
         mock_event.object_types = None
-        # NEM-1592: Set detections to empty to use fallback to detection_ids column
+        # NEM-1592: Use detections relationship (detection_ids column was dropped)
         mock_event.detections = []
 
         row = (mock_event, None, None)

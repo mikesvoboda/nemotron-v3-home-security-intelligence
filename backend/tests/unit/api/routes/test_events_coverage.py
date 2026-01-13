@@ -4,7 +4,6 @@ This test file targets missing coverage lines identified by pytest-cov,
 focusing on endpoint handlers, error paths, and edge cases.
 """
 
-import json
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
@@ -636,8 +635,9 @@ class TestGetEventEnrichments:
         """Test get_event_enrichments with pagination."""
         mock_event = Mock(spec=Event)
         mock_event.id = 1
-        mock_event.detection_ids = json.dumps(list(range(1, 101)))  # 100 detections
-        mock_event.detections = []
+        # Use detections relationship instead of legacy column
+        mock_event.detections = [Mock(id=i) for i in range(1, 101)]
+        mock_event.detection_id_list = list(range(1, 101))
 
         mock_get_event.return_value = mock_event
 
@@ -668,8 +668,8 @@ class TestGetEventEnrichments:
         """Test get_event_enrichments with no detections."""
         mock_event = Mock(spec=Event)
         mock_event.id = 1
-        mock_event.detection_ids = "[]"
         mock_event.detections = []
+        mock_event.detection_id_list = []
 
         mock_get_event.return_value = mock_event
 
@@ -688,8 +688,8 @@ class TestGetEventEnrichments:
         """Test get_event_enrichments with offset beyond available detections."""
         mock_event = Mock(spec=Event)
         mock_event.id = 1
-        mock_event.detection_ids = "[1, 2, 3]"
-        mock_event.detections = []
+        mock_event.detections = [Mock(id=1), Mock(id=2), Mock(id=3)]
+        mock_event.detection_id_list = [1, 2, 3]
 
         mock_get_event.return_value = mock_event
 
@@ -806,8 +806,8 @@ class TestGenerateEventClip:
         mock_event = Mock(spec=Event)
         mock_event.id = 1
         mock_event.clip_path = None
-        mock_event.detection_ids = "[1, 2]"
-        mock_event.detections = []
+        mock_event.detections = [Mock(id=1), Mock(id=2)]
+        mock_event.detection_id_list = [1, 2]
 
         mock_get_event.return_value = mock_event
         mock_batch_fetch.return_value = []  # No file paths
@@ -825,8 +825,8 @@ class TestGenerateEventClip:
         mock_event = Mock(spec=Event)
         mock_event.id = 1
         mock_event.clip_path = None
-        mock_event.detection_ids = "[]"
         mock_event.detections = []
+        mock_event.detection_id_list = []
 
         mock_get_event.return_value = mock_event
 
