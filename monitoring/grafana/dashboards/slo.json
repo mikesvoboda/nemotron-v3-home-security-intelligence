@@ -669,13 +669,13 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "hsi_detection_queue_size",
+          "expr": "hsi_detection_queue_depth",
           "legendFormat": "Detection Queue",
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "hsi_analysis_queue_size",
+          "expr": "hsi_analysis_queue_depth",
           "legendFormat": "Analysis Queue",
           "refId": "B"
         }
