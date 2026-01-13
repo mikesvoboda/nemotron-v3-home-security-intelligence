@@ -1007,6 +1007,132 @@ class WebSocketAlertResolvedMessage(BaseModel):
     )
 
 
+# =============================================================================
+# Worker Status WebSocket Message Schemas (NEM-2461)
+# =============================================================================
+
+
+class WebSocketWorkerType(StrEnum):
+    """Valid worker types for WebSocket worker status messages."""
+
+    DETECTION = auto()
+    ANALYSIS = auto()
+    TIMEOUT = auto()
+    METRICS = auto()
+
+
+class WebSocketWorkerState(StrEnum):
+    """Valid worker state values for WebSocket messages."""
+
+    STOPPED = auto()
+    STARTING = auto()
+    RUNNING = auto()
+    STOPPING = auto()
+    ERROR = auto()
+
+
+class WebSocketWorkerStatusData(BaseModel):
+    """Data payload for worker status messages.
+
+    Broadcast when a pipeline worker's state changes (started, stopped, error, etc.).
+    """
+
+    event_type: str = Field(
+        ...,
+        description="Type of worker event (worker.started, worker.stopped, worker.error, etc.)",
+    )
+    worker_name: str = Field(..., description="Worker instance name")
+    worker_type: WebSocketWorkerType = Field(..., description="Type of worker")
+    timestamp: str = Field(..., description="ISO 8601 timestamp when the event occurred")
+    error: str | None = Field(None, description="Error message if applicable")
+    error_type: str | None = Field(None, description="Categorized error type")
+    failure_count: int | None = Field(None, description="Number of consecutive failures")
+    items_processed: int | None = Field(None, description="Total items processed")
+    reason: str | None = Field(None, description="Reason for state change")
+    previous_state: str | None = Field(None, description="Previous worker state")
+    attempt: int | None = Field(None, description="Current restart attempt number")
+    max_attempts: int | None = Field(None, description="Maximum restart attempts allowed")
+    metadata: dict[str, Any] | None = Field(None, description="Additional metadata")
+
+    @field_validator("worker_type", mode="before")
+    @classmethod
+    def validate_worker_type(cls, v: str | WebSocketWorkerType) -> WebSocketWorkerType:
+        """Validate and convert worker_type to WebSocketWorkerType enum."""
+        if isinstance(v, WebSocketWorkerType):
+            return v
+        if isinstance(v, str):
+            try:
+                return WebSocketWorkerType(v.lower())
+            except ValueError:
+                valid_values = [wt.value for wt in WebSocketWorkerType]
+                raise ValueError(
+                    f"Invalid worker_type '{v}'. Must be one of: {valid_values}"
+                ) from None
+        raise ValueError(f"worker_type must be a string or WebSocketWorkerType enum, got {type(v)}")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "event_type": "worker.started",
+                "worker_name": "detection_worker",
+                "worker_type": "detection",
+                "timestamp": "2026-01-13T10:30:00Z",
+                "error": None,
+                "error_type": None,
+                "failure_count": None,
+                "items_processed": None,
+                "reason": None,
+                "previous_state": None,
+                "attempt": None,
+                "max_attempts": None,
+                "metadata": None,
+            }
+        }
+    )
+
+
+class WebSocketWorkerStatusMessage(BaseModel):
+    """Complete worker status message envelope.
+
+    This is the canonical format for worker status messages broadcast via WebSocket.
+    Consistent with other message types, data is wrapped in a standard envelope.
+
+    Format:
+        {
+            "type": "worker_status",
+            "data": {
+                "event_type": "worker.started",
+                "worker_name": "detection_worker",
+                "worker_type": "detection",
+                "timestamp": "2026-01-13T10:30:00Z"
+            },
+            "timestamp": "2026-01-13T10:30:00Z"
+        }
+    """
+
+    type: Literal["worker_status"] = Field(
+        default="worker_status",
+        description="Message type, always 'worker_status' for worker status messages",
+    )
+    data: WebSocketWorkerStatusData = Field(..., description="Worker status data payload")
+    timestamp: str | None = Field(None, description="ISO 8601 timestamp of the status change")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "type": "worker_status",
+                "data": {
+                    "event_type": "worker.started",
+                    "worker_name": "detection_worker",
+                    "worker_type": "detection",
+                    "timestamp": "2026-01-13T10:30:00Z",
+                },
+                "timestamp": "2026-01-13T10:30:00Z",
+            }
+        }
+    )
+
+
 # Job tracking WebSocket schemas
 
 

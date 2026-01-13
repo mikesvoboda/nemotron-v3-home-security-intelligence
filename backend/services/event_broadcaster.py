@@ -33,6 +33,8 @@ from backend.api.schemas.websocket import (
     WebSocketSceneChangeMessage,
     WebSocketServiceStatusData,
     WebSocketServiceStatusMessage,
+    WebSocketWorkerStatusData,
+    WebSocketWorkerStatusMessage,
 )
 from backend.core.config import get_settings
 from backend.core.logging import get_logger
@@ -743,6 +745,78 @@ class EventBroadcaster:
             raise
         except Exception as e:
             logger.error(f"Failed to broadcast alert: {e}")
+            raise
+
+    async def broadcast_worker_status(self, worker_status_data: dict[str, Any]) -> int:
+        """Broadcast a worker status message to all connected WebSocket clients via Redis pub/sub.
+
+        This method validates the worker status data against the WebSocketWorkerStatusMessage schema
+        before publishing to Redis. This ensures all messages sent to clients conform
+        to the expected format for worker status updates.
+
+        Worker status change events are broadcast when (NEM-2461):
+        - Worker started: Pipeline worker started and is now processing
+        - Worker stopped: Pipeline worker stopped gracefully
+        - Worker health check failed: Pipeline worker health check failed
+        - Worker restarting: Pipeline worker is restarting after failure
+        - Worker recovered: Pipeline worker recovered from error state
+        - Worker error: Pipeline worker encountered an error
+
+        Args:
+            worker_status_data: Worker status data dictionary containing status details
+
+        Returns:
+            Number of Redis subscribers that received the message
+
+        Raises:
+            ValueError: If the message fails schema validation
+
+        Example worker_status_data:
+            {
+                "type": "worker_status",
+                "data": {
+                    "event_type": "worker.started",
+                    "worker_name": "detection_worker",
+                    "worker_type": "detection",
+                    "timestamp": "2026-01-13T10:30:00Z"
+                },
+                "timestamp": "2026-01-13T10:30:00Z"
+            }
+        """
+        try:
+            # Ensure the message has the correct structure
+            if "type" not in worker_status_data:
+                worker_status_data = {"type": "worker_status", "data": worker_status_data}
+
+            # Validate message format before broadcasting
+            # This ensures all outgoing messages conform to the WebSocketWorkerStatusMessage schema
+            try:
+                # Extract the data portion and validate it
+                data_dict = worker_status_data.get("data", {})
+                validated_data = WebSocketWorkerStatusData.model_validate(data_dict)
+                validated_message = WebSocketWorkerStatusMessage(
+                    data=validated_data,
+                    timestamp=worker_status_data.get("timestamp"),
+                )
+                # Use the validated message for broadcasting
+                broadcast_data = validated_message.model_dump(mode="json")
+            except ValidationError as ve:
+                logger.error(f"Worker status message validation failed: {ve}")
+                raise ValueError(f"Invalid worker status message format: {ve}") from ve
+
+            # Publish validated message to Redis channel
+            subscriber_count = await self._redis.publish(self._channel_name, broadcast_data)
+            logger.debug(
+                f"Worker status broadcast to Redis: {broadcast_data.get('type')} "
+                f"(worker: {data_dict.get('worker_name')}, event: {data_dict.get('event_type')}, "
+                f"subscribers: {subscriber_count})"
+            )
+            return subscriber_count
+        except ValueError:
+            # Re-raise validation errors
+            raise
+        except Exception as e:
+            logger.error(f"Failed to broadcast worker status: {e}")
             raise
 
     def _enter_degraded_mode(self) -> None:

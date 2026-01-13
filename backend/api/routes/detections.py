@@ -539,6 +539,7 @@ async def get_detection_thumbnail(
     db: AsyncSession = Depends(get_db),
     _rate_limit: None = Depends(detection_media_rate_limiter),
     thumbnail_generator: ThumbnailGeneratorDep = Depends(get_thumbnail_generator_dep),
+    video_processor: VideoProcessorDep = Depends(get_video_processor_dep),
 ) -> FileResponse:
     """Serve detection thumbnail image.
 
@@ -550,10 +551,13 @@ async def get_detection_thumbnail(
     The thumbnail is a cropped image centered on the detection
     with the bounding box drawn as an overlay.
 
+    For video detections, extracts a frame from the video using ffmpeg.
+
     Args:
         detection_id: Detection ID
         db: Database session
         thumbnail_generator: ThumbnailGenerator injected via Depends()
+        video_processor: VideoProcessor injected via Depends() for video detections
 
     Returns:
         FileResponse with the thumbnail image (JPEG or PNG)
@@ -571,27 +575,36 @@ async def get_detection_thumbnail(
     else:
         # Generate thumbnail on the fly
         if not os.path.exists(detection.file_path):
+            source_type = "video" if detection.media_type == "video" else "image"
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Source image not found: {detection.file_path}",
+                detail=f"Source {source_type} not found: {detection.file_path}",
             )
 
-        # Prepare detection data for thumbnail generation
-        detection_data = {
-            "object_type": detection.object_type,
-            "confidence": detection.confidence,
-            "bbox_x": detection.bbox_x,
-            "bbox_y": detection.bbox_y,
-            "bbox_width": detection.bbox_width,
-            "bbox_height": detection.bbox_height,
-        }
+        # Use VideoProcessor for video detections, ThumbnailGenerator for images
+        if detection.media_type == "video":
+            # Generate thumbnail using video processor (ffmpeg)
+            generated_path = await video_processor.extract_thumbnail_for_detection(
+                video_path=detection.file_path,
+                detection_id=detection.id,
+            )
+        else:
+            # Prepare detection data for thumbnail generation
+            detection_data = {
+                "object_type": detection.object_type,
+                "confidence": detection.confidence,
+                "bbox_x": detection.bbox_x,
+                "bbox_y": detection.bbox_y,
+                "bbox_width": detection.bbox_width,
+                "bbox_height": detection.bbox_height,
+            }
 
-        # Generate thumbnail
-        generated_path = thumbnail_generator.generate_thumbnail(
-            image_path=detection.file_path,
-            detections=[detection_data],
-            detection_id=str(detection.id),
-        )
+            # Generate thumbnail using PIL-based thumbnail generator
+            generated_path = thumbnail_generator.generate_thumbnail(
+                image_path=detection.file_path,
+                detections=[detection_data],
+                detection_id=str(detection.id),
+            )
 
         if not generated_path:
             raise HTTPException(
@@ -913,6 +926,124 @@ async def get_detection_enrichment(
     )
 
 
+async def _get_full_image_for_video(
+    video_path: str, video_processor: VideoProcessorDep
+) -> Response:
+    """Extract and return a full-size frame from a video file.
+
+    Args:
+        video_path: Path to the video file
+        video_processor: VideoProcessor for frame extraction
+
+    Returns:
+        Response with the extracted frame as JPEG
+
+    Raises:
+        HTTPException: 500 if frame extraction fails
+    """
+    try:
+        # Extract frame at original resolution (no size constraint)
+        frame_path = await video_processor.extract_thumbnail(
+            video_path=video_path,
+            output_path=None,  # Let it generate a temporary path
+            timestamp=None,  # Use smart default timestamp
+            size=(1920, 1080),  # Larger size for full view
+        )
+        if not frame_path or not os.path.exists(frame_path):
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to extract frame from video",
+            )
+
+        # nosemgrep: path-traversal-open - frame_path from video processor
+        with open(frame_path, "rb") as f:
+            image_data = f.read()
+
+        return Response(
+            content=image_data,
+            media_type="image/jpeg",
+            headers={"Cache-Control": "public, max-age=3600"},
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to extract frame from video: {e!s}",
+        ) from e
+
+
+def _get_full_image_for_image(file_path: str) -> Response:
+    """Read and return a full-size image file.
+
+    Args:
+        file_path: Path to the image file
+
+    Returns:
+        Response with the image as JPEG
+
+    Raises:
+        HTTPException: 500 if file read fails
+    """
+    try:
+        # nosemgrep: path-traversal-open - file_path from database, not user input
+        with open(file_path, "rb") as f:
+            image_data = f.read()
+
+        return Response(
+            content=image_data,
+            media_type="image/jpeg",
+            headers={"Cache-Control": "public, max-age=3600"},
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to read source image: {e!s}",
+        ) from e
+
+
+async def _generate_thumbnail_for_detection(
+    detection: Detection,
+    is_video: bool,
+    video_processor: VideoProcessorDep,
+    thumbnail_generator: ThumbnailGeneratorDep,
+) -> str | None:
+    """Generate a thumbnail for a detection from its source media.
+
+    Args:
+        detection: The detection to generate a thumbnail for
+        is_video: True if the detection is from a video source
+        video_processor: VideoProcessor for video frame extraction
+        thumbnail_generator: ThumbnailGenerator for image thumbnail generation
+
+    Returns:
+        Path to the generated thumbnail, or None if generation failed
+    """
+    if is_video:
+        # Generate thumbnail using video processor (ffmpeg)
+        return await video_processor.extract_thumbnail_for_detection(
+            video_path=detection.file_path,
+            detection_id=detection.id,
+        )
+
+    # Prepare detection data for thumbnail generation
+    detection_data = {
+        "object_type": detection.object_type,
+        "confidence": detection.confidence,
+        "bbox_x": detection.bbox_x,
+        "bbox_y": detection.bbox_y,
+        "bbox_width": detection.bbox_width,
+        "bbox_height": detection.bbox_height,
+    }
+
+    # Generate thumbnail using PIL-based thumbnail generator
+    return thumbnail_generator.generate_thumbnail(
+        image_path=detection.file_path,
+        detections=[detection_data],
+        detection_id=str(detection.id),
+    )
+
+
 @router.get(
     "/{detection_id}/image",
     response_class=Response,
@@ -929,6 +1060,7 @@ async def get_detection_image(
     db: AsyncSession = Depends(get_db),
     _rate_limit: None = Depends(detection_media_rate_limiter),
     thumbnail_generator: ThumbnailGeneratorDep = Depends(get_thumbnail_generator_dep),
+    video_processor: VideoProcessorDep = Depends(get_video_processor_dep),
 ) -> Response:
     """Get detection image with bounding box overlay, or full-size original.
 
@@ -939,16 +1071,20 @@ async def get_detection_image(
 
     By default, returns the thumbnail image with bounding box drawn around the
     detected object. If thumbnail doesn't exist, generates it on the fly from
-    the source image.
+    the source image or video.
+
+    For video detections, extracts a frame from the video using ffmpeg.
 
     When full=true is passed, returns the original source image without any
     bounding box overlay. This is used for the full-size image lightbox viewer.
+    Note: For video detections with full=true, returns the first frame as an image.
 
     Args:
         detection_id: Detection ID
         full: If true, return the original full-size image instead of thumbnail
         db: Database session
         thumbnail_generator: ThumbnailGenerator injected via Depends()
+        video_processor: VideoProcessor injected via Depends() for video detections
 
     Returns:
         JPEG image (thumbnail with bounding box, or full-size original)
@@ -959,35 +1095,24 @@ async def get_detection_image(
     """
     detection = await get_detection_or_404(detection_id, db)
 
-    # If full=true, return the original source image
+    # Determine if this is a video detection
+    is_video = detection.media_type == "video"
+    source_type = "video" if is_video else "image"
+
+    # If full=true, return the original source image (or extracted frame for video)
     if full:
         if not os.path.exists(detection.file_path):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Source image not found: {detection.file_path}",
+                detail=f"Source {source_type} not found: {detection.file_path}",
             )
 
-        try:
-            # nosemgrep: path-traversal-open - file_path from database, not user input
-            with open(detection.file_path, "rb") as f:
-                image_data = f.read()
-
-            return Response(
-                content=image_data,
-                media_type="image/jpeg",
-                headers={
-                    "Cache-Control": "public, max-age=3600",  # Cache for 1 hour
-                },
-            )
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to read source image: {e!s}",
-            ) from e
+        if is_video:
+            return await _get_full_image_for_video(detection.file_path, video_processor)
+        return _get_full_image_for_image(detection.file_path)
 
     # Default behavior: return thumbnail with bounding box
-    # Check if thumbnail exists
-    thumbnail_path: str
+    # Check if thumbnail already exists
     if detection.thumbnail_path and os.path.exists(detection.thumbnail_path):
         thumbnail_path = detection.thumbnail_path
     else:
@@ -995,24 +1120,11 @@ async def get_detection_image(
         if not os.path.exists(detection.file_path):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Source image not found: {detection.file_path}",
+                detail=f"Source {source_type} not found: {detection.file_path}",
             )
 
-        # Prepare detection data for thumbnail generation
-        detection_data = {
-            "object_type": detection.object_type,
-            "confidence": detection.confidence,
-            "bbox_x": detection.bbox_x,
-            "bbox_y": detection.bbox_y,
-            "bbox_width": detection.bbox_width,
-            "bbox_height": detection.bbox_height,
-        }
-
-        # Generate thumbnail
-        generated_path = thumbnail_generator.generate_thumbnail(
-            image_path=detection.file_path,
-            detections=[detection_data],
-            detection_id=str(detection.id),
+        generated_path = await _generate_thumbnail_for_detection(
+            detection, is_video, video_processor, thumbnail_generator
         )
 
         if not generated_path:
@@ -1036,9 +1148,7 @@ async def get_detection_image(
         return Response(
             content=image_data,
             media_type="image/jpeg",
-            headers={
-                "Cache-Control": "public, max-age=3600",  # Cache for 1 hour
-            },
+            headers={"Cache-Control": "public, max-age=3600"},
         )
     except Exception as e:
         raise HTTPException(

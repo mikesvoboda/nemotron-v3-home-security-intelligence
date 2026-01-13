@@ -122,6 +122,27 @@ class WebSocketEventType(StrEnum):
     """GPU statistics updated."""
 
     # ==========================================================================
+    # Worker Events - Pipeline worker lifecycle (NEM-2461)
+    # ==========================================================================
+    WORKER_STARTED = "worker.started"
+    """Pipeline worker started and is now processing."""
+
+    WORKER_STOPPED = "worker.stopped"
+    """Pipeline worker stopped gracefully."""
+
+    WORKER_HEALTH_CHECK_FAILED = "worker.health_check_failed"
+    """Pipeline worker health check failed."""
+
+    WORKER_RESTARTING = "worker.restarting"
+    """Pipeline worker is restarting after failure."""
+
+    WORKER_RECOVERED = "worker.recovered"
+    """Pipeline worker recovered from error state."""
+
+    WORKER_ERROR = "worker.error"
+    """Pipeline worker encountered an error."""
+
+    # ==========================================================================
     # Event Events - Security event lifecycle (AI-analyzed)
     # ==========================================================================
     EVENT_CREATED = "event.created"
@@ -375,6 +396,43 @@ EVENT_TYPE_METADATA: dict[WebSocketEventType, dict[str, Any]] = {
         "channel": "system",
         "requires_payload": True,
         "payload_fields": ["utilization", "memory_used", "memory_total", "temperature"],
+    },
+    # Worker events (NEM-2461)
+    WebSocketEventType.WORKER_STARTED: {
+        "description": "Pipeline worker started and is now processing",
+        "channel": "workers",
+        "requires_payload": True,
+        "payload_fields": ["worker_name", "worker_type", "timestamp"],
+    },
+    WebSocketEventType.WORKER_STOPPED: {
+        "description": "Pipeline worker stopped gracefully",
+        "channel": "workers",
+        "requires_payload": True,
+        "payload_fields": ["worker_name", "worker_type", "timestamp", "reason"],
+    },
+    WebSocketEventType.WORKER_HEALTH_CHECK_FAILED: {
+        "description": "Pipeline worker health check failed",
+        "channel": "workers",
+        "requires_payload": True,
+        "payload_fields": ["worker_name", "worker_type", "error", "failure_count", "timestamp"],
+    },
+    WebSocketEventType.WORKER_RESTARTING: {
+        "description": "Pipeline worker is restarting after failure",
+        "channel": "workers",
+        "requires_payload": True,
+        "payload_fields": ["worker_name", "worker_type", "attempt", "max_attempts", "timestamp"],
+    },
+    WebSocketEventType.WORKER_RECOVERED: {
+        "description": "Pipeline worker recovered from error state",
+        "channel": "workers",
+        "requires_payload": True,
+        "payload_fields": ["worker_name", "worker_type", "previous_state", "timestamp"],
+    },
+    WebSocketEventType.WORKER_ERROR: {
+        "description": "Pipeline worker encountered an error",
+        "channel": "workers",
+        "requires_payload": True,
+        "payload_fields": ["worker_name", "worker_type", "error", "error_type", "timestamp"],
     },
     # Event events
     WebSocketEventType.EVENT_CREATED: {

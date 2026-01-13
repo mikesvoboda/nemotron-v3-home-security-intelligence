@@ -5,7 +5,6 @@ across multiple cameras using CLIP embeddings stored in Redis.
 """
 
 from datetime import datetime
-from enum import Enum
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from redis.asyncio import Redis
@@ -17,6 +16,7 @@ from backend.api.schemas.entities import (
     EntityMatchItem,
     EntityMatchResponse,
     EntitySummary,
+    EntityTypeFilter,
 )
 from backend.api.schemas.logs import PaginationInfo
 from backend.core.logging import get_logger
@@ -27,14 +27,6 @@ from backend.services.reid_service import (
     ReIdentificationService,
     get_reid_service,
 )
-
-
-class EntityTypeEnum(str, Enum):
-    """Valid entity types for filtering."""
-
-    person = "person"
-    vehicle = "vehicle"
-
 
 router = APIRouter(prefix="/api/entities", tags=["entities"])
 
@@ -119,7 +111,7 @@ async def _get_redis_client() -> Redis | None:
     },
 )
 async def list_entities(
-    entity_type: EntityTypeEnum | None = Query(
+    entity_type: EntityTypeFilter | None = Query(
         None, description="Filter by entity type: 'person' or 'vehicle'"
     ),
     camera_id: str | None = Query(None, description="Filter by camera ID"),
@@ -404,8 +396,8 @@ async def get_entity_history(
 )
 async def get_entity_matches(
     detection_id: str,
-    entity_type: EntityTypeEnum = Query(
-        EntityTypeEnum.person, description="Type of entity to search for matches"
+    entity_type: EntityTypeFilter = Query(
+        EntityTypeFilter.person, description="Type of entity to search for matches"
     ),
     threshold: float = Query(
         DEFAULT_SIMILARITY_THRESHOLD,

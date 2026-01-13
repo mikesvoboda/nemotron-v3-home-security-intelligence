@@ -12,7 +12,6 @@ import pytest
 # Import the entire module to ensure coverage tracks it
 import backend.api.routes.entities  # noqa: F401
 from backend.api.routes.entities import (
-    EntityTypeEnum,
     _entity_to_summary,
     _get_thumbnail_url,
     get_entity,
@@ -20,6 +19,7 @@ from backend.api.routes.entities import (
     get_entity_matches,
     list_entities,
 )
+from backend.api.schemas.entities import EntityTypeFilter
 from backend.services.reid_service import EntityEmbedding, EntityMatch
 
 
@@ -226,7 +226,7 @@ class TestListEntities:
             return_value=mock_redis,
         ):
             result = await list_entities(
-                entity_type=EntityTypeEnum.person,
+                entity_type=EntityTypeFilter.person,
                 camera_id=None,
                 since=None,
                 limit=50,
@@ -1055,7 +1055,7 @@ class TestGetEntityMatches:
         ):
             await get_entity_matches(
                 "det_001",
-                entity_type=EntityTypeEnum.person,
+                entity_type=EntityTypeFilter.person,
                 threshold=0.85,
                 reid_service=mock_service,
             )
@@ -1079,7 +1079,7 @@ class TestGetEntityMatches:
         ):
             await get_entity_matches(
                 "nonexistent",
-                entity_type=EntityTypeEnum.person,
+                entity_type=EntityTypeFilter.person,
                 threshold=0.85,
                 reid_service=mock_service,
             )
@@ -1113,7 +1113,7 @@ class TestGetEntityMatches:
         ):
             result = await get_entity_matches(
                 "det_001",
-                entity_type=EntityTypeEnum.person,
+                entity_type=EntityTypeFilter.person,
                 threshold=0.85,
                 reid_service=mock_service,
             )
@@ -1170,7 +1170,7 @@ class TestGetEntityMatches:
         ):
             result = await get_entity_matches(
                 "det_001",
-                entity_type=EntityTypeEnum.person,
+                entity_type=EntityTypeFilter.person,
                 threshold=0.85,
                 reid_service=mock_service,
             )
@@ -1211,7 +1211,7 @@ class TestGetEntityMatches:
         ):
             result = await get_entity_matches(
                 "det_001",
-                entity_type=EntityTypeEnum.vehicle,
+                entity_type=EntityTypeFilter.vehicle,
                 threshold=0.80,
                 reid_service=mock_service,
             )
@@ -1252,7 +1252,7 @@ class TestGetEntityMatches:
         ):
             result = await get_entity_matches(
                 "det_001",
-                entity_type=EntityTypeEnum.person,
+                entity_type=EntityTypeFilter.person,
                 threshold=0.95,  # Higher threshold
                 reid_service=mock_service,
             )
@@ -1287,7 +1287,7 @@ class TestGetEntityMatches:
         ):
             await get_entity_matches(
                 "det_001",
-                entity_type=EntityTypeEnum.person,
+                entity_type=EntityTypeFilter.person,
                 threshold=0.85,
                 reid_service=mock_service,
             )

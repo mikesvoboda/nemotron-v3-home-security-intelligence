@@ -467,6 +467,28 @@ class WebSocketEmitterService:
                 }
             )
 
+        # Worker events (NEM-2461)
+        elif event_type in (
+            WebSocketEventType.WORKER_STARTED,
+            WebSocketEventType.WORKER_STOPPED,
+            WebSocketEventType.WORKER_HEALTH_CHECK_FAILED,
+            WebSocketEventType.WORKER_RESTARTING,
+            WebSocketEventType.WORKER_RECOVERED,
+            WebSocketEventType.WORKER_ERROR,
+        ):
+            # Broadcast worker status events with consistent structure
+            worker_payload = {
+                "event_type": event_type.value,
+                **payload,
+            }
+            await self._event_broadcaster.broadcast_worker_status(
+                {
+                    "type": "worker_status",
+                    "data": worker_payload,
+                    "timestamp": message.get("timestamp"),
+                }
+            )
+
         # Default: publish via Redis
         elif self._redis_client is not None:
             channel = get_event_channel(event_type) or "events"

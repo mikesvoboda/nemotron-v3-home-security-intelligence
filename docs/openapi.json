@@ -6618,13 +6618,13 @@
         "title": "EntitySummary",
         "type": "object"
       },
-      "EntityTypeEnum": {
-        "description": "Valid entity types for filtering.",
+      "EntityTypeFilter": {
+        "description": "Entity types for API query filtering.\n\nA subset of EntityTypeEnum used for filtering in API endpoints.\nCurrently only person and vehicle are supported for re-identification.",
         "enum": [
           "person",
           "vehicle"
         ],
-        "title": "EntityTypeEnum",
+        "title": "EntityTypeFilter",
         "type": "string"
       },
       "EventAuditResponse": {
@@ -22448,7 +22448,7 @@
     },
     "/api/detections/{detection_id}/image": {
       "get": {
-        "description": "Get detection image with bounding box overlay, or full-size original.\n\nThis endpoint is exempt from API key authentication because:\n1. It serves static image content accessed directly by browsers via <img> tags\n2. Detection IDs are not predictable (integer IDs require prior knowledge)\n3. It has rate limiting to prevent abuse\n\nBy default, returns the thumbnail image with bounding box drawn around the\ndetected object. If thumbnail doesn't exist, generates it on the fly from\nthe source image.\n\nWhen full=true is passed, returns the original source image without any\nbounding box overlay. This is used for the full-size image lightbox viewer.\n\nArgs:\n    detection_id: Detection ID\n    full: If true, return the original full-size image instead of thumbnail\n    db: Database session\n    thumbnail_generator: ThumbnailGenerator injected via Depends()\n\nReturns:\n    JPEG image (thumbnail with bounding box, or full-size original)\n\nRaises:\n    HTTPException: 404 if detection not found or image file doesn't exist\n    HTTPException: 500 if image generation fails",
+        "description": "Get detection image with bounding box overlay, or full-size original.\n\nThis endpoint is exempt from API key authentication because:\n1. It serves static image content accessed directly by browsers via <img> tags\n2. Detection IDs are not predictable (integer IDs require prior knowledge)\n3. It has rate limiting to prevent abuse\n\nBy default, returns the thumbnail image with bounding box drawn around the\ndetected object. If thumbnail doesn't exist, generates it on the fly from\nthe source image or video.\n\nFor video detections, extracts a frame from the video using ffmpeg.\n\nWhen full=true is passed, returns the original source image without any\nbounding box overlay. This is used for the full-size image lightbox viewer.\nNote: For video detections with full=true, returns the first frame as an image.\n\nArgs:\n    detection_id: Detection ID\n    full: If true, return the original full-size image instead of thumbnail\n    db: Database session\n    thumbnail_generator: ThumbnailGenerator injected via Depends()\n    video_processor: VideoProcessor injected via Depends() for video detections\n\nReturns:\n    JPEG image (thumbnail with bounding box, or full-size original)\n\nRaises:\n    HTTPException: 404 if detection not found or image file doesn't exist\n    HTTPException: 500 if image generation fails",
         "operationId": "get_detection_image_api_detections__detection_id__image_get",
         "parameters": [
           {
@@ -22989,7 +22989,7 @@
             "schema": {
               "anyOf": [
                 {
-                  "$ref": "#/components/schemas/EntityTypeEnum"
+                  "$ref": "#/components/schemas/EntityTypeFilter"
                 },
                 {
                   "type": "null"
@@ -23108,7 +23108,7 @@
             "name": "entity_type",
             "required": false,
             "schema": {
-              "$ref": "#/components/schemas/EntityTypeEnum",
+              "$ref": "#/components/schemas/EntityTypeFilter",
               "default": "person",
               "description": "Type of entity to search for matches"
             }

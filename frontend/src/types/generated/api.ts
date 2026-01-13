@@ -2486,16 +2486,20 @@ export interface paths {
          *
          *     By default, returns the thumbnail image with bounding box drawn around the
          *     detected object. If thumbnail doesn't exist, generates it on the fly from
-         *     the source image.
+         *     the source image or video.
+         *
+         *     For video detections, extracts a frame from the video using ffmpeg.
          *
          *     When full=true is passed, returns the original source image without any
          *     bounding box overlay. This is used for the full-size image lightbox viewer.
+         *     Note: For video detections with full=true, returns the first frame as an image.
          *
          *     Args:
          *         detection_id: Detection ID
          *         full: If true, return the original full-size image instead of thumbnail
          *         db: Database session
          *         thumbnail_generator: ThumbnailGenerator injected via Depends()
+         *         video_processor: VideoProcessor injected via Depends() for video detections
          *
          *     Returns:
          *         JPEG image (thumbnail with bounding box, or full-size original)
@@ -10272,11 +10276,14 @@ export interface components {
             thumbnail_url?: string | null;
         };
         /**
-         * EntityTypeEnum
-         * @description Valid entity types for filtering.
+         * EntityTypeFilter
+         * @description Entity types for API query filtering.
+         *
+         *     A subset of EntityTypeEnum used for filtering in API endpoints.
+         *     Currently only person and vehicle are supported for re-identification.
          * @enum {string}
          */
-        EntityTypeEnum: "person" | "vehicle";
+        EntityTypeFilter: "person" | "vehicle";
         /**
          * EventAuditResponse
          * @description Full audit response for a single event.
@@ -22079,7 +22086,7 @@ export interface operations {
         parameters: {
             query?: {
                 /** @description Filter by entity type: 'person' or 'vehicle' */
-                entity_type?: components["schemas"]["EntityTypeEnum"] | null;
+                entity_type?: components["schemas"]["EntityTypeFilter"] | null;
                 /** @description Filter by camera ID */
                 camera_id?: string | null;
                 /** @description Filter entities seen since this time */
@@ -22124,7 +22131,7 @@ export interface operations {
         parameters: {
             query?: {
                 /** @description Type of entity to search for matches */
-                entity_type?: components["schemas"]["EntityTypeEnum"];
+                entity_type?: components["schemas"]["EntityTypeFilter"];
                 /** @description Minimum similarity threshold for matches */
                 threshold?: number;
             };
