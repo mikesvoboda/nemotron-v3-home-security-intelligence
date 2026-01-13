@@ -268,7 +268,6 @@ class TestCursorDataModel:
         d = {"id": 100, "created_at": datetime(2025, 6, 15, tzinfo=UTC)}
         data = CursorData(**d)
         assert data.id == 100
-<<<<<<< HEAD
 
     def test_cursor_data_with_direction(self):
         """Test CursorData can be created with optional direction field."""
