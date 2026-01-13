@@ -5,7 +5,6 @@ including model contributions, quality scores, and recommendations.
 It also includes the Prompt Playground API for managing AI model configurations.
 """
 
-import json
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, status
@@ -51,6 +50,7 @@ from backend.api.schemas.ai_audit import (
     RecommendationsResponse,
 )
 from backend.core.database import get_db, get_session
+from backend.core.json_utils import safe_json_loads
 from backend.core.logging import get_logger, sanitize_log_value
 from backend.models.audit import AuditAction
 from backend.models.event import Event
@@ -128,22 +128,23 @@ def _audit_to_response(audit: EventAudit) -> EventAuditResponse:
         overall=audit.overall_quality_score,
     )
 
-    # Parse JSON fields for improvements
-    def _parse_json_list(json_str: str | None) -> list[str]:
+    # Parse JSON fields for improvements using safe_json_loads for error context
+    def _parse_json_list(json_str: str | None, field_name: str) -> list[str]:
         if not json_str:
             return []
-        try:
-            result = json.loads(json_str)
-            return result if isinstance(result, list) else []
-        except json.JSONDecodeError:
-            return []
+        result = safe_json_loads(
+            json_str,
+            default=[],
+            context=f"EventAudit.{field_name} (audit_id={audit.id})",
+        )
+        return result if isinstance(result, list) else []
 
     improvements = PromptImprovements(
-        missing_context=_parse_json_list(audit.missing_context),
-        confusing_sections=_parse_json_list(audit.confusing_sections),
-        unused_data=_parse_json_list(audit.unused_data),
-        format_suggestions=_parse_json_list(audit.format_suggestions),
-        model_gaps=_parse_json_list(audit.model_gaps),
+        missing_context=_parse_json_list(audit.missing_context, "missing_context"),
+        confusing_sections=_parse_json_list(audit.confusing_sections, "confusing_sections"),
+        unused_data=_parse_json_list(audit.unused_data, "unused_data"),
+        format_suggestions=_parse_json_list(audit.format_suggestions, "format_suggestions"),
+        model_gaps=_parse_json_list(audit.model_gaps, "model_gaps"),
     )
 
     return EventAuditResponse(

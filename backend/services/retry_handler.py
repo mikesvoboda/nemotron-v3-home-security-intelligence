@@ -428,7 +428,10 @@ class RetryHandler:
                     response_text = response_text[:truncate_at] + response_body_suffix
                 context["response_body"] = response_text
         except ImportError:
-            pass  # httpx not installed, HTTP context not available
+            # httpx not installed - HTTP context extraction not available.
+            # Retry handling continues without HTTP-specific error details.
+            # See: NEM-2540 for rationale
+            pass
         except Exception as e:
             logger.debug(f"Failed to extract HTTP context from exception: {e}")
 

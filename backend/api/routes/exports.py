@@ -454,7 +454,10 @@ async def cancel_export(
     try:
         job_tracker.cancel_job(job_id)
     except KeyError:
-        # Job may not exist in tracker (already completed/expired)
+        # Job may not exist in in-memory tracker (already completed/expired).
+        # This is expected during race conditions or if the job finished before cancel.
+        # Database state is authoritative; in-memory tracker is for WebSocket notifications only.
+        # See: NEM-2540 for rationale
         pass
 
     logger.info("Export job cancelled", extra={"job_id": job_id})

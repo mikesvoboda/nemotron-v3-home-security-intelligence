@@ -613,7 +613,9 @@ def _resolve_camera_dir(
             return camera_dir
         return None
     except ValueError:
-        # Path outside base_root - try fallback strategies
+        # Path is outside base_root - this is not an error, just means we need to
+        # try fallback strategies (folder name lookup, camera ID lookup).
+        # See: NEM-2540 for rationale
         pass
 
     # Extract folder name for fallback lookup

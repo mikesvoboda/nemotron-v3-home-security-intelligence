@@ -118,7 +118,10 @@ class TimeoutCheckerJob:
             try:
                 await self._task
             except asyncio.CancelledError:
-                pass  # Expected when task is cancelled
+                # Expected when task is cancelled via cancel().
+                # This is normal cleanup behavior, not an error condition.
+                # See: NEM-2540 for rationale
+                pass
             self._task = None
 
         logger.info("Stopped timeout checker job")

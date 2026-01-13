@@ -643,7 +643,9 @@ class ModelManager:
                     torch.cuda.empty_cache()
                     logger.debug("CUDA cache cleared after model unload")
             except ImportError:
-                # torch not installed, skip CUDA cleanup
+                # torch not installed - no CUDA cache to clear.
+                # Model unload completes successfully without CUDA cleanup.
+                # See: NEM-2540 for rationale
                 pass
 
         except Exception as e:
@@ -737,7 +739,10 @@ class ModelManager:
                 if torch.cuda.is_available():
                     torch.cuda.empty_cache()
             except ImportError:
-                pass  # torch not installed, skip CUDA cleanup
+                # torch not installed - no CUDA cache to clear.
+                # Full model unload completes successfully without CUDA cleanup.
+                # See: NEM-2540 for rationale
+                pass
 
         logger.info("All models unloaded")
 

@@ -458,7 +458,10 @@ class BatchAggregator:
                 try:
                     batch_id_str = json.loads(batch_id_str)
                 except (json.JSONDecodeError, TypeError):
-                    pass  # Not JSON-encoded, use as-is
+                    # Value might not be JSON-encoded, use as-is.
+                    # RedisClient.set() JSON-serializes values, but older data might not be.
+                    # See: NEM-2540 for rationale
+                    pass
                 valid_batches.append((batch_key_str, batch_id_str))
 
         if not valid_batches:
@@ -499,10 +502,12 @@ class BatchAggregator:
                 try:
                     started_at_str = json.loads(started_at_str)
                 except (json.JSONDecodeError, TypeError):
+                    # Value might not be JSON-encoded - use as-is. See: NEM-2540
                     pass
                 try:
                     last_activity_str = json.loads(last_activity_str) if last_activity_str else None
                 except (json.JSONDecodeError, TypeError):
+                    # Value might not be JSON-encoded - use as-is. See: NEM-2540
                     pass
 
                 started_at = float(started_at_str)

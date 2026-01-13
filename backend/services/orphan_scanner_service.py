@@ -242,13 +242,16 @@ class OrphanedFileScanner:
                     resolved = Path(file_path).resolve()
                     referenced.add(str(resolved))
                 except (OSError, ValueError):
-                    # Invalid path - skip
+                    # Invalid path in database - skip it and continue scanning.
+                    # Orphan scan results should not fail due to malformed DB entries.
+                    # See: NEM-2540 for rationale
                     pass
             if thumbnail_path:
                 try:
                     resolved = Path(thumbnail_path).resolve()
                     referenced.add(str(resolved))
                 except (OSError, ValueError):
+                    # Invalid thumbnail path - skip it. See: NEM-2540 for rationale
                     pass
 
         # Get event clip paths
@@ -261,6 +264,7 @@ class OrphanedFileScanner:
                     resolved = Path(clip_path).resolve()
                     referenced.add(str(resolved))
                 except (OSError, ValueError):
+                    # Invalid clip path - skip it. See: NEM-2540 for rationale
                     pass
 
         logger.debug(f"Found {len(referenced)} referenced paths in database")

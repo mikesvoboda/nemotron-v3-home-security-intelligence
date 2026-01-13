@@ -3,8 +3,9 @@
 This service provides an HTTP client interface to the ai-clip service,
 sending images for embedding generation using the CLIP ViT-L model.
 
-The ai-clip service runs CLIP as a dedicated HTTP service at http://ai-clip:8093
-to avoid loading the model on-demand in the backend, which improves VRAM management.
+The ai-clip service runs CLIP as a dedicated HTTP service (URL configured via
+settings.clip_url) to avoid loading the model on-demand in the backend, which
+improves VRAM management.
 
 Embedding Flow:
     1. Encode image to base64
@@ -45,9 +46,6 @@ logger = get_logger(__name__)
 CLIP_CONNECT_TIMEOUT = 10.0
 CLIP_READ_TIMEOUT = 15.0
 CLIP_HEALTH_TIMEOUT = 5.0
-
-# Default CLIP service URL
-DEFAULT_CLIP_URL = "http://ai-clip:8093"
 
 # CLIP ViT-L embedding dimension
 EMBEDDING_DIMENSION = 768
@@ -100,7 +98,7 @@ class CLIPClient:
 
         Args:
             base_url: Optional base URL for the CLIP service.
-                     Defaults to CLIP_URL setting or http://ai-clip:8093
+                     Defaults to settings.clip_url from configuration.
         """
         settings = get_settings()
 

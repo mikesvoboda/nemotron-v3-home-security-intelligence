@@ -131,6 +131,8 @@ export interface WebSocketEventMap {
   'alert.acknowledged': AlertAcknowledgedPayload;
   /** Alert dismissed event */
   'alert.dismissed': AlertDismissedPayload;
+  /** Alert resolved event */
+  'alert.resolved': AlertResolvedPayload;
 
   /** Camera online event */
   'camera.online': CameraStatusEventPayload;
@@ -229,6 +231,7 @@ export const WEBSOCKET_EVENT_KEYS: readonly WebSocketEventKey[] = [
   'alert.deleted',
   'alert.acknowledged',
   'alert.dismissed',
+  'alert.resolved',
   'camera.online',
   'camera.offline',
   'camera.status_changed',
@@ -353,7 +356,9 @@ export enum WSEventType {
 
   // Alert events - Alert notifications
   ALERT_CREATED = 'alert.created',
+  ALERT_UPDATED = 'alert.updated',
   ALERT_ACKNOWLEDGED = 'alert.acknowledged',
+  ALERT_RESOLVED = 'alert.resolved',
   ALERT_DISMISSED = 'alert.dismissed',
 
   // Camera events - Camera status changes (NEM-2295)
@@ -519,6 +524,15 @@ export interface AlertAcknowledgedPayload {
 export interface AlertDismissedPayload {
   alert_id: number;
   dismissed_at: string;
+  reason?: string;
+}
+
+/**
+ * Payload for alert.resolved events.
+ */
+export interface AlertResolvedPayload {
+  alert_id: number;
+  resolved_at: string;
   reason?: string;
 }
 
@@ -773,7 +787,9 @@ export interface WSEventPayloadMap {
   [WSEventType.EVENT_UPDATED]: EventUpdatedPayload;
   [WSEventType.EVENT_DELETED]: EventDeletedPayload;
   [WSEventType.ALERT_CREATED]: AlertCreatedPayload;
+  [WSEventType.ALERT_UPDATED]: AlertUpdatedPayload;
   [WSEventType.ALERT_ACKNOWLEDGED]: AlertAcknowledgedPayload;
+  [WSEventType.ALERT_RESOLVED]: AlertResolvedPayload;
   [WSEventType.ALERT_DISMISSED]: AlertDismissedPayload;
   // Camera events (NEM-2295)
   [WSEventType.CAMERA_ONLINE]: CameraStatusEventPayload;

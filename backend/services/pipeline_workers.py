@@ -318,7 +318,9 @@ class DetectionQueueWorker:
                 try:
                     await self._task
                 except asyncio.CancelledError:
-                    # Expected after cancel() - task cleanup completed successfully
+                    # Expected after cancel() - task cleanup completed successfully.
+                    # This is normal cleanup behavior, not an error condition.
+                    # See: NEM-2540 for rationale
                     pass
             self._task = None
 
@@ -754,7 +756,9 @@ class AnalysisQueueWorker:
                 try:
                     await self._task
                 except asyncio.CancelledError:
-                    # Expected after cancel() - task cleanup completed successfully
+                    # Expected after cancel() - task cleanup completed successfully.
+                    # This is normal cleanup behavior, not an error condition.
+                    # See: NEM-2540 for rationale
                     pass
             self._task = None
 
@@ -997,7 +1001,9 @@ class BatchTimeoutWorker:
                 try:
                     await self._task
                 except asyncio.CancelledError:
-                    # Expected after cancel() - task cleanup completed successfully
+                    # Expected after cancel() - task cleanup completed successfully.
+                    # This is normal cleanup behavior, not an error condition.
+                    # See: NEM-2540 for rationale
                     pass
             self._task = None
 
@@ -1137,7 +1143,9 @@ class QueueMetricsWorker:
                 try:
                     await self._task
                 except asyncio.CancelledError:
-                    # Expected after cancel() - task cleanup completed successfully
+                    # Expected after cancel() - task cleanup completed successfully.
+                    # This is normal cleanup behavior, not an error condition.
+                    # See: NEM-2540 for rationale
                     pass
             self._task = None
 
