@@ -121,20 +121,23 @@ def get_system_font(size: int = 14) -> Any:
         if other_system != system:
             all_paths.extend(other_paths)
 
-    # Try each font path
+    # Try each font path in order until one succeeds
+    attempted_paths: list[str] = []
     for font_path in all_paths:
         try:
             font = ImageFont.truetype(font_path, size)
             logger.debug(f"Using system font: {font_path}")
             return font
-        except Exception:  # noqa: S110 - Intentional: font discovery fallback
-            # Font not found at this path - try next path in search list.
-            # Eventually falls back to default PIL font if no TrueType fonts found.
-            # See: NEM-2540 for rationale
-            pass
+        except Exception as e:
+            # Font not available at this path, continue to next candidate
+            logger.debug(f"Font not available at '{font_path}': {e}")
+            attempted_paths.append(font_path)
 
-    # Fall back to default PIL font
-    logger.debug("Using default PIL font for thumbnail labels (no TrueType font found)")
+    # Fall back to default PIL font (bitmap font with limited features)
+    logger.debug(
+        f"Falling back to default PIL bitmap font after trying {len(attempted_paths)} "
+        f"TrueType font paths without success"
+    )
     return ImageFont.load_default()
 
 
