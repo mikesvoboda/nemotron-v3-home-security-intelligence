@@ -26,6 +26,8 @@ export interface VideoPlayerProps {
   onTimeUpdate?: (currentTime: number) => void;
   /** Callback when video ends */
   onEnded?: () => void;
+  /** Callback when video playback encounters an error */
+  onError?: (error: string, mediaErrorCode?: number) => void;
   /** Additional CSS classes */
   className?: string;
 }
@@ -75,6 +77,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   autoPlay = false,
   onTimeUpdate,
   onEnded,
+  onError,
   className,
 }) => {
   // Refs
@@ -267,7 +270,36 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     const handleCanPlay = () => setIsLoading(false);
     const handleError = () => {
       setIsLoading(false);
-      setError('Failed to load video');
+      // Extract detailed error information from the video element's MediaError
+      const mediaError = video.error;
+      let errorMessage = 'Failed to load video';
+
+      if (mediaError) {
+        // MediaError codes: https://developer.mozilla.org/en-US/docs/Web/API/MediaError/code
+        // Using numeric constants directly for compatibility with jsdom test environment
+        // MEDIA_ERR_ABORTED = 1, MEDIA_ERR_NETWORK = 2, MEDIA_ERR_DECODE = 3, MEDIA_ERR_SRC_NOT_SUPPORTED = 4
+        switch (mediaError.code) {
+          case 1: // MEDIA_ERR_ABORTED
+            errorMessage = 'Video playback was aborted';
+            break;
+          case 2: // MEDIA_ERR_NETWORK
+            errorMessage = 'A network error occurred while loading the video';
+            break;
+          case 3: // MEDIA_ERR_DECODE
+            errorMessage = 'Video decoding failed - the format may not be supported';
+            break;
+          case 4: // MEDIA_ERR_SRC_NOT_SUPPORTED
+            errorMessage = 'Video format not supported or file not found';
+            break;
+          default:
+            // Include the browser's error message if available
+            errorMessage = mediaError.message || 'Failed to load video';
+        }
+      }
+
+      setError(errorMessage);
+      // Invoke callback with error details for parent component debugging
+      onError?.(errorMessage, mediaError?.code);
     };
     const handleEnded = () => {
       setIsPlaying(false);
@@ -297,7 +329,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       video.removeEventListener('error', handleError);
       video.removeEventListener('ended', handleEnded);
     };
-  }, [onTimeUpdate, onEnded]);
+  }, [onTimeUpdate, onEnded, onError]);
 
   // Fullscreen change handler
   useEffect(() => {
