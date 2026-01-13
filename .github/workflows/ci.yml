@@ -934,7 +934,8 @@ jobs:
           if [ $exit_code -eq 124 ]; then
             echo "Process killed by timeout during cleanup phase"
             # Verify tests actually passed before the timeout
-            if echo "$output" | grep -q "Tests.*passed"; then
+            # Vitest output format: "Tests  X passed" with ANSI codes
+            if echo "$output" | grep -qE "passed.*\([0-9]+\)"; then
               echo "Tests passed before timeout - cleanup was the issue"
               exit 0
             else
