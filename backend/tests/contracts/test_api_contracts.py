@@ -43,12 +43,16 @@ os.environ.setdefault("REDIS_URL", "redis://localhost:6379/15")
 # Mock Data Factories
 # =============================================================================
 
+# UUID constants for contract tests (NEM-2563)
+NONEXISTENT_CAMERA_UUID = "c3d4e5f6-a7b8-9012-cdef-123456789012"
+SAMPLE_CAMERA_UUID = "d4e5f6a7-b8c9-0123-defa-234567890123"
+
 
 def create_mock_event(event_id: int = 1) -> MagicMock:
     """Create a mock Event object for testing."""
     event = MagicMock()
     event.id = event_id
-    event.camera_id = "front_door"
+    event.camera_id = SAMPLE_CAMERA_UUID
     event.started_at = datetime.now(UTC)
     event.ended_at = datetime.now(UTC)
     event.risk_score = 75
@@ -64,7 +68,7 @@ def create_mock_event(event_id: int = 1) -> MagicMock:
     return event
 
 
-def create_mock_camera(camera_id: str = "front_door") -> MagicMock:
+def create_mock_camera(camera_id: str = SAMPLE_CAMERA_UUID) -> MagicMock:
     """Create a mock Camera object for testing."""
     camera = MagicMock()
     camera.id = camera_id
@@ -80,7 +84,7 @@ def create_mock_detection(detection_id: int = 1) -> MagicMock:
     """Create a mock Detection object for testing."""
     detection = MagicMock()
     detection.id = detection_id
-    detection.camera_id = "front_door"
+    detection.camera_id = SAMPLE_CAMERA_UUID
     detection.detected_at = datetime.now(UTC)
     detection.object_type = "person"
     detection.confidence = 0.95
@@ -239,7 +243,7 @@ class TestEventsAPIContract:
         response = await client.get(
             "/api/events",
             params={
-                "camera_id": "front_door",
+                "camera_id": SAMPLE_CAMERA_UUID,
                 "risk_level": "high",
                 "reviewed": "false",
                 "limit": 10,
@@ -357,7 +361,7 @@ class TestCamerasAPIContract:
         mock_result.scalar_one_or_none.return_value = mock_camera
         mock_session.execute = AsyncMock(return_value=mock_result)
 
-        response = await client.get("/api/cameras/front_door")
+        response = await client.get(f"/api/cameras/{SAMPLE_CAMERA_UUID}")
 
         assert response.status_code == 200
         data = response.json()
@@ -375,7 +379,7 @@ class TestCamerasAPIContract:
         mock_result.scalar_one_or_none.return_value = None
         mock_session.execute = AsyncMock(return_value=mock_result)
 
-        response = await client.get("/api/cameras/nonexistent")
+        response = await client.get(f"/api/cameras/{NONEXISTENT_CAMERA_UUID}")
 
         assert response.status_code == 404
         data = response.json()
@@ -465,7 +469,7 @@ class TestDetectionsAPIContract:
         response = await client.get(
             "/api/detections",
             params={
-                "camera_id": "front_door",
+                "camera_id": SAMPLE_CAMERA_UUID,
                 "object_type": "person",
                 "min_confidence": "0.8",
                 "limit": 20,
@@ -582,7 +586,7 @@ class TestErrorResponseContracts:
         mock_result.scalar_one_or_none.return_value = None
         mock_session.execute = AsyncMock(return_value=mock_result)
 
-        response = await client.get("/api/cameras/nonexistent")
+        response = await client.get(f"/api/cameras/{NONEXISTENT_CAMERA_UUID}")
 
         assert response.status_code == 404
         data = response.json()

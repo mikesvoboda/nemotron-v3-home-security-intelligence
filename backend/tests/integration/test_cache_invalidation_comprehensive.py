@@ -28,6 +28,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from backend.core.constants import CacheInvalidationReason
 from backend.models.alert import Alert
 from backend.models.camera import Camera
 from backend.models.detection import Detection
@@ -305,8 +306,12 @@ class TestConcurrentMutations:
 
         # Perform concurrent pattern invalidations
         tasks = [
-            cache_service.invalidate_pattern("events:*", reason="concurrent_test"),
-            cache_service.invalidate_pattern("stats:events:*", reason="concurrent_test"),
+            cache_service.invalidate_pattern(
+                "events:*", reason=CacheInvalidationReason.CONCURRENT_TEST
+            ),
+            cache_service.invalidate_pattern(
+                "stats:events:*", reason=CacheInvalidationReason.CONCURRENT_TEST
+            ),
         ]
 
         results = await asyncio.gather(*tasks)
@@ -383,8 +388,12 @@ class TestCrossEntityCacheInvalidation:
 
         # Simulate detection modification (would trigger invalidation in API)
         # In real scenario, this would happen via route that calls invalidate_events()
-        await cache_service.invalidate_pattern("events:*", reason="detection_changed")
-        await cache_service.invalidate_pattern("detections:*", reason="detection_changed")
+        await cache_service.invalidate_pattern(
+            "events:*", reason=CacheInvalidationReason.DETECTION_CHANGED
+        )
+        await cache_service.invalidate_pattern(
+            "detections:*", reason=CacheInvalidationReason.DETECTION_CHANGED
+        )
 
         # Verify related caches were invalidated
         assert await cache_service.get(event_cache_key) is None
@@ -445,8 +454,8 @@ class TestCrossEntityCacheInvalidation:
         assert await cache_service.get(event_list_key) is not None
 
         # Simulate camera deletion cascade invalidation
-        await cache_service.invalidate_cameras(reason="camera_deleted")
-        await cache_service.invalidate_events(reason="camera_deleted")
+        await cache_service.invalidate_cameras(reason=CacheInvalidationReason.CAMERA_DELETED)
+        await cache_service.invalidate_events(reason=CacheInvalidationReason.CAMERA_DELETED)
 
         # Verify all related caches were invalidated
         assert await cache_service.get(camera_cache_key) is None
@@ -507,10 +516,14 @@ class TestCrossEntityCacheInvalidation:
         assert await cache_service.get(detection_list_key) is not None
 
         # Simulate event update (which should invalidate related caches)
-        await cache_service.invalidate_pattern("events:*", reason="event_updated")
+        await cache_service.invalidate_pattern(
+            "events:*", reason=CacheInvalidationReason.EVENT_UPDATED
+        )
         # In a real scenario, detection caches might also be invalidated
         # if they contain event metadata
-        await cache_service.invalidate_pattern("detections:*", reason="event_updated")
+        await cache_service.invalidate_pattern(
+            "detections:*", reason=CacheInvalidationReason.EVENT_UPDATED
+        )
 
         # Verify caches were invalidated
         assert await cache_service.get(event_cache_key) is None
@@ -549,8 +562,8 @@ class TestMultipleCacheLayers:
         assert await cache_service.get(stats_key) is not None
 
         # Simulate event creation invalidation
-        await cache_service.invalidate_events(reason="event_created")
-        await cache_service.invalidate_event_stats(reason="event_created")
+        await cache_service.invalidate_events(reason=CacheInvalidationReason.EVENT_CREATED)
+        await cache_service.invalidate_event_stats(reason=CacheInvalidationReason.EVENT_CREATED)
 
         # Verify all layers invalidated
         assert await cache_service.get(individual_key) is None
@@ -593,7 +606,7 @@ class TestMultipleCacheLayers:
             assert await cache_service.get(key) is not None
 
         # Simulate camera status update (online -> offline)
-        await cache_service.invalidate_cameras(reason="camera_updated")
+        await cache_service.invalidate_cameras(reason=CacheInvalidationReason.CAMERA_UPDATED)
 
         # Verify all camera-related caches invalidated
         for key in cache_keys:
@@ -658,7 +671,9 @@ class TestMultipleCacheLayers:
             assert await cache_service.get(key) is not None
 
         # Simulate detection deletion invalidation
-        await cache_service.invalidate_pattern("detections:*", reason="detection_deleted")
+        await cache_service.invalidate_pattern(
+            "detections:*", reason=CacheInvalidationReason.DETECTION_DELETED
+        )
 
         # Verify all detection caches invalidated
         for key in cache_keys:
@@ -712,7 +727,9 @@ class TestAlertCacheInvalidation:
             assert await cache_service.get(key) is not None
 
         # Simulate alert creation invalidation
-        await cache_service.invalidate_pattern("alerts:*", reason="alert_created")
+        await cache_service.invalidate_pattern(
+            "alerts:*", reason=CacheInvalidationReason.ALERT_CREATED
+        )
 
         # Verify all alert caches invalidated
         for key in cache_keys:
@@ -768,7 +785,9 @@ class TestAlertCacheInvalidation:
             assert await cache_service.get(key) is not None
 
         # Simulate alert acknowledgement
-        await cache_service.invalidate_pattern("alerts:*", reason="alert_acknowledged")
+        await cache_service.invalidate_pattern(
+            "alerts:*", reason=CacheInvalidationReason.ALERT_ACKNOWLEDGED
+        )
 
         # Verify all alert caches invalidated
         for key in cache_keys:
@@ -830,7 +849,7 @@ class TestTimeBasedCacheKeys:
             assert await cache_service.get(key) is not None
 
         # Simulate event creation invalidation
-        await cache_service.invalidate_event_stats(reason="event_created")
+        await cache_service.invalidate_event_stats(reason=CacheInvalidationReason.EVENT_CREATED)
 
         # Verify all date-range caches invalidated
         for key in date_cache_keys:
@@ -896,7 +915,9 @@ class TestTimeBasedCacheKeys:
             assert await cache_service.get(key) is not None
 
         # Simulate detection creation invalidation
-        await cache_service.invalidate_pattern("detections:stats:*", reason="detection_created")
+        await cache_service.invalidate_pattern(
+            "detections:stats:*", reason=CacheInvalidationReason.DETECTION_CREATED
+        )
 
         # Verify all time-based caches invalidated
         for key in time_cache_keys:

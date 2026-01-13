@@ -19,6 +19,7 @@ import uuid
 
 import pytest
 
+from backend.core.constants import CacheInvalidationReason
 from backend.core.redis import RedisClient
 from backend.services.cache_service import CACHE_PREFIX, CacheService
 
@@ -202,7 +203,7 @@ class TestCacheInvalidation:
 
         # Simulate: create operation invalidates cameras:* pattern
         deleted = await cache_service_for_tests.invalidate_pattern(
-            f"{unique_test_key}:cameras:*", reason="camera_created"
+            f"{unique_test_key}:cameras:*", reason=CacheInvalidationReason.CAMERA_CREATED
         )
 
         # Verify invalidation
@@ -230,7 +231,7 @@ class TestCacheInvalidation:
 
         # Simulate: update operation invalidates cameras:* pattern
         deleted = await cache_service_for_tests.invalidate_pattern(
-            f"{unique_test_key}:cameras:*", reason="camera_updated"
+            f"{unique_test_key}:cameras:*", reason=CacheInvalidationReason.CAMERA_UPDATED
         )
 
         # Both should be invalidated
@@ -279,12 +280,12 @@ class TestCacheInvalidation:
 
         # Simulate: event update invalidates events:* pattern
         deleted_events = await cache_service_for_tests.invalidate_pattern(
-            f"{unique_test_key}:events:*", reason="event_updated"
+            f"{unique_test_key}:events:*", reason=CacheInvalidationReason.EVENT_UPDATED
         )
 
         # Simulate: event update also invalidates stats:events:* pattern
         deleted_stats = await cache_service_for_tests.invalidate_pattern(
-            f"{unique_test_key}:stats:events:*", reason="event_updated"
+            f"{unique_test_key}:stats:events:*", reason=CacheInvalidationReason.EVENT_UPDATED
         )
 
         # Both patterns should be invalidated

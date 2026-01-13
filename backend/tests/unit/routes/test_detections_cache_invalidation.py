@@ -16,6 +16,7 @@ from fastapi.testclient import TestClient
 
 from backend.api.dependencies import get_cache_service_dep
 from backend.api.routes.detections import router
+from backend.core.constants import CacheInvalidationReason
 from backend.core.database import get_db
 from backend.models.camera import Camera
 from backend.models.detection import Detection
@@ -236,9 +237,11 @@ class TestDetectionBulkCreateCacheInvalidation:
         assert response.status_code == 207
 
         # Verify the correct reason was passed
-        mock_cache_service.invalidate_detections.assert_called_once_with(reason="detection_created")
+        mock_cache_service.invalidate_detections.assert_called_once_with(
+            reason=CacheInvalidationReason.DETECTION_CREATED
+        )
         mock_cache_service.invalidate_event_stats.assert_called_once_with(
-            reason="detection_created"
+            reason=CacheInvalidationReason.DETECTION_CREATED
         )
 
 
@@ -327,9 +330,11 @@ class TestDetectionBulkUpdateCacheInvalidation:
         assert response.status_code == 207
 
         # Verify the correct reason was passed
-        mock_cache_service.invalidate_detections.assert_called_once_with(reason="detection_updated")
+        mock_cache_service.invalidate_detections.assert_called_once_with(
+            reason=CacheInvalidationReason.DETECTION_UPDATED
+        )
         mock_cache_service.invalidate_event_stats.assert_called_once_with(
-            reason="detection_updated"
+            reason=CacheInvalidationReason.DETECTION_UPDATED
         )
 
 
@@ -399,9 +404,11 @@ class TestDetectionBulkDeleteCacheInvalidation:
         assert response.status_code == 207
 
         # Verify the correct reason was passed
-        mock_cache_service.invalidate_detections.assert_called_once_with(reason="detection_deleted")
+        mock_cache_service.invalidate_detections.assert_called_once_with(
+            reason=CacheInvalidationReason.DETECTION_DELETED
+        )
         mock_cache_service.invalidate_event_stats.assert_called_once_with(
-            reason="detection_deleted"
+            reason=CacheInvalidationReason.DETECTION_DELETED
         )
 
 

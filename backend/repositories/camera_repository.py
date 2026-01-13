@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import select, update
 
-from backend.models import Camera
+from backend.models import Camera, CameraStatus
 from backend.repositories.base import Repository
 
 if TYPE_CHECKING:
@@ -86,7 +86,7 @@ class CameraRepository(Repository[Camera]):
         Returns:
             A sequence of cameras that are currently online.
         """
-        return await self.get_by_status("online")
+        return await self.get_by_status(CameraStatus.ONLINE.value)
 
     async def get_by_status(self, status: str) -> Sequence[Camera]:
         """Get all cameras with a specific status.

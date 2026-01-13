@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from backend.core.constants import CacheInvalidationReason
 from backend.services.cache_service import (
     CACHE_PREFIX,
     CAMERAS_PREFIX,
@@ -922,7 +923,9 @@ async def test_invalidate_pattern_records_invalidation_metric(cache_service, moc
     mock_redis_client.delete.return_value = 1
 
     with patch("backend.services.cache_service.record_cache_invalidation") as mock_invalidation:
-        await cache_service.invalidate_pattern("cameras:*", reason="camera_updated")
+        await cache_service.invalidate_pattern(
+            "cameras:*", reason=CacheInvalidationReason.CAMERA_UPDATED
+        )
 
     mock_invalidation.assert_called_once_with("cameras", "camera_updated")
 
@@ -980,7 +983,7 @@ async def test_invalidate_event_stats_with_custom_reason(cache_service, mock_red
     mock_redis_client.delete.return_value = 1
 
     with patch("backend.services.cache_service.record_cache_invalidation") as mock_invalidation:
-        await cache_service.invalidate_event_stats(reason="event_deleted")
+        await cache_service.invalidate_event_stats(reason=CacheInvalidationReason.EVENT_DELETED)
 
     mock_invalidation.assert_called_once_with("event_stats", "event_deleted")
 
@@ -1030,7 +1033,7 @@ async def test_invalidate_cameras_with_custom_reason(cache_service, mock_redis_c
     mock_redis_client.delete.return_value = 1
 
     with patch("backend.services.cache_service.record_cache_invalidation") as mock_invalidation:
-        await cache_service.invalidate_cameras(reason="camera_deleted")
+        await cache_service.invalidate_cameras(reason=CacheInvalidationReason.CAMERA_DELETED)
 
     mock_invalidation.assert_called_once_with("cameras", "camera_deleted")
 

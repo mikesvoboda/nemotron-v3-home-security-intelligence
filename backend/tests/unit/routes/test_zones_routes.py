@@ -54,11 +54,18 @@ def client(mock_db_session: AsyncMock) -> TestClient:
         yield test_client
 
 
+# Fixed UUIDs for consistent testing
+SAMPLE_CAMERA_UUID = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+SAMPLE_ZONE_UUID = "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+NONEXISTENT_CAMERA_UUID = "c3d4e5f6-a7b8-9012-cdef-123456789012"
+NONEXISTENT_ZONE_UUID = "d4e5f6a7-b8c9-0123-defa-234567890123"
+
+
 @pytest.fixture
 def sample_camera() -> Camera:
     """Create a sample camera object for testing."""
     camera = Camera(
-        id="front_door",
+        id=SAMPLE_CAMERA_UUID,
         name="Front Door Camera",
         folder_path="/export/foscam/front_door",
         status="online",
@@ -72,8 +79,8 @@ def sample_camera() -> Camera:
 def sample_zone() -> Zone:
     """Create a sample zone object for testing."""
     zone = Zone(
-        id="zone-123",
-        camera_id="front_door",
+        id=SAMPLE_ZONE_UUID,
+        camera_id=SAMPLE_CAMERA_UUID,
         name="Front Door Entry",
         zone_type=ZoneType.ENTRY_POINT,
         coordinates=[[0.1, 0.2], [0.3, 0.2], [0.3, 0.8], [0.1, 0.8]],
@@ -93,7 +100,7 @@ def sample_zone_list() -> list[Zone]:
     return [
         Zone(
             id=str(uuid.uuid4()),
-            camera_id="front_door",
+            camera_id=SAMPLE_CAMERA_UUID,
             name="Entry Zone",
             zone_type=ZoneType.ENTRY_POINT,
             coordinates=[[0.1, 0.1], [0.4, 0.1], [0.4, 0.4], [0.1, 0.4]],
@@ -106,7 +113,7 @@ def sample_zone_list() -> list[Zone]:
         ),
         Zone(
             id=str(uuid.uuid4()),
-            camera_id="front_door",
+            camera_id=SAMPLE_CAMERA_UUID,
             name="Driveway Zone",
             zone_type=ZoneType.DRIVEWAY,
             coordinates=[[0.5, 0.5], [0.9, 0.5], [0.9, 0.9], [0.5, 0.9]],
@@ -119,7 +126,7 @@ def sample_zone_list() -> list[Zone]:
         ),
         Zone(
             id=str(uuid.uuid4()),
-            camera_id="front_door",
+            camera_id=SAMPLE_CAMERA_UUID,
             name="Disabled Zone",
             zone_type=ZoneType.OTHER,
             coordinates=[[0.0, 0.0], [0.2, 0.0], [0.2, 0.2], [0.0, 0.2]],
@@ -225,7 +232,7 @@ class TestListZones:
         camera_result.scalar_one_or_none.return_value = None
         mock_db_session.execute = AsyncMock(return_value=camera_result)
 
-        response = client.get("/api/cameras/nonexistent/zones")
+        response = client.get(f"/api/cameras/{NONEXISTENT_CAMERA_UUID}/zones")
 
         assert response.status_code == 404
         data = response.json()
@@ -321,7 +328,7 @@ class TestCreateZone:
             "coordinates": [[0.1, 0.1], [0.2, 0.1], [0.2, 0.2], [0.1, 0.2]],
         }
 
-        response = client.post("/api/cameras/nonexistent/zones", json=zone_data)
+        response = client.post(f"/api/cameras/{NONEXISTENT_CAMERA_UUID}/zones", json=zone_data)
 
         assert response.status_code == 404
 
@@ -461,7 +468,9 @@ class TestGetZone:
         camera_result.scalar_one_or_none.return_value = None
         mock_db_session.execute = AsyncMock(return_value=camera_result)
 
-        response = client.get("/api/cameras/nonexistent/zones/zone-123")
+        response = client.get(
+            f"/api/cameras/{NONEXISTENT_CAMERA_UUID}/zones/{NONEXISTENT_ZONE_UUID}"
+        )
 
         assert response.status_code == 404
 
@@ -659,7 +668,9 @@ class TestDeleteZone:
         camera_result.scalar_one_or_none.return_value = None
         mock_db_session.execute = AsyncMock(return_value=camera_result)
 
-        response = client.delete("/api/cameras/nonexistent/zones/zone-123")
+        response = client.delete(
+            f"/api/cameras/{NONEXISTENT_CAMERA_UUID}/zones/{NONEXISTENT_ZONE_UUID}"
+        )
 
         assert response.status_code == 404
 
