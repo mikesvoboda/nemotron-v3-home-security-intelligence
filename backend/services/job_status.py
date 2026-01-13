@@ -48,6 +48,22 @@ JOBS_COMPLETED_KEY = "jobs:completed"
 # Note: This is now configurable via settings.completed_job_ttl (NEM-2519)
 DEFAULT_COMPLETED_JOB_TTL = 3600  # Default, use settings.completed_job_ttl
 
+# Retention period for completed job entries in the sorted set (1 hour)
+# This aligns with DEFAULT_COMPLETED_JOB_TTL for consistency
+COMPLETED_JOB_RETENTION_SECONDS = 3600
+
+# Stale threshold for active jobs (2 hours)
+# Jobs that have been active for longer than this are likely orphaned
+# due to process crashes and should be cleaned up
+ACTIVE_JOB_STALE_THRESHOLD_SECONDS = 7200
+
+# Maximum entries to keep in job:status:list sorted set (NEM-2510)
+# This prevents unbounded growth of the job index.
+# Individual job data has TTL for auto-cleanup, but the sorted set index
+# entries remain until explicitly removed. This limit ensures memory stays bounded.
+# 10,000 entries is sufficient for ~7 days of jobs at ~1 job/minute rate.
+DEFAULT_JOB_STATUS_LIST_MAX_ENTRIES = 10000
+
 
 class JobState(StrEnum):
     """Status of a background job."""
@@ -162,6 +178,7 @@ class JobStatusService:
         self,
         redis_client: RedisClient,
         completed_job_ttl: int = DEFAULT_COMPLETED_JOB_TTL,
+        job_status_list_max_entries: int = DEFAULT_JOB_STATUS_LIST_MAX_ENTRIES,
     ) -> None:
         """Initialize the job status service.
 
@@ -169,9 +186,12 @@ class JobStatusService:
             redis_client: Redis client for storage.
             completed_job_ttl: TTL in seconds for completed/failed jobs.
                              Defaults to 3600 (1 hour).
+            job_status_list_max_entries: Maximum entries to keep in job:status:list
+                             sorted set. Defaults to 10000.
         """
         self._redis = redis_client
         self._completed_job_ttl = completed_job_ttl
+        self._job_status_list_max_entries = job_status_list_max_entries
 
     def _get_job_key(self, job_id: str) -> str:
         """Get the Redis key for a job.
@@ -240,6 +260,130 @@ class JobStatusService:
         )
         return job_ids[:limit] if job_ids else []
 
+    async def cleanup_completed_jobs(
+        self,
+        retention_seconds: int = COMPLETED_JOB_RETENTION_SECONDS,
+    ) -> int:
+        """Remove completed job entries older than retention period from sorted set.
+
+        The individual job status keys have their own TTL for auto-cleanup.
+        This method cleans up the sorted set registry entries that track
+        completed/failed/cancelled jobs to prevent unbounded growth.
+
+        Args:
+            retention_seconds: Remove entries older than this many seconds.
+                Defaults to COMPLETED_JOB_RETENTION_SECONDS (1 hour).
+
+        Returns:
+            Number of entries removed from the sorted set.
+        """
+        import time
+
+        cutoff_timestamp = time.time() - retention_seconds
+
+        removed = await self._redis.zremrangebyscore(
+            JOBS_COMPLETED_KEY,
+            "-inf",
+            cutoff_timestamp,
+        )
+
+        if removed > 0:
+            logger.info(
+                "Cleaned up old completed job entries",
+                extra={"removed_count": removed, "retention_seconds": retention_seconds},
+            )
+
+        return removed
+
+    async def cleanup_stale_active_jobs(
+        self,
+        stale_threshold_seconds: int = ACTIVE_JOB_STALE_THRESHOLD_SECONDS,
+    ) -> int:
+        """Remove stale entries from active jobs sorted set.
+
+        Jobs that have been 'active' for longer than the threshold are likely
+        orphaned due to process crashes and should be removed from the registry.
+        This prevents the active jobs set from growing unbounded due to orphaned
+        entries.
+
+        Note: This only removes entries from the sorted set. The individual job
+        status keys will expire via their TTL when the job is eventually completed
+        or will remain as orphaned keys until manually cleaned up.
+
+        Args:
+            stale_threshold_seconds: Jobs active for longer than this are considered
+                stale. Defaults to ACTIVE_JOB_STALE_THRESHOLD_SECONDS (2 hours).
+
+        Returns:
+            Number of entries removed from the sorted set.
+        """
+        import time
+
+        cutoff_timestamp = time.time() - stale_threshold_seconds
+
+        removed = await self._redis.zremrangebyscore(
+            JOBS_ACTIVE_KEY,
+            "-inf",
+            cutoff_timestamp,
+        )
+
+        if removed > 0:
+            logger.warning(
+                "Removed stale active job entries (likely orphaned)",
+                extra={
+                    "removed_count": removed,
+                    "stale_threshold_seconds": stale_threshold_seconds,
+                },
+            )
+
+        return removed
+
+    async def cleanup_job_status_list(
+        self,
+        max_entries: int | None = None,
+    ) -> int:
+        """Remove oldest entries from job:status:list to prevent unbounded growth.
+
+        The job:status:list sorted set tracks all job IDs sorted by creation time.
+        Individual job data keys have TTL for auto-cleanup, but the sorted set index
+        entries remain until explicitly removed. This method uses ZREMRANGEBYRANK
+        to keep only the most recent max_entries, removing the oldest entries.
+
+        This is called automatically after adding new jobs to the list.
+
+        Args:
+            max_entries: Maximum entries to keep. If None, uses the configured
+                value from __init__ (defaults to DEFAULT_JOB_STATUS_LIST_MAX_ENTRIES).
+
+        Returns:
+            Number of entries removed from the sorted set.
+        """
+        if max_entries is None:
+            max_entries = self._job_status_list_max_entries
+
+        # ZREMRANGEBYRANK removes by rank (index). Scores are timestamps,
+        # so rank 0 is oldest (lowest score). To keep only the most recent
+        # max_entries, we remove from rank 0 to -(max_entries + 1).
+        # For example, to keep 10000 entries, we remove ranks 0 to -10001.
+        # This removes all entries EXCEPT the last max_entries.
+        removed = await self._redis.zremrangebyrank(
+            JOB_STATUS_LIST_KEY,
+            0,
+            -(max_entries + 1),
+        )
+
+        if removed > 0:
+            logger.info(
+                "Cleaned up old job status list entries",
+                extra={
+                    "removed_count": removed,
+                    "max_entries": max_entries,
+                    "sorted_set": JOB_STATUS_LIST_KEY,
+                },
+            )
+
+        return removed
+
     async def start_job(
         self,
         job_id: str | None,
@@ -284,6 +428,9 @@ class JobStatusService:
             JOB_STATUS_LIST_KEY,
             {job_id: now.timestamp()},
         )
+
+        # Cleanup old entries to prevent unbounded growth (NEM-2510)
+        await self.cleanup_job_status_list()
 
         # Add to active jobs registry
         await self._add_to_active_registry(job_id)
