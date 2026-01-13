@@ -124,6 +124,44 @@ Queue backlog indicates that processing cannot keep up with incoming images.
 | `AISystemDegraded`  | System health = 0.5 | 5 min    | warning  |
 | `AISystemUnhealthy` | System health = 0   | 2 min    | critical |
 
+### Prometheus Self-Monitoring Alerts
+
+Alerts for monitoring Prometheus itself to ensure observability infrastructure health.
+
+| Alert                                  | Condition                         | Duration | Severity |
+| -------------------------------------- | --------------------------------- | -------- | -------- |
+| `PrometheusNotScrapingSelf`            | Self-scrape target down           | 2 min    | critical |
+| `PrometheusConfigReloadFailed`         | Config reload unsuccessful        | 5 min    | critical |
+| `PrometheusRuleEvaluationFailures`     | Rule evaluation errors            | 5 min    | warning  |
+| `PrometheusRuleEvaluationSlow`         | Rule eval > interval duration     | 10 min   | warning  |
+| `PrometheusScrapeFailuresHigh`         | Scrape sync failures > 10%        | 5 min    | critical |
+| `PrometheusTargetsUnhealthy`           | > 20% targets down                | 5 min    | warning  |
+| `PrometheusNotificationQueueFull`      | Notification queue > 90% capacity | 5 min    | warning  |
+| `PrometheusNotificationsFailing`       | > 5 notification failures in 5min | 5 min    | critical |
+| `PrometheusTSDBCompactionsFailing`     | TSDB compaction failures          | 5 min    | warning  |
+| `PrometheusTSDBHeadTruncationsFailing` | TSDB head truncation failures     | 5 min    | critical |
+| `PrometheusTSDBWALCorruptions`         | WAL corruptions detected          | 1 min    | warning  |
+| `PrometheusStorageFillingUp`           | TSDB storage > 80% full           | 15 min   | warning  |
+| `PrometheusQueryLoadHigh`              | Avg query duration > 10s          | 10 min   | warning  |
+| `PrometheusRestarted`                  | Instance restarted                | 0 min    | info     |
+| `PrometheusAlertmanagerDown`           | No Alertmanager discovered        | 5 min    | warning  |
+| `PrometheusSamplesRejected`            | Out-of-order or duplicate samples | 10 min   | warning  |
+
+**Example self-monitoring alert:**
+
+```yaml
+- alert: PrometheusConfigReloadFailed
+  expr: prometheus_config_last_reload_successful == 0
+  for: 5m
+  labels:
+    severity: critical
+    component: monitoring
+    service: prometheus
+  annotations:
+    summary: 'Prometheus configuration reload failed'
+    description: 'Configuration reload has been failing for > 5 minutes. New rules are not being applied.'
+```
+
 ---
 
 ## Alert Routing (Alertmanager)

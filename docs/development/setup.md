@@ -327,11 +327,29 @@ rm -rf node_modules package-lock.json
 npm install
 ```
 
+## Enabling HTTPS
+
+For secure local development or production deployment, you can enable HTTPS:
+
+```bash
+# Generate self-signed certificate for development
+./scripts/generate-ssl-cert.sh
+
+# Enable HTTPS
+echo "SSL_ENABLED=true" >> .env
+
+# Restart frontend
+docker compose -f docker-compose.prod.yml restart frontend
+```
+
+Access at `https://localhost:443`. See [SSL/HTTPS Configuration](ssl-https.md) for complete documentation.
+
 ## Next Steps
 
 - [Testing Guide](testing.md) - Learn the test strategy and how to write tests
 - [Contributing Guide](contributing.md) - Understand the PR process
 - [Code Patterns](patterns.md) - Learn key patterns used in the codebase
+- [SSL/HTTPS Configuration](ssl-https.md) - Enable HTTPS for secure connections
 
 ## Related Documentation
 

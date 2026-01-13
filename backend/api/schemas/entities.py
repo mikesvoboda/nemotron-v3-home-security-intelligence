@@ -2,14 +2,255 @@
 
 Entity re-identification allows tracking the same person or vehicle
 across multiple cameras using CLIP embeddings stored in Redis.
+
+This module provides two sets of schemas:
+1. Database-aligned schemas (EntityBase, EntityCreate, EntityRead, EntityUpdate)
+   - Match the SQLAlchemy Entity model in backend/models/entity.py
+   - Used for database CRUD operations
+
+2. Redis/API schemas (EntityAppearance, EntitySummary, EntityDetail, etc.)
+   - Used for real-time entity tracking via Redis
+   - Used by the current /api/entities endpoints
 """
 
 from datetime import datetime
+from enum import Enum
 from typing import Any
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from backend.api.schemas.logs import PaginationInfo
+
+# =============================================================================
+# Database Entity Type Enum (matches backend/models/enums.py)
+# =============================================================================
+
+
+class EntityTypeEnum(str, Enum):
+    """Entity types for re-identification tracking.
+
+    Matches the EntityType enum in backend/models/enums.py and
+    the CHECK constraint on the entities table.
+    """
+
+    PERSON = "person"
+    VEHICLE = "vehicle"
+    ANIMAL = "animal"
+    PACKAGE = "package"
+    OTHER = "other"
+
+
+class EntityTypeFilter(str, Enum):
+    """Entity types for API query filtering.
+
+    A subset of EntityTypeEnum used for filtering in API endpoints.
+    Currently only person and vehicle are supported for re-identification.
+    """
+
+    person = "person"
+    vehicle = "vehicle"
+
+
+# =============================================================================
+# Database-Aligned Entity Schemas (match SQLAlchemy Entity model)
+# =============================================================================
+
+
+class EmbeddingVectorData(BaseModel):
+    """Schema for embedding vector storage (matches JSONB structure in Entity model).
+
+    The embedding_vector column stores a JSONB object with these fields.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "vector": [0.1, 0.2, 0.3],
+                "model": "clip",
+                "dimension": 768,
+            }
+        }
+    )
+
+    vector: list[float] = Field(..., description="The embedding vector as a list of floats")
+    model: str = Field(default="clip", description="The model used to generate the embedding")
+    dimension: int = Field(..., description="Dimension of the embedding vector")
+
+
+class EntityBase(BaseModel):
+    """Base schema for Entity with common fields.
+
+    Field names and types match the SQLAlchemy Entity model exactly.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "entity_type": "person",
+                "entity_metadata": {"clothing_color": "blue", "height_estimate": "tall"},
+            }
+        }
+    )
+
+    entity_type: EntityTypeEnum = Field(
+        default=EntityTypeEnum.PERSON,
+        description="Type of entity: person, vehicle, animal, package, or other",
+    )
+    entity_metadata: dict[str, Any] | None = Field(
+        default=None,
+        description="Flexible metadata for attributes like clothing color, vehicle make/model, etc.",
+    )
+
+
+class EntityCreate(EntityBase):
+    """Schema for creating a new Entity.
+
+    Includes optional fields for initial detection linkage and embedding.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "entity_type": "person",
+                "embedding_vector": {
+                    "vector": [0.1, 0.2, 0.3],
+                    "model": "clip",
+                    "dimension": 768,
+                },
+                "primary_detection_id": 123,
+                "entity_metadata": {"clothing_color": "blue"},
+            }
+        }
+    )
+
+    embedding_vector: EmbeddingVectorData | None = Field(
+        default=None,
+        description="Optional embedding vector for re-identification",
+    )
+    primary_detection_id: int | None = Field(
+        default=None,
+        description="Optional reference to the primary/best detection for this entity",
+    )
+
+
+class EntityUpdate(BaseModel):
+    """Schema for updating an existing Entity.
+
+    All fields are optional - only provided fields will be updated.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "entity_type": "vehicle",
+                "entity_metadata": {"make": "Toyota", "color": "silver"},
+                "primary_detection_id": 456,
+            }
+        }
+    )
+
+    entity_type: EntityTypeEnum | None = Field(
+        default=None,
+        description="Updated entity type",
+    )
+    embedding_vector: EmbeddingVectorData | None = Field(
+        default=None,
+        description="Updated embedding vector",
+    )
+    entity_metadata: dict[str, Any] | None = Field(
+        default=None,
+        description="Updated metadata (replaces existing metadata)",
+    )
+    primary_detection_id: int | None = Field(
+        default=None,
+        description="Updated primary detection reference",
+    )
+
+
+class EntityRead(EntityBase):
+    """Schema for reading an Entity from the database.
+
+    Includes all fields from the SQLAlchemy model with proper types.
+    Field names match the database model exactly.
+    """
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "id": "550e8400-e29b-41d4-a716-446655440000",
+                "entity_type": "person",
+                "embedding_vector": {
+                    "vector": [0.1, 0.2, 0.3],
+                    "model": "clip",
+                    "dimension": 768,
+                },
+                "first_seen_at": "2025-12-23T10:00:00Z",
+                "last_seen_at": "2025-12-23T14:30:00Z",
+                "detection_count": 5,
+                "entity_metadata": {"clothing_color": "blue"},
+                "primary_detection_id": 123,
+            }
+        },
+    )
+
+    id: UUID = Field(..., description="Unique entity identifier (UUID)")
+    embedding_vector: dict[str, Any] | None = Field(
+        default=None,
+        description="Feature vector for re-identification (JSONB)",
+    )
+    first_seen_at: datetime = Field(..., description="Timestamp of first detection")
+    last_seen_at: datetime = Field(..., description="Timestamp of most recent detection")
+    detection_count: int = Field(
+        default=0,
+        ge=0,
+        description="Total number of detections linked to this entity",
+    )
+    primary_detection_id: int | None = Field(
+        default=None,
+        description="Reference to the primary/best detection for this entity",
+    )
+
+
+class EntityReadWithDetection(EntityRead):
+    """Schema for Entity with expanded primary detection relationship.
+
+    Extends EntityRead to include the primary detection details when needed.
+    """
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "id": "550e8400-e29b-41d4-a716-446655440000",
+                "entity_type": "person",
+                "embedding_vector": None,
+                "first_seen_at": "2025-12-23T10:00:00Z",
+                "last_seen_at": "2025-12-23T14:30:00Z",
+                "detection_count": 5,
+                "entity_metadata": {"clothing_color": "blue"},
+                "primary_detection_id": 123,
+                "primary_detection": {
+                    "id": 123,
+                    "label": "person",
+                    "confidence": 0.95,
+                },
+            }
+        },
+    )
+
+    # Note: Using Any here to avoid circular import with detection schema
+    # The actual type would be DetectionRead from backend.api.schemas.detections
+    primary_detection: dict[str, Any] | None = Field(
+        default=None,
+        description="The primary detection associated with this entity",
+    )
+
+
+# =============================================================================
+# Redis/API Entity Schemas (for real-time entity tracking)
+# =============================================================================
 
 
 class EntityAppearance(BaseModel):

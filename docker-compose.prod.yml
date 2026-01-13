@@ -353,8 +353,25 @@ services:
       dockerfile: Dockerfile
       target: prod
     ports:
-      # Map external port to internal 5173 (nginx-unprivileged runs on 5173)
-      - '${FRONTEND_PORT:-5173}:5173'
+      # Map external port to internal 8080 (nginx-unprivileged runs on 8080)
+      - '${FRONTEND_PORT:-5173}:8080'
+      # HTTPS port mapping (only used when SSL_ENABLED=true)
+      # Map external 443 to internal 8443 (unprivileged HTTPS port)
+      - '${FRONTEND_HTTPS_PORT:-443}:8443'
+    volumes:
+      # SSL certificates volume mount (optional - only needed when SSL_ENABLED=true)
+      # Create certificates:
+      #   For development (self-signed): ./scripts/generate-ssl-cert.sh
+      #   For production: use Let's Encrypt, Cloudflare, or your CA
+      # Mount directory containing cert.pem and key.pem (or custom paths via SSL_CERT_PATH/SSL_KEY_PATH)
+      - ${SSL_CERT_DIR:-./ssl}:/etc/nginx/ssl:ro
+    environment:
+      # SSL/TLS Configuration
+      # Set SSL_ENABLED=true to enable HTTPS (requires valid certificates)
+      - SSL_ENABLED=${SSL_ENABLED:-false}
+      # Custom certificate paths (relative to /etc/nginx/ssl mount)
+      - SSL_CERT_PATH=${SSL_CERT_PATH:-/etc/nginx/ssl/cert.pem}
+      - SSL_KEY_PATH=${SSL_KEY_PATH:-/etc/nginx/ssl/key.pem}
     # NOTE: VITE_* environment variables are NOT used at runtime.
     # Vite bakes these values at build time. The frontend uses relative URLs
     # (empty BASE_URL), and nginx proxies /api and /ws to the backend.
@@ -363,8 +380,8 @@ services:
       backend:
         condition: service_healthy
     healthcheck:
-      # nginx-unprivileged listens on port 5173
-      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:5173']
+      # nginx-unprivileged listens on port 8080
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:8080']
       interval: 30s
       timeout: 10s
       retries: 3

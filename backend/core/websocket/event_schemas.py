@@ -513,6 +513,163 @@ class SceneChangeDetectedPayload(BasePayload):
 
 
 # =============================================================================
+# Worker Event Payloads (NEM-2461)
+# =============================================================================
+
+
+class WorkerType(StrEnum):
+    """Pipeline worker types."""
+
+    DETECTION = "detection"
+    ANALYSIS = "analysis"
+    TIMEOUT = "timeout"
+    METRICS = "metrics"
+
+
+class WorkerStateEnum(StrEnum):
+    """Worker state values for WebSocket payloads."""
+
+    STOPPED = "stopped"
+    STARTING = "starting"
+    RUNNING = "running"
+    STOPPING = "stopping"
+    ERROR = "error"
+
+
+class WorkerStartedPayload(BasePayload):
+    """Payload for worker.started events."""
+
+    worker_name: str = Field(..., description="Worker instance name")
+    worker_type: WorkerType = Field(..., description="Type of worker")
+    timestamp: str = Field(..., description="ISO 8601 timestamp when started")
+    metadata: dict[str, Any] | None = Field(None, description="Additional worker metadata")
+
+    @field_validator("worker_type", mode="before")
+    @classmethod
+    def validate_worker_type(cls, v: str | WorkerType) -> WorkerType:
+        """Convert string to WorkerType enum."""
+        if isinstance(v, WorkerType):
+            return v
+        if isinstance(v, str):
+            return WorkerType(v.lower())
+        raise ValueError(f"Invalid worker type: {v}")
+
+
+class WorkerStoppedPayload(BasePayload):
+    """Payload for worker.stopped events."""
+
+    worker_name: str = Field(..., description="Worker instance name")
+    worker_type: WorkerType = Field(..., description="Type of worker")
+    timestamp: str = Field(..., description="ISO 8601 timestamp when stopped")
+    reason: str | None = Field(None, description="Reason for stopping")
+    items_processed: int | None = Field(None, description="Total items processed before stop")
+
+    @field_validator("worker_type", mode="before")
+    @classmethod
+    def validate_worker_type(cls, v: str | WorkerType) -> WorkerType:
+        """Convert string to WorkerType enum."""
+        if isinstance(v, WorkerType):
+            return v
+        if isinstance(v, str):
+            return WorkerType(v.lower())
+        raise ValueError(f"Invalid worker type: {v}")
+
+
+class WorkerHealthCheckFailedPayload(BasePayload):
+    """Payload for worker.health_check_failed events."""
+
+    worker_name: str = Field(..., description="Worker instance name")
+    worker_type: WorkerType = Field(..., description="Type of worker")
+    error: str = Field(..., description="Error message or description")
+    error_type: str | None = Field(None, description="Categorized error type")
+    failure_count: int = Field(..., ge=0, description="Number of consecutive failures")
+    timestamp: str = Field(..., description="ISO 8601 timestamp")
+
+    @field_validator("worker_type", mode="before")
+    @classmethod
+    def validate_worker_type(cls, v: str | WorkerType) -> WorkerType:
+        """Convert string to WorkerType enum."""
+        if isinstance(v, WorkerType):
+            return v
+        if isinstance(v, str):
+            return WorkerType(v.lower())
+        raise ValueError(f"Invalid worker type: {v}")
+
+
+class WorkerRestartingPayload(BasePayload):
+    """Payload for worker.restarting events."""
+
+    worker_name: str = Field(..., description="Worker instance name")
+    worker_type: WorkerType = Field(..., description="Type of worker")
+    attempt: int = Field(..., ge=1, description="Current restart attempt number")
+    max_attempts: int | None = Field(None, description="Maximum restart attempts allowed")
+    timestamp: str = Field(..., description="ISO 8601 timestamp")
+    reason: str | None = Field(None, description="Reason for restart")
+
+    @field_validator("worker_type", mode="before")
+    @classmethod
+    def validate_worker_type(cls, v: str | WorkerType) -> WorkerType:
+        """Convert string to WorkerType enum."""
+        if isinstance(v, WorkerType):
+            return v
+        if isinstance(v, str):
+            return WorkerType(v.lower())
+        raise ValueError(f"Invalid worker type: {v}")
+
+
+class WorkerRecoveredPayload(BasePayload):
+    """Payload for worker.recovered events."""
+
+    worker_name: str = Field(..., description="Worker instance name")
+    worker_type: WorkerType = Field(..., description="Type of worker")
+    previous_state: WorkerStateEnum = Field(..., description="State before recovery")
+    timestamp: str = Field(..., description="ISO 8601 timestamp")
+    recovery_duration_ms: float | None = Field(None, description="Time to recover in milliseconds")
+
+    @field_validator("worker_type", mode="before")
+    @classmethod
+    def validate_worker_type(cls, v: str | WorkerType) -> WorkerType:
+        """Convert string to WorkerType enum."""
+        if isinstance(v, WorkerType):
+            return v
+        if isinstance(v, str):
+            return WorkerType(v.lower())
+        raise ValueError(f"Invalid worker type: {v}")
+
+    @field_validator("previous_state", mode="before")
+    @classmethod
+    def validate_previous_state(cls, v: str | WorkerStateEnum) -> WorkerStateEnum:
+        """Convert string to WorkerStateEnum."""
+        if isinstance(v, WorkerStateEnum):
+            return v
+        if isinstance(v, str):
+            return WorkerStateEnum(v.lower())
+        raise ValueError(f"Invalid worker state: {v}")
+
+
+class WorkerErrorPayload(BasePayload):
+    """Payload for worker.error events."""
+
+    worker_name: str = Field(..., description="Worker instance name")
+    worker_type: WorkerType = Field(..., description="Type of worker")
+    error: str = Field(..., description="Error message")
+    error_type: str | None = Field(None, description="Categorized error type")
+    timestamp: str = Field(..., description="ISO 8601 timestamp")
+    details: dict[str, Any] | None = Field(None, description="Additional error details")
+    recoverable: bool = Field(True, description="Whether the error is recoverable")
+
+    @field_validator("worker_type", mode="before")
+    @classmethod
+    def validate_worker_type(cls, v: str | WorkerType) -> WorkerType:
+        """Convert string to WorkerType enum."""
+        if isinstance(v, WorkerType):
+            return v
+        if isinstance(v, str):
+            return WorkerType(v.lower())
+        raise ValueError(f"Invalid worker type: {v}")
+
+
+# =============================================================================
 # Connection Event Payloads
 # =============================================================================
 
@@ -579,6 +736,13 @@ EVENT_PAYLOAD_SCHEMAS: dict[WebSocketEventType, type[BasePayload]] = {
     WebSocketEventType.SYSTEM_STATUS: SystemStatusPayload,
     WebSocketEventType.SERVICE_STATUS_CHANGED: ServiceStatusChangedPayload,
     WebSocketEventType.GPU_STATS_UPDATED: GPUStatsUpdatedPayload,
+    # Worker events (NEM-2461)
+    WebSocketEventType.WORKER_STARTED: WorkerStartedPayload,
+    WebSocketEventType.WORKER_STOPPED: WorkerStoppedPayload,
+    WebSocketEventType.WORKER_HEALTH_CHECK_FAILED: WorkerHealthCheckFailedPayload,
+    WebSocketEventType.WORKER_RESTARTING: WorkerRestartingPayload,
+    WebSocketEventType.WORKER_RECOVERED: WorkerRecoveredPayload,
+    WebSocketEventType.WORKER_ERROR: WorkerErrorPayload,
     # Security events
     WebSocketEventType.EVENT_CREATED: EventCreatedPayload,
     WebSocketEventType.EVENT_UPDATED: EventUpdatedPayload,

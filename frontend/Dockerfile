@@ -109,10 +109,12 @@ RUN chown -R nginx:nginx /usr/share/nginx/html /var/cache/nginx /var/log/nginx /
 # Switch back to non-root nginx user
 USER nginx
 
-# Expose nginx port (unprivileged port 8080)
+# Expose nginx ports (unprivileged ports for HTTP and HTTPS)
 EXPOSE 8080
+EXPOSE 8443
 
-# Health check (nginx-unprivileged listens on 8080 by default)
+# Health check (nginx-unprivileged listens on 8080 for HTTP)
+# Note: Health check uses HTTP even when SSL is enabled for simplicity
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:8080 || exit 1
 
