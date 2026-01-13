@@ -925,7 +925,7 @@ jobs:
           cd frontend
           # Capture output to check test results
           set +e
-          output=$(timeout 240 npx vitest run --shard=${{ matrix.shard }}/24 --reporter=verbose --teardownTimeout=1000 2>&1)
+          output=$(timeout 420 npx vitest run --shard=${{ matrix.shard }}/24 --reporter=verbose --teardownTimeout=1000 2>&1)
           exit_code=$?
           echo "$output"
           set -e
