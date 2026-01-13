@@ -20,43 +20,53 @@ vi.mock('../services/api', async (importOriginal) => {
 });
 
 describe('useFullHealthQuery', () => {
-  // Mock response structure for testing - uses test-friendly property names
-  // that may differ slightly from generated types
-  const mockHealthyResponse = {
+  // Mock response structure for testing - matches actual API types
+  const mockHealthyResponse: FullHealthResponse = {
     status: 'healthy',
     ready: true,
     message: 'All systems operational',
     postgres: {
+      name: 'postgres',
       status: 'healthy',
-      latency_ms: 5,
       message: 'Connected',
+      details: null,
     },
     redis: {
+      name: 'redis',
       status: 'healthy',
-      latency_ms: 2,
       message: 'Connected',
+      details: null,
     },
     ai_services: [
       {
         name: 'rtdetr',
+        display_name: 'RT-DETR',
         status: 'healthy',
-        latency_ms: 50,
-        message: 'Model loaded',
-        circuit_breaker_state: 'closed',
+        url: 'http://localhost:8001',
+        response_time_ms: 50,
+        error: null,
+        circuit_state: 'closed',
+        last_check: '2025-12-28T10:00:00Z',
       },
       {
         name: 'nemotron',
+        display_name: 'Nemotron',
         status: 'healthy',
-        latency_ms: 100,
-        message: 'Model loaded',
-        circuit_breaker_state: 'closed',
+        url: 'http://localhost:8002',
+        response_time_ms: 100,
+        error: null,
+        circuit_state: 'closed',
+        last_check: '2025-12-28T10:00:00Z',
       },
       {
         name: 'florence',
+        display_name: 'Florence',
         status: 'healthy',
-        latency_ms: 75,
-        message: 'Model loaded',
-        circuit_breaker_state: 'closed',
+        url: 'http://localhost:8003',
+        response_time_ms: 75,
+        error: null,
+        circuit_state: 'closed',
+        last_check: '2025-12-28T10:00:00Z',
       },
     ],
     circuit_breakers: {
@@ -64,6 +74,11 @@ describe('useFullHealthQuery', () => {
       closed: 3,
       open: 0,
       half_open: 0,
+      breakers: {
+        rtdetr: 'closed',
+        nemotron: 'closed',
+        florence: 'closed',
+      },
     },
     workers: [
       {
@@ -71,14 +86,12 @@ describe('useFullHealthQuery', () => {
         running: true,
         critical: true,
         message: 'Processing events',
-        last_heartbeat: '2025-12-28T10:00:00Z',
       },
       {
         name: 'cleanup_worker',
         running: true,
         critical: false,
         message: 'Idle',
-        last_heartbeat: '2025-12-28T09:55:00Z',
       },
     ],
     timestamp: '2025-12-28T10:00:00Z',
@@ -90,36 +103,47 @@ describe('useFullHealthQuery', () => {
     ready: true,
     message: 'Some services degraded',
     postgres: {
+      name: 'postgres',
       status: 'healthy',
-      latency_ms: 5,
       message: 'Connected',
+      details: null,
     },
     redis: {
+      name: 'redis',
       status: 'healthy',
-      latency_ms: 2,
       message: 'Connected',
+      details: null,
     },
     ai_services: [
       {
         name: 'rtdetr',
+        display_name: 'RT-DETR',
         status: 'healthy',
-        latency_ms: 50,
-        message: 'Model loaded',
-        circuit_breaker_state: 'closed',
+        url: 'http://localhost:8001',
+        response_time_ms: 50,
+        error: null,
+        circuit_state: 'closed',
+        last_check: '2025-12-28T10:00:00Z',
       },
       {
         name: 'nemotron',
+        display_name: 'Nemotron',
         status: 'degraded',
-        latency_ms: 500,
-        message: 'High latency',
-        circuit_breaker_state: 'half_open',
+        url: 'http://localhost:8002',
+        response_time_ms: 500,
+        error: 'High latency',
+        circuit_state: 'half_open',
+        last_check: '2025-12-28T10:00:00Z',
       },
       {
         name: 'florence',
+        display_name: 'Florence',
         status: 'unhealthy',
-        latency_ms: 0,
-        message: 'Service unavailable',
-        circuit_breaker_state: 'open',
+        url: 'http://localhost:8003',
+        response_time_ms: null,
+        error: 'Service unavailable',
+        circuit_state: 'open',
+        last_check: '2025-12-28T10:00:00Z',
       },
     ],
     circuit_breakers: {
@@ -127,6 +151,11 @@ describe('useFullHealthQuery', () => {
       closed: 1,
       open: 1,
       half_open: 1,
+      breakers: {
+        rtdetr: 'closed',
+        nemotron: 'half_open',
+        florence: 'open',
+      },
     },
     workers: [
       {
@@ -134,48 +163,54 @@ describe('useFullHealthQuery', () => {
         running: true,
         critical: true,
         message: 'Processing events',
-        last_heartbeat: '2025-12-28T10:00:00Z',
       },
       {
         name: 'cleanup_worker',
         running: false,
         critical: false,
         message: 'Stopped',
-        last_heartbeat: '2025-12-28T09:00:00Z',
       },
     ],
     timestamp: '2025-12-28T10:00:00Z',
     version: '1.0.0',
   };
 
-  const mockUnhealthyResponse = {
+  const mockUnhealthyResponse: FullHealthResponse = {
     status: 'unhealthy',
     ready: false,
     message: 'Critical services unavailable',
     postgres: {
+      name: 'postgres',
       status: 'unhealthy',
-      latency_ms: 0,
       message: 'Connection failed',
+      details: null,
     },
     redis: {
+      name: 'redis',
       status: 'healthy',
-      latency_ms: 2,
       message: 'Connected',
+      details: null,
     },
     ai_services: [
       {
         name: 'rtdetr',
+        display_name: 'RT-DETR',
         status: 'unhealthy',
-        latency_ms: 0,
-        message: 'Model failed to load',
-        circuit_breaker_state: 'open',
+        url: 'http://localhost:8001',
+        response_time_ms: null,
+        error: 'Model failed to load',
+        circuit_state: 'open',
+        last_check: '2025-12-28T10:00:00Z',
       },
       {
         name: 'nemotron',
+        display_name: 'Nemotron',
         status: 'unhealthy',
-        latency_ms: 0,
-        message: 'Model failed to load',
-        circuit_breaker_state: 'open',
+        url: 'http://localhost:8002',
+        response_time_ms: null,
+        error: 'Model failed to load',
+        circuit_state: 'open',
+        last_check: '2025-12-28T10:00:00Z',
       },
     ],
     circuit_breakers: {
@@ -183,6 +218,10 @@ describe('useFullHealthQuery', () => {
       closed: 0,
       open: 2,
       half_open: 0,
+      breakers: {
+        rtdetr: 'open',
+        nemotron: 'open',
+      },
     },
     workers: [
       {
@@ -190,7 +229,6 @@ describe('useFullHealthQuery', () => {
         running: false,
         critical: true,
         message: 'Crashed',
-        last_heartbeat: '2025-12-28T08:00:00Z',
       },
     ],
     timestamp: '2025-12-28T10:00:00Z',

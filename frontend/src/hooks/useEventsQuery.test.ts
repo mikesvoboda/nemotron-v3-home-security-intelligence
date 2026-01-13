@@ -36,8 +36,6 @@ describe('useEventsInfiniteQuery', () => {
         notes: null,
         detection_count: 5,
         detection_ids: [1, 2, 3, 4, 5],
-        created_at: '2025-12-28T10:00:00Z',
-        updated_at: '2025-12-28T10:02:30Z',
       },
       {
         id: 2,
@@ -52,14 +50,13 @@ describe('useEventsInfiniteQuery', () => {
         notes: 'Just a squirrel',
         detection_count: 2,
         detection_ids: [6, 7],
-        created_at: '2025-12-28T09:30:00Z',
-        updated_at: '2025-12-28T09:31:00Z',
       },
     ],
     pagination: {
       total: 50,
       has_more: true,
       next_cursor: 'cursor-page-2',
+      limit: 50,
     },
   };
 
@@ -78,14 +75,13 @@ describe('useEventsInfiniteQuery', () => {
         notes: null,
         detection_count: 3,
         detection_ids: [8, 9, 10],
-        created_at: '2025-12-28T08:00:00Z',
-        updated_at: '2025-12-28T08:05:00Z',
       },
     ],
     pagination: {
       total: 50,
       has_more: false,
       next_cursor: null,
+      limit: 50,
     },
   };
 

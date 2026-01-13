@@ -4,7 +4,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   useDetectionsInfiniteQuery,
   detectionsQueryKeys,
-  type UseDetectionsInfiniteQueryOptions,
 } from './useDetectionsQuery';
 import * as api from '../services/api';
 import { createQueryWrapper } from '../test-utils/renderWithProviders';
@@ -56,6 +55,7 @@ describe('useDetectionsInfiniteQuery', () => {
       total: 10,
       has_more: true,
       next_cursor: 'cursor-page-2',
+      limit: 50,
     },
   };
 
@@ -80,6 +80,7 @@ describe('useDetectionsInfiniteQuery', () => {
       total: 10,
       has_more: false,
       next_cursor: null,
+      limit: 50,
     },
   };
 

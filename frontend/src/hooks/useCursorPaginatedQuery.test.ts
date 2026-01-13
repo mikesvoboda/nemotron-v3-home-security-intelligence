@@ -4,7 +4,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   useCursorPaginatedQuery,
   type CursorPaginatedResponse,
-  type UseCursorPaginatedQueryOptions,
 } from './useCursorPaginatedQuery';
 import { createQueryWrapper } from '../test-utils/renderWithProviders';
 
@@ -57,11 +56,11 @@ describe('useCursorPaginatedQuery', () => {
     },
   };
 
-  let mockQueryFn: ReturnType<typeof vi.fn>;
+  let mockQueryFn: ReturnType<typeof vi.fn<(params: { cursor?: string; filters?: TestFilters }) => Promise<TestResponse>>>;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockQueryFn = vi.fn();
+    mockQueryFn = vi.fn<(params: { cursor?: string; filters?: TestFilters }) => Promise<TestResponse>>();
   });
 
   afterEach(() => {
