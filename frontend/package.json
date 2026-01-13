@@ -41,6 +41,7 @@
     "@tremor/react": "^3.17.4",
     "clsx": "^2.1.0",
     "cmdk": "^1.1.1",
+    "date-fns": "^4.1.0",
     "framer-motion": "^12.26.1",
     "lru-cache": "^11.2.4",
     "lucide-react": "^0.562.0",
@@ -53,7 +54,6 @@
     "vite-plugin-pwa": "^1.2.0",
     "web-vitals": "^5.1.0",
     "workbox-window": "^7.4.0",
-    "date-fns": "^4.1.0",
     "zod": "^4.3.5",
     "zustand": "^5.0.10"
   },
