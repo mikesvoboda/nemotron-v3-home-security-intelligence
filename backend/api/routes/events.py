@@ -24,7 +24,6 @@ from backend.api.pagination import (
     get_deprecation_warning,
     set_deprecation_headers,
     validate_cursor_format,
-    validate_pagination_params,
 )
 from backend.api.schemas.bulk import (
     BulkOperationResponse,

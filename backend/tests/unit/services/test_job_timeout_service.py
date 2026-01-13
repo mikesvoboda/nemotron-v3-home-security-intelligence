@@ -13,9 +13,11 @@ import pytest
 
 from backend.services.job_status import JobMetadata, JobState, JobStatusService
 from backend.services.job_timeout_service import (
+    ATTEMPT_COUNT_TTL_SECONDS,
     DEFAULT_JOB_TIMEOUT,
     DEFAULT_MAX_RETRY_ATTEMPTS,
     JOB_TIMEOUTS,
+    TIMEOUT_CONFIG_TTL_SECONDS,
     JobTimeoutService,
     TimeoutConfig,
     TimeoutResult,
@@ -172,6 +174,26 @@ class TestJobTimeoutServiceSetGetConfig:
         assert "job:job-123:timeout" in call_args[0][0]
 
     @pytest.mark.asyncio
+    async def test_set_timeout_config_sets_ttl(
+        self, job_timeout_service: JobTimeoutService, mock_redis: AsyncMock
+    ) -> None:
+        """Should set TTL on timeout config key to prevent unbounded memory growth (NEM-2508)."""
+        config = TimeoutConfig(timeout_seconds=300)
+        await job_timeout_service.set_timeout_config("job-789", config)
+
+        # Verify redis.set was called with expire= parameter for TTL
+        mock_redis.set.assert_called_once()
+        call_args = mock_redis.set.call_args
+        assert call_args[0][0] == "job:job-789:timeout"  # Key
+        assert call_args[0][1] == config.to_dict()  # Value
+        assert call_args[1]["expire"] == TIMEOUT_CONFIG_TTL_SECONDS  # TTL (48 hours)
+
+    def test_timeout_config_ttl_seconds_value(self) -> None:
+        """Verify TIMEOUT_CONFIG_TTL_SECONDS is 48 hours (NEM-2508)."""
+        assert TIMEOUT_CONFIG_TTL_SECONDS == 48 * 60 * 60  # 48 hours in seconds
+        assert TIMEOUT_CONFIG_TTL_SECONDS == 172800  # Explicit value check
+
+    @pytest.mark.asyncio
     async def test_get_timeout_config_returns_config(
         self, job_timeout_service: JobTimeoutService, mock_redis: AsyncMock
     ) -> None:
@@ -235,6 +257,26 @@ class TestJobTimeoutServiceAttemptCount:
 
         assert new_count == 2
         mock_redis.set.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_increment_attempt_count_sets_ttl(
+        self, job_timeout_service: JobTimeoutService, mock_redis: AsyncMock
+    ) -> None:
+        """Should set TTL on attempt count key to prevent unbounded growth."""
+        mock_redis.get.return_value = None  # No existing count
+
+        await job_timeout_service.increment_attempt_count("job-456")
+
+        # Verify redis.set was called with expire= parameter for TTL
+        mock_redis.set.assert_called_once()
+        call_args = mock_redis.set.call_args
+        assert call_args[0][0] == "job:job-456:attempts"  # Key
+        assert call_args[0][1] == {"count": 1}  # Value
+        assert call_args[1]["expire"] == ATTEMPT_COUNT_TTL_SECONDS  # TTL
+
+    def test_attempt_count_ttl_seconds_value(self) -> None:
+        """Verify ATTEMPT_COUNT_TTL_SECONDS is 1 hour (matches job lifecycle)."""
+        assert ATTEMPT_COUNT_TTL_SECONDS == 3600  # 1 hour in seconds
 
 
 class TestJobTimeoutServiceIsJobTimedOut:

@@ -1294,16 +1294,23 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
-      - name: Build backend image
-        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
+      - name: Build backend image with retry
+        # Retry logic for transient registry 502 errors
+        # Docker registry can return 502 during layer blob writes due to infrastructure issues
+        uses: nick-fields/retry@7152eba30c6575329ac0576536151aca5a72780e # v3
         with:
-          context: .
-          file: ./backend/Dockerfile
-          target: prod
-          push: false
-          tags: backend:${{ github.sha }}
-          cache-from: type=gha,scope=backend
-          cache-to: type=gha,mode=max,scope=backend
+          timeout_minutes: 30
+          max_attempts: 3
+          retry_wait_seconds: 60
+          command: |
+            docker buildx build \
+              --file ./backend/Dockerfile \
+              --target prod \
+              --tag backend:${{ github.sha }} \
+              --cache-from type=gha,scope=backend \
+              --cache-to type=gha,mode=max,scope=backend \
+              --load \
+              .
 
       - name: Create Linear issue on failure
         if: failure()
@@ -1336,16 +1343,23 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
-      - name: Build frontend image
-        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
+      - name: Build frontend image with retry
+        # Retry logic for transient registry 502 errors
+        # Docker registry can return 502 during layer blob writes due to infrastructure issues
+        uses: nick-fields/retry@7152eba30c6575329ac0576536151aca5a72780e # v3
         with:
-          context: ./frontend
-          file: ./frontend/Dockerfile
-          target: prod
-          push: false
-          tags: frontend:${{ github.sha }}
-          cache-from: type=gha,scope=frontend
-          cache-to: type=gha,mode=max,scope=frontend
+          timeout_minutes: 20
+          max_attempts: 3
+          retry_wait_seconds: 60
+          command: |
+            docker buildx build \
+              --file ./frontend/Dockerfile \
+              --target prod \
+              --tag frontend:${{ github.sha }} \
+              --cache-from type=gha,scope=frontend \
+              --cache-to type=gha,mode=max,scope=frontend \
+              --load \
+              ./frontend
 
       - name: Create Linear issue on failure
         if: failure()

@@ -12,8 +12,12 @@ from unittest.mock import AsyncMock
 import pytest
 
 from backend.services.job_status import (
+    ACTIVE_JOB_STALE_THRESHOLD_SECONDS,
+    COMPLETED_JOB_RETENTION_SECONDS,
     DEFAULT_COMPLETED_JOB_TTL,
+    DEFAULT_JOB_STATUS_LIST_MAX_ENTRIES,
     JOB_STATUS_KEY_PREFIX,
+    JOB_STATUS_LIST_KEY,
     JOB_STATUS_SUFFIX,
     JOBS_ACTIVE_KEY,
     JOBS_COMPLETED_KEY,
@@ -36,6 +40,8 @@ def mock_redis() -> AsyncMock:
     redis.zadd = AsyncMock(return_value=1)
     redis.zrem = AsyncMock(return_value=1)
     redis.zrangebyscore = AsyncMock(return_value=[])
+    redis.zremrangebyscore = AsyncMock(return_value=0)
+    redis.zremrangebyrank = AsyncMock(return_value=0)
     redis.zcard = AsyncMock(return_value=0)
     return redis
 
@@ -1060,3 +1066,266 @@ class TestJobStatusServiceCancelJob:
         assert set_call is not None
         stored_data = set_call[0][1]
         assert stored_data["status"] == "cancelled"
+
+
+class TestJobStatusServiceCleanup:
+    """Tests for job registry cleanup methods (NEM-2511)."""
+
+    @pytest.mark.asyncio
+    async def test_cleanup_completed_jobs_removes_old_entries(
+        self, job_status_service: JobStatusService, mock_redis: AsyncMock
+    ) -> None:
+        """Should remove old completed job entries from sorted set."""
+        mock_redis.zremrangebyscore.return_value = 5
+
+        removed = await job_status_service.cleanup_completed_jobs()
+
+        assert removed == 5
+        mock_redis.zremrangebyscore.assert_called_once()
+        call_args = mock_redis.zremrangebyscore.call_args
+        assert call_args[0][0] == JOBS_COMPLETED_KEY
+        assert call_args[0][1] == "-inf"
+        # The third argument should be a timestamp
+
+    @pytest.mark.asyncio
+    async def test_cleanup_completed_jobs_uses_default_retention(
+        self, job_status_service: JobStatusService, mock_redis: AsyncMock
+    ) -> None:
+        """Should use default retention period when not specified."""
+        import time
+
+        mock_redis.zremrangebyscore.return_value = 0
+
+        before_time = time.time()
+        await job_status_service.cleanup_completed_jobs()
+        after_time = time.time()
+
+        call_args = mock_redis.zremrangebyscore.call_args
+        cutoff = call_args[0][2]
+
+        # Verify the cutoff is approximately (now - COMPLETED_JOB_RETENTION_SECONDS)
+        expected_min = before_time - COMPLETED_JOB_RETENTION_SECONDS - 1
+        expected_max = after_time - COMPLETED_JOB_RETENTION_SECONDS + 1
+        assert expected_min <= cutoff <= expected_max
+
+    @pytest.mark.asyncio
+    async def test_cleanup_completed_jobs_with_custom_retention(
+        self, job_status_service: JobStatusService, mock_redis: AsyncMock
+    ) -> None:
+        """Should use custom retention period when specified."""
+        import time
+
+        mock_redis.zremrangebyscore.return_value = 3
+        custom_retention = 1800  # 30 minutes
+
+        before_time = time.time()
+        removed = await job_status_service.cleanup_completed_jobs(
+            retention_seconds=custom_retention
+        )
+        after_time = time.time()
+
+        assert removed == 3
+        call_args = mock_redis.zremrangebyscore.call_args
+        cutoff = call_args[0][2]
+
+        # Verify the cutoff is approximately (now - custom_retention)
+        expected_min = before_time - custom_retention - 1
+        expected_max = after_time - custom_retention + 1
+        assert expected_min <= cutoff <= expected_max
+
+    @pytest.mark.asyncio
+    async def test_cleanup_completed_jobs_returns_zero_when_none_removed(
+        self, job_status_service: JobStatusService, mock_redis: AsyncMock
+    ) -> None:
+        """Should return zero when no entries removed."""
+        mock_redis.zremrangebyscore.return_value = 0
+
+        removed = await job_status_service.cleanup_completed_jobs()
+
+        assert removed == 0
+
+    @pytest.mark.asyncio
+    async def test_cleanup_stale_active_jobs_removes_old_entries(
+        self, job_status_service: JobStatusService, mock_redis: AsyncMock
+    ) -> None:
+        """Should remove stale active job entries from sorted set."""
+        mock_redis.zremrangebyscore.return_value = 2
+
+        removed = await job_status_service.cleanup_stale_active_jobs()
+
+        assert removed == 2
+        mock_redis.zremrangebyscore.assert_called_once()
+        call_args = mock_redis.zremrangebyscore.call_args
+        assert call_args[0][0] == JOBS_ACTIVE_KEY
+        assert call_args[0][1] == "-inf"
+
+    @pytest.mark.asyncio
+    async def test_cleanup_stale_active_jobs_uses_default_threshold(
+        self, job_status_service: JobStatusService, mock_redis: AsyncMock
+    ) -> None:
+        """Should use default stale threshold when not specified."""
+        import time
+
+        mock_redis.zremrangebyscore.return_value = 0
+
+        before_time = time.time()
+        await job_status_service.cleanup_stale_active_jobs()
+        after_time = time.time()
+
+        call_args = mock_redis.zremrangebyscore.call_args
+        cutoff = call_args[0][2]
+
+        # Verify the cutoff is approximately (now - ACTIVE_JOB_STALE_THRESHOLD_SECONDS)
+        expected_min = before_time - ACTIVE_JOB_STALE_THRESHOLD_SECONDS - 1
+        expected_max = after_time - ACTIVE_JOB_STALE_THRESHOLD_SECONDS + 1
+        assert expected_min <= cutoff <= expected_max
+
+    @pytest.mark.asyncio
+    async def test_cleanup_stale_active_jobs_with_custom_threshold(
+        self, job_status_service: JobStatusService, mock_redis: AsyncMock
+    ) -> None:
+        """Should use custom stale threshold when specified."""
+        import time
+
+        mock_redis.zremrangebyscore.return_value = 1
+        custom_threshold = 3600  # 1 hour
+
+        before_time = time.time()
+        removed = await job_status_service.cleanup_stale_active_jobs(
+            stale_threshold_seconds=custom_threshold
+        )
+        after_time = time.time()
+
+        assert removed == 1
+        call_args = mock_redis.zremrangebyscore.call_args
+        cutoff = call_args[0][2]
+
+        # Verify the cutoff is approximately (now - custom_threshold)
+        expected_min = before_time - custom_threshold - 1
+        expected_max = after_time - custom_threshold + 1
+        assert expected_min <= cutoff <= expected_max
+
+    @pytest.mark.asyncio
+    async def test_cleanup_stale_active_jobs_returns_zero_when_none_removed(
+        self, job_status_service: JobStatusService, mock_redis: AsyncMock
+    ) -> None:
+        """Should return zero when no entries removed."""
+        mock_redis.zremrangebyscore.return_value = 0
+
+        removed = await job_status_service.cleanup_stale_active_jobs()
+
+        assert removed == 0
+
+
+class TestJobStatusServiceCleanupConstants:
+    """Tests for cleanup-related constants (NEM-2511)."""
+
+    def test_completed_job_retention_seconds_value(self) -> None:
+        """Should have expected retention period for completed jobs."""
+        assert COMPLETED_JOB_RETENTION_SECONDS == 3600  # 1 hour
+
+    def test_active_job_stale_threshold_value(self) -> None:
+        """Should have expected stale threshold for active jobs."""
+        assert ACTIVE_JOB_STALE_THRESHOLD_SECONDS == 7200  # 2 hours
+
+    def test_completed_job_retention_matches_ttl(self) -> None:
+        """Completed job retention should match job TTL for consistency."""
+        assert COMPLETED_JOB_RETENTION_SECONDS == DEFAULT_COMPLETED_JOB_TTL
+
+    def test_job_status_list_max_entries_value(self) -> None:
+        """Should have expected max entries for job status list (NEM-2510)."""
+        assert DEFAULT_JOB_STATUS_LIST_MAX_ENTRIES == 10000
+
+
+class TestJobStatusListCleanup:
+    """Tests for job:status:list sorted set cleanup (NEM-2510)."""
+
+    @pytest.mark.asyncio
+    async def test_cleanup_job_status_list_removes_oldest_entries(
+        self, job_status_service: JobStatusService, mock_redis: AsyncMock
+    ) -> None:
+        """Should remove oldest entries from job:status:list sorted set."""
+        mock_redis.zremrangebyrank.return_value = 100
+
+        removed = await job_status_service.cleanup_job_status_list()
+
+        assert removed == 100
+        mock_redis.zremrangebyrank.assert_called_once()
+        call_args = mock_redis.zremrangebyrank.call_args
+        assert call_args[0][0] == JOB_STATUS_LIST_KEY
+        assert call_args[0][1] == 0  # Start from rank 0 (oldest)
+
+    @pytest.mark.asyncio
+    async def test_cleanup_job_status_list_uses_default_max_entries(
+        self, job_status_service: JobStatusService, mock_redis: AsyncMock
+    ) -> None:
+        """Should use default max entries when not specified."""
+        mock_redis.zremrangebyrank.return_value = 0
+
+        await job_status_service.cleanup_job_status_list()
+
+        call_args = mock_redis.zremrangebyrank.call_args
+        # stop index should be -(DEFAULT_JOB_STATUS_LIST_MAX_ENTRIES + 1)
+        expected_stop = -(DEFAULT_JOB_STATUS_LIST_MAX_ENTRIES + 1)
+        assert call_args[0][2] == expected_stop
+
+    @pytest.mark.asyncio
+    async def test_cleanup_job_status_list_with_custom_max_entries(
+        self, job_status_service: JobStatusService, mock_redis: AsyncMock
+    ) -> None:
+        """Should use custom max entries when specified."""
+        mock_redis.zremrangebyrank.return_value = 50
+        custom_max = 1000
+
+        removed = await job_status_service.cleanup_job_status_list(max_entries=custom_max)
+
+        assert removed == 50
+        call_args = mock_redis.zremrangebyrank.call_args
+        # stop index should be -(custom_max + 1)
+        expected_stop = -(custom_max + 1)
+        assert call_args[0][2] == expected_stop
+
+    @pytest.mark.asyncio
+    async def test_cleanup_job_status_list_returns_zero_when_none_removed(
+        self, job_status_service: JobStatusService, mock_redis: AsyncMock
+    ) -> None:
+        """Should return zero when no entries removed."""
+        mock_redis.zremrangebyrank.return_value = 0
+
+        removed = await job_status_service.cleanup_job_status_list()
+
+        assert removed == 0
+
+    @pytest.mark.asyncio
+    async def test_cleanup_job_status_list_called_on_start_job(
+        self, job_status_service: JobStatusService, mock_redis: AsyncMock
+    ) -> None:
+        """Should cleanup job status list automatically when starting a job."""
+        mock_redis.zremrangebyrank.return_value = 0
+
+        await job_status_service.start_job(
+            job_id="test-job",
+            job_type="export",
+            metadata=None,
+        )
+
+        # Verify cleanup was called
+        mock_redis.zremrangebyrank.assert_called_once()
+        call_args = mock_redis.zremrangebyrank.call_args
+        assert call_args[0][0] == JOB_STATUS_LIST_KEY
+
+    @pytest.mark.asyncio
+    async def test_service_init_with_custom_max_entries(self, mock_redis: AsyncMock) -> None:
+        """Should accept custom max entries in constructor."""
+        custom_max = 5000
+        service = JobStatusService(
+            redis_client=mock_redis,
+            job_status_list_max_entries=custom_max,
+        )
+        mock_redis.zremrangebyrank.return_value = 0
+
+        await service.cleanup_job_status_list()
+
+        call_args = mock_redis.zremrangebyrank.call_args
+        expected_stop = -(custom_max + 1)
+        assert call_args[0][2] == expected_stop
