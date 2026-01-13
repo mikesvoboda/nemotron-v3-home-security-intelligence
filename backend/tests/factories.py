@@ -34,6 +34,7 @@ from factory import LazyAttribute, LazyFunction, Sequence, SubFactory
 from backend.models.alert import Alert, AlertRule, AlertSeverity, AlertStatus
 from backend.models.camera import Camera
 from backend.models.detection import Detection
+from backend.models.enums import CameraStatus
 from backend.models.event import Event
 from backend.models.zone import Zone, ZoneShape, ZoneType
 
@@ -58,7 +59,7 @@ class CameraFactory(factory.Factory):
     id: str = Sequence(lambda n: f"camera_{n}")
     name: str = Sequence(lambda n: f"Camera {n}")
     folder_path: str = LazyAttribute(lambda o: f"/export/foscam/{o.name.replace(' ', '_').lower()}")
-    status: str = "online"
+    status: str = CameraStatus.ONLINE.value
     created_at: datetime = LazyFunction(lambda: datetime.now(UTC))
     last_seen_at: datetime | None = None
     deleted_at: datetime | None = None
@@ -66,7 +67,7 @@ class CameraFactory(factory.Factory):
     class Params:
         """Traits for common camera configurations."""
 
-        offline = factory.Trait(status="offline")
+        offline = factory.Trait(status=CameraStatus.OFFLINE.value)
         with_last_seen = factory.Trait(last_seen_at=LazyFunction(lambda: datetime.now(UTC)))
 
 

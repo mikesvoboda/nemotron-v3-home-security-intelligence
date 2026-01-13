@@ -818,8 +818,9 @@ class TestGetCameraSnapshot:
 
         # Set up paths - camera stored with different environment's path
         foscam_root = tmp_path / "foscam"
-        camera_id = "den"  # Camera ID matches folder name
-        camera_folder = foscam_root / camera_id
+        camera_uuid = str(uuid.uuid4())  # Use valid UUID
+        folder_name = "den"  # Folder name for fallback testing
+        camera_folder = foscam_root / camera_uuid  # Folder matches camera UUID
         camera_folder.mkdir(parents=True)
 
         # Create a test image in the fallback folder
@@ -828,7 +829,7 @@ class TestGetCameraSnapshot:
 
         # Camera has wrong folder_path (from different environment like Docker /cameras)
         camera = Camera(
-            id=camera_id,
+            id=camera_uuid,
             name="Den",
             folder_path="/cameras/den",  # Wrong path - different environment
             status="online",
@@ -844,7 +845,7 @@ class TestGetCameraSnapshot:
         mock_settings.foscam_base_path = str(foscam_root)
 
         with patch("backend.api.routes.cameras.get_settings", return_value=mock_settings):
-            response = client.get(f"/api/cameras/{camera_id}/snapshot")
+            response = client.get(f"/api/cameras/{camera_uuid}/snapshot")
 
         # Should succeed using fallback path
         assert response.status_code == 200
@@ -870,10 +871,10 @@ class TestGetCameraSnapshot:
         test_image = camera_folder / "snapshot.jpg"
         test_image.write_bytes(b"\xff\xd8\xff\xe0image data")  # Valid JPEG header
 
-        # Camera ID differs from folder name (camera name = "Den Camera", ID = "den_camera")
-        camera_id = "den_camera"
+        # Camera UUID - using valid UUID format
+        camera_uuid = str(uuid.uuid4())
         camera = Camera(
-            id=camera_id,
+            id=camera_uuid,
             name="Den Camera",
             # Stored path from different environment, but folder name matches actual folder
             folder_path=f"/cameras/{folder_name}",
@@ -890,7 +891,7 @@ class TestGetCameraSnapshot:
         mock_settings.foscam_base_path = str(foscam_root)
 
         with patch("backend.api.routes.cameras.get_settings", return_value=mock_settings):
-            response = client.get(f"/api/cameras/{camera_id}/snapshot")
+            response = client.get(f"/api/cameras/{camera_uuid}/snapshot")
 
         # Should succeed using fallback by folder name (extracted from stored path)
         assert response.status_code == 200

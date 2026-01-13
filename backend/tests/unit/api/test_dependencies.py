@@ -4,6 +4,7 @@ Tests for reusable entity lookup functions in backend/api/dependencies.py
 that provide consistent 404 handling across route handlers.
 
 Test cases cover:
+- validate_uuid: UUID format validation utility (NEM-2563)
 - get_alert_rule_or_404: Alert rule lookup and 404 handling
 - get_zone_or_404: Zone lookup with optional camera filter
 - get_prompt_version_or_404: Prompt version lookup
@@ -12,6 +13,7 @@ Test cases cover:
 - get_or_404_factory: Generic factory for entity lookups
 - AI service dependencies (NEM-2003): FaceDetectorService, PlateDetectorService,
   OCRService, YOLOWorldService via DI container
+- UUID validation in get_*_or_404 functions (NEM-2563)
 """
 
 from __future__ import annotations
@@ -114,7 +116,8 @@ class TestGetZoneOr404:
         mock_zone = MagicMock()
         mock_zone.id = str(uuid4())
         mock_zone.name = "Test Zone"
-        mock_zone.camera_id = "camera-1"
+        camera_id = str(uuid4())
+        mock_zone.camera_id = camera_id
 
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = mock_zone
@@ -122,7 +125,7 @@ class TestGetZoneOr404:
         mock_db = AsyncMock()
         mock_db.execute.return_value = mock_result
 
-        result = await get_zone_or_404(mock_zone.id, mock_db, camera_id="camera-1")
+        result = await get_zone_or_404(mock_zone.id, mock_db, camera_id=camera_id)
 
         assert result == mock_zone
         mock_db.execute.assert_called_once()
@@ -154,7 +157,7 @@ class TestGetZoneOr404:
         mock_db.execute.return_value = mock_result
 
         zone_id = str(uuid4())
-        camera_id = "camera-1"
+        camera_id = str(uuid4())
         with pytest.raises(HTTPException) as exc_info:
             await get_zone_or_404(zone_id, mock_db, camera_id=camera_id)
 
@@ -171,7 +174,7 @@ class TestGetZoneOr404:
         mock_db = AsyncMock()
         mock_db.execute.return_value = mock_result
 
-        zone_id = "zone-123"
+        zone_id = str(uuid4())
         with pytest.raises(HTTPException) as exc_info:
             await get_zone_or_404(zone_id, mock_db)
 
@@ -448,12 +451,13 @@ class TestExistingDependencies:
 
     @pytest.mark.asyncio
     async def test_get_camera_or_404_still_works(self) -> None:
-        """Test that existing get_camera_or_404 function still works."""
+        """Test that existing get_camera_or_404 function still works with valid UUIDs."""
         from backend.api.dependencies import get_camera_or_404
         from backend.models import Camera
 
+        valid_camera_id = str(uuid4())
         mock_camera = MagicMock(spec=Camera)
-        mock_camera.id = "test-camera"
+        mock_camera.id = valid_camera_id
 
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = mock_camera
@@ -461,7 +465,7 @@ class TestExistingDependencies:
         mock_db = AsyncMock()
         mock_db.execute.return_value = mock_result
 
-        result = await get_camera_or_404("test-camera", mock_db)
+        result = await get_camera_or_404(valid_camera_id, mock_db)
 
         assert result == mock_camera
 
@@ -602,3 +606,296 @@ class TestAIServiceDependencies:
 
         assert result == mock_service
         mock_container.get.assert_called_once_with("yolo_world_service")
+
+
+class TestValidateUuid:
+    """Tests for the validate_uuid utility function (NEM-2563)."""
+
+    def test_returns_uuid_for_valid_uuid_string(self) -> None:
+        """Test that function returns UUID object for valid UUID strings."""
+        from uuid import UUID
+
+        from backend.api.dependencies import validate_uuid
+
+        valid_uuid = "550e8400-e29b-41d4-a716-446655440000"
+        result = validate_uuid(valid_uuid, "test_field")
+
+        assert isinstance(result, UUID)
+        assert str(result) == valid_uuid
+
+    def test_accepts_uuid_with_uppercase_letters(self) -> None:
+        """Test that function accepts UUIDs with uppercase letters."""
+        from uuid import UUID
+
+        from backend.api.dependencies import validate_uuid
+
+        valid_uuid = "550E8400-E29B-41D4-A716-446655440000"
+        result = validate_uuid(valid_uuid, "test_field")
+
+        assert isinstance(result, UUID)
+
+    def test_accepts_uuid_without_dashes(self) -> None:
+        """Test that function accepts UUIDs without dashes."""
+        from uuid import UUID
+
+        from backend.api.dependencies import validate_uuid
+
+        valid_uuid = "550e8400e29b41d4a716446655440000"  # pragma: allowlist secret
+        result = validate_uuid(valid_uuid, "test_field")
+
+        assert isinstance(result, UUID)
+
+    def test_raises_400_for_invalid_uuid_format(self) -> None:
+        """Test that function raises 400 for invalid UUID format."""
+        from backend.api.dependencies import validate_uuid
+
+        invalid_uuid = "not-a-valid-uuid"
+        with pytest.raises(HTTPException) as exc_info:
+            validate_uuid(invalid_uuid, "camera_id")
+
+        assert exc_info.value.status_code == 400
+        assert "Invalid camera_id format" in exc_info.value.detail
+        assert invalid_uuid in exc_info.value.detail
+
+    def test_raises_400_for_empty_string(self) -> None:
+        """Test that function raises 400 for empty string."""
+        from backend.api.dependencies import validate_uuid
+
+        with pytest.raises(HTTPException) as exc_info:
+            validate_uuid("", "zone_id")
+
+        assert exc_info.value.status_code == 400
+        assert "Invalid zone_id format" in exc_info.value.detail
+
+    def test_raises_400_for_too_short_uuid(self) -> None:
+        """Test that function raises 400 for UUID that is too short."""
+        from backend.api.dependencies import validate_uuid
+
+        with pytest.raises(HTTPException) as exc_info:
+            validate_uuid("550e8400-e29b-41d4", "rule_id")
+
+        assert exc_info.value.status_code == 400
+        assert "Invalid rule_id format" in exc_info.value.detail
+
+    def test_raises_400_for_sql_injection_attempt(self) -> None:
+        """Test that function raises 400 for SQL injection attempts."""
+        from backend.api.dependencies import validate_uuid
+
+        injection_attempt = "'; DROP TABLE cameras; --"
+        with pytest.raises(HTTPException) as exc_info:
+            validate_uuid(injection_attempt, "camera_id")
+
+        assert exc_info.value.status_code == 400
+        assert "Invalid camera_id format" in exc_info.value.detail
+
+    def test_error_message_includes_field_name(self) -> None:
+        """Test that error message includes the correct field name."""
+        from backend.api.dependencies import validate_uuid
+
+        with pytest.raises(HTTPException) as exc_info:
+            validate_uuid("bad-uuid", "custom_field_name")
+
+        assert "custom_field_name" in exc_info.value.detail
+
+
+class TestUuidValidationInGetCameraOr404:
+    """Tests for UUID validation in get_camera_or_404 (NEM-2563)."""
+
+    @pytest.mark.asyncio
+    async def test_raises_400_for_invalid_camera_id(self) -> None:
+        """Test that get_camera_or_404 raises 400 for invalid UUID camera_id."""
+        from backend.api.dependencies import get_camera_or_404
+
+        mock_db = AsyncMock()
+
+        with pytest.raises(HTTPException) as exc_info:
+            await get_camera_or_404("invalid-camera-id", mock_db)
+
+        assert exc_info.value.status_code == 400
+        assert "Invalid camera_id format" in exc_info.value.detail
+        # Database should NOT be queried if UUID is invalid
+        mock_db.execute.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_accepts_valid_uuid_camera_id(self) -> None:
+        """Test that get_camera_or_404 accepts valid UUID camera_id."""
+        from backend.api.dependencies import get_camera_or_404
+
+        mock_camera = MagicMock()
+        valid_uuid = str(uuid4())
+        mock_camera.id = valid_uuid
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_camera
+
+        mock_db = AsyncMock()
+        mock_db.execute.return_value = mock_result
+
+        result = await get_camera_or_404(valid_uuid, mock_db)
+
+        assert result == mock_camera
+        mock_db.execute.assert_called_once()
+
+
+class TestUuidValidationInGetAlertRuleOr404:
+    """Tests for UUID validation in get_alert_rule_or_404 (NEM-2563)."""
+
+    @pytest.mark.asyncio
+    async def test_raises_400_for_invalid_rule_id(self) -> None:
+        """Test that get_alert_rule_or_404 raises 400 for invalid UUID rule_id."""
+        mock_db = AsyncMock()
+
+        with pytest.raises(HTTPException) as exc_info:
+            await get_alert_rule_or_404("not-a-uuid", mock_db)
+
+        assert exc_info.value.status_code == 400
+        assert "Invalid rule_id format" in exc_info.value.detail
+        mock_db.execute.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_accepts_valid_uuid_rule_id(self) -> None:
+        """Test that get_alert_rule_or_404 accepts valid UUID rule_id."""
+        mock_rule = MagicMock()
+        valid_uuid = str(uuid4())
+        mock_rule.id = valid_uuid
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_rule
+
+        mock_db = AsyncMock()
+        mock_db.execute.return_value = mock_result
+
+        result = await get_alert_rule_or_404(valid_uuid, mock_db)
+
+        assert result == mock_rule
+
+
+class TestUuidValidationInGetZoneOr404:
+    """Tests for UUID validation in get_zone_or_404 (NEM-2563)."""
+
+    @pytest.mark.asyncio
+    async def test_raises_400_for_invalid_zone_id(self) -> None:
+        """Test that get_zone_or_404 raises 400 for invalid UUID zone_id."""
+        mock_db = AsyncMock()
+
+        with pytest.raises(HTTPException) as exc_info:
+            await get_zone_or_404("bad-zone-id", mock_db)
+
+        assert exc_info.value.status_code == 400
+        assert "Invalid zone_id format" in exc_info.value.detail
+        mock_db.execute.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_raises_400_for_invalid_camera_id_filter(self) -> None:
+        """Test that get_zone_or_404 raises 400 for invalid camera_id filter."""
+        mock_db = AsyncMock()
+        valid_zone_id = str(uuid4())
+
+        with pytest.raises(HTTPException) as exc_info:
+            await get_zone_or_404(valid_zone_id, mock_db, camera_id="bad-camera-id")
+
+        assert exc_info.value.status_code == 400
+        assert "Invalid camera_id format" in exc_info.value.detail
+        mock_db.execute.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_accepts_valid_uuid_zone_id_and_camera_id(self) -> None:
+        """Test that get_zone_or_404 accepts valid UUIDs for both IDs."""
+        mock_zone = MagicMock()
+        valid_zone_id = str(uuid4())
+        valid_camera_id = str(uuid4())
+        mock_zone.id = valid_zone_id
+        mock_zone.camera_id = valid_camera_id
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_zone
+
+        mock_db = AsyncMock()
+        mock_db.execute.return_value = mock_result
+
+        result = await get_zone_or_404(valid_zone_id, mock_db, camera_id=valid_camera_id)
+
+        assert result == mock_zone
+
+
+class TestUuidValidationInGetOr404Factory:
+    """Tests for UUID validation in get_or_404_factory (NEM-2563)."""
+
+    @pytest.mark.asyncio
+    async def test_factory_with_uuid_validation_raises_400_for_invalid_uuid(self) -> None:
+        """Test that factory with validate_uuid_format=True raises 400 for invalid UUID."""
+        from backend.models import Camera
+
+        get_camera = get_or_404_factory(Camera, "Camera", validate_uuid_format=True)
+
+        mock_db = AsyncMock()
+
+        with pytest.raises(HTTPException) as exc_info:
+            await get_camera("not-a-valid-uuid", mock_db)
+
+        assert exc_info.value.status_code == 400
+        assert "Invalid id format" in exc_info.value.detail
+        mock_db.execute.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_factory_without_uuid_validation_allows_any_string(self) -> None:
+        """Test that factory without validate_uuid_format allows any string ID."""
+        from backend.models import Camera
+
+        get_camera = get_or_404_factory(Camera, "Camera", validate_uuid_format=False)
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+
+        mock_db = AsyncMock()
+        mock_db.execute.return_value = mock_result
+
+        # Should NOT raise 400, but should query database and raise 404
+        with pytest.raises(HTTPException) as exc_info:
+            await get_camera("any-string-value", mock_db)
+
+        # Without UUID validation, it should query and return 404 (not 400)
+        assert exc_info.value.status_code == 404
+        mock_db.execute.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_factory_with_uuid_validation_accepts_valid_uuid(self) -> None:
+        """Test that factory with validate_uuid_format=True accepts valid UUIDs."""
+        from backend.models import Camera
+
+        get_camera = get_or_404_factory(Camera, "Camera", validate_uuid_format=True)
+
+        mock_camera = MagicMock()
+        valid_uuid = str(uuid4())
+        mock_camera.id = valid_uuid
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_camera
+
+        mock_db = AsyncMock()
+        mock_db.execute.return_value = mock_result
+
+        result = await get_camera(valid_uuid, mock_db)
+
+        assert result == mock_camera
+
+    @pytest.mark.asyncio
+    async def test_factory_uuid_validation_skips_integer_ids(self) -> None:
+        """Test that factory UUID validation skips integer IDs."""
+        from backend.models import Detection
+
+        get_detection = get_or_404_factory(Detection, "Detection", validate_uuid_format=True)
+
+        mock_detection = MagicMock()
+        mock_detection.id = 42
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_detection
+
+        mock_db = AsyncMock()
+        mock_db.execute.return_value = mock_result
+
+        # Integer IDs should NOT be validated as UUIDs
+        result = await get_detection(42, mock_db)
+
+        assert result == mock_detection

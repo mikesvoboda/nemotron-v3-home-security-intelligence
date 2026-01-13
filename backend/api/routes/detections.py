@@ -55,6 +55,7 @@ from backend.api.utils.field_filter import (
     validate_fields,
 )
 from backend.api.validators import validate_date_range
+from backend.core.constants import CacheInvalidationReason
 from backend.core.database import get_db
 from backend.core.logging import get_logger
 from backend.core.mime_types import DEFAULT_VIDEO_MIME, normalize_file_type
@@ -1558,8 +1559,8 @@ async def bulk_create_detections(
             await db.commit()
             # Invalidate detection-related caches after successful bulk create (NEM-1951)
             try:
-                await cache.invalidate_detections(reason="detection_created")
-                await cache.invalidate_event_stats(reason="detection_created")
+                await cache.invalidate_detections(reason=CacheInvalidationReason.DETECTION_CREATED)
+                await cache.invalidate_event_stats(reason=CacheInvalidationReason.DETECTION_CREATED)
             except Exception as e:
                 # Cache invalidation is non-critical - log but don't fail the request
                 logger.warning(f"Cache invalidation failed after bulk create: {e}")
@@ -1675,8 +1676,8 @@ async def bulk_update_detections(
             await db.commit()
             # Invalidate detection-related caches after successful bulk update (NEM-1951)
             try:
-                await cache.invalidate_detections(reason="detection_updated")
-                await cache.invalidate_event_stats(reason="detection_updated")
+                await cache.invalidate_detections(reason=CacheInvalidationReason.DETECTION_UPDATED)
+                await cache.invalidate_event_stats(reason=CacheInvalidationReason.DETECTION_UPDATED)
             except Exception as e:
                 # Cache invalidation is non-critical - log but don't fail the request
                 logger.warning(f"Cache invalidation failed after bulk update: {e}")
@@ -1789,8 +1790,8 @@ async def bulk_delete_detections(
             await db.commit()
             # Invalidate detection-related caches after successful bulk delete (NEM-1951)
             try:
-                await cache.invalidate_detections(reason="detection_deleted")
-                await cache.invalidate_event_stats(reason="detection_deleted")
+                await cache.invalidate_detections(reason=CacheInvalidationReason.DETECTION_DELETED)
+                await cache.invalidate_event_stats(reason=CacheInvalidationReason.DETECTION_DELETED)
             except Exception as e:
                 # Cache invalidation is non-critical - log but don't fail the request
                 logger.warning(f"Cache invalidation failed after bulk delete: {e}")

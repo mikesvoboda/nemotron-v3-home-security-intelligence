@@ -65,6 +65,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncGenerator, Callable, Coroutine
 from typing import TYPE_CHECKING, Any, cast
+from uuid import UUID
 
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy import select
@@ -90,6 +91,41 @@ if TYPE_CHECKING:
     from backend.services.nemotron_analyzer import NemotronAnalyzer
     from backend.services.thumbnail_generator import ThumbnailGenerator
     from backend.services.video_processor import VideoProcessor
+
+
+# =============================================================================
+# UUID Validation Utilities
+# =============================================================================
+#
+# These utilities validate UUID format before database queries to prevent
+# injection attacks and provide clear 400 Bad Request errors for malformed IDs.
+# =============================================================================
+
+
+def validate_uuid(id_str: str, field_name: str) -> UUID:
+    """Validate that a string is a valid UUID format.
+
+    This utility validates that the provided string is a valid UUID before
+    using it in database queries. This prevents injection attacks and provides
+    clear error messages for malformed IDs.
+
+    Args:
+        id_str: The string to validate as a UUID
+        field_name: Human-readable field name for error messages (e.g., "camera_id")
+
+    Returns:
+        UUID object if valid
+
+    Raises:
+        HTTPException: 400 Bad Request if the string is not a valid UUID format
+    """
+    try:
+        return UUID(id_str)
+    except (ValueError, AttributeError) as err:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid {field_name} format: '{id_str}' is not a valid UUID",
+        ) from err
 
 
 # =============================================================================
@@ -147,7 +183,7 @@ async def get_camera_or_404(
     and raises an HTTPException with status 404 if not found.
 
     Args:
-        camera_id: The camera ID to look up
+        camera_id: The camera ID (UUID string) to look up
         db: Database session
         include_deleted: If True, include soft-deleted cameras in the lookup.
                          Required for restore operations (NEM-1955).
@@ -156,8 +192,12 @@ async def get_camera_or_404(
         Camera object if found
 
     Raises:
+        HTTPException: 400 if camera_id is not a valid UUID format
         HTTPException: 404 if camera not found
     """
+    # Validate UUID format before database query (NEM-2563)
+    validate_uuid(camera_id, "camera_id")
+
     query = select(Camera).where(Camera.id == camera_id)
     if not include_deleted:
         query = query.where(Camera.deleted_at.is_(None))
@@ -260,8 +300,12 @@ async def get_alert_rule_or_404(
         AlertRule object if found
 
     Raises:
+        HTTPException: 400 if rule_id is not a valid UUID format
         HTTPException: 404 if alert rule not found
     """
+    # Validate UUID format before database query (NEM-2563)
+    validate_uuid(rule_id, "rule_id")
+
     result = await db.execute(select(AlertRule).where(AlertRule.id == rule_id))
     rule = result.scalar_one_or_none()
 
@@ -285,16 +329,23 @@ async def get_zone_or_404(
     and raises an HTTPException with status 404 if not found.
 
     Args:
-        zone_id: The zone ID to look up
+        zone_id: The zone ID (UUID string) to look up
         db: Database session
-        camera_id: Optional camera ID to filter by (if provided, zone must belong to this camera)
+        camera_id: Optional camera ID (UUID string) to filter by (if provided, zone must belong to this camera)
 
     Returns:
         Zone object if found
 
     Raises:
+        HTTPException: 400 if zone_id or camera_id is not a valid UUID format
         HTTPException: 404 if zone not found or doesn't belong to specified camera
     """
+    # Validate UUID format before database query (NEM-2563)
+    validate_uuid(zone_id, "zone_id")
+
+    if camera_id is not None:
+        validate_uuid(camera_id, "camera_id")
+
     query = select(Zone).where(Zone.id == zone_id)
 
     if camera_id is not None:
@@ -392,6 +443,8 @@ def get_or_404_factory[ModelT](
     model_class: type[ModelT],
     entity_name: str,
     id_field: str = "id",
+    *,
+    validate_uuid_format: bool = False,
 ) -> Callable[[str | int, AsyncSession], Coroutine[Any, Any, ModelT]]:
     """Factory function to create a get_or_404 helper for any model.
 
@@ -403,6 +456,8 @@ def get_or_404_factory[ModelT](
         model_class: The SQLAlchemy model class to query
         entity_name: Human-readable name for error messages (e.g., "Camera", "Event")
         id_field: The field name to use for the ID lookup (default: "id")
+        validate_uuid_format: If True, validate that the resource_id is a valid UUID
+                              before querying the database (NEM-2563)
 
     Returns:
         An async function that takes (resource_id, db) and returns the entity or raises 404
@@ -412,7 +467,13 @@ def get_or_404_factory[ModelT](
         from backend.api.dependencies import get_or_404_factory
         from backend.models import AlertRule
 
-        get_alert_rule_or_404 = get_or_404_factory(AlertRule, "Alert rule")
+        # For models with UUID primary keys
+        get_alert_rule_or_404 = get_or_404_factory(
+            AlertRule, "Alert rule", validate_uuid_format=True
+        )
+
+        # For models with integer primary keys
+        get_event_or_404 = get_or_404_factory(Event, "Event")
 
         # Usage in route:
         rule = await get_alert_rule_or_404(rule_id, db)
@@ -432,8 +493,13 @@ def get_or_404_factory[ModelT](
             Entity object if found
 
         Raises:
+            HTTPException: 400 if validate_uuid_format is True and ID is not a valid UUID
             HTTPException: 404 if entity not found
         """
+        # Validate UUID format if required (NEM-2563)
+        if validate_uuid_format and isinstance(resource_id, str):
+            validate_uuid(resource_id, id_field)
+
         id_column = getattr(model_class, id_field)
         result = await db.execute(select(model_class).where(id_column == resource_id))
         entity = result.scalar_one_or_none()

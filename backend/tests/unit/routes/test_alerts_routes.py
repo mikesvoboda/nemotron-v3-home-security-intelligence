@@ -24,6 +24,7 @@ from backend.api.schemas.alerts import (
     AlertRuleUpdate,
     AlertSeverity,
 )
+from backend.core.constants import CacheInvalidationReason
 from backend.core.database import get_db
 from backend.models import AlertSeverity as ModelAlertSeverity
 from backend.models.alert import AlertRule
@@ -693,7 +694,9 @@ class TestCacheInvalidation:
 
         assert response.status_code == 201
         # Verify cache invalidation was called
-        mock_cache_service.invalidate_alerts.assert_called_once_with(reason="alert_rule_created")
+        mock_cache_service.invalidate_alerts.assert_called_once_with(
+            reason=CacheInvalidationReason.ALERT_RULE_CREATED
+        )
 
     def test_update_rule_invalidates_cache(
         self,
@@ -714,7 +717,9 @@ class TestCacheInvalidation:
 
         assert response.status_code == 200
         # Verify cache invalidation was called
-        mock_cache_service.invalidate_alerts.assert_called_once_with(reason="alert_rule_updated")
+        mock_cache_service.invalidate_alerts.assert_called_once_with(
+            reason=CacheInvalidationReason.ALERT_RULE_UPDATED
+        )
 
     def test_delete_rule_invalidates_cache(
         self,
@@ -732,7 +737,9 @@ class TestCacheInvalidation:
 
         assert response.status_code == 204
         # Verify cache invalidation was called
-        mock_cache_service.invalidate_alerts.assert_called_once_with(reason="alert_rule_deleted")
+        mock_cache_service.invalidate_alerts.assert_called_once_with(
+            reason=CacheInvalidationReason.ALERT_RULE_DELETED
+        )
 
     def test_cache_invalidation_failure_does_not_fail_request(
         self,

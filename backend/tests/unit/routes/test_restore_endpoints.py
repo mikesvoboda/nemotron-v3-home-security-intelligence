@@ -27,6 +27,12 @@ from backend.models.camera import Camera
 from backend.models.event import Event
 from backend.tests.factories import CameraFactory, EventFactory
 
+# Fixed UUIDs for consistent testing
+DELETED_CAMERA_UUID = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+ACTIVE_CAMERA_UUID = "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+NONEXISTENT_CAMERA_UUID = "c3d4e5f6-a7b8-9012-cdef-123456789012"
+SAMPLE_CAMERA_UUID = "d4e5f6a7-b8c9-0123-defa-234567890123"
+
 # =============================================================================
 # Fixtures
 # =============================================================================
@@ -99,7 +105,7 @@ def deleted_event() -> Event:
     """Create a soft-deleted event for testing."""
     return EventFactory(
         id=1,
-        camera_id="front_door",
+        camera_id=SAMPLE_CAMERA_UUID,
         deleted_at=datetime.now(UTC) - timedelta(hours=1),
     )
 
@@ -109,7 +115,7 @@ def active_event() -> Event:
     """Create an active (non-deleted) event for testing."""
     return EventFactory(
         id=2,
-        camera_id="front_door",
+        camera_id=SAMPLE_CAMERA_UUID,
         deleted_at=None,
     )
 
@@ -118,7 +124,7 @@ def active_event() -> Event:
 def deleted_camera() -> Camera:
     """Create a soft-deleted camera for testing."""
     return CameraFactory(
-        id="deleted_camera",
+        id=DELETED_CAMERA_UUID,
         name="Deleted Camera",
         deleted_at=datetime.now(UTC) - timedelta(hours=1),
     )
@@ -128,7 +134,7 @@ def deleted_camera() -> Camera:
 def active_camera() -> Camera:
     """Create an active (non-deleted) camera for testing."""
     return CameraFactory(
-        id="active_camera",
+        id=ACTIVE_CAMERA_UUID,
         name="Active Camera",
         deleted_at=None,
     )
@@ -292,11 +298,11 @@ class TestRestoreCamera:
         mock_result.scalar_one_or_none.return_value = deleted_camera
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
-        response = cameras_client.post("/api/cameras/deleted_camera/restore")
+        response = cameras_client.post(f"/api/cameras/{DELETED_CAMERA_UUID}/restore")
 
         assert response.status_code == 200
         data = response.json()
-        assert data["id"] == "deleted_camera"
+        assert data["id"] == DELETED_CAMERA_UUID
         # After restore, deleted_at should be None
         assert deleted_camera.deleted_at is None
 
@@ -310,7 +316,7 @@ class TestRestoreCamera:
         mock_result.scalar_one_or_none.return_value = None
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
-        response = cameras_client.post("/api/cameras/nonexistent/restore")
+        response = cameras_client.post(f"/api/cameras/{NONEXISTENT_CAMERA_UUID}/restore")
 
         assert response.status_code == 404
         assert "not found" in response.json()["detail"].lower()
@@ -326,7 +332,7 @@ class TestRestoreCamera:
         mock_result.scalar_one_or_none.return_value = active_camera
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
-        response = cameras_client.post("/api/cameras/active_camera/restore")
+        response = cameras_client.post(f"/api/cameras/{ACTIVE_CAMERA_UUID}/restore")
 
         assert response.status_code == 400
         assert "not deleted" in response.json()["detail"].lower()

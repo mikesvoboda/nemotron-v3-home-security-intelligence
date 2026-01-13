@@ -67,6 +67,7 @@ from backend.core.logging import enable_deferred_db_logging, redact_url, setup_l
 from backend.core.redis import close_redis, init_redis
 from backend.core.telemetry import setup_telemetry, shutdown_telemetry
 from backend.models.camera import Camera
+from backend.models.enums import CameraStatus
 from backend.services.background_evaluator import BackgroundEvaluator
 from backend.services.circuit_breaker import CircuitBreakerConfig, get_circuit_breaker
 from backend.services.cleanup_service import CleanupService
@@ -317,7 +318,7 @@ async def seed_cameras_if_empty() -> int:
                     id=camera_id,
                     name=display_name,
                     folder_path=str(folder),
-                    status="online",
+                    status=CameraStatus.ONLINE.value,
                 )
                 session.add(camera)
                 created += 1

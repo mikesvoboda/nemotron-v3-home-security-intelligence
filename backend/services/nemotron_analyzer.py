@@ -49,6 +49,7 @@ from sqlalchemy import select
 from backend.api.middleware.correlation import get_correlation_headers
 from backend.api.schemas.llm_response import LLMRawResponse, LLMRiskResponse
 from backend.core.config import get_settings
+from backend.core.constants import CacheInvalidationReason
 from backend.core.database import get_session
 from backend.core.exceptions import AnalyzerUnavailableError
 from backend.core.logging import get_logger, sanitize_error
@@ -928,7 +929,7 @@ class NemotronAnalyzer:
             # Invalidate event stats cache so stats endpoints return fresh data (NEM-1682)
             try:
                 cache = await get_cache_service()
-                await cache.invalidate_event_stats(reason="event_created")
+                await cache.invalidate_event_stats(reason=CacheInvalidationReason.EVENT_CREATED)
             except Exception as e:
                 logger.warning(
                     "Failed to invalidate event stats cache",
@@ -1192,7 +1193,7 @@ class NemotronAnalyzer:
             # Invalidate event stats cache so stats endpoints return fresh data (NEM-1682)
             try:
                 cache = await get_cache_service()
-                await cache.invalidate_event_stats(reason="event_created")
+                await cache.invalidate_event_stats(reason=CacheInvalidationReason.EVENT_CREATED)
             except Exception as e:
                 logger.warning(
                     "Failed to invalidate event stats cache",

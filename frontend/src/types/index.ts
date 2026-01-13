@@ -6,7 +6,6 @@
  *
  * @example
  * ```typescript
- * import { Entity, EntityMatch, EntityHistory } from '../types';
  * import type { AsyncState, RiskLevel } from '../types';
  * ```
  */
@@ -16,26 +15,6 @@
 // ============================================================================
 
 export * from './generated';
-
-// ============================================================================
-// Entity Re-Identification Types
-// ============================================================================
-
-export type {
-  // Core entity types
-  Entity,
-  EntityAppearance,
-  EntitySummary,
-  EntityDetail,
-  // Response types
-  EntityListResponse,
-  EntityHistoryResponse,
-  // Query types
-  EntityQueryParams,
-  // Additional entity types
-  EntityMatch,
-  EntityHistory,
-} from './entity';
 
 // ============================================================================
 // Async State Types

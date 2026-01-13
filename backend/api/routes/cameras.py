@@ -49,6 +49,7 @@ from backend.api.utils.field_filter import (
     validate_fields,
 )
 from backend.core.config import get_settings
+from backend.core.constants import CacheInvalidationReason
 from backend.core.database import get_db
 from backend.core.logging import get_logger, sanitize_log_value
 from backend.models.audit import AuditAction
@@ -330,7 +331,7 @@ async def restore_camera(
 
     # Invalidate cameras cache
     try:
-        await cache.invalidate_cameras(reason="camera_restored")
+        await cache.invalidate_cameras(reason=CacheInvalidationReason.CAMERA_RESTORED)
     except Exception as e:
         logger.warning(f"Cache invalidation failed after camera restore: {e}")
 
@@ -444,7 +445,7 @@ async def create_camera(
 
     # Invalidate cameras cache (NEM-1682: use specific method with reason)
     try:
-        await cache.invalidate_cameras(reason="camera_created")
+        await cache.invalidate_cameras(reason=CacheInvalidationReason.CAMERA_CREATED)
     except Exception as e:
         logger.warning(f"Cache invalidation failed: {e}")
 
@@ -522,7 +523,7 @@ async def update_camera(
 
     # Invalidate cameras cache (NEM-1682: use specific method with reason)
     try:
-        await cache.invalidate_cameras(reason="camera_updated")
+        await cache.invalidate_cameras(reason=CacheInvalidationReason.CAMERA_UPDATED)
     except Exception as e:
         logger.warning(f"Cache invalidation failed: {e}")
 
@@ -582,7 +583,7 @@ async def delete_camera(
 
     # Invalidate cameras cache (NEM-1682: use specific method with reason)
     try:
-        await cache.invalidate_cameras(reason="camera_deleted")
+        await cache.invalidate_cameras(reason=CacheInvalidationReason.CAMERA_DELETED)
     except Exception:
         logger.warning("Cache invalidation failed", exc_info=True, extra={"camera_id": camera_id})
 
