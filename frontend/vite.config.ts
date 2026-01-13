@@ -190,18 +190,19 @@ export default defineConfig(({ mode }) => {
       // Fork-based parallelization for better memory isolation (each fork is separate process)
       // Threads share memory which can cause accumulation issues during cleanup
       pool: 'forks',
-      // Run tests sequentially in single fork to prevent memory accumulation across workers
-      // This is slower but prevents OOM errors during cleanup
-      singleFork: true,
+      // Limit to 2 workers to prevent memory exhaustion on CI (7GB RAM limit)
+      // With isolate: true, each worker restarts between test files
+      maxWorkers: 2,
+      minWorkers: 1,
+      // Restart worker after each test file to prevent memory accumulation
+      // This is critical for preventing OOM during long test runs
+      isolate: true,
       // Test timeouts
       testTimeout: 30000,
       hookTimeout: 30000,
       // Force quick cleanup to prevent OOM during teardown
-      // The cleanup phase was accumulating memory and causing OOM after 5+ minutes
       // A shorter timeout forces cleanup to abort before OOM
-      teardownTimeout: 5000,
-      // Ensure each test file runs in complete isolation
-      isolate: true,
+      teardownTimeout: 3000,
       coverage: {
         provider: 'v8',
         reporter: ['text', 'json', 'html'],
