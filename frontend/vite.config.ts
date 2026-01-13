@@ -196,9 +196,12 @@ export default defineConfig(({ mode }) => {
       // Test timeouts
       testTimeout: 30000,
       hookTimeout: 30000,
-      // Increased from 5000ms to 15000ms to prevent cleanup hangs
-      // when tests have pending timers from retry logic
-      teardownTimeout: 15000,
+      // Force quick cleanup to prevent OOM during teardown
+      // The cleanup phase was accumulating memory and causing OOM after 5+ minutes
+      // A shorter timeout forces cleanup to abort before OOM
+      teardownTimeout: 5000,
+      // Ensure each test file runs in complete isolation
+      isolate: true,
       coverage: {
         provider: 'v8',
         reporter: ['text', 'json', 'html'],
