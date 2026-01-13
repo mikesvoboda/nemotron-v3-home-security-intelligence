@@ -376,7 +376,8 @@ class TestReIdentificationIntegration:
     ):
         """Test re-id service can store and match embeddings using Redis."""
         reid_service = get_reid_service()
-        redis_client = real_redis._ensure_connected()
+        # Use RedisClient wrapper (which uses 'expire=' parameter) instead of raw Redis
+        redis_client = real_redis
 
         # Create a test embedding (768 dimensions like CLIP ViT-L)
         test_embedding = [float(i % 100) / 100.0 for i in range(768)]
@@ -413,7 +414,8 @@ class TestReIdentificationIntegration:
     async def test_reid_service_excludes_same_detection(self, real_redis, test_image: Image.Image):
         """Test re-id service excludes the same detection from matches."""
         reid_service = get_reid_service()
-        redis_client = real_redis._ensure_connected()
+        # Use RedisClient wrapper (which uses 'expire=' parameter) instead of raw Redis
+        redis_client = real_redis
 
         test_embedding = [float(i % 100) / 100.0 for i in range(768)]
         norm = sum(x * x for x in test_embedding) ** 0.5
@@ -446,7 +448,8 @@ class TestReIdentificationIntegration:
     async def test_reid_matches_across_cameras(self, real_redis, test_image: Image.Image):
         """Test re-id can match the same entity across different cameras."""
         reid_service = get_reid_service()
-        redis_client = real_redis._ensure_connected()
+        # Use RedisClient wrapper (which uses 'expire=' parameter) instead of raw Redis
+        redis_client = real_redis
 
         # Create embedding for person at front door
         base_embedding = [float(i % 100) / 100.0 for i in range(768)]
