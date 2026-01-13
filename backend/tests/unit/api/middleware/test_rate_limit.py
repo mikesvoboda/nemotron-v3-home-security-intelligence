@@ -783,3 +783,458 @@ class TestConvenienceDependencies:
         limiter = rate_limit_ai_inference()
         assert isinstance(limiter, RateLimiter)
         assert limiter.tier == RateLimitTier.AI_INFERENCE
+
+
+class TestRedisStressTests:
+    """Stress tests for Redis rate limiting under high load and failure scenarios.
+
+    Tests cover:
+    - High-volume concurrent requests
+    - Redis connection failures
+    - Redis timeout behavior
+    - Concurrent requests from multiple IPs
+
+    Fail-open vs Fail-closed behavior:
+    - The rate limiter implements FAIL-OPEN semantics for availability
+    - When Redis is unavailable or times out, requests are allowed through
+    - This prevents Redis outages from cascading to application downtime
+    - Risk: rate limits are not enforced during Redis failures
+    - Mitigation: Monitor Redis health and alert on failures
+    """
+
+    @pytest.mark.asyncio
+    async def test_high_volume_sequential_requests(self, mock_redis_client):
+        """Test rate limiter handles high volume of sequential requests.
+
+        Simulates 100 sequential requests to verify the sliding window
+        algorithm maintains accurate counts under sustained load.
+        """
+        # Mock Redis pipeline to simulate successful operations
+        mock_pipeline = MagicMock()
+        mock_pipeline.zremrangebyscore = MagicMock()
+        mock_pipeline.zcard = MagicMock()
+        mock_pipeline.zadd = MagicMock()
+        mock_pipeline.expire = MagicMock()
+
+        # Configure pipeline to return incrementing counts
+        # Note: The check happens BEFORE adding, so count starts at 0
+        request_counts = list(range(0, 100))  # 0 to 99
+        mock_pipeline.execute = AsyncMock(
+            side_effect=[[0, count, 1, True] for count in request_counts]
+        )
+
+        mock_redis_client._ensure_connected = MagicMock(
+            return_value=MagicMock(pipeline=MagicMock(return_value=mock_pipeline))
+        )
+
+        with patch("backend.api.middleware.rate_limit.get_settings") as mock_settings:
+            mock_settings.return_value.rate_limit_enabled = True
+
+            limiter = RateLimiter(requests_per_minute=50, burst=10)
+
+            # Make 100 sequential requests
+            allowed_count = 0
+            blocked_count = 0
+
+            for i in range(100):
+                is_allowed, _current_count, _limit = await limiter._check_rate_limit(
+                    mock_redis_client, "192.168.1.100"
+                )
+                if is_allowed:
+                    allowed_count += 1
+                else:
+                    blocked_count += 1
+
+        # Verify correct limiting (50 + 10 burst = 60 allowed, 40 blocked)
+        assert allowed_count == 60
+        assert blocked_count == 40
+        assert mock_pipeline.execute.call_count == 100
+
+    @pytest.mark.asyncio
+    async def test_concurrent_requests_single_ip(self, mock_redis_client):
+        """Test rate limiter handles concurrent requests from single IP.
+
+        Simulates 50 concurrent requests to verify thread-safety and
+        proper handling of race conditions in the sliding window.
+        """
+        import asyncio
+
+        # Mock Redis pipeline
+        mock_pipeline = MagicMock()
+        mock_pipeline.zremrangebyscore = MagicMock()
+        mock_pipeline.zcard = MagicMock()
+        mock_pipeline.zadd = MagicMock()
+        mock_pipeline.expire = MagicMock()
+
+        # Use a counter to track concurrent requests
+        # Count starts at 0 (before first request is added)
+        request_counter = {"count": -1}
+
+        async def mock_execute():
+            request_counter["count"] += 1
+            current = request_counter["count"]
+            # Simulate some processing delay
+            await asyncio.sleep(0.001)
+            return [0, current, 1, True]
+
+        mock_pipeline.execute = mock_execute
+
+        mock_redis_client._ensure_connected = MagicMock(
+            return_value=MagicMock(pipeline=MagicMock(return_value=mock_pipeline))
+        )
+
+        with patch("backend.api.middleware.rate_limit.get_settings") as mock_settings:
+            mock_settings.return_value.rate_limit_enabled = True
+
+            limiter = RateLimiter(requests_per_minute=30, burst=5)
+
+            # Create 50 concurrent requests
+            tasks = [
+                limiter._check_rate_limit(mock_redis_client, "192.168.1.100") for _ in range(50)
+            ]
+
+            results = await asyncio.gather(*tasks)
+
+        # Verify all requests completed
+        assert len(results) == 50
+
+        # Count allowed vs blocked
+        allowed = sum(1 for is_allowed, _count, _limit in results if is_allowed)
+        blocked = sum(1 for is_allowed, _count, _limit in results if not is_allowed)
+
+        # With 30 rpm + 5 burst = 35 allowed, 15 blocked
+        assert allowed == 35
+        assert blocked == 15
+
+    @pytest.mark.asyncio
+    async def test_concurrent_requests_multiple_ips(self, mock_redis_client):
+        """Test rate limiter handles concurrent requests from multiple IPs.
+
+        Simulates 10 IPs making 10 concurrent requests each to verify
+        per-IP rate limiting works correctly under concurrent load.
+        """
+        import asyncio
+
+        # Mock Redis pipeline
+        mock_pipeline = MagicMock()
+        mock_pipeline.zremrangebyscore = MagicMock()
+        mock_pipeline.zcard = MagicMock()
+        mock_pipeline.zadd = MagicMock()
+        mock_pipeline.expire = MagicMock()
+
+        # Track counts per IP
+        ip_counters = {}
+
+        async def mock_execute(*args, **kwargs):
+            # Extract IP from the key used in the pipeline
+            # In real implementation, this would be deterministic
+            # For test, we'll use a simple counter per call
+            await asyncio.sleep(0.001)
+            return [0, 5, 1, True]  # Always return count of 5 (under limit)
+
+        mock_pipeline.execute = mock_execute
+
+        mock_redis_client._ensure_connected = MagicMock(
+            return_value=MagicMock(pipeline=MagicMock(return_value=mock_pipeline))
+        )
+
+        with patch("backend.api.middleware.rate_limit.get_settings") as mock_settings:
+            mock_settings.return_value.rate_limit_enabled = True
+
+            limiter = RateLimiter(requests_per_minute=20, burst=5)
+
+            # Create tasks for 10 IPs, 10 requests each
+            tasks = []
+            for i in range(10):
+                ip = f"192.168.1.{100 + i}"
+                for _ in range(10):
+                    tasks.append(limiter._check_rate_limit(mock_redis_client, ip))
+
+            results = await asyncio.gather(*tasks)
+
+        # Verify all 100 requests completed
+        assert len(results) == 100
+
+        # All should be allowed since we mocked count as 5 (under 25 limit)
+        allowed = sum(1 for is_allowed, _count, _limit in results if is_allowed)
+        assert allowed == 100
+
+    @pytest.mark.asyncio
+    async def test_redis_connection_failure_fails_open(self, mock_redis_client):
+        """Test rate limiter fails open when Redis connection fails.
+
+        FAIL-OPEN BEHAVIOR: When Redis is unavailable, the rate limiter
+        allows all requests to prevent cascading failures. This prioritizes
+        availability over strict rate limiting.
+        """
+        # Simulate Redis connection failure
+        mock_redis_client._ensure_connected = MagicMock(
+            side_effect=ConnectionError("Redis connection refused")
+        )
+
+        with patch("backend.api.middleware.rate_limit.get_settings") as mock_settings:
+            mock_settings.return_value.rate_limit_enabled = True
+
+            limiter = RateLimiter(requests_per_minute=10, burst=2)
+
+            # Make multiple requests during Redis outage
+            for _ in range(20):
+                is_allowed, current_count, _limit = await limiter._check_rate_limit(
+                    mock_redis_client, "192.168.1.100"
+                )
+
+                # All requests should be allowed (fail-open)
+                assert is_allowed is True
+                assert current_count == 0  # Count unavailable during outage
+
+    @pytest.mark.asyncio
+    async def test_redis_timeout_fails_open(self, mock_redis_client):
+        """Test rate limiter fails open when Redis operations timeout.
+
+        Simulates Redis timeout to verify fail-open behavior maintains
+        application availability even when Redis is slow or unresponsive.
+        """
+
+        # Simulate Redis timeout - raise immediately without actually sleeping
+        mock_redis_client._ensure_connected = MagicMock(
+            side_effect=TimeoutError("Redis operation timed out")
+        )
+
+        with patch("backend.api.middleware.rate_limit.get_settings") as mock_settings:
+            mock_settings.return_value.rate_limit_enabled = True
+
+            limiter = RateLimiter(requests_per_minute=10, burst=2)
+
+            # Request should complete quickly despite Redis timeout
+            is_allowed, current_count, _limit = await limiter._check_rate_limit(
+                mock_redis_client, "192.168.1.100"
+            )
+
+            # Should fail open
+            assert is_allowed is True
+            assert current_count == 0
+
+    @pytest.mark.asyncio
+    async def test_redis_partial_failure_during_pipeline(self, mock_redis_client):
+        """Test rate limiter handles partial failures during Redis pipeline execution.
+
+        Simulates Redis pipeline execution failure to verify error handling
+        and fail-open behavior when Redis operations partially complete.
+        """
+        # Mock Redis pipeline that fails during execution
+        mock_pipeline = MagicMock()
+        mock_pipeline.zremrangebyscore = MagicMock()
+        mock_pipeline.zcard = MagicMock()
+        mock_pipeline.zadd = MagicMock()
+        mock_pipeline.expire = MagicMock()
+        mock_pipeline.execute = AsyncMock(side_effect=Exception("Pipeline execution failed"))
+
+        mock_redis_client._ensure_connected = MagicMock(
+            return_value=MagicMock(pipeline=MagicMock(return_value=mock_pipeline))
+        )
+
+        with patch("backend.api.middleware.rate_limit.get_settings") as mock_settings:
+            mock_settings.return_value.rate_limit_enabled = True
+
+            limiter = RateLimiter(requests_per_minute=10, burst=2)
+
+            is_allowed, current_count, _limit = await limiter._check_rate_limit(
+                mock_redis_client, "192.168.1.100"
+            )
+
+            # Should fail open on pipeline errors
+            assert is_allowed is True
+            assert current_count == 0
+
+    @pytest.mark.asyncio
+    async def test_redis_returns_stale_data(self, mock_redis_client):
+        """Test rate limiter handles stale data from Redis.
+
+        Simulates Redis returning stale count data (e.g., from replica lag
+        or cache inconsistency) to verify the limiter handles it gracefully.
+        """
+        # Mock Redis pipeline returning inconsistent/stale data
+        mock_pipeline = MagicMock()
+        mock_pipeline.zremrangebyscore = MagicMock()
+        mock_pipeline.zcard = MagicMock()
+        mock_pipeline.zadd = MagicMock()
+        mock_pipeline.expire = MagicMock()
+
+        # First request shows high count (50), subsequent show low (5)
+        # This simulates stale data or cache inconsistency
+        mock_pipeline.execute = AsyncMock(
+            side_effect=[
+                [0, 50, 1, True],  # Stale high count
+                [0, 5, 1, True],  # Correct low count
+                [0, 6, 1, True],
+            ]
+        )
+
+        mock_redis_client._ensure_connected = MagicMock(
+            return_value=MagicMock(pipeline=MagicMock(return_value=mock_pipeline))
+        )
+
+        with patch("backend.api.middleware.rate_limit.get_settings") as mock_settings:
+            mock_settings.return_value.rate_limit_enabled = True
+
+            limiter = RateLimiter(requests_per_minute=10, burst=2)
+
+            # First request with stale high count
+            is_allowed1, count1, _limit1 = await limiter._check_rate_limit(
+                mock_redis_client, "192.168.1.100"
+            )
+            assert is_allowed1 is False  # Blocked due to stale high count
+            assert count1 == 50
+
+            # Second request with corrected count
+            is_allowed2, count2, _limit2 = await limiter._check_rate_limit(
+                mock_redis_client, "192.168.1.100"
+            )
+            assert is_allowed2 is True  # Allowed with correct count
+            assert count2 == 5
+
+    @pytest.mark.asyncio
+    async def test_redis_connection_recovery(self, mock_redis_client):
+        """Test rate limiter recovers when Redis connection is restored.
+
+        Simulates Redis outage followed by recovery to verify the rate
+        limiter resumes normal operation once Redis becomes available.
+        """
+        # Simulate Redis being down then recovering
+        mock_pipeline = MagicMock()
+        mock_pipeline.zremrangebyscore = MagicMock()
+        mock_pipeline.zcard = MagicMock()
+        mock_pipeline.zadd = MagicMock()
+        mock_pipeline.expire = MagicMock()
+        mock_pipeline.execute = AsyncMock(return_value=[0, 5, 1, True])
+
+        call_count = {"count": 0}
+
+        def mock_ensure_connected():
+            call_count["count"] += 1
+            if call_count["count"] <= 2:
+                # First 2 calls fail (Redis down)
+                raise ConnectionError("Redis unavailable")
+            else:
+                # Subsequent calls succeed (Redis recovered)
+                return MagicMock(pipeline=MagicMock(return_value=mock_pipeline))
+
+        mock_redis_client._ensure_connected = mock_ensure_connected
+
+        with patch("backend.api.middleware.rate_limit.get_settings") as mock_settings:
+            mock_settings.return_value.rate_limit_enabled = True
+
+            limiter = RateLimiter(requests_per_minute=10, burst=2)
+
+            # First request - Redis down, fails open
+            is_allowed1, count1, _limit1 = await limiter._check_rate_limit(
+                mock_redis_client, "192.168.1.100"
+            )
+            assert is_allowed1 is True  # Fail open
+            assert count1 == 0
+
+            # Second request - Redis still down, fails open
+            is_allowed2, count2, _limit2 = await limiter._check_rate_limit(
+                mock_redis_client, "192.168.1.100"
+            )
+            assert is_allowed2 is True  # Fail open
+            assert count2 == 0
+
+            # Third request - Redis recovered, normal operation
+            is_allowed3, count3, _limit3 = await limiter._check_rate_limit(
+                mock_redis_client, "192.168.1.100"
+            )
+            assert is_allowed3 is True  # Allowed, under limit
+            assert count3 == 5  # Actual count from Redis
+
+    @pytest.mark.asyncio
+    async def test_extreme_burst_traffic(self, mock_redis_client):
+        """Test rate limiter handles extreme burst traffic patterns.
+
+        Simulates sudden burst of 200 requests to verify the limiter
+        correctly blocks excess requests while allowing burst allowance.
+        """
+        import asyncio
+
+        # Mock Redis pipeline
+        mock_pipeline = MagicMock()
+        mock_pipeline.zremrangebyscore = MagicMock()
+        mock_pipeline.zcard = MagicMock()
+        mock_pipeline.zadd = MagicMock()
+        mock_pipeline.expire = MagicMock()
+
+        # Create counter for tracking requests
+        # Start at -1 so first request sees count of 0 (before adding)
+        request_counter = {"count": -1}
+
+        async def mock_execute():
+            request_counter["count"] += 1
+            return [0, request_counter["count"], 1, True]
+
+        mock_pipeline.execute = mock_execute
+
+        mock_redis_client._ensure_connected = MagicMock(
+            return_value=MagicMock(pipeline=MagicMock(return_value=mock_pipeline))
+        )
+
+        with patch("backend.api.middleware.rate_limit.get_settings") as mock_settings:
+            mock_settings.return_value.rate_limit_enabled = True
+
+            limiter = RateLimiter(requests_per_minute=50, burst=10)
+
+            # Create 200 concurrent burst requests
+            tasks = [
+                limiter._check_rate_limit(mock_redis_client, "192.168.1.100") for _ in range(200)
+            ]
+
+            results = await asyncio.gather(*tasks)
+
+        # Verify correct limiting (50 + 10 burst = 60 allowed, 140 blocked)
+        allowed = sum(1 for is_allowed, _count, _limit in results if is_allowed)
+        blocked = sum(1 for is_allowed, _count, _limit in results if not is_allowed)
+
+        assert allowed == 60
+        assert blocked == 140
+
+    @pytest.mark.asyncio
+    async def test_redis_network_partition(self, mock_redis_client):
+        """Test rate limiter handles Redis network partition scenarios.
+
+        Simulates intermittent Redis connectivity to verify the limiter
+        handles network partition gracefully with fail-open behavior.
+        """
+        # Simulate intermittent Redis connectivity
+        call_count = {"count": 0}
+
+        def mock_ensure_connected():
+            call_count["count"] += 1
+            # Fail every other call (network partition)
+            if call_count["count"] % 2 == 0:
+                raise ConnectionError("Network partition")
+            else:
+                mock_pipeline = MagicMock()
+                mock_pipeline.zremrangebyscore = MagicMock()
+                mock_pipeline.zcard = MagicMock()
+                mock_pipeline.zadd = MagicMock()
+                mock_pipeline.expire = MagicMock()
+                mock_pipeline.execute = AsyncMock(return_value=[0, 5, 1, True])
+                return MagicMock(pipeline=MagicMock(return_value=mock_pipeline))
+
+        mock_redis_client._ensure_connected = mock_ensure_connected
+
+        with patch("backend.api.middleware.rate_limit.get_settings") as mock_settings:
+            mock_settings.return_value.rate_limit_enabled = True
+
+            limiter = RateLimiter(requests_per_minute=10, burst=2)
+
+            results = []
+            for _ in range(10):
+                is_allowed, current_count, _limit = await limiter._check_rate_limit(
+                    mock_redis_client, "192.168.1.100"
+                )
+                results.append((is_allowed, current_count))
+
+        # All requests should be allowed (fail-open during failures)
+        # or correctly limited during successful connections
+        allowed = sum(1 for is_allowed, _count in results if is_allowed)
+        assert allowed == 10  # All allowed due to fail-open on errors

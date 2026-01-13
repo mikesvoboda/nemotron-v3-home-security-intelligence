@@ -28,6 +28,7 @@ import {
 import { countBy } from '../../utils/groupBy';
 import { pipe, getSortTransform, type SortOption } from '../../utils/pipeline';
 import { getRiskLevel } from '../../utils/risk';
+import { parseEventId } from '../../utils/validation';
 import { EmptyState, EventCardSkeleton, InfiniteScrollStatus } from '../common';
 import RiskBadge from '../common/RiskBadge';
 import { type ActivityEvent } from '../dashboard/ActivityFeed';
@@ -147,12 +148,11 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
     }
 
     // Open event detail modal if event ID is in URL (e.g., from dashboard click)
+    // Uses parseEventId for safe validation (NEM-2561)
     const eventParam = searchParams.get('event');
-    if (eventParam) {
-      const eventId = parseInt(eventParam, 10);
-      if (!isNaN(eventId)) {
-        setSelectedEventForModal(eventId);
-      }
+    const { eventId, isValid } = parseEventId(eventParam);
+    if (isValid && eventId !== null) {
+      setSelectedEventForModal(eventId);
     }
   }, [searchParams]);
 

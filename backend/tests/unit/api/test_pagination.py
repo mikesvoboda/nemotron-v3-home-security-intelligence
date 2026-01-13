@@ -10,10 +10,13 @@ from datetime import UTC, datetime
 import pytest
 
 from backend.api.pagination import (
+    CURSOR_FORMAT_REGEX,
+    MAX_CURSOR_LENGTH,
     CursorData,
     decode_cursor,
     encode_cursor,
     get_deprecation_warning,
+    validate_cursor_format,
     validate_pagination_params,
 )
 
@@ -75,7 +78,10 @@ class TestCursorDecoding:
 
     def test_decode_cursor_invalid_base64(self):
         """Test decoding invalid base64 raises ValueError."""
-        with pytest.raises(ValueError, match="Invalid cursor"):
+        # Note: With NEM-2585 format validation, invalid characters are now
+        # rejected before base64 decoding. The error message mentions "invalid characters"
+        # rather than "Invalid cursor" from base64 decode failure.
+        with pytest.raises(ValueError, match="invalid characters"):
             decode_cursor("not-valid-base64!!!")
 
     def test_decode_cursor_invalid_json(self):
@@ -235,3 +241,131 @@ class TestValidatePaginationParams:
         assert "offset" in error_message.lower()
         assert "cursor" in error_message.lower()
         assert "Choose one" in error_message
+
+
+class TestValidateCursorFormat:
+    """Tests for cursor format validation (NEM-2585).
+
+    Validates that cursors conform to base64url encoding format
+    and don't exceed maximum length limits.
+    """
+
+    def test_validates_none_cursor(self):
+        """Test that None cursor is valid (no cursor provided)."""
+        assert validate_cursor_format(None) is True
+
+    def test_validates_empty_string_cursor(self):
+        """Test that empty string cursor is valid."""
+        assert validate_cursor_format("") is True
+
+    def test_validates_valid_base64url_cursor(self):
+        """Test that valid base64url cursor passes validation."""
+        # Create a real cursor from CursorData
+        cursor_data = CursorData(id=123, created_at=datetime(2025, 12, 23, 12, 0, 0, tzinfo=UTC))
+        encoded = encode_cursor(cursor_data)
+        assert validate_cursor_format(encoded) is True
+
+    def test_validates_alphanumeric_cursor(self):
+        """Test that alphanumeric cursors are valid."""
+        assert validate_cursor_format("abc123XYZ") is True
+        assert validate_cursor_format("eyJpZCI6MTIzfQ") is True
+
+    def test_validates_cursor_with_underscores(self):
+        """Test that cursors with underscores are valid (base64url)."""
+        assert validate_cursor_format("abc_def_123") is True
+
+    def test_validates_cursor_with_hyphens(self):
+        """Test that cursors with hyphens are valid (base64url)."""
+        assert validate_cursor_format("abc-def-123") is True
+
+    def test_validates_cursor_with_equals_padding(self):
+        """Test that cursors with equals padding are valid."""
+        assert validate_cursor_format("eyJpZCI6MTIzfQ==") is True
+        assert validate_cursor_format("YWJj=") is True
+
+    def test_rejects_cursor_with_invalid_characters(self):
+        """Test that cursors with invalid characters are rejected."""
+        invalid_cursors = [
+            "<script>alert('xss')</script>",  # XSS attempt
+            "SELECT * FROM users",  # SQL injection attempt
+            "abc def",  # Space
+            "abc\tdef",  # Tab
+            "abc\ndef",  # Newline
+            "abc;def",  # Semicolon
+            "abc&def",  # Ampersand
+            "abc?def",  # Question mark
+            "abc/def",  # Forward slash (not in base64url)
+            "abc+def",  # Plus (standard base64, not base64url)
+            "abc!def",  # Exclamation
+            'abc"def',  # Quote
+            "abc'def",  # Single quote
+            "abc<def",  # Less than
+            "abc>def",  # Greater than
+            "abc{def}",  # Braces
+            "abc[def]",  # Brackets
+            "abc|def",  # Pipe
+            "abc\\def",  # Backslash
+            "abc`def",  # Backtick
+        ]
+
+        for invalid_cursor in invalid_cursors:
+            with pytest.raises(ValueError, match="invalid characters"):
+                validate_cursor_format(invalid_cursor)
+
+    def test_rejects_cursor_exceeding_max_length(self):
+        """Test that cursors exceeding max length are rejected."""
+        long_cursor = "a" * (MAX_CURSOR_LENGTH + 1)
+        with pytest.raises(ValueError, match="maximum length"):
+            validate_cursor_format(long_cursor)
+
+    def test_accepts_cursor_at_max_length(self):
+        """Test that cursor at exactly max length is accepted."""
+        max_length_cursor = "a" * MAX_CURSOR_LENGTH
+        assert validate_cursor_format(max_length_cursor) is True
+
+    def test_max_cursor_length_constant(self):
+        """Test that MAX_CURSOR_LENGTH is a reasonable value."""
+        # Should be large enough for normal cursors but not unbounded
+        assert MAX_CURSOR_LENGTH >= 100  # Minimum for any real cursor
+        assert MAX_CURSOR_LENGTH <= 1000  # Reasonable upper bound
+
+    def test_cursor_format_regex_pattern(self):
+        """Test that CURSOR_FORMAT_REGEX correctly identifies valid patterns."""
+        # Valid patterns
+        assert CURSOR_FORMAT_REGEX.match("abc123")
+        assert CURSOR_FORMAT_REGEX.match("ABC123")
+        assert CURSOR_FORMAT_REGEX.match("abc_123")
+        assert CURSOR_FORMAT_REGEX.match("abc-123")
+        assert CURSOR_FORMAT_REGEX.match("abc=123")
+        assert CURSOR_FORMAT_REGEX.match("abc123==")
+
+        # Invalid patterns
+        assert not CURSOR_FORMAT_REGEX.match("abc 123")  # Space
+        assert not CURSOR_FORMAT_REGEX.match("abc<123")  # Less than
+        assert not CURSOR_FORMAT_REGEX.match("")  # Empty (handled separately)
+
+    def test_decode_cursor_validates_format_first(self):
+        """Test that decode_cursor validates format before attempting decode."""
+        # Invalid format should raise ValueError mentioning format
+        with pytest.raises(ValueError, match="invalid characters"):
+            decode_cursor("<script>alert('xss')</script>")
+
+    def test_decode_cursor_validates_length_first(self):
+        """Test that decode_cursor validates length before attempting decode."""
+        long_cursor = "a" * (MAX_CURSOR_LENGTH + 1)
+        with pytest.raises(ValueError, match="maximum length"):
+            decode_cursor(long_cursor)
+
+    def test_integration_valid_cursor_round_trip(self):
+        """Test that valid cursors pass format validation and decode correctly."""
+        # Create cursor
+        cursor_data = CursorData(id=999, created_at=datetime(2025, 6, 15, 8, 30, 0, tzinfo=UTC))
+        encoded = encode_cursor(cursor_data)
+
+        # Validate format
+        assert validate_cursor_format(encoded) is True
+
+        # Decode and verify
+        decoded = decode_cursor(encoded)
+        assert decoded is not None
+        assert decoded.id == 999

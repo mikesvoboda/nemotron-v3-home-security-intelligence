@@ -1024,3 +1024,259 @@ class TestConcurrentSearchVectorUpdates:
         # search_vector is updated by trigger, so we can't directly assert its value
         # but we can verify it's not None (assuming trigger is working)
         # Note: In test environment, trigger may not be active, so this is optional
+
+
+# =============================================================================
+# Test 12: Concurrent Repository Save Operations (NEM-2566)
+# =============================================================================
+
+
+class TestConcurrentRepositorySave:
+    """Test concurrent repository save operations with atomic upsert.
+
+    Race condition (NEM-2566): Multiple processes trying to save the same entity
+    concurrently should not cause constraint violations due to TOCTOU race
+    between exists check and create/merge operations.
+    """
+
+    @pytest.fixture
+    async def sample_camera_id(self, integration_db: Any) -> str:
+        """Generate a unique camera ID for testing."""
+        return unique_id("cam_save")
+
+    async def _save_camera(
+        self, camera_id: str, name: str, index: int
+    ) -> tuple[bool, str | None, Exception | None]:
+        """Attempt to save a camera using the repository save method.
+
+        Returns:
+            Tuple of (success, camera_name, exception)
+        """
+        try:
+            async with get_session() as db:
+                from backend.repositories.camera_repository import CameraRepository
+
+                repo = CameraRepository(db)
+                camera = Camera(
+                    id=camera_id,
+                    name=f"{name}_{index}",
+                    folder_path=f"/export/foscam/{camera_id}",
+                    status="online",
+                )
+                saved = await repo.save(camera)
+                return (True, saved.name, None)
+        except Exception as e:
+            return (False, None, e)
+
+    @pytest.mark.asyncio
+    async def test_concurrent_save_same_entity(
+        self, integration_db: Any, sample_camera_id: str
+    ) -> None:
+        """Multiple concurrent save operations for the same entity ID.
+
+        Expected: All operations should complete without IntegrityError.
+        The atomic UPSERT ensures only one INSERT happens, others become UPDATEs.
+        """
+        # 20 concurrent save attempts with the same camera ID
+        tasks = [self._save_camera(sample_camera_id, "Camera", i) for i in range(20)]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # Count successful saves (should be all 20)
+        successful_saves = sum(
+            1 for result in results if not isinstance(result, Exception) and result[0]
+        )
+
+        # Count exceptions (should be 0)
+        exceptions = [result for result in results if isinstance(result, Exception)]
+        integrity_errors = [
+            result[2]
+            for result in results
+            if not isinstance(result, Exception)
+            and result[2] is not None
+            and "IntegrityError" in str(type(result[2]))
+        ]
+
+        # All saves should succeed (no IntegrityErrors)
+        assert len(exceptions) == 0, f"Unexpected exceptions: {exceptions[:3]}"
+        assert len(integrity_errors) == 0, (
+            f"IntegrityErrors should not occur with atomic upsert: {integrity_errors[:3]}"
+        )
+        assert successful_saves == 20, f"Expected 20 successful saves, got {successful_saves}"
+
+        # Verify exactly one camera exists in database
+        async with get_session() as db:
+            stmt = select(Camera).where(Camera.id == sample_camera_id)
+            result = await db.execute(stmt)
+            cameras = result.scalars().all()
+
+        assert len(cameras) == 1, f"Expected 1 camera, found {len(cameras)}"
+
+    @pytest.mark.asyncio
+    async def test_concurrent_save_interleaved_creates_and_updates(
+        self, integration_db: Any, sample_camera_id: str
+    ) -> None:
+        """Interleaved create and update operations on the same entity.
+
+        This tests the race condition between exists() check and create/merge.
+        With atomic UPSERT, this should work without errors.
+        """
+        # First, create the camera
+        async with get_session() as db:
+            camera = Camera(
+                id=sample_camera_id,
+                name="Original Name",
+                folder_path=f"/export/foscam/{sample_camera_id}",
+                status="online",
+            )
+            db.add(camera)
+            await db.commit()
+
+        # Now run concurrent save operations (these should all be updates)
+        tasks = [self._save_camera(sample_camera_id, "Updated", i) for i in range(10)]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # All should succeed
+        successful_saves = sum(
+            1 for result in results if not isinstance(result, Exception) and result[0]
+        )
+        assert successful_saves == 10, f"Expected 10 successful saves, got {successful_saves}"
+
+        # Verify camera was updated (name should be one of the "Updated_N" values)
+        async with get_session() as db:
+            stmt = select(Camera).where(Camera.id == sample_camera_id)
+            result = await db.execute(stmt)
+            camera = result.scalar_one()
+
+        assert camera.name.startswith("Updated_"), f"Unexpected name: {camera.name}"
+
+    @pytest.mark.asyncio
+    async def test_concurrent_save_different_entities(self, integration_db: Any) -> None:
+        """Concurrent save operations for different entities should all succeed.
+
+        This verifies that concurrent saves don't block each other when
+        working with different primary keys.
+        """
+        # Create unique IDs for each concurrent operation
+        camera_ids = [unique_id(f"cam_diff_{i}") for i in range(20)]
+
+        async def save_unique_camera(idx: int) -> tuple[bool, str]:
+            """Save a camera with unique ID."""
+            camera_id = camera_ids[idx]
+            try:
+                async with get_session() as db:
+                    from backend.repositories.camera_repository import CameraRepository
+
+                    repo = CameraRepository(db)
+                    camera = Camera(
+                        id=camera_id,
+                        name=f"Camera {idx}",
+                        folder_path=f"/export/foscam/{camera_id}",
+                        status="online",
+                    )
+                    saved = await repo.save(camera)
+                    return (True, saved.id)
+            except Exception:
+                return (False, camera_id)
+
+        # Run 20 concurrent saves for different cameras
+        tasks = [save_unique_camera(i) for i in range(20)]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # All should succeed
+        successful_saves = sum(
+            1 for result in results if not isinstance(result, Exception) and result[0]
+        )
+        assert successful_saves == 20, f"Expected 20 successful saves, got {successful_saves}"
+
+        # Verify all cameras exist in database
+        async with get_session() as db:
+            from sqlalchemy import or_
+
+            stmt = select(Camera).where(or_(*[Camera.id == cid for cid in camera_ids]))
+            result = await db.execute(stmt)
+            cameras = result.scalars().all()
+
+        assert len(cameras) == 20, f"Expected 20 cameras, found {len(cameras)}"
+
+
+# =============================================================================
+# Test 13: Concurrent Repository Merge Operations (NEM-2566)
+# =============================================================================
+
+
+class TestConcurrentRepositoryMerge:
+    """Test concurrent repository merge operations with transaction safety.
+
+    Race condition (NEM-2566): Multiple processes trying to merge detached
+    entities should handle concurrent modifications gracefully.
+    """
+
+    @pytest.fixture
+    async def sample_camera(self, integration_db: Any) -> Camera:
+        """Create a sample camera for merge testing."""
+        async with get_session() as db:
+            camera_id = unique_id("cam_merge")
+            camera = Camera(
+                id=camera_id,
+                name="Original Name",
+                folder_path=f"/export/foscam/{camera_id}",
+                status="online",
+            )
+            db.add(camera)
+            await db.commit()
+            await db.refresh(camera)
+            return camera
+
+    async def _merge_camera(
+        self, camera_id: str, new_name: str
+    ) -> tuple[bool, str | None, Exception | None]:
+        """Attempt to merge a camera update using the repository merge method.
+
+        Returns:
+            Tuple of (success, final_name, exception)
+        """
+        try:
+            async with get_session() as db:
+                from backend.repositories.camera_repository import CameraRepository
+
+                repo = CameraRepository(db)
+                # Create a detached entity with updated values
+                detached_camera = Camera(
+                    id=camera_id,
+                    name=new_name,
+                    folder_path=f"/export/foscam/{camera_id}",
+                    status="online",
+                )
+                merged = await repo.merge(detached_camera)
+                return (True, merged.name, None)
+        except Exception as e:
+            return (False, None, e)
+
+    @pytest.mark.asyncio
+    async def test_concurrent_merge_operations(
+        self, integration_db: Any, sample_camera: Camera
+    ) -> None:
+        """Multiple concurrent merge operations on the same entity.
+
+        Expected: All merges should complete without errors due to savepoint isolation.
+        Last write wins for the final value.
+        """
+        # 15 concurrent merge attempts
+        tasks = [self._merge_camera(sample_camera.id, f"Merged Name {i}") for i in range(15)]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # Count successful merges
+        successful_merges = sum(
+            1 for result in results if not isinstance(result, Exception) and result[0]
+        )
+
+        # All should succeed
+        assert successful_merges == 15, f"Expected 15 successful merges, got {successful_merges}"
+
+        # Verify camera exists and has been updated
+        async with get_session() as db:
+            stmt = select(Camera).where(Camera.id == sample_camera.id)
+            result = await db.execute(stmt)
+            camera = result.scalar_one()
+
+        assert camera.name.startswith("Merged Name"), f"Unexpected name: {camera.name}"

@@ -321,6 +321,106 @@ export interface AnalysisStreamEvent {
 }
 
 // ============================================================================
+// Cursor Validation (NEM-2585)
+// ============================================================================
+
+/**
+ * Regular expression pattern for valid cursor format.
+ * Cursors are base64url-encoded strings (RFC 4648) that may contain:
+ * - Alphanumeric characters (a-z, A-Z, 0-9)
+ * - URL-safe characters: underscore (_) and hyphen (-)
+ * - Padding character: equals (=)
+ *
+ * This pattern validates the cursor format before sending to the API
+ * to prevent injection attacks and malformed requests.
+ */
+const CURSOR_FORMAT_REGEX = /^[a-zA-Z0-9_=-]+$/;
+
+/**
+ * Maximum allowed cursor length to prevent DoS via oversized cursors.
+ * Base64-encoded JSON payload {"id": <int>, "created_at": "<ISO8601>"}
+ * should not exceed 200 characters in normal operation.
+ */
+const MAX_CURSOR_LENGTH = 500;
+
+/**
+ * Error thrown when cursor validation fails.
+ * Contains the invalid cursor value and reason for failure.
+ */
+export class CursorValidationError extends Error {
+  constructor(
+    public readonly cursor: string,
+    public readonly reason: string
+  ) {
+    super(`Invalid cursor: ${reason}`);
+    this.name = 'CursorValidationError';
+  }
+}
+
+/**
+ * Validates the format of a pagination cursor before sending to the API.
+ *
+ * Cursors must be:
+ * - Base64url-encoded (alphanumeric, underscore, hyphen, equals)
+ * - Not exceed maximum length (prevent DoS)
+ * - Non-empty if provided
+ *
+ * @param cursor - The cursor string to validate, or undefined/null
+ * @returns true if the cursor is valid or not provided
+ * @throws CursorValidationError if the cursor format is invalid
+ *
+ * @example
+ * ```typescript
+ * // Valid cursors
+ * validateCursorFormat(undefined); // true (no cursor)
+ * validateCursorFormat('eyJpZCI6MTIzfQ=='); // true (valid base64url)
+ *
+ * // Invalid cursors
+ * validateCursorFormat('<script>'); // throws CursorValidationError
+ * validateCursorFormat('a'.repeat(1000)); // throws CursorValidationError
+ * ```
+ */
+export function validateCursorFormat(cursor: string | undefined | null): boolean {
+  // No cursor is valid (first page or no pagination)
+  if (cursor === undefined || cursor === null || cursor === '') {
+    return true;
+  }
+
+  // Check for maximum length to prevent DoS
+  if (cursor.length > MAX_CURSOR_LENGTH) {
+    throw new CursorValidationError(
+      cursor.substring(0, 50) + '...',
+      `cursor exceeds maximum length of ${MAX_CURSOR_LENGTH} characters`
+    );
+  }
+
+  // Check for valid base64url format
+  if (!CURSOR_FORMAT_REGEX.test(cursor)) {
+    throw new CursorValidationError(
+      cursor.substring(0, 50),
+      'cursor contains invalid characters (must be base64url-encoded)'
+    );
+  }
+
+  return true;
+}
+
+/**
+ * Type guard to check if a cursor is valid without throwing.
+ * Useful for conditional logic where you want to handle invalid cursors gracefully.
+ *
+ * @param cursor - The cursor string to validate
+ * @returns true if the cursor is valid or not provided, false otherwise
+ */
+export function isValidCursor(cursor: string | undefined | null): boolean {
+  try {
+    return validateCursorFormat(cursor);
+  } catch {
+    return false;
+  }
+}
+
+// ============================================================================
 // Error Handling
 // ============================================================================
 
@@ -1526,6 +1626,8 @@ export async function fetchEvents(
     if (params.limit !== undefined) queryParams.append('limit', String(params.limit));
     // Prefer cursor over offset for pagination
     if (params.cursor) {
+      // Validate cursor format before sending to API (NEM-2585)
+      validateCursorFormat(params.cursor);
       queryParams.append('cursor', params.cursor);
     } else if (params.offset !== undefined) {
       queryParams.append('offset', String(params.offset));
@@ -1733,6 +1835,8 @@ export async function fetchEventDetections(
     if (params.limit !== undefined) queryParams.append('limit', String(params.limit));
     // Prefer cursor over offset for pagination
     if (params.cursor) {
+      // Validate cursor format before sending to API (NEM-2585)
+      validateCursorFormat(params.cursor);
       queryParams.append('cursor', params.cursor);
     } else if (params.offset !== undefined) {
       queryParams.append('offset', String(params.offset));

@@ -2,6 +2,7 @@
 
 Tests cover:
 - compute_file_hash() - File reading, chunk processing, error handling
+- HashResult - Result type with explicit status information
 - DedupeService.__init__() - Redis client initialization
 - is_duplicate() - Redis cache behavior, database fallback
 - mark_processed() - TTL handling
@@ -25,6 +26,7 @@ from backend.services.dedupe import (
     DEFAULT_DEDUPE_TTL_SECONDS,
     ORPHAN_CLEANUP_MAX_AGE_SECONDS,
     DedupeService,
+    HashResult,
     compute_file_hash,
     compute_file_hash_async,
     get_dedupe_service,
@@ -91,36 +93,49 @@ class TestComputeFileHash:
     def test_compute_hash_normal_file(self, temp_file: str) -> None:
         """Test computing hash of a normal file."""
         result = compute_file_hash(temp_file)
-        assert result is not None
-        assert len(result) == 64  # SHA256 hex string is 64 characters
+        assert result.is_success
+        assert result.status == "success"
+        assert result.hash is not None
+        assert len(result.hash) == 64  # SHA256 hex string is 64 characters
+        assert result.error_message is None
         # Verify it's a valid hex string
-        int(result, 16)
+        int(result.hash, 16)
 
     def test_compute_hash_returns_consistent_result(self, temp_file: str) -> None:
         """Test that hash computation is deterministic."""
-        hash1 = compute_file_hash(temp_file)
-        hash2 = compute_file_hash(temp_file)
-        assert hash1 == hash2
+        result1 = compute_file_hash(temp_file)
+        result2 = compute_file_hash(temp_file)
+        assert result1.hash == result2.hash
+        assert result1.status == result2.status
 
     def test_compute_hash_nonexistent_file(self) -> None:
         """Test computing hash of a file that doesn't exist."""
         result = compute_file_hash("/nonexistent/path/to/file.jpg")
-        assert result is None
+        assert result.is_failure
+        assert result.status == "file_not_found"
+        assert result.hash is None
+        assert result.error_message is not None
+        assert "File not found" in result.error_message
 
     def test_compute_hash_empty_file(self, empty_temp_file: str) -> None:
-        """Test computing hash of an empty file returns None."""
+        """Test computing hash of an empty file returns empty_file status."""
         result = compute_file_hash(empty_temp_file)
-        assert result is None
+        assert result.is_failure
+        assert result.status == "empty_file"
+        assert result.hash is None
+        assert result.error_message is not None
+        assert "Empty file" in result.error_message
 
     def test_compute_hash_large_file(self, large_temp_file: str) -> None:
         """Test computing hash of a file larger than chunk size."""
         result = compute_file_hash(large_temp_file)
-        assert result is not None
-        assert len(result) == 64
+        assert result.is_success
+        assert result.hash is not None
+        assert len(result.hash) == 64
 
         # Verify the hash matches what we expect
         expected_hash = hashlib.sha256(b"x" * 32768).hexdigest()
-        assert result == expected_hash
+        assert result.hash == expected_hash
 
     def test_compute_hash_permission_denied(self) -> None:
         """Test computing hash when permission is denied."""
@@ -132,8 +147,12 @@ class TestComputeFileHash:
             # Make file unreadable
             Path(temp_path).chmod(0o000)
             result = compute_file_hash(temp_path)
-            # Should return None due to permission error
-            assert result is None
+            # Should return permission_denied status
+            assert result.is_failure
+            assert result.status == "permission_denied"
+            assert result.hash is None
+            assert result.error_message is not None
+            assert "Permission denied" in result.error_message
         finally:
             # Restore permissions for cleanup
             Path(temp_path).chmod(0o644)
@@ -146,7 +165,8 @@ class TestComputeFileHash:
             file_path = Path(tmpdir) / "test file with spaces (1).jpg"
             file_path.write_bytes(b"test content")
             result = compute_file_hash(str(file_path))
-            assert result is not None
+            assert result.is_success
+            assert result.hash is not None
 
     def test_compute_hash_different_content_different_hash(self) -> None:
         """Test that different file contents produce different hashes."""
@@ -159,9 +179,9 @@ class TestComputeFileHash:
             path2 = f2.name
 
         try:
-            hash1 = compute_file_hash(path1)
-            hash2 = compute_file_hash(path2)
-            assert hash1 != hash2
+            result1 = compute_file_hash(path1)
+            result2 = compute_file_hash(path2)
+            assert result1.hash != result2.hash
         finally:
             Path(path1).unlink()
             Path(path2).unlink()
@@ -179,40 +199,47 @@ class TestComputeFileHashAsync:
     async def test_compute_hash_async_normal_file(self, temp_file: str) -> None:
         """Test async hash computation of a normal file."""
         result = await compute_file_hash_async(temp_file)
-        assert result is not None
-        assert len(result) == 64  # SHA256 hex string is 64 characters
+        assert result.is_success
+        assert result.hash is not None
+        assert len(result.hash) == 64  # SHA256 hex string is 64 characters
         # Verify it's a valid hex string
-        int(result, 16)
+        int(result.hash, 16)
 
     @pytest.mark.asyncio
     async def test_compute_hash_async_matches_sync(self, temp_file: str) -> None:
         """Test that async hash matches sync hash for same file."""
-        sync_hash = compute_file_hash(temp_file)
-        async_hash = await compute_file_hash_async(temp_file)
-        assert sync_hash == async_hash
+        sync_result = compute_file_hash(temp_file)
+        async_result = await compute_file_hash_async(temp_file)
+        assert sync_result.hash == async_result.hash
+        assert sync_result.status == async_result.status
 
     @pytest.mark.asyncio
     async def test_compute_hash_async_nonexistent_file(self) -> None:
         """Test async hash computation of a file that doesn't exist."""
         result = await compute_file_hash_async("/nonexistent/path/to/file.jpg")
-        assert result is None
+        assert result.is_failure
+        assert result.status == "file_not_found"
+        assert result.hash is None
 
     @pytest.mark.asyncio
     async def test_compute_hash_async_empty_file(self, empty_temp_file: str) -> None:
-        """Test async hash computation of an empty file returns None."""
+        """Test async hash computation of an empty file returns empty_file status."""
         result = await compute_file_hash_async(empty_temp_file)
-        assert result is None
+        assert result.is_failure
+        assert result.status == "empty_file"
+        assert result.hash is None
 
     @pytest.mark.asyncio
     async def test_compute_hash_async_large_file(self, large_temp_file: str) -> None:
         """Test async hash computation of a file larger than chunk size."""
         result = await compute_file_hash_async(large_temp_file)
-        assert result is not None
-        assert len(result) == 64
+        assert result.is_success
+        assert result.hash is not None
+        assert len(result.hash) == 64
 
         # Verify the hash matches what we expect
         expected_hash = hashlib.sha256(b"x" * 32768).hexdigest()
-        assert result == expected_hash
+        assert result.hash == expected_hash
 
     @pytest.mark.asyncio
     async def test_compute_hash_async_concurrent_calls(
@@ -229,11 +256,11 @@ class TestComputeFileHashAsync:
         )
 
         # All should complete successfully
-        assert all(r is not None for r in results)
+        assert all(r.is_success for r in results)
         # First two should be identical (same file)
-        assert results[0] == results[1]
+        assert results[0].hash == results[1].hash
         # Third should be different (different file)
-        assert results[0] != results[2]
+        assert results[0].hash != results[2].hash
 
     @pytest.mark.asyncio
     async def test_compute_hash_async_does_not_block_event_loop(self, temp_file: str) -> None:
@@ -259,6 +286,94 @@ class TestComputeFileHashAsync:
         # (both should complete, order may vary based on timing)
         assert "hash_complete" in execution_order
         assert "quick_task" in execution_order
+
+
+# =============================================================================
+# HashResult Tests
+# =============================================================================
+
+
+class TestHashResult:
+    """Tests for HashResult dataclass."""
+
+    def test_success_result_factory(self) -> None:
+        """Test creating a successful HashResult."""
+        result = HashResult.success_result("abc123def456")
+        assert result.is_success
+        assert not result.is_failure
+        assert result.status == "success"
+        assert result.hash == "abc123def456"  # pragma: allowlist secret
+        assert result.error_message is None
+
+    def test_file_not_found_result_factory(self) -> None:
+        """Test creating a file_not_found HashResult."""
+        result = HashResult.file_not_found_result("/path/to/missing.jpg")
+        assert result.is_failure
+        assert not result.is_success
+        assert result.status == "file_not_found"
+        assert result.hash is None
+        assert result.error_message is not None
+        assert "/path/to/missing.jpg" in result.error_message
+
+    def test_permission_denied_result_factory(self) -> None:
+        """Test creating a permission_denied HashResult."""
+        error = PermissionError("Access denied")
+        result = HashResult.permission_denied_result("/path/to/protected.jpg", error)
+        assert result.is_failure
+        assert result.status == "permission_denied"
+        assert result.hash is None
+        assert result.error_message is not None
+        assert "Permission denied" in result.error_message
+        assert "/path/to/protected.jpg" in result.error_message
+
+    def test_read_error_result_factory(self) -> None:
+        """Test creating a read_error HashResult."""
+        error = OSError("I/O error")
+        result = HashResult.read_error_result("/path/to/corrupted.jpg", error)
+        assert result.is_failure
+        assert result.status == "read_error"
+        assert result.hash is None
+        assert result.error_message is not None
+        assert "Read error" in result.error_message
+        assert "/path/to/corrupted.jpg" in result.error_message
+
+    def test_empty_file_result_factory(self) -> None:
+        """Test creating an empty_file HashResult."""
+        result = HashResult.empty_file_result("/path/to/empty.jpg")
+        assert result.is_failure
+        assert result.status == "empty_file"
+        assert result.hash is None
+        assert result.error_message is not None
+        assert "Empty file" in result.error_message
+        assert "/path/to/empty.jpg" in result.error_message
+
+    def test_hash_result_is_frozen(self) -> None:
+        """Test that HashResult is immutable (frozen dataclass)."""
+        result = HashResult.success_result("abc123")
+        with pytest.raises(AttributeError):
+            result.hash = "xyz789"  # type: ignore[misc]
+
+    def test_hash_result_equality(self) -> None:
+        """Test that HashResult equality works correctly."""
+        result1 = HashResult.success_result("abc123")
+        result2 = HashResult.success_result("abc123")
+        result3 = HashResult.success_result("xyz789")
+        assert result1 == result2
+        assert result1 != result3
+
+    def test_all_failure_statuses(self) -> None:
+        """Test that all failure statuses are properly classified as failures."""
+        failure_results = [
+            HashResult.file_not_found_result("/path"),
+            HashResult.permission_denied_result("/path", PermissionError()),
+            HashResult.read_error_result("/path", OSError()),
+            HashResult.empty_file_result("/path"),
+        ]
+        for result in failure_results:
+            assert result.is_failure
+            assert not result.is_success
+            assert result.hash is None
+            assert result.error_message is not None
 
 
 # =============================================================================
@@ -1056,8 +1171,9 @@ class TestEdgeCases:
 
         try:
             result = compute_file_hash(temp_path)
-            assert result is not None
-            assert len(result) == 64
+            assert result.is_success
+            assert result.hash is not None
+            assert len(result.hash) == 64
         finally:
             Path(temp_path).unlink()
 
@@ -1110,13 +1226,13 @@ class TestDedupeProperties:
             path = f.name
 
         try:
-            hash1 = compute_file_hash(path)
-            hash2 = compute_file_hash(path)
-            hash3 = compute_file_hash(path)
+            result1 = compute_file_hash(path)
+            result2 = compute_file_hash(path)
+            result3 = compute_file_hash(path)
 
-            assert hash1 is not None
-            assert hash1 == hash2, "Hash should be deterministic"
-            assert hash2 == hash3, "Hash should be deterministic across calls"
+            assert result1.is_success
+            assert result1.hash == result2.hash, "Hash should be deterministic"
+            assert result2.hash == result3.hash, "Hash should be deterministic across calls"
         finally:
             Path(path).unlink()
 
@@ -1129,11 +1245,12 @@ class TestDedupeProperties:
             path = f.name
 
         try:
-            file_hash = compute_file_hash(path)
-            assert file_hash is not None
-            assert len(file_hash) == 64, f"Hash length should be 64, got {len(file_hash)}"
+            result = compute_file_hash(path)
+            assert result.is_success
+            assert result.hash is not None
+            assert len(result.hash) == 64, f"Hash length should be 64, got {len(result.hash)}"
             # Verify it's a valid hex string
-            int(file_hash, 16)
+            int(result.hash, 16)
         finally:
             Path(path).unlink()
 
@@ -1161,12 +1278,12 @@ class TestDedupeProperties:
             path2 = f2.name
 
         try:
-            hash1 = compute_file_hash(path1)
-            hash2 = compute_file_hash(path2)
+            result1 = compute_file_hash(path1)
+            result2 = compute_file_hash(path2)
 
-            assert hash1 is not None
-            assert hash2 is not None
-            assert hash1 != hash2, "Different content should produce different hashes"
+            assert result1.is_success
+            assert result2.is_success
+            assert result1.hash != result2.hash, "Different content should produce different hashes"
         finally:
             Path(path1).unlink()
             Path(path2).unlink()
@@ -1180,11 +1297,12 @@ class TestDedupeProperties:
             path = f.name
 
         try:
-            computed_hash = compute_file_hash(path)
+            result = compute_file_hash(path)
             expected_hash = hashlib.sha256(content).hexdigest()
 
-            assert computed_hash == expected_hash, (
-                f"Hash mismatch: computed={computed_hash}, expected={expected_hash}"
+            assert result.is_success
+            assert result.hash == expected_hash, (
+                f"Hash mismatch: computed={result.hash}, expected={expected_hash}"
             )
         finally:
             Path(path).unlink()
@@ -1397,22 +1515,26 @@ class TestDedupeProperties:
 
     @given(size=st.integers(min_value=0, max_value=0))
     @hypothesis_settings(max_examples=5)
-    def test_empty_file_returns_none_hash(self, size: int) -> None:
-        """Property: Empty files return None hash (cannot be deduplicated)."""
+    def test_empty_file_returns_empty_file_status(self, size: int) -> None:
+        """Property: Empty files return empty_file status (cannot be deduplicated)."""
         with tempfile.NamedTemporaryFile(mode="wb", delete=False) as f:
             # Write nothing (empty file)
             path = f.name
 
         try:
-            file_hash = compute_file_hash(path)
-            assert file_hash is None, "Empty files should return None hash"
+            result = compute_file_hash(path)
+            assert result.is_failure, "Empty files should fail hash computation"
+            assert result.status == "empty_file"
+            assert result.hash is None
         finally:
             Path(path).unlink()
 
     @given(path_suffix=st.text(min_size=10, max_size=50, alphabet="abcdefghijklmnopqrstuvwxyz"))
     @hypothesis_settings(max_examples=10)
-    def test_nonexistent_file_returns_none_hash(self, path_suffix: str) -> None:
-        """Property: Non-existent files return None hash."""
+    def test_nonexistent_file_returns_file_not_found_status(self, path_suffix: str) -> None:
+        """Property: Non-existent files return file_not_found status."""
         path = f"/nonexistent/path/{path_suffix}.jpg"
-        file_hash = compute_file_hash(path)
-        assert file_hash is None, "Non-existent files should return None hash"
+        result = compute_file_hash(path)
+        assert result.is_failure, "Non-existent files should fail hash computation"
+        assert result.status == "file_not_found"
+        assert result.hash is None

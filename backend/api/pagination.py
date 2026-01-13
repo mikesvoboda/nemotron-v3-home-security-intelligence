@@ -21,8 +21,21 @@ Usage:
 
 import base64
 import json
+import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
+
+# Regular expression for valid base64url cursor format (NEM-2585)
+# Cursors are base64url-encoded strings (RFC 4648) containing:
+# - Alphanumeric characters (a-z, A-Z, 0-9)
+# - URL-safe characters: underscore (_) and hyphen (-)
+# - Padding character: equals (=)
+CURSOR_FORMAT_REGEX = re.compile(r"^[a-zA-Z0-9_=-]+$")
+
+# Maximum allowed cursor length to prevent DoS via oversized cursors
+# Base64-encoded JSON payload {"id": <int>, "created_at": "<ISO8601>"}
+# should not exceed 200 characters in normal operation
+MAX_CURSOR_LENGTH = 500
 
 
 @dataclass
@@ -55,6 +68,47 @@ def encode_cursor(cursor_data: CursorData) -> str:
     return base64.urlsafe_b64encode(json_str.encode()).decode()
 
 
+def validate_cursor_format(cursor: str | None) -> bool:
+    """Validate the format of a pagination cursor (NEM-2585).
+
+    This function performs security-focused validation of cursor format
+    before attempting to decode. It checks:
+    1. Cursor is not too long (DoS prevention)
+    2. Cursor contains only valid base64url characters
+
+    This validation happens BEFORE base64 decoding to reject malformed
+    cursors early and prevent potential injection attacks.
+
+    Args:
+        cursor: The cursor string to validate, or None/empty
+
+    Returns:
+        True if the cursor format is valid or cursor is None/empty
+
+    Raises:
+        ValueError: If the cursor format is invalid (bad characters, too long)
+
+    Example:
+        >>> validate_cursor_format(None)  # Returns True
+        >>> validate_cursor_format("")  # Returns True
+        >>> validate_cursor_format("eyJpZCI6MTIzfQ==")  # Returns True
+        >>> validate_cursor_format("<script>")  # Raises ValueError
+    """
+    # No cursor is valid (first page or no pagination)
+    if not cursor:
+        return True
+
+    # Check for maximum length to prevent DoS
+    if len(cursor) > MAX_CURSOR_LENGTH:
+        raise ValueError(f"Cursor exceeds maximum length of {MAX_CURSOR_LENGTH} characters")
+
+    # Check for valid base64url format
+    if not CURSOR_FORMAT_REGEX.match(cursor):
+        raise ValueError("Cursor contains invalid characters (must be base64url-encoded)")
+
+    return True
+
+
 def decode_cursor(cursor: str | None) -> CursorData | None:
     """Decode a cursor string back to CursorData.
 
@@ -69,6 +123,9 @@ def decode_cursor(cursor: str | None) -> CursorData | None:
     """
     if not cursor:
         return None
+
+    # Validate cursor format before attempting decode (NEM-2585)
+    validate_cursor_format(cursor)
 
     try:
         # Decode base64

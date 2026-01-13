@@ -48,6 +48,10 @@ import {
   getInFlightRequestCount,
   clearInFlightRequests,
   extractRateLimitInfo,
+  // Cursor validation (NEM-2585)
+  validateCursorFormat,
+  isValidCursor,
+  CursorValidationError,
   type Camera,
   type CameraCreate,
   type CameraUpdate,
@@ -3926,5 +3930,252 @@ describe('createAnalysisStream', () => {
     createAnalysisStream(params);
 
     expect(MockEventSourceClass).toHaveBeenCalledWith('/api/events/analyze/batch-empty/stream');
+  });
+});
+
+// ============================================================================
+// Cursor Validation Tests (NEM-2585)
+// ============================================================================
+
+describe('validateCursorFormat', () => {
+  describe('valid cursors', () => {
+    it('accepts undefined cursor', () => {
+      expect(validateCursorFormat(undefined)).toBe(true);
+    });
+
+    it('accepts null cursor', () => {
+      expect(validateCursorFormat(null)).toBe(true);
+    });
+
+    it('accepts empty string cursor', () => {
+      expect(validateCursorFormat('')).toBe(true);
+    });
+
+    it('accepts alphanumeric cursors', () => {
+      expect(validateCursorFormat('abc123XYZ')).toBe(true);
+      expect(validateCursorFormat('eyJpZCI6MTIzfQ')).toBe(true);
+    });
+
+    it('accepts cursors with underscores (base64url)', () => {
+      expect(validateCursorFormat('abc_def_123')).toBe(true);
+    });
+
+    it('accepts cursors with hyphens (base64url)', () => {
+      expect(validateCursorFormat('abc-def-123')).toBe(true);
+    });
+
+    it('accepts cursors with equals padding', () => {
+      expect(validateCursorFormat('eyJpZCI6MTIzfQ==')).toBe(true);
+      expect(validateCursorFormat('YWJj=')).toBe(true);
+    });
+
+    it('accepts realistic base64-encoded JSON cursor', () => {
+      // Base64 of {"id":123,"created_at":"2025-01-01T00:00:00Z"}
+      const realisticCursor = 'eyJpZCI6MTIzLCJjcmVhdGVkX2F0IjoiMjAyNS0wMS0wMVQwMDowMDowMFoifQ=='; // pragma: allowlist secret
+      expect(validateCursorFormat(realisticCursor)).toBe(true);
+    });
+  });
+
+  describe('invalid cursors', () => {
+    it('rejects cursor with HTML/XSS injection', () => {
+      expect(() => validateCursorFormat('<script>alert("xss")</script>')).toThrow(
+        CursorValidationError
+      );
+    });
+
+    it('rejects cursor with SQL injection attempt', () => {
+      expect(() => validateCursorFormat('SELECT * FROM users')).toThrow(CursorValidationError);
+    });
+
+    it('rejects cursor with spaces', () => {
+      expect(() => validateCursorFormat('abc def')).toThrow(CursorValidationError);
+    });
+
+    it('rejects cursor with special characters', () => {
+      const invalidChars = [';', '&', '?', '/', '+', '!', '"', "'", '<', '>', '{', '}', '[', ']', '|', '\\', '`'];
+      for (const char of invalidChars) {
+        expect(() => validateCursorFormat(`abc${char}def`)).toThrow(CursorValidationError);
+      }
+    });
+
+    it('rejects cursor with newlines', () => {
+      expect(() => validateCursorFormat('abc\ndef')).toThrow(CursorValidationError);
+    });
+
+    it('rejects cursor with tabs', () => {
+      expect(() => validateCursorFormat('abc\tdef')).toThrow(CursorValidationError);
+    });
+
+    it('rejects cursor exceeding max length', () => {
+      const longCursor = 'a'.repeat(501);
+      expect(() => validateCursorFormat(longCursor)).toThrow(CursorValidationError);
+      expect(() => validateCursorFormat(longCursor)).toThrow('maximum length');
+    });
+
+    it('includes helpful error message for invalid characters', () => {
+      expect(() => validateCursorFormat('<invalid>')).toThrow(CursorValidationError);
+
+      let caughtError: CursorValidationError | null = null;
+      try {
+        validateCursorFormat('<invalid>');
+      } catch (error) {
+        caughtError = error as CursorValidationError;
+      }
+      expect(caughtError).toBeInstanceOf(CursorValidationError);
+      expect(caughtError?.message).toContain('invalid characters');
+      expect(caughtError?.reason).toContain('base64url');
+    });
+
+    it('includes truncated cursor in error for long values', () => {
+      const longCursor = 'a'.repeat(501);
+      expect(() => validateCursorFormat(longCursor)).toThrow(CursorValidationError);
+
+      let caughtError: CursorValidationError | null = null;
+      try {
+        validateCursorFormat(longCursor);
+      } catch (error) {
+        caughtError = error as CursorValidationError;
+      }
+      expect(caughtError).toBeInstanceOf(CursorValidationError);
+      // Cursor should be truncated in error message
+      expect(caughtError?.cursor.length).toBeLessThan(60);
+      expect(caughtError?.cursor).toContain('...');
+    });
+  });
+
+  describe('edge cases', () => {
+    it('accepts cursor at exactly max length', () => {
+      const maxCursor = 'a'.repeat(500);
+      expect(validateCursorFormat(maxCursor)).toBe(true);
+    });
+
+    it('accepts single character cursor', () => {
+      expect(validateCursorFormat('a')).toBe(true);
+    });
+
+    it('accepts cursor with only equals signs', () => {
+      expect(validateCursorFormat('===')).toBe(true);
+    });
+
+    it('accepts cursor with mixed case', () => {
+      expect(validateCursorFormat('AbCdEfGhIjKlMnOpQrStUvWxYz')).toBe(true);
+    });
+  });
+});
+
+describe('isValidCursor', () => {
+  it('returns true for valid cursors', () => {
+    expect(isValidCursor(undefined)).toBe(true);
+    expect(isValidCursor(null)).toBe(true);
+    expect(isValidCursor('')).toBe(true);
+    expect(isValidCursor('abc123')).toBe(true);
+    expect(isValidCursor('eyJpZCI6MTIzfQ==')).toBe(true);
+  });
+
+  it('returns false for invalid cursors without throwing', () => {
+    expect(isValidCursor('<script>')).toBe(false);
+    expect(isValidCursor('abc def')).toBe(false);
+    expect(isValidCursor('a'.repeat(501))).toBe(false);
+  });
+
+  it('is useful for conditional logic', () => {
+    const cursor = '<invalid>';
+    if (!isValidCursor(cursor)) {
+      // Handle invalid cursor gracefully
+      expect(true).toBe(true);
+    }
+  });
+});
+
+describe('CursorValidationError', () => {
+  it('has correct name property', () => {
+    const error = new CursorValidationError('bad', 'test reason');
+    expect(error.name).toBe('CursorValidationError');
+  });
+
+  it('has cursor property', () => {
+    const error = new CursorValidationError('bad-cursor', 'test reason');
+    expect(error.cursor).toBe('bad-cursor');
+  });
+
+  it('has reason property', () => {
+    const error = new CursorValidationError('bad', 'specific reason');
+    expect(error.reason).toBe('specific reason');
+  });
+
+  it('includes reason in message', () => {
+    const error = new CursorValidationError('bad', 'specific reason');
+    expect(error.message).toContain('specific reason');
+  });
+
+  it('extends Error', () => {
+    const error = new CursorValidationError('bad', 'test');
+    expect(error).toBeInstanceOf(Error);
+  });
+});
+
+describe('fetchEvents cursor validation', () => {
+  beforeEach(() => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        headers: new Headers({
+          'content-type': 'application/json',
+        }),
+        json: vi.fn().mockResolvedValue({
+          items: [],
+          pagination: { total: 0, limit: 50, offset: 0, has_more: false },
+        }),
+      })
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('accepts valid cursor parameter', async () => {
+    await expect(fetchEvents({ cursor: 'eyJpZCI6MTIzfQ==' })).resolves.toBeDefined();
+  });
+
+  it('rejects invalid cursor parameter', async () => {
+    await expect(fetchEvents({ cursor: '<script>alert("xss")</script>' })).rejects.toThrow(
+      CursorValidationError
+    );
+  });
+});
+
+describe('fetchEventDetections cursor validation', () => {
+  beforeEach(() => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        headers: new Headers({
+          'content-type': 'application/json',
+        }),
+        json: vi.fn().mockResolvedValue({
+          items: [],
+          pagination: { total: 0, limit: 50, offset: 0, has_more: false },
+        }),
+      })
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('accepts valid cursor parameter', async () => {
+    await expect(fetchEventDetections(1, { cursor: 'eyJpZCI6MTIzfQ==' })).resolves.toBeDefined();
+  });
+
+  it('rejects invalid cursor parameter', async () => {
+    await expect(
+      fetchEventDetections(1, { cursor: '<script>alert("xss")</script>' })
+    ).rejects.toThrow(CursorValidationError);
   });
 });

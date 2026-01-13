@@ -81,22 +81,34 @@ class SecurityAuditLogger:
         if request and request.client:
             ip = request.client.host
 
-        await self._audit_service.log_action(
-            db=db,
-            action=AuditAction.RATE_LIMIT_EXCEEDED,
-            resource_type="api",
-            resource_id=None,
-            actor=f"ip:{mask_ip(ip)}" if ip else "unknown",
-            details={
-                "tier": tier,
-                "current_count": current_count,
-                "limit": limit,
-                "path": request.url.path if request else None,
-                "method": request.method if request else None,
-            },
-            request=request,
-            status=AuditStatus.FAILURE,
-        )
+        try:
+            await self._audit_service.log_action(
+                db=db,
+                action=AuditAction.RATE_LIMIT_EXCEEDED,
+                resource_type="api",
+                resource_id=None,
+                actor=f"ip:{mask_ip(ip)}" if ip else "unknown",
+                details={
+                    "tier": tier,
+                    "current_count": current_count,
+                    "limit": limit,
+                    "path": request.url.path if request else None,
+                    "method": request.method if request else None,
+                },
+                request=request,
+                status=AuditStatus.FAILURE,
+            )
+        except Exception as e:
+            logger.warning(
+                "Audit log write failed",
+                extra={
+                    "action": AuditAction.RATE_LIMIT_EXCEEDED.value,
+                    "resource_id": None,
+                    "resource_type": "api",
+                    "error_type": type(e).__name__,
+                    "error_message": str(e),
+                },
+            )
 
         logger.info(
             f"Audit: Rate limit exceeded for tier {tier}",
@@ -126,19 +138,31 @@ class SecurityAuditLogger:
             path: Request path (if request not provided)
             method: Request method (if request not provided)
         """
-        await self._audit_service.log_action(
-            db=db,
-            action=AuditAction.CONTENT_TYPE_REJECTED,
-            resource_type="api",
-            resource_id=None,
-            details={
-                "content_type": content_type,
-                "path": request.url.path if request else path,
-                "method": request.method if request else method,
-            },
-            request=request,
-            status=AuditStatus.FAILURE,
-        )
+        try:
+            await self._audit_service.log_action(
+                db=db,
+                action=AuditAction.CONTENT_TYPE_REJECTED,
+                resource_type="api",
+                resource_id=None,
+                details={
+                    "content_type": content_type,
+                    "path": request.url.path if request else path,
+                    "method": request.method if request else method,
+                },
+                request=request,
+                status=AuditStatus.FAILURE,
+            )
+        except Exception as e:
+            logger.warning(
+                "Audit log write failed",
+                extra={
+                    "action": AuditAction.CONTENT_TYPE_REJECTED.value,
+                    "resource_id": None,
+                    "resource_type": "api",
+                    "error_type": type(e).__name__,
+                    "error_message": str(e),
+                },
+            )
 
         logger.info(
             f"Audit: Content-Type rejected: {content_type}",
@@ -166,19 +190,31 @@ class SecurityAuditLogger:
             detected_type: The detected MIME type (or None if unknown)
             filename: The filename of the rejected file
         """
-        await self._audit_service.log_action(
-            db=db,
-            action=AuditAction.FILE_MAGIC_REJECTED,
-            resource_type="upload",
-            resource_id=filename,
-            details={
-                "claimed_type": claimed_type,
-                "detected_type": detected_type,
-                "upload_filename": filename,
-            },
-            request=request,
-            status=AuditStatus.FAILURE,
-        )
+        try:
+            await self._audit_service.log_action(
+                db=db,
+                action=AuditAction.FILE_MAGIC_REJECTED,
+                resource_type="upload",
+                resource_id=filename,
+                details={
+                    "claimed_type": claimed_type,
+                    "detected_type": detected_type,
+                    "upload_filename": filename,
+                },
+                request=request,
+                status=AuditStatus.FAILURE,
+            )
+        except Exception as e:
+            logger.warning(
+                "Audit log write failed",
+                extra={
+                    "action": AuditAction.FILE_MAGIC_REJECTED.value,
+                    "resource_id": filename,
+                    "resource_type": "upload",
+                    "error_type": type(e).__name__,
+                    "error_message": str(e),
+                },
+            )
 
         logger.info(
             f"Audit: File magic rejected: claimed {claimed_type}, detected {detected_type}",
@@ -210,20 +246,32 @@ class SecurityAuditLogger:
             new_value: New value
             resource_id: Optional resource identifier (e.g., camera_id)
         """
-        await self._audit_service.log_action(
-            db=db,
-            action=AuditAction.CONFIG_UPDATED,
-            resource_type="settings",
-            resource_id=resource_id,
-            details={
-                "setting": setting_name,
-                "old_value": _serialize_value(old_value),
-                "new_value": _serialize_value(new_value),
-                "timestamp": datetime.now(UTC).isoformat(),
-            },
-            request=request,
-            status=AuditStatus.SUCCESS,
-        )
+        try:
+            await self._audit_service.log_action(
+                db=db,
+                action=AuditAction.CONFIG_UPDATED,
+                resource_type="settings",
+                resource_id=resource_id,
+                details={
+                    "setting": setting_name,
+                    "old_value": _serialize_value(old_value),
+                    "new_value": _serialize_value(new_value),
+                    "timestamp": datetime.now(UTC).isoformat(),
+                },
+                request=request,
+                status=AuditStatus.SUCCESS,
+            )
+        except Exception as e:
+            logger.warning(
+                "Audit log write failed",
+                extra={
+                    "action": AuditAction.CONFIG_UPDATED.value,
+                    "resource_id": resource_id,
+                    "resource_type": "settings",
+                    "error_type": type(e).__name__,
+                    "error_message": str(e),
+                },
+            )
 
         logger.info(
             f"Audit: Config change: {setting_name}",
@@ -253,19 +301,31 @@ class SecurityAuditLogger:
             details: Additional details about the alert
             severity: Alert severity (low, medium, high, critical)
         """
-        await self._audit_service.log_action(
-            db=db,
-            action=AuditAction.SECURITY_ALERT,
-            resource_type="security",
-            resource_id=None,
-            details={
-                "alert_type": alert_type,
-                "severity": severity,
-                **details,
-            },
-            request=request,
-            status=AuditStatus.FAILURE,
-        )
+        try:
+            await self._audit_service.log_action(
+                db=db,
+                action=AuditAction.SECURITY_ALERT,
+                resource_type="security",
+                resource_id=None,
+                details={
+                    "alert_type": alert_type,
+                    "severity": severity,
+                    **details,
+                },
+                request=request,
+                status=AuditStatus.FAILURE,
+            )
+        except Exception as e:
+            logger.warning(
+                "Audit log write failed",
+                extra={
+                    "action": AuditAction.SECURITY_ALERT.value,
+                    "resource_id": None,
+                    "resource_type": "security",
+                    "error_type": type(e).__name__,
+                    "error_message": str(e),
+                },
+            )
 
         logger.warning(
             f"Audit: Security alert: {alert_type}",
@@ -295,19 +355,31 @@ class SecurityAuditLogger:
             record_count: Number of records exported
             filters: Filters applied to the export
         """
-        await self._audit_service.log_action(
-            db=db,
-            action=AuditAction.BULK_EXPORT_COMPLETED,
-            resource_type=export_type,
-            resource_id=None,
-            details={
-                "record_count": record_count,
-                "filters": filters or {},
-                "timestamp": datetime.now(UTC).isoformat(),
-            },
-            request=request,
-            status=AuditStatus.SUCCESS,
-        )
+        try:
+            await self._audit_service.log_action(
+                db=db,
+                action=AuditAction.BULK_EXPORT_COMPLETED,
+                resource_type=export_type,
+                resource_id=None,
+                details={
+                    "record_count": record_count,
+                    "filters": filters or {},
+                    "timestamp": datetime.now(UTC).isoformat(),
+                },
+                request=request,
+                status=AuditStatus.SUCCESS,
+            )
+        except Exception as e:
+            logger.warning(
+                "Audit log write failed",
+                extra={
+                    "action": AuditAction.BULK_EXPORT_COMPLETED.value,
+                    "resource_id": None,
+                    "resource_type": export_type,
+                    "error_type": type(e).__name__,
+                    "error_message": str(e),
+                },
+            )
 
         logger.info(
             f"Audit: Bulk export completed: {record_count} {export_type} records",
@@ -336,20 +408,32 @@ class SecurityAuditLogger:
             deleted_counts: Counts of deleted items by type
             freed_bytes: Approximate bytes freed
         """
-        await self._audit_service.log_action(
-            db=db,
-            action=AuditAction.CLEANUP_EXECUTED,
-            resource_type="system",
-            resource_id=None,
-            details={
-                "dry_run": dry_run,
-                "deleted_counts": deleted_counts,
-                "freed_bytes": freed_bytes,
-                "timestamp": datetime.now(UTC).isoformat(),
-            },
-            request=request,
-            status=AuditStatus.SUCCESS,
-        )
+        try:
+            await self._audit_service.log_action(
+                db=db,
+                action=AuditAction.CLEANUP_EXECUTED,
+                resource_type="system",
+                resource_id=None,
+                details={
+                    "dry_run": dry_run,
+                    "deleted_counts": deleted_counts,
+                    "freed_bytes": freed_bytes,
+                    "timestamp": datetime.now(UTC).isoformat(),
+                },
+                request=request,
+                status=AuditStatus.SUCCESS,
+            )
+        except Exception as e:
+            logger.warning(
+                "Audit log write failed",
+                extra={
+                    "action": AuditAction.CLEANUP_EXECUTED.value,
+                    "resource_id": None,
+                    "resource_type": "system",
+                    "error_type": type(e).__name__,
+                    "error_message": str(e),
+                },
+            )
 
         logger.info(
             f"Audit: Cleanup executed (dry_run={dry_run})",
