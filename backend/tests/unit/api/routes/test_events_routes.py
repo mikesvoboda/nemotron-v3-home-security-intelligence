@@ -824,6 +824,46 @@ class TestGetEventStatsRouteComprehensive:
 
         assert result.total_events == 25
 
+    @pytest.mark.asyncio
+    async def test_get_event_stats_with_camera_id_filter(self):
+        """Test that get_event_stats applies camera_id filter correctly (NEM-2434)."""
+        from backend.api.routes.events import get_event_stats
+
+        mock_db = AsyncMock(spec=AsyncSession)
+        mock_cache = AsyncMock()
+        mock_cache.get = AsyncMock(return_value=None)
+
+        # Mock total count (filtered to specific camera)
+        mock_total_result = MagicMock()
+        mock_total_result.scalar.return_value = 25  # Subset of events
+
+        # Mock risk level breakdown (filtered to specific camera)
+        mock_risk_result = MagicMock()
+        mock_risk_result.all.return_value = [("high", 10), ("medium", 10), ("low", 5)]
+
+        # Mock camera breakdown (only one camera since filtered)
+        mock_camera_result = MagicMock()
+        mock_camera_result.all.return_value = [("cam1", "Front Door", 25)]
+
+        mock_db.execute = AsyncMock(
+            side_effect=[mock_total_result, mock_risk_result, mock_camera_result]
+        )
+
+        result = await get_event_stats(
+            start_date=None,
+            end_date=None,
+            camera_id="cam1",  # New camera_id filter
+            db=mock_db,
+            cache=mock_cache,
+        )
+
+        assert result.total_events == 25
+        assert result.events_by_risk_level.high == 10
+        assert result.events_by_risk_level.medium == 10
+        assert result.events_by_risk_level.low == 5
+        assert len(result.events_by_camera) == 1
+        assert result.events_by_camera[0].camera_id == "cam1"
+
 
 class TestSearchEventsRouteComprehensive:
     """Comprehensive tests for search_events_endpoint."""

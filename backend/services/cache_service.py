@@ -461,18 +461,23 @@ class CacheKeys(metaclass=_CacheKeysMeta):
         return f"{prefix}:cache:cameras:{camera_id}"
 
     @staticmethod
-    def event_stats(start_date: str | None = None, end_date: str | None = None) -> str:
+    def event_stats(
+        start_date: str | None = None,
+        end_date: str | None = None,
+        camera_id: str | None = None,
+    ) -> str:
         """Cache key for event statistics.
 
         Args:
             start_date: Start date for stats range
             end_date: End date for stats range
+            camera_id: Optional camera ID filter
 
         Returns:
-            Prefixed cache key: {PREFIX}:cache:event_stats:{start}:{end}
+            Prefixed cache key: {PREFIX}:cache:event_stats:{start}:{end}:{camera_id}
         """
         prefix = _get_global_prefix()
-        return f"{prefix}:cache:event_stats:{start_date or 'none'}:{end_date or 'none'}"
+        return f"{prefix}:cache:event_stats:{start_date or 'none'}:{end_date or 'none'}:{camera_id or 'all'}"
 
     @staticmethod
     def system_status() -> str:

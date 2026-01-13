@@ -30,14 +30,14 @@ const defaultPerformanceData: PerformanceUpdate = {
   },
   ai_models: {
     rtdetr: {
-      status: 'loaded',
+      status: 'healthy',
       vram_gb: 1.2,
       model: 'RT-DETRv2',
       device: 'cuda:0',
     },
   },
   nemotron: {
-    status: 'running',
+    status: 'healthy',
     slots_active: 1,
     slots_total: 4,
     context_size: 32768,
@@ -332,11 +332,12 @@ describe('SystemSummaryRow', () => {
   });
 
   describe('AI Models Indicator', () => {
-    it('displays AI models count correctly', () => {
+    it('displays AI models count correctly for core models', () => {
       render(<SystemSummaryRow />);
 
       const aiIndicator = screen.getByTestId('summary-indicator-ai-models');
-      expect(within(aiIndicator).getByTestId('indicator-primary-ai-models')).toHaveTextContent('2/3');
+      // Now shows core models (RT-DETR + Nemotron) = 2/2 when both healthy
+      expect(within(aiIndicator).getByTestId('indicator-primary-ai-models')).toHaveTextContent('2/2');
     });
 
     it('shows inference count', () => {
@@ -346,37 +347,59 @@ describe('SystemSummaryRow', () => {
       expect(within(aiIndicator).getByTestId('indicator-secondary-ai-models')).toHaveTextContent('1.9k inf');
     });
 
-    it('shows healthy state when models are loaded', () => {
+    it('shows healthy state when both core models are healthy', () => {
       render(<SystemSummaryRow />);
 
       const aiStatus = screen.getByTestId('indicator-status-ai-models');
       expect(aiStatus.querySelector('svg')).toHaveClass('text-green-500');
     });
 
-    it('shows critical state when models have errors', () => {
+    it('shows degraded state when one core model is unhealthy', () => {
       setupMocks({
-        models: [
-          { name: 'rtdetr', display_name: 'RT-DETRv2', vram_mb: 1200, status: 'error' as const, category: 'detection', enabled: true, available: true },
-        ],
-      });
-
-      render(<SystemSummaryRow />);
-
-      const aiStatus = screen.getByTestId('indicator-status-ai-models');
-      expect(aiStatus.querySelector('svg')).toHaveClass('text-red-500');
-    });
-
-    it('shows degraded state when no models are loaded', () => {
-      setupMocks({
-        models: [
-          { name: 'rtdetr', display_name: 'RT-DETRv2', vram_mb: 1200, status: 'unloaded' as const, category: 'detection', enabled: true, available: true },
-        ],
+        performance: {
+          ...defaultPerformanceData,
+          ai_models: {
+            rtdetr: {
+              status: 'error',
+              vram_gb: 1.2,
+              model: 'RT-DETRv2',
+              device: 'cuda:0',
+            },
+          },
+        },
       });
 
       render(<SystemSummaryRow />);
 
       const aiStatus = screen.getByTestId('indicator-status-ai-models');
       expect(aiStatus.querySelector('svg')).toHaveClass('text-yellow-500');
+    });
+
+    it('shows critical state when no core models are healthy', () => {
+      setupMocks({
+        performance: {
+          ...defaultPerformanceData,
+          ai_models: {
+            rtdetr: {
+              status: 'error',
+              vram_gb: 1.2,
+              model: 'RT-DETRv2',
+              device: 'cuda:0',
+            },
+          },
+          nemotron: {
+            status: 'error',
+            slots_active: 0,
+            slots_total: 4,
+            context_size: 32768,
+          },
+        },
+      });
+
+      render(<SystemSummaryRow />);
+
+      const aiStatus = screen.getByTestId('indicator-status-ai-models');
+      expect(aiStatus.querySelector('svg')).toHaveClass('text-red-500');
     });
   });
 
@@ -531,7 +554,7 @@ describe('SystemSummaryRow', () => {
 
     it('handles keyboard navigation with Enter key', () => {
       const mockElement = document.createElement('div');
-      mockElement.id = 'section-ai-models';
+      mockElement.id = 'section-model-zoo';
       document.body.appendChild(mockElement);
 
       render(<SystemSummaryRow />);
@@ -584,8 +607,9 @@ describe('SystemSummaryRow', () => {
 
       const tooltip = screen.getByTestId('indicator-tooltip-ai-models');
       expect(tooltip).toBeInTheDocument();
-      expect(tooltip).toHaveTextContent('Loaded models: 2');
-      expect(tooltip).toHaveTextContent('RT-DETRv2');
+      // Now shows core model statuses
+      expect(tooltip).toHaveTextContent('RT-DETR:');
+      expect(tooltip).toHaveTextContent('Nemotron:');
     });
 
     it('renders tooltip content for Infrastructure indicator', () => {
@@ -741,16 +765,20 @@ describe('SystemSummaryRow', () => {
       expect(screen.getByTestId('summary-indicator-gpu')).toBeInTheDocument();
     });
 
-    it('handles empty models array', () => {
+    it('handles missing core models gracefully', () => {
       setupMocks({
-        models: [],
+        performance: {
+          ...defaultPerformanceData,
+          ai_models: undefined,
+          nemotron: undefined,
+        },
       });
 
       render(<SystemSummaryRow />);
 
       const aiIndicator = screen.getByTestId('summary-indicator-ai-models');
-      // When totalModels is 0, we show "?" to indicate unknown
-      expect(within(aiIndicator).getByTestId('indicator-primary-ai-models')).toHaveTextContent('0/?');
+      // When core models are missing, count shows 0/2
+      expect(within(aiIndicator).getByTestId('indicator-primary-ai-models')).toHaveTextContent('0/2');
     });
 
     it('handles disconnected WebSocket', () => {

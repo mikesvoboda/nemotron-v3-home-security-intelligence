@@ -436,6 +436,7 @@ async def list_events(  # noqa: PLR0912
 async def get_event_stats(
     start_date: datetime | None = Query(None, description="Filter by start date (ISO format)"),
     end_date: datetime | None = Query(None, description="Filter by end date (ISO format)"),
+    camera_id: str | None = Query(None, description="Filter by camera ID"),
     db: AsyncSession = Depends(get_db),
     cache: CacheService = Depends(get_cache_service_dep),
 ) -> EventStatsResponse:
@@ -452,6 +453,7 @@ async def get_event_stats(
     Args:
         start_date: Optional start date for date range filter
         end_date: Optional end date for date range filter
+        camera_id: Optional camera ID filter (for camera-specific stats)
         db: Database session
         cache: Cache service injected via FastAPI DI
 
@@ -464,11 +466,11 @@ async def get_event_stats(
     # Validate date range
     validate_date_range(start_date, end_date)
 
-    # Generate cache key based on date filters
+    # Generate cache key based on date and camera filters
     # Check isinstance() to handle case when tests pass Query objects directly
     start_str = start_date.isoformat() if isinstance(start_date, datetime) else None
     end_str = end_date.isoformat() if isinstance(end_date, datetime) else None
-    cache_key = CacheKeys.event_stats(start_str, end_str)
+    cache_key = CacheKeys.event_stats(start_str, end_str, camera_id)
 
     # Try cache first
     try:
@@ -480,16 +482,18 @@ async def get_event_stats(
     except Exception as e:
         logger.warning(f"Cache read failed, falling back to database: {e}")
 
-    # Build date filter conditions (reused across queries)
-    date_filters = []
+    # Build filter conditions (reused across queries)
+    filters = []
     if start_date:
-        date_filters.append(Event.started_at >= start_date)
+        filters.append(Event.started_at >= start_date)
     if end_date:
-        date_filters.append(Event.started_at <= end_date)
+        filters.append(Event.started_at <= end_date)
+    if camera_id:
+        filters.append(Event.camera_id == camera_id)
 
     # Get total count using database aggregation
     total_count_query = select(func.count()).select_from(Event)
-    for condition in date_filters:
+    for condition in filters:
         total_count_query = total_count_query.where(condition)
     total_count_result = await db.execute(total_count_query)
     total_events = total_count_result.scalar() or 0
@@ -498,7 +502,7 @@ async def get_event_stats(
     risk_level_query = select(Event.risk_level, func.count().label("count")).group_by(
         Event.risk_level
     )
-    for condition in date_filters:
+    for condition in filters:
         risk_level_query = risk_level_query.where(condition)
     risk_level_result = await db.execute(risk_level_query)
     risk_level_rows = risk_level_result.all()
@@ -521,7 +525,7 @@ async def get_event_stats(
         .group_by(Event.camera_id, Camera.name)
         .order_by(func.count().desc())
     )
-    for condition in date_filters:
+    for condition in filters:
         camera_stats_query = camera_stats_query.where(condition)
     camera_stats_result = await db.execute(camera_stats_query)
     camera_stats_rows = camera_stats_result.all()

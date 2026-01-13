@@ -1573,3 +1573,351 @@ class TestCircuitBreakerState:
 
         state = circuit_breaker.get_state("test-service")
         assert state == "open"
+
+
+# =============================================================================
+# Monitoring Health Endpoint Tests (NEM-2470)
+# =============================================================================
+
+
+class TestMonitoringHealthHelpers:
+    """Tests for monitoring health helper functions."""
+
+    def test_parse_prometheus_timestamp_valid(self) -> None:
+        """Test parsing valid Prometheus timestamps."""
+        from backend.api.routes.system import _parse_prometheus_timestamp
+
+        # Test standard ISO format
+        result = _parse_prometheus_timestamp("2024-01-13T10:30:00Z")
+        assert result is not None
+        assert result.year == 2024
+        assert result.month == 1
+        assert result.day == 13
+        assert result.hour == 10
+        assert result.minute == 30
+
+    def test_parse_prometheus_timestamp_with_nanoseconds(self) -> None:
+        """Test parsing Prometheus timestamps with nanoseconds."""
+        from backend.api.routes.system import _parse_prometheus_timestamp
+
+        # Test timestamp with nanosecond precision
+        result = _parse_prometheus_timestamp("2024-01-13T10:30:00.123456789Z")
+        assert result is not None
+        assert result.year == 2024
+
+    def test_parse_prometheus_timestamp_none(self) -> None:
+        """Test parsing None timestamp returns None."""
+        from backend.api.routes.system import _parse_prometheus_timestamp
+
+        assert _parse_prometheus_timestamp(None) is None
+
+    def test_parse_prometheus_timestamp_invalid(self) -> None:
+        """Test parsing invalid timestamp returns None."""
+        from backend.api.routes.system import _parse_prometheus_timestamp
+
+        assert _parse_prometheus_timestamp("invalid") is None
+        assert _parse_prometheus_timestamp("") is None
+
+    def test_build_targets_summary_empty(self) -> None:
+        """Test building targets summary from empty list."""
+        from backend.api.routes.system import _build_targets_summary
+
+        result = _build_targets_summary([])
+        assert result == []
+
+    def test_build_targets_summary_single_job(self) -> None:
+        """Test building targets summary for single job."""
+        from backend.api.routes.system import _build_targets_summary
+
+        targets = [
+            {"job": "test-job", "health": "up"},
+            {"job": "test-job", "health": "up"},
+            {"job": "test-job", "health": "down"},
+        ]
+        result = _build_targets_summary(targets)
+
+        assert len(result) == 1
+        assert result[0].job == "test-job"
+        assert result[0].total == 3
+        assert result[0].up == 2
+        assert result[0].down == 1
+
+    def test_build_targets_summary_multiple_jobs(self) -> None:
+        """Test building targets summary for multiple jobs."""
+        from backend.api.routes.system import _build_targets_summary
+
+        targets = [
+            {"job": "job-a", "health": "up"},
+            {"job": "job-b", "health": "up"},
+            {"job": "job-a", "health": "down"},
+        ]
+        result = _build_targets_summary(targets)
+
+        assert len(result) == 2
+        # Results are sorted by job name
+        assert result[0].job == "job-a"
+        assert result[1].job == "job-b"
+
+    def test_build_exporter_status_with_matching_targets(self) -> None:
+        """Test building exporter status when targets match."""
+        from backend.api.routes.system import _build_exporter_status
+
+        targets = [
+            {
+                "job": "redis",
+                "instance": "redis-exporter:9121",
+                "health": "up",
+                "lastScrape": None,
+                "lastError": "",
+            },
+        ]
+        result = _build_exporter_status(targets)
+
+        # Should find redis-exporter
+        redis_exporter = next((e for e in result if e.name == "redis-exporter"), None)
+        assert redis_exporter is not None
+        assert redis_exporter.status.value == "up"
+
+    def test_build_exporter_status_no_matching_targets(self) -> None:
+        """Test building exporter status when no targets match."""
+        from backend.api.routes.system import _build_exporter_status
+
+        result = _build_exporter_status([])
+
+        # All exporters should be unknown
+        for exporter in result:
+            assert exporter.status.value == "unknown"
+            assert "not found" in exporter.error.lower()
+
+    def test_identify_monitoring_issues_prometheus_unreachable(self) -> None:
+        """Test identifying issues when Prometheus is unreachable."""
+        from backend.api.routes.system import _identify_monitoring_issues
+
+        issues = _identify_monitoring_issues(
+            prometheus_reachable=False,
+            targets_summary=[],
+            exporters=[],
+        )
+
+        assert len(issues) == 1
+        assert "not reachable" in issues[0].lower()
+
+    def test_identify_monitoring_issues_all_targets_down(self) -> None:
+        """Test identifying issues when all targets in a job are down."""
+        from backend.api.routes.system import (
+            ExporterStatus,
+            ExporterStatusEnum,
+            _identify_monitoring_issues,
+        )
+        from backend.api.schemas.system import JobTargetSummary
+
+        targets_summary = [
+            JobTargetSummary(job="test-job", total=2, up=0, down=2),
+        ]
+        exporters = [
+            ExporterStatus(
+                name="test-exporter",
+                status=ExporterStatusEnum.UP,
+                endpoint="http://test:9121",
+            ),
+        ]
+
+        issues = _identify_monitoring_issues(
+            prometheus_reachable=True,
+            targets_summary=targets_summary,
+            exporters=exporters,
+        )
+
+        assert any("all targets" in issue.lower() for issue in issues)
+
+    def test_identify_monitoring_issues_exporter_down(self) -> None:
+        """Test identifying issues when an exporter is down."""
+        from backend.api.routes.system import (
+            ExporterStatus,
+            ExporterStatusEnum,
+            _identify_monitoring_issues,
+        )
+
+        exporters = [
+            ExporterStatus(
+                name="test-exporter",
+                status=ExporterStatusEnum.DOWN,
+                endpoint="http://test:9121",
+                error="Connection refused",
+            ),
+        ]
+
+        issues = _identify_monitoring_issues(
+            prometheus_reachable=True,
+            targets_summary=[],
+            exporters=exporters,
+        )
+
+        assert any("test-exporter" in issue.lower() and "down" in issue.lower() for issue in issues)
+
+
+class TestMonitoringHealthEndpoint:
+    """Tests for monitoring health API endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_monitoring_health_prometheus_unreachable(
+        self, async_client: AsyncClient, mock_settings: Settings
+    ) -> None:
+        """Test monitoring health when Prometheus is unreachable."""
+        mock_settings.prometheus_url = "http://prometheus:9090"
+
+        with patch(
+            "backend.api.routes.system._check_prometheus_reachability",
+            new=AsyncMock(return_value=(False, {"error": "Connection refused"})),
+        ):
+            response = await async_client.get("/api/system/monitoring/health")
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["healthy"] is False
+            assert data["prometheus_reachable"] is False
+            assert "not reachable" in data["issues"][0].lower()
+
+    @pytest.mark.asyncio
+    async def test_monitoring_health_prometheus_reachable(
+        self, async_client: AsyncClient, mock_settings: Settings
+    ) -> None:
+        """Test monitoring health when Prometheus is reachable."""
+        mock_settings.prometheus_url = "http://prometheus:9090"
+
+        mock_targets = [
+            {
+                "job": "hsi-backend-metrics",
+                "instance": "backend:8000",
+                "health": "up",
+                "lastScrape": "2024-01-13T10:30:00Z",
+                "lastError": "",
+            },
+            {
+                "job": "redis",
+                "instance": "redis-exporter:9121",
+                "health": "up",
+                "lastScrape": "2024-01-13T10:30:00Z",
+                "lastError": "",
+            },
+        ]
+
+        with (
+            patch(
+                "backend.api.routes.system._check_prometheus_reachability",
+                new=AsyncMock(return_value=(True, {"status": "ready"})),
+            ),
+            patch(
+                "backend.api.routes.system._get_prometheus_targets",
+                new=AsyncMock(return_value=mock_targets),
+            ),
+            patch(
+                "backend.api.routes.system._get_prometheus_tsdb_status",
+                new=AsyncMock(return_value={"headStats": {"numSeries": 1000}}),
+            ),
+        ):
+            response = await async_client.get("/api/system/monitoring/health")
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["healthy"] is True
+            assert data["prometheus_reachable"] is True
+            assert len(data["targets_summary"]) == 2
+            assert data["metrics_collection"]["collecting"] is True
+            assert data["metrics_collection"]["total_series"] == 1000
+
+
+class TestMonitoringTargetsEndpoint:
+    """Tests for monitoring targets API endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_monitoring_targets_prometheus_unreachable(
+        self, async_client: AsyncClient, mock_settings: Settings
+    ) -> None:
+        """Test monitoring targets when Prometheus is unreachable."""
+        mock_settings.prometheus_url = "http://prometheus:9090"
+
+        with patch(
+            "backend.api.routes.system._check_prometheus_reachability",
+            new=AsyncMock(return_value=(False, {"error": "Connection refused"})),
+        ):
+            response = await async_client.get("/api/system/monitoring/targets")
+
+            assert response.status_code == 503
+            assert "not reachable" in response.json()["detail"].lower()
+
+    @pytest.mark.asyncio
+    async def test_monitoring_targets_success(
+        self, async_client: AsyncClient, mock_settings: Settings
+    ) -> None:
+        """Test monitoring targets returns correct data."""
+        mock_settings.prometheus_url = "http://prometheus:9090"
+
+        mock_targets = [
+            {
+                "job": "hsi-backend-metrics",
+                "instance": "backend:8000",
+                "health": "up",
+                "labels": {"service": "hsi"},
+                "lastScrape": "2024-01-13T10:30:00Z",
+                "lastError": "",
+                "scrapeDuration": "0.025",
+            },
+            {
+                "job": "redis",
+                "instance": "redis-exporter:9121",
+                "health": "down",
+                "labels": {},
+                "lastScrape": "2024-01-13T10:30:00Z",
+                "lastError": "Connection refused",
+                "scrapeDuration": None,
+            },
+        ]
+
+        with (
+            patch(
+                "backend.api.routes.system._check_prometheus_reachability",
+                new=AsyncMock(return_value=(True, {"status": "ready"})),
+            ),
+            patch(
+                "backend.api.routes.system._get_prometheus_targets",
+                new=AsyncMock(return_value=mock_targets),
+            ),
+        ):
+            response = await async_client.get("/api/system/monitoring/targets")
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["total"] == 2
+            assert data["up"] == 1
+            assert data["down"] == 1
+            assert len(data["targets"]) == 2
+            assert "hsi-backend-metrics" in data["jobs"]
+            assert "redis" in data["jobs"]
+
+    @pytest.mark.asyncio
+    async def test_monitoring_targets_empty(
+        self, async_client: AsyncClient, mock_settings: Settings
+    ) -> None:
+        """Test monitoring targets with no targets configured."""
+        mock_settings.prometheus_url = "http://prometheus:9090"
+
+        with (
+            patch(
+                "backend.api.routes.system._check_prometheus_reachability",
+                new=AsyncMock(return_value=(True, {"status": "ready"})),
+            ),
+            patch(
+                "backend.api.routes.system._get_prometheus_targets",
+                new=AsyncMock(return_value=[]),
+            ),
+        ):
+            response = await async_client.get("/api/system/monitoring/targets")
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["total"] == 0
+            assert data["up"] == 0
+            assert data["down"] == 0
+            assert data["targets"] == []
+            assert data["jobs"] == []

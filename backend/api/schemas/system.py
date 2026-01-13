@@ -2248,3 +2248,334 @@ class ModelLatencyHistoryResponse(BaseModel):
             }
         }
     )
+
+
+# =============================================================================
+# Monitoring Stack Health Schemas (NEM-2470)
+# =============================================================================
+
+
+class ExporterStatusEnum(str, Enum):
+    """Exporter status states."""
+
+    UP = "up"
+    DOWN = "down"
+    UNKNOWN = "unknown"
+
+
+class ExporterStatus(BaseModel):
+    """Status information for a single Prometheus exporter.
+
+    Represents the health status of an exporter that provides metrics
+    to Prometheus (e.g., redis-exporter, json-exporter, blackbox-exporter).
+    """
+
+    name: str = Field(
+        ...,
+        description="Exporter name (e.g., 'redis-exporter', 'json-exporter')",
+    )
+    status: ExporterStatusEnum = Field(
+        ...,
+        description="Current status: up, down, or unknown",
+    )
+    endpoint: str | None = Field(
+        None,
+        description="Scrape endpoint URL for this exporter",
+    )
+    last_scrape: datetime | None = Field(
+        None,
+        description="Timestamp of last successful scrape (if available)",
+    )
+    error: str | None = Field(
+        None,
+        description="Error message if exporter is down",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "name": "redis-exporter",
+                "status": "up",
+                "endpoint": "http://redis-exporter:9121",
+                "last_scrape": "2026-01-13T10:30:00Z",
+                "error": None,
+            }
+        }
+    )
+
+
+class TargetHealth(BaseModel):
+    """Health status for a single Prometheus scrape target."""
+
+    job: str = Field(
+        ...,
+        description="Job name this target belongs to",
+    )
+    instance: str = Field(
+        ...,
+        description="Target instance identifier (typically host:port)",
+    )
+    health: str = Field(
+        ...,
+        description="Target health: 'up' or 'down'",
+    )
+    labels: dict[str, str] = Field(
+        default_factory=dict,
+        description="Labels associated with this target",
+    )
+    last_scrape: datetime | None = Field(
+        None,
+        description="Timestamp of last scrape attempt",
+    )
+    last_error: str | None = Field(
+        None,
+        description="Error from last failed scrape (if any)",
+    )
+    scrape_duration_seconds: float | None = Field(
+        None,
+        description="Duration of last scrape in seconds",
+        ge=0,
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "job": "hsi-backend-metrics",
+                "instance": "backend:8000",
+                "health": "up",
+                "labels": {"service": "home-security-intelligence"},
+                "last_scrape": "2026-01-13T10:30:00Z",
+                "last_error": None,
+                "scrape_duration_seconds": 0.025,
+            }
+        }
+    )
+
+
+class JobTargetSummary(BaseModel):
+    """Summary of target health for a specific Prometheus job."""
+
+    job: str = Field(
+        ...,
+        description="Prometheus job name",
+    )
+    total: int = Field(
+        ...,
+        description="Total number of targets in this job",
+        ge=0,
+    )
+    up: int = Field(
+        ...,
+        description="Number of targets that are up",
+        ge=0,
+    )
+    down: int = Field(
+        ...,
+        description="Number of targets that are down",
+        ge=0,
+    )
+    unknown: int = Field(
+        default=0,
+        description="Number of targets with unknown status",
+        ge=0,
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "job": "hsi-backend-metrics",
+                "total": 1,
+                "up": 1,
+                "down": 0,
+                "unknown": 0,
+            }
+        }
+    )
+
+
+class MetricsCollectionStatus(BaseModel):
+    """Status of metrics collection from Prometheus."""
+
+    collecting: bool = Field(
+        ...,
+        description="Whether Prometheus is actively collecting metrics",
+    )
+    last_successful_scrape: datetime | None = Field(
+        None,
+        description="Timestamp of most recent successful scrape across all targets",
+    )
+    scrape_interval_seconds: int = Field(
+        default=15,
+        description="Configured global scrape interval in seconds",
+        ge=1,
+    )
+    total_series: int | None = Field(
+        None,
+        description="Total number of time series in Prometheus (if available)",
+        ge=0,
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "collecting": True,
+                "last_successful_scrape": "2026-01-13T10:30:00Z",
+                "scrape_interval_seconds": 15,
+                "total_series": 15000,
+            }
+        }
+    )
+
+
+class MonitoringHealthResponse(BaseModel):
+    """Response schema for monitoring stack health endpoint.
+
+    Provides comprehensive health status of the monitoring infrastructure:
+    - Prometheus server reachability and status
+    - Scrape target health summary by job
+    - Exporter status (redis-exporter, json-exporter, blackbox-exporter)
+    - Metrics collection status
+
+    This endpoint helps operators quickly identify issues with the
+    monitoring stack without accessing Prometheus UI directly.
+    """
+
+    healthy: bool = Field(
+        ...,
+        description="Overall monitoring stack health: True if Prometheus reachable and majority of targets up",
+    )
+    prometheus_reachable: bool = Field(
+        ...,
+        description="Whether Prometheus server is reachable",
+    )
+    prometheus_url: str = Field(
+        ...,
+        description="Configured Prometheus server URL",
+    )
+    targets_summary: list[JobTargetSummary] = Field(
+        ...,
+        description="Summary of target health by job",
+    )
+    exporters: list[ExporterStatus] = Field(
+        ...,
+        description="Status of known exporters",
+    )
+    metrics_collection: MetricsCollectionStatus = Field(
+        ...,
+        description="Metrics collection status",
+    )
+    issues: list[str] = Field(
+        default_factory=list,
+        description="List of identified issues with the monitoring stack",
+    )
+    timestamp: datetime = Field(
+        ...,
+        description="Timestamp of health check",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "healthy": True,
+                "prometheus_reachable": True,
+                "prometheus_url": "http://prometheus:9090",
+                "targets_summary": [
+                    {"job": "hsi-backend-metrics", "total": 1, "up": 1, "down": 0, "unknown": 0},
+                    {"job": "redis", "total": 1, "up": 1, "down": 0, "unknown": 0},
+                    {"job": "blackbox-http-health", "total": 1, "up": 1, "down": 0, "unknown": 0},
+                ],
+                "exporters": [
+                    {
+                        "name": "redis-exporter",
+                        "status": "up",
+                        "endpoint": "http://redis-exporter:9121",
+                        "last_scrape": "2026-01-13T10:30:00Z",
+                        "error": None,
+                    },
+                    {
+                        "name": "json-exporter",
+                        "status": "up",
+                        "endpoint": "http://json-exporter:7979",
+                        "last_scrape": "2026-01-13T10:30:00Z",
+                        "error": None,
+                    },
+                ],
+                "metrics_collection": {
+                    "collecting": True,
+                    "last_successful_scrape": "2026-01-13T10:30:00Z",
+                    "scrape_interval_seconds": 15,
+                    "total_series": 15000,
+                },
+                "issues": [],
+                "timestamp": "2026-01-13T10:30:00Z",
+            }
+        }
+    )
+
+
+class MonitoringTargetsResponse(BaseModel):
+    """Response schema for detailed monitoring targets endpoint.
+
+    Returns complete information about all Prometheus scrape targets
+    including their health status, labels, and scrape timing.
+    """
+
+    targets: list[TargetHealth] = Field(
+        ...,
+        description="Detailed status of all scrape targets",
+    )
+    total: int = Field(
+        ...,
+        description="Total number of targets",
+        ge=0,
+    )
+    up: int = Field(
+        ...,
+        description="Number of targets that are up",
+        ge=0,
+    )
+    down: int = Field(
+        ...,
+        description="Number of targets that are down",
+        ge=0,
+    )
+    jobs: list[str] = Field(
+        ...,
+        description="List of unique job names",
+    )
+    timestamp: datetime = Field(
+        ...,
+        description="Timestamp of targets query",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "targets": [
+                    {
+                        "job": "hsi-backend-metrics",
+                        "instance": "backend:8000",
+                        "health": "up",
+                        "labels": {"service": "home-security-intelligence"},
+                        "last_scrape": "2026-01-13T10:30:00Z",
+                        "last_error": None,
+                        "scrape_duration_seconds": 0.025,
+                    },
+                    {
+                        "job": "redis",
+                        "instance": "redis-exporter:9121",
+                        "health": "up",
+                        "labels": {},
+                        "last_scrape": "2026-01-13T10:30:00Z",
+                        "last_error": None,
+                        "scrape_duration_seconds": 0.015,
+                    },
+                ],
+                "total": 2,
+                "up": 2,
+                "down": 0,
+                "jobs": ["hsi-backend-metrics", "redis"],
+                "timestamp": "2026-01-13T10:30:00Z",
+            }
+        }
+    )

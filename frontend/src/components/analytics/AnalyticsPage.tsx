@@ -55,10 +55,14 @@ import {
  * - Class frequency distribution
  * - Anomaly detection configuration
  */
+// Special value for "All Cameras" option - empty string
+const ALL_CAMERAS_VALUE = '';
+
 export default function AnalyticsPage() {
   // State
   const [cameras, setCameras] = useState<CameraType[]>([]);
-  const [selectedCameraId, setSelectedCameraId] = useState<string | null>(null);
+  // Empty string means "All Cameras", non-empty means specific camera
+  const [selectedCameraId, setSelectedCameraId] = useState<string>(ALL_CAMERAS_VALUE);
   const [activityBaseline, setActivityBaseline] = useState<ActivityBaselineResponse | null>(null);
   const [classBaseline, setClassBaseline] = useState<ClassBaselineResponse | null>(null);
   const [anomalyConfig, setAnomalyConfig] = useState<AnomalyConfig | null>(null);
@@ -70,16 +74,19 @@ export default function AnalyticsPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedTab, setSelectedTab] = useState(0);
 
+  // Helper to check if "All Cameras" is selected
+  const isAllCamerasSelected = selectedCameraId === ALL_CAMERAS_VALUE;
+
   // Load cameras on mount
   useEffect(() => {
     const loadCameras = async () => {
       try {
         const camerasData = await fetchCameras();
         setCameras(camerasData);
-        if (camerasData.length > 0) {
-          setSelectedCameraId(camerasData[0].id);
-        } else {
-          // No cameras available, stop loading
+        // Default to "All Cameras" view for aggregate stats
+        // Don't change selectedCameraId - it's already set to ALL_CAMERAS_VALUE
+        if (camerasData.length === 0) {
+          // No cameras available, but still allow loading aggregate stats
           setIsLoading(false);
         }
       } catch (err) {
@@ -92,10 +99,16 @@ export default function AnalyticsPage() {
     void loadCameras();
   }, []);
 
-  // Load baseline data when camera changes
-  const loadBaselineData = useCallback(async (cameraId: string) => {
+  // Load analytics data when camera changes
+  // cameraId can be empty string for "All Cameras" or a specific camera ID
+  const loadAnalyticsData = useCallback(async (cameraId: string) => {
     setIsLoading(true);
     setError(null);
+
+    // Determine if this is "All Cameras" view
+    const isAllCameras = cameraId === ALL_CAMERAS_VALUE;
+    // Only pass camera_id to API when a specific camera is selected
+    const cameraIdParam = isAllCameras ? undefined : cameraId;
 
     try {
       // Calculate date range for last 7 days
@@ -103,24 +116,53 @@ export default function AnalyticsPage() {
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - 7);
 
-      const [activity, classes, config, stats, detStats, events] = await Promise.all([
-        fetchCameraActivityBaseline(cameraId),
-        fetchCameraClassBaseline(cameraId),
+      // Prepare API calls - camera-specific baselines only when a camera is selected
+      const apiCalls: Promise<unknown>[] = [
+        // Always fetch anomaly config (global setting)
         fetchAnomalyConfig(),
+        // Always fetch event stats with consistent camera filtering
         fetchEventStats({
           start_date: startDate.toISOString().split('T')[0],
           end_date: endDate.toISOString().split('T')[0],
+          camera_id: cameraIdParam,
         }),
-        fetchDetectionStats(),
-        fetchEvents({ risk_level: 'high', limit: 10 }),
-      ]);
+        // Always fetch detection stats with consistent camera filtering
+        fetchDetectionStats({ camera_id: cameraIdParam }),
+        // Always fetch high risk events with consistent camera filtering
+        fetchEvents({ risk_level: 'high', limit: 10, camera_id: cameraIdParam }),
+      ];
 
-      setActivityBaseline(activity);
-      setClassBaseline(classes);
+      // Camera-specific baselines only when a specific camera is selected
+      if (!isAllCameras) {
+        apiCalls.push(
+          fetchCameraActivityBaseline(cameraId),
+          fetchCameraClassBaseline(cameraId)
+        );
+      }
+
+      const results = await Promise.all(apiCalls);
+
+      // Extract results based on whether all cameras or specific camera
+      const config = results[0] as AnomalyConfig;
+      const stats = results[1] as EventStatsResponse;
+      const detStats = results[2] as DetectionStatsResponse;
+      const eventsResult = results[3] as { items: Event[] };
+
       setAnomalyConfig(config);
       setEventStats(stats);
       setDetectionStats(detStats);
-      setHighRiskEvents(events.items);
+      setHighRiskEvents(eventsResult.items);
+
+      if (!isAllCameras) {
+        const activity = results[4] as ActivityBaselineResponse;
+        const classes = results[5] as ClassBaselineResponse;
+        setActivityBaseline(activity);
+        setClassBaseline(classes);
+      } else {
+        // Clear camera-specific data when "All Cameras" is selected
+        setActivityBaseline(null);
+        setClassBaseline(null);
+      }
     } catch (err) {
       setError('Failed to load analytics data');
       console.error('Failed to load analytics data:', err);
@@ -129,24 +171,23 @@ export default function AnalyticsPage() {
     }
   }, []);
 
-  // Load data when selected camera changes
+  // Load data when selected camera changes or on initial mount
   useEffect(() => {
-    if (selectedCameraId) {
-      void loadBaselineData(selectedCameraId);
-    }
-  }, [selectedCameraId, loadBaselineData]);
+    // Always load analytics data - even for "All Cameras" (empty string)
+    void loadAnalyticsData(selectedCameraId);
+  }, [selectedCameraId, loadAnalyticsData]);
 
   // Handle refresh
   const handleRefresh = useCallback(async () => {
-    if (!selectedCameraId || isRefreshing) return;
+    if (isRefreshing) return;
 
     setIsRefreshing(true);
     try {
-      await loadBaselineData(selectedCameraId);
+      await loadAnalyticsData(selectedCameraId);
     } finally {
       setIsRefreshing(false);
     }
-  }, [selectedCameraId, isRefreshing, loadBaselineData]);
+  }, [selectedCameraId, isRefreshing, loadAnalyticsData]);
 
   // Handle camera change
   const handleCameraChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -158,8 +199,8 @@ export default function AnalyticsPage() {
     setAnomalyConfig(updatedConfig);
   };
 
-  // Get selected camera
-  const selectedCamera = cameras.find((c) => c.id === selectedCameraId);
+  // Get selected camera (null when "All Cameras" is selected)
+  const selectedCamera = isAllCamerasSelected ? null : cameras.find((c) => c.id === selectedCameraId);
 
   // Empty state component
   const EmptyState = ({ message }: { message: string }) => (
@@ -229,27 +270,24 @@ export default function AnalyticsPage() {
         <div className="flex items-center gap-2">
           <Camera className="h-5 w-5 text-gray-400" />
           <select
-            value={selectedCameraId ?? ''}
+            value={selectedCameraId}
             onChange={handleCameraChange}
-            disabled={cameras.length === 0}
             className="rounded border border-gray-700 bg-gray-800 px-3 py-2 text-white focus:border-[#76B900] focus:outline-none"
             data-testid="camera-selector"
           >
-            {cameras.length === 0 ? (
-              <option value="">No cameras available</option>
-            ) : (
-              cameras.map((camera) => (
-                <option key={camera.id} value={camera.id}>
-                  {camera.name || camera.id}
-                </option>
-              ))
-            )}
+            {/* "All Cameras" option for aggregate view */}
+            <option value={ALL_CAMERAS_VALUE}>All Cameras</option>
+            {cameras.map((camera) => (
+              <option key={camera.id} value={camera.id}>
+                {camera.name || camera.id}
+              </option>
+            ))}
           </select>
         </div>
 
         <button
           onClick={() => void handleRefresh()}
-          disabled={isRefreshing || !selectedCameraId}
+          disabled={isRefreshing}
           className="flex items-center gap-2 rounded border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-300 transition-colors hover:bg-gray-700 disabled:opacity-50"
           data-testid="analytics-refresh-button"
         >
@@ -257,6 +295,7 @@ export default function AnalyticsPage() {
           Refresh
         </button>
 
+        {/* Show baseline learning status only when a specific camera is selected */}
         {selectedCamera && activityBaseline && (
           <div className="flex items-center gap-4 text-sm text-gray-400">
             <span>
@@ -272,6 +311,13 @@ export default function AnalyticsPage() {
               </span>
             )}
           </div>
+        )}
+
+        {/* Show indicator when viewing all cameras */}
+        {isAllCamerasSelected && (
+          <span className="text-sm text-gray-400">
+            Showing aggregate stats across all cameras
+          </span>
         )}
       </div>
 
@@ -319,8 +365,8 @@ export default function AnalyticsPage() {
         </div>
       )}
 
-      {/* Content */}
-      {!isLoading && !error && selectedCameraId && (
+      {/* Content - show when not loading and no error */}
+      {!isLoading && !error && (
         <TabGroup index={selectedTab} onIndexChange={setSelectedTab}>
           <TabList className="mb-6">
             <Tab
@@ -446,7 +492,7 @@ export default function AnalyticsPage() {
                     )}
                   </Card>
 
-                  {/* Class Frequency Chart */}
+                  {/* Class Frequency Chart - Camera-specific baseline */}
                   <div>
                     {classBaseline ? (
                       <ClassFrequencyChart
@@ -456,7 +502,12 @@ export default function AnalyticsPage() {
                       />
                     ) : (
                       <Card>
-                        <EmptyState message="No class baseline data available" />
+                        <EmptyState
+                          message={isAllCamerasSelected
+                            ? "Select a specific camera to view class frequency baseline"
+                            : "No class baseline data available"
+                          }
+                        />
                       </Card>
                     )}
                   </div>
@@ -624,7 +675,7 @@ export default function AnalyticsPage() {
                   )}
                 </Card>
 
-                {/* Activity Heatmap */}
+                {/* Activity Heatmap - Camera-specific, only shown when a camera is selected */}
                 <div>
                   {activityBaseline ? (
                     <ActivityHeatmap
@@ -634,7 +685,12 @@ export default function AnalyticsPage() {
                     />
                   ) : (
                     <Card>
-                      <EmptyState message="No activity baseline data available" />
+                      <EmptyState
+                        message={isAllCamerasSelected
+                          ? "Select a specific camera to view activity heatmap"
+                          : "No activity baseline data available"
+                        }
+                      />
                     </Card>
                   )}
                 </div>
@@ -642,31 +698,24 @@ export default function AnalyticsPage() {
                 {/* Pipeline Latency Panel */}
                 <PipelineLatencyPanel refreshInterval={60000} />
 
-                {/* Scene Change Detection Panel */}
-                {selectedCamera && (
+                {/* Scene Change Detection Panel - Camera-specific */}
+                {selectedCamera ? (
                   <SceneChangePanel
                     cameraId={selectedCameraId}
                     cameraName={selectedCamera.name}
                   />
-                )}
+                ) : isAllCamerasSelected ? (
+                  <Card>
+                    <Title>Scene Changes</Title>
+                    <EmptyState message="Select a specific camera to view scene changes" />
+                  </Card>
+                ) : null}
               </div>
             </TabPanel>
           </TabPanels>
         </TabGroup>
       )}
 
-      {/* No Camera Selected */}
-      {!isLoading && !error && !selectedCameraId && cameras.length === 0 && (
-        <div className="flex min-h-[400px] items-center justify-center rounded-lg border border-gray-800 bg-[#1F1F1F]">
-          <div className="text-center">
-            <Camera className="mx-auto mb-4 h-12 w-12 text-gray-600" />
-            <h2 className="mb-2 text-xl font-semibold text-white">No Cameras Found</h2>
-            <p className="text-gray-400">
-              Add cameras to start collecting baseline analytics data.
-            </p>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

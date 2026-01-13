@@ -4,7 +4,21 @@ This module provides the Entity model for tracking unique individuals
 and objects across multiple cameras using embedding vectors for
 re-identification.
 
-Related to NEM-1880 (Re-identification feature) and NEM-2210 (Entity model).
+IMPORTANT: No FK constraint on primary_detection_id
+============================================
+The primary_detection_id column does NOT have a foreign key constraint.
+This is intentional because the detections table is partitioned by detected_at
+with a composite primary key (id, detected_at). PostgreSQL does not support FK
+constraints that reference only part of a composite key on partitioned tables.
+
+Referential integrity is enforced at the application level via:
+- validate_primary_detection_async() for async contexts (with Session)
+- The relationship is optional and used primarily for display purposes
+
+See docs/decisions/entity-detection-referential-integrity.md
+for the full architectural decision record.
+
+Related to NEM-1880 (Re-identification feature), NEM-2210 (Entity model), NEM-2431.
 """
 
 from __future__ import annotations
@@ -13,8 +27,9 @@ import uuid
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer, String
+from sqlalchemy import CheckConstraint, DateTime, Index, Integer, String, select
 from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .camera import Base
@@ -68,18 +83,25 @@ class Entity(Base):
     # Named entity_metadata to avoid conflict with SQLAlchemy's reserved 'metadata' attribute
     entity_metadata: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 
-    # Optional reference to the primary/best detection for this entity
+    # Optional reference to the primary/best detection for this entity.
+    # NOTE: No ForeignKey constraint because detections is a partitioned table
+    # with composite PK (id, detected_at). PostgreSQL doesn't support FK references
+    # to partial keys on partitioned tables. See module docstring for details.
     primary_detection_id: Mapped[int | None] = mapped_column(
         Integer,
-        ForeignKey("detections.id", ondelete="SET NULL"),
         nullable=True,
+        index=True,  # Index for efficient joins even without FK
     )
 
-    # Relationships
+    # Relationships - uses primaryjoin without FK constraint for flexibility
+    # with partitioned tables. The relationship still works for eager loading
+    # but doesn't enforce referential integrity at the database level.
     primary_detection: Mapped[Detection | None] = relationship(
         "Detection",
+        primaryjoin="Entity.primary_detection_id == Detection.id",
         foreign_keys=[primary_detection_id],
         lazy="selectin",
+        viewonly=True,  # No cascade since there's no FK
     )
 
     # Indexes for common query patterns
@@ -206,3 +228,89 @@ class Entity(Base):
             entity.set_embedding(embedding, model=model)
 
         return entity
+
+    async def validate_primary_detection_async(
+        self, session: AsyncSession
+    ) -> tuple[bool, str | None]:
+        """Validate that primary_detection_id references an existing detection.
+
+        Since the detections table is partitioned and cannot have FK constraints
+        referencing just the id column, we perform application-level validation.
+
+        This method should be called before persisting an Entity with a
+        primary_detection_id to ensure referential integrity.
+
+        Args:
+            session: SQLAlchemy async session for database queries
+
+        Returns:
+            A tuple of (is_valid, error_message) where:
+            - is_valid: True if detection exists or primary_detection_id is None
+            - error_message: Description of the error if validation fails, None otherwise
+
+        Example:
+            >>> entity = Entity(entity_type="person", primary_detection_id=123)
+            >>> is_valid, error = await entity.validate_primary_detection_async(session)
+            >>> if not is_valid:
+            ...     raise ValueError(error)
+        """
+        if self.primary_detection_id is None:
+            return True, None
+
+        # Import here to avoid circular imports
+        from .detection import Detection
+
+        # Check if the detection exists
+        result = await session.execute(
+            select(Detection.id).where(Detection.id == self.primary_detection_id).limit(1)
+        )
+        detection_exists = result.scalar_one_or_none() is not None
+
+        if not detection_exists:
+            return False, (
+                f"Detection with id={self.primary_detection_id} does not exist. "
+                f"Cannot set as primary_detection_id for Entity."
+            )
+
+        return True, None
+
+    async def set_primary_detection_validated(
+        self,
+        session: AsyncSession,
+        detection_id: int | None,
+    ) -> tuple[bool, str | None]:
+        """Set primary_detection_id with validation.
+
+        This is the recommended way to set primary_detection_id as it ensures
+        the referenced detection exists before setting the value.
+
+        Args:
+            session: SQLAlchemy async session for database queries
+            detection_id: The detection ID to set, or None to clear
+
+        Returns:
+            A tuple of (success, error_message) where:
+            - success: True if the detection was set successfully
+            - error_message: Description of the error if validation fails
+
+        Example:
+            >>> entity = Entity(entity_type="person")
+            >>> success, error = await entity.set_primary_detection_validated(session, 123)
+            >>> if not success:
+            ...     raise ValueError(error)
+        """
+        if detection_id is None:
+            self.primary_detection_id = None
+            return True, None
+
+        # Temporarily set to validate
+        old_value = self.primary_detection_id
+        self.primary_detection_id = detection_id
+
+        is_valid, error = await self.validate_primary_detection_async(session)
+        if not is_valid:
+            # Restore old value on validation failure
+            self.primary_detection_id = old_value
+            return False, error
+
+        return True, None

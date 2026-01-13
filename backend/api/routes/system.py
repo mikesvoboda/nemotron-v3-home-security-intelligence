@@ -64,14 +64,18 @@ from backend.api.schemas.system import (
     ConfigUpdateRequest,
     DegradationModeEnum,
     DegradationStatusResponse,
+    ExporterStatus,
+    ExporterStatusEnum,
     FileWatcherStatusResponse,
     GPUStatsHistoryResponse,
     GPUStatsResponse,
     HealthCheckServiceStatus,
     HealthEventResponse,
     HealthResponse,
+    JobTargetSummary,
     LatencyHistorySnapshot,
     LatencyHistoryStageStats,
+    MetricsCollectionStatus,
     ModelLatencyHistoryResponse,
     ModelLatencyHistorySnapshot,
     ModelLatencyStageStats,
@@ -80,6 +84,8 @@ from backend.api.schemas.system import (
     ModelStatusResponse,
     ModelZooStatusItem,
     ModelZooStatusResponse,
+    MonitoringHealthResponse,
+    MonitoringTargetsResponse,
     OrphanedFileCleanupResponse,
     PipelineLatencies,
     PipelineLatencyHistoryResponse,
@@ -97,6 +103,7 @@ from backend.api.schemas.system import (
     StorageCategoryStats,
     StorageStatsResponse,
     SystemStatsResponse,
+    TargetHealth,
     TelemetryResponse,
     WebSocketBroadcasterStatus,
     WebSocketHealthResponse,
@@ -1180,6 +1187,449 @@ async def get_websocket_health(
     return WebSocketHealthResponse(
         event_broadcaster=event_status,
         system_broadcaster=system_status,
+        timestamp=datetime.now(UTC),
+    )
+
+
+# =============================================================================
+# Monitoring Stack Health Endpoints (NEM-2470)
+# =============================================================================
+
+# Timeout for Prometheus API requests (in seconds)
+PROMETHEUS_API_TIMEOUT_SECONDS = 5.0
+
+# Known exporters with their default endpoints
+KNOWN_EXPORTERS = {
+    "redis-exporter": "http://redis-exporter:9121",
+    "json-exporter": "http://json-exporter:7979",
+    "blackbox-exporter": "http://blackbox-exporter:9115",
+}
+
+
+async def _check_prometheus_reachability(prometheus_url: str) -> tuple[bool, dict | None]:
+    """Check if Prometheus server is reachable and get status.
+
+    Args:
+        prometheus_url: Base URL for Prometheus server
+
+    Returns:
+        Tuple of (is_reachable, status_data)
+    """
+    try:
+        async with httpx.AsyncClient(timeout=PROMETHEUS_API_TIMEOUT_SECONDS) as client:
+            # Check ready endpoint for Prometheus health
+            response = await client.get(f"{prometheus_url}/-/ready")
+            if response.status_code == 200:
+                return True, {"status": "ready"}
+            return False, {"status": "not_ready", "status_code": response.status_code}
+    except httpx.ConnectError:
+        return False, {"error": "Connection refused"}
+    except httpx.TimeoutException:
+        return False, {"error": "Request timed out"}
+    except Exception as e:
+        return False, {"error": str(e)}
+
+
+async def _get_prometheus_targets(prometheus_url: str) -> list[dict]:
+    """Get all scrape targets from Prometheus API.
+
+    Args:
+        prometheus_url: Base URL for Prometheus server
+
+    Returns:
+        List of target dictionaries with health status
+    """
+    try:
+        async with httpx.AsyncClient(timeout=PROMETHEUS_API_TIMEOUT_SECONDS) as client:
+            response = await client.get(f"{prometheus_url}/api/v1/targets")
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("status") == "success":
+                    targets = []
+                    active_targets = data.get("data", {}).get("activeTargets", [])
+                    for target in active_targets:
+                        targets.append(
+                            {
+                                "job": target.get("labels", {}).get("job", "unknown"),
+                                "instance": target.get("labels", {}).get("instance", "unknown"),
+                                "health": target.get("health", "unknown"),
+                                "labels": target.get("labels", {}),
+                                "lastScrape": target.get("lastScrape"),
+                                "lastError": target.get("lastError", ""),
+                                "scrapeInterval": target.get("scrapeInterval"),
+                                "scrapeDuration": target.get("lastScrapeDuration"),
+                            }
+                        )
+                    return targets
+    except Exception as e:
+        logger.warning(f"Failed to fetch Prometheus targets: {e}")
+    return []
+
+
+async def _get_prometheus_tsdb_status(prometheus_url: str) -> dict | None:
+    """Get TSDB status from Prometheus (for series count).
+
+    Args:
+        prometheus_url: Base URL for Prometheus server
+
+    Returns:
+        TSDB status dict or None if unavailable
+    """
+    try:
+        async with httpx.AsyncClient(timeout=PROMETHEUS_API_TIMEOUT_SECONDS) as client:
+            response = await client.get(f"{prometheus_url}/api/v1/status/tsdb")
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("status") == "success":
+                    result: dict = data.get("data", {})
+                    return result
+    except Exception as e:
+        logger.debug(f"Failed to fetch Prometheus TSDB status: {e}")
+    return None
+
+
+def _parse_prometheus_timestamp(ts_str: str | None) -> datetime | None:
+    """Parse a Prometheus timestamp string to datetime.
+
+    Args:
+        ts_str: Timestamp string in ISO format
+
+    Returns:
+        datetime object or None if parsing fails
+    """
+    if not ts_str:
+        return None
+    try:
+        # Prometheus returns ISO 8601 format timestamps
+        # Handle both "2024-01-13T10:30:00Z" and "2024-01-13T10:30:00.123456789Z"
+        if "." in ts_str:
+            # Truncate nanoseconds to microseconds
+            parts = ts_str.split(".")
+            if len(parts) == 2:
+                fraction = parts[1].rstrip("Z")[:6]  # Keep only 6 digits
+                ts_str = f"{parts[0]}.{fraction}Z"
+        return datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+    except (ValueError, AttributeError):
+        return None
+
+
+def _build_targets_summary(targets: list[dict]) -> list[JobTargetSummary]:
+    """Build a summary of target health by job.
+
+    Args:
+        targets: List of target dictionaries
+
+    Returns:
+        List of JobTargetSummary objects
+    """
+    job_stats: dict[str, dict[str, int]] = {}
+
+    for target in targets:
+        job = target.get("job", "unknown")
+        if job not in job_stats:
+            job_stats[job] = {"total": 0, "up": 0, "down": 0, "unknown": 0}
+
+        job_stats[job]["total"] += 1
+        health = target.get("health", "unknown").lower()
+        if health == "up":
+            job_stats[job]["up"] += 1
+        elif health == "down":
+            job_stats[job]["down"] += 1
+        else:
+            job_stats[job]["unknown"] += 1
+
+    return [
+        JobTargetSummary(
+            job=job,
+            total=stats["total"],
+            up=stats["up"],
+            down=stats["down"],
+            unknown=stats["unknown"],
+        )
+        for job, stats in sorted(job_stats.items())
+    ]
+
+
+def _build_exporter_status(targets: list[dict]) -> list[ExporterStatus]:
+    """Build exporter status from target data.
+
+    Args:
+        targets: List of target dictionaries
+
+    Returns:
+        List of ExporterStatus objects for known exporters
+    """
+    exporters: list[ExporterStatus] = []
+
+    for exporter_name, default_endpoint in KNOWN_EXPORTERS.items():
+        # Find matching targets for this exporter
+        exporter_targets = [
+            t
+            for t in targets
+            if exporter_name.replace("-", "_") in t.get("job", "").lower()
+            or exporter_name.replace("-", "") in t.get("instance", "").lower()
+            or exporter_name in t.get("instance", "").lower()
+        ]
+
+        if exporter_targets:
+            # Use the first matching target
+            target = exporter_targets[0]
+            health = target.get("health", "unknown").lower()
+            exporter_status = (
+                ExporterStatusEnum.UP
+                if health == "up"
+                else (ExporterStatusEnum.DOWN if health == "down" else ExporterStatusEnum.UNKNOWN)
+            )
+            last_scrape = _parse_prometheus_timestamp(target.get("lastScrape"))
+            error = target.get("lastError") if target.get("lastError") else None
+
+            exporters.append(
+                ExporterStatus(
+                    name=exporter_name,
+                    status=exporter_status,
+                    endpoint=target.get("instance") or default_endpoint,
+                    last_scrape=last_scrape,
+                    error=error,
+                )
+            )
+        else:
+            # Exporter not found in targets - mark as unknown
+            exporters.append(
+                ExporterStatus(
+                    name=exporter_name,
+                    status=ExporterStatusEnum.UNKNOWN,
+                    endpoint=default_endpoint,
+                    last_scrape=None,
+                    error="Exporter not found in Prometheus targets",
+                )
+            )
+
+    return exporters
+
+
+def _identify_monitoring_issues(
+    prometheus_reachable: bool,
+    targets_summary: list[JobTargetSummary],
+    exporters: list[ExporterStatus],
+) -> list[str]:
+    """Identify issues with the monitoring stack.
+
+    Args:
+        prometheus_reachable: Whether Prometheus is reachable
+        targets_summary: Summary of target health by job
+        exporters: List of exporter statuses
+
+    Returns:
+        List of issue descriptions
+    """
+    issues: list[str] = []
+
+    if not prometheus_reachable:
+        issues.append("Prometheus server is not reachable")
+        return issues  # No point checking further
+
+    # Check for jobs with all targets down
+    for summary in targets_summary:
+        if summary.total > 0 and summary.down == summary.total:
+            issues.append(f"All targets in job '{summary.job}' are down")
+        elif summary.down > 0:
+            issues.append(f"{summary.down}/{summary.total} targets in job '{summary.job}' are down")
+
+    # Check exporters
+    for exporter in exporters:
+        if exporter.status == ExporterStatusEnum.DOWN:
+            issues.append(
+                f"Exporter '{exporter.name}' is down: {exporter.error or 'unknown error'}"
+            )
+        elif exporter.status == ExporterStatusEnum.UNKNOWN:
+            issues.append(f"Exporter '{exporter.name}' status unknown (not in Prometheus targets)")
+
+    return issues
+
+
+@router.get("/monitoring/health", response_model=MonitoringHealthResponse)
+async def get_monitoring_health(
+    _rate_limit: None = Depends(RateLimiter(tier=RateLimitTier.DEFAULT)),
+) -> MonitoringHealthResponse:
+    """Get comprehensive monitoring stack health status.
+
+    Checks the health of the monitoring infrastructure including:
+    - Prometheus server reachability
+    - Scrape target status (UP/DOWN counts by job)
+    - Exporter status (redis-exporter, json-exporter, blackbox-exporter)
+    - Metrics collection status
+
+    This endpoint provides operators with a quick view of monitoring
+    stack health without needing to access the Prometheus UI directly.
+
+    Returns:
+        MonitoringHealthResponse with full monitoring stack status.
+        The 'healthy' field is True if Prometheus is reachable and
+        the majority of critical targets are up.
+    """
+    settings = get_settings()
+    prometheus_url = settings.prometheus_url
+
+    # Check Prometheus reachability
+    prometheus_reachable, _ = await _check_prometheus_reachability(prometheus_url)
+
+    if not prometheus_reachable:
+        # Return minimal response when Prometheus is unreachable
+        return MonitoringHealthResponse(
+            healthy=False,
+            prometheus_reachable=False,
+            prometheus_url=prometheus_url,
+            targets_summary=[],
+            exporters=[
+                ExporterStatus(
+                    name=name,
+                    status=ExporterStatusEnum.UNKNOWN,
+                    endpoint=endpoint,
+                    error="Prometheus unreachable - cannot determine exporter status",
+                )
+                for name, endpoint in KNOWN_EXPORTERS.items()
+            ],
+            metrics_collection=MetricsCollectionStatus(
+                collecting=False,
+                last_successful_scrape=None,
+                scrape_interval_seconds=15,
+                total_series=None,
+            ),
+            issues=["Prometheus server is not reachable"],
+            timestamp=datetime.now(UTC),
+        )
+
+    # Get targets and build summaries
+    targets = await _get_prometheus_targets(prometheus_url)
+    targets_summary = _build_targets_summary(targets)
+    exporters = _build_exporter_status(targets)
+
+    # Get TSDB status for series count
+    tsdb_status = await _get_prometheus_tsdb_status(prometheus_url)
+    total_series = None
+    if tsdb_status:
+        head_stats = tsdb_status.get("headStats", {})
+        total_series = head_stats.get("numSeries")
+
+    # Find most recent successful scrape
+    last_successful_scrape = None
+    for target in targets:
+        if target.get("health", "").lower() == "up":
+            target_scrape = _parse_prometheus_timestamp(target.get("lastScrape"))
+            if target_scrape and (
+                last_successful_scrape is None or target_scrape > last_successful_scrape
+            ):
+                last_successful_scrape = target_scrape
+
+    # Identify issues
+    issues = _identify_monitoring_issues(prometheus_reachable, targets_summary, exporters)
+
+    # Determine overall health
+    # Healthy if: Prometheus reachable AND no critical jobs fully down
+    total_up = sum(s.up for s in targets_summary)
+    total_down = sum(s.down for s in targets_summary)
+    healthy = prometheus_reachable and (total_down == 0 or total_up > total_down)
+
+    return MonitoringHealthResponse(
+        healthy=healthy,
+        prometheus_reachable=prometheus_reachable,
+        prometheus_url=prometheus_url,
+        targets_summary=targets_summary,
+        exporters=exporters,
+        metrics_collection=MetricsCollectionStatus(
+            collecting=total_up > 0,
+            last_successful_scrape=last_successful_scrape,
+            scrape_interval_seconds=15,  # Default from prometheus.yml
+            total_series=total_series,
+        ),
+        issues=issues,
+        timestamp=datetime.now(UTC),
+    )
+
+
+@router.get("/monitoring/targets", response_model=MonitoringTargetsResponse)
+async def get_monitoring_targets(
+    _rate_limit: None = Depends(RateLimiter(tier=RateLimitTier.DEFAULT)),
+) -> MonitoringTargetsResponse:
+    """Get detailed status of all Prometheus scrape targets.
+
+    Returns complete information about every target Prometheus is
+    configured to scrape, including:
+    - Job and instance identifiers
+    - Health status (up/down)
+    - All labels associated with the target
+    - Last scrape timestamp and duration
+    - Any scrape errors
+
+    This endpoint is useful for debugging specific target issues
+    or getting a comprehensive view of all monitored endpoints.
+
+    Returns:
+        MonitoringTargetsResponse with detailed target information.
+
+    Raises:
+        HTTPException: 503 if Prometheus is unreachable
+    """
+    settings = get_settings()
+    prometheus_url = settings.prometheus_url
+
+    # Check Prometheus reachability
+    prometheus_reachable, status_data = await _check_prometheus_reachability(prometheus_url)
+
+    if not prometheus_reachable:
+        error_msg = status_data.get("error", "Unknown error") if status_data else "Unknown error"
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Prometheus server is not reachable: {error_msg}",
+        )
+
+    # Get targets
+    raw_targets = await _get_prometheus_targets(prometheus_url)
+
+    # Convert to TargetHealth objects
+    targets: list[TargetHealth] = []
+    jobs: set[str] = set()
+    up_count = 0
+    down_count = 0
+
+    for raw in raw_targets:
+        job = raw.get("job", "unknown")
+        jobs.add(job)
+
+        health = raw.get("health", "unknown").lower()
+        if health == "up":
+            up_count += 1
+        elif health == "down":
+            down_count += 1
+
+        # Parse scrape duration
+        scrape_duration = None
+        duration_str = raw.get("scrapeDuration")
+        if duration_str:
+            try:
+                # Duration is in seconds as a float string
+                scrape_duration = float(duration_str)
+            except (ValueError, TypeError):
+                pass
+
+        targets.append(
+            TargetHealth(
+                job=job,
+                instance=raw.get("instance", "unknown"),
+                health=health,
+                labels=raw.get("labels", {}),
+                last_scrape=_parse_prometheus_timestamp(raw.get("lastScrape")),
+                last_error=raw.get("lastError") if raw.get("lastError") else None,
+                scrape_duration_seconds=scrape_duration,
+            )
+        )
+
+    return MonitoringTargetsResponse(
+        targets=targets,
+        total=len(targets),
+        up=up_count,
+        down=down_count,
+        jobs=sorted(jobs),
         timestamp=datetime.now(UTC),
     )
 

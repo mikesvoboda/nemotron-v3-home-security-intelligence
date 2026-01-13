@@ -877,9 +877,17 @@ class TestAnalyzeBatchStreaming:
         from backend.api.dependencies import get_nemotron_analyzer_dep
 
         # Create an async generator that raises an exception
-        async def mock_streaming_generator(*args, **kwargs):
-            raise Exception("Test exception")
-            yield {}  # Never reached (makes this an async generator)
+        class AsyncGeneratorError:
+            """Iterator that raises on first iteration."""
+
+            def __aiter__(self):
+                return self
+
+            async def __anext__(self):
+                raise Exception("Test exception")
+
+        def mock_streaming_generator(*args, **kwargs):
+            return AsyncGeneratorError()
 
         mock_analyzer = Mock()
         mock_analyzer.analyze_batch_streaming = mock_streaming_generator

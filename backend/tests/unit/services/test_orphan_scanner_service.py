@@ -570,10 +570,17 @@ class TestEdgeCases:
         """Test scan handles database errors gracefully."""
         (tmp_path / "test.jpg").write_text("test")
 
-        @contextlib.asynccontextmanager
-        async def mock_get_session():
-            raise Exception("Database connection failed")
-            yield
+        class MockSessionError:
+            """Mock that raises on context manager entry."""
+
+            async def __aenter__(self):
+                raise Exception("Database connection failed")
+
+            async def __aexit__(self, exc_type, exc_val, exc_tb):
+                pass
+
+        def mock_get_session():
+            return MockSessionError()
 
         with patch(
             "backend.services.orphan_scanner_service.get_session",

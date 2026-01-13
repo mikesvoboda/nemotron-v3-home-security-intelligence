@@ -92,8 +92,9 @@ def test_cache_keys_event_stats_format():
     from backend.services.cache_service import CacheKeys
 
     key = CacheKeys.event_stats("2024-01-01", "2024-01-31")
-    # Expected: "{PREFIX}:cache:event_stats:{start}:{end}"
-    expected = f"{CacheKeys.PREFIX}:cache:event_stats:2024-01-01:2024-01-31"
+    # Expected: "{PREFIX}:cache:event_stats:{start}:{end}:{camera_id}"
+    # NEM-2434: Added camera_id to support camera-specific stats
+    expected = f"{CacheKeys.PREFIX}:cache:event_stats:2024-01-01:2024-01-31:all"
     assert key == expected
 
 
