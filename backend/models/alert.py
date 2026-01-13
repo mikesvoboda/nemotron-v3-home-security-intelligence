@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import StrEnum, auto
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from sqlalchemy import (
@@ -154,6 +154,59 @@ class Alert(Base):
             f"<Alert(id={self.id!r}, event_id={self.event_id}, "
             f"severity={self.severity.value!r}, status={self.status.value!r})>"
         )
+
+    def to_dict(self, for_websocket: bool = False) -> dict[str, Any]:
+        """Convert Alert model to a dictionary representation.
+
+        Provides unified serialization for both API responses and WebSocket broadcasts,
+        eliminating code duplication between these two use cases.
+
+        Args:
+            for_websocket: If True, formats timestamps as ISO strings and excludes
+                fields not needed for WebSocket broadcasts (delivered_at, channels,
+                alert_metadata). If False, includes all fields for API responses.
+
+        Returns:
+            Dictionary representation of the alert suitable for JSON serialization.
+
+        Examples:
+            # For API response (full data)
+            alert_dict = alert.to_dict()
+
+            # For WebSocket broadcast (minimal data, ISO timestamps)
+            ws_data = alert.to_dict(for_websocket=True)
+        """
+        # Extract enum values safely (handle both enum and raw string values)
+        severity_value = self.severity.value if hasattr(self.severity, "value") else self.severity
+        status_value = self.status.value if hasattr(self.status, "value") else self.status
+
+        if for_websocket:
+            # WebSocket format: minimal fields with ISO timestamp strings
+            return {
+                "id": self.id,
+                "event_id": self.event_id,
+                "rule_id": self.rule_id,
+                "severity": severity_value,
+                "status": status_value,
+                "dedup_key": self.dedup_key,
+                "created_at": self.created_at.isoformat() if self.created_at else None,
+                "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            }
+
+        # API response format: all fields with datetime objects
+        return {
+            "id": self.id,
+            "event_id": self.event_id,
+            "rule_id": self.rule_id,
+            "severity": severity_value,
+            "status": status_value,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+            "delivered_at": self.delivered_at,
+            "channels": self.channels or [],
+            "dedup_key": self.dedup_key,
+            "alert_metadata": self.alert_metadata,
+        }
 
 
 class AlertRule(Base):

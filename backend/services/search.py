@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import Float, and_, cast, func, or_, select, text
 from sqlalchemy.dialects.postgresql import REGCONFIG
+from sqlalchemy.orm import selectinload
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -293,7 +294,8 @@ def _build_search_query(tsquery_str: str, query: str) -> tuple:
         return (
             select(Event, rank.label("relevance_score"), Camera.name.label("camera_name"))
             .outerjoin(Camera, Event.camera_id == Camera.id)
-            .where(search_condition),
+            .where(search_condition)
+            .options(selectinload(Event.detections)),
             True,
         )
     else:
@@ -302,7 +304,9 @@ def _build_search_query(tsquery_str: str, query: str) -> tuple:
                 Event,
                 cast(0.0, Float).label("relevance_score"),
                 Camera.name.label("camera_name"),
-            ).outerjoin(Camera, Event.camera_id == Camera.id),
+            )
+            .outerjoin(Camera, Event.camera_id == Camera.id)
+            .options(selectinload(Event.detections)),
             False,
         )
 
@@ -332,20 +336,19 @@ def _build_filter_conditions(filters: SearchFilters) -> list:
 
 
 def _get_detection_ids_from_event(event: Any) -> list[int]:
-    """Get detection IDs from event using relationship or fallback to legacy column.
+    """Get detection IDs from event using relationship.
 
     Args:
-        event: Event model instance
+        event: Event model instance (must have detections relationship loaded)
 
     Returns:
-        List of detection IDs
+        List of detection IDs from the event_detections junction table
     """
-    # Try the relationship first (normalized data from event_detections table)
+    # Use the normalized data from event_detections junction table
+    # The detections relationship should be eagerly loaded by the query
     if event.detections:
         return [d.id for d in event.detections]
-
-    # Fallback to legacy column
-    return _parse_detection_ids(event.detection_ids)
+    return []
 
 
 def _row_to_search_result(row: Any) -> SearchResult:

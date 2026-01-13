@@ -63,35 +63,38 @@ class TestParseDetectionIdsEdgeCases:
 
 
 class TestGetDetectionIdsFromEventEdgeCases:
-    """Additional edge case tests for get_detection_ids_from_event."""
+    """Additional edge case tests for get_detection_ids_from_event.
 
-    def test_get_detection_ids_empty_relationship_falls_back(self):
-        """Test that empty relationship falls back to legacy column."""
+    Note: Legacy detection_ids column was removed in NEM-1592.
+    These tests verify the new behavior using only the detections relationship.
+    """
+
+    def test_get_detection_ids_empty_relationship_returns_empty(self):
+        """Test that empty relationship returns empty list (no legacy fallback)."""
         mock_event = Mock(spec=Event)
         mock_event.detections = []
-        mock_event.detection_ids = "[5, 6, 7]"
-
-        result = get_detection_ids_from_event(mock_event)
-        assert result == [5, 6, 7]
-
-    def test_get_detection_ids_none_legacy_column(self):
-        """Test that None in legacy column returns empty list."""
-        mock_event = Mock(spec=Event)
-        mock_event.detections = []
-        mock_event.detection_ids = None
+        mock_event.detection_id_list = []
 
         result = get_detection_ids_from_event(mock_event)
         assert result == []
 
-    def test_get_detection_ids_relationship_takes_precedence(self):
-        """Test that relationship takes precedence over legacy column."""
+    def test_get_detection_ids_none_relationship_returns_empty(self):
+        """Test that None/missing relationship returns empty list."""
+        mock_event = Mock(spec=Event)
+        mock_event.detections = []
+        mock_event.detection_id_list = []
+
+        result = get_detection_ids_from_event(mock_event)
+        assert result == []
+
+    def test_get_detection_ids_uses_relationship(self):
+        """Test that detection IDs are extracted from relationship."""
         mock_event = Mock(spec=Event)
         mock_event.detections = [Mock(id=1), Mock(id=2)]
         mock_event.detection_id_list = [1, 2]
-        mock_event.detection_ids = "[99, 100]"  # Legacy column (should be ignored)
 
         result = get_detection_ids_from_event(mock_event)
-        assert result == [1, 2]  # From relationship, not legacy column
+        assert result == [1, 2]
 
 
 class TestParseSeverityFilterEdgeCases:
@@ -216,7 +219,10 @@ class TestConstantsAndValidation:
         assert frozenset({"low", "medium", "high", "critical"}) == VALID_SEVERITY_VALUES
 
     def test_valid_event_list_fields_complete(self):
-        """Test that VALID_EVENT_LIST_FIELDS contains expected fields."""
+        """Test that VALID_EVENT_LIST_FIELDS contains expected fields.
+
+        Note: detection_ids was removed after NEM-1592 migration to junction table.
+        """
         expected_fields = {
             "id",
             "camera_id",
@@ -228,7 +234,6 @@ class TestConstantsAndValidation:
             "reasoning",
             "reviewed",
             "detection_count",
-            "detection_ids",
             "thumbnail_url",
         }
         assert frozenset(expected_fields) == VALID_EVENT_LIST_FIELDS
@@ -325,14 +330,15 @@ class TestEdgeCaseCombinations:
         result = parse_severity_filter(" , , ")
         assert result == []
 
-    def test_get_detection_ids_with_malformed_json_in_legacy(self):
-        """Test get_detection_ids handles malformed JSON in legacy column."""
+    def test_get_detection_ids_with_empty_detections(self):
+        """Test get_detection_ids returns empty list when no detections.
+
+        Note: Legacy detection_ids column was removed in NEM-1592.
+        Now uses only the detections relationship.
+        """
         mock_event = Mock(spec=Event)
         mock_event.detections = []
-        # Use a value that will fail both JSON and CSV parsing gracefully
-        mock_event.detection_ids = "{invalid}"
+        mock_event.detection_id_list = []
 
-        # Should fallback to CSV parsing, which will try to parse "{ invalid}"
-        # This will raise ValueError, so we expect an exception
-        with pytest.raises(ValueError):
-            get_detection_ids_from_event(mock_event)
+        result = get_detection_ids_from_event(mock_event)
+        assert result == []

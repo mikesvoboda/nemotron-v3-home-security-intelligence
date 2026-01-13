@@ -9,7 +9,6 @@ These tests use mocked database sessions to verify the correct
 eager loading strategies are being used.
 """
 
-import json
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -40,7 +39,7 @@ class TestEventsExportJoinedload:
         mock_event.risk_score = 50
         mock_event.risk_level = "medium"
         mock_event.summary = "Test event"
-        mock_event.detection_ids = "[]"
+        mock_event.detection_id_list = []
         mock_event.reviewed = False
 
         # Create mock DB session with spec
@@ -102,19 +101,18 @@ class TestAlertEngineBatchLoading:
         # Create mock session with spec
         mock_session = AsyncMock(spec=AsyncSession)
 
-        # Create test events with detection IDs
+        # Create test events with detection IDs (use detection_id_list property)
         events = []
         for i in range(3):
             event = MagicMock(spec=Event)
             event.id = i + 1
-            event.detection_ids = json.dumps([i * 10 + 1, i * 10 + 2])
+            event.detection_id_list = [i * 10 + 1, i * 10 + 2]
             events.append(event)
 
         # Create mock detections
         all_detections = []
         for event in events:
-            detection_ids = json.loads(event.detection_ids)
-            for did in detection_ids:
+            for did in event.detection_id_list:
                 det = MagicMock(spec=Detection)
                 det.id = did
                 all_detections.append(det)
@@ -151,7 +149,7 @@ class TestAlertEngineBatchLoading:
         for i in range(2):
             event = MagicMock(spec=Event)
             event.id = i + 1
-            event.detection_ids = None
+            event.detection_id_list = []
             events.append(event)
 
         engine = AlertRuleEngine(mock_session)
@@ -181,7 +179,7 @@ class TestAlertEngineBatchLoading:
         mock_rule.schedule = None
         mock_rule.severity = AlertSeverity.MEDIUM
 
-        # Create test events
+        # Create test events (use detection_id_list property)
         events = []
         for i in range(5):
             event = MagicMock(spec=Event)
@@ -189,7 +187,7 @@ class TestAlertEngineBatchLoading:
             event.camera_id = "cam1"
             event.risk_score = 60
             event.started_at = datetime.now(UTC)
-            event.detection_ids = json.dumps([i + 100])
+            event.detection_id_list = [i + 100]
             events.append(event)
 
         # Mock detections
@@ -251,21 +249,25 @@ class TestBatchLoadingErrorHandling:
     """Tests for batch loading error handling."""
 
     @pytest.mark.asyncio
-    async def test_batch_load_with_invalid_json(self):
-        """Verify batch loading handles invalid JSON in detection_ids."""
+    async def test_batch_load_with_empty_detection_list(self):
+        """Verify batch loading handles empty detection list.
+
+        Note: Legacy detection_ids JSON parsing was removed in NEM-1592.
+        Now uses detection_id_list property from the relationship.
+        """
         from backend.services.alert_engine import AlertRuleEngine
 
         mock_session = AsyncMock(spec=AsyncSession)
 
-        # Create event with invalid JSON
+        # Create event with empty detection list
         event = MagicMock(spec=Event)
         event.id = 1
-        event.detection_ids = "invalid json {"  # Malformed JSON
+        event.detection_id_list = []
 
         engine = AlertRuleEngine(mock_session)
         result = await engine._batch_load_detections_for_events([event])
 
-        # Should return empty list for invalid JSON, not crash
+        # Should return empty list
         assert result == {1: []}
 
     @pytest.mark.asyncio
@@ -275,12 +277,12 @@ class TestBatchLoadingErrorHandling:
 
         mock_session = AsyncMock(spec=AsyncSession)
 
-        # Create valid events
+        # Create valid events (use detection_id_list property)
         events = []
         for i in range(2):
             event = MagicMock(spec=Event)
             event.id = i + 1
-            event.detection_ids = json.dumps([i + 100])
+            event.detection_id_list = [i + 100]
             events.append(event)
 
         # Make execute raise an error
@@ -293,18 +295,22 @@ class TestBatchLoadingErrorHandling:
             await engine._batch_load_detections_for_events(events)
 
     @pytest.mark.asyncio
-    async def test_batch_load_with_empty_detection_ids_json(self):
-        """Verify batch loading handles empty JSON arrays."""
+    async def test_batch_load_with_empty_detection_lists(self):
+        """Verify batch loading handles empty detection lists.
+
+        Note: Legacy detection_ids JSON parsing was removed in NEM-1592.
+        Now uses detection_id_list property from the relationship.
+        """
         from backend.services.alert_engine import AlertRuleEngine
 
         mock_session = AsyncMock(spec=AsyncSession)
 
-        # Create events with empty JSON arrays
+        # Create events with empty detection lists
         events = []
         for i in range(3):
             event = MagicMock(spec=Event)
             event.id = i + 1
-            event.detection_ids = "[]"  # Empty array
+            event.detection_id_list = []
             events.append(event)
 
         engine = AlertRuleEngine(mock_session)
@@ -315,24 +321,28 @@ class TestBatchLoadingErrorHandling:
         assert result == {1: [], 2: [], 3: []}
 
     @pytest.mark.asyncio
-    async def test_batch_load_with_mixed_valid_invalid_json(self):
-        """Verify batch loading handles mix of valid and invalid detection_ids."""
+    async def test_batch_load_with_mixed_valid_empty_detection_lists(self):
+        """Verify batch loading handles mix of valid and empty detection lists.
+
+        Note: Legacy detection_ids JSON parsing was removed in NEM-1592.
+        Now uses detection_id_list property from the relationship.
+        """
         from backend.services.alert_engine import AlertRuleEngine
 
         mock_session = AsyncMock(spec=AsyncSession)
 
-        # Create mix of valid and invalid events
+        # Create mix of events with and without detections
         event1 = MagicMock(spec=Event)
         event1.id = 1
-        event1.detection_ids = json.dumps([101, 102])  # Valid
+        event1.detection_id_list = [101, 102]  # Has detections
 
         event2 = MagicMock(spec=Event)
         event2.id = 2
-        event2.detection_ids = "not valid json"  # Invalid
+        event2.detection_id_list = []  # Empty
 
         event3 = MagicMock(spec=Event)
         event3.id = 3
-        event3.detection_ids = None  # None
+        event3.detection_id_list = []  # Empty
 
         events = [event1, event2, event3]
 
@@ -379,7 +389,7 @@ class TestExportEventsErrorHandling:
         mock_event.risk_score = 50
         mock_event.risk_level = "medium"
         mock_event.summary = "Test event"
-        mock_event.detection_ids = "[]"
+        mock_event.detection_id_list = []
         mock_event.reviewed = False
 
         mock_db = AsyncMock(spec=AsyncSession)

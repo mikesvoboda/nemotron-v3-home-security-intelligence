@@ -24,7 +24,6 @@ Usage:
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass, field
 from datetime import datetime, time, timedelta
 from typing import TYPE_CHECKING
@@ -113,7 +112,7 @@ class AlertRuleEngine:
         Args:
             event: The event to evaluate rules against
             detections: Optional list of detections associated with the event.
-                       If not provided, will fetch from database using event.detection_ids.
+                       If not provided, will fetch from database using event.detections relationship.
             current_time: Optional override for current time (for testing)
 
         Returns:
@@ -181,18 +180,13 @@ class AlertRuleEngine:
         return list(result.scalars().all())
 
     async def _load_event_detections(self, event: Event) -> list[Detection]:
-        """Load detections for an event from the database."""
-        if not event.detection_ids:
-            return []
+        """Load detections for an event using the event_detections relationship."""
+        # Use the relationship if already loaded
+        if event.detections:
+            return list(event.detections)
 
-        # Parse detection_ids (stored as JSON array string)
-        try:
-            detection_id_list = json.loads(event.detection_ids)
-            if not isinstance(detection_id_list, list):
-                return []
-        except (json.JSONDecodeError, TypeError):
-            return []
-
+        # Otherwise, get detection IDs from the junction table and batch fetch
+        detection_id_list = event.detection_id_list
         if not detection_id_list:
             return []
 
@@ -215,25 +209,19 @@ class AlertRuleEngine:
         Returns:
             Dictionary mapping event.id to list of Detection objects
         """
-        # Collect all detection IDs from all events
+        # Collect all detection IDs from all events using the relationship
         all_detection_ids: list[int] = []
         event_detection_map: dict[int, list[int]] = {}
 
         for event in events:
-            if not event.detection_ids:
+            # Get detection IDs from the event_detections junction table
+            detection_id_list = event.detection_id_list
+            if not detection_id_list:
                 event_detection_map[event.id] = []
                 continue
 
-            try:
-                detection_id_list = json.loads(event.detection_ids)
-                if isinstance(detection_id_list, list):
-                    int_ids = [int(d) for d in detection_id_list]
-                    event_detection_map[event.id] = int_ids
-                    all_detection_ids.extend(int_ids)
-                else:
-                    event_detection_map[event.id] = []
-            except (json.JSONDecodeError, TypeError, ValueError):
-                event_detection_map[event.id] = []
+            event_detection_map[event.id] = detection_id_list
+            all_detection_ids.extend(detection_id_list)
 
         if not all_detection_ids:
             return {event.id: [] for event in events}

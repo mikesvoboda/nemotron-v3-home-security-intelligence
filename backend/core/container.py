@@ -449,6 +449,8 @@ async def wire_services(container: Container) -> None:
     - PlateDetectorService (singleton) - AI service for license plate detection
     - OCRService (singleton) - AI service for plate text recognition
     - YOLOWorldService (singleton) - AI service for open-vocabulary detection
+    - HealthServiceRegistry (singleton) - Health monitoring service registry (NEM-2611)
+    - HealthEventEmitter (singleton) - WebSocket health event emitter (NEM-2611)
 
     Args:
         container: Container to wire services into
@@ -463,7 +465,17 @@ async def wire_services(container: Container) -> None:
     from backend.services.context_enricher import ContextEnricher
     from backend.services.detector_client import DetectorClient
     from backend.services.enrichment_pipeline import EnrichmentPipeline
+    from backend.services.health_event_emitter import HealthEventEmitter
+    from backend.services.health_service_registry import HealthServiceRegistry
     from backend.services.nemotron_analyzer import NemotronAnalyzer
+
+    # HealthServiceRegistry - sync singleton (NEM-2611)
+    # Created early so other services can register with it during startup
+    container.register_singleton("health_service_registry", HealthServiceRegistry)
+
+    # HealthEventEmitter - sync singleton (NEM-2611)
+    # Manages WebSocket health event emission without global state
+    container.register_singleton("health_event_emitter", HealthEventEmitter)
 
     # RedisClient - async singleton (needs connect())
     async def redis_factory() -> RedisClient:

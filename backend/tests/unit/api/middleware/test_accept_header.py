@@ -487,3 +487,249 @@ class TestAcceptHeaderMiddlewareWithWebSocket:
 
         response = client.get("/ws/system", headers={"Accept": "text/xml"})
         assert response.status_code == 200
+
+
+class TestAcceptHeaderMiddlewareOptimization:
+    """Tests for NEM-2597: Optimized path lookup performance.
+
+    Verifies that the middleware uses optimized data structures:
+    - frozenset for O(1) exact path lookups
+    - tuple for optimized str.startswith() prefix matching
+    """
+
+    def test_default_exempt_paths_is_frozenset(self):
+        """Test that DEFAULT_EXEMPT_PATHS is a frozenset for O(1) lookup."""
+        assert isinstance(AcceptHeaderMiddleware.DEFAULT_EXEMPT_PATHS, frozenset)
+
+    def test_default_exempt_prefixes_is_tuple(self):
+        """Test that DEFAULT_EXEMPT_PREFIXES is a tuple for startswith optimization."""
+        assert isinstance(AcceptHeaderMiddleware.DEFAULT_EXEMPT_PREFIXES, tuple)
+
+    def test_instance_exempt_paths_is_frozenset(self):
+        """Test that instance exempt_paths is a frozenset."""
+        app = FastAPI()
+        app.add_middleware(AcceptHeaderMiddleware)
+        # Access middleware from app's middleware stack
+        middleware = app.middleware_stack
+        # Navigate to our middleware
+        while middleware is not None:
+            if hasattr(middleware, "exempt_paths"):
+                assert isinstance(middleware.exempt_paths, frozenset)
+                break
+            middleware = getattr(middleware, "app", None)
+
+    def test_instance_exempt_prefixes_is_tuple(self):
+        """Test that instance exempt_prefixes is a tuple."""
+        app = FastAPI()
+        app.add_middleware(AcceptHeaderMiddleware)
+        middleware = app.middleware_stack
+        while middleware is not None:
+            if hasattr(middleware, "exempt_prefixes"):
+                assert isinstance(middleware.exempt_prefixes, tuple)
+                break
+            middleware = getattr(middleware, "app", None)
+
+    def test_custom_exempt_paths_converted_to_frozenset(self):
+        """Test that custom exempt_paths (set) is converted to frozenset."""
+        app = FastAPI()
+        # Pass a regular set - should be converted to frozenset
+        app.add_middleware(
+            AcceptHeaderMiddleware,
+            exempt_paths={"/custom", "/another"},
+        )
+        middleware = app.middleware_stack
+        while middleware is not None:
+            if hasattr(middleware, "exempt_paths"):
+                assert isinstance(middleware.exempt_paths, frozenset)
+                assert "/custom" in middleware.exempt_paths
+                assert "/another" in middleware.exempt_paths
+                break
+            middleware = getattr(middleware, "app", None)
+
+    def test_frozenset_exempt_paths_preserved(self):
+        """Test that frozenset exempt_paths stays as frozenset."""
+        app = FastAPI()
+        # Pass a frozenset directly
+        custom_paths = frozenset({"/frozen", "/path"})
+        app.add_middleware(
+            AcceptHeaderMiddleware,
+            exempt_paths=custom_paths,
+        )
+        middleware = app.middleware_stack
+        while middleware is not None:
+            if hasattr(middleware, "exempt_paths"):
+                assert isinstance(middleware.exempt_paths, frozenset)
+                assert "/frozen" in middleware.exempt_paths
+                break
+            middleware = getattr(middleware, "app", None)
+
+    def test_is_exempt_uses_optimized_prefix_check(self):
+        """Test that _is_exempt uses str.startswith(tuple) for prefix matching."""
+        app = FastAPI()
+        app.add_middleware(AcceptHeaderMiddleware)
+
+        @app.get("/docs/test")
+        async def docs_test():
+            return {"ok": True}
+
+        @app.get("/ws/events")
+        async def ws_events():
+            return {"ok": True}
+
+        client = TestClient(app)
+
+        # Both paths should be exempt via prefix matching
+        response = client.get("/docs/test", headers={"Accept": "text/xml"})
+        assert response.status_code == 200
+
+        response = client.get("/ws/events", headers={"Accept": "text/xml"})
+        assert response.status_code == 200
+
+    def test_optimization_maintains_backward_compatibility(self):
+        """Test that optimization doesn't break existing behavior."""
+        app = FastAPI()
+        app.add_middleware(AcceptHeaderMiddleware)
+
+        @app.get("/test")
+        async def test_endpoint():
+            return {"ok": True}
+
+        @app.get("/health")
+        async def health():
+            return {"healthy": True}
+
+        @app.get("/api/metrics")
+        async def metrics():
+            return {"metrics": True}
+
+        client = TestClient(app)
+
+        # Non-exempt path should validate Accept
+        response = client.get("/test", headers={"Accept": "text/xml"})
+        assert response.status_code == 406
+
+        # Exact match exempt paths still work
+        response = client.get("/health", headers={"Accept": "text/xml"})
+        assert response.status_code == 200
+
+        response = client.get("/api/metrics", headers={"Accept": "text/xml"})
+        assert response.status_code == 200
+
+    def test_empty_prefixes_tuple_handled(self):
+        """Test that empty exempt_prefixes tuple is handled correctly."""
+        app = FastAPI()
+        app.add_middleware(
+            AcceptHeaderMiddleware,
+            exempt_prefixes=(),  # Empty tuple
+        )
+
+        @app.get("/ws/test")
+        async def ws_test():
+            return {"ok": True}
+
+        client = TestClient(app)
+
+        # With empty prefixes, /ws/ paths should NOT be exempt
+        response = client.get("/ws/test", headers={"Accept": "text/xml"})
+        assert response.status_code == 406
+
+
+class TestAcceptHeaderMiddlewarePerformance:
+    """Performance-focused tests for path lookup optimization (NEM-2597).
+
+    These tests verify the performance characteristics of the optimization
+    by measuring lookup times with different input sizes.
+    """
+
+    def test_frozenset_lookup_performance(self):
+        """Test that frozenset provides consistent O(1) lookup time."""
+        import time
+
+        # Create middleware with many exempt paths - test the _is_exempt method directly
+        many_paths = frozenset({f"/path/{i}" for i in range(1000)})
+
+        # Create a minimal ASGI app to pass to middleware
+        async def minimal_app(scope, receive, send):
+            pass
+
+        # Create middleware instance directly for performance testing
+        middleware = AcceptHeaderMiddleware(
+            minimal_app,
+            exempt_paths=many_paths,
+        )
+
+        # Measure lookup time for first, middle, and last paths
+        paths_to_check = ["/path/0", "/path/500", "/path/999", "/nonexistent"]
+        times = []
+
+        for path in paths_to_check:
+            start = time.perf_counter()
+            for _ in range(10000):
+                middleware._is_exempt(path)
+            elapsed = time.perf_counter() - start
+            times.append(elapsed)
+
+        # All lookups should have similar performance (within 5x)
+        # This verifies O(1) behavior - position in set doesn't matter
+        max_time = max(times)
+        min_time = min(times)
+        assert max_time / min_time < 5, (
+            f"Lookup times vary too much: {times}. Expected O(1) behavior with similar times."
+        )
+
+    def test_tuple_startswith_performance(self):
+        """Test tuple startswith performance vs any() baseline."""
+        import time
+
+        # Create a minimal ASGI app to pass to middleware
+        async def minimal_app(scope, receive, send):
+            pass
+
+        # Create middleware instance directly for performance testing
+        middleware = AcceptHeaderMiddleware(minimal_app)
+
+        # Test paths that require prefix checking
+        test_paths = ["/ws/events", "/docs/openapi", "/redoc/index", "/api/data"]
+        iterations = 10000
+
+        start = time.perf_counter()
+        for _ in range(iterations):
+            for path in test_paths:
+                middleware._is_exempt(path)
+        elapsed = time.perf_counter() - start
+
+        # Just verify it completes in reasonable time (< 1 second for 40k checks)
+        assert elapsed < 1.0, (
+            f"Path exemption check too slow: {elapsed}s for {iterations * len(test_paths)} checks"
+        )
+
+    def test_performance_comparison_set_vs_frozenset(self):
+        """Demonstrate that frozenset is used (benchmark comparison for documentation)."""
+        import time
+
+        # Create a minimal ASGI app
+        async def minimal_app(scope, receive, send):
+            pass
+
+        # Create middleware - it should use frozenset internally
+        middleware = AcceptHeaderMiddleware(minimal_app)
+
+        # Verify the data structure types are correct for optimal performance
+        assert isinstance(middleware.exempt_paths, frozenset), (
+            "exempt_paths should be frozenset for O(1) lookup"
+        )
+        assert isinstance(middleware.exempt_prefixes, tuple), (
+            "exempt_prefixes should be tuple for optimized startswith()"
+        )
+
+        # Run a simple performance check
+        iterations = 100000
+        test_path = "/api/test/endpoint"
+
+        start = time.perf_counter()
+        for _ in range(iterations):
+            middleware._is_exempt(test_path)
+        elapsed = time.perf_counter() - start
+
+        # Should complete 100k checks in under 0.5 seconds
+        assert elapsed < 0.5, f"_is_exempt check too slow: {elapsed}s for {iterations} iterations"

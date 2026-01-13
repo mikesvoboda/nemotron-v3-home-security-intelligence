@@ -1107,6 +1107,55 @@ async def get_job_history_service_dep(
     yield JobHistoryService(db)
 
 
+def get_health_service_registry_dep() -> HealthServiceRegistry:
+    """FastAPI dependency for HealthServiceRegistry (NEM-2611).
+
+    Returns the HealthServiceRegistry singleton from the DI container.
+    This registry provides centralized access to health monitoring services
+    without using global state.
+
+    Returns:
+        HealthServiceRegistry singleton instance from DI container
+
+    Raises:
+        HTTPException: 503 if health registry is not available
+    """
+    from backend.core.container import ServiceNotFoundError, get_container
+
+    container = get_container()
+    try:
+        return cast("HealthServiceRegistry", container.get("health_service_registry"))
+    except ServiceNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Health service registry not available",
+        ) from e
+
+
+def get_health_event_emitter_dep() -> HealthEventEmitter:
+    """FastAPI dependency for HealthEventEmitter (NEM-2611).
+
+    Returns the HealthEventEmitter singleton from the DI container.
+    This service manages WebSocket health event emission.
+
+    Returns:
+        HealthEventEmitter singleton instance from DI container
+
+    Raises:
+        HTTPException: 503 if health event emitter is not available
+    """
+    from backend.core.container import ServiceNotFoundError, get_container
+
+    container = get_container()
+    try:
+        return cast("HealthEventEmitter", container.get("health_event_emitter"))
+    except ServiceNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Health event emitter not available",
+        ) from e
+
+
 # Type-hint-only imports for dependency injection return types
 if TYPE_CHECKING:
     from backend.services.ai_services import (
@@ -1116,6 +1165,8 @@ if TYPE_CHECKING:
         YOLOWorldService,
     )
     from backend.services.export_service import ExportService
+    from backend.services.health_event_emitter import HealthEventEmitter
+    from backend.services.health_service_registry import HealthServiceRegistry
     from backend.services.job_history_service import JobHistoryService
     from backend.services.job_search_service import JobSearchService
     from backend.services.job_service import JobService

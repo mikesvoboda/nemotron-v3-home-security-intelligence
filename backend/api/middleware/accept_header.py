@@ -174,14 +174,17 @@ class AcceptHeaderMiddleware(BaseHTTPMiddleware):
 
     # Default paths exempt from Accept header validation
     # These are typically health checks, metrics, or WebSocket upgrade paths
-    DEFAULT_EXEMPT_PATHS: ClassVar[set[str]] = {
-        "/",
-        "/health",
-        "/ready",
-        "/api/system/health",
-        "/api/system/health/ready",
-        "/api/metrics",
-    }
+    # Using frozenset for O(1) membership testing (immutable and hashable)
+    DEFAULT_EXEMPT_PATHS: ClassVar[frozenset[str]] = frozenset(
+        {
+            "/",
+            "/health",
+            "/ready",
+            "/api/system/health",
+            "/api/system/health/ready",
+            "/api/metrics",
+        }
+    )
 
     # Exempt path prefixes (e.g., WebSocket paths)
     DEFAULT_EXEMPT_PREFIXES: ClassVar[tuple[str, ...]] = (
@@ -196,7 +199,7 @@ class AcceptHeaderMiddleware(BaseHTTPMiddleware):
         app: ASGIApp,
         *,
         supported_types: set[str] | frozenset[str] | None = None,
-        exempt_paths: set[str] | None = None,
+        exempt_paths: set[str] | frozenset[str] | None = None,
         exempt_prefixes: tuple[str, ...] | None = None,
     ):
         """Initialize Accept header validation middleware.
@@ -204,22 +207,28 @@ class AcceptHeaderMiddleware(BaseHTTPMiddleware):
         Args:
             app: FastAPI/Starlette application
             supported_types: Override default supported media types
-            exempt_paths: Override default exempt paths
-            exempt_prefixes: Override default exempt path prefixes
+            exempt_paths: Override default exempt paths (converted to frozenset for O(1) lookup)
+            exempt_prefixes: Override default exempt path prefixes (tuple for optimized startswith)
         """
         super().__init__(app)
-        self.supported_types = (
+        self.supported_types: frozenset[str] = (
             frozenset(supported_types) if supported_types else SUPPORTED_MEDIA_TYPES
         )
-        self.exempt_paths = (
-            exempt_paths if exempt_paths is not None else self.DEFAULT_EXEMPT_PATHS.copy()
+        # Convert to frozenset for O(1) membership testing
+        self.exempt_paths: frozenset[str] = (
+            frozenset(exempt_paths) if exempt_paths is not None else self.DEFAULT_EXEMPT_PATHS
         )
-        self.exempt_prefixes = (
+        self.exempt_prefixes: tuple[str, ...] = (
             exempt_prefixes if exempt_prefixes is not None else self.DEFAULT_EXEMPT_PREFIXES
         )
 
     def _is_exempt(self, path: str) -> bool:
         """Check if path is exempt from Accept header validation.
+
+        Optimized for high-throughput workloads:
+        - O(1) lookup for exact path matches using frozenset
+        - O(n) prefix matching using str.startswith(tuple) which is
+          implemented in C and faster than Python-level any() iteration
 
         Args:
             path: Request URL path
@@ -227,12 +236,13 @@ class AcceptHeaderMiddleware(BaseHTTPMiddleware):
         Returns:
             True if path is exempt, False otherwise
         """
-        # Check exact matches
+        # Check exact matches - O(1) with frozenset
         if path in self.exempt_paths:
             return True
 
-        # Check prefix matches (e.g., WebSocket, docs)
-        return any(path.startswith(prefix) for prefix in self.exempt_prefixes)
+        # Check prefix matches using str.startswith(tuple) - C-level optimization
+        # This is faster than any(path.startswith(p) for p in prefixes)
+        return path.startswith(self.exempt_prefixes)
 
     async def dispatch(
         self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
