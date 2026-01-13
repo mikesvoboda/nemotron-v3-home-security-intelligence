@@ -183,7 +183,8 @@ async def get_camera_or_404(
     and raises an HTTPException with status 404 if not found.
 
     Args:
-        camera_id: The camera ID (UUID string) to look up
+        camera_id: The camera ID (string) to look up. Camera IDs are normalized
+                   folder names (e.g., "front_door"), not UUIDs.
         db: Database session
         include_deleted: If True, include soft-deleted cameras in the lookup.
                          Required for restore operations (NEM-1955).
@@ -192,11 +193,9 @@ async def get_camera_or_404(
         Camera object if found
 
     Raises:
-        HTTPException: 400 if camera_id is not a valid UUID format
         HTTPException: 404 if camera not found
     """
-    # Validate UUID format before database query (NEM-2563)
-    validate_uuid(camera_id, "camera_id")
+    # Note: Camera IDs are strings (normalized folder names), not UUIDs
 
     query = select(Camera).where(Camera.id == camera_id)
     if not include_deleted:
@@ -293,18 +292,16 @@ async def get_alert_rule_or_404(
     and raises an HTTPException with status 404 if not found.
 
     Args:
-        rule_id: The alert rule ID (UUID string) to look up
+        rule_id: The alert rule ID (string) to look up
         db: Database session
 
     Returns:
         AlertRule object if found
 
     Raises:
-        HTTPException: 400 if rule_id is not a valid UUID format
         HTTPException: 404 if alert rule not found
     """
-    # Validate UUID format before database query (NEM-2563)
-    validate_uuid(rule_id, "rule_id")
+    # Note: AlertRule IDs are strings, not UUIDs
 
     result = await db.execute(select(AlertRule).where(AlertRule.id == rule_id))
     rule = result.scalar_one_or_none()
@@ -329,22 +326,17 @@ async def get_zone_or_404(
     and raises an HTTPException with status 404 if not found.
 
     Args:
-        zone_id: The zone ID (UUID string) to look up
+        zone_id: The zone ID (string) to look up
         db: Database session
-        camera_id: Optional camera ID (UUID string) to filter by (if provided, zone must belong to this camera)
+        camera_id: Optional camera ID (string) to filter by (if provided, zone must belong to this camera)
 
     Returns:
         Zone object if found
 
     Raises:
-        HTTPException: 400 if zone_id or camera_id is not a valid UUID format
         HTTPException: 404 if zone not found or doesn't belong to specified camera
     """
-    # Validate UUID format before database query (NEM-2563)
-    validate_uuid(zone_id, "zone_id")
-
-    if camera_id is not None:
-        validate_uuid(camera_id, "camera_id")
+    # Note: Zone and Camera IDs are strings, not UUIDs
 
     query = select(Zone).where(Zone.id == zone_id)
 
