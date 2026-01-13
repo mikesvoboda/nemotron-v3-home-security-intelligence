@@ -867,7 +867,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6, 7, 8]
+        # Increased from 8 to 12 shards to better distribute memory-intensive tests
+        # Shard 4/8 was OOMing due to 55% more test code than average
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
     env:
       NODE_VERSION: '20'
       # Increase Node.js heap size to prevent OOM errors during test cleanup
@@ -912,14 +914,14 @@ jobs:
           echo "ERROR: Failed to install npm dependencies after 3 attempts"
           exit 1
 
-      - name: Run tests (shard ${{ matrix.shard }}/8)
-        # Shard tests across 8 runners for faster execution and isolation
+      - name: Run tests (shard ${{ matrix.shard }}/12)
+        # Shard tests across 12 runners for better memory distribution
         # Coverage collected per-shard and merged in frontend-coverage-merge job
         # NOTE: Do NOT add --coverage here - it triggers per-shard threshold checks
-        # that fail because each shard only has ~12% of total coverage
+        # that fail because each shard only has ~8% of total coverage
         # --teardownTimeout is now configured in vite.config.ts (15000ms)
         # --reporter=verbose provides detailed output for debugging
-        run: cd frontend && npx vitest run --shard=${{ matrix.shard }}/8 --reporter=verbose
+        run: cd frontend && npx vitest run --shard=${{ matrix.shard }}/12 --reporter=verbose
 
       - name: Upload coverage artifact
         if: always()
