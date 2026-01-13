@@ -244,8 +244,23 @@ jobs:
 
           # Health check endpoint for critical services
           echo "Testing /api/system/health/ready..."
-          HEALTH_READY=$(curl -s http://localhost:8000/api/system/health/ready)
-          echo "Ready response: $HEALTH_READY"
+
+          # Capture both response body and HTTP status code
+          RESPONSE=$(curl -s -w "\n%{http_code}" http://localhost:8000/api/system/health/ready)
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+
+          echo "HTTP Status Code: $HTTP_CODE"
+          echo "Response body: $BODY"
+
+          # Validate HTTP status code
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::error::Health check /api/system/health/ready failed with status $HTTP_CODE"
+            echo "Response body: $BODY"
+            exit 1
+          fi
+
+          HEALTH_READY="$BODY"
           READY=$(echo "$HEALTH_READY" | jq -r '.ready // false')
 
           if [ "$READY" != "true" ]; then
@@ -254,8 +269,23 @@ jobs:
 
           # Full health check including circuit breakers
           echo "Testing /api/system/health/full..."
-          HEALTH_FULL=$(curl -s http://localhost:8000/api/system/health/full)
-          echo "Full health response: $HEALTH_FULL"
+
+          # Capture both response body and HTTP status code for full health check
+          RESPONSE=$(curl -s -w "\n%{http_code}" http://localhost:8000/api/system/health/full)
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+
+          echo "HTTP Status Code: $HTTP_CODE"
+          echo "Response body: $BODY"
+
+          # Validate HTTP status code for full health check
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::error::Health check /api/system/health/full failed with status $HTTP_CODE"
+            echo "Response body: $BODY"
+            exit 1
+          fi
+
+          HEALTH_FULL="$BODY"
 
           # Verify critical services are healthy
           POSTGRES_STATUS=$(echo "$HEALTH_FULL" | jq -r '.postgres.status // "unknown"')
@@ -265,7 +295,8 @@ jobs:
           echo "Redis status: $REDIS_STATUS"
 
           if [ "$POSTGRES_STATUS" != "healthy" ] || [ "$REDIS_STATUS" != "healthy" ]; then
-            echo "error: Critical services are not healthy"
+            echo "::error::Critical services are not healthy"
+            echo "Postgres: $POSTGRES_STATUS, Redis: $REDIS_STATUS"
             exit 1
           fi
 
