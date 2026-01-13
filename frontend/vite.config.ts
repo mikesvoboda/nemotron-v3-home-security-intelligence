@@ -190,11 +190,9 @@ export default defineConfig(({ mode }) => {
       // Fork-based parallelization for better memory isolation (each fork is separate process)
       // Threads share memory which can cause accumulation issues during cleanup
       pool: 'forks',
-      // Vitest 4 moved poolOptions to top-level
-      // Limit max forks to prevent memory exhaustion (2 is conservative for CI runners)
-      // Default is os.cpus().length - using fewer to reduce memory pressure
-      maxForks: 2,
-      minForks: 1,
+      // Run tests sequentially in single fork to prevent memory accumulation across workers
+      // This is slower but prevents OOM errors during cleanup
+      singleFork: true,
       // Test timeouts
       testTimeout: 30000,
       hookTimeout: 30000,
