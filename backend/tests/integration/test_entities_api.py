@@ -104,16 +104,15 @@ class TestGetEntity:
             attributes={"clothing": "blue jacket"},
         )
 
-        # Get the raw Redis client for storing
-        redis_client = real_redis._ensure_connected()
-        await reid_service.store_embedding(redis_client, test_embedding)
+        # Use RedisClient wrapper (which uses 'expire=' parameter) instead of raw Redis
+        await reid_service.store_embedding(real_redis, test_embedding)
 
         # Now test the API endpoint
-        # We need to patch the Redis dependency to use real_redis
+        # We need to patch the Redis dependency to use the raw client for API calls
         with patch(
             "backend.api.routes.entities._get_redis_client",
             new_callable=AsyncMock,
-            return_value=redis_client,
+            return_value=real_redis._ensure_connected(),
         ):
             response = await async_client.get("/api/entities/test_det_001")
 
@@ -150,15 +149,14 @@ class TestGetEntityHistory:
             attributes={},
         )
 
-        # Get the raw Redis client for storing
-        redis_client = real_redis._ensure_connected()
-        await reid_service.store_embedding(redis_client, test_embedding)
+        # Use RedisClient wrapper (which uses 'expire=' parameter) instead of raw Redis
+        await reid_service.store_embedding(real_redis, test_embedding)
 
         # Now test the API endpoint
         with patch(
             "backend.api.routes.entities._get_redis_client",
             new_callable=AsyncMock,
-            return_value=redis_client,
+            return_value=real_redis._ensure_connected(),
         ):
             response = await async_client.get("/api/entities/test_det_history_001/history")
 

@@ -672,7 +672,7 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "probe_connect_time_seconds{job=~\"blackbox-http.*\"}",
+          "expr": "probe_http_duration_seconds{phase=\"connect\",job=~\"blackbox-http.*\"}",
           "legendFormat": "{{instance}}",
           "refId": "A"
         }

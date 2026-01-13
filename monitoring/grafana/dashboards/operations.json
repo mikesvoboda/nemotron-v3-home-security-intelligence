@@ -1693,7 +1693,7 @@
           "targets": [
             {
               "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
-              "expr": "avg(hsi_detection_confidence)",
+              "expr": "hsi_detection_confidence_sum / hsi_detection_confidence_count",
               "legendFormat": "Avg Confidence",
               "refId": "A"
             }
@@ -1909,7 +1909,7 @@
           "targets": [
             {
               "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
-              "expr": "rate(hsi_detections_filtered_total[5m])",
+              "expr": "rate(hsi_detections_filtered_low_confidence_total[5m])",
               "legendFormat": "Filtered/sec",
               "refId": "A"
             }
@@ -2090,7 +2090,7 @@
           "targets": [
             {
               "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
-              "expr": "hsi_risk_score",
+              "expr": "hsi_risk_score_sum / hsi_risk_score_count",
               "legendFormat": "Risk Score",
               "refId": "A"
             }
@@ -2145,7 +2145,7 @@
           "targets": [
             {
               "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
-              "expr": "avg_over_time(hsi_risk_score[5m])",
+              "expr": "avg_over_time((hsi_risk_score_sum / hsi_risk_score_count)[5m:])",
               "legendFormat": "Risk Score Avg",
               "refId": "A"
             }
