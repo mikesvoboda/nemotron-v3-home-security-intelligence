@@ -871,8 +871,8 @@ jobs:
     env:
       NODE_VERSION: '20'
       # Increase Node.js heap size to prevent OOM errors during test cleanup
-      # Shard 4 requires >6GB due to memory-intensive tests
-      NODE_OPTIONS: '--max-old-space-size=8192'
+      # 6GB fits within GitHub Actions standard runner (7GB RAM)
+      NODE_OPTIONS: '--max-old-space-size=6144'
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -917,9 +917,15 @@ jobs:
         # Coverage collected per-shard and merged in frontend-coverage-merge job
         # NOTE: Do NOT add --coverage here - it triggers per-shard threshold checks
         # that fail because each shard only has ~12% of total coverage
-        # --teardownTimeout is now configured in vite.config.ts (5000ms)
+        # --teardownTimeout is now configured in vite.config.ts (15000ms)
         # --reporter=verbose provides detailed output for debugging
-        run: cd frontend && npx vitest run --shard=${{ matrix.shard }}/8 --reporter=verbose
+        # Shard 4 uses forks pool with limited workers to prevent OOM (memory-intensive tests)
+        run: |
+          if [ "${{ matrix.shard }}" = "4" ]; then
+            cd frontend && npx vitest run --shard=4/8 --reporter=verbose --pool=forks --poolOptions.forks.maxForks=2
+          else
+            cd frontend && npx vitest run --shard=${{ matrix.shard }}/8 --reporter=verbose
+          fi
 
       - name: Upload coverage artifact
         if: always()
