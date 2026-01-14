@@ -32,13 +32,6 @@ import type { SourceFilter } from '../../services/api';
  */
 type SortOption = 'last_seen' | 'first_seen' | 'appearance_count';
 
-import type { SourceFilter } from '../../services/api';
-
-/**
- * Sort options for entity list
- */
-type SortOption = 'last_seen' | 'first_seen' | 'appearance_count';
-
 /**
  * EntitiesPage component - Display and manage tracked entities
  *
