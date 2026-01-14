@@ -49,6 +49,10 @@ from backend.core.redis import QueueOverflowPolicy, RedisClient
 
 logger = get_logger(__name__)
 
+# TTL for batch closing flag (5 minutes) - prevents orphaned lock flags if process crashes
+# NEM-2507: This ensures closing flags auto-expire if the batch close operation doesn't complete
+BATCH_CLOSING_FLAG_TTL_SECONDS = 300
+
 # Global GPU monitor reference for memory pressure checks
 _gpu_monitor: Any = None
 
@@ -707,6 +711,14 @@ class BatchAggregator:
             # Acquire camera lock to prevent add_detection from modifying the batch
             camera_lock = await self._get_camera_lock(camera_id)
             async with camera_lock:
+                # NEM-2507: Set closing flag with TTL to prevent orphaned locks on crash
+                # The flag will auto-expire after 5 minutes if the process crashes
+                await self._redis._client.set(  # type: ignore[union-attr]
+                    f"batch:{batch_id}:closing",
+                    "1",
+                    ex=BATCH_CLOSING_FLAG_TTL_SECONDS,
+                )
+
                 # Re-check batch exists after acquiring lock (may have been closed already)
                 camera_id_check = await self._redis.get(f"batch:{batch_id}:camera_id")
                 if not camera_id_check:
@@ -896,6 +908,14 @@ class BatchAggregator:
                 extra={"batch_id": batch_id},
             )
             return None
+
+        # NEM-2507: Set closing flag with TTL to prevent orphaned locks on crash
+        # The flag will auto-expire after 5 minutes if the process crashes
+        await self._redis._client.set(  # type: ignore[union-attr]
+            f"batch:{batch_id}:closing",
+            "1",
+            ex=BATCH_CLOSING_FLAG_TTL_SECONDS,
+        )
 
         # Get detection IDs from the batch
         detections_key = f"batch:{batch_id}:detections"

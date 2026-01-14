@@ -7631,6 +7631,10 @@ export interface components {
         /**
          * CameraCreate
          * @description Schema for creating a new camera.
+         *
+         *     NEM-2569: Enhanced with explicit Pydantic validators for:
+         *     - Name: Control character rejection, whitespace stripping, empty validation
+         *     - Folder path: Path traversal prevention, forbidden character rejection
          * @example {
          *       "folder_path": "/export/foscam/front_door",
          *       "name": "Front Door Camera",
@@ -7895,6 +7899,9 @@ export interface components {
         /**
          * CameraUpdate
          * @description Schema for updating an existing camera.
+         *
+         *     NEM-2569: Enhanced with explicit Pydantic validators for partial updates.
+         *     All fields are optional; only provided fields are validated.
          * @example {
          *       "name": "Front Door Camera - Updated",
          *       "status": "offline"
