@@ -127,19 +127,24 @@ def parse_detection_ids(detection_ids_str: str | None) -> list[int]:
 
 
 def get_detection_ids_from_event(event: Event) -> list[int]:
-    """Get detection IDs using the Event.detections relationship.
+    """Get detection IDs using the Event.detections relationship or fallback to legacy column.
+
+    This function provides a migration path from the legacy detection_ids text column
+    to the normalized event_detections junction table. It prefers the relationship
+    but falls back to parsing the legacy column if the relationship is not populated.
 
     Args:
-        event: Event model instance (must have detections relationship loaded)
+        event: Event model instance
 
     Returns:
-        List of detection IDs from the event_detections junction table
+        List of detection IDs associated with the event
     """
-    # Use the normalized data from event_detections junction table
-    # The detections relationship should be eagerly loaded by the query
+    # Try the relationship first (normalized data from event_detections table)
     if event.detections:
         return event.detection_id_list
-    return []
+
+    # Fallback to legacy column for events not yet migrated to junction table
+    return parse_detection_ids(event.detection_ids)
 
 
 def parse_severity_filter(severity_str: str | None) -> list[str]:
