@@ -645,13 +645,17 @@ class TestCategoryPriorityOrdering:
         assert infra_config.restart_backoff_base < ai_config.restart_backoff_base
         assert infra_config.restart_backoff_max < ai_config.restart_backoff_max
 
-    def test_ai_backoff_less_than_monitoring(self) -> None:
-        """Test that AI backoff is less than monitoring (more aggressive)."""
+    def test_ai_base_backoff_less_than_monitoring(self) -> None:
+        """Test that AI base backoff is less than monitoring (more aggressive initial restart).
+
+        Note: AI services have higher max backoff (300.0) than monitoring (120.0) to allow
+        longer stabilization periods for GPU-heavy services.
+        """
         ai_config = AI_CONFIGS["ai-detector"]
         mon_config = MONITORING_CONFIGS["prometheus"]
 
+        # AI has lower base backoff (more aggressive initial restart)
         assert ai_config.restart_backoff_base < mon_config.restart_backoff_base
-        assert ai_config.restart_backoff_max < mon_config.restart_backoff_max
 
     def test_infrastructure_has_highest_max_failures(self) -> None:
         """Test that infrastructure services tolerate more failures before disabling."""
@@ -670,22 +674,32 @@ class TestCategoryPriorityOrdering:
             assert config.max_failures == 5, f"{name} should have max_failures=5"
 
     def test_category_backoff_hierarchy(self) -> None:
-        """Test complete backoff hierarchy: infrastructure < ai < monitoring."""
+        """Test base backoff hierarchy: infrastructure < ai < monitoring.
+
+        Note on max backoff:
+        - Infrastructure: 60.0 (aggressive restart for critical services)
+        - Monitoring: 120.0 (lenient for non-critical services)
+        - AI: 300.0 (highest - allows GPU services time to stabilize)
+
+        The max backoff hierarchy is: infra < mon < ai (AI needs longest stabilization).
+        """
         # Get one representative from each category
         infra_base = INFRASTRUCTURE_CONFIGS["postgres"].restart_backoff_base
         ai_base = AI_CONFIGS["ai-detector"].restart_backoff_base
         mon_base = MONITORING_CONFIGS["prometheus"].restart_backoff_base
 
+        # Base backoff hierarchy: infrastructure restarts fastest, monitoring slowest initially
         assert infra_base < ai_base < mon_base, (
-            f"Expected backoff hierarchy infra({infra_base}) < ai({ai_base}) < mon({mon_base})"
+            f"Expected base backoff hierarchy infra({infra_base}) < ai({ai_base}) < mon({mon_base})"
         )
 
+        # Max backoff hierarchy: AI has highest max (GPU services need longest stabilization)
         infra_max = INFRASTRUCTURE_CONFIGS["postgres"].restart_backoff_max
         ai_max = AI_CONFIGS["ai-detector"].restart_backoff_max
         mon_max = MONITORING_CONFIGS["prometheus"].restart_backoff_max
 
-        assert infra_max < ai_max < mon_max, (
-            f"Expected max backoff hierarchy infra({infra_max}) < ai({ai_max}) < mon({mon_max})"
+        assert infra_max < mon_max < ai_max, (
+            f"Expected max backoff hierarchy infra({infra_max}) < mon({mon_max}) < ai({ai_max})"
         )
 
     @pytest.mark.asyncio
