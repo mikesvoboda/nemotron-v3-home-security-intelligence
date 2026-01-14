@@ -32,8 +32,7 @@ import json
 import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
-<<<<<<< HEAD
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -102,8 +101,6 @@ class CursorValidationModel(BaseModel):
         return v
 
 
-from typing import TYPE_CHECKING
-
 if TYPE_CHECKING:
     from starlette.responses import Response
 
@@ -113,11 +110,6 @@ if TYPE_CHECKING:
 # - URL-safe characters: underscore (_) and hyphen (-)
 # - Padding character: equals (=)
 CURSOR_FORMAT_REGEX = re.compile(r"^[a-zA-Z0-9_=-]+$")
-
-# Maximum allowed cursor length to prevent DoS via oversized cursors
-# Base64-encoded JSON payload {"id": <int>, "created_at": "<ISO8601>"}
-# should not exceed 200 characters in normal operation
-MAX_CURSOR_LENGTH = 500
 
 
 @dataclass
