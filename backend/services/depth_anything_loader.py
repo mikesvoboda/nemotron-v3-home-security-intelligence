@@ -23,6 +23,7 @@ Depth values:
 from __future__ import annotations
 
 import asyncio
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -31,8 +32,140 @@ from backend.core.logging import get_logger
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
+    from PIL import Image
 
 logger = get_logger(__name__)
+
+
+# =============================================================================
+# Data Classes
+# =============================================================================
+
+
+@dataclass(slots=True)
+class DetectionDepth:
+    """Depth information for a single detection.
+
+    Attributes:
+        detection_id: ID of the detection
+        class_name: Object class (e.g., "person", "car")
+        depth_value: Normalized depth value (0=closest, 1=farthest)
+        proximity_label: Human-readable proximity label
+        is_approaching: Whether object appears to be moving toward camera
+    """
+
+    detection_id: str
+    class_name: str
+    depth_value: float
+    proximity_label: str
+    is_approaching: bool = False
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "detection_id": self.detection_id,
+            "class_name": self.class_name,
+            "depth_value": self.depth_value,
+            "proximity_label": self.proximity_label,
+            "is_approaching": self.is_approaching,
+        }
+
+
+@dataclass(slots=True)
+class DepthAnalysisResult:
+    """Result from depth analysis of a frame with detections.
+
+    Provides spatial context for security analysis by estimating how close
+    detected objects are to the camera.
+
+    Attributes:
+        detection_depths: Dict mapping detection_id to DetectionDepth
+        closest_detection_id: ID of the detection closest to camera
+        has_close_objects: Whether any objects are in "very close" or "close" range
+        average_depth: Average depth across all detections
+        depth_variance: Variance in depth values (spread of objects)
+    """
+
+    detection_depths: dict[str, DetectionDepth] = field(default_factory=dict)
+    closest_detection_id: str | None = None
+    has_close_objects: bool = False
+    average_depth: float = 0.5
+    depth_variance: float = 0.0
+
+    @property
+    def has_detections(self) -> bool:
+        """Check if any detection depths are available."""
+        return bool(self.detection_depths)
+
+    @property
+    def detection_count(self) -> int:
+        """Get number of detections with depth info."""
+        return len(self.detection_depths)
+
+    @property
+    def closest_depth(self) -> float | None:
+        """Get depth value of closest detection."""
+        if self.closest_detection_id and self.closest_detection_id in self.detection_depths:
+            return self.detection_depths[self.closest_detection_id].depth_value
+        return None
+
+    @property
+    def close_detection_ids(self) -> list[str]:
+        """Get IDs of detections that are close or very close."""
+        return [
+            det_id
+            for det_id, depth in self.detection_depths.items()
+            if depth.proximity_label in ("very close", "close")
+        ]
+
+    def get_depth(self, detection_id: str) -> DetectionDepth | None:
+        """Get depth info for a specific detection."""
+        return self.detection_depths.get(detection_id)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "detection_depths": {
+                det_id: depth.to_dict() for det_id, depth in self.detection_depths.items()
+            },
+            "closest_detection_id": self.closest_detection_id,
+            "has_close_objects": self.has_close_objects,
+            "average_depth": self.average_depth,
+            "depth_variance": self.depth_variance,
+        }
+
+    def to_context_string(self) -> str:
+        """Generate context string for LLM prompt.
+
+        Returns:
+            Formatted string describing spatial depth analysis
+        """
+        if not self.detection_depths:
+            return "Depth analysis: No detections analyzed"
+
+        lines = ["Spatial depth analysis:"]
+
+        # Sort by depth (closest first)
+        sorted_depths = sorted(self.detection_depths.items(), key=lambda x: x[1].depth_value)
+
+        for det_id, depth in sorted_depths:
+            risk_note = ""
+            if depth.proximity_label == "very close":
+                risk_note = " [CLOSE TO CAMERA]"
+            elif depth.is_approaching:
+                risk_note = " [APPROACHING]"
+
+            lines.append(
+                f"  {depth.class_name} (ID: {det_id}): "
+                f"{depth.proximity_label} (depth: {depth.depth_value:.2f}){risk_note}"
+            )
+
+        # Add summary
+        if self.has_close_objects:
+            lines.append("")
+            lines.append(f"  **NOTE**: {len(self.close_detection_ids)} objects in close proximity")
+
+        return "\n".join(lines)
 
 
 async def load_depth_model(model_path: str) -> Any:
@@ -341,3 +474,110 @@ def rank_detections_by_proximity(
 
     # Sort by depth (lower = closer = higher priority)
     return sorted(indexed, key=lambda x: x[1])
+
+
+# =============================================================================
+# High-Level Analysis Functions
+# =============================================================================
+
+
+async def analyze_depth(
+    depth_pipeline: Any,
+    image: Image.Image,
+    detections: list[dict[str, Any]],
+    depth_sampling_method: str = "center",
+) -> DepthAnalysisResult:
+    """Analyze depth for all detections in an image.
+
+    This is the main entry point for depth analysis in the enrichment pipeline.
+    It runs the depth estimation model on the full frame and extracts depth
+    values for each detection bounding box.
+
+    Args:
+        depth_pipeline: Loaded Depth Anything V2 pipeline
+        image: PIL Image to analyze
+        detections: List of detection dicts with 'detection_id', 'class_name', 'bbox'
+        depth_sampling_method: How to sample depth at bbox ("center", "mean", "median", "min")
+
+    Returns:
+        DepthAnalysisResult with depth info for all detections
+
+    Example:
+        >>> async with model_manager.load("depth-anything-v2-small") as depth_pipe:
+        ...     result = await analyze_depth(depth_pipe, image, detections)
+        ...     print(result.to_context_string())
+    """
+    import asyncio
+
+    if not detections:
+        return DepthAnalysisResult()
+
+    # Run depth estimation in executor (model inference is sync)
+    loop = asyncio.get_event_loop()
+
+    def _estimate_depth() -> NDArray[np.float32]:
+        """Run depth estimation synchronously."""
+        depth_output = depth_pipeline(image)
+        return normalize_depth_map(depth_output)
+
+    try:
+        depth_map = await loop.run_in_executor(None, _estimate_depth)
+    except Exception as e:
+        logger.error(f"Depth estimation failed: {e}", exc_info=True)
+        raise
+
+    # Extract depth for each detection
+    detection_depths: dict[str, DetectionDepth] = {}
+    depth_values: list[float] = []
+    closest_id: str | None = None
+    min_depth = 1.0
+
+    for det in detections:
+        det_id = str(det.get("detection_id", det.get("id", "")))
+        class_name = det.get("class_name", det.get("label", "object"))
+        bbox = det.get("bbox")
+
+        if not bbox or not det_id:
+            continue
+
+        # Handle bbox that might be a BoundingBox object or tuple/list
+        if hasattr(bbox, "to_tuple"):
+            bbox_tuple = bbox.to_tuple()
+        elif isinstance(bbox, (list, tuple)) and len(bbox) >= 4:
+            bbox_tuple = tuple(bbox[:4])
+        else:
+            logger.warning(f"Invalid bbox format for detection {det_id}: {bbox}")
+            continue
+
+        # Get depth value
+        depth_value = get_depth_at_bbox(depth_map, bbox_tuple, method=depth_sampling_method)
+        depth_values.append(depth_value)
+
+        # Create DetectionDepth
+        proximity_label = depth_to_proximity_label(depth_value)
+        detection_depth = DetectionDepth(
+            detection_id=det_id,
+            class_name=class_name,
+            depth_value=depth_value,
+            proximity_label=proximity_label,
+            is_approaching=False,  # Could be enhanced with temporal tracking
+        )
+        detection_depths[det_id] = detection_depth
+
+        # Track closest
+        if depth_value < min_depth:
+            min_depth = depth_value
+            closest_id = det_id
+
+    # Calculate statistics
+    has_close = any(d.proximity_label in ("very close", "close") for d in detection_depths.values())
+    avg_depth = float(np.mean(depth_values)) if depth_values else 0.5
+    variance = float(np.var(depth_values)) if len(depth_values) > 1 else 0.0
+
+    return DepthAnalysisResult(
+        detection_depths=detection_depths,
+        closest_detection_id=closest_id,
+        has_close_objects=has_close,
+        average_depth=avg_depth,
+        depth_variance=variance,
+    )

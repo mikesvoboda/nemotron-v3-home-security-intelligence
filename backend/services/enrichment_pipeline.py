@@ -54,6 +54,10 @@ from backend.core.exceptions import (
 from backend.core.logging import get_logger, sanitize_error
 from backend.core.metrics import record_enrichment_model_call, record_pipeline_error
 from backend.core.mime_types import VIDEO_MIME_TYPES
+from backend.services.depth_anything_loader import (
+    DepthAnalysisResult,
+    analyze_depth,
+)
 
 # Import enrichment client for remote HTTP service
 from backend.services.enrichment_client import (
@@ -113,9 +117,18 @@ from backend.services.vision_extractor import (
     BatchExtractionResult,
     get_vision_extractor,
 )
+from backend.services.vitpose_loader import (
+    PoseResult,
+    extract_poses_batch,
+)
 from backend.services.weather_loader import (
     WeatherResult,
     classify_weather,
+)
+from backend.services.xclip_loader import (
+    classify_actions,
+    get_action_risk_weight,
+    is_suspicious_action,
 )
 
 logger = get_logger(__name__)
@@ -532,6 +545,9 @@ class EnrichmentResult:
     vehicle_classifications: dict[str, VehicleClassificationResult] = field(default_factory=dict)
     vehicle_damage: dict[str, VehicleDamageResult] = field(default_factory=dict)
     pet_classifications: dict[str, PetClassificationResult] = field(default_factory=dict)
+    pose_results: dict[str, PoseResult] = field(default_factory=dict)
+    action_results: dict[str, Any] | None = None
+    depth_analysis: DepthAnalysisResult | None = None
     image_quality: ImageQualityResult | None = None
     quality_change_detected: bool = False
     quality_change_description: str = ""
@@ -649,6 +665,52 @@ class EnrichmentResult:
             and not self.has_violence
             and not self.has_clothing_classifications
         )
+
+    @property
+    def has_pose_results(self) -> bool:
+        """Check if any pose estimation results are available."""
+        return bool(self.pose_results)
+
+    @property
+    def has_suspicious_poses(self) -> bool:
+        """Check if any suspicious poses were detected (crouching, running)."""
+        suspicious_poses = {"crouching", "running", "lying"}
+        return any(
+            p.pose_class in suspicious_poses
+            for p in self.pose_results.values()
+            if p.pose_confidence > 0.5
+        )
+
+    @property
+    def has_action_results(self) -> bool:
+        """Check if action recognition results are available."""
+        return self.action_results is not None
+
+    @property
+    def has_suspicious_action(self) -> bool:
+        """Check if a suspicious action was detected."""
+        if not self.action_results:
+            return False
+        detected_action = self.action_results.get("detected_action", "")
+        return is_suspicious_action(detected_action)
+
+    @property
+    def action_risk_weight(self) -> float:
+        """Get the risk weight for the detected action."""
+        if not self.action_results:
+            return 0.5  # Neutral
+        detected_action = self.action_results.get("detected_action", "")
+        return get_action_risk_weight(detected_action)
+
+    @property
+    def has_depth_analysis(self) -> bool:
+        """Check if depth analysis results are available."""
+        return self.depth_analysis is not None and self.depth_analysis.has_detections
+
+    @property
+    def has_close_objects(self) -> bool:
+        """Check if any objects are in close proximity (very close or close)."""
+        return self.depth_analysis is not None and self.depth_analysis.has_close_objects
 
     @property
     def has_structured_errors(self) -> bool:
@@ -812,6 +874,42 @@ class EnrichmentResult:
             if self.pet_only_event:
                 lines.append("  **NOTE**: Pet-only event - low security risk")
 
+        # Pose Estimation Results (ViTPose)
+        if self.pose_results:
+            lines.append(f"## Pose Analysis ({len(self.pose_results)} persons)")
+            suspicious_poses = {"crouching", "running", "lying"}
+            for det_id, pose_result in self.pose_results.items():
+                pose_class = pose_result.pose_class
+                confidence = pose_result.pose_confidence
+                risk_note = ""
+                if pose_class in suspicious_poses and confidence > 0.5:
+                    risk_note = " [SUSPICIOUS]"
+                lines.append(f"  Person {det_id}: {pose_class} ({confidence:.0%}){risk_note}")
+
+        # Action Recognition Results (X-CLIP)
+        if self.action_results:
+            lines.append("## Action Recognition")
+            detected_action = self.action_results.get("detected_action", "unknown")
+            confidence = self.action_results.get("confidence", 0.0)
+            risk_weight = get_action_risk_weight(detected_action)
+            risk_level = (
+                "HIGH RISK"
+                if risk_weight >= 0.7
+                else "suspicious"
+                if risk_weight >= 0.5
+                else "normal"
+            )
+            lines.append(f"  Detected action: {detected_action} ({confidence:.0%})")
+            if risk_weight >= 0.7:
+                lines.append(
+                    f"  **{risk_level}**: This action indicates potential security concern"
+                )
+
+        # Depth Analysis (Depth Anything V2)
+        if self.depth_analysis and self.depth_analysis.has_detections:
+            lines.append("## Spatial Depth Analysis")
+            lines.append(self.depth_analysis.to_context_string())
+
         # Image Quality Assessment
         if self.image_quality:
             lines.append("## Image Quality Assessment")
@@ -859,6 +957,7 @@ class EnrichmentResult:
                 det_id: result.to_dict() for det_id, result in self.vehicle_classifications.items()
             },
             "image_quality": (self.image_quality.to_dict() if self.image_quality else None),
+            "depth_analysis": (self.depth_analysis.to_dict() if self.depth_analysis else None),
             "quality_change_detected": self.quality_change_detected,
             "quality_change_description": self.quality_change_description,
             "errors": self.errors,
@@ -919,15 +1018,27 @@ class EnrichmentResult:
             "pet_classification_context": format_pet_classification_context(
                 self.pet_classifications
             ),
-            # Pose analysis (placeholder for future ViTPose integration)
-            "pose_analysis": format_pose_analysis_context(None),
-            # Action recognition (placeholder for future X-CLIP integration)
-            "action_recognition": format_action_recognition_context(None),
-            # Depth context (placeholder for future Depth Anything V2 integration)
-            "depth_context": format_depth_context(None),
+            # Pose analysis (ViTPose) - convert PoseResult to dict format
+            "pose_analysis": format_pose_analysis_context(
+                {
+                    det_id: {
+                        "classification": pose.pose_class,
+                        "confidence": pose.pose_confidence,
+                    }
+                    for det_id, pose in self.pose_results.items()
+                }
+                if self.pose_results
+                else None
+            ),
+            # Action recognition (X-CLIP)
+            "action_recognition": format_action_recognition_context(
+                {"0": self.action_results} if self.action_results else None
+            ),
+            # Depth context (Depth Anything V2)
+            "depth_context": format_depth_context(self.depth_analysis),
         }
 
-    def get_risk_modifiers(self) -> dict[str, float]:
+    def get_risk_modifiers(self) -> dict[str, float]:  # noqa: PLR0912
         """Calculate risk score modifiers based on enrichment results.
 
         Returns a dictionary of named risk modifiers that can be used to
@@ -979,6 +1090,23 @@ class EnrichmentResult:
             modifiers["quality_issues"] = 0.1
         if self.quality_change_detected:
             modifiers["quality_change"] = 0.2
+
+        # Suspicious poses (crouching, running, lying) - moderate risk increase
+        if self.has_suspicious_poses:
+            modifiers["suspicious_pose"] = 0.25
+
+        # Action recognition - risk based on detected action
+        if self.action_results:
+            action_weight = self.action_risk_weight
+            if action_weight >= 0.7:
+                # High risk action (breaking in, vandalizing, etc.)
+                modifiers["suspicious_action"] = 0.4
+            elif action_weight >= 0.5:
+                # Medium risk action (loitering, etc.)
+                modifiers["moderate_action"] = 0.2
+            elif action_weight <= 0.3:
+                # Low risk action (delivering, knocking, etc.)
+                modifiers["benign_action"] = -0.15
 
         return modifiers
 
@@ -1047,9 +1175,37 @@ class EnrichmentResult:
                 }
             )
 
+        # Suspicious pose flags
+        suspicious_poses = {"crouching", "running", "lying"}
+        for det_id, pose in self.pose_results.items():
+            if pose.pose_class in suspicious_poses and pose.pose_confidence > 0.5:
+                flags.append(
+                    {
+                        "type": "suspicious_pose",
+                        "description": f"Person {det_id}: {pose.pose_class} ({pose.pose_confidence:.0%} confidence)",
+                        "severity": "alert" if pose.pose_class == "crouching" else "warning",
+                    }
+                )
+
+        # Suspicious action flag
+        if self.has_suspicious_action and self.action_results:
+            detected_action = self.action_results.get("detected_action", "unknown")
+            confidence = self.action_results.get("confidence", 0.0)
+            risk_weight = self.action_risk_weight
+            severity = (
+                "critical" if risk_weight >= 0.9 else "alert" if risk_weight >= 0.7 else "warning"
+            )
+            flags.append(
+                {
+                    "type": "suspicious_action",
+                    "description": f"{detected_action} ({confidence:.0%} confidence)",
+                    "severity": severity,
+                }
+            )
+
         return flags
 
-    def get_enrichment_for_detection(self, detection_id: int) -> dict[str, Any] | None:
+    def get_enrichment_for_detection(self, detection_id: int) -> dict[str, Any] | None:  # noqa: PLR0912
         """Get enrichment data for a specific detection.
 
         Aggregates all enrichment results that apply to the given detection ID.
@@ -1100,20 +1256,42 @@ class EnrichmentResult:
         # Person: clothing classification and segmentation
         if det_id_str in self.clothing_classifications:
             cc = self.clothing_classifications[det_id_str]
+            detected_action = (
+                self.action_results.get("detected_action") if self.action_results else None
+            )
             enrichment["person"] = {
                 "clothing": cc.top_category,
-                "action": None,  # Future: from action recognition
+                "action": detected_action,
                 "carrying": None,  # Future: from pose estimation
                 "confidence": cc.confidence,
             }
 
-        # Person: clothing segmentation (adds additional attributes)
-        if det_id_str in self.clothing_segmentation:
-            cs = self.clothing_segmentation[det_id_str]
+        # Person: pose estimation (ViTPose)
+        if det_id_str in self.pose_results:
+            pose = self.pose_results[det_id_str]
+            detected_action = (
+                self.action_results.get("detected_action") if self.action_results else None
+            )
             if "person" not in enrichment:
                 enrichment["person"] = {
                     "clothing": None,
-                    "action": None,
+                    "action": detected_action,
+                    "carrying": None,
+                    "confidence": None,
+                }
+            enrichment["person"]["pose"] = pose.pose_class
+            enrichment["person"]["pose_confidence"] = pose.pose_confidence
+
+        # Person: clothing segmentation (adds additional attributes)
+        if det_id_str in self.clothing_segmentation:
+            cs = self.clothing_segmentation[det_id_str]
+            detected_action = (
+                self.action_results.get("detected_action") if self.action_results else None
+            )
+            if "person" not in enrichment:
+                enrichment["person"] = {
+                    "clothing": None,
+                    "action": detected_action,
                     "carrying": None,
                     "confidence": None,
                 }
@@ -1220,6 +1398,9 @@ class EnrichmentPipeline:
         vehicle_classification_enabled: bool = True,
         image_quality_enabled: bool | None = None,
         pet_classification_enabled: bool = True,
+        depth_estimation_enabled: bool = True,
+        pose_estimation_enabled: bool = True,
+        action_recognition_enabled: bool = True,
         redis_client: Any | None = None,
         use_enrichment_service: bool = False,
         enrichment_client: EnrichmentClient | None = None,
@@ -1245,6 +1426,9 @@ class EnrichmentPipeline:
                                    Default None uses settings.image_quality_enabled (False by default
                                    due to pyiqa/NumPy 2.0 incompatibility).
             pet_classification_enabled: Enable pet classification for false positive reduction
+            depth_estimation_enabled: Enable Depth Anything V2 depth estimation for spatial context
+            pose_estimation_enabled: Enable ViTPose pose estimation for person detections
+            action_recognition_enabled: Enable X-CLIP action recognition from frame sequences
             redis_client: Redis client for re-id storage (optional)
             use_enrichment_service: Use HTTP service at ai-enrichment:8094 instead of local models
                                     for vehicle, pet, and clothing classification
@@ -1274,6 +1458,9 @@ class EnrichmentPipeline:
         else:
             self.image_quality_enabled = image_quality_enabled
         self.pet_classification_enabled = pet_classification_enabled
+        self.depth_estimation_enabled = depth_estimation_enabled
+        self.pose_estimation_enabled = pose_estimation_enabled
+        self.action_recognition_enabled = action_recognition_enabled
         self._previous_quality_results: dict[str, ImageQualityResult] = {}
         self.redis_client = redis_client
 
@@ -1563,6 +1750,164 @@ class EnrichmentPipeline:
                 )
 
         return results
+
+    async def _analyze_depth(
+        self,
+        detections: list[DetectionInput],
+        image: Image.Image,
+    ) -> DepthAnalysisResult:
+        """Analyze depth for all detections using Depth Anything V2.
+
+        Runs monocular depth estimation on the full frame and extracts
+        depth values at each detection bounding box. This provides spatial
+        context for security analysis (how close objects are to camera).
+
+        Args:
+            detections: List of high-confidence detections with bounding boxes
+            image: Full frame PIL Image
+
+        Returns:
+            DepthAnalysisResult with depth info for all detections
+        """
+        if not detections:
+            return DepthAnalysisResult()
+
+        # Convert DetectionInput to dict format for analyze_depth
+        det_dicts = [
+            {
+                "detection_id": str(d.id) if d.id else str(i),
+                "class_name": d.class_name,
+                "bbox": d.bbox.to_tuple() if d.bbox else None,
+            }
+            for i, d in enumerate(detections)
+        ]
+
+        # Filter out detections without valid bboxes
+        det_dicts = [d for d in det_dicts if d["bbox"] is not None]
+
+        if not det_dicts:
+            return DepthAnalysisResult()
+
+        try:
+            async with self.model_manager.load("depth-anything-v2-small") as depth_pipeline:
+                record_enrichment_model_call("depth")
+                result = await analyze_depth(
+                    depth_pipeline,
+                    image,
+                    det_dicts,
+                    depth_sampling_method="center",
+                )
+                logger.debug(
+                    f"Depth analysis complete: {result.detection_count} detections, "
+                    f"closest={result.closest_detection_id}, "
+                    f"close_objects={'yes' if result.has_close_objects else 'no'}"
+                )
+                return result
+        except Exception as e:
+            logger.error(
+                f"Depth analysis failed: {sanitize_error(e)}",
+                exc_info=True,
+            )
+            raise
+
+    async def _estimate_poses(
+        self,
+        persons: list[DetectionInput],
+        image: Image.Image,
+    ) -> dict[str, PoseResult]:
+        """Estimate poses for person detections using ViTPose.
+
+        Runs pose estimation on each detected person to classify their body
+        posture (standing, sitting, crouching, running, lying). This provides
+        behavioral context for security analysis.
+
+        Args:
+            persons: List of person detections with bounding boxes
+            image: Full frame PIL Image
+
+        Returns:
+            Dictionary mapping detection IDs to PoseResult
+        """
+        if not persons:
+            return {}
+
+        results: dict[str, PoseResult] = {}
+
+        # Crop images for each person
+        crops: list[Image.Image] = []
+        bboxes: list[list[float]] = []
+        det_ids: list[str] = []
+
+        for i, person in enumerate(persons):
+            det_id = str(person.id) if person.id else str(i)
+            if not person.bbox:
+                continue
+
+            # Crop person from full frame
+            bbox = person.bbox.to_int_tuple()
+            cropped = await self._crop_to_bbox(image, person.bbox)
+            if cropped:
+                crops.append(cropped)
+                bboxes.append([float(x) for x in bbox])
+                det_ids.append(det_id)
+
+        if not crops:
+            return {}
+
+        try:
+            async with self.model_manager.load("vitpose-small") as (model, processor):
+                record_enrichment_model_call("pose")
+                pose_results = await extract_poses_batch(model, processor, crops, bboxes)
+
+                for det_id, pose_result in zip(det_ids, pose_results, strict=True):
+                    results[det_id] = pose_result
+
+                logger.debug(f"Pose estimation complete: {len(results)} persons analyzed")
+                return results
+        except Exception as e:
+            logger.error(
+                f"Pose estimation failed: {sanitize_error(e)}",
+                exc_info=True,
+            )
+            raise
+
+    async def _recognize_actions(
+        self,
+        frames: list[Image.Image],
+    ) -> dict[str, Any] | None:
+        """Recognize actions from frame sequence using X-CLIP.
+
+        Runs action recognition on a sequence of frames to classify the
+        activity being performed (walking, running, loitering, breaking in, etc.).
+        This provides behavioral context for security analysis.
+
+        Args:
+            frames: List of PIL Images representing a temporal sequence
+                   (ideally 8 frames for best results)
+
+        Returns:
+            Dictionary with detected_action, confidence, top_actions, all_scores
+            or None if recognition fails
+        """
+        if not frames:
+            return None
+
+        try:
+            async with self.model_manager.load("xclip-base") as model_dict:
+                record_enrichment_model_call("action")
+                result = await classify_actions(model_dict, frames)
+
+                logger.debug(
+                    f"Action recognition complete: {result.get('detected_action')} "
+                    f"({result.get('confidence', 0):.0%})"
+                )
+                return result
+        except Exception as e:
+            logger.error(
+                f"Action recognition failed: {sanitize_error(e)}",
+                exc_info=True,
+            )
+            raise
 
     async def _classify_clothing_via_service(
         self,
@@ -2025,6 +2370,59 @@ class EnrichmentPipeline:
                 except Exception as e:
                     self._handle_enrichment_error("pet_classification", e, result)
 
+        # Run depth estimation for spatial context (Depth Anything V2)
+        if self.depth_estimation_enabled and pil_image and high_conf_detections:
+            try:
+                result.depth_analysis = await self._analyze_depth(high_conf_detections, pil_image)
+            except (
+                httpx.ConnectError,
+                httpx.TimeoutException,
+                httpx.HTTPStatusError,
+                AIServiceError,
+            ) as e:
+                self._handle_enrichment_error("depth_estimation", e, result)
+            except (ValueError, KeyError, TypeError) as e:
+                self._handle_enrichment_error("depth_estimation", e, result)
+            except Exception as e:
+                self._handle_enrichment_error("depth_estimation", e, result)
+
+        # Run pose estimation on person detections (ViTPose)
+        if self.pose_estimation_enabled and pil_image:
+            persons = [d for d in high_conf_detections if d.class_name == PERSON_CLASS]
+            if persons:
+                try:
+                    result.pose_results = await self._estimate_poses(persons, pil_image)
+                except (
+                    httpx.ConnectError,
+                    httpx.TimeoutException,
+                    httpx.HTTPStatusError,
+                    AIServiceError,
+                ) as e:
+                    self._handle_enrichment_error("pose_estimation", e, result)
+                except (ValueError, KeyError, TypeError) as e:
+                    self._handle_enrichment_error("pose_estimation", e, result)
+                except Exception as e:
+                    self._handle_enrichment_error("pose_estimation", e, result)
+
+        # Run action recognition on frame sequence (X-CLIP)
+        # Note: This requires multiple frames for best results; single frame is a fallback
+        if self.action_recognition_enabled and pil_image:
+            persons = [d for d in high_conf_detections if d.class_name == PERSON_CLASS]
+            if persons:
+                try:
+                    result.action_results = await self._recognize_actions([pil_image])
+                except (
+                    httpx.ConnectError,
+                    httpx.TimeoutException,
+                    httpx.HTTPStatusError,
+                    AIServiceError,
+                ) as e:
+                    self._handle_enrichment_error("action_recognition", e, result)
+                except (ValueError, KeyError, TypeError) as e:
+                    self._handle_enrichment_error("action_recognition", e, result)
+                except Exception as e:
+                    self._handle_enrichment_error("action_recognition", e, result)
+
         result.processing_time_ms = (time.monotonic() - start_time) * 1000
         logger.info(
             f"Enrichment complete: {len(result.license_plates)} plates, "
@@ -2037,6 +2435,9 @@ class EnrichmentPipeline:
             f"vehicle_damage={len(result.vehicle_damage)}, "
             f"vehicle_class={len(result.vehicle_classifications)}, "
             f"pets={len(result.pet_classifications)}, "
+            f"depth={'yes' if result.depth_analysis else 'no'}, "
+            f"pose={len(result.pose_results)}, "
+            f"action={'yes' if result.action_results else 'no'}, "
             f"quality={'yes' if result.image_quality else 'no'} "
             f"in {result.processing_time_ms:.1f}ms"
         )
@@ -3343,6 +3744,7 @@ class EnrichmentPipeline:
             "vehicle_classification": "vehicle_class",
             "image_quality_assessment": "image_quality",
             "pet_classification": "pet",
+            "depth_estimation": "depth",
         }
 
         # Track failed models from errors list (new format: "{operation} failed: ...")
@@ -3459,6 +3861,13 @@ class EnrichmentPipeline:
                 set_enrichment_success_rate("pet", 1.0)
             else:
                 set_enrichment_success_rate("pet", 0.0)
+
+        if self.depth_estimation_enabled and pil_image_available and high_conf_detections:
+            if "depth" not in failed_models and result.depth_analysis is not None:
+                successful_models.append("depth")
+                set_enrichment_success_rate("depth", 1.0)
+            elif "depth" in failed_models:
+                set_enrichment_success_rate("depth", 0.0)
 
         # Compute final status
         status = EnrichmentTrackingResult.compute_status(successful_models, failed_models)

@@ -161,6 +161,54 @@ class EventAuditResponse(BaseModel):
     improvements: PromptImprovements
 
 
+class DailyAuditStats(BaseModel):
+    """Daily breakdown of audit statistics.
+
+    Provides a detailed view of audit activity for a single day,
+    including quality metrics and model contribution counts.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "date": "2026-01-01",
+                "day_of_week": "Wednesday",
+                "count": 45,
+                "avg_quality_score": 4.2,
+                "avg_enrichment_utilization": 0.78,
+                "model_contributions": {
+                    "rtdetr": 45,
+                    "florence": 38,
+                    "clip": 12,
+                    "violence": 5,
+                    "clothing": 32,
+                    "vehicle": 8,
+                    "pet": 3,
+                    "weather": 42,
+                    "image_quality": 40,
+                    "zones": 30,
+                    "baseline": 25,
+                    "cross_camera": 10,
+                },
+            }
+        }
+    )
+
+    date: str = Field(..., description="ISO date string (YYYY-MM-DD)")
+    day_of_week: str = Field(..., description="Day name (e.g., Monday, Tuesday)")
+    count: int = Field(..., ge=0, description="Number of audits on this day")
+    avg_quality_score: float | None = Field(
+        None, ge=1, le=5, description="Average quality score for this day (1-5 scale)"
+    )
+    avg_enrichment_utilization: float | None = Field(
+        None, ge=0, le=1, description="Average enrichment utilization for this day (0-1)"
+    )
+    model_contributions: dict[str, int] = Field(
+        default_factory=dict,
+        description="Count of audits where each model contributed on this day",
+    )
+
+
 class AuditStatsResponse(BaseModel):
     """Aggregate audit statistics."""
 
@@ -180,9 +228,30 @@ class AuditStatsResponse(BaseModel):
                     "weather": 0.95,
                 },
                 "audits_by_day": [
-                    {"date": "2026-01-01", "count": 45},
-                    {"date": "2026-01-02", "count": 52},
-                    {"date": "2026-01-03", "count": 38},
+                    {
+                        "date": "2026-01-01",
+                        "day_of_week": "Wednesday",
+                        "count": 45,
+                        "avg_quality_score": 4.2,
+                        "avg_enrichment_utilization": 0.78,
+                        "model_contributions": {"rtdetr": 45, "florence": 38},
+                    },
+                    {
+                        "date": "2026-01-02",
+                        "day_of_week": "Thursday",
+                        "count": 52,
+                        "avg_quality_score": 4.0,
+                        "avg_enrichment_utilization": 0.80,
+                        "model_contributions": {"rtdetr": 52, "florence": 45},
+                    },
+                    {
+                        "date": "2026-01-03",
+                        "day_of_week": "Friday",
+                        "count": 38,
+                        "avg_quality_score": 4.3,
+                        "avg_enrichment_utilization": 0.75,
+                        "model_contributions": {"rtdetr": 38, "florence": 30},
+                    },
                 ],
             }
         }
@@ -200,7 +269,7 @@ class AuditStatsResponse(BaseModel):
     model_contribution_rates: dict[str, float]
 
     # Audits by day for trending
-    audits_by_day: list[dict]
+    audits_by_day: list[DailyAuditStats]
 
 
 class ModelLeaderboardEntry(BaseModel):

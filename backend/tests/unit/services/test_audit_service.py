@@ -1053,9 +1053,20 @@ class TestGetStats:
 class TestGetLeaderboard:
     """Tests for get_leaderboard method."""
 
+    def _setup_mock_db_session(self, mock_db_session, audits: list[EventAudit]):
+        """Helper to setup mock database session with audits."""
+        mock_result = MagicMock()
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = audits
+        mock_result.scalars.return_value = mock_scalars
+        mock_db_session.execute.return_value = mock_result
+
     @pytest.mark.asyncio
     async def test_get_leaderboard_empty(self, audit_service, mock_db_session):
         """Test leaderboard with no audit records."""
+        # Mock database query to return empty list
+        self._setup_mock_db_session(mock_db_session, [])
+
         # Mock get_stats to return empty stats
         with patch.object(
             audit_service,
@@ -1076,6 +1087,9 @@ class TestGetLeaderboard:
     @pytest.mark.asyncio
     async def test_get_leaderboard_sorted_by_contribution(self, audit_service, mock_db_session):
         """Test leaderboard is sorted by contribution rate descending."""
+        # Mock database query to return empty list (correlations will be None)
+        self._setup_mock_db_session(mock_db_session, [])
+
         contribution_rates = dict.fromkeys(MODEL_NAMES, 0.0)
         contribution_rates["rtdetr"] = 1.0
         contribution_rates["florence"] = 0.8
@@ -1109,6 +1123,9 @@ class TestGetLeaderboard:
     @pytest.mark.asyncio
     async def test_get_leaderboard_schema_compliance(self, audit_service, mock_db_session):
         """Test leaderboard entries match expected schema."""
+        # Mock database query to return empty list (correlations will be None)
+        self._setup_mock_db_session(mock_db_session, [])
+
         with patch.object(
             audit_service,
             "get_stats",
@@ -1599,3 +1616,522 @@ class TestEdgeCases:
         assert result.consistency_risk_score == 70
         assert result.consistency_diff is None
         assert result.consistency_score is None
+
+
+# =============================================================================
+# Test: _compute_daily_breakdown
+# =============================================================================
+
+
+class TestComputeDailyBreakdown:
+    """Tests for _compute_daily_breakdown method."""
+
+    def _create_audit_for_date(
+        self,
+        event_id: int,
+        date: datetime,
+        overall_score: float | None = None,
+        utilization: float = 0.5,
+        **model_flags: bool,
+    ) -> EventAudit:
+        """Helper to create audit records for specific dates."""
+        audit = EventAudit(
+            id=event_id,
+            event_id=event_id,
+            audited_at=date,
+            overall_quality_score=overall_score,
+            enrichment_utilization=utilization,
+            has_rtdetr=True,
+        )
+        for flag, value in model_flags.items():
+            setattr(audit, flag, value)
+        return audit
+
+    def test_compute_daily_breakdown_empty(self, audit_service):
+        """Test daily breakdown with no audits."""
+        result = audit_service._compute_daily_breakdown([])
+        assert result == []
+
+    def test_compute_daily_breakdown_single_day(self, audit_service):
+        """Test daily breakdown with audits on a single day."""
+        base_date = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
+        audits = [
+            self._create_audit_for_date(1, base_date, overall_score=4.0, utilization=0.8),
+            self._create_audit_for_date(
+                2, base_date + timedelta(hours=2), overall_score=3.5, utilization=0.6
+            ),
+            self._create_audit_for_date(
+                3, base_date + timedelta(hours=4), overall_score=4.5, utilization=0.7
+            ),
+        ]
+
+        result = audit_service._compute_daily_breakdown(audits)
+
+        assert len(result) == 1
+        day = result[0]
+        assert day["date"] == "2026-01-01"
+        assert day["day_of_week"] == "Thursday"
+        assert day["count"] == 3
+        assert day["avg_quality_score"] == pytest.approx((4.0 + 3.5 + 4.5) / 3)
+        assert day["avg_enrichment_utilization"] == pytest.approx((0.8 + 0.6 + 0.7) / 3)
+        assert day["model_contributions"]["rtdetr"] == 3
+
+    def test_compute_daily_breakdown_multiple_days(self, audit_service):
+        """Test daily breakdown with audits across multiple days."""
+        day1 = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
+        day2 = datetime(2026, 1, 2, 12, 0, 0, tzinfo=UTC)
+        day3 = datetime(2026, 1, 3, 12, 0, 0, tzinfo=UTC)
+
+        audits = [
+            self._create_audit_for_date(1, day1, overall_score=4.0, has_florence=True),
+            self._create_audit_for_date(2, day1, overall_score=3.5),
+            self._create_audit_for_date(3, day2, overall_score=4.5, has_florence=True),
+            self._create_audit_for_date(4, day3, overall_score=3.0, has_clip=True),
+        ]
+
+        result = audit_service._compute_daily_breakdown(audits)
+
+        assert len(result) == 3
+
+        # Day 1
+        assert result[0]["date"] == "2026-01-01"
+        assert result[0]["count"] == 2
+        assert result[0]["avg_quality_score"] == pytest.approx((4.0 + 3.5) / 2)
+        assert result[0]["model_contributions"]["rtdetr"] == 2
+        assert result[0]["model_contributions"]["florence"] == 1
+
+        # Day 2
+        assert result[1]["date"] == "2026-01-02"
+        assert result[1]["count"] == 1
+        assert result[1]["avg_quality_score"] == 4.5
+        assert result[1]["model_contributions"]["florence"] == 1
+
+        # Day 3
+        assert result[2]["date"] == "2026-01-03"
+        assert result[2]["count"] == 1
+        assert result[2]["avg_quality_score"] == 3.0
+        assert result[2]["model_contributions"]["clip"] == 1
+
+    def test_compute_daily_breakdown_sorted_by_date(self, audit_service):
+        """Test that daily breakdown is sorted by date ascending."""
+        # Insert audits out of order
+        day3 = datetime(2026, 1, 3, 12, 0, 0, tzinfo=UTC)
+        day1 = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
+        day2 = datetime(2026, 1, 2, 12, 0, 0, tzinfo=UTC)
+
+        audits = [
+            self._create_audit_for_date(1, day3),
+            self._create_audit_for_date(2, day1),
+            self._create_audit_for_date(3, day2),
+        ]
+
+        result = audit_service._compute_daily_breakdown(audits)
+
+        assert result[0]["date"] == "2026-01-01"
+        assert result[1]["date"] == "2026-01-02"
+        assert result[2]["date"] == "2026-01-03"
+
+    def test_compute_daily_breakdown_no_quality_scores(self, audit_service):
+        """Test daily breakdown when no audits have quality scores."""
+        base_date = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
+        audits = [
+            self._create_audit_for_date(1, base_date, overall_score=None, utilization=0.5),
+            self._create_audit_for_date(2, base_date, overall_score=None, utilization=0.6),
+        ]
+
+        result = audit_service._compute_daily_breakdown(audits)
+
+        assert len(result) == 1
+        assert result[0]["avg_quality_score"] is None
+        assert result[0]["avg_enrichment_utilization"] == pytest.approx(0.55)
+
+    def test_compute_daily_breakdown_day_of_week_values(self, audit_service):
+        """Test that day_of_week is correctly computed for various days."""
+        # Use known dates to verify day of week
+        monday = datetime(2026, 1, 5, 12, 0, 0, tzinfo=UTC)  # Monday
+        saturday = datetime(2026, 1, 10, 12, 0, 0, tzinfo=UTC)  # Saturday
+        sunday = datetime(2026, 1, 11, 12, 0, 0, tzinfo=UTC)  # Sunday
+
+        audits = [
+            self._create_audit_for_date(1, monday),
+            self._create_audit_for_date(2, saturday),
+            self._create_audit_for_date(3, sunday),
+        ]
+
+        result = audit_service._compute_daily_breakdown(audits)
+
+        assert result[0]["day_of_week"] == "Monday"
+        assert result[1]["day_of_week"] == "Saturday"
+        assert result[2]["day_of_week"] == "Sunday"
+
+    def test_compute_daily_breakdown_model_contributions(self, audit_service):
+        """Test that model contributions are correctly counted per day."""
+        day1 = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
+
+        audits = [
+            self._create_audit_for_date(
+                1, day1, has_florence=True, has_clip=True, has_violence=True
+            ),
+            self._create_audit_for_date(
+                2, day1, has_florence=True, has_clip=False, has_violence=True
+            ),
+            self._create_audit_for_date(
+                3, day1, has_florence=False, has_clip=True, has_violence=False
+            ),
+        ]
+
+        result = audit_service._compute_daily_breakdown(audits)
+
+        contributions = result[0]["model_contributions"]
+        assert contributions["rtdetr"] == 3  # All have rtdetr=True by default
+        assert contributions["florence"] == 2
+        assert contributions["clip"] == 2
+        assert contributions["violence"] == 2
+
+
+# =============================================================================
+# Test: _compute_quality_correlations
+# =============================================================================
+
+
+class TestComputeQualityCorrelations:
+    """Tests for _compute_quality_correlations method."""
+
+    def _create_audit_with_score(
+        self,
+        event_id: int,
+        overall_score: float | None,
+        **model_flags: bool,
+    ) -> EventAudit:
+        """Helper to create audit records with specific scores and flags."""
+        audit = EventAudit(
+            id=event_id,
+            event_id=event_id,
+            audited_at=datetime.now(UTC),
+            overall_quality_score=overall_score,
+            has_rtdetr=True,
+        )
+        for flag, value in model_flags.items():
+            setattr(audit, flag, value)
+        return audit
+
+    def test_compute_quality_correlations_empty(self, audit_service):
+        """Test correlation with no audits returns all None."""
+        result = audit_service._compute_quality_correlations([])
+
+        assert all(v is None for v in result.values())
+        assert len(result) == len(MODEL_NAMES)
+
+    def test_compute_quality_correlations_insufficient_data(self, audit_service):
+        """Test correlation with less than 3 audits returns all None."""
+        audits = [
+            self._create_audit_with_score(1, 4.0),
+            self._create_audit_with_score(2, 3.5),
+        ]
+
+        result = audit_service._compute_quality_correlations(audits)
+
+        assert all(v is None for v in result.values())
+
+    def test_compute_quality_correlations_no_variance_in_scores(self, audit_service):
+        """Test correlation with constant quality scores returns all None."""
+        audits = [
+            self._create_audit_with_score(1, 4.0, has_florence=True),
+            self._create_audit_with_score(2, 4.0, has_florence=False),
+            self._create_audit_with_score(3, 4.0, has_florence=True),
+        ]
+
+        result = audit_service._compute_quality_correlations(audits)
+
+        # All quality scores are the same, so correlation is undefined
+        assert all(v is None for v in result.values())
+
+    def test_compute_quality_correlations_no_variance_in_model(self, audit_service):
+        """Test correlation returns None for model with no variance."""
+        # All audits have rtdetr=True (no variance)
+        audits = [
+            self._create_audit_with_score(1, 4.0, has_florence=True),
+            self._create_audit_with_score(2, 3.5, has_florence=False),
+            self._create_audit_with_score(3, 4.5, has_florence=True),
+        ]
+
+        result = audit_service._compute_quality_correlations(audits)
+
+        # rtdetr has no variance (all True), so should be None
+        assert result["rtdetr"] is None
+        # florence has variance, so should have a value
+        assert result["florence"] is not None
+
+    def test_compute_quality_correlations_positive_correlation(self, audit_service):
+        """Test positive correlation when model presence correlates with higher scores."""
+        # Higher scores when florence is present
+        audits = [
+            self._create_audit_with_score(1, 4.5, has_florence=True),
+            self._create_audit_with_score(2, 4.0, has_florence=True),
+            self._create_audit_with_score(3, 4.2, has_florence=True),
+            self._create_audit_with_score(4, 2.5, has_florence=False),
+            self._create_audit_with_score(5, 2.0, has_florence=False),
+            self._create_audit_with_score(6, 2.3, has_florence=False),
+        ]
+
+        result = audit_service._compute_quality_correlations(audits)
+
+        # Florence presence should have strong positive correlation
+        assert result["florence"] is not None
+        assert result["florence"] > 0.8  # Strong positive correlation
+
+    def test_compute_quality_correlations_negative_correlation(self, audit_service):
+        """Test negative correlation when model presence correlates with lower scores."""
+        # Lower scores when violence model detects something
+        audits = [
+            self._create_audit_with_score(1, 2.0, has_violence=True),
+            self._create_audit_with_score(2, 2.5, has_violence=True),
+            self._create_audit_with_score(3, 2.2, has_violence=True),
+            self._create_audit_with_score(4, 4.5, has_violence=False),
+            self._create_audit_with_score(5, 4.8, has_violence=False),
+            self._create_audit_with_score(6, 4.6, has_violence=False),
+        ]
+
+        result = audit_service._compute_quality_correlations(audits)
+
+        # Violence presence should have strong negative correlation
+        assert result["violence"] is not None
+        assert result["violence"] < -0.8  # Strong negative correlation
+
+    def test_compute_quality_correlations_near_zero(self, audit_service):
+        """Test near-zero correlation when model presence has no relationship with scores."""
+        # No clear pattern between clip presence and scores
+        audits = [
+            self._create_audit_with_score(1, 4.0, has_clip=True),
+            self._create_audit_with_score(2, 2.0, has_clip=True),
+            self._create_audit_with_score(3, 3.0, has_clip=False),
+            self._create_audit_with_score(4, 5.0, has_clip=False),
+            self._create_audit_with_score(5, 4.0, has_clip=True),
+            self._create_audit_with_score(6, 2.0, has_clip=False),
+        ]
+
+        result = audit_service._compute_quality_correlations(audits)
+
+        # Should be close to zero (weak or no correlation)
+        assert result["clip"] is not None
+        assert abs(result["clip"]) < 0.5
+
+    def test_compute_quality_correlations_rounding(self, audit_service):
+        """Test that correlation values are rounded to 4 decimal places."""
+        audits = [
+            self._create_audit_with_score(1, 4.0, has_florence=True),
+            self._create_audit_with_score(2, 3.0, has_florence=False),
+            self._create_audit_with_score(3, 4.5, has_florence=True),
+            self._create_audit_with_score(4, 2.5, has_florence=False),
+        ]
+
+        result = audit_service._compute_quality_correlations(audits)
+
+        if result["florence"] is not None:
+            # Check it's rounded to 4 decimal places
+            assert result["florence"] == round(result["florence"], 4)
+
+    def test_compute_quality_correlations_all_models(self, audit_service):
+        """Test that all models are included in the result."""
+        audits = [
+            self._create_audit_with_score(1, 4.0),
+            self._create_audit_with_score(2, 3.5),
+            self._create_audit_with_score(3, 4.5),
+        ]
+
+        result = audit_service._compute_quality_correlations(audits)
+
+        # All models should be in the result
+        for model in MODEL_NAMES:
+            assert model in result
+
+    def test_compute_quality_correlations_filters_none_scores(self, audit_service):
+        """Test that audits without quality scores are excluded from correlation."""
+        audits = [
+            self._create_audit_with_score(1, 4.0, has_florence=True),
+            self._create_audit_with_score(2, None, has_florence=True),  # Should be excluded
+            self._create_audit_with_score(3, 3.5, has_florence=False),
+            self._create_audit_with_score(4, None, has_florence=False),  # Should be excluded
+            self._create_audit_with_score(5, 4.5, has_florence=True),
+        ]
+
+        result = audit_service._compute_quality_correlations(audits)
+
+        # Should compute based on only 3 audits with scores
+        assert result["florence"] is not None
+
+
+# =============================================================================
+# Test: get_stats audits_by_day integration
+# =============================================================================
+
+
+class TestGetStatsAuditsByDay:
+    """Tests for get_stats audits_by_day field."""
+
+    def _create_mock_audit(
+        self,
+        event_id: int,
+        audited_at: datetime,
+        overall_score: float | None = None,
+        utilization: float = 0.5,
+        **model_flags: bool,
+    ) -> EventAudit:
+        """Helper to create mock audit records."""
+        audit = EventAudit(
+            id=event_id,
+            event_id=event_id,
+            audited_at=audited_at,
+            overall_quality_score=overall_score,
+            enrichment_utilization=utilization,
+            has_rtdetr=True,
+        )
+        for flag, value in model_flags.items():
+            setattr(audit, flag, value)
+        return audit
+
+    @pytest.mark.asyncio
+    async def test_get_stats_includes_audits_by_day(self, audit_service, mock_db_session):
+        """Test that get_stats returns audits_by_day with correct structure."""
+        now = datetime.now(UTC)
+        day1 = now - timedelta(days=1)
+        day2 = now - timedelta(days=2)
+
+        audits = [
+            self._create_mock_audit(1, day1, overall_score=4.0, has_florence=True),
+            self._create_mock_audit(2, day1, overall_score=3.5),
+            self._create_mock_audit(3, day2, overall_score=4.5, has_clip=True),
+        ]
+
+        mock_result = MagicMock()
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = audits
+        mock_result.scalars.return_value = mock_scalars
+        mock_db_session.execute.return_value = mock_result
+
+        stats = await audit_service.get_stats(mock_db_session, days=7)
+
+        # audits_by_day should be a list
+        assert isinstance(stats["audits_by_day"], list)
+        assert len(stats["audits_by_day"]) == 2
+
+        # Each entry should have the required fields
+        for entry in stats["audits_by_day"]:
+            assert "date" in entry
+            assert "day_of_week" in entry
+            assert "count" in entry
+            assert "avg_quality_score" in entry
+            assert "avg_enrichment_utilization" in entry
+            assert "model_contributions" in entry
+
+
+# =============================================================================
+# Test: get_leaderboard quality_correlation
+# =============================================================================
+
+
+class TestGetLeaderboardQualityCorrelation:
+    """Tests for get_leaderboard quality_correlation field."""
+
+    def _create_mock_audit(
+        self,
+        event_id: int,
+        audited_at: datetime,
+        overall_score: float | None = None,
+        **model_flags: bool,
+    ) -> EventAudit:
+        """Helper to create mock audit records."""
+        audit = EventAudit(
+            id=event_id,
+            event_id=event_id,
+            audited_at=audited_at,
+            overall_quality_score=overall_score,
+            has_rtdetr=True,
+        )
+        for flag, value in model_flags.items():
+            setattr(audit, flag, value)
+        return audit
+
+    @pytest.mark.asyncio
+    async def test_get_leaderboard_includes_quality_correlation(
+        self, audit_service, mock_db_session
+    ):
+        """Test that get_leaderboard includes quality_correlation for each model."""
+        now = datetime.now(UTC)
+        audits = [
+            self._create_mock_audit(
+                1, now - timedelta(days=1), overall_score=4.0, has_florence=True
+            ),
+            self._create_mock_audit(
+                2, now - timedelta(days=1), overall_score=3.5, has_florence=False
+            ),
+            self._create_mock_audit(
+                3, now - timedelta(days=2), overall_score=4.5, has_florence=True
+            ),
+            self._create_mock_audit(
+                4, now - timedelta(days=2), overall_score=2.5, has_florence=False
+            ),
+        ]
+
+        mock_result = MagicMock()
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = audits
+        mock_result.scalars.return_value = mock_scalars
+        mock_db_session.execute.return_value = mock_result
+
+        with patch.object(
+            audit_service,
+            "get_stats",
+            new_callable=AsyncMock,
+            return_value={
+                "total_events": 4,
+                "model_contribution_rates": dict.fromkeys(MODEL_NAMES, 0.5),
+            },
+        ):
+            leaderboard = await audit_service.get_leaderboard(mock_db_session, days=7)
+
+        # Each entry should have quality_correlation field
+        for entry in leaderboard:
+            assert "quality_correlation" in entry
+
+        # Florence should have a positive correlation (appears with higher scores)
+        florence_entry = next(e for e in leaderboard if e["model_name"] == "florence")
+        assert florence_entry["quality_correlation"] is not None
+        assert florence_entry["quality_correlation"] > 0
+
+    @pytest.mark.asyncio
+    async def test_get_leaderboard_correlation_none_for_no_variance(
+        self, audit_service, mock_db_session
+    ):
+        """Test that quality_correlation is None when model has no variance."""
+        now = datetime.now(UTC)
+        # All audits have rtdetr=True, so no variance
+        audits = [
+            self._create_mock_audit(1, now - timedelta(days=1), overall_score=4.0),
+            self._create_mock_audit(2, now - timedelta(days=1), overall_score=3.5),
+            self._create_mock_audit(3, now - timedelta(days=2), overall_score=4.5),
+        ]
+
+        mock_result = MagicMock()
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = audits
+        mock_result.scalars.return_value = mock_scalars
+        mock_db_session.execute.return_value = mock_result
+
+        with patch.object(
+            audit_service,
+            "get_stats",
+            new_callable=AsyncMock,
+            return_value={
+                "total_events": 3,
+                "model_contribution_rates": {
+                    "rtdetr": 1.0,
+                    **{m: 0 for m in MODEL_NAMES if m != "rtdetr"},
+                },
+            },
+        ):
+            leaderboard = await audit_service.get_leaderboard(mock_db_session, days=7)
+
+        # rtdetr has no variance (all True), so correlation should be None
+        rtdetr_entry = next(e for e in leaderboard if e["model_name"] == "rtdetr")
+        assert rtdetr_entry["quality_correlation"] is None

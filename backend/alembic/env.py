@@ -118,6 +118,11 @@ def verify_database_connection(connection: Connection) -> bool:
 def get_current_revision(connection: Connection) -> str | None:
     """Get the current migration revision from alembic_version table.
 
+    Uses a SAVEPOINT to prevent failed queries from corrupting the transaction.
+    On PostgreSQL, a failed query puts the entire transaction into an aborted
+    state, which would cause subsequent queries to fail with
+    'InFailedSqlTransaction' error.
+
     Args:
         connection: SQLAlchemy connection object.
 
@@ -125,16 +130,29 @@ def get_current_revision(connection: Connection) -> str | None:
         Current revision ID or None if no migrations have been applied.
     """
     try:
+        # Use savepoint to isolate this query - if it fails (table doesn't exist),
+        # we rollback only the savepoint, not the entire transaction
+        connection.execute(text("SAVEPOINT revision_check"))
         result = connection.execute(text("SELECT version_num FROM alembic_version LIMIT 1"))
         row = result.fetchone()
+        connection.execute(text("RELEASE SAVEPOINT revision_check"))
         return row[0] if row else None
-    except ProgrammingError:
-        # alembic_version table doesn't exist yet
+    except (ProgrammingError, SQLAlchemyError):
+        # alembic_version table doesn't exist yet - rollback the savepoint
+        # to clear the failed transaction state
+        try:
+            connection.execute(text("ROLLBACK TO SAVEPOINT revision_check"))
+        except SQLAlchemyError:
+            pass  # Savepoint may not exist if the error happened before it was created
         return None
 
 
 def log_migration_state(connection: Connection, phase: str) -> None:
     """Log the current migration state for debugging.
+
+    Uses SAVEPOINTs for all queries to prevent failed queries from corrupting
+    the transaction state. This is critical for PostgreSQL where a failed query
+    puts the entire transaction into an aborted state.
 
     Args:
         connection: SQLAlchemy connection object.
@@ -143,14 +161,20 @@ def log_migration_state(connection: Connection, phase: str) -> None:
     current_rev = get_current_revision(connection)
     logger.info(f"Migration state {phase}: revision={current_rev}")
 
-    # Log table count for verification
+    # Log table count for verification using savepoint for safety
     try:
+        connection.execute(text("SAVEPOINT table_count_check"))
         result = connection.execute(
             text("SELECT COUNT(*) FROM pg_tables WHERE schemaname = 'public'")
         )
         table_count = result.scalar()
+        connection.execute(text("RELEASE SAVEPOINT table_count_check"))
         logger.info(f"Migration state {phase}: {table_count} tables in public schema")
     except SQLAlchemyError:
+        try:
+            connection.execute(text("ROLLBACK TO SAVEPOINT table_count_check"))
+        except SQLAlchemyError:
+            pass  # Ignore if savepoint doesn't exist
         logger.debug("Could not count tables (this is normal for fresh databases)")
 
 

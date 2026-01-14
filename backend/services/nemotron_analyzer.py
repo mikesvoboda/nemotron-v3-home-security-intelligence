@@ -1476,11 +1476,23 @@ class NemotronAnalyzer:
                 else enrichment_result.to_context_string(),
                 # Violence analysis
                 violence_context=format_violence_context(enrichment_result.violence_detection),
-                # Behavioral analysis (future: ViTPose, X-CLIP)
-                pose_analysis=format_pose_analysis_context(None),  # TODO: Add pose results
+                # Behavioral analysis (ViTPose pose estimation, X-CLIP action recognition)
+                pose_analysis=format_pose_analysis_context(
+                    {
+                        det_id: {
+                            "classification": pose.pose_class,
+                            "confidence": pose.pose_confidence,
+                        }
+                        for det_id, pose in enrichment_result.pose_results.items()
+                    }
+                    if enrichment_result.pose_results
+                    else None
+                ),
                 action_recognition=format_action_recognition_context(
-                    None
-                ),  # TODO: Add action results
+                    {"0": enrichment_result.action_results}
+                    if enrichment_result.action_results
+                    else None
+                ),
                 # Vehicle analysis
                 vehicle_classification_context=format_vehicle_classification_context(
                     enrichment_result.vehicle_classifications
@@ -1498,8 +1510,8 @@ class NemotronAnalyzer:
                 pet_classification_context=format_pet_classification_context(
                     enrichment_result.pet_classifications
                 ),
-                # Spatial context (future: Depth Anything V2)
-                depth_context=format_depth_context(None),  # TODO: Add depth results
+                # Spatial context (Depth Anything V2)
+                depth_context=format_depth_context(enrichment_result.depth_analysis),
                 # Re-identification
                 reid_context=reid_text,
                 # Zone, baseline, cross-camera

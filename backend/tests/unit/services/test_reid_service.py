@@ -590,9 +590,8 @@ class TestStoreEmbedding:
         mock_redis.set.assert_called_once()
         call_args = mock_redis.set.call_args
         assert call_args[0][0] == "entity_embeddings:2025-12-25"
-        # Bug fix: Code now uses 'expire' parameter (RedisClient wrapper API)
-        # Previously used 'ex' which was incorrect
-        assert call_args.kwargs.get("expire") == EMBEDDING_TTL_SECONDS
+        # Mock is not a RedisClient instance, so code uses 'ex' (raw redis-py API)
+        assert call_args.kwargs.get("ex") == EMBEDDING_TTL_SECONDS
 
         # Verify stored data structure
         stored_data = json.loads(call_args[0][1])
@@ -681,12 +680,12 @@ class TestStoreEmbedding:
         assert "Redis connection failed" in str(exc_info.value)
 
     @pytest.mark.asyncio
-    async def test_store_embedding_uses_expire_parameter(self) -> None:
-        """Test that store_embedding correctly passes 'expire' parameter to RedisClient.
+    async def test_store_embedding_uses_correct_ttl_parameter(self) -> None:
+        """Test that store_embedding correctly passes TTL parameter.
 
-        Bug Fix Test: The bug was that store_embedding() was calling
-        redis_client.set(key, data, ex=TTL) but the RedisClient wrapper
-        uses expire= parameter, not ex=. This test verifies the fix.
+        The code detects if the client is a RedisClient wrapper (uses 'expire')
+        or raw redis-py client (uses 'ex'). With AsyncMock, it's not a RedisClient
+        instance, so it uses 'ex'.
         """
         mock_redis = AsyncMock()
         mock_redis.get.return_value = None
@@ -703,16 +702,16 @@ class TestStoreEmbedding:
 
         await service.store_embedding(mock_redis, embedding)
 
-        # Verify set was called with 'expire' not 'ex'
+        # Verify set was called with 'ex' (mock is not a RedisClient instance)
         mock_redis.set.assert_called_once()
         call_kwargs = mock_redis.set.call_args.kwargs
 
-        # Should have 'expire' parameter
-        assert "expire" in call_kwargs
-        assert call_kwargs["expire"] == EMBEDDING_TTL_SECONDS
+        # Should have 'ex' parameter (raw redis-py API for non-RedisClient)
+        assert "ex" in call_kwargs
+        assert call_kwargs["ex"] == EMBEDDING_TTL_SECONDS
 
-        # Should NOT have 'ex' parameter (raw redis-py API)
-        assert "ex" not in call_kwargs
+        # Should NOT have 'expire' parameter (that's for RedisClient wrapper)
+        assert "expire" not in call_kwargs
 
     @pytest.mark.asyncio
     async def test_store_embedding_ttl_value_correct(self) -> None:
@@ -733,25 +732,26 @@ class TestStoreEmbedding:
         await service.store_embedding(mock_redis, embedding)
 
         # Verify TTL is 24 hours (86400 seconds)
+        # Mock is not a RedisClient instance, so code uses 'ex'
         call_kwargs = mock_redis.set.call_args.kwargs
-        assert call_kwargs["expire"] == 86400
-        assert call_kwargs["expire"] == EMBEDDING_TTL_SECONDS
+        assert call_kwargs["ex"] == 86400
+        assert call_kwargs["ex"] == EMBEDDING_TTL_SECONDS
 
     @pytest.mark.asyncio
-    async def test_store_embedding_works_with_redis_client_wrapper(self) -> None:
-        """Test that store_embedding works with RedisClient wrapper (not raw redis-py).
+    async def test_store_embedding_works_with_raw_redis_client(self) -> None:
+        """Test that store_embedding works with raw redis-py client.
 
-        This test simulates the actual RedisClient wrapper behavior to ensure
-        the method call signature is correct.
+        This test simulates the raw redis-py client behavior to ensure
+        the method call signature is correct. Mock is not a RedisClient instance.
         """
         mock_redis = AsyncMock()
         mock_redis.get.return_value = None
 
-        # Mock set to verify it's called correctly
-        async def mock_set(key: str, value: str, expire: int | None = None) -> bool:
-            # This matches RedisClient.set() signature
-            assert expire is not None, "expire parameter should be provided"
-            assert expire == EMBEDDING_TTL_SECONDS
+        # Mock set to verify it's called correctly with 'ex' parameter
+        async def mock_set(key: str, value: str, ex: int | None = None) -> bool:
+            # This matches raw redis-py set() signature
+            assert ex is not None, "ex parameter should be provided"
+            assert ex == EMBEDDING_TTL_SECONDS
             return True
 
         mock_redis.set = AsyncMock(side_effect=mock_set)
@@ -776,7 +776,8 @@ class TestStoreEmbedding:
     async def test_store_embedding_parameter_order(self) -> None:
         """Test that store_embedding passes parameters in correct order.
 
-        Verifies positional and keyword arguments are correct for RedisClient.set()
+        Verifies positional and keyword arguments are correct.
+        Mock is not a RedisClient instance, so code uses 'ex'.
         """
         mock_redis = AsyncMock()
         mock_redis.get.return_value = None
@@ -805,9 +806,9 @@ class TestStoreEmbedding:
         stored_data = json.loads(positional_args[1])
         assert "persons" in stored_data
 
-        # TTL should be in keyword args as 'expire'
-        assert "expire" in keyword_args
-        assert keyword_args["expire"] == EMBEDDING_TTL_SECONDS
+        # TTL should be in keyword args as 'ex' (mock is not RedisClient instance)
+        assert "ex" in keyword_args
+        assert keyword_args["ex"] == EMBEDDING_TTL_SECONDS
 
 
 # =============================================================================
