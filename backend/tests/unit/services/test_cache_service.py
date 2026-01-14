@@ -8,6 +8,8 @@ import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from redis.exceptions import ConnectionError as RedisConnectionError
+from redis.exceptions import RedisError
 
 from backend.core.constants import CacheInvalidationReason
 from backend.services.cache_service import (
@@ -111,7 +113,7 @@ async def test_cache_get_prefixes_key(cache_service, mock_redis_client):
 @pytest.mark.asyncio
 async def test_cache_get_handles_redis_error(cache_service, mock_redis_client):
     """Test cache get returns None and logs warning on Redis error."""
-    mock_redis_client.get.side_effect = Exception("Redis connection failed")
+    mock_redis_client.get.side_effect = RedisError("Redis connection failed")
 
     result = await cache_service.get("key")
 
@@ -185,7 +187,7 @@ async def test_cache_set_prefixes_key(cache_service, mock_redis_client):
 @pytest.mark.asyncio
 async def test_cache_set_returns_false_on_error(cache_service, mock_redis_client):
     """Test cache set returns False on Redis error."""
-    mock_redis_client.set.side_effect = Exception("Redis error")
+    mock_redis_client.set.side_effect = RedisError("Redis error")
 
     result = await cache_service.set("key", "value")
 
@@ -327,7 +329,7 @@ async def test_invalidate_returns_false_if_key_not_found(cache_service, mock_red
 @pytest.mark.asyncio
 async def test_invalidate_handles_error(cache_service, mock_redis_client):
     """Test invalidate returns False on Redis error."""
-    mock_redis_client.delete.side_effect = Exception("Redis error")
+    mock_redis_client.delete.side_effect = RedisError("Redis error")
 
     result = await cache_service.invalidate("key")
 
@@ -394,7 +396,7 @@ async def test_invalidate_pattern_returns_zero_when_no_matches(cache_service, mo
 @pytest.mark.asyncio
 async def test_invalidate_pattern_handles_error(cache_service, mock_redis_client):
     """Test invalidate_pattern returns 0 on error."""
-    mock_redis_client._ensure_connected.side_effect = Exception("Redis error")
+    mock_redis_client._ensure_connected.side_effect = RedisError("Redis error")
 
     result = await cache_service.invalidate_pattern("pattern:*")
 
@@ -430,7 +432,7 @@ async def test_exists_returns_false_when_key_missing(cache_service, mock_redis_c
 @pytest.mark.asyncio
 async def test_exists_handles_error(cache_service, mock_redis_client):
     """Test exists returns False on Redis error."""
-    mock_redis_client.exists.side_effect = Exception("Redis error")
+    mock_redis_client.exists.side_effect = RedisError("Redis error")
 
     result = await cache_service.exists("key")
 
@@ -486,7 +488,7 @@ async def test_refresh_returns_false_for_nonexistent_key(cache_service, mock_red
 @pytest.mark.asyncio
 async def test_refresh_handles_error(cache_service, mock_redis_client):
     """Test refresh returns False on Redis error."""
-    mock_redis_client.expire.side_effect = Exception("Redis error")
+    mock_redis_client.expire.side_effect = RedisError("Redis error")
 
     result = await cache_service.refresh("key")
 
@@ -691,11 +693,11 @@ async def test_reset_cache_service_clears_singleton():
 async def test_cache_operations_graceful_on_redis_unavailable(mock_redis_client):
     """Test cache operations handle Redis being unavailable gracefully."""
     # Configure all operations to fail
-    mock_redis_client.get.side_effect = ConnectionError("Redis unavailable")
-    mock_redis_client.set.side_effect = ConnectionError("Redis unavailable")
-    mock_redis_client.delete.side_effect = ConnectionError("Redis unavailable")
-    mock_redis_client.exists.side_effect = ConnectionError("Redis unavailable")
-    mock_redis_client.expire.side_effect = ConnectionError("Redis unavailable")
+    mock_redis_client.get.side_effect = RedisConnectionError("Redis unavailable")
+    mock_redis_client.set.side_effect = RedisConnectionError("Redis unavailable")
+    mock_redis_client.delete.side_effect = RedisConnectionError("Redis unavailable")
+    mock_redis_client.exists.side_effect = RedisConnectionError("Redis unavailable")
+    mock_redis_client.expire.side_effect = RedisConnectionError("Redis unavailable")
 
     service = CacheService(mock_redis_client)
 
@@ -710,8 +712,8 @@ async def test_cache_operations_graceful_on_redis_unavailable(mock_redis_client)
 @pytest.mark.asyncio
 async def test_get_or_set_still_works_when_cache_fails(mock_redis_client):
     """Test get_or_set returns factory result even when cache operations fail."""
-    mock_redis_client.get.side_effect = ConnectionError("Redis unavailable")
-    mock_redis_client.set.side_effect = ConnectionError("Redis unavailable")
+    mock_redis_client.get.side_effect = RedisConnectionError("Redis unavailable")
+    mock_redis_client.set.side_effect = RedisConnectionError("Redis unavailable")
 
     service = CacheService(mock_redis_client)
 
@@ -848,7 +850,7 @@ async def test_cache_get_records_miss_metric(cache_service, mock_redis_client):
 @pytest.mark.asyncio
 async def test_cache_get_records_miss_on_error(cache_service, mock_redis_client):
     """Test cache get records miss metric on Redis error."""
-    mock_redis_client.get.side_effect = Exception("Redis error")
+    mock_redis_client.get.side_effect = RedisError("Redis error")
 
     with patch("backend.services.cache_service.record_cache_miss") as mock_miss:
         await cache_service.get("cameras:list")
@@ -1189,7 +1191,7 @@ async def test_cached_decorator_passes_cache_type_to_get():
 async def test_cached_decorator_falls_back_on_cache_error():
     """Test cached decorator falls back to uncached execution on error."""
     mock_cache = AsyncMock()
-    mock_cache.get.side_effect = Exception("Redis error")
+    mock_cache.get.side_effect = RedisError("Redis error")
 
     call_count = 0
 

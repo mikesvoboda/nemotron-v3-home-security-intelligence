@@ -8,12 +8,12 @@ Features:
 - Comprehensive error logging for debugging migration issues
 - Pre-migration database state verification
 - Post-migration verification hooks
+- Uses centralized config system (NEM-2525)
 
 Related Linear issue: NEM-2610
 """
 
 import logging
-import os
 import sys
 from logging.config import fileConfig
 from pathlib import Path
@@ -32,7 +32,8 @@ from alembic import context
 # Add the backend directory to the Python path for imports
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-# Import our models to get the metadata
+# Import centralized config (NEM-2525) and models
+from backend.core.config import get_settings
 from backend.models.camera import Base
 
 # Configure logging for migrations
@@ -59,20 +60,33 @@ class MigrationFailedError(Exception):
 
 
 def get_database_url() -> str:
-    """Get database URL from environment or config.
+    """Get database URL from centralized config or fallback to alembic.ini.
 
     Priority:
-    1. DATABASE_URL environment variable
+    1. Centralized config (backend.core.config.Settings.database_url)
     2. alembic.ini sqlalchemy.url setting
+    3. Default development URL
 
     Note: Only PostgreSQL is supported. SQLite URLs will cause runtime errors.
+    The centralized config uses asyncpg URLs, which are converted to sync
+    for Alembic compatibility.
+
+    Related Linear issue: NEM-2525
     """
-    url = os.getenv("DATABASE_URL")
-    if url:
-        # Convert async URL (asyncpg) to sync (psycopg2/plain postgresql)
-        if "+asyncpg" in url:
-            url = url.replace("+asyncpg", "")
-        return url
+    # Use centralized config system (NEM-2525)
+    try:
+        settings = get_settings()
+        url = settings.database_url
+        if url:
+            # Convert async URL (asyncpg) to sync (psycopg2/plain postgresql)
+            if "+asyncpg" in url:
+                url = url.replace("+asyncpg", "")
+            return url
+    except Exception as e:
+        # Fall back to alembic.ini or default if config fails
+        # This can happen during initial setup or testing
+        logger.debug(f"Config loading failed, using fallback: {e}")
+
     ini_url = config.get_main_option("sqlalchemy.url")
     return ini_url if ini_url else DEFAULT_DATABASE_URL
 

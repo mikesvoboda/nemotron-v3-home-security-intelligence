@@ -455,7 +455,8 @@ class TestEventTypeHierarchy:
 
     def test_event_types_follow_domain_action_pattern(self):
         """Verify most event types follow domain.action pattern."""
-        exceptions = {"ping", "pong", "error"}  # Control messages don't follow pattern
+        # Control messages and legacy underscore events don't follow pattern
+        exceptions = {"ping", "pong", "error", "job_progress", "job_completed", "job_failed"}
         for event_type in WebSocketEventType:
             if event_type.value not in exceptions:
                 parts = event_type.value.split(".")
