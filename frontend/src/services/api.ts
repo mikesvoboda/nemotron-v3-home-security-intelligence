@@ -4848,3 +4848,245 @@ export async function resetCalibration(): Promise<CalibrationResetResponse> {
 export async function fetchCalibrationDefaults(): Promise<CalibrationDefaultsResponse> {
   return fetchApi<CalibrationDefaultsResponse>('/api/calibration/defaults');
 }
+
+// ============================================================================
+// Entity Re-Identification V2 API (Historical + Real-time)
+// ============================================================================
+
+/**
+ * Source filter for entity queries.
+ * Controls which storage backend to query:
+ * - redis: Only query Redis hot cache (24h window)
+ * - postgres: Only query PostgreSQL (30d retention)
+ * - both: Query both and merge results (default)
+ */
+export type SourceFilter = 'redis' | 'postgres' | 'both';
+
+/**
+ * Query parameters for the v2 entities endpoint.
+ * Supports historical queries from PostgreSQL and real-time from Redis.
+ */
+export interface EntitiesV2QueryParams {
+  /** Filter by entity type: 'person' or 'vehicle' */
+  entity_type?: 'person' | 'vehicle';
+  /** Filter by camera ID */
+  camera_id?: string;
+  /** Filter entities seen since this ISO timestamp */
+  since?: string;
+  /** Filter entities seen until this ISO timestamp */
+  until?: string;
+  /** Data source: 'redis', 'postgres', or 'both' (default: 'both') */
+  source?: SourceFilter;
+  /** Maximum number of results (1-1000, default 50) */
+  limit?: number;
+  /** Number of results to skip for pagination (default 0) */
+  offset?: number;
+}
+
+/**
+ * Detection summary for entity detections list.
+ */
+export interface DetectionSummary {
+  detection_id: number;
+  camera_id: string;
+  camera_name: string | null;
+  timestamp: string;
+  confidence: number | null;
+  thumbnail_url: string | null;
+  object_type: string | null;
+}
+
+/**
+ * Response for entity detections list endpoint.
+ */
+export interface EntityDetectionsResponse {
+  entity_id: string;
+  entity_type: string;
+  detections: DetectionSummary[];
+  pagination: {
+    total: number;
+    limit: number;
+    offset: number;
+    has_more: boolean;
+  };
+}
+
+/**
+ * Response for entity statistics endpoint.
+ */
+export interface EntityStatsResponse {
+  total_entities: number;
+  total_appearances: number;
+  by_type: Record<string, number>;
+  by_camera: Record<string, number>;
+  repeat_visitors: number;
+  time_range?: {
+    since?: string | null;
+    until?: string | null;
+  } | null;
+}
+
+/**
+ * Fetch tracked entities from the v2 API with historical support.
+ *
+ * Returns a paginated list of entities from Redis (hot cache) and/or
+ * PostgreSQL (historical data). Use the source parameter to control
+ * which backend to query.
+ *
+ * @param params - Query parameters for filtering
+ * @returns EntityListResponse with filtered entities and pagination info
+ *
+ * @example
+ * ```typescript
+ * // Fetch all entities from both sources
+ * const entities = await fetchEntitiesV2();
+ *
+ * // Fetch only historical entities (PostgreSQL)
+ * const historical = await fetchEntitiesV2({ source: 'postgres' });
+ *
+ * // Fetch entities with date range filter
+ * const dateRange = await fetchEntitiesV2({
+ *   since: '2024-01-01T00:00:00Z',
+ *   until: '2024-01-31T23:59:59Z',
+ * });
+ * ```
+ */
+export async function fetchEntitiesV2(
+  params?: EntitiesV2QueryParams
+): Promise<EntityListResponse> {
+  const searchParams = new URLSearchParams();
+
+  if (params?.entity_type) {
+    searchParams.append('entity_type', params.entity_type);
+  }
+  if (params?.camera_id) {
+    searchParams.append('camera_id', params.camera_id);
+  }
+  if (params?.since) {
+    searchParams.append('since', params.since);
+  }
+  if (params?.until) {
+    searchParams.append('until', params.until);
+  }
+  if (params?.source) {
+    searchParams.append('source', params.source);
+  }
+  if (params?.limit !== undefined) {
+    searchParams.append('limit', String(params.limit));
+  }
+  if (params?.offset !== undefined) {
+    searchParams.append('offset', String(params.offset));
+  }
+
+  const queryString = searchParams.toString();
+  const endpoint = queryString ? `/api/entities/v2?${queryString}` : '/api/entities/v2';
+
+  return fetchApi<EntityListResponse>(endpoint);
+}
+
+/**
+ * Fetch detailed information about a specific entity from PostgreSQL.
+ *
+ * Returns the canonical PostgreSQL entity record with full history.
+ * For real-time Redis entities, use the original fetchEntityDetails function.
+ *
+ * @param entityId - UUID of the entity
+ * @returns EntityDetail with full entity information
+ * @throws ApiError with status 404 if entity not found
+ *
+ * @example
+ * ```typescript
+ * try {
+ *   const entity = await fetchEntityV2('550e8400-e29b-41d4-a716-446655440000');
+ *   console.log(`Entity ${entity.id} has ${entity.appearance_count} appearances`);
+ * } catch (error) {
+ *   if (error instanceof ApiError && error.status === 404) {
+ *     console.log('Entity not found in PostgreSQL');
+ *   }
+ * }
+ * ```
+ */
+export async function fetchEntityV2(entityId: string): Promise<EntityDetail> {
+  return fetchApi<EntityDetail>(`/api/entities/v2/${encodeURIComponent(entityId)}`);
+}
+
+/**
+ * Fetch detections linked to a specific entity.
+ *
+ * Returns paginated detections associated with the specified entity.
+ *
+ * @param entityId - UUID of the entity
+ * @param params - Pagination parameters
+ * @returns EntityDetectionsResponse with linked detections and pagination info
+ * @throws ApiError with status 404 if entity not found
+ *
+ * @example
+ * ```typescript
+ * const detections = await fetchEntityDetections(
+ *   '550e8400-e29b-41d4-a716-446655440000',
+ *   { limit: 20, offset: 0 }
+ * );
+ * console.log(`Found ${detections.pagination.total} detections`);
+ * ```
+ */
+export async function fetchEntityDetections(
+  entityId: string,
+  params?: { limit?: number; offset?: number }
+): Promise<EntityDetectionsResponse> {
+  const searchParams = new URLSearchParams();
+
+  if (params?.limit !== undefined) {
+    searchParams.append('limit', String(params.limit));
+  }
+  if (params?.offset !== undefined) {
+    searchParams.append('offset', String(params.offset));
+  }
+
+  const queryString = searchParams.toString();
+  const endpoint = queryString
+    ? `/api/entities/v2/${encodeURIComponent(entityId)}/detections?${queryString}`
+    : `/api/entities/v2/${encodeURIComponent(entityId)}/detections`;
+
+  return fetchApi<EntityDetectionsResponse>(endpoint);
+}
+
+/**
+ * Fetch aggregated entity statistics.
+ *
+ * Returns statistics about tracked entities including counts by type,
+ * camera, and repeat visitors.
+ *
+ * @param params - Optional time range filter
+ * @returns EntityStatsResponse with aggregated statistics
+ *
+ * @example
+ * ```typescript
+ * // Get all-time statistics
+ * const stats = await fetchEntityStats();
+ * console.log(`Total entities: ${stats.total_entities}`);
+ * console.log(`Repeat visitors: ${stats.repeat_visitors}`);
+ *
+ * // Get statistics for a specific time range
+ * const rangeStats = await fetchEntityStats({
+ *   since: '2024-01-01T00:00:00Z',
+ *   until: '2024-01-31T23:59:59Z',
+ * });
+ * ```
+ */
+export async function fetchEntityStats(
+  params?: { since?: string; until?: string }
+): Promise<EntityStatsResponse> {
+  const searchParams = new URLSearchParams();
+
+  if (params?.since) {
+    searchParams.append('since', params.since);
+  }
+  if (params?.until) {
+    searchParams.append('until', params.until);
+  }
+
+  const queryString = searchParams.toString();
+  const endpoint = queryString ? `/api/entities/stats?${queryString}` : '/api/entities/stats';
+
+  return fetchApi<EntityStatsResponse>(endpoint);
+}

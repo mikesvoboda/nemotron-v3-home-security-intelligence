@@ -52,6 +52,20 @@ class EntityTypeFilter(str, Enum):
     vehicle = "vehicle"
 
 
+class SourceFilter(str, Enum):
+    """Data source for entity queries.
+
+    Controls which storage backend to query for entities:
+    - redis: Only query Redis hot cache (24h window)
+    - postgres: Only query PostgreSQL (30d retention)
+    - both: Query both and merge results (default)
+    """
+
+    redis = "redis"
+    postgres = "postgres"
+    both = "both"
+
+
 # =============================================================================
 # Database-Aligned Entity Schemas (match SQLAlchemy Entity model)
 # =============================================================================
@@ -507,3 +521,165 @@ class EntityMatchResponse(BaseModel):
     )
     total_matches: int = Field(..., description="Total number of matches found")
     threshold: float = Field(..., description="Similarity threshold used for matching")
+
+
+# =============================================================================
+# Historical Query Response Schemas (NEM-2500)
+# =============================================================================
+
+
+class DetectionSummary(BaseModel):
+    """Summary of a detection linked to an entity.
+
+    Represents a single detection occurrence for an entity, used in
+    the entity detections list endpoint.
+    """
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "detection_id": 123,
+                "camera_id": "front_door",
+                "camera_name": "Front Door",
+                "timestamp": "2025-12-23T10:00:00Z",
+                "confidence": 0.95,
+                "thumbnail_url": "/api/detections/123/image",
+                "object_type": "person",
+            }
+        },
+    )
+
+    detection_id: int = Field(..., description="Detection database ID")
+    camera_id: str = Field(..., description="Camera ID where detection occurred")
+    camera_name: str | None = Field(None, description="Human-readable camera name")
+    timestamp: datetime = Field(..., description="When the detection occurred")
+    confidence: float | None = Field(None, ge=0.0, le=1.0, description="Detection confidence score")
+    thumbnail_url: str | None = Field(None, description="URL to detection thumbnail")
+    object_type: str | None = Field(None, description="Detected object type")
+
+
+class EntityDetectionsResponse(BaseModel):
+    """Response for entity detections list endpoint.
+
+    Returns all detections linked to a specific entity with pagination.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "entity_id": "550e8400-e29b-41d4-a716-446655440000",
+                "entity_type": "person",
+                "detections": [
+                    {
+                        "detection_id": 123,
+                        "camera_id": "front_door",
+                        "camera_name": "Front Door",
+                        "timestamp": "2025-12-23T10:00:00Z",
+                        "confidence": 0.95,
+                        "thumbnail_url": "/api/detections/123/image",
+                        "object_type": "person",
+                    }
+                ],
+                "pagination": {
+                    "total": 5,
+                    "limit": 50,
+                    "offset": 0,
+                    "has_more": False,
+                },
+            }
+        }
+    )
+
+    entity_id: str = Field(..., description="UUID of the entity")
+    entity_type: str = Field(..., description="Type of entity")
+    detections: list[DetectionSummary] = Field(
+        default_factory=list, description="List of detections for this entity"
+    )
+    pagination: PaginationInfo = Field(..., description="Pagination metadata")
+
+
+class EntityTypeCounts(BaseModel):
+    """Entity counts by type."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "person": 150,
+                "vehicle": 45,
+                "animal": 12,
+            }
+        }
+    )
+
+    person: int = Field(default=0, ge=0, description="Count of person entities")
+    vehicle: int = Field(default=0, ge=0, description="Count of vehicle entities")
+    animal: int = Field(default=0, ge=0, description="Count of animal entities")
+    package: int = Field(default=0, ge=0, description="Count of package entities")
+    other: int = Field(default=0, ge=0, description="Count of other entities")
+
+
+class CameraCounts(BaseModel):
+    """Entity counts by camera."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "front_door": 85,
+                "backyard": 42,
+                "driveway": 68,
+            }
+        }
+    )
+
+    # Dynamic camera counts stored in a dict
+    counts: dict[str, int] = Field(default_factory=dict, description="Entity counts per camera")
+
+
+class EntityStatsResponse(BaseModel):
+    """Response for entity statistics endpoint.
+
+    Returns aggregated statistics about tracked entities.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "total_entities": 207,
+                "total_appearances": 1523,
+                "by_type": {
+                    "person": 150,
+                    "vehicle": 45,
+                    "animal": 12,
+                    "package": 0,
+                    "other": 0,
+                },
+                "by_camera": {
+                    "front_door": 85,
+                    "backyard": 42,
+                    "driveway": 68,
+                    "garage": 12,
+                },
+                "repeat_visitors": 89,
+                "time_range": {
+                    "since": "2025-12-23T00:00:00Z",
+                    "until": "2025-12-23T23:59:59Z",
+                },
+            }
+        }
+    )
+
+    total_entities: int = Field(..., ge=0, description="Count of unique entities")
+    total_appearances: int = Field(
+        ..., ge=0, description="Sum of all detection counts across entities"
+    )
+    by_type: dict[str, int] = Field(
+        default_factory=dict, description="Entity counts grouped by entity type"
+    )
+    by_camera: dict[str, int] = Field(
+        default_factory=dict, description="Entity counts grouped by camera"
+    )
+    repeat_visitors: int = Field(..., ge=0, description="Count of entities seen more than once")
+    time_range: dict[str, datetime | None] | None = Field(
+        None, description="Time range for the statistics query"
+    )

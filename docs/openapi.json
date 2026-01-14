@@ -5830,6 +5830,93 @@
         "title": "DetectionStatsResponse",
         "type": "object"
       },
+      "DetectionSummary": {
+        "description": "Summary of a detection linked to an entity.\n\nRepresents a single detection occurrence for an entity, used in\nthe entity detections list endpoint.",
+        "example": {
+          "camera_id": "front_door",
+          "camera_name": "Front Door",
+          "confidence": 0.95,
+          "detection_id": 123,
+          "object_type": "person",
+          "thumbnail_url": "/api/detections/123/image",
+          "timestamp": "2025-12-23T10:00:00Z"
+        },
+        "properties": {
+          "camera_id": {
+            "description": "Camera ID where detection occurred",
+            "title": "Camera Id",
+            "type": "string"
+          },
+          "camera_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Human-readable camera name",
+            "title": "Camera Name"
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Detection confidence score",
+            "title": "Confidence"
+          },
+          "detection_id": {
+            "description": "Detection database ID",
+            "title": "Detection Id",
+            "type": "integer"
+          },
+          "object_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Detected object type",
+            "title": "Object Type"
+          },
+          "thumbnail_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "URL to detection thumbnail",
+            "title": "Thumbnail Url"
+          },
+          "timestamp": {
+            "description": "When the detection occurred",
+            "format": "date-time",
+            "title": "Timestamp",
+            "type": "string"
+          }
+        },
+        "required": [
+          "detection_id",
+          "camera_id",
+          "timestamp"
+        ],
+        "title": "DetectionSummary",
+        "type": "object"
+      },
       "DetectionTrendDataPoint": {
         "description": "Schema for a single detection trend data point.",
         "example": {
@@ -6428,6 +6515,61 @@
         "title": "EntityDetail",
         "type": "object"
       },
+      "EntityDetectionsResponse": {
+        "description": "Response for entity detections list endpoint.\n\nReturns all detections linked to a specific entity with pagination.",
+        "example": {
+          "detections": [
+            {
+              "camera_id": "front_door",
+              "camera_name": "Front Door",
+              "confidence": 0.95,
+              "detection_id": 123,
+              "object_type": "person",
+              "thumbnail_url": "/api/detections/123/image",
+              "timestamp": "2025-12-23T10:00:00Z"
+            }
+          ],
+          "entity_id": "550e8400-e29b-41d4-a716-446655440000",
+          "entity_type": "person",
+          "pagination": {
+            "has_more": false,
+            "limit": 50,
+            "offset": 0,
+            "total": 5
+          }
+        },
+        "properties": {
+          "detections": {
+            "description": "List of detections for this entity",
+            "items": {
+              "$ref": "#/components/schemas/DetectionSummary"
+            },
+            "title": "Detections",
+            "type": "array"
+          },
+          "entity_id": {
+            "description": "UUID of the entity",
+            "title": "Entity Id",
+            "type": "string"
+          },
+          "entity_type": {
+            "description": "Type of entity",
+            "title": "Entity Type",
+            "type": "string"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationInfo",
+            "description": "Pagination metadata"
+          }
+        },
+        "required": [
+          "entity_id",
+          "entity_type",
+          "pagination"
+        ],
+        "title": "EntityDetectionsResponse",
+        "type": "object"
+      },
       "EntityHistoryResponse": {
         "description": "Schema for entity appearance history response.",
         "example": {
@@ -6676,6 +6818,97 @@
           "threshold"
         ],
         "title": "EntityMatchResponse",
+        "type": "object"
+      },
+      "EntityStatsResponse": {
+        "description": "Response for entity statistics endpoint.\n\nReturns aggregated statistics about tracked entities.",
+        "example": {
+          "by_camera": {
+            "backyard": 42,
+            "driveway": 68,
+            "front_door": 85,
+            "garage": 12
+          },
+          "by_type": {
+            "animal": 12,
+            "other": 0,
+            "package": 0,
+            "person": 150,
+            "vehicle": 45
+          },
+          "repeat_visitors": 89,
+          "time_range": {
+            "since": "2025-12-23T00:00:00Z",
+            "until": "2025-12-23T23:59:59Z"
+          },
+          "total_appearances": 1523,
+          "total_entities": 207
+        },
+        "properties": {
+          "by_camera": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "Entity counts grouped by camera",
+            "title": "By Camera",
+            "type": "object"
+          },
+          "by_type": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "Entity counts grouped by entity type",
+            "title": "By Type",
+            "type": "object"
+          },
+          "repeat_visitors": {
+            "description": "Count of entities seen more than once",
+            "minimum": 0.0,
+            "title": "Repeat Visitors",
+            "type": "integer"
+          },
+          "time_range": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "anyOf": [
+                    {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Time range for the statistics query",
+            "title": "Time Range"
+          },
+          "total_appearances": {
+            "description": "Sum of all detection counts across entities",
+            "minimum": 0.0,
+            "title": "Total Appearances",
+            "type": "integer"
+          },
+          "total_entities": {
+            "description": "Count of unique entities",
+            "minimum": 0.0,
+            "title": "Total Entities",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total_entities",
+          "total_appearances",
+          "repeat_visitors"
+        ],
+        "title": "EntityStatsResponse",
         "type": "object"
       },
       "EntitySummary": {
@@ -17225,6 +17458,16 @@
         "title": "SeverityThresholdsUpdateRequest",
         "type": "object"
       },
+      "SourceFilter": {
+        "description": "Data source for entity queries.\n\nControls which storage backend to query for entities:\n- redis: Only query Redis hot cache (24h window)\n- postgres: Only query PostgreSQL (30d retention)\n- both: Query both and merge results (default)",
+        "enum": [
+          "redis",
+          "postgres",
+          "both"
+        ],
+        "title": "SourceFilter",
+        "type": "string"
+      },
       "StageLatency": {
         "description": "Latency statistics for a single pipeline stage.",
         "example": {
@@ -23827,6 +24070,350 @@
           }
         },
         "summary": "Get Entity Matches",
+        "tags": [
+          "entities"
+        ]
+      }
+    },
+    "/api/entities/stats": {
+      "get": {
+        "description": "Get aggregated entity statistics.\n\nReturns statistics about tracked entities including counts by type,\ncamera, and repeat visitors.\n\nArgs:\n    since: Filter entities seen since this timestamp\n    until: Filter entities seen until this timestamp\n    entity_repo: Entity repository dependency\n\nReturns:\n    EntityStatsResponse with aggregated statistics",
+        "operationId": "get_entity_stats_api_entities_stats_get",
+        "parameters": [
+          {
+            "description": "Filter entities seen since this time",
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter entities seen since this time",
+              "title": "Since"
+            }
+          },
+          {
+            "description": "Filter entities seen until this time",
+            "in": "query",
+            "name": "until",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter entities seen until this time",
+              "title": "Until"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntityStatsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get Entity Stats",
+        "tags": [
+          "entities"
+        ]
+      }
+    },
+    "/api/entities/v2": {
+      "get": {
+        "description": "List tracked entities with historical query support.\n\nReturns a paginated list of entities from Redis (hot cache) and/or\nPostgreSQL (historical data). Use the source parameter to control\nwhich backend to query.\n\nArgs:\n    entity_type: Filter by entity type ('person' or 'vehicle')\n    camera_id: Filter by camera ID\n    since: Filter entities seen since this timestamp\n    until: Filter entities seen until this timestamp\n    source: Data source ('redis', 'postgres', 'both') - default 'both'\n    limit: Maximum number of results (1-1000, default 50)\n    offset: Number of results to skip for pagination (default 0)\n    reid_service: Re-identification service dependency\n    hybrid_storage: Hybrid storage service dependency\n\nReturns:\n    EntityListResponse with filtered entities and pagination info",
+        "operationId": "list_entities_v2_api_entities_v2_get",
+        "parameters": [
+          {
+            "description": "Filter by entity type: 'person' or 'vehicle'",
+            "in": "query",
+            "name": "entity_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/EntityTypeFilter"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by entity type: 'person' or 'vehicle'",
+              "title": "Entity Type"
+            }
+          },
+          {
+            "description": "Filter by camera ID",
+            "in": "query",
+            "name": "camera_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by camera ID",
+              "title": "Camera Id"
+            }
+          },
+          {
+            "description": "Filter entities seen since this time",
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter entities seen since this time",
+              "title": "Since"
+            }
+          },
+          {
+            "description": "Filter entities seen until this time",
+            "in": "query",
+            "name": "until",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter entities seen until this time",
+              "title": "Until"
+            }
+          },
+          {
+            "description": "Data source: 'redis', 'postgres', or 'both'",
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/SourceFilter",
+              "default": "both",
+              "description": "Data source: 'redis', 'postgres', or 'both'"
+            }
+          },
+          {
+            "description": "Maximum number of results",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "description": "Maximum number of results",
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Number of results to skip",
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Number of results to skip",
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntityListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "List Entities V2",
+        "tags": [
+          "entities"
+        ]
+      }
+    },
+    "/api/entities/v2/{entity_id}": {
+      "get": {
+        "description": "Get detailed information about a specific entity from PostgreSQL.\n\nReturns the canonical PostgreSQL entity record with full history.\nFor real-time Redis entities, use the original /api/entities/{entity_id} endpoint.\n\nArgs:\n    entity_id: UUID of the entity\n    hybrid_storage: Hybrid storage service dependency\n\nReturns:\n    EntityDetail with full entity information\n\nRaises:\n    HTTPException: 404 if entity not found",
+        "operationId": "get_entity_v2_api_entities_v2__entity_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "entity_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Entity Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntityDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Entity not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get Entity V2",
+        "tags": [
+          "entities"
+        ]
+      }
+    },
+    "/api/entities/v2/{entity_id}/detections": {
+      "get": {
+        "description": "List all detections linked to an entity.\n\nReturns paginated detections associated with the specified entity.\n\nArgs:\n    entity_id: UUID of the entity\n    limit: Maximum number of results (1-1000, default 50)\n    offset: Number of results to skip for pagination (default 0)\n    entity_repo: Entity repository dependency\n\nReturns:\n    EntityDetectionsResponse with linked detections and pagination info\n\nRaises:\n    HTTPException: 404 if entity not found",
+        "operationId": "get_entity_detections_api_entities_v2__entity_id__detections_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "entity_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Entity Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Maximum number of results",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "description": "Maximum number of results",
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Number of results to skip",
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Number of results to skip",
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntityDetectionsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Entity not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get Entity Detections",
         "tags": [
           "entities"
         ]

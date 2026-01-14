@@ -1,9 +1,20 @@
-import { AlertCircle, Car, Loader2, RefreshCw, User, Users } from 'lucide-react';
+import {
+  AlertCircle,
+  ArrowDownAZ,
+  Calendar,
+  Car,
+  Database,
+  Loader2,
+  RefreshCw,
+  User,
+  Users,
+} from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 
 import EntitiesEmptyState from './EntitiesEmptyState';
 import EntityCard from './EntityCard';
 import EntityDetailModal from './EntityDetailModal';
+import EntityStatsCard from './EntityStatsCard';
 import { useCamerasQuery } from '../../hooks/useCamerasQuery';
 import {
   useEntitiesInfiniteQuery,
@@ -14,15 +25,25 @@ import { useEntityDetailQuery, type TimeRangeFilter } from '../../hooks/useEntit
 import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
 import { EntityCardSkeleton, InfiniteScrollStatus } from '../common';
 
+import type { SourceFilter } from '../../services/api';
+
+/**
+ * Sort options for entity list
+ */
+type SortOption = 'last_seen' | 'first_seen' | 'appearance_count';
+
 /**
  * EntitiesPage component - Display and manage tracked entities
  *
  * Features:
  * - List of tracked people and vehicles detected across cameras
  * - Filter by entity type (person/vehicle)
- * - Filter by time range (1h/24h/7d/30d)
+ * - Filter by time range (1h/24h/7d/30d) or custom date range
  * - Filter by camera
+ * - Filter by data source (Redis real-time, PostgreSQL historical, or both)
+ * - Sort by last seen, first seen, or appearance count
  * - View entity detail with appearance timeline
+ * - Entity statistics card
  * - Auto-refresh every 30 seconds
  * - Infinite scroll for large entity lists
  */
@@ -31,6 +52,13 @@ export default function EntitiesPage() {
   const [entityTypeFilter, setEntityTypeFilter] = useState<'all' | 'person' | 'vehicle'>('all');
   const [timeRangeFilter, setTimeRangeFilter] = useState<TimeRangeFilter>('all');
   const [cameraFilter, setCameraFilter] = useState<string>('');
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>('both');
+  const [sortOption, setSortOption] = useState<SortOption>('last_seen');
+  const [showStats, setShowStats] = useState<boolean>(true);
+
+  // Custom date range state
+  const [customDateRange, setCustomDateRange] = useState<{ since?: Date; until?: Date }>({});
+  const [useCustomDateRange, setUseCustomDateRange] = useState<boolean>(false);
 
   // State for entity detail modal
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
@@ -38,6 +66,19 @@ export default function EntitiesPage() {
 
   // Fetch cameras for the filter dropdown
   const { cameras, isLoading: camerasLoading } = useCamerasQuery();
+
+  // Compute effective date range (custom or preset)
+  const effectiveDateRange = useMemo(() => {
+    if (useCustomDateRange && (customDateRange.since || customDateRange.until)) {
+      return {
+        since: customDateRange.since?.toISOString(),
+        until: customDateRange.until?.toISOString(),
+      };
+    }
+    // Convert time range filter to ISO timestamp
+    const since = timeRangeToSince(timeRangeFilter);
+    return { since, until: undefined };
+  }, [useCustomDateRange, customDateRange, timeRangeFilter]);
 
   // Build filters for the infinite query
   const filters: EntityFilters = useMemo(() => {
@@ -51,14 +92,13 @@ export default function EntitiesPage() {
       f.camera_id = cameraFilter;
     }
 
-    // Convert time range filter to ISO timestamp
-    const since = timeRangeToSince(timeRangeFilter);
-    if (since) {
-      f.since = since;
+    // Apply date range
+    if (effectiveDateRange.since) {
+      f.since = effectiveDateRange.since;
     }
 
     return f;
-  }, [entityTypeFilter, cameraFilter, timeRangeFilter]);
+  }, [entityTypeFilter, cameraFilter, effectiveDateRange]);
 
   // Fetch entities with cursor-based pagination and infinite scroll
   const {
@@ -84,6 +124,24 @@ export default function EntitiesPage() {
     isLoading: isFetchingNextPage,
     enabled: !loading && entities.length > 0,
   });
+
+  // Sort entities based on selected sort option
+  const sortedEntities = useMemo(() => {
+    if (!entities.length) return entities;
+
+    return [...entities].sort((a, b) => {
+      switch (sortOption) {
+        case 'last_seen':
+          return new Date(b.last_seen).getTime() - new Date(a.last_seen).getTime();
+        case 'first_seen':
+          return new Date(b.first_seen).getTime() - new Date(a.first_seen).getTime();
+        case 'appearance_count':
+          return b.appearance_count - a.appearance_count;
+        default:
+          return 0;
+      }
+    });
+  }, [entities, sortOption]);
 
   // Fetch entity detail when modal is open
   const {
@@ -112,8 +170,8 @@ export default function EntitiesPage() {
   }, [refetch]);
 
   // Count entities by type (from loaded entities)
-  const personCount = entities.filter((e) => e.entity_type === 'person').length;
-  const vehicleCount = entities.filter((e) => e.entity_type === 'vehicle').length;
+  const personCount = sortedEntities.filter((e) => e.entity_type === 'person').length;
+  const vehicleCount = sortedEntities.filter((e) => e.entity_type === 'vehicle').length;
 
   // Time range options
   const timeRangeOptions: { value: TimeRangeFilter; label: string }[] = [
@@ -155,6 +213,16 @@ export default function EntitiesPage() {
           Refresh
         </button>
       </div>
+
+      {/* Entity Stats Card */}
+      {showStats && (
+        <EntityStatsCard
+          since={effectiveDateRange.since ? new Date(effectiveDateRange.since) : undefined}
+          until={effectiveDateRange.until ? new Date(effectiveDateRange.until) : undefined}
+          className="mb-6"
+          compact
+        />
+      )}
 
       {/* Filters */}
       <div className="mb-6 flex flex-wrap items-center gap-4">
@@ -204,8 +272,15 @@ export default function EntitiesPage() {
           </label>
           <select
             id="time-range-filter"
-            value={timeRangeFilter}
-            onChange={(e) => setTimeRangeFilter(e.target.value as TimeRangeFilter)}
+            value={useCustomDateRange ? 'custom' : timeRangeFilter}
+            onChange={(e) => {
+              if (e.target.value === 'custom') {
+                setUseCustomDateRange(true);
+              } else {
+                setUseCustomDateRange(false);
+                setTimeRangeFilter(e.target.value as TimeRangeFilter);
+              }
+            }}
             className="rounded-lg border border-gray-700 bg-[#1F1F1F] px-3 py-2 text-sm text-white focus:border-[#76B900] focus:outline-none focus:ring-1 focus:ring-[#76B900]"
             aria-label="Filter by time range"
           >
@@ -214,8 +289,41 @@ export default function EntitiesPage() {
                 {option.label}
               </option>
             ))}
+            <option value="custom">Custom Range</option>
           </select>
         </div>
+
+        {/* Custom date range inputs */}
+        {useCustomDateRange && (
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-gray-400" />
+            <input
+              type="date"
+              value={customDateRange.since?.toISOString().split('T')[0] ?? ''}
+              onChange={(e) =>
+                setCustomDateRange((prev) => ({
+                  ...prev,
+                  since: e.target.value ? new Date(e.target.value) : undefined,
+                }))
+              }
+              className="rounded-lg border border-gray-700 bg-[#1F1F1F] px-2 py-1.5 text-sm text-white focus:border-[#76B900] focus:outline-none"
+              aria-label="Start date"
+            />
+            <span className="text-gray-400">to</span>
+            <input
+              type="date"
+              value={customDateRange.until?.toISOString().split('T')[0] ?? ''}
+              onChange={(e) =>
+                setCustomDateRange((prev) => ({
+                  ...prev,
+                  until: e.target.value ? new Date(e.target.value) : undefined,
+                }))
+              }
+              className="rounded-lg border border-gray-700 bg-[#1F1F1F] px-2 py-1.5 text-sm text-white focus:border-[#76B900] focus:outline-none"
+              aria-label="End date"
+            />
+          </div>
+        )}
 
         {/* Camera filter */}
         <div className="flex items-center gap-2">
@@ -239,8 +347,57 @@ export default function EntitiesPage() {
           </select>
         </div>
 
+        {/* Data source filter */}
+        <div className="flex items-center gap-2">
+          <Database className="h-4 w-4 text-gray-400" />
+          <select
+            id="source-filter"
+            value={sourceFilter}
+            onChange={(e) => setSourceFilter(e.target.value as SourceFilter)}
+            className="rounded-lg border border-gray-700 bg-[#1F1F1F] px-3 py-2 text-sm text-white focus:border-[#76B900] focus:outline-none focus:ring-1 focus:ring-[#76B900]"
+            aria-label="Filter by data source"
+          >
+            <option value="both">All Sources</option>
+            <option value="redis">Real-time (24h)</option>
+            <option value="postgres">Historical (30d)</option>
+          </select>
+        </div>
+
+        {/* Sort option */}
+        <div className="flex items-center gap-2">
+          <ArrowDownAZ className="h-4 w-4 text-gray-400" />
+          <select
+            id="sort-option"
+            value={sortOption}
+            onChange={(e) => setSortOption(e.target.value as SortOption)}
+            className="rounded-lg border border-gray-700 bg-[#1F1F1F] px-3 py-2 text-sm text-white focus:border-[#76B900] focus:outline-none focus:ring-1 focus:ring-[#76B900]"
+            aria-label="Sort by"
+          >
+            <option value="last_seen">Last Seen</option>
+            <option value="first_seen">First Seen</option>
+            <option value="appearance_count">Appearances</option>
+          </select>
+        </div>
+
+        {/* Toggle stats display */}
+        <button
+          onClick={() => setShowStats(!showStats)}
+          className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+            showStats
+              ? 'border-[#76B900] bg-[#76B900]/20 text-[#76B900]'
+              : 'border-gray-700 text-gray-400 hover:text-white'
+          }`}
+          aria-label={showStats ? 'Hide statistics' : 'Show statistics'}
+          aria-pressed={showStats}
+        >
+          Stats
+        </button>
+      </div>
+
+      {/* Result summary */}
+      <div className="mb-4 flex flex-wrap items-center gap-4">
         {/* Stats */}
-        {!loading && !error && entities.length > 0 && (
+        {!loading && !error && sortedEntities.length > 0 && (
           <div className="flex items-center gap-4 text-sm text-gray-400">
             <span className="flex items-center gap-1">
               <User className="h-4 w-4" />
@@ -250,9 +407,9 @@ export default function EntitiesPage() {
               <Car className="h-4 w-4" />
               {vehicleCount} {vehicleCount === 1 ? 'vehicle' : 'vehicles'}
             </span>
-            {totalCount > entities.length && (
+            {totalCount > sortedEntities.length && (
               <span className="text-gray-500">
-                (showing {entities.length} of {totalCount})
+                (showing {sortedEntities.length} of {totalCount})
               </span>
             )}
           </div>
@@ -289,9 +446,9 @@ export default function EntitiesPage() {
             </button>
           </div>
         </div>
-      ) : entities.length === 0 ? (
+      ) : sortedEntities.length === 0 ? (
         /* Empty state */
-        entityTypeFilter === 'all' && timeRangeFilter === 'all' && !cameraFilter ? (
+        entityTypeFilter === 'all' && timeRangeFilter === 'all' && !cameraFilter && !useCustomDateRange ? (
           <EntitiesEmptyState />
         ) : (
           /* Filtered empty state - simpler message */
@@ -319,7 +476,9 @@ export default function EntitiesPage() {
                   : entityTypeFilter === 'vehicle'
                     ? 'No vehicles have been tracked'
                     : 'No entities have been tracked'}
-                {timeRangeFilter !== 'all' && ` in the last ${getTimeRangeLabel(timeRangeFilter)}`}
+                {useCustomDateRange
+                  ? ' in the selected date range'
+                  : timeRangeFilter !== 'all' && ` in the last ${getTimeRangeLabel(timeRangeFilter)}`}
                 {cameraFilter && ` on this camera`}.
               </p>
               <button
@@ -327,6 +486,9 @@ export default function EntitiesPage() {
                   setEntityTypeFilter('all');
                   setTimeRangeFilter('all');
                   setCameraFilter('');
+                  setSourceFilter('both');
+                  setUseCustomDateRange(false);
+                  setCustomDateRange({});
                 }}
                 className="mt-4 rounded-lg bg-gray-800 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"
               >
@@ -339,7 +501,7 @@ export default function EntitiesPage() {
         /* Entity grid with infinite scroll */
         <>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {entities.map((entity) => (
+            {sortedEntities.map((entity) => (
               <EntityCard
                 key={entity.id}
                 id={entity.id}
@@ -362,7 +524,7 @@ export default function EntitiesPage() {
             error={scrollError}
             onRetry={retry}
             totalCount={totalCount}
-            loadedCount={entities.length}
+            loadedCount={sortedEntities.length}
             endMessage="You've seen all entities"
             loadingMessage="Loading more entities..."
             className="mt-6"
