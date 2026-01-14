@@ -161,9 +161,10 @@ class TestPreConfiguredServices:
         assert config.category == ServiceCategory.MONITORING
         assert config.port == 9090
         assert config.health_endpoint == "/-/healthy"
-        assert config.max_failures == 3
+        # CATEGORY_DEFAULTS for MONITORING: max_failures=5, base_backoff=10.0, max_backoff=120.0
+        assert config.max_failures == 5
         assert config.restart_backoff_base == 10.0
-        assert config.restart_backoff_max == 600.0
+        assert config.restart_backoff_max == 120.0
 
     def test_monitoring_configs_contains_grafana(self) -> None:
         """Test that MONITORING_CONFIGS contains grafana."""
@@ -539,9 +540,10 @@ class TestContainerDiscoveryService:
         assert prometheus.port == 9090
         assert prometheus.health_endpoint == "/-/healthy"
         assert prometheus.category == ServiceCategory.MONITORING
-        assert prometheus.max_failures == 3
+        # CATEGORY_DEFAULTS for MONITORING: max_failures=5, base_backoff=10.0, max_backoff=120.0
+        assert prometheus.max_failures == 5
         assert prometheus.restart_backoff_base == 10.0
-        assert prometheus.restart_backoff_max == 600.0
+        assert prometheus.restart_backoff_max == 120.0
         assert prometheus.startup_grace_period == 30
 
 
@@ -629,12 +631,11 @@ class TestCategoryPriorityOrdering:
             assert config.restart_backoff_max == 300.0, f"{name} should have 300s max backoff"
 
     def test_monitoring_has_lenient_backoff(self) -> None:
-        """Test that monitoring services have lenient backoff settings."""
+        """Test that monitoring services have lenient backoff settings per CATEGORY_DEFAULTS."""
         for name, config in MONITORING_CONFIGS.items():
-            # Some monitoring services might have different values, check prometheus/grafana
-            if name in ("prometheus", "grafana"):
-                assert config.restart_backoff_base == 10.0, f"{name} should have 10s base backoff"
-                assert config.restart_backoff_max == 600.0, f"{name} should have 600s max backoff"
+            # All monitoring services use CATEGORY_DEFAULTS: base_backoff=10.0, max_backoff=120.0
+            assert config.restart_backoff_base == 10.0, f"{name} should have 10s base backoff"
+            assert config.restart_backoff_max == 120.0, f"{name} should have 120s max backoff"
 
     def test_infrastructure_backoff_less_than_ai(self) -> None:
         """Test that infrastructure backoff is less than AI (more aggressive)."""
@@ -662,10 +663,11 @@ class TestCategoryPriorityOrdering:
         for name, config in AI_CONFIGS.items():
             assert config.max_failures == 5, f"{name} should have max_failures=5"
 
-    def test_monitoring_has_lowest_max_failures(self) -> None:
-        """Test that monitoring services have lowest max failures (less critical)."""
+    def test_monitoring_has_moderate_max_failures(self) -> None:
+        """Test that monitoring services have moderate max failures per CATEGORY_DEFAULTS."""
         for name, config in MONITORING_CONFIGS.items():
-            assert config.max_failures == 3, f"{name} should have max_failures=3"
+            # CATEGORY_DEFAULTS for MONITORING: max_failures=5
+            assert config.max_failures == 5, f"{name} should have max_failures=5"
 
     def test_category_backoff_hierarchy(self) -> None:
         """Test complete backoff hierarchy: infrastructure < ai < monitoring."""
@@ -716,5 +718,5 @@ class TestCategoryPriorityOrdering:
         assert detector.max_failures == 5
 
         assert prometheus.restart_backoff_base == 10.0
-        assert prometheus.restart_backoff_max == 600.0
-        assert prometheus.max_failures == 3
+        assert prometheus.restart_backoff_max == 120.0
+        assert prometheus.max_failures == 5

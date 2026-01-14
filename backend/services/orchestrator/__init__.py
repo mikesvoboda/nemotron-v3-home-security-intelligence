@@ -6,6 +6,8 @@ the service registry used across all container orchestration modules.
 Instead of duplicating definitions in each module, import from here:
 
     from backend.services.orchestrator import (
+        # Constants
+        CATEGORY_DEFAULTS,
         # Enums
         ServiceCategory,
         ContainerServiceStatus,
@@ -20,12 +22,16 @@ Instead of duplicating definitions in each module, import from here:
 
 Modules in this package:
     enums: Re-exports ServiceCategory and ContainerServiceStatus from API schemas
-    models: ManagedService and ServiceConfig dataclasses
+    models: ManagedService, ServiceConfig dataclasses, and CATEGORY_DEFAULTS
     registry: ServiceRegistry with Redis persistence
 """
 
 from backend.services.orchestrator.enums import ContainerServiceStatus, ServiceCategory
-from backend.services.orchestrator.models import ManagedService, ServiceConfig
+from backend.services.orchestrator.models import (
+    CATEGORY_DEFAULTS,
+    ManagedService,
+    ServiceConfig,
+)
 from backend.services.orchestrator.registry import (
     REDIS_KEY_PREFIX,
     ServiceRegistry,
@@ -34,6 +40,7 @@ from backend.services.orchestrator.registry import (
 )
 
 __all__ = [
+    "CATEGORY_DEFAULTS",
     "REDIS_KEY_PREFIX",
     "ContainerServiceStatus",
     "ManagedService",
