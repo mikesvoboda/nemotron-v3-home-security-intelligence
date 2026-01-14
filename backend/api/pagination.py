@@ -25,12 +25,14 @@ Usage:
         query = query.where(Event.id < cursor_data.id)
 """
 
+from __future__ import annotations
+
 import base64
 import json
 import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -99,17 +101,15 @@ class CursorValidationModel(BaseModel):
         return v
 
 
+if TYPE_CHECKING:
+    from starlette.responses import Response
+
 # Regular expression for valid base64url cursor format (NEM-2585)
 # Cursors are base64url-encoded strings (RFC 4648) containing:
 # - Alphanumeric characters (a-z, A-Z, 0-9)
 # - URL-safe characters: underscore (_) and hyphen (-)
 # - Padding character: equals (=)
 CURSOR_FORMAT_REGEX = re.compile(r"^[a-zA-Z0-9_=-]+$")
-
-# Maximum allowed cursor length to prevent DoS via oversized cursors
-# Base64-encoded JSON payload {"id": <int>, "created_at": "<ISO8601>"}
-# should not exceed 200 characters in normal operation
-MAX_CURSOR_LENGTH = 500
 
 
 @dataclass
@@ -417,3 +417,43 @@ def get_deprecation_warning(cursor: str | None, offset: int) -> str | None:
         "Please use cursor-based pagination instead by using the 'cursor' parameter "
         "with the 'next_cursor' value from the response."
     )
+
+
+def set_deprecation_headers(
+    response: Response,
+    cursor: str | None,
+    offset: int,
+    sunset_date: str | None = "2026-06-01",
+) -> None:
+    """Set HTTP Deprecation headers if offset pagination is used.
+
+    This function sets the HTTP Deprecation header per IETF draft standard
+    (draft-ietf-httpapi-deprecation-header-02) when offset-based pagination
+    is detected without a cursor.
+
+    Headers set:
+    - Deprecation: true (indicates the feature is deprecated)
+    - Sunset: <date> (optional, indicates when the feature will be removed)
+
+    Args:
+        response: FastAPI Response object to set headers on
+        cursor: The cursor parameter from the request
+        offset: The offset parameter from the request
+        sunset_date: Optional sunset date in HTTP-date format (RFC 7231).
+                     Defaults to "2026-06-01". Set to None to omit Sunset header.
+
+    Reference:
+        https://datatracker.ietf.org/doc/html/draft-ietf-httpapi-deprecation-header-02
+    """
+    # Only set headers if deprecation warning would be shown
+    if get_deprecation_warning(cursor, offset) is None:
+        return
+
+    # Set Deprecation header per IETF draft standard
+    # The value "true" indicates the resource/feature is deprecated
+    response.headers["Deprecation"] = "true"
+
+    # Optionally set Sunset header with future removal date
+    # The Sunset header indicates when the deprecated feature will be removed
+    if sunset_date:
+        response.headers["Sunset"] = sunset_date

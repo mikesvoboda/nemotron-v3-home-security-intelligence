@@ -215,7 +215,7 @@ Mount your camera upload directory. Edit `docker-compose.prod.yml` or set the en
 
 ```bash
 # In .env or shell
-export CAMERA_PATH=/path/to/your/camera/uploads
+export FOSCAM_BASE_PATH=/path/to/your/camera/uploads
 ```
 
 The directory structure should be:

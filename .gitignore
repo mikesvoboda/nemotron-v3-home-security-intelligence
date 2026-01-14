@@ -68,6 +68,9 @@ htmlcov/
 test-results/
 playwright-report/
 
+# OpenAPI generation cache
+.openapi-cache
+
 # Profiling output
 data/profiles/
 *.prof

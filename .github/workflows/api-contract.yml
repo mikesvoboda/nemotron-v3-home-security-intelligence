@@ -52,7 +52,7 @@ jobs:
           OASDIFF_VERSION="1.11.4"
           DOWNLOAD_URL="https://github.com/Tufin/oasdiff/releases/download/v${OASDIFF_VERSION}/oasdiff_${OASDIFF_VERSION}_linux_amd64.tar.gz"
 
-          # Download with retry and error checking
+          # Download with retry and exponential backoff
           for i in 1 2 3; do
             echo "Attempt $i: Downloading oasdiff v${OASDIFF_VERSION}..."
             if curl -fsSL --retry 3 "$DOWNLOAD_URL" -o /tmp/oasdiff.tar.gz; then
@@ -66,8 +66,9 @@ jobs:
                 echo "Downloaded file is not a valid gzip archive"
               fi
             fi
-            echo "Download failed, retrying in 5 seconds..."
-            sleep 5
+            backoff_seconds=$((i * 5))
+            echo "Download failed, retrying in ${backoff_seconds} seconds..."
+            sleep $backoff_seconds
           done
 
           echo "::error::Failed to download oasdiff after 3 attempts"
@@ -100,6 +101,39 @@ jobs:
             echo "::warning::Could not fetch base spec from main, using current"
             cp .ci-temp/spec-current.json .ci-temp/spec-base.json
           fi
+
+      - name: Validate generated spec files
+        run: |
+          echo "Validating generated OpenAPI spec files..."
+
+          # Check that spec files exist and are non-empty
+          for spec_file in .ci-temp/spec-base.json .ci-temp/spec-current.json; do
+            if [ ! -f "$spec_file" ]; then
+              echo "::error::Required file $spec_file does not exist"
+              exit 1
+            fi
+
+            if [ ! -s "$spec_file" ]; then
+              echo "::error::File $spec_file is empty"
+              exit 1
+            fi
+
+            # Validate JSON structure
+            if ! python3 -c "import json; json.load(open('$spec_file'))" 2>/dev/null; then
+              echo "::error::File $spec_file is not valid JSON"
+              exit 1
+            fi
+
+            # Check for required OpenAPI fields
+            if ! python3 -c "import json; spec = json.load(open('$spec_file')); assert 'openapi' in spec and 'info' in spec and 'paths' in spec" 2>/dev/null; then
+              echo "::error::File $spec_file is missing required OpenAPI fields (openapi, info, paths)"
+              exit 1
+            fi
+
+            echo "Validated $spec_file"
+          done
+
+          echo "All spec files validated successfully"
 
       - name: Convert specs to OpenAPI 3.0 compatible format
         run: |
@@ -170,8 +204,20 @@ jobs:
           echo "Generating API changelog..."
 
           # Generate detailed changelog of all changes
-          oasdiff changelog .ci-temp/spec-base.json .ci-temp/spec-current.json \
-            --format markdown > api-changelog.md 2>&1 || true
+          # oasdiff changelog returns 0 when successful, including when no changes detected
+          if oasdiff changelog .ci-temp/spec-base.json .ci-temp/spec-current.json \
+            --format markdown > api-changelog.md 2>&1; then
+            echo "Changelog generated successfully"
+          else
+            exit_code=$?
+            echo "::warning::oasdiff changelog failed with exit code $exit_code"
+            # Check if error output contains actual error or just empty diff
+            if [ -s api-changelog.md ] && grep -qi "error" api-changelog.md; then
+              echo "::error::oasdiff changelog encountered an error"
+              cat api-changelog.md
+              exit 1
+            fi
+          fi
 
           if [ -s api-changelog.md ]; then
             echo "has_changelog=true" >> $GITHUB_OUTPUT
@@ -185,8 +231,22 @@ jobs:
           echo "Generating detailed API diff..."
 
           # Generate full diff for PR comment
-          oasdiff diff .ci-temp/spec-base.json .ci-temp/spec-current.json \
-            --format markdown > api-diff.md 2>&1 || true
+          # oasdiff diff returns 0 when successful, including when no differences found
+          if oasdiff diff .ci-temp/spec-base.json .ci-temp/spec-current.json \
+            --format markdown > api-diff.md 2>&1; then
+            echo "Diff generated successfully"
+          else
+            exit_code=$?
+            echo "::warning::oasdiff diff failed with exit code $exit_code"
+            # Check if error output contains actual error or just empty diff
+            if [ -s api-diff.md ] && grep -qi "error" api-diff.md; then
+              echo "::error::oasdiff diff encountered an error"
+              cat api-diff.md
+              exit 1
+            fi
+            # If no error message, create empty diff file
+            echo "No API differences detected" > api-diff.md
+          fi
 
       - name: Comment PR with contract test results
         if: always()
@@ -293,6 +353,14 @@ jobs:
             api-changelog.md
             api-diff.md
           retention-days: 30
+
+      - name: Cleanup temporary files
+        if: always()
+        run: |
+          echo "Cleaning up temporary files..."
+          rm -rf .ci-temp/
+          rm -f breaking-changes.json api-changelog.md api-diff.md
+          echo "Cleanup complete"
 
       - name: Enforce contract test (fail on breaking changes)
         if: steps.breaking-changes.outputs.contract_result == 'FAIL'

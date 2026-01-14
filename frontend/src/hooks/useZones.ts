@@ -1,23 +1,20 @@
 /**
- * useZones - TanStack Query hooks for zone CRUD operations
+ * useZones - TanStack Query hooks for zone data management
  *
  * This module provides hooks for fetching and mutating zone data using
- * TanStack Query. It includes:
+ * TanStack Query. Zones define regions of interest within camera feeds
+ * for detection filtering and alert configuration.
+ *
+ * Features:
  * - useZonesQuery: Fetch all zones for a camera
  * - useZoneQuery: Fetch a single zone by ID
- * - useZoneMutation: Create, update, and delete zones
- *
- * Benefits:
- * - Automatic request deduplication across components
- * - Built-in caching with automatic cache invalidation
- * - Optimistic updates support
- * - Background refetching
- * - Coordinate updates for redrawing zone boundaries
+ * - useZoneMutation: Create, update, and delete zones with optimistic updates
  *
  * @module hooks/useZones
+ * @see NEM-2552 Zone CRUD hooks implementation
  */
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 
 import {
@@ -49,17 +46,10 @@ export interface UseZonesQueryOptions {
   enabled?: boolean;
 
   /**
-   * Filter by zone enabled status.
-   * When undefined, returns all zones.
+   * Filter zones by enabled status.
+   * If undefined, returns all zones.
    */
   enabledFilter?: boolean;
-
-  /**
-   * Refetch interval in milliseconds.
-   * Set to false to disable automatic refetching.
-   * @default false
-   */
-  refetchInterval?: number | false;
 
   /**
    * Custom stale time in milliseconds.
@@ -76,8 +66,6 @@ export interface UseZonesQueryReturn {
   zones: Zone[];
   /** Total count of zones */
   total: number;
-  /** Whether more items are available */
-  hasMore: boolean;
   /** Whether the initial fetch is in progress */
   isLoading: boolean;
   /** Whether a background refetch is in progress */
@@ -91,13 +79,13 @@ export interface UseZonesQueryReturn {
 /**
  * Hook to fetch all zones for a camera using TanStack Query.
  *
- * @param cameraId - Camera ID to fetch zones for
+ * @param cameraId - Camera ID to fetch zones for, or undefined to disable
  * @param options - Configuration options
  * @returns Zone list and query state
  *
  * @example
  * ```tsx
- * const { zones, isLoading, error } = useZonesQuery('camera-1');
+ * const { zones, isLoading, error } = useZonesQuery('cam-123');
  *
  * if (isLoading) return <Spinner />;
  * if (error) return <Error message={error.message} />;
@@ -113,12 +101,7 @@ export function useZonesQuery(
   cameraId: string | undefined,
   options: UseZonesQueryOptions = {}
 ): UseZonesQueryReturn {
-  const {
-    enabled = true,
-    enabledFilter,
-    refetchInterval = false,
-    staleTime = DEFAULT_STALE_TIME,
-  } = options;
+  const { enabled = true, enabledFilter, staleTime = DEFAULT_STALE_TIME } = options;
 
   const query = useQuery({
     queryKey: queryKeys.cameras.zones(cameraId ?? ''),
@@ -129,21 +112,17 @@ export function useZonesQuery(
       return fetchZones(cameraId, enabledFilter);
     },
     enabled: enabled && !!cameraId,
-    refetchInterval,
     staleTime,
-    // Reduced retry for faster failure feedback
     retry: 1,
   });
 
   // Provide empty array as default to avoid null checks
   const zones = useMemo(() => query.data?.items ?? [], [query.data]);
   const total = useMemo(() => query.data?.pagination?.total ?? 0, [query.data]);
-  const hasMore = useMemo(() => query.data?.pagination?.has_more ?? false, [query.data]);
 
   return {
     zones,
     total,
-    hasMore,
     isLoading: query.isLoading,
     isRefetching: query.isRefetching,
     error: query.error,
@@ -191,13 +170,13 @@ export interface UseZoneQueryReturn {
  * Hook to fetch a single zone by ID using TanStack Query.
  *
  * @param cameraId - Camera ID the zone belongs to
- * @param zoneId - Zone ID to fetch, or undefined to disable the query
+ * @param zoneId - Zone ID to fetch, or undefined to disable
  * @param options - Configuration options
  * @returns Zone data and query state
  *
  * @example
  * ```tsx
- * const { data: zone, isLoading, error } = useZoneQuery('camera-1', 'zone-1');
+ * const { data: zone, isLoading, error } = useZoneQuery('cam-123', 'zone-456');
  *
  * if (isLoading) return <Spinner />;
  * if (error) return <Error message={error.message} />;
@@ -238,17 +217,34 @@ export function useZoneQuery(
 // ============================================================================
 
 /**
+ * Context type for zone mutations (used for optimistic updates)
+ */
+interface ZoneMutationContext {
+  previousData: ZoneListResponse | undefined;
+  optimisticId?: string;
+}
+
+/**
  * Return type for the useZoneMutation hook
  */
 export interface UseZoneMutationReturn {
   /** Mutation for creating a new zone */
-  createMutation: ReturnType<typeof useMutation<Zone, Error, { cameraId: string; data: ZoneCreate }>>;
-  /** Mutation for updating an existing zone (supports coordinates for redraw) */
+  createMutation: ReturnType<
+    typeof useMutation<Zone, Error, { cameraId: string; data: ZoneCreate }, ZoneMutationContext>
+  >;
+  /** Mutation for updating an existing zone */
   updateMutation: ReturnType<
-    typeof useMutation<Zone, Error, { cameraId: string; zoneId: string; data: ZoneUpdate }>
+    typeof useMutation<
+      Zone,
+      Error,
+      { cameraId: string; zoneId: string; data: ZoneUpdate },
+      ZoneMutationContext
+    >
   >;
   /** Mutation for deleting a zone */
-  deleteMutation: ReturnType<typeof useMutation<void, Error, { cameraId: string; zoneId: string }>>;
+  deleteMutation: ReturnType<
+    typeof useMutation<void, Error, { cameraId: string; zoneId: string }, ZoneMutationContext>
+  >;
 }
 
 /**
@@ -258,8 +254,6 @@ export interface UseZoneMutationReturn {
  * with automatic rollback on failure. The cache is automatically invalidated
  * on success to ensure the UI stays in sync with the server.
  *
- * The update mutation supports coordinate updates for redrawing zone boundaries.
- *
  * @returns Object containing create, update, and delete mutations
  *
  * @example
@@ -268,36 +262,31 @@ export interface UseZoneMutationReturn {
  *
  * // Create a new zone
  * await createMutation.mutateAsync({
- *   cameraId: 'camera-1',
- *   data: { name: 'New Zone', zone_type: 'entry_point', coordinates: [...] }
+ *   cameraId: 'cam-123',
+ *   data: { name: 'Entry Zone', zone_type: 'entry_point', coordinates: [...] }
  * });
  *
- * // Update a zone (including coordinates for redraw)
+ * // Update a zone
  * await updateMutation.mutateAsync({
- *   cameraId: 'camera-1',
- *   zoneId: 'zone-1',
- *   data: { name: 'Updated', coordinates: [...] }  // coordinates for redraw
+ *   cameraId: 'cam-123',
+ *   zoneId: 'zone-456',
+ *   data: { name: 'Updated Name' }
  * });
  *
  * // Delete a zone
- * await deleteMutation.mutateAsync({ cameraId: 'camera-1', zoneId: 'zone-1' });
+ * await deleteMutation.mutateAsync({ cameraId: 'cam-123', zoneId: 'zone-456' });
  * ```
  */
 export function useZoneMutation(): UseZoneMutationReturn {
   const queryClient = useQueryClient();
 
-  /**
-   * Helper to create a default pagination object
-   */
-  const getDefaultPagination = (itemCount: number) => ({
-    has_more: false,
-    limit: 50,
-    total: itemCount,
-  });
-
-  const createMutation = useMutation({
-    mutationFn: ({ cameraId, data }: { cameraId: string; data: ZoneCreate }) =>
-      createZone(cameraId, data),
+  const createMutation = useMutation<
+    Zone,
+    Error,
+    { cameraId: string; data: ZoneCreate },
+    ZoneMutationContext
+  >({
+    mutationFn: ({ cameraId, data }) => createZone(cameraId, data),
 
     // Optimistic update: add the new zone immediately
     onMutate: async ({ cameraId, data }) => {
@@ -305,78 +294,68 @@ export function useZoneMutation(): UseZoneMutationReturn {
       await queryClient.cancelQueries({ queryKey: queryKeys.cameras.zones(cameraId) });
 
       // Snapshot the previous value for rollback
-      const previousZones = queryClient.getQueryData<ZoneListResponse>(
+      const previousData = queryClient.getQueryData<ZoneListResponse>(
         queryKeys.cameras.zones(cameraId)
       );
 
       // Create a temporary zone with a placeholder ID
-      const tempId = 'temp-' + String(Date.now());
       const optimisticZone: Zone = {
-        id: tempId,
+        id: `temp-${Date.now()}`,
         camera_id: cameraId,
         name: data.name,
         zone_type: data.zone_type,
         coordinates: data.coordinates,
-        shape: data.shape,
-        color: data.color,
+        shape: data.shape ?? 'polygon',
+        color: data.color ?? '#3B82F6',
         enabled: data.enabled ?? true,
         priority: data.priority ?? 0,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
 
-      const newItems = [...(previousZones?.items ?? []), optimisticZone];
-
       // Optimistically add the zone to the cache
-      queryClient.setQueryData<ZoneListResponse>(queryKeys.cameras.zones(cameraId), {
-        items: newItems,
-        pagination: previousZones?.pagination ?? getDefaultPagination(newItems.length),
-      });
+      queryClient.setQueryData<ZoneListResponse>(queryKeys.cameras.zones(cameraId), (old) => ({
+        items: [...(old?.items ?? []), optimisticZone],
+        pagination: {
+          total: (old?.pagination?.total ?? 0) + 1,
+          limit: old?.pagination?.limit ?? 50,
+          has_more: old?.pagination?.has_more ?? false,
+        },
+      }));
 
       // Return context with snapshot for rollback
-      return { previousZones, optimisticId: optimisticZone.id, cameraId };
+      return { previousData, optimisticId: optimisticZone.id };
     },
 
     // On error, rollback to the previous value
-    onError: (_err, _variables, context) => {
-      if (context?.previousZones && context?.cameraId) {
-        queryClient.setQueryData(queryKeys.cameras.zones(context.cameraId), context.previousZones);
+    onError: (_err, { cameraId }, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(queryKeys.cameras.zones(cameraId), context.previousData);
       }
     },
 
     // Replace the optimistic zone with the real one on success
-    onSuccess: (newZone, _variables, context) => {
-      if (context?.cameraId) {
-        const currentData = queryClient.getQueryData<ZoneListResponse>(
-          queryKeys.cameras.zones(context.cameraId)
-        );
-        const newItems =
-          currentData?.items?.map((zone) =>
-            zone.id === context.optimisticId ? newZone : zone
-          ) ?? [];
-        queryClient.setQueryData<ZoneListResponse>(queryKeys.cameras.zones(context.cameraId), {
-          items: newItems,
-          pagination: currentData?.pagination ?? getDefaultPagination(newItems.length),
-        });
-      }
+    onSuccess: (newZone, { cameraId }, context) => {
+      queryClient.setQueryData<ZoneListResponse>(queryKeys.cameras.zones(cameraId), (old) => ({
+        items:
+          old?.items?.map((zone) => (zone.id === context?.optimisticId ? newZone : zone)) ?? [],
+        pagination: old?.pagination ?? { total: 1, limit: 50, has_more: false },
+      }));
     },
 
     // Always refetch after error or success for data consistency
-    onSettled: (_data, _error, variables) => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.cameras.zones(variables.cameraId) });
+    onSettled: (_data, _error, { cameraId }) => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.cameras.zones(cameraId) });
     },
   });
 
-  const updateMutation = useMutation({
-    mutationFn: ({
-      cameraId,
-      zoneId,
-      data,
-    }: {
-      cameraId: string;
-      zoneId: string;
-      data: ZoneUpdate;
-    }) => updateZone(cameraId, zoneId, data),
+  const updateMutation = useMutation<
+    Zone,
+    Error,
+    { cameraId: string; zoneId: string; data: ZoneUpdate },
+    ZoneMutationContext
+  >({
+    mutationFn: ({ cameraId, zoneId, data }) => updateZone(cameraId, zoneId, data),
 
     // Optimistic update: immediately update the cache
     onMutate: async ({ cameraId, zoneId, data }) => {
@@ -384,53 +363,59 @@ export function useZoneMutation(): UseZoneMutationReturn {
       await queryClient.cancelQueries({ queryKey: queryKeys.cameras.zones(cameraId) });
 
       // Snapshot the previous value for rollback
-      const previousZones = queryClient.getQueryData<ZoneListResponse>(
+      const previousData = queryClient.getQueryData<ZoneListResponse>(
         queryKeys.cameras.zones(cameraId)
       );
 
-      // Optimistically update the cache
-      const newItems =
-        previousZones?.items?.map((zone) => {
-          if (zone.id !== zoneId) return zone;
-          // Apply updates (supports coordinates for redraw)
-          const updates: Partial<Zone> = {};
-          if (data.name !== null && data.name !== undefined) updates.name = data.name;
-          if (data.zone_type !== null && data.zone_type !== undefined)
-            updates.zone_type = data.zone_type;
-          if (data.coordinates !== null && data.coordinates !== undefined)
-            updates.coordinates = data.coordinates;
-          if (data.color !== null && data.color !== undefined) updates.color = data.color;
-          if (data.enabled !== null && data.enabled !== undefined) updates.enabled = data.enabled;
-          if (data.priority !== null && data.priority !== undefined)
-            updates.priority = data.priority;
-          return { ...zone, ...updates, updated_at: new Date().toISOString() };
-        }) ?? [];
-
-      queryClient.setQueryData<ZoneListResponse>(queryKeys.cameras.zones(cameraId), {
-        items: newItems,
-        pagination: previousZones?.pagination ?? getDefaultPagination(newItems.length),
-      });
+      // Optimistically update the zone in the cache
+      queryClient.setQueryData<ZoneListResponse>(queryKeys.cameras.zones(cameraId), (old) => ({
+        items:
+          old?.items?.map((zone) => {
+            if (zone.id !== zoneId) return zone;
+            // Create a typed update object with only non-null values
+            const updates: Partial<Zone> = {
+              updated_at: new Date().toISOString(),
+            };
+            if (data.name !== undefined && data.name !== null) updates.name = data.name;
+            if (data.zone_type !== undefined && data.zone_type !== null)
+              updates.zone_type = data.zone_type;
+            if (data.coordinates !== undefined && data.coordinates !== null)
+              updates.coordinates = data.coordinates;
+            if (data.shape !== undefined && data.shape !== null) updates.shape = data.shape;
+            if (data.color !== undefined && data.color !== null) updates.color = data.color;
+            if (data.enabled !== undefined && data.enabled !== null)
+              updates.enabled = data.enabled;
+            if (data.priority !== undefined && data.priority !== null)
+              updates.priority = data.priority;
+            return { ...zone, ...updates };
+          }) ?? [],
+        pagination: old?.pagination ?? { total: 0, limit: 50, has_more: false },
+      }));
 
       // Return context with snapshot for rollback
-      return { previousZones, cameraId };
+      return { previousData };
     },
 
     // On error, rollback to the previous value
-    onError: (_err, _variables, context) => {
-      if (context?.previousZones && context?.cameraId) {
-        queryClient.setQueryData(queryKeys.cameras.zones(context.cameraId), context.previousZones);
+    onError: (_err, { cameraId }, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(queryKeys.cameras.zones(cameraId), context.previousData);
       }
     },
 
     // Always refetch after error or success for data consistency
-    onSettled: (_data, _error, variables) => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.cameras.zones(variables.cameraId) });
+    onSettled: (_data, _error, { cameraId }) => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.cameras.zones(cameraId) });
     },
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: ({ cameraId, zoneId }: { cameraId: string; zoneId: string }) =>
-      deleteZone(cameraId, zoneId),
+  const deleteMutation = useMutation<
+    void,
+    Error,
+    { cameraId: string; zoneId: string },
+    ZoneMutationContext
+  >({
+    mutationFn: ({ cameraId, zoneId }) => deleteZone(cameraId, zoneId),
 
     // Optimistic update: immediately remove the zone
     onMutate: async ({ cameraId, zoneId }) => {
@@ -438,31 +423,34 @@ export function useZoneMutation(): UseZoneMutationReturn {
       await queryClient.cancelQueries({ queryKey: queryKeys.cameras.zones(cameraId) });
 
       // Snapshot the previous value for rollback
-      const previousZones = queryClient.getQueryData<ZoneListResponse>(
+      const previousData = queryClient.getQueryData<ZoneListResponse>(
         queryKeys.cameras.zones(cameraId)
       );
 
       // Optimistically remove the zone from the cache
-      const newItems = previousZones?.items?.filter((zone) => zone.id !== zoneId) ?? [];
-      queryClient.setQueryData<ZoneListResponse>(queryKeys.cameras.zones(cameraId), {
-        items: newItems,
-        pagination: previousZones?.pagination ?? getDefaultPagination(newItems.length),
-      });
+      queryClient.setQueryData<ZoneListResponse>(queryKeys.cameras.zones(cameraId), (old) => ({
+        items: old?.items?.filter((zone) => zone.id !== zoneId) ?? [],
+        pagination: {
+          total: Math.max((old?.pagination?.total ?? 1) - 1, 0),
+          limit: old?.pagination?.limit ?? 50,
+          has_more: old?.pagination?.has_more ?? false,
+        },
+      }));
 
       // Return context with snapshot for rollback
-      return { previousZones, cameraId };
+      return { previousData };
     },
 
     // On error, rollback to the previous value
-    onError: (_err, _variables, context) => {
-      if (context?.previousZones && context?.cameraId) {
-        queryClient.setQueryData(queryKeys.cameras.zones(context.cameraId), context.previousZones);
+    onError: (_err, { cameraId }, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(queryKeys.cameras.zones(cameraId), context.previousData);
       }
     },
 
-    // Always refetch and clean up after error or success
-    onSettled: (_data, _error, variables) => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.cameras.zones(variables.cameraId) });
+    // Always refetch after error or success for data consistency
+    onSettled: (_data, _error, { cameraId }) => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.cameras.zones(cameraId) });
     },
   });
 

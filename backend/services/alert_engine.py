@@ -24,7 +24,6 @@ Usage:
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass, field
 from datetime import datetime, time, timedelta
 from typing import TYPE_CHECKING
@@ -113,7 +112,7 @@ class AlertRuleEngine:
         Args:
             event: The event to evaluate rules against
             detections: Optional list of detections associated with the event.
-                       If not provided, will fetch from database using event.detection_ids.
+                       If not provided, will fetch from database using event.detections relationship.
             current_time: Optional override for current time (for testing)
 
         Returns:
@@ -181,17 +180,34 @@ class AlertRuleEngine:
         return list(result.scalars().all())
 
     async def _load_event_detections(self, event: Event) -> list[Detection]:
-        """Load detections for an event from the database."""
-        if not event.detection_ids:
-            return []
+        """Load detections for an event using the event_detections junction table.
 
-        # Parse detection_ids (stored as JSON array string)
+        Queries the junction table directly to avoid triggering lazy loading
+        of the relationship, which can cause greenlet errors in async contexts.
+
+        For unit tests with mocked events (MagicMock), checks the detections
+        attribute directly since mocks don't have SQLAlchemy instrumentation.
+        """
+        from sqlalchemy import inspect
+
+        from backend.models.event_detection import EventDetection
+
+        # For mocked events in unit tests, check if detections is populated
+        # inspect() will raise on mocks, so we catch that
         try:
-            detection_id_list = json.loads(event.detection_ids)
-            if not isinstance(detection_id_list, list):
-                return []
-        except (json.JSONDecodeError, TypeError):
-            return []
+            state = inspect(event)
+            # Check if detections relationship is already loaded without triggering lazy load
+            if state.dict.get("detections"):
+                return list(state.dict["detections"])
+        except Exception:
+            # For mocked events, check attribute directly
+            if hasattr(event, "detections") and event.detections:
+                return list(event.detections)
+
+        # Query the junction table for detection IDs
+        stmt = select(EventDetection.detection_id).where(EventDetection.event_id == event.id)
+        result = await self.session.execute(stmt)
+        detection_id_list = list(result.scalars().all())
 
         if not detection_id_list:
             return []
@@ -209,31 +225,35 @@ class AlertRuleEngine:
         Uses selectinload pattern: collect all detection IDs, load in one query,
         then map back to events.
 
+        Queries the junction table directly to avoid triggering lazy loading
+        of the relationship, which can cause greenlet errors in async contexts.
+
         Args:
             events: List of events to load detections for
 
         Returns:
             Dictionary mapping event.id to list of Detection objects
         """
-        # Collect all detection IDs from all events
+        if not events:
+            return {}
+
+        from backend.models.event_detection import EventDetection
+
+        # Query all detection IDs from the junction table in a single query
+        event_ids = [event.id for event in events]
+        stmt = select(EventDetection.event_id, EventDetection.detection_id).where(
+            EventDetection.event_id.in_(event_ids)
+        )
+        result = await self.session.execute(stmt)
+        junction_rows = result.all()
+
+        # Build the event_detection_map from query results
         all_detection_ids: list[int] = []
-        event_detection_map: dict[int, list[int]] = {}
+        event_detection_map: dict[int, list[int]] = {event.id: [] for event in events}
 
-        for event in events:
-            if not event.detection_ids:
-                event_detection_map[event.id] = []
-                continue
-
-            try:
-                detection_id_list = json.loads(event.detection_ids)
-                if isinstance(detection_id_list, list):
-                    int_ids = [int(d) for d in detection_id_list]
-                    event_detection_map[event.id] = int_ids
-                    all_detection_ids.extend(int_ids)
-                else:
-                    event_detection_map[event.id] = []
-            except (json.JSONDecodeError, TypeError, ValueError):
-                event_detection_map[event.id] = []
+        for event_id, detection_id in junction_rows:
+            event_detection_map[event_id].append(detection_id)
+            all_detection_ids.append(detection_id)
 
         if not all_detection_ids:
             return {event.id: [] for event in events}

@@ -2254,6 +2254,29 @@ async def test_zrem_removes_members(redis_client, mock_redis_client):
 
 
 @pytest.mark.asyncio
+async def test_zremrangebyrank_removes_by_rank(redis_client, mock_redis_client):
+    """Test zremrangebyrank removes members by rank (NEM-2510)."""
+    mock_redis_client.zremrangebyrank = AsyncMock(return_value=5)
+
+    result = await redis_client.zremrangebyrank("sorted_set", 0, -10001)
+
+    assert result == 5
+    mock_redis_client.zremrangebyrank.assert_awaited_once_with("sorted_set", 0, -10001)
+
+
+@pytest.mark.asyncio
+async def test_zremrangebyrank_removes_oldest_entries(redis_client, mock_redis_client):
+    """Test zremrangebyrank can remove oldest entries to bound set size (NEM-2510)."""
+    mock_redis_client.zremrangebyrank = AsyncMock(return_value=100)
+
+    # To keep only 1000 entries, remove from rank 0 to -(1000+1) = -1001
+    result = await redis_client.zremrangebyrank("job_list", 0, -1001)
+
+    assert result == 100
+    mock_redis_client.zremrangebyrank.assert_awaited_once_with("job_list", 0, -1001)
+
+
+@pytest.mark.asyncio
 async def test_zscore_returns_member_score(redis_client, mock_redis_client):
     """Test zscore returns score of a member."""
     mock_redis_client.zscore = AsyncMock(return_value=5.0)

@@ -532,9 +532,8 @@ class ReIdentificationService:
                 list_key = "persons" if embedding.entity_type == "person" else "vehicles"
                 data[list_key].append(embedding.to_dict())
 
-                # Store with TTL
-                # Note: Uses 'expire' for RedisClient wrapper compatibility
-                # (standard redis-py uses 'ex', but our wrapper uses 'expire')
+                # Store with TTL - uses 'expire' for RedisClient wrapper compatibility
+                # (the wrapper accepts 'expire' and converts to 'ex' internally)
                 await redis_client.set(  # type: ignore[call-arg]
                     key,
                     json.dumps(data),

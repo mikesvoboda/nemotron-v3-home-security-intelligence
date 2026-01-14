@@ -1151,6 +1151,29 @@ class RedisClient:
         client = self._ensure_connected()
         return cast("int", await client.zrem(key, *members))
 
+    async def zremrangebyrank(self, key: str, start: int, stop: int) -> int:
+        """Remove members from a sorted set by rank (index).
+
+        Removes all elements in the sorted set stored at key with rank between
+        start and stop (inclusive). Both start and stop are 0-based indexes with
+        0 being the element with the lowest score. Negative numbers can be used
+        to indicate offsets from the end (-1 is the last element).
+
+        Useful for keeping a sorted set bounded by removing oldest entries:
+        - To keep only the 1000 most recent (highest score): zremrangebyrank(key, 0, -1001)
+        - To remove the 100 oldest: zremrangebyrank(key, 0, 99)
+
+        Args:
+            key: Sorted set key
+            start: Start rank (0-based, inclusive)
+            stop: Stop rank (inclusive, negative for offset from end)
+
+        Returns:
+            Number of members removed
+        """
+        client = self._ensure_connected()
+        return cast("int", await client.zremrangebyrank(key, start, stop))
+
     async def zscore(self, key: str, member: str) -> float | None:
         """Get the score of a member in a sorted set.
 
@@ -1191,6 +1214,25 @@ class RedisClient:
         else:
             result = await client.zrangebyscore(key, min_score, max_score)
         return cast("list[str]", result)
+
+    async def zremrangebyscore(
+        self,
+        key: str,
+        min_score: float | int | str,
+        max_score: float | int | str,
+    ) -> int:
+        """Remove elements in a sorted set with scores within the given range.
+
+        Args:
+            key: Sorted set key
+            min_score: Minimum score (inclusive). Use '-inf' for no minimum.
+            max_score: Maximum score (inclusive). Use '+inf' for no maximum.
+
+        Returns:
+            Number of elements removed
+        """
+        client = self._ensure_connected()
+        return cast("int", await client.zremrangebyscore(key, min_score, max_score))
 
     async def llen(self, key: str) -> int:
         """Get the length of a list.

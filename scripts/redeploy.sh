@@ -411,7 +411,7 @@ restart_backend_with_internal_urls() {
         --network-alias backend \
         -p 8000:8000 \
         -v "./backend/data:/app/data:z" \
-        -v "${CAMERA_PATH:-/export/foscam}:/cameras:ro,z" \
+        -v "${FOSCAM_BASE_PATH:-/export/foscam}:/cameras:ro,z" \
         -v "${AI_MODELS_PATH:-/export/ai_models}/model-zoo:/models/model-zoo:ro,z" \
         -e "DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-security}:${POSTGRES_PASSWORD:-security_dev_password}@postgres:5432/${POSTGRES_DB:-security}" \
         -e "REDIS_URL=redis://redis:6379" \

@@ -26,8 +26,21 @@
  * // Cleanup
  * unsubscribe();
  * ```
+ *
+ * @example
+ * ```ts
+ * // With error handling configuration
+ * const emitter = new TypedWebSocketEmitter({
+ *   debug: false, // Suppress console.error in production
+ *   onError: ({ event, error, handlerName }) => {
+ *     // Send to monitoring service
+ *     Sentry.captureException(error, { extra: { event, handlerName } });
+ *   },
+ * });
+ * ```
  */
 
+import { isProduction } from '../config/env';
 import { extractEventType, isWebSocketEventKey } from '../types/websocket-events';
 
 import type {
@@ -35,6 +48,34 @@ import type {
   WebSocketEventKey,
   WebSocketEventMap,
 } from '../types/websocket-events';
+
+/**
+ * Error information passed to custom error handlers.
+ */
+export interface EmitterErrorInfo {
+  /** The event type that was being emitted */
+  event: WebSocketEventKey;
+  /** The error thrown by the handler */
+  error: unknown;
+  /** The name of the handler function, or 'anonymous' if unnamed */
+  handlerName: string;
+}
+
+/**
+ * Configuration options for TypedWebSocketEmitter.
+ */
+export interface TypedWebSocketEmitterOptions {
+  /**
+   * Whether to log errors to console.error.
+   * Defaults to true in non-production mode (development/test), false in production.
+   */
+  debug?: boolean;
+  /**
+   * Custom error handler callback. Called whenever a handler throws an error.
+   * Use this to send errors to monitoring services like Sentry.
+   */
+  onError?: (errorInfo: EmitterErrorInfo) => void;
+}
 
 /**
  * Generic handler type for internal storage.
@@ -55,6 +96,28 @@ export class TypedWebSocketEmitter {
    * Using Set ensures O(1) add/remove and prevents duplicate handlers.
    */
   private handlers: Map<WebSocketEventKey, Set<AnyHandler>> = new Map();
+
+  /**
+   * Whether to log errors to console.
+   * Defaults to true in development, false in production.
+   */
+  private readonly debug: boolean;
+
+  /**
+   * Custom error handler callback.
+   */
+  private readonly onError?: (errorInfo: EmitterErrorInfo) => void;
+
+  /**
+   * Creates a new TypedWebSocketEmitter instance.
+   *
+   * @param options - Configuration options for error handling
+   */
+  constructor(options: TypedWebSocketEmitterOptions = {}) {
+    // Default debug to true in non-production mode (development and test)
+    this.debug = options.debug ?? !isProduction();
+    this.onError = options.onError;
+  }
 
   /**
    * Subscribe to an event with a type-safe handler.
@@ -147,8 +210,18 @@ export class TypedWebSocketEmitter {
         try {
           handler(data);
         } catch (error) {
-          // Log but don't throw to prevent one handler from breaking others
-          console.error(`Error in ${event} handler:`, error);
+          // Extract handler name for debugging
+          const handlerName = handler.name || 'anonymous';
+
+          // Call custom error handler if provided
+          if (this.onError) {
+            this.onError({ event, error, handlerName });
+          }
+
+          // Log to console if debug is enabled
+          if (this.debug) {
+            console.error(`Error in ${event} handler:`, error);
+          }
         }
       }
     }
@@ -292,7 +365,11 @@ export function safeEmit(
 /**
  * Create a typed emitter instance.
  * Factory function for cleaner instantiation.
+ *
+ * @param options - Configuration options for error handling
  */
-export function createTypedEmitter(): TypedWebSocketEmitter {
-  return new TypedWebSocketEmitter();
+export function createTypedEmitter(
+  options?: TypedWebSocketEmitterOptions
+): TypedWebSocketEmitter {
+  return new TypedWebSocketEmitter(options);
 }
