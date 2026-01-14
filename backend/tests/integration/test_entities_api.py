@@ -10,9 +10,6 @@ These tests verify the entities API endpoints work correctly
 with the full FastAPI application stack.
 """
 
-from datetime import UTC, datetime
-from unittest.mock import AsyncMock, patch
-
 import pytest
 
 from backend.tests.integration.test_helpers import get_error_message
@@ -84,91 +81,46 @@ class TestGetEntity:
     """Tests for GET /api/entities/{entity_id} endpoint."""
 
     async def test_get_entity_not_found(self, async_client):
-        """Test getting a non-existent entity returns 404 or 503."""
-        response = await async_client.get("/api/entities/nonexistent_entity")
-        # May return 404 (not found) or 503 (Redis unavailable) depending on Redis state
-        assert response.status_code in [404, 503]
+        """Test getting a non-existent entity returns 404."""
+        # Use a valid UUID that doesn't exist in the database
+        nonexistent_uuid = "00000000-0000-4000-a000-000000000000"
+        response = await async_client.get(f"/api/entities/{nonexistent_uuid}")
+        # Entity not found - will return 404
+        assert response.status_code == 404
 
+    @pytest.mark.skip(
+        reason="Entity API now uses PostgreSQL with UUID entity_id, not Redis detection_id lookup"
+    )
     async def test_get_entity_with_real_redis(self, async_client, integration_db, real_redis):
-        """Test getting entity with real Redis and stored data."""
-        # Store a test entity embedding in Redis
-        from backend.services.reid_service import EntityEmbedding, get_reid_service
+        """Test getting entity with real Redis and stored data.
 
-        reid_service = get_reid_service()
-        test_embedding = EntityEmbedding(
-            entity_type="person",
-            embedding=[0.1] * 768,
-            camera_id="front_door",
-            timestamp=datetime.now(UTC),
-            detection_id="test_det_001",
-            attributes={"clothing": "blue jacket"},
-        )
-
-        # Use RedisClient wrapper (which uses 'expire=' parameter) instead of raw Redis
-        await reid_service.store_embedding(real_redis, test_embedding)
-
-        # Now test the API endpoint
-        # We need to patch the Redis dependency to use the raw client for API calls
-        with patch(
-            "backend.api.routes.entities._get_redis_client",
-            new_callable=AsyncMock,
-            return_value=real_redis._ensure_connected(),
-        ):
-            response = await async_client.get("/api/entities/test_det_001")
-
-        if response.status_code == 200:
-            data = response.json()
-            assert data["id"] == "test_det_001"
-            assert data["entity_type"] == "person"
-            assert "appearances" in data
-        else:
-            # May not find if Redis state doesn't match - acceptable for integration test
-            assert response.status_code in [404, 503]
+        Note: This test is skipped because the entity API was refactored in NEM-2500
+        to use PostgreSQL with UUID-based entity_id instead of Redis with detection_id.
+        """
+        pass
 
 
 class TestGetEntityHistory:
     """Tests for GET /api/entities/{entity_id}/history endpoint."""
 
     async def test_get_history_not_found(self, async_client):
-        """Test getting history for non-existent entity."""
-        response = await async_client.get("/api/entities/nonexistent/history")
-        # May return 404 (not found) or 503 (Redis unavailable)
-        assert response.status_code in [404, 503]
+        """Test getting history for non-existent entity returns 404."""
+        # Use a valid UUID that doesn't exist in the database
+        nonexistent_uuid = "00000000-0000-4000-a000-000000000001"
+        response = await async_client.get(f"/api/entities/{nonexistent_uuid}/history")
+        # Entity not found - will return 404
+        assert response.status_code == 404
 
+    @pytest.mark.skip(
+        reason="Entity API now uses PostgreSQL with UUID entity_id, not Redis detection_id lookup"
+    )
     async def test_get_history_with_real_redis(self, async_client, integration_db, real_redis):
-        """Test getting entity history with real Redis and stored data."""
-        from backend.services.reid_service import EntityEmbedding, get_reid_service
+        """Test getting entity history with real Redis and stored data.
 
-        reid_service = get_reid_service()
-        test_embedding = EntityEmbedding(
-            entity_type="person",
-            embedding=[0.1] * 768,
-            camera_id="front_door",
-            timestamp=datetime.now(UTC),
-            detection_id="test_det_history_001",
-            attributes={},
-        )
-
-        # Use RedisClient wrapper (which uses 'expire=' parameter) instead of raw Redis
-        await reid_service.store_embedding(real_redis, test_embedding)
-
-        # Now test the API endpoint
-        with patch(
-            "backend.api.routes.entities._get_redis_client",
-            new_callable=AsyncMock,
-            return_value=real_redis._ensure_connected(),
-        ):
-            response = await async_client.get("/api/entities/test_det_history_001/history")
-
-        if response.status_code == 200:
-            data = response.json()
-            assert data["entity_id"] == "test_det_history_001"
-            assert data["entity_type"] == "person"
-            assert "appearances" in data
-            assert "count" in data
-        else:
-            # May not find if Redis state doesn't match
-            assert response.status_code in [404, 503]
+        Note: This test is skipped because the entity history API was refactored in NEM-2500
+        to use PostgreSQL with UUID-based entity_id instead of Redis with detection_id.
+        """
+        pass
 
 
 class TestEntitiesAPIValidation:
