@@ -82,10 +82,11 @@ class TestGetDetectionIdsFromEvent:
         assert result == [1, 2, 3]
 
     def test_get_detection_ids_empty_relationship(self):
-        """Test empty relationship returns empty list (no legacy fallback)."""
+        """Test empty relationship returns empty list (legacy fallback returns empty)."""
         mock_event = Mock(spec=Event)
         mock_event.detections = []
         mock_event.detection_id_list = []
+        mock_event.detection_ids = None  # Legacy fallback returns empty
 
         result = get_detection_ids_from_event(mock_event)
         assert result == []

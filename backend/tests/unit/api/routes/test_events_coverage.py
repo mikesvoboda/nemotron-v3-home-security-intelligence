@@ -670,6 +670,7 @@ class TestGetEventEnrichments:
         mock_event.id = 1
         mock_event.detections = []
         mock_event.detection_id_list = []
+        mock_event.detection_ids = None  # Legacy fallback returns empty
 
         mock_get_event.return_value = mock_event
 
@@ -827,6 +828,7 @@ class TestGenerateEventClip:
         mock_event.clip_path = None
         mock_event.detections = []
         mock_event.detection_id_list = []
+        mock_event.detection_ids = None  # Legacy fallback returns empty
 
         mock_get_event.return_value = mock_event
 
