@@ -85,7 +85,7 @@ class TestListAuditLogs:
         # Both queries return their respective results
         mock_db_session.execute = AsyncMock(side_effect=[count_result, logs_result])
 
-        response = client.get("/api/audit")
+        response = client.get("/api/audit?include_total_count=true")
 
         assert response.status_code == 200
         data = response.json()
@@ -108,7 +108,7 @@ class TestListAuditLogs:
 
         mock_db_session.execute = AsyncMock(side_effect=[count_result, logs_result])
 
-        response = client.get("/api/audit")
+        response = client.get("/api/audit?include_total_count=true")
 
         assert response.status_code == 200
         data = response.json()
@@ -127,7 +127,7 @@ class TestListAuditLogs:
 
         mock_db_session.execute = AsyncMock(side_effect=[count_result, logs_result])
 
-        response = client.get("/api/audit?action=camera_created")
+        response = client.get("/api/audit?action=camera_created&include_total_count=true")
 
         assert response.status_code == 200
         # Verify execute was called (filter is applied in the query)
@@ -145,7 +145,7 @@ class TestListAuditLogs:
 
         mock_db_session.execute = AsyncMock(side_effect=[count_result, logs_result])
 
-        response = client.get("/api/audit?resource_type=camera")
+        response = client.get("/api/audit?resource_type=camera&include_total_count=true")
 
         assert response.status_code == 200
         # Verify execute was called (filter is applied in the query)
@@ -163,7 +163,7 @@ class TestListAuditLogs:
 
         mock_db_session.execute = AsyncMock(side_effect=[count_result, logs_result])
 
-        response = client.get("/api/audit?limit=10&offset=20")
+        response = client.get("/api/audit?limit=10&offset=20&include_total_count=true")
 
         assert response.status_code == 200
         data = response.json()
