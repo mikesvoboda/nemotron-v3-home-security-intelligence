@@ -95,6 +95,8 @@ from backend.api.schemas.system import (
     PipelineStatusResponse,
     QueueDepths,
     ReadinessResponse,
+    RestartHistoryEvent,
+    RestartHistoryResponse,
     ServiceHealthStatusResponse,
     SeverityDefinitionResponse,
     SeverityMetadataResponse,
@@ -103,8 +105,6 @@ from backend.api.schemas.system import (
     StageLatency,
     StorageCategoryStats,
     StorageStatsResponse,
-    RestartHistoryEvent,
-    RestartHistoryResponse,
     SupervisedWorkerInfo,
     SupervisedWorkerStatusEnum,
     SystemStatsResponse,
@@ -488,6 +488,27 @@ def _are_critical_pipeline_workers_healthy() -> bool:
     if "analysis" in workers_dict:
         analysis_state = workers_dict["analysis"].get("state", "stopped")
         if analysis_state != "running":
+            return False
+
+    return True
+
+
+def _get_supervisor_health() -> bool:
+    """Check if the worker supervisor is healthy.
+
+    Returns:
+        True if supervisor is healthy (running with no failed workers),
+        or if no supervisor is registered (not required for basic operation).
+    """
+    if _worker_supervisor is None:
+        return True
+
+    if not _worker_supervisor.is_running:
+        return False
+
+    # Check if any workers have exceeded restart limit
+    for worker_info in _worker_supervisor.get_all_workers().values():
+        if worker_info.status.value == "failed":
             return False
 
     return True
@@ -1129,19 +1150,7 @@ async def get_readiness(
         response.status_code = 503
 
     # Check supervisor health (NEM-2462)
-    # Supervisor is healthy if running and no workers are in FAILED status
-    supervisor_healthy = True
-    if _worker_supervisor is not None:
-        supervisor_healthy = _worker_supervisor.is_running
-        if supervisor_healthy:
-            # Check if any workers have exceeded restart limit
-            for worker_info in _worker_supervisor.get_all_workers().values():
-                if worker_info.status.value == "failed":
-                    supervisor_healthy = False
-                    break
-    else:
-        # No supervisor registered - treat as healthy (not required for basic operation)
-        supervisor_healthy = True
+    supervisor_healthy = _get_supervisor_health()
 
     return ReadinessResponse(
         ready=ready,

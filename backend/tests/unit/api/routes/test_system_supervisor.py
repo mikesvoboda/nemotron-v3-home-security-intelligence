@@ -12,7 +12,7 @@ Tests cover:
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi import FastAPI
@@ -175,9 +175,7 @@ class TestRestartWorker:
         # Make restart_worker_task an async mock
         register_mock_supervisor.restart_worker_task = AsyncMock(return_value=True)
 
-        response = await async_client.post(
-            "/api/system/supervisor/workers/file_watcher/restart"
-        )
+        response = await async_client.post("/api/system/supervisor/workers/file_watcher/restart")
 
         assert response.status_code == 200
         data = response.json()
@@ -193,9 +191,7 @@ class TestRestartWorker:
         register_mock_supervisor.get_worker_info.return_value = None
         register_mock_supervisor.restart_worker_task = AsyncMock(return_value=False)
 
-        response = await async_client.post(
-            "/api/system/supervisor/workers/unknown_worker/restart"
-        )
+        response = await async_client.post("/api/system/supervisor/workers/unknown_worker/restart")
 
         assert response.status_code == 404
         data = response.json()
@@ -207,9 +203,7 @@ class TestRestartWorker:
         register_mock_supervisor: MagicMock,
     ) -> None:
         """Test restart returns 400 for invalid worker name."""
-        response = await async_client.post(
-            "/api/system/supervisor/workers/invalid!name/restart"
-        )
+        response = await async_client.post("/api/system/supervisor/workers/invalid!name/restart")
 
         assert response.status_code == 400
         data = response.json()
@@ -222,9 +216,7 @@ class TestRestartWorker:
         """Test restart returns 503 when supervisor not initialized."""
         register_workers(worker_supervisor=None)
 
-        response = await async_client.post(
-            "/api/system/supervisor/workers/file_watcher/restart"
-        )
+        response = await async_client.post("/api/system/supervisor/workers/file_watcher/restart")
 
         assert response.status_code == 503
         data = response.json()
@@ -247,9 +239,7 @@ class TestStopWorker:
         """Test successful worker stop."""
         register_mock_supervisor.stop_worker = AsyncMock(return_value=True)
 
-        response = await async_client.post(
-            "/api/system/supervisor/workers/file_watcher/stop"
-        )
+        response = await async_client.post("/api/system/supervisor/workers/file_watcher/stop")
 
         assert response.status_code == 200
         data = response.json()
@@ -265,9 +255,7 @@ class TestStopWorker:
         register_mock_supervisor.get_worker_info.return_value = None
         register_mock_supervisor.stop_worker = AsyncMock(return_value=False)
 
-        response = await async_client.post(
-            "/api/system/supervisor/workers/unknown_worker/stop"
-        )
+        response = await async_client.post("/api/system/supervisor/workers/unknown_worker/stop")
 
         assert response.status_code == 404
 
@@ -278,9 +266,7 @@ class TestStopWorker:
         """Test stop returns 503 when supervisor not initialized."""
         register_workers(worker_supervisor=None)
 
-        response = await async_client.post(
-            "/api/system/supervisor/workers/file_watcher/stop"
-        )
+        response = await async_client.post("/api/system/supervisor/workers/file_watcher/stop")
 
         assert response.status_code == 503
 
@@ -301,9 +287,7 @@ class TestStartWorker:
         """Test successful worker start."""
         register_mock_supervisor.start_worker = AsyncMock(return_value=True)
 
-        response = await async_client.post(
-            "/api/system/supervisor/workers/file_watcher/start"
-        )
+        response = await async_client.post("/api/system/supervisor/workers/file_watcher/start")
 
         assert response.status_code == 200
         data = response.json()
@@ -319,9 +303,7 @@ class TestStartWorker:
         register_mock_supervisor.get_worker_info.return_value = None
         register_mock_supervisor.start_worker = AsyncMock(return_value=False)
 
-        response = await async_client.post(
-            "/api/system/supervisor/workers/unknown_worker/start"
-        )
+        response = await async_client.post("/api/system/supervisor/workers/unknown_worker/start")
 
         assert response.status_code == 404
 
@@ -337,9 +319,7 @@ class TestStartWorker:
         # start_worker returns True for already running (idempotent behavior)
         register_mock_supervisor.start_worker = AsyncMock(return_value=True)
 
-        response = await async_client.post(
-            "/api/system/supervisor/workers/file_watcher/start"
-        )
+        response = await async_client.post("/api/system/supervisor/workers/file_watcher/start")
 
         # Should succeed - starting an already running worker is idempotent
         assert response.status_code == 200
@@ -472,9 +452,7 @@ class TestWorkerNameValidation:
         register_mock_supervisor.restart_worker_task = AsyncMock(return_value=True)
 
         for name in valid_names:
-            response = await async_client.post(
-                f"/api/system/supervisor/workers/{name}/restart"
-            )
+            response = await async_client.post(f"/api/system/supervisor/workers/{name}/restart")
             # Should not return 400 for valid names
             assert response.status_code != 400, f"Unexpected 400 for valid name: {name}"
 
@@ -491,9 +469,7 @@ class TestWorkerNameValidation:
         ]
 
         for name in invalid_names:
-            response = await async_client.post(
-                f"/api/system/supervisor/workers/{name}/restart"
-            )
+            response = await async_client.post(f"/api/system/supervisor/workers/{name}/restart")
             assert response.status_code == 400, f"Expected 400 for invalid name: {name}"
 
     async def test_invalid_worker_names_with_special_chars(

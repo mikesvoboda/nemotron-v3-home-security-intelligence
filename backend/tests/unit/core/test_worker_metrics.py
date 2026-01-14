@@ -61,8 +61,7 @@ class TestPipelineWorkerMetricDefinitions:
         """PIPELINE_WORKER_CONSECUTIVE_FAILURES gauge should be defined."""
         assert PIPELINE_WORKER_CONSECUTIVE_FAILURES is not None
         assert (
-            PIPELINE_WORKER_CONSECUTIVE_FAILURES._name
-            == "hsi_pipeline_worker_consecutive_failures"
+            PIPELINE_WORKER_CONSECUTIVE_FAILURES._name == "hsi_pipeline_worker_consecutive_failures"
         )
         assert "worker_name" in PIPELINE_WORKER_CONSECUTIVE_FAILURES._labelnames
 

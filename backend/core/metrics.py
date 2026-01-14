@@ -2519,9 +2519,7 @@ def record_pipeline_worker_restart(
         )
 
 
-def observe_pipeline_worker_restart_duration(
-    worker_name: str, duration_seconds: float
-) -> None:
+def observe_pipeline_worker_restart_duration(worker_name: str, duration_seconds: float) -> None:
     """Record the duration of a pipeline worker restart operation.
 
     Args:
