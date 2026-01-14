@@ -74,6 +74,7 @@ class TestGetDetectionIdsFromEventEdgeCases:
         mock_event = Mock(spec=Event)
         mock_event.detections = []
         mock_event.detection_id_list = []
+        mock_event.detection_ids = None  # Fallback to legacy column returns empty
 
         result = get_detection_ids_from_event(mock_event)
         assert result == []
@@ -83,6 +84,7 @@ class TestGetDetectionIdsFromEventEdgeCases:
         mock_event = Mock(spec=Event)
         mock_event.detections = []
         mock_event.detection_id_list = []
+        mock_event.detection_ids = None  # Fallback to legacy column returns empty
 
         result = get_detection_ids_from_event(mock_event)
         assert result == []
@@ -333,12 +335,12 @@ class TestEdgeCaseCombinations:
     def test_get_detection_ids_with_empty_detections(self):
         """Test get_detection_ids returns empty list when no detections.
 
-        Note: Legacy detection_ids column was removed in NEM-1592.
-        Now uses only the detections relationship.
+        Note: Legacy detection_ids column fallback is used when relationship is empty.
         """
         mock_event = Mock(spec=Event)
         mock_event.detections = []
         mock_event.detection_id_list = []
+        mock_event.detection_ids = None  # Fallback to legacy column returns empty
 
         result = get_detection_ids_from_event(mock_event)
         assert result == []
