@@ -408,8 +408,8 @@ export interface CalibrationResponse {
   decay_factor: number;
   /** Total false positives reported */
   false_positive_count: number;
-  /** Total missed detections reported */
-  missed_detection_count: number;
+  /** Total missed threats reported */
+  missed_threat_count: number;
   /** When the calibration record was created */
   created_at: string;
   /** When the calibration was last modified */

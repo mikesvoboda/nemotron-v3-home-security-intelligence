@@ -34,7 +34,7 @@ auto_create_cameras is enabled (default: True).
 import asyncio
 import time
 from collections.abc import Callable
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -805,7 +805,7 @@ class FileWatcher:
                 return
 
         # Record pipeline start time for total_pipeline latency tracking
-        pipeline_start_time = datetime.now().isoformat()
+        pipeline_start_time = datetime.now(UTC).isoformat()
         detection_data = {
             "camera_id": camera_id,
             "file_path": file_path,

@@ -22,7 +22,7 @@ import asyncio
 import contextlib
 import re
 from collections.abc import Awaitable, Callable
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -188,7 +188,7 @@ class OrphanedFileCleanupService:
         """
         try:
             mtime = file_path.stat().st_mtime
-            file_age_hours = (datetime.now().timestamp() - mtime) / 3600
+            file_age_hours = (datetime.now(UTC).timestamp() - mtime) / 3600
             return file_age_hours >= self.age_threshold_hours
         except (OSError, FileNotFoundError) as e:
             logger.debug(f"Could not check file age for {file_path}: {e}")
@@ -431,7 +431,7 @@ class OrphanedFileCleanupService:
                 "type": "orphan_cleanup_completed",
                 "data": {
                     "stats": stats.to_dict(),
-                    "timestamp": datetime.now().isoformat(),
+                    "timestamp": datetime.now(UTC).isoformat(),
                 },
             },
         )

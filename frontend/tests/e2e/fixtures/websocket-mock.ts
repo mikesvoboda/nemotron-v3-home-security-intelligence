@@ -663,13 +663,21 @@ export function createTestSystemStatus(
 }
 
 // Legacy exports for backward compatibility
+// NEM-2505: These legacy underscore format event types are normalized to hierarchical
+// format by extractEventType() in websocket-events.ts via LEGACY_EVENT_TYPE_ALIASES.
+// The job_* events are now first-class types and don't need normalization.
 export type WebSocketEventType =
   | 'event_created'
   | 'event_updated'
+  | 'event.created'  // Hierarchical format (preferred)
+  | 'event.updated'  // Hierarchical format (preferred)
   | 'camera_status'
   | 'gpu_update'
   | 'system_alert'
-  | 'performance_update';
+  | 'performance_update'
+  | 'job_progress'   // Legacy format (backend schema format)
+  | 'job_completed'  // Legacy format (backend schema format)
+  | 'job_failed';    // Legacy format (backend schema format)
 
 export interface SimulatedWebSocketMessage {
   type: WebSocketEventType;

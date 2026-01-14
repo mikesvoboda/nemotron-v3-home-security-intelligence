@@ -17741,6 +17741,97 @@
         "title": "StorageStatsResponse",
         "type": "object"
       },
+      "SupervisedWorkerInfo": {
+        "description": "Information about a supervised worker.\n\nProvides detailed status and restart metrics for a single worker\nmanaged by the WorkerSupervisor.",
+        "example": {
+          "last_started_at": "2026-01-13T10:30:00Z",
+          "max_restarts": 5,
+          "name": "detection_worker",
+          "restart_count": 0,
+          "status": "running"
+        },
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Last error message if worker crashed",
+            "title": "Error"
+          },
+          "last_crashed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the worker last crashed",
+            "title": "Last Crashed At"
+          },
+          "last_started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the worker was last started",
+            "title": "Last Started At"
+          },
+          "max_restarts": {
+            "description": "Maximum allowed restart attempts before failing",
+            "minimum": 0.0,
+            "title": "Max Restarts",
+            "type": "integer"
+          },
+          "name": {
+            "description": "Unique identifier for the worker",
+            "title": "Name",
+            "type": "string"
+          },
+          "restart_count": {
+            "description": "Number of times the worker has been restarted",
+            "minimum": 0.0,
+            "title": "Restart Count",
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/SupervisedWorkerStatusEnum",
+            "description": "Current health status of the worker"
+          }
+        },
+        "required": [
+          "name",
+          "status",
+          "restart_count",
+          "max_restarts"
+        ],
+        "title": "SupervisedWorkerInfo",
+        "type": "object"
+      },
+      "SupervisedWorkerStatusEnum": {
+        "description": "Status enum for supervised workers.",
+        "enum": [
+          "running",
+          "stopped",
+          "crashed",
+          "restarting",
+          "failed"
+        ],
+        "title": "SupervisedWorkerStatusEnum",
+        "type": "string"
+      },
       "SystemStatsResponse": {
         "description": "Response schema for system statistics endpoint.",
         "example": {
@@ -18672,6 +18763,66 @@
           "running"
         ],
         "title": "WorkerStatus",
+        "type": "object"
+      },
+      "WorkerSupervisorStatusResponse": {
+        "description": "Response schema for worker supervisor status endpoint.\n\nProvides overall supervisor status and detailed information about\nall supervised workers including their health status and restart metrics.",
+        "example": {
+          "running": true,
+          "timestamp": "2026-01-13T10:35:00Z",
+          "worker_count": 4,
+          "workers": [
+            {
+              "last_started_at": "2026-01-13T10:30:00Z",
+              "max_restarts": 5,
+              "name": "detection_worker",
+              "restart_count": 0,
+              "status": "running"
+            },
+            {
+              "error": "Connection timeout",
+              "last_crashed_at": "2026-01-13T10:30:30Z",
+              "last_started_at": "2026-01-13T10:31:00Z",
+              "max_restarts": 5,
+              "name": "analysis_worker",
+              "restart_count": 1,
+              "status": "running"
+            }
+          ]
+        },
+        "properties": {
+          "running": {
+            "description": "Whether the supervisor is currently running",
+            "title": "Running",
+            "type": "boolean"
+          },
+          "timestamp": {
+            "description": "Timestamp of status query",
+            "format": "date-time",
+            "title": "Timestamp",
+            "type": "string"
+          },
+          "worker_count": {
+            "description": "Total number of registered workers",
+            "minimum": 0.0,
+            "title": "Worker Count",
+            "type": "integer"
+          },
+          "workers": {
+            "description": "Detailed status of all supervised workers",
+            "items": {
+              "$ref": "#/components/schemas/SupervisedWorkerInfo"
+            },
+            "title": "Workers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "running",
+          "worker_count",
+          "timestamp"
+        ],
+        "title": "WorkerSupervisorStatusResponse",
         "type": "object"
       },
       "ZoneCreate": {
@@ -29672,6 +29823,82 @@
           }
         },
         "summary": "Get Storage Stats",
+        "tags": [
+          "system"
+        ]
+      }
+    },
+    "/api/system/supervisor": {
+      "get": {
+        "description": "Get status of the Worker Supervisor and all supervised workers.\n\nThe Worker Supervisor monitors pipeline worker tasks and automatically\nrestarts them with exponential backoff when they crash.\n\nReturns:\n    WorkerSupervisorStatusResponse with:\n    - running: Whether the supervisor is active\n    - worker_count: Number of registered workers\n    - workers: Detailed status of each supervised worker including:\n      - status: running/stopped/crashed/restarting/failed\n      - restart_count: Number of restart attempts\n      - last_started_at/last_crashed_at: Timestamps\n      - error: Last error message if crashed\n\nUse this endpoint to monitor worker health and identify workers that\nare repeatedly crashing or have exceeded their restart limit.",
+        "operationId": "get_supervisor_status_api_system_supervisor_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkerSupervisorStatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Supervisor Status",
+        "tags": [
+          "system"
+        ]
+      }
+    },
+    "/api/system/supervisor/reset/{worker_name}": {
+      "post": {
+        "description": "Reset a failed worker's restart count to allow new restart attempts.\n\nWhen a worker exceeds its max restart limit, it enters FAILED status\nand won't be restarted. Use this endpoint to reset the worker's\nrestart count and transition it back to STOPPED status, allowing\nthe supervisor to attempt restarts again.\n\nArgs:\n    worker_name: Name of the worker to reset\n\nReturns:\n    Dictionary with success status and message\n\nRaises:\n    HTTPException 404: Worker not found\n    HTTPException 503: Supervisor not initialized",
+        "operationId": "reset_worker_api_system_supervisor_reset__worker_name__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "worker_name",
+            "required": true,
+            "schema": {
+              "title": "Worker Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "boolean"
+                      }
+                    ]
+                  },
+                  "title": "Response Reset Worker Api System Supervisor Reset  Worker Name  Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reset Worker",
         "tags": [
           "system"
         ]

@@ -86,6 +86,11 @@ export interface PongPayload {
  * - 'error' -> WebSocketErrorPayload
  * - 'pong' -> PongPayload
  *
+ * Legacy job event types (underscore format - NEM-2505):
+ * - 'job_progress' -> LegacyJobProgressPayload
+ * - 'job_completed' -> LegacyJobCompletedPayload
+ * - 'job_failed' -> LegacyJobFailedPayload
+ *
  * New hierarchical event types (NEM-2382):
  * - 'alert.created' -> AlertCreatedPayload
  * - 'alert.updated' -> AlertUpdatedPayload (generic update payload)
@@ -116,6 +121,18 @@ export interface WebSocketEventMap {
   error: WebSocketErrorPayload;
   /** Pong response */
   pong: PongPayload;
+
+  // ========================================================================
+  // Legacy job event types (underscore format - NEM-2505)
+  // These are the actual event types sent by the backend schemas
+  // ========================================================================
+
+  /** Job progress event (legacy underscore format) */
+  job_progress: LegacyJobProgressPayload;
+  /** Job completed event (legacy underscore format) */
+  job_completed: LegacyJobCompletedPayload;
+  /** Job failed event (legacy underscore format) */
+  job_failed: LegacyJobFailedPayload;
 
   // ========================================================================
   // New hierarchical event types (NEM-2382)
@@ -224,7 +241,7 @@ export type WebSocketEventHandlerMap = {
  * All valid event keys as a constant array for runtime checks.
  */
 export const WEBSOCKET_EVENT_KEYS: readonly WebSocketEventKey[] = [
-  // Legacy event keys
+  // Legacy event keys (underscore format)
   'event',
   'service_status',
   'system_status',
@@ -233,6 +250,10 @@ export const WEBSOCKET_EVENT_KEYS: readonly WebSocketEventKey[] = [
   'gpu_stats',
   'error',
   'pong',
+  // Legacy job event keys (underscore format - NEM-2505)
+  'job_progress',
+  'job_completed',
+  'job_failed',
   // New hierarchical event keys (NEM-2382)
   // Event lifecycle events (NEM-2515)
   'event.created',
@@ -249,6 +270,7 @@ export const WEBSOCKET_EVENT_KEYS: readonly WebSocketEventKey[] = [
   'camera.offline',
   'camera.status_changed',
   'camera.error',
+  // Job events (hierarchical format)
   'job.started',
   'job.progress',
   'job.completed',
@@ -256,6 +278,50 @@ export const WEBSOCKET_EVENT_KEYS: readonly WebSocketEventKey[] = [
   'system.health_changed',
   'system.error',
 ] as const;
+
+/**
+ * Mapping from legacy underscore format event types to hierarchical dot format.
+ * These are alternative event type strings that should be normalized.
+ *
+ * NEM-2505: Added to resolve naming inconsistency between legacy and hierarchical formats.
+ * Note: job_progress, job_completed, job_failed are the ACTUAL wire format used by backend
+ * schemas, so they are NOT aliases - they are first-class event types now.
+ */
+export const LEGACY_EVENT_TYPE_ALIASES: Record<string, WebSocketEventKey> = {
+  // Event types sent by E2E test fixtures with underscore format
+  // Map to hierarchical format for consistent handling
+  event_created: 'event.created',
+  event_updated: 'event.updated',
+  event_deleted: 'event.deleted',
+  // Note: job_* are now first-class types in WEBSOCKET_EVENT_KEYS, not aliases
+} as const;
+
+/**
+ * Normalize an event type string, converting legacy underscore formats to
+ * either hierarchical dot format or recognized first-class event types.
+ *
+ * @example
+ * ```ts
+ * normalizeEventType('event_created') // returns 'event.created'
+ * normalizeEventType('job_progress')  // returns 'job_progress' (first-class)
+ * normalizeEventType('event')         // returns 'event'
+ * normalizeEventType('unknown')       // returns undefined
+ * ```
+ */
+export function normalizeEventType(eventType: string): WebSocketEventKey | undefined {
+  // Check if it's already a valid event key
+  if (isWebSocketEventKey(eventType)) {
+    return eventType;
+  }
+
+  // Check if it's a legacy alias that needs mapping
+  const alias = LEGACY_EVENT_TYPE_ALIASES[eventType];
+  if (alias) {
+    return alias;
+  }
+
+  return undefined;
+}
 
 /**
  * Type guard to check if a string is a valid WebSocket event key.
@@ -279,6 +345,9 @@ export function isWebSocketEventKey(value: unknown): value is WebSocketEventKey 
  * Extract the event type from a WebSocket message object.
  * Returns undefined if the message doesn't have a valid type field.
  *
+ * This function normalizes legacy underscore format event types (e.g., 'event_created')
+ * to hierarchical dot format (e.g., 'event.created') for consistent handling.
+ *
  * @example
  * ```ts
  * const message = JSON.parse(event.data);
@@ -295,8 +364,9 @@ export function extractEventType(message: unknown): WebSocketEventKey | undefine
 
   const msg = message as Record<string, unknown>;
 
-  if ('type' in msg && isWebSocketEventKey(msg.type)) {
-    return msg.type;
+  if ('type' in msg && typeof msg.type === 'string') {
+    // Use normalizeEventType to handle both direct matches and legacy aliases
+    return normalizeEventType(msg.type);
   }
 
   return undefined;
@@ -659,6 +729,42 @@ export interface JobFailedPayload {
   failed_at: string;
   error: string;
   retryable: boolean;
+}
+
+// ============================================================================
+// Legacy Job Event Payloads (underscore format - NEM-2505)
+// These match the actual backend schema definitions in WebSocketJobProgressMessage etc.
+// ============================================================================
+
+/**
+ * Payload for job_progress events (legacy underscore format).
+ * Matches backend/api/schemas/websocket.py WebSocketJobProgressData.
+ */
+export interface LegacyJobProgressPayload {
+  job_id: string;
+  job_type: string;
+  progress: number;
+  status: string;
+}
+
+/**
+ * Payload for job_completed events (legacy underscore format).
+ * Matches backend/api/schemas/websocket.py WebSocketJobCompletedData.
+ */
+export interface LegacyJobCompletedPayload {
+  job_id: string;
+  job_type: string;
+  result?: unknown;
+}
+
+/**
+ * Payload for job_failed events (legacy underscore format).
+ * Matches backend/api/schemas/websocket.py WebSocketJobFailedData.
+ */
+export interface LegacyJobFailedPayload {
+  job_id: string;
+  job_type: string;
+  error: string;
 }
 
 /**

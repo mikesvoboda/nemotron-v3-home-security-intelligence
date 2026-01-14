@@ -40,7 +40,7 @@ groups:
           dashboard_url: 'http://localhost:3002/d/pipeline/pipeline?orgId=1'
 
       - alert: AIBackendDown
-        expr: up{job="backend-liveness"} == 0
+        expr: probe_success{job="blackbox-http-live", service="backend"} == 0
         for: 1m
         labels:
           severity: critical

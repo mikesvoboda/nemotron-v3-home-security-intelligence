@@ -37,6 +37,10 @@ import functools
 from collections.abc import Awaitable, Callable
 from typing import Any, ParamSpec, TypeVar
 
+from redis.exceptions import ConnectionError as RedisConnectionError
+from redis.exceptions import RedisError
+from redis.exceptions import TimeoutError as RedisTimeoutError
+
 from backend.core.config import get_settings
 from backend.core.constants import CacheInvalidationReason
 from backend.core.logging import get_logger
@@ -127,8 +131,25 @@ class CacheService:
             else:
                 record_cache_miss(metric_type)
             return value
-        except Exception as e:
-            logger.warning(f"Cache get failed for key {key}: {e}")
+        except RedisConnectionError as e:
+            logger.warning(
+                f"Cache get failed for key {key}: Redis connection error: {e}",
+                extra={"key": key, "error_type": "connection_error"},
+            )
+            record_cache_miss(metric_type)
+            return None
+        except RedisTimeoutError as e:
+            logger.warning(
+                f"Cache get failed for key {key}: Redis timeout: {e}",
+                extra={"key": key, "error_type": "timeout_error"},
+            )
+            record_cache_miss(metric_type)
+            return None
+        except RedisError as e:
+            logger.warning(
+                f"Cache get failed for key {key}: Redis error: {e}",
+                extra={"key": key, "error_type": "redis_error"},
+            )
             record_cache_miss(metric_type)
             return None
 
@@ -177,8 +198,23 @@ class CacheService:
             await self._redis.set(full_key, value, expire=ttl)
             logger.debug(f"Cache set for key: {key} with TTL: {ttl}s")
             return True
-        except Exception as e:
-            logger.warning(f"Cache set failed for key {key}: {e}")
+        except RedisConnectionError as e:
+            logger.warning(
+                f"Cache set failed for key {key}: Redis connection error: {e}",
+                extra={"key": key, "ttl": ttl, "error_type": "connection_error"},
+            )
+            return False
+        except RedisTimeoutError as e:
+            logger.warning(
+                f"Cache set failed for key {key}: Redis timeout: {e}",
+                extra={"key": key, "ttl": ttl, "error_type": "timeout_error"},
+            )
+            return False
+        except RedisError as e:
+            logger.warning(
+                f"Cache set failed for key {key}: Redis error: {e}",
+                extra={"key": key, "ttl": ttl, "error_type": "redis_error"},
+            )
             return False
 
     async def get_or_set(
@@ -239,8 +275,23 @@ class CacheService:
             if deleted > 0:
                 logger.debug(f"Cache invalidated for key: {key}")
             return deleted > 0
-        except Exception as e:
-            logger.warning(f"Cache invalidation failed for key {key}: {e}")
+        except RedisConnectionError as e:
+            logger.warning(
+                f"Cache invalidation failed for key {key}: Redis connection error: {e}",
+                extra={"key": key, "error_type": "connection_error"},
+            )
+            return False
+        except RedisTimeoutError as e:
+            logger.warning(
+                f"Cache invalidation failed for key {key}: Redis timeout: {e}",
+                extra={"key": key, "error_type": "timeout_error"},
+            )
+            return False
+        except RedisError as e:
+            logger.warning(
+                f"Cache invalidation failed for key {key}: Redis error: {e}",
+                extra={"key": key, "error_type": "redis_error"},
+            )
             return False
 
     async def invalidate_pattern(
@@ -286,8 +337,23 @@ class CacheService:
                 record_cache_invalidation(metric_type, reason_str)
                 return deleted
             return 0
-        except Exception as e:
-            logger.warning(f"Cache pattern invalidation failed for {pattern}: {e}")
+        except RedisConnectionError as e:
+            logger.warning(
+                f"Cache pattern invalidation failed for {pattern}: Redis connection error: {e}",
+                extra={"pattern": pattern, "reason": reason_str, "error_type": "connection_error"},
+            )
+            return 0
+        except RedisTimeoutError as e:
+            logger.warning(
+                f"Cache pattern invalidation failed for {pattern}: Redis timeout: {e}",
+                extra={"pattern": pattern, "reason": reason_str, "error_type": "timeout_error"},
+            )
+            return 0
+        except RedisError as e:
+            logger.warning(
+                f"Cache pattern invalidation failed for {pattern}: Redis error: {e}",
+                extra={"pattern": pattern, "reason": reason_str, "error_type": "redis_error"},
+            )
             return 0
 
     async def invalidate_event_stats(
@@ -412,8 +478,23 @@ class CacheService:
         full_key = f"{CACHE_PREFIX}{key}"
         try:
             return await self._redis.exists(full_key) > 0
-        except Exception as e:
-            logger.warning(f"Cache exists check failed for key {key}: {e}")
+        except RedisConnectionError as e:
+            logger.warning(
+                f"Cache exists check failed for key {key}: Redis connection error: {e}",
+                extra={"key": key, "error_type": "connection_error"},
+            )
+            return False
+        except RedisTimeoutError as e:
+            logger.warning(
+                f"Cache exists check failed for key {key}: Redis timeout: {e}",
+                extra={"key": key, "error_type": "timeout_error"},
+            )
+            return False
+        except RedisError as e:
+            logger.warning(
+                f"Cache exists check failed for key {key}: Redis error: {e}",
+                extra={"key": key, "error_type": "redis_error"},
+            )
             return False
 
     async def refresh(self, key: str, ttl: int = DEFAULT_TTL) -> bool:
@@ -429,8 +510,23 @@ class CacheService:
         full_key = f"{CACHE_PREFIX}{key}"
         try:
             return await self._redis.expire(full_key, ttl)
-        except Exception as e:
-            logger.warning(f"Cache refresh failed for key {key}: {e}")
+        except RedisConnectionError as e:
+            logger.warning(
+                f"Cache refresh failed for key {key}: Redis connection error: {e}",
+                extra={"key": key, "ttl": ttl, "error_type": "connection_error"},
+            )
+            return False
+        except RedisTimeoutError as e:
+            logger.warning(
+                f"Cache refresh failed for key {key}: Redis timeout: {e}",
+                extra={"key": key, "ttl": ttl, "error_type": "timeout_error"},
+            )
+            return False
+        except RedisError as e:
+            logger.warning(
+                f"Cache refresh failed for key {key}: Redis error: {e}",
+                extra={"key": key, "ttl": ttl, "error_type": "redis_error"},
+            )
             return False
 
 
@@ -627,10 +723,35 @@ def cached(
                 await cache.set(key, result, ttl=ttl)
 
                 return result
-            except Exception as e:
-                # On cache failure, just execute function without caching
+            except RedisConnectionError as e:
+                # On Redis connection failure, execute function without caching
                 logger.warning(
-                    f"Cache operation failed for key {key}: {e}, falling back to uncached"
+                    f"Cache operation failed for key {key}: Redis connection error: {e}, "
+                    "falling back to uncached",
+                    extra={"key": key, "cache_type": cache_type, "error_type": "connection_error"},
+                )
+                return await func(*args, **kwargs)
+            except RedisTimeoutError as e:
+                # On Redis timeout, execute function without caching
+                logger.warning(
+                    f"Cache operation failed for key {key}: Redis timeout: {e}, "
+                    "falling back to uncached",
+                    extra={"key": key, "cache_type": cache_type, "error_type": "timeout_error"},
+                )
+                return await func(*args, **kwargs)
+            except RedisError as e:
+                # On Redis error, execute function without caching
+                logger.warning(
+                    f"Cache operation failed for key {key}: Redis error: {e}, "
+                    "falling back to uncached",
+                    extra={"key": key, "cache_type": cache_type, "error_type": "redis_error"},
+                )
+                return await func(*args, **kwargs)
+            except RuntimeError as e:
+                # Handle cache service initialization errors (e.g., Redis not connected)
+                logger.warning(
+                    f"Cache service unavailable for key {key}: {e}, falling back to uncached",
+                    extra={"key": key, "cache_type": cache_type, "error_type": "runtime_error"},
                 )
                 return await func(*args, **kwargs)
 
