@@ -5,6 +5,7 @@ Repository base class with entity-specific query methods for person/object
 re-identification tracking.
 
 Related to NEM-2450: Create EntityRepository for PostgreSQL CRUD operations.
+Updated for NEM-2494: Added get_repeat_visitors, get_stats, list_filtered methods.
 
 Example:
     async with get_session() as session:
@@ -17,7 +18,7 @@ from __future__ import annotations
 
 import builtins
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from sqlalchemy import desc, func, select
@@ -317,11 +318,14 @@ class EntityRepository(Repository[Entity]):
 
         return float(dot_product / (magnitude1 * magnitude2))
 
-    async def increment_detection_count(self, entity_id: UUID) -> None:
+    async def increment_detection_count(self, entity_id: UUID) -> Entity | None:
         """Increment detection count and update last_seen_at.
 
         Args:
             entity_id: UUID of the entity to update
+
+        Returns:
+            Updated Entity or None if not found
 
         Note:
             Does nothing if entity doesn't exist. Uses the Entity.update_seen()
@@ -329,10 +333,11 @@ class EntityRepository(Repository[Entity]):
         """
         entity = await self.get_by_id(entity_id)
         if entity is None:
-            return
+            return None
 
         entity.update_seen()
         await self.session.flush()
+        return entity
 
     async def get_or_create_for_detection(
         self,
@@ -340,6 +345,7 @@ class EntityRepository(Repository[Entity]):
         entity_type: str,
         embedding: Sequence[float],
         threshold: float = 0.85,
+        attributes: dict[str, Any] | None = None,
     ) -> tuple[Entity, bool]:
         """Get existing matching entity or create new one.
 
@@ -352,6 +358,7 @@ class EntityRepository(Repository[Entity]):
             entity_type: Type of entity (person, vehicle, etc.)
             embedding: Embedding vector for similarity matching
             threshold: Minimum similarity score to consider a match (default: 0.85)
+            attributes: Optional metadata to store on new entity (e.g., camera_id)
 
         Returns:
             Tuple of (entity, is_new) where is_new is True if entity was created
@@ -362,6 +369,7 @@ class EntityRepository(Repository[Entity]):
                 entity_type="person",
                 embedding=[0.1, 0.2, ...],
                 threshold=0.85,
+                attributes={"camera_id": "front_door"},
             )
             if is_new:
                 print(f"Created new entity: {entity.id}")
@@ -389,6 +397,7 @@ class EntityRepository(Repository[Entity]):
             detection_id=detection_id,
             embedding=list(embedding),
             model="clip",
+            entity_metadata=attributes,
         )
         self.session.add(entity)
         await self.session.flush()
@@ -471,3 +480,169 @@ class EntityRepository(Repository[Entity]):
         stmt = select(func.count(Entity.id))
         result = await self.session.execute(stmt)
         return result.scalar_one() or 0
+
+    async def get_repeat_visitors(
+        self,
+        min_appearances: int = 2,
+        entity_type: str | None = None,
+        since: datetime | None = None,
+        limit: int = 50,
+    ) -> Sequence[Entity]:
+        """Get entities that have been detected multiple times.
+
+        Args:
+            min_appearances: Minimum detection count to include (default: 2)
+            entity_type: Filter by entity type (optional)
+            since: Filter by last_seen_at >= since (optional)
+            limit: Maximum number of entities to return (default: 50)
+
+        Returns:
+            Sequence of entities with detection_count >= min_appearances,
+            ordered by detection_count descending
+
+        Example:
+            repeat_visitors = await repo.get_repeat_visitors(
+                min_appearances=3,
+                entity_type="person",
+                since=datetime.now(UTC) - timedelta(days=7),
+                limit=20,
+            )
+        """
+        stmt = select(Entity).where(Entity.detection_count >= min_appearances)
+
+        if entity_type:
+            stmt = stmt.where(Entity.entity_type == entity_type)
+
+        if since:
+            stmt = stmt.where(Entity.last_seen_at >= since)
+
+        stmt = stmt.order_by(desc(Entity.detection_count)).limit(limit)
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
+
+    async def get_stats(self, entity_type: str | None = None) -> dict[str, Any]:
+        """Get comprehensive statistics about entities.
+
+        Args:
+            entity_type: Filter statistics by entity type (optional)
+
+        Returns:
+            Dictionary containing:
+            - total_entities: Total count of entities
+            - by_type: Dictionary of counts by entity type (only when entity_type is None)
+            - total_detections: Sum of all detection counts
+            - repeat_visitor_count: Count of entities seen more than once
+
+        Example:
+            stats = await repo.get_stats()
+            print(f"Total: {stats['total_entities']}")
+            print(f"By type: {stats['by_type']}")
+
+            person_stats = await repo.get_stats(entity_type="person")
+            print(f"Person entities: {person_stats['total_entities']}")
+        """
+        result: dict[str, Any] = {}
+
+        if entity_type:
+            # Stats for specific entity type
+            count_stmt = select(func.count(Entity.id)).where(Entity.entity_type == entity_type)
+            count_result = await self.session.execute(count_stmt)
+            result["total_entities"] = count_result.scalar_one() or 0
+
+            det_stmt = select(func.sum(Entity.detection_count)).where(
+                Entity.entity_type == entity_type
+            )
+            det_result = await self.session.execute(det_stmt)
+            result["total_detections"] = det_result.scalar_one() or 0
+
+            repeat_stmt = select(func.count(Entity.id)).where(
+                Entity.entity_type == entity_type, Entity.detection_count > 1
+            )
+            repeat_result = await self.session.execute(repeat_stmt)
+            result["repeat_visitor_count"] = repeat_result.scalar_one() or 0
+        else:
+            # Stats for all entity types
+            count_stmt = select(func.count(Entity.id))
+            count_result = await self.session.execute(count_stmt)
+            result["total_entities"] = count_result.scalar_one() or 0
+
+            type_stmt = select(Entity.entity_type, func.count(Entity.id)).group_by(
+                Entity.entity_type
+            )
+            type_result = await self.session.execute(type_stmt)
+            result["by_type"] = {row[0]: row[1] for row in type_result.all()}
+
+            det_stmt = select(func.sum(Entity.detection_count))
+            det_result = await self.session.execute(det_stmt)
+            result["total_detections"] = det_result.scalar_one() or 0
+
+            repeat_stmt = select(func.count(Entity.id)).where(Entity.detection_count > 1)
+            repeat_result = await self.session.execute(repeat_stmt)
+            result["repeat_visitor_count"] = repeat_result.scalar_one() or 0
+
+        return result
+
+    async def list_filtered(
+        self,
+        entity_type: str | None = None,
+        since: datetime | None = None,
+        until: datetime | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[Sequence[Entity], int]:
+        """List entities with time-range filtering and pagination.
+
+        Similar to list() but with an additional 'until' parameter for
+        filtering by end timestamp.
+
+        Args:
+            entity_type: Filter by entity type (optional)
+            since: Filter by last_seen_at >= since (optional)
+            until: Filter by last_seen_at <= until (optional)
+            limit: Maximum number of entities to return (default: 50)
+            offset: Number of entities to skip (default: 0)
+
+        Returns:
+            Tuple of (sequence of entities, total count matching filters)
+
+        Example:
+            entities, total = await repo.list_filtered(
+                entity_type="person",
+                since=datetime.now(UTC) - timedelta(days=7),
+                until=datetime.now(UTC) - timedelta(days=1),
+                limit=20,
+                offset=0,
+            )
+        """
+        stmt = select(Entity)
+
+        if entity_type:
+            stmt = stmt.where(Entity.entity_type == entity_type)
+
+        if since:
+            stmt = stmt.where(Entity.last_seen_at >= since)
+
+        if until:
+            stmt = stmt.where(Entity.last_seen_at <= until)
+
+        stmt = stmt.order_by(desc(Entity.last_seen_at)).offset(offset).limit(limit)
+
+        result = await self.session.execute(stmt)
+        entities = result.scalars().all()
+
+        # Build count query with same filters
+        count_stmt = select(func.count(Entity.id))
+
+        if entity_type:
+            count_stmt = count_stmt.where(Entity.entity_type == entity_type)
+
+        if since:
+            count_stmt = count_stmt.where(Entity.last_seen_at >= since)
+
+        if until:
+            count_stmt = count_stmt.where(Entity.last_seen_at <= until)
+
+        count_result = await self.session.execute(count_stmt)
+        total = count_result.scalar_one()
+
+        return entities, total
