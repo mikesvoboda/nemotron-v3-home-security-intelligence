@@ -176,10 +176,14 @@ def validate_cursor_format(cursor: str | None) -> bool:
 
     # Check for maximum length to prevent DoS
     if len(cursor) > MAX_CURSOR_LENGTH:
+        _log_suspicious_cursor(
+            cursor, f"Cursor exceeds maximum length ({len(cursor)} > {MAX_CURSOR_LENGTH})"
+        )
         raise ValueError(f"Cursor exceeds maximum length of {MAX_CURSOR_LENGTH} characters")
 
     # Check for valid base64url format
     if not CURSOR_FORMAT_REGEX.match(cursor):
+        _log_suspicious_cursor(cursor, "Cursor contains invalid characters")
         raise ValueError("Cursor contains invalid characters (must be base64url-encoded)")
 
     return True
