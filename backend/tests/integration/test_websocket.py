@@ -26,13 +26,37 @@ def _get_common_lifespan_mocks():
     Returns a dict with all mock objects needed for fast test startup.
     These mocks prevent real services from initializing during TestClient creation.
     """
-    # Create mock Redis client
+    # Create mock Redis client with proper pipeline support for rate limiting
     mock_redis_client = AsyncMock()
     mock_redis_client.health_check.return_value = {
         "status": "healthy",
         "connected": True,
         "redis_version": "7.0.0",
     }
+
+    # Mock the underlying Redis client returned by _ensure_connected()
+    mock_underlying_client = MagicMock()
+    mock_pipeline = MagicMock()
+    mock_pipeline.zremrangebyscore = MagicMock(return_value=mock_pipeline)
+    mock_pipeline.zcard = MagicMock(return_value=mock_pipeline)
+    mock_pipeline.zadd = MagicMock(return_value=mock_pipeline)
+    mock_pipeline.expire = MagicMock(return_value=mock_pipeline)
+    mock_pipeline.execute = AsyncMock(
+        return_value=[0, 0, 1, True]
+    )  # [removed, count, added, expiry]
+    mock_underlying_client.pipeline = MagicMock(return_value=mock_pipeline)
+    mock_redis_client._ensure_connected = MagicMock(return_value=mock_underlying_client)
+    mock_redis_client._client = mock_underlying_client
+
+    # Mock pubsub for event broadcaster - must be an async iterator
+    async def mock_listen(*args, **kwargs):
+        # Yield nothing - empty async generator
+        return
+        yield  # Make this an async generator
+
+    mock_pubsub = MagicMock()
+    mock_redis_client._pubsub = mock_pubsub
+    mock_redis_client.listen = mock_listen
 
     # Mock background services
     mock_system_broadcaster = MagicMock()
@@ -109,11 +133,11 @@ def _get_common_lifespan_mocks():
 
     # Mock DockerClient
     mock_docker_client = MagicMock()
-    mock_docker_client.close = MagicMock()
+    mock_docker_client.close = AsyncMock()
 
     # Mock PerformanceCollector
     mock_performance_collector = MagicMock()
-    mock_performance_collector.close = MagicMock()
+    mock_performance_collector.close = AsyncMock()
 
     # Mock worker factories
     mock_detection_worker = AsyncMock()
