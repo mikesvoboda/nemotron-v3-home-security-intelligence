@@ -420,6 +420,10 @@ describe('Type Inference', () => {
           return `Job Completed: ${message.data.job_id}`;
         case 'job_failed':
           return `Job Failed: ${message.data.error}`;
+        case 'detection.new':
+          return `Detection: ${message.data.label}`;
+        case 'detection.batch':
+          return `Batch: ${message.data.batch_id}`;
       }
     }
 
@@ -488,6 +492,10 @@ describe('assertNever', () => {
           return 'job_completed';
         case 'job_failed':
           return 'job_failed';
+        case 'detection.new':
+          return 'detection.new';
+        case 'detection.batch':
+          return 'detection.batch';
         default:
           // TypeScript knows this is never reached if all cases are covered
           return assertNever(message);
@@ -557,6 +565,10 @@ describe('assertNeverSoft', () => {
           return 'handled job_completed';
         case 'job_failed':
           return 'handled job_failed';
+        case 'detection.new':
+          return 'handled detection.new';
+        case 'detection.batch':
+          return 'handled detection.batch';
         default:
           assertNeverSoft(message, 'WebSocket message');
           return 'unknown';

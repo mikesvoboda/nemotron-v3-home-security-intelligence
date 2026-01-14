@@ -1966,6 +1966,39 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/debug/pipeline-errors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Pipeline Errors
+         * @description Get recent pipeline errors from the AI analysis pipeline.
+         *
+         *     Retrieves errors stored in Redis for debugging pipeline issues.
+         *     Supports optional filtering by component and error type.
+         *
+         *     Args:
+         *         limit: Maximum number of errors to return (default: 10, max: 100)
+         *         component: Optional filter by component (e.g., "detector", "analyzer")
+         *         error_type: Optional filter by error type (e.g., "connection_error")
+         *
+         *     Returns:
+         *         List of recent pipeline errors with metadata
+         *
+         *     NEM-2485: Pipeline errors retrieval endpoint for Debug API
+         */
+        get: operations["get_pipeline_errors_api_debug_pipeline_errors_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/debug/pipeline-state": {
         parameters: {
             query?: never;
@@ -1980,7 +2013,11 @@ export interface paths {
          *     Returns queue depths, worker status, and recent errors for debugging
          *     pipeline issues and monitoring system health.
          *
+         *     Args:
+         *         error_limit: Maximum number of recent errors to return (default: 10, max: 100)
+         *
          *     NEM-1470: Debug endpoint for pipeline state inspection
+         *     NEM-2485: Complete pipeline errors retrieval implementation
          */
         get: operations["get_pipeline_state_api_debug_pipeline_state_get"];
         put?: never;
@@ -15484,6 +15521,32 @@ export interface components {
             type?: string | null;
         };
         /**
+         * PipelineErrorsResponse
+         * @description Response for pipeline errors retrieval.
+         */
+        PipelineErrorsResponse: {
+            /**
+             * Errors
+             * @description List of recent pipeline errors
+             */
+            errors: components["schemas"]["RecentError"][];
+            /**
+             * Limit
+             * @description Maximum errors requested
+             */
+            limit: number;
+            /**
+             * Timestamp
+             * @description ISO timestamp of response
+             */
+            timestamp: string;
+            /**
+             * Total
+             * @description Total number of errors returned
+             */
+            total: number;
+        };
+        /**
          * PipelineLatencies
          * @description Latency statistics for all pipeline stages.
          *
@@ -21919,9 +21982,58 @@ export interface operations {
             };
         };
     };
+    get_pipeline_errors_api_debug_pipeline_errors_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                component?: string | null;
+                error_type?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PipelineErrorsResponse"];
+                };
+            };
+            /** @description Not found - Debug mode disabled */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     get_pipeline_state_api_debug_pipeline_state_get: {
         parameters: {
-            query?: never;
+            query?: {
+                error_limit?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -21943,6 +22055,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
             /** @description Internal server error */
             500: {

@@ -38,6 +38,7 @@ import json
 import time
 import uuid
 from collections import defaultdict
+from datetime import UTC
 from typing import Any
 
 from backend.core.config import get_settings
@@ -130,6 +131,109 @@ class BatchAggregator:
 
         # Lock for the camera_locks dict itself to prevent race in lock creation
         self._locks_lock = asyncio.Lock()
+
+    async def _broadcast_detection_new(
+        self,
+        detection_id: int,
+        batch_id: str,
+        camera_id: str,
+        label: str | None = None,
+        confidence: float | None = None,
+    ) -> None:
+        """Broadcast a detection.new event via WebSocket (NEM-2506).
+
+        This method broadcasts a new detection event to all connected WebSocket
+        clients. The broadcast is optional - if it fails, the detection is still
+        processed normally.
+
+        Args:
+            detection_id: Unique detection identifier
+            batch_id: Batch identifier this detection belongs to
+            camera_id: Camera identifier
+            label: Detection class label (optional)
+            confidence: Detection confidence score (optional)
+        """
+        if not self._redis:
+            return
+
+        try:
+            from datetime import datetime
+
+            from backend.services.event_broadcaster import get_broadcaster
+
+            broadcaster = await get_broadcaster(self._redis)
+            detection_data = {
+                "detection_id": detection_id,
+                "batch_id": batch_id,
+                "camera_id": camera_id,
+                "label": label or "unknown",
+                "confidence": confidence if confidence is not None else 0.0,
+                "timestamp": datetime.now(UTC).isoformat(),
+            }
+            await broadcaster.broadcast_detection_new(detection_data)
+        except Exception as e:
+            # Log but don't fail the detection processing
+            logger.debug(
+                f"Failed to broadcast detection.new event: {e}",
+                extra={
+                    "detection_id": detection_id,
+                    "batch_id": batch_id,
+                    "camera_id": camera_id,
+                },
+            )
+
+    async def _broadcast_detection_batch(
+        self,
+        batch_id: str,
+        camera_id: str,
+        detection_ids: list[int],
+        started_at: float,
+        closed_at: float,
+        close_reason: str | None = None,
+    ) -> None:
+        """Broadcast a detection.batch event via WebSocket (NEM-2506).
+
+        This method broadcasts a batch closed event to all connected WebSocket
+        clients. The broadcast is optional - if it fails, the batch is still
+        processed normally.
+
+        Args:
+            batch_id: Unique batch identifier
+            camera_id: Camera identifier
+            detection_ids: List of detection IDs in this batch
+            started_at: Unix timestamp when the batch started
+            closed_at: Unix timestamp when the batch was closed
+            close_reason: Reason for batch closure (timeout, idle, max_size)
+        """
+        if not self._redis:
+            return
+
+        try:
+            from datetime import datetime
+
+            from backend.services.event_broadcaster import get_broadcaster
+
+            broadcaster = await get_broadcaster(self._redis)
+            batch_data = {
+                "batch_id": batch_id,
+                "camera_id": camera_id,
+                "detection_ids": detection_ids,
+                "detection_count": len(detection_ids),
+                "started_at": datetime.fromtimestamp(started_at, tz=UTC).isoformat(),
+                "closed_at": datetime.fromtimestamp(closed_at, tz=UTC).isoformat(),
+                "close_reason": close_reason,
+            }
+            await broadcaster.broadcast_detection_batch(batch_data)
+        except Exception as e:
+            # Log but don't fail the batch processing
+            logger.debug(
+                f"Failed to broadcast detection.batch event: {e}",
+                extra={
+                    "batch_id": batch_id,
+                    "camera_id": camera_id,
+                    "detection_count": len(detection_ids),
+                },
+            )
 
     async def _get_camera_lock(self, camera_id: str) -> asyncio.Lock:
         """Get or create a lock for the specified camera.
@@ -401,6 +505,15 @@ class BatchAggregator:
                     "detection_id": detection_id_int,
                     "detection_count": detection_count,
                 },
+            )
+
+            # NEM-2506: Broadcast detection.new event via WebSocket
+            await self._broadcast_detection_new(
+                detection_id=detection_id_int,
+                batch_id=batch_id,
+                camera_id=camera_id,
+                label=object_type,
+                confidence=confidence,
             )
 
             return batch_id
@@ -745,6 +858,16 @@ class BatchAggregator:
                     extra={"camera_id": camera_id, "batch_id": batch_id},
                 )
 
+                # NEM-2506: Broadcast detection.batch event via WebSocket
+                await self._broadcast_detection_batch(
+                    batch_id=batch_id,
+                    camera_id=camera_id,
+                    detection_ids=detections,
+                    started_at=started_at,
+                    closed_at=summary["closed_at"],
+                    close_reason="timeout",
+                )
+
                 return summary
 
     async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:
@@ -859,6 +982,16 @@ class BatchAggregator:
         logger.debug(
             f"Cleaned up Redis keys for batch {batch_id}",
             extra={"camera_id": camera_id, "batch_id": batch_id},
+        )
+
+        # NEM-2506: Broadcast detection.batch event via WebSocket
+        await self._broadcast_detection_batch(
+            batch_id=batch_id,
+            camera_id=camera_id,
+            detection_ids=detections,
+            started_at=started_at,
+            closed_at=ended_at,
+            close_reason="max_size",
         )
 
         return summary

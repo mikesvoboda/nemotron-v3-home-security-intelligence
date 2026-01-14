@@ -61,7 +61,8 @@ logger = get_logger(__name__)
 T = TypeVar("T")
 
 # Default timeout for health checks in seconds
-DEFAULT_HEALTH_CHECK_TIMEOUT = 10.0
+# Note: This is now configurable via settings.degradation_health_check_timeout (NEM-2519)
+DEFAULT_HEALTH_CHECK_TIMEOUT = 10.0  # Default, use settings.degradation_health_check_timeout
 
 
 class DegradationMode(Enum):

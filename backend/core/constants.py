@@ -150,6 +150,18 @@ ANALYSIS_QUEUE = "analysis_queue"
 """Queue for batched detections ready for LLM analysis."""
 
 # -----------------------------------------------------------------------------
+# Pipeline Error Tracking (NEM-2485)
+# -----------------------------------------------------------------------------
+PIPELINE_ERRORS_KEY = "pipeline:errors"
+"""Redis list key for storing recent pipeline errors for debug API retrieval."""
+
+PIPELINE_ERRORS_MAX_SIZE = 100
+"""Maximum number of recent errors to store in Redis."""
+
+PIPELINE_ERRORS_TTL_SECONDS = 86400  # 24 hours
+"""TTL for pipeline errors in Redis (errors auto-expire after 24 hours)."""
+
+# -----------------------------------------------------------------------------
 # Dead-Letter Queue (DLQ) Names
 # -----------------------------------------------------------------------------
 DLQ_PREFIX = "dlq:"
@@ -259,6 +271,9 @@ __all__ = [
     "DLQ_DETECTION_QUEUE",
     "DLQ_OVERFLOW_PREFIX",
     "DLQ_PREFIX",
+    "PIPELINE_ERRORS_KEY",
+    "PIPELINE_ERRORS_MAX_SIZE",
+    "PIPELINE_ERRORS_TTL_SECONDS",
     "CacheInvalidationReason",
     "get_dlq_name",
     "get_dlq_overflow_name",
