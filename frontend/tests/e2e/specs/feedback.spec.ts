@@ -36,18 +36,23 @@ test.describe('Event Feedback - False Positive Submission @critical', () => {
 
     await timelinePage.clickEvent(0);
 
-    // Check for feedback button (may be "False Positive" or a feedback menu)
+    // Check for feedback button with data-testid from actual implementation
     const modal = page.locator('[data-testid="event-detail-modal"]');
     await expect(modal).toBeVisible();
 
-    // Try multiple possible selectors for the feedback button
-    const falsePositiveButton = modal.locator(
-      '[data-testid="false-positive-button"], button:has-text("False Positive")'
-    );
+    // Look for FeedbackPanel and False Positive button (actual implementation uses data-testid)
+    const feedbackPanel = modal.locator('[data-testid="feedback-panel"]');
+    const buttonExists = (await feedbackPanel.count()) > 0;
+    if (!buttonExists) {
+      console.log('FeedbackPanel not found - feature may not be implemented yet');
+      return;
+    }
+
+    const falsePositiveButton = feedbackPanel.locator('[data-testid="feedback-false_positive-button"]');
 
     // If button doesn't exist, skip the test - feature not implemented yet
-    const buttonExists = (await falsePositiveButton.count()) > 0;
-    if (!buttonExists) {
+    const fpButtonExists = (await falsePositiveButton.count()) > 0;
+    if (!fpButtonExists) {
       console.log('False Positive button not found - feature may not be implemented yet');
       return;
     }
@@ -64,9 +69,12 @@ test.describe('Event Feedback - False Positive Submission @critical', () => {
     await timelinePage.clickEvent(0);
     const modal = page.locator('[data-testid="event-detail-modal"]');
 
-    const falsePositiveButton = modal.locator(
-      '[data-testid="false-positive-button"], button:has-text("False Positive")'
-    );
+    const feedbackPanel = modal.locator('[data-testid="feedback-panel"]');
+    if ((await feedbackPanel.count()) === 0) {
+      return;
+    }
+
+    const falsePositiveButton = feedbackPanel.locator('[data-testid="feedback-false_positive-button"]');
 
     const buttonExists = (await falsePositiveButton.count()) > 0;
     if (!buttonExists) {
@@ -75,17 +83,15 @@ test.describe('Event Feedback - False Positive Submission @critical', () => {
 
     await falsePositiveButton.click();
 
-    // Check for feedback form or notes textarea
-    const feedbackForm = modal.locator(
-      '[data-testid="feedback-form"], [data-testid="feedback-notes"], textarea[placeholder*="note" i], textarea[placeholder*="feedback" i]'
-    );
+    // Check for feedback notes textarea (implementation shows notes form after clicking)
+    const feedbackNotes = modal.locator('[data-testid="feedback-notes"]');
 
-    const formExists = (await feedbackForm.count()) > 0;
+    const formExists = (await feedbackNotes.count()) > 0;
     if (!formExists) {
       console.log('Feedback form not found - may inline submit without form');
       // Test can continue - some implementations may submit directly
     } else {
-      await expect(feedbackForm.first()).toBeVisible();
+      await expect(feedbackNotes).toBeVisible();
     }
   });
 
@@ -98,9 +104,12 @@ test.describe('Event Feedback - False Positive Submission @critical', () => {
     await timelinePage.clickEvent(0);
     const modal = page.locator('[data-testid="event-detail-modal"]');
 
-    const falsePositiveButton = modal.locator(
-      '[data-testid="false-positive-button"], button:has-text("False Positive")'
-    );
+    const feedbackPanel = modal.locator('[data-testid="feedback-panel"]');
+    if ((await feedbackPanel.count()) === 0) {
+      return;
+    }
+
+    const falsePositiveButton = feedbackPanel.locator('[data-testid="feedback-false_positive-button"]');
 
     const buttonExists = (await falsePositiveButton.count()) > 0;
     if (!buttonExists) {
@@ -131,17 +140,15 @@ test.describe('Event Feedback - False Positive Submission @critical', () => {
 
     await falsePositiveButton.click();
 
-    // If there's a notes field, fill it
-    const notesField = modal.locator('textarea[placeholder*="note" i], textarea[placeholder*="feedback" i]');
+    // If there's a notes field, fill it (implementation uses data-testid="feedback-notes")
+    const notesField = modal.locator('[data-testid="feedback-notes"]');
     const notesExists = (await notesField.count()) > 0;
     if (notesExists) {
       await notesField.fill('This was my neighbor, not a threat');
     }
 
-    // Find and click submit button
-    const submitButton = modal.locator(
-      '[data-testid="submit-feedback"], button:has-text("Submit"), button:has-text("Confirm")'
-    );
+    // Find and click submit button (implementation uses data-testid="submit-feedback-button")
+    const submitButton = modal.locator('[data-testid="submit-feedback-button"]');
 
     const submitExists = (await submitButton.count()) > 0;
     if (submitExists) {
@@ -166,9 +173,12 @@ test.describe('Event Feedback - False Positive Submission @critical', () => {
     await timelinePage.clickEvent(0);
     const modal = page.locator('[data-testid="event-detail-modal"]');
 
-    const falsePositiveButton = modal.locator(
-      '[data-testid="false-positive-button"], button:has-text("False Positive")'
-    );
+    const feedbackPanel = modal.locator('[data-testid="feedback-panel"]');
+    if ((await feedbackPanel.count()) === 0) {
+      return;
+    }
+
+    const falsePositiveButton = feedbackPanel.locator('[data-testid="feedback-false_positive-button"]');
 
     const buttonExists = (await falsePositiveButton.count()) > 0;
     if (!buttonExists) {
@@ -177,97 +187,128 @@ test.describe('Event Feedback - False Positive Submission @critical', () => {
 
     await falsePositiveButton.click();
 
-    const submitButton = modal.locator(
-      '[data-testid="submit-feedback"], button:has-text("Submit"), button:has-text("Confirm")'
-    );
+    const submitButton = modal.locator('[data-testid="submit-feedback-button"]');
 
     const submitExists = (await submitButton.count()) > 0;
     if (submitExists) {
       await submitButton.click();
 
-      // Look for success indicators
-      const successIndicators = modal
-        .locator('[data-testid="feedback-success"]')
-        .or(modal.locator('.success'))
-        .or(modal.locator('.toast'))
-        .or(modal.getByText('Feedback submitted'))
-        .or(modal.getByText('Thank you'));
-
-      // Give time for success message to appear
+      // After successful submission, the panel shows the submitted feedback (read-only view)
+      // The implementation doesn't show a separate success message, but displays the feedback
       await page.waitForTimeout(1000);
 
-      const hasSuccess = (await successIndicators.count()) > 0;
-      if (hasSuccess) {
-        await expect(successIndicators.first()).toBeVisible();
+      // Check if feedback panel now shows submitted state (has the feedback type displayed)
+      const feedbackDisplayed = feedbackPanel.getByText(/False Positive/i);
+      const hasDisplay = (await feedbackDisplayed.count()) > 0;
+
+      if (hasDisplay) {
+        await expect(feedbackDisplayed).toBeVisible();
       } else {
-        // Button may be disabled or change text
-        const buttonDisabled = await falsePositiveButton.isDisabled().catch(() => false);
-        console.log(`Button disabled after submit: ${buttonDisabled}`);
+        console.log('Success state not clearly visible - implementation may differ');
       }
     }
   });
 });
 
 test.describe('Event Feedback - Missed Detection Submission @critical', () => {
+  let timelinePage: TimelinePage;
+
   test.beforeEach(async ({ page }) => {
-    await page.goto('/timeline');
-    await page.waitForLoadState('networkidle');
+    timelinePage = new TimelinePage(page);
+    await timelinePage.goto();
+    await timelinePage.waitForTimelineLoad();
   });
 
-  test('should have "Report Missed Detection" option available', async ({ page }) => {
-    // Look for missed detection reporting UI
-    // Could be in settings, timeline header, or event list
-    const missedDetectionButton = page.locator(
-      '[data-testid="report-missed-detection"], button:has-text("Report Missed Detection"), button:has-text("Missed Detection")'
-    );
-
-    const buttonExists = (await missedDetectionButton.count()) > 0;
-    if (!buttonExists) {
-      console.log('Report Missed Detection button not found - feature may not be implemented yet');
+  test('should have "Missed Threat" option available in event detail modal', async ({ page }) => {
+    // Missed threat feedback is in the FeedbackPanel of event detail modal
+    const eventCount = await timelinePage.getEventCount();
+    if (eventCount === 0) {
       return;
     }
 
-    await expect(missedDetectionButton).toBeVisible();
+    await timelinePage.clickEvent(0);
+    const modal = page.locator('[data-testid="event-detail-modal"]');
+    await expect(modal).toBeVisible();
+
+    const feedbackPanel = modal.locator('[data-testid="feedback-panel"]');
+    const buttonExists = (await feedbackPanel.count()) > 0;
+    if (!buttonExists) {
+      console.log('FeedbackPanel not found - feature may not be implemented yet');
+      return;
+    }
+
+    // Look for "Missed Threat" button (actual implementation uses data-testid="feedback-missed_threat-button")
+    const missedThreatButton = feedbackPanel.locator('[data-testid="feedback-missed_threat-button"]');
+
+    const mtButtonExists = (await missedThreatButton.count()) > 0;
+    if (!mtButtonExists) {
+      console.log('Missed Threat button not found - feature may not be implemented yet');
+      return;
+    }
+
+    await expect(missedThreatButton).toBeVisible();
   });
 
   test('should open missed detection form', async ({ page }) => {
-    const missedDetectionButton = page.locator(
-      '[data-testid="report-missed-detection"], button:has-text("Report Missed Detection")'
-    );
+    const eventCount = await timelinePage.getEventCount();
+    if (eventCount === 0) {
+      return;
+    }
 
-    const buttonExists = (await missedDetectionButton.count()) > 0;
+    await timelinePage.clickEvent(0);
+    const modal = page.locator('[data-testid="event-detail-modal"]');
+
+    const feedbackPanel = modal.locator('[data-testid="feedback-panel"]');
+    if ((await feedbackPanel.count()) === 0) {
+      return;
+    }
+
+    const missedThreatButton = feedbackPanel.locator('[data-testid="feedback-missed_threat-button"]');
+
+    const buttonExists = (await missedThreatButton.count()) > 0;
     if (!buttonExists) {
       return;
     }
 
-    await missedDetectionButton.click();
+    await missedThreatButton.click();
 
-    // Look for form or modal
-    const form = page.locator('[data-testid="missed-detection-form"], [role="dialog"]');
-    const formExists = (await form.count()) > 0;
+    // Look for notes form (implementation shows notes textarea after clicking)
+    const notesField = modal.locator('[data-testid="feedback-notes"]');
+    const formExists = (await notesField.count()) > 0;
 
     if (formExists) {
-      await expect(form).toBeVisible();
+      await expect(notesField).toBeVisible();
     }
   });
 
   test('should submit missed detection feedback', async ({ page }) => {
-    const missedDetectionButton = page.locator(
-      '[data-testid="report-missed-detection"], button:has-text("Report Missed Detection")'
-    );
+    const eventCount = await timelinePage.getEventCount();
+    if (eventCount === 0) {
+      return;
+    }
 
-    const buttonExists = (await missedDetectionButton.count()) > 0;
+    await timelinePage.clickEvent(0);
+    const modal = page.locator('[data-testid="event-detail-modal"]');
+
+    const feedbackPanel = modal.locator('[data-testid="feedback-panel"]');
+    if ((await feedbackPanel.count()) === 0) {
+      return;
+    }
+
+    const missedThreatButton = feedbackPanel.locator('[data-testid="feedback-missed_threat-button"]');
+
+    const buttonExists = (await missedThreatButton.count()) > 0;
     if (!buttonExists) {
       return;
     }
 
-    // Intercept API call
+    // Intercept API call (note: implementation uses 'missed_threat' not 'missed_detection')
     let feedbackSubmitted = false;
 
     await page.route('**/api/feedback', async (route) => {
       if (route.request().method() === 'POST') {
         const data = route.request().postDataJSON();
-        if (data.feedback_type === 'missed_detection') {
+        if (data.feedback_type === 'missed_threat') {
           feedbackSubmitted = true;
         }
         await route.fulfill({
@@ -276,7 +317,7 @@ test.describe('Event Feedback - Missed Detection Submission @critical', () => {
           body: JSON.stringify({
             id: 2,
             event_id: data.event_id || 1,
-            feedback_type: 'missed_detection',
+            feedback_type: 'missed_threat',
             notes: data.notes || null,
             created_at: new Date().toISOString(),
           }),
@@ -284,44 +325,59 @@ test.describe('Event Feedback - Missed Detection Submission @critical', () => {
       }
     });
 
-    await missedDetectionButton.click();
+    await missedThreatButton.click();
 
     // Fill form if it exists
-    const notesField = page.locator('textarea[placeholder*="note" i], textarea[placeholder*="describe" i]');
+    const notesField = modal.locator('[data-testid="feedback-notes"]');
     const notesExists = (await notesField.count()) > 0;
     if (notesExists) {
       await notesField.fill('Person approached but was not detected');
     }
 
-    const submitButton = page.locator('button:has-text("Submit"), button:has-text("Confirm")');
+    const submitButton = modal.locator('[data-testid="submit-feedback-button"]');
     const submitExists = (await submitButton.count()) > 0;
     if (submitExists) {
       await submitButton.click();
       await page.waitForTimeout(500);
-    }
 
-    // Note: Test may be skipped if form doesn't exist yet
-    // The test framework will handle missing elements gracefully
+      // Verify API call was made with correct feedback type
+      expect(feedbackSubmitted).toBe(true);
+    }
   });
 });
 
 test.describe('Event Feedback - Verification and Stats', () => {
   test('should display feedback stats on settings or dashboard', async ({ page }) => {
-    // Navigate to settings page where feedback stats might be displayed
+    // Navigate to settings page where feedback stats are displayed in the Calibration panel
     await page.goto('/settings');
     await page.waitForLoadState('networkidle');
 
-    // Look for feedback statistics display using valid selectors
-    const feedbackStats = page
-      .locator('[data-testid="feedback-stats"]')
-      .or(page.getByText('Feedback Statistics'))
-      .or(page.getByText('False Positives'));
+    // Click on CALIBRATION tab where feedback stats are shown
+    const calibrationTab = page.locator('button:has-text("CALIBRATION")');
+    if ((await calibrationTab.count()) === 0) {
+      console.log('Calibration tab not found - skipping test');
+      return;
+    }
+    await calibrationTab.click();
+    await page.waitForTimeout(500);
 
-    const statsExists = (await feedbackStats.count()) > 0;
+    // Look for feedback statistics in the RiskSensitivitySettings component
+    // The stats show "False positives marked" and "Missed detections marked"
+    const calibrationSection = page.locator('[data-testid="risk-sensitivity-settings"]');
+    if ((await calibrationSection.count()) === 0) {
+      console.log('Calibration section not found - skipping test');
+      return;
+    }
+
+    // Look for "Feedback Stats" section
+    const feedbackStatsSection = calibrationSection.getByText('Feedback Stats');
+    const statsExists = (await feedbackStatsSection.count()) > 0;
     if (!statsExists) {
       console.log('Feedback stats not found - feature may not be implemented yet');
       return;
     }
+
+    await expect(feedbackStatsSection).toBeVisible();
   });
 
   test('should prevent duplicate feedback submission', async ({ page }) => {
@@ -337,9 +393,13 @@ test.describe('Event Feedback - Verification and Stats', () => {
     await timelinePage.clickEvent(0);
 
     const modal = page.locator('[data-testid="event-detail-modal"]');
-    const falsePositiveButton = modal.locator(
-      '[data-testid="false-positive-button"], button:has-text("False Positive")'
-    );
+    const feedbackPanel = modal.locator('[data-testid="feedback-panel"]');
+
+    if ((await feedbackPanel.count()) === 0) {
+      return;
+    }
+
+    const falsePositiveButton = feedbackPanel.locator('[data-testid="feedback-false_positive-button"]');
 
     const buttonExists = (await falsePositiveButton.count()) > 0;
     if (!buttonExists) {
@@ -349,17 +409,19 @@ test.describe('Event Feedback - Verification and Stats', () => {
     // Submit feedback once
     await falsePositiveButton.click();
 
-    const submitButton = modal.locator('button:has-text("Submit"), button:has-text("Confirm")');
+    const submitButton = modal.locator('[data-testid="submit-feedback-button"]');
     const submitExists = (await submitButton.count()) > 0;
     if (submitExists) {
       await submitButton.click();
       await page.waitForTimeout(500);
 
-      // Button should be disabled or changed
-      const buttonDisabled = await falsePositiveButton.isDisabled().catch(() => false);
-      const buttonHidden = !(await falsePositiveButton.isVisible().catch(() => true));
+      // After submission, the feedback panel shows read-only view with the submitted feedback
+      // The feedback buttons should no longer be visible
+      const feedbackButtons = feedbackPanel.locator('[data-testid="feedback-buttons"]');
+      const buttonsVisible = await feedbackButtons.isVisible().catch(() => false);
 
-      expect(buttonDisabled || buttonHidden).toBe(true);
+      // Buttons should be hidden after feedback is submitted
+      expect(buttonsVisible).toBe(false);
     }
   });
 });
@@ -390,9 +452,13 @@ test.describe('Event Feedback - Error Handling', () => {
     await timelinePage.clickEvent(0);
 
     const modal = page.locator('[data-testid="event-detail-modal"]');
-    const falsePositiveButton = modal.locator(
-      '[data-testid="false-positive-button"], button:has-text("False Positive")'
-    );
+    const feedbackPanel = modal.locator('[data-testid="feedback-panel"]');
+
+    if ((await feedbackPanel.count()) === 0) {
+      return;
+    }
+
+    const falsePositiveButton = feedbackPanel.locator('[data-testid="feedback-false_positive-button"]');
 
     const buttonExists = (await falsePositiveButton.count()) > 0;
     if (!buttonExists) {
@@ -401,22 +467,21 @@ test.describe('Event Feedback - Error Handling', () => {
 
     await falsePositiveButton.click();
 
-    const submitButton = modal.locator('button:has-text("Submit"), button:has-text("Confirm")');
+    const submitButton = modal.locator('[data-testid="submit-feedback-button"]');
     const submitExists = (await submitButton.count()) > 0;
     if (submitExists) {
       await submitButton.click();
 
-      // Look for error message
-      const errorMessage = page
-        .locator('[data-testid="error-message"]')
-        .or(page.locator('.error'))
-        .or(page.getByText('Failed'))
-        .or(page.getByText('Error'));
+      // Look for error message in the feedback panel
+      // The implementation shows error in the notes form view
+      const errorMessage = feedbackPanel.getByText(/Failed to submit feedback/i);
 
       await page.waitForTimeout(1000);
       const hasError = (await errorMessage.count()) > 0;
       if (hasError) {
-        await expect(errorMessage.first()).toBeVisible();
+        await expect(errorMessage).toBeVisible();
+      } else {
+        console.log('Error message not displayed - implementation may handle errors differently');
       }
     }
   });

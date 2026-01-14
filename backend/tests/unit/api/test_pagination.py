@@ -20,6 +20,7 @@ from backend.api.pagination import (
     decode_cursor,
     encode_cursor,
     get_deprecation_warning,
+    set_deprecation_headers,
     validate_cursor_format,
     validate_pagination_params,
 )
@@ -178,6 +179,79 @@ class TestDeprecationWarning:
         """Test cursor takes precedence, no warning even if offset provided."""
         warning = get_deprecation_warning(cursor="some_cursor", offset=10)
         assert warning is None
+
+
+class TestSetDeprecationHeaders:
+    """Tests for HTTP Deprecation header setting (NEM-2603)."""
+
+    def test_sets_deprecation_header_with_offset(self):
+        """Test Deprecation header is set when offset pagination is used."""
+        from unittest.mock import MagicMock
+
+        mock_response = MagicMock()
+        mock_response.headers = {}
+
+        set_deprecation_headers(mock_response, cursor=None, offset=10)
+
+        assert mock_response.headers["Deprecation"] == "true"
+
+    def test_sets_sunset_header_with_default_date(self):
+        """Test Sunset header is set with default date."""
+        from unittest.mock import MagicMock
+
+        mock_response = MagicMock()
+        mock_response.headers = {}
+
+        set_deprecation_headers(mock_response, cursor=None, offset=10)
+
+        assert mock_response.headers["Sunset"] == "2026-06-01"
+
+    def test_sets_custom_sunset_date(self):
+        """Test Sunset header can use custom date."""
+        from unittest.mock import MagicMock
+
+        mock_response = MagicMock()
+        mock_response.headers = {}
+
+        set_deprecation_headers(mock_response, cursor=None, offset=10, sunset_date="2027-01-01")
+
+        assert mock_response.headers["Sunset"] == "2027-01-01"
+
+    def test_no_sunset_header_when_none(self):
+        """Test Sunset header is not set when sunset_date is None."""
+        from unittest.mock import MagicMock
+
+        mock_response = MagicMock()
+        mock_response.headers = {}
+
+        set_deprecation_headers(mock_response, cursor=None, offset=10, sunset_date=None)
+
+        assert mock_response.headers["Deprecation"] == "true"
+        assert "Sunset" not in mock_response.headers
+
+    def test_no_headers_with_cursor(self):
+        """Test no headers are set when cursor is provided."""
+        from unittest.mock import MagicMock
+
+        mock_response = MagicMock()
+        mock_response.headers = {}
+
+        set_deprecation_headers(mock_response, cursor="some_cursor", offset=10)
+
+        assert "Deprecation" not in mock_response.headers
+        assert "Sunset" not in mock_response.headers
+
+    def test_no_headers_with_zero_offset(self):
+        """Test no headers are set when offset is 0."""
+        from unittest.mock import MagicMock
+
+        mock_response = MagicMock()
+        mock_response.headers = {}
+
+        set_deprecation_headers(mock_response, cursor=None, offset=0)
+
+        assert "Deprecation" not in mock_response.headers
+        assert "Sunset" not in mock_response.headers
 
 
 class TestCursorDataModel:

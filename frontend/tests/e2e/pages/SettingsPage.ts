@@ -2,7 +2,7 @@
  * SettingsPage - Page Object for the Settings page
  *
  * Provides selectors and interactions for:
- * - Tab navigation (Cameras, Processing, Notifications)
+ * - Tab navigation (Cameras, Rules, Processing, Notifications, Ambient, Calibration, Prompts, Storage)
  * - Settings forms within each tab
  *
  * Note: AI Models tab was moved to /ai page
@@ -17,13 +17,16 @@ export class SettingsPage extends BasePage {
   readonly pageTitle: Locator;
   readonly pageSubtitle: Locator;
 
-  // Tab Navigation (5 tabs: Cameras, Analytics, Rules, Processing, Notifications)
+  // Tab Navigation (8 tabs: Cameras, Rules, Processing, Notifications, Ambient, Calibration, Prompts, Storage)
   readonly tabList: Locator;
   readonly camerasTab: Locator;
-  readonly analyticsTab: Locator;
   readonly rulesTab: Locator;
   readonly processingTab: Locator;
   readonly notificationsTab: Locator;
+  readonly ambientTab: Locator;
+  readonly calibrationTab: Locator;
+  readonly promptsTab: Locator;
+  readonly storageTab: Locator;
 
   // Tab Panels
   readonly tabPanel: Locator;
@@ -62,14 +65,17 @@ export class SettingsPage extends BasePage {
     this.pageSubtitle = page.getByText(/Configure your security monitoring system/i);
 
     // Tab Navigation - Headless UI renders tabs as buttons
-    // Order: Cameras, Analytics, Rules, Processing, Notifications
+    // Order: Cameras, Rules, Processing, Notifications, Ambient, Calibration, Prompts, Storage
     // Note: AI Models tab was moved to /ai page
     this.tabList = page.locator('[role="tablist"]');
     this.camerasTab = page.getByRole('tab', { name: /CAMERAS/i }).or(page.locator('button').filter({ hasText: 'CAMERAS' }));
-    this.analyticsTab = page.getByRole('tab', { name: /ANALYTICS/i }).or(page.locator('button').filter({ hasText: 'ANALYTICS' }));
     this.rulesTab = page.getByRole('tab', { name: /RULES/i }).or(page.locator('button').filter({ hasText: 'RULES' }));
     this.processingTab = page.getByRole('tab', { name: /PROCESSING/i }).or(page.locator('button').filter({ hasText: 'PROCESSING' }));
     this.notificationsTab = page.getByRole('tab', { name: /NOTIFICATIONS/i }).or(page.locator('button').filter({ hasText: 'NOTIFICATIONS' }));
+    this.ambientTab = page.getByRole('tab', { name: /AMBIENT/i }).or(page.locator('button').filter({ hasText: 'AMBIENT' }));
+    this.calibrationTab = page.getByRole('tab', { name: /CALIBRATION/i }).or(page.locator('button').filter({ hasText: 'CALIBRATION' }));
+    this.promptsTab = page.getByRole('tab', { name: /PROMPTS/i }).or(page.locator('button').filter({ hasText: 'PROMPTS' }));
+    this.storageTab = page.getByRole('tab', { name: /STORAGE/i }).or(page.locator('button').filter({ hasText: 'STORAGE' }));
 
     // Tab Panels (filter to visible panel only to avoid strict mode violation)
     this.tabPanel = page.locator('[role="tabpanel"]:not([aria-hidden="true"])');
@@ -140,14 +146,6 @@ export class SettingsPage extends BasePage {
   }
 
   /**
-   * Go to Analytics tab
-   */
-  async goToAnalyticsTab(): Promise<void> {
-    await this.analyticsTab.click();
-    await expect(this.analyticsTab).toHaveAttribute('data-selected', 'true');
-  }
-
-  /**
    * Go to Rules tab
    */
   async goToRulesTab(): Promise<void> {
@@ -156,15 +154,50 @@ export class SettingsPage extends BasePage {
   }
 
   /**
+   * Go to Ambient tab
+   */
+  async goToAmbientTab(): Promise<void> {
+    await this.ambientTab.click();
+    await expect(this.ambientTab).toHaveAttribute('data-selected', 'true');
+  }
+
+  /**
+   * Go to Calibration tab
+   */
+  async goToCalibrationTab(): Promise<void> {
+    await this.calibrationTab.click();
+    await expect(this.calibrationTab).toHaveAttribute('data-selected', 'true');
+  }
+
+  /**
+   * Go to Prompts tab
+   */
+  async goToPromptsTab(): Promise<void> {
+    await this.promptsTab.click();
+    await expect(this.promptsTab).toHaveAttribute('data-selected', 'true');
+  }
+
+  /**
+   * Go to Storage tab
+   */
+  async goToStorageTab(): Promise<void> {
+    await this.storageTab.click();
+    await expect(this.storageTab).toHaveAttribute('data-selected', 'true');
+  }
+
+  /**
    * Check if a tab is selected
    */
-  async isTabSelected(tab: 'cameras' | 'analytics' | 'rules' | 'processing' | 'notifications'): Promise<boolean> {
+  async isTabSelected(tab: 'cameras' | 'rules' | 'processing' | 'notifications' | 'ambient' | 'calibration' | 'prompts' | 'storage'): Promise<boolean> {
     const tabs: Record<string, Locator> = {
       cameras: this.camerasTab,
-      analytics: this.analyticsTab,
       rules: this.rulesTab,
       processing: this.processingTab,
       notifications: this.notificationsTab,
+      ambient: this.ambientTab,
+      calibration: this.calibrationTab,
+      prompts: this.promptsTab,
+      storage: this.storageTab,
     };
     const attr = await tabs[tab].getAttribute('data-selected');
     return attr === 'true';

@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from sqlalchemy import case, func, literal, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,7 +11,7 @@ from backend.api.pagination import (
     decode_cursor,
     encode_cursor,
     get_deprecation_warning,
-    validate_pagination_params,
+    set_deprecation_headers,
 )
 from backend.api.schemas.logs import (
     FrontendLogCreate,
@@ -37,6 +37,7 @@ router = APIRouter(prefix="/api/logs", tags=["logs"])
     },
 )
 async def list_logs(  # noqa: PLR0912
+    response: Response,
     level: str | None = Query(None, description="Filter by log level"),
     component: str | None = Query(None, description="Filter by component name"),
     camera_id: str | None = Query(None, description="Filter by camera ID"),
@@ -76,15 +77,6 @@ async def list_logs(  # noqa: PLR0912
     """
     # Validate date range
     validate_date_range(start_date, end_date)
-
-    # Validate pagination params - reject simultaneous offset and cursor (NEM-2613)
-    try:
-        validate_pagination_params(cursor, offset)
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        ) from e
 
     # Decode cursor if provided
     cursor_data: CursorData | None = None
@@ -167,6 +159,9 @@ async def list_logs(  # noqa: PLR0912
         import logging
 
         logging.getLogger(__name__).warning(deprecation_warning)
+
+    # Set HTTP Deprecation headers per IETF standard (NEM-2603)
+    set_deprecation_headers(response, cursor, offset)
 
     return LogsResponse(
         items=logs,

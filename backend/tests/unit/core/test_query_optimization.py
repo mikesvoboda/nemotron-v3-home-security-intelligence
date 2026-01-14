@@ -9,7 +9,6 @@ These tests use mocked database sessions to verify the correct
 eager loading strategies are being used.
 """
 
-import json
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -40,7 +39,7 @@ class TestEventsExportJoinedload:
         mock_event.risk_score = 50
         mock_event.risk_level = "medium"
         mock_event.summary = "Test event"
-        mock_event.detection_ids = "[]"
+        mock_event.detection_id_list = []
         mock_event.reviewed = False
 
         # Create mock DB session with spec
@@ -102,35 +101,42 @@ class TestAlertEngineBatchLoading:
         # Create mock session with spec
         mock_session = AsyncMock(spec=AsyncSession)
 
-        # Create test events with detection IDs
+        # Create test events
         events = []
         for i in range(3):
             event = MagicMock(spec=Event)
             event.id = i + 1
-            event.detection_ids = json.dumps([i * 10 + 1, i * 10 + 2])
             events.append(event)
 
         # Create mock detections
         all_detections = []
-        for event in events:
-            detection_ids = json.loads(event.detection_ids)
-            for did in detection_ids:
+        detection_ids = []
+        for i, event in enumerate(events):
+            for j in range(2):
                 det = MagicMock(spec=Detection)
-                det.id = did
+                det.id = i * 10 + j + 1
+                detection_ids.append(det.id)
                 all_detections.append(det)
 
-        # Setup mock return
-        mock_result = MagicMock()
-        mock_scalars = MagicMock()
-        mock_scalars.all.return_value = all_detections
-        mock_result.scalars.return_value = mock_scalars
-        mock_session.execute.return_value = mock_result
+        # Mock junction table query returning (event_id, detection_id) pairs
+        junction_rows = []
+        for i, event in enumerate(events):
+            junction_rows.append((event.id, i * 10 + 1))
+            junction_rows.append((event.id, i * 10 + 2))
 
-        # Create engine and call batch load
-        engine = AlertRuleEngine(mock_session)
-        result = await engine._batch_load_detections_for_events(events)
+        mock_junction_result = MagicMock()
+        mock_junction_result.all.return_value = junction_rows
+        mock_session.execute.return_value = mock_junction_result
 
-        # Verify only one query was executed
+        with patch(
+            "backend.services.alert_engine.batch_fetch_detections",
+            new_callable=AsyncMock,
+            return_value=all_detections,
+        ):
+            engine = AlertRuleEngine(mock_session)
+            result = await engine._batch_load_detections_for_events(events)
+
+        # Verify junction table was queried once
         assert mock_session.execute.call_count == 1
 
         # Verify all events have their detections mapped
@@ -151,14 +157,18 @@ class TestAlertEngineBatchLoading:
         for i in range(2):
             event = MagicMock(spec=Event)
             event.id = i + 1
-            event.detection_ids = None
             events.append(event)
+
+        # Mock junction table returning empty
+        mock_result = MagicMock()
+        mock_result.all.return_value = []
+        mock_session.execute.return_value = mock_result
 
         engine = AlertRuleEngine(mock_session)
         result = await engine._batch_load_detections_for_events(events)
 
-        # Should return empty lists without querying
-        assert mock_session.execute.call_count == 0
+        # Should query junction table once (returns empty)
+        assert mock_session.execute.call_count == 1
         assert result == {1: [], 2: []}
 
     @pytest.mark.asyncio
@@ -189,23 +199,26 @@ class TestAlertEngineBatchLoading:
             event.camera_id = "cam1"
             event.risk_score = 60
             event.started_at = datetime.now(UTC)
-            event.detection_ids = json.dumps([i + 100])
             events.append(event)
 
         # Mock detections
         detections = [MagicMock(spec=Detection, id=i + 100, object_type="person") for i in range(5)]
 
+        # Mock junction table query
+        junction_rows = [(i + 1, i + 100) for i in range(5)]
         mock_result = MagicMock()
-        mock_scalars = MagicMock()
-        mock_scalars.all.return_value = detections
-        mock_result.scalars.return_value = mock_scalars
+        mock_result.all.return_value = junction_rows
         mock_session.execute.return_value = mock_result
 
-        engine = AlertRuleEngine(mock_session)
-        results = await engine.test_rule_against_events(mock_rule, events)
+        with patch(
+            "backend.services.alert_engine.batch_fetch_detections",
+            new_callable=AsyncMock,
+            return_value=detections,
+        ):
+            engine = AlertRuleEngine(mock_session)
+            results = await engine.test_rule_against_events(mock_rule, events)
 
-        # Should have made exactly 1 query for all detections (batch loading)
-        # not 5 queries (N+1 pattern)
+        # Junction table queried once for batch loading
         assert mock_session.execute.call_count == 1
 
         # All events should have been evaluated
@@ -251,21 +264,28 @@ class TestBatchLoadingErrorHandling:
     """Tests for batch loading error handling."""
 
     @pytest.mark.asyncio
-    async def test_batch_load_with_invalid_json(self):
-        """Verify batch loading handles invalid JSON in detection_ids."""
+    async def test_batch_load_with_empty_detection_list(self):
+        """Verify batch loading handles empty detection list.
+
+        Junction table query returns no rows for events without detections.
+        """
         from backend.services.alert_engine import AlertRuleEngine
 
         mock_session = AsyncMock(spec=AsyncSession)
 
-        # Create event with invalid JSON
+        # Create event with empty detection list
         event = MagicMock(spec=Event)
         event.id = 1
-        event.detection_ids = "invalid json {"  # Malformed JSON
+
+        # Mock junction table returning empty
+        mock_result = MagicMock()
+        mock_result.all.return_value = []
+        mock_session.execute.return_value = mock_result
 
         engine = AlertRuleEngine(mock_session)
         result = await engine._batch_load_detections_for_events([event])
 
-        # Should return empty list for invalid JSON, not crash
+        # Should return empty list
         assert result == {1: []}
 
     @pytest.mark.asyncio
@@ -280,7 +300,6 @@ class TestBatchLoadingErrorHandling:
         for i in range(2):
             event = MagicMock(spec=Event)
             event.id = i + 1
-            event.detection_ids = json.dumps([i + 100])
             events.append(event)
 
         # Make execute raise an error
@@ -293,46 +312,53 @@ class TestBatchLoadingErrorHandling:
             await engine._batch_load_detections_for_events(events)
 
     @pytest.mark.asyncio
-    async def test_batch_load_with_empty_detection_ids_json(self):
-        """Verify batch loading handles empty JSON arrays."""
+    async def test_batch_load_with_empty_detection_lists(self):
+        """Verify batch loading handles empty detection lists.
+
+        Junction table query returns no rows for events without detections.
+        """
         from backend.services.alert_engine import AlertRuleEngine
 
         mock_session = AsyncMock(spec=AsyncSession)
 
-        # Create events with empty JSON arrays
+        # Create events with empty detection lists
         events = []
         for i in range(3):
             event = MagicMock(spec=Event)
             event.id = i + 1
-            event.detection_ids = "[]"  # Empty array
             events.append(event)
+
+        # Mock junction table returning empty
+        mock_result = MagicMock()
+        mock_result.all.return_value = []
+        mock_session.execute.return_value = mock_result
 
         engine = AlertRuleEngine(mock_session)
         result = await engine._batch_load_detections_for_events(events)
 
-        # Should return empty lists without querying
-        assert mock_session.execute.call_count == 0
+        # Should query junction table once (returns empty)
+        assert mock_session.execute.call_count == 1
         assert result == {1: [], 2: [], 3: []}
 
     @pytest.mark.asyncio
-    async def test_batch_load_with_mixed_valid_invalid_json(self):
-        """Verify batch loading handles mix of valid and invalid detection_ids."""
+    async def test_batch_load_with_mixed_valid_empty_detection_lists(self):
+        """Verify batch loading handles mix of valid and empty detection lists.
+
+        Junction table query returns rows only for events with detections.
+        """
         from backend.services.alert_engine import AlertRuleEngine
 
         mock_session = AsyncMock(spec=AsyncSession)
 
-        # Create mix of valid and invalid events
+        # Create mix of events with and without detections
         event1 = MagicMock(spec=Event)
         event1.id = 1
-        event1.detection_ids = json.dumps([101, 102])  # Valid
 
         event2 = MagicMock(spec=Event)
         event2.id = 2
-        event2.detection_ids = "not valid json"  # Invalid
 
         event3 = MagicMock(spec=Event)
         event3.id = 3
-        event3.detection_ids = None  # None
 
         events = [event1, event2, event3]
 
@@ -342,14 +368,18 @@ class TestBatchLoadingErrorHandling:
             MagicMock(spec=Detection, id=102),
         ]
 
+        # Mock junction table returning rows only for event1
         mock_result = MagicMock()
-        mock_scalars = MagicMock()
-        mock_scalars.all.return_value = detections
-        mock_result.scalars.return_value = mock_scalars
+        mock_result.all.return_value = [(1, 101), (1, 102)]  # Only event1 has detections
         mock_session.execute.return_value = mock_result
 
-        engine = AlertRuleEngine(mock_session)
-        result = await engine._batch_load_detections_for_events(events)
+        with patch(
+            "backend.services.alert_engine.batch_fetch_detections",
+            new_callable=AsyncMock,
+            return_value=detections,
+        ):
+            engine = AlertRuleEngine(mock_session)
+            result = await engine._batch_load_detections_for_events(events)
 
         # Should have results for all events
         assert 1 in result
@@ -379,7 +409,7 @@ class TestExportEventsErrorHandling:
         mock_event.risk_score = 50
         mock_event.risk_level = "medium"
         mock_event.summary = "Test event"
-        mock_event.detection_ids = "[]"
+        mock_event.detection_id_list = []
         mock_event.reviewed = False
 
         mock_db = AsyncMock(spec=AsyncSession)

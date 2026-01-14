@@ -751,3 +751,156 @@ class TestAlertRuleProperties:
         """Property: Name values roundtrip correctly."""
         rule = AlertRule(name=name)
         assert rule.name == name
+
+
+# =============================================================================
+# Alert.to_dict() Serialization Tests (NEM-2583)
+# =============================================================================
+
+
+class TestAlertToDict:
+    """Tests for Alert.to_dict() unified serialization method."""
+
+    def test_to_dict_api_response_format(self, sample_alert):
+        """Test to_dict returns all fields for API response format."""
+        result = sample_alert.to_dict()
+
+        assert result["id"] == "alert-001"
+        assert result["event_id"] == 1
+        assert result["rule_id"] == "rule-001"
+        assert result["severity"] == "high"
+        assert result["status"] == "pending"
+        assert result["dedup_key"] == "front_door:rule-001"
+        assert result["channels"] == ["email", "push"]
+        assert result["alert_metadata"] == {"triggered_by": "person_detection"}
+        # API format returns datetime objects
+        assert "created_at" in result
+        assert "updated_at" in result
+        assert "delivered_at" in result
+
+    def test_to_dict_websocket_format(self, sample_alert):
+        """Test to_dict returns minimal fields with ISO timestamps for WebSocket."""
+        result = sample_alert.to_dict(for_websocket=True)
+
+        assert result["id"] == "alert-001"
+        assert result["event_id"] == 1
+        assert result["rule_id"] == "rule-001"
+        assert result["severity"] == "high"
+        assert result["status"] == "pending"
+        assert result["dedup_key"] == "front_door:rule-001"
+        # WebSocket format excludes these fields
+        assert "channels" not in result
+        assert "alert_metadata" not in result
+        assert "delivered_at" not in result
+        # WebSocket format uses ISO strings for timestamps
+        assert "created_at" in result
+        assert "updated_at" in result
+
+    def test_to_dict_websocket_iso_timestamp_format(self, delivered_alert):
+        """Test WebSocket format uses ISO string timestamps."""
+        result = delivered_alert.to_dict(for_websocket=True)
+
+        # Check timestamps are ISO strings, not datetime objects
+        if result["created_at"] is not None:
+            assert isinstance(result["created_at"], str)
+            assert "T" in result["created_at"]  # ISO format has T separator
+        if result["updated_at"] is not None:
+            assert isinstance(result["updated_at"], str)
+            assert "T" in result["updated_at"]
+
+    def test_to_dict_api_response_datetime_objects(self, delivered_alert):
+        """Test API response format returns datetime objects."""
+        result = delivered_alert.to_dict(for_websocket=False)
+
+        # API format returns datetime objects (or None)
+        from datetime import datetime
+
+        if result["created_at"] is not None:
+            assert isinstance(result["created_at"], datetime)
+        if result["updated_at"] is not None:
+            assert isinstance(result["updated_at"], datetime)
+        if result["delivered_at"] is not None:
+            assert isinstance(result["delivered_at"], datetime)
+
+    def test_to_dict_none_channels_returns_empty_list(self, minimal_alert):
+        """Test that None channels returns empty list in API format."""
+        result = minimal_alert.to_dict()
+        assert result["channels"] == []
+
+    def test_to_dict_handles_enum_values(self):
+        """Test to_dict correctly extracts enum values."""
+        alert = Alert(
+            event_id=1,
+            dedup_key="test",
+            severity=AlertSeverity.CRITICAL,
+            status=AlertStatus.ACKNOWLEDGED,
+        )
+        result = alert.to_dict()
+
+        assert result["severity"] == "critical"
+        assert result["status"] == "acknowledged"
+
+    def test_to_dict_handles_raw_string_values(self):
+        """Test to_dict handles raw string values (non-enum)."""
+        alert = Alert(
+            event_id=1,
+            dedup_key="test",
+        )
+        # Simulate raw string values (edge case)
+        alert.severity = "high"  # type: ignore[assignment]
+        alert.status = "pending"  # type: ignore[assignment]
+
+        result = alert.to_dict()
+        assert result["severity"] == "high"
+        assert result["status"] == "pending"
+
+    def test_to_dict_default_is_api_format(self):
+        """Test that default (no args) returns API response format."""
+        alert = Alert(
+            event_id=1,
+            dedup_key="test",
+            channels=["email"],
+            alert_metadata={"key": "value"},
+        )
+        result = alert.to_dict()
+
+        # Default should include all fields (API format)
+        assert "channels" in result
+        assert "alert_metadata" in result
+        assert "delivered_at" in result
+        assert result["channels"] == ["email"]
+        assert result["alert_metadata"] == {"key": "value"}
+
+    def test_to_dict_websocket_excludes_fields(self):
+        """Test WebSocket format excludes non-essential fields."""
+        alert = Alert(
+            event_id=1,
+            dedup_key="test",
+            channels=["email", "sms"],
+            alert_metadata={"camera": "front_door"},
+        )
+        result = alert.to_dict(for_websocket=True)
+
+        # WebSocket format should not include these
+        assert "channels" not in result
+        assert "alert_metadata" not in result
+        assert "delivered_at" not in result
+
+    @given(severity=alert_severities, status=alert_statuses)
+    @settings(max_examples=20)
+    def test_to_dict_enum_roundtrip(self, severity: AlertSeverity, status: AlertStatus):
+        """Property: All enum combinations serialize correctly."""
+        alert = Alert(
+            event_id=1,
+            dedup_key="test",
+            severity=severity,
+            status=status,
+        )
+        result = alert.to_dict()
+
+        assert result["severity"] == severity.value
+        assert result["status"] == status.value
+
+        ws_result = alert.to_dict(for_websocket=True)
+        assert ws_result["severity"] == severity.value
+        assert ws_result["status"] == status.value

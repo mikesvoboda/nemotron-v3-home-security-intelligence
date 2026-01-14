@@ -27,20 +27,21 @@ if TYPE_CHECKING:
 
 @pytest.fixture
 def benchmark_env() -> Generator[str]:
-    """Set DATABASE_URL/REDIS_URL to a temporary per-test database."""
+    """Set DATABASE_URL/REDIS_URL to test database (PostgreSQL required)."""
     from backend.core.config import get_settings
+    from backend.tests.conftest import get_test_db_url, get_test_redis_url
 
     original_db_url = os.environ.get("DATABASE_URL")
     original_redis_url = os.environ.get("REDIS_URL")
     original_runtime_env_path = os.environ.get("HSI_RUNTIME_ENV_PATH")
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        db_path = Path(tmpdir) / "benchmark_test.db"
-        test_db_url = f"sqlite+aiosqlite:///{db_path}"
+        # Use PostgreSQL test database (Settings only accepts PostgreSQL URLs)
+        test_db_url = get_test_db_url()
         runtime_env_path = str(Path(tmpdir) / "runtime.env")
 
         os.environ["DATABASE_URL"] = test_db_url
-        os.environ["REDIS_URL"] = "redis://localhost:6379/15"
+        os.environ["REDIS_URL"] = get_test_redis_url()
         os.environ["HSI_RUNTIME_ENV_PATH"] = runtime_env_path
 
         get_settings.cache_clear()

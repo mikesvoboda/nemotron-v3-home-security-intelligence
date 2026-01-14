@@ -22,8 +22,8 @@ from backend.api.pagination import (
     decode_cursor,
     encode_cursor,
     get_deprecation_warning,
+    set_deprecation_headers,
     validate_cursor_format,
-    validate_pagination_params,
 )
 from backend.api.schemas.bulk import (
     BulkOperationResponse,
@@ -57,7 +57,6 @@ from backend.api.utils.field_filter import (
     validate_fields,
 )
 from backend.api.validators import validate_date_range
-from backend.core.constants import CacheInvalidationReason
 from backend.core.database import escape_ilike_pattern, get_db
 from backend.core.logging import get_logger, sanitize_log_value
 from backend.core.metrics import record_event_reviewed
@@ -86,6 +85,8 @@ router = APIRouter(prefix="/api/events", tags=["events"])
 VALID_SEVERITY_VALUES = frozenset({"low", "medium", "high", "critical"})
 
 # Valid fields for sparse fieldsets on list_events endpoint (NEM-1434)
+# NOTE: detection_ids was removed from events table (NEM-1592)
+# Use Event.detections relationship instead
 VALID_EVENT_LIST_FIELDS = frozenset(
     {
         "id",
@@ -98,7 +99,6 @@ VALID_EVENT_LIST_FIELDS = frozenset(
         "reasoning",
         "reviewed",
         "detection_count",
-        "detection_ids",
         "thumbnail_url",
     }
 )
@@ -226,6 +226,7 @@ def sanitize_csv_value(value: str | None) -> str:
 
 @router.get("", response_model=EventListResponse)
 async def list_events(  # noqa: PLR0912
+    response: Response,
     camera_id: str | None = Query(None, description="Filter by camera ID"),
     risk_level: str | None = Query(
         None, description="Filter by risk level (low, medium, high, critical)"
@@ -290,15 +291,6 @@ async def list_events(  # noqa: PLR0912
 
     # Validate date range
     validate_date_range(start_date, end_date)
-
-    # Validate pagination params - reject simultaneous offset and cursor (NEM-2613)
-    try:
-        validate_pagination_params(cursor, offset)
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        ) from e
 
     # Parse and validate fields parameter for sparse fieldsets (NEM-1434)
     requested_fields = parse_fields_param(fields)
@@ -444,6 +436,9 @@ async def list_events(  # noqa: PLR0912
 
     # Get deprecation warning if using offset without cursor
     deprecation_warning = get_deprecation_warning(cursor, offset)
+
+    # Set HTTP Deprecation headers per IETF standard (NEM-2603)
+    set_deprecation_headers(response, cursor, offset)
 
     return EventListResponse(
         items=events_with_counts,
@@ -1062,8 +1057,8 @@ async def bulk_create_events(
             await db.commit()
             # Invalidate event-related caches after successful bulk create (NEM-1950)
             try:
-                await cache.invalidate_events(reason=CacheInvalidationReason.EVENT_CREATED)
-                await cache.invalidate_event_stats(reason=CacheInvalidationReason.EVENT_CREATED)
+                await cache.invalidate_events(reason="event_created")
+                await cache.invalidate_event_stats(reason="event_created")
             except Exception as e:
                 # Cache invalidation is non-critical - log but don't fail the request
                 logger.warning(f"Cache invalidation failed after bulk create: {e}")
@@ -1176,8 +1171,8 @@ async def bulk_update_events(
             await db.commit()
             # Invalidate event-related caches after successful bulk update (NEM-1950)
             try:
-                await cache.invalidate_events(reason=CacheInvalidationReason.EVENT_UPDATED)
-                await cache.invalidate_event_stats(reason=CacheInvalidationReason.EVENT_UPDATED)
+                await cache.invalidate_events(reason="event_updated")
+                await cache.invalidate_event_stats(reason="event_updated")
             except Exception as e:
                 # Cache invalidation is non-critical - log but don't fail the request
                 logger.warning(f"Cache invalidation failed after bulk update: {e}")
@@ -1311,8 +1306,8 @@ async def bulk_delete_events(
             await db.commit()
             # Invalidate event-related caches after successful bulk delete (NEM-1950)
             try:
-                await cache.invalidate_events(reason=CacheInvalidationReason.EVENT_DELETED)
-                await cache.invalidate_event_stats(reason=CacheInvalidationReason.EVENT_DELETED)
+                await cache.invalidate_events(reason="event_deleted")
+                await cache.invalidate_event_stats(reason="event_deleted")
             except Exception as e:
                 # Cache invalidation is non-critical - log but don't fail the request
                 logger.warning(f"Cache invalidation failed after bulk delete: {e}")
@@ -1481,8 +1476,8 @@ async def update_event(  # noqa: PLR0912  # Allow branches for audit logging log
 
     # Invalidate event-related caches after successful update (NEM-1950, NEM-1938)
     try:
-        await cache.invalidate_events(reason=CacheInvalidationReason.EVENT_UPDATED)
-        await cache.invalidate_event_stats(reason=CacheInvalidationReason.EVENT_UPDATED)
+        await cache.invalidate_events(reason="event_updated")
+        await cache.invalidate_event_stats(reason="event_updated")
     except Exception as e:
         # Cache invalidation is non-critical - log but don't fail the request
         logger.warning(f"Cache invalidation failed after event update: {e}")
@@ -2021,8 +2016,8 @@ async def delete_event(
 
         # Invalidate event-related caches
         try:
-            await cache.invalidate_events(reason=CacheInvalidationReason.EVENT_DELETED)
-            await cache.invalidate_event_stats(reason=CacheInvalidationReason.EVENT_DELETED)
+            await cache.invalidate_events(reason="event_deleted")
+            await cache.invalidate_event_stats(reason="event_deleted")
         except Exception as e:
             logger.warning(f"Cache invalidation failed after delete: {e}")
 
@@ -2081,8 +2076,8 @@ async def restore_event(
 
         # Invalidate event-related caches
         try:
-            await cache.invalidate_events(reason=CacheInvalidationReason.EVENT_RESTORED)
-            await cache.invalidate_event_stats(reason=CacheInvalidationReason.EVENT_RESTORED)
+            await cache.invalidate_events(reason="event_restored")
+            await cache.invalidate_event_stats(reason="event_restored")
         except Exception as e:
             logger.warning(f"Cache invalidation failed after restore: {e}")
 

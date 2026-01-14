@@ -81,6 +81,36 @@ def sample_alert() -> Alert:
     alert.delivered_at = None
     alert.channels = ["pushover"]
     alert.alert_metadata = {"camera_name": "Front Door"}
+
+    # Configure to_dict method to return proper dictionaries
+    def mock_to_dict(for_websocket: bool = False) -> dict:
+        """Mock implementation of Alert.to_dict() for testing."""
+        if for_websocket:
+            return {
+                "id": alert.id,
+                "event_id": alert.event_id,
+                "rule_id": alert.rule_id,
+                "severity": "high",
+                "status": alert.status.value if hasattr(alert.status, "value") else alert.status,
+                "dedup_key": alert.dedup_key,
+                "created_at": alert.created_at.isoformat() if alert.created_at else None,
+                "updated_at": alert.updated_at.isoformat() if alert.updated_at else None,
+            }
+        return {
+            "id": alert.id,
+            "event_id": alert.event_id,
+            "rule_id": alert.rule_id,
+            "severity": "high",
+            "status": alert.status.value if hasattr(alert.status, "value") else alert.status,
+            "created_at": alert.created_at,
+            "updated_at": alert.updated_at,
+            "delivered_at": alert.delivered_at,
+            "channels": alert.channels or [],
+            "dedup_key": alert.dedup_key,
+            "alert_metadata": alert.alert_metadata,
+        }
+
+    alert.to_dict = mock_to_dict
     return alert
 
 

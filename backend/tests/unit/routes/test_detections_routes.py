@@ -13,9 +13,17 @@ from unittest.mock import AsyncMock, MagicMock, mock_open, patch
 
 import pytest
 from fastapi import HTTPException
+from starlette.responses import Response
 
 from backend.api.routes import detections as detections_routes
 from backend.models.detection import Detection
+
+
+@pytest.fixture
+def mock_response() -> MagicMock:
+    """Create a mock Response object for deprecation header tests."""
+    return MagicMock(spec=Response)
+
 
 # =============================================================================
 # Fixtures
@@ -79,7 +87,7 @@ def mock_db_session() -> AsyncMock:
 
 @pytest.mark.asyncio
 async def test_list_detections_no_filters(
-    mock_db_session: AsyncMock, mock_detection: MagicMock
+    mock_response: MagicMock, mock_db_session: AsyncMock, mock_detection: MagicMock
 ) -> None:
     """Test listing detections without any filters."""
     # Setup mock
@@ -95,6 +103,7 @@ async def test_list_detections_no_filters(
 
     # Execute
     result = await detections_routes.list_detections(
+        response=mock_response,
         camera_id=None,
         object_type=None,
         start_date=None,
@@ -118,7 +127,7 @@ async def test_list_detections_no_filters(
 
 @pytest.mark.asyncio
 async def test_list_detections_with_camera_filter(
-    mock_db_session: AsyncMock, mock_detection: MagicMock
+    mock_response: MagicMock, mock_db_session: AsyncMock, mock_detection: MagicMock
 ) -> None:
     """Test listing detections filtered by camera_id."""
     mock_result = MagicMock()
@@ -132,6 +141,7 @@ async def test_list_detections_with_camera_filter(
     mock_db_session.execute = AsyncMock(side_effect=[mock_count_result, mock_result])
 
     result = await detections_routes.list_detections(
+        response=mock_response,
         camera_id="camera-001",
         object_type=None,
         start_date=None,
@@ -150,7 +160,7 @@ async def test_list_detections_with_camera_filter(
 
 @pytest.mark.asyncio
 async def test_list_detections_with_object_type_filter(
-    mock_db_session: AsyncMock, mock_detection: MagicMock
+    mock_response: MagicMock, mock_db_session: AsyncMock, mock_detection: MagicMock
 ) -> None:
     """Test listing detections filtered by object_type."""
     mock_result = MagicMock()
@@ -164,6 +174,7 @@ async def test_list_detections_with_object_type_filter(
     mock_db_session.execute = AsyncMock(side_effect=[mock_count_result, mock_result])
 
     result = await detections_routes.list_detections(
+        response=mock_response,
         camera_id=None,
         object_type="person",
         start_date=None,
@@ -182,7 +193,7 @@ async def test_list_detections_with_object_type_filter(
 
 @pytest.mark.asyncio
 async def test_list_detections_with_date_range_filter(
-    mock_db_session: AsyncMock, mock_detection: MagicMock
+    mock_response: MagicMock, mock_db_session: AsyncMock, mock_detection: MagicMock
 ) -> None:
     """Test listing detections filtered by date range."""
     mock_result = MagicMock()
@@ -199,6 +210,7 @@ async def test_list_detections_with_date_range_filter(
     end_date = datetime(2025, 12, 23, 23, 59, 59)
 
     result = await detections_routes.list_detections(
+        response=mock_response,
         camera_id=None,
         object_type=None,
         start_date=start_date,
@@ -216,7 +228,7 @@ async def test_list_detections_with_date_range_filter(
 
 @pytest.mark.asyncio
 async def test_list_detections_with_confidence_filter(
-    mock_db_session: AsyncMock, mock_detection: MagicMock
+    mock_response: MagicMock, mock_db_session: AsyncMock, mock_detection: MagicMock
 ) -> None:
     """Test listing detections filtered by minimum confidence."""
     mock_result = MagicMock()
@@ -230,6 +242,7 @@ async def test_list_detections_with_confidence_filter(
     mock_db_session.execute = AsyncMock(side_effect=[mock_count_result, mock_result])
 
     result = await detections_routes.list_detections(
+        response=mock_response,
         camera_id=None,
         object_type=None,
         start_date=None,
@@ -248,7 +261,7 @@ async def test_list_detections_with_confidence_filter(
 
 @pytest.mark.asyncio
 async def test_list_detections_with_all_filters(
-    mock_db_session: AsyncMock, mock_detection: MagicMock
+    mock_response: MagicMock, mock_db_session: AsyncMock, mock_detection: MagicMock
 ) -> None:
     """Test listing detections with all filters applied."""
     mock_result = MagicMock()
@@ -262,6 +275,7 @@ async def test_list_detections_with_all_filters(
     mock_db_session.execute = AsyncMock(side_effect=[mock_count_result, mock_result])
 
     result = await detections_routes.list_detections(
+        response=mock_response,
         camera_id="camera-001",
         object_type="person",
         start_date=datetime(2025, 12, 23, 0, 0, 0),
@@ -279,7 +293,7 @@ async def test_list_detections_with_all_filters(
 
 @pytest.mark.asyncio
 async def test_list_detections_with_pagination(
-    mock_db_session: AsyncMock, mock_detection: MagicMock
+    mock_response: MagicMock, mock_db_session: AsyncMock, mock_detection: MagicMock
 ) -> None:
     """Test listing detections with pagination."""
     mock_result = MagicMock()
@@ -293,6 +307,7 @@ async def test_list_detections_with_pagination(
     mock_db_session.execute = AsyncMock(side_effect=[mock_count_result, mock_result])
 
     result = await detections_routes.list_detections(
+        response=mock_response,
         camera_id=None,
         object_type=None,
         start_date=None,
@@ -311,7 +326,9 @@ async def test_list_detections_with_pagination(
 
 
 @pytest.mark.asyncio
-async def test_list_detections_empty_result(mock_db_session: AsyncMock) -> None:
+async def test_list_detections_empty_result(
+    mock_response: MagicMock, mock_db_session: AsyncMock
+) -> None:
     """Test listing detections when no results match."""
     mock_result = MagicMock()
     mock_scalars = MagicMock()
@@ -324,6 +341,7 @@ async def test_list_detections_empty_result(mock_db_session: AsyncMock) -> None:
     mock_db_session.execute = AsyncMock(side_effect=[mock_count_result, mock_result])
 
     result = await detections_routes.list_detections(
+        response=mock_response,
         camera_id=None,
         object_type=None,
         start_date=None,
@@ -341,7 +359,9 @@ async def test_list_detections_empty_result(mock_db_session: AsyncMock) -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_detections_count_returns_none(mock_db_session: AsyncMock) -> None:
+async def test_list_detections_count_returns_none(
+    mock_response: MagicMock, mock_db_session: AsyncMock
+) -> None:
     """Test listing detections when count query returns None."""
     mock_result = MagicMock()
     mock_scalars = MagicMock()
@@ -354,6 +374,7 @@ async def test_list_detections_count_returns_none(mock_db_session: AsyncMock) ->
     mock_db_session.execute = AsyncMock(side_effect=[mock_count_result, mock_result])
 
     result = await detections_routes.list_detections(
+        response=mock_response,
         camera_id=None,
         object_type=None,
         start_date=None,
@@ -370,7 +391,9 @@ async def test_list_detections_count_returns_none(mock_db_session: AsyncMock) ->
 
 
 @pytest.mark.asyncio
-async def test_list_detections_multiple_results(mock_db_session: AsyncMock) -> None:
+async def test_list_detections_multiple_results(
+    mock_response: MagicMock, mock_db_session: AsyncMock
+) -> None:
     """Test listing detections with multiple results."""
     detection1 = MagicMock(spec=Detection)
     detection1.id = 1
@@ -434,6 +457,7 @@ async def test_list_detections_multiple_results(mock_db_session: AsyncMock) -> N
     mock_db_session.execute = AsyncMock(side_effect=[mock_count_result, mock_result])
 
     result = await detections_routes.list_detections(
+        response=mock_response,
         camera_id=None,
         object_type=None,
         start_date=None,
@@ -781,7 +805,9 @@ def test_router_tags() -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_detections_with_zero_confidence_filter(mock_db_session: AsyncMock) -> None:
+async def test_list_detections_with_zero_confidence_filter(
+    mock_response: MagicMock, mock_db_session: AsyncMock
+) -> None:
     """Test filtering with min_confidence=0 (edge case for None check)."""
     mock_result = MagicMock()
     mock_scalars = MagicMock()
@@ -795,6 +821,7 @@ async def test_list_detections_with_zero_confidence_filter(mock_db_session: Asyn
 
     # min_confidence=0.0 should still apply the filter (not be treated as None)
     result = await detections_routes.list_detections(
+        response=mock_response,
         camera_id=None,
         object_type=None,
         start_date=None,
@@ -812,7 +839,7 @@ async def test_list_detections_with_zero_confidence_filter(mock_db_session: Asyn
 
 @pytest.mark.asyncio
 async def test_list_detections_with_start_date_only(
-    mock_db_session: AsyncMock, mock_detection: MagicMock
+    mock_response: MagicMock, mock_db_session: AsyncMock, mock_detection: MagicMock
 ) -> None:
     """Test filtering with only start_date (no end_date)."""
     mock_result = MagicMock()
@@ -826,6 +853,7 @@ async def test_list_detections_with_start_date_only(
     mock_db_session.execute = AsyncMock(side_effect=[mock_count_result, mock_result])
 
     result = await detections_routes.list_detections(
+        response=mock_response,
         camera_id=None,
         object_type=None,
         start_date=datetime(2025, 12, 1),
@@ -843,7 +871,7 @@ async def test_list_detections_with_start_date_only(
 
 @pytest.mark.asyncio
 async def test_list_detections_with_end_date_only(
-    mock_db_session: AsyncMock, mock_detection: MagicMock
+    mock_response: MagicMock, mock_db_session: AsyncMock, mock_detection: MagicMock
 ) -> None:
     """Test filtering with only end_date (no start_date)."""
     mock_result = MagicMock()
@@ -857,6 +885,7 @@ async def test_list_detections_with_end_date_only(
     mock_db_session.execute = AsyncMock(side_effect=[mock_count_result, mock_result])
 
     result = await detections_routes.list_detections(
+        response=mock_response,
         camera_id=None,
         object_type=None,
         start_date=None,
@@ -917,7 +946,9 @@ async def test_get_detection_image_with_none_thumbnail_path(mock_db_session: Asy
 
 
 @pytest.mark.asyncio
-async def test_list_detections_large_offset(mock_db_session: AsyncMock) -> None:
+async def test_list_detections_large_offset(
+    mock_response: MagicMock, mock_db_session: AsyncMock
+) -> None:
     """Test listing detections with large offset beyond total count."""
     mock_result = MagicMock()
     mock_scalars = MagicMock()
@@ -930,6 +961,7 @@ async def test_list_detections_large_offset(mock_db_session: AsyncMock) -> None:
     mock_db_session.execute = AsyncMock(side_effect=[mock_count_result, mock_result])
 
     result = await detections_routes.list_detections(
+        response=mock_response,
         camera_id=None,
         object_type=None,
         start_date=None,
@@ -949,7 +981,7 @@ async def test_list_detections_large_offset(mock_db_session: AsyncMock) -> None:
 
 @pytest.mark.asyncio
 async def test_list_detections_max_limit(
-    mock_db_session: AsyncMock, mock_detection: MagicMock
+    mock_response: MagicMock, mock_db_session: AsyncMock, mock_detection: MagicMock
 ) -> None:
     """Test listing detections with maximum limit."""
     mock_result = MagicMock()
@@ -963,6 +995,7 @@ async def test_list_detections_max_limit(
     mock_db_session.execute = AsyncMock(side_effect=[mock_count_result, mock_result])
 
     result = await detections_routes.list_detections(
+        response=mock_response,
         camera_id=None,
         object_type=None,
         start_date=None,
@@ -980,7 +1013,7 @@ async def test_list_detections_max_limit(
 
 @pytest.mark.asyncio
 async def test_list_detections_min_limit(
-    mock_db_session: AsyncMock, mock_detection: MagicMock
+    mock_response: MagicMock, mock_db_session: AsyncMock, mock_detection: MagicMock
 ) -> None:
     """Test listing detections with minimum limit."""
     mock_result = MagicMock()
@@ -994,6 +1027,7 @@ async def test_list_detections_min_limit(
     mock_db_session.execute = AsyncMock(side_effect=[mock_count_result, mock_result])
 
     result = await detections_routes.list_detections(
+        response=mock_response,
         camera_id=None,
         object_type=None,
         start_date=None,
@@ -1016,6 +1050,7 @@ async def test_list_detections_min_limit(
 
 @pytest.mark.asyncio
 async def test_list_detections_invalid_date_range_returns_400(
+    mock_response: MagicMock,
     mock_db_session: AsyncMock,
 ) -> None:
     """Test that start_date after end_date returns HTTP 400."""
@@ -1025,6 +1060,7 @@ async def test_list_detections_invalid_date_range_returns_400(
 
     with pytest.raises(HTTPException) as exc_info:
         await detections_routes.list_detections(
+            response=mock_response,
             camera_id=None,
             object_type=None,
             start_date=start_date,
@@ -1042,7 +1078,7 @@ async def test_list_detections_invalid_date_range_returns_400(
 
 @pytest.mark.asyncio
 async def test_list_detections_equal_dates_is_valid(
-    mock_db_session: AsyncMock, mock_detection: MagicMock
+    mock_response: MagicMock, mock_db_session: AsyncMock, mock_detection: MagicMock
 ) -> None:
     """Test that start_date equals end_date is valid (edge case)."""
     mock_result = MagicMock()
@@ -1059,6 +1095,7 @@ async def test_list_detections_equal_dates_is_valid(
     same_date = datetime(2025, 12, 23, 12, 0, 0)
 
     result = await detections_routes.list_detections(
+        response=mock_response,
         camera_id=None,
         object_type=None,
         start_date=same_date,
