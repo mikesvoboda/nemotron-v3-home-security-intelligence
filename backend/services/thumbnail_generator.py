@@ -41,6 +41,7 @@ from typing import Any
 
 from PIL import Image, ImageDraw, ImageFont
 
+from backend.core.config import get_settings
 from backend.core.logging import get_logger, sanitize_error
 
 # Keep sanitize_error imported for future use, suppress unused import warning
@@ -87,7 +88,7 @@ FONT_PATHS = {
 }
 
 
-def get_system_font(size: int = 14) -> Any:
+def get_system_font(size: int | None = None) -> Any:
     """Get a TrueType font appropriate for the current operating system.
 
     This function implements cross-platform font discovery:
@@ -96,11 +97,15 @@ def get_system_font(size: int = 14) -> Any:
     3. Fall back to PIL's default bitmap font if no TrueType font found
 
     Args:
-        size: Font size in points. Defaults to 14.
+        size: Font size in points. If None, uses the configured
+              thumbnail_font_size setting (default: 14).
 
     Returns:
         A PIL font object (TrueType if available, default bitmap otherwise)
     """
+    if size is None:
+        settings = get_settings()
+        size = settings.thumbnail_font_size
     # Check environment variable override first
     env_font_path = os.environ.get("THUMBNAIL_FONT_PATH")
     if env_font_path:
@@ -151,16 +156,42 @@ class ThumbnailGenerator:
     4. Saving as optimized JPEG
 
     Thumbnails are used in the dashboard UI for quick preview of detections.
+
+    Configuration via environment variables (NEM-2520):
+    - THUMBNAIL_WIDTH: Width of thumbnails (default: 320)
+    - THUMBNAIL_HEIGHT: Height of thumbnails (default: 240)
+    - THUMBNAIL_QUALITY: JPEG quality 1-100 (default: 85)
+    - THUMBNAIL_FONT_SIZE: Font size for labels (default: 14)
     """
 
-    def __init__(self, output_dir: str = "data/thumbnails"):
+    def __init__(
+        self,
+        output_dir: str = "data/thumbnails",
+        thumbnail_size: tuple[int, int] | None = None,
+        quality: int | None = None,
+    ):
         """Initialize thumbnail generator with output directory.
 
         Args:
             output_dir: Directory to save thumbnails to. Relative paths are
                        relative to backend/. Defaults to "data/thumbnails".
+            thumbnail_size: Tuple of (width, height) for thumbnails. If None,
+                           uses configured THUMBNAIL_WIDTH and THUMBNAIL_HEIGHT
+                           (default: 320x240).
+            quality: JPEG quality (1-100). If None, uses configured
+                    THUMBNAIL_QUALITY (default: 85).
         """
+        settings = get_settings()
         self.output_dir = Path(output_dir)
+
+        # Use configured defaults if not explicitly provided
+        if thumbnail_size is None:
+            self._default_size = (settings.thumbnail_width, settings.thumbnail_height)
+        else:
+            self._default_size = thumbnail_size
+
+        self._default_quality = quality if quality is not None else settings.thumbnail_quality
+
         self._ensure_output_dir()
 
     def _ensure_output_dir(self) -> None:
@@ -179,8 +210,9 @@ class ThumbnailGenerator:
         self,
         image_path: str,
         detections: list[dict[str, Any]],
-        output_size: tuple[int, int] = (320, 240),
+        output_size: tuple[int, int] | None = None,
         detection_id: int | str | None = None,
+        quality: int | None = None,
     ) -> str | None:
         """Generate thumbnail with bounding boxes from detection image.
 
@@ -191,8 +223,11 @@ class ThumbnailGenerator:
         Args:
             image_path: Path to original detection image
             detections: List of detection dicts with bbox coordinates and metadata
-            output_size: Thumbnail size as (width, height). Defaults to 320x240
+            output_size: Thumbnail size as (width, height). If None, uses configured
+                        THUMBNAIL_WIDTH and THUMBNAIL_HEIGHT (default: 320x240).
             detection_id: Detection ID for output filename. If None, uses image filename
+            quality: JPEG quality (1-100). If None, uses configured
+                    THUMBNAIL_QUALITY (default: 85).
 
         Returns:
             Path to saved thumbnail file, or None if generation failed
@@ -207,6 +242,12 @@ class ThumbnailGenerator:
                 "bbox_height": 400
             }
         """
+        # Use instance defaults if not provided
+        if output_size is None:
+            output_size = self._default_size
+        if quality is None:
+            quality = self._default_quality
+
         try:
             # Load original image
             image: Image.Image = Image.open(image_path)  # type: ignore[assignment]
@@ -226,8 +267,8 @@ class ThumbnailGenerator:
             output_filename = f"{detection_id}_thumb.jpg"
             output_path = self.output_dir / output_filename
 
-            # Save as JPEG with quality 85
-            thumbnail.save(output_path, "JPEG", quality=85, optimize=True)
+            # Save as JPEG with configured quality
+            thumbnail.save(output_path, "JPEG", quality=quality, optimize=True)
 
             logger.debug(f"Generated thumbnail: {output_path}")
             return str(output_path)
@@ -263,8 +304,8 @@ class ThumbnailGenerator:
         img_copy = image.copy()
         draw = ImageDraw.Draw(img_copy)
 
-        # Get cross-platform font
-        font = get_system_font(size=14)
+        # Get cross-platform font (uses configured THUMBNAIL_FONT_SIZE)
+        font = get_system_font()
 
         for detection in detections:
             # Extract detection data
@@ -395,8 +436,9 @@ class ThumbnailGenerator:
         self,
         image_path: str,
         detections: list[dict[str, Any]],
-        output_size: tuple[int, int] = (320, 240),
+        output_size: tuple[int, int] | None = None,
         detection_id: int | str | None = None,
+        quality: int | None = None,
     ) -> str | None:
         """Generate thumbnail asynchronously without blocking the event loop.
 
@@ -407,8 +449,11 @@ class ThumbnailGenerator:
         Args:
             image_path: Path to original detection image
             detections: List of detection dicts with bbox coordinates and metadata
-            output_size: Thumbnail size as (width, height). Defaults to 320x240
+            output_size: Thumbnail size as (width, height). If None, uses configured
+                        THUMBNAIL_WIDTH and THUMBNAIL_HEIGHT (default: 320x240).
             detection_id: Detection ID for output filename. If None, uses image filename
+            quality: JPEG quality (1-100). If None, uses configured
+                    THUMBNAIL_QUALITY (default: 85).
 
         Returns:
             Path to saved thumbnail file, or None if generation failed
@@ -427,4 +472,5 @@ class ThumbnailGenerator:
             detections,
             output_size,
             detection_id,
+            quality,
         )

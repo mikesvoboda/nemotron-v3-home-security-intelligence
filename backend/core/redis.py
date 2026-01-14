@@ -1276,6 +1276,19 @@ class RedisClient:
         client = self._ensure_connected()
         return cast("int", await client.lpush(key, *values))  # type: ignore[misc]
 
+    async def rpush(self, key: str, *values: str) -> int:
+        """Push values to the tail of a list.
+
+        Args:
+            key: Redis list key
+            *values: Values to push (will be added to the end)
+
+        Returns:
+            Length of the list after push
+        """
+        client = self._ensure_connected()
+        return cast("int", await client.rpush(key, *values))  # type: ignore[misc]
+
     async def ltrim(self, key: str, start: int, stop: int) -> bool:
         """Trim a list to the specified range.
 
