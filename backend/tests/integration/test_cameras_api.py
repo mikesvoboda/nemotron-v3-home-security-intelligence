@@ -940,3 +940,282 @@ async def test_validate_camera_paths_empty_database(client, clean_cameras):
     assert data["invalid_count"] == 0
     assert data["valid_cameras"] == []
     assert data["invalid_cameras"] == []
+
+
+# === Enhanced Validation Tests (NEM-2569) ===
+
+
+def _get_validation_error_messages(response_json: dict) -> list[str]:
+    """Extract error messages from API validation error response.
+
+    The API uses a custom error format:
+    {"error": {"code": "VALIDATION_ERROR", "errors": [{"message": "..."}]}}
+    """
+    error = response_json.get("error", {})
+    errors = error.get("errors", [])
+    return [e.get("message", "").lower() for e in errors]
+
+
+@pytest.mark.asyncio
+async def test_create_camera_name_with_control_chars_returns_422(client):
+    """Test that camera name with control characters returns 422 validation error.
+
+    NEM-2569: Camera names with null bytes, tabs, newlines, and other control
+    characters must be rejected for security.
+    """
+    unique_id = str(uuid.uuid4())[:8]
+
+    # Test with null byte
+    camera_data = {
+        "name": f"Camera\x00{unique_id}",
+        "folder_path": f"/export/foscam/test_{unique_id}",
+    }
+    response = await client.post("/api/cameras", json=camera_data)
+    assert response.status_code == 422
+    error_messages = _get_validation_error_messages(response.json())
+    assert any("control characters" in msg for msg in error_messages)
+
+
+@pytest.mark.asyncio
+async def test_create_camera_name_with_tab_returns_422(client):
+    """Test that camera name with tab character returns 422 validation error."""
+    unique_id = str(uuid.uuid4())[:8]
+
+    camera_data = {
+        "name": f"Camera\t{unique_id}",
+        "folder_path": f"/export/foscam/test_{unique_id}",
+    }
+    response = await client.post("/api/cameras", json=camera_data)
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_camera_name_with_newline_returns_422(client):
+    """Test that camera name with newline returns 422 validation error."""
+    unique_id = str(uuid.uuid4())[:8]
+
+    camera_data = {
+        "name": f"Camera\n{unique_id}",
+        "folder_path": f"/export/foscam/test_{unique_id}",
+    }
+    response = await client.post("/api/cameras", json=camera_data)
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_camera_name_whitespace_only_returns_422(client):
+    """Test that whitespace-only camera name returns 422 validation error.
+
+    NEM-2569: Names that are only whitespace should be rejected since they
+    provide no meaningful identification.
+    """
+    camera_data = {
+        "name": "   ",
+        "folder_path": "/export/foscam/test",
+    }
+    response = await client.post("/api/cameras", json=camera_data)
+    assert response.status_code == 422
+    error_messages = _get_validation_error_messages(response.json())
+    assert any("empty or whitespace" in msg for msg in error_messages)
+
+
+@pytest.mark.asyncio
+async def test_create_camera_name_leading_trailing_whitespace_stripped(client):
+    """Test that leading/trailing whitespace is stripped from camera name.
+
+    NEM-2569: Names should be sanitized by stripping whitespace for consistency.
+    """
+    unique_id = str(uuid.uuid4())[:8]
+
+    camera_data = {
+        "name": f"  Front Door {unique_id}  ",
+        "folder_path": f"/export/foscam/front_door_{unique_id}",
+    }
+    response = await client.post("/api/cameras", json=camera_data)
+    assert response.status_code == 201
+    data = response.json()
+    # Name should be stripped
+    assert data["name"] == f"Front Door {unique_id}"
+    assert not data["name"].startswith(" ")
+    assert not data["name"].endswith(" ")
+
+
+@pytest.mark.asyncio
+async def test_create_camera_folder_path_traversal_returns_422(client):
+    """Test that folder_path with path traversal returns 422 validation error.
+
+    NEM-2569: Path traversal attempts using .. must be detected and rejected
+    to prevent directory traversal attacks.
+    """
+    unique_id = str(uuid.uuid4())[:8]
+
+    camera_data = {
+        "name": f"Test Camera {unique_id}",
+        "folder_path": "/export/foscam/../../../etc/passwd",
+    }
+    response = await client.post("/api/cameras", json=camera_data)
+    assert response.status_code == 422
+    error_messages = _get_validation_error_messages(response.json())
+    assert any("traversal" in msg for msg in error_messages)
+
+
+@pytest.mark.asyncio
+async def test_create_camera_folder_path_with_forbidden_chars_returns_422(client):
+    """Test that folder_path with forbidden characters returns 422 validation error.
+
+    NEM-2569: Paths containing dangerous characters like <, >, |, ?, * must
+    be rejected to prevent command injection and filesystem issues.
+    """
+    unique_id = str(uuid.uuid4())[:8]
+
+    # Test various forbidden characters
+    forbidden_paths = [
+        "/export/foscam/test<>",
+        "/export/foscam/test|inject",
+        "/export/foscam/test*",
+        "/export/foscam/test?query",
+        '/export/foscam/test"quote',
+    ]
+
+    for path in forbidden_paths:
+        camera_data = {
+            "name": f"Test Camera {unique_id}",
+            "folder_path": path,
+        }
+        response = await client.post("/api/cameras", json=camera_data)
+        assert response.status_code == 422, f"Expected 422 for path: {path}"
+        error_messages = _get_validation_error_messages(response.json())
+        assert any("forbidden" in msg for msg in error_messages), (
+            f"Expected 'forbidden' error for path: {path}"
+        )
+
+
+@pytest.mark.asyncio
+async def test_update_camera_name_with_control_chars_returns_422(client):
+    """Test that updating camera name with control characters returns 422."""
+    unique_id = str(uuid.uuid4())[:8]
+
+    # First create a valid camera
+    create_response = await client.post(
+        "/api/cameras",
+        json={
+            "name": f"Test Camera {unique_id}",
+            "folder_path": f"/export/foscam/test_{unique_id}",
+        },
+    )
+    assert create_response.status_code == 201
+    camera_id = create_response.json()["id"]
+
+    # Try to update with control character in name
+    response = await client.patch(
+        f"/api/cameras/{camera_id}",
+        json={"name": "Updated\x00Name"},
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_update_camera_name_whitespace_only_returns_422(client):
+    """Test that updating camera name to whitespace-only returns 422."""
+    unique_id = str(uuid.uuid4())[:8]
+
+    # First create a valid camera
+    create_response = await client.post(
+        "/api/cameras",
+        json={
+            "name": f"Test Camera {unique_id}",
+            "folder_path": f"/export/foscam/test_{unique_id}",
+        },
+    )
+    assert create_response.status_code == 201
+    camera_id = create_response.json()["id"]
+
+    # Try to update with whitespace-only name
+    response = await client.patch(
+        f"/api/cameras/{camera_id}",
+        json={"name": "   "},
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_update_camera_name_strips_whitespace(client):
+    """Test that updating camera name strips leading/trailing whitespace."""
+    unique_id = str(uuid.uuid4())[:8]
+
+    # First create a valid camera
+    create_response = await client.post(
+        "/api/cameras",
+        json={
+            "name": f"Test Camera {unique_id}",
+            "folder_path": f"/export/foscam/test_{unique_id}",
+        },
+    )
+    assert create_response.status_code == 201
+    camera_id = create_response.json()["id"]
+
+    # Update with whitespace-padded name
+    response = await client.patch(
+        f"/api/cameras/{camera_id}",
+        json={"name": "  Updated Name  "},
+    )
+    assert response.status_code == 200
+    assert response.json()["name"] == "Updated Name"
+
+
+@pytest.mark.asyncio
+async def test_update_camera_folder_path_traversal_returns_422(client):
+    """Test that updating folder_path with path traversal returns 422."""
+    unique_id = str(uuid.uuid4())[:8]
+
+    # First create a valid camera
+    create_response = await client.post(
+        "/api/cameras",
+        json={
+            "name": f"Test Camera {unique_id}",
+            "folder_path": f"/export/foscam/test_{unique_id}",
+        },
+    )
+    assert create_response.status_code == 201
+    camera_id = create_response.json()["id"]
+
+    # Try to update with path traversal
+    response = await client.patch(
+        f"/api/cameras/{camera_id}",
+        json={"folder_path": "/export/foscam/../../../etc/passwd"},
+    )
+    assert response.status_code == 422
+    error_messages = _get_validation_error_messages(response.json())
+    assert any("traversal" in msg for msg in error_messages)
+
+
+@pytest.mark.asyncio
+async def test_validation_error_response_format(client):
+    """Test that validation errors return structured error response.
+
+    NEM-2569: Validation errors should return clear, actionable error messages
+    that help clients understand what input is invalid.
+
+    This API uses a custom error format:
+    {"error": {"code": "VALIDATION_ERROR", "message": "...", "errors": [...]}}
+    """
+    camera_data = {
+        "name": "",  # Empty name
+        "folder_path": "/export/foscam/../secret",  # Path traversal
+    }
+
+    response = await client.post("/api/cameras", json=camera_data)
+
+    assert response.status_code == 422
+    data = response.json()
+    # API uses custom error format
+    assert "error" in data
+    error = data["error"]
+    assert error["code"] == "VALIDATION_ERROR"
+    assert "message" in error
+    assert "errors" in error
+    assert isinstance(error["errors"], list)
+    # Each error should have field and message
+    for err in error["errors"]:
+        assert "field" in err  # Field location
+        assert "message" in err  # Error message

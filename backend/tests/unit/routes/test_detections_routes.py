@@ -638,7 +638,7 @@ async def test_get_detection_image_thumbnail_generation_fails(
 async def test_get_detection_image_read_error(
     mock_db_session: AsyncMock, mock_detection: MagicMock
 ) -> None:
-    """Test error when reading thumbnail file fails."""
+    """Test error when reading thumbnail file fails with OSError (I/O error)."""
     mock_result = MagicMock()
     mock_result.scalar_one_or_none.return_value = mock_detection
     mock_db_session.execute = AsyncMock(return_value=mock_result)
@@ -650,9 +650,9 @@ async def test_get_detection_image_read_error(
     ):
         await detections_routes.get_detection_image(detection_id=1, full=False, db=mock_db_session)
 
+    # OSError is now handled with a specific I/O error message (NEM-2572)
     assert exc_info.value.status_code == 500
-    assert "Failed to read thumbnail image" in exc_info.value.detail
-    assert "Permission denied" in exc_info.value.detail
+    assert "I/O error reading thumbnail image" in exc_info.value.detail
 
 
 @pytest.mark.asyncio
@@ -1203,7 +1203,7 @@ async def test_get_detection_image_default_returns_thumbnail(
 async def test_get_detection_image_full_read_error(
     mock_db_session: AsyncMock, mock_detection: MagicMock
 ) -> None:
-    """Test full=true returns 500 when reading source image fails."""
+    """Test full=true returns 500 when reading source image fails with OSError."""
     mock_result = MagicMock()
     mock_result.scalar_one_or_none.return_value = mock_detection
     mock_db_session.execute = AsyncMock(return_value=mock_result)
@@ -1215,8 +1215,9 @@ async def test_get_detection_image_full_read_error(
     ):
         await detections_routes.get_detection_image(detection_id=1, full=True, db=mock_db_session)
 
+    # OSError is now handled with a specific I/O error message (NEM-2572)
     assert exc_info.value.status_code == 500
-    assert "failed to read" in exc_info.value.detail.lower()
+    assert "I/O error reading source image" in exc_info.value.detail
 
 
 @pytest.mark.asyncio

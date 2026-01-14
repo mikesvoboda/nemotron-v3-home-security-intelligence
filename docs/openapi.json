@@ -2476,7 +2476,7 @@
         "type": "object"
       },
       "CameraCreate": {
-        "description": "Schema for creating a new camera.",
+        "description": "Schema for creating a new camera.\n\nNEM-2569: Enhanced with explicit Pydantic validators for:\n- Name: Control character rejection, whitespace stripping, empty validation\n- Folder path: Path traversal prevention, forbidden character rejection",
         "example": {
           "folder_path": "/export/foscam/front_door",
           "name": "Front Door Camera",
@@ -2822,7 +2822,7 @@
         "type": "string"
       },
       "CameraUpdate": {
-        "description": "Schema for updating an existing camera.",
+        "description": "Schema for updating an existing camera.\n\nNEM-2569: Enhanced with explicit Pydantic validators for partial updates.\nAll fields are optional; only provided fields are validated.",
         "example": {
           "name": "Front Door Camera - Updated",
           "status": "offline"

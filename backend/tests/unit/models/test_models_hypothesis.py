@@ -241,7 +241,8 @@ class TestCameraModelProperties:
         """Property: Valid inputs always create a valid CameraCreate schema."""
         schema = CameraCreate(name=name, folder_path=path, status=status)
 
-        assert schema.name == name
+        # NEM-2569: Camera names are now stripped of leading/trailing whitespace
+        assert schema.name == name.strip()
         assert schema.folder_path == path
         assert schema.status == status
 

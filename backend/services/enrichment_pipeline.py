@@ -2625,7 +2625,7 @@ class EnrichmentPipeline:
             logger.error("Weather classification error", exc_info=True)
             raise
 
-    async def _classify_person_clothing(
+    async def _classify_person_clothing(  # noqa: PLR0912
         self,
         persons: list[DetectionInput],
         image: Image.Image,
@@ -2673,9 +2673,107 @@ class EnrichmentPipeline:
                         continue
 
         except KeyError:
-            logger.warning("fashion-clip model not available in MODEL_ZOO")
+            logger.warning(
+                "fashion-clip model not available in MODEL_ZOO",
+                extra={
+                    "detection_type": "person",
+                    "operation": "clothing_classification",
+                    "error_category": ErrorCategory.PARSE_ERROR.value,
+                },
+            )
+        except (
+            EnrichmentUnavailableError,
+            AIServiceError,
+            FlorenceUnavailableError,
+            CLIPUnavailableError,
+        ) as e:
+            # Service unavailable - transient, log as warning
+            logger.warning(
+                f"Clothing classification service unavailable: {sanitize_error(e)}",
+                extra={
+                    "detection_type": "person",
+                    "operation": "clothing_classification",
+                    "error_type": type(e).__name__,
+                    "error_category": ErrorCategory.SERVICE_UNAVAILABLE.value,
+                    "is_transient": True,
+                },
+            )
+        except httpx.ConnectError as e:
+            # Connection error - transient, log as warning
+            logger.warning(
+                f"Clothing classification connection failed: {sanitize_error(e)}",
+                extra={
+                    "detection_type": "person",
+                    "operation": "clothing_classification",
+                    "error_type": type(e).__name__,
+                    "error_category": ErrorCategory.SERVICE_UNAVAILABLE.value,
+                    "is_transient": True,
+                },
+            )
+        except httpx.TimeoutException as e:
+            # Timeout - transient, log as warning
+            logger.warning(
+                f"Clothing classification timed out: {sanitize_error(e)}",
+                extra={
+                    "detection_type": "person",
+                    "operation": "clothing_classification",
+                    "error_type": type(e).__name__,
+                    "error_category": ErrorCategory.TIMEOUT.value,
+                    "is_transient": True,
+                },
+            )
+        except httpx.HTTPStatusError as e:
+            status_code = e.response.status_code
+            # 5xx = transient server error, 4xx = permanent client error
+            if 500 <= status_code < 600:
+                logger.warning(
+                    f"Clothing classification server error (HTTP {status_code})",
+                    extra={
+                        "detection_type": "person",
+                        "operation": "clothing_classification",
+                        "error_type": type(e).__name__,
+                        "error_category": ErrorCategory.SERVER_ERROR.value,
+                        "status_code": status_code,
+                        "is_transient": True,
+                    },
+                )
+            else:
+                # 4xx errors are permanent - likely a bug
+                logger.error(
+                    f"Clothing classification client error (HTTP {status_code})",
+                    extra={
+                        "detection_type": "person",
+                        "operation": "clothing_classification",
+                        "error_type": type(e).__name__,
+                        "error_category": ErrorCategory.CLIENT_ERROR.value,
+                        "status_code": status_code,
+                        "is_transient": False,
+                    },
+                )
+        except (ValueError, TypeError) as e:
+            # Parse/validation errors - permanent, log as error
+            logger.error(
+                f"Clothing classification parse error: {sanitize_error(e)}",
+                extra={
+                    "detection_type": "person",
+                    "operation": "clothing_classification",
+                    "error_type": type(e).__name__,
+                    "error_category": ErrorCategory.PARSE_ERROR.value,
+                    "is_transient": False,
+                },
+            )
         except Exception:
-            logger.error("Clothing classification error", exc_info=True)
+            # Unexpected error - log with full traceback for debugging
+            logger.error(
+                "Clothing classification error",
+                exc_info=True,
+                extra={
+                    "detection_type": "person",
+                    "operation": "clothing_classification",
+                    "error_category": ErrorCategory.UNEXPECTED.value,
+                    "is_transient": True,
+                },
+            )
 
         return results
 
@@ -2741,7 +2839,7 @@ class EnrichmentPipeline:
 
         return results
 
-    async def _classify_vehicle_types(
+    async def _classify_vehicle_types(  # noqa: PLR0912
         self,
         vehicles: list[DetectionInput],
         image: Image.Image,
@@ -2792,9 +2890,107 @@ class EnrichmentPipeline:
                         continue
 
         except KeyError:
-            logger.warning("vehicle-segment-classification model not available in MODEL_ZOO")
+            logger.warning(
+                "vehicle-segment-classification model not available in MODEL_ZOO",
+                extra={
+                    "detection_type": "vehicle",
+                    "operation": "vehicle_classification",
+                    "error_category": ErrorCategory.PARSE_ERROR.value,
+                },
+            )
+        except (
+            EnrichmentUnavailableError,
+            AIServiceError,
+            FlorenceUnavailableError,
+            CLIPUnavailableError,
+        ) as e:
+            # Service unavailable - transient, log as warning
+            logger.warning(
+                f"Vehicle classification service unavailable: {sanitize_error(e)}",
+                extra={
+                    "detection_type": "vehicle",
+                    "operation": "vehicle_classification",
+                    "error_type": type(e).__name__,
+                    "error_category": ErrorCategory.SERVICE_UNAVAILABLE.value,
+                    "is_transient": True,
+                },
+            )
+        except httpx.ConnectError as e:
+            # Connection error - transient, log as warning
+            logger.warning(
+                f"Vehicle classification connection failed: {sanitize_error(e)}",
+                extra={
+                    "detection_type": "vehicle",
+                    "operation": "vehicle_classification",
+                    "error_type": type(e).__name__,
+                    "error_category": ErrorCategory.SERVICE_UNAVAILABLE.value,
+                    "is_transient": True,
+                },
+            )
+        except httpx.TimeoutException as e:
+            # Timeout - transient, log as warning
+            logger.warning(
+                f"Vehicle classification timed out: {sanitize_error(e)}",
+                extra={
+                    "detection_type": "vehicle",
+                    "operation": "vehicle_classification",
+                    "error_type": type(e).__name__,
+                    "error_category": ErrorCategory.TIMEOUT.value,
+                    "is_transient": True,
+                },
+            )
+        except httpx.HTTPStatusError as e:
+            status_code = e.response.status_code
+            # 5xx = transient server error, 4xx = permanent client error
+            if 500 <= status_code < 600:
+                logger.warning(
+                    f"Vehicle classification server error (HTTP {status_code})",
+                    extra={
+                        "detection_type": "vehicle",
+                        "operation": "vehicle_classification",
+                        "error_type": type(e).__name__,
+                        "error_category": ErrorCategory.SERVER_ERROR.value,
+                        "status_code": status_code,
+                        "is_transient": True,
+                    },
+                )
+            else:
+                # 4xx errors are permanent - likely a bug
+                logger.error(
+                    f"Vehicle classification client error (HTTP {status_code})",
+                    extra={
+                        "detection_type": "vehicle",
+                        "operation": "vehicle_classification",
+                        "error_type": type(e).__name__,
+                        "error_category": ErrorCategory.CLIENT_ERROR.value,
+                        "status_code": status_code,
+                        "is_transient": False,
+                    },
+                )
+        except (ValueError, TypeError) as e:
+            # Parse/validation errors - permanent, log as error
+            logger.error(
+                f"Vehicle classification parse error: {sanitize_error(e)}",
+                extra={
+                    "detection_type": "vehicle",
+                    "operation": "vehicle_classification",
+                    "error_type": type(e).__name__,
+                    "error_category": ErrorCategory.PARSE_ERROR.value,
+                    "is_transient": False,
+                },
+            )
         except Exception:
-            logger.error("Vehicle classification error", exc_info=True)
+            # Unexpected error - log with full traceback for debugging
+            logger.error(
+                "Vehicle classification error",
+                exc_info=True,
+                extra={
+                    "detection_type": "vehicle",
+                    "operation": "vehicle_classification",
+                    "error_category": ErrorCategory.UNEXPECTED.value,
+                    "is_transient": True,
+                },
+            )
 
         return results
 
@@ -2924,7 +3120,7 @@ class EnrichmentPipeline:
             logger.error("Image quality assessment error", exc_info=True)
             raise
 
-    async def _classify_pets(
+    async def _classify_pets(  # noqa: PLR0912
         self,
         animals: list[DetectionInput],
         image: Image.Image,
@@ -2977,9 +3173,107 @@ class EnrichmentPipeline:
                         continue
 
         except KeyError:
-            logger.warning("pet-classifier model not available in MODEL_ZOO")
+            logger.warning(
+                "pet-classifier model not available in MODEL_ZOO",
+                extra={
+                    "detection_type": "animal",
+                    "operation": "pet_classification",
+                    "error_category": ErrorCategory.PARSE_ERROR.value,
+                },
+            )
+        except (
+            EnrichmentUnavailableError,
+            AIServiceError,
+            FlorenceUnavailableError,
+            CLIPUnavailableError,
+        ) as e:
+            # Service unavailable - transient, log as warning
+            logger.warning(
+                f"Pet classification service unavailable: {sanitize_error(e)}",
+                extra={
+                    "detection_type": "animal",
+                    "operation": "pet_classification",
+                    "error_type": type(e).__name__,
+                    "error_category": ErrorCategory.SERVICE_UNAVAILABLE.value,
+                    "is_transient": True,
+                },
+            )
+        except httpx.ConnectError as e:
+            # Connection error - transient, log as warning
+            logger.warning(
+                f"Pet classification connection failed: {sanitize_error(e)}",
+                extra={
+                    "detection_type": "animal",
+                    "operation": "pet_classification",
+                    "error_type": type(e).__name__,
+                    "error_category": ErrorCategory.SERVICE_UNAVAILABLE.value,
+                    "is_transient": True,
+                },
+            )
+        except httpx.TimeoutException as e:
+            # Timeout - transient, log as warning
+            logger.warning(
+                f"Pet classification timed out: {sanitize_error(e)}",
+                extra={
+                    "detection_type": "animal",
+                    "operation": "pet_classification",
+                    "error_type": type(e).__name__,
+                    "error_category": ErrorCategory.TIMEOUT.value,
+                    "is_transient": True,
+                },
+            )
+        except httpx.HTTPStatusError as e:
+            status_code = e.response.status_code
+            # 5xx = transient server error, 4xx = permanent client error
+            if 500 <= status_code < 600:
+                logger.warning(
+                    f"Pet classification server error (HTTP {status_code})",
+                    extra={
+                        "detection_type": "animal",
+                        "operation": "pet_classification",
+                        "error_type": type(e).__name__,
+                        "error_category": ErrorCategory.SERVER_ERROR.value,
+                        "status_code": status_code,
+                        "is_transient": True,
+                    },
+                )
+            else:
+                # 4xx errors are permanent - likely a bug
+                logger.error(
+                    f"Pet classification client error (HTTP {status_code})",
+                    extra={
+                        "detection_type": "animal",
+                        "operation": "pet_classification",
+                        "error_type": type(e).__name__,
+                        "error_category": ErrorCategory.CLIENT_ERROR.value,
+                        "status_code": status_code,
+                        "is_transient": False,
+                    },
+                )
+        except (ValueError, TypeError) as e:
+            # Parse/validation errors - permanent, log as error
+            logger.error(
+                f"Pet classification parse error: {sanitize_error(e)}",
+                extra={
+                    "detection_type": "animal",
+                    "operation": "pet_classification",
+                    "error_type": type(e).__name__,
+                    "error_category": ErrorCategory.PARSE_ERROR.value,
+                    "is_transient": False,
+                },
+            )
         except Exception:
-            logger.error("Pet classification error", exc_info=True)
+            # Unexpected error - log with full traceback for debugging
+            logger.error(
+                "Pet classification error",
+                exc_info=True,
+                extra={
+                    "detection_type": "animal",
+                    "operation": "pet_classification",
+                    "error_category": ErrorCategory.UNEXPECTED.value,
+                    "is_transient": True,
+                },
+            )
 
         return results
 

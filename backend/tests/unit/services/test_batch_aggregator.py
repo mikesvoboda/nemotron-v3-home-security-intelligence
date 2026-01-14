@@ -1728,6 +1728,8 @@ async def test_check_batch_timeouts_handles_json_deserialization():
 
     mock_redis_instance.get.side_effect = mock_get
     mock_redis_client.lrange = AsyncMock(return_value=["1", "2"])
+    # NEM-2507: Mock the _client.set for closing flag with TTL
+    mock_redis_client.set = AsyncMock(return_value=True)
     mock_redis_instance.add_to_queue_safe = AsyncMock(
         return_value=QueueAddResult(success=True, queue_length=1)
     )
@@ -1785,6 +1787,8 @@ async def test_check_batch_timeouts_handles_non_json_values():
 
     mock_redis_instance.get.side_effect = mock_get
     mock_redis_client.lrange = AsyncMock(return_value=["1", "2"])
+    # NEM-2507: Mock the _client.set for closing flag with TTL
+    mock_redis_client.set = AsyncMock(return_value=True)
     mock_redis_instance.add_to_queue_safe = AsyncMock(
         return_value=QueueAddResult(success=True, queue_length=1)
     )
@@ -3450,3 +3454,109 @@ async def test_close_batch_for_size_limit_returns_none_when_contested(
 
     # Should NOT push to queue
     assert not mock_redis_instance.add_to_queue_safe.called
+
+
+@pytest.mark.asyncio
+async def test_close_batch_sets_closing_flag_with_ttl(batch_aggregator, mock_redis_instance):
+    """Test that close_batch sets the closing flag with TTL to prevent orphaned locks.
+
+    NEM-2507: Batch closing flags should be set with TTL (300 seconds) so that
+    orphaned flags auto-expire if the process crashes during batch close.
+    """
+    from backend.services.batch_aggregator import BATCH_CLOSING_FLAG_TTL_SECONDS
+
+    batch_id = "batch_closing_ttl_test"
+    camera_id = "front_door"
+
+    # Verify the TTL constant is 300 seconds
+    assert BATCH_CLOSING_FLAG_TTL_SECONDS == 300
+
+    # Mock camera_id lookup
+    async def mock_get(key):
+        if key == f"batch:{batch_id}:camera_id":
+            return camera_id
+        elif key == f"batch:{batch_id}:started_at":
+            return str(time.time() - 60)
+        return None
+
+    mock_redis_instance.get.side_effect = mock_get
+    mock_redis_instance._client.lrange.return_value = ["1", "2"]
+
+    await batch_aggregator.close_batch(batch_id)
+
+    # Verify that the closing flag was set with TTL
+    # The set call should include ex=BATCH_CLOSING_FLAG_TTL_SECONDS
+    set_calls = mock_redis_instance._client.set.call_args_list
+    closing_flag_calls = [call for call in set_calls if f"batch:{batch_id}:closing" in str(call)]
+
+    assert len(closing_flag_calls) >= 1, "Closing flag should be set at least once"
+
+    # Check that at least one call has the correct TTL
+    closing_call = closing_flag_calls[0]
+    # Check positional args and kwargs for the TTL (ex parameter)
+    call_kwargs = closing_call.kwargs if closing_call.kwargs else {}
+    call_args = closing_call.args if closing_call.args else ()
+
+    # The call should be: set(f"batch:{batch_id}:closing", "1", ex=300)
+    assert call_args[0] == f"batch:{batch_id}:closing", "Key should be closing flag"
+    assert call_kwargs.get("ex") == BATCH_CLOSING_FLAG_TTL_SECONDS, (
+        f"TTL should be {BATCH_CLOSING_FLAG_TTL_SECONDS} seconds"
+    )
+
+
+@pytest.mark.asyncio
+async def test_close_batch_for_size_limit_sets_closing_flag_with_ttl(
+    batch_aggregator, mock_redis_instance
+):
+    """Test that _close_batch_for_size_limit sets the closing flag with TTL.
+
+    NEM-2507: The size limit closure path should also set the closing flag
+    with TTL to prevent orphaned locks on crash.
+    """
+    from backend.services.batch_aggregator import BATCH_CLOSING_FLAG_TTL_SECONDS
+
+    batch_id = "batch_size_limit_ttl_test"
+    camera_id = "front_door"
+
+    # Mock camera_id lookup
+    async def mock_get(key):
+        if key == f"batch:{batch_id}:camera_id":
+            return camera_id
+        elif key == f"batch:{batch_id}:started_at":
+            return str(time.time() - 60)
+        return None
+
+    mock_redis_instance.get.side_effect = mock_get
+    mock_redis_instance._client.lrange.return_value = [b"1", b"2"]
+
+    await batch_aggregator._close_batch_for_size_limit(batch_id)
+
+    # Verify that the closing flag was set with TTL
+    set_calls = mock_redis_instance._client.set.call_args_list
+    closing_flag_calls = [call for call in set_calls if f"batch:{batch_id}:closing" in str(call)]
+
+    assert len(closing_flag_calls) >= 1, "Closing flag should be set at least once"
+
+    # Check that at least one call has the correct TTL
+    closing_call = closing_flag_calls[0]
+    call_kwargs = closing_call.kwargs if closing_call.kwargs else {}
+    call_args = closing_call.args if closing_call.args else ()
+
+    assert call_args[0] == f"batch:{batch_id}:closing", "Key should be closing flag"
+    assert call_kwargs.get("ex") == BATCH_CLOSING_FLAG_TTL_SECONDS, (
+        f"TTL should be {BATCH_CLOSING_FLAG_TTL_SECONDS} seconds"
+    )
+
+
+@pytest.mark.asyncio
+async def test_batch_closing_flag_ttl_constant_exists():
+    """Test that BATCH_CLOSING_FLAG_TTL_SECONDS constant is defined.
+
+    NEM-2507: The constant should be 300 seconds (5 minutes) to allow
+    sufficient time for batch close operations while ensuring orphaned
+    flags don't persist indefinitely.
+    """
+    from backend.services.batch_aggregator import BATCH_CLOSING_FLAG_TTL_SECONDS
+
+    assert BATCH_CLOSING_FLAG_TTL_SECONDS == 300
+    assert isinstance(BATCH_CLOSING_FLAG_TTL_SECONDS, int)

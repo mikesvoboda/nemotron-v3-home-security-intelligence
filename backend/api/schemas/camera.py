@@ -1,4 +1,8 @@
-"""Pydantic schemas for camera API endpoints."""
+"""Pydantic schemas for camera API endpoints.
+
+NEM-2569: Enhanced Pydantic validation with explicit validators and field constraints
+for comprehensive server-side input validation.
+"""
 
 import re
 from datetime import datetime
@@ -23,6 +27,10 @@ __all__ = [
 # Regex pattern for forbidden path characters (beyond path traversal)
 # Allow alphanumeric, underscore, hyphen, slash, and dots (but not ..)
 _FORBIDDEN_PATH_CHARS = re.compile(r'[<>:"|?*\x00-\x1f]')
+
+# Regex pattern for forbidden name characters
+# Reject control characters (0x00-0x1f, 0x7f), including null, tab, newline, etc.
+_FORBIDDEN_NAME_CHARS = re.compile(r"[\x00-\x1f\x7f]")
 
 
 def _validate_folder_path(v: str) -> str:
@@ -55,8 +63,43 @@ def _validate_folder_path(v: str) -> str:
     return v
 
 
+def _validate_camera_name(v: str) -> str:
+    """Validate and sanitize camera name.
+
+    NEM-2569: Added explicit name validation for security and data quality.
+
+    Args:
+        v: The camera name string to validate
+
+    Returns:
+        The validated and sanitized camera name (with leading/trailing whitespace stripped)
+
+    Raises:
+        ValueError: If name contains control characters or is whitespace-only
+    """
+    # Strip leading/trailing whitespace
+    stripped = v.strip()
+
+    # Check if name is effectively empty after stripping
+    if not stripped:
+        raise ValueError("Camera name cannot be empty or whitespace-only")
+
+    # Check for forbidden control characters (including null, tab, newline, etc.)
+    if _FORBIDDEN_NAME_CHARS.search(v):
+        raise ValueError(
+            "Camera name contains forbidden characters (control characters like null, tab, or newline)"
+        )
+
+    return stripped
+
+
 class CameraCreate(BaseModel):
-    """Schema for creating a new camera."""
+    """Schema for creating a new camera.
+
+    NEM-2569: Enhanced with explicit Pydantic validators for:
+    - Name: Control character rejection, whitespace stripping, empty validation
+    - Folder path: Path traversal prevention, forbidden character rejection
+    """
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -77,6 +120,15 @@ class CameraCreate(BaseModel):
         description="Camera status (online, offline, error, unknown)",
     )
 
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        """Validate and sanitize camera name.
+
+        NEM-2569: Rejects control characters, strips whitespace.
+        """
+        return _validate_camera_name(v)
+
     @field_validator("folder_path")
     @classmethod
     def validate_folder_path(cls, v: str) -> str:
@@ -85,7 +137,11 @@ class CameraCreate(BaseModel):
 
 
 class CameraUpdate(BaseModel):
-    """Schema for updating an existing camera."""
+    """Schema for updating an existing camera.
+
+    NEM-2569: Enhanced with explicit Pydantic validators for partial updates.
+    All fields are optional; only provided fields are validated.
+    """
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -103,6 +159,18 @@ class CameraUpdate(BaseModel):
     status: CameraStatus | None = Field(
         None, description="Camera status (online, offline, error, unknown)"
     )
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: str | None) -> str | None:
+        """Validate and sanitize camera name for updates.
+
+        NEM-2569: Rejects control characters, strips whitespace.
+        Returns None unchanged for partial updates.
+        """
+        if v is None:
+            return v
+        return _validate_camera_name(v)
 
     @field_validator("folder_path")
     @classmethod
