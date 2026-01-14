@@ -1161,40 +1161,86 @@ class TestFormatDepthContext:
 
     def test_empty_detections(self) -> None:
         """Test formatting when depth has no detections."""
-        result = format_depth_context({"detections": {}})
-        assert "No depth data available" in result
+        from backend.services.depth_anything_loader import DepthAnalysisResult
 
-    def test_foreground_detection(self) -> None:
-        """Test formatting for detection in foreground."""
-        depth_data = {
-            "detections": {"det_001": {"relative_distance": "foreground", "confidence": 0.88}}
+        depth_result = DepthAnalysisResult()
+        result = format_depth_context(depth_result)
+        assert "No detections analyzed" in result
+
+    def test_very_close_detection(self) -> None:
+        """Test formatting for detection in very close proximity."""
+        from backend.services.depth_anything_loader import (
+            DepthAnalysisResult,
+            DetectionDepth,
+        )
+
+        detection_depths = {
+            "det_001": DetectionDepth(
+                detection_id="det_001",
+                class_name="person",
+                depth_value=0.08,
+                proximity_label="very close",
+            )
         }
-        result = format_depth_context(depth_data)
+        depth_result = DepthAnalysisResult(
+            detection_depths=detection_depths,
+            closest_detection_id="det_001",
+            has_close_objects=True,
+        )
+        result = format_depth_context(depth_result)
 
-        assert "foreground" in result
-        assert "88%" in result
-        assert "Close to camera" in result
+        assert "very close" in result
+        assert "CLOSE TO CAMERA" in result
+        assert "person" in result
 
     def test_approaching_detection(self) -> None:
         """Test formatting for approaching detection."""
-        depth_data = {
-            "detections": {"det_001": {"relative_distance": "approaching", "confidence": 0.82}}
+        from backend.services.depth_anything_loader import (
+            DepthAnalysisResult,
+            DetectionDepth,
+        )
+
+        detection_depths = {
+            "det_001": DetectionDepth(
+                detection_id="det_001",
+                class_name="person",
+                depth_value=0.4,
+                proximity_label="moderate distance",
+                is_approaching=True,
+            )
         }
-        result = format_depth_context(depth_data)
+        depth_result = DepthAnalysisResult(
+            detection_depths=detection_depths,
+            closest_detection_id="det_001",
+        )
+        result = format_depth_context(depth_result)
 
-        assert "approaching" in result
-        assert "Moving toward camera" in result
+        assert "moderate distance" in result
+        assert "APPROACHING" in result
 
-    def test_with_movement_pattern(self) -> None:
-        """Test formatting includes movement pattern."""
-        depth_data = {
-            "detections": {"det_001": {"relative_distance": "midground", "confidence": 0.75}},
-            "movement_pattern": "circling",
+    def test_far_detection(self) -> None:
+        """Test formatting for far detection."""
+        from backend.services.depth_anything_loader import (
+            DepthAnalysisResult,
+            DetectionDepth,
+        )
+
+        detection_depths = {
+            "det_001": DetectionDepth(
+                detection_id="det_001",
+                class_name="car",
+                depth_value=0.7,
+                proximity_label="far",
+            )
         }
-        result = format_depth_context(depth_data)
+        depth_result = DepthAnalysisResult(
+            detection_depths=detection_depths,
+            closest_detection_id="det_001",
+        )
+        result = format_depth_context(depth_result)
 
-        assert "midground" in result
-        assert "circling" in result
+        assert "far" in result
+        assert "car" in result
 
 
 # =============================================================================
@@ -1775,7 +1821,11 @@ class TestEfficientStringBuilding:
     """
 
     def test_format_functions_use_list_join_pattern(self) -> None:
-        """Verify format functions use efficient list.append() + join() pattern."""
+        """Verify format functions use efficient list.append() + join() pattern.
+
+        Note: format_depth_context is excluded as it delegates to
+        DepthAnalysisResult.to_context_string() which uses the pattern internally.
+        """
         import inspect
 
         from backend.services import prompts
@@ -1787,7 +1837,7 @@ class TestEfficientStringBuilding:
             prompts.format_vehicle_classification_context,
             prompts.format_vehicle_damage_context,
             prompts.format_pet_classification_context,
-            prompts.format_depth_context,
+            # format_depth_context delegates to DepthAnalysisResult.to_context_string()
             prompts.format_detections_with_all_enrichment,
         ]
 

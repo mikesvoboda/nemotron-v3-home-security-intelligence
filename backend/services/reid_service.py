@@ -532,13 +532,21 @@ class ReIdentificationService:
                 list_key = "persons" if embedding.entity_type == "person" else "vehicles"
                 data[list_key].append(embedding.to_dict())
 
-                # Store with TTL - uses 'expire' for RedisClient wrapper compatibility
-                # (the wrapper accepts 'expire' and converts to 'ex' internally)
-                await redis_client.set(  # type: ignore[call-arg]
-                    key,
-                    json.dumps(data),
-                    expire=EMBEDDING_TTL_SECONDS,
-                )
+                # Store with TTL - check if using RedisClient wrapper (expire) or raw redis (ex)
+                from backend.core.redis import RedisClient
+
+                if isinstance(redis_client, RedisClient):
+                    await redis_client.set(
+                        key,
+                        json.dumps(data),
+                        expire=EMBEDDING_TTL_SECONDS,
+                    )
+                else:
+                    await redis_client.set(
+                        key,
+                        json.dumps(data),
+                        ex=EMBEDDING_TTL_SECONDS,
+                    )
 
                 logger.debug(
                     f"Stored {embedding.entity_type} embedding for camera {embedding.camera_id}"

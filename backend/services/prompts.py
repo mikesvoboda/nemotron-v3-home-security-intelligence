@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING, Any
 from backend.services.prompt_sanitizer import sanitize_object_type
 
 if TYPE_CHECKING:
+    from backend.services.depth_anything_loader import DepthAnalysisResult
     from backend.services.enrichment_pipeline import EnrichmentResult
     from backend.services.fashion_clip_loader import ClothingClassification
     from backend.services.image_quality_loader import ImageQualityResult
@@ -658,12 +659,12 @@ def format_pet_classification_context(
 
 
 def format_depth_context(
-    depth_results: dict[str, Any] | None = None,
+    depth_results: DepthAnalysisResult | None = None,
 ) -> str:
     """Format depth estimation results for prompt context.
 
     Args:
-        depth_results: Dict with depth analysis results, or None
+        depth_results: DepthAnalysisResult from depth_anything_loader, or None
 
     Returns:
         Formatted string for prompt inclusion
@@ -671,29 +672,11 @@ def format_depth_context(
     if depth_results is None:
         return "Depth analysis: Not available"
 
-    lines = ["Spatial depth analysis:"]
+    if not depth_results.has_detections:
+        return "Depth analysis: No detections analyzed"
 
-    # Process per-detection depth
-    detections = depth_results.get("detections", {})
-    for det_id, depth_info in detections.items():
-        distance = depth_info.get("relative_distance", "unknown")
-        confidence = depth_info.get("confidence", 0.0)
-
-        # Risk notes based on distance and movement
-        risk_note = ""
-        if distance == "foreground":
-            risk_note = " [Close to camera - high visibility]"
-        elif distance == "approaching":
-            risk_note = " [Moving toward camera - monitor closely]"
-
-        lines.append(f"  Detection {det_id}: {distance} ({confidence:.0%}){risk_note}")
-
-    # Movement patterns if available
-    if "movement_pattern" in depth_results:
-        pattern = depth_results["movement_pattern"]
-        lines.append(f"  Movement pattern: {pattern}")
-
-    return "\n".join(lines) if len(lines) > 1 else "Depth analysis: No depth data available"
+    # Use the built-in context string method for detailed output
+    return depth_results.to_context_string()
 
 
 def format_image_quality_context(

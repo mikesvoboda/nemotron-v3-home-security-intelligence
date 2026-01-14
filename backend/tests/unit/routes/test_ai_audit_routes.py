@@ -508,8 +508,8 @@ class TestGetAuditStats:
                 "cross_camera": 0.2,
             },
             "audits_by_day": [
-                {"date": "2025-12-22", "count": 15},
-                {"date": "2025-12-23", "count": 20},
+                {"date": "2025-12-22", "day_of_week": "Sunday", "count": 15},
+                {"date": "2025-12-23", "day_of_week": "Monday", "count": 20},
             ],
         }
 

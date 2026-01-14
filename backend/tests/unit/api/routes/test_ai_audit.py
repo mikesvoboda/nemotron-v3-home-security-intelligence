@@ -588,8 +588,8 @@ class TestGetAuditStatsEndpoint:
                 "violence": 0.1,
             },
             "audits_by_day": [
-                {"date": "2025-12-22", "count": 40},
-                {"date": "2025-12-23", "count": 35},
+                {"date": "2025-12-22", "day_of_week": "Sunday", "count": 40},
+                {"date": "2025-12-23", "day_of_week": "Monday", "count": 35},
             ],
         }
 
