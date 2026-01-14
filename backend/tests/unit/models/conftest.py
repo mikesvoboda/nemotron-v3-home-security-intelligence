@@ -8,6 +8,10 @@ should ideally prevent this, but in practice deadlocks still occur intermittentl
 
 This conftest uses filelock to create a cross-process lock that ensures only one
 soft delete test runs at a time across all pytest-xdist workers.
+
+NOTE: The pytest_collection_modifyitems hook has been consolidated into the main
+backend/tests/conftest.py to avoid multiple iterations over test items.
+The xdist_group marker for soft_delete_serial is now applied there.
 """
 
 import tempfile
@@ -20,17 +24,9 @@ from filelock import FileLock
 _LOCK_FILE = Path(tempfile.gettempdir()) / "pytest_soft_delete.lock"
 
 
-def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
-    """Force soft delete tests to run serially by marking them with xdist_group.
-
-    All test_soft_delete.py tests are marked with xdist_group to ensure they run
-    on the same worker sequentially, reducing database contention.
-    """
-    for item in items:
-        # Only apply to test_soft_delete.py tests
-        # Add xdist_group marker to force all soft delete tests onto one worker
-        if "test_soft_delete.py" in item.nodeid and not item.get_closest_marker("xdist_group"):
-            item.add_marker(pytest.mark.xdist_group(name="soft_delete_serial"))
+# NOTE: pytest_collection_modifyitems has been removed from this file.
+# All marker logic is now consolidated in backend/tests/conftest.py
+# for O(n) instead of O(4n) complexity when processing test items.
 
 
 @pytest.fixture(autouse=True, scope="function")

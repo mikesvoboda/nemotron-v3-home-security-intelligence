@@ -84,11 +84,11 @@ test.describe('Settings Tab Navigation', () => {
 
   test('tab list has multiple tabs', async ({ page }) => {
     // Verify there are multiple tab buttons available
-    // Settings page has 3 tabs: CAMERAS, PROCESSING, NOTIFICATIONS
+    // Settings page has 8 tabs: CAMERAS, RULES, PROCESSING, NOTIFICATIONS, AMBIENT, CALIBRATION, PROMPTS, STORAGE
     // (AI Models moved to System Monitoring page)
-    const tabButtons = page.locator('button').filter({ hasText: /CAMERAS|PROCESSING|NOTIFICATIONS/i });
+    const tabButtons = page.locator('button').filter({ hasText: /CAMERAS|RULES|PROCESSING|NOTIFICATIONS|AMBIENT|CALIBRATION|PROMPTS|STORAGE/i });
     const count = await tabButtons.count();
-    expect(count).toBe(3);
+    expect(count).toBe(8);
   });
 });
 

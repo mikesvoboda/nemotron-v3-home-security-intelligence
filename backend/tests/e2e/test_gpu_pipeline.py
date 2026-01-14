@@ -93,7 +93,8 @@ class MockRedisClient:
         self._client = AsyncMock()
         self._client.scan_iter = self._create_scan_iter_mock([])
         # Make pipeline a regular method, not async
-        self._client.pipeline = lambda _transaction=False: MockRedisPipeline(self)
+        # Support both 'transaction' and '_transaction' parameters for compatibility
+        self._client.pipeline = self._create_pipeline
         # Add list operations
         self._client.llen = AsyncMock(side_effect=self._llen)
         self._client.rpush = AsyncMock(side_effect=self._rpush)
@@ -108,6 +109,14 @@ class MockRedisClient:
                 yield key
 
         return MagicMock(return_value=_generator())
+
+    def _create_pipeline(
+        self,
+        transaction: bool = False,
+        _transaction: bool = False,
+    ) -> MockRedisPipeline:
+        """Create a mock Redis pipeline."""
+        return MockRedisPipeline(self)
 
     async def _llen(self, key: str) -> int:
         """Get the length of a list."""
@@ -134,8 +143,13 @@ class MockRedisClient:
         # In a mock, we don't actually track TTL, just return success
         return True
 
-    def pipeline(self, transaction: bool = False) -> MockRedisPipeline:
-        """Create a mock Redis pipeline."""
+    def pipeline(self, transaction: bool = False, _transaction: bool = False) -> MockRedisPipeline:
+        """Create a mock Redis pipeline.
+
+        Args:
+            transaction: Whether to use transaction mode (ignored in mock)
+            _transaction: Alternative parameter name for compatibility (ignored in mock)
+        """
         return MockRedisPipeline(self)
 
     async def get(self, key: str) -> Any | None:
@@ -381,6 +395,7 @@ async def test_gpu_nemotron_analyzer_health_check(isolated_db):
 
 @pytest.mark.gpu
 @pytest.mark.asyncio
+@pytest.mark.timeout(60)
 async def test_gpu_full_pipeline_with_real_services(
     isolated_db,
     mock_redis: MockRedisClient,
@@ -488,6 +503,7 @@ async def test_gpu_full_pipeline_with_real_services(
 
 @pytest.mark.gpu
 @pytest.mark.asyncio
+@pytest.mark.timeout(60)
 async def test_gpu_detector_client_inference_performance(
     isolated_db,
     test_camera: tuple[Camera, Path],
@@ -541,6 +557,7 @@ async def test_gpu_detector_client_inference_performance(
 
 @pytest.mark.gpu
 @pytest.mark.asyncio
+@pytest.mark.timeout(60)
 async def test_gpu_nemotron_analysis_performance(
     isolated_db,
     mock_redis: MockRedisClient,

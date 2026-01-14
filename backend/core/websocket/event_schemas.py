@@ -499,7 +499,6 @@ class SceneChangeDetectedPayload(BasePayload):
     similarity_score: float = Field(
         ..., ge=0, le=1, description="SSIM similarity score (lower = more different)"
     )
-    baseline_image_id: str | None = Field(None, description="Baseline image reference")
 
     @field_validator("change_type", mode="before")
     @classmethod

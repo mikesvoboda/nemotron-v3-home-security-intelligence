@@ -117,6 +117,38 @@ ANALYSIS_QUEUE_DEPTH = Gauge(
 )
 
 # =============================================================================
+# Worker Supervisor Metrics (NEM-2457)
+# =============================================================================
+
+WORKER_RESTARTS_TOTAL = Counter(
+    "hsi_worker_restarts_total",
+    "Total number of worker restarts by worker name",
+    labelnames=["worker_name"],
+    registry=_registry,
+)
+
+WORKER_CRASHES_TOTAL = Counter(
+    "hsi_worker_crashes_total",
+    "Total number of worker crashes by worker name",
+    labelnames=["worker_name"],
+    registry=_registry,
+)
+
+WORKER_MAX_RESTARTS_EXCEEDED_TOTAL = Counter(
+    "hsi_worker_max_restarts_exceeded_total",
+    "Total number of times a worker exceeded max restart limit",
+    labelnames=["worker_name"],
+    registry=_registry,
+)
+
+WORKER_STATUS = Gauge(
+    "hsi_worker_status",
+    "Current worker status (0=stopped, 1=running, 2=crashed, 3=restarting, 4=failed)",
+    labelnames=["worker_name"],
+    registry=_registry,
+)
+
+# =============================================================================
 # Stage Duration Histograms
 # =============================================================================
 
@@ -2255,3 +2287,59 @@ def record_prompt_rollback(model: str, reason: str) -> None:
     safe_model = sanitize_metric_label(model, max_length=32)
     safe_reason = sanitize_metric_label(reason, max_length=32)
     PROMPT_ROLLBACKS_TOTAL.labels(model=safe_model, reason=safe_reason).inc()
+
+
+# =============================================================================
+# Worker Supervisor Metrics Helpers (NEM-2457)
+# =============================================================================
+
+# Worker status value mapping for gauge metric
+WORKER_STATUS_VALUES = {
+    "stopped": 0,
+    "running": 1,
+    "crashed": 2,
+    "restarting": 3,
+    "failed": 4,
+}
+
+
+def record_worker_restart(worker_name: str) -> None:
+    """Record a worker restart event.
+
+    Args:
+        worker_name: Name of the worker that was restarted.
+    """
+    safe_name = sanitize_metric_label(worker_name, max_length=64)
+    WORKER_RESTARTS_TOTAL.labels(worker_name=safe_name).inc()
+
+
+def record_worker_crash(worker_name: str) -> None:
+    """Record a worker crash event.
+
+    Args:
+        worker_name: Name of the worker that crashed.
+    """
+    safe_name = sanitize_metric_label(worker_name, max_length=64)
+    WORKER_CRASHES_TOTAL.labels(worker_name=safe_name).inc()
+
+
+def record_worker_max_restarts_exceeded(worker_name: str) -> None:
+    """Record when a worker exceeds max restart limit.
+
+    Args:
+        worker_name: Name of the worker that exceeded restart limit.
+    """
+    safe_name = sanitize_metric_label(worker_name, max_length=64)
+    WORKER_MAX_RESTARTS_EXCEEDED_TOTAL.labels(worker_name=safe_name).inc()
+
+
+def set_worker_status(worker_name: str, status: str) -> None:
+    """Set the current status of a worker.
+
+    Args:
+        worker_name: Name of the worker.
+        status: Status string (stopped, running, crashed, restarting, failed).
+    """
+    safe_name = sanitize_metric_label(worker_name, max_length=64)
+    status_value = WORKER_STATUS_VALUES.get(status.lower(), 0)
+    WORKER_STATUS.labels(worker_name=safe_name).set(status_value)

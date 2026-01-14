@@ -56,7 +56,7 @@ test.describe('Full Feedback-Calibration Loop @critical', () => {
     // Mock events API with consistent data
     const testEvents = [
       {
-        id: '100',
+        id: 100,
         timestamp: new Date().toISOString(),
         camera_id: 'cam-1',
         camera_name: 'Front Door',
@@ -82,9 +82,13 @@ test.describe('Full Feedback-Calibration Loop @critical', () => {
           contentType: 'application/json',
           body: JSON.stringify({
             items: [],
-            total: 0,
-            page: 1,
-            limit: 100,
+            pagination: {
+              total: 0,
+              limit: 100,
+              offset: 0,
+              next_cursor: null,
+              has_more: false,
+            },
           }),
         });
       } else {
@@ -94,9 +98,13 @@ test.describe('Full Feedback-Calibration Loop @critical', () => {
           contentType: 'application/json',
           body: JSON.stringify({
             items: testEvents,
-            total: testEvents.length,
-            page: 1,
-            limit: 50,
+            pagination: {
+              total: testEvents.length,
+              limit: 50,
+              offset: 0,
+              next_cursor: null,
+              has_more: false,
+            },
           }),
         });
       }
@@ -104,18 +112,11 @@ test.describe('Full Feedback-Calibration Loop @critical', () => {
 
     const timelinePage = new TimelinePage(page);
     await timelinePage.goto();
-
-    // Check if timeline page loads - feature may not be implemented yet
-    const pageTitle = page.getByRole('heading', { name: /Event Timeline/i });
-    try {
-      await pageTitle.waitFor({ state: 'visible', timeout: 5000 });
-    } catch {
-      console.log('Event Timeline page not found - feature may not be implemented yet');
-      return;
-    }
+    await timelinePage.waitForTimelineLoad();
 
     // Verify event shows as HIGH risk
-    const firstEventCard = page.locator('[data-testid="event-card"]').first();
+    // EventCard components have data-testid="event-card-{id}" format
+    const firstEventCard = page.locator('[data-testid^="event-card-"]').first();
     const eventCardExists = (await firstEventCard.count()) > 0;
 
     if (!eventCardExists) {
@@ -127,8 +128,8 @@ test.describe('Full Feedback-Calibration Loop @critical', () => {
 
     // Look for HIGH risk indicator
     const highRiskBadge = firstEventCard.locator(
-      '[data-testid="risk-badge"], .risk-badge, text="High"'
-    );
+      '[data-testid="risk-badge"], .risk-badge'
+    ).or(firstEventCard.getByText('High'));
     const hasBadge = (await highRiskBadge.count()) > 0;
 
     if (hasBadge) {
@@ -241,10 +242,10 @@ test.describe('Full Feedback-Calibration Loop @critical', () => {
     // Wait for events to load with new classification
     await page.waitForTimeout(1000);
 
-    const reclassifiedEvent = page.locator('[data-testid="event-card"]').first();
+    const reclassifiedEvent = page.locator('[data-testid^="event-card-"]').first();
     const mediumRiskBadge = reclassifiedEvent.locator(
-      '[data-testid="risk-badge"], text="Medium"'
-    );
+      '[data-testid="risk-badge"], .risk-badge'
+    ).or(reclassifiedEvent.getByText('Medium'));
 
     const hasMediumBadge = (await mediumRiskBadge.count()) > 0;
     if (hasMediumBadge) {
@@ -386,13 +387,13 @@ test.describe('Feedback-Calibration Loop - Edge Cases', () => {
             medium_threshold: Math.min(70, currentCalibration.medium_threshold + 2),
             false_positive_count: currentCalibration.false_positive_count + 1,
           };
-        } else if (data.feedback_type === 'missed_detection') {
+        } else if (data.feedback_type === 'missed_threat') {
           // Lower thresholds (make more sensitive)
           currentCalibration = {
             ...currentCalibration,
             high_threshold: Math.max(75, currentCalibration.high_threshold - 3),
             medium_threshold: Math.max(50, currentCalibration.medium_threshold - 2),
-            missed_detection_count: currentCalibration.missed_detection_count + 1,
+            missed_threat_count: currentCalibration.missed_threat_count + 1,
           };
         }
 

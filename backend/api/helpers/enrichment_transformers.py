@@ -14,11 +14,12 @@ Design:
 - EnrichmentTransformer: Orchestrates all extractors and validates input
 
 Usage:
+    from datetime import UTC, datetime
     transformer = EnrichmentTransformer()
     result = transformer.transform(
         detection_id=1,
         enrichment_data=raw_data,
-        detected_at=datetime.now(),
+        detected_at=datetime.now(UTC),
     )
 """
 
