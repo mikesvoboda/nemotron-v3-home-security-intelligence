@@ -5821,6 +5821,77 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/system/supervisor": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Supervisor Status
+         * @description Get status of the Worker Supervisor and all supervised workers.
+         *
+         *     The Worker Supervisor monitors pipeline worker tasks and automatically
+         *     restarts them with exponential backoff when they crash.
+         *
+         *     Returns:
+         *         WorkerSupervisorStatusResponse with:
+         *         - running: Whether the supervisor is active
+         *         - worker_count: Number of registered workers
+         *         - workers: Detailed status of each supervised worker including:
+         *           - status: running/stopped/crashed/restarting/failed
+         *           - restart_count: Number of restart attempts
+         *           - last_started_at/last_crashed_at: Timestamps
+         *           - error: Last error message if crashed
+         *
+         *     Use this endpoint to monitor worker health and identify workers that
+         *     are repeatedly crashing or have exceeded their restart limit.
+         */
+        get: operations["get_supervisor_status_api_system_supervisor_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/system/supervisor/reset/{worker_name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reset Worker
+         * @description Reset a failed worker's restart count to allow new restart attempts.
+         *
+         *     When a worker exceeds its max restart limit, it enters FAILED status
+         *     and won't be restarted. Use this endpoint to reset the worker's
+         *     restart count and transition it back to STOPPED status, allowing
+         *     the supervisor to attempt restarts again.
+         *
+         *     Args:
+         *         worker_name: Name of the worker to reset
+         *
+         *     Returns:
+         *         Dictionary with success status and message
+         *
+         *     Raises:
+         *         HTTPException 404: Worker not found
+         *         HTTPException 503: Supervisor not initialized
+         */
+        post: operations["reset_worker_api_system_supervisor_reset__worker_name__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/system/telemetry": {
         parameters: {
             query?: never;
@@ -18397,6 +18468,60 @@ export interface components {
             timestamp: string;
         };
         /**
+         * SupervisedWorkerInfo
+         * @description Information about a supervised worker.
+         *
+         *     Provides detailed status and restart metrics for a single worker
+         *     managed by the WorkerSupervisor.
+         * @example {
+         *       "last_started_at": "2026-01-13T10:30:00Z",
+         *       "max_restarts": 5,
+         *       "name": "detection_worker",
+         *       "restart_count": 0,
+         *       "status": "running"
+         *     }
+         */
+        SupervisedWorkerInfo: {
+            /**
+             * Error
+             * @description Last error message if worker crashed
+             */
+            error?: string | null;
+            /**
+             * Last Crashed At
+             * @description When the worker last crashed
+             */
+            last_crashed_at?: string | null;
+            /**
+             * Last Started At
+             * @description When the worker was last started
+             */
+            last_started_at?: string | null;
+            /**
+             * Max Restarts
+             * @description Maximum allowed restart attempts before failing
+             */
+            max_restarts: number;
+            /**
+             * Name
+             * @description Unique identifier for the worker
+             */
+            name: string;
+            /**
+             * Restart Count
+             * @description Number of times the worker has been restarted
+             */
+            restart_count: number;
+            /** @description Current health status of the worker */
+            status: components["schemas"]["SupervisedWorkerStatusEnum"];
+        };
+        /**
+         * SupervisedWorkerStatusEnum
+         * @description Status enum for supervised workers.
+         * @enum {string}
+         */
+        SupervisedWorkerStatusEnum: "running" | "stopped" | "crashed" | "restarting" | "failed";
+        /**
          * SystemStatsResponse
          * @description Response schema for system statistics endpoint.
          * @example {
@@ -19003,6 +19128,59 @@ export interface components {
              * @description Whether the worker is currently running
              */
             running: boolean;
+        };
+        /**
+         * WorkerSupervisorStatusResponse
+         * @description Response schema for worker supervisor status endpoint.
+         *
+         *     Provides overall supervisor status and detailed information about
+         *     all supervised workers including their health status and restart metrics.
+         * @example {
+         *       "running": true,
+         *       "timestamp": "2026-01-13T10:35:00Z",
+         *       "worker_count": 4,
+         *       "workers": [
+         *         {
+         *           "last_started_at": "2026-01-13T10:30:00Z",
+         *           "max_restarts": 5,
+         *           "name": "detection_worker",
+         *           "restart_count": 0,
+         *           "status": "running"
+         *         },
+         *         {
+         *           "error": "Connection timeout",
+         *           "last_crashed_at": "2026-01-13T10:30:30Z",
+         *           "last_started_at": "2026-01-13T10:31:00Z",
+         *           "max_restarts": 5,
+         *           "name": "analysis_worker",
+         *           "restart_count": 1,
+         *           "status": "running"
+         *         }
+         *       ]
+         *     }
+         */
+        WorkerSupervisorStatusResponse: {
+            /**
+             * Running
+             * @description Whether the supervisor is currently running
+             */
+            running: boolean;
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description Timestamp of status query
+             */
+            timestamp: string;
+            /**
+             * Worker Count
+             * @description Total number of registered workers
+             */
+            worker_count: number;
+            /**
+             * Workers
+             * @description Detailed status of all supervised workers
+             */
+            workers?: components["schemas"]["SupervisedWorkerInfo"][];
         };
         /**
          * ZoneCreate
@@ -26964,6 +27142,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StorageStatsResponse"];
+                };
+            };
+        };
+    };
+    get_supervisor_status_api_system_supervisor_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkerSupervisorStatusResponse"];
+                };
+            };
+        };
+    };
+    reset_worker_api_system_supervisor_reset__worker_name__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                worker_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string | boolean;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

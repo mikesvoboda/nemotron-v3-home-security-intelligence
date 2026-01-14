@@ -291,6 +291,8 @@ class TestAlertingRulesExpressions:
         "hsi_stage_duration_seconds",
         # Prometheus built-in
         "up",
+        # Blackbox exporter metrics
+        "probe_success",
     ]
 
     def get_all_alerts(self, rules_data: dict) -> list[tuple[str, dict]]:

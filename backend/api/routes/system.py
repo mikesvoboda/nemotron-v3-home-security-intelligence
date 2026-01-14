@@ -102,12 +102,15 @@ from backend.api.schemas.system import (
     StageLatency,
     StorageCategoryStats,
     StorageStatsResponse,
+    SupervisedWorkerInfo,
+    SupervisedWorkerStatusEnum,
     SystemStatsResponse,
     TargetHealth,
     TelemetryResponse,
     WebSocketBroadcasterStatus,
     WebSocketHealthResponse,
     WorkerStatus,
+    WorkerSupervisorStatusResponse,
 )
 from backend.api.schemas.websocket import (
     EventRegistryResponse,
@@ -299,6 +302,7 @@ _batch_aggregator: BatchAggregator | None = None
 _degradation_manager: DegradationManager | None = None
 _service_health_monitor: ServiceHealthMonitor | None = None
 _performance_collector: PerformanceCollector | None = None
+_worker_supervisor: WorkerSupervisor | None = None  # NEM-2457
 
 
 def register_workers(
@@ -311,6 +315,7 @@ def register_workers(
     degradation_manager: DegradationManager | None = None,
     service_health_monitor: ServiceHealthMonitor | None = None,
     performance_collector: PerformanceCollector | None = None,
+    worker_supervisor: WorkerSupervisor | None = None,
 ) -> None:
     """Register worker instances for readiness monitoring.
 
@@ -327,8 +332,9 @@ def register_workers(
         degradation_manager: DegradationManager instance for degradation status
         service_health_monitor: ServiceHealthMonitor instance for health event history
         performance_collector: PerformanceCollector instance for performance metrics
+        worker_supervisor: WorkerSupervisor instance for worker auto-recovery (NEM-2457)
     """
-    global _gpu_monitor, _cleanup_service, _system_broadcaster, _file_watcher, _pipeline_manager, _batch_aggregator, _degradation_manager, _service_health_monitor, _performance_collector  # noqa: PLW0603
+    global _gpu_monitor, _cleanup_service, _system_broadcaster, _file_watcher, _pipeline_manager, _batch_aggregator, _degradation_manager, _service_health_monitor, _performance_collector, _worker_supervisor  # noqa: PLW0603
     _gpu_monitor = gpu_monitor
     _cleanup_service = cleanup_service
     _system_broadcaster = system_broadcaster
@@ -338,6 +344,7 @@ def register_workers(
     _degradation_manager = degradation_manager
     _service_health_monitor = service_health_monitor
     _performance_collector = performance_collector
+    _worker_supervisor = worker_supervisor
 
 
 def _get_worker_statuses() -> list[WorkerStatus]:
@@ -493,6 +500,7 @@ if TYPE_CHECKING:
     from backend.services.performance_collector import PerformanceCollector
     from backend.services.pipeline_workers import PipelineWorkerManager
     from backend.services.system_broadcaster import SystemBroadcaster
+    from backend.services.worker_supervisor import WorkerSupervisor
 
 
 async def get_latest_gpu_stats(
@@ -3478,6 +3486,103 @@ async def get_pipeline_status(
         degradation=degradation_status,
         timestamp=datetime.now(UTC),
     )
+
+
+# =============================================================================
+# Worker Supervisor Endpoints (NEM-2457)
+# =============================================================================
+
+
+@router.get("/supervisor", response_model=WorkerSupervisorStatusResponse)
+async def get_supervisor_status() -> WorkerSupervisorStatusResponse:
+    """Get status of the Worker Supervisor and all supervised workers.
+
+    The Worker Supervisor monitors pipeline worker tasks and automatically
+    restarts them with exponential backoff when they crash.
+
+    Returns:
+        WorkerSupervisorStatusResponse with:
+        - running: Whether the supervisor is active
+        - worker_count: Number of registered workers
+        - workers: Detailed status of each supervised worker including:
+          - status: running/stopped/crashed/restarting/failed
+          - restart_count: Number of restart attempts
+          - last_started_at/last_crashed_at: Timestamps
+          - error: Last error message if crashed
+
+    Use this endpoint to monitor worker health and identify workers that
+    are repeatedly crashing or have exceeded their restart limit.
+    """
+    if _worker_supervisor is None:
+        return WorkerSupervisorStatusResponse(
+            running=False,
+            worker_count=0,
+            workers=[],
+            timestamp=datetime.now(UTC),
+        )
+
+    all_workers = _worker_supervisor.get_all_workers()
+    worker_infos: list[SupervisedWorkerInfo] = []
+
+    for name, info in all_workers.items():
+        worker_infos.append(
+            SupervisedWorkerInfo(
+                name=name,
+                status=SupervisedWorkerStatusEnum(info.status.value),
+                restart_count=info.restart_count,
+                max_restarts=info.max_restarts,
+                last_started_at=info.last_started_at,
+                last_crashed_at=info.last_crashed_at,
+                error=info.error,
+            )
+        )
+
+    return WorkerSupervisorStatusResponse(
+        running=_worker_supervisor.is_running,
+        worker_count=_worker_supervisor.worker_count,
+        workers=worker_infos,
+        timestamp=datetime.now(UTC),
+    )
+
+
+@router.post("/supervisor/reset/{worker_name}")
+async def reset_worker(worker_name: str) -> dict[str, str | bool]:
+    """Reset a failed worker's restart count to allow new restart attempts.
+
+    When a worker exceeds its max restart limit, it enters FAILED status
+    and won't be restarted. Use this endpoint to reset the worker's
+    restart count and transition it back to STOPPED status, allowing
+    the supervisor to attempt restarts again.
+
+    Args:
+        worker_name: Name of the worker to reset
+
+    Returns:
+        Dictionary with success status and message
+
+    Raises:
+        HTTPException 404: Worker not found
+        HTTPException 503: Supervisor not initialized
+    """
+    if _worker_supervisor is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Worker supervisor not initialized",
+        )
+
+    success = _worker_supervisor.reset_worker(worker_name)
+
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Worker '{worker_name}' not found",
+        )
+
+    logger.info(f"Reset worker '{worker_name}' restart count")
+    return {
+        "success": True,
+        "message": f"Worker '{worker_name}' restart count reset",
+    }
 
 
 # =============================================================================
