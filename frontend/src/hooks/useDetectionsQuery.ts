@@ -1,22 +1,31 @@
 /**
  * React Query hooks for fetching detections with cursor-based pagination.
+ *
+ * Uses the generic createInfiniteQueryHook factory to reduce boilerplate
+ * while maintaining full type safety and backwards compatibility.
  */
 
-import { useMemo } from 'react';
-
-import { useCursorPaginatedQuery } from './useCursorPaginatedQuery';
+import { createInfiniteQueryHook, type BaseInfiniteQueryOptions } from './useCursorPaginatedQuery';
 import { fetchEventDetections, type DetectionQueryParams } from '../services/api';
 
 import type { DetectionListResponse } from '../types/generated';
 
-export interface UseDetectionsInfiniteQueryOptions {
+/**
+ * Internal filters type for the detections query.
+ * Contains the eventId which is required for fetching detections.
+ */
+interface DetectionFilters {
   eventId: number;
-  limit?: number;
-  enabled?: boolean;
-  staleTime?: number;
-  refetchInterval?: number | false;
 }
 
+export interface UseDetectionsInfiniteQueryOptions extends BaseInfiniteQueryOptions {
+  eventId: number;
+}
+
+/**
+ * Return type for useDetectionsInfiniteQuery.
+ * Maintains backwards compatibility by using 'detections' instead of 'items'.
+ */
 export interface UseDetectionsInfiniteQueryReturn {
   detections: DetectionListResponse['items'];
   pages: DetectionListResponse[] | undefined;
@@ -40,63 +49,56 @@ export const detectionsQueryKeys = {
   detail: (id: number) => [...detectionsQueryKeys.all, 'detail', id] as const,
 };
 
-interface DetectionFilters {
-  eventId: number;
-}
+/**
+ * Internal hook created by factory function.
+ * Returns the standardized InfiniteQueryHookReturn interface.
+ */
+const useDetectionsInfiniteQueryInternal = createInfiniteQueryHook<
+  DetectionListResponse,
+  DetectionListResponse['items'][number],
+  UseDetectionsInfiniteQueryOptions,
+  DetectionFilters
+>({
+  getQueryKey: (options) => detectionsQueryKeys.infinite(options.eventId, options.limit),
+  fetchFn: ({ cursor, limit, filters }) => {
+    const params: DetectionQueryParams = {
+      limit,
+      cursor,
+    };
+    // filters is guaranteed to have eventId since we set it in getFilters
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    return fetchEventDetections(filters!.eventId, params);
+  },
+  getFilters: (options) => ({ eventId: options.eventId }),
+});
 
+/**
+ * Hook for fetching detections for an event with cursor-based infinite pagination.
+ *
+ * Wraps the factory-generated hook to maintain backwards compatibility
+ * by renaming 'items' to 'detections' in the return type.
+ *
+ * @param options - Query options including eventId, limit, and React Query options
+ * @returns Detections data with pagination controls and query state
+ */
 export function useDetectionsInfiniteQuery(
   options: UseDetectionsInfiniteQueryOptions
 ): UseDetectionsInfiniteQueryReturn {
-  const {
-    eventId,
-    limit = 50,
-    enabled = true,
-    staleTime,
-    refetchInterval,
-  } = options;
+  const result = useDetectionsInfiniteQueryInternal(options);
 
-  const query = useCursorPaginatedQuery<DetectionListResponse, DetectionFilters>({
-    queryKey: detectionsQueryKeys.infinite(eventId, limit),
-    queryFn: ({ cursor, filters }) => {
-      const params: DetectionQueryParams = {
-        limit,
-        cursor,
-      };
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      return fetchEventDetections(filters!.eventId, params);
-    },
-    filters: { eventId },
-    enabled,
-    staleTime,
-    refetchInterval,
-  });
-
-  const detections = useMemo(() => {
-    if (!query.data?.pages) {
-      return [];
-    }
-    return query.data.pages.flatMap((page) => page.items);
-  }, [query.data?.pages]);
-
-  const totalCount = useMemo(() => {
-    if (!query.data?.pages?.[0]) {
-      return 0;
-    }
-    return query.data.pages[0].pagination.total;
-  }, [query.data?.pages]);
-
+  // Rename 'items' to 'detections' for backwards compatibility
   return {
-    detections,
-    pages: query.data?.pages,
-    totalCount,
-    isLoading: query.isLoading,
-    isFetching: query.isFetching,
-    isFetchingNextPage: query.isFetchingNextPage,
-    hasNextPage: query.hasNextPage,
-    fetchNextPage: query.fetchNextPage,
-    error: query.error,
-    isError: query.isError,
-    refetch: query.refetch,
+    detections: result.items,
+    pages: result.pages,
+    totalCount: result.totalCount,
+    isLoading: result.isLoading,
+    isFetching: result.isFetching,
+    isFetchingNextPage: result.isFetchingNextPage,
+    hasNextPage: result.hasNextPage,
+    fetchNextPage: result.fetchNextPage,
+    error: result.error,
+    isError: result.isError,
+    refetch: result.refetch,
   };
 }
 

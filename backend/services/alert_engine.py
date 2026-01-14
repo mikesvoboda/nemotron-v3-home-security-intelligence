@@ -208,7 +208,6 @@ class AlertRuleEngine:
         stmt = select(EventDetection.detection_id).where(EventDetection.event_id == event.id)
         result = await self.session.execute(stmt)
         detection_id_list = list(result.scalars().all())
-
         if not detection_id_list:
             return []
 

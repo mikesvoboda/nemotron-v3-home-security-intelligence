@@ -41,7 +41,8 @@ class TestAuditAPI:
             )
         await db_session.commit()
 
-        response = await client.get("/api/audit")
+        # Request with include_total_count=true to get accurate total
+        response = await client.get("/api/audit?include_total_count=true")
         assert response.status_code == 200
 
         data = response.json()
