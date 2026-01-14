@@ -1117,6 +1117,21 @@ class Settings(BaseSettings):
         description="Burst allowance for AI inference rate limiting. "
         "Allows short bursts of requests while maintaining overall rate limit.",
     )
+    rate_limit_bulk_requests_per_minute: int = Field(
+        default=10,
+        ge=1,
+        le=60,
+        description="Maximum bulk operation requests per minute per client IP. "
+        "Strict limit to prevent abuse of bulk endpoints (create, update, delete) "
+        "which can process up to 100 items per request.",
+    )
+    rate_limit_bulk_burst: int = Field(
+        default=2,
+        ge=0,
+        le=10,
+        description="Burst allowance for bulk operation rate limiting. "
+        "Allows short bursts of bulk requests while maintaining overall rate limit.",
+    )
     trusted_proxy_ips: list[str] = Field(
         default=["127.0.0.1", "::1"],
         description="List of trusted proxy IP addresses. X-Forwarded-For headers are only "
