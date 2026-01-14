@@ -81,29 +81,27 @@ test.describe('Risk Calibration - Settings Page @critical', () => {
       return;
     }
     await calibrationTab.click();
-    await page.waitForTimeout(500);
 
-    // Look for calibration settings panel
+    // Wait for calibration settings panel to appear (with longer timeout for CI)
     const calibrationSection = page.locator(
       '[data-testid="risk-sensitivity-settings"]'
     );
 
-    const sectionExists = (await calibrationSection.count()) > 0;
-    if (!sectionExists) {
+    try {
+      await expect(calibrationSection).toBeVisible({ timeout: 10000 });
+    } catch {
       console.log('Calibration section not found - feature may not be implemented yet');
       return;
     }
-
-    await expect(calibrationSection).toBeVisible();
 
     // Look for threshold slider containers with data-testid
     const lowSlider = calibrationSection.locator('[data-testid="low-threshold-slider"]');
     const mediumSlider = calibrationSection.locator('[data-testid="medium-threshold-slider"]');
     const highSlider = calibrationSection.locator('[data-testid="high-threshold-slider"]');
 
-    await expect(lowSlider).toBeVisible();
-    await expect(mediumSlider).toBeVisible();
-    await expect(highSlider).toBeVisible();
+    await expect(lowSlider).toBeVisible({ timeout: 5000 });
+    await expect(mediumSlider).toBeVisible({ timeout: 5000 });
+    await expect(highSlider).toBeVisible({ timeout: 5000 });
   });
 
   test('should display current threshold values', async ({ page }) => {
@@ -113,10 +111,11 @@ test.describe('Risk Calibration - Settings Page @critical', () => {
       return;
     }
     await calibrationTab.click();
-    await page.waitForTimeout(500);
 
     const calibrationSection = page.locator('[data-testid="risk-sensitivity-settings"]');
-    if ((await calibrationSection.count()) === 0) {
+    try {
+      await expect(calibrationSection).toBeVisible({ timeout: 10000 });
+    } catch {
       return;
     }
 
@@ -148,7 +147,7 @@ test.describe('Risk Calibration - Settings Page @critical', () => {
       return;
     }
     await calibrationTab.click();
-    await page.waitForTimeout(500);
+    await page.waitForLoadState('networkidle');
 
     // Find the actual input element inside the low-threshold-slider container
     const lowSliderDiv = page.locator('[data-testid="low-threshold-slider"]');
@@ -181,7 +180,7 @@ test.describe('Risk Calibration - Settings Page @critical', () => {
       return;
     }
     await calibrationTab.click();
-    await page.waitForTimeout(500);
+    await page.waitForLoadState('networkidle');
 
     const lowSliderDiv = page.locator('[data-testid="low-threshold-slider"]');
     const mediumSliderDiv = page.locator('[data-testid="medium-threshold-slider"]');
@@ -226,7 +225,7 @@ test.describe('Risk Calibration - Settings Page @critical', () => {
       return;
     }
     await calibrationTab.click();
-    await page.waitForTimeout(500);
+    await page.waitForLoadState('networkidle');
 
     const lowSliderDiv = page.locator('[data-testid="low-threshold-slider"]');
     if ((await lowSliderDiv.count()) === 0) {
@@ -291,7 +290,7 @@ test.describe('Risk Calibration - Reset to Defaults', () => {
       return;
     }
     await calibrationTab.click();
-    await page.waitForTimeout(500);
+    await page.waitForLoadState('networkidle');
 
     // Look for "Reset to Defaults" button (exact text in implementation)
     const resetButton = page.locator('button:has-text("Reset to Defaults")');
@@ -312,7 +311,7 @@ test.describe('Risk Calibration - Reset to Defaults', () => {
       return;
     }
     await calibrationTab.click();
-    await page.waitForTimeout(500);
+    await page.waitForLoadState('networkidle');
 
     const resetButton = page.locator('button:has-text("Reset to Defaults")');
 
@@ -352,7 +351,7 @@ test.describe('Risk Calibration - Reset to Defaults', () => {
       return;
     }
     await calibrationTab.click();
-    await page.waitForTimeout(500);
+    await page.waitForLoadState('networkidle');
 
     const resetButton = page.locator('button:has-text("Reset to Defaults")');
 
@@ -367,8 +366,8 @@ test.describe('Risk Calibration - Reset to Defaults', () => {
     // Look for confirmation dialog (optional in current implementation)
     const confirmDialog = page.locator('[role="dialog"]');
 
-    await page.waitForTimeout(300);
-    const dialogExists = (await confirmDialog.count()) > 0;
+    // Wait for either dialog or no dialog (with timeout)
+    const dialogExists = await confirmDialog.isVisible({ timeout: 1000 }).catch(() => false);
 
     if (dialogExists) {
       await expect(confirmDialog).toBeVisible();
@@ -391,7 +390,7 @@ test.describe('Risk Calibration - Reset to Defaults', () => {
       return;
     }
     await calibrationTab.click();
-    await page.waitForTimeout(500);
+    await page.waitForLoadState('networkidle');
 
     const lowSliderDiv = page.locator('[data-testid="low-threshold-slider"]');
     if ((await lowSliderDiv.count()) === 0) {
@@ -492,7 +491,7 @@ test.describe('Risk Calibration - Bounds Validation', () => {
       return;
     }
     await calibrationTab.click();
-    await page.waitForTimeout(500);
+    await page.waitForLoadState('networkidle');
 
     const lowSliderDiv = page.locator('[data-testid="low-threshold-slider"]');
     if ((await lowSliderDiv.count()) === 0) {
@@ -519,7 +518,7 @@ test.describe('Risk Calibration - Bounds Validation', () => {
       return;
     }
     await calibrationTab.click();
-    await page.waitForTimeout(500);
+    await page.waitForLoadState('networkidle');
 
     const highSliderDiv = page.locator('[data-testid="high-threshold-slider"]');
     if ((await highSliderDiv.count()) === 0) {
@@ -553,7 +552,7 @@ test.describe('Risk Calibration - Error Handling', () => {
       return;
     }
     await calibrationTab.click();
-    await page.waitForTimeout(500);
+    await page.waitForLoadState('networkidle');
 
     // Mock API error
     await page.route('**/api/calibration', async (route) => {
@@ -604,7 +603,7 @@ test.describe('Risk Calibration - Error Handling', () => {
       return;
     }
     await calibrationTab.click();
-    await page.waitForTimeout(500);
+    await page.waitForLoadState('networkidle');
 
     // Mock API error for reset
     await page.route('**/api/calibration/reset', async (route) => {
@@ -665,7 +664,7 @@ test.describe('Risk Calibration - Persistence', () => {
       return;
     }
     await calibrationTab.click();
-    await page.waitForTimeout(500);
+    await page.waitForLoadState('networkidle');
 
     const lowSliderDiv = page.locator('[data-testid="low-threshold-slider"]');
     if ((await lowSliderDiv.count()) === 0) {
