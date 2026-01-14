@@ -2607,3 +2607,207 @@ class TestBulkDeleteDetections:
         assert result.succeeded == 0
         assert result.failed == 1
         assert "not found" in result.results[0].error.lower()
+
+
+# ============================================================================
+# Specific Exception Type Tests (NEM-2572)
+# ============================================================================
+
+
+class TestFileReadSpecificExceptions:
+    """Tests for specific exception handling in file read operations.
+
+    These tests verify that file read operations catch specific exception types
+    (FileNotFoundError, PermissionError, OSError) with appropriate HTTP responses
+    and logging levels, rather than using generic except Exception catches.
+    """
+
+    @pytest.mark.asyncio
+    async def test_get_full_image_file_not_found_error(self) -> None:
+        """Test FileNotFoundError returns 404 for source image read."""
+        from backend.api.routes.detections import _get_full_image_for_image
+
+        with patch("builtins.open", side_effect=FileNotFoundError("No such file")):
+            with pytest.raises(HTTPException) as exc_info:
+                _get_full_image_for_image("/path/to/missing.jpg")
+
+        assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
+        assert "not found" in str(exc_info.value.detail).lower()
+
+    @pytest.mark.asyncio
+    async def test_get_full_image_permission_error(self) -> None:
+        """Test PermissionError returns 403 for source image read."""
+        from backend.api.routes.detections import _get_full_image_for_image
+
+        with patch("builtins.open", side_effect=PermissionError("Access denied")):
+            with pytest.raises(HTTPException) as exc_info:
+                _get_full_image_for_image("/path/to/protected.jpg")
+
+        assert exc_info.value.status_code == status.HTTP_403_FORBIDDEN
+        assert "permission" in str(exc_info.value.detail).lower()
+
+    @pytest.mark.asyncio
+    async def test_get_full_image_os_error(self) -> None:
+        """Test OSError returns 500 for source image read."""
+        from backend.api.routes.detections import _get_full_image_for_image
+
+        with patch("builtins.open", side_effect=OSError("Disk I/O error")):
+            with pytest.raises(HTTPException) as exc_info:
+                _get_full_image_for_image("/path/to/bad_disk.jpg")
+
+        assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        assert "i/o error" in str(exc_info.value.detail).lower()
+
+    @pytest.mark.asyncio
+    async def test_get_video_thumbnail_read_file_not_found(
+        self, mock_db_session, mock_video_processor
+    ) -> None:
+        """Test FileNotFoundError during thumbnail read returns 404."""
+        detection = DetectionFactory(
+            id=1,
+            file_path="/export/foscam/test.mp4",
+            media_type="video",
+            thumbnail_path="/data/thumbnails/1.jpg",
+        )
+
+        with (
+            patch(
+                "backend.api.routes.detections.get_detection_or_404",
+                return_value=detection,
+            ),
+            patch("os.path.exists", return_value=True),
+            patch("builtins.open", side_effect=FileNotFoundError("File deleted")),
+            pytest.raises(HTTPException) as exc_info,
+        ):
+            await get_video_thumbnail(
+                detection_id=1, db=mock_db_session, video_processor=mock_video_processor
+            )
+
+        assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
+
+    @pytest.mark.asyncio
+    async def test_get_video_thumbnail_read_permission_error(
+        self, mock_db_session, mock_video_processor
+    ) -> None:
+        """Test PermissionError during thumbnail read returns 403."""
+        detection = DetectionFactory(
+            id=1,
+            file_path="/export/foscam/test.mp4",
+            media_type="video",
+            thumbnail_path="/data/thumbnails/1.jpg",
+        )
+
+        with (
+            patch(
+                "backend.api.routes.detections.get_detection_or_404",
+                return_value=detection,
+            ),
+            patch("os.path.exists", return_value=True),
+            patch("builtins.open", side_effect=PermissionError("Access denied")),
+            pytest.raises(HTTPException) as exc_info,
+        ):
+            await get_video_thumbnail(
+                detection_id=1, db=mock_db_session, video_processor=mock_video_processor
+            )
+
+        assert exc_info.value.status_code == status.HTTP_403_FORBIDDEN
+
+    @pytest.mark.asyncio
+    async def test_get_detection_image_file_not_found(
+        self, mock_db_session, mock_video_processor, mock_thumbnail_generator
+    ) -> None:
+        """Test FileNotFoundError during detection image read returns 404.
+
+        This tests the get_detection_image endpoint with full=true, which
+        directly reads the source file using _get_full_image_for_image.
+        """
+        detection = DetectionFactory(
+            id=1,
+            file_path="/export/foscam/test.jpg",
+            media_type="image",
+            thumbnail_path="/data/thumbnails/1.jpg",
+        )
+
+        with (
+            patch(
+                "backend.api.routes.detections.get_detection_or_404",
+                return_value=detection,
+            ),
+            patch("os.path.exists", return_value=True),
+            patch("builtins.open", side_effect=FileNotFoundError("File deleted")),
+            pytest.raises(HTTPException) as exc_info,
+        ):
+            await get_detection_image(
+                detection_id=1,
+                full=True,
+                db=mock_db_session,
+                thumbnail_generator=mock_thumbnail_generator,
+                video_processor=mock_video_processor,
+            )
+
+        assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
+
+    @pytest.mark.asyncio
+    async def test_get_detection_image_permission_error(
+        self, mock_db_session, mock_video_processor, mock_thumbnail_generator
+    ) -> None:
+        """Test PermissionError during detection image read returns 403.
+
+        This tests the get_detection_image endpoint with full=true, which
+        directly reads the source file using _get_full_image_for_image.
+        """
+        detection = DetectionFactory(
+            id=1,
+            file_path="/export/foscam/test.jpg",
+            media_type="image",
+            thumbnail_path="/data/thumbnails/1.jpg",
+        )
+
+        with (
+            patch(
+                "backend.api.routes.detections.get_detection_or_404",
+                return_value=detection,
+            ),
+            patch("os.path.exists", return_value=True),
+            patch("builtins.open", side_effect=PermissionError("Access denied")),
+            pytest.raises(HTTPException) as exc_info,
+        ):
+            await get_detection_image(
+                detection_id=1,
+                full=True,
+                db=mock_db_session,
+                thumbnail_generator=mock_thumbnail_generator,
+                video_processor=mock_video_processor,
+            )
+
+        assert exc_info.value.status_code == status.HTTP_403_FORBIDDEN
+
+    @pytest.mark.asyncio
+    async def test_get_full_image_for_video_os_error(self, mock_video_processor) -> None:
+        """Test OSError during video frame extraction returns 500 with I/O error message."""
+        from backend.api.routes.detections import _get_full_image_for_video
+
+        # Mock the video processor to raise an OSError
+        mock_video_processor.extract_thumbnail = AsyncMock(side_effect=OSError("Disk error"))
+
+        with pytest.raises(HTTPException) as exc_info:
+            await _get_full_image_for_video(
+                video_path="/path/to/video.mp4",
+                video_processor=mock_video_processor,
+            )
+
+        assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+
+    @pytest.mark.asyncio
+    async def test_get_full_image_generic_exception_fallback(self) -> None:
+        """Test unexpected exception returns 500 as fallback."""
+        from backend.api.routes.detections import _get_full_image_for_image
+
+        # Test with an unexpected exception type
+        with patch("builtins.open", side_effect=RuntimeError("Unexpected error")):
+            with pytest.raises(HTTPException) as exc_info:
+                _get_full_image_for_image("/path/to/file.jpg")
+
+        assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        # Generic fallback message
+        assert "failed to read" in str(exc_info.value.detail).lower()
