@@ -244,8 +244,8 @@ test.describe('Full Feedback-Calibration Loop @critical', () => {
 
     const reclassifiedEvent = page.locator('[data-testid^="event-card-"]').first();
     const mediumRiskBadge = reclassifiedEvent.locator(
-      '[data-testid="risk-badge"], text="Medium"'
-    );
+      '[data-testid="risk-badge"], .risk-badge'
+    ).or(reclassifiedEvent.getByText('Medium'));
 
     const hasMediumBadge = (await mediumRiskBadge.count()) > 0;
     if (hasMediumBadge) {
