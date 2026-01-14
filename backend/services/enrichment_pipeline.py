@@ -30,6 +30,7 @@ __all__ = [
     "FaceResult",
     "LicensePlateResult",
     "get_enrichment_pipeline",
+    "get_enrichment_pipeline_with_session",
     "reset_enrichment_pipeline",
 ]
 
@@ -1404,6 +1405,7 @@ class EnrichmentPipeline:
         redis_client: Any | None = None,
         use_enrichment_service: bool = False,
         enrichment_client: EnrichmentClient | None = None,
+        reid_service: Any | None = None,
     ) -> None:
         """Initialize the EnrichmentPipeline.
 
@@ -1433,6 +1435,9 @@ class EnrichmentPipeline:
             use_enrichment_service: Use HTTP service at ai-enrichment:8094 instead of local models
                                     for vehicle, pet, and clothing classification
             enrichment_client: Optional EnrichmentClient instance (uses global if not provided)
+            reid_service: Optional ReIdentificationService instance with HybridEntityStorage
+                         configured. When provided, entities will be persisted to PostgreSQL.
+                         If not provided, uses global ReIdentificationService (Redis-only).
         """
         # Import settings to get image_quality_enabled default
         from backend.core.config import get_settings
@@ -1470,7 +1475,8 @@ class EnrichmentPipeline:
 
         # Initialize services
         self._vision_extractor = get_vision_extractor()
-        self._reid_service = get_reid_service()
+        # Use provided reid_service (with HybridEntityStorage) or global (Redis-only)
+        self._reid_service = reid_service if reid_service is not None else get_reid_service()
         self._scene_detector = get_scene_change_detector()
 
         logger.info(
@@ -3907,8 +3913,12 @@ def get_enrichment_pipeline() -> EnrichmentPipeline:
     The pipeline is initialized with the global Redis client (if available)
     to enable Re-ID functionality for entity tracking.
 
+    Note: This function returns a pipeline WITHOUT PostgreSQL entity persistence.
+    For entity persistence, use get_enrichment_pipeline_with_session() which
+    configures HybridEntityStorage for PostgreSQL writes (NEM-2453).
+
     Returns:
-        Global EnrichmentPipeline instance
+        Global EnrichmentPipeline instance (Redis-only storage)
     """
     global _enrichment_pipeline  # noqa: PLW0603
     if _enrichment_pipeline is None:
@@ -3917,6 +3927,75 @@ def get_enrichment_pipeline() -> EnrichmentPipeline:
         redis_client = get_redis_client_sync()
         _enrichment_pipeline = EnrichmentPipeline(redis_client=redis_client)
     return _enrichment_pipeline
+
+
+async def get_enrichment_pipeline_with_session(
+    session: Any,
+    redis_client: Any | None = None,
+) -> EnrichmentPipeline:
+    """Create an EnrichmentPipeline with PostgreSQL entity persistence.
+
+    This factory function creates a pipeline configured with HybridEntityStorage,
+    enabling entities to be written to PostgreSQL when detections are processed.
+    Use this for production pipelines that need persistent entity tracking.
+
+    Related to NEM-2453: Verify and Update Enrichment Pipeline to Write Entities to PostgreSQL.
+
+    Args:
+        session: SQLAlchemy async session for database operations
+        redis_client: Optional Redis client (uses global if not provided)
+
+    Returns:
+        EnrichmentPipeline with HybridEntityStorage configured
+
+    Example:
+        async with get_session() as session:
+            pipeline = await get_enrichment_pipeline_with_session(session, redis_client)
+            result = await pipeline.enrich_batch(detections, images, camera_id="front_door")
+            # Entities are now persisted to PostgreSQL
+    """
+    from backend.core.redis import get_redis_client_sync
+    from backend.repositories.entity_repository import EntityRepository
+    from backend.services.entity_clustering_service import EntityClusteringService
+    from backend.services.hybrid_entity_storage import HybridEntityStorage
+    from backend.services.reid_service import ReIdentificationService
+
+    # Get Redis client
+    if redis_client is None:
+        redis_client = get_redis_client_sync()
+
+    # Create repository and clustering service
+    entity_repo = EntityRepository(session)
+    clustering_service = EntityClusteringService(entity_repository=entity_repo)
+
+    # Create Reid service without hybrid storage first (to avoid circular dependency)
+    reid_service = ReIdentificationService()
+
+    # Create hybrid storage bridge
+    # Note: redis_client may be RedisClient wrapper or raw Redis - HybridEntityStorage handles both
+    hybrid_storage = HybridEntityStorage(
+        redis_client=redis_client,  # type: ignore[arg-type]
+        entity_repository=entity_repo,
+        clustering_service=clustering_service,
+        reid_service=reid_service,
+    )
+
+    # Create Reid service with hybrid storage enabled
+    reid_service_with_storage = ReIdentificationService(
+        hybrid_storage=hybrid_storage,
+    )
+
+    # Create pipeline with the configured services
+    pipeline = EnrichmentPipeline(
+        redis_client=redis_client,
+        reid_service=reid_service_with_storage,
+    )
+
+    logger.info(
+        "Created EnrichmentPipeline with PostgreSQL entity persistence (HybridEntityStorage)"
+    )
+
+    return pipeline
 
 
 def reset_enrichment_pipeline() -> None:
