@@ -180,13 +180,18 @@ class AlertRuleEngine:
         return list(result.scalars().all())
 
     async def _load_event_detections(self, event: Event) -> list[Detection]:
-        """Load detections for an event using the event_detections relationship."""
-        # Use the relationship if already loaded
-        if event.detections:
-            return list(event.detections)
+        """Load detections for an event using the event_detections junction table.
 
-        # Otherwise, get detection IDs from the junction table and batch fetch
-        detection_id_list = event.detection_id_list
+        Queries the junction table directly to avoid triggering lazy loading
+        of the relationship, which can cause greenlet errors in async contexts.
+        """
+        from backend.models.event_detection import EventDetection
+
+        # Query the junction table for detection IDs
+        stmt = select(EventDetection.detection_id).where(EventDetection.event_id == event.id)
+        result = await self.session.execute(stmt)
+        detection_id_list = list(result.scalars().all())
+
         if not detection_id_list:
             return []
 
@@ -209,19 +214,23 @@ class AlertRuleEngine:
         Returns:
             Dictionary mapping event.id to list of Detection objects
         """
-        # Collect all detection IDs from all events using the relationship
+        from backend.models.event_detection import EventDetection
+
+        # Query all detection IDs from the junction table in a single query
+        event_ids = [event.id for event in events]
+        stmt = select(EventDetection.event_id, EventDetection.detection_id).where(
+            EventDetection.event_id.in_(event_ids)
+        )
+        result = await self.session.execute(stmt)
+        junction_rows = result.all()
+
+        # Build the event_detection_map from query results
         all_detection_ids: list[int] = []
-        event_detection_map: dict[int, list[int]] = {}
+        event_detection_map: dict[int, list[int]] = {event.id: [] for event in events}
 
-        for event in events:
-            # Get detection IDs from the event_detections junction table
-            detection_id_list = event.detection_id_list
-            if not detection_id_list:
-                event_detection_map[event.id] = []
-                continue
-
-            event_detection_map[event.id] = detection_id_list
-            all_detection_ids.extend(detection_id_list)
+        for event_id, detection_id in junction_rows:
+            event_detection_map[event_id].append(detection_id)
+            all_detection_ids.append(detection_id)
 
         if not all_detection_ids:
             return {event.id: [] for event in events}

@@ -166,7 +166,9 @@ async def test_detections(isolated_db_session, test_camera):
 
 @pytest.fixture
 async def test_event_with_detections(isolated_db_session, test_camera, test_detections):
-    """Create a test event with linked detection IDs."""
+    """Create a test event with linked detection IDs in the junction table."""
+    from backend.models.event_detection import EventDetection
+
     detection_ids = [d.id for d in test_detections]
     event = Event(
         batch_id=unique_id("batch"),
@@ -174,10 +176,17 @@ async def test_event_with_detections(isolated_db_session, test_camera, test_dete
         started_at=_utcnow(),
         risk_score=75,
         risk_level="high",
-        detection_ids=json.dumps(detection_ids),
+        detection_ids=json.dumps(detection_ids),  # Legacy column for compatibility
     )
     isolated_db_session.add(event)
     await isolated_db_session.flush()
+
+    # Populate the event_detections junction table for new code path
+    for detection_id in detection_ids:
+        junction = EventDetection(event_id=event.id, detection_id=detection_id)
+        isolated_db_session.add(junction)
+    await isolated_db_session.flush()
+
     return event
 
 
@@ -1352,23 +1361,35 @@ class TestBatchLoadDetections:
             detections.append(d)
         await isolated_db_session.flush()
 
+        from backend.models.event_detection import EventDetection
+
         # Create events with different detection sets
+        event1_detections = [detections[0].id, detections[1].id]
+        event2_detections = [detections[2].id, detections[3].id]
+
         event1 = Event(
             batch_id=unique_id("batch"),
             camera_id=test_camera.id,
             started_at=_utcnow(),
             risk_score=50,
-            detection_ids=json.dumps([detections[0].id, detections[1].id]),
+            detection_ids=json.dumps(event1_detections),
         )
         event2 = Event(
             batch_id=unique_id("batch"),
             camera_id=test_camera.id,
             started_at=_utcnow(),
             risk_score=60,
-            detection_ids=json.dumps([detections[2].id, detections[3].id]),
+            detection_ids=json.dumps(event2_detections),
         )
         isolated_db_session.add(event1)
         isolated_db_session.add(event2)
+        await isolated_db_session.flush()
+
+        # Populate junction table for the new code path
+        for det_id in event1_detections:
+            isolated_db_session.add(EventDetection(event_id=event1.id, detection_id=det_id))
+        for det_id in event2_detections:
+            isolated_db_session.add(EventDetection(event_id=event2.id, detection_id=det_id))
         await isolated_db_session.flush()
 
         # Batch load
