@@ -44,7 +44,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import Enum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from backend.core.logging import get_logger
 from backend.core.metrics import (
@@ -70,6 +70,52 @@ class WorkerStatus(Enum):
     FAILED = "failed"
 
 
+class WorkerState(Enum):
+    """State machine states for worker lifecycle (NEM-2492).
+
+    This enum provides a more detailed state machine for workers,
+    complementing WorkerStatus for richer state tracking.
+    """
+
+    IDLE = "idle"
+    RUNNING = "running"
+    RESTARTING = "restarting"
+    FAILED = "failed"
+    STOPPED = "stopped"
+
+
+class RestartPolicy(Enum):
+    """Restart policy for workers (NEM-2492).
+
+    Determines when a worker should be automatically restarted.
+    """
+
+    ALWAYS = "always"
+    ON_FAILURE = "on_failure"
+    NEVER = "never"
+
+
+@dataclass
+class WorkerConfig:
+    """Configuration for a supervised worker (NEM-2492).
+
+    Attributes:
+        name: Unique identifier for the worker.
+        coroutine_factory: Async callable that creates and runs the worker.
+        restart_policy: When to restart the worker.
+        max_restarts: Maximum number of restart attempts.
+        restart_delay_base: Base delay for exponential backoff.
+        health_check_interval: Interval between health checks.
+    """
+
+    name: str
+    coroutine_factory: Callable[[], Awaitable[None]]
+    restart_policy: RestartPolicy = RestartPolicy.ON_FAILURE
+    max_restarts: int = 5
+    restart_delay_base: float = 1.0
+    health_check_interval: float = 30.0
+
+
 @dataclass
 class WorkerInfo:
     """Information about a registered worker.
@@ -86,6 +132,7 @@ class WorkerInfo:
         last_started_at: When the worker was last started.
         last_crashed_at: When the worker last crashed.
         error: Last error message if crashed.
+        circuit_open: Whether the circuit breaker is open (NEM-2492).
     """
 
     name: str
@@ -99,6 +146,26 @@ class WorkerInfo:
     last_started_at: datetime | None = None
     last_crashed_at: datetime | None = None
     error: str | None = None
+    circuit_open: bool = False  # NEM-2492: Circuit breaker state
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert WorkerInfo to a dictionary for serialization (NEM-2492).
+
+        Returns:
+            Dictionary representation of the worker info.
+        """
+        return {
+            "name": self.name,
+            "status": self.status.value,
+            "restart_count": self.restart_count,
+            "max_restarts": self.max_restarts,
+            "backoff_base": self.backoff_base,
+            "backoff_max": self.backoff_max,
+            "last_started_at": self.last_started_at.isoformat() if self.last_started_at else None,
+            "last_crashed_at": self.last_crashed_at.isoformat() if self.last_crashed_at else None,
+            "error": self.error,
+            "circuit_open": self.circuit_open,
+        }
 
 
 @dataclass
@@ -360,6 +427,7 @@ class WorkerSupervisor:
             if worker.restart_count >= worker.max_restarts:
                 if worker.status != WorkerStatus.FAILED:
                     worker.status = WorkerStatus.FAILED
+                    worker.circuit_open = True  # Open circuit breaker (NEM-2492)
 
                     # Record metrics
                     record_worker_max_restarts_exceeded(name)
@@ -506,6 +574,59 @@ class WorkerSupervisor:
     def worker_count(self) -> int:
         """Get the number of registered workers."""
         return len(self._workers)
+
+    def get_all_statuses(self) -> dict[str, dict[str, Any]]:
+        """Get status dictionaries for all workers (NEM-2492).
+
+        Returns:
+            Dictionary mapping worker names to their status dictionaries.
+        """
+        return {name: worker.to_dict() for name, worker in self._workers.items()}
+
+    def reset_circuit_breaker(self, name: str) -> bool:
+        """Reset the circuit breaker for a worker (NEM-2492).
+
+        This clears the circuit_open flag and resets the restart count,
+        allowing the worker to be restarted again.
+
+        Args:
+            name: Name of the worker to reset.
+
+        Returns:
+            True if worker was reset, False if not found.
+        """
+        worker = self._workers.get(name)
+        if worker is None:
+            logger.warning(f"Cannot reset circuit breaker for unknown worker: {name}")
+            return False
+
+        worker.circuit_open = False
+        worker.restart_count = 0
+        if worker.status == WorkerStatus.FAILED:
+            worker.status = WorkerStatus.STOPPED
+
+        logger.info(f"Reset circuit breaker for worker '{name}'")
+        return True
+
+    @staticmethod
+    def _calculate_backoff_static(restart_count: int, base: float, max_backoff: float) -> float:
+        """Calculate exponential backoff (static version) (NEM-2492).
+
+        This is a static method that can be called without an instance,
+        useful for testing and external calculations.
+
+        Args:
+            restart_count: Number of restarts so far.
+            base: Base backoff time in seconds.
+            max_backoff: Maximum backoff time in seconds.
+
+        Returns:
+            Backoff duration in seconds.
+        """
+        if restart_count <= 0:
+            return base
+        delay = base * (2 ** (restart_count - 1))
+        return float(min(delay, max_backoff))
 
 
 # Singleton instance
