@@ -181,6 +181,7 @@ export const mockReadinessResponse: ReadinessResponse = {
     { name: 'cleanup_worker', running: true },
   ],
   timestamp: '2024-01-01T12:00:00Z',
+  supervisor_healthy: true,
 };
 
 // ============================================================================

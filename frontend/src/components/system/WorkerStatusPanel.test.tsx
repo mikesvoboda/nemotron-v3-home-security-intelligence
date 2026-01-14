@@ -49,6 +49,7 @@ describe('WorkerStatusPanel', () => {
     },
     workers: mockWorkersAllRunning,
     timestamp: '2025-12-30T10:00:00Z',
+    supervisor_healthy: true,
   };
 
   beforeEach(() => {

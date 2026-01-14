@@ -117,7 +117,7 @@ ANALYSIS_QUEUE_DEPTH = Gauge(
 )
 
 # =============================================================================
-# Worker Supervisor Metrics (NEM-2457)
+# Worker Supervisor Metrics (NEM-2457, NEM-2459)
 # =============================================================================
 
 WORKER_RESTARTS_TOTAL = Counter(
@@ -144,6 +144,59 @@ WORKER_MAX_RESTARTS_EXCEEDED_TOTAL = Counter(
 WORKER_STATUS = Gauge(
     "hsi_worker_status",
     "Current worker status (0=stopped, 1=running, 2=crashed, 3=restarting, 4=failed)",
+    labelnames=["worker_name"],
+    registry=_registry,
+)
+
+# NEM-2459: Additional worker metrics for restart analysis and alerting
+
+PIPELINE_WORKER_RESTARTS_TOTAL = Counter(
+    "hsi_pipeline_worker_restarts_total",
+    "Total number of pipeline worker restarts by worker name and reason category",
+    labelnames=["worker_name", "reason_category"],
+    registry=_registry,
+)
+
+# Buckets for worker restart durations (in seconds)
+# Covers range from 100ms to 60s with finer granularity at lower values
+WORKER_RESTART_DURATION_BUCKETS = (
+    0.1,  # 100ms
+    0.25,  # 250ms
+    0.5,  # 500ms
+    1.0,  # 1s
+    2.5,  # 2.5s
+    5.0,  # 5s
+    10.0,  # 10s
+    15.0,  # 15s
+    30.0,  # 30s
+    60.0,  # 60s
+)
+
+PIPELINE_WORKER_RESTART_DURATION_SECONDS = Histogram(
+    "hsi_pipeline_worker_restart_duration_seconds",
+    "Duration of pipeline worker restart operations in seconds",
+    labelnames=["worker_name"],
+    buckets=WORKER_RESTART_DURATION_BUCKETS,
+    registry=_registry,
+)
+
+PIPELINE_WORKER_STATE = Gauge(
+    "hsi_pipeline_worker_state",
+    "Current pipeline worker state (0=stopped, 1=running, 2=restarting, 3=failed)",
+    labelnames=["worker_name"],
+    registry=_registry,
+)
+
+PIPELINE_WORKER_CONSECUTIVE_FAILURES = Gauge(
+    "hsi_pipeline_worker_consecutive_failures",
+    "Number of consecutive failures for a pipeline worker",
+    labelnames=["worker_name"],
+    registry=_registry,
+)
+
+PIPELINE_WORKER_UPTIME_SECONDS = Gauge(
+    "hsi_pipeline_worker_uptime_seconds",
+    "Uptime of a pipeline worker in seconds since last successful start",
     labelnames=["worker_name"],
     registry=_registry,
 )
@@ -2343,3 +2396,173 @@ def set_worker_status(worker_name: str, status: str) -> None:
     safe_name = sanitize_metric_label(worker_name, max_length=64)
     status_value = WORKER_STATUS_VALUES.get(status.lower(), 0)
     WORKER_STATUS.labels(worker_name=safe_name).set(status_value)
+
+
+# =============================================================================
+# Pipeline Worker Metrics Helpers (NEM-2459)
+# =============================================================================
+
+# Allowlist of reason categories for worker restarts to prevent cardinality explosion
+_RESTART_REASON_CATEGORIES = {
+    "exception",
+    "timeout",
+    "memory",
+    "connection",
+    "resource",
+    "dependency",
+    "manual",
+    "unknown",
+}
+
+# Worker state value mapping for pipeline worker state gauge
+PIPELINE_WORKER_STATE_VALUES = {
+    "stopped": 0,
+    "running": 1,
+    "restarting": 2,
+    "failed": 3,
+}
+
+
+def _categorize_restart_reason(error: str | None) -> str:  # noqa: PLR0911
+    """Categorize a restart reason into predefined categories.
+
+    This function examines the error message and categorizes it into
+    one of the predefined reason categories to prevent metric cardinality
+    explosion while still providing useful insights.
+
+    The multiple return statements are intentional for clear categorization
+    logic and early exit patterns.
+
+    Args:
+        error: The error message or None if no error.
+
+    Returns:
+        A categorized reason string from _RESTART_REASON_CATEGORIES.
+    """
+    if error is None:
+        return "manual"
+
+    error_lower = error.lower()
+
+    # Timeout-related errors
+    if any(kw in error_lower for kw in ["timeout", "timed out", "deadline"]):
+        return "timeout"
+
+    # Memory-related errors
+    if any(kw in error_lower for kw in ["memory", "oom", "out of memory", "memoryerror"]):
+        return "memory"
+
+    # Connection-related errors
+    if any(
+        kw in error_lower
+        for kw in [
+            "connection",
+            "connect",
+            "refused",
+            "unreachable",
+            "network",
+            "socket",
+            "dns",
+        ]
+    ):
+        return "connection"
+
+    # Resource-related errors
+    if any(
+        kw in error_lower
+        for kw in [
+            "resource",
+            "file",
+            "disk",
+            "space",
+            "permission",
+            "access",
+            "limit",
+        ]
+    ):
+        return "resource"
+
+    # Dependency-related errors
+    if any(
+        kw in error_lower
+        for kw in ["dependency", "import", "module", "service", "unavailable", "not found"]
+    ):
+        return "dependency"
+
+    # Generic exception or error
+    if any(kw in error_lower for kw in ["exception", "error", "failed", "failure"]):
+        return "exception"
+
+    return "unknown"
+
+
+def record_pipeline_worker_restart(
+    worker_name: str, reason: str | None = None, duration_seconds: float | None = None
+) -> None:
+    """Record a pipeline worker restart event with categorized reason.
+
+    Args:
+        worker_name: Name of the worker that was restarted.
+        reason: The error message or reason for restart (will be categorized).
+        duration_seconds: Optional duration of the restart operation in seconds.
+    """
+    safe_name = sanitize_metric_label(worker_name, max_length=64)
+    reason_category = _categorize_restart_reason(reason)
+
+    PIPELINE_WORKER_RESTARTS_TOTAL.labels(
+        worker_name=safe_name, reason_category=reason_category
+    ).inc()
+
+    if duration_seconds is not None and duration_seconds > 0:
+        PIPELINE_WORKER_RESTART_DURATION_SECONDS.labels(worker_name=safe_name).observe(
+            duration_seconds
+        )
+
+
+def observe_pipeline_worker_restart_duration(worker_name: str, duration_seconds: float) -> None:
+    """Record the duration of a pipeline worker restart operation.
+
+    Args:
+        worker_name: Name of the worker.
+        duration_seconds: Duration of the restart operation in seconds.
+    """
+    if duration_seconds > 0:
+        safe_name = sanitize_metric_label(worker_name, max_length=64)
+        PIPELINE_WORKER_RESTART_DURATION_SECONDS.labels(worker_name=safe_name).observe(
+            duration_seconds
+        )
+
+
+def set_pipeline_worker_state(worker_name: str, state: str) -> None:
+    """Set the current state of a pipeline worker.
+
+    Args:
+        worker_name: Name of the worker.
+        state: State string (stopped, running, restarting, failed).
+    """
+    safe_name = sanitize_metric_label(worker_name, max_length=64)
+    state_value = PIPELINE_WORKER_STATE_VALUES.get(state.lower(), 0)
+    PIPELINE_WORKER_STATE.labels(worker_name=safe_name).set(state_value)
+
+
+def set_pipeline_worker_consecutive_failures(worker_name: str, count: int) -> None:
+    """Set the number of consecutive failures for a pipeline worker.
+
+    Args:
+        worker_name: Name of the worker.
+        count: Number of consecutive failures.
+    """
+    safe_name = sanitize_metric_label(worker_name, max_length=64)
+    PIPELINE_WORKER_CONSECUTIVE_FAILURES.labels(worker_name=safe_name).set(count)
+
+
+def set_pipeline_worker_uptime(worker_name: str, uptime_seconds: float) -> None:
+    """Set the uptime of a pipeline worker.
+
+    Args:
+        worker_name: Name of the worker.
+        uptime_seconds: Uptime in seconds since last successful start.
+            Use -1 to indicate the worker is not running.
+    """
+    safe_name = sanitize_metric_label(worker_name, max_length=64)
+    PIPELINE_WORKER_UPTIME_SECONDS.labels(worker_name=safe_name).set(uptime_seconds)

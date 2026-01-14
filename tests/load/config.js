@@ -70,10 +70,13 @@ export const standardThresholds = {
 export const wsThresholds = {
     // Connection time should be under 2000ms (CI-friendly)
     'ws_connecting': ['p(95)<2000'],
-    // Session duration tracking
-    'ws_session_duration': ['avg>0'],
     // Less than 10% connection failures (allows for CI flakiness)
     'ws_sessions{status:failed}': ['rate<0.10'],
+    // NOTE: ws_session_duration is intentionally NOT included here because it's
+    // a custom metric only defined in websocket.js. Including it here would cause
+    // threshold failures in tests like all.js that import wsThresholds but don't
+    // define the ws_session_duration metric. The websocket.js test defines its own
+    // threshold for ws_session_duration: ['avg>2000'].
 };
 
 /**
