@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import os
+import re
 import shutil
 import tempfile
 import time
@@ -102,6 +103,8 @@ from backend.api.schemas.system import (
     StageLatency,
     StorageCategoryStats,
     StorageStatsResponse,
+    RestartHistoryEvent,
+    RestartHistoryResponse,
     SupervisedWorkerInfo,
     SupervisedWorkerStatusEnum,
     SystemStatsResponse,
@@ -109,6 +112,7 @@ from backend.api.schemas.system import (
     TelemetryResponse,
     WebSocketBroadcasterStatus,
     WebSocketHealthResponse,
+    WorkerControlResponse,
     WorkerStatus,
     WorkerSupervisorStatusResponse,
 )
@@ -1124,12 +1128,28 @@ async def get_readiness(
     if not ready:
         response.status_code = 503
 
+    # Check supervisor health (NEM-2462)
+    # Supervisor is healthy if running and no workers are in FAILED status
+    supervisor_healthy = True
+    if _worker_supervisor is not None:
+        supervisor_healthy = _worker_supervisor.is_running
+        if supervisor_healthy:
+            # Check if any workers have exceeded restart limit
+            for worker_info in _worker_supervisor.get_all_workers().values():
+                if worker_info.status.value == "failed":
+                    supervisor_healthy = False
+                    break
+    else:
+        # No supervisor registered - treat as healthy (not required for basic operation)
+        supervisor_healthy = True
+
     return ReadinessResponse(
         ready=ready,
         status=status,
         services=services,
         workers=workers,
         timestamp=datetime.now(UTC),
+        supervisor_healthy=supervisor_healthy,
     )
 
 
@@ -3583,6 +3603,304 @@ async def reset_worker(worker_name: str) -> dict[str, str | bool]:
         "success": True,
         "message": f"Worker '{worker_name}' restart count reset",
     }
+
+
+# Valid worker name pattern (alphanumeric and underscores only)
+VALID_WORKER_NAME_PATTERN = re.compile(r"^[a-zA-Z][a-zA-Z0-9_]*$")
+
+
+def _validate_worker_name(name: str) -> None:
+    """Validate worker name format.
+
+    Args:
+        name: Worker name to validate.
+
+    Raises:
+        HTTPException: 400 if name is invalid.
+    """
+    if not VALID_WORKER_NAME_PATTERN.match(name):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid worker name: '{name}'. Must start with a letter and contain only alphanumeric characters and underscores.",
+        )
+
+
+@router.get("/supervisor/status", response_model=WorkerSupervisorStatusResponse)
+async def get_supervisor_full_status() -> WorkerSupervisorStatusResponse:
+    """Get full status of the Worker Supervisor and all supervised workers.
+
+    This endpoint is an alias for GET /supervisor but with a clearer path
+    that matches the API convention for status endpoints.
+
+    Returns:
+        WorkerSupervisorStatusResponse with:
+        - running: Whether the supervisor is active
+        - worker_count: Number of registered workers
+        - workers: Detailed status of each supervised worker
+        - timestamp: When the status was queried
+    """
+    if _worker_supervisor is None:
+        return WorkerSupervisorStatusResponse(
+            running=False,
+            worker_count=0,
+            workers=[],
+            timestamp=datetime.now(UTC),
+        )
+
+    all_workers = _worker_supervisor.get_all_workers()
+    worker_infos: list[SupervisedWorkerInfo] = []
+
+    for name, info in all_workers.items():
+        worker_infos.append(
+            SupervisedWorkerInfo(
+                name=name,
+                status=SupervisedWorkerStatusEnum(info.status.value),
+                restart_count=info.restart_count,
+                max_restarts=info.max_restarts,
+                last_started_at=info.last_started_at,
+                last_crashed_at=info.last_crashed_at,
+                error=info.error,
+            )
+        )
+
+    return WorkerSupervisorStatusResponse(
+        running=_worker_supervisor.is_running,
+        worker_count=_worker_supervisor.worker_count,
+        workers=worker_infos,
+        timestamp=datetime.now(UTC),
+    )
+
+
+@router.post(
+    "/supervisor/workers/{worker_name}/restart",
+    response_model=WorkerControlResponse,
+)
+async def restart_supervisor_worker(worker_name: str) -> WorkerControlResponse:
+    """Manually restart a supervised worker.
+
+    This stops the worker if running and starts it again with reset state.
+
+    Args:
+        worker_name: Name of the worker to restart (e.g., file_watcher, detector)
+
+    Returns:
+        WorkerControlResponse with success status and message
+
+    Raises:
+        HTTPException 400: Invalid worker name format
+        HTTPException 404: Worker not found
+        HTTPException 503: Supervisor not initialized
+    """
+    _validate_worker_name(worker_name)
+
+    if _worker_supervisor is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Worker supervisor not initialized",
+        )
+
+    # Check worker exists
+    if _worker_supervisor.get_worker_info(worker_name) is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Worker '{worker_name}' not found",
+        )
+
+    success = await _worker_supervisor.restart_worker_task(worker_name)
+
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Worker '{worker_name}' not found",
+        )
+
+    logger.info(f"Manually restarted worker '{worker_name}'")
+    return WorkerControlResponse(
+        success=True,
+        message=f"Worker '{worker_name}' restarted successfully",
+        worker_name=worker_name,
+    )
+
+
+@router.post(
+    "/supervisor/workers/{worker_name}/stop",
+    response_model=WorkerControlResponse,
+)
+async def stop_supervisor_worker(worker_name: str) -> WorkerControlResponse:
+    """Manually stop a supervised worker.
+
+    This stops the worker's task. The worker will remain registered
+    but will not be automatically restarted by the supervisor.
+
+    Args:
+        worker_name: Name of the worker to stop
+
+    Returns:
+        WorkerControlResponse with success status and message
+
+    Raises:
+        HTTPException 400: Invalid worker name format
+        HTTPException 404: Worker not found
+        HTTPException 503: Supervisor not initialized
+    """
+    _validate_worker_name(worker_name)
+
+    if _worker_supervisor is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Worker supervisor not initialized",
+        )
+
+    # Check worker exists
+    if _worker_supervisor.get_worker_info(worker_name) is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Worker '{worker_name}' not found",
+        )
+
+    success = await _worker_supervisor.stop_worker(worker_name)
+
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Worker '{worker_name}' not found",
+        )
+
+    logger.info(f"Manually stopped worker '{worker_name}'")
+    return WorkerControlResponse(
+        success=True,
+        message=f"Worker '{worker_name}' stopped successfully",
+        worker_name=worker_name,
+    )
+
+
+@router.post(
+    "/supervisor/workers/{worker_name}/start",
+    response_model=WorkerControlResponse,
+)
+async def start_supervisor_worker(worker_name: str) -> WorkerControlResponse:
+    """Manually start a stopped supervised worker.
+
+    This starts a worker that was previously stopped. If the worker
+    is already running, this is a no-op and returns success.
+
+    Args:
+        worker_name: Name of the worker to start
+
+    Returns:
+        WorkerControlResponse with success status and message
+
+    Raises:
+        HTTPException 400: Invalid worker name format
+        HTTPException 404: Worker not found
+        HTTPException 503: Supervisor not initialized
+    """
+    _validate_worker_name(worker_name)
+
+    if _worker_supervisor is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Worker supervisor not initialized",
+        )
+
+    # Check worker exists
+    if _worker_supervisor.get_worker_info(worker_name) is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Worker '{worker_name}' not found",
+        )
+
+    success = await _worker_supervisor.start_worker(worker_name)
+
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Worker '{worker_name}' not found",
+        )
+
+    logger.info(f"Manually started worker '{worker_name}'")
+    return WorkerControlResponse(
+        success=True,
+        message=f"Worker '{worker_name}' started successfully",
+        worker_name=worker_name,
+    )
+
+
+@router.get("/supervisor/restart-history", response_model=RestartHistoryResponse)
+async def get_restart_history(
+    worker_name: str | None = Query(
+        None,
+        description="Filter by worker name",
+    ),
+    limit: int = Query(
+        50,
+        ge=1,
+        le=100,
+        description="Maximum number of events to return",
+    ),
+    offset: int = Query(
+        0,
+        ge=0,
+        description="Number of events to skip",
+    ),
+) -> RestartHistoryResponse:
+    """Get paginated history of worker restart events.
+
+    Returns a list of restart events including both automatic restarts
+    (triggered by crashes) and manual restarts.
+
+    Args:
+        worker_name: Optional filter by worker name
+        limit: Maximum number of events to return (default 50, max 100)
+        offset: Number of events to skip for pagination
+
+    Returns:
+        RestartHistoryResponse with events and pagination metadata
+    """
+    from backend.api.schemas.pagination import create_pagination_meta
+
+    if _worker_supervisor is None:
+        # Return empty response when supervisor not initialized
+        return RestartHistoryResponse(
+            items=[],
+            pagination=create_pagination_meta(
+                total=0,
+                limit=limit,
+                offset=offset,
+                items_count=0,
+            ),
+        )
+
+    # Get history from supervisor
+    history = _worker_supervisor.get_restart_history(
+        worker_name=worker_name,
+        limit=limit,
+        offset=offset,
+    )
+
+    total = _worker_supervisor.get_restart_history_count(worker_name=worker_name)
+
+    # Convert to schema objects
+    items = [
+        RestartHistoryEvent(
+            worker_name=event["worker_name"],
+            timestamp=datetime.fromisoformat(event["timestamp"]),
+            attempt=event["attempt"],
+            status=event["status"],
+            error=event.get("error"),
+        )
+        for event in history
+    ]
+
+    return RestartHistoryResponse(
+        items=items,
+        pagination=create_pagination_meta(
+            total=total,
+            limit=limit,
+            offset=offset,
+            items_count=len(items),
+        ),
+    )
 
 
 # =============================================================================
