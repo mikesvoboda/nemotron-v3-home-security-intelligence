@@ -109,12 +109,12 @@ RUN chown -R nginx:nginx /usr/share/nginx/html /var/cache/nginx /var/log/nginx /
 # Switch back to non-root nginx user
 USER nginx
 
-# Expose nginx port (unprivileged port 5173)
-EXPOSE 5173
+# Expose nginx ports (unprivileged ports: 8080 for HTTP, 8443 for HTTPS)
+EXPOSE 8080 8443
 
-# Health check (nginx-unprivileged listens on 5173)
+# Health check (nginx-unprivileged listens on 8080)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:5173 || exit 1
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8080 || exit 1
 
 # Use entrypoint to configure DNS resolver, then run nginx
 ENTRYPOINT ["/docker-entrypoint.sh"]
