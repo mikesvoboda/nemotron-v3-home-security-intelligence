@@ -11,7 +11,6 @@ backend/tests/unit/models/
 ├── AGENTS.md                  # This file
 ├── __init__.py                # Package initialization
 ├── test_alert.py              # Alert and AlertRule models
-├── test_api_key.py            # APIKey model
 ├── test_audit_log.py          # AuditLog model
 ├── test_baseline.py           # Baseline models
 ├── test_camera.py             # Camera model
@@ -27,12 +26,11 @@ backend/tests/unit/models/
 └── test_zone.py               # Zone model
 ```
 
-## Test Files (16 files)
+## Test Files (15 files)
 
 | File                         | Tests For                    |
 | ---------------------------- | ---------------------------- |
 | `test_alert.py`              | Alert and AlertRule models   |
-| `test_api_key.py`            | APIKey model                 |
 | `test_audit_log.py`          | AuditLog model               |
 | `test_baseline.py`           | Baseline models              |
 | `test_camera.py`             | Camera model                 |

@@ -274,7 +274,6 @@ See `models/AGENTS.md` for detailed documentation. The data layer contains 19 SQ
 
 - **`UserCalibration`** - User-specific calibration settings
 - **`NotificationPreferences`** - User notification preferences
-- **`APIKey`** - API key management for authentication
 
 ### Alerting
 

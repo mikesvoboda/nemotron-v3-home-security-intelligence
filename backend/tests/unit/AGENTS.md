@@ -120,12 +120,11 @@ pytest backend/tests/unit/ -v --no-cov
 | `test_websocket_timeout.py`         | WebSocket timeout handling          |
 | `test_websocket_validation.py`      | WebSocket message validation        |
 
-### Database Models (`models/`) - 16 files
+### Database Models (`models/`) - 15 files
 
 | File                         | Tests For                  |
 | ---------------------------- | -------------------------- |
 | `test_alert.py`              | Alert and AlertRule models |
-| `test_api_key.py`            | APIKey model               |
 | `test_audit_log.py`          | AuditLog model             |
 | `test_baseline.py`           | Baseline models            |
 | `test_camera.py`             | Camera model               |
