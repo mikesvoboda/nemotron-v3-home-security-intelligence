@@ -15,6 +15,7 @@ Example:
 
 from __future__ import annotations
 
+import builtins
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
@@ -27,6 +28,11 @@ from backend.repositories.base import Repository
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+    from backend.models import Detection
+
+# Type alias to avoid shadowing by the list() method
+_list = builtins.list
 
 
 class EntityRepository(Repository[Entity]):
@@ -159,3 +165,309 @@ class EntityRepository(Repository[Entity]):
         )
         result = await self.session.execute(stmt)
         return result.scalars().all()
+
+    async def list(
+        self,
+        entity_type: str | None = None,
+        camera_id: str | None = None,
+        since: datetime | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[_list[Entity], int]:
+        """List entities with filtering and pagination.
+
+        Args:
+            entity_type: Filter by entity type (person, vehicle, etc.)
+            camera_id: Filter by camera_id in entity_metadata
+            since: Filter by last_seen_at >= since
+            limit: Maximum number of entities to return (default: 50)
+            offset: Number of entities to skip (default: 0)
+
+        Returns:
+            Tuple of (list of entities, total count matching filters)
+
+        Example:
+            entities, total = await repo.list(
+                entity_type="person",
+                camera_id="front_door",
+                since=datetime.now(UTC) - timedelta(hours=24),
+                limit=20,
+                offset=0,
+            )
+        """
+        # Build base query with filters
+        stmt = select(Entity)
+
+        if entity_type:
+            stmt = stmt.where(Entity.entity_type == entity_type)
+
+        if camera_id:
+            # Filter by camera_id in entity_metadata JSONB
+            stmt = stmt.where(Entity.entity_metadata.op("@>")({"camera_id": camera_id}))
+
+        if since:
+            stmt = stmt.where(Entity.last_seen_at >= since)
+
+        # Order by most recently seen
+        stmt = stmt.order_by(desc(Entity.last_seen_at))
+
+        # Apply pagination
+        stmt = stmt.offset(offset).limit(limit)
+
+        # Execute entity query
+        result = await self.session.execute(stmt)
+        entities = list(result.scalars().all())
+
+        # Build count query with same filters
+        count_stmt = select(func.count(Entity.id))
+
+        if entity_type:
+            count_stmt = count_stmt.where(Entity.entity_type == entity_type)
+
+        if camera_id:
+            count_stmt = count_stmt.where(Entity.entity_metadata.op("@>")({"camera_id": camera_id}))
+
+        if since:
+            count_stmt = count_stmt.where(Entity.last_seen_at >= since)
+
+        count_result = await self.session.execute(count_stmt)
+        total = count_result.scalar_one()
+
+        return entities, total
+
+    async def find_by_embedding(
+        self,
+        embedding: Sequence[float],
+        entity_type: str,
+        threshold: float = 0.85,
+        limit: int = 10,
+    ) -> Sequence[tuple[Entity, float]]:
+        """Find similar entities by embedding vector.
+
+        Uses application-level cosine similarity on JSONB-stored embeddings.
+        For high-performance vector search at scale, consider using pgvector extension.
+
+        Args:
+            embedding: Query embedding vector as list of floats
+            entity_type: Filter by entity type
+            threshold: Minimum similarity score (0-1, default: 0.85)
+            limit: Maximum number of results (default: 10)
+
+        Returns:
+            List of (entity, similarity_score) tuples sorted by similarity descending
+
+        Example:
+            matches = await repo.find_by_embedding(
+                embedding=[0.1, 0.2, ...],
+                entity_type="person",
+                threshold=0.85,
+                limit=5,
+            )
+            for entity, score in matches:
+                print(f"Entity {entity.id}: {score:.2f}")
+        """
+        # Query entities of the given type that have embeddings
+        stmt = select(Entity).where(
+            Entity.entity_type == entity_type,
+            Entity.embedding_vector.isnot(None),
+        )
+        result = await self.session.execute(stmt)
+        candidates = result.scalars().all()
+
+        # Compute cosine similarity in application layer
+        matches: list[tuple[Entity, float]] = []
+
+        for entity in candidates:
+            entity_embedding = entity.get_embedding_vector()
+            if entity_embedding is None:
+                continue
+
+            similarity = self._cosine_similarity(embedding, entity_embedding)
+            if similarity >= threshold:
+                matches.append((entity, similarity))
+
+        # Sort by similarity descending and limit results
+        matches.sort(key=lambda x: x[1], reverse=True)
+        return matches[:limit]
+
+    @staticmethod
+    def _cosine_similarity(vec1: Sequence[float], vec2: Sequence[float]) -> float:
+        """Compute cosine similarity between two vectors.
+
+        Args:
+            vec1: First vector
+            vec2: Second vector
+
+        Returns:
+            Cosine similarity score between 0 and 1
+
+        Note:
+            Returns 0.0 if vectors have different dimensions or either is zero-length.
+        """
+        if len(vec1) != len(vec2) or len(vec1) == 0:
+            return 0.0
+
+        # Compute dot product and magnitudes
+        dot_product: float = sum(a * b for a, b in zip(vec1, vec2, strict=False))
+        magnitude1: float = sum(a * a for a in vec1) ** 0.5
+        magnitude2: float = sum(b * b for b in vec2) ** 0.5
+
+        if magnitude1 == 0 or magnitude2 == 0:
+            return 0.0
+
+        return float(dot_product / (magnitude1 * magnitude2))
+
+    async def increment_detection_count(self, entity_id: UUID) -> None:
+        """Increment detection count and update last_seen_at.
+
+        Args:
+            entity_id: UUID of the entity to update
+
+        Note:
+            Does nothing if entity doesn't exist. Uses the Entity.update_seen()
+            method which handles both count increment and timestamp update.
+        """
+        entity = await self.get_by_id(entity_id)
+        if entity is None:
+            return
+
+        entity.update_seen()
+        await self.session.flush()
+
+    async def get_or_create_for_detection(
+        self,
+        detection_id: int,
+        entity_type: str,
+        embedding: Sequence[float],
+        threshold: float = 0.85,
+    ) -> tuple[Entity, bool]:
+        """Get existing matching entity or create new one.
+
+        Uses embedding similarity to find existing entities that match.
+        If a match is found above the threshold, updates the existing entity.
+        Otherwise, creates a new entity for the detection.
+
+        Args:
+            detection_id: ID of the detection to link to
+            entity_type: Type of entity (person, vehicle, etc.)
+            embedding: Embedding vector for similarity matching
+            threshold: Minimum similarity score to consider a match (default: 0.85)
+
+        Returns:
+            Tuple of (entity, is_new) where is_new is True if entity was created
+
+        Example:
+            entity, is_new = await repo.get_or_create_for_detection(
+                detection_id=123,
+                entity_type="person",
+                embedding=[0.1, 0.2, ...],
+                threshold=0.85,
+            )
+            if is_new:
+                print(f"Created new entity: {entity.id}")
+            else:
+                print(f"Matched existing entity: {entity.id}")
+        """
+        # Search for existing entities with similar embeddings
+        matches = await self.find_by_embedding(
+            embedding=embedding,
+            entity_type=entity_type,
+            threshold=threshold,
+            limit=1,
+        )
+
+        if matches:
+            # Match found - update existing entity
+            matched_entity, _similarity = matches[0]
+            matched_entity.update_seen()
+            await self.session.flush()
+            return matched_entity, False
+
+        # No match - create new entity
+        entity = Entity.from_detection(
+            entity_type=entity_type,
+            detection_id=detection_id,
+            embedding=list(embedding),
+            model="clip",
+        )
+        self.session.add(entity)
+        await self.session.flush()
+        await self.session.refresh(entity)
+        return entity, True
+
+    async def get_detections_for_entity(
+        self,
+        entity_id: UUID,
+        limit: int = 50,  # noqa: ARG002  # Reserved for future use
+        offset: int = 0,  # noqa: ARG002  # Reserved for future use
+    ) -> tuple[_list[Detection], int]:
+        """Get all detections linked to an entity.
+
+        Note: Since the Detection table does not have an entity_id foreign key,
+        we currently only return the primary detection. In the future, this
+        could be extended to use a junction table or entity_id column.
+
+        Args:
+            entity_id: UUID of the entity
+            limit: Maximum number of detections to return (reserved for future use)
+            offset: Number of detections to skip (reserved for future use)
+
+        Returns:
+            Tuple of (list of detections, total count)
+        """
+        from backend.models import Detection
+
+        # Get the entity to find its primary detection
+        entity = await self.get_by_id(entity_id)
+        if entity is None or entity.primary_detection_id is None:
+            return [], 0
+
+        # For now, we only have the primary detection linked
+        # Future: Use a junction table or entity_id column on detections
+        stmt = select(Detection).where(Detection.id == entity.primary_detection_id)
+        result = await self.session.execute(stmt)
+        detection = result.scalar_one_or_none()
+
+        if detection is None:
+            return [], 0
+
+        return [detection], 1
+
+    async def get_camera_counts(self) -> dict[str, int]:
+        """Get entity counts grouped by camera.
+
+        Returns:
+            Dictionary mapping camera_id to entity count
+        """
+        # Query entities and group by camera_id in entity_metadata
+        stmt = select(Entity).where(Entity.entity_metadata.isnot(None))
+        result = await self.session.execute(stmt)
+        entities = result.scalars().all()
+
+        camera_counts: dict[str, int] = {}
+        for entity in entities:
+            if entity.entity_metadata and "camera_id" in entity.entity_metadata:
+                camera_id = entity.entity_metadata["camera_id"]
+                camera_counts[camera_id] = camera_counts.get(camera_id, 0) + 1
+
+        return camera_counts
+
+    async def get_repeat_visitor_count(self) -> int:
+        """Get count of entities seen more than once.
+
+        Returns:
+            Count of entities with detection_count > 1
+        """
+        stmt = select(func.count(Entity.id)).where(Entity.detection_count > 1)
+        result = await self.session.execute(stmt)
+        return result.scalar_one() or 0
+
+    async def count(self) -> int:
+        """Get total count of entities.
+
+        Returns:
+            Total number of entities in the database
+        """
+        stmt = select(func.count(Entity.id))
+        result = await self.session.execute(stmt)
+        return result.scalar_one() or 0

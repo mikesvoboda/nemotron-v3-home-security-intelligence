@@ -1,24 +1,42 @@
 """API routes for entity re-identification tracking.
 
 This module provides endpoints for tracking entities (persons and vehicles)
-across multiple cameras using CLIP embeddings stored in Redis.
+across multiple cameras using CLIP embeddings stored in Redis and PostgreSQL.
+
+Features:
+- Historical entity queries (PostgreSQL 30-day retention)
+- Real-time entity tracking (Redis 24-hour hot cache)
+- Source filtering (redis, postgres, both)
+- Date range filtering (since, until)
+- Entity statistics and aggregations
+
+Related to NEM-2500: Phase 3.1 Historical Entity Lookup API.
 """
 
+from __future__ import annotations
+
 from datetime import datetime
+from typing import TYPE_CHECKING
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from redis.asyncio import Redis
 
 from backend.api.schemas.entities import (
+    DetectionSummary,
     EntityDetail,
+    EntityDetectionsResponse,
     EntityHistoryResponse,
     EntityListResponse,
     EntityMatchItem,
     EntityMatchResponse,
+    EntityStatsResponse,
     EntitySummary,
     EntityTypeFilter,
+    SourceFilter,
 )
 from backend.api.schemas.logs import PaginationInfo
+from backend.core.dependencies import get_entity_repository, get_hybrid_entity_storage
 from backend.core.logging import get_logger
 from backend.core.redis import get_redis_optional
 from backend.services.reid_service import (
@@ -27,6 +45,11 @@ from backend.services.reid_service import (
     ReIdentificationService,
     get_reid_service,
 )
+
+if TYPE_CHECKING:
+    from backend.models import Entity
+    from backend.repositories.entity_repository import EntityRepository
+    from backend.services.hybrid_entity_storage import HybridEntityStorage
 
 router = APIRouter(prefix="/api/entities", tags=["entities"])
 
@@ -482,4 +505,462 @@ async def get_entity_matches(
         matches=match_items,
         total_matches=len(match_items),
         threshold=threshold,
+    )
+
+
+# =============================================================================
+# Historical Entity Lookup API (NEM-2500)
+# =============================================================================
+
+
+def _entity_model_to_summary(entity: Entity) -> EntitySummary:
+    """Convert a PostgreSQL Entity model to EntitySummary.
+
+    Args:
+        entity: Entity model instance from PostgreSQL
+
+    Returns:
+        EntitySummary with entity information
+    """
+    # Extract camera_id from entity_metadata if available
+    cameras_seen = []
+    if entity.entity_metadata and "camera_id" in entity.entity_metadata:
+        cameras_seen = [entity.entity_metadata["camera_id"]]
+
+    thumbnail_url = None
+    if entity.primary_detection_id:
+        thumbnail_url = _get_thumbnail_url(str(entity.primary_detection_id))
+
+    return EntitySummary(
+        id=str(entity.id),
+        entity_type=entity.entity_type,
+        first_seen=entity.first_seen_at,
+        last_seen=entity.last_seen_at,
+        appearance_count=entity.detection_count,
+        cameras_seen=cameras_seen,
+        thumbnail_url=thumbnail_url,
+    )
+
+
+async def _query_redis_entities(
+    entity_type: EntityTypeFilter | None,
+    camera_id: str | None,
+    since: datetime | None,
+    until: datetime | None,
+    reid_service: ReIdentificationService,
+) -> list[EntitySummary]:
+    """Query entities from Redis hot cache.
+
+    Args:
+        entity_type: Filter by entity type ('person' or 'vehicle')
+        camera_id: Filter by camera ID
+        since: Filter entities seen since this timestamp
+        until: Filter entities seen until this timestamp
+        reid_service: Re-identification service dependency
+
+    Returns:
+        List of EntitySummary from Redis
+    """
+    summaries: list[EntitySummary] = []
+    redis = await _get_redis_client()
+
+    if redis is None:
+        return summaries
+
+    # Determine which entity types to query
+    entity_types = [entity_type.value] if entity_type else ["person", "vehicle"]
+
+    # Collect all embeddings from Redis
+    all_embeddings: list[EntityEmbedding] = []
+    for etype in entity_types:
+        embeddings = await reid_service.get_entity_history(
+            redis_client=redis,
+            entity_type=etype,
+            camera_id=camera_id,
+        )
+        all_embeddings.extend(embeddings)
+
+    # Filter by since/until timestamps
+    all_embeddings = _filter_embeddings_by_time(all_embeddings, since, until)
+
+    # Group embeddings by detection_id and convert to summaries
+    entities_by_id: dict[str, list[EntityEmbedding]] = {}
+    for emb in all_embeddings:
+        entity_id = emb.detection_id
+        if entity_id not in entities_by_id:
+            entities_by_id[entity_id] = []
+        entities_by_id[entity_id].append(emb)
+
+    for entity_id, embeddings in entities_by_id.items():
+        try:
+            summary = _entity_to_summary(entity_id, embeddings)
+            summaries.append(summary)
+        except ValueError:
+            continue  # Skip empty entity groups
+
+    return summaries
+
+
+def _filter_embeddings_by_time(
+    embeddings: list[EntityEmbedding],
+    since: datetime | None,
+    until: datetime | None,
+) -> list[EntityEmbedding]:
+    """Filter embeddings by timestamp range.
+
+    Args:
+        embeddings: List of embeddings to filter
+        since: Start timestamp (inclusive)
+        until: End timestamp (inclusive)
+
+    Returns:
+        Filtered list of embeddings
+    """
+    if since:
+        embeddings = [e for e in embeddings if e.timestamp >= since]
+    if until:
+        embeddings = [e for e in embeddings if e.timestamp <= until]
+    return embeddings
+
+
+async def list_entities_with_source(
+    entity_type: EntityTypeFilter | None,
+    camera_id: str | None,
+    since: datetime | None,
+    until: datetime | None,
+    source: SourceFilter,
+    limit: int,
+    offset: int,
+    reid_service: ReIdentificationService,
+    hybrid_storage: HybridEntityStorage | None,
+) -> EntityListResponse:
+    """Internal implementation for listing entities with source filtering.
+
+    Args:
+        entity_type: Filter by entity type ('person' or 'vehicle')
+        camera_id: Filter by camera ID
+        since: Filter entities seen since this timestamp
+        until: Filter entities seen until this timestamp
+        source: Data source filter (redis, postgres, both)
+        limit: Maximum number of results
+        offset: Number of results to skip
+        reid_service: Re-identification service dependency
+        hybrid_storage: Hybrid storage service dependency (optional)
+
+    Returns:
+        EntityListResponse with filtered entities and pagination info
+    """
+    summaries: list[EntitySummary] = []
+
+    # Query Redis if source includes Redis
+    if source in (SourceFilter.redis, SourceFilter.both):
+        redis_summaries = await _query_redis_entities(
+            entity_type, camera_id, since, until, reid_service
+        )
+        summaries.extend(redis_summaries)
+
+    # Query PostgreSQL if source includes PostgreSQL
+    if source in (SourceFilter.postgres, SourceFilter.both) and hybrid_storage is not None:
+        entity_type_str = entity_type.value if entity_type else None
+        pg_entities, _total = await hybrid_storage.get_entities_by_timerange(
+            entity_type=entity_type_str,
+            since=since,
+            until=until,
+            limit=1000,  # Fetch more for merging
+            offset=0,
+        )
+
+        # Convert PostgreSQL entities to summaries
+        for entity in pg_entities:
+            summary = _entity_model_to_summary(entity)
+            summaries.append(summary)
+
+    # Deduplicate by ID (prefer newer entries)
+    seen_ids: set[str] = set()
+    unique_summaries: list[EntitySummary] = []
+    for summary in summaries:
+        if summary.id not in seen_ids:
+            seen_ids.add(summary.id)
+            unique_summaries.append(summary)
+
+    # Sort by last_seen (newest first)
+    unique_summaries.sort(key=lambda s: s.last_seen, reverse=True)
+
+    # Get total count before pagination
+    total_count = len(unique_summaries)
+
+    # Apply pagination
+    paginated = unique_summaries[offset : offset + limit]
+
+    # Determine if there are more results
+    has_more = (offset + limit) < total_count
+
+    return EntityListResponse(
+        items=paginated,
+        pagination=PaginationInfo(
+            total=total_count,
+            limit=limit,
+            offset=offset,
+            has_more=has_more,
+        ),
+    )
+
+
+@router.get(
+    "/v2",
+    response_model=EntityListResponse,
+    responses={
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def list_entities_v2(
+    entity_type: EntityTypeFilter | None = Query(
+        None, description="Filter by entity type: 'person' or 'vehicle'"
+    ),
+    camera_id: str | None = Query(None, description="Filter by camera ID"),
+    since: datetime | None = Query(None, description="Filter entities seen since this time"),
+    until: datetime | None = Query(None, description="Filter entities seen until this time"),
+    source: SourceFilter = Query(
+        SourceFilter.both, description="Data source: 'redis', 'postgres', or 'both'"
+    ),
+    limit: int = Query(50, ge=1, le=1000, description="Maximum number of results"),
+    offset: int = Query(0, ge=0, description="Number of results to skip"),
+    reid_service: ReIdentificationService = Depends(get_reid_service),
+    hybrid_storage: HybridEntityStorage = Depends(get_hybrid_entity_storage),
+) -> EntityListResponse:
+    """List tracked entities with historical query support.
+
+    Returns a paginated list of entities from Redis (hot cache) and/or
+    PostgreSQL (historical data). Use the source parameter to control
+    which backend to query.
+
+    Args:
+        entity_type: Filter by entity type ('person' or 'vehicle')
+        camera_id: Filter by camera ID
+        since: Filter entities seen since this timestamp
+        until: Filter entities seen until this timestamp
+        source: Data source ('redis', 'postgres', 'both') - default 'both'
+        limit: Maximum number of results (1-1000, default 50)
+        offset: Number of results to skip for pagination (default 0)
+        reid_service: Re-identification service dependency
+        hybrid_storage: Hybrid storage service dependency
+
+    Returns:
+        EntityListResponse with filtered entities and pagination info
+    """
+    return await list_entities_with_source(
+        entity_type=entity_type,
+        camera_id=camera_id,
+        since=since,
+        until=until,
+        source=source,
+        limit=limit,
+        offset=offset,
+        reid_service=reid_service,
+        hybrid_storage=hybrid_storage,
+    )
+
+
+async def get_entity_by_uuid(
+    entity_id: UUID,
+    hybrid_storage: HybridEntityStorage,
+) -> EntityDetail:
+    """Get entity by UUID from PostgreSQL.
+
+    Args:
+        entity_id: UUID of the entity
+        hybrid_storage: Hybrid storage service dependency
+
+    Returns:
+        EntityDetail with entity information
+
+    Raises:
+        HTTPException: 404 if entity not found
+    """
+    entity = await hybrid_storage.get_entity_full_history(entity_id)
+
+    if entity is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Entity with id '{entity_id}' not found",
+        )
+
+    # Extract cameras from metadata
+    cameras_seen = []
+    if entity.entity_metadata and "camera_id" in entity.entity_metadata:
+        cameras_seen = [entity.entity_metadata["camera_id"]]
+
+    thumbnail_url = None
+    if entity.primary_detection_id:
+        thumbnail_url = _get_thumbnail_url(str(entity.primary_detection_id))
+
+    return EntityDetail(
+        id=str(entity.id),
+        entity_type=entity.entity_type,
+        first_seen=entity.first_seen_at,
+        last_seen=entity.last_seen_at,
+        appearance_count=entity.detection_count,
+        cameras_seen=cameras_seen,
+        thumbnail_url=thumbnail_url,
+        appearances=[],  # Would require joining with detections table
+    )
+
+
+@router.get(
+    "/v2/{entity_id}",
+    response_model=EntityDetail,
+    responses={
+        404: {"description": "Entity not found"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def get_entity_v2(
+    entity_id: UUID,
+    hybrid_storage: HybridEntityStorage = Depends(get_hybrid_entity_storage),
+) -> EntityDetail:
+    """Get detailed information about a specific entity from PostgreSQL.
+
+    Returns the canonical PostgreSQL entity record with full history.
+    For real-time Redis entities, use the original /api/entities/{entity_id} endpoint.
+
+    Args:
+        entity_id: UUID of the entity
+        hybrid_storage: Hybrid storage service dependency
+
+    Returns:
+        EntityDetail with full entity information
+
+    Raises:
+        HTTPException: 404 if entity not found
+    """
+    return await get_entity_by_uuid(entity_id=entity_id, hybrid_storage=hybrid_storage)
+
+
+@router.get(
+    "/v2/{entity_id}/detections",
+    response_model=EntityDetectionsResponse,
+    responses={
+        404: {"description": "Entity not found"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def get_entity_detections(
+    entity_id: UUID,
+    limit: int = Query(50, ge=1, le=1000, description="Maximum number of results"),
+    offset: int = Query(0, ge=0, description="Number of results to skip"),
+    entity_repo: EntityRepository = Depends(get_entity_repository),
+) -> EntityDetectionsResponse:
+    """List all detections linked to an entity.
+
+    Returns paginated detections associated with the specified entity.
+
+    Args:
+        entity_id: UUID of the entity
+        limit: Maximum number of results (1-1000, default 50)
+        offset: Number of results to skip for pagination (default 0)
+        entity_repo: Entity repository dependency
+
+    Returns:
+        EntityDetectionsResponse with linked detections and pagination info
+
+    Raises:
+        HTTPException: 404 if entity not found
+    """
+    # First verify entity exists
+    entity = await entity_repo.get_by_id(entity_id)
+    if entity is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Entity with id '{entity_id}' not found",
+        )
+
+    # Get detections for this entity
+    detections, total = await entity_repo.get_detections_for_entity(
+        entity_id=entity_id,
+        limit=limit,
+        offset=offset,
+    )
+
+    # Convert to detection summaries
+    detection_summaries = [
+        DetectionSummary(
+            detection_id=det.id,
+            camera_id=det.camera_id,
+            camera_name=det.camera_id.replace("_", " ").title(),
+            timestamp=det.detected_at,
+            confidence=det.confidence,
+            thumbnail_url=f"/api/detections/{det.id}/image" if det.id else None,
+            object_type=det.object_type,
+        )
+        for det in detections
+    ]
+
+    has_more = (offset + limit) < total
+
+    return EntityDetectionsResponse(
+        entity_id=str(entity_id),
+        entity_type=entity.entity_type,
+        detections=detection_summaries,
+        pagination=PaginationInfo(
+            total=total,
+            limit=limit,
+            offset=offset,
+            has_more=has_more,
+        ),
+    )
+
+
+@router.get(
+    "/stats",
+    response_model=EntityStatsResponse,
+    responses={
+        500: {"description": "Internal server error"},
+    },
+)
+async def get_entity_stats(
+    since: datetime | None = Query(None, description="Filter entities seen since this time"),
+    until: datetime | None = Query(None, description="Filter entities seen until this time"),
+    entity_repo: EntityRepository = Depends(get_entity_repository),
+) -> EntityStatsResponse:
+    """Get aggregated entity statistics.
+
+    Returns statistics about tracked entities including counts by type,
+    camera, and repeat visitors.
+
+    Args:
+        since: Filter entities seen since this timestamp
+        until: Filter entities seen until this timestamp
+        entity_repo: Entity repository dependency
+
+    Returns:
+        EntityStatsResponse with aggregated statistics
+    """
+    # Get type counts
+    by_type = await entity_repo.get_type_counts()
+
+    # Get total detection count
+    total_appearances = await entity_repo.get_total_detection_count()
+
+    # Get camera counts
+    by_camera = await entity_repo.get_camera_counts()
+
+    # Get repeat visitor count
+    repeat_visitors = await entity_repo.get_repeat_visitor_count()
+
+    # Get total entity count
+    total_entities = await entity_repo.count()
+
+    # Build time range if filters provided
+    time_range = None
+    if since is not None or until is not None:
+        time_range = {"since": since, "until": until}
+
+    return EntityStatsResponse(
+        total_entities=total_entities,
+        total_appearances=total_appearances,
+        by_type=by_type,
+        by_camera=by_camera,
+        repeat_visitors=repeat_visitors,
+        time_range=time_range,
     )

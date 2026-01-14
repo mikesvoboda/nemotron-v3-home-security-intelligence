@@ -26,6 +26,7 @@ import json
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
+from uuid import UUID
 
 import numpy as np
 
@@ -41,6 +42,8 @@ from backend.services.clip_client import CLIPClient, CLIPUnavailableError, get_c
 if TYPE_CHECKING:
     from PIL import Image
     from redis.asyncio import Redis
+
+    from backend.services.hybrid_entity_storage import HybridEntityStorage
 
 logger = get_logger(__name__)
 
@@ -255,6 +258,7 @@ class ReIdentificationService:
         max_concurrent_requests: int | None = None,
         embedding_timeout: float | None = None,
         max_retries: int | None = None,
+        hybrid_storage: HybridEntityStorage | None = None,
     ) -> None:
         """Initialize the ReIdentificationService.
 
@@ -270,8 +274,12 @@ class ReIdentificationService:
             max_retries: Maximum retry attempts for transient failures.
                         If not provided, uses the value from settings
                         (REID_MAX_RETRIES, default: 3).
+            hybrid_storage: Optional HybridEntityStorage instance for PostgreSQL
+                        persistence. If provided, enables storing and searching
+                        entities in both Redis and PostgreSQL (NEM-2499).
         """
         self._clip_client = clip_client
+        self._hybrid_storage = hybrid_storage
 
         # Get settings for defaults
         settings = get_settings()
@@ -298,10 +306,11 @@ class ReIdentificationService:
 
         logger.info(
             "ReIdentificationService initialized with max_concurrent_requests=%d, "
-            "embedding_timeout=%.1fs, max_retries=%d",
+            "embedding_timeout=%.1fs, max_retries=%d, hybrid_storage=%s",
             self._max_concurrent_requests,
             self._embedding_timeout,
             self._max_retries,
+            "enabled" if hybrid_storage else "disabled",
         )
 
     @property
@@ -323,6 +332,19 @@ class ReIdentificationService:
         if self._clip_client is None:
             return get_clip_client()
         return self._clip_client
+
+    @property
+    def hybrid_storage(self) -> HybridEntityStorage | None:
+        """Get the HybridEntityStorage instance.
+
+        Returns:
+            HybridEntityStorage instance if configured, None otherwise.
+            When configured, enables storing and searching entities in both
+            Redis (hot cache) and PostgreSQL (persistence).
+
+        Related to NEM-2499: Update ReIdentificationService to Use Hybrid Storage.
+        """
+        return self._hybrid_storage
 
     async def generate_embedding(  # noqa: PLR0912
         self,
@@ -469,16 +491,27 @@ class ReIdentificationService:
         self,
         redis_client: Redis | Any,
         embedding: EntityEmbedding,
-    ) -> None:
-        """Store an entity embedding in Redis.
+        persist_to_postgres: bool = True,
+    ) -> UUID | None:
+        """Store an entity embedding in Redis, optionally with PostgreSQL persistence.
 
-        Embeddings are stored with 24-hour TTL for session-based tracking.
+        Embeddings are stored with 24-hour TTL for session-based tracking in Redis.
+        When persist_to_postgres=True and hybrid_storage is configured, also stores
+        the embedding in PostgreSQL for 30-day retention.
 
         This method is rate-limited to prevent resource exhaustion.
 
         Args:
             redis_client: Redis client instance (raw Redis or RedisClient wrapper)
             embedding: EntityEmbedding to store
+            persist_to_postgres: If True and hybrid_storage is configured, also
+                persist to PostgreSQL. Defaults to True. (NEM-2499)
+
+        Returns:
+            Entity UUID if persisted to PostgreSQL, None if Redis-only or
+            if hybrid_storage is not configured.
+
+        Related to NEM-2499: Update ReIdentificationService to Use Hybrid Storage.
         """
         async with self._rate_limit_semaphore:
             date_key = embedding.timestamp.strftime("%Y-%m-%d")
@@ -516,6 +549,44 @@ class ReIdentificationService:
                 logger.error(f"Failed to store embedding: {e}")
                 raise
 
+            # Persist to PostgreSQL via hybrid storage if configured (NEM-2499)
+            if persist_to_postgres and self._hybrid_storage:
+                try:
+                    # Parse detection_id to int if possible (for PostgreSQL storage)
+                    detection_id = (
+                        int(embedding.detection_id) if embedding.detection_id.isdigit() else 0
+                    )
+
+                    entity_id, _is_new = await self._hybrid_storage.store_detection_embedding(
+                        detection_id=detection_id,
+                        entity_type=embedding.entity_type,
+                        embedding=embedding.embedding,
+                        camera_id=embedding.camera_id,
+                        timestamp=embedding.timestamp,
+                        attributes=embedding.attributes,
+                    )
+
+                    logger.debug(
+                        "Persisted %s embedding to PostgreSQL for camera %s (entity_id=%s)",
+                        embedding.entity_type,
+                        embedding.camera_id,
+                        entity_id,
+                    )
+
+                    return entity_id
+
+                except Exception as e:
+                    # Log warning but don't fail - Redis storage succeeded
+                    logger.warning(
+                        "Failed to persist %s embedding to PostgreSQL for camera %s: %s",
+                        embedding.entity_type,
+                        embedding.camera_id,
+                        str(e),
+                    )
+                    return None
+
+            return None
+
     async def find_matching_entities(
         self,
         redis_client: Redis,
@@ -523,6 +594,7 @@ class ReIdentificationService:
         entity_type: str = "person",
         threshold: float = DEFAULT_SIMILARITY_THRESHOLD,
         exclude_detection_id: str | None = None,
+        include_historical: bool = False,
     ) -> list[EntityMatch]:
         """Find entities matching the given embedding.
 
@@ -532,20 +604,73 @@ class ReIdentificationService:
         Instead of computing similarities one-by-one, we collect all candidate
         embeddings and compute similarities in a single vectorized operation.
 
+        NEM-2499: When include_historical=True and hybrid_storage is configured,
+        uses HybridEntityStorage for combined Redis + PostgreSQL search.
+
         Args:
             redis_client: Redis client instance
             embedding: 768-dimensional embedding to match
             entity_type: Type of entity to search ("person" or "vehicle")
             threshold: Minimum cosine similarity threshold (default 0.85)
             exclude_detection_id: Optional detection ID to exclude from results
+            include_historical: If True and hybrid_storage is configured, search
+                both Redis and PostgreSQL. Defaults to False. (NEM-2499)
 
         Returns:
             List of EntityMatch objects sorted by similarity (highest first)
+
+        Related to NEM-2499: Update ReIdentificationService to Use Hybrid Storage.
         """
         async with self._rate_limit_semaphore:
             matches: list[EntityMatch] = []
             now = datetime.now(UTC)
 
+            # Use hybrid storage for combined Redis + PostgreSQL search (NEM-2499)
+            if include_historical and self._hybrid_storage:
+                try:
+                    hybrid_matches = await self._hybrid_storage.find_matches(
+                        embedding=embedding,
+                        entity_type=entity_type,
+                        threshold=threshold,
+                        exclude_detection_id=exclude_detection_id,
+                        include_historical=include_historical,
+                    )
+
+                    # Convert HybridEntityMatch to EntityMatch for backward compatibility
+                    for hybrid_match in hybrid_matches:
+                        entity_embedding = EntityEmbedding(
+                            entity_type=hybrid_match.entity_type,
+                            embedding=hybrid_match.embedding,
+                            camera_id=hybrid_match.camera_id,
+                            timestamp=hybrid_match.timestamp,
+                            detection_id=hybrid_match.detection_id or str(hybrid_match.entity_id),
+                            attributes=hybrid_match.attributes,
+                        )
+                        matches.append(
+                            EntityMatch(
+                                entity=entity_embedding,
+                                similarity=hybrid_match.similarity,
+                                time_gap_seconds=hybrid_match.time_gap_seconds,
+                            )
+                        )
+
+                    logger.debug(
+                        "Found %d hybrid matches for %s (threshold=%.2f, include_historical=%s)",
+                        len(matches),
+                        entity_type,
+                        threshold,
+                        include_historical,
+                    )
+                    return matches
+
+                except Exception as e:
+                    logger.warning(
+                        "Hybrid storage search failed, falling back to Redis-only: %s",
+                        str(e),
+                    )
+                    # Fall through to Redis-only search
+
+            # Redis-only search (original behavior)
             try:
                 # Check today's and yesterday's embeddings
                 today = now.strftime("%Y-%m-%d")

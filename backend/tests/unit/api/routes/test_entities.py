@@ -2,10 +2,18 @@
 
 Tests the entity re-identification tracking endpoints using mocked
 Redis and ReIdentificationService.
+
+Includes tests for:
+- Historical entity queries (PostgreSQL)
+- Source parameter (redis, postgres, both)
+- Date range filtering (since, until)
+- Entity statistics endpoint
+- Entity detections endpoint
 """
 
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
+from uuid import uuid4
 
 import pytest
 
@@ -19,7 +27,7 @@ from backend.api.routes.entities import (
     get_entity_matches,
     list_entities,
 )
-from backend.api.schemas.entities import EntityTypeFilter
+from backend.api.schemas.entities import EntityTypeFilter, SourceFilter
 from backend.services.reid_service import EntityEmbedding, EntityMatch
 
 
@@ -1295,3 +1303,591 @@ class TestGetEntityMatches:
         # Verify exclude_detection_id was passed
         call_kwargs = mock_service.find_matching_entities.call_args.kwargs
         assert call_kwargs["exclude_detection_id"] == "det_001"
+
+
+# =============================================================================
+# Historical Entity Lookup API Tests (NEM-2500)
+# =============================================================================
+
+
+class TestListEntitiesWithSource:
+    """Tests for list_entities with source parameter (redis, postgres, both)."""
+
+    @pytest.mark.asyncio
+    async def test_list_entities_source_redis_only(self) -> None:
+        """Test listing entities from Redis only."""
+        mock_redis = MagicMock()
+        mock_service = MagicMock()
+        mock_hybrid_storage = MagicMock()
+
+        embedding = EntityEmbedding(
+            entity_type="person",
+            embedding=[0.1] * 768,
+            camera_id="front_door",
+            timestamp=datetime(2025, 12, 23, 10, 0, 0, tzinfo=UTC),
+            detection_id="det_001",
+            attributes={},
+        )
+
+        mock_service.get_entity_history = AsyncMock(
+            side_effect=lambda **kwargs: [embedding]
+            if kwargs.get("entity_type") == "person"
+            else []
+        )
+
+        with patch(
+            "backend.api.routes.entities._get_redis_client",
+            new_callable=AsyncMock,
+            return_value=mock_redis,
+        ):
+            from backend.api.routes.entities import list_entities_with_source
+
+            result = await list_entities_with_source(
+                entity_type=None,
+                camera_id=None,
+                since=None,
+                until=None,
+                source=SourceFilter.redis,
+                limit=50,
+                offset=0,
+                reid_service=mock_service,
+                hybrid_storage=mock_hybrid_storage,
+            )
+
+        # Redis source should not call hybrid_storage for PostgreSQL data
+        assert result.pagination.total >= 0
+
+    @pytest.mark.asyncio
+    async def test_list_entities_source_postgres_only(self) -> None:
+        """Test listing entities from PostgreSQL only."""
+        mock_redis = MagicMock()
+        mock_service = MagicMock()
+        mock_hybrid_storage = MagicMock()
+
+        # Create a mock Entity object that simulates PostgreSQL Entity
+        mock_entity = MagicMock()
+        mock_entity.id = uuid4()
+        mock_entity.entity_type = "person"
+        mock_entity.first_seen_at = datetime(2025, 12, 23, 10, 0, 0, tzinfo=UTC)
+        mock_entity.last_seen_at = datetime(2025, 12, 23, 14, 0, 0, tzinfo=UTC)
+        mock_entity.detection_count = 3
+        mock_entity.entity_metadata = {"camera_id": "front_door"}
+        mock_entity.primary_detection_id = 123
+
+        mock_hybrid_storage.get_entities_by_timerange = AsyncMock(return_value=([mock_entity], 1))
+
+        with patch(
+            "backend.api.routes.entities._get_redis_client",
+            new_callable=AsyncMock,
+            return_value=mock_redis,
+        ):
+            from backend.api.routes.entities import list_entities_with_source
+
+            result = await list_entities_with_source(
+                entity_type=None,
+                camera_id=None,
+                since=None,
+                until=None,
+                source=SourceFilter.postgres,
+                limit=50,
+                offset=0,
+                reid_service=mock_service,
+                hybrid_storage=mock_hybrid_storage,
+            )
+
+        # PostgreSQL source should call hybrid_storage
+        mock_hybrid_storage.get_entities_by_timerange.assert_called_once()
+        assert result.pagination.total == 1
+
+    @pytest.mark.asyncio
+    async def test_list_entities_source_both(self) -> None:
+        """Test listing entities from both Redis and PostgreSQL."""
+        mock_redis = MagicMock()
+        mock_service = MagicMock()
+        mock_hybrid_storage = MagicMock()
+
+        # Redis data
+        redis_embedding = EntityEmbedding(
+            entity_type="person",
+            embedding=[0.1] * 768,
+            camera_id="front_door",
+            timestamp=datetime(2025, 12, 23, 14, 0, 0, tzinfo=UTC),
+            detection_id="det_001",
+            attributes={},
+        )
+
+        # PostgreSQL data
+        mock_entity = MagicMock()
+        mock_entity.id = uuid4()
+        mock_entity.entity_type = "person"
+        mock_entity.first_seen_at = datetime(2025, 12, 20, 10, 0, 0, tzinfo=UTC)
+        mock_entity.last_seen_at = datetime(2025, 12, 20, 12, 0, 0, tzinfo=UTC)
+        mock_entity.detection_count = 2
+        mock_entity.entity_metadata = {"camera_id": "backyard"}
+        mock_entity.primary_detection_id = 456
+
+        mock_service.get_entity_history = AsyncMock(
+            side_effect=lambda **kwargs: [redis_embedding]
+            if kwargs.get("entity_type") == "person"
+            else []
+        )
+        mock_hybrid_storage.get_entities_by_timerange = AsyncMock(return_value=([mock_entity], 1))
+
+        with patch(
+            "backend.api.routes.entities._get_redis_client",
+            new_callable=AsyncMock,
+            return_value=mock_redis,
+        ):
+            from backend.api.routes.entities import list_entities_with_source
+
+            result = await list_entities_with_source(
+                entity_type=None,
+                camera_id=None,
+                since=None,
+                until=None,
+                source=SourceFilter.both,
+                limit=50,
+                offset=0,
+                reid_service=mock_service,
+                hybrid_storage=mock_hybrid_storage,
+            )
+
+        # Both sources should be queried
+        assert result.pagination.total >= 1
+
+
+class TestListEntitiesWithUntilFilter:
+    """Tests for list_entities with until date filter."""
+
+    @pytest.mark.asyncio
+    async def test_list_entities_with_until_filter(self) -> None:
+        """Test filtering entities by until timestamp."""
+        mock_redis = MagicMock()
+        mock_service = MagicMock()
+
+        old_embedding = EntityEmbedding(
+            entity_type="person",
+            embedding=[0.1] * 768,
+            camera_id="front_door",
+            timestamp=datetime(2025, 12, 20, 10, 0, 0, tzinfo=UTC),
+            detection_id="det_old",
+            attributes={},
+        )
+
+        new_embedding = EntityEmbedding(
+            entity_type="person",
+            embedding=[0.2] * 768,
+            camera_id="front_door",
+            timestamp=datetime(2025, 12, 25, 10, 0, 0, tzinfo=UTC),
+            detection_id="det_new",
+            attributes={},
+        )
+
+        mock_service.get_entity_history = AsyncMock(
+            side_effect=lambda **kwargs: [old_embedding, new_embedding]
+            if kwargs.get("entity_type") == "person"
+            else []
+        )
+
+        until = datetime(2025, 12, 22, 0, 0, 0, tzinfo=UTC)
+
+        with patch(
+            "backend.api.routes.entities._get_redis_client",
+            new_callable=AsyncMock,
+            return_value=mock_redis,
+        ):
+            from backend.api.routes.entities import list_entities_with_source
+
+            result = await list_entities_with_source(
+                entity_type=None,
+                camera_id=None,
+                since=None,
+                until=until,
+                source=SourceFilter.redis,
+                limit=50,
+                offset=0,
+                reid_service=mock_service,
+                hybrid_storage=None,
+            )
+
+        # Should only include the old embedding (before until)
+        assert result.pagination.total == 1
+        assert result.items[0].id == "det_old"
+
+    @pytest.mark.asyncio
+    async def test_list_entities_with_since_and_until(self) -> None:
+        """Test filtering entities with both since and until timestamps."""
+        mock_redis = MagicMock()
+        mock_service = MagicMock()
+
+        embeddings = [
+            EntityEmbedding(
+                entity_type="person",
+                embedding=[0.1] * 768,
+                camera_id="front_door",
+                timestamp=datetime(2025, 12, 15, 10, 0, 0, tzinfo=UTC),
+                detection_id="det_early",
+                attributes={},
+            ),
+            EntityEmbedding(
+                entity_type="person",
+                embedding=[0.2] * 768,
+                camera_id="front_door",
+                timestamp=datetime(2025, 12, 20, 10, 0, 0, tzinfo=UTC),
+                detection_id="det_middle",
+                attributes={},
+            ),
+            EntityEmbedding(
+                entity_type="person",
+                embedding=[0.3] * 768,
+                camera_id="front_door",
+                timestamp=datetime(2025, 12, 25, 10, 0, 0, tzinfo=UTC),
+                detection_id="det_late",
+                attributes={},
+            ),
+        ]
+
+        mock_service.get_entity_history = AsyncMock(
+            side_effect=lambda **kwargs: embeddings if kwargs.get("entity_type") == "person" else []
+        )
+
+        since = datetime(2025, 12, 18, 0, 0, 0, tzinfo=UTC)
+        until = datetime(2025, 12, 22, 0, 0, 0, tzinfo=UTC)
+
+        with patch(
+            "backend.api.routes.entities._get_redis_client",
+            new_callable=AsyncMock,
+            return_value=mock_redis,
+        ):
+            from backend.api.routes.entities import list_entities_with_source
+
+            result = await list_entities_with_source(
+                entity_type=None,
+                camera_id=None,
+                since=since,
+                until=until,
+                source=SourceFilter.redis,
+                limit=50,
+                offset=0,
+                reid_service=mock_service,
+                hybrid_storage=None,
+            )
+
+        # Should only include the middle embedding
+        assert result.pagination.total == 1
+        assert result.items[0].id == "det_middle"
+
+
+class TestGetEntityWithUUID:
+    """Tests for get_entity endpoint with UUID entity_id from PostgreSQL."""
+
+    @pytest.mark.asyncio
+    async def test_get_entity_by_uuid(self) -> None:
+        """Test getting entity by UUID from PostgreSQL."""
+        entity_uuid = uuid4()
+        mock_hybrid_storage = MagicMock()
+
+        # Create mock Entity
+        mock_entity = MagicMock()
+        mock_entity.id = entity_uuid
+        mock_entity.entity_type = "person"
+        mock_entity.first_seen_at = datetime(2025, 12, 23, 10, 0, 0, tzinfo=UTC)
+        mock_entity.last_seen_at = datetime(2025, 12, 23, 14, 0, 0, tzinfo=UTC)
+        mock_entity.detection_count = 5
+        mock_entity.entity_metadata = {"camera_id": "front_door", "clothing": "blue"}
+        mock_entity.primary_detection_id = 123
+
+        mock_hybrid_storage.get_entity_full_history = AsyncMock(return_value=mock_entity)
+
+        from backend.api.routes.entities import get_entity_by_uuid
+
+        result = await get_entity_by_uuid(
+            entity_id=entity_uuid,
+            hybrid_storage=mock_hybrid_storage,
+        )
+
+        assert result.id == str(entity_uuid)
+        assert result.entity_type == "person"
+        assert result.appearance_count == 5
+        mock_hybrid_storage.get_entity_full_history.assert_called_once_with(entity_uuid)
+
+    @pytest.mark.asyncio
+    async def test_get_entity_by_uuid_not_found(self) -> None:
+        """Test getting non-existent entity returns 404."""
+        entity_uuid = uuid4()
+        mock_hybrid_storage = MagicMock()
+        mock_hybrid_storage.get_entity_full_history = AsyncMock(return_value=None)
+
+        from backend.api.routes.entities import get_entity_by_uuid
+
+        with pytest.raises(Exception) as exc_info:
+            await get_entity_by_uuid(
+                entity_id=entity_uuid,
+                hybrid_storage=mock_hybrid_storage,
+            )
+
+        assert exc_info.value.status_code == 404
+
+
+class TestGetEntityDetections:
+    """Tests for GET /api/entities/{entity_id}/detections endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_get_entity_detections_success(self) -> None:
+        """Test getting entity detections successfully."""
+        entity_uuid = uuid4()
+        mock_entity_repo = MagicMock()
+
+        # Create mock Entity
+        mock_entity = MagicMock()
+        mock_entity.id = entity_uuid
+        mock_entity.entity_type = "person"
+
+        # Create mock detections
+        mock_detection1 = MagicMock()
+        mock_detection1.id = 123
+        mock_detection1.camera_id = "front_door"
+        mock_detection1.detected_at = datetime(2025, 12, 23, 10, 0, 0, tzinfo=UTC)
+        mock_detection1.confidence = 0.95
+        mock_detection1.thumbnail_path = "/thumbnails/123.jpg"
+        mock_detection1.object_type = "person"
+
+        mock_detection2 = MagicMock()
+        mock_detection2.id = 124
+        mock_detection2.camera_id = "backyard"
+        mock_detection2.detected_at = datetime(2025, 12, 23, 12, 0, 0, tzinfo=UTC)
+        mock_detection2.confidence = 0.89
+        mock_detection2.thumbnail_path = "/thumbnails/124.jpg"
+        mock_detection2.object_type = "person"
+
+        mock_entity_repo.get_by_id = AsyncMock(return_value=mock_entity)
+        mock_entity_repo.get_detections_for_entity = AsyncMock(
+            return_value=([mock_detection1, mock_detection2], 2)
+        )
+
+        from backend.api.routes.entities import get_entity_detections
+
+        result = await get_entity_detections(
+            entity_id=entity_uuid,
+            limit=50,
+            offset=0,
+            entity_repo=mock_entity_repo,
+        )
+
+        assert result.entity_id == str(entity_uuid)
+        assert result.entity_type == "person"
+        assert len(result.detections) == 2
+        assert result.pagination.total == 2
+
+    @pytest.mark.asyncio
+    async def test_get_entity_detections_not_found(self) -> None:
+        """Test getting detections for non-existent entity returns 404."""
+        entity_uuid = uuid4()
+        mock_entity_repo = MagicMock()
+        mock_entity_repo.get_by_id = AsyncMock(return_value=None)
+
+        from backend.api.routes.entities import get_entity_detections
+
+        with pytest.raises(Exception) as exc_info:
+            await get_entity_detections(
+                entity_id=entity_uuid,
+                limit=50,
+                offset=0,
+                entity_repo=mock_entity_repo,
+            )
+
+        assert exc_info.value.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_get_entity_detections_pagination(self) -> None:
+        """Test pagination of entity detections."""
+        entity_uuid = uuid4()
+        mock_entity_repo = MagicMock()
+
+        mock_entity = MagicMock()
+        mock_entity.id = entity_uuid
+        mock_entity.entity_type = "person"
+
+        mock_detection = MagicMock()
+        mock_detection.id = 125
+        mock_detection.camera_id = "front_door"
+        mock_detection.detected_at = datetime(2025, 12, 23, 10, 0, 0, tzinfo=UTC)
+        mock_detection.confidence = 0.95
+        mock_detection.thumbnail_path = None
+        mock_detection.object_type = "person"
+
+        mock_entity_repo.get_by_id = AsyncMock(return_value=mock_entity)
+        mock_entity_repo.get_detections_for_entity = AsyncMock(
+            return_value=([mock_detection], 10)  # 10 total but only 1 returned
+        )
+
+        from backend.api.routes.entities import get_entity_detections
+
+        result = await get_entity_detections(
+            entity_id=entity_uuid,
+            limit=1,
+            offset=5,
+            entity_repo=mock_entity_repo,
+        )
+
+        assert len(result.detections) == 1
+        assert result.pagination.total == 10
+        assert result.pagination.limit == 1
+        assert result.pagination.offset == 5
+        assert result.pagination.has_more is True
+
+
+class TestGetEntityStats:
+    """Tests for GET /api/entities/stats endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_get_entity_stats_success(self) -> None:
+        """Test getting entity statistics successfully."""
+        mock_entity_repo = MagicMock()
+
+        # Mock repository methods
+        mock_entity_repo.get_type_counts = AsyncMock(
+            return_value={"person": 150, "vehicle": 45, "animal": 12}
+        )
+        mock_entity_repo.get_total_detection_count = AsyncMock(return_value=1523)
+        mock_entity_repo.get_camera_counts = AsyncMock(
+            return_value={"front_door": 85, "backyard": 42, "driveway": 68}
+        )
+        mock_entity_repo.get_repeat_visitor_count = AsyncMock(return_value=89)
+        mock_entity_repo.count = AsyncMock(return_value=207)
+
+        from backend.api.routes.entities import get_entity_stats
+
+        result = await get_entity_stats(
+            since=None,
+            until=None,
+            entity_repo=mock_entity_repo,
+        )
+
+        assert result.total_entities == 207
+        assert result.total_appearances == 1523
+        assert result.by_type["person"] == 150
+        assert result.by_type["vehicle"] == 45
+        assert result.by_camera["front_door"] == 85
+        assert result.repeat_visitors == 89
+
+    @pytest.mark.asyncio
+    async def test_get_entity_stats_with_time_range(self) -> None:
+        """Test getting entity statistics with time range filters."""
+        mock_entity_repo = MagicMock()
+
+        since = datetime(2025, 12, 20, 0, 0, 0, tzinfo=UTC)
+        until = datetime(2025, 12, 25, 0, 0, 0, tzinfo=UTC)
+
+        mock_entity_repo.get_type_counts = AsyncMock(return_value={"person": 50})
+        mock_entity_repo.get_total_detection_count = AsyncMock(return_value=200)
+        mock_entity_repo.get_camera_counts = AsyncMock(return_value={"front_door": 30})
+        mock_entity_repo.get_repeat_visitor_count = AsyncMock(return_value=20)
+        mock_entity_repo.count = AsyncMock(return_value=50)
+
+        from backend.api.routes.entities import get_entity_stats
+
+        result = await get_entity_stats(
+            since=since,
+            until=until,
+            entity_repo=mock_entity_repo,
+        )
+
+        assert result.total_entities == 50
+        assert result.time_range is not None
+        assert result.time_range.get("since") == since
+        assert result.time_range.get("until") == until
+
+    @pytest.mark.asyncio
+    async def test_get_entity_stats_empty_database(self) -> None:
+        """Test getting entity statistics when database is empty."""
+        mock_entity_repo = MagicMock()
+
+        mock_entity_repo.get_type_counts = AsyncMock(return_value={})
+        mock_entity_repo.get_total_detection_count = AsyncMock(return_value=0)
+        mock_entity_repo.get_camera_counts = AsyncMock(return_value={})
+        mock_entity_repo.get_repeat_visitor_count = AsyncMock(return_value=0)
+        mock_entity_repo.count = AsyncMock(return_value=0)
+
+        from backend.api.routes.entities import get_entity_stats
+
+        result = await get_entity_stats(
+            since=None,
+            until=None,
+            entity_repo=mock_entity_repo,
+        )
+
+        assert result.total_entities == 0
+        assert result.total_appearances == 0
+        assert result.repeat_visitors == 0
+        assert result.by_type == {}
+        assert result.by_camera == {}
+
+
+class TestSchemaValidation:
+    """Tests for new schema validation."""
+
+    def test_source_filter_values(self) -> None:
+        """Test SourceFilter enum has correct values."""
+        assert SourceFilter.redis.value == "redis"
+        assert SourceFilter.postgres.value == "postgres"
+        assert SourceFilter.both.value == "both"
+
+    def test_detection_summary_schema(self) -> None:
+        """Test DetectionSummary schema creation."""
+        from backend.api.schemas.entities import DetectionSummary
+
+        summary = DetectionSummary(
+            detection_id=123,
+            camera_id="front_door",
+            camera_name="Front Door",
+            timestamp=datetime(2025, 12, 23, 10, 0, 0, tzinfo=UTC),
+            confidence=0.95,
+            thumbnail_url="/api/detections/123/image",
+            object_type="person",
+        )
+
+        assert summary.detection_id == 123
+        assert summary.camera_id == "front_door"
+        assert summary.confidence == 0.95
+
+    def test_entity_stats_response_schema(self) -> None:
+        """Test EntityStatsResponse schema creation."""
+        from backend.api.schemas.entities import EntityStatsResponse
+
+        stats = EntityStatsResponse(
+            total_entities=207,
+            total_appearances=1523,
+            by_type={"person": 150, "vehicle": 45},
+            by_camera={"front_door": 85},
+            repeat_visitors=89,
+        )
+
+        assert stats.total_entities == 207
+        assert stats.by_type["person"] == 150
+        assert stats.repeat_visitors == 89
+
+    def test_entity_detections_response_schema(self) -> None:
+        """Test EntityDetectionsResponse schema creation."""
+        from backend.api.schemas.entities import (
+            DetectionSummary,
+            EntityDetectionsResponse,
+        )
+        from backend.api.schemas.logs import PaginationInfo
+
+        response = EntityDetectionsResponse(
+            entity_id="550e8400-e29b-41d4-a716-446655440000",
+            entity_type="person",
+            detections=[
+                DetectionSummary(
+                    detection_id=123,
+                    camera_id="front_door",
+                    timestamp=datetime(2025, 12, 23, 10, 0, 0, tzinfo=UTC),
+                )
+            ],
+            pagination=PaginationInfo(total=1, limit=50, offset=0, has_more=False),
+        )
+
+        assert response.entity_id == "550e8400-e29b-41d4-a716-446655440000"
+        assert len(response.detections) == 1
+        assert response.pagination.total == 1

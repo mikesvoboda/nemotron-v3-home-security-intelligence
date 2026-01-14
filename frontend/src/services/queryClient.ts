@@ -487,6 +487,32 @@ export const queryKeys = {
     detail: (id: string) => [...queryKeys.entities.all, 'detail', id] as const,
     /** Entity history */
     history: (id: string) => [...queryKeys.entities.all, 'history', id] as const,
+    /** V2 API - historical entities */
+    v2: {
+      /** V2 entity list with source filter */
+      list: (filters?: {
+        entity_type?: string;
+        camera_id?: string;
+        since?: string;
+        until?: string;
+        source?: string;
+      }) =>
+        filters
+          ? ([...queryKeys.entities.all, 'v2', 'list', filters] as const)
+          : ([...queryKeys.entities.all, 'v2', 'list'] as const),
+      /** V2 entity detail (PostgreSQL) */
+      detail: (id: string) => [...queryKeys.entities.all, 'v2', 'detail', id] as const,
+      /** Entity detections */
+      detections: (id: string, params?: { limit?: number; offset?: number }) =>
+        params
+          ? ([...queryKeys.entities.all, 'v2', 'detections', id, params] as const)
+          : ([...queryKeys.entities.all, 'v2', 'detections', id] as const),
+    },
+    /** Entity statistics */
+    stats: (params?: { since?: string; until?: string }) =>
+      params
+        ? ([...queryKeys.entities.all, 'stats', params] as const)
+        : ([...queryKeys.entities.all, 'stats'] as const),
   },
 
   /**
