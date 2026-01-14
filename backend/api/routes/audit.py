@@ -50,6 +50,12 @@ async def list_audit_logs(  # noqa: PLR0912
     limit: int = Query(100, ge=1, le=1000, description="Page size"),
     offset: int = Query(0, ge=0, description="Number of results to skip (deprecated, use cursor)"),
     cursor: str | None = Query(None, description="Pagination cursor from previous response"),
+    include_total_count: bool = Query(
+        False,
+        description="Include total count in response. Defaults to False for performance. "
+        "Total count queries are expensive for large datasets. For cursor-based pagination, "
+        "has_more and next_cursor provide sufficient information without the total count.",
+    ),
     db: AsyncSession = Depends(get_db),
 ) -> AuditLogListResponse:
     """List audit logs with optional filtering and cursor-based pagination.
@@ -58,6 +64,11 @@ async def list_audit_logs(  # noqa: PLR0912
 
     Supports both cursor-based pagination (recommended) and offset pagination (deprecated).
     Cursor-based pagination offers better performance for large datasets.
+
+    **Performance Note:** Total count queries are expensive for large datasets. By default,
+    the total count is not calculated (returns 0). Use `include_total_count=true` only when
+    the total count is needed (e.g., for displaying "X of Y results" in UI). For pagination,
+    `has_more` and `next_cursor` provide sufficient information.
 
     Args:
         action: Optional action type to filter by
@@ -70,6 +81,7 @@ async def list_audit_logs(  # noqa: PLR0912
         limit: Maximum number of results to return (1-1000, default 100)
         offset: Number of results to skip (deprecated, use cursor instead)
         cursor: Pagination cursor from previous response's next_cursor field
+        include_total_count: Whether to calculate total count (default False for performance)
         db: Database session
 
     Returns:
@@ -122,10 +134,11 @@ async def list_audit_logs(  # noqa: PLR0912
             | ((AuditLog.timestamp == cursor_data.created_at) & (AuditLog.id < cursor_data.id))
         )
 
-    # Get total count (before pagination) - only when not using cursor
-    # With cursor pagination, total count becomes expensive and less meaningful
+    # Get total count only when explicitly requested (NEM-2601 optimization)
+    # Total count queries are expensive for large datasets. For cursor-based pagination,
+    # has_more and next_cursor provide sufficient information without the total count.
     total_count: int = 0
-    if not cursor_data:
+    if include_total_count:
         count_query = select(func.count()).select_from(query.subquery())
         count_result = await db.execute(count_query)
         total_count = count_result.scalar() or 0
