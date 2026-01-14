@@ -1,7 +1,6 @@
 """SQLAlchemy models for home security intelligence system."""
 
 from .alert import Alert, AlertRule, AlertSeverity, AlertStatus
-from .api_key import APIKey
 from .audit import AuditAction, AuditLog, AuditStatus
 from .baseline import ActivityBaseline, ClassBaseline
 from .camera import Base, Camera
@@ -33,7 +32,6 @@ from .user_calibration import UserCalibration
 from .zone import Zone, ZoneShape, ZoneType
 
 __all__ = [
-    "APIKey",
     "ActivityBaseline",
     "Alert",
     "AlertRule",

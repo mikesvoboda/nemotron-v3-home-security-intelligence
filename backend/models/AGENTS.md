@@ -62,7 +62,6 @@ backend/models/
 - `AuditLog`, `AuditAction`, `AuditStatus` - Audit trail model and enums
 - `GPUStats` - GPU performance metrics model
 - `Log` - Structured application log model
-- `APIKey` - API key authentication model
 - `PromptConfig` - Current AI prompt configuration model (user-editable, exported via `__init__.py`)
 - `PromptVersion`, `AIModel` - Prompt version tracking model and enum (not re-exported via `__init__.py` - import directly from `backend.models.prompt_version`)
 - `SceneChange`, `SceneChangeType` - Scene change detection model and enum
@@ -633,24 +632,6 @@ Maps risk scores to severity levels (configurable thresholds):
 - Written by `DatabaseHandler` in `backend/core/logging.py`
 - Frontend logs submitted via `POST /api/logs/frontend` endpoint
 
-## `api_key.py` - API Key Model
-
-**Model:** `APIKey`
-**Table:** `api_keys`
-**Purpose:** Manages API key authentication when enabled in settings
-
-**Fields:**
-
-| Field        | Type                            | Description                         |
-| ------------ | ------------------------------- | ----------------------------------- |
-| `id`         | int (PK, autoincrement)         | Unique API key record ID            |
-| `key_hash`   | str (64 chars, unique, indexed) | SHA-256 hash of the API key         |
-| `name`       | str (100 chars)                 | Human-readable name for the API key |
-| `created_at` | datetime (with timezone)        | Key creation timestamp (UTC)        |
-| `is_active`  | bool                            | Active status flag (default: True)  |
-
-**Note:** Standalone table with no foreign key relationships. Used by authentication middleware when `api_key_enabled=True`.
-
 ## `prompt_config.py` - Prompt Configuration Model
 
 ### Purpose
@@ -1035,7 +1016,6 @@ Detection (1) ----< (many) EventDetection (junction table)
 AlertRule (1) ----< (many) Alert
 
 GPUStats (standalone, no foreign key relationships)
-APIKey (standalone, no foreign key relationships)
 PromptConfig (standalone, no foreign key relationships - current AI prompt configuration)
 PromptVersion (standalone, no foreign key relationships - historical prompt versions)
 Log (standalone, no foreign key relationships - for reliability)
