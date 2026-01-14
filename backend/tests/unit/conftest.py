@@ -1,6 +1,10 @@
 """Unit test configuration and fixtures.
 
 This module provides fixtures specific to unit tests in backend/tests/unit/.
+
+NOTE: Marker application logic (skipping integration tests, applying unit marker)
+has been consolidated into the main backend/tests/conftest.py to avoid multiple
+iterations over test items. See pytest_collection_modifyitems in conftest.py.
 """
 
 from __future__ import annotations
@@ -10,19 +14,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
-
-def pytest_collection_modifyitems(config, items):
-    """Skip tests marked with 'integration' in unit test runs.
-
-    Tests marked with @pytest.mark.integration require a real database
-    connection and should not run during unit test execution.
-    """
-    skip_integration = pytest.mark.skip(
-        reason="Integration test requires database - skipped in unit test run"
-    )
-    for item in items:
-        if "integration" in item.keywords:
-            item.add_marker(skip_integration)
+# NOTE: pytest_collection_modifyitems has been removed from this file.
+# All marker logic is now consolidated in backend/tests/conftest.py
+# for O(n) instead of O(4n) complexity when processing test items.
 
 
 @pytest.fixture(autouse=True)

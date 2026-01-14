@@ -18,7 +18,7 @@ Related Issues:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -194,8 +194,8 @@ class OrphanedFileScanner:
             OSError: If the file stats cannot be read
         """
         mtime = path.stat().st_mtime
-        mtime_dt = datetime.fromtimestamp(mtime)
-        return datetime.now() - mtime_dt
+        mtime_dt = datetime.fromtimestamp(mtime, tz=UTC)
+        return datetime.now(UTC) - mtime_dt
 
     def _get_file_info(self, path: Path) -> tuple[int, datetime, timedelta] | None:
         """Get file size, mtime, and age.
@@ -208,8 +208,8 @@ class OrphanedFileScanner:
         """
         try:
             stat = path.stat()
-            mtime = datetime.fromtimestamp(stat.st_mtime)
-            age = datetime.now() - mtime
+            mtime = datetime.fromtimestamp(stat.st_mtime, tz=UTC)
+            age = datetime.now(UTC) - mtime
             return stat.st_size, mtime, age
         except (OSError, FileNotFoundError) as e:
             logger.debug(f"Could not get file info for {path}: {e}")

@@ -1584,6 +1584,12 @@ class WSEventType(StrEnum):
     PONG = "pong"  # Heartbeat pong
     ERROR = "error"  # Error response
 
+    # Legacy job event types (underscore format - NEM-2505)
+    # These map to the actual WebSocketJob*Message schemas used over the wire
+    LEGACY_JOB_PROGRESS = "job_progress"  # Maps to WebSocketJobProgressMessage
+    LEGACY_JOB_COMPLETED = "job_completed"  # Maps to WebSocketJobCompletedMessage
+    LEGACY_JOB_FAILED = "job_failed"  # Maps to WebSocketJobFailedMessage
+
 
 class WSEvent(BaseModel):
     """Generic WebSocket event wrapper with type, payload, and metadata.

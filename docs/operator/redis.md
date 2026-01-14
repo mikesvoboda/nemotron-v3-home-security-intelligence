@@ -20,13 +20,19 @@ Home Security Intelligence uses **Redis 7.4+** as its in-memory data store for:
 
 ### Data Stored in Redis
 
-| Data Type          | Key Pattern             | Purpose                           |
-| ------------------ | ----------------------- | --------------------------------- |
-| Detection queues   | `queue:*`               | Pipeline processing queues        |
-| Dead-letter queues | `dlq:*`                 | Failed items for retry/inspection |
-| File deduplication | `dedupe:*`              | Prevent duplicate processing      |
-| Pub/Sub channels   | `security_events`, etc. | Real-time event broadcasting      |
-| Cache entries      | Various                 | Temporary data caching            |
+| Data Type             | Key Pattern             | Purpose                           |
+| --------------------- | ----------------------- | --------------------------------- |
+| Detection queues      | `hsi:queue:*`           | Pipeline processing queues        |
+| Dead-letter queues    | `hsi:queue:dlq:*`       | Failed items for retry/inspection |
+| Cache entries         | `hsi:cache:*`           | Temporary data caching            |
+| File deduplication    | `dedupe:*`              | Prevent duplicate processing      |
+| Batch aggregation     | `batch:*`               | Detection batching state          |
+| Job tracking          | `job:*`                 | Background job status             |
+| Service orchestration | `orchestrator:*`        | Container service state           |
+| Entity embeddings     | `entity_embeddings:*`   | Re-ID person/vehicle tracking     |
+| Pub/Sub channels      | `security_events`, etc. | Real-time event broadcasting      |
+
+> **Developer Note:** For detailed key patterns and naming conventions, see [Redis Key Conventions](../developer/redis-key-conventions.md).
 
 ### Memory Usage Estimates
 
