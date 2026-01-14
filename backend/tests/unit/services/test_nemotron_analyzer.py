@@ -715,6 +715,7 @@ async def test_analyze_batch_success(
     mock_session.execute = mock_execute
     mock_session.add = MagicMock()
     mock_session.commit = AsyncMock()
+    mock_session.flush = AsyncMock()  # NEM-2574: Batched commits use flush
     mock_session.refresh = AsyncMock()
 
     # Mock the event broadcaster
@@ -752,11 +753,12 @@ async def test_analyze_batch_success(
     assert event.reviewed is False
 
     # Verify session operations were called
+    # NEM-2574: Batched commits - use flush() instead of commit() for intermediate persists
     # NEM-1998: EventDetection records now use ON CONFLICT INSERT via execute()
     # Event + EventAudit are added via session.add()
     assert mock_session.add.call_count == 2  # Event + EventAudit (EventDetections use execute)
-    assert mock_session.commit.await_count == 3  # Commit for Event, EventDetections, EventAudit
-    assert mock_session.refresh.await_count == 2  # Refresh for Event and EventAudit
+    # NEM-2574: flush() is called twice (Event, EventAudit), commit is done by context manager
+    assert mock_session.flush.await_count == 2  # Flush for Event and EventAudit (batched commits)
 
 
 @pytest.mark.asyncio
@@ -794,6 +796,7 @@ async def test_analyze_batch_llm_failure_fallback(
     mock_session.execute = mock_execute
     mock_session.add = MagicMock()
     mock_session.commit = AsyncMock()
+    mock_session.flush = AsyncMock()  # NEM-2574: Batched commits use flush
     mock_session.refresh = AsyncMock()
 
     # Mock the event broadcaster
@@ -939,6 +942,7 @@ async def test_analyze_batch_broadcast_failure_continues(
     mock_session.execute = mock_execute
     mock_session.add = MagicMock()
     mock_session.commit = AsyncMock()
+    mock_session.flush = AsyncMock()  # NEM-2574: Batched commits use flush
     mock_session.refresh = AsyncMock()
 
     # Mock broadcaster to fail
@@ -1032,6 +1036,7 @@ async def test_analyze_batch_redis_fallback_lookup(analyzer, mock_redis_client):
     mock_session.execute = mock_execute
     mock_session.add = MagicMock()
     mock_session.commit = AsyncMock()
+    mock_session.flush = AsyncMock()  # NEM-2574: Batched commits use flush
     mock_session.refresh = AsyncMock()
 
     mock_broadcaster = MagicMock()
@@ -1115,6 +1120,7 @@ async def test_analyze_detection_fast_path_success(
     mock_session.execute = mock_execute
     mock_session.add = MagicMock()
     mock_session.commit = AsyncMock()
+    mock_session.flush = AsyncMock()  # NEM-2574: Batched commits use flush
     mock_session.refresh = AsyncMock()
 
     mock_broadcaster = MagicMock()
@@ -1228,6 +1234,7 @@ async def test_analyze_detection_fast_path_llm_failure_fallback(
     mock_session.execute = mock_execute
     mock_session.add = MagicMock()
     mock_session.commit = AsyncMock()
+    mock_session.flush = AsyncMock()  # NEM-2574: Batched commits use flush
     mock_session.refresh = AsyncMock()
 
     mock_broadcaster = MagicMock()
@@ -1300,6 +1307,7 @@ async def test_analyze_detection_fast_path_broadcast_failure_continues(
     mock_session.execute = mock_execute
     mock_session.add = MagicMock()
     mock_session.commit = AsyncMock()
+    mock_session.flush = AsyncMock()  # NEM-2574: Batched commits use flush
     mock_session.refresh = AsyncMock()
 
     # Mock broadcaster to fail
@@ -1371,6 +1379,7 @@ async def test_analyze_detection_fast_path_string_detection_id(
     mock_session.execute = mock_execute
     mock_session.add = MagicMock()
     mock_session.commit = AsyncMock()
+    mock_session.flush = AsyncMock()  # NEM-2574: Batched commits use flush
     mock_session.refresh = AsyncMock()
 
     mock_broadcaster = MagicMock()
@@ -1924,6 +1933,7 @@ async def test_analyze_batch_calls_enrichment_pipeline(analyzer, mock_redis_clie
         )
         mock_session.add = MagicMock()
         mock_session.commit = AsyncMock()
+        mock_session.flush = AsyncMock()  # NEM-2574: Batched commits use flush
         mock_session.refresh = AsyncMock()
 
         # Mock LLM response
@@ -2045,6 +2055,7 @@ async def test_analyze_batch_handles_enrichment_failure_gracefully(
         )
         mock_session.add = MagicMock()
         mock_session.commit = AsyncMock()
+        mock_session.flush = AsyncMock()  # NEM-2574: Batched commits use flush
         mock_session.refresh = AsyncMock()
 
         mock_resp = MagicMock()
@@ -2163,6 +2174,7 @@ async def test_analyze_batch_skips_enrichment_when_disabled(mock_redis_client, m
         )
         mock_session.add = MagicMock()
         mock_session.commit = AsyncMock()
+        mock_session.flush = AsyncMock()  # NEM-2574: Batched commits use flush
         mock_session.refresh = AsyncMock()
 
         mock_resp = MagicMock()
@@ -2364,6 +2376,7 @@ async def test_analyze_batch_passes_enrichment_to_call_llm(
         )
         mock_session.add = MagicMock()
         mock_session.commit = AsyncMock()
+        mock_session.flush = AsyncMock()  # NEM-2574: Batched commits use flush
         mock_session.refresh = AsyncMock()
 
         event = await analyzer.analyze_batch(
@@ -2905,6 +2918,16 @@ class TestIdempotencyHandling:
             mock_session.execute = mock_execute
             mock_session.add = MagicMock()
             mock_session.commit = AsyncMock()
+
+            # NEM-2574: Mock flush to set the event ID (batched commits use flush)
+            async def mock_flush():
+                # Find any Event/Audit objects that were added and assign IDs
+                for call in mock_session.add.call_args_list:
+                    obj = call[0][0]
+                    if hasattr(obj, "id") and obj.id is None:
+                        obj.id = 42  # Simulate DB-assigned ID
+
+            mock_session.flush = mock_flush
 
             # Mock refresh to set the event ID
             async def mock_refresh(obj):
