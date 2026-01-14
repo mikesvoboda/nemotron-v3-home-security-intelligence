@@ -2,6 +2,9 @@
 
 This module provides CPU-based scene change detection that compares current
 frames against stored baselines to identify significant visual changes.
+
+Configuration via environment variables (NEM-2520):
+- SCENE_CHANGE_RESIZE_WIDTH: Width for frame comparison (default: 640)
 """
 
 from __future__ import annotations
@@ -38,6 +41,9 @@ class SceneChangeDetector:
     Attributes:
         similarity_threshold: SSIM threshold below which changes are detected.
             Default 0.90 means >10% visual difference triggers detection.
+
+    Configuration via environment variables (NEM-2520):
+    - SCENE_CHANGE_RESIZE_WIDTH: Width for frame comparison (default: 640)
     """
 
     DEFAULT_THRESHOLD: float = 0.90
@@ -46,7 +52,7 @@ class SceneChangeDetector:
     def __init__(
         self,
         similarity_threshold: float = DEFAULT_THRESHOLD,
-        resize_width: int = DEFAULT_RESIZE_WIDTH,
+        resize_width: int | None = None,
     ) -> None:
         """Initialize the scene change detector.
 
@@ -54,10 +60,19 @@ class SceneChangeDetector:
             similarity_threshold: SSIM threshold (0-1). Frames with similarity
                 below this value are considered changed. Default is 0.90.
             resize_width: Width to resize frames to for comparison. Smaller
-                sizes are faster but less accurate. Default is 640.
+                sizes are faster but less accurate. If None, uses configured
+                SCENE_CHANGE_RESIZE_WIDTH (default: 640).
         """
         if not 0 <= similarity_threshold <= 1:
             raise ValueError("similarity_threshold must be between 0 and 1")
+
+        # Use configured default if not explicitly provided (NEM-2520)
+        if resize_width is None:
+            from backend.core.config import get_settings
+
+            settings = get_settings()
+            resize_width = settings.scene_change_resize_width
+
         if resize_width <= 0:
             raise ValueError("resize_width must be positive")
 

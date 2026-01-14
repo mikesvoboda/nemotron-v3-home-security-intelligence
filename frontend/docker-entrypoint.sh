@@ -20,6 +20,82 @@ else
 fi
 
 # =============================================================================
+# HTTP Location Blocks (for non-SSL mode)
+# =============================================================================
+# These location blocks serve the application when SSL is disabled.
+# When SSL is enabled, they are replaced with a redirect to HTTPS.
+HTTP_LOCATIONS='
+    # Reverse proxy for API requests to backend (handles /api and /api/*)
+    # Uses $backend_upstream variable for dynamic DNS re-resolution
+    # The ^~ modifier ensures this prefix location takes precedence over regex locations
+    # This prevents the static asset regex from accidentally matching /api/* paths
+    location ^~ /api {
+        proxy_pass $backend_upstream;
+        proxy_http_version 1.1;
+        # nosemgrep: generic.nginx.security.request-host-used - using $server_name is safe
+        proxy_set_header Host $server_name;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Timeouts for long-running requests
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+
+    # Reverse proxy for WebSocket connections (handles /ws and /ws/*)
+    # Uses validated upgrade header to prevent H2C smuggling attacks
+    # Uses $backend_upstream variable for dynamic DNS re-resolution
+    # The ^~ modifier ensures this prefix location takes precedence over regex locations
+    location ^~ /ws {
+        proxy_pass $backend_upstream;
+        proxy_http_version 1.1;
+
+        # WebSocket upgrade headers with H2C smuggling protection
+        # Only "websocket" upgrade value is allowed, all others result in connection close
+        proxy_set_header Upgrade $websocket_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+
+        # Standard proxy headers
+        # nosemgrep: generic.nginx.security.request-host-used - using $server_name is safe
+        proxy_set_header Host $server_name;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # WebSocket-specific timeouts (longer for persistent connections)
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 86400s;
+        proxy_read_timeout 86400s;
+    }
+
+    # Cache static assets
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    # Single Page Application routing
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+'
+
+# =============================================================================
+# HTTPS Redirect Location (for SSL mode)
+# =============================================================================
+# When SSL is enabled, HTTP traffic is redirected to HTTPS.
+# The health check endpoint is exempted (it has higher priority with exact match).
+HTTPS_REDIRECT='
+    # Redirect all HTTP traffic to HTTPS
+    # The health check endpoint (location = /health) has higher priority and is not affected
+    location / {
+        return 301 https://$host:8443$request_uri;
+    }
+'
+
+# =============================================================================
 # SSL/TLS Configuration
 # =============================================================================
 # SSL is enabled when:
@@ -32,10 +108,14 @@ SSL_KEY="${SSL_KEY_PATH:-/etc/nginx/ssl/key.pem}"
 if [ "${SSL_ENABLED:-false}" = "true" ]; then
     # Check if certificate files exist
     if [ -f "$SSL_CERT" ] && [ -f "$SSL_KEY" ]; then
-        echo "SSL enabled: Configuring HTTPS server"
+        echo "SSL enabled: Configuring HTTPS server with HTTP-to-HTTPS redirect"
 
-        # Enable HTTP to HTTPS redirect
-        sed -i 's|__SSL_REDIRECT__|return 301 https://$host:8443$request_uri;|g' "$NGINX_CONF"
+        # Replace HTTP locations with HTTPS redirect
+        # Using a temp file approach for multiline replacement
+        printf '%s' "$HTTPS_REDIRECT" > /tmp/https_redirect.conf
+        sed -i "/__HTTP_LOCATIONS__/r /tmp/https_redirect.conf" "$NGINX_CONF"
+        sed -i "/__HTTP_LOCATIONS__/d" "$NGINX_CONF"
+        rm -f /tmp/https_redirect.conf
 
         # Inject the HTTPS server block
         # Using a heredoc-style approach with sed
@@ -174,17 +254,30 @@ server {
         rm -f /tmp/ssl_server_block.conf
 
         echo "HTTPS configured on port 8443"
+        echo "HTTP requests will be redirected to HTTPS"
     else
         echo "Warning: SSL_ENABLED=true but certificate files not found"
         echo "  Expected: $SSL_CERT and $SSL_KEY"
         echo "  Falling back to HTTP only"
-        sed -i 's|__SSL_REDIRECT__||g' "$NGINX_CONF"
+
+        # Use HTTP locations (no redirect)
+        printf '%s' "$HTTP_LOCATIONS" > /tmp/http_locations.conf
+        sed -i "/__HTTP_LOCATIONS__/r /tmp/http_locations.conf" "$NGINX_CONF"
+        sed -i "/__HTTP_LOCATIONS__/d" "$NGINX_CONF"
+        rm -f /tmp/http_locations.conf
+
         sed -i 's|__SSL_SERVER_BLOCK__||g' "$NGINX_CONF"
     fi
 else
     echo "SSL disabled: HTTP only mode"
-    # Remove SSL placeholders
-    sed -i 's|__SSL_REDIRECT__||g' "$NGINX_CONF"
+
+    # Use HTTP locations (no redirect)
+    printf '%s' "$HTTP_LOCATIONS" > /tmp/http_locations.conf
+    sed -i "/__HTTP_LOCATIONS__/r /tmp/http_locations.conf" "$NGINX_CONF"
+    sed -i "/__HTTP_LOCATIONS__/d" "$NGINX_CONF"
+    rm -f /tmp/http_locations.conf
+
+    # Remove SSL placeholder
     sed -i 's|__SSL_SERVER_BLOCK__||g' "$NGINX_CONF"
 fi
 

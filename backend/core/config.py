@@ -1349,6 +1349,40 @@ class Settings(BaseSettings):
         description="Maximum number of frames to extract from a video",
     )
 
+    # Image processing settings (NEM-2520)
+    thumbnail_width: int = Field(
+        default=320,
+        ge=64,
+        le=1920,
+        description="Width of generated thumbnails in pixels. Used for detection preview images.",
+    )
+    thumbnail_height: int = Field(
+        default=240,
+        ge=48,
+        le=1080,
+        description="Height of generated thumbnails in pixels. Used for detection preview images.",
+    )
+    thumbnail_quality: int = Field(
+        default=85,
+        ge=1,
+        le=100,
+        description="JPEG quality for thumbnails (1-100). Higher values = better quality but larger files. "
+        "Recommended: 75-90 for balance between quality and size.",
+    )
+    thumbnail_font_size: int = Field(
+        default=14,
+        ge=8,
+        le=48,
+        description="Font size in points for bounding box labels on thumbnails.",
+    )
+    scene_change_resize_width: int = Field(
+        default=640,
+        ge=128,
+        le=1920,
+        description="Width to resize frames to for scene change comparison (SSIM). "
+        "Smaller values are faster but less accurate. Height is calculated to maintain aspect ratio.",
+    )
+
     # Service health monitor settings
     ai_restart_enabled: bool = Field(
         default=True,
