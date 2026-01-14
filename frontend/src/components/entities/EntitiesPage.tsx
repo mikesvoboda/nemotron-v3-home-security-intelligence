@@ -23,7 +23,7 @@ import {
 } from '../../hooks/useEntitiesInfiniteQuery';
 import { useEntityDetailQuery, type TimeRangeFilter } from '../../hooks/useEntitiesQuery';
 import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
-import { EntityCardSkeleton, InfiniteScrollStatus } from '../common';
+import { EntityCardSkeleton, InfiniteScrollStatus, SafeErrorMessage } from '../common';
 
 import type { SourceFilter } from '../../services/api';
 
@@ -437,7 +437,7 @@ export default function EntitiesPage() {
         <div className="flex min-h-[400px] items-center justify-center rounded-lg border border-red-900/50 bg-red-900/10">
           <div className="flex flex-col items-center gap-3 text-center">
             <AlertCircle className="h-8 w-8 text-red-500" />
-            <p className="text-red-400">{errorMessage}</p>
+            <SafeErrorMessage message={errorMessage} />
             <button
               onClick={handleRefresh}
               className="mt-2 rounded-lg bg-gray-800 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"

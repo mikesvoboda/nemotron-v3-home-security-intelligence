@@ -1,7 +1,7 @@
 import { clsx } from 'clsx';
 import { ChevronLeft, ChevronRight, AlertOctagon, AlertTriangle, Info, Bug, FileText } from 'lucide-react';
 
-import { EmptyState, TableRowSkeleton } from '../common';
+import { EmptyState, SafeErrorMessage, TableRowSkeleton } from '../common';
 
 export interface LogEntry {
   id: number;
@@ -183,7 +183,7 @@ export default function LogsTable({
           <div className="flex min-h-[400px] items-center justify-center border-red-900/50 bg-red-950/20">
             <div className="text-center">
               <p className="mb-2 text-lg font-semibold text-red-500">Error Loading Logs</p>
-              <p className="text-sm text-gray-400">{error}</p>
+              <SafeErrorMessage message={error} size="sm" color="gray" />
             </div>
           </div>
         ) : logs.length === 0 ? (

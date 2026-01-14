@@ -20,15 +20,18 @@ from unittest.mock import patch
 import pytest
 
 from backend.core.url_validation import (
+    BLOCKED_DOMAIN_SUFFIXES,
     BLOCKED_HOSTNAMES,
     BLOCKED_IP_NETWORKS,
     BLOCKED_IPS,
     LOCALHOST_PATTERNS,
     SSRFValidationError,
+    _log_blocked_ssrf_attempt,
     _validate_ip_address,
     _validate_resolved_ips,
     _validate_scheme,
     _validate_url_patterns,
+    is_blocked_domain_suffix,
     is_blocked_hostname,
     is_blocked_ip,
     is_private_ip,
@@ -955,3 +958,218 @@ class TestValidateWebhookUrlForRequestDevelopment:
         """Test that production mode blocks localhost."""
         with pytest.raises(SSRFValidationError):
             validate_webhook_url_for_request("http://localhost:8000/webhook", is_development=False)
+
+
+# =============================================================================
+# Tests for Blocked Domain Suffixes (NEM-2606)
+# =============================================================================
+
+
+class TestIsBlockedDomainSuffix:
+    """Tests for is_blocked_domain_suffix function."""
+
+    @pytest.mark.parametrize(
+        "hostname",
+        [
+            # .local domains (mDNS/Bonjour)
+            "printer.local",
+            "myserver.local",
+            "UPPERCASE.LOCAL",
+            # .localhost domains (RFC 6761)
+            "app.localhost",
+            "test.localhost",
+            # .internal domains
+            "service.internal",
+            "api.internal",
+            # .lan domains
+            "router.lan",
+            "nas.lan",
+            # .home domains
+            "server.home",
+            "device.home",
+            # .localdomain
+            "server.localdomain",
+            # .intranet domains
+            "portal.intranet",
+            # .corp domains
+            "exchange.corp",
+            # .home.arpa (RFC 8375)
+            "device.home.arpa",
+        ],
+    )
+    def test_blocked_domain_suffixes_are_detected(self, hostname: str):
+        """Test that internal domain suffixes are correctly blocked."""
+        assert is_blocked_domain_suffix(hostname) is True
+
+    @pytest.mark.parametrize(
+        "hostname",
+        [
+            # Public domains that should NOT be blocked
+            "example.com",
+            "subdomain.example.org",
+            "api.mycompany.io",
+            "webhook.slack.com",
+            "hooks.github.com",
+            # Domains containing but not ending with blocked suffixes
+            "localdev.mycompany.com",
+            "internal-api.example.com",
+            "localhost-backup.example.com",
+            # Edge cases
+            "notlocal",
+            "local",  # Just "local" without dot
+            "mylocal.com",
+        ],
+    )
+    def test_public_domains_are_not_blocked(self, hostname: str):
+        """Test that public domains are not blocked."""
+        assert is_blocked_domain_suffix(hostname) is False
+
+    def test_case_insensitive_blocking(self):
+        """Test that domain suffix blocking is case-insensitive."""
+        assert is_blocked_domain_suffix("SERVER.LOCAL") is True
+        assert is_blocked_domain_suffix("Server.Local") is True
+        assert is_blocked_domain_suffix("server.LOCAL") is True
+
+
+class TestBlockedDomainSuffixesConstant:
+    """Tests for BLOCKED_DOMAIN_SUFFIXES constant."""
+
+    def test_contains_local(self):
+        """Test that .local is in blocked suffixes."""
+        assert ".local" in BLOCKED_DOMAIN_SUFFIXES
+
+    def test_contains_localhost(self):
+        """Test that .localhost is in blocked suffixes."""
+        assert ".localhost" in BLOCKED_DOMAIN_SUFFIXES
+
+    def test_contains_internal(self):
+        """Test that .internal is in blocked suffixes."""
+        assert ".internal" in BLOCKED_DOMAIN_SUFFIXES
+
+    def test_contains_home_arpa(self):
+        """Test that .home.arpa (RFC 8375) is in blocked suffixes."""
+        assert ".home.arpa" in BLOCKED_DOMAIN_SUFFIXES
+
+
+class TestValidateWebhookUrlBlockedDomainSuffixes:
+    """Tests for blocked domain suffix validation in validate_webhook_url."""
+
+    @pytest.mark.parametrize(
+        "domain",
+        [
+            "printer.local",
+            "app.localhost",
+            "service.internal",
+            "router.lan",
+            "server.home",
+            "server.localdomain",
+            "portal.intranet",
+            "exchange.corp",
+            "device.home.arpa",
+        ],
+    )
+    def test_blocked_domain_suffixes_raise_error(self, domain: str):
+        """Test that URLs with blocked domain suffixes raise SSRFValidationError."""
+        url = f"https://{domain}/webhook"
+        with pytest.raises(SSRFValidationError) as exc_info:
+            validate_webhook_url(url, resolve_dns=False)
+        assert "blocked internal domain suffix" in str(exc_info.value).lower()
+
+    def test_local_domain_with_port_blocked(self):
+        """Test that .local domain with port is blocked."""
+        with pytest.raises(SSRFValidationError):
+            validate_webhook_url("https://myserver.local:8443/webhook", resolve_dns=False)
+
+    def test_local_domain_with_path_blocked(self):
+        """Test that .local domain with path is blocked."""
+        with pytest.raises(SSRFValidationError):
+            validate_webhook_url("https://nas.local/api/v1/notify", resolve_dns=False)
+
+    def test_metadata_google_internal_still_blocked(self):
+        """Test that metadata.google.internal is still blocked (hostname blocklist takes precedence)."""
+        with pytest.raises(SSRFValidationError):
+            validate_webhook_url("https://metadata.google.internal/", resolve_dns=False)
+
+
+class TestSSRFLogging:
+    """Tests for SSRF attempt logging."""
+
+    def test_log_blocked_ssrf_attempt_basic(self):
+        """Test that _log_blocked_ssrf_attempt logs properly."""
+        with patch("backend.core.url_validation.logger") as mock_logger:
+            _log_blocked_ssrf_attempt("https://evil.com/webhook", "test_reason", "evil.com")
+            mock_logger.warning.assert_called_once()
+            call_args = mock_logger.warning.call_args
+            assert "SSRF attempt blocked" in call_args[0][0]
+            assert "test_reason" in str(call_args)
+            assert "evil.com" in str(call_args)
+
+    def test_log_blocked_ssrf_attempt_truncates_long_urls(self):
+        """Test that very long URLs are truncated in logs."""
+        long_url = "https://example.com/" + "a" * 300
+        with patch("backend.core.url_validation.logger") as mock_logger:
+            _log_blocked_ssrf_attempt(long_url, "long_url_test")
+            call_args = mock_logger.warning.call_args
+            # URL should be truncated to 200 chars
+            logged_url = str(call_args)
+            assert len(logged_url) < len(long_url) + 100  # Allow for formatting
+
+    def test_log_blocked_ssrf_attempt_sanitizes_control_chars(self):
+        """Test that control characters are sanitized from logged URLs."""
+        url_with_control = "https://evil.com/\x00\x01\x02/webhook"
+        with patch("backend.core.url_validation.logger") as mock_logger:
+            _log_blocked_ssrf_attempt(url_with_control, "control_chars_test")
+            call_args = str(mock_logger.warning.call_args)
+            # Control characters should be replaced with ?
+            assert "\x00" not in call_args
+            assert "\x01" not in call_args
+            assert "\x02" not in call_args
+
+    def test_blocked_local_domain_is_logged(self):
+        """Test that blocked .local domain attempts are logged."""
+        with patch("backend.core.url_validation.logger") as mock_logger:
+            with pytest.raises(SSRFValidationError):
+                validate_webhook_url("https://printer.local/webhook", resolve_dns=False)
+            # Check that a warning was logged
+            mock_logger.warning.assert_called()
+            call_args = str(mock_logger.warning.call_args)
+            assert "blocked_domain_suffix" in call_args
+
+    def test_blocked_private_ip_is_logged(self):
+        """Test that blocked private IP attempts are logged."""
+        with patch("backend.core.url_validation.logger") as mock_logger:
+            with pytest.raises(SSRFValidationError):
+                validate_webhook_url("https://10.0.0.1/webhook", resolve_dns=False)
+            mock_logger.warning.assert_called()
+            call_args = str(mock_logger.warning.call_args)
+            assert "blocked_ip" in call_args
+
+    def test_blocked_metadata_hostname_is_logged(self):
+        """Test that blocked metadata hostname attempts are logged."""
+        with patch("backend.core.url_validation.logger") as mock_logger:
+            with pytest.raises(SSRFValidationError):
+                validate_webhook_url("https://metadata/latest/", resolve_dns=False)
+            mock_logger.warning.assert_called()
+            call_args = str(mock_logger.warning.call_args)
+            assert "blocked_hostname" in call_args
+
+    def test_blocked_scheme_is_logged(self):
+        """Test that blocked scheme attempts are logged."""
+        with patch("backend.core.url_validation.logger") as mock_logger:
+            with pytest.raises(SSRFValidationError):
+                validate_webhook_url("ftp://example.com/file", resolve_dns=False)
+            mock_logger.warning.assert_called()
+            call_args = str(mock_logger.warning.call_args)
+            assert "invalid_scheme" in call_args
+
+    def test_embedded_credentials_is_logged(self):
+        """Test that embedded credentials attempts are logged."""
+        with patch("backend.core.url_validation.logger") as mock_logger:
+            with pytest.raises(SSRFValidationError):
+                validate_webhook_url(
+                    "https://user:pass@example.com/webhook",  # pragma: allowlist secret
+                    resolve_dns=False,
+                )
+            mock_logger.warning.assert_called()
+            call_args = str(mock_logger.warning.call_args)
+            assert "suspicious_pattern" in call_args
