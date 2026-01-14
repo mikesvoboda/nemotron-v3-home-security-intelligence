@@ -79,9 +79,11 @@ export class TimelinePage extends BasePage {
     this.pageSubtitle = page.getByText(/View and filter all security events/i);
 
     // Search Section
+    // Matches: 'Search events (e.g., "suspicious person", vehicle OR animal)...'
     this.fullTextSearchInput = page.getByPlaceholder(/Search events/i);
     this.searchButton = page.getByRole('button', { name: /Search/i });
-    this.backToBrowseButton = page.getByText(/Back to browse/i);
+    // "Back to browse" button only visible in search mode
+    this.backToBrowseButton = page.getByRole('button', { name: /back to browse/i });
 
     // Filter Section
     this.showFiltersButton = page.getByRole('button', { name: /Show Filters/i });
@@ -106,11 +108,12 @@ export class TimelinePage extends BasePage {
     this.exportPanel = page.locator('[class*="ExportPanel"]');
 
     // Results Section
-    this.resultsCount = page.getByText(/Showing \d+-\d+ of \d+ events/i);
+    this.resultsCount = page.getByText(/Showing \d+ of \d+ events/i);
     this.riskBadges = page.locator('[class*="RiskBadge"]');
-    // EventCard components are rendered as clickable divs with role="button" and aria-label starting with "View details"
-    // They are inside the events grid (grid layout with gap-6)
-    this.eventCards = page.locator('[role="button"][aria-label^="View details for event"]');
+    // EventCard components have data-testid="event-card-{id}"
+    // Note: role="button" only exists when no nested interactive elements (onSnooze/onViewDetails)
+    // Use data-testid which is always present
+    this.eventCards = page.locator('[data-testid^="event-card-"]');
     this.noEventsMessage = page.getByText(/No Events Found/i);
 
     // Bulk Actions

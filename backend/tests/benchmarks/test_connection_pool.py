@@ -33,8 +33,9 @@ if TYPE_CHECKING:
 
 @pytest.fixture
 def pool_test_env() -> Generator[str]:
-    """Set DATABASE_URL to a temporary database with small pool size."""
+    """Set DATABASE_URL to test database with small pool size (PostgreSQL required)."""
     from backend.core.config import get_settings
+    from backend.tests.conftest import get_test_db_url, get_test_redis_url
 
     original_db_url = os.environ.get("DATABASE_URL")
     original_redis_url = os.environ.get("REDIS_URL")
@@ -42,12 +43,12 @@ def pool_test_env() -> Generator[str]:
     original_pool_size = os.environ.get("DB_POOL_SIZE")
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        db_path = Path(tmpdir) / "pool_test.db"
-        test_db_url = f"sqlite+aiosqlite:///{db_path}"
+        # Use PostgreSQL test database (Settings only accepts PostgreSQL URLs)
+        test_db_url = get_test_db_url()
         runtime_env_path = str(Path(tmpdir) / "runtime.env")
 
         os.environ["DATABASE_URL"] = test_db_url
-        os.environ["REDIS_URL"] = "redis://localhost:6379/15"
+        os.environ["REDIS_URL"] = get_test_redis_url()
         os.environ["HSI_RUNTIME_ENV_PATH"] = runtime_env_path
         # Use small pool size for exhaustion testing
         os.environ["DB_POOL_SIZE"] = "5"
@@ -98,10 +99,25 @@ async def pool_test_db(pool_test_env: str) -> AsyncGenerator[str]:
 
 
 def run_async(coro):
-    """Run an async coroutine in a sync context for benchmarks."""
+    """Run an async coroutine in a sync context for benchmarks.
+
+    Note: This creates a new event loop for each call and initializes
+    the database in that loop. The DATABASE_URL must be set in the environment.
+    """
+    from backend.core.database import close_db, init_db
+
     loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     try:
-        return loop.run_until_complete(coro)
+        # Initialize database connection in this event loop
+        loop.run_until_complete(init_db())
+
+        # Run the benchmark coroutine
+        result = loop.run_until_complete(coro)
+
+        # Clean up database connections for this loop
+        loop.run_until_complete(close_db())
+        return result
     finally:
         loop.close()
 
@@ -120,13 +136,13 @@ class TestConnectionPoolBenchmarks:
         """Benchmark concurrent query execution through connection pool."""
         from sqlalchemy import text
 
-        from backend.core.database import get_async_session
+        from backend.core.database import get_session
 
         async def run_concurrent_queries(num_queries: int = 20):
             """Execute multiple queries concurrently."""
 
             async def single_query():
-                async with get_async_session() as session:
+                async with get_session() as session:
                     result = await session.execute(text("SELECT 1"))
                     return result.scalar()
 
@@ -143,13 +159,13 @@ class TestConnectionPoolBenchmarks:
         """Benchmark sequential query execution for baseline comparison."""
         from sqlalchemy import text
 
-        from backend.core.database import get_async_session
+        from backend.core.database import get_session
 
         async def run_sequential_queries(num_queries: int = 20):
             """Execute queries sequentially."""
             results = []
             for _ in range(num_queries):
-                async with get_async_session() as session:
+                async with get_session() as session:
                     result = await session.execute(text("SELECT 1"))
                     results.append(result.scalar())
             return results
@@ -162,11 +178,11 @@ class TestConnectionPoolBenchmarks:
         """Benchmark multiple operations within a single session."""
         from sqlalchemy import text
 
-        from backend.core.database import get_async_session
+        from backend.core.database import get_session
 
         async def run_multiple_in_session():
             """Execute multiple queries in one session."""
-            async with get_async_session() as session:
+            async with get_session() as session:
                 results = []
                 for _ in range(10):
                     result = await session.execute(text("SELECT 1"))
@@ -197,7 +213,7 @@ class TestConnectionPoolStress:
         """
         from sqlalchemy import text
 
-        from backend.core.database import get_async_session
+        from backend.core.database import get_session
 
         num_concurrent = 50
         successful = 0
@@ -207,7 +223,7 @@ class TestConnectionPoolStress:
         async def single_query(query_id: int):
             nonlocal successful
             try:
-                async with get_async_session() as session:
+                async with get_session() as session:
                     # Simulate some work
                     result = await session.execute(text("SELECT 1"))
                     value = result.scalar()
@@ -240,12 +256,12 @@ class TestConnectionPoolStress:
         """
         from sqlalchemy import text
 
-        from backend.core.database import get_async_session
+        from backend.core.database import get_session
 
         # First, run some normal queries
         successful_before = 0
         for _ in range(5):
-            async with get_async_session() as session:
+            async with get_session() as session:
                 result = await session.execute(text("SELECT 1"))
                 if result.scalar() == 1:
                     successful_before += 1
@@ -259,7 +275,7 @@ class TestConnectionPoolStress:
         # Verify pool is still functional
         successful_after = 0
         for _ in range(10):
-            async with get_async_session() as session:
+            async with get_session() as session:
                 result = await session.execute(text("SELECT 1"))
                 if result.scalar() == 1:
                     successful_after += 1
@@ -277,7 +293,7 @@ class TestConnectionPoolStress:
         """
         from sqlalchemy import text
 
-        from backend.core.database import get_async_session
+        from backend.core.database import get_session
 
         # More concurrent requests than pool size
         num_requests = 20
@@ -289,7 +305,7 @@ class TestConnectionPoolStress:
         async def timed_query(query_id: int):
             start_times[query_id] = time.time()
             try:
-                async with get_async_session() as session:
+                async with get_session() as session:
                     # Hold connection briefly
                     await asyncio.sleep(0.05)  # 50ms
                     result = await session.execute(text("SELECT 1"))
@@ -332,19 +348,19 @@ class TestConnectionPoolHealth:
         """Test that connections are properly returned to the pool."""
         from sqlalchemy import text
 
-        from backend.core.database import get_async_session
+        from backend.core.database import get_session
 
         # Run many iterations and verify no leak
         iterations = 100
         for i in range(iterations):
-            async with get_async_session() as session:
+            async with get_session() as session:
                 result = await session.execute(text("SELECT 1"))
                 _ = result.scalar()
 
         # If there was a leak, we'd see connection errors by now
         # Run a few more queries to confirm pool is healthy
         for _ in range(10):
-            async with get_async_session() as session:
+            async with get_session() as session:
                 result = await session.execute(text("SELECT 1"))
                 assert result.scalar() == 1
 
@@ -353,19 +369,19 @@ class TestConnectionPoolHealth:
         """Test that connections are returned even after exceptions."""
         from sqlalchemy import text
 
-        from backend.core.database import get_async_session
+        from backend.core.database import get_session
 
         # Cause some exceptions
         for _ in range(10):
             try:
-                async with get_async_session() as session:
+                async with get_session() as session:
                     # Try to execute invalid SQL
                     await session.execute(text("INVALID SQL SYNTAX"))
             except Exception:
                 pass  # Expected
 
         # Pool should still be healthy after exceptions
-        async with get_async_session() as session:
+        async with get_session() as session:
             result = await session.execute(text("SELECT 1"))
             assert result.scalar() == 1, "Pool unhealthy after exceptions"
 
@@ -374,15 +390,15 @@ class TestConnectionPoolHealth:
         """Test that rolled-back transactions return connections properly."""
         from sqlalchemy import text
 
-        from backend.core.database import get_async_session
+        from backend.core.database import get_session
 
         # Start and rollback several transactions
         for _ in range(20):
-            async with get_async_session() as session:
+            async with get_session() as session:
                 await session.execute(text("SELECT 1"))
                 await session.rollback()
 
         # Pool should still be healthy
-        async with get_async_session() as session:
+        async with get_session() as session:
             result = await session.execute(text("SELECT 1"))
             assert result.scalar() == 1

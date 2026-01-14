@@ -2579,3 +2579,127 @@ class MonitoringTargetsResponse(BaseModel):
             }
         }
     )
+
+
+# =============================================================================
+# Worker Supervisor Schemas (NEM-2457)
+# =============================================================================
+
+
+class SupervisedWorkerStatusEnum(str, Enum):
+    """Status enum for supervised workers."""
+
+    RUNNING = "running"
+    STOPPED = "stopped"
+    CRASHED = "crashed"
+    RESTARTING = "restarting"
+    FAILED = "failed"
+
+
+class SupervisedWorkerInfo(BaseModel):
+    """Information about a supervised worker.
+
+    Provides detailed status and restart metrics for a single worker
+    managed by the WorkerSupervisor.
+    """
+
+    name: str = Field(
+        ...,
+        description="Unique identifier for the worker",
+    )
+    status: SupervisedWorkerStatusEnum = Field(
+        ...,
+        description="Current health status of the worker",
+    )
+    restart_count: int = Field(
+        ...,
+        description="Number of times the worker has been restarted",
+        ge=0,
+    )
+    max_restarts: int = Field(
+        ...,
+        description="Maximum allowed restart attempts before failing",
+        ge=0,
+    )
+    last_started_at: datetime | None = Field(
+        None,
+        description="When the worker was last started",
+    )
+    last_crashed_at: datetime | None = Field(
+        None,
+        description="When the worker last crashed",
+    )
+    error: str | None = Field(
+        None,
+        description="Last error message if worker crashed",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "name": "detection_worker",
+                "status": "running",
+                "restart_count": 0,
+                "max_restarts": 5,
+                "last_started_at": "2026-01-13T10:30:00Z",
+                "last_crashed_at": None,
+                "error": None,
+            }
+        }
+    )
+
+
+class WorkerSupervisorStatusResponse(BaseModel):
+    """Response schema for worker supervisor status endpoint.
+
+    Provides overall supervisor status and detailed information about
+    all supervised workers including their health status and restart metrics.
+    """
+
+    running: bool = Field(
+        ...,
+        description="Whether the supervisor is currently running",
+    )
+    worker_count: int = Field(
+        ...,
+        description="Total number of registered workers",
+        ge=0,
+    )
+    workers: list[SupervisedWorkerInfo] = Field(
+        default_factory=list,
+        description="Detailed status of all supervised workers",
+    )
+    timestamp: datetime = Field(
+        ...,
+        description="Timestamp of status query",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "running": True,
+                "worker_count": 4,
+                "workers": [
+                    {
+                        "name": "detection_worker",
+                        "status": "running",
+                        "restart_count": 0,
+                        "max_restarts": 5,
+                        "last_started_at": "2026-01-13T10:30:00Z",
+                        "last_crashed_at": None,
+                        "error": None,
+                    },
+                    {
+                        "name": "analysis_worker",
+                        "status": "running",
+                        "restart_count": 1,
+                        "max_restarts": 5,
+                        "last_started_at": "2026-01-13T10:31:00Z",
+                        "last_crashed_at": "2026-01-13T10:30:30Z",
+                        "error": "Connection timeout",
+                    },
+                ],
+                "timestamp": "2026-01-13T10:35:00Z",
+            }
+        }
+    )

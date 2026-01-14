@@ -77,7 +77,7 @@ test.describe('Timeline Visual Regression', () => {
     await timelinePage.waitForTimelineLoad();
 
     // Enter search query (mocked responses)
-    await timelinePage.summarySearchInput.fill('person detected');
+    await timelinePage.fullTextSearchInput.fill('person detected');
     await page.waitForTimeout(500);
 
     await expect(page).toHaveScreenshot('timeline-search-results.png', {

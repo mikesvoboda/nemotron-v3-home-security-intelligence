@@ -45,8 +45,9 @@ CI_SLOW_QUERY_THRESHOLD_MS = 50.0
 
 @pytest.fixture
 def slow_query_test_env() -> Generator[str]:
-    """Set up test environment with strict slow query threshold."""
+    """Set up test environment with strict slow query threshold (PostgreSQL required)."""
     from backend.core.config import get_settings
+    from backend.tests.conftest import get_test_db_url, get_test_redis_url
 
     original_db_url = os.environ.get("DATABASE_URL")
     original_redis_url = os.environ.get("REDIS_URL")
@@ -54,12 +55,12 @@ def slow_query_test_env() -> Generator[str]:
     original_threshold = os.environ.get("SLOW_QUERY_THRESHOLD_MS")
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        db_path = Path(tmpdir) / "slow_query_test.db"
-        test_db_url = f"sqlite+aiosqlite:///{db_path}"
+        # Use PostgreSQL test database (Settings only accepts PostgreSQL URLs)
+        test_db_url = get_test_db_url()
         runtime_env_path = str(Path(tmpdir) / "runtime.env")
 
         os.environ["DATABASE_URL"] = test_db_url
-        os.environ["REDIS_URL"] = "redis://localhost:6379/15"
+        os.environ["REDIS_URL"] = get_test_redis_url()
         os.environ["HSI_RUNTIME_ENV_PATH"] = runtime_env_path
         os.environ["SLOW_QUERY_THRESHOLD_MS"] = str(CI_SLOW_QUERY_THRESHOLD_MS)
 
@@ -204,11 +205,11 @@ class TestSlowQueryDetection:
         """Test that simple SELECT queries don't trigger slow query warnings."""
         from sqlalchemy import text
 
-        from backend.core.database import get_async_session
+        from backend.core.database import get_session
 
         with capture_slow_queries() as capture:
             for _ in range(10):
-                async with get_async_session() as session:
+                async with get_session() as session:
                     result = await session.execute(text("SELECT 1"))
                     _ = result.scalar()
 
@@ -219,10 +220,10 @@ class TestSlowQueryDetection:
         """Test that concurrent SELECT queries don't trigger slow query warnings."""
         from sqlalchemy import text
 
-        from backend.core.database import get_async_session
+        from backend.core.database import get_session
 
         async def single_query():
-            async with get_async_session() as session:
+            async with get_session() as session:
                 result = await session.execute(text("SELECT 1"))
                 return result.scalar()
 
@@ -235,11 +236,11 @@ class TestSlowQueryDetection:
     @pytest.mark.asyncio
     async def test_session_creation_no_slow_query(self, slow_query_test_db: str) -> None:
         """Test that session creation doesn't trigger slow query warnings."""
-        from backend.core.database import get_async_session
+        from backend.core.database import get_session
 
         with capture_slow_queries() as capture:
             for _ in range(20):
-                async with get_async_session() as session:
+                async with get_session() as session:
                     pass  # Just open and close session
 
         assert len(capture.slow_queries) == 0, f"Slow queries detected: {capture.slow_queries}"

@@ -152,7 +152,7 @@ test.describe('Form Components Visual', () => {
     await page.waitForLoadState('networkidle');
 
     // Capture search input
-    const searchInput = timelinePage.summarySearchInput;
+    const searchInput = timelinePage.fullTextSearchInput;
     if (await searchInput.isVisible()) {
       await expect(searchInput).toHaveScreenshot('component-search-input.png');
     }
