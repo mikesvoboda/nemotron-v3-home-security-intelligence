@@ -1391,6 +1391,27 @@ class Settings(BaseSettings):
         "Health monitoring and status broadcasts still occur when disabled.",
     )
 
+    # Worker Supervisor settings (NEM-2460)
+    # Controls the asyncio worker supervisor that monitors and auto-restarts crashed workers
+    worker_supervisor_check_interval: float = Field(
+        default=5.0,
+        ge=1.0,
+        le=60.0,
+        description="Interval in seconds between worker health checks by the supervisor.",
+    )
+    worker_supervisor_max_restarts: int = Field(
+        default=5,
+        ge=1,
+        le=50,
+        description="Maximum number of restart attempts for a crashed worker before giving up.",
+    )
+    worker_supervisor_restart_window: float = Field(
+        default=300.0,
+        ge=60.0,
+        le=3600.0,
+        description="Time window in seconds for counting restart attempts.",
+    )
+
     # Container orchestrator settings (for Docker/Podman container management)
     # Environment variables use ORCHESTRATOR_ prefix (e.g., ORCHESTRATOR_ENABLED)
     orchestrator: OrchestratorSettings = Field(

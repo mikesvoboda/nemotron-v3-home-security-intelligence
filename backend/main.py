@@ -81,12 +81,21 @@ from backend.services.job_tracker import init_job_tracker_websocket
 from backend.services.performance_collector import PerformanceCollector
 from backend.services.pipeline_quality_audit_service import get_audit_service
 from backend.services.pipeline_workers import (
+    create_analysis_worker,
+    create_detection_worker,
+    create_metrics_worker,
+    create_timeout_worker,
     drain_queues,
     get_pipeline_manager,
     stop_pipeline_manager,
 )
 from backend.services.service_managers import ServiceConfig, ShellServiceManager
 from backend.services.system_broadcaster import get_system_broadcaster, stop_system_broadcaster
+from backend.services.worker_supervisor import (
+    SupervisorConfig,
+    get_worker_supervisor,
+    reset_worker_supervisor,
+)
 
 # Graceful shutdown event - set when SIGTERM/SIGINT is received
 # This allows the lifespan context to coordinate shutdown with signal handlers
@@ -518,6 +527,60 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:  # noqa: PLR0912 - Co
             "Pipeline workers started (detection, analysis, batch timeout, metrics)"
         )
 
+        # Initialize WorkerSupervisor for automatic crash recovery (NEM-2460)
+        # The supervisor monitors pipeline workers and restarts them if they crash
+        async def on_worker_restart(name: str, attempt: int, error: str | None) -> None:
+            """Log worker restart events."""
+            lifespan_logger.warning(
+                f"Worker '{name}' restarting (attempt {attempt}): {error or 'unknown error'}"
+            )
+
+        async def on_worker_failure(name: str, error: str | None) -> None:
+            """Log worker failure events after max restarts exceeded."""
+            lifespan_logger.error(
+                f"Worker '{name}' FAILED - exceeded max restarts: {error or 'unknown error'}"
+            )
+
+        supervisor_config = SupervisorConfig(
+            check_interval=settings.worker_supervisor_check_interval,
+            default_max_restarts=settings.worker_supervisor_max_restarts,
+        )
+        worker_supervisor = get_worker_supervisor(
+            config=supervisor_config,
+            broadcaster=event_broadcaster,
+            on_restart=on_worker_restart,
+            on_failure=on_worker_failure,
+        )
+
+        # Register workers with the supervisor
+        # Note: Workers are already managed by PipelineManager, but supervisor
+        # provides additional monitoring and restart callbacks
+        await worker_supervisor.register_worker(
+            "detection",
+            create_detection_worker(redis_client),
+            max_restarts=settings.worker_supervisor_max_restarts,
+        )
+        await worker_supervisor.register_worker(
+            "analysis",
+            create_analysis_worker(redis_client),
+            max_restarts=settings.worker_supervisor_max_restarts,
+        )
+        await worker_supervisor.register_worker(
+            "batch_timeout",
+            create_timeout_worker(redis_client),
+            max_restarts=settings.worker_supervisor_max_restarts,
+        )
+        await worker_supervisor.register_worker(
+            "metrics",
+            create_metrics_worker(redis_client),
+            max_restarts=settings.worker_supervisor_max_restarts,
+        )
+
+        await worker_supervisor.start()
+        lifespan_logger.info(
+            f"WorkerSupervisor started with {worker_supervisor.worker_count} workers"
+        )
+
     except Exception as e:
         lifespan_logger.error(f"Redis connection failed: {e}")
         lifespan_logger.warning("Continuing without Redis - some features may be unavailable")
@@ -673,6 +736,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:  # noqa: PLR0912 - Co
         pipeline_manager=pipeline_manager,
         service_health_monitor=service_health_monitor,
         performance_collector=performance_collector,
+        worker_supervisor=get_worker_supervisor(),
     )
     lifespan_logger.info("Workers registered for readiness monitoring (DI + legacy)")
 
@@ -701,6 +765,12 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:  # noqa: PLR0912 - Co
     lifespan_logger.info("Cleanup service stopped")
     await gpu_monitor.stop()
     lifespan_logger.info("GPU monitor stopped")
+
+    # Stop WorkerSupervisor first to prevent restart attempts during shutdown (NEM-2460)
+    worker_supervisor = get_worker_supervisor()
+    await worker_supervisor.stop()
+    lifespan_logger.info("WorkerSupervisor stopped")
+    reset_worker_supervisor()
 
     # Drain queues gracefully before stopping workers (NEM-2006)
     # This ensures in-flight tasks complete and logs any tasks that couldn't finish
