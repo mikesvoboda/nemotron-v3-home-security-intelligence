@@ -176,9 +176,10 @@ class RateLimitTier(str, Enum):
     SEARCH = "search"
     EXPORT = "export"
     AI_INFERENCE = "ai_inference"
+    BULK = "bulk"
 
 
-def get_tier_limits(tier: RateLimitTier) -> tuple[int, int]:
+def get_tier_limits(tier: RateLimitTier) -> tuple[int, int]:  # noqa: PLR0911
     """Get rate limit settings for a specific tier.
 
     Args:
@@ -189,23 +190,30 @@ def get_tier_limits(tier: RateLimitTier) -> tuple[int, int]:
     """
     settings = get_settings()
 
-    if tier == RateLimitTier.MEDIA:
-        return (settings.rate_limit_media_requests_per_minute, settings.rate_limit_burst)
-    elif tier == RateLimitTier.WEBSOCKET:
-        return (settings.rate_limit_websocket_connections_per_minute, 2)
-    elif tier == RateLimitTier.SEARCH:
-        return (settings.rate_limit_search_requests_per_minute, settings.rate_limit_burst)
-    elif tier == RateLimitTier.EXPORT:
-        # Export tier has no burst allowance to prevent abuse
-        return (settings.rate_limit_export_requests_per_minute, 0)
-    elif tier == RateLimitTier.AI_INFERENCE:
-        # AI inference tier has strict limits due to computational cost
-        return (
-            settings.rate_limit_ai_inference_requests_per_minute,
-            settings.rate_limit_ai_inference_burst,
-        )
-    else:
-        return (settings.rate_limit_requests_per_minute, settings.rate_limit_burst)
+    match tier:
+        case RateLimitTier.MEDIA:
+            return (settings.rate_limit_media_requests_per_minute, settings.rate_limit_burst)
+        case RateLimitTier.WEBSOCKET:
+            return (settings.rate_limit_websocket_connections_per_minute, 2)
+        case RateLimitTier.SEARCH:
+            return (settings.rate_limit_search_requests_per_minute, settings.rate_limit_burst)
+        case RateLimitTier.EXPORT:
+            # Export tier has no burst allowance to prevent abuse
+            return (settings.rate_limit_export_requests_per_minute, 0)
+        case RateLimitTier.AI_INFERENCE:
+            # AI inference tier has strict limits due to computational cost
+            return (
+                settings.rate_limit_ai_inference_requests_per_minute,
+                settings.rate_limit_ai_inference_burst,
+            )
+        case RateLimitTier.BULK:
+            # Bulk tier has strict limits to prevent DoS via bulk operations
+            return (
+                settings.rate_limit_bulk_requests_per_minute,
+                settings.rate_limit_bulk_burst,
+            )
+        case _:
+            return (settings.rate_limit_requests_per_minute, settings.rate_limit_burst)
 
 
 def get_client_ip(request: Request | WebSocket) -> str:
@@ -503,6 +511,18 @@ def rate_limit_ai_inference() -> RateLimiter:
     GPU resources and could degrade system performance if abused.
     """
     return RateLimiter(tier=RateLimitTier.AI_INFERENCE)
+
+
+def rate_limit_bulk() -> RateLimiter:
+    """Get bulk operations rate limiter dependency.
+
+    The bulk tier has strict limits (10 requests/minute, burst of 2) to
+    prevent abuse of bulk operation endpoints (bulk_create_events,
+    bulk_update_events, bulk_delete_events, and similar detection endpoints).
+    These endpoints process up to 100 items per request, making them
+    potential vectors for denial-of-service attacks.
+    """
+    return RateLimiter(tier=RateLimitTier.BULK)
 
 
 # Type alias for cleaner dependency injection
