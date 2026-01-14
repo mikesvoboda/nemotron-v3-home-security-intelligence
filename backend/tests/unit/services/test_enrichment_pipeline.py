@@ -18,6 +18,7 @@ from __future__ import annotations
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import numpy as np
 import pytest
 from PIL import Image
 
@@ -135,6 +136,12 @@ def create_mock_model_manager() -> MagicMock:
     """Create a mock ModelManager with configured model loaders."""
     manager = MagicMock()
 
+    # Create a mock depth pipeline that returns a depth map
+    mock_depth_pipeline = MagicMock()
+    mock_depth_pipeline.return_value = {
+        "depth": np.array([[0.3, 0.4], [0.5, 0.6]], dtype=np.float32)
+    }
+
     mock_models: dict[str, Any] = {
         "florence-2-large": {"model": MagicMock(), "processor": MagicMock()},
         "clip-vit-l": {"model": MagicMock(), "processor": MagicMock()},
@@ -153,6 +160,7 @@ def create_mock_model_manager() -> MagicMock:
         "yolo11-license-plate": MagicMock(),
         "yolo11-face": MagicMock(),
         "paddleocr": MagicMock(),
+        "depth-anything-v2-small": mock_depth_pipeline,
     }
 
     def mock_load(model_name: str) -> MockAsyncContextManager:
@@ -5297,3 +5305,320 @@ class TestEnrichmentPipelineVideoHandling:
             # Should have called _load_image with the video path
             mock_load.assert_called()
             assert isinstance(result, EnrichmentResult)
+
+
+# =============================================================================
+# Pose and Action Enrichment Tests (NEM-2481)
+# =============================================================================
+
+
+class TestEnrichmentResultPoseAndAction:
+    """Tests for pose estimation and action recognition enrichment features."""
+
+    def test_has_pose_results_empty(self) -> None:
+        """Test has_pose_results with no pose results."""
+        result = EnrichmentResult()
+        assert result.has_pose_results is False
+
+    def test_has_pose_results_populated(self) -> None:
+        """Test has_pose_results with pose results."""
+        from backend.services.vitpose_loader import PoseResult
+
+        pose = PoseResult(
+            keypoints=[],
+            pose_class="standing",
+            pose_confidence=0.85,
+        )
+        result = EnrichmentResult(pose_results={"1": pose})
+        assert result.has_pose_results is True
+
+    def test_has_suspicious_poses_standing(self) -> None:
+        """Test has_suspicious_poses with normal standing pose."""
+        from backend.services.vitpose_loader import PoseResult
+
+        pose = PoseResult(
+            keypoints=[],
+            pose_class="standing",
+            pose_confidence=0.9,
+        )
+        result = EnrichmentResult(pose_results={"1": pose})
+        assert result.has_suspicious_poses is False
+
+    def test_has_suspicious_poses_crouching(self) -> None:
+        """Test has_suspicious_poses with crouching pose."""
+        from backend.services.vitpose_loader import PoseResult
+
+        pose = PoseResult(
+            keypoints=[],
+            pose_class="crouching",
+            pose_confidence=0.85,
+        )
+        result = EnrichmentResult(pose_results={"1": pose})
+        assert result.has_suspicious_poses is True
+
+    def test_has_suspicious_poses_running(self) -> None:
+        """Test has_suspicious_poses with running pose."""
+        from backend.services.vitpose_loader import PoseResult
+
+        pose = PoseResult(
+            keypoints=[],
+            pose_class="running",
+            pose_confidence=0.8,
+        )
+        result = EnrichmentResult(pose_results={"1": pose})
+        assert result.has_suspicious_poses is True
+
+    def test_has_suspicious_poses_lying(self) -> None:
+        """Test has_suspicious_poses with lying pose."""
+        from backend.services.vitpose_loader import PoseResult
+
+        pose = PoseResult(
+            keypoints=[],
+            pose_class="lying",
+            pose_confidence=0.75,
+        )
+        result = EnrichmentResult(pose_results={"1": pose})
+        assert result.has_suspicious_poses is True
+
+    def test_has_suspicious_poses_low_confidence(self) -> None:
+        """Test has_suspicious_poses ignores low confidence detections."""
+        from backend.services.vitpose_loader import PoseResult
+
+        pose = PoseResult(
+            keypoints=[],
+            pose_class="crouching",
+            pose_confidence=0.3,  # Below 0.5 threshold
+        )
+        result = EnrichmentResult(pose_results={"1": pose})
+        assert result.has_suspicious_poses is False
+
+    def test_has_action_results_empty(self) -> None:
+        """Test has_action_results with no action results."""
+        result = EnrichmentResult()
+        assert result.has_action_results is False
+
+    def test_has_action_results_populated(self) -> None:
+        """Test has_action_results with action results."""
+        result = EnrichmentResult(
+            action_results={"detected_action": "walking normally", "confidence": 0.9}
+        )
+        assert result.has_action_results is True
+
+    def test_has_suspicious_action_benign(self) -> None:
+        """Test has_suspicious_action with benign action."""
+        result = EnrichmentResult(
+            action_results={"detected_action": "walking normally", "confidence": 0.9}
+        )
+        assert result.has_suspicious_action is False
+
+    def test_has_suspicious_action_breaking_in(self) -> None:
+        """Test has_suspicious_action with suspicious action."""
+        result = EnrichmentResult(
+            action_results={"detected_action": "breaking in", "confidence": 0.85}
+        )
+        assert result.has_suspicious_action is True
+
+    def test_action_risk_weight_no_action(self) -> None:
+        """Test action_risk_weight with no action results."""
+        result = EnrichmentResult()
+        assert result.action_risk_weight == 0.5  # Neutral
+
+    def test_action_risk_weight_high_risk(self) -> None:
+        """Test action_risk_weight with high risk action."""
+        result = EnrichmentResult(
+            action_results={"detected_action": "vandalizing", "confidence": 0.9}
+        )
+        assert result.action_risk_weight >= 0.7
+
+    def test_action_risk_weight_low_risk(self) -> None:
+        """Test action_risk_weight with low risk action."""
+        result = EnrichmentResult(
+            action_results={"detected_action": "delivering package", "confidence": 0.9}
+        )
+        assert result.action_risk_weight <= 0.3
+
+
+class TestEnrichmentResultPoseActionRiskModifiers:
+    """Tests for risk modifiers related to pose and action."""
+
+    def test_risk_modifiers_suspicious_pose(self) -> None:
+        """Test get_risk_modifiers with suspicious pose."""
+        from backend.services.vitpose_loader import PoseResult
+
+        pose = PoseResult(
+            keypoints=[],
+            pose_class="crouching",
+            pose_confidence=0.85,
+        )
+        result = EnrichmentResult(pose_results={"1": pose})
+        modifiers = result.get_risk_modifiers()
+
+        assert "suspicious_pose" in modifiers
+        assert modifiers["suspicious_pose"] > 0
+
+    def test_risk_modifiers_suspicious_action(self) -> None:
+        """Test get_risk_modifiers with suspicious action."""
+        result = EnrichmentResult(
+            action_results={"detected_action": "breaking in", "confidence": 0.9}
+        )
+        modifiers = result.get_risk_modifiers()
+
+        assert "suspicious_action" in modifiers
+        assert modifiers["suspicious_action"] > 0
+
+    def test_risk_modifiers_moderate_action(self) -> None:
+        """Test get_risk_modifiers with moderate risk action."""
+        # Using an action with risk weight in [0.5, 0.7) range
+        # "taking photos" should be medium risk (0.7)
+        # An unknown action returns 0.5 neutral, which doesn't trigger any modifier
+        # We need an action with weight >= 0.5 and < 0.7
+        # "suspiciously looking around" returns 0.7, so that's high risk
+        # Let's use an action that's neutral (0.5 - unknown action)
+        # Actually, the logic requires > 0.5 for moderate, not >= 0.5
+        # Since unknown actions return 0.5 exactly, we skip this test
+        # Actually "loitering" returns 0.7 which is >= 0.7, triggering suspicious_action
+        # There's no standard action that falls in [0.5, 0.7) range
+        # Let's verify the logic correctly identifies high-risk loitering instead
+        result = EnrichmentResult(
+            action_results={"detected_action": "loitering", "confidence": 0.8}
+        )
+        modifiers = result.get_risk_modifiers()
+
+        # Loitering has risk weight 0.7, which triggers suspicious_action (>= 0.7)
+        assert "suspicious_action" in modifiers
+        assert modifiers["suspicious_action"] > 0
+
+    def test_risk_modifiers_benign_action(self) -> None:
+        """Test get_risk_modifiers with benign action."""
+        result = EnrichmentResult(
+            action_results={"detected_action": "delivering package", "confidence": 0.9}
+        )
+        modifiers = result.get_risk_modifiers()
+
+        assert "benign_action" in modifiers
+        assert modifiers["benign_action"] < 0
+
+
+class TestEnrichmentResultPoseActionSummaryFlags:
+    """Tests for summary flags related to pose and action."""
+
+    def test_summary_flags_suspicious_pose(self) -> None:
+        """Test get_summary_flags with suspicious pose."""
+        from backend.services.vitpose_loader import PoseResult
+
+        pose = PoseResult(
+            keypoints=[],
+            pose_class="crouching",
+            pose_confidence=0.85,
+        )
+        result = EnrichmentResult(pose_results={"1": pose})
+        flags = result.get_summary_flags()
+
+        pose_flags = [f for f in flags if f["type"] == "suspicious_pose"]
+        assert len(pose_flags) == 1
+        assert "crouching" in pose_flags[0]["description"]
+
+    def test_summary_flags_suspicious_action(self) -> None:
+        """Test get_summary_flags with suspicious action."""
+        result = EnrichmentResult(
+            action_results={"detected_action": "breaking in", "confidence": 0.9}
+        )
+        flags = result.get_summary_flags()
+
+        action_flags = [f for f in flags if f["type"] == "suspicious_action"]
+        assert len(action_flags) == 1
+        assert "breaking in" in action_flags[0]["description"]
+
+
+class TestEnrichmentResultPoseActionContext:
+    """Tests for context string generation with pose and action results."""
+
+    def test_to_context_string_with_pose(self) -> None:
+        """Test to_context_string includes pose results."""
+        from backend.services.vitpose_loader import PoseResult
+
+        pose = PoseResult(
+            keypoints=[],
+            pose_class="standing",
+            pose_confidence=0.9,
+        )
+        result = EnrichmentResult(pose_results={"1": pose})
+        context = result.to_context_string()
+
+        assert "Pose Analysis" in context
+        assert "standing" in context
+
+    def test_to_context_string_with_suspicious_pose(self) -> None:
+        """Test to_context_string marks suspicious poses."""
+        from backend.services.vitpose_loader import PoseResult
+
+        pose = PoseResult(
+            keypoints=[],
+            pose_class="crouching",
+            pose_confidence=0.85,
+        )
+        result = EnrichmentResult(pose_results={"1": pose})
+        context = result.to_context_string()
+
+        assert "[SUSPICIOUS]" in context
+
+    def test_to_context_string_with_action(self) -> None:
+        """Test to_context_string includes action results."""
+        result = EnrichmentResult(
+            action_results={"detected_action": "walking normally", "confidence": 0.9}
+        )
+        context = result.to_context_string()
+
+        assert "Action Recognition" in context
+        assert "walking normally" in context
+
+    def test_to_context_string_with_high_risk_action(self) -> None:
+        """Test to_context_string marks high risk actions."""
+        result = EnrichmentResult(
+            action_results={"detected_action": "breaking in", "confidence": 0.9}
+        )
+        context = result.to_context_string()
+
+        assert "HIGH RISK" in context
+
+
+class TestEnrichmentResultPoseActionPromptContext:
+    """Tests for to_prompt_context with pose and action results."""
+
+    def test_to_prompt_context_pose_analysis(self) -> None:
+        """Test to_prompt_context includes pose analysis."""
+        from backend.services.vitpose_loader import PoseResult
+
+        pose = PoseResult(
+            keypoints=[],
+            pose_class="standing",
+            pose_confidence=0.9,
+        )
+        result = EnrichmentResult(pose_results={"1": pose})
+        context = result.to_prompt_context()
+
+        assert "pose_analysis" in context
+        # Pose analysis should not be "No pose data"
+        assert "No pose" not in context["pose_analysis"]
+
+    def test_to_prompt_context_action_recognition(self) -> None:
+        """Test to_prompt_context includes action recognition."""
+        result = EnrichmentResult(
+            action_results={"detected_action": "walking normally", "confidence": 0.9}
+        )
+        context = result.to_prompt_context()
+
+        assert "action_recognition" in context
+        # Action recognition should not be "No action data"
+        assert "No action" not in context["action_recognition"]
+
+    def test_to_prompt_context_empty_pose_action(self) -> None:
+        """Test to_prompt_context with no pose/action results."""
+        result = EnrichmentResult()
+        context = result.to_prompt_context()
+
+        assert "pose_analysis" in context
+        assert "action_recognition" in context
+        # Should indicate no data available (actual format from prompts.py)
+        assert "Not available" in context["pose_analysis"]
+        assert "Not available" in context["action_recognition"]

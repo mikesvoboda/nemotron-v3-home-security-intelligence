@@ -1701,16 +1701,37 @@
           "audited_events": 1100,
           "audits_by_day": [
             {
+              "avg_enrichment_utilization": 0.78,
+              "avg_quality_score": 4.2,
               "count": 45,
-              "date": "2026-01-01"
+              "date": "2026-01-01",
+              "day_of_week": "Wednesday",
+              "model_contributions": {
+                "florence": 38,
+                "rtdetr": 45
+              }
             },
             {
+              "avg_enrichment_utilization": 0.8,
+              "avg_quality_score": 4.0,
               "count": 52,
-              "date": "2026-01-02"
+              "date": "2026-01-02",
+              "day_of_week": "Thursday",
+              "model_contributions": {
+                "florence": 45,
+                "rtdetr": 52
+              }
             },
             {
+              "avg_enrichment_utilization": 0.75,
+              "avg_quality_score": 4.3,
               "count": 38,
-              "date": "2026-01-03"
+              "date": "2026-01-03",
+              "day_of_week": "Friday",
+              "model_contributions": {
+                "florence": 30,
+                "rtdetr": 38
+              }
             }
           ],
           "avg_consistency_rate": 0.92,
@@ -1732,8 +1753,7 @@
           },
           "audits_by_day": {
             "items": {
-              "additionalProperties": true,
-              "type": "object"
+              "$ref": "#/components/schemas/DailyAuditStats"
             },
             "title": "Audits By Day",
             "type": "array"
@@ -4623,6 +4643,91 @@
           "total_count"
         ],
         "title": "DLQStatsResponse",
+        "type": "object"
+      },
+      "DailyAuditStats": {
+        "description": "Daily breakdown of audit statistics.\n\nProvides a detailed view of audit activity for a single day,\nincluding quality metrics and model contribution counts.",
+        "example": {
+          "avg_enrichment_utilization": 0.78,
+          "avg_quality_score": 4.2,
+          "count": 45,
+          "date": "2026-01-01",
+          "day_of_week": "Wednesday",
+          "model_contributions": {
+            "baseline": 25,
+            "clip": 12,
+            "clothing": 32,
+            "cross_camera": 10,
+            "florence": 38,
+            "image_quality": 40,
+            "pet": 3,
+            "rtdetr": 45,
+            "vehicle": 8,
+            "violence": 5,
+            "weather": 42,
+            "zones": 30
+          }
+        },
+        "properties": {
+          "avg_enrichment_utilization": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Average enrichment utilization for this day (0-1)",
+            "title": "Avg Enrichment Utilization"
+          },
+          "avg_quality_score": {
+            "anyOf": [
+              {
+                "maximum": 5.0,
+                "minimum": 1.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Average quality score for this day (1-5 scale)",
+            "title": "Avg Quality Score"
+          },
+          "count": {
+            "description": "Number of audits on this day",
+            "minimum": 0.0,
+            "title": "Count",
+            "type": "integer"
+          },
+          "date": {
+            "description": "ISO date string (YYYY-MM-DD)",
+            "title": "Date",
+            "type": "string"
+          },
+          "day_of_week": {
+            "description": "Day name (e.g., Monday, Tuesday)",
+            "title": "Day Of Week",
+            "type": "string"
+          },
+          "model_contributions": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "Count of audits where each model contributed on this day",
+            "title": "Model Contributions",
+            "type": "object"
+          }
+        },
+        "required": [
+          "date",
+          "day_of_week",
+          "count"
+        ],
+        "title": "DailyAuditStats",
         "type": "object"
       },
       "DailyPattern": {

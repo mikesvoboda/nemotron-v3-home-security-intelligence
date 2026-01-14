@@ -7164,16 +7164,37 @@ export interface components {
          *       "audited_events": 1100,
          *       "audits_by_day": [
          *         {
+         *           "avg_enrichment_utilization": 0.78,
+         *           "avg_quality_score": 4.2,
          *           "count": 45,
-         *           "date": "2026-01-01"
+         *           "date": "2026-01-01",
+         *           "day_of_week": "Wednesday",
+         *           "model_contributions": {
+         *             "florence": 38,
+         *             "rtdetr": 45
+         *           }
          *         },
          *         {
+         *           "avg_enrichment_utilization": 0.8,
+         *           "avg_quality_score": 4,
          *           "count": 52,
-         *           "date": "2026-01-02"
+         *           "date": "2026-01-02",
+         *           "day_of_week": "Thursday",
+         *           "model_contributions": {
+         *             "florence": 45,
+         *             "rtdetr": 52
+         *           }
          *         },
          *         {
+         *           "avg_enrichment_utilization": 0.75,
+         *           "avg_quality_score": 4.3,
          *           "count": 38,
-         *           "date": "2026-01-03"
+         *           "date": "2026-01-03",
+         *           "day_of_week": "Friday",
+         *           "model_contributions": {
+         *             "florence": 30,
+         *             "rtdetr": 38
+         *           }
          *         }
          *       ],
          *       "avg_consistency_rate": 0.92,
@@ -7193,9 +7214,7 @@ export interface components {
             /** Audited Events */
             audited_events: number;
             /** Audits By Day */
-            audits_by_day: {
-                [key: string]: unknown;
-            }[];
+            audits_by_day: components["schemas"]["DailyAuditStats"][];
             /** Avg Consistency Rate */
             avg_consistency_rate: number | null;
             /** Avg Enrichment Utilization */
@@ -9286,6 +9305,68 @@ export interface components {
              * @description Total number of jobs across all DLQs
              */
             total_count: number;
+        };
+        /**
+         * DailyAuditStats
+         * @description Daily breakdown of audit statistics.
+         *
+         *     Provides a detailed view of audit activity for a single day,
+         *     including quality metrics and model contribution counts.
+         * @example {
+         *       "avg_enrichment_utilization": 0.78,
+         *       "avg_quality_score": 4.2,
+         *       "count": 45,
+         *       "date": "2026-01-01",
+         *       "day_of_week": "Wednesday",
+         *       "model_contributions": {
+         *         "baseline": 25,
+         *         "clip": 12,
+         *         "clothing": 32,
+         *         "cross_camera": 10,
+         *         "florence": 38,
+         *         "image_quality": 40,
+         *         "pet": 3,
+         *         "rtdetr": 45,
+         *         "vehicle": 8,
+         *         "violence": 5,
+         *         "weather": 42,
+         *         "zones": 30
+         *       }
+         *     }
+         */
+        DailyAuditStats: {
+            /**
+             * Avg Enrichment Utilization
+             * @description Average enrichment utilization for this day (0-1)
+             */
+            avg_enrichment_utilization?: number | null;
+            /**
+             * Avg Quality Score
+             * @description Average quality score for this day (1-5 scale)
+             */
+            avg_quality_score?: number | null;
+            /**
+             * Count
+             * @description Number of audits on this day
+             */
+            count: number;
+            /**
+             * Date
+             * @description ISO date string (YYYY-MM-DD)
+             */
+            date: string;
+            /**
+             * Day Of Week
+             * @description Day name (e.g., Monday, Tuesday)
+             */
+            day_of_week: string;
+            /**
+             * Model Contributions
+             * @description Count of audits where each model contributed on this day
+             */
+            model_contributions?: {
+                [key: string]: number;
+            };
         };
         /**
          * DailyPattern

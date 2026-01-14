@@ -675,3 +675,264 @@ def test_depth_boundaries():
     assert depth_to_proximity_label(0.35) == "moderate distance"  # Not "close"
     assert depth_to_proximity_label(0.55) == "far"  # Not "moderate distance"
     assert depth_to_proximity_label(0.75) == "very far"  # Not "far"
+
+
+# =============================================================================
+# Test DetectionDepth dataclass
+# =============================================================================
+
+
+def test_detection_depth_creation():
+    """Test DetectionDepth dataclass instantiation."""
+    from backend.services.depth_anything_loader import DetectionDepth
+
+    depth = DetectionDepth(
+        detection_id="det_1",
+        class_name="person",
+        depth_value=0.25,
+        proximity_label="close",
+        is_approaching=True,
+    )
+
+    assert depth.detection_id == "det_1"
+    assert depth.class_name == "person"
+    assert depth.depth_value == 0.25
+    assert depth.proximity_label == "close"
+    assert depth.is_approaching is True
+
+
+def test_detection_depth_to_dict():
+    """Test DetectionDepth to_dict serialization."""
+    from backend.services.depth_anything_loader import DetectionDepth
+
+    depth = DetectionDepth(
+        detection_id="det_1",
+        class_name="car",
+        depth_value=0.5,
+        proximity_label="moderate distance",
+    )
+
+    result = depth.to_dict()
+
+    assert result == {
+        "detection_id": "det_1",
+        "class_name": "car",
+        "depth_value": 0.5,
+        "proximity_label": "moderate distance",
+        "is_approaching": False,
+    }
+
+
+# =============================================================================
+# Test DepthAnalysisResult dataclass
+# =============================================================================
+
+
+def test_depth_analysis_result_empty():
+    """Test DepthAnalysisResult with no detections."""
+    from backend.services.depth_anything_loader import DepthAnalysisResult
+
+    result = DepthAnalysisResult()
+
+    assert not result.has_detections
+    assert result.detection_count == 0
+    assert result.closest_depth is None
+    assert result.close_detection_ids == []
+    assert not result.has_close_objects
+
+
+def test_depth_analysis_result_with_detections():
+    """Test DepthAnalysisResult with multiple detections."""
+    from backend.services.depth_anything_loader import (
+        DepthAnalysisResult,
+        DetectionDepth,
+    )
+
+    detection_depths = {
+        "det_1": DetectionDepth(
+            detection_id="det_1",
+            class_name="person",
+            depth_value=0.1,
+            proximity_label="very close",
+        ),
+        "det_2": DetectionDepth(
+            detection_id="det_2",
+            class_name="car",
+            depth_value=0.5,
+            proximity_label="moderate distance",
+        ),
+    }
+
+    result = DepthAnalysisResult(
+        detection_depths=detection_depths,
+        closest_detection_id="det_1",
+        has_close_objects=True,
+        average_depth=0.3,
+        depth_variance=0.08,
+    )
+
+    assert result.has_detections
+    assert result.detection_count == 2
+    assert result.closest_depth == pytest.approx(0.1)
+    assert result.close_detection_ids == ["det_1"]
+    assert result.has_close_objects
+
+
+def test_depth_analysis_result_to_dict():
+    """Test DepthAnalysisResult to_dict serialization."""
+    from backend.services.depth_anything_loader import (
+        DepthAnalysisResult,
+        DetectionDepth,
+    )
+
+    detection_depths = {
+        "det_1": DetectionDepth(
+            detection_id="det_1",
+            class_name="person",
+            depth_value=0.2,
+            proximity_label="close",
+        ),
+    }
+
+    result = DepthAnalysisResult(
+        detection_depths=detection_depths,
+        closest_detection_id="det_1",
+        has_close_objects=True,
+        average_depth=0.2,
+        depth_variance=0.0,
+    )
+
+    data = result.to_dict()
+
+    assert "detection_depths" in data
+    assert "det_1" in data["detection_depths"]
+    assert data["closest_detection_id"] == "det_1"
+    assert data["has_close_objects"] is True
+
+
+def test_depth_analysis_result_to_context_string_empty():
+    """Test to_context_string with empty result."""
+    from backend.services.depth_anything_loader import DepthAnalysisResult
+
+    result = DepthAnalysisResult()
+    context = result.to_context_string()
+
+    assert context == "Depth analysis: No detections analyzed"
+
+
+def test_depth_analysis_result_to_context_string_with_detections():
+    """Test to_context_string with detections."""
+    from backend.services.depth_anything_loader import (
+        DepthAnalysisResult,
+        DetectionDepth,
+    )
+
+    detection_depths = {
+        "det_1": DetectionDepth(
+            detection_id="det_1",
+            class_name="person",
+            depth_value=0.08,
+            proximity_label="very close",
+        ),
+        "det_2": DetectionDepth(
+            detection_id="det_2",
+            class_name="car",
+            depth_value=0.6,
+            proximity_label="far",
+        ),
+    }
+
+    result = DepthAnalysisResult(
+        detection_depths=detection_depths,
+        closest_detection_id="det_1",
+        has_close_objects=True,
+        average_depth=0.34,
+        depth_variance=0.13,
+    )
+
+    context = result.to_context_string()
+
+    assert "Spatial depth analysis:" in context
+    assert "person" in context
+    assert "very close" in context
+    assert "CLOSE TO CAMERA" in context
+    assert "car" in context
+    assert "far" in context
+
+
+def test_depth_analysis_result_get_depth():
+    """Test get_depth method."""
+    from backend.services.depth_anything_loader import (
+        DepthAnalysisResult,
+        DetectionDepth,
+    )
+
+    detection_depths = {
+        "det_1": DetectionDepth(
+            detection_id="det_1",
+            class_name="person",
+            depth_value=0.3,
+            proximity_label="close",
+        ),
+    }
+
+    result = DepthAnalysisResult(detection_depths=detection_depths)
+
+    assert result.get_depth("det_1") is not None
+    assert result.get_depth("det_1").depth_value == 0.3
+    assert result.get_depth("nonexistent") is None
+
+
+# =============================================================================
+# Test analyze_depth function
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_analyze_depth_empty_detections():
+    """Test analyze_depth with empty detection list."""
+    from backend.services.depth_anything_loader import analyze_depth
+
+    mock_pipeline = MagicMock()
+    mock_image = MagicMock()
+
+    result = await analyze_depth(mock_pipeline, mock_image, [])
+
+    assert not result.has_detections
+    assert result.detection_count == 0
+
+
+@pytest.mark.asyncio
+async def test_analyze_depth_with_detections():
+    """Test analyze_depth with valid detections."""
+    from backend.services.depth_anything_loader import analyze_depth
+
+    # Create a mock depth map
+    depth_map = np.array(
+        [
+            [0.1, 0.2, 0.3, 0.4],
+            [0.2, 0.3, 0.4, 0.5],
+            [0.3, 0.4, 0.5, 0.6],
+            [0.4, 0.5, 0.6, 0.7],
+        ],
+        dtype=np.float32,
+    )
+
+    # Mock the pipeline to return the depth map
+    mock_pipeline = MagicMock()
+    mock_pipeline.return_value = {"depth": depth_map}
+
+    mock_image = MagicMock()
+
+    detections = [
+        {"detection_id": "det_1", "class_name": "person", "bbox": (0, 0, 2, 2)},
+        {"detection_id": "det_2", "class_name": "car", "bbox": (2, 2, 4, 4)},
+    ]
+
+    result = await analyze_depth(mock_pipeline, mock_image, detections)
+
+    assert result.has_detections
+    assert result.detection_count == 2
+    assert "det_1" in result.detection_depths
+    assert "det_2" in result.detection_depths
+    assert result.closest_detection_id == "det_1"  # det_1 is closer (lower depth value)

@@ -7,10 +7,12 @@ and aggregation of statistics.
 from __future__ import annotations
 
 import json
+from collections import defaultdict
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any, cast
 
 import httpx
+import numpy as np
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -450,6 +452,135 @@ class PipelineQualityAuditService:
             logger.error("Prompt improvement error", exc_info=True, extra={"event_id": event.id})
             return {}
 
+    def _compute_daily_breakdown(
+        self,
+        audits: list[EventAudit],
+    ) -> list[dict[str, Any]]:
+        """Compute daily breakdown of audit statistics.
+
+        Returns a list of dicts with:
+        - date: ISO date string (YYYY-MM-DD)
+        - day_of_week: Day name (Monday, Tuesday, etc.)
+        - count: Number of audits on that day
+        - avg_quality_score: Average quality score for that day (None if no scores)
+        - avg_enrichment_utilization: Average enrichment utilization for that day
+        - model_contributions: Dict of model name -> count for that day
+        """
+        if not audits:
+            return []
+
+        # Group audits by date
+        daily_groups: dict[str, list[EventAudit]] = defaultdict(list)
+        for audit in audits:
+            if audit.audited_at:
+                date_key = audit.audited_at.date().isoformat()
+                daily_groups[date_key].append(audit)
+
+        # Build daily breakdown
+        daily_breakdown = []
+        for date_str in sorted(daily_groups.keys()):
+            day_audits = daily_groups[date_str]
+            date_obj = datetime.fromisoformat(date_str).date()
+
+            # Calculate averages for the day
+            quality_scores = [
+                a.overall_quality_score for a in day_audits if a.overall_quality_score is not None
+            ]
+            utilization_values = [a.enrichment_utilization for a in day_audits]
+
+            # Count model contributions for the day
+            model_contributions: dict[str, int] = {}
+            for model in MODEL_NAMES:
+                attr = f"has_{model}"
+                model_contributions[model] = sum(1 for a in day_audits if getattr(a, attr, False))
+
+            daily_breakdown.append(
+                {
+                    "date": date_str,
+                    "day_of_week": date_obj.strftime("%A"),
+                    "count": len(day_audits),
+                    "avg_quality_score": (
+                        sum(quality_scores) / len(quality_scores) if quality_scores else None
+                    ),
+                    "avg_enrichment_utilization": (
+                        sum(utilization_values) / len(utilization_values)
+                        if utilization_values
+                        else None
+                    ),
+                    "model_contributions": model_contributions,
+                }
+            )
+
+        return daily_breakdown
+
+    def _compute_quality_correlations(
+        self,
+        audits: list[EventAudit],
+    ) -> dict[str, float | None]:
+        """Compute Pearson correlation between each model's presence and quality scores.
+
+        For each model, calculates the correlation between:
+        - A binary indicator (1 if model contributed, 0 if not)
+        - The overall quality score
+
+        Returns a dict mapping model name to correlation coefficient (-1.0 to 1.0).
+        Returns None for a model if:
+        - Not enough data points (need at least 3 with quality scores)
+        - No variance in the model presence (all 1s or all 0s)
+        - Correlation cannot be computed (e.g., constant values)
+        """
+        if not audits:
+            return dict.fromkeys(MODEL_NAMES, None)
+
+        # Filter to audits with quality scores
+        audits_with_scores = [a for a in audits if a.overall_quality_score is not None]
+
+        # Need at least 3 data points for meaningful correlation
+        if len(audits_with_scores) < 3:
+            return dict.fromkeys(MODEL_NAMES, None)
+
+        # Extract quality scores as numpy array
+        quality_scores = np.array(
+            [a.overall_quality_score for a in audits_with_scores], dtype=np.float64
+        )
+
+        # Check if quality scores have variance
+        if np.std(quality_scores) == 0:
+            return dict.fromkeys(MODEL_NAMES, None)
+
+        correlations: dict[str, float | None] = {}
+
+        for model in MODEL_NAMES:
+            attr = f"has_{model}"
+
+            # Create binary indicator array for model presence
+            model_presence = np.array(
+                [1.0 if getattr(a, attr, False) else 0.0 for a in audits_with_scores],
+                dtype=np.float64,
+            )
+
+            # Check if model presence has variance (not all 0s or all 1s)
+            if np.std(model_presence) == 0:
+                correlations[model] = None
+                continue
+
+            # Compute Pearson correlation coefficient
+            # Using numpy's corrcoef which returns a 2x2 correlation matrix
+            try:
+                corr_matrix = np.corrcoef(model_presence, quality_scores)
+                correlation = corr_matrix[0, 1]
+
+                # Handle NaN result (can happen with edge cases)
+                if np.isnan(correlation):
+                    correlations[model] = None
+                else:
+                    # Round to 4 decimal places for cleaner output
+                    correlations[model] = round(float(correlation), 4)
+            except (ValueError, FloatingPointError):
+                correlations[model] = None
+
+        return correlations
+
     async def get_stats(
         self,
         session: AsyncSession,
@@ -510,7 +641,7 @@ class PipelineQualityAuditService:
             if utilization_values
             else None,
             "model_contribution_rates": model_contribution_rates,
-            "audits_by_day": [],  # TODO: Implement daily breakdown
+            "audits_by_day": self._compute_daily_breakdown(audits),
         }
 
     async def get_leaderboard(
@@ -526,7 +657,16 @@ class PipelineQualityAuditService:
         - quality_correlation
         - event_count
         """
+        cutoff = datetime.now(UTC) - timedelta(days=days)
+
+        # Fetch audits for correlation calculation
+        result = await session.execute(select(EventAudit).where(EventAudit.audited_at >= cutoff))
+        audits = list(result.scalars().all())
+
         stats = await self.get_stats(session, days)
+
+        # Compute quality correlations for each model
+        quality_correlations = self._compute_quality_correlations(audits)
 
         entries = []
         for model in MODEL_NAMES:
@@ -535,7 +675,7 @@ class PipelineQualityAuditService:
                 {
                     "model_name": model,
                     "contribution_rate": rate,
-                    "quality_correlation": None,  # TODO: Calculate correlation
+                    "quality_correlation": quality_correlations.get(model),
                     "event_count": int(rate * stats["total_events"]),
                 }
             )

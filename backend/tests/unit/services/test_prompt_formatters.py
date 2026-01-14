@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from backend.services.depth_anything_loader import DepthAnalysisResult, DetectionDepth
 from backend.services.prompts import (
     MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT,
     format_action_recognition_context,
@@ -552,31 +553,50 @@ class TestFormatDepthContext:
         assert result == "Depth analysis: Not available"
 
     def test_empty_detections(self) -> None:
-        """Test formatting when depth dict has no detections."""
-        result = format_depth_context({"detections": {}})
-        assert "No depth data available" in result
+        """Test formatting when depth result has no detections."""
+        depth_result = DepthAnalysisResult()
+        result = format_depth_context(depth_result)
+        assert "No detections analyzed" in result
 
     def test_foreground_detection(self) -> None:
-        """Test formatting for foreground detection."""
-        depth_data = {
-            "detections": {"det_1": {"relative_distance": "foreground", "confidence": 0.9}}
-        }
-        result = format_depth_context(depth_data)
+        """Test formatting for close detection (very close proximity)."""
+        det_depth = DetectionDepth(
+            detection_id="det_1",
+            class_name="person",
+            depth_value=0.1,
+            proximity_label="very close",
+            is_approaching=False,
+        )
+        depth_result = DepthAnalysisResult(
+            detection_depths={"det_1": det_depth},
+            closest_detection_id="det_1",
+            has_close_objects=True,
+            average_depth=0.1,
+        )
+        result = format_depth_context(depth_result)
 
-        assert "foreground" in result
-        assert "Close to camera" in result
+        assert "very close" in result
+        assert "CLOSE TO CAMERA" in result
 
     def test_approaching_detection(self) -> None:
         """Test formatting for approaching detection."""
-        depth_data = {
-            "detections": {"det_1": {"relative_distance": "approaching", "confidence": 0.85}},
-            "movement_pattern": "moving_closer",
-        }
-        result = format_depth_context(depth_data)
+        det_depth = DetectionDepth(
+            detection_id="det_1",
+            class_name="person",
+            depth_value=0.3,
+            proximity_label="close",
+            is_approaching=True,
+        )
+        depth_result = DepthAnalysisResult(
+            detection_depths={"det_1": det_depth},
+            closest_detection_id="det_1",
+            has_close_objects=True,
+            average_depth=0.3,
+        )
+        result = format_depth_context(depth_result)
 
-        assert "approaching" in result
-        assert "Moving toward camera" in result
-        assert "moving_closer" in result
+        assert "close" in result
+        assert "APPROACHING" in result
 
 
 class TestFormatImageQualityContext:
@@ -825,12 +845,15 @@ class TestFormattersErrorHandling:
         result = format_vehicle_damage_context(damage)
         assert "No damage detected" in result or result is not None
 
-    def test_format_depth_context_with_invalid_structure(self) -> None:
-        """Test format_depth_context handles invalid dict structure."""
-        depth_data = {"invalid_key": "invalid_value"}  # Missing 'detections' key
-        result = format_depth_context(depth_data)
-        # Should handle missing keys gracefully
+    def test_format_depth_context_with_empty_result(self) -> None:
+        """Test format_depth_context handles empty DepthAnalysisResult."""
+        from backend.services.depth_anything_loader import DepthAnalysisResult
+
+        depth_result = DepthAnalysisResult()  # Empty result with no detections
+        result = format_depth_context(depth_result)
+        # Should handle empty result gracefully
         assert result is not None
+        assert "No detections analyzed" in result
 
     def test_format_image_quality_with_none_quality_score(self) -> None:
         """Test format_image_quality_context handles None quality_score."""
