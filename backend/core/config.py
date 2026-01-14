@@ -188,8 +188,8 @@ class OrchestratorSettings(BaseSettings):
     # Monitoring feature flag
     monitoring_enabled: bool = Field(
         True,
-        description="Enable monitoring service discovery. When disabled, monitoring "
-        "containers (Prometheus, Grafana, etc.) are excluded from discovery.",
+        description="Enable monitoring services management. When True, orchestrator "
+        "will manage monitoring containers (prometheus, grafana, exporters).",
     )
 
 

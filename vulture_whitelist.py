@@ -32,6 +32,7 @@ _.cleanup_cache
 _.reader_id
 _.clean_soft_delete_tables
 _.cleanup_test_keys
+_.performance_db
 _.pool_test_db
 _.slow_query_test_db
 _.reset_redis_global
@@ -61,6 +62,12 @@ _.device_tokens
 # Mock function parameters (required by interface signature but unused in mock body)
 # e.g., async def mock_seek(pos): pass - pos is required by UploadFile.seek signature
 _.pos
+
+# ASGI middleware parameters (required by ASGI signature in test mock apps)
+# async def minimal_app(scope, receive, send): pass
+_.receive
+_.scope
+_.send
 
 # DI container service aliases (imported for cast() type safety but referenced as strings)
 # These are imported locally in FastAPI dependencies to avoid circular imports

@@ -1408,9 +1408,11 @@ class TestChannelDocumentation:
         """Verify AGENTS.md documents the canonical channel name."""
         from pathlib import Path
 
-        agents_path = Path(__file__).parent.parent.parent / "services" / "AGENTS.md"
+        agents_path = (
+            Path(__file__).resolve().parent.parent.parent / "services" / "AGENTS.md"
+        ).resolve()
 
-        with open(agents_path) as f:
+        with agents_path.open() as f:
             content = f.read()
 
         # Channel name should be documented
