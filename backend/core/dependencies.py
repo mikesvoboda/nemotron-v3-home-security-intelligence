@@ -21,6 +21,7 @@ global singleton patterns. Both approaches work - use what fits your use case.
 from __future__ import annotations
 
 __all__ = [
+    "PaginationLimits",
     "get_context_enricher_dependency",
     "get_detector_dependency",
     "get_enrichment_pipeline_dependency",
@@ -30,6 +31,7 @@ __all__ = [
     "get_hybrid_entity_storage",
     "get_nemotron_analyzer_dependency",
     "get_ocr_service_dependency",
+    "get_pagination_limits",
     "get_plate_detector_service_dependency",
     "get_redis_dependency",
     "get_reid_service_dependency",
@@ -322,3 +324,63 @@ async def get_reid_service_dependency() -> AsyncGenerator[ReIdentificationServic
 
         # Create and yield the final ReIdentificationService with hybrid storage
         yield ReIdentificationService(hybrid_storage=hybrid_storage)
+
+
+class PaginationLimits:
+    """Container for pagination limit configuration (NEM-2591).
+
+    This class provides a simple container for pagination limits that can be
+    injected into FastAPI route handlers via the get_pagination_limits dependency.
+
+    Attributes:
+        max_limit: Maximum allowed limit for paginated requests
+        default_limit: Default limit when not specified in request
+
+    Example:
+        @router.get("/items")
+        async def list_items(
+            limits: PaginationLimits = Depends(get_pagination_limits),
+            limit: int = Query(default=None),
+        ):
+            validated_limit = limits.default_limit if limit is None else limit
+            if validated_limit > limits.max_limit:
+                raise HTTPException(status_code=400, detail="Limit too large")
+            ...
+    """
+
+    def __init__(self, max_limit: int, default_limit: int) -> None:
+        """Initialize PaginationLimits.
+
+        Args:
+            max_limit: Maximum allowed limit for paginated requests
+            default_limit: Default limit when not specified in request
+        """
+        self.max_limit = max_limit
+        self.default_limit = default_limit
+
+
+def get_pagination_limits() -> PaginationLimits:
+    """FastAPI dependency for pagination limits from settings (NEM-2591).
+
+    This dependency provides access to the configured pagination limits
+    from application settings. It can be used in route handlers to validate
+    and apply pagination limits.
+
+    Returns:
+        PaginationLimits instance with max_limit and default_limit from settings
+
+    Example:
+        @router.get("/items")
+        async def list_items(
+            limits: PaginationLimits = Depends(get_pagination_limits),
+        ):
+            # Use limits.max_limit and limits.default_limit
+            ...
+    """
+    from backend.core.config import get_settings
+
+    settings = get_settings()
+    return PaginationLimits(
+        max_limit=settings.pagination_max_limit,
+        default_limit=settings.pagination_default_limit,
+    )

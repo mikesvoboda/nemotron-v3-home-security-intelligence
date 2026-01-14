@@ -5,10 +5,17 @@ requests. It implements industry-standard idempotency patterns to prevent duplic
 resource creation from retried requests.
 
 When a client sends a request with an Idempotency-Key header:
-1. The middleware checks Redis for a cached response with that key
-2. If found and the request fingerprint matches, returns the cached response
-3. If found but the fingerprint differs, returns 422 (key collision)
-4. If not found, processes the request and caches the response
+1. The middleware validates the key format and length
+2. The middleware checks Redis for a cached response with that key
+3. If found and the request fingerprint matches, returns the cached response
+4. If found but the fingerprint differs, returns 422 (key collision)
+5. If not found, processes the request and caches the response
+
+Key Validation (NEM-2593):
+    - Keys must match IDEMPOTENCY_KEY_PATTERN (alphanumeric, UUID-style, underscores, hyphens)
+    - Maximum length: 256 characters
+    - Minimum length: 1 character (non-empty)
+    - Invalid keys return 400 Bad Request
 
 Usage:
     app = FastAPI()
@@ -22,6 +29,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING
 
@@ -46,39 +54,43 @@ logger = get_logger(__name__)
 # HTTP methods that support idempotency
 IDEMPOTENT_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 
+# =============================================================================
+# Idempotency Key Validation (NEM-2593)
+# =============================================================================
+IDEMPOTENCY_KEY_PATTERN = re.compile(r"^[a-zA-Z0-9_\-]+$")
+IDEMPOTENCY_KEY_MAX_LENGTH = 256
+IDEMPOTENCY_KEY_MIN_LENGTH = 1
+
+
+def validate_idempotency_key(key: str) -> tuple[bool, str | None]:
+    """Validate an idempotency key for format and length."""
+    if len(key) < IDEMPOTENCY_KEY_MIN_LENGTH:
+        return False, "Idempotency-Key cannot be empty"
+
+    if len(key) > IDEMPOTENCY_KEY_MAX_LENGTH:
+        return (
+            False,
+            f"Idempotency-Key exceeds maximum length of {IDEMPOTENCY_KEY_MAX_LENGTH} characters",
+        )
+
+    if not IDEMPOTENCY_KEY_PATTERN.match(key):
+        return (
+            False,
+            "Idempotency-Key contains invalid characters. "
+            "Only alphanumeric characters, underscores, and hyphens are allowed.",
+        )
+
+    return True, None
+
 
 def compute_request_fingerprint(method: str, path: str, body: bytes) -> str:
-    """Compute a fingerprint for request collision detection.
-
-    The fingerprint uniquely identifies a request based on its method, path,
-    and body. This is used to detect when a client reuses an idempotency key
-    with a different request (which is an error).
-
-    Args:
-        method: HTTP method (POST, PUT, etc.)
-        path: Request path
-        body: Request body bytes
-
-    Returns:
-        SHA-256 hex digest of the request signature
-    """
+    """Compute a fingerprint for request collision detection."""
     signature = f"{method}:{path}:{body.decode('utf-8', errors='replace')}"
     return hashlib.sha256(signature.encode()).hexdigest()
 
 
 class IdempotencyMiddleware(BaseHTTPMiddleware):
-    """Middleware for idempotency key support on mutation endpoints.
-
-    Implements Idempotency-Key header processing per industry standards:
-    - Caches responses for requests with idempotency keys
-    - Returns cached response on replay (with Idempotency-Replayed header)
-    - Returns 422 if same key is used with different request body
-    - Fails open (passes through) if Redis is unavailable
-
-    Attributes:
-        ttl: Time-to-live for cached responses in seconds (default: 24 hours)
-        key_prefix: Redis key prefix for idempotency cache
-    """
+    """Middleware for idempotency key support on mutation endpoints."""
 
     def __init__(
         self,
@@ -86,18 +98,9 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
         ttl: int | None = None,
         key_prefix: str = "idempotency",
     ):
-        """Initialize the idempotency middleware.
-
-        Args:
-            app: The ASGI application
-            ttl: Time-to-live for cached responses in seconds.
-                If None, uses the value from settings (default: 86400 = 24 hours)
-            key_prefix: Redis key prefix for idempotency cache
-        """
         super().__init__(app)
         self.key_prefix = key_prefix
 
-        # Use settings TTL if not explicitly provided
         if ttl is None:
             settings = get_settings()
             self.ttl = getattr(settings, "idempotency_ttl_seconds", 86400)
@@ -105,25 +108,9 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
             self.ttl = ttl
 
     def _make_cache_key(self, idempotency_key: str) -> str:
-        """Create Redis cache key from idempotency key.
-
-        Args:
-            idempotency_key: Client-provided idempotency key
-
-        Returns:
-            Redis cache key with prefix
-        """
         return f"{self.key_prefix}:{idempotency_key}"
 
     async def _get_redis_client(self, idempotency_key: str) -> RedisClient | None:
-        """Get Redis client with fail-soft behavior.
-
-        Args:
-            idempotency_key: For logging context
-
-        Returns:
-            Redis client or None if unavailable
-        """
         try:
             async for r in get_redis_optional():
                 return r
@@ -141,17 +128,6 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
         idempotency_key: str,
         request: Request,
     ) -> Response | None:
-        """Handle a cache hit - return cached response or 422 on collision.
-
-        Args:
-            cached_data: The cached response data
-            fingerprint: Current request fingerprint
-            idempotency_key: The idempotency key
-            request: The incoming request (for logging)
-
-        Returns:
-            Response to return, or None to continue processing
-        """
         stored_fingerprint = cached_data.get("fingerprint")
         if stored_fingerprint and stored_fingerprint != fingerprint:
             logger.warning(
@@ -174,7 +150,6 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
                 media_type="application/json",
             )
 
-        # Return cached response
         logger.info(
             "Returning cached idempotent response (replayed)",
             extra={
@@ -199,39 +174,21 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
         idempotency_key: str,
         request: Request,
     ) -> Response:
-        """Cache response and return a new response with the same body.
-
-        Args:
-            redis: Redis client
-            cache_key: Redis cache key
-            response: The original response
-            fingerprint: Request fingerprint
-            idempotency_key: The idempotency key
-            request: The request (for logging)
-
-        Returns:
-            New response with the same body
-        """
-        # Read response body for caching
-        # Handle both regular Response (with .body) and StreamingResponse (with .body_iterator)
         response_body: bytes
         if hasattr(response, "body"):
             body = response.body
-            # Handle memoryview case by converting to bytes
             response_body = bytes(body) if isinstance(body, memoryview) else body
         elif hasattr(response, "body_iterator"):
             response_body = b""
             async for chunk in response.body_iterator:
                 response_body += chunk
         else:
-            # Unknown response type, skip caching
             logger.warning(
                 "Unknown response type, cannot cache for idempotency",
                 extra={"idempotency_key": idempotency_key},
             )
             return response
 
-        # Prepare cache data
         cache_data = {
             "status_code": response.status_code,
             "content": response_body.decode("utf-8", errors="replace"),
@@ -239,7 +196,6 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
             "fingerprint": fingerprint,
         }
 
-        # Store in Redis with TTL
         await redis.setex(cache_key, self.ttl, json.dumps(cache_data))
 
         logger.debug(
@@ -252,7 +208,6 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
             },
         )
 
-        # Return new response with the same body (preserving headers)
         new_headers = dict(response.headers) if response.headers else {}
         return Response(
             content=response_body,
@@ -266,25 +221,33 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
         request: Request,
         call_next: CallNextType,
     ) -> Response:
-        """Process request with idempotency support.
-
-        Args:
-            request: The incoming request
-            call_next: The next middleware/route handler
-
-        Returns:
-            Response (cached or fresh)
-        """
-        # Only apply to mutation methods
         if request.method not in IDEMPOTENT_METHODS:
             return await call_next(request)
 
-        # Check for Idempotency-Key header
         idempotency_key = request.headers.get("Idempotency-Key")
         if not idempotency_key:
             return await call_next(request)
 
-        # Get Redis client (fail-soft if unavailable)
+        # Validate idempotency key format and length (NEM-2593)
+        is_valid, error_message = validate_idempotency_key(idempotency_key)
+        if not is_valid:
+            logger.warning(
+                "Invalid Idempotency-Key header rejected",
+                extra={
+                    "idempotency_key": idempotency_key[:50] + "..."
+                    if len(idempotency_key) > 50
+                    else idempotency_key,
+                    "path": request.url.path,
+                    "method": request.method,
+                    "error": error_message,
+                },
+            )
+            return Response(
+                content=json.dumps({"detail": error_message}),
+                status_code=400,
+                media_type="application/json",
+            )
+
         redis = await self._get_redis_client(idempotency_key)
         if redis is None:
             logger.debug(
@@ -293,14 +256,12 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
             )
             return await call_next(request)
 
-        # Read request body for fingerprinting
         try:
             body = await request.body()
         except Exception as e:
             logger.warning(f"Failed to read request body: {e}")
             return await call_next(request)
 
-        # Compute request fingerprint for collision detection
         fingerprint = compute_request_fingerprint(
             request.method,
             request.url.path,
@@ -309,7 +270,6 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
 
         cache_key = self._make_cache_key(idempotency_key)
 
-        # Check for cached response
         try:
             cached_json = await redis.get(cache_key)
         except Exception as e:
@@ -332,12 +292,9 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
                     f"Invalid JSON in idempotency cache: {e}",
                     extra={"idempotency_key": idempotency_key},
                 )
-                # Fall through to process request normally
 
-        # Process request and cache response
         response = await call_next(request)
 
-        # Cache the response
         try:
             return await self._cache_response(
                 redis, cache_key, response, fingerprint, idempotency_key, request
@@ -347,5 +304,4 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
                 f"Failed to cache idempotent response: {e}",
                 extra={"idempotency_key": idempotency_key},
             )
-            # Return response anyway (fail open)
             return response
