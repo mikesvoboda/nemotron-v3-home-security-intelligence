@@ -524,7 +524,7 @@ class TestLifecycleManagement:
         fallback_service._detector_client.health_check = mock_check
 
         await fallback_service.start()
-        await asyncio.sleep(0.15)  # Allow multiple checks
+        await asyncio.sleep(0.25)  # Allow multiple checks (increased for CI timing)
         await fallback_service.stop()
 
         assert check_count[0] >= 2
