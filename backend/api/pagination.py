@@ -144,7 +144,7 @@ def encode_cursor(cursor_data: CursorData) -> str:
     return base64.urlsafe_b64encode(json_str.encode()).decode()
 
 
-def validate_cursor_format(cursor: str | None) -> bool:
+def validate_cursor_format(cursor: str | None, *, log_security_event: bool = True) -> bool:
     """Validate the format of a pagination cursor (NEM-2585).
 
     This function performs security-focused validation of cursor format
@@ -157,6 +157,7 @@ def validate_cursor_format(cursor: str | None) -> bool:
 
     Args:
         cursor: The cursor string to validate, or None/empty
+        log_security_event: Whether to log security events (default True)
 
     Returns:
         True if the cursor format is valid or cursor is None/empty
@@ -176,14 +177,19 @@ def validate_cursor_format(cursor: str | None) -> bool:
 
     # Check for maximum length to prevent DoS
     if len(cursor) > MAX_CURSOR_LENGTH:
-        _log_suspicious_cursor(
-            cursor, f"Cursor exceeds maximum length ({len(cursor)} > {MAX_CURSOR_LENGTH})"
-        )
+        if log_security_event:
+            _log_suspicious_cursor(
+                cursor,
+                f"Cursor exceeds maximum length ({len(cursor)} > {MAX_CURSOR_LENGTH})",
+            )
         raise ValueError(f"Cursor exceeds maximum length of {MAX_CURSOR_LENGTH} characters")
 
     # Check for valid base64url format
     if not CURSOR_FORMAT_REGEX.match(cursor):
-        _log_suspicious_cursor(cursor, "Cursor contains invalid characters")
+        if log_security_event:
+            _log_suspicious_cursor(
+                cursor, "Invalid base64url format: cursor contains invalid characters"
+            )
         raise ValueError("Cursor contains invalid characters (must be base64url-encoded)")
 
     return True
@@ -310,15 +316,8 @@ def decode_cursor(cursor: str | None) -> CursorData | None:
         return None
 
     # Validate cursor format before attempting decode (NEM-2585)
+    # This handles length limits and character validation with security logging
     validate_cursor_format(cursor)
-
-    # Security check: Length limit to prevent resource exhaustion (NEM-2602)
-    if len(cursor) > MAX_CURSOR_LENGTH:
-        _log_suspicious_cursor(
-            cursor,
-            f"Cursor exceeds maximum length ({len(cursor)} > {MAX_CURSOR_LENGTH})",
-        )
-        raise ValueError(f"Invalid cursor: exceeds maximum length ({MAX_CURSOR_LENGTH} characters)")
 
     try:
         # Decode base64
