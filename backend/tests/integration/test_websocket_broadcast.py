@@ -174,11 +174,11 @@ def sync_client_for_broadcast(integration_env):
 
     # Mock DockerClient
     mock_docker_client = MagicMock()
-    mock_docker_client.close = MagicMock()
+    mock_docker_client.close = AsyncMock()
 
     # Mock PerformanceCollector
     mock_performance_collector = MagicMock()
-    mock_performance_collector.close = MagicMock()
+    mock_performance_collector.close = AsyncMock()
 
     # Mock worker factories
     mock_detection_worker = AsyncMock()
