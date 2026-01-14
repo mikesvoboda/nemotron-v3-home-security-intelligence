@@ -950,13 +950,14 @@ async def list_deleted_events(
 
 
 # =============================================================================
-# Bulk Operations (NEM-1433)
+# Bulk Operations (NEM-1433, NEM-2600)
 # =============================================================================
-# Rate limiting note: Bulk operations should be rate-limited more aggressively
-# than single-item operations. Consider implementing:
-# - RateLimiter(tier=RateLimitTier.BULK) with lower limits (e.g., 10 req/min)
-# - Per-IP rate limiting to prevent abuse
-# - Request size limits enforced at the schema level (max 100 items)
+# Rate limiting: Bulk operations are rate-limited to prevent DoS attacks.
+# Uses RateLimitTier.BULK with 10 requests/minute and burst of 2.
+# Request size limits enforced at the schema level (max 100 items).
+
+# Instantiate bulk rate limiter for dependency injection (NEM-2600)
+_bulk_rate_limiter = RateLimiter(tier=RateLimitTier.BULK)
 
 
 @router.post(
@@ -968,19 +969,21 @@ async def list_deleted_events(
         207: {"description": "Multi-status response with per-item results"},
         400: {"description": "Invalid request format"},
         422: {"description": "Validation error"},
+        429: {"description": "Rate limit exceeded"},
     },
 )
 async def bulk_create_events(
     request: EventBulkCreateRequest,
     db: AsyncSession = Depends(get_db),
     cache: CacheService = Depends(get_cache_service_dep),
+    _rate_limit: None = Depends(_bulk_rate_limiter),
 ) -> EventBulkCreateResponse:
     """Create multiple events in a single request.
 
     Supports partial success - some events may succeed while others fail.
     Returns HTTP 207 Multi-Status with per-item results.
 
-    Rate limiting: Consider implementing RateLimitTier.BULK for production use.
+    Rate limiting: Limited to 10 requests/minute with burst of 2 (NEM-2600).
 
     Args:
         request: Bulk create request with up to 100 events
@@ -1091,19 +1094,21 @@ async def bulk_create_events(
         207: {"description": "Multi-status response with per-item results"},
         400: {"description": "Invalid request format"},
         422: {"description": "Validation error"},
+        429: {"description": "Rate limit exceeded"},
     },
 )
 async def bulk_update_events(
     request: EventBulkUpdateRequest,
     db: AsyncSession = Depends(get_db),
     cache: CacheService = Depends(get_cache_service_dep),
+    _rate_limit: None = Depends(_bulk_rate_limiter),
 ) -> BulkOperationResponse:
     """Update multiple events in a single request.
 
     Supports partial success - some updates may succeed while others fail.
     Returns HTTP 207 Multi-Status with per-item results.
 
-    Rate limiting: Consider implementing RateLimitTier.BULK for production use.
+    Rate limiting: Limited to 10 requests/minute with burst of 2 (NEM-2600).
 
     Args:
         request: Bulk update request with up to 100 event updates
@@ -1205,12 +1210,14 @@ async def bulk_update_events(
         207: {"description": "Multi-status response with per-item results"},
         400: {"description": "Invalid request format"},
         422: {"description": "Validation error"},
+        429: {"description": "Rate limit exceeded"},
     },
 )
 async def bulk_delete_events(
     request: EventBulkDeleteRequest,
     db: AsyncSession = Depends(get_db),
     cache: CacheService = Depends(get_cache_service_dep),
+    _rate_limit: None = Depends(_bulk_rate_limiter),
 ) -> BulkOperationResponse:
     """Delete multiple events in a single request.
 
@@ -1221,7 +1228,7 @@ async def bulk_delete_events(
     related detections. Use soft_delete=false for permanent deletion.
     Use cascade=false to only delete the event without affecting detections.
 
-    Rate limiting: Consider implementing RateLimitTier.BULK for production use.
+    Rate limiting: Limited to 10 requests/minute with burst of 2 (NEM-2600).
 
     Args:
         request: Bulk delete request with up to 100 event IDs

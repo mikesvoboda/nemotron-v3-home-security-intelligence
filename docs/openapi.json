@@ -23225,7 +23225,7 @@
     },
     "/api/detections/bulk": {
       "delete": {
-        "description": "Delete multiple detections in a single request.\n\nSupports partial success - some deletions may succeed while others fail.\nReturns HTTP 207 Multi-Status with per-item results.\n\nNote: Detection deletion is always hard delete as detections are raw data\nand soft-delete is not supported.\n\nRate limiting: Consider implementing RateLimitTier.BULK for production use.\n\nArgs:\n    request: Bulk delete request with up to 100 detection IDs\n    db: Database session\n    cache: Cache service for invalidation (NEM-1951)\n\nReturns:\n    BulkOperationResponse with per-item results",
+        "description": "Delete multiple detections in a single request.\n\nSupports partial success - some deletions may succeed while others fail.\nReturns HTTP 207 Multi-Status with per-item results.\n\nNote: Detection deletion is always hard delete as detections are raw data\nand soft-delete is not supported.\n\nRate limiting: Limited to 10 requests/minute with burst of 2 (NEM-2600).\n\nArgs:\n    request: Bulk delete request with up to 100 detection IDs\n    db: Database session\n    cache: Cache service for invalidation (NEM-1951)\n\nReturns:\n    BulkOperationResponse with per-item results",
         "operationId": "bulk_delete_detections_api_detections_bulk_delete",
         "requestBody": {
           "content": {
@@ -23253,6 +23253,9 @@
           },
           "422": {
             "description": "Validation error"
+          },
+          "429": {
+            "description": "Rate limit exceeded"
           }
         },
         "summary": "Bulk delete detections",
@@ -23261,7 +23264,7 @@
         ]
       },
       "patch": {
-        "description": "Update multiple detections in a single request.\n\nSupports partial success - some updates may succeed while others fail.\nReturns HTTP 207 Multi-Status with per-item results.\n\nRate limiting: Consider implementing RateLimitTier.BULK for production use.\n\nArgs:\n    request: Bulk update request with up to 100 detection updates\n    db: Database session\n    cache: Cache service for invalidation (NEM-1951)\n\nReturns:\n    BulkOperationResponse with per-item results",
+        "description": "Update multiple detections in a single request.\n\nSupports partial success - some updates may succeed while others fail.\nReturns HTTP 207 Multi-Status with per-item results.\n\nRate limiting: Limited to 10 requests/minute with burst of 2 (NEM-2600).\n\nArgs:\n    request: Bulk update request with up to 100 detection updates\n    db: Database session\n    cache: Cache service for invalidation (NEM-1951)\n\nReturns:\n    BulkOperationResponse with per-item results",
         "operationId": "bulk_update_detections_api_detections_bulk_patch",
         "requestBody": {
           "content": {
@@ -23289,6 +23292,9 @@
           },
           "422": {
             "description": "Validation error"
+          },
+          "429": {
+            "description": "Rate limit exceeded"
           }
         },
         "summary": "Bulk update detections",
@@ -23297,7 +23303,7 @@
         ]
       },
       "post": {
-        "description": "Create multiple detections in a single request.\n\nSupports partial success - some detections may succeed while others fail.\nReturns HTTP 207 Multi-Status with per-item results.\n\nRate limiting: Consider implementing RateLimitTier.BULK for production use.\n\nArgs:\n    request: Bulk create request with up to 100 detections\n    db: Database session\n    cache: Cache service for invalidation (NEM-1951)\n\nReturns:\n    DetectionBulkCreateResponse with per-item results",
+        "description": "Create multiple detections in a single request.\n\nSupports partial success - some detections may succeed while others fail.\nReturns HTTP 207 Multi-Status with per-item results.\n\nRate limiting: Limited to 10 requests/minute with burst of 2 (NEM-2600).\n\nArgs:\n    request: Bulk create request with up to 100 detections\n    db: Database session\n    cache: Cache service for invalidation (NEM-1951)\n\nReturns:\n    DetectionBulkCreateResponse with per-item results",
         "operationId": "bulk_create_detections_api_detections_bulk_post",
         "requestBody": {
           "content": {
@@ -23325,6 +23331,9 @@
           },
           "422": {
             "description": "Validation error"
+          },
+          "429": {
+            "description": "Rate limit exceeded"
           }
         },
         "summary": "Bulk create detections",
@@ -25100,7 +25109,7 @@
     },
     "/api/events/bulk": {
       "delete": {
-        "description": "Delete multiple events in a single request.\n\nSupports partial success - some deletions may succeed while others fail.\nReturns HTTP 207 Multi-Status with per-item results.\n\nBy default uses soft delete (sets deleted_at timestamp) with cascade to\nrelated detections. Use soft_delete=false for permanent deletion.\nUse cascade=false to only delete the event without affecting detections.\n\nRate limiting: Consider implementing RateLimitTier.BULK for production use.\n\nArgs:\n    request: Bulk delete request with up to 100 event IDs\n    db: Database session\n    cache: Cache service for invalidation\n\nReturns:\n    BulkOperationResponse with per-item results",
+        "description": "Delete multiple events in a single request.\n\nSupports partial success - some deletions may succeed while others fail.\nReturns HTTP 207 Multi-Status with per-item results.\n\nBy default uses soft delete (sets deleted_at timestamp) with cascade to\nrelated detections. Use soft_delete=false for permanent deletion.\nUse cascade=false to only delete the event without affecting detections.\n\nRate limiting: Limited to 10 requests/minute with burst of 2 (NEM-2600).\n\nArgs:\n    request: Bulk delete request with up to 100 event IDs\n    db: Database session\n    cache: Cache service for invalidation\n\nReturns:\n    BulkOperationResponse with per-item results",
         "operationId": "bulk_delete_events_api_events_bulk_delete",
         "requestBody": {
           "content": {
@@ -25128,6 +25137,9 @@
           },
           "422": {
             "description": "Validation error"
+          },
+          "429": {
+            "description": "Rate limit exceeded"
           }
         },
         "summary": "Bulk delete events",
@@ -25136,7 +25148,7 @@
         ]
       },
       "patch": {
-        "description": "Update multiple events in a single request.\n\nSupports partial success - some updates may succeed while others fail.\nReturns HTTP 207 Multi-Status with per-item results.\n\nRate limiting: Consider implementing RateLimitTier.BULK for production use.\n\nArgs:\n    request: Bulk update request with up to 100 event updates\n    db: Database session\n\nReturns:\n    BulkOperationResponse with per-item results",
+        "description": "Update multiple events in a single request.\n\nSupports partial success - some updates may succeed while others fail.\nReturns HTTP 207 Multi-Status with per-item results.\n\nRate limiting: Limited to 10 requests/minute with burst of 2 (NEM-2600).\n\nArgs:\n    request: Bulk update request with up to 100 event updates\n    db: Database session\n\nReturns:\n    BulkOperationResponse with per-item results",
         "operationId": "bulk_update_events_api_events_bulk_patch",
         "requestBody": {
           "content": {
@@ -25164,6 +25176,9 @@
           },
           "422": {
             "description": "Validation error"
+          },
+          "429": {
+            "description": "Rate limit exceeded"
           }
         },
         "summary": "Bulk update events",
@@ -25172,7 +25187,7 @@
         ]
       },
       "post": {
-        "description": "Create multiple events in a single request.\n\nSupports partial success - some events may succeed while others fail.\nReturns HTTP 207 Multi-Status with per-item results.\n\nRate limiting: Consider implementing RateLimitTier.BULK for production use.\n\nArgs:\n    request: Bulk create request with up to 100 events\n    db: Database session\n\nReturns:\n    EventBulkCreateResponse with per-item results",
+        "description": "Create multiple events in a single request.\n\nSupports partial success - some events may succeed while others fail.\nReturns HTTP 207 Multi-Status with per-item results.\n\nRate limiting: Limited to 10 requests/minute with burst of 2 (NEM-2600).\n\nArgs:\n    request: Bulk create request with up to 100 events\n    db: Database session\n\nReturns:\n    EventBulkCreateResponse with per-item results",
         "operationId": "bulk_create_events_api_events_bulk_post",
         "requestBody": {
           "content": {
@@ -25200,6 +25215,9 @@
           },
           "422": {
             "description": "Validation error"
+          },
+          "429": {
+            "description": "Rate limit exceeded"
           }
         },
         "summary": "Bulk create events",
