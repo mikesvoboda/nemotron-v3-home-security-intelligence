@@ -30,6 +30,8 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
+from sqlalchemy.orm.attributes import flag_modified
+
 from backend.core.logging import get_logger
 from backend.models import Entity
 
@@ -114,7 +116,7 @@ class EntityClusteringService:
         detection_id: int,
         entity_type: str,
         embedding: list[float],
-        camera_id: str,  # noqa: ARG002 - Reserved for future entity metadata
+        camera_id: str,
         timestamp: datetime,
         attributes: dict[str, Any] | None = None,
     ) -> tuple[Entity, bool, float | None]:
@@ -166,6 +168,16 @@ class EntityClusteringService:
                 timestamp=timestamp,
                 attributes=attributes,
             )
+            # Track cameras_seen in entity_metadata (NEM-2453)
+            if matched_entity.entity_metadata is None:
+                matched_entity.entity_metadata = {}
+            cameras_seen = matched_entity.entity_metadata.get("cameras_seen", [])
+            if camera_id and camera_id not in cameras_seen:
+                cameras_seen.append(camera_id)
+                matched_entity.entity_metadata["cameras_seen"] = cameras_seen
+                # Flag JSONB column as modified for SQLAlchemy to detect in-place mutation
+                flag_modified(matched_entity, "entity_metadata")
+                await self.entity_repository.session.flush()
             logger.debug(
                 "Detection %d matched entity %s (similarity: %.3f)",
                 detection_id,
@@ -182,6 +194,15 @@ class EntityClusteringService:
             timestamp=timestamp,
             attributes=attributes,
         )
+        # Initialize cameras_seen in entity_metadata (NEM-2453)
+        if new_entity.entity_metadata is None:
+            new_entity.entity_metadata = {}
+        if camera_id:
+            new_entity.entity_metadata["cameras_seen"] = [camera_id]
+            new_entity.entity_metadata["camera_id"] = camera_id
+            # Flag JSONB column as modified for SQLAlchemy to detect in-place mutation
+            flag_modified(new_entity, "entity_metadata")
+            await self.entity_repository.session.flush()
         logger.debug(
             "Detection %d created new entity %s",
             detection_id,
@@ -216,6 +237,8 @@ class EntityClusteringService:
                 entity.entity_metadata = {}
             # Merge new attributes, keeping existing ones
             entity.entity_metadata.update(attributes)
+            # Flag JSONB column as modified for SQLAlchemy to detect in-place mutation
+            flag_modified(entity, "entity_metadata")
 
         # Flush changes to database
         await self.entity_repository.session.flush()

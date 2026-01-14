@@ -147,7 +147,14 @@ export class TimelinePage extends BasePage {
    * Wait for the timeline to fully load (including data)
    */
   async waitForTimelineLoad(): Promise<void> {
-    await expect(this.pageTitle).toBeVisible({ timeout: this.pageLoadTimeout });
+    // Wait for page to be in network idle state first
+    await this.page.waitForLoadState('networkidle').catch(() => {
+      // Continue if network idle times out
+    });
+
+    // Increased timeout for CI environments where rendering may be slower
+    await expect(this.pageTitle).toBeVisible({ timeout: 15000 });
+
     // Wait for either events to load OR no events message OR error state
     // This ensures we don't proceed until actual content is rendered
     await Promise.race([

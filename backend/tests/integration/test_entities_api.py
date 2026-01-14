@@ -1,13 +1,13 @@
 """Integration tests for entities API endpoints.
 
 Uses shared fixtures from conftest.py:
-- integration_db: Clean SQLite test database
+- integration_db: Clean PostgreSQL test database
 - mock_redis: Mock Redis client
 - db_session: AsyncSession for database
 - client: httpx AsyncClient with test app
 
 These tests verify the entities API endpoints work correctly
-with the full FastAPI application stack.
+with the full FastAPI application stack and PostgreSQL database.
 """
 
 from datetime import UTC, datetime
@@ -15,6 +15,7 @@ from uuid import uuid4
 
 import pytest
 
+from backend.models.entity import Entity
 from backend.tests.integration.test_helpers import get_error_message
 
 
@@ -25,10 +26,52 @@ async def async_client(client):
     yield client
 
 
+@pytest.fixture
+async def seeded_entities(db_session) -> list[Entity]:
+    """Create sample entities in the database for testing."""
+    entities = [
+        Entity(
+            id=uuid4(),
+            entity_type="person",
+            first_seen_at=datetime(2025, 12, 23, 10, 0, 0, tzinfo=UTC),
+            last_seen_at=datetime(2025, 12, 23, 14, 30, 0, tzinfo=UTC),
+            detection_count=5,
+            entity_metadata={"camera_id": "front_door", "clothing_color": "blue"},
+        ),
+        Entity(
+            id=uuid4(),
+            entity_type="vehicle",
+            first_seen_at=datetime(2025, 12, 23, 9, 0, 0, tzinfo=UTC),
+            last_seen_at=datetime(2025, 12, 23, 9, 30, 0, tzinfo=UTC),
+            detection_count=2,
+            entity_metadata={"camera_id": "driveway", "color": "silver"},
+        ),
+        Entity(
+            id=uuid4(),
+            entity_type="person",
+            first_seen_at=datetime(2025, 12, 22, 15, 0, 0, tzinfo=UTC),
+            last_seen_at=datetime(2025, 12, 22, 15, 30, 0, tzinfo=UTC),
+            detection_count=3,
+            entity_metadata={"camera_id": "backyard"},
+        ),
+    ]
+
+    for entity in entities:
+        db_session.add(entity)
+
+    await db_session.commit()
+
+    # Refresh to get database-generated defaults
+    for entity in entities:
+        await db_session.refresh(entity)
+
+    return entities
+
+
 class TestListEntities:
     """Tests for GET /api/entities endpoint.
 
-    NOTE: Entity API now uses PostgreSQL (NEM-2451).
+    NOTE: Entity API uses PostgreSQL (NEM-2451).
     """
 
     async def test_list_entities_returns_valid_response(self, async_client):
@@ -36,7 +79,7 @@ class TestListEntities:
         response = await async_client.get("/api/entities")
         assert response.status_code == 200
         data = response.json()
-        # Check response structure - may have entities from other tests
+        # Check response structure
         assert "items" in data
         assert "pagination" in data
         assert isinstance(data["items"], list)
@@ -44,7 +87,26 @@ class TestListEntities:
         assert "limit" in data["pagination"]
         assert "offset" in data["pagination"]
 
-    async def test_list_entities_with_type_filter(self, async_client):
+    async def test_list_entities_with_seeded_data(self, async_client, seeded_entities):
+        """Test listing entities with seeded data."""
+        response = await async_client.get("/api/entities")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Should have at least the seeded entities
+        assert data["pagination"]["total"] >= len(seeded_entities)
+        assert len(data["items"]) >= len(seeded_entities)
+
+        # Verify entity structure
+        for item in data["items"]:
+            assert "id" in item
+            assert "entity_type" in item
+            assert "first_seen" in item
+            assert "last_seen" in item
+            assert "appearance_count" in item
+            assert "cameras_seen" in item
+
+    async def test_list_entities_with_type_filter(self, async_client, seeded_entities):
         """Test filtering entities by type."""
         response = await async_client.get("/api/entities?entity_type=person")
         assert response.status_code == 200
@@ -52,20 +114,30 @@ class TestListEntities:
         assert "items" in data
         assert "pagination" in data
 
-    async def test_list_entities_with_camera_filter(self, async_client):
+        # All returned entities should be persons
+        for item in data["items"]:
+            assert item["entity_type"] == "person"
+
+    async def test_list_entities_with_camera_filter(self, async_client, seeded_entities):
         """Test filtering entities by camera."""
         response = await async_client.get("/api/entities?camera_id=front_door")
         assert response.status_code == 200
         data = response.json()
         assert "items" in data
 
-    async def test_list_entities_with_pagination(self, async_client):
+        # Returned entities should be from front_door camera
+        for item in data["items"]:
+            if item["cameras_seen"]:
+                assert "front_door" in item["cameras_seen"]
+
+    async def test_list_entities_with_pagination(self, async_client, seeded_entities):
         """Test pagination parameters."""
-        response = await async_client.get("/api/entities?limit=10&offset=0")
+        response = await async_client.get("/api/entities?limit=2&offset=0")
         assert response.status_code == 200
         data = response.json()
-        assert data["pagination"]["limit"] == 10
+        assert data["pagination"]["limit"] == 2
         assert data["pagination"]["offset"] == 0
+        assert len(data["items"]) <= 2
 
     async def test_list_entities_invalid_limit(self, async_client):
         """Test validation of limit parameter."""
@@ -77,13 +149,19 @@ class TestListEntities:
         response = await async_client.get("/api/entities?offset=-1")
         assert response.status_code == 422  # Validation error
 
-    async def test_list_entities_with_since_filter(self, async_client):
+    async def test_list_entities_with_since_filter(self, async_client, seeded_entities):
         """Test filtering entities by timestamp."""
         since = "2025-12-23T00:00:00Z"
         response = await async_client.get(f"/api/entities?since={since}")
         assert response.status_code == 200
         data = response.json()
         assert "items" in data
+
+        # All entities should be seen after the since timestamp
+        since_dt = datetime.fromisoformat(since.replace("Z", "+00:00"))
+        for item in data["items"]:
+            last_seen = datetime.fromisoformat(item["last_seen"])
+            assert last_seen >= since_dt
 
 
 class TestGetEntity:
@@ -106,35 +184,44 @@ class TestGetEntity:
         response = await async_client.get("/api/entities/nonexistent_entity")
         assert response.status_code == 422
 
-    async def test_get_entity_with_database(self, async_client, integration_db):
+    async def test_get_entity_with_seeded_data(self, async_client, seeded_entities):
         """Test getting entity from PostgreSQL database."""
-        from backend.core.database import get_session
-        from backend.models.entity import Entity
+        # Use the first seeded entity
+        entity = seeded_entities[0]
 
-        # Create a test entity in the database
-        entity_id = uuid4()
-        async with get_session() as db:
-            entity = Entity(
-                id=entity_id,
-                entity_type="person",
-                first_seen_at=datetime.now(UTC),
-                last_seen_at=datetime.now(UTC),
-                detection_count=1,
-                entity_metadata={"clothing": "blue jacket"},
-            )
-            db.add(entity)
-            await db.commit()
+        response = await async_client.get(f"/api/entities/{entity.id}")
 
-        # Now test the API endpoint
-        response = await async_client.get(f"/api/entities/{entity_id}")
+        # Entity should exist
+        assert response.status_code == 200
+        data = response.json()
+        assert data["id"] == str(entity.id)
+        assert data["entity_type"] == entity.entity_type
+        assert data["appearance_count"] == entity.detection_count
+        assert "appearances" in data
 
-        if response.status_code == 200:
-            data = response.json()
-            assert data["id"] == str(entity_id)
-            assert data["entity_type"] == "person"
-        else:
-            # May fail due to missing dependencies - acceptable for integration test
-            assert response.status_code in [404, 500]
+    async def test_get_entity_with_primary_detection_id(self, async_client, db_session):
+        """Test getting entity with primary_detection_id set."""
+        # Create entity with primary_detection_id (referential integrity not enforced)
+        entity = Entity(
+            id=uuid4(),
+            entity_type="person",
+            first_seen_at=datetime.now(UTC),
+            last_seen_at=datetime.now(UTC),
+            detection_count=1,
+            primary_detection_id=999,  # May not exist, just testing field presence
+            entity_metadata={"camera_id": "front_door"},
+        )
+        db_session.add(entity)
+        await db_session.commit()
+        await db_session.refresh(entity)
+
+        response = await async_client.get(f"/api/entities/{entity.id}")
+
+        # Should succeed even if detection doesn't exist
+        assert response.status_code == 200
+        data = response.json()
+        assert data["id"] == str(entity.id)
+        assert data["entity_type"] == "person"
 
 
 class TestGetEntityHistory:
@@ -157,37 +244,19 @@ class TestGetEntityHistory:
         response = await async_client.get("/api/entities/nonexistent/history")
         assert response.status_code == 422
 
-    async def test_get_history_with_database(self, async_client, integration_db):
+    async def test_get_history_with_seeded_data(self, async_client, seeded_entities):
         """Test getting entity history from PostgreSQL database."""
-        from backend.core.database import get_session
-        from backend.models.entity import Entity
+        entity = seeded_entities[0]
 
-        # Create a test entity in the database
-        entity_id = uuid4()
-        async with get_session() as db:
-            entity = Entity(
-                id=entity_id,
-                entity_type="person",
-                first_seen_at=datetime.now(UTC),
-                last_seen_at=datetime.now(UTC),
-                detection_count=1,
-                entity_metadata={},
-            )
-            db.add(entity)
-            await db.commit()
+        response = await async_client.get(f"/api/entities/{entity.id}/history")
 
-        # Now test the API endpoint
-        response = await async_client.get(f"/api/entities/{entity_id}/history")
-
-        if response.status_code == 200:
-            data = response.json()
-            assert data["entity_id"] == str(entity_id)
-            assert data["entity_type"] == "person"
-            assert "appearances" in data
-            assert "count" in data
-        else:
-            # May fail due to missing dependencies - acceptable for integration test
-            assert response.status_code in [404, 500]
+        # Should return history
+        assert response.status_code == 200
+        data = response.json()
+        assert data["entity_id"] == str(entity.id)
+        assert data["entity_type"] == entity.entity_type
+        assert "appearances" in data
+        assert "count" in data
 
 
 class TestEntitiesAPIValidation:
@@ -224,3 +293,53 @@ class TestEntitiesAPIValidation:
         data = response.json()
         assert data["pagination"]["limit"] == 10
         assert data["pagination"]["offset"] == 0
+
+
+class TestEntitiesEndToEnd:
+    """End-to-end tests for entity tracking flow."""
+
+    async def test_create_and_retrieve_entity(self, async_client, db_session):
+        """Test creating entity and retrieving it via API."""
+        # Create entity directly in database
+        entity_id = uuid4()
+        entity = Entity(
+            id=entity_id,
+            entity_type="person",
+            first_seen_at=datetime.now(UTC),
+            last_seen_at=datetime.now(UTC),
+            detection_count=1,
+            entity_metadata={"camera_id": "test_camera"},
+        )
+        db_session.add(entity)
+        await db_session.commit()
+
+        # Retrieve via API
+        response = await async_client.get(f"/api/entities/{entity_id}")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["id"] == str(entity_id)
+        assert data["entity_type"] == "person"
+
+    async def test_list_includes_newly_created_entity(self, async_client, db_session):
+        """Test that list endpoint includes newly created entities."""
+        # Get initial count
+        response = await async_client.get("/api/entities")
+        initial_total = response.json()["pagination"]["total"]
+
+        # Create new entity
+        entity = Entity(
+            id=uuid4(),
+            entity_type="vehicle",
+            first_seen_at=datetime.now(UTC),
+            last_seen_at=datetime.now(UTC),
+            detection_count=1,
+            entity_metadata={"camera_id": "test_camera"},
+        )
+        db_session.add(entity)
+        await db_session.commit()
+
+        # List should include new entity
+        response = await async_client.get("/api/entities")
+        assert response.status_code == 200
+        new_total = response.json()["pagination"]["total"]
+        assert new_total == initial_total + 1
