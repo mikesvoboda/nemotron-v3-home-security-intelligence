@@ -13,7 +13,8 @@ Key Components:
 Pre-configured Service Categories:
 - INFRASTRUCTURE_CONFIGS: PostgreSQL, Redis (critical, aggressive restart)
 - AI_CONFIGS: RT-DETRv2, Nemotron, Florence, CLIP, Enrichment (standard backoff)
-- MONITORING_CONFIGS: Prometheus, Grafana, Redis Exporter, JSON Exporter (lenient)
+- MONITORING_CONFIGS: Prometheus, Grafana, Alertmanager, Redis Exporter, JSON Exporter,
+                      Blackbox Exporter (lenient, per CATEGORY_DEFAULTS)
 
 Usage:
     async with DockerClient() as docker:
@@ -38,6 +39,7 @@ logger = get_logger(__name__)
 
 def build_service_configs(
     settings: OrchestratorSettings | None = None,
+    include_monitoring: bool = True,
 ) -> dict[str, ServiceConfig]:
     """Build service configurations using ports from OrchestratorSettings.
 
@@ -47,6 +49,8 @@ def build_service_configs(
     Args:
         settings: Optional OrchestratorSettings with port configuration.
                   If None, uses default port values.
+        include_monitoring: If True, include monitoring service configs.
+                           If False, exclude them (based on monitoring_enabled setting).
 
     Returns:
         Dictionary mapping service names to ServiceConfig objects.
@@ -63,6 +67,8 @@ def build_service_configs(
     grafana_port = settings.grafana_port if settings else 3000
     redis_exporter_port = settings.redis_exporter_port if settings else 9121
     json_exporter_port = settings.json_exporter_port if settings else 7979
+    alertmanager_port = settings.alertmanager_port if settings else 9093
+    blackbox_exporter_port = settings.blackbox_exporter_port if settings else 9115
 
     infrastructure_configs: dict[str, ServiceConfig] = {
         "postgres": ServiceConfig(
@@ -125,6 +131,8 @@ def build_service_configs(
         ),
     }
 
+    # Monitoring configs use CATEGORY_DEFAULTS values:
+    # max_failures: 5, base_backoff: 10.0, max_backoff: 120.0
     monitoring_configs: dict[str, ServiceConfig] = {
         "prometheus": ServiceConfig(
             display_name="Prometheus",
@@ -132,9 +140,9 @@ def build_service_configs(
             port=prometheus_port,
             health_endpoint="/-/healthy",
             startup_grace_period=30,
-            max_failures=3,
+            max_failures=5,
             restart_backoff_base=10.0,
-            restart_backoff_max=600.0,
+            restart_backoff_max=120.0,
         ),
         "grafana": ServiceConfig(
             display_name="Grafana",
@@ -142,9 +150,19 @@ def build_service_configs(
             port=grafana_port,
             health_endpoint="/api/health",
             startup_grace_period=30,
-            max_failures=3,
+            max_failures=5,
             restart_backoff_base=10.0,
-            restart_backoff_max=600.0,
+            restart_backoff_max=120.0,
+        ),
+        "alertmanager": ServiceConfig(
+            display_name="Alertmanager",
+            category=ServiceCategory.MONITORING,
+            port=alertmanager_port,
+            health_endpoint="/-/healthy",
+            startup_grace_period=15,
+            max_failures=5,
+            restart_backoff_base=10.0,
+            restart_backoff_max=120.0,
         ),
         "redis-exporter": ServiceConfig(
             display_name="Redis Exporter",
@@ -152,7 +170,9 @@ def build_service_configs(
             port=redis_exporter_port,
             health_endpoint="/metrics",
             startup_grace_period=15,
-            max_failures=3,
+            max_failures=5,
+            restart_backoff_base=10.0,
+            restart_backoff_max=120.0,
         ),
         "json-exporter": ServiceConfig(
             display_name="JSON Exporter",
@@ -160,15 +180,31 @@ def build_service_configs(
             port=json_exporter_port,
             health_endpoint="/metrics",
             startup_grace_period=15,
-            max_failures=3,
+            max_failures=5,
+            restart_backoff_base=10.0,
+            restart_backoff_max=120.0,
+        ),
+        "blackbox-exporter": ServiceConfig(
+            display_name="Blackbox Exporter",
+            category=ServiceCategory.MONITORING,
+            port=blackbox_exporter_port,
+            health_endpoint="/metrics",
+            startup_grace_period=15,
+            max_failures=5,
+            restart_backoff_base=10.0,
+            restart_backoff_max=120.0,
         ),
     }
 
-    return {
+    configs = {
         **infrastructure_configs,
         **ai_configs,
-        **monitoring_configs,
     }
+
+    if include_monitoring:
+        configs.update(monitoring_configs)
+
+    return configs
 
 
 # Default configs for backward compatibility (uses default port values)
@@ -234,6 +270,8 @@ AI_CONFIGS: dict[str, ServiceConfig] = {
     ),
 }
 
+# Monitoring configs with CATEGORY_DEFAULTS values:
+# max_failures: 5, base_backoff: 10.0, max_backoff: 120.0
 MONITORING_CONFIGS: dict[str, ServiceConfig] = {
     "prometheus": ServiceConfig(
         display_name="Prometheus",
@@ -241,9 +279,9 @@ MONITORING_CONFIGS: dict[str, ServiceConfig] = {
         port=9090,
         health_endpoint="/-/healthy",
         startup_grace_period=30,
-        max_failures=3,
+        max_failures=5,
         restart_backoff_base=10.0,
-        restart_backoff_max=600.0,
+        restart_backoff_max=120.0,
     ),
     "grafana": ServiceConfig(
         display_name="Grafana",
@@ -251,9 +289,9 @@ MONITORING_CONFIGS: dict[str, ServiceConfig] = {
         port=3000,
         health_endpoint="/api/health",
         startup_grace_period=30,
-        max_failures=3,
+        max_failures=5,
         restart_backoff_base=10.0,
-        restart_backoff_max=600.0,
+        restart_backoff_max=120.0,
     ),
     "alertmanager": ServiceConfig(
         display_name="Alertmanager",
@@ -261,9 +299,9 @@ MONITORING_CONFIGS: dict[str, ServiceConfig] = {
         port=9093,
         health_endpoint="/-/healthy",
         startup_grace_period=15,
-        max_failures=3,
+        max_failures=5,
         restart_backoff_base=10.0,
-        restart_backoff_max=300.0,
+        restart_backoff_max=120.0,
     ),
     "redis-exporter": ServiceConfig(
         display_name="Redis Exporter",
@@ -271,7 +309,9 @@ MONITORING_CONFIGS: dict[str, ServiceConfig] = {
         port=9121,
         health_endpoint="/metrics",
         startup_grace_period=15,
-        max_failures=3,
+        max_failures=5,
+        restart_backoff_base=10.0,
+        restart_backoff_max=120.0,
     ),
     "json-exporter": ServiceConfig(
         display_name="JSON Exporter",
@@ -279,7 +319,9 @@ MONITORING_CONFIGS: dict[str, ServiceConfig] = {
         port=7979,
         health_endpoint="/metrics",
         startup_grace_period=15,
-        max_failures=3,
+        max_failures=5,
+        restart_backoff_base=10.0,
+        restart_backoff_max=120.0,
     ),
     "blackbox-exporter": ServiceConfig(
         display_name="Blackbox Exporter",
@@ -287,7 +329,9 @@ MONITORING_CONFIGS: dict[str, ServiceConfig] = {
         port=9115,
         health_endpoint="/metrics",
         startup_grace_period=15,
-        max_failures=3,
+        max_failures=5,
+        restart_backoff_base=10.0,
+        restart_backoff_max=120.0,
     ),
 }
 
@@ -341,10 +385,15 @@ class ContainerDiscoveryService:
             docker_client: DockerClient instance for container operations
             settings: Optional OrchestratorSettings with port configuration.
                       If None, uses default port values for backward compatibility.
+                      When provided, respects monitoring_enabled setting.
         """
         self._docker_client = docker_client
         # Use configurable ports when settings provided, otherwise use defaults
-        self._configs = build_service_configs(settings) if settings else ALL_CONFIGS
+        if settings:
+            include_monitoring = settings.monitoring_enabled
+            self._configs = build_service_configs(settings, include_monitoring)
+        else:
+            self._configs = ALL_CONFIGS
 
     async def discover_all(self) -> list[ManagedService]:
         """Discover all containers matching known service patterns.

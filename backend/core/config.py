@@ -172,6 +172,25 @@ class OrchestratorSettings(BaseSettings):
         le=65535,
         description="JSON Exporter container service port for health checks.",
     )
+    alertmanager_port: int = Field(
+        9093,
+        ge=1,
+        le=65535,
+        description="Alertmanager container service port for health checks.",
+    )
+    blackbox_exporter_port: int = Field(
+        9115,
+        ge=1,
+        le=65535,
+        description="Blackbox Exporter container service port for health checks.",
+    )
+
+    # Monitoring feature flag
+    monitoring_enabled: bool = Field(
+        True,
+        description="Enable monitoring services management. When True, orchestrator "
+        "will manage monitoring containers (prometheus, grafana, exporters).",
+    )
 
 
 class Settings(BaseSettings):
@@ -1389,6 +1408,27 @@ class Settings(BaseSettings):
         description="Enable automatic restart of AI services (RT-DETRv2, Nemotron) on health check failure. "
         "Set to False in containerized deployments where restart scripts are not available. "
         "Health monitoring and status broadcasts still occur when disabled.",
+    )
+
+    # Worker Supervisor settings (NEM-2460)
+    # Controls the asyncio worker supervisor that monitors and auto-restarts crashed workers
+    worker_supervisor_check_interval: float = Field(
+        default=5.0,
+        ge=1.0,
+        le=60.0,
+        description="Interval in seconds between worker health checks by the supervisor.",
+    )
+    worker_supervisor_max_restarts: int = Field(
+        default=5,
+        ge=1,
+        le=50,
+        description="Maximum number of restart attempts for a crashed worker before giving up.",
+    )
+    worker_supervisor_restart_window: float = Field(
+        default=300.0,
+        ge=60.0,
+        le=3600.0,
+        description="Time window in seconds for counting restart attempts.",
     )
 
     # Container orchestrator settings (for Docker/Podman container management)

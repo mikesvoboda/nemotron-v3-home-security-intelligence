@@ -141,12 +141,12 @@ async def list_entities(
     since: datetime | None = Query(None, description="Filter entities seen since this time"),
     limit: int = Query(50, ge=1, le=1000, description="Maximum number of results"),
     offset: int = Query(0, ge=0, description="Number of results to skip"),
-    reid_service: ReIdentificationService = Depends(get_reid_service),
+    entity_repo: EntityRepository = Depends(get_entity_repository),
 ) -> EntityListResponse:
     """List tracked entities with optional filtering.
 
-    Returns a paginated list of entities that have been tracked via
-    re-identification. Entities are grouped by their embedding clusters.
+    Returns a paginated list of entities from PostgreSQL. Entities are
+    tracked via re-identification and stored in the database.
 
     Args:
         entity_type: Filter by entity type ('person' or 'vehicle')
@@ -154,75 +154,34 @@ async def list_entities(
         since: Filter entities seen since this timestamp
         limit: Maximum number of results (1-1000, default 50)
         offset: Number of results to skip for pagination (default 0)
-        reid_service: Re-identification service dependency
+        entity_repo: Entity repository dependency for PostgreSQL queries
 
     Returns:
         EntityListResponse with filtered entities and pagination info
     """
-    redis = await _get_redis_client()
+    # Convert entity_type filter to string for repository query
+    entity_type_str = entity_type.value if entity_type else None
 
-    if redis is None:
-        logger.warning("Redis not available for entity list")
-        return EntityListResponse(
-            items=[],
-            pagination=PaginationInfo(
-                total=0,
-                limit=limit,
-                offset=offset,
-                has_more=False,
-            ),
-        )
+    # Query PostgreSQL via EntityRepository
+    entities, total_count = await entity_repo.list(
+        entity_type=entity_type_str,
+        camera_id=camera_id,
+        since=since,
+        limit=limit,
+        offset=offset,
+    )
 
-    # Determine which entity types to query
-    entity_types = [entity_type.value] if entity_type else ["person", "vehicle"]
-
-    # Collect all embeddings
-    all_embeddings: list[EntityEmbedding] = []
-    for etype in entity_types:
-        embeddings = await reid_service.get_entity_history(
-            redis_client=redis,
-            entity_type=etype,
-            camera_id=camera_id,
-        )
-        all_embeddings.extend(embeddings)
-
-    # Filter by since timestamp if provided
-    if since:
-        all_embeddings = [e for e in all_embeddings if e.timestamp >= since]
-
-    # Group embeddings by detection_id (each detection is treated as a unique entity
-    # until we implement proper clustering)
-    # For now, we use detection_id as entity_id since embeddings are stored per-detection
-    entities_by_id: dict[str, list[EntityEmbedding]] = {}
-    for emb in all_embeddings:
-        entity_id = emb.detection_id
-        if entity_id not in entities_by_id:
-            entities_by_id[entity_id] = []
-        entities_by_id[entity_id].append(emb)
-
-    # Convert to summaries
+    # Convert Entity models to EntitySummary
     summaries: list[EntitySummary] = []
-    for entity_id, embeddings in entities_by_id.items():
-        try:
-            summary = _entity_to_summary(entity_id, embeddings)
-            summaries.append(summary)
-        except ValueError:
-            continue  # Skip empty entity groups
-
-    # Sort by last_seen (newest first)
-    summaries.sort(key=lambda s: s.last_seen, reverse=True)
-
-    # Get total count before pagination
-    total_count = len(summaries)
-
-    # Apply pagination
-    paginated = summaries[offset : offset + limit]
+    for entity in entities:
+        summary = _entity_model_to_summary(entity)
+        summaries.append(summary)
 
     # Determine if there are more results
     has_more = (offset + limit) < total_count
 
     return EntityListResponse(
-        items=paginated,
+        items=summaries,
         pagination=PaginationInfo(
             total=total_count,
             limit=limit,
@@ -237,88 +196,77 @@ async def list_entities(
     response_model=EntityDetail,
     responses={
         404: {"description": "Entity not found"},
-        503: {"description": "Redis service unavailable"},
         500: {"description": "Internal server error"},
     },
 )
 async def get_entity(
-    entity_id: str,
-    reid_service: ReIdentificationService = Depends(get_reid_service),
+    entity_id: UUID,
+    entity_repo: EntityRepository = Depends(get_entity_repository),
 ) -> EntityDetail:
     """Get detailed information about a specific entity.
 
-    Returns the entity's summary information along with all recorded appearances.
+    Returns the entity's summary information along with all recorded appearances
+    from PostgreSQL.
 
     Args:
-        entity_id: Unique entity identifier (detection_id)
-        reid_service: Re-identification service dependency
+        entity_id: UUID of the entity
+        entity_repo: Entity repository dependency for PostgreSQL queries
 
     Returns:
         EntityDetail with full entity information
 
     Raises:
-        HTTPException: 404 if entity not found, 503 if Redis unavailable
+        HTTPException: 404 if entity not found
     """
-    redis = await _get_redis_client()
+    # Query PostgreSQL for the entity
+    entity = await entity_repo.get_by_id(entity_id)
 
-    if redis is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Redis service unavailable",
-        )
-
-    # Search for entity in both person and vehicle types
-    found_embeddings: list[EntityEmbedding] = []
-    entity_type_found: str | None = None
-
-    for etype in ["person", "vehicle"]:
-        embeddings = await reid_service.get_entity_history(
-            redis_client=redis,
-            entity_type=etype,
-        )
-        # Find embeddings matching this entity_id
-        matching = [e for e in embeddings if e.detection_id == entity_id]
-        if matching:
-            found_embeddings.extend(matching)
-            entity_type_found = etype
-            break
-
-    if not found_embeddings:
+    if entity is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Entity with id '{entity_id}' not found",
         )
 
-    # Sort by timestamp
-    sorted_embeddings = sorted(found_embeddings, key=lambda e: e.timestamp)
+    # Get detections for this entity to build appearances list
+    detections, _total = await entity_repo.get_detections_for_entity(
+        entity_id=entity_id,
+        limit=1000,  # Get all detections
+        offset=0,
+    )
 
-    # Build appearances list
+    # Build appearances list from detections
     from backend.api.schemas.entities import EntityAppearance
 
     appearances = [
         EntityAppearance(
-            detection_id=emb.detection_id,
-            camera_id=emb.camera_id,
-            camera_name=emb.camera_id.replace("_", " ").title(),  # Simple name formatting
-            timestamp=emb.timestamp,
-            thumbnail_url=_get_thumbnail_url(emb.detection_id),
-            similarity_score=1.0,  # First appearance is always 1.0
-            attributes=emb.attributes,
+            detection_id=str(det.id),
+            camera_id=det.camera_id,
+            camera_name=det.camera_id.replace("_", " ").title(),  # Simple name formatting
+            timestamp=det.detected_at,
+            thumbnail_url=f"/api/detections/{det.id}/image" if det.id else None,
+            similarity_score=1.0,  # Similarity to self is always 1.0
+            attributes={},  # Detection attributes could be added here
         )
-        for emb in sorted_embeddings
+        for det in detections
     ]
 
-    # Get unique cameras
-    cameras_seen = list({e.camera_id for e in sorted_embeddings})
+    # Extract cameras from entity metadata
+    cameras_seen = []
+    if entity.entity_metadata and "camera_id" in entity.entity_metadata:
+        cameras_seen = [entity.entity_metadata["camera_id"]]
+
+    thumbnail_url = None
+    if entity.primary_detection_id:
+        thumbnail_url = _get_thumbnail_url(str(entity.primary_detection_id))
 
     return EntityDetail(
-        id=entity_id,
-        entity_type=entity_type_found or "person",
-        first_seen=sorted_embeddings[0].timestamp,
-        last_seen=sorted_embeddings[-1].timestamp,
-        appearance_count=len(sorted_embeddings),
+        id=str(entity.id),
+        entity_type=entity.entity_type,
+        first_seen=entity.first_seen_at,
+        last_seen=entity.last_seen_at,
+        appearance_count=entity.detection_count,
         cameras_seen=cameras_seen,
-        thumbnail_url=_get_thumbnail_url(sorted_embeddings[-1].detection_id),
+        thumbnail_url=thumbnail_url,
         appearances=appearances,
     )
 
@@ -328,83 +276,66 @@ async def get_entity(
     response_model=EntityHistoryResponse,
     responses={
         404: {"description": "Entity not found"},
-        503: {"description": "Redis service unavailable"},
         500: {"description": "Internal server error"},
     },
 )
 async def get_entity_history(
-    entity_id: str,
-    reid_service: ReIdentificationService = Depends(get_reid_service),
+    entity_id: UUID,
+    entity_repo: EntityRepository = Depends(get_entity_repository),
 ) -> EntityHistoryResponse:
     """Get the appearance timeline for a specific entity.
 
     Returns a chronological list of all appearances for the entity
-    across all cameras.
+    across all cameras from PostgreSQL.
 
     Args:
-        entity_id: Unique entity identifier (detection_id)
-        reid_service: Re-identification service dependency
+        entity_id: UUID of the entity
+        entity_repo: Entity repository dependency for PostgreSQL queries
 
     Returns:
         EntityHistoryResponse with appearance timeline
 
     Raises:
-        HTTPException: 404 if entity not found, 503 if Redis unavailable
+        HTTPException: 404 if entity not found
     """
-    redis = await _get_redis_client()
+    # Query PostgreSQL for the entity
+    entity = await entity_repo.get_by_id(entity_id)
 
-    if redis is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Redis service unavailable",
-        )
-
-    # Search for entity in both person and vehicle types
-    found_embeddings: list[EntityEmbedding] = []
-    entity_type_found: str | None = None
-
-    for etype in ["person", "vehicle"]:
-        embeddings = await reid_service.get_entity_history(
-            redis_client=redis,
-            entity_type=etype,
-        )
-        # Find embeddings matching this entity_id
-        matching = [e for e in embeddings if e.detection_id == entity_id]
-        if matching:
-            found_embeddings.extend(matching)
-            entity_type_found = etype
-            break
-
-    if not found_embeddings:
+    if entity is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Entity with id '{entity_id}' not found",
         )
 
-    # Sort by timestamp (chronological order)
-    sorted_embeddings = sorted(found_embeddings, key=lambda e: e.timestamp)
+    # Get detections for this entity
+    detections, total = await entity_repo.get_detections_for_entity(
+        entity_id=entity_id,
+        limit=1000,  # Get all detections for history
+        offset=0,
+    )
 
-    # Build appearances list
+    # Build appearances list from detections (sorted by timestamp)
     from backend.api.schemas.entities import EntityAppearance
 
+    # Detections should already be sorted by timestamp from the query
     appearances = [
         EntityAppearance(
-            detection_id=emb.detection_id,
-            camera_id=emb.camera_id,
-            camera_name=emb.camera_id.replace("_", " ").title(),
-            timestamp=emb.timestamp,
-            thumbnail_url=_get_thumbnail_url(emb.detection_id),
-            similarity_score=1.0,
-            attributes=emb.attributes,
+            detection_id=str(det.id),
+            camera_id=det.camera_id,
+            camera_name=det.camera_id.replace("_", " ").title(),
+            timestamp=det.detected_at,
+            thumbnail_url=f"/api/detections/{det.id}/image" if det.id else None,
+            similarity_score=1.0,  # Similarity to self is always 1.0
+            attributes={},  # Detection attributes could be added here
         )
-        for emb in sorted_embeddings
+        for det in detections
     ]
 
     return EntityHistoryResponse(
-        entity_id=entity_id,
-        entity_type=entity_type_found or "person",
+        entity_id=str(entity_id),
+        entity_type=entity.entity_type,
         appearances=appearances,
-        count=len(appearances),
+        count=total,
     )
 
 
@@ -434,6 +365,8 @@ async def get_entity_matches(
 
     Searches for entities similar to the specified detection's embedding
     across all cameras. Used to show re-ID matches in the EventDetailModal.
+
+    NOTE: This endpoint continues to use Redis for real-time similarity matching.
 
     Args:
         detection_id: Detection ID to find matches for

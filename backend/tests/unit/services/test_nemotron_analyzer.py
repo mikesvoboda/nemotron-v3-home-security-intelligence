@@ -72,6 +72,8 @@ def mock_settings():
     mock.ai_warmup_enabled = True
     mock.ai_cold_start_threshold_seconds = 300.0
     mock.nemotron_warmup_prompt = "Test warmup prompt"
+    # Scene change detector settings (NEM-2520)
+    mock.scene_change_resize_width = 640
     return mock
 
 

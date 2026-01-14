@@ -267,7 +267,6 @@ class TestFreshDatabaseMigrations:
             "detections",
             "gpu_stats",
             "logs",
-            "api_keys",
             # Added by subsequent migrations
             "zones",
             "alert_rules",

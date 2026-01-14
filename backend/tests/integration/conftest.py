@@ -70,7 +70,6 @@ HARDCODED_TABLE_DELETION_ORDER = [
     "audit_logs",
     "gpu_stats",
     "logs",
-    "api_keys",
     "prompt_configs",
     "quiet_hours_periods",
     "notification_preferences",

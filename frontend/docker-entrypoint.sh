@@ -102,8 +102,8 @@ HTTPS_REDIRECT='
 #   1. SSL_ENABLED environment variable is set to "true"
 #   2. Certificate files exist at the expected paths
 
-SSL_CERT="${SSL_CERT_PATH:-/etc/nginx/ssl/cert.pem}"
-SSL_KEY="${SSL_KEY_PATH:-/etc/nginx/ssl/key.pem}"
+SSL_CERT="${SSL_CERT_PATH:-/etc/nginx/certs/cert.pem}"
+SSL_KEY="${SSL_KEY_PATH:-/etc/nginx/certs/key.pem}"
 
 if [ "${SSL_ENABLED:-false}" = "true" ]; then
     # Check if certificate files exist
@@ -150,7 +150,7 @@ server {
     # Uncomment if using certificates from a public CA
     # ssl_stapling on;
     # ssl_stapling_verify on;
-    # ssl_trusted_certificate /etc/nginx/ssl/chain.pem;
+    # ssl_trusted_certificate /etc/nginx/certs/chain.pem;
 
     # Dynamic DNS resolution for backend
     resolver ${RESOLVER:-127.0.0.11} valid=10s ipv6=off;

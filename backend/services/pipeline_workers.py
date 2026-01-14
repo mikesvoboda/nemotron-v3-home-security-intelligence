@@ -28,6 +28,7 @@ Queue Flow:
 
 import asyncio
 import signal
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import Enum
@@ -1733,6 +1734,102 @@ def reset_pipeline_manager_state() -> None:
     global _pipeline_manager, _pipeline_manager_lock  # noqa: PLW0603
     _pipeline_manager = None
     _pipeline_manager_lock = None
+
+
+# Factory functions for WorkerSupervisor integration (NEM-2460)
+# These return async callables that the WorkerSupervisor can manage
+
+
+def create_detection_worker(redis_client: RedisClient) -> Callable[[], Awaitable[None]]:
+    """Create a detection worker factory for WorkerSupervisor.
+
+    Returns a callable that creates and runs a DetectionQueueWorker.
+    The supervisor will call this to start/restart the worker.
+
+    Args:
+        redis_client: Redis client for queue operations
+
+    Returns:
+        Async callable that runs the detection worker
+    """
+
+    async def _run_detection_worker() -> None:
+        worker = DetectionQueueWorker(redis_client=redis_client)
+        await worker.start()
+        # Wait for worker to complete (it runs until stopped)
+        if worker._task:
+            await worker._task
+
+    return _run_detection_worker
+
+
+def create_analysis_worker(redis_client: RedisClient) -> Callable[[], Awaitable[None]]:
+    """Create an analysis worker factory for WorkerSupervisor.
+
+    Returns a callable that creates and runs an AnalysisQueueWorker.
+    The supervisor will call this to start/restart the worker.
+
+    Args:
+        redis_client: Redis client for queue operations
+
+    Returns:
+        Async callable that runs the analysis worker
+    """
+
+    async def _run_analysis_worker() -> None:
+        worker = AnalysisQueueWorker(redis_client=redis_client)
+        await worker.start()
+        # Wait for worker to complete (it runs until stopped)
+        if worker._task:
+            await worker._task
+
+    return _run_analysis_worker
+
+
+def create_timeout_worker(redis_client: RedisClient) -> Callable[[], Awaitable[None]]:
+    """Create a batch timeout worker factory for WorkerSupervisor.
+
+    Returns a callable that creates and runs a BatchTimeoutWorker.
+    The supervisor will call this to start/restart the worker.
+
+    Args:
+        redis_client: Redis client for queue operations
+
+    Returns:
+        Async callable that runs the timeout worker
+    """
+
+    async def _run_timeout_worker() -> None:
+        worker = BatchTimeoutWorker(redis_client=redis_client)
+        await worker.start()
+        # Wait for worker to complete (it runs until stopped)
+        if worker._task:
+            await worker._task
+
+    return _run_timeout_worker
+
+
+def create_metrics_worker(redis_client: RedisClient) -> Callable[[], Awaitable[None]]:
+    """Create a queue metrics worker factory for WorkerSupervisor.
+
+    Returns a callable that creates and runs a QueueMetricsWorker.
+    The supervisor will call this to start/restart the worker.
+
+    Args:
+        redis_client: Redis client for queue operations
+
+    Returns:
+        Async callable that runs the metrics worker
+    """
+
+    async def _run_metrics_worker() -> None:
+        worker = QueueMetricsWorker(redis_client=redis_client)
+        await worker.start()
+        # Wait for worker to complete (it runs until stopped)
+        if worker._task:
+            await worker._task
+
+    return _run_metrics_worker
 
 
 if __name__ == "__main__":

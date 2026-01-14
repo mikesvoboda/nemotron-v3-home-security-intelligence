@@ -285,7 +285,7 @@ async def test_db_only(isolated_db_session):
 The cleanup function handles all tables in FK-safe order:
 
 - alerts, event_audits, detections, activity_baselines, class_baselines, events
-- alert_rules, audit_logs, gpu_stats, logs, api_keys, zones
+- alert_rules, audit_logs, gpu_stats, logs, zones
 - cameras (parent table, deleted last)
 
 ## Key Test Patterns

@@ -8,6 +8,7 @@ Uses shared fixtures from conftest.py:
 import json
 import os
 import uuid
+from contextlib import ExitStack
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -17,6 +18,254 @@ from starlette.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
 from backend.tests.conftest import unique_id
+
+
+def _get_common_lifespan_mocks():
+    """Create common mock objects for all lifespan services.
+
+    Returns a dict with all mock objects needed for fast test startup.
+    These mocks prevent real services from initializing during TestClient creation.
+    """
+    # Create mock Redis client with proper pipeline support for rate limiting
+    mock_redis_client = AsyncMock()
+    mock_redis_client.health_check.return_value = {
+        "status": "healthy",
+        "connected": True,
+        "redis_version": "7.0.0",
+    }
+
+    # Mock the underlying Redis client returned by _ensure_connected()
+    mock_underlying_client = MagicMock()
+    mock_pipeline = MagicMock()
+    mock_pipeline.zremrangebyscore = MagicMock(return_value=mock_pipeline)
+    mock_pipeline.zcard = MagicMock(return_value=mock_pipeline)
+    mock_pipeline.zadd = MagicMock(return_value=mock_pipeline)
+    mock_pipeline.expire = MagicMock(return_value=mock_pipeline)
+    mock_pipeline.execute = AsyncMock(
+        return_value=[0, 0, 1, True]
+    )  # [removed, count, added, expiry]
+    mock_underlying_client.pipeline = MagicMock(return_value=mock_pipeline)
+    mock_redis_client._ensure_connected = MagicMock(return_value=mock_underlying_client)
+    mock_redis_client._client = mock_underlying_client
+
+    # Mock pubsub for event broadcaster - must be an async iterator
+    async def mock_listen(*args, **kwargs):
+        # Yield nothing - empty async generator
+        return
+        yield  # Make this an async generator
+
+    mock_pubsub = MagicMock()
+    mock_redis_client._pubsub = mock_pubsub
+    mock_redis_client.listen = mock_listen
+
+    # Mock background services
+    mock_system_broadcaster = MagicMock()
+    mock_system_broadcaster.start_broadcasting = AsyncMock()
+    mock_system_broadcaster.stop_broadcasting = AsyncMock()
+
+    mock_gpu_monitor = MagicMock()
+    mock_gpu_monitor.start = AsyncMock()
+    mock_gpu_monitor.stop = AsyncMock()
+
+    mock_cleanup_service = MagicMock()
+    mock_cleanup_service.start = AsyncMock()
+    mock_cleanup_service.stop = AsyncMock()
+
+    mock_file_watcher = MagicMock()
+    mock_file_watcher.start = AsyncMock()
+    mock_file_watcher.stop = AsyncMock()
+
+    mock_pipeline_manager = MagicMock()
+    mock_pipeline_manager.start = AsyncMock()
+    mock_pipeline_manager.stop = AsyncMock()
+
+    mock_event_broadcaster = MagicMock()
+    mock_event_broadcaster.start = AsyncMock()
+    mock_event_broadcaster.stop = AsyncMock()
+    mock_event_broadcaster.connect = AsyncMock()
+    mock_event_broadcaster.disconnect = AsyncMock()
+    mock_event_broadcaster.broadcast_event = AsyncMock(return_value=1)
+    mock_event_broadcaster.broadcast_service_status = AsyncMock(return_value=1)
+    mock_event_broadcaster.CHANNEL_NAME = "security_events"
+    mock_event_broadcaster.channel_name = "security_events"
+
+    mock_service_health_monitor = MagicMock()
+    mock_service_health_monitor.start = AsyncMock()
+    mock_service_health_monitor.stop = AsyncMock()
+
+    mock_ai_health = AsyncMock(
+        return_value={
+            "rtdetr": False,
+            "nemotron": False,
+            "any_healthy": False,
+            "all_healthy": False,
+        }
+    )
+
+    # Mock WorkerSupervisor (NEM-2460)
+    mock_worker_supervisor = MagicMock()
+    mock_worker_supervisor.start = AsyncMock()
+    mock_worker_supervisor.stop = AsyncMock()
+    mock_worker_supervisor.register_worker = AsyncMock()
+    mock_worker_supervisor.worker_count = 4
+
+    # Mock DI container (NEM-2003)
+    mock_container = MagicMock()
+    mock_health_registry = MagicMock()
+    mock_health_registry.register_gpu_monitor = MagicMock()
+    mock_health_registry.register_cleanup_service = MagicMock()
+    mock_health_registry.register_system_broadcaster = MagicMock()
+    mock_health_registry.register_file_watcher = MagicMock()
+    mock_health_registry.register_pipeline_manager = MagicMock()
+    mock_health_registry.register_service_health_monitor = MagicMock()
+    mock_health_registry.register_performance_collector = MagicMock()
+    mock_container.get = MagicMock(return_value=mock_health_registry)
+
+    # Mock BackgroundEvaluator (NEM-2467)
+    mock_background_evaluator = MagicMock()
+    mock_background_evaluator.start = AsyncMock()
+    mock_background_evaluator.stop = AsyncMock()
+
+    # Mock ContainerOrchestrator
+    mock_container_orchestrator = MagicMock()
+    mock_container_orchestrator.start = AsyncMock()
+    mock_container_orchestrator.stop = AsyncMock()
+
+    # Mock DockerClient
+    mock_docker_client = MagicMock()
+    mock_docker_client.close = AsyncMock()
+
+    # Mock PerformanceCollector
+    mock_performance_collector = MagicMock()
+    mock_performance_collector.close = AsyncMock()
+
+    # Mock worker factories
+    mock_detection_worker = AsyncMock()
+    mock_analysis_worker = AsyncMock()
+    mock_timeout_worker = AsyncMock()
+    mock_metrics_worker = AsyncMock()
+
+    return {
+        "redis_client": mock_redis_client,
+        "system_broadcaster": mock_system_broadcaster,
+        "gpu_monitor": mock_gpu_monitor,
+        "cleanup_service": mock_cleanup_service,
+        "file_watcher": mock_file_watcher,
+        "pipeline_manager": mock_pipeline_manager,
+        "event_broadcaster": mock_event_broadcaster,
+        "service_health_monitor": mock_service_health_monitor,
+        "ai_health": mock_ai_health,
+        "worker_supervisor": mock_worker_supervisor,
+        "container": mock_container,
+        "background_evaluator": mock_background_evaluator,
+        "container_orchestrator": mock_container_orchestrator,
+        "docker_client": mock_docker_client,
+        "performance_collector": mock_performance_collector,
+        "detection_worker": mock_detection_worker,
+        "analysis_worker": mock_analysis_worker,
+        "timeout_worker": mock_timeout_worker,
+        "metrics_worker": mock_metrics_worker,
+    }
+
+
+def _apply_common_lifespan_patches(stack, mocks, mock_init_db):
+    """Apply all common lifespan service patches to an ExitStack.
+
+    Args:
+        stack: ExitStack to add patches to
+        mocks: Dict of mock objects from _get_common_lifespan_mocks()
+        mock_init_db: Async mock function for init_db
+    """
+
+    # Async mock functions for seeding and validation
+    async def mock_seed_cameras_if_empty():
+        return 0
+
+    async def mock_validate_camera_paths_on_startup():
+        return (0, 0)
+
+    # Core Redis and database mocks
+    stack.enter_context(patch("backend.core.redis._redis_client", mocks["redis_client"]))
+    stack.enter_context(patch("backend.core.redis.init_redis", return_value=mocks["redis_client"]))
+    stack.enter_context(patch("backend.core.redis.close_redis", return_value=None))
+    stack.enter_context(patch("backend.main.init_db", mock_init_db))
+    stack.enter_context(patch("backend.main.seed_cameras_if_empty", mock_seed_cameras_if_empty))
+    stack.enter_context(
+        patch(
+            "backend.main.validate_camera_paths_on_startup",
+            mock_validate_camera_paths_on_startup,
+        )
+    )
+    stack.enter_context(patch("backend.main.init_redis", return_value=mocks["redis_client"]))
+    stack.enter_context(patch("backend.main.close_redis", return_value=None))
+
+    # Background service mocks
+    stack.enter_context(
+        patch("backend.main.get_system_broadcaster", return_value=mocks["system_broadcaster"])
+    )
+    stack.enter_context(patch("backend.main.GPUMonitor", return_value=mocks["gpu_monitor"]))
+    stack.enter_context(patch("backend.main.CleanupService", return_value=mocks["cleanup_service"]))
+    stack.enter_context(patch("backend.main.FileWatcher", return_value=mocks["file_watcher"]))
+    stack.enter_context(
+        patch(
+            "backend.main.get_pipeline_manager",
+            AsyncMock(return_value=mocks["pipeline_manager"]),
+        )
+    )
+    stack.enter_context(patch("backend.main.stop_pipeline_manager", AsyncMock()))
+    stack.enter_context(
+        patch(
+            "backend.main.get_broadcaster",
+            AsyncMock(return_value=mocks["event_broadcaster"]),
+        )
+    )
+    stack.enter_context(patch("backend.main.stop_broadcaster", AsyncMock()))
+    stack.enter_context(
+        patch("backend.main.ServiceHealthMonitor", return_value=mocks["service_health_monitor"])
+    )
+    stack.enter_context(
+        patch(
+            "backend.services.system_broadcaster.SystemBroadcaster._check_ai_health",
+            mocks["ai_health"],
+        )
+    )
+
+    # New services added after initial fixtures
+    stack.enter_context(
+        patch("backend.main.get_worker_supervisor", return_value=mocks["worker_supervisor"])
+    )
+    stack.enter_context(patch("backend.main.get_container", return_value=mocks["container"]))
+    stack.enter_context(patch("backend.main.wire_services", AsyncMock()))
+    stack.enter_context(patch("backend.main.init_job_tracker_websocket", AsyncMock()))
+    stack.enter_context(
+        patch("backend.main.PerformanceCollector", return_value=mocks["performance_collector"])
+    )
+    stack.enter_context(
+        patch("backend.main.BackgroundEvaluator", return_value=mocks["background_evaluator"])
+    )
+    stack.enter_context(patch("backend.main.get_evaluation_queue", MagicMock()))
+    stack.enter_context(patch("backend.main.get_audit_service", MagicMock()))
+    stack.enter_context(
+        patch(
+            "backend.main.ContainerOrchestrator",
+            return_value=mocks["container_orchestrator"],
+        )
+    )
+    stack.enter_context(patch("backend.main.DockerClient", return_value=mocks["docker_client"]))
+    stack.enter_context(patch("backend.main.register_workers", MagicMock()))
+    stack.enter_context(patch("backend.main.enable_deferred_db_logging", MagicMock()))
+    stack.enter_context(
+        patch("backend.main.create_detection_worker", return_value=mocks["detection_worker"])
+    )
+    stack.enter_context(
+        patch("backend.main.create_analysis_worker", return_value=mocks["analysis_worker"])
+    )
+    stack.enter_context(
+        patch("backend.main.create_timeout_worker", return_value=mocks["timeout_worker"])
+    )
+    stack.enter_context(
+        patch("backend.main.create_metrics_worker", return_value=mocks["metrics_worker"])
+    )
 
 
 @pytest.fixture
@@ -62,104 +311,18 @@ def sync_client(integration_env):
     """
     from backend.main import app
 
-    # Create mock Redis client for this fixture
-    mock_redis_client = AsyncMock()
-    mock_redis_client.health_check.return_value = {
-        "status": "healthy",
-        "connected": True,
-        "redis_version": "7.0.0",
-    }
+    # Get common mock objects
+    mocks = _get_common_lifespan_mocks()
 
     # Create mock init_db that does nothing (avoids slow real DB init)
     async def mock_init_db():
         """Mock init_db to avoid slow real database initialization."""
         pass
 
-    # Create mock seed_cameras_if_empty (called after init_db in lifespan)
-    async def mock_seed_cameras_if_empty():
-        """Mock seed_cameras_if_empty to avoid database access."""
-        return 0
-
-    # Create mock validate_camera_paths_on_startup (called after seed_cameras in lifespan)
-    async def mock_validate_camera_paths_on_startup():
-        """Mock validate_camera_paths_on_startup to avoid database access."""
-        return (0, 0)  # Return (valid_count, invalid_count)
-
-    # Mock background services that have 5-second intervals to avoid slow teardown
-    mock_system_broadcaster = MagicMock()
-    mock_system_broadcaster.start_broadcasting = AsyncMock()
-    mock_system_broadcaster.stop_broadcasting = AsyncMock()
-
-    mock_gpu_monitor = MagicMock()
-    mock_gpu_monitor.start = AsyncMock()
-    mock_gpu_monitor.stop = AsyncMock()
-
-    mock_cleanup_service = MagicMock()
-    mock_cleanup_service.start = AsyncMock()
-    mock_cleanup_service.stop = AsyncMock()
-
-    # Mock FileWatcher to prevent real filesystem watching
-    mock_file_watcher = MagicMock()
-    mock_file_watcher.start = AsyncMock()
-    mock_file_watcher.stop = AsyncMock()
-
-    # Mock PipelineWorkerManager to prevent real background workers
-    mock_pipeline_manager = MagicMock()
-    mock_pipeline_manager.start = AsyncMock()
-    mock_pipeline_manager.stop = AsyncMock()
-
-    # Mock EventBroadcaster - matches real EventBroadcaster interface
-    mock_event_broadcaster = MagicMock()
-    mock_event_broadcaster.start = AsyncMock()
-    mock_event_broadcaster.stop = AsyncMock()
-    mock_event_broadcaster.connect = AsyncMock()
-    mock_event_broadcaster.disconnect = AsyncMock()
-    mock_event_broadcaster.broadcast_event = AsyncMock(return_value=1)
-    mock_event_broadcaster.CHANNEL_NAME = "security_events"
-    mock_event_broadcaster.channel_name = "security_events"
-
-    # Mock ServiceHealthMonitor to avoid slow startup
-    mock_service_health_monitor = MagicMock()
-    mock_service_health_monitor.start = AsyncMock()
-    mock_service_health_monitor.stop = AsyncMock()
-
-    # Mock AI health check to avoid HTTP calls to non-existent AI services in tests
-    mock_ai_health = AsyncMock(
-        return_value={
-            "rtdetr": False,
-            "nemotron": False,
-            "any_healthy": False,
-            "all_healthy": False,
-        }
-    )
-
-    # Patch all lifespan services for fast startup
-    with (
-        patch("backend.core.redis._redis_client", mock_redis_client),
-        patch("backend.core.redis.init_redis", return_value=mock_redis_client),
-        patch("backend.core.redis.close_redis", return_value=None),
-        patch("backend.main.init_db", mock_init_db),
-        patch("backend.main.seed_cameras_if_empty", mock_seed_cameras_if_empty),
-        patch(
-            "backend.main.validate_camera_paths_on_startup",
-            mock_validate_camera_paths_on_startup,
-        ),
-        patch("backend.main.init_redis", return_value=mock_redis_client),
-        patch("backend.main.close_redis", return_value=None),
-        patch("backend.main.get_system_broadcaster", return_value=mock_system_broadcaster),
-        patch("backend.main.GPUMonitor", return_value=mock_gpu_monitor),
-        patch("backend.main.CleanupService", return_value=mock_cleanup_service),
-        patch("backend.main.FileWatcher", return_value=mock_file_watcher),
-        patch("backend.main.get_pipeline_manager", AsyncMock(return_value=mock_pipeline_manager)),
-        patch("backend.main.stop_pipeline_manager", AsyncMock()),
-        patch("backend.main.get_broadcaster", AsyncMock(return_value=mock_event_broadcaster)),
-        patch("backend.main.stop_broadcaster", AsyncMock()),
-        patch("backend.main.ServiceHealthMonitor", return_value=mock_service_health_monitor),
-        patch(
-            "backend.services.system_broadcaster.SystemBroadcaster._check_ai_health", mock_ai_health
-        ),
-        TestClient(app) as client,
-    ):
+    # Patch all lifespan services for fast startup using ExitStack
+    with ExitStack() as stack:
+        _apply_common_lifespan_patches(stack, mocks, mock_init_db)
+        client = stack.enter_context(TestClient(app))
         yield client
 
 
@@ -628,104 +791,18 @@ def sync_client_with_auth_enabled(integration_env, test_api_key):
     # Clear settings cache to pick up new environment variables
     get_settings.cache_clear()
 
-    # Create mock Redis client for this fixture
-    mock_redis_client = AsyncMock()
-    mock_redis_client.health_check.return_value = {
-        "status": "healthy",
-        "connected": True,
-        "redis_version": "7.0.0",
-    }
+    # Get common mock objects
+    mocks = _get_common_lifespan_mocks()
 
     # Create mock init_db that does nothing (avoids slow real DB init)
     async def mock_init_db():
         """Mock init_db to avoid slow real database initialization."""
         pass
 
-    # Create mock seed_cameras_if_empty (called after init_db in lifespan)
-    async def mock_seed_cameras_if_empty():
-        """Mock seed_cameras_if_empty to avoid database access."""
-        return 0
-
-    # Create mock validate_camera_paths_on_startup (called after seed_cameras in lifespan)
-    async def mock_validate_camera_paths_on_startup():
-        """Mock validate_camera_paths_on_startup to avoid database access."""
-        return (0, 0)  # Return (valid_count, invalid_count)
-
-    # Mock background services that have 5-second intervals to avoid slow teardown
-    mock_system_broadcaster = MagicMock()
-    mock_system_broadcaster.start_broadcasting = AsyncMock()
-    mock_system_broadcaster.stop_broadcasting = AsyncMock()
-
-    mock_gpu_monitor = MagicMock()
-    mock_gpu_monitor.start = AsyncMock()
-    mock_gpu_monitor.stop = AsyncMock()
-
-    mock_cleanup_service = MagicMock()
-    mock_cleanup_service.start = AsyncMock()
-    mock_cleanup_service.stop = AsyncMock()
-
-    # Mock FileWatcher to prevent real filesystem watching
-    mock_file_watcher = MagicMock()
-    mock_file_watcher.start = AsyncMock()
-    mock_file_watcher.stop = AsyncMock()
-
-    # Mock PipelineWorkerManager to prevent real background workers
-    mock_pipeline_manager = MagicMock()
-    mock_pipeline_manager.start = AsyncMock()
-    mock_pipeline_manager.stop = AsyncMock()
-
-    # Mock EventBroadcaster - matches real EventBroadcaster interface
-    mock_event_broadcaster = MagicMock()
-    mock_event_broadcaster.start = AsyncMock()
-    mock_event_broadcaster.stop = AsyncMock()
-    mock_event_broadcaster.connect = AsyncMock()
-    mock_event_broadcaster.disconnect = AsyncMock()
-    mock_event_broadcaster.broadcast_event = AsyncMock(return_value=1)
-    mock_event_broadcaster.CHANNEL_NAME = "security_events"
-    mock_event_broadcaster.channel_name = "security_events"
-
-    # Mock ServiceHealthMonitor to avoid slow startup
-    mock_service_health_monitor = MagicMock()
-    mock_service_health_monitor.start = AsyncMock()
-    mock_service_health_monitor.stop = AsyncMock()
-
-    # Mock AI health check to avoid HTTP calls to non-existent AI services in tests
-    mock_ai_health = AsyncMock(
-        return_value={
-            "rtdetr": False,
-            "nemotron": False,
-            "any_healthy": False,
-            "all_healthy": False,
-        }
-    )
-
-    # Patch all lifespan services for fast startup
-    with (
-        patch("backend.core.redis._redis_client", mock_redis_client),
-        patch("backend.core.redis.init_redis", return_value=mock_redis_client),
-        patch("backend.core.redis.close_redis", return_value=None),
-        patch("backend.main.init_db", mock_init_db),
-        patch("backend.main.seed_cameras_if_empty", mock_seed_cameras_if_empty),
-        patch(
-            "backend.main.validate_camera_paths_on_startup",
-            mock_validate_camera_paths_on_startup,
-        ),
-        patch("backend.main.init_redis", return_value=mock_redis_client),
-        patch("backend.main.close_redis", return_value=None),
-        patch("backend.main.get_system_broadcaster", return_value=mock_system_broadcaster),
-        patch("backend.main.GPUMonitor", return_value=mock_gpu_monitor),
-        patch("backend.main.CleanupService", return_value=mock_cleanup_service),
-        patch("backend.main.FileWatcher", return_value=mock_file_watcher),
-        patch("backend.main.get_pipeline_manager", AsyncMock(return_value=mock_pipeline_manager)),
-        patch("backend.main.stop_pipeline_manager", AsyncMock()),
-        patch("backend.main.get_broadcaster", AsyncMock(return_value=mock_event_broadcaster)),
-        patch("backend.main.stop_broadcaster", AsyncMock()),
-        patch("backend.main.ServiceHealthMonitor", return_value=mock_service_health_monitor),
-        patch(
-            "backend.services.system_broadcaster.SystemBroadcaster._check_ai_health", mock_ai_health
-        ),
-        TestClient(app) as client,
-    ):
+    # Patch all lifespan services for fast startup using ExitStack
+    with ExitStack() as stack:
+        _apply_common_lifespan_patches(stack, mocks, mock_init_db)
+        client = stack.enter_context(TestClient(app))
         yield client
 
     # Restore original environment
@@ -1355,9 +1432,11 @@ class TestChannelDocumentation:
         """Verify AGENTS.md documents the canonical channel name."""
         from pathlib import Path
 
-        agents_path = Path(__file__).parent.parent.parent / "services" / "AGENTS.md"
+        agents_path = (
+            Path(__file__).resolve().parent.parent.parent / "services" / "AGENTS.md"
+        ).resolve()
 
-        with open(agents_path) as f:
+        with agents_path.open() as f:
             content = f.read()
 
         # Channel name should be documented
