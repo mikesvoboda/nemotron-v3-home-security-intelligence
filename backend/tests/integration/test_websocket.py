@@ -8,6 +8,7 @@ Uses shared fixtures from conftest.py:
 import json
 import os
 import uuid
+from contextlib import ExitStack
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -123,6 +124,19 @@ def sync_client(integration_env):
     mock_service_health_monitor.start = AsyncMock()
     mock_service_health_monitor.stop = AsyncMock()
 
+    # Mock WorkerSupervisor to avoid slow startup (NEM-2460)
+    mock_worker_supervisor = MagicMock()
+    mock_worker_supervisor.start = AsyncMock()
+    mock_worker_supervisor.stop = AsyncMock()
+    mock_worker_supervisor.register_worker = AsyncMock()
+    mock_worker_supervisor.worker_count = 4
+
+    # Mock worker factory functions (NEM-2460)
+    mock_detection_worker = AsyncMock()
+    mock_analysis_worker = AsyncMock()
+    mock_timeout_worker = AsyncMock()
+    mock_metrics_worker = AsyncMock()
+
     # Mock AI health check to avoid HTTP calls to non-existent AI services in tests
     mock_ai_health = AsyncMock(
         return_value={
@@ -133,33 +147,75 @@ def sync_client(integration_env):
         }
     )
 
-    # Patch all lifespan services for fast startup
-    with (
-        patch("backend.core.redis._redis_client", mock_redis_client),
-        patch("backend.core.redis.init_redis", return_value=mock_redis_client),
-        patch("backend.core.redis.close_redis", return_value=None),
-        patch("backend.main.init_db", mock_init_db),
-        patch("backend.main.seed_cameras_if_empty", mock_seed_cameras_if_empty),
-        patch(
-            "backend.main.validate_camera_paths_on_startup",
-            mock_validate_camera_paths_on_startup,
-        ),
-        patch("backend.main.init_redis", return_value=mock_redis_client),
-        patch("backend.main.close_redis", return_value=None),
-        patch("backend.main.get_system_broadcaster", return_value=mock_system_broadcaster),
-        patch("backend.main.GPUMonitor", return_value=mock_gpu_monitor),
-        patch("backend.main.CleanupService", return_value=mock_cleanup_service),
-        patch("backend.main.FileWatcher", return_value=mock_file_watcher),
-        patch("backend.main.get_pipeline_manager", AsyncMock(return_value=mock_pipeline_manager)),
-        patch("backend.main.stop_pipeline_manager", AsyncMock()),
-        patch("backend.main.get_broadcaster", AsyncMock(return_value=mock_event_broadcaster)),
-        patch("backend.main.stop_broadcaster", AsyncMock()),
-        patch("backend.main.ServiceHealthMonitor", return_value=mock_service_health_monitor),
-        patch(
-            "backend.services.system_broadcaster.SystemBroadcaster._check_ai_health", mock_ai_health
-        ),
-        TestClient(app) as client,
-    ):
+    # Patch all lifespan services for fast startup using ExitStack to avoid
+    # Python's "too many statically nested blocks" limitation
+    with ExitStack() as stack:
+        # Redis mocks
+        stack.enter_context(patch("backend.core.redis._redis_client", mock_redis_client))
+        stack.enter_context(patch("backend.core.redis.init_redis", return_value=mock_redis_client))
+        stack.enter_context(patch("backend.core.redis.close_redis", return_value=None))
+
+        # Database mocks
+        stack.enter_context(patch("backend.main.init_db", mock_init_db))
+        stack.enter_context(patch("backend.main.seed_cameras_if_empty", mock_seed_cameras_if_empty))
+        stack.enter_context(
+            patch(
+                "backend.main.validate_camera_paths_on_startup",
+                mock_validate_camera_paths_on_startup,
+            )
+        )
+        stack.enter_context(patch("backend.main.init_redis", return_value=mock_redis_client))
+        stack.enter_context(patch("backend.main.close_redis", return_value=None))
+
+        # Service mocks
+        stack.enter_context(
+            patch("backend.main.get_system_broadcaster", return_value=mock_system_broadcaster)
+        )
+        stack.enter_context(patch("backend.main.GPUMonitor", return_value=mock_gpu_monitor))
+        stack.enter_context(patch("backend.main.CleanupService", return_value=mock_cleanup_service))
+        stack.enter_context(patch("backend.main.FileWatcher", return_value=mock_file_watcher))
+        stack.enter_context(
+            patch(
+                "backend.main.get_pipeline_manager", AsyncMock(return_value=mock_pipeline_manager)
+            )
+        )
+        stack.enter_context(patch("backend.main.stop_pipeline_manager", AsyncMock()))
+        stack.enter_context(
+            patch("backend.main.get_broadcaster", AsyncMock(return_value=mock_event_broadcaster))
+        )
+        stack.enter_context(patch("backend.main.stop_broadcaster", AsyncMock()))
+        stack.enter_context(
+            patch("backend.main.ServiceHealthMonitor", return_value=mock_service_health_monitor)
+        )
+
+        # WorkerSupervisor mocks (NEM-2460)
+        stack.enter_context(
+            patch("backend.main.get_worker_supervisor", return_value=mock_worker_supervisor)
+        )
+        stack.enter_context(patch("backend.main.reset_worker_supervisor"))
+        stack.enter_context(
+            patch("backend.main.create_detection_worker", return_value=mock_detection_worker)
+        )
+        stack.enter_context(
+            patch("backend.main.create_analysis_worker", return_value=mock_analysis_worker)
+        )
+        stack.enter_context(
+            patch("backend.main.create_timeout_worker", return_value=mock_timeout_worker)
+        )
+        stack.enter_context(
+            patch("backend.main.create_metrics_worker", return_value=mock_metrics_worker)
+        )
+
+        # AI health check mock
+        stack.enter_context(
+            patch(
+                "backend.services.system_broadcaster.SystemBroadcaster._check_ai_health",
+                mock_ai_health,
+            )
+        )
+
+        # Create test client
+        client = stack.enter_context(TestClient(app))
         yield client
 
 
@@ -689,6 +745,19 @@ def sync_client_with_auth_enabled(integration_env, test_api_key):
     mock_service_health_monitor.start = AsyncMock()
     mock_service_health_monitor.stop = AsyncMock()
 
+    # Mock WorkerSupervisor to avoid slow startup (NEM-2460)
+    mock_worker_supervisor = MagicMock()
+    mock_worker_supervisor.start = AsyncMock()
+    mock_worker_supervisor.stop = AsyncMock()
+    mock_worker_supervisor.register_worker = AsyncMock()
+    mock_worker_supervisor.worker_count = 4
+
+    # Mock worker factory functions (NEM-2460)
+    mock_detection_worker = AsyncMock()
+    mock_analysis_worker = AsyncMock()
+    mock_timeout_worker = AsyncMock()
+    mock_metrics_worker = AsyncMock()
+
     # Mock AI health check to avoid HTTP calls to non-existent AI services in tests
     mock_ai_health = AsyncMock(
         return_value={
@@ -699,33 +768,75 @@ def sync_client_with_auth_enabled(integration_env, test_api_key):
         }
     )
 
-    # Patch all lifespan services for fast startup
-    with (
-        patch("backend.core.redis._redis_client", mock_redis_client),
-        patch("backend.core.redis.init_redis", return_value=mock_redis_client),
-        patch("backend.core.redis.close_redis", return_value=None),
-        patch("backend.main.init_db", mock_init_db),
-        patch("backend.main.seed_cameras_if_empty", mock_seed_cameras_if_empty),
-        patch(
-            "backend.main.validate_camera_paths_on_startup",
-            mock_validate_camera_paths_on_startup,
-        ),
-        patch("backend.main.init_redis", return_value=mock_redis_client),
-        patch("backend.main.close_redis", return_value=None),
-        patch("backend.main.get_system_broadcaster", return_value=mock_system_broadcaster),
-        patch("backend.main.GPUMonitor", return_value=mock_gpu_monitor),
-        patch("backend.main.CleanupService", return_value=mock_cleanup_service),
-        patch("backend.main.FileWatcher", return_value=mock_file_watcher),
-        patch("backend.main.get_pipeline_manager", AsyncMock(return_value=mock_pipeline_manager)),
-        patch("backend.main.stop_pipeline_manager", AsyncMock()),
-        patch("backend.main.get_broadcaster", AsyncMock(return_value=mock_event_broadcaster)),
-        patch("backend.main.stop_broadcaster", AsyncMock()),
-        patch("backend.main.ServiceHealthMonitor", return_value=mock_service_health_monitor),
-        patch(
-            "backend.services.system_broadcaster.SystemBroadcaster._check_ai_health", mock_ai_health
-        ),
-        TestClient(app) as client,
-    ):
+    # Patch all lifespan services for fast startup using ExitStack to avoid
+    # Python's "too many statically nested blocks" limitation
+    with ExitStack() as stack:
+        # Redis mocks
+        stack.enter_context(patch("backend.core.redis._redis_client", mock_redis_client))
+        stack.enter_context(patch("backend.core.redis.init_redis", return_value=mock_redis_client))
+        stack.enter_context(patch("backend.core.redis.close_redis", return_value=None))
+
+        # Database mocks
+        stack.enter_context(patch("backend.main.init_db", mock_init_db))
+        stack.enter_context(patch("backend.main.seed_cameras_if_empty", mock_seed_cameras_if_empty))
+        stack.enter_context(
+            patch(
+                "backend.main.validate_camera_paths_on_startup",
+                mock_validate_camera_paths_on_startup,
+            )
+        )
+        stack.enter_context(patch("backend.main.init_redis", return_value=mock_redis_client))
+        stack.enter_context(patch("backend.main.close_redis", return_value=None))
+
+        # Service mocks
+        stack.enter_context(
+            patch("backend.main.get_system_broadcaster", return_value=mock_system_broadcaster)
+        )
+        stack.enter_context(patch("backend.main.GPUMonitor", return_value=mock_gpu_monitor))
+        stack.enter_context(patch("backend.main.CleanupService", return_value=mock_cleanup_service))
+        stack.enter_context(patch("backend.main.FileWatcher", return_value=mock_file_watcher))
+        stack.enter_context(
+            patch(
+                "backend.main.get_pipeline_manager", AsyncMock(return_value=mock_pipeline_manager)
+            )
+        )
+        stack.enter_context(patch("backend.main.stop_pipeline_manager", AsyncMock()))
+        stack.enter_context(
+            patch("backend.main.get_broadcaster", AsyncMock(return_value=mock_event_broadcaster))
+        )
+        stack.enter_context(patch("backend.main.stop_broadcaster", AsyncMock()))
+        stack.enter_context(
+            patch("backend.main.ServiceHealthMonitor", return_value=mock_service_health_monitor)
+        )
+
+        # WorkerSupervisor mocks (NEM-2460)
+        stack.enter_context(
+            patch("backend.main.get_worker_supervisor", return_value=mock_worker_supervisor)
+        )
+        stack.enter_context(patch("backend.main.reset_worker_supervisor"))
+        stack.enter_context(
+            patch("backend.main.create_detection_worker", return_value=mock_detection_worker)
+        )
+        stack.enter_context(
+            patch("backend.main.create_analysis_worker", return_value=mock_analysis_worker)
+        )
+        stack.enter_context(
+            patch("backend.main.create_timeout_worker", return_value=mock_timeout_worker)
+        )
+        stack.enter_context(
+            patch("backend.main.create_metrics_worker", return_value=mock_metrics_worker)
+        )
+
+        # AI health check mock
+        stack.enter_context(
+            patch(
+                "backend.services.system_broadcaster.SystemBroadcaster._check_ai_health",
+                mock_ai_health,
+            )
+        )
+
+        # Create test client
+        client = stack.enter_context(TestClient(app))
         yield client
 
     # Restore original environment
