@@ -45,7 +45,8 @@ JOBS_ACTIVE_KEY = "jobs:active"
 JOBS_COMPLETED_KEY = "jobs:completed"
 
 # TTL for completed/failed jobs (1 hour)
-DEFAULT_COMPLETED_JOB_TTL = 3600
+# Note: This is now configurable via settings.completed_job_ttl (NEM-2519)
+DEFAULT_COMPLETED_JOB_TTL = 3600  # Default, use settings.completed_job_ttl
 
 
 class JobState(StrEnum):

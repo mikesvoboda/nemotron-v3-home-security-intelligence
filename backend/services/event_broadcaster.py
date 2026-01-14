@@ -27,6 +27,10 @@ from backend.api.schemas.websocket import (
     WebSocketAlertUpdatedMessage,
     WebSocketCameraStatusData,
     WebSocketCameraStatusMessage,
+    WebSocketDetectionBatchData,
+    WebSocketDetectionBatchMessage,
+    WebSocketDetectionNewData,
+    WebSocketDetectionNewMessage,
     WebSocketEventData,
     WebSocketEventMessage,
     WebSocketSceneChangeData,
@@ -817,6 +821,141 @@ class EventBroadcaster:
             raise
         except Exception as e:
             logger.error(f"Failed to broadcast worker status: {e}")
+            raise
+
+    async def broadcast_detection_new(self, detection_data: dict[str, Any]) -> int:
+        """Broadcast a new detection message to all connected WebSocket clients via Redis pub/sub.
+
+        This method validates the detection data against the WebSocketDetectionNewMessage schema
+        before publishing to Redis. This ensures all messages sent to clients conform
+        to the expected format for new detection events.
+
+        Detection new events are broadcast when (NEM-2506):
+        - A new detection is added to an active batch
+        - Used for real-time detection tracking on frontend
+
+        Args:
+            detection_data: Detection data dictionary containing detection details
+
+        Returns:
+            Number of Redis subscribers that received the message
+
+        Raises:
+            ValueError: If the message fails schema validation
+
+        Example detection_data:
+            {
+                "type": "detection.new",
+                "data": {
+                    "detection_id": 123,
+                    "batch_id": "batch_abc123",
+                    "camera_id": "front_door",
+                    "label": "person",
+                    "confidence": 0.95,
+                    "timestamp": "2026-01-13T10:30:00Z"
+                }
+            }
+        """
+        try:
+            # Ensure the message has the correct structure
+            if "type" not in detection_data:
+                detection_data = {"type": "detection.new", "data": detection_data}
+
+            # Validate message format before broadcasting
+            try:
+                # Extract the data portion and validate it
+                data_dict = detection_data.get("data", {})
+                validated_data = WebSocketDetectionNewData.model_validate(data_dict)
+                validated_message = WebSocketDetectionNewMessage(data=validated_data)
+                # Use the validated message for broadcasting
+                broadcast_data = validated_message.model_dump(mode="json")
+            except ValidationError as ve:
+                logger.error(f"Detection new message validation failed: {ve}")
+                raise ValueError(f"Invalid detection new message format: {ve}") from ve
+
+            # Publish validated message to Redis channel
+            subscriber_count = await self._redis.publish(self._channel_name, broadcast_data)
+            logger.debug(
+                f"Detection new broadcast to Redis: {broadcast_data.get('type')} "
+                f"(detection_id: {data_dict.get('detection_id')}, "
+                f"camera_id: {data_dict.get('camera_id')}, "
+                f"subscribers: {subscriber_count})"
+            )
+            return subscriber_count
+        except ValueError:
+            # Re-raise validation errors
+            raise
+        except Exception as e:
+            logger.error(f"Failed to broadcast detection new: {e}")
+            raise
+
+    async def broadcast_detection_batch(self, batch_data: dict[str, Any]) -> int:
+        """Broadcast a detection batch message to all connected WebSocket clients via Redis pub/sub.
+
+        This method validates the batch data against the WebSocketDetectionBatchMessage schema
+        before publishing to Redis. This ensures all messages sent to clients conform
+        to the expected format for batch detection events.
+
+        Detection batch events are broadcast when (NEM-2506):
+        - A batch is closed due to timeout (90 seconds from start)
+        - A batch is closed due to idle timeout (30 seconds since last activity)
+        - A batch is closed due to reaching max size limit
+
+        Args:
+            batch_data: Batch data dictionary containing batch details
+
+        Returns:
+            Number of Redis subscribers that received the message
+
+        Raises:
+            ValueError: If the message fails schema validation
+
+        Example batch_data:
+            {
+                "type": "detection.batch",
+                "data": {
+                    "batch_id": "batch_abc123",
+                    "camera_id": "front_door",
+                    "detection_ids": [123, 124, 125],
+                    "detection_count": 3,
+                    "started_at": "2026-01-13T10:30:00Z",
+                    "closed_at": "2026-01-13T10:32:00Z",
+                    "close_reason": "timeout"
+                }
+            }
+        """
+        try:
+            # Ensure the message has the correct structure
+            if "type" not in batch_data:
+                batch_data = {"type": "detection.batch", "data": batch_data}
+
+            # Validate message format before broadcasting
+            try:
+                # Extract the data portion and validate it
+                data_dict = batch_data.get("data", {})
+                validated_data = WebSocketDetectionBatchData.model_validate(data_dict)
+                validated_message = WebSocketDetectionBatchMessage(data=validated_data)
+                # Use the validated message for broadcasting
+                broadcast_data = validated_message.model_dump(mode="json")
+            except ValidationError as ve:
+                logger.error(f"Detection batch message validation failed: {ve}")
+                raise ValueError(f"Invalid detection batch message format: {ve}") from ve
+
+            # Publish validated message to Redis channel
+            subscriber_count = await self._redis.publish(self._channel_name, broadcast_data)
+            logger.debug(
+                f"Detection batch broadcast to Redis: {broadcast_data.get('type')} "
+                f"(batch_id: {data_dict.get('batch_id')}, "
+                f"camera_id: {data_dict.get('camera_id')}, "
+                f"detection_count: {data_dict.get('detection_count')}, "
+                f"subscribers: {subscriber_count})"
+            )
+            return subscriber_count
+        except ValueError:
+            # Re-raise validation errors
+            raise
+        except Exception as e:
+            logger.error(f"Failed to broadcast detection batch: {e}")
             raise
 
     def _enter_degraded_mode(self) -> None:

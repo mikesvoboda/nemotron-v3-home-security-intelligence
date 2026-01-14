@@ -41,6 +41,8 @@ class MockEventBroadcaster:
     - broadcast_camera_status(camera_status_data) -> int
     - broadcast_alert(alert_data, event_type) -> int
     - broadcast_worker_status(worker_status_data) -> int (NEM-2461)
+    - broadcast_detection_new(detection_data) -> int (NEM-2506)
+    - broadcast_detection_batch(batch_data) -> int (NEM-2506)
     - get_circuit_state() -> str
     - get_instance() -> EventBroadcaster (class method)
     """
@@ -289,6 +291,52 @@ class MockEventBroadcaster:
         for connection in self._connections:
             try:
                 await connection.send_json(worker_status_data)
+                count += 1
+            except Exception:  # Intentionally ignore send failures
+                pass
+        return count
+
+    async def broadcast_detection_new(self, detection_data: dict[str, Any]) -> int:
+        """Broadcast a new detection message to all connected WebSocket clients (NEM-2506).
+
+        Args:
+            detection_data: Detection data dictionary containing detection details
+
+        Returns:
+            Number of clients that received the message
+        """
+        # Ensure the message has the correct structure (matches real implementation)
+        if "type" not in detection_data:
+            detection_data = {"type": "detection.new", "data": detection_data}
+
+        self.messages.append(detection_data)
+        count = 0
+        for connection in self._connections:
+            try:
+                await connection.send_json(detection_data)
+                count += 1
+            except Exception:  # Intentionally ignore send failures
+                pass
+        return count
+
+    async def broadcast_detection_batch(self, batch_data: dict[str, Any]) -> int:
+        """Broadcast a detection batch message to all connected WebSocket clients (NEM-2506).
+
+        Args:
+            batch_data: Batch data dictionary containing batch details
+
+        Returns:
+            Number of clients that received the message
+        """
+        # Ensure the message has the correct structure (matches real implementation)
+        if "type" not in batch_data:
+            batch_data = {"type": "detection.batch", "data": batch_data}
+
+        self.messages.append(batch_data)
+        count = 0
+        for connection in self._connections:
+            try:
+                await connection.send_json(batch_data)
                 count += 1
             except Exception:  # Intentionally ignore send failures
                 pass

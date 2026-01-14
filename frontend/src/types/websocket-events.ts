@@ -121,6 +121,14 @@ export interface WebSocketEventMap {
   // New hierarchical event types (NEM-2382)
   // ========================================================================
 
+  // Event lifecycle events (NEM-2515)
+  /** Event created - new security event detected and stored */
+  'event.created': EventCreatedPayload;
+  /** Event updated - security event was modified (risk score, status, etc.) */
+  'event.updated': EventUpdatedPayload;
+  /** Event deleted - security event was removed */
+  'event.deleted': EventDeletedPayload;
+
   /** Alert created event */
   'alert.created': AlertCreatedPayload;
   /** Alert updated event */
@@ -226,6 +234,11 @@ export const WEBSOCKET_EVENT_KEYS: readonly WebSocketEventKey[] = [
   'error',
   'pong',
   // New hierarchical event keys (NEM-2382)
+  // Event lifecycle events (NEM-2515)
+  'event.created',
+  'event.updated',
+  'event.deleted',
+  // Alert events
   'alert.created',
   'alert.updated',
   'alert.deleted',

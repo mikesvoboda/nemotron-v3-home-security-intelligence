@@ -20,6 +20,7 @@ NEM-1642: Debug endpoints for runtime diagnostics
 
 from __future__ import annotations
 
+import json
 import logging
 from datetime import UTC, datetime
 from pathlib import Path
@@ -30,7 +31,13 @@ from pydantic import BaseModel, Field
 
 from backend.api.schemas.system import QueueDepths
 from backend.core.config import get_settings
-from backend.core.constants import ANALYSIS_QUEUE, DETECTION_QUEUE
+from backend.core.constants import (
+    ANALYSIS_QUEUE,
+    DETECTION_QUEUE,
+    PIPELINE_ERRORS_KEY,
+    PIPELINE_ERRORS_MAX_SIZE,
+    PIPELINE_ERRORS_TTL_SECONDS,
+)
 from backend.core.logging import get_logger, get_request_id, redact_sensitive_value
 from backend.core.redis import RedisClient, get_redis_optional
 
@@ -250,24 +257,96 @@ async def _get_workers_status(redis: RedisClient | None) -> PipelineWorkersStatu
     return PipelineWorkersStatus(file_watcher=file_watcher, detector=detector, analyzer=analyzer)
 
 
-async def _get_recent_errors(redis: RedisClient | None, _limit: int = 10) -> list[RecentError]:
-    """Get recent errors from Redis error log.
+async def _get_recent_errors(redis: RedisClient | None, limit: int = 10) -> list[RecentError]:
+    """Get recent pipeline errors from Redis.
+
+    Retrieves the most recent pipeline errors stored in Redis. Errors are stored
+    as JSON objects in a Redis list, with newest errors at the head.
 
     Args:
         redis: Redis client instance or None if unavailable
-        _limit: Maximum number of errors to return (unused in placeholder)
+        limit: Maximum number of errors to return (default: 10, max: 100)
 
-    Note: This currently returns an empty list as a placeholder.
-    The full implementation would require adding lrange support to RedisClient
-    or using a different data structure for error tracking.
+    Returns:
+        List of recent errors, ordered newest first
+
+    NEM-2485: Complete pipeline errors retrieval for Debug API
     """
     if redis is None:
         return []
 
-    # Placeholder: In a full implementation, we would store and retrieve
-    # recent errors from Redis. For now, we return an empty list since
-    # the pipeline error tracking is done via metrics/logging.
-    return []
+    # Cap limit to prevent excessive memory usage
+    limit = min(limit, PIPELINE_ERRORS_MAX_SIZE)
+
+    try:
+        # Get recent errors from Redis list (newest first since we use LPUSH)
+        raw_errors = await redis.lrange(PIPELINE_ERRORS_KEY, 0, limit - 1)
+
+        errors: list[RecentError] = []
+        for raw_error in raw_errors:
+            try:
+                error_data = json.loads(raw_error)
+                errors.append(
+                    RecentError(
+                        timestamp=error_data.get("timestamp", ""),
+                        error_type=error_data.get("error_type", "unknown"),
+                        component=error_data.get("component", "unknown"),
+                        message=error_data.get("message"),
+                    )
+                )
+            except (json.JSONDecodeError, KeyError, TypeError) as e:
+                logger.warning(f"Failed to parse error record: {e}")
+                continue
+
+        return errors
+    except Exception as e:
+        logger.warning(f"Failed to get recent errors from Redis: {e}")
+        return []
+
+
+async def record_pipeline_error_to_redis(
+    redis: RedisClient,
+    error_type: str,
+    component: str,
+    message: str | None = None,
+) -> bool:
+    """Record a pipeline error to Redis for debug API retrieval.
+
+    Stores error information in a Redis list with automatic TTL expiration.
+    The list is capped at PIPELINE_ERRORS_MAX_SIZE to prevent unbounded growth.
+
+    Args:
+        redis: Redis client instance
+        error_type: Type of error (e.g., "connection_error", "timeout_error")
+        component: Component that generated the error (e.g., "detector", "analyzer")
+        message: Optional error message with details
+
+    Returns:
+        True if error was recorded successfully, False otherwise
+
+    NEM-2485: Pipeline error recording for Debug API
+    """
+    try:
+        error_record = {
+            "timestamp": datetime.now(UTC).isoformat(),
+            "error_type": error_type,
+            "component": component,
+            "message": message,
+        }
+
+        # Push to head of list (newest first)
+        await redis.lpush(PIPELINE_ERRORS_KEY, json.dumps(error_record))
+
+        # Trim to max size to prevent unbounded growth
+        await redis.ltrim(PIPELINE_ERRORS_KEY, 0, PIPELINE_ERRORS_MAX_SIZE - 1)
+
+        # Set/refresh TTL on the list
+        await redis.expire(PIPELINE_ERRORS_KEY, PIPELINE_ERRORS_TTL_SECONDS)
+
+        return True
+    except Exception as e:
+        logger.warning(f"Failed to record pipeline error to Redis: {e}")
+        return False
 
 
 def _get_redacted_config() -> dict[str, Any]:
@@ -546,6 +625,7 @@ async def get_circuit_breakers(
 async def get_pipeline_state(
     request: Request,
     response: Response,
+    error_limit: int = 10,
     redis: RedisClient | None = Depends(get_redis_optional),
     _debug: None = Depends(require_debug_mode),
 ) -> PipelineStateResponse:
@@ -554,7 +634,11 @@ async def get_pipeline_state(
     Returns queue depths, worker status, and recent errors for debugging
     pipeline issues and monitoring system health.
 
+    Args:
+        error_limit: Maximum number of recent errors to return (default: 10, max: 100)
+
     NEM-1470: Debug endpoint for pipeline state inspection
+    NEM-2485: Complete pipeline errors retrieval implementation
     """
     # Get correlation ID from request or context
     correlation_id = request.headers.get("X-Correlation-ID") or get_request_id()
@@ -566,7 +650,7 @@ async def get_pipeline_state(
     # Gather pipeline state
     queue_depths = await _get_queue_depths(redis)
     workers = await _get_workers_status(redis)
-    recent_errors = await _get_recent_errors(redis)
+    recent_errors = await _get_recent_errors(redis, limit=error_limit)
 
     return PipelineStateResponse(
         queue_depths=queue_depths,
@@ -574,6 +658,66 @@ async def get_pipeline_state(
         recent_errors=recent_errors,
         timestamp=datetime.now(UTC).isoformat(),
         correlation_id=correlation_id,
+    )
+
+
+class PipelineErrorsResponse(BaseModel):
+    """Response for pipeline errors retrieval."""
+
+    errors: list[RecentError] = Field(description="List of recent pipeline errors")
+    total: int = Field(description="Total number of errors returned")
+    limit: int = Field(description="Maximum errors requested")
+    timestamp: str = Field(description="ISO timestamp of response")
+
+
+@router.get(
+    "/pipeline-errors",
+    response_model=PipelineErrorsResponse,
+    responses={
+        404: {"description": "Not found - Debug mode disabled"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def get_pipeline_errors(
+    limit: int = 10,
+    component: str | None = None,
+    error_type: str | None = None,
+    redis: RedisClient | None = Depends(get_redis_optional),
+    _debug: None = Depends(require_debug_mode),
+) -> PipelineErrorsResponse:
+    """Get recent pipeline errors from the AI analysis pipeline.
+
+    Retrieves errors stored in Redis for debugging pipeline issues.
+    Supports optional filtering by component and error type.
+
+    Args:
+        limit: Maximum number of errors to return (default: 10, max: 100)
+        component: Optional filter by component (e.g., "detector", "analyzer")
+        error_type: Optional filter by error type (e.g., "connection_error")
+
+    Returns:
+        List of recent pipeline errors with metadata
+
+    NEM-2485: Pipeline errors retrieval endpoint for Debug API
+    """
+    # Fetch more errors than requested if filtering, to account for filtering losses
+    fetch_limit = min(limit * 3, PIPELINE_ERRORS_MAX_SIZE) if (component or error_type) else limit
+    errors = await _get_recent_errors(redis, limit=fetch_limit)
+
+    # Apply optional filters
+    if component:
+        errors = [e for e in errors if e.component == component]
+    if error_type:
+        errors = [e for e in errors if e.error_type == error_type]
+
+    # Trim to requested limit after filtering
+    errors = errors[:limit]
+
+    return PipelineErrorsResponse(
+        errors=errors,
+        total=len(errors),
+        limit=limit,
+        timestamp=datetime.now(UTC).isoformat(),
     )
 
 

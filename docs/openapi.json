@@ -13733,6 +13733,42 @@
         "title": "PetEnrichment",
         "type": "object"
       },
+      "PipelineErrorsResponse": {
+        "description": "Response for pipeline errors retrieval.",
+        "properties": {
+          "errors": {
+            "description": "List of recent pipeline errors",
+            "items": {
+              "$ref": "#/components/schemas/RecentError"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "limit": {
+            "description": "Maximum errors requested",
+            "title": "Limit",
+            "type": "integer"
+          },
+          "timestamp": {
+            "description": "ISO timestamp of response",
+            "title": "Timestamp",
+            "type": "string"
+          },
+          "total": {
+            "description": "Total number of errors returned",
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "errors",
+          "total",
+          "limit",
+          "timestamp"
+        ],
+        "title": "PipelineErrorsResponse",
+        "type": "object"
+      },
       "PipelineLatencies": {
         "description": "Latency statistics for all pipeline stages.\n\nPipeline stages:\n- watch: File watcher detecting new images (file event -> queue)\n- detect: RT-DETRv2 object detection (image -> detections)\n- batch: Batch aggregation window (detections -> batch)\n- analyze: Nemotron LLM risk analysis (batch -> event)",
         "example": {
@@ -22396,10 +22432,104 @@
         ]
       }
     },
+    "/api/debug/pipeline-errors": {
+      "get": {
+        "description": "Get recent pipeline errors from the AI analysis pipeline.\n\nRetrieves errors stored in Redis for debugging pipeline issues.\nSupports optional filtering by component and error type.\n\nArgs:\n    limit: Maximum number of errors to return (default: 10, max: 100)\n    component: Optional filter by component (e.g., \"detector\", \"analyzer\")\n    error_type: Optional filter by error type (e.g., \"connection_error\")\n\nReturns:\n    List of recent pipeline errors with metadata\n\nNEM-2485: Pipeline errors retrieval endpoint for Debug API",
+        "operationId": "get_pipeline_errors_api_debug_pipeline_errors_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "component",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Component"
+            }
+          },
+          {
+            "in": "query",
+            "name": "error_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Error Type"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PipelineErrorsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Not found - Debug mode disabled"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get Pipeline Errors",
+        "tags": [
+          "debug"
+        ]
+      }
+    },
     "/api/debug/pipeline-state": {
       "get": {
-        "description": "Get current state of the AI processing pipeline.\n\nReturns queue depths, worker status, and recent errors for debugging\npipeline issues and monitoring system health.\n\nNEM-1470: Debug endpoint for pipeline state inspection",
+        "description": "Get current state of the AI processing pipeline.\n\nReturns queue depths, worker status, and recent errors for debugging\npipeline issues and monitoring system health.\n\nArgs:\n    error_limit: Maximum number of recent errors to return (default: 10, max: 100)\n\nNEM-1470: Debug endpoint for pipeline state inspection\nNEM-2485: Complete pipeline errors retrieval implementation",
         "operationId": "get_pipeline_state_api_debug_pipeline_state_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "error_limit",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "title": "Error Limit",
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -22413,6 +22543,16 @@
           },
           "404": {
             "description": "Not found - Debug mode disabled"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           },
           "500": {
             "description": "Internal server error"

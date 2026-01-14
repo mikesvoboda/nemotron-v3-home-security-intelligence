@@ -640,6 +640,206 @@ class WebSocketSceneChangeMessage(BaseModel):
 
 
 # =============================================================================
+# Detection WebSocket Message Schemas (NEM-2506)
+# =============================================================================
+
+
+class WebSocketDetectionBbox(BaseModel):
+    """Bounding box coordinates for a detection.
+
+    Coordinates are normalized values (0.0 to 1.0) relative to the image dimensions.
+    """
+
+    x: float = Field(..., ge=0.0, le=1.0, description="Normalized X coordinate (left edge)")
+    y: float = Field(..., ge=0.0, le=1.0, description="Normalized Y coordinate (top edge)")
+    width: float = Field(..., ge=0.0, le=1.0, description="Normalized width")
+    height: float = Field(..., ge=0.0, le=1.0, description="Normalized height")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "x": 0.25,
+                "y": 0.15,
+                "width": 0.1,
+                "height": 0.25,
+            }
+        }
+    )
+
+
+class WebSocketDetectionNewData(BaseModel):
+    """Data payload for detection.new messages broadcast to WebSocket clients.
+
+    This schema defines the contract for individual detection data sent from
+    the backend to WebSocket clients when a new detection is added to a batch.
+
+    Fields:
+        detection_id: Unique detection identifier (database ID)
+        batch_id: Batch identifier this detection belongs to
+        camera_id: Normalized camera ID (e.g., "front_door")
+        label: Detection class label (e.g., "person", "vehicle")
+        confidence: Detection confidence score (0.0-1.0)
+        bbox: Bounding box coordinates (optional)
+        timestamp: ISO 8601 timestamp when the detection occurred
+    """
+
+    detection_id: int = Field(..., description="Unique detection identifier (database ID)")
+    batch_id: str = Field(..., description="Batch identifier this detection belongs to")
+    camera_id: str = Field(..., description="Normalized camera ID (e.g., 'front_door')")
+    label: str = Field(..., description="Detection class label (e.g., 'person', 'vehicle')")
+    confidence: float = Field(
+        ..., ge=0.0, le=1.0, description="Detection confidence score (0.0-1.0)"
+    )
+    bbox: WebSocketDetectionBbox | None = Field(
+        None, description="Bounding box coordinates (optional)"
+    )
+    timestamp: str = Field(..., description="ISO 8601 timestamp when the detection occurred")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "detection_id": 123,
+                "batch_id": "batch_abc123",
+                "camera_id": "front_door",
+                "label": "person",
+                "confidence": 0.95,
+                "bbox": {"x": 0.25, "y": 0.15, "width": 0.1, "height": 0.25},
+                "timestamp": "2026-01-13T12:00:00.000Z",
+            }
+        }
+    )
+
+
+class WebSocketDetectionNewMessage(BaseModel):
+    """Complete detection.new message envelope sent to WebSocket clients.
+
+    This is the canonical format for new detection messages broadcast via WebSocket.
+    The message wraps detection data in a standard envelope with a type field.
+
+    Format:
+        {
+            "type": "detection.new",
+            "data": {
+                "detection_id": 123,
+                "batch_id": "batch_abc123",
+                "camera_id": "front_door",
+                "label": "person",
+                "confidence": 0.95,
+                "timestamp": "2026-01-13T12:00:00.000Z"
+            }
+        }
+    """
+
+    type: Literal["detection.new"] = Field(
+        default="detection.new",
+        description="Message type, always 'detection.new' for new detection messages",
+    )
+    data: WebSocketDetectionNewData = Field(..., description="Detection data payload")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "type": "detection.new",
+                "data": {
+                    "detection_id": 123,
+                    "batch_id": "batch_abc123",
+                    "camera_id": "front_door",
+                    "label": "person",
+                    "confidence": 0.95,
+                    "bbox": {"x": 0.25, "y": 0.15, "width": 0.1, "height": 0.25},
+                    "timestamp": "2026-01-13T12:00:00.000Z",
+                },
+            }
+        }
+    )
+
+
+class WebSocketDetectionBatchData(BaseModel):
+    """Data payload for detection.batch messages broadcast to WebSocket clients.
+
+    This schema defines the contract for batch detection data sent from the
+    backend to WebSocket clients when a batch is closed and ready for analysis.
+
+    Fields:
+        batch_id: Unique batch identifier
+        camera_id: Normalized camera ID (e.g., "front_door")
+        detection_ids: List of detection IDs in this batch
+        detection_count: Number of detections in the batch
+        started_at: ISO 8601 timestamp when the batch started
+        closed_at: ISO 8601 timestamp when the batch was closed
+        close_reason: Reason for batch closure (timeout, idle, max_size)
+    """
+
+    batch_id: str = Field(..., description="Unique batch identifier")
+    camera_id: str = Field(..., description="Normalized camera ID (e.g., 'front_door')")
+    detection_ids: list[int] = Field(..., description="List of detection IDs in this batch")
+    detection_count: int = Field(..., ge=0, description="Number of detections in the batch")
+    started_at: str = Field(..., description="ISO 8601 timestamp when the batch started")
+    closed_at: str = Field(..., description="ISO 8601 timestamp when the batch was closed")
+    close_reason: str | None = Field(
+        None, description="Reason for batch closure (timeout, idle, max_size)"
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "batch_id": "batch_abc123",
+                "camera_id": "front_door",
+                "detection_ids": [123, 124, 125],
+                "detection_count": 3,
+                "started_at": "2026-01-13T12:00:00.000Z",
+                "closed_at": "2026-01-13T12:01:30.000Z",
+                "close_reason": "timeout",
+            }
+        }
+    )
+
+
+class WebSocketDetectionBatchMessage(BaseModel):
+    """Complete detection.batch message envelope sent to WebSocket clients.
+
+    This is the canonical format for batch detection messages broadcast via WebSocket.
+    The message wraps batch data in a standard envelope with a type field.
+
+    Format:
+        {
+            "type": "detection.batch",
+            "data": {
+                "batch_id": "batch_abc123",
+                "camera_id": "front_door",
+                "detection_ids": [123, 124, 125],
+                "detection_count": 3,
+                "started_at": "2026-01-13T12:00:00.000Z",
+                "closed_at": "2026-01-13T12:01:30.000Z"
+            }
+        }
+    """
+
+    type: Literal["detection.batch"] = Field(
+        default="detection.batch",
+        description="Message type, always 'detection.batch' for batch detection messages",
+    )
+    data: WebSocketDetectionBatchData = Field(..., description="Batch detection data payload")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "type": "detection.batch",
+                "data": {
+                    "batch_id": "batch_abc123",
+                    "camera_id": "front_door",
+                    "detection_ids": [123, 124, 125],
+                    "detection_count": 3,
+                    "started_at": "2026-01-13T12:00:00.000Z",
+                    "closed_at": "2026-01-13T12:01:30.000Z",
+                    "close_reason": "timeout",
+                },
+            }
+        }
+    )
+
+
+# =============================================================================
 # Alert WebSocket Message Schemas (NEM-1981)
 # =============================================================================
 

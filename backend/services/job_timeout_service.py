@@ -55,7 +55,8 @@ JOB_TIMEOUTS: dict[str, int] = {
 }
 
 # Default timeout for job types not in JOB_TIMEOUTS
-DEFAULT_JOB_TIMEOUT = 600  # 10 minutes
+# Note: This is now configurable via settings.default_job_timeout (NEM-2519)
+DEFAULT_JOB_TIMEOUT = 600  # 10 minutes (default, use settings.default_job_timeout)
 
 # Maximum retry attempts before permanent failure
 DEFAULT_MAX_RETRY_ATTEMPTS = 3

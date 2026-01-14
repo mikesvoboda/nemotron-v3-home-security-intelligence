@@ -677,6 +677,8 @@ class TestEnrichmentClientInit:
         mock_settings.enrichment_cb_half_open_max_calls = 3
         # Retry configuration (NEM-1732)
         mock_settings.enrichment_max_retries = 3
+        # Read timeout configuration (NEM-2524)
+        mock_settings.enrichment_read_timeout = 120.0
         with patch("backend.services.enrichment_client.get_settings", return_value=mock_settings):
             client = EnrichmentClient()
             assert client._base_url == DEFAULT_ENRICHMENT_URL.rstrip("/")

@@ -1221,6 +1221,49 @@ class RedisClient:
         client = self._ensure_connected()
         return cast("bool", await client.setex(key, seconds, value))
 
+    async def lpush(self, key: str, *values: str) -> int:
+        """Push values to the head of a list.
+
+        Args:
+            key: Redis list key
+            *values: Values to push (will be added left-to-right)
+
+        Returns:
+            Length of the list after push
+        """
+        client = self._ensure_connected()
+        return cast("int", await client.lpush(key, *values))  # type: ignore[misc]
+
+    async def ltrim(self, key: str, start: int, stop: int) -> bool:
+        """Trim a list to the specified range.
+
+        Args:
+            key: Redis list key
+            start: Start index (0-based)
+            stop: Stop index (inclusive, -1 for last element)
+
+        Returns:
+            True if successful
+        """
+        client = self._ensure_connected()
+        result = await client.ltrim(key, start, stop)  # type: ignore[misc]
+        return result is True or result == "OK"
+
+    async def lrange(self, key: str, start: int, stop: int) -> list[str]:
+        """Get a range of elements from a list.
+
+        Args:
+            key: Redis list key
+            start: Start index (0-based)
+            stop: Stop index (inclusive, -1 for last element)
+
+        Returns:
+            List of elements in the range
+        """
+        client = self._ensure_connected()
+        result = await client.lrange(key, start, stop)  # type: ignore[misc]
+        return cast("list[str]", result)
+
     # Server info operations (for debug endpoints)
 
     async def info(self, section: str | None = None) -> dict[str, Any]:

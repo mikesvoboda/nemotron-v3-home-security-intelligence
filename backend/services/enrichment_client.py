@@ -50,11 +50,13 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 # Timeout configuration for Enrichment service
-# - connect_timeout: Maximum time to establish connection (10s)
-# - read_timeout: Maximum time to wait for response (30s for model inference)
-ENRICHMENT_CONNECT_TIMEOUT = 10.0
-ENRICHMENT_READ_TIMEOUT = 30.0
-ENRICHMENT_HEALTH_TIMEOUT = 5.0
+# Note: These defaults are used as fallbacks. Production code uses Settings values:
+# - settings.ai_connect_timeout: Maximum time to establish connection (default: 10s)
+# - settings.enrichment_read_timeout: Maximum time to wait for response (default: 60s)
+# - settings.ai_health_timeout: Health check timeout (default: 5s)
+ENRICHMENT_CONNECT_TIMEOUT = 10.0  # Fallback, use settings.ai_connect_timeout
+ENRICHMENT_READ_TIMEOUT = 60.0  # Fallback, use settings.enrichment_read_timeout (was 30s, now 60s)
+ENRICHMENT_HEALTH_TIMEOUT = 5.0  # Fallback, use settings.ai_health_timeout
 
 # Default Enrichment service URL
 DEFAULT_ENRICHMENT_URL = "http://ai-enrichment:8094"
@@ -469,11 +471,12 @@ class EnrichmentClient:
         else:
             self._base_url = getattr(settings, "enrichment_url", DEFAULT_ENRICHMENT_URL).rstrip("/")
 
-        # Use httpx.Timeout for proper timeout configuration
+        # Use httpx.Timeout for proper timeout configuration from Settings (NEM-2524)
+        # Read timeout from settings (configurable via ENRICHMENT_READ_TIMEOUT env var)
         self._timeout = httpx.Timeout(
             connect=settings.ai_connect_timeout,
-            read=ENRICHMENT_READ_TIMEOUT,
-            write=ENRICHMENT_READ_TIMEOUT,
+            read=settings.enrichment_read_timeout,
+            write=settings.enrichment_read_timeout,
             pool=settings.ai_connect_timeout,
         )
         self._health_timeout = httpx.Timeout(
@@ -684,7 +687,7 @@ class EnrichmentClient:
         last_error: Exception | None = None
         # Explicit timeout as defense-in-depth (NEM-1465)
         settings = get_settings()
-        explicit_timeout = ENRICHMENT_READ_TIMEOUT + settings.ai_connect_timeout
+        explicit_timeout = settings.enrichment_read_timeout + settings.ai_connect_timeout
 
         logger.debug("Sending vehicle classification request")
 
@@ -869,7 +872,7 @@ class EnrichmentClient:
         last_error: Exception | None = None
         # Explicit timeout as defense-in-depth (NEM-1465)
         settings = get_settings()
-        explicit_timeout = ENRICHMENT_READ_TIMEOUT + settings.ai_connect_timeout
+        explicit_timeout = settings.enrichment_read_timeout + settings.ai_connect_timeout
 
         logger.debug("Sending pet classification request")
 
@@ -1050,7 +1053,7 @@ class EnrichmentClient:
         last_error: Exception | None = None
         # Explicit timeout as defense-in-depth (NEM-1465)
         settings = get_settings()
-        explicit_timeout = ENRICHMENT_READ_TIMEOUT + settings.ai_connect_timeout
+        explicit_timeout = settings.enrichment_read_timeout + settings.ai_connect_timeout
 
         logger.debug("Sending clothing classification request")
 
@@ -1236,7 +1239,7 @@ class EnrichmentClient:
         last_error: Exception | None = None
         # Explicit timeout as defense-in-depth (NEM-1465)
         settings = get_settings()
-        explicit_timeout = ENRICHMENT_READ_TIMEOUT + settings.ai_connect_timeout
+        explicit_timeout = settings.enrichment_read_timeout + settings.ai_connect_timeout
 
         logger.debug("Sending depth estimation request")
 
@@ -1424,7 +1427,7 @@ class EnrichmentClient:
         last_error: Exception | None = None
         # Explicit timeout as defense-in-depth (NEM-1465)
         settings = get_settings()
-        explicit_timeout = ENRICHMENT_READ_TIMEOUT + settings.ai_connect_timeout
+        explicit_timeout = settings.enrichment_read_timeout + settings.ai_connect_timeout
 
         # Validate and clamp bounding box (NEM-1102, NEM-1122)
         image_width, image_height = image.size
@@ -1638,7 +1641,7 @@ class EnrichmentClient:
         last_error: Exception | None = None
         # Explicit timeout as defense-in-depth (NEM-1465)
         settings = get_settings()
-        explicit_timeout = ENRICHMENT_READ_TIMEOUT + settings.ai_connect_timeout
+        explicit_timeout = settings.enrichment_read_timeout + settings.ai_connect_timeout
 
         logger.debug("Sending pose analysis request")
 

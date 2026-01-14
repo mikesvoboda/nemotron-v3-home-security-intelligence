@@ -17,7 +17,7 @@ Pre-configured Service Categories:
 
 Usage:
     async with DockerClient() as docker:
-        discovery = ContainerDiscoveryService(docker)
+        discovery = ContainerDiscoveryService(docker, orchestrator_settings)
         all_services = await discovery.discover_all()
         ai_services = await discovery.discover_by_category(ServiceCategory.AI)
 """
@@ -30,15 +30,149 @@ from backend.core.logging import get_logger
 from backend.services.orchestrator import ManagedService, ServiceCategory, ServiceConfig
 
 if TYPE_CHECKING:
+    from backend.core.config import OrchestratorSettings
     from backend.core.docker_client import DockerClient
 
 logger = get_logger(__name__)
 
 
-# =============================================================================
-# Pre-configured Service Configurations
-# =============================================================================
+def build_service_configs(
+    settings: OrchestratorSettings | None = None,
+) -> dict[str, ServiceConfig]:
+    """Build service configurations using ports from OrchestratorSettings.
 
+    Creates ServiceConfig objects for all managed container services. When settings
+    is provided, uses configured port values; otherwise uses default ports.
+
+    Args:
+        settings: Optional OrchestratorSettings with port configuration.
+                  If None, uses default port values.
+
+    Returns:
+        Dictionary mapping service names to ServiceConfig objects.
+    """
+    # Default ports (used when settings is None)
+    postgres_port = settings.postgres_port if settings else 5432
+    redis_port = settings.redis_port if settings else 6379
+    rtdetr_port = settings.rtdetr_port if settings else 8090
+    nemotron_port = settings.nemotron_port if settings else 8091
+    florence_port = settings.florence_port if settings else 8092
+    clip_port = settings.clip_port if settings else 8093
+    enrichment_port = settings.enrichment_port if settings else 8094
+    prometheus_port = settings.prometheus_port if settings else 9090
+    grafana_port = settings.grafana_port if settings else 3000
+    redis_exporter_port = settings.redis_exporter_port if settings else 9121
+    json_exporter_port = settings.json_exporter_port if settings else 7979
+
+    infrastructure_configs: dict[str, ServiceConfig] = {
+        "postgres": ServiceConfig(
+            display_name="PostgreSQL",
+            category=ServiceCategory.INFRASTRUCTURE,
+            port=postgres_port,
+            health_cmd="pg_isready -U security",
+            startup_grace_period=10,
+            max_failures=10,
+            restart_backoff_base=2.0,
+            restart_backoff_max=60.0,
+        ),
+        "redis": ServiceConfig(
+            display_name="Redis",
+            category=ServiceCategory.INFRASTRUCTURE,
+            port=redis_port,
+            health_cmd="redis-cli ping",
+            startup_grace_period=10,
+            max_failures=10,
+            restart_backoff_base=2.0,
+            restart_backoff_max=60.0,
+        ),
+    }
+
+    ai_configs: dict[str, ServiceConfig] = {
+        "ai-detector": ServiceConfig(
+            display_name="RT-DETRv2",
+            category=ServiceCategory.AI,
+            port=rtdetr_port,
+            health_endpoint="/health",
+            startup_grace_period=60,
+        ),
+        "ai-llm": ServiceConfig(
+            display_name="Nemotron",
+            category=ServiceCategory.AI,
+            port=nemotron_port,
+            health_endpoint="/health",
+            startup_grace_period=120,
+        ),
+        "ai-florence": ServiceConfig(
+            display_name="Florence-2",
+            category=ServiceCategory.AI,
+            port=florence_port,
+            health_endpoint="/health",
+            startup_grace_period=60,
+        ),
+        "ai-clip": ServiceConfig(
+            display_name="CLIP",
+            category=ServiceCategory.AI,
+            port=clip_port,
+            health_endpoint="/health",
+            startup_grace_period=60,
+        ),
+        "ai-enrichment": ServiceConfig(
+            display_name="Enrichment",
+            category=ServiceCategory.AI,
+            port=enrichment_port,
+            health_endpoint="/health",
+            startup_grace_period=180,
+        ),
+    }
+
+    monitoring_configs: dict[str, ServiceConfig] = {
+        "prometheus": ServiceConfig(
+            display_name="Prometheus",
+            category=ServiceCategory.MONITORING,
+            port=prometheus_port,
+            health_endpoint="/-/healthy",
+            startup_grace_period=30,
+            max_failures=3,
+            restart_backoff_base=10.0,
+            restart_backoff_max=600.0,
+        ),
+        "grafana": ServiceConfig(
+            display_name="Grafana",
+            category=ServiceCategory.MONITORING,
+            port=grafana_port,
+            health_endpoint="/api/health",
+            startup_grace_period=30,
+            max_failures=3,
+            restart_backoff_base=10.0,
+            restart_backoff_max=600.0,
+        ),
+        "redis-exporter": ServiceConfig(
+            display_name="Redis Exporter",
+            category=ServiceCategory.MONITORING,
+            port=redis_exporter_port,
+            health_endpoint="/metrics",
+            startup_grace_period=15,
+            max_failures=3,
+        ),
+        "json-exporter": ServiceConfig(
+            display_name="JSON Exporter",
+            category=ServiceCategory.MONITORING,
+            port=json_exporter_port,
+            health_endpoint="/metrics",
+            startup_grace_period=15,
+            max_failures=3,
+        ),
+    }
+
+    return {
+        **infrastructure_configs,
+        **ai_configs,
+        **monitoring_configs,
+    }
+
+
+# Default configs for backward compatibility (uses default port values)
+# Note: Prefer using build_service_configs(settings) for configurable ports
 INFRASTRUCTURE_CONFIGS: dict[str, ServiceConfig] = {
     "postgres": ServiceConfig(
         display_name="PostgreSQL",
@@ -139,7 +273,7 @@ MONITORING_CONFIGS: dict[str, ServiceConfig] = {
     ),
 }
 
-# Combined configs for all services
+# Combined configs for all services (default ports for backward compatibility)
 ALL_CONFIGS: dict[str, ServiceConfig] = {
     **INFRASTRUCTURE_CONFIGS,
     **AI_CONFIGS,
@@ -160,6 +294,10 @@ class ContainerDiscoveryService:
 
     Usage:
         async with DockerClient() as docker:
+            # With configurable ports from OrchestratorSettings
+            discovery = ContainerDiscoveryService(docker, orchestrator_settings)
+
+            # Without settings (uses default ports for backward compatibility)
             discovery = ContainerDiscoveryService(docker)
 
             # Discover all services
@@ -174,14 +312,21 @@ class ContainerDiscoveryService:
                 config = discovery.get_config(config_key)
     """
 
-    def __init__(self, docker_client: DockerClient) -> None:
+    def __init__(
+        self,
+        docker_client: DockerClient,
+        settings: OrchestratorSettings | None = None,
+    ) -> None:
         """Initialize the discovery service.
 
         Args:
             docker_client: DockerClient instance for container operations
+            settings: Optional OrchestratorSettings with port configuration.
+                      If None, uses default port values for backward compatibility.
         """
         self._docker_client = docker_client
-        self._configs = ALL_CONFIGS
+        # Use configurable ports when settings provided, otherwise use defaults
+        self._configs = build_service_configs(settings) if settings else ALL_CONFIGS
 
     async def discover_all(self) -> list[ManagedService]:
         """Discover all containers matching known service patterns.

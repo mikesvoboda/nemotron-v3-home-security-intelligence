@@ -323,6 +323,93 @@ export interface ErrorMessage {
 }
 
 // ============================================================================
+// Detection Message Types (NEM-2506)
+// ============================================================================
+
+/**
+ * Bounding box coordinates for a detection.
+ * Coordinates are normalized values (0.0 to 1.0) relative to the image dimensions.
+ */
+export interface DetectionBbox {
+  /** Normalized X coordinate (left edge) */
+  x: number;
+  /** Normalized Y coordinate (top edge) */
+  y: number;
+  /** Normalized width */
+  width: number;
+  /** Normalized height */
+  height: number;
+}
+
+/**
+ * Data payload for detection.new WebSocket events.
+ * Sent when a new detection is added to a batch.
+ */
+export interface DetectionNewData {
+  /** Unique detection identifier (database ID) */
+  detection_id: number;
+  /** Batch identifier this detection belongs to */
+  batch_id: string;
+  /** Camera identifier */
+  camera_id: string;
+  /** Detection class label (e.g., "person", "vehicle") */
+  label: string;
+  /** Detection confidence score (0.0-1.0) */
+  confidence: number;
+  /** Bounding box coordinates (optional) */
+  bbox?: DetectionBbox;
+  /** ISO 8601 timestamp when the detection occurred */
+  timestamp: string;
+}
+
+/**
+ * Detection.new message envelope.
+ * Broadcast when a new detection is added to a batch.
+ */
+export interface DetectionNewMessage {
+  type: 'detection.new';
+  data: DetectionNewData;
+  /** Monotonically increasing sequence number for ordering */
+  sequence?: number;
+  /** ISO 8601 timestamp when the message was created */
+  timestamp?: string;
+}
+
+/**
+ * Data payload for detection.batch WebSocket events.
+ * Sent when a batch is closed and ready for analysis.
+ */
+export interface DetectionBatchData {
+  /** Unique batch identifier */
+  batch_id: string;
+  /** Camera identifier */
+  camera_id: string;
+  /** List of detection IDs in this batch */
+  detection_ids: number[];
+  /** Number of detections in the batch */
+  detection_count: number;
+  /** ISO 8601 timestamp when the batch started */
+  started_at: string;
+  /** ISO 8601 timestamp when the batch was closed */
+  closed_at: string;
+  /** Reason for batch closure (timeout, idle, max_size) */
+  close_reason?: string | null;
+}
+
+/**
+ * Detection.batch message envelope.
+ * Broadcast when a batch is closed.
+ */
+export interface DetectionBatchMessage {
+  type: 'detection.batch';
+  data: DetectionBatchData;
+  /** Monotonically increasing sequence number for ordering */
+  sequence?: number;
+  /** ISO 8601 timestamp when the message was created */
+  timestamp?: string;
+}
+
+// ============================================================================
 // Discriminated Union - Events Channel
 // ============================================================================
 
@@ -331,6 +418,16 @@ export interface ErrorMessage {
  * Use this type when handling messages from the events WebSocket.
  */
 export type EventsChannelMessage = EventMessage | HeartbeatMessage | ErrorMessage;
+
+// ============================================================================
+// Discriminated Union - Detections Channel
+// ============================================================================
+
+/**
+ * All possible message types from the /ws/detections channel.
+ * Use this type when handling messages from the detections WebSocket.
+ */
+export type DetectionsChannelMessage = DetectionNewMessage | DetectionBatchMessage | HeartbeatMessage | ErrorMessage;
 
 // ============================================================================
 // Discriminated Union - System Channel
@@ -434,7 +531,9 @@ export type WebSocketMessage =
   | ErrorMessage
   | JobProgressMessage
   | JobCompletedMessage
-  | JobFailedMessage;
+  | JobFailedMessage
+  | DetectionNewMessage
+  | DetectionBatchMessage;
 
 /**
  * All message type discriminants.
@@ -594,6 +693,62 @@ export function isJobFailedMessage(value: unknown): value is JobFailedMessage {
 }
 
 /**
+ * Type guard for DetectionNewMessage.
+ *
+ * @example
+ * ```ts
+ * if (isDetectionNewMessage(message)) {
+ *   console.log(message.data.detection_id);
+ * }
+ * ```
+ */
+export function isDetectionNewMessage(value: unknown): value is DetectionNewMessage {
+  if (!hasTypeProperty(value)) return false;
+  if (value.type !== 'detection.new') return false;
+
+  const msg = value as { type: 'detection.new'; data?: unknown };
+  if (!msg.data || typeof msg.data !== 'object') return false;
+
+  const data = msg.data as Record<string, unknown>;
+  return (
+    'detection_id' in data &&
+    'batch_id' in data &&
+    'camera_id' in data &&
+    'label' in data &&
+    'confidence' in data &&
+    'timestamp' in data
+  );
+}
+
+/**
+ * Type guard for DetectionBatchMessage.
+ *
+ * @example
+ * ```ts
+ * if (isDetectionBatchMessage(message)) {
+ *   console.log(message.data.detection_count);
+ * }
+ * ```
+ */
+export function isDetectionBatchMessage(value: unknown): value is DetectionBatchMessage {
+  if (!hasTypeProperty(value)) return false;
+  if (value.type !== 'detection.batch') return false;
+
+  const msg = value as { type: 'detection.batch'; data?: unknown };
+  if (!msg.data || typeof msg.data !== 'object') return false;
+
+  const data = msg.data as Record<string, unknown>;
+  return (
+    'batch_id' in data &&
+    'camera_id' in data &&
+    'detection_ids' in data &&
+    'detection_count' in data &&
+    'started_at' in data &&
+    'closed_at' in data
+  );
+}
+
+/**
  * Type guard for any valid WebSocket message.
  * Useful for initial validation before more specific type guards.
  */
@@ -607,7 +762,9 @@ export function isWebSocketMessage(value: unknown): value is WebSocketMessage {
     isErrorMessage(value) ||
     isJobProgressMessage(value) ||
     isJobCompletedMessage(value) ||
-    isJobFailedMessage(value)
+    isJobFailedMessage(value) ||
+    isDetectionNewMessage(value) ||
+    isDetectionBatchMessage(value)
   );
 }
 
