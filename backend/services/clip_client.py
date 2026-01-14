@@ -41,11 +41,13 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 # Timeout configuration for CLIP service
-# - connect_timeout: Maximum time to establish connection (10s)
-# - read_timeout: Maximum time to wait for response (15s for embedding generation)
-CLIP_CONNECT_TIMEOUT = 10.0
-CLIP_READ_TIMEOUT = 15.0
-CLIP_HEALTH_TIMEOUT = 5.0
+# Note: These defaults are used as fallbacks. Production code uses Settings values:
+# - settings.ai_connect_timeout: Maximum time to establish connection (default: 10s)
+# - settings.clip_read_timeout: Maximum time to wait for response (default: 15s)
+# - settings.ai_health_timeout: Health check timeout (default: 5s)
+CLIP_CONNECT_TIMEOUT = 10.0  # Fallback, use settings.ai_connect_timeout
+CLIP_READ_TIMEOUT = 15.0  # Fallback, use settings.clip_read_timeout
+CLIP_HEALTH_TIMEOUT = 5.0  # Fallback, use settings.ai_health_timeout
 
 # CLIP ViT-L embedding dimension
 EMBEDDING_DIMENSION = 768
@@ -108,11 +110,12 @@ class CLIPClient:
         else:
             self._base_url = settings.clip_url.rstrip("/")
 
-        # Use httpx.Timeout for proper timeout configuration
+        # Use httpx.Timeout for proper timeout configuration from Settings (NEM-2524)
+        # Read timeout from settings (configurable via CLIP_READ_TIMEOUT env var)
         self._timeout = httpx.Timeout(
             connect=settings.ai_connect_timeout,
-            read=CLIP_READ_TIMEOUT,
-            write=CLIP_READ_TIMEOUT,
+            read=settings.clip_read_timeout,
+            write=settings.clip_read_timeout,
             pool=settings.ai_connect_timeout,
         )
         self._health_timeout = httpx.Timeout(

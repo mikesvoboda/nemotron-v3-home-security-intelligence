@@ -100,6 +100,79 @@ class OrchestratorSettings(BaseSettings):
         "Caps exponential backoff to prevent excessively long waits.",
     )
 
+    # Container service port configuration
+    # Infrastructure services
+    postgres_port: int = Field(
+        5432,
+        ge=1,
+        le=65535,
+        description="PostgreSQL container service port for health checks.",
+    )
+    redis_port: int = Field(
+        6379,
+        ge=1,
+        le=65535,
+        description="Redis container service port for health checks.",
+    )
+
+    # AI services
+    rtdetr_port: int = Field(
+        8090,
+        ge=1,
+        le=65535,
+        description="RT-DETRv2 (ai-detector) container service port for health checks.",
+    )
+    nemotron_port: int = Field(
+        8091,
+        ge=1,
+        le=65535,
+        description="Nemotron (ai-llm) container service port for health checks.",
+    )
+    florence_port: int = Field(
+        8092,
+        ge=1,
+        le=65535,
+        description="Florence-2 (ai-florence) container service port for health checks.",
+    )
+    clip_port: int = Field(
+        8093,
+        ge=1,
+        le=65535,
+        description="CLIP (ai-clip) container service port for health checks.",
+    )
+    enrichment_port: int = Field(
+        8094,
+        ge=1,
+        le=65535,
+        description="Enrichment (ai-enrichment) container service port for health checks.",
+    )
+
+    # Monitoring services
+    prometheus_port: int = Field(
+        9090,
+        ge=1,
+        le=65535,
+        description="Prometheus container service port for health checks.",
+    )
+    grafana_port: int = Field(
+        3000,
+        ge=1,
+        le=65535,
+        description="Grafana container service port for health checks.",
+    )
+    redis_exporter_port: int = Field(
+        9121,
+        ge=1,
+        le=65535,
+        description="Redis Exporter container service port for health checks.",
+    )
+    json_exporter_port: int = Field(
+        7979,
+        ge=1,
+        le=65535,
+        description="JSON Exporter container service port for health checks.",
+    )
+
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
@@ -201,6 +274,64 @@ class Settings(BaseSettings):
         default=True,
         description="Verify that the Redis server's certificate hostname matches. "
         "Should be True for production. Set to False only for testing with self-signed certs.",
+    )
+
+    # Cache TTL settings (NEM-2519)
+    cache_default_ttl: int = Field(
+        default=300,
+        ge=10,
+        le=86400,
+        description="Default cache TTL in seconds (5 minutes). Used when no specific TTL is provided.",
+    )
+    cache_short_ttl: int = Field(
+        default=60,
+        ge=5,
+        le=3600,
+        description="Short cache TTL in seconds (1 minute). Used for frequently changing data.",
+    )
+    cache_long_ttl: int = Field(
+        default=3600,
+        ge=300,
+        le=86400,
+        description="Long cache TTL in seconds (1 hour). Used for rarely changing data.",
+    )
+    snapshot_cache_ttl: int = Field(
+        default=3600,
+        ge=60,
+        le=86400,
+        description="TTL in seconds for cached camera snapshots extracted from videos. Default: 1 hour.",
+    )
+
+    # Internal service timeout settings (NEM-2519)
+    degradation_health_check_timeout: float = Field(
+        default=10.0,
+        ge=1.0,
+        le=60.0,
+        description="Timeout (seconds) for degradation manager health checks. "
+        "Default: 10.0 seconds. Applies to service health monitoring during degradation.",
+    )
+    ai_broadcast_health_timeout: float = Field(
+        default=1.0,
+        ge=0.5,
+        le=10.0,
+        description="Timeout (seconds) for AI service health checks in system broadcaster. "
+        "Keep short to avoid blocking the broadcast loop. Default: 1.0 seconds.",
+    )
+
+    # Job management settings (NEM-2519)
+    completed_job_ttl: int = Field(
+        default=3600,
+        ge=60,
+        le=86400,
+        description="TTL in seconds for completed/failed jobs in Redis. "
+        "Default: 3600 (1 hour). Jobs are cleaned up after this period.",
+    )
+    default_job_timeout: int = Field(
+        default=600,
+        ge=60,
+        le=86400,
+        description="Default timeout (seconds) for background jobs without specific timeout. "
+        "Default: 600 (10 minutes).",
     )
 
     # Application settings
@@ -336,6 +467,30 @@ class Settings(BaseSettings):
         ge=30.0,
         le=600.0,
         description="Maximum time (seconds) to wait for Nemotron LLM response",
+    )
+    florence_read_timeout: float = Field(
+        default=30.0,
+        ge=5.0,
+        le=120.0,
+        description="Maximum time (seconds) to wait for Florence-2 vision-language response. "
+        "Florence-2 is faster than LLMs but processes images, so 30s default allows for "
+        "complex operations like dense captioning and OCR.",
+    )
+    clip_read_timeout: float = Field(
+        default=15.0,
+        ge=5.0,
+        le=60.0,
+        description="Maximum time (seconds) to wait for CLIP embedding generation. "
+        "CLIP is fast for single embeddings but batch operations may take longer.",
+    )
+    enrichment_read_timeout: float = Field(
+        default=60.0,
+        ge=10.0,
+        le=180.0,
+        description="Maximum time (seconds) to wait for enrichment service response. "
+        "The enrichment service handles multiple AI models (vehicle classification, "
+        "pet classification, clothing analysis, depth estimation, pose analysis), "
+        "so longer timeout accommodates complex multi-model operations.",
     )
 
     # AI service retry settings
@@ -634,6 +789,7 @@ class Settings(BaseSettings):
         description="Maximum retry attempts for ReID embedding generation on transient failures. "
         "Uses exponential backoff (2^attempt seconds). Default: 3 attempts.",
     )
+
     scene_change_threshold: float = Field(
         default=0.90,
         ge=0.5,

@@ -163,7 +163,8 @@ class ContainerOrchestrator:
         # All modules now use the same shared ManagedService and ServiceRegistry types
         # from backend.services.orchestrator, so we use a single registry
         self._registry = ServiceRegistry(redis_client)
-        self._discovery_service = ContainerDiscoveryService(docker_client)
+        # Pass settings to discovery service for configurable port values
+        self._discovery_service = ContainerDiscoveryService(docker_client, settings)
 
         # These are created during start() after discovery
         self._health_monitor: HealthMonitor | None = None

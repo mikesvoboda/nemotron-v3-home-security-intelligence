@@ -317,6 +317,10 @@ class TestEnrichmentClientConnectionPooling:
         settings.enrichment_cb_failure_threshold = 5
         settings.enrichment_cb_recovery_timeout = 60.0
         settings.enrichment_cb_half_open_max_calls = 3
+        # Retry configuration (NEM-1732)
+        settings.enrichment_max_retries = 3
+        # Read timeout configuration (NEM-2524)
+        settings.enrichment_read_timeout = 120.0
         return settings
 
     @pytest.fixture

@@ -44,7 +44,8 @@ from backend.models import Camera, CameraStatus, GPUStats
 
 # Timeout for AI service health checks in seconds
 # Keep this short to avoid blocking the broadcast loop
-AI_HEALTH_CHECK_TIMEOUT = 1.0  # Short timeout to avoid blocking broadcast loop
+# Note: This is now configurable via settings.ai_broadcast_health_timeout (NEM-2519)
+AI_HEALTH_CHECK_TIMEOUT = 1.0  # Default, use settings.ai_broadcast_health_timeout
 
 if TYPE_CHECKING:
     from redis.asyncio.client import PubSub

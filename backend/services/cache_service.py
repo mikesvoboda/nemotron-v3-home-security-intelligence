@@ -49,9 +49,12 @@ T = TypeVar("T")
 P = ParamSpec("P")
 
 # Default TTL values in seconds
-DEFAULT_TTL = 300  # 5 minutes
-SHORT_TTL = 60  # 1 minute
-LONG_TTL = 3600  # 1 hour
+# Note: These are now configurable via settings (NEM-2519)
+# Use get_settings().cache_default_ttl, cache_short_ttl, cache_long_ttl
+# Legacy constants kept for backward compatibility
+DEFAULT_TTL = 300  # 5 minutes (default, use settings.cache_default_ttl)
+SHORT_TTL = 60  # 1 minute (default, use settings.cache_short_ttl)
+LONG_TTL = 3600  # 1 hour (default, use settings.cache_long_ttl)
 
 
 def _get_global_prefix() -> str:

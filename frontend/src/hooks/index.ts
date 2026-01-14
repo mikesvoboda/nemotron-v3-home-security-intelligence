@@ -213,6 +213,15 @@ export type {
   UseAlertWebSocketReturn,
 } from './useAlertWebSocket';
 
+export { useEventLifecycleWebSocket } from './useEventLifecycleWebSocket';
+export type {
+  EventCreatedHandler,
+  EventUpdatedHandler,
+  EventDeletedHandler,
+  UseEventLifecycleWebSocketOptions,
+  UseEventLifecycleWebSocketReturn,
+} from './useEventLifecycleWebSocket';
+
 export { useWebSocketEvent, useWebSocketEvents } from './useWebSocketEvent';
 export type {
   UseWebSocketEventOptions,

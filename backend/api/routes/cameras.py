@@ -96,7 +96,8 @@ _SNAPSHOT_TYPES = {
 _VIDEO_EXTENSIONS = {".mkv", ".mp4", ".avi", ".mov", ".webm"}
 
 # Snapshot cache TTL in seconds (1 hour) - cached snapshots extracted from videos
-_SNAPSHOT_CACHE_TTL = 3600
+# Note: This is now configurable via settings.snapshot_cache_ttl (NEM-2519)
+_SNAPSHOT_CACHE_TTL = 3600  # Default, use settings.snapshot_cache_ttl
 
 # Thumbnail size for extracted video frames
 _SNAPSHOT_THUMBNAIL_SIZE = (640, 480)
