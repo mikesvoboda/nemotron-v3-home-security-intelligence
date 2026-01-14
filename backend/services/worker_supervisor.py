@@ -49,9 +49,13 @@ from typing import TYPE_CHECKING, Any
 
 from backend.core.logging import get_logger
 from backend.core.metrics import (
+    record_pipeline_worker_restart,
     record_worker_crash,
     record_worker_max_restarts_exceeded,
     record_worker_restart,
+    set_pipeline_worker_consecutive_failures,
+    set_pipeline_worker_state,
+    set_pipeline_worker_uptime,
     set_worker_status,
 )
 
@@ -174,6 +178,35 @@ class WorkerInfo:
 
 
 @dataclass
+class RestartEvent:
+    """Record of a worker restart event (NEM-2462).
+
+    Attributes:
+        worker_name: Name of the worker that was restarted.
+        timestamp: When the restart occurred.
+        attempt: Restart attempt number (1-indexed).
+        status: Result of the restart: 'success' or 'failed'.
+        error: Error message that triggered the restart, if any.
+    """
+
+    worker_name: str
+    timestamp: datetime
+    attempt: int
+    status: str  # 'success' or 'failed'
+    error: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert RestartEvent to a dictionary for serialization."""
+        return {
+            "worker_name": self.worker_name,
+            "timestamp": self.timestamp.isoformat(),
+            "attempt": self.attempt,
+            "status": self.status,
+            "error": self.error,
+        }
+
+
+@dataclass
 class SupervisorConfig:
     """Configuration for the WorkerSupervisor.
 
@@ -182,12 +215,14 @@ class SupervisorConfig:
         default_max_restarts: Default max restarts for workers.
         default_backoff_base: Default base backoff time.
         default_backoff_max: Default max backoff time.
+        max_restart_history: Maximum number of restart events to keep in history.
     """
 
     check_interval: float = 5.0
     default_max_restarts: int = 5
     default_backoff_base: float = 1.0
     default_backoff_max: float = 60.0
+    max_restart_history: int = 100
 
 
 class WorkerSupervisor:
@@ -226,6 +261,7 @@ class WorkerSupervisor:
         self._running = False
         self._monitor_task: asyncio.Task[None] | None = None
         self._restart_locks: dict[str, asyncio.Lock] = {}
+        self._restart_history: list[RestartEvent] = []  # NEM-2462: Restart history
 
         logger.info(f"WorkerSupervisor initialized: check_interval={self._config.check_interval}s")
 
@@ -343,8 +379,10 @@ class WorkerSupervisor:
             worker.status = WorkerStatus.STOPPED
             worker.task = None
 
-            # Record stopped status metric
+            # Record stopped status metrics (NEM-2457, NEM-2459)
             set_worker_status(worker_name, WorkerStatus.STOPPED.value)
+            set_pipeline_worker_state(worker_name, "stopped")
+            set_pipeline_worker_uptime(worker_name, -1.0)  # Not running
 
         logger.info("WorkerSupervisor stopped")
 
@@ -374,8 +412,11 @@ class WorkerSupervisor:
         worker.last_started_at = datetime.now(UTC)
         worker.error = None
 
-        # Record metrics
+        # Record metrics (NEM-2457, NEM-2459)
         set_worker_status(name, WorkerStatus.RUNNING.value)
+        set_pipeline_worker_state(name, "running")
+        set_pipeline_worker_consecutive_failures(name, worker.restart_count)
+        set_pipeline_worker_uptime(name, 0.0)  # Just started
 
         await self._broadcast_status(name, WorkerStatus.RUNNING)
         logger.info(f"Started worker '{name}'")
@@ -399,9 +440,12 @@ class WorkerSupervisor:
             worker.last_crashed_at = datetime.now(UTC)
             worker.error = str(e)
 
-            # Record metrics
+            # Record metrics (NEM-2457, NEM-2459)
             record_worker_crash(name)
             set_worker_status(name, WorkerStatus.CRASHED.value)
+            set_pipeline_worker_state(name, "stopped")
+            set_pipeline_worker_consecutive_failures(name, worker.restart_count + 1)
+            set_pipeline_worker_uptime(name, -1.0)  # Not running
 
             logger.error(f"Worker '{name}' crashed: {e}", exc_info=True)
             await self._broadcast_status(name, WorkerStatus.CRASHED, str(e))
@@ -437,6 +481,8 @@ class WorkerSupervisor:
         Args:
             name: Name of the crashed worker.
         """
+        import time
+
         async with self._restart_locks[name]:
             worker = self._workers[name]
 
@@ -446,9 +492,12 @@ class WorkerSupervisor:
                     worker.status = WorkerStatus.FAILED
                     worker.circuit_open = True  # Open circuit breaker (NEM-2492)
 
-                    # Record metrics
+                    # Record metrics (NEM-2457, NEM-2459)
                     record_worker_max_restarts_exceeded(name)
                     set_worker_status(name, WorkerStatus.FAILED.value)
+                    set_pipeline_worker_state(name, "failed")
+                    set_pipeline_worker_consecutive_failures(name, worker.restart_count)
+                    set_pipeline_worker_uptime(name, -1.0)  # Not running
 
                     logger.error(
                         f"Worker '{name}' exceeded max restarts ({worker.max_restarts}), giving up"
@@ -457,6 +506,14 @@ class WorkerSupervisor:
                         name,
                         WorkerStatus.FAILED,
                         f"Exceeded max restarts ({worker.max_restarts})",
+                    )
+
+                    # Record failed restart in history (NEM-2462)
+                    self._record_restart_event(
+                        worker_name=name,
+                        attempt=worker.restart_count,
+                        status="failed",
+                        error=f"Exceeded max restarts ({worker.max_restarts})",
                     )
 
                     # Invoke on_failure callback (NEM-2460)
@@ -471,8 +528,9 @@ class WorkerSupervisor:
             backoff = self._calculate_backoff(worker)
             worker.status = WorkerStatus.RESTARTING
 
-            # Record restarting status metric
+            # Record restarting status metric (NEM-2457, NEM-2459)
             set_worker_status(name, WorkerStatus.RESTARTING.value)
+            set_pipeline_worker_state(name, "restarting")
 
             logger.info(
                 f"Restarting worker '{name}' in {backoff:.1f}s "
@@ -487,6 +545,9 @@ class WorkerSupervisor:
                 except Exception as cb_err:
                     logger.warning(f"on_restart callback raised exception: {cb_err}")
 
+            # Track restart duration (NEM-2459)
+            restart_start_time = time.monotonic()
+
             # Wait for backoff
             await asyncio.sleep(backoff)
 
@@ -496,10 +557,22 @@ class WorkerSupervisor:
             # Increment restart count and start
             worker.restart_count += 1
 
-            # Record restart metric
+            # Record restart metrics (NEM-2457, NEM-2459)
             record_worker_restart(name)
+            restart_duration = time.monotonic() - restart_start_time
+            record_pipeline_worker_restart(
+                name, reason=worker.error, duration_seconds=restart_duration
+            )
 
             await self._start_worker(name)
+
+            # Record restart event in history (NEM-2462)
+            self._record_restart_event(
+                worker_name=name,
+                attempt=worker.restart_count,
+                status="success",
+                error=worker.error,
+            )
 
     def _calculate_backoff(self, worker: WorkerInfo) -> float:
         """Calculate exponential backoff for worker restart.
@@ -658,6 +731,189 @@ class WorkerSupervisor:
             return base
         delay = base * (2 ** (restart_count - 1))
         return float(min(delay, max_backoff))
+
+    # =========================================================================
+    # Restart History Methods (NEM-2462)
+    # =========================================================================
+
+    def _record_restart_event(
+        self,
+        worker_name: str,
+        attempt: int,
+        status: str,
+        error: str | None = None,
+    ) -> None:
+        """Record a restart event in the history.
+
+        Args:
+            worker_name: Name of the worker.
+            attempt: Restart attempt number.
+            status: Result status ('success' or 'failed').
+            error: Error message, if any.
+        """
+        event = RestartEvent(
+            worker_name=worker_name,
+            timestamp=datetime.now(UTC),
+            attempt=attempt,
+            status=status,
+            error=error,
+        )
+        self._restart_history.append(event)
+
+        # Trim history if it exceeds max size
+        if len(self._restart_history) > self._config.max_restart_history:
+            self._restart_history = self._restart_history[-self._config.max_restart_history :]
+
+        logger.debug(f"Recorded restart event: {worker_name} attempt={attempt} status={status}")
+
+    def get_restart_history(
+        self,
+        worker_name: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> list[dict[str, Any]]:
+        """Get restart history with optional filtering and pagination (NEM-2462).
+
+        Args:
+            worker_name: Optional filter by worker name.
+            limit: Maximum number of events to return.
+            offset: Number of events to skip.
+
+        Returns:
+            List of restart event dictionaries, newest first.
+        """
+        # Filter by worker name if specified
+        if worker_name:
+            events = [e for e in self._restart_history if e.worker_name == worker_name]
+        else:
+            events = list(self._restart_history)
+
+        # Sort by timestamp descending (newest first)
+        events.sort(key=lambda e: e.timestamp, reverse=True)
+
+        # Apply pagination
+        paginated = events[offset : offset + limit]
+
+        return [e.to_dict() for e in paginated]
+
+    def get_restart_history_count(self, worker_name: str | None = None) -> int:
+        """Get total count of restart history events (NEM-2462).
+
+        Args:
+            worker_name: Optional filter by worker name.
+
+        Returns:
+            Total count of restart events.
+        """
+        if worker_name:
+            return sum(1 for e in self._restart_history if e.worker_name == worker_name)
+        return len(self._restart_history)
+
+    # =========================================================================
+    # Manual Worker Control Methods (NEM-2462)
+    # =========================================================================
+
+    async def start_worker(self, name: str) -> bool:
+        """Manually start a stopped worker (NEM-2462).
+
+        Args:
+            name: Name of the worker to start.
+
+        Returns:
+            True if worker was started, False if not found or already running.
+        """
+        worker = self._workers.get(name)
+        if worker is None:
+            logger.warning(f"Cannot start unknown worker: {name}")
+            return False
+
+        if worker.status == WorkerStatus.RUNNING:
+            logger.info(f"Worker '{name}' is already running")
+            return True  # Idempotent - already running is success
+
+        # Reset if failed
+        if worker.status == WorkerStatus.FAILED:
+            worker.restart_count = 0
+            worker.circuit_open = False
+
+        await self._start_worker(name)
+        logger.info(f"Manually started worker '{name}'")
+        return True
+
+    async def stop_worker(self, name: str) -> bool:
+        """Manually stop a running worker (NEM-2462).
+
+        Args:
+            name: Name of the worker to stop.
+
+        Returns:
+            True if worker was stopped, False if not found.
+        """
+        worker = self._workers.get(name)
+        if worker is None:
+            logger.warning(f"Cannot stop unknown worker: {name}")
+            return False
+
+        if worker.task is not None and not worker.task.done():
+            worker.task.cancel()
+            try:
+                await worker.task
+            except asyncio.CancelledError:
+                pass
+
+        worker.status = WorkerStatus.STOPPED
+        worker.task = None
+
+        # Record stopped status metric
+        set_worker_status(name, WorkerStatus.STOPPED.value)
+
+        await self._broadcast_status(name, WorkerStatus.STOPPED, "Manually stopped")
+        logger.info(f"Manually stopped worker '{name}'")
+        return True
+
+    async def restart_worker_task(self, name: str) -> bool:
+        """Manually restart a worker (stop then start) (NEM-2462).
+
+        This is different from the automatic restart which happens on crashes.
+        This method allows manual intervention to restart a worker.
+
+        Args:
+            name: Name of the worker to restart.
+
+        Returns:
+            True if worker was restarted, False if not found.
+        """
+        worker = self._workers.get(name)
+        if worker is None:
+            logger.warning(f"Cannot restart unknown worker: {name}")
+            return False
+
+        # Stop if running
+        if worker.task is not None and not worker.task.done():
+            worker.task.cancel()
+            try:
+                await worker.task
+            except asyncio.CancelledError:
+                pass
+
+        # Reset state for manual restart
+        worker.restart_count = 0
+        worker.circuit_open = False
+        worker.error = None
+
+        # Start the worker
+        await self._start_worker(name)
+
+        # Record manual restart in history
+        self._record_restart_event(
+            worker_name=name,
+            attempt=0,  # Manual restart, not auto-restart
+            status="success",
+            error="Manual restart requested",
+        )
+
+        logger.info(f"Manually restarted worker '{name}'")
+        return True
 
 
 # Singleton instance

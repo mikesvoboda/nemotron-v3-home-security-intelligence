@@ -5925,6 +5925,168 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/system/supervisor/restart-history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Restart History
+         * @description Get paginated history of worker restart events.
+         *
+         *     Returns a list of restart events including both automatic restarts
+         *     (triggered by crashes) and manual restarts.
+         *
+         *     Args:
+         *         worker_name: Optional filter by worker name
+         *         limit: Maximum number of events to return (default 50, max 100)
+         *         offset: Number of events to skip for pagination
+         *
+         *     Returns:
+         *         RestartHistoryResponse with events and pagination metadata
+         */
+        get: operations["get_restart_history_api_system_supervisor_restart_history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/system/supervisor/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Supervisor Full Status
+         * @description Get full status of the Worker Supervisor and all supervised workers.
+         *
+         *     This endpoint is an alias for GET /supervisor but with a clearer path
+         *     that matches the API convention for status endpoints.
+         *
+         *     Returns:
+         *         WorkerSupervisorStatusResponse with:
+         *         - running: Whether the supervisor is active
+         *         - worker_count: Number of registered workers
+         *         - workers: Detailed status of each supervised worker
+         *         - timestamp: When the status was queried
+         */
+        get: operations["get_supervisor_full_status_api_system_supervisor_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/system/supervisor/workers/{worker_name}/restart": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restart Supervisor Worker
+         * @description Manually restart a supervised worker.
+         *
+         *     This stops the worker if running and starts it again with reset state.
+         *
+         *     Args:
+         *         worker_name: Name of the worker to restart (e.g., file_watcher, detector)
+         *
+         *     Returns:
+         *         WorkerControlResponse with success status and message
+         *
+         *     Raises:
+         *         HTTPException 400: Invalid worker name format
+         *         HTTPException 404: Worker not found
+         *         HTTPException 503: Supervisor not initialized
+         */
+        post: operations["restart_supervisor_worker_api_system_supervisor_workers__worker_name__restart_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/system/supervisor/workers/{worker_name}/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Supervisor Worker
+         * @description Manually start a stopped supervised worker.
+         *
+         *     This starts a worker that was previously stopped. If the worker
+         *     is already running, this is a no-op and returns success.
+         *
+         *     Args:
+         *         worker_name: Name of the worker to start
+         *
+         *     Returns:
+         *         WorkerControlResponse with success status and message
+         *
+         *     Raises:
+         *         HTTPException 400: Invalid worker name format
+         *         HTTPException 404: Worker not found
+         *         HTTPException 503: Supervisor not initialized
+         */
+        post: operations["start_supervisor_worker_api_system_supervisor_workers__worker_name__start_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/system/supervisor/workers/{worker_name}/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Stop Supervisor Worker
+         * @description Manually stop a supervised worker.
+         *
+         *     This stops the worker's task. The worker will remain registered
+         *     but will not be automatically restarted by the supervisor.
+         *
+         *     Args:
+         *         worker_name: Name of the worker to stop
+         *
+         *     Returns:
+         *         WorkerControlResponse with success status and message
+         *
+         *     Raises:
+         *         HTTPException 400: Invalid worker name format
+         *         HTTPException 404: Worker not found
+         *         HTTPException 503: Supervisor not initialized
+         */
+        post: operations["stop_supervisor_worker_api_system_supervisor_workers__worker_name__stop_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/system/telemetry": {
         parameters: {
             query?: never;
@@ -17115,6 +17277,7 @@ export interface components {
          *         }
          *       },
          *       "status": "ready",
+         *       "supervisor_healthy": true,
          *       "timestamp": "2025-12-23T10:30:00",
          *       "workers": [
          *         {
@@ -17153,6 +17316,12 @@ export interface components {
              * @description Status string: 'ready', 'degraded', or 'not_ready'
              */
             status: string;
+            /**
+             * Supervisor Healthy
+             * @description Whether the worker supervisor is running and healthy (NEM-2462). True if supervisor is active, False if not initialized or has failed workers.
+             * @default true
+             */
+            supervisor_healthy: boolean;
             /**
              * Timestamp
              * Format: date-time
@@ -17406,6 +17575,86 @@ export interface components {
              * @description ISO timestamp of replay
              */
             timestamp: string;
+        };
+        /**
+         * RestartHistoryEvent
+         * @description A single restart event in the history.
+         *
+         *     Records when a worker was restarted (automatically or manually).
+         * @example {
+         *       "attempt": 1,
+         *       "error": "Connection timeout",
+         *       "status": "success",
+         *       "timestamp": "2026-01-13T10:30:00Z",
+         *       "worker_name": "file_watcher"
+         *     }
+         */
+        RestartHistoryEvent: {
+            /**
+             * Attempt
+             * @description Restart attempt number (0 for manual restarts)
+             */
+            attempt: number;
+            /**
+             * Error
+             * @description Error message that triggered the restart, if any
+             */
+            error?: string | null;
+            /**
+             * Status
+             * @description Result of the restart: 'success' or 'failed'
+             */
+            status: string;
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description When the restart occurred (UTC)
+             */
+            timestamp: string;
+            /**
+             * Worker Name
+             * @description Name of the worker that was restarted
+             */
+            worker_name: string;
+        };
+        /**
+         * RestartHistoryResponse
+         * @description Response schema for restart history endpoint.
+         *
+         *     Provides paginated list of worker restart events.
+         * @example {
+         *       "items": [
+         *         {
+         *           "attempt": 1,
+         *           "error": "Connection timeout",
+         *           "status": "success",
+         *           "timestamp": "2026-01-13T10:30:00Z",
+         *           "worker_name": "file_watcher"
+         *         },
+         *         {
+         *           "attempt": 2,
+         *           "error": "Memory allocation failed",
+         *           "status": "success",
+         *           "timestamp": "2026-01-13T10:25:00Z",
+         *           "worker_name": "detector"
+         *         }
+         *       ],
+         *       "pagination": {
+         *         "has_more": false,
+         *         "limit": 50,
+         *         "offset": 0,
+         *         "total": 15
+         *       }
+         *     }
+         */
+        RestartHistoryResponse: {
+            /**
+             * Items
+             * @description List of restart events (newest first)
+             */
+            items?: components["schemas"]["RestartHistoryEvent"][];
+            /** @description Pagination metadata */
+            pagination: components["schemas"]["PaginationMeta"];
         };
         /**
          * RiskHistoryDataPoint
@@ -19200,6 +19449,34 @@ export interface components {
              * @description Webhook URL for webhook test. Must be HTTPS and not point to private IPs.
              */
             webhook_url?: string | null;
+        };
+        /**
+         * WorkerControlResponse
+         * @description Response schema for worker control operations (start/stop/restart).
+         *
+         *     Used by endpoints that control individual workers.
+         * @example {
+         *       "message": "Worker 'file_watcher' restarted successfully",
+         *       "success": true,
+         *       "worker_name": "file_watcher"
+         *     }
+         */
+        WorkerControlResponse: {
+            /**
+             * Message
+             * @description Human-readable status message
+             */
+            message: string;
+            /**
+             * Success
+             * @description Whether the operation was successful
+             */
+            success: boolean;
+            /**
+             * Worker Name
+             * @description Name of the worker that was controlled
+             */
+            worker_name: string;
         };
         /**
          * WorkerHealthStatus
@@ -27339,6 +27616,155 @@ export interface operations {
                     "application/json": {
                         [key: string]: string | boolean;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_restart_history_api_system_supervisor_restart_history_get: {
+        parameters: {
+            query?: {
+                /** @description Filter by worker name */
+                worker_name?: string | null;
+                /** @description Maximum number of events to return */
+                limit?: number;
+                /** @description Number of events to skip */
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RestartHistoryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_supervisor_full_status_api_system_supervisor_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkerSupervisorStatusResponse"];
+                };
+            };
+        };
+    };
+    restart_supervisor_worker_api_system_supervisor_workers__worker_name__restart_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                worker_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkerControlResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_supervisor_worker_api_system_supervisor_workers__worker_name__start_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                worker_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkerControlResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    stop_supervisor_worker_api_system_supervisor_workers__worker_name__stop_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                worker_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkerControlResponse"];
                 };
             };
             /** @description Validation Error */

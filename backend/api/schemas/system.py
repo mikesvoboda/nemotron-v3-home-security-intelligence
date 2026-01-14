@@ -422,6 +422,11 @@ class ReadinessResponse(BaseModel):
         description="Warmth status of AI models (NEM-1670). Keys are model names "
         "(e.g., 'rtdetr', 'nemotron'), values are states: 'cold', 'warming', 'warm'",
     )
+    supervisor_healthy: bool = Field(
+        default=True,
+        description="Whether the worker supervisor is running and healthy (NEM-2462). "
+        "True if supervisor is active, False if not initialized or has failed workers.",
+    )
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -450,6 +455,7 @@ class ReadinessResponse(BaseModel):
                     {"name": "cleanup_service", "running": True, "message": None},
                 ],
                 "timestamp": "2025-12-23T10:30:00",
+                "supervisor_healthy": True,
             }
         }
     )
@@ -2700,6 +2706,129 @@ class WorkerSupervisorStatusResponse(BaseModel):
                     },
                 ],
                 "timestamp": "2026-01-13T10:35:00Z",
+            }
+        }
+    )
+
+
+# =============================================================================
+# Supervisor Control Response Schemas (NEM-2462)
+# =============================================================================
+
+
+class WorkerControlResponse(BaseModel):
+    """Response schema for worker control operations (start/stop/restart).
+
+    Used by endpoints that control individual workers.
+    """
+
+    success: bool = Field(
+        ...,
+        description="Whether the operation was successful",
+    )
+    message: str = Field(
+        ...,
+        description="Human-readable status message",
+    )
+    worker_name: str = Field(
+        ...,
+        description="Name of the worker that was controlled",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "success": True,
+                "message": "Worker 'file_watcher' restarted successfully",
+                "worker_name": "file_watcher",
+            }
+        }
+    )
+
+
+class RestartHistoryEvent(BaseModel):
+    """A single restart event in the history.
+
+    Records when a worker was restarted (automatically or manually).
+    """
+
+    worker_name: str = Field(
+        ...,
+        description="Name of the worker that was restarted",
+    )
+    timestamp: datetime = Field(
+        ...,
+        description="When the restart occurred (UTC)",
+    )
+    attempt: int = Field(
+        ...,
+        description="Restart attempt number (0 for manual restarts)",
+        ge=0,
+    )
+    status: str = Field(
+        ...,
+        description="Result of the restart: 'success' or 'failed'",
+    )
+    error: str | None = Field(
+        None,
+        description="Error message that triggered the restart, if any",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "worker_name": "file_watcher",
+                "timestamp": "2026-01-13T10:30:00Z",
+                "attempt": 1,
+                "status": "success",
+                "error": "Connection timeout",
+            }
+        }
+    )
+
+
+class RestartHistoryResponse(BaseModel):
+    """Response schema for restart history endpoint.
+
+    Provides paginated list of worker restart events.
+    """
+
+    items: list[RestartHistoryEvent] = Field(
+        default_factory=list,
+        description="List of restart events (newest first)",
+    )
+    pagination: PaginationMeta = Field(
+        ...,
+        description="Pagination metadata",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "items": [
+                    {
+                        "worker_name": "file_watcher",
+                        "timestamp": "2026-01-13T10:30:00Z",
+                        "attempt": 1,
+                        "status": "success",
+                        "error": "Connection timeout",
+                    },
+                    {
+                        "worker_name": "detector",
+                        "timestamp": "2026-01-13T10:25:00Z",
+                        "attempt": 2,
+                        "status": "success",
+                        "error": "Memory allocation failed",
+                    },
+                ],
+                "pagination": {
+                    "total": 15,
+                    "limit": 50,
+                    "offset": 0,
+                    "cursor": None,
+                    "next_cursor": None,
+                    "has_more": False,
+                },
             }
         }
     )

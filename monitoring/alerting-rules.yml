@@ -588,3 +588,138 @@ groups:
           summary: 'Prometheus is rejecting samples'
           description: 'Prometheus is rejecting samples due to out-of-order timestamps or duplicates. This may indicate clock drift or incorrect metric exposition.'
           runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/prometheus-samples-rejected'
+
+  # =============================================================================
+  # Pipeline Worker Health Alerts (NEM-2459)
+  # =============================================================================
+  # Monitor pipeline worker restarts, failures, and health state.
+  # These alerts help detect worker stability issues before they impact
+  # the AI processing pipeline.
+  - name: pipeline_worker_alerts
+    rules:
+      # Critical: Worker restart storm - more than 3 restarts in 5 minutes
+      - alert: HSIWorkerRestartStorm
+        expr: |
+          increase(hsi_pipeline_worker_restarts_total[5m]) > 3
+        for: 0m
+        labels:
+          severity: critical
+          component: worker
+          service: pipeline
+        annotations:
+          summary: 'Pipeline worker restart storm detected ({{ $labels.worker_name }})'
+          description: 'Worker {{ $labels.worker_name }} has restarted more than 3 times in the last 5 minutes (reason: {{ $labels.reason_category }}). This may indicate a persistent issue requiring investigation.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/worker-restart-storm'
+
+      # Critical: Worker in failed state for 30 seconds
+      - alert: HSIWorkerFailed
+        expr: |
+          hsi_pipeline_worker_state == 3
+        for: 30s
+        labels:
+          severity: critical
+          component: worker
+          service: pipeline
+        annotations:
+          summary: 'Pipeline worker failed ({{ $labels.worker_name }})'
+          description: 'Worker {{ $labels.worker_name }} has been in FAILED state for more than 30 seconds. The worker has exceeded its maximum restart attempts and requires manual intervention.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/worker-failed'
+
+      # Warning: Worker not running for 2 minutes (state != 1)
+      - alert: HSIWorkerNotRunning
+        expr: |
+          hsi_pipeline_worker_state != 1
+        for: 2m
+        labels:
+          severity: warning
+          component: worker
+          service: pipeline
+        annotations:
+          summary: 'Pipeline worker not running ({{ $labels.worker_name }})'
+          description: 'Worker {{ $labels.worker_name }} has not been in RUNNING state for more than 2 minutes. Current state: {{ $value }} (0=stopped, 1=running, 2=restarting, 3=failed).'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/worker-not-running'
+
+      # Warning: Worker restart taking too long - p95 > 30 seconds
+      - alert: HSIWorkerRestartSlow
+        expr: |
+          histogram_quantile(0.95, rate(hsi_pipeline_worker_restart_duration_seconds_bucket[5m])) > 30
+        for: 5m
+        labels:
+          severity: warning
+          component: worker
+          service: pipeline
+        annotations:
+          summary: 'Pipeline worker restart slow ({{ $labels.worker_name }})'
+          description: 'Worker {{ $labels.worker_name }} P95 restart duration exceeds 30 seconds. This may indicate resource contention or initialization issues.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/worker-restart-slow'
+
+      # Warning: High consecutive failure count
+      - alert: HSIWorkerConsecutiveFailures
+        expr: |
+          hsi_pipeline_worker_consecutive_failures >= 3
+        for: 1m
+        labels:
+          severity: warning
+          component: worker
+          service: pipeline
+        annotations:
+          summary: 'Pipeline worker has multiple consecutive failures ({{ $labels.worker_name }})'
+          description: 'Worker {{ $labels.worker_name }} has {{ $value }} consecutive failures. Worker may be approaching the max restart limit.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/worker-consecutive-failures'
+
+      # Info: Worker restarted
+      - alert: HSIWorkerRestarted
+        expr: |
+          increase(hsi_pipeline_worker_restarts_total[5m]) > 0
+        for: 0m
+        labels:
+          severity: info
+          component: worker
+          service: pipeline
+        annotations:
+          summary: 'Pipeline worker restarted ({{ $labels.worker_name }})'
+          description: 'Worker {{ $labels.worker_name }} has restarted in the last 5 minutes. Reason category: {{ $labels.reason_category }}.'
+
+      # Warning: Frequent connection-related restarts
+      - alert: HSIWorkerConnectionIssues
+        expr: |
+          increase(hsi_pipeline_worker_restarts_total{reason_category="connection"}[15m]) > 2
+        for: 0m
+        labels:
+          severity: warning
+          component: worker
+          service: pipeline
+        annotations:
+          summary: 'Pipeline worker experiencing connection issues ({{ $labels.worker_name }})'
+          description: 'Worker {{ $labels.worker_name }} has restarted more than 2 times in 15 minutes due to connection-related errors. Check network connectivity and dependent services.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/worker-connection-issues'
+
+      # Warning: Frequent memory-related restarts
+      - alert: HSIWorkerMemoryIssues
+        expr: |
+          increase(hsi_pipeline_worker_restarts_total{reason_category="memory"}[15m]) > 1
+        for: 0m
+        labels:
+          severity: warning
+          component: worker
+          service: pipeline
+        annotations:
+          summary: 'Pipeline worker experiencing memory issues ({{ $labels.worker_name }})'
+          description: 'Worker {{ $labels.worker_name }} has restarted due to memory-related errors. Check for memory leaks or increase resource allocation.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/worker-memory-issues'
+
+      # Critical: All workers in the supervisor are failing
+      - alert: HSIAllWorkersFailing
+        expr: |
+          count(hsi_pipeline_worker_state == 3) == count(hsi_pipeline_worker_state)
+          and
+          count(hsi_pipeline_worker_state) > 0
+        for: 1m
+        labels:
+          severity: critical
+          component: worker
+          service: pipeline
+        annotations:
+          summary: 'All pipeline workers are in failed state'
+          description: 'All registered pipeline workers have failed. The AI processing pipeline is completely stopped.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/all-workers-failing'

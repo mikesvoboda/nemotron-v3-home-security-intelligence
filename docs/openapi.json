@@ -15839,6 +15839,7 @@
             }
           },
           "status": "ready",
+          "supervisor_healthy": true,
           "timestamp": "2025-12-23T10:30:00",
           "workers": [
             {
@@ -15884,6 +15885,12 @@
             "description": "Status string: 'ready', 'degraded', or 'not_ready'",
             "title": "Status",
             "type": "string"
+          },
+          "supervisor_healthy": {
+            "default": true,
+            "description": "Whether the worker supervisor is running and healthy (NEM-2462). True if supervisor is active, False if not initialized or has failed workers.",
+            "title": "Supervisor Healthy",
+            "type": "boolean"
           },
           "timestamp": {
             "description": "Timestamp of readiness check",
@@ -16244,6 +16251,106 @@
           "timestamp"
         ],
         "title": "ReplayResponse",
+        "type": "object"
+      },
+      "RestartHistoryEvent": {
+        "description": "A single restart event in the history.\n\nRecords when a worker was restarted (automatically or manually).",
+        "example": {
+          "attempt": 1,
+          "error": "Connection timeout",
+          "status": "success",
+          "timestamp": "2026-01-13T10:30:00Z",
+          "worker_name": "file_watcher"
+        },
+        "properties": {
+          "attempt": {
+            "description": "Restart attempt number (0 for manual restarts)",
+            "minimum": 0.0,
+            "title": "Attempt",
+            "type": "integer"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Error message that triggered the restart, if any",
+            "title": "Error"
+          },
+          "status": {
+            "description": "Result of the restart: 'success' or 'failed'",
+            "title": "Status",
+            "type": "string"
+          },
+          "timestamp": {
+            "description": "When the restart occurred (UTC)",
+            "format": "date-time",
+            "title": "Timestamp",
+            "type": "string"
+          },
+          "worker_name": {
+            "description": "Name of the worker that was restarted",
+            "title": "Worker Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "worker_name",
+          "timestamp",
+          "attempt",
+          "status"
+        ],
+        "title": "RestartHistoryEvent",
+        "type": "object"
+      },
+      "RestartHistoryResponse": {
+        "description": "Response schema for restart history endpoint.\n\nProvides paginated list of worker restart events.",
+        "example": {
+          "items": [
+            {
+              "attempt": 1,
+              "error": "Connection timeout",
+              "status": "success",
+              "timestamp": "2026-01-13T10:30:00Z",
+              "worker_name": "file_watcher"
+            },
+            {
+              "attempt": 2,
+              "error": "Memory allocation failed",
+              "status": "success",
+              "timestamp": "2026-01-13T10:25:00Z",
+              "worker_name": "detector"
+            }
+          ],
+          "pagination": {
+            "has_more": false,
+            "limit": 50,
+            "offset": 0,
+            "total": 15
+          }
+        },
+        "properties": {
+          "items": {
+            "description": "List of restart events (newest first)",
+            "items": {
+              "$ref": "#/components/schemas/RestartHistoryEvent"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationMeta",
+            "description": "Pagination metadata"
+          }
+        },
+        "required": [
+          "pagination"
+        ],
+        "title": "RestartHistoryResponse",
         "type": "object"
       },
       "RiskHistoryDataPoint": {
@@ -18803,6 +18910,38 @@
           "channel"
         ],
         "title": "WebhookTestNotificationRequest",
+        "type": "object"
+      },
+      "WorkerControlResponse": {
+        "description": "Response schema for worker control operations (start/stop/restart).\n\nUsed by endpoints that control individual workers.",
+        "example": {
+          "message": "Worker 'file_watcher' restarted successfully",
+          "success": true,
+          "worker_name": "file_watcher"
+        },
+        "properties": {
+          "message": {
+            "description": "Human-readable status message",
+            "title": "Message",
+            "type": "string"
+          },
+          "success": {
+            "description": "Whether the operation was successful",
+            "title": "Success",
+            "type": "boolean"
+          },
+          "worker_name": {
+            "description": "Name of the worker that was controlled",
+            "title": "Worker Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "worker_name"
+        ],
+        "title": "WorkerControlResponse",
         "type": "object"
       },
       "WorkerHealthStatus": {
@@ -30024,6 +30163,236 @@
           }
         },
         "summary": "Reset Worker",
+        "tags": [
+          "system"
+        ]
+      }
+    },
+    "/api/system/supervisor/restart-history": {
+      "get": {
+        "description": "Get paginated history of worker restart events.\n\nReturns a list of restart events including both automatic restarts\n(triggered by crashes) and manual restarts.\n\nArgs:\n    worker_name: Optional filter by worker name\n    limit: Maximum number of events to return (default 50, max 100)\n    offset: Number of events to skip for pagination\n\nReturns:\n    RestartHistoryResponse with events and pagination metadata",
+        "operationId": "get_restart_history_api_system_supervisor_restart_history_get",
+        "parameters": [
+          {
+            "description": "Filter by worker name",
+            "in": "query",
+            "name": "worker_name",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by worker name",
+              "title": "Worker Name"
+            }
+          },
+          {
+            "description": "Maximum number of events to return",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "description": "Maximum number of events to return",
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Number of events to skip",
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Number of events to skip",
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RestartHistoryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Restart History",
+        "tags": [
+          "system"
+        ]
+      }
+    },
+    "/api/system/supervisor/status": {
+      "get": {
+        "description": "Get full status of the Worker Supervisor and all supervised workers.\n\nThis endpoint is an alias for GET /supervisor but with a clearer path\nthat matches the API convention for status endpoints.\n\nReturns:\n    WorkerSupervisorStatusResponse with:\n    - running: Whether the supervisor is active\n    - worker_count: Number of registered workers\n    - workers: Detailed status of each supervised worker\n    - timestamp: When the status was queried",
+        "operationId": "get_supervisor_full_status_api_system_supervisor_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkerSupervisorStatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Supervisor Full Status",
+        "tags": [
+          "system"
+        ]
+      }
+    },
+    "/api/system/supervisor/workers/{worker_name}/restart": {
+      "post": {
+        "description": "Manually restart a supervised worker.\n\nThis stops the worker if running and starts it again with reset state.\n\nArgs:\n    worker_name: Name of the worker to restart (e.g., file_watcher, detector)\n\nReturns:\n    WorkerControlResponse with success status and message\n\nRaises:\n    HTTPException 400: Invalid worker name format\n    HTTPException 404: Worker not found\n    HTTPException 503: Supervisor not initialized",
+        "operationId": "restart_supervisor_worker_api_system_supervisor_workers__worker_name__restart_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "worker_name",
+            "required": true,
+            "schema": {
+              "title": "Worker Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkerControlResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Restart Supervisor Worker",
+        "tags": [
+          "system"
+        ]
+      }
+    },
+    "/api/system/supervisor/workers/{worker_name}/start": {
+      "post": {
+        "description": "Manually start a stopped supervised worker.\n\nThis starts a worker that was previously stopped. If the worker\nis already running, this is a no-op and returns success.\n\nArgs:\n    worker_name: Name of the worker to start\n\nReturns:\n    WorkerControlResponse with success status and message\n\nRaises:\n    HTTPException 400: Invalid worker name format\n    HTTPException 404: Worker not found\n    HTTPException 503: Supervisor not initialized",
+        "operationId": "start_supervisor_worker_api_system_supervisor_workers__worker_name__start_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "worker_name",
+            "required": true,
+            "schema": {
+              "title": "Worker Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkerControlResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Start Supervisor Worker",
+        "tags": [
+          "system"
+        ]
+      }
+    },
+    "/api/system/supervisor/workers/{worker_name}/stop": {
+      "post": {
+        "description": "Manually stop a supervised worker.\n\nThis stops the worker's task. The worker will remain registered\nbut will not be automatically restarted by the supervisor.\n\nArgs:\n    worker_name: Name of the worker to stop\n\nReturns:\n    WorkerControlResponse with success status and message\n\nRaises:\n    HTTPException 400: Invalid worker name format\n    HTTPException 404: Worker not found\n    HTTPException 503: Supervisor not initialized",
+        "operationId": "stop_supervisor_worker_api_system_supervisor_workers__worker_name__stop_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "worker_name",
+            "required": true,
+            "schema": {
+              "title": "Worker Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkerControlResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Stop Supervisor Worker",
         "tags": [
           "system"
         ]
