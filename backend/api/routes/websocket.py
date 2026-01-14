@@ -375,24 +375,62 @@ async def websocket_events_endpoint(  # noqa: PLR0912
                     await handle_validated_message(websocket, message, connection_id)
 
             except TimeoutError:
-                logger.info(f"WebSocket idle timeout ({idle_timeout}s) - closing connection")
+                logger.info(
+                    f"WebSocket idle timeout ({idle_timeout}s) - closing connection",
+                    extra={"connection_id": connection_id, "timeout_seconds": idle_timeout},
+                )
                 await websocket.close(code=1000, reason="Idle timeout")
                 break
-            except WebSocketDisconnect:
-                logger.info("WebSocket client disconnected normally")
+            except WebSocketDisconnect as e:
+                logger.info(
+                    f"WebSocket client disconnected normally (code={e.code})",
+                    extra={
+                        "connection_id": connection_id,
+                        "disconnect_code": e.code,
+                        "disconnect_reason": getattr(e, "reason", None),
+                    },
+                )
                 break
             except Exception:
                 # Check if the connection is still open
                 if websocket.client_state == WebSocketState.DISCONNECTED:
-                    logger.info("WebSocket client disconnected")
+                    logger.info(
+                        "WebSocket client disconnected unexpectedly",
+                        extra={"connection_id": connection_id},
+                    )
                     break
-                logger.error("Error receiving WebSocket message", exc_info=True)
+                logger.error(
+                    "Error receiving WebSocket message",
+                    exc_info=True,
+                    extra={"connection_id": connection_id},
+                )
+                # Attempt graceful close before breaking
+                try:
+                    if websocket.client_state == WebSocketState.CONNECTED:
+                        await websocket.close(code=1011, reason="Internal error")
+                except Exception:
+                    # Close may fail if connection is already broken, log at debug
+                    logger.debug(
+                        "Failed to close WebSocket gracefully (connection already broken)",
+                        extra={"connection_id": connection_id},
+                    )
                 break
 
-    except WebSocketDisconnect:
-        logger.info("WebSocket client disconnected during handshake")
+    except WebSocketDisconnect as e:
+        logger.info(
+            f"WebSocket client disconnected during handshake (code={e.code})",
+            extra={
+                "connection_id": connection_id,
+                "disconnect_code": e.code,
+                "disconnect_reason": getattr(e, "reason", None),
+            },
+        )
     except Exception:
-        logger.error("WebSocket error", exc_info=True)
+        logger.error(
+            "WebSocket error",
+            exc_info=True,
+            extra={"connection_id": connection_id},
+        )
     finally:
         # Stop heartbeat task
         heartbeat_stop.set()
@@ -411,7 +449,10 @@ async def websocket_events_endpoint(  # noqa: PLR0912
         subscription_manager.remove_connection(connection_id)
         # Clear connection_id context (NEM-1640)
         set_connection_id(None)
-        logger.info("WebSocket connection cleaned up")
+        logger.info(
+            "WebSocket connection cleaned up",
+            extra={"connection_id": connection_id},
+        )
 
 
 @router.websocket("/ws/system")
@@ -549,24 +590,62 @@ async def websocket_system_status(  # noqa: PLR0912
                     await handle_validated_message(websocket, message, connection_id)
 
             except TimeoutError:
-                logger.info(f"WebSocket idle timeout ({idle_timeout}s) - closing connection")
+                logger.info(
+                    f"WebSocket idle timeout ({idle_timeout}s) - closing connection",
+                    extra={"connection_id": connection_id, "timeout_seconds": idle_timeout},
+                )
                 await websocket.close(code=1000, reason="Idle timeout")
                 break
-            except WebSocketDisconnect:
-                logger.info("WebSocket client disconnected normally")
+            except WebSocketDisconnect as e:
+                logger.info(
+                    f"WebSocket client disconnected normally (code={e.code})",
+                    extra={
+                        "connection_id": connection_id,
+                        "disconnect_code": e.code,
+                        "disconnect_reason": getattr(e, "reason", None),
+                    },
+                )
                 break
             except Exception:
                 # Check if the connection is still open
                 if websocket.client_state == WebSocketState.DISCONNECTED:
-                    logger.info("WebSocket client disconnected")
+                    logger.info(
+                        "WebSocket client disconnected unexpectedly",
+                        extra={"connection_id": connection_id},
+                    )
                     break
-                logger.error("Error receiving WebSocket message", exc_info=True)
+                logger.error(
+                    "Error receiving WebSocket message",
+                    exc_info=True,
+                    extra={"connection_id": connection_id},
+                )
+                # Attempt graceful close before breaking
+                try:
+                    if websocket.client_state == WebSocketState.CONNECTED:
+                        await websocket.close(code=1011, reason="Internal error")
+                except Exception:
+                    # Close may fail if connection is already broken, log at debug
+                    logger.debug(
+                        "Failed to close WebSocket gracefully (connection already broken)",
+                        extra={"connection_id": connection_id},
+                    )
                 break
 
-    except WebSocketDisconnect:
-        logger.info("WebSocket client disconnected during handshake")
+    except WebSocketDisconnect as e:
+        logger.info(
+            f"WebSocket client disconnected during handshake (code={e.code})",
+            extra={
+                "connection_id": connection_id,
+                "disconnect_code": e.code,
+                "disconnect_reason": getattr(e, "reason", None),
+            },
+        )
     except Exception:
-        logger.error("WebSocket error", exc_info=True)
+        logger.error(
+            "WebSocket error",
+            exc_info=True,
+            extra={"connection_id": connection_id},
+        )
     finally:
         # Stop heartbeat task
         heartbeat_stop.set()
@@ -585,4 +664,7 @@ async def websocket_system_status(  # noqa: PLR0912
         subscription_manager.remove_connection(connection_id)
         # Clear connection_id context (NEM-1640)
         set_connection_id(None)
-        logger.info("WebSocket connection cleaned up")
+        logger.info(
+            "WebSocket connection cleaned up",
+            extra={"connection_id": connection_id},
+        )

@@ -20,9 +20,10 @@ Alert Instance Endpoints (NEM-1981):
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.exc import StaleDataError
 
 from backend.api.dependencies import (
     get_alert_rule_engine_dep,
@@ -49,7 +50,10 @@ from backend.models import AlertSeverity as ModelAlertSeverity
 from backend.models.alert import AlertStatusEnum
 from backend.services.alert_engine import AlertRuleEngine
 from backend.services.cache_service import CacheService
-from backend.services.event_broadcaster import EventBroadcaster
+from backend.services.event_broadcaster import (
+    EventBroadcaster,
+    broadcast_alert_with_retry_background,
+)
 
 logger = get_logger(__name__)
 
@@ -497,12 +501,15 @@ async def _get_alert_or_404(alert_id: str, db: AsyncSession) -> Alert:
     response_model=AlertResponse,
     responses={
         404: {"description": "Alert not found"},
-        409: {"description": "Alert cannot be acknowledged (wrong status)"},
+        409: {
+            "description": "Alert cannot be acknowledged (wrong status or concurrent modification)"
+        },
         500: {"description": "Internal server error"},
     },
 )
 async def acknowledge_alert(
     alert_id: str,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ) -> AlertResponse:
     """Acknowledge an alert.
@@ -510,8 +517,16 @@ async def acknowledge_alert(
     Marks an alert as acknowledged and broadcasts the state change via WebSocket.
     Only alerts with status PENDING or DELIVERED can be acknowledged.
 
+    Uses optimistic locking to prevent race conditions when multiple requests
+    attempt to modify the same alert concurrently. If a concurrent modification
+    is detected, returns HTTP 409 Conflict.
+
+    NEM-2582: WebSocket broadcast now uses background task with retry logic
+    to ensure delivery without blocking the main request.
+
     Args:
         alert_id: Alert UUID
+        background_tasks: FastAPI background tasks for non-blocking broadcast
         db: Database session
 
     Returns:
@@ -519,6 +534,7 @@ async def acknowledge_alert(
 
     Raises:
         HTTPException: 404 if alert not found, 409 if alert cannot be acknowledged
+                      or if concurrent modification detected
     """
     alert = await _get_alert_or_404(alert_id, db)
 
@@ -529,21 +545,34 @@ async def acknowledge_alert(
             detail=f"Alert cannot be acknowledged. Current status: {alert.status.value}",
         )
 
-    # Update alert status
+    # Update alert status with optimistic locking (NEM-2581)
     alert.status = AlertStatusEnum.ACKNOWLEDGED
-    await db.commit()
+    try:
+        await db.commit()
+    except StaleDataError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Alert was modified by another request. Please refresh and retry.",
+        ) from None
     await db.refresh(alert)
 
-    # Broadcast WebSocket event
+    # Broadcast WebSocket event with retry in background (NEM-2582)
+    # This ensures the main request returns immediately while broadcast retries continue
     try:
         broadcaster = EventBroadcaster.get_instance()
-        await broadcaster.broadcast_alert(
-            _alert_to_websocket_data(alert),
+        alert_data = _alert_to_websocket_data(alert)
+        background_tasks.add_task(
+            broadcast_alert_with_retry_background,
+            broadcaster,
+            alert_data,
             WebSocketAlertEventType.ALERT_ACKNOWLEDGED,
+            max_retries=3,
+            metrics=broadcaster.broadcast_metrics,
         )
-    except Exception as e:
-        # Log but don't fail the request if broadcast fails
-        logger.warning(f"Failed to broadcast alert acknowledgment: {e}")
+    except RuntimeError as e:
+        # Log if broadcaster not initialized, but don't fail the request
+        logger.warning(f"Failed to schedule alert broadcast: {e}")
 
     return AlertResponse(**_alert_to_response_dict(alert))
 
@@ -553,12 +582,13 @@ async def acknowledge_alert(
     response_model=AlertResponse,
     responses={
         404: {"description": "Alert not found"},
-        409: {"description": "Alert cannot be dismissed (wrong status)"},
+        409: {"description": "Alert cannot be dismissed (wrong status or concurrent modification)"},
         500: {"description": "Internal server error"},
     },
 )
 async def dismiss_alert(
     alert_id: str,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ) -> AlertResponse:
     """Dismiss an alert.
@@ -566,8 +596,16 @@ async def dismiss_alert(
     Marks an alert as dismissed and broadcasts the state change via WebSocket.
     Only alerts with status PENDING, DELIVERED, or ACKNOWLEDGED can be dismissed.
 
+    Uses optimistic locking to prevent race conditions when multiple requests
+    attempt to modify the same alert concurrently. If a concurrent modification
+    is detected, returns HTTP 409 Conflict.
+
+    NEM-2582: WebSocket broadcast now uses background task with retry logic
+    to ensure delivery without blocking the main request.
+
     Args:
         alert_id: Alert UUID
+        background_tasks: FastAPI background tasks for non-blocking broadcast
         db: Database session
 
     Returns:
@@ -575,6 +613,7 @@ async def dismiss_alert(
 
     Raises:
         HTTPException: 404 if alert not found, 409 if alert cannot be dismissed
+                      or if concurrent modification detected
     """
     alert = await _get_alert_or_404(alert_id, db)
 
@@ -585,20 +624,33 @@ async def dismiss_alert(
             detail="Alert is already dismissed",
         )
 
-    # Update alert status
+    # Update alert status with optimistic locking (NEM-2581)
     alert.status = AlertStatusEnum.DISMISSED
-    await db.commit()
+    try:
+        await db.commit()
+    except StaleDataError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Alert was modified by another request. Please refresh and retry.",
+        ) from None
     await db.refresh(alert)
 
-    # Broadcast WebSocket event
+    # Broadcast WebSocket event with retry in background (NEM-2582)
+    # This ensures the main request returns immediately while broadcast retries continue
     try:
         broadcaster = EventBroadcaster.get_instance()
-        await broadcaster.broadcast_alert(
-            _alert_to_websocket_data(alert),
+        alert_data = _alert_to_websocket_data(alert)
+        background_tasks.add_task(
+            broadcast_alert_with_retry_background,
+            broadcaster,
+            alert_data,
             WebSocketAlertEventType.ALERT_DISMISSED,
+            max_retries=3,
+            metrics=broadcaster.broadcast_metrics,
         )
-    except Exception as e:
-        # Log but don't fail the request if broadcast fails
-        logger.warning(f"Failed to broadcast alert dismissal: {e}")
+    except RuntimeError as e:
+        # Log if broadcaster not initialized, but don't fail the request
+        logger.warning(f"Failed to schedule alert broadcast: {e}")
 
     return AlertResponse(**_alert_to_response_dict(alert))

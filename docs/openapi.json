@@ -2476,7 +2476,7 @@
         "type": "object"
       },
       "CameraCreate": {
-        "description": "Schema for creating a new camera.",
+        "description": "Schema for creating a new camera.\n\nNEM-2569: Enhanced with explicit Pydantic validators for:\n- Name: Control character rejection, whitespace stripping, empty validation\n- Folder path: Path traversal prevention, forbidden character rejection",
         "example": {
           "folder_path": "/export/foscam/front_door",
           "name": "Front Door Camera",
@@ -2822,7 +2822,7 @@
         "type": "string"
       },
       "CameraUpdate": {
-        "description": "Schema for updating an existing camera.",
+        "description": "Schema for updating an existing camera.\n\nNEM-2569: Enhanced with explicit Pydantic validators for partial updates.\nAll fields are optional; only provided fields are validated.",
         "example": {
           "name": "Front Door Camera - Updated",
           "status": "offline"
@@ -20722,7 +20722,7 @@
     },
     "/api/alerts/{alert_id}/acknowledge": {
       "post": {
-        "description": "Acknowledge an alert.\n\nMarks an alert as acknowledged and broadcasts the state change via WebSocket.\nOnly alerts with status PENDING or DELIVERED can be acknowledged.\n\nArgs:\n    alert_id: Alert UUID\n    db: Database session\n\nReturns:\n    Updated AlertResponse\n\nRaises:\n    HTTPException: 404 if alert not found, 409 if alert cannot be acknowledged",
+        "description": "Acknowledge an alert.\n\nMarks an alert as acknowledged and broadcasts the state change via WebSocket.\nOnly alerts with status PENDING or DELIVERED can be acknowledged.\n\nUses optimistic locking to prevent race conditions when multiple requests\nattempt to modify the same alert concurrently. If a concurrent modification\nis detected, returns HTTP 409 Conflict.\n\nNEM-2582: WebSocket broadcast now uses background task with retry logic\nto ensure delivery without blocking the main request.\n\nArgs:\n    alert_id: Alert UUID\n    background_tasks: FastAPI background tasks for non-blocking broadcast\n    db: Database session\n\nReturns:\n    Updated AlertResponse\n\nRaises:\n    HTTPException: 404 if alert not found, 409 if alert cannot be acknowledged\n                  or if concurrent modification detected",
         "operationId": "acknowledge_alert_api_alerts__alert_id__acknowledge_post",
         "parameters": [
           {
@@ -20750,7 +20750,7 @@
             "description": "Alert not found"
           },
           "409": {
-            "description": "Alert cannot be acknowledged (wrong status)"
+            "description": "Alert cannot be acknowledged (wrong status or concurrent modification)"
           },
           "422": {
             "content": {
@@ -20774,7 +20774,7 @@
     },
     "/api/alerts/{alert_id}/dismiss": {
       "post": {
-        "description": "Dismiss an alert.\n\nMarks an alert as dismissed and broadcasts the state change via WebSocket.\nOnly alerts with status PENDING, DELIVERED, or ACKNOWLEDGED can be dismissed.\n\nArgs:\n    alert_id: Alert UUID\n    db: Database session\n\nReturns:\n    Updated AlertResponse\n\nRaises:\n    HTTPException: 404 if alert not found, 409 if alert cannot be dismissed",
+        "description": "Dismiss an alert.\n\nMarks an alert as dismissed and broadcasts the state change via WebSocket.\nOnly alerts with status PENDING, DELIVERED, or ACKNOWLEDGED can be dismissed.\n\nUses optimistic locking to prevent race conditions when multiple requests\nattempt to modify the same alert concurrently. If a concurrent modification\nis detected, returns HTTP 409 Conflict.\n\nNEM-2582: WebSocket broadcast now uses background task with retry logic\nto ensure delivery without blocking the main request.\n\nArgs:\n    alert_id: Alert UUID\n    background_tasks: FastAPI background tasks for non-blocking broadcast\n    db: Database session\n\nReturns:\n    Updated AlertResponse\n\nRaises:\n    HTTPException: 404 if alert not found, 409 if alert cannot be dismissed\n                  or if concurrent modification detected",
         "operationId": "dismiss_alert_api_alerts__alert_id__dismiss_post",
         "parameters": [
           {
@@ -20802,7 +20802,7 @@
             "description": "Alert not found"
           },
           "409": {
-            "description": "Alert cannot be dismissed (wrong status)"
+            "description": "Alert cannot be dismissed (wrong status or concurrent modification)"
           },
           "422": {
             "content": {

@@ -897,8 +897,16 @@ export interface paths {
          *     Marks an alert as acknowledged and broadcasts the state change via WebSocket.
          *     Only alerts with status PENDING or DELIVERED can be acknowledged.
          *
+         *     Uses optimistic locking to prevent race conditions when multiple requests
+         *     attempt to modify the same alert concurrently. If a concurrent modification
+         *     is detected, returns HTTP 409 Conflict.
+         *
+         *     NEM-2582: WebSocket broadcast now uses background task with retry logic
+         *     to ensure delivery without blocking the main request.
+         *
          *     Args:
          *         alert_id: Alert UUID
+         *         background_tasks: FastAPI background tasks for non-blocking broadcast
          *         db: Database session
          *
          *     Returns:
@@ -906,6 +914,7 @@ export interface paths {
          *
          *     Raises:
          *         HTTPException: 404 if alert not found, 409 if alert cannot be acknowledged
+         *                       or if concurrent modification detected
          */
         post: operations["acknowledge_alert_api_alerts__alert_id__acknowledge_post"];
         delete?: never;
@@ -930,8 +939,16 @@ export interface paths {
          *     Marks an alert as dismissed and broadcasts the state change via WebSocket.
          *     Only alerts with status PENDING, DELIVERED, or ACKNOWLEDGED can be dismissed.
          *
+         *     Uses optimistic locking to prevent race conditions when multiple requests
+         *     attempt to modify the same alert concurrently. If a concurrent modification
+         *     is detected, returns HTTP 409 Conflict.
+         *
+         *     NEM-2582: WebSocket broadcast now uses background task with retry logic
+         *     to ensure delivery without blocking the main request.
+         *
          *     Args:
          *         alert_id: Alert UUID
+         *         background_tasks: FastAPI background tasks for non-blocking broadcast
          *         db: Database session
          *
          *     Returns:
@@ -939,6 +956,7 @@ export interface paths {
          *
          *     Raises:
          *         HTTPException: 404 if alert not found, 409 if alert cannot be dismissed
+         *                       or if concurrent modification detected
          */
         post: operations["dismiss_alert_api_alerts__alert_id__dismiss_post"];
         delete?: never;
@@ -7702,6 +7720,10 @@ export interface components {
         /**
          * CameraCreate
          * @description Schema for creating a new camera.
+         *
+         *     NEM-2569: Enhanced with explicit Pydantic validators for:
+         *     - Name: Control character rejection, whitespace stripping, empty validation
+         *     - Folder path: Path traversal prevention, forbidden character rejection
          * @example {
          *       "folder_path": "/export/foscam/front_door",
          *       "name": "Front Door Camera",
@@ -7966,6 +7988,9 @@ export interface components {
         /**
          * CameraUpdate
          * @description Schema for updating an existing camera.
+         *
+         *     NEM-2569: Enhanced with explicit Pydantic validators for partial updates.
+         *     All fields are optional; only provided fields are validated.
          * @example {
          *       "name": "Front Door Camera - Updated",
          *       "status": "offline"
@@ -20786,7 +20811,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Alert cannot be acknowledged (wrong status) */
+            /** @description Alert cannot be acknowledged (wrong status or concurrent modification) */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -20838,7 +20863,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Alert cannot be dismissed (wrong status) */
+            /** @description Alert cannot be dismissed (wrong status or concurrent modification) */
             409: {
                 headers: {
                     [name: string]: unknown;

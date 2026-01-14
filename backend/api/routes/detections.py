@@ -964,7 +964,8 @@ async def _get_full_image_for_video(
         Response with the extracted frame as JPEG
 
     Raises:
-        HTTPException: 500 if frame extraction fails
+        HTTPException: 404 if video not found, 403 if permission denied,
+                      500 for I/O errors, extraction failures, or unexpected errors
     """
     try:
         # Extract frame at original resolution (no size constraint)
@@ -991,7 +992,25 @@ async def _get_full_image_for_video(
         )
     except HTTPException:
         raise
+    except FileNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Video file not found: {Path(video_path).name}",
+        ) from e
+    except PermissionError as e:
+        logger.warning(f"Permission denied reading video: {video_path}")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Permission denied accessing video file",
+        ) from e
+    except OSError as e:
+        logger.error(f"I/O error extracting frame from video {video_path}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="I/O error extracting frame from video",
+        ) from e
     except Exception as e:
+        logger.warning(f"Unexpected error extracting frame from video {video_path}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to extract frame from video: {e!s}",
@@ -1008,7 +1027,8 @@ def _get_full_image_for_image(file_path: str) -> Response:
         Response with the image as JPEG
 
     Raises:
-        HTTPException: 500 if file read fails
+        HTTPException: 404 if file not found, 403 if permission denied,
+                      500 for I/O errors or unexpected failures
     """
     try:
         # nosemgrep: path-traversal-open - file_path from database, not user input
@@ -1020,7 +1040,25 @@ def _get_full_image_for_image(file_path: str) -> Response:
             media_type="image/jpeg",
             headers={"Cache-Control": "public, max-age=3600"},
         )
+    except FileNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Source image not found: {Path(file_path).name}",
+        ) from e
+    except PermissionError as e:
+        logger.warning(f"Permission denied reading image: {file_path}")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Permission denied accessing source image",
+        ) from e
+    except OSError as e:
+        logger.error(f"I/O error reading image {file_path}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="I/O error reading source image",
+        ) from e
     except Exception as e:
+        logger.warning(f"Unexpected error reading image {file_path}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to read source image: {e!s}",
@@ -1175,7 +1213,25 @@ async def get_detection_image(
             media_type="image/jpeg",
             headers={"Cache-Control": "public, max-age=3600"},
         )
+    except FileNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Thumbnail image not found: {Path(thumbnail_path).name}",
+        ) from e
+    except PermissionError as e:
+        logger.warning(f"Permission denied reading thumbnail: {thumbnail_path}")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Permission denied accessing thumbnail image",
+        ) from e
+    except OSError as e:
+        logger.error(f"I/O error reading thumbnail {thumbnail_path}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="I/O error reading thumbnail image",
+        ) from e
     except Exception as e:
+        logger.warning(f"Unexpected error reading thumbnail {thumbnail_path}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to read thumbnail image: {e!s}",
@@ -1442,7 +1498,25 @@ async def get_video_thumbnail(
                 "Cache-Control": "public, max-age=3600",  # Cache for 1 hour
             },
         )
+    except FileNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Video thumbnail not found: {Path(thumbnail_path).name}",
+        ) from e
+    except PermissionError as e:
+        logger.warning(f"Permission denied reading video thumbnail: {thumbnail_path}")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Permission denied accessing video thumbnail",
+        ) from e
+    except OSError as e:
+        logger.error(f"I/O error reading video thumbnail {thumbnail_path}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="I/O error reading video thumbnail",
+        ) from e
     except Exception as e:
+        logger.warning(f"Unexpected error reading video thumbnail {thumbnail_path}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to read video thumbnail: {e!s}",

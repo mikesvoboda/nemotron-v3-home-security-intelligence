@@ -9,8 +9,11 @@ Tests cover:
 - POST   /api/alerts/rules/{rule_id}/test - Test rule against historical events
 """
 
+from __future__ import annotations
+
 import uuid
 from datetime import datetime
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -18,6 +21,9 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from backend.api.routes.alerts import _apply_rule_updates, _rule_to_response, router
+
+if TYPE_CHECKING:
+    from backend.models import Alert
 from backend.api.schemas.alerts import (
     AlertRuleConditions,
     AlertRuleSchedule,
@@ -771,3 +777,257 @@ class TestCacheInvalidation:
         response = client_with_cache.post("/api/alerts/rules", json=rule_data)
 
         assert response.status_code == 201
+
+
+# =============================================================================
+# Alert Instance Tests (NEM-1981, NEM-2581)
+# =============================================================================
+
+
+class TestAlertInstanceEndpoints:
+    """Tests for alert instance acknowledge/dismiss endpoints."""
+
+    @pytest.fixture
+    def alert_client(self, mock_db_session: AsyncMock) -> TestClient:
+        """Create a test client with mocked dependencies for alert instance endpoints."""
+        from backend.api.routes.alerts import alerts_instance_router
+
+        app = FastAPI()
+        app.include_router(alerts_instance_router)
+
+        async def override_get_db():
+            yield mock_db_session
+
+        app.dependency_overrides[get_db] = override_get_db
+
+        with TestClient(app) as test_client:
+            yield test_client
+
+    @pytest.fixture
+    def sample_alert(self) -> Alert:
+        """Create a sample alert for testing."""
+        from backend.models import Alert
+        from backend.models.alert import AlertSeverityEnum, AlertStatusEnum
+
+        return Alert(
+            id=str(uuid.uuid4()),
+            event_id=1,
+            rule_id=str(uuid.uuid4()),
+            severity=AlertSeverityEnum.HIGH,
+            status=AlertStatusEnum.PENDING,
+            dedup_key="test:dedup:key",
+            channels=["push"],
+            alert_metadata={"test": "data"},
+            created_at=datetime(2025, 12, 23, 10, 0, 0),
+            updated_at=datetime(2025, 12, 23, 10, 0, 0),
+            version_id=1,
+        )
+
+    def test_acknowledge_alert_success(
+        self, alert_client: TestClient, mock_db_session: AsyncMock, sample_alert: Alert
+    ) -> None:
+        """Test successful alert acknowledgment."""
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = sample_alert
+        mock_db_session.execute.return_value = mock_result
+
+        response = alert_client.post(f"/api/alerts/{sample_alert.id}/acknowledge")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "acknowledged"
+
+    def test_acknowledge_alert_not_found(
+        self, alert_client: TestClient, mock_db_session: AsyncMock
+    ) -> None:
+        """Test acknowledge non-existent alert returns 404."""
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_db_session.execute.return_value = mock_result
+
+        fake_id = str(uuid.uuid4())
+        response = alert_client.post(f"/api/alerts/{fake_id}/acknowledge")
+
+        assert response.status_code == 404
+
+    def test_acknowledge_alert_wrong_status(
+        self, alert_client: TestClient, mock_db_session: AsyncMock, sample_alert: Alert
+    ) -> None:
+        """Test acknowledge alert with wrong status returns 409."""
+        from backend.models.alert import AlertStatusEnum
+
+        sample_alert.status = AlertStatusEnum.DISMISSED
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = sample_alert
+        mock_db_session.execute.return_value = mock_result
+
+        response = alert_client.post(f"/api/alerts/{sample_alert.id}/acknowledge")
+
+        assert response.status_code == 409
+        data = response.json()
+        assert "cannot be acknowledged" in data["detail"].lower()
+
+    def test_dismiss_alert_success(
+        self, alert_client: TestClient, mock_db_session: AsyncMock, sample_alert: Alert
+    ) -> None:
+        """Test successful alert dismissal."""
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = sample_alert
+        mock_db_session.execute.return_value = mock_result
+
+        response = alert_client.post(f"/api/alerts/{sample_alert.id}/dismiss")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "dismissed"
+
+    def test_dismiss_alert_not_found(
+        self, alert_client: TestClient, mock_db_session: AsyncMock
+    ) -> None:
+        """Test dismiss non-existent alert returns 404."""
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_db_session.execute.return_value = mock_result
+
+        fake_id = str(uuid.uuid4())
+        response = alert_client.post(f"/api/alerts/{fake_id}/dismiss")
+
+        assert response.status_code == 404
+
+    def test_dismiss_already_dismissed_alert(
+        self, alert_client: TestClient, mock_db_session: AsyncMock, sample_alert: Alert
+    ) -> None:
+        """Test dismiss already dismissed alert returns 409."""
+        from backend.models.alert import AlertStatusEnum
+
+        sample_alert.status = AlertStatusEnum.DISMISSED
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = sample_alert
+        mock_db_session.execute.return_value = mock_result
+
+        response = alert_client.post(f"/api/alerts/{sample_alert.id}/dismiss")
+
+        assert response.status_code == 409
+        data = response.json()
+        assert "already dismissed" in data["detail"].lower()
+
+
+# =============================================================================
+# Optimistic Locking Tests (NEM-2581)
+# =============================================================================
+
+
+class TestOptimisticLocking:
+    """Tests for optimistic locking on alert state changes."""
+
+    @pytest.fixture
+    def alert_client(self, mock_db_session: AsyncMock) -> TestClient:
+        """Create a test client with mocked dependencies for alert instance endpoints."""
+        from backend.api.routes.alerts import alerts_instance_router
+
+        app = FastAPI()
+        app.include_router(alerts_instance_router)
+
+        async def override_get_db():
+            yield mock_db_session
+
+        app.dependency_overrides[get_db] = override_get_db
+
+        with TestClient(app) as test_client:
+            yield test_client
+
+    @pytest.fixture
+    def sample_alert(self) -> Alert:
+        """Create a sample alert for testing."""
+        from backend.models import Alert
+        from backend.models.alert import AlertSeverityEnum, AlertStatusEnum
+
+        return Alert(
+            id=str(uuid.uuid4()),
+            event_id=1,
+            rule_id=str(uuid.uuid4()),
+            severity=AlertSeverityEnum.HIGH,
+            status=AlertStatusEnum.PENDING,
+            dedup_key="test:dedup:key",
+            channels=["push"],
+            alert_metadata={"test": "data"},
+            created_at=datetime(2025, 12, 23, 10, 0, 0),
+            updated_at=datetime(2025, 12, 23, 10, 0, 0),
+            version_id=1,
+        )
+
+    def test_acknowledge_concurrent_modification_returns_409(
+        self, alert_client: TestClient, mock_db_session: AsyncMock, sample_alert: Alert
+    ) -> None:
+        """Test concurrent modification during acknowledge returns 409 Conflict."""
+        from sqlalchemy.orm.exc import StaleDataError
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = sample_alert
+        mock_db_session.execute.return_value = mock_result
+
+        # Simulate concurrent modification by raising StaleDataError on commit
+        mock_db_session.commit.side_effect = StaleDataError(
+            "UPDATE statement on table 'alerts' expected to update 1 row(s); 0 were matched."
+        )
+
+        response = alert_client.post(f"/api/alerts/{sample_alert.id}/acknowledge")
+
+        assert response.status_code == 409
+        data = response.json()
+        assert "modified by another request" in data["detail"].lower()
+        mock_db_session.rollback.assert_called_once()
+
+    def test_dismiss_concurrent_modification_returns_409(
+        self, alert_client: TestClient, mock_db_session: AsyncMock, sample_alert: Alert
+    ) -> None:
+        """Test concurrent modification during dismiss returns 409 Conflict."""
+        from sqlalchemy.orm.exc import StaleDataError
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = sample_alert
+        mock_db_session.execute.return_value = mock_result
+
+        # Simulate concurrent modification by raising StaleDataError on commit
+        mock_db_session.commit.side_effect = StaleDataError(
+            "UPDATE statement on table 'alerts' expected to update 1 row(s); 0 were matched."
+        )
+
+        response = alert_client.post(f"/api/alerts/{sample_alert.id}/dismiss")
+
+        assert response.status_code == 409
+        data = response.json()
+        assert "modified by another request" in data["detail"].lower()
+        mock_db_session.rollback.assert_called_once()
+
+    def test_acknowledge_success_without_concurrent_modification(
+        self, alert_client: TestClient, mock_db_session: AsyncMock, sample_alert: Alert
+    ) -> None:
+        """Test successful acknowledge when no concurrent modification."""
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = sample_alert
+        mock_db_session.execute.return_value = mock_result
+
+        # Commit succeeds (no concurrent modification)
+        mock_db_session.commit.side_effect = None
+
+        response = alert_client.post(f"/api/alerts/{sample_alert.id}/acknowledge")
+
+        assert response.status_code == 200
+        mock_db_session.rollback.assert_not_called()
+
+    def test_dismiss_success_without_concurrent_modification(
+        self, alert_client: TestClient, mock_db_session: AsyncMock, sample_alert: Alert
+    ) -> None:
+        """Test successful dismiss when no concurrent modification."""
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = sample_alert
+        mock_db_session.execute.return_value = mock_result
+
+        # Commit succeeds (no concurrent modification)
+        mock_db_session.commit.side_effect = None
+
+        response = alert_client.post(f"/api/alerts/{sample_alert.id}/dismiss")
+
+        assert response.status_code == 200
+        mock_db_session.rollback.assert_not_called()

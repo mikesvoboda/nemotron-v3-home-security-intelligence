@@ -44,6 +44,7 @@ class MockEventBroadcaster:
     - broadcast_detection_new(detection_data) -> int (NEM-2506)
     - broadcast_detection_batch(batch_data) -> int (NEM-2506)
     - get_circuit_state() -> str
+    - get_broadcast_metrics() -> dict (NEM-2984)
     - get_instance() -> EventBroadcaster (class method)
     """
 
@@ -176,6 +177,15 @@ class MockEventBroadcaster:
         """
         # Mock implementation returns empty list
         return []
+
+    def get_broadcast_metrics(self) -> dict[str, Any]:
+        """Get broadcast retry metrics as a dictionary.
+
+        Returns:
+            Dictionary with broadcast metrics for monitoring/logging
+        """
+        # Mock implementation returns empty metrics
+        return {}
 
     def record_ack(self, websocket: Any, sequence: int) -> None:
         """Record a client's acknowledgment of a sequence number.

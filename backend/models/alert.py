@@ -122,6 +122,10 @@ class Alert(Base):
     # Note: Named alert_metadata to avoid collision with SQLAlchemy's reserved 'metadata'
     alert_metadata: Mapped[dict | None] = mapped_column("metadata", JSON, nullable=True)
 
+    # Optimistic locking version column (NEM-2581)
+    # Prevents race conditions during concurrent acknowledge/dismiss operations
+    version_id: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+
     # Relationships
     event: Mapped[Event] = relationship("Event", back_populates="alerts")
     rule: Mapped[AlertRule | None] = relationship("AlertRule", back_populates="alerts")
@@ -139,6 +143,11 @@ class Alert(Base):
         Index("idx_alerts_delivered_at", "delivered_at"),
         Index("idx_alerts_event_rule_delivered", "event_id", "rule_id", "delivered_at"),
     )
+
+    # Enable optimistic locking - SQLAlchemy will automatically increment version_id
+    # on updates and raise StaleDataError if version doesn't match (NEM-2581)
+    # Note: SQLAlchemy mapper_args is a special class attribute that doesn't use ClassVar
+    __mapper_args__ = {"version_id_col": version_id}  # noqa: RUF012  # type: ignore[misc]
 
     def __repr__(self) -> str:
         return (

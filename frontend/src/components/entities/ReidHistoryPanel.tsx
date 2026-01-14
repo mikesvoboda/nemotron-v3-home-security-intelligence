@@ -6,6 +6,7 @@ import {
   type EntityAppearance,
   type EntityHistoryResponse,
 } from '../../services/api';
+import SafeErrorMessage from '../common/SafeErrorMessage';
 
 export interface ReidHistoryPanelProps {
   /** Entity ID to display history for */
@@ -158,7 +159,7 @@ export default function ReidHistoryPanel({
       >
         <div className="flex flex-col items-center gap-3 text-center">
           <AlertCircle className="h-8 w-8 text-red-500" />
-          <p className="text-red-400">{error}</p>
+          <SafeErrorMessage message={error} />
           <button
             onClick={() => void loadHistory()}
             className="mt-2 rounded-lg bg-gray-800 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"
