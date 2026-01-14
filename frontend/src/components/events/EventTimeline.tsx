@@ -29,7 +29,7 @@ import { countBy } from '../../utils/groupBy';
 import { pipe, getSortTransform, type SortOption } from '../../utils/pipeline';
 import { getRiskLevel } from '../../utils/risk';
 import { parseEventId } from '../../utils/validation';
-import { EmptyState, EventCardSkeleton, InfiniteScrollStatus } from '../common';
+import { EmptyState, EventCardSkeleton, InfiniteScrollStatus, SafeErrorMessage } from '../common';
 import RiskBadge from '../common/RiskBadge';
 import { type ActivityEvent } from '../dashboard/ActivityFeed';
 import { SearchBar, SearchResultsPanel } from '../search';
@@ -985,7 +985,7 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
             <div className="flex min-h-[400px] items-center justify-center rounded-lg border border-red-900/50 bg-red-950/20">
               <div className="text-center">
                 <p className="mb-2 text-lg font-semibold text-red-400">Error Loading Events</p>
-                <p className="text-sm text-gray-400">{error}</p>
+                <SafeErrorMessage message={error} size="sm" color="gray" />
               </div>
             </div>
           ) : filteredEvents.length === 0 ? (

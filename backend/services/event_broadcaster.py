@@ -2,6 +2,9 @@
 
 This service manages WebSocket connections and broadcasts security events
 to all connected clients using Redis pub/sub as the event backbone.
+
+NEM-2582: Added retry mechanism for failed WebSocket broadcasts with exponential
+backoff and comprehensive logging/metrics.
 """
 
 from __future__ import annotations
@@ -12,6 +15,8 @@ import json
 import random
 import threading
 from collections import deque
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from fastapi import WebSocket
@@ -55,6 +60,230 @@ logger = get_logger(__name__)
 
 # Buffer size for message replay on reconnection (NEM-1688)
 MESSAGE_BUFFER_SIZE = 100
+
+# Default retry configuration (NEM-2582)
+DEFAULT_MAX_RETRIES = 3
+DEFAULT_BASE_DELAY = 1.0  # seconds
+DEFAULT_MAX_DELAY = 30.0  # seconds
+
+# Type parameter T is defined inline with PEP 695 syntax on broadcast_with_retry
+
+
+@dataclass
+class BroadcastRetryMetrics:
+    """Metrics for tracking broadcast retry behavior (NEM-2582).
+
+    Tracks success/failure counts and retry statistics to help diagnose
+    broadcast reliability issues.
+
+    Attributes:
+        total_attempts: Total number of broadcast attempts (including retries)
+        successful_broadcasts: Number of broadcasts that eventually succeeded
+        failed_broadcasts: Number of broadcasts that failed after all retries
+        retries_exhausted: Number of times all retry attempts were exhausted
+        retry_counts: Count of broadcasts by number of retries needed (0 = first try success)
+    """
+
+    total_attempts: int = 0
+    successful_broadcasts: int = 0
+    failed_broadcasts: int = 0
+    retries_exhausted: int = 0
+    retry_counts: dict[int, int] = field(default_factory=lambda: {0: 0, 1: 0, 2: 0, 3: 0})
+
+    def record_success(self, attempts: int) -> None:
+        """Record a successful broadcast.
+
+        Args:
+            attempts: Number of attempts it took (1 = first try success)
+        """
+        self.total_attempts += attempts
+        self.successful_broadcasts += 1
+        # Track how many retries were needed (0-indexed)
+        retry_count = attempts - 1
+        if retry_count in self.retry_counts:
+            self.retry_counts[retry_count] += 1
+        else:
+            self.retry_counts[retry_count] = 1
+
+    def record_failure(self, attempts: int) -> None:
+        """Record a failed broadcast after all retries exhausted.
+
+        Args:
+            attempts: Total number of attempts made
+        """
+        self.total_attempts += attempts
+        self.failed_broadcasts += 1
+        self.retries_exhausted += 1
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert metrics to dictionary for logging/monitoring.
+
+        Returns:
+            Dictionary with all metric values
+        """
+        return {
+            "total_attempts": self.total_attempts,
+            "successful_broadcasts": self.successful_broadcasts,
+            "failed_broadcasts": self.failed_broadcasts,
+            "retries_exhausted": self.retries_exhausted,
+            "retry_counts": self.retry_counts,
+            "success_rate": (
+                self.successful_broadcasts / (self.successful_broadcasts + self.failed_broadcasts)
+                if (self.successful_broadcasts + self.failed_broadcasts) > 0
+                else 0.0
+            ),
+        }
+
+
+async def broadcast_with_retry[T](
+    broadcast_func: Callable[[], Awaitable[T]],
+    message_type: str,
+    *,
+    max_retries: int = DEFAULT_MAX_RETRIES,
+    base_delay: float = DEFAULT_BASE_DELAY,
+    max_delay: float = DEFAULT_MAX_DELAY,
+    metrics: BroadcastRetryMetrics | None = None,
+) -> T:
+    """Execute a broadcast function with retry logic and exponential backoff.
+
+    This function wraps any broadcast operation with retry logic that:
+    - Uses exponential backoff (1s, 2s, 4s, etc.) with jitter
+    - Logs each retry attempt with context
+    - Records metrics for monitoring
+    - Raises the final exception if all retries are exhausted
+
+    Args:
+        broadcast_func: Async callable that performs the broadcast
+        message_type: Description of the message type for logging
+        max_retries: Maximum number of retry attempts (default: 3)
+        base_delay: Base delay in seconds for exponential backoff (default: 1.0)
+        max_delay: Maximum delay cap in seconds (default: 30.0)
+        metrics: Optional BroadcastRetryMetrics instance for tracking
+
+    Returns:
+        The result of the broadcast function
+
+    Raises:
+        Exception: The last exception raised if all retries are exhausted
+
+    Example:
+        >>> result = await broadcast_with_retry(
+        ...     lambda: broadcaster.broadcast_alert(data, event_type),
+        ...     message_type="alert_acknowledged",
+        ...     max_retries=3,
+        ... )
+    """
+    last_exception: Exception | None = None
+
+    for attempt in range(max_retries + 1):  # +1 for initial attempt
+        try:
+            result = await broadcast_func()
+
+            # Record success with attempt count
+            if metrics is not None:
+                metrics.record_success(attempt + 1)
+
+            if attempt > 0:
+                logger.info(
+                    f"Broadcast succeeded on retry attempt {attempt} for {message_type}",
+                    extra={"message_type": message_type, "attempt": attempt + 1},
+                )
+
+            return result
+
+        except Exception as e:
+            last_exception = e
+
+            if attempt < max_retries:
+                # Calculate exponential backoff with jitter
+                # Using random.uniform for timing jitter - not cryptographic
+                delay = min(base_delay * (2**attempt), max_delay)
+                jitter = delay * random.uniform(0.1, 0.3)  # noqa: S311
+                total_delay = delay + jitter
+
+                logger.warning(
+                    f"Broadcast failed for {message_type}, retrying in {total_delay:.2f}s "
+                    f"(attempt {attempt + 1}/{max_retries + 1}): {e}",
+                    extra={
+                        "message_type": message_type,
+                        "attempt": attempt + 1,
+                        "max_retries": max_retries + 1,
+                        "retry_delay": total_delay,
+                        "error": str(e),
+                    },
+                )
+
+                await asyncio.sleep(total_delay)
+            else:
+                # All retries exhausted
+                if metrics is not None:
+                    metrics.record_failure(attempt + 1)
+
+                logger.error(
+                    f"Broadcast failed after {max_retries + 1} attempts for {message_type}: {e}",
+                    extra={
+                        "message_type": message_type,
+                        "total_attempts": max_retries + 1,
+                        "error": str(e),
+                    },
+                    exc_info=True,
+                )
+
+    # This should only be reached if all retries failed
+    if last_exception is not None:
+        raise last_exception
+
+    # Type checker satisfaction - shouldn't reach here
+    raise RuntimeError("Unexpected state in broadcast_with_retry")  # pragma: no cover
+
+
+async def broadcast_alert_with_retry_background(
+    broadcaster: EventBroadcaster,
+    alert_data: dict[str, Any],
+    event_type: WebSocketAlertEventType,
+    *,
+    max_retries: int = DEFAULT_MAX_RETRIES,
+    metrics: BroadcastRetryMetrics | None = None,
+) -> None:
+    """Background task for broadcasting alerts with retry logic (NEM-2582).
+
+    This function is designed to be used with FastAPI's BackgroundTasks to
+    perform non-blocking broadcast retries. It does not raise exceptions on
+    failure - instead, it logs errors and records metrics.
+
+    Args:
+        broadcaster: EventBroadcaster instance
+        alert_data: Alert data to broadcast
+        event_type: Type of alert event
+        max_retries: Maximum number of retry attempts
+        metrics: Optional metrics instance for tracking
+
+    Example:
+        >>> from fastapi import BackgroundTasks
+        >>> background_tasks = BackgroundTasks()
+        >>> background_tasks.add_task(
+        ...     broadcast_alert_with_retry_background,
+        ...     broadcaster,
+        ...     alert_data,
+        ...     WebSocketAlertEventType.ALERT_ACKNOWLEDGED,
+        ... )
+    """
+    try:
+        await broadcast_with_retry(
+            lambda: broadcaster.broadcast_alert(alert_data, event_type),
+            message_type=f"alert_{event_type.value}",
+            max_retries=max_retries,
+            metrics=metrics,
+        )
+    except Exception as e:
+        # In background tasks, we don't want to raise - just log
+        logger.error(
+            f"Background broadcast failed permanently for alert {event_type.value}: {e}",
+            extra={
+                "event_type": event_type.value,
+                "alert_data": alert_data,
+            },
+        )
 
 
 def requires_ack(message: dict[str, Any]) -> bool:
@@ -163,6 +392,26 @@ class EventBroadcaster:
         self._sequence_counter = 0
         self._message_buffer: deque[dict[str, Any]] = deque(maxlen=self.MESSAGE_BUFFER_SIZE)
         self._client_acks: dict[WebSocket, int] = {}
+
+        # Broadcast retry metrics (NEM-2582)
+        self._broadcast_metrics = BroadcastRetryMetrics()
+
+    @property
+    def broadcast_metrics(self) -> BroadcastRetryMetrics:
+        """Get broadcast retry metrics instance.
+
+        Returns:
+            BroadcastRetryMetrics with current counters
+        """
+        return self._broadcast_metrics
+
+    def get_broadcast_metrics(self) -> dict[str, Any]:
+        """Get broadcast retry metrics as a dictionary.
+
+        Returns:
+            Dictionary with broadcast metrics for monitoring/logging
+        """
+        return self._broadcast_metrics.to_dict()
 
     @property
     def channel_name(self) -> str:

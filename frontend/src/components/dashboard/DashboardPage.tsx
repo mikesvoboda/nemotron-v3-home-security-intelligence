@@ -12,7 +12,7 @@ import {
   type Camera,
   type EventStatsResponse,
 } from '../../services/api';
-import { CameraCardSkeleton, StatsCardSkeleton, Skeleton } from '../common';
+import { CameraCardSkeleton, SafeErrorMessage, StatsCardSkeleton, Skeleton } from '../common';
 import ActivityFeed, { type ActivityEvent } from './ActivityFeed';
 import CameraGrid, { type CameraStatus } from './CameraGrid';
 import DashboardLayout from './DashboardLayout';
@@ -276,7 +276,7 @@ export default function DashboardPage() {
       <div className="flex min-h-screen items-center justify-center bg-[#121212] p-4 md:p-8">
         <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-6 text-center">
           <h2 className="mb-2 text-xl font-bold text-red-500">Error Loading Dashboard</h2>
-          <p className="text-sm text-gray-300">{error}</p>
+          <SafeErrorMessage message={error} size="sm" color="gray" />
           <button
             onClick={() => window.location.reload()}
             className="mt-4 rounded-md bg-red-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-800"

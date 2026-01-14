@@ -23,3 +23,8 @@ backend/api/routes/admin.py
 # Table names come from SQLAlchemy reflection (get_table_deletion_order), not user input
 # This is test infrastructure code, not production
 backend/tests/integration/conftest.py
+
+# Migration helpers - uses dynamic SQL for DDL operations (ALTER TABLE, DROP INDEX, etc.)
+# Table/column names validated via identifier pattern before execution
+# All inputs come from migration scripts (developer-controlled), not user input
+backend/alembic/helpers.py

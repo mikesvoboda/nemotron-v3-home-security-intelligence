@@ -207,6 +207,40 @@ class TestPromptVersionModelInitialization:
         assert is_active_col.server_default is not None
         assert is_active_col.server_default.arg == "false"
 
+    def test_row_version_default_value(self):
+        """Test that row_version column has correct default of 1."""
+        from sqlalchemy import inspect
+
+        mapper = inspect(PromptVersion)
+        row_version_col = mapper.columns["row_version"]
+        assert row_version_col.default is not None
+        assert row_version_col.default.arg == 1
+
+    def test_row_version_server_default(self):
+        """Test that row_version column has server_default of 1."""
+        from sqlalchemy import inspect
+
+        mapper = inspect(PromptVersion)
+        row_version_col = mapper.columns["row_version"]
+        assert row_version_col.server_default is not None
+        assert row_version_col.server_default.arg == "1"
+
+    def test_row_version_not_nullable(self):
+        """Test that row_version column is not nullable."""
+        from sqlalchemy import inspect
+
+        mapper = inspect(PromptVersion)
+        row_version_col = mapper.columns["row_version"]
+        assert row_version_col.nullable is False
+
+    def test_row_version_is_integer(self):
+        """Test that row_version column is Integer type."""
+        from sqlalchemy import Integer, inspect
+
+        mapper = inspect(PromptVersion)
+        row_version_col = mapper.columns["row_version"]
+        assert isinstance(row_version_col.type, Integer)
+
     def test_prompt_version_with_timestamp(self):
         """Test prompt version with explicit created_at timestamp."""
         now = datetime.now(UTC)
@@ -312,6 +346,38 @@ class TestPromptVersionFields:
         )
         assert pv_active.is_active is True
         assert pv_inactive.is_active is False
+
+    def test_row_version_accepts_positive_integers(self):
+        """Test row_version field accepts positive integers."""
+        pv = PromptVersion(
+            model=AIModel.NEMOTRON,
+            version=1,
+            config_json="{}",
+            row_version=5,
+        )
+        assert pv.row_version == 5
+
+    def test_row_version_accepts_one(self):
+        """Test row_version field accepts 1 (minimum valid value)."""
+        pv = PromptVersion(
+            model=AIModel.NEMOTRON,
+            version=1,
+            config_json="{}",
+            row_version=1,
+        )
+        assert pv.row_version == 1
+
+    def test_row_version_for_optimistic_locking(self):
+        """Test row_version can be incremented for optimistic locking."""
+        pv = PromptVersion(
+            model=AIModel.NEMOTRON,
+            version=1,
+            config_json="{}",
+            row_version=1,
+        )
+        # Simulate incrementing row_version for optimistic locking
+        pv.row_version += 1
+        assert pv.row_version == 2
 
 
 # =============================================================================
@@ -687,6 +753,18 @@ class TestPromptVersionProperties:
             is_active=is_active,
         )
         assert pv.is_active == is_active
+
+    @given(row_version=st.integers(min_value=1, max_value=1000000))
+    @settings(max_examples=50)
+    def test_row_version_roundtrip(self, row_version: int):
+        """Property: row_version values roundtrip correctly."""
+        pv = PromptVersion(
+            model=AIModel.NEMOTRON,
+            version=1,
+            config_json="{}",
+            row_version=row_version,
+        )
+        assert pv.row_version == row_version
 
     @given(config=json_configs)
     @settings(max_examples=50)

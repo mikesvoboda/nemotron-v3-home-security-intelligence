@@ -125,3 +125,7 @@ export type { RateLimitIndicatorProps } from './RateLimitIndicator';
 
 export { default as ThumbnailImage } from './ThumbnailImage';
 export type { ThumbnailImageProps } from './ThumbnailImage';
+
+export { default as SafeErrorMessage } from './SafeErrorMessage';
+export type { SafeErrorMessageProps } from './SafeErrorMessage';
+export { sanitizeErrorMessage, extractErrorMessage } from '../../utils/sanitize';

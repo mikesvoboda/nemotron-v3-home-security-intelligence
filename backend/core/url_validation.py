@@ -18,6 +18,8 @@ Security considerations:
 - Cloud metadata endpoints are blocked (169.254.169.254)
 - Link-local addresses are blocked (169.254.x.x)
 - IPv6 localhost and link-local addresses are blocked
+- .local and other internal domain suffixes are blocked
+- All blocked SSRF attempts are logged for security monitoring
 """
 
 from __future__ import annotations
@@ -88,6 +90,20 @@ BLOCKED_HOSTNAMES = {
     "instance-data",
 }
 
+# Blocked domain suffixes (case-insensitive)
+# These are internal/local domain extensions that should not be accessible externally
+BLOCKED_DOMAIN_SUFFIXES = {
+    ".local",  # mDNS/Bonjour local network domains
+    ".localhost",  # RFC 6761 localhost TLD
+    ".internal",  # Common internal domain suffix
+    ".lan",  # Common LAN suffix
+    ".home",  # Home network suffix
+    ".localdomain",  # Standard local domain
+    ".intranet",  # Intranet suffix
+    ".corp",  # Corporate internal domain
+    ".home.arpa",  # RFC 8375 home network domain
+}
+
 # Allowed schemes
 ALLOWED_SCHEMES = {"https"}
 DEV_ALLOWED_SCHEMES = {"http", "https"}
@@ -139,6 +155,43 @@ def is_blocked_hostname(hostname: str) -> bool:
         True if the hostname is blocked
     """
     return hostname.lower() in BLOCKED_HOSTNAMES
+
+
+def is_blocked_domain_suffix(hostname: str) -> bool:
+    """Check if a hostname has a blocked domain suffix.
+
+    This blocks internal/local domain extensions like .local, .localhost,
+    .internal, .lan, etc. that should not be accessible externally.
+
+    Args:
+        hostname: Hostname to check (case-insensitive)
+
+    Returns:
+        True if the hostname has a blocked suffix
+    """
+    hostname_lower = hostname.lower()
+    return any(hostname_lower.endswith(suffix) for suffix in BLOCKED_DOMAIN_SUFFIXES)
+
+
+def _log_blocked_ssrf_attempt(url: str, reason: str, hostname: str | None = None) -> None:
+    """Log a blocked SSRF attempt for security monitoring.
+
+    Args:
+        url: The URL that was blocked (will be truncated for safety)
+        reason: The reason the URL was blocked
+        hostname: The extracted hostname if available
+    """
+    # Truncate URL to avoid log injection with very long URLs
+    safe_url = url[:200] if len(url) > 200 else url
+    # Sanitize the URL to remove potential control characters
+    safe_url = "".join(c if c.isprintable() else "?" for c in safe_url)
+
+    logger.warning(
+        "SSRF attempt blocked: reason=%s, hostname=%s, url=%s",
+        reason,
+        hostname[:100] if hostname and len(hostname) > 100 else hostname,
+        safe_url,
+    )
 
 
 def resolve_hostname(hostname: str) -> list[str]:
@@ -260,7 +313,9 @@ def validate_webhook_url(
     1. Validates URL structure and scheme
     2. Blocks private/reserved IP ranges
     3. Blocks cloud metadata endpoints
-    4. Optionally resolves DNS and checks resolved IPs
+    4. Blocks .local and other internal domain suffixes
+    5. Optionally resolves DNS and checks resolved IPs
+    6. Logs all blocked SSRF attempts for security monitoring
 
     Args:
         url: The webhook URL to validate
@@ -274,36 +329,61 @@ def validate_webhook_url(
         SSRFValidationError: If the URL fails validation
     """
     if not url:
+        _log_blocked_ssrf_attempt(url or "", "empty_url")
         raise SSRFValidationError("URL cannot be empty")
 
     # Parse the URL
     try:
         parsed = urlparse(url)
     except Exception as e:
+        _log_blocked_ssrf_attempt(url, "invalid_format")
         raise SSRFValidationError(f"Invalid URL format: {e}") from e
 
     # Validate hostname exists first
     hostname: str | None = parsed.hostname
     if not hostname:
+        _log_blocked_ssrf_attempt(url, "missing_hostname")
         raise SSRFValidationError("URL must have a hostname")
 
     # Check scheme using helper function
     scheme = parsed.scheme.lower()
-    _validate_scheme(scheme, hostname, allow_dev_http)
+    try:
+        _validate_scheme(scheme, hostname, allow_dev_http)
+    except SSRFValidationError:
+        _log_blocked_ssrf_attempt(url, f"invalid_scheme:{scheme}", hostname)
+        raise
 
     # Check for blocked hostnames
     if is_blocked_hostname(hostname):
+        _log_blocked_ssrf_attempt(url, "blocked_hostname", hostname)
         raise SSRFValidationError(f"Hostname '{hostname}' is blocked for security reasons")
 
+    # Check for blocked domain suffixes (.local, .localhost, .internal, etc.)
+    if is_blocked_domain_suffix(hostname):
+        _log_blocked_ssrf_attempt(url, "blocked_domain_suffix", hostname)
+        raise SSRFValidationError(f"Hostname '{hostname}' uses a blocked internal domain suffix")
+
     # Check if hostname is an IP address and validate it
-    is_ip = _validate_ip_address(hostname, allow_dev_http)
+    try:
+        is_ip = _validate_ip_address(hostname, allow_dev_http)
+    except SSRFValidationError:
+        _log_blocked_ssrf_attempt(url, "blocked_ip", hostname)
+        raise
 
     # If it's a hostname (not IP) and we need to resolve DNS
     if not is_ip and resolve_dns:
-        _resolve_and_validate_dns(hostname, allow_dev_http)
+        try:
+            _resolve_and_validate_dns(hostname, allow_dev_http)
+        except SSRFValidationError:
+            _log_blocked_ssrf_attempt(url, "dns_resolves_to_blocked_ip", hostname)
+            raise
 
     # Check for suspicious URL patterns
-    _validate_url_patterns(parsed, scheme)
+    try:
+        _validate_url_patterns(parsed, scheme)
+    except SSRFValidationError:
+        _log_blocked_ssrf_attempt(url, "suspicious_pattern", hostname)
+        raise
 
     return url
 

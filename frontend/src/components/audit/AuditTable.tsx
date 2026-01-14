@@ -1,6 +1,8 @@
 import { clsx } from 'clsx';
 import { CheckCircle, ChevronLeft, ChevronRight, Globe, XCircle } from 'lucide-react';
 
+import SafeErrorMessage from '../common/SafeErrorMessage';
+
 export interface AuditEntry {
   id: number;
   timestamp: string;
@@ -201,7 +203,7 @@ export default function AuditTable({
           <div className="flex min-h-[400px] items-center justify-center border-red-900/50 bg-red-950/20">
             <div className="text-center">
               <p className="mb-2 text-lg font-semibold text-red-400">Error Loading Audit Logs</p>
-              <p className="text-sm text-gray-400">{error}</p>
+              <SafeErrorMessage message={error} size="sm" color="gray" />
             </div>
           </div>
         ) : logs.length === 0 ? (
