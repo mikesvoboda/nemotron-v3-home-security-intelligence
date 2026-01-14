@@ -167,6 +167,20 @@ CVE-2025-5987
 CVE-2025-6020
 
 # =============================================================================
+# Python Package Vulnerabilities - No Fix Available
+# =============================================================================
+
+# GHSA-58pv-8j8x-9vj2 - jaraco.context path traversal in tarfile.chdir() (REVIEW BY: 2026-04-13)
+# Affected version 5.3.0 is vendored inside setuptools (even latest 80.9.0)
+# No upstream fix available - setuptools has not updated vendored jaraco.context to 6.1.0
+# Not exploitable in our context:
+#   1. We don't use jaraco.context directly
+#   2. We don't use setuptools.tarfile.chdir() functionality
+#   3. The vulnerability requires attacker-controlled tar extraction paths
+#   4. This is a build/setup-time dependency, not runtime-exposed
+GHSA-58pv-8j8x-9vj2
+
+# =============================================================================
 # Dockerfile Misconfigurations - Accepted Risks
 # =============================================================================
 # These are Trivy misconfiguration checks that are intentionally accepted.
@@ -189,5 +203,5 @@ AVD-DS-0002
 #
 # Remove entries when fixes become available.
 #
-# Last reviewed: 2026-01-05 (NEM-1356)
-# Next review: 2026-04-05
+# Last reviewed: 2026-01-13 (NEM-2631)
+# Next review: 2026-04-13
