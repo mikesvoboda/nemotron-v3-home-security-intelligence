@@ -37,7 +37,36 @@ T = TypeVar("T", bound="Base")
 
 # Maximum allowed limit for paginated queries to prevent memory exhaustion
 # Requests exceeding this limit will be silently capped to MAX_LIMIT
+# NOTE: This is the default fallback value. Use get_max_limit() to get the
+# configured value from settings (NEM-2591).
 MAX_LIMIT = 1000
+
+
+def get_max_limit() -> int:
+    """Get the maximum pagination limit from settings (NEM-2591).
+
+    This function retrieves the configured maximum pagination limit from
+    application settings. It provides a fallback to MAX_LIMIT if settings
+    cannot be loaded (e.g., during early initialization).
+
+    Returns:
+        The configured maximum pagination limit from settings, or MAX_LIMIT
+        as a fallback if settings are unavailable.
+
+    Example:
+        >>> max_limit = get_max_limit()
+        >>> capped_limit = min(requested_limit, max_limit)
+    """
+    try:
+        from backend.core.config import get_settings
+
+        settings = get_settings()
+        limit: int = settings.pagination_max_limit
+        return limit
+    except Exception:
+        # Fallback to hardcoded MAX_LIMIT if settings unavailable
+        # This can happen during early initialization or in tests
+        return MAX_LIMIT
 
 
 class Repository(Generic[T]):  # noqa: UP046
@@ -105,8 +134,9 @@ class Repository(Generic[T]):  # noqa: UP046
 
         Args:
             skip: Number of records to skip (offset).
-            limit: Maximum number of records to return. Silently capped to MAX_LIMIT
-                   (1000) to prevent memory exhaustion.
+            limit: Maximum number of records to return. Silently capped to the
+                   configured maximum limit (default: 1000) to prevent memory
+                   exhaustion. The maximum is configurable via PAGINATION_MAX_LIMIT.
 
         Returns:
             A sequence of entities within the specified range.
@@ -116,9 +146,16 @@ class Repository(Generic[T]):  # noqa: UP046
             page1 = await repo.list_paginated(skip=0, limit=20)
             # Get second page
             page2 = await repo.list_paginated(skip=20, limit=20)
+
+        Note:
+            The maximum limit is retrieved from settings via get_max_limit()
+            and defaults to MAX_LIMIT (1000) if settings are unavailable.
+            See NEM-2559 and NEM-2591.
         """
-        # Cap the limit to prevent memory exhaustion (NEM-2559)
-        capped_limit = min(limit, MAX_LIMIT)
+        # Cap the limit to prevent memory exhaustion (NEM-2559, NEM-2591)
+        # Use get_max_limit() to get configurable maximum from settings
+        max_limit = get_max_limit()
+        capped_limit = min(limit, max_limit)
         stmt = select(self.model_class).offset(skip).limit(capped_limit)
         result = await self.session.execute(stmt)
         return result.scalars().all()

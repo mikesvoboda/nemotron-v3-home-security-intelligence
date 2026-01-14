@@ -334,6 +334,23 @@ class Settings(BaseSettings):
         "Default: 600 (10 minutes).",
     )
 
+    # Pagination settings (NEM-2591)
+    pagination_max_limit: int = Field(
+        default=1000,
+        ge=100,
+        le=10000,
+        description="Maximum allowed limit for paginated API endpoints. "
+        "Requests with limit values exceeding this will receive a 400 error. "
+        "Default: 1000. Configurable via PAGINATION_MAX_LIMIT env var.",
+    )
+    pagination_default_limit: int = Field(
+        default=50,
+        ge=1,
+        le=1000,
+        description="Default limit for paginated API endpoints when not specified. "
+        "Default: 50. Configurable via PAGINATION_DEFAULT_LIMIT env var.",
+    )
+
     # Application settings
     app_name: str = "Home Security Intelligence"
     app_version: str = "0.1.0"
