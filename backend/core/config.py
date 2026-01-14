@@ -1393,6 +1393,29 @@ class Settings(BaseSettings):
         description="How often (in seconds) to check if conditions are met for background evaluation.",
     )
 
+    # Worker supervisor settings (NEM-2492)
+    worker_health_check_interval: float = Field(
+        default=30.0,
+        ge=1.0,
+        le=300.0,
+        description="Interval in seconds between worker health checks. "
+        "Lower values detect crashes faster but increase overhead.",
+    )
+    worker_max_restart_attempts: int = Field(
+        default=5,
+        ge=0,
+        le=100,
+        description="Maximum number of restart attempts before circuit breaker opens. "
+        "Set to 0 to disable automatic restarts entirely.",
+    )
+    worker_restart_backoff_base: float = Field(
+        default=1.0,
+        ge=0.1,
+        le=60.0,
+        description="Base delay in seconds for exponential backoff on restarts. "
+        "Actual delay = base * (2 ** (restart_count - 1)).",
+    )
+
     # Orphan file cleanup settings (NEM-2260)
     # Periodic cleanup of files on disk without corresponding database records
     orphan_cleanup_enabled: bool = Field(

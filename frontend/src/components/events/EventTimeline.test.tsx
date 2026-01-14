@@ -36,6 +36,41 @@ vi.mock('../../hooks/useInfiniteScroll', () => ({
   useInfiniteScroll: vi.fn(),
 }));
 
+// Mock ExportModal component
+vi.mock('../exports/ExportModal', () => ({
+  default: ({
+    isOpen,
+    onClose,
+    initialFilters,
+    onExportComplete,
+  }: {
+    isOpen: boolean;
+    onClose: () => void;
+    initialFilters?: { camera_id?: string; risk_level?: string; start_date?: string; end_date?: string };
+    onExportComplete?: (success: boolean) => void;
+  }) => {
+    if (!isOpen) return null;
+    return (
+      <div data-testid="export-modal" role="dialog" aria-label="Export modal">
+        <h2>Export Data</h2>
+        <div data-testid="export-modal-filters">
+          {initialFilters?.camera_id && <span data-testid="filter-camera">{initialFilters.camera_id}</span>}
+          {initialFilters?.risk_level && <span data-testid="filter-risk">{initialFilters.risk_level}</span>}
+        </div>
+        <button onClick={onClose} data-testid="export-modal-close">
+          Close
+        </button>
+        <button
+          onClick={() => onExportComplete?.(true)}
+          data-testid="export-modal-complete"
+        >
+          Complete Export
+        </button>
+      </div>
+    );
+  },
+}));
+
 // Mock LiveActivitySection component
 vi.mock('./LiveActivitySection', () => ({
   default: ({
@@ -1548,6 +1583,134 @@ describe('EventTimeline', () => {
       // onViewEventDetails should be called (events are sorted by most recent first,
       // so first button corresponds to event id 3 with latest timestamp)
       expect(handleViewDetails).toHaveBeenCalledWith(3);
+    });
+  });
+
+  describe('Export Modal Integration', () => {
+    it('renders Export Modal button', async () => {
+      renderWithProviders(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Export Modal button should be present
+      expect(screen.getByLabelText('Open export modal')).toBeInTheDocument();
+      expect(screen.getByText('Export Modal')).toBeInTheDocument();
+    });
+
+    it('opens Export Modal when button is clicked', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      renderWithProviders(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Modal should not be open initially
+      expect(screen.queryByTestId('export-modal')).not.toBeInTheDocument();
+
+      // Click Export Modal button
+      const exportModalButton = screen.getByLabelText('Open export modal');
+      await user.click(exportModalButton);
+
+      // Modal should now be open
+      await waitFor(() => {
+        expect(screen.getByTestId('export-modal')).toBeInTheDocument();
+      });
+    });
+
+    it('closes Export Modal when close button is clicked', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      renderWithProviders(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Open the modal
+      const exportModalButton = screen.getByLabelText('Open export modal');
+      await user.click(exportModalButton);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('export-modal')).toBeInTheDocument();
+      });
+
+      // Close the modal
+      const closeButton = screen.getByTestId('export-modal-close');
+      await user.click(closeButton);
+
+      // Modal should be closed
+      await waitFor(() => {
+        expect(screen.queryByTestId('export-modal')).not.toBeInTheDocument();
+      });
+    });
+
+    it('closes Export Modal when export completes', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      renderWithProviders(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Open the modal
+      const exportModalButton = screen.getByLabelText('Open export modal');
+      await user.click(exportModalButton);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('export-modal')).toBeInTheDocument();
+      });
+
+      // Complete the export
+      const completeButton = screen.getByTestId('export-modal-complete');
+      await user.click(completeButton);
+
+      // Modal should be closed
+      await waitFor(() => {
+        expect(screen.queryByTestId('export-modal')).not.toBeInTheDocument();
+      });
+    });
+
+    it('passes current filters to Export Modal', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      renderWithProviders(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Apply filters
+      await user.click(screen.getByText('Show Filters'));
+
+      const cameraSelect = screen.getByLabelText('Camera');
+      await user.selectOptions(cameraSelect, 'camera-1');
+
+      const riskSelect = screen.getByLabelText('Risk Level');
+      await user.selectOptions(riskSelect, 'high');
+
+      // Open the modal
+      const exportModalButton = screen.getByLabelText('Open export modal');
+      await user.click(exportModalButton);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('export-modal')).toBeInTheDocument();
+      });
+
+      // Check that filters are passed to the modal
+      expect(screen.getByTestId('filter-camera')).toHaveTextContent('camera-1');
+      expect(screen.getByTestId('filter-risk')).toHaveTextContent('high');
+    });
+
+    it('does not show Export Modal by default', async () => {
+      renderWithProviders(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Modal should not be open by default
+      expect(screen.queryByTestId('export-modal')).not.toBeInTheDocument();
     });
   });
 });

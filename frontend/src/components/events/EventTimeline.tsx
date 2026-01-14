@@ -32,6 +32,7 @@ import { parseEventId } from '../../utils/validation';
 import { EmptyState, EventCardSkeleton, InfiniteScrollStatus, SafeErrorMessage } from '../common';
 import RiskBadge from '../common/RiskBadge';
 import { type ActivityEvent } from '../dashboard/ActivityFeed';
+import ExportModal from '../exports/ExportModal';
 import { SearchBar, SearchResultsPanel } from '../search';
 
 import type { Detection } from './EventCard';
@@ -72,6 +73,7 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
   // State for export
   const [exportLoading, setExportLoading] = useState(false);
   const [showExportPanel, setShowExportPanel] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   // State for event detail modal
   const [selectedEventForModal, setSelectedEventForModal] = useState<number | null>(null);
@@ -643,6 +645,16 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
                 <Download className="h-4 w-4" />
                 <span>Advanced Export</span>
               </button>
+
+              {/* Export Modal Button */}
+              <button
+                onClick={() => setShowExportModal(true)}
+                className="flex items-center gap-2 rounded-md border border-gray-700 bg-[#1A1A1A] px-4 py-2 text-sm font-medium text-gray-300 transition-colors hover:border-gray-600 hover:bg-[#252525]"
+                aria-label="Open export modal"
+              >
+                <Download className="h-4 w-4" />
+                <span>Export Modal</span>
+              </button>
             </div>
 
             {/* Filter Options */}
@@ -1066,6 +1078,21 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
         onClose={handleModalClose}
         onMarkReviewed={(eventId) => void handleMarkReviewed(eventId)}
         onNavigate={handleNavigate}
+      />
+
+      {/* Export Modal */}
+      <ExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        initialFilters={{
+          camera_id: eventFilters.camera_id,
+          risk_level: eventFilters.risk_level,
+          start_date: eventFilters.start_date,
+          end_date: eventFilters.end_date,
+        }}
+        onExportComplete={() => {
+          setShowExportModal(false);
+        }}
       />
     </div>
   );

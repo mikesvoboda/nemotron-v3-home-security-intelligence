@@ -64,7 +64,7 @@ class TestLogsAPI:
         db_session.add_all([log1, log2])
         await db_session.commit()
 
-        response = await client.get("/api/logs")
+        response = await client.get("/api/logs?include_total_count=true")
         assert response.status_code == 200
         data = response.json()
         assert data["pagination"]["total"] == 2
@@ -89,7 +89,7 @@ class TestLogsAPI:
         db_session.add_all([log1, log2])
         await db_session.commit()
 
-        response = await client.get("/api/logs?level=ERROR")
+        response = await client.get("/api/logs?level=ERROR&include_total_count=true")
         assert response.status_code == 200
         data = response.json()
         assert data["pagination"]["total"] == 1
@@ -114,7 +114,7 @@ class TestLogsAPI:
         db_session.add_all([log1, log2])
         await db_session.commit()
 
-        response = await client.get("/api/logs?component=file_watcher")
+        response = await client.get("/api/logs?component=file_watcher&include_total_count=true")
         assert response.status_code == 200
         data = response.json()
         assert data["pagination"]["total"] == 1
@@ -141,7 +141,7 @@ class TestLogsAPI:
         assert response.status_code == 201
 
         # Verify it was stored
-        response = await client.get("/api/logs?component=DashboardPage")
+        response = await client.get("/api/logs?component=DashboardPage&include_total_count=true")
         assert response.status_code == 200
         data = response.json()
         assert data["pagination"]["total"] == 1
@@ -191,14 +191,18 @@ class TestLogsAPI:
         await db_session.commit()
 
         # First page - filter by our unique component
-        response = await client.get(f"/api/logs?component={unique_component}&limit=10&offset=0")
+        response = await client.get(
+            f"/api/logs?component={unique_component}&limit=10&offset=0&include_total_count=true"
+        )
         assert response.status_code == 200
         data = response.json()
         assert len(data["items"]) == 10
         assert data["pagination"]["total"] == 15
 
         # Second page - filter by our unique component
-        response = await client.get(f"/api/logs?component={unique_component}&limit=10&offset=10")
+        response = await client.get(
+            f"/api/logs?component={unique_component}&limit=10&offset=10&include_total_count=true"
+        )
         assert response.status_code == 200
         data = response.json()
         assert len(data["items"]) == 5
