@@ -457,3 +457,89 @@ def set_deprecation_headers(
     # The Sunset header indicates when the deprecated feature will be removed
     if sunset_date:
         response.headers["Sunset"] = sunset_date
+
+
+def validate_pagination_limit(
+    limit: int,
+    *,
+    max_limit: int | None = None,
+    param_name: str = "limit",
+) -> int:
+    """Validate pagination limit against maximum allowed value (NEM-2591).
+
+    This function validates that a pagination limit does not exceed the
+    configured maximum. If max_limit is not provided, it uses the
+    PAGINATION_MAX_LIMIT setting.
+
+    Args:
+        limit: The limit value to validate
+        max_limit: Optional explicit maximum limit. If None, uses settings.
+        param_name: Name of the parameter for error messages (default: "limit")
+
+    Returns:
+        The validated limit value (unchanged if valid)
+
+    Raises:
+        ValueError: If limit exceeds the maximum allowed value
+
+    Example:
+        >>> validate_pagination_limit(100)  # Returns 100
+        >>> validate_pagination_limit(10000)  # Raises ValueError
+        >>> validate_pagination_limit(500, max_limit=200)  # Raises ValueError
+    """
+    if max_limit is None:
+        from backend.core.config import get_settings
+
+        settings = get_settings()
+        max_limit = settings.pagination_max_limit
+
+    if limit > max_limit:
+        raise ValueError(
+            f"Parameter '{param_name}' value {limit} exceeds maximum allowed value of {max_limit}"
+        )
+
+    return limit
+
+
+def get_validated_limit(
+    limit: int | None,
+    *,
+    default: int | None = None,
+    max_limit: int | None = None,
+) -> int:
+    """Get a validated pagination limit, using defaults from settings (NEM-2591).
+
+    This function provides a convenient way to get a validated limit value,
+    applying defaults when no limit is provided and validating against the
+    maximum allowed value.
+
+    Args:
+        limit: The limit value to validate, or None to use default
+        default: Optional explicit default limit. If None, uses settings.
+        max_limit: Optional explicit maximum limit. If None, uses settings.
+
+    Returns:
+        A validated limit value (either the provided limit or the default)
+
+    Raises:
+        ValueError: If the limit exceeds the maximum allowed value
+
+    Example:
+        >>> get_validated_limit(None)  # Returns default (50)
+        >>> get_validated_limit(100)  # Returns 100
+        >>> get_validated_limit(10000)  # Raises ValueError
+        >>> get_validated_limit(None, default=25)  # Returns 25
+    """
+    from backend.core.config import get_settings
+
+    settings = get_settings()
+
+    if default is None:
+        default = settings.pagination_default_limit
+    if max_limit is None:
+        max_limit = settings.pagination_max_limit
+
+    if limit is None:
+        return default
+
+    return validate_pagination_limit(limit, max_limit=max_limit)

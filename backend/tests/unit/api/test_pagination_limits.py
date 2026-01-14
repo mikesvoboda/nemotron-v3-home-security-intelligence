@@ -97,7 +97,7 @@ class TestValidatePaginationLimit:
         with pytest.raises(ValueError):
             validate_pagination_limit(1001, max_limit=1000)
 
-    @patch("backend.api.pagination.get_settings")
+    @patch("backend.core.config.get_settings")
     def test_uses_settings_when_max_limit_not_provided(self, mock_get_settings: MagicMock) -> None:
         """Test that settings.pagination_max_limit is used when not provided."""
         mock_settings = MagicMock()
@@ -107,7 +107,7 @@ class TestValidatePaginationLimit:
         result = validate_pagination_limit(400)
         assert result == 400
 
-    @patch("backend.api.pagination.get_settings")
+    @patch("backend.core.config.get_settings")
     def test_rejects_based_on_settings_max_limit(self, mock_get_settings: MagicMock) -> None:
         """Test that validation uses settings max limit."""
         mock_settings = MagicMock()
@@ -122,7 +122,7 @@ class TestValidatePaginationLimit:
 class TestGetValidatedLimit:
     """Tests for get_validated_limit function."""
 
-    @patch("backend.api.pagination.get_settings")
+    @patch("backend.core.config.get_settings")
     def test_returns_default_when_limit_is_none(self, mock_get_settings: MagicMock) -> None:
         """Test that default limit is returned when limit is None."""
         mock_settings = MagicMock()
@@ -133,7 +133,7 @@ class TestGetValidatedLimit:
         result = get_validated_limit(None)
         assert result == 50
 
-    @patch("backend.api.pagination.get_settings")
+    @patch("backend.core.config.get_settings")
     def test_returns_provided_limit_when_valid(self, mock_get_settings: MagicMock) -> None:
         """Test that provided limit is returned when valid."""
         mock_settings = MagicMock()
@@ -144,7 +144,7 @@ class TestGetValidatedLimit:
         result = get_validated_limit(100)
         assert result == 100
 
-    @patch("backend.api.pagination.get_settings")
+    @patch("backend.core.config.get_settings")
     def test_raises_when_limit_exceeds_max(self, mock_get_settings: MagicMock) -> None:
         """Test that ValueError is raised when limit exceeds max."""
         mock_settings = MagicMock()
@@ -193,7 +193,7 @@ class TestPaginationLimits:
 class TestGetPaginationLimitsDependency:
     """Tests for get_pagination_limits FastAPI dependency."""
 
-    @patch("backend.core.dependencies.get_settings")
+    @patch("backend.core.config.get_settings")
     def test_returns_pagination_limits_from_settings(self, mock_get_settings: MagicMock) -> None:
         """Test that dependency returns PaginationLimits from settings."""
         mock_settings = MagicMock()
@@ -223,7 +223,7 @@ class TestRepositoryMaxLimit:
 
         assert callable(get_max_limit)
 
-    @patch("backend.repositories.base.get_settings")
+    @patch("backend.core.config.get_settings")
     def test_get_max_limit_returns_settings_value(self, mock_get_settings: MagicMock) -> None:
         """Test that get_max_limit returns value from settings."""
         from backend.repositories.base import get_max_limit
@@ -240,7 +240,7 @@ class TestRepositoryMaxLimit:
         from backend.repositories.base import MAX_LIMIT, get_max_limit
 
         with patch(
-            "backend.repositories.base.get_settings",
+            "backend.core.config.get_settings",
             side_effect=Exception("Config error"),
         ):
             result = get_max_limit()
