@@ -130,6 +130,14 @@ class MockRedisClient:
 
         inner_client.expire = _expire_impl
 
+        # set - store key with optional TTL (NEM-2507 fix for batch closing flag)
+        async def _set_impl(key: str, value: Any, ex: int | None = None) -> bool:
+            # Validate JSON serialization like the outer set() method
+            parent._store[key] = parent._validate_json_serializable(value)
+            return True
+
+        inner_client.set = _set_impl
+
         # pipeline - create a pipeline for batch operations
         def _pipeline_impl(
             transaction: bool = True, shard_hint: str | None = None
