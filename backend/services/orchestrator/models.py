@@ -16,6 +16,30 @@ from datetime import UTC, datetime
 
 from backend.services.orchestrator.enums import ContainerServiceStatus, ServiceCategory
 
+# Category-specific defaults for lifecycle management.
+# Used by container_discovery to configure ManagedService instances.
+# Keys: max_failures, base_backoff, max_backoff, health_check_interval
+CATEGORY_DEFAULTS: dict[ServiceCategory, dict[str, int | float]] = {
+    ServiceCategory.INFRASTRUCTURE: {
+        "max_failures": 10,
+        "base_backoff": 2.0,
+        "max_backoff": 60.0,
+        "health_check_interval": 30,
+    },
+    ServiceCategory.AI: {
+        "max_failures": 5,
+        "base_backoff": 5.0,
+        "max_backoff": 300.0,
+        "health_check_interval": 30,
+    },
+    ServiceCategory.MONITORING: {
+        "max_failures": 5,
+        "base_backoff": 10.0,
+        "max_backoff": 120.0,
+        "health_check_interval": 30,
+    },
+}
+
 
 @dataclass(slots=True)
 class ServiceConfig:
@@ -268,6 +292,7 @@ class ManagedService:
 
 
 __all__ = [
+    "CATEGORY_DEFAULTS",
     "ManagedService",
     "ServiceConfig",
 ]

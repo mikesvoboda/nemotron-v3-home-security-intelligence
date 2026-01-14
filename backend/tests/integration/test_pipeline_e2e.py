@@ -366,7 +366,6 @@ async def clean_pipeline(integration_db):
         # Delete in order respecting foreign key constraints
         await conn.execute(text("DELETE FROM logs"))
         await conn.execute(text("DELETE FROM gpu_stats"))
-        await conn.execute(text("DELETE FROM api_keys"))
         await conn.execute(text("DELETE FROM detections"))
         await conn.execute(text("DELETE FROM events"))
         await conn.execute(text("DELETE FROM cameras"))
@@ -378,7 +377,6 @@ async def clean_pipeline(integration_db):
         async with get_engine().begin() as conn:
             await conn.execute(text("DELETE FROM logs"))
             await conn.execute(text("DELETE FROM gpu_stats"))
-            await conn.execute(text("DELETE FROM api_keys"))
             await conn.execute(text("DELETE FROM detections"))
             await conn.execute(text("DELETE FROM events"))
             await conn.execute(text("DELETE FROM cameras"))

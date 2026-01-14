@@ -2887,8 +2887,8 @@ export interface paths {
          * List Entities
          * @description List tracked entities with optional filtering.
          *
-         *     Returns a paginated list of entities that have been tracked via
-         *     re-identification. Entities are grouped by their embedding clusters.
+         *     Returns a paginated list of entities from PostgreSQL. Entities are
+         *     tracked via re-identification and stored in the database.
          *
          *     Args:
          *         entity_type: Filter by entity type ('person' or 'vehicle')
@@ -2896,7 +2896,7 @@ export interface paths {
          *         since: Filter entities seen since this timestamp
          *         limit: Maximum number of results (1-1000, default 50)
          *         offset: Number of results to skip for pagination (default 0)
-         *         reid_service: Re-identification service dependency
+         *         entity_repo: Entity repository dependency for PostgreSQL queries
          *
          *     Returns:
          *         EntityListResponse with filtered entities and pagination info
@@ -2923,6 +2923,8 @@ export interface paths {
          *
          *     Searches for entities similar to the specified detection's embedding
          *     across all cameras. Used to show re-ID matches in the EventDetailModal.
+         *
+         *     NOTE: This endpoint continues to use Redis for real-time similarity matching.
          *
          *     Args:
          *         detection_id: Detection ID to find matches for
@@ -3092,17 +3094,18 @@ export interface paths {
          * Get Entity
          * @description Get detailed information about a specific entity.
          *
-         *     Returns the entity's summary information along with all recorded appearances.
+         *     Returns the entity's summary information along with all recorded appearances
+         *     from PostgreSQL.
          *
          *     Args:
-         *         entity_id: Unique entity identifier (detection_id)
-         *         reid_service: Re-identification service dependency
+         *         entity_id: UUID of the entity
+         *         entity_repo: Entity repository dependency for PostgreSQL queries
          *
          *     Returns:
          *         EntityDetail with full entity information
          *
          *     Raises:
-         *         HTTPException: 404 if entity not found, 503 if Redis unavailable
+         *         HTTPException: 404 if entity not found
          */
         get: operations["get_entity_api_entities__entity_id__get"];
         put?: never;
@@ -3125,17 +3128,17 @@ export interface paths {
          * @description Get the appearance timeline for a specific entity.
          *
          *     Returns a chronological list of all appearances for the entity
-         *     across all cameras.
+         *     across all cameras from PostgreSQL.
          *
          *     Args:
-         *         entity_id: Unique entity identifier (detection_id)
-         *         reid_service: Re-identification service dependency
+         *         entity_id: UUID of the entity
+         *         entity_repo: Entity repository dependency for PostgreSQL queries
          *
          *     Returns:
          *         EntityHistoryResponse with appearance timeline
          *
          *     Raises:
-         *         HTTPException: 404 if entity not found, 503 if Redis unavailable
+         *         HTTPException: 404 if entity not found
          */
         get: operations["get_entity_history_api_entities__entity_id__history_get"];
         put?: never;
@@ -23773,13 +23776,6 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Redis service unavailable */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
         };
     };
     get_entity_history_api_entities__entity_id__history_get: {
@@ -23820,13 +23816,6 @@ export interface operations {
             };
             /** @description Internal server error */
             500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Redis service unavailable */
-            503: {
                 headers: {
                     [name: string]: unknown;
                 };

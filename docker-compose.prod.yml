@@ -364,14 +364,14 @@ services:
       #   For development (self-signed): ./scripts/generate-ssl-cert.sh
       #   For production: use Let's Encrypt, Cloudflare, or your CA
       # Mount directory containing cert.pem and key.pem (or custom paths via SSL_CERT_PATH/SSL_KEY_PATH)
-      - ${SSL_CERT_DIR:-./ssl}:/etc/nginx/ssl:ro
+      - ${SSL_CERT_DIR:-./certs}:/etc/nginx/certs:ro
     environment:
       # SSL/TLS Configuration
       # Set SSL_ENABLED=true to enable HTTPS (requires valid certificates)
       - SSL_ENABLED=${SSL_ENABLED:-false}
-      # Custom certificate paths (relative to /etc/nginx/ssl mount)
-      - SSL_CERT_PATH=${SSL_CERT_PATH:-/etc/nginx/ssl/cert.pem}
-      - SSL_KEY_PATH=${SSL_KEY_PATH:-/etc/nginx/ssl/key.pem}
+      # Custom certificate paths (relative to /etc/nginx/certs mount)
+      - SSL_CERT_PATH=${SSL_CERT_PATH:-/etc/nginx/certs/cert.pem}
+      - SSL_KEY_PATH=${SSL_KEY_PATH:-/etc/nginx/certs/key.pem}
     # NOTE: VITE_* environment variables are NOT used at runtime.
     # Vite bakes these values at build time. The frontend uses relative URLs
     # (empty BASE_URL), and nginx proxies /api and /ws to the backend.

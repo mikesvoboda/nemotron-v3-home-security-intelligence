@@ -41,14 +41,14 @@ Access the application at `https://localhost:443` (or your configured HTTPS port
 
 ### Environment Variables
 
-| Variable              | Default                   | Description                            |
-| --------------------- | ------------------------- | -------------------------------------- |
-| `SSL_ENABLED`         | `false`                   | Enable/disable HTTPS server            |
-| `SSL_CERT_DIR`        | `./ssl`                   | Host directory containing certificates |
-| `SSL_CERT_PATH`       | `/etc/nginx/ssl/cert.pem` | Container path to certificate          |
-| `SSL_KEY_PATH`        | `/etc/nginx/ssl/key.pem`  | Container path to private key          |
-| `FRONTEND_PORT`       | `5173`                    | HTTP port mapping (host:8080)          |
-| `FRONTEND_HTTPS_PORT` | `443`                     | HTTPS port mapping (host:8443)         |
+| Variable              | Default                     | Description                            |
+| --------------------- | --------------------------- | -------------------------------------- |
+| `SSL_ENABLED`         | `false`                     | Enable/disable HTTPS server            |
+| `SSL_CERT_DIR`        | `./certs`                   | Host directory containing certificates |
+| `SSL_CERT_PATH`       | `/etc/nginx/certs/cert.pem` | Container path to certificate          |
+| `SSL_KEY_PATH`        | `/etc/nginx/certs/key.pem`  | Container path to private key          |
+| `FRONTEND_PORT`       | `5173`                      | HTTP port mapping (host:8080)          |
+| `FRONTEND_HTTPS_PORT` | `443`                       | HTTPS port mapping (host:8443)         |
 
 ### Example .env Configuration
 
@@ -71,11 +71,11 @@ FRONTEND_HTTPS_PORT=443
 Use the provided script to generate a self-signed certificate:
 
 ```bash
-# Default output to ./ssl directory
+# Default output to ./certs directory
 ./scripts/generate-ssl-cert.sh
 
 # Custom output directory
-./scripts/generate-ssl-cert.sh /path/to/ssl
+./scripts/generate-ssl-cert.sh /path/to/certs
 ```
 
 The script generates:
@@ -103,8 +103,8 @@ sudo certbot certonly --standalone -d your-domain.com
 
 # Certificate location
 SSL_CERT_DIR=/etc/letsencrypt/live/your-domain.com
-SSL_CERT_PATH=/etc/nginx/ssl/fullchain.pem
-SSL_KEY_PATH=/etc/nginx/ssl/privkey.pem
+SSL_CERT_PATH=/etc/nginx/certs/fullchain.pem
+SSL_KEY_PATH=/etc/nginx/certs/privkey.pem
 ```
 
 Mount the Let's Encrypt directory:
@@ -114,7 +114,7 @@ Mount the Let's Encrypt directory:
 services:
   frontend:
     volumes:
-      - /etc/letsencrypt/live/your-domain.com:/etc/nginx/ssl:ro
+      - /etc/letsencrypt/live/your-domain.com:/etc/nginx/certs:ro
 ```
 
 ### Option 3: Commercial/Corporate CA
@@ -208,10 +208,10 @@ If `SSL_ENABLED=true` but certificates are missing:
 
 ```bash
 # View certificate details
-openssl x509 -in ssl/cert.pem -noout -text
+openssl x509 -in certs/cert.pem -noout -text
 
 # Check certificate expiration
-openssl x509 -in ssl/cert.pem -noout -dates
+openssl x509 -in certs/cert.pem -noout -dates
 
 # Test SSL connection
 openssl s_client -connect localhost:443 -servername localhost
@@ -248,21 +248,21 @@ Warning: SSL_ENABLED=true but certificate files not found
 **Solution:** Ensure certificates exist in the mounted directory:
 
 ```bash
-ls -la ssl/
+ls -la certs/
 # Should show cert.pem and key.pem
 ```
 
 ### Permission Denied
 
 ```
-nginx: [emerg] cannot load certificate "/etc/nginx/ssl/cert.pem"
+nginx: [emerg] cannot load certificate "/etc/nginx/certs/cert.pem"
 ```
 
 **Solution:** Check file permissions:
 
 ```bash
-chmod 644 ssl/cert.pem
-chmod 600 ssl/key.pem
+chmod 644 certs/cert.pem
+chmod 600 certs/key.pem
 ```
 
 ### Port Already in Use
@@ -292,7 +292,7 @@ Self-signed certificates will show security warnings. To suppress:
 
 ### Certificate Storage
 
-- **Never commit certificates to git** (ssl/ is in .gitignore)
+- **Never commit certificates to git** (certs/\*.pem is in .gitignore)
 - Use file permissions: `chmod 600` for private keys
 - Consider Docker secrets for production (see docker-compose.prod.yml comments)
 
