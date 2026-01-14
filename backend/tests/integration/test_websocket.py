@@ -50,9 +50,9 @@ def _get_common_lifespan_mocks():
 
     # Mock pubsub for event broadcaster - must be an async iterator
     async def mock_listen(*args, **kwargs):
-        # Yield nothing - empty async generator
-        return
-        yield  # Make this an async generator
+        # Empty async generator using yield from empty iterable pattern
+        for _ in []:
+            yield
 
     mock_pubsub = MagicMock()
     mock_redis_client._pubsub = mock_pubsub
