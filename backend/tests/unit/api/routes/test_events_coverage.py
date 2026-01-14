@@ -11,7 +11,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from backend.api.routes.events import router
+from backend.api.routes.events import _bulk_rate_limiter, router
 from backend.core.database import get_db
 from backend.models.detection import Detection
 from backend.models.event import Event
@@ -80,8 +80,13 @@ def client(mock_db_session: AsyncMock, mock_cache_service: AsyncMock) -> TestCli
         mock_event.clip_path = None
         return mock_event
 
+    # Override the rate limiter dependency (NEM-2600)
+    async def override_rate_limiter() -> None:
+        yield None
+
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_cache_service_dep] = override_get_cache_service
+    app.dependency_overrides[_bulk_rate_limiter] = override_rate_limiter
     # Note: get_event_or_404 is not directly injectable, so we'll mock it in tests
 
     with TestClient(app) as test_client:

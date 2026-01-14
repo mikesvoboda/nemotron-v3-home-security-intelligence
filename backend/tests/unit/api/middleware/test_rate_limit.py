@@ -21,6 +21,7 @@ from backend.api.middleware.rate_limit import (
     get_client_ip,
     get_tier_limits,
     rate_limit_ai_inference,
+    rate_limit_bulk,
     rate_limit_default,
     rate_limit_export,
     rate_limit_media,
@@ -277,6 +278,16 @@ class TestGetTierLimits:
             requests, burst = get_tier_limits(RateLimitTier.AI_INFERENCE)
             assert requests == 10
             assert burst == 3
+
+    def test_get_bulk_tier_limits(self):
+        """Test getting bulk tier limits (NEM-2600)."""
+        with patch("backend.api.middleware.rate_limit.get_settings") as mock_settings:
+            mock_settings.return_value.rate_limit_bulk_requests_per_minute = 10
+            mock_settings.return_value.rate_limit_bulk_burst = 2
+
+            requests, burst = get_tier_limits(RateLimitTier.BULK)
+            assert requests == 10
+            assert burst == 2
 
 
 class TestGetClientIp:
@@ -783,6 +794,12 @@ class TestConvenienceDependencies:
         limiter = rate_limit_ai_inference()
         assert isinstance(limiter, RateLimiter)
         assert limiter.tier == RateLimitTier.AI_INFERENCE
+
+    def test_rate_limit_bulk(self):
+        """Test rate_limit_bulk factory (NEM-2600)."""
+        limiter = rate_limit_bulk()
+        assert isinstance(limiter, RateLimiter)
+        assert limiter.tier == RateLimitTier.BULK
 
 
 class TestRedisStressTests:

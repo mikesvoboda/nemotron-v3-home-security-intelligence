@@ -2368,7 +2368,7 @@ export interface paths {
          *     Supports partial success - some detections may succeed while others fail.
          *     Returns HTTP 207 Multi-Status with per-item results.
          *
-         *     Rate limiting: Consider implementing RateLimitTier.BULK for production use.
+         *     Rate limiting: Limited to 10 requests/minute with burst of 2 (NEM-2600).
          *
          *     Args:
          *         request: Bulk create request with up to 100 detections
@@ -2389,7 +2389,7 @@ export interface paths {
          *     Note: Detection deletion is always hard delete as detections are raw data
          *     and soft-delete is not supported.
          *
-         *     Rate limiting: Consider implementing RateLimitTier.BULK for production use.
+         *     Rate limiting: Limited to 10 requests/minute with burst of 2 (NEM-2600).
          *
          *     Args:
          *         request: Bulk delete request with up to 100 detection IDs
@@ -2409,7 +2409,7 @@ export interface paths {
          *     Supports partial success - some updates may succeed while others fail.
          *     Returns HTTP 207 Multi-Status with per-item results.
          *
-         *     Rate limiting: Consider implementing RateLimitTier.BULK for production use.
+         *     Rate limiting: Limited to 10 requests/minute with burst of 2 (NEM-2600).
          *
          *     Args:
          *         request: Bulk update request with up to 100 detection updates
@@ -3255,7 +3255,7 @@ export interface paths {
          *     Supports partial success - some events may succeed while others fail.
          *     Returns HTTP 207 Multi-Status with per-item results.
          *
-         *     Rate limiting: Consider implementing RateLimitTier.BULK for production use.
+         *     Rate limiting: Limited to 10 requests/minute with burst of 2 (NEM-2600).
          *
          *     Args:
          *         request: Bulk create request with up to 100 events
@@ -3276,7 +3276,7 @@ export interface paths {
          *     related detections. Use soft_delete=false for permanent deletion.
          *     Use cascade=false to only delete the event without affecting detections.
          *
-         *     Rate limiting: Consider implementing RateLimitTier.BULK for production use.
+         *     Rate limiting: Limited to 10 requests/minute with burst of 2 (NEM-2600).
          *
          *     Args:
          *         request: Bulk delete request with up to 100 event IDs
@@ -3296,7 +3296,7 @@ export interface paths {
          *     Supports partial success - some updates may succeed while others fail.
          *     Returns HTTP 207 Multi-Status with per-item results.
          *
-         *     Rate limiting: Consider implementing RateLimitTier.BULK for production use.
+         *     Rate limiting: Limited to 10 requests/minute with burst of 2 (NEM-2600).
          *
          *     Args:
          *         request: Bulk update request with up to 100 event updates
@@ -22673,6 +22673,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Rate limit exceeded */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     bulk_delete_detections_api_detections_bulk_delete: {
@@ -22711,6 +22718,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Rate limit exceeded */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     bulk_update_detections_api_detections_bulk_patch: {
@@ -22744,6 +22758,13 @@ export interface operations {
             };
             /** @description Validation error */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rate limit exceeded */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -23854,6 +23875,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Rate limit exceeded */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     bulk_delete_events_api_events_bulk_delete: {
@@ -23892,6 +23920,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Rate limit exceeded */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     bulk_update_events_api_events_bulk_patch: {
@@ -23925,6 +23960,13 @@ export interface operations {
             };
             /** @description Validation error */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rate limit exceeded */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
