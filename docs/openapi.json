@@ -24200,7 +24200,7 @@
     },
     "/api/entities": {
       "get": {
-        "description": "List tracked entities with optional filtering.\n\nReturns a paginated list of entities that have been tracked via\nre-identification. Entities are grouped by their embedding clusters.\n\nArgs:\n    entity_type: Filter by entity type ('person' or 'vehicle')\n    camera_id: Filter by camera ID\n    since: Filter entities seen since this timestamp\n    limit: Maximum number of results (1-1000, default 50)\n    offset: Number of results to skip for pagination (default 0)\n    reid_service: Re-identification service dependency\n\nReturns:\n    EntityListResponse with filtered entities and pagination info",
+        "description": "List tracked entities with optional filtering.\n\nReturns a paginated list of entities from PostgreSQL. Entities are\ntracked via re-identification and stored in the database.\n\nArgs:\n    entity_type: Filter by entity type ('person' or 'vehicle')\n    camera_id: Filter by camera ID\n    since: Filter entities seen since this timestamp\n    limit: Maximum number of results (1-1000, default 50)\n    offset: Number of results to skip for pagination (default 0)\n    entity_repo: Entity repository dependency for PostgreSQL queries\n\nReturns:\n    EntityListResponse with filtered entities and pagination info",
         "operationId": "list_entities_api_entities_get",
         "parameters": [
           {
@@ -24312,7 +24312,7 @@
     },
     "/api/entities/matches/{detection_id}": {
       "get": {
-        "description": "Find entities matching a specific detection's embedding.\n\nSearches for entities similar to the specified detection's embedding\nacross all cameras. Used to show re-ID matches in the EventDetailModal.\n\nArgs:\n    detection_id: Detection ID to find matches for\n    entity_type: Type of entity to search ('person' or 'vehicle')\n    threshold: Minimum cosine similarity threshold (default 0.85)\n    reid_service: Re-identification service dependency\n\nReturns:\n    EntityMatchResponse with matching entities sorted by similarity\n\nRaises:\n    HTTPException: 404 if detection embedding not found, 503 if Redis unavailable",
+        "description": "Find entities matching a specific detection's embedding.\n\nSearches for entities similar to the specified detection's embedding\nacross all cameras. Used to show re-ID matches in the EventDetailModal.\n\nNOTE: This endpoint continues to use Redis for real-time similarity matching.\n\nArgs:\n    detection_id: Detection ID to find matches for\n    entity_type: Type of entity to search ('person' or 'vehicle')\n    threshold: Minimum cosine similarity threshold (default 0.85)\n    reid_service: Re-identification service dependency\n\nReturns:\n    EntityMatchResponse with matching entities sorted by similarity\n\nRaises:\n    HTTPException: 404 if detection embedding not found, 503 if Redis unavailable",
         "operationId": "get_entity_matches_api_entities_matches__detection_id__get",
         "parameters": [
           {
@@ -24733,7 +24733,7 @@
     },
     "/api/entities/{entity_id}": {
       "get": {
-        "description": "Get detailed information about a specific entity.\n\nReturns the entity's summary information along with all recorded appearances.\n\nArgs:\n    entity_id: Unique entity identifier (detection_id)\n    reid_service: Re-identification service dependency\n\nReturns:\n    EntityDetail with full entity information\n\nRaises:\n    HTTPException: 404 if entity not found, 503 if Redis unavailable",
+        "description": "Get detailed information about a specific entity.\n\nReturns the entity's summary information along with all recorded appearances\nfrom PostgreSQL.\n\nArgs:\n    entity_id: UUID of the entity\n    entity_repo: Entity repository dependency for PostgreSQL queries\n\nReturns:\n    EntityDetail with full entity information\n\nRaises:\n    HTTPException: 404 if entity not found",
         "operationId": "get_entity_api_entities__entity_id__get",
         "parameters": [
           {
@@ -24741,6 +24741,7 @@
             "name": "entity_id",
             "required": true,
             "schema": {
+              "format": "uuid",
               "title": "Entity Id",
               "type": "string"
             }
@@ -24772,9 +24773,6 @@
           },
           "500": {
             "description": "Internal server error"
-          },
-          "503": {
-            "description": "Redis service unavailable"
           }
         },
         "summary": "Get Entity",
@@ -24785,7 +24783,7 @@
     },
     "/api/entities/{entity_id}/history": {
       "get": {
-        "description": "Get the appearance timeline for a specific entity.\n\nReturns a chronological list of all appearances for the entity\nacross all cameras.\n\nArgs:\n    entity_id: Unique entity identifier (detection_id)\n    reid_service: Re-identification service dependency\n\nReturns:\n    EntityHistoryResponse with appearance timeline\n\nRaises:\n    HTTPException: 404 if entity not found, 503 if Redis unavailable",
+        "description": "Get the appearance timeline for a specific entity.\n\nReturns a chronological list of all appearances for the entity\nacross all cameras from PostgreSQL.\n\nArgs:\n    entity_id: UUID of the entity\n    entity_repo: Entity repository dependency for PostgreSQL queries\n\nReturns:\n    EntityHistoryResponse with appearance timeline\n\nRaises:\n    HTTPException: 404 if entity not found",
         "operationId": "get_entity_history_api_entities__entity_id__history_get",
         "parameters": [
           {
@@ -24793,6 +24791,7 @@
             "name": "entity_id",
             "required": true,
             "schema": {
+              "format": "uuid",
               "title": "Entity Id",
               "type": "string"
             }
@@ -24824,9 +24823,6 @@
           },
           "500": {
             "description": "Internal server error"
-          },
-          "503": {
-            "description": "Redis service unavailable"
           }
         },
         "summary": "Get Entity History",
