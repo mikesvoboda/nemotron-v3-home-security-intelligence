@@ -284,7 +284,7 @@ class TestFreshDatabaseMigrations:
             "quiet_hours_periods",
             "camera_notification_settings",
             "event_feedback",
-            "user_calibrations",
+            "user_calibration",
             # Alembic tracking table
             "alembic_version",
         }
