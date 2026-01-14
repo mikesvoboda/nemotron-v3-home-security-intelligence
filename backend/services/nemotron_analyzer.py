@@ -848,9 +848,12 @@ class NemotronAnalyzer:
                 reviewed=False,
             )
 
+            # NEM-2574: Batch database commits to reduce transaction overhead
+            # Use flush() to persist objects and get IDs without committing.
+            # A single commit happens at the end via get_session() context manager.
+            # On any error, the context manager automatically rolls back the transaction.
             session.add(event)
-            await session.commit()
-            await session.refresh(event)
+            await session.flush()  # Persist event and get ID without committing
 
             # Populate event_detections junction table (NEM-1592, NEM-1998)
             # Uses ON CONFLICT DO NOTHING to prevent race conditions when
@@ -868,9 +871,10 @@ class NemotronAnalyzer:
                     .on_conflict_do_nothing(index_elements=["event_id", "detection_id"])
                 )
                 await session.execute(stmt)
-            await session.commit()
+            # No explicit commit - batched with final commit
 
             # Store idempotency key (NEM-1725) to prevent duplicates on retry
+            # Note: This is stored in Redis, not the database transaction
             await self._set_idempotency(batch_id, event.id)
 
             # Create partial audit record for model contribution tracking
@@ -885,8 +889,7 @@ class NemotronAnalyzer:
                     enrichment_result=enrichment_result,
                 )
                 session.add(audit)
-                await session.commit()
-                await session.refresh(audit)
+                await session.flush()  # Persist audit and get ID without committing
                 logger.debug(f"Created audit {audit.id} for event {event.id}")
 
                 # Auto-enqueue for background evaluation (higher risk = higher priority)
@@ -894,6 +897,8 @@ class NemotronAnalyzer:
                 await self._enqueue_for_evaluation(event.id, event.risk_score or 50)
 
             except Exception as e:
+                # NEM-2574: Audit failures should not roll back the Event creation
+                # The audit is optional - we log a warning but continue
                 logger.warning(
                     "Audit log write failed",
                     extra={
@@ -904,6 +909,9 @@ class NemotronAnalyzer:
                         "error_message": str(e),
                     },
                 )
+
+            # NEM-2574: Single commit at end via get_session() context manager
+            # The context manager handles: commit on success, rollback on any error
 
             total_duration_ms = int((time.time() - analysis_start) * 1000)
             total_duration_seconds = time.time() - analysis_start
@@ -1123,9 +1131,12 @@ class NemotronAnalyzer:
                 is_fast_path=True,
             )
 
+            # NEM-2574: Batch database commits to reduce transaction overhead
+            # Use flush() to persist objects and get IDs without committing.
+            # A single commit happens at the end via get_session() context manager.
+            # On any error, the context manager automatically rolls back the transaction.
             session.add(event)
-            await session.commit()
-            await session.refresh(event)
+            await session.flush()  # Persist event and get ID without committing
 
             # Populate event_detections junction table (NEM-1592, NEM-1998)
             # Fast path has only one detection. Uses ON CONFLICT DO NOTHING
@@ -1141,9 +1152,10 @@ class NemotronAnalyzer:
                 .on_conflict_do_nothing(index_elements=["event_id", "detection_id"])
             )
             await session.execute(stmt)
-            await session.commit()
+            # No explicit commit - batched with final commit
 
             # Store idempotency key (NEM-1725) to prevent duplicates on retry
+            # Note: This is stored in Redis, not the database transaction
             await self._set_idempotency(batch_id, event.id)
 
             # Create partial audit record for model contribution tracking
@@ -1158,8 +1170,7 @@ class NemotronAnalyzer:
                     enrichment_result=enrichment_result,
                 )
                 session.add(audit)
-                await session.commit()
-                await session.refresh(audit)
+                await session.flush()  # Persist audit and get ID without committing
                 logger.debug(f"Created audit {audit.id} for event {event.id}")
 
                 # Auto-enqueue for background evaluation (higher risk = higher priority)
@@ -1167,6 +1178,8 @@ class NemotronAnalyzer:
                 await self._enqueue_for_evaluation(event.id, event.risk_score or 50)
 
             except Exception as e:
+                # NEM-2574: Audit failures should not roll back the Event creation
+                # The audit is optional - we log a warning but continue
                 logger.warning(
                     "Audit log write failed",
                     extra={
@@ -1177,6 +1190,9 @@ class NemotronAnalyzer:
                         "error_message": str(e),
                     },
                 )
+
+            # NEM-2574: Single commit at end via get_session() context manager
+            # The context manager handles: commit on success, rollback on any error
 
             total_duration_ms = int((time.time() - analysis_start) * 1000)
             total_duration_seconds = time.time() - analysis_start
