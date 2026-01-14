@@ -1,10 +1,11 @@
 /**
  * React Query hooks for fetching events with cursor-based pagination.
+ *
+ * Uses the generic createInfiniteQueryHook factory to reduce boilerplate
+ * while maintaining full type safety and backwards compatibility.
  */
 
-import { useMemo } from 'react';
-
-import { useCursorPaginatedQuery } from './useCursorPaginatedQuery';
+import { createInfiniteQueryHook, type BaseInfiniteQueryOptions } from './useCursorPaginatedQuery';
 import { fetchEvents, type EventsQueryParams } from '../services/api';
 
 import type { EventListResponse } from '../types/generated';
@@ -18,20 +19,14 @@ export interface EventFilters {
   object_type?: string;
 }
 
-export interface UseEventsInfiniteQueryOptions {
+export interface UseEventsInfiniteQueryOptions extends BaseInfiniteQueryOptions {
   filters?: EventFilters;
-  limit?: number;
-  enabled?: boolean;
-  staleTime?: number;
-  refetchInterval?: number | false;
-  /**
-   * Number of retry attempts for failed queries.
-   * Set to 0 to disable retries, or use a lower number for faster failure feedback.
-   * Defaults to 1 for better UX in list views.
-   */
-  retry?: number | boolean;
 }
 
+/**
+ * Return type for useEventsInfiniteQuery.
+ * Maintains backwards compatibility by using 'events' instead of 'items'.
+ */
 export interface UseEventsInfiniteQueryReturn {
   events: EventListResponse['items'];
   pages: EventListResponse[] | undefined;
@@ -55,61 +50,56 @@ export const eventsQueryKeys = {
   detail: (id: number) => [...eventsQueryKeys.all, 'detail', id] as const,
 };
 
+/**
+ * Internal hook created by factory function.
+ * Returns the standardized InfiniteQueryHookReturn interface.
+ */
+const useEventsInfiniteQueryInternal = createInfiniteQueryHook<
+  EventListResponse,
+  EventListResponse['items'][number],
+  UseEventsInfiniteQueryOptions,
+  EventFilters
+>({
+  getQueryKey: (options) => eventsQueryKeys.infinite(options.filters, options.limit),
+  fetchFn: ({ cursor, limit, filters }) => {
+    const params: EventsQueryParams = {
+      ...filters,
+      limit,
+      cursor,
+    };
+    return fetchEvents(params);
+  },
+  getFilters: (options) => options.filters,
+  defaultRetry: 1, // Default to 1 retry for faster failure feedback in list views
+});
+
+/**
+ * Hook for fetching events with cursor-based infinite pagination.
+ *
+ * Wraps the factory-generated hook to maintain backwards compatibility
+ * by renaming 'items' to 'events' in the return type.
+ *
+ * @param options - Query options including filters, limit, and React Query options
+ * @returns Events data with pagination controls and query state
+ */
 export function useEventsInfiniteQuery(
   options: UseEventsInfiniteQueryOptions = {}
 ): UseEventsInfiniteQueryReturn {
-  const {
-    filters,
-    limit = 50,
-    enabled = true,
-    staleTime,
-    refetchInterval,
-    retry = 1, // Default to 1 retry for faster failure feedback in list views
-  } = options;
+  const result = useEventsInfiniteQueryInternal(options);
 
-  const query = useCursorPaginatedQuery<EventListResponse, EventFilters>({
-    queryKey: eventsQueryKeys.infinite(filters, limit),
-    queryFn: ({ cursor, filters: queryFilters }) => {
-      const params: EventsQueryParams = {
-        ...queryFilters,
-        limit,
-        cursor,
-      };
-      return fetchEvents(params);
-    },
-    filters,
-    enabled,
-    staleTime,
-    refetchInterval,
-    retry,
-  });
-
-  const events = useMemo(() => {
-    if (!query.data?.pages) {
-      return [];
-    }
-    return query.data.pages.flatMap((page) => page.items);
-  }, [query.data?.pages]);
-
-  const totalCount = useMemo(() => {
-    if (!query.data?.pages?.[0]) {
-      return 0;
-    }
-    return query.data.pages[0].pagination.total;
-  }, [query.data?.pages]);
-
+  // Rename 'items' to 'events' for backwards compatibility
   return {
-    events,
-    pages: query.data?.pages,
-    totalCount,
-    isLoading: query.isLoading,
-    isFetching: query.isFetching,
-    isFetchingNextPage: query.isFetchingNextPage,
-    hasNextPage: query.hasNextPage,
-    fetchNextPage: query.fetchNextPage,
-    error: query.error,
-    isError: query.isError,
-    refetch: query.refetch,
+    events: result.items,
+    pages: result.pages,
+    totalCount: result.totalCount,
+    isLoading: result.isLoading,
+    isFetching: result.isFetching,
+    isFetchingNextPage: result.isFetchingNextPage,
+    hasNextPage: result.hasNextPage,
+    fetchNextPage: result.fetchNextPage,
+    error: result.error,
+    isError: result.isError,
+    refetch: result.refetch,
   };
 }
 

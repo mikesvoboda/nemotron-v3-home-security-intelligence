@@ -18,8 +18,11 @@ from unittest.mock import AsyncMock
 import pytest
 
 from backend.services.worker_supervisor import (
+    RestartPolicy,
     SupervisorConfig,
+    WorkerConfig,
     WorkerInfo,
+    WorkerState,
     WorkerStatus,
     WorkerSupervisor,
     get_worker_supervisor,
@@ -537,3 +540,328 @@ class TestSingleton:
         supervisor2 = get_worker_supervisor()
 
         assert supervisor1 is not supervisor2
+
+
+# ============================================================================
+# NEM-2492: WorkerState Enum Tests
+# ============================================================================
+
+
+class TestWorkerStateEnum:
+    """Tests for WorkerState enum (NEM-2492)."""
+
+    def test_worker_state_values(self) -> None:
+        """Test that WorkerState has all expected values."""
+        assert WorkerState.IDLE.value == "idle"
+        assert WorkerState.RUNNING.value == "running"
+        assert WorkerState.RESTARTING.value == "restarting"
+        assert WorkerState.FAILED.value == "failed"
+        assert WorkerState.STOPPED.value == "stopped"
+
+    def test_worker_state_members(self) -> None:
+        """Test that WorkerState has exactly 5 members."""
+        assert len(WorkerState) == 5
+
+    def test_worker_state_from_value(self) -> None:
+        """Test creating WorkerState from string value."""
+        assert WorkerState("idle") == WorkerState.IDLE
+        assert WorkerState("running") == WorkerState.RUNNING
+        assert WorkerState("restarting") == WorkerState.RESTARTING
+        assert WorkerState("failed") == WorkerState.FAILED
+        assert WorkerState("stopped") == WorkerState.STOPPED
+
+
+# ============================================================================
+# NEM-2492: RestartPolicy Enum Tests
+# ============================================================================
+
+
+class TestRestartPolicyEnum:
+    """Tests for RestartPolicy enum (NEM-2492)."""
+
+    def test_restart_policy_values(self) -> None:
+        """Test that RestartPolicy has all expected values."""
+        assert RestartPolicy.ALWAYS.value == "always"
+        assert RestartPolicy.ON_FAILURE.value == "on_failure"
+        assert RestartPolicy.NEVER.value == "never"
+
+    def test_restart_policy_members(self) -> None:
+        """Test that RestartPolicy has exactly 3 members."""
+        assert len(RestartPolicy) == 3
+
+    def test_restart_policy_from_value(self) -> None:
+        """Test creating RestartPolicy from string value."""
+        assert RestartPolicy("always") == RestartPolicy.ALWAYS
+        assert RestartPolicy("on_failure") == RestartPolicy.ON_FAILURE
+        assert RestartPolicy("never") == RestartPolicy.NEVER
+
+
+# ============================================================================
+# NEM-2492: WorkerConfig Dataclass Tests
+# ============================================================================
+
+
+class TestWorkerConfigDataclass:
+    """Tests for WorkerConfig dataclass (NEM-2492)."""
+
+    def test_worker_config_defaults(self) -> None:
+        """Test WorkerConfig default values."""
+
+        async def factory() -> None:
+            pass
+
+        config = WorkerConfig(name="test", coroutine_factory=factory)
+        assert config.name == "test"
+        assert config.coroutine_factory is factory
+        assert config.restart_policy == RestartPolicy.ON_FAILURE
+        assert config.max_restarts == 5
+        assert config.restart_delay_base == 1.0
+        assert config.health_check_interval == 30.0
+
+    def test_worker_config_custom_values(self) -> None:
+        """Test WorkerConfig with custom values."""
+
+        async def factory() -> None:
+            pass
+
+        config = WorkerConfig(
+            name="custom",
+            coroutine_factory=factory,
+            restart_policy=RestartPolicy.ALWAYS,
+            max_restarts=10,
+            restart_delay_base=2.0,
+            health_check_interval=60.0,
+        )
+        assert config.name == "custom"
+        assert config.restart_policy == RestartPolicy.ALWAYS
+        assert config.max_restarts == 10
+        assert config.restart_delay_base == 2.0
+        assert config.health_check_interval == 60.0
+
+
+# ============================================================================
+# NEM-2492: WorkerInfo to_dict and circuit_open Tests
+# ============================================================================
+
+
+class TestWorkerInfoDataclass:
+    """Tests for WorkerInfo dataclass additions (NEM-2492)."""
+
+    def test_circuit_open_default(self) -> None:
+        """Test that circuit_open defaults to False."""
+        worker = WorkerInfo(
+            name="test",
+            factory=AsyncMock(),
+            restart_count=0,
+            backoff_base=1.0,
+            backoff_max=60.0,
+        )
+        assert worker.circuit_open is False
+
+    def test_circuit_open_can_be_set(self) -> None:
+        """Test that circuit_open can be set to True."""
+        worker = WorkerInfo(
+            name="test",
+            factory=AsyncMock(),
+            restart_count=0,
+            backoff_base=1.0,
+            backoff_max=60.0,
+            circuit_open=True,
+        )
+        assert worker.circuit_open is True
+
+    def test_to_dict_returns_dict(self) -> None:
+        """Test that to_dict returns a dictionary."""
+        worker = WorkerInfo(
+            name="test",
+            factory=AsyncMock(),
+            restart_count=0,
+            backoff_base=1.0,
+            backoff_max=60.0,
+        )
+        result = worker.to_dict()
+        assert isinstance(result, dict)
+
+    def test_to_dict_contains_all_fields(self) -> None:
+        """Test that to_dict contains all expected fields."""
+        worker = WorkerInfo(
+            name="test",
+            factory=AsyncMock(),
+            restart_count=3,
+            backoff_base=1.0,
+            backoff_max=60.0,
+            circuit_open=True,
+        )
+        result = worker.to_dict()
+
+        assert result["name"] == "test"
+        assert result["status"] == WorkerStatus.STOPPED.value
+        assert result["restart_count"] == 3
+        assert result["max_restarts"] == 5  # default
+        assert result["backoff_base"] == 1.0
+        assert result["backoff_max"] == 60.0
+        assert result["last_started_at"] is None
+        assert result["last_crashed_at"] is None
+        assert result["error"] is None
+        assert result["circuit_open"] is True
+
+
+# ============================================================================
+# NEM-2492: Circuit Breaker Tests
+# ============================================================================
+
+
+class TestCircuitBreaker:
+    """Tests for circuit breaker functionality (NEM-2492)."""
+
+    async def test_circuit_opens_after_max_restarts(
+        self,
+        supervisor: WorkerSupervisor,
+    ) -> None:
+        """Test that circuit breaker opens after max restarts exceeded."""
+
+        async def always_crashes() -> None:
+            raise RuntimeError("Always fails")
+
+        await supervisor.register_worker(
+            "always_crashes",
+            always_crashes,
+            max_restarts=2,
+            backoff_base=0.05,
+        )
+        await supervisor.start()
+
+        try:
+            # Wait for all restart attempts - short wait since backoff_base=0.05
+            await asyncio.sleep(1.0)  # intentionally short for test
+
+            info = supervisor.get_worker_info("always_crashes")
+            assert info is not None
+            assert info.circuit_open is True
+            assert info.status == WorkerStatus.FAILED
+        finally:
+            await supervisor.stop()
+
+    async def test_reset_circuit_breaker_success(
+        self,
+        supervisor: WorkerSupervisor,
+    ) -> None:
+        """Test resetting circuit breaker for a failed worker."""
+
+        async def worker() -> None:
+            pass
+
+        await supervisor.register_worker("test_worker", worker)
+
+        # Manually set to failed state with open circuit
+        supervisor._workers["test_worker"].circuit_open = True
+        supervisor._workers["test_worker"].restart_count = 5
+        supervisor._workers["test_worker"].status = WorkerStatus.FAILED
+
+        result = supervisor.reset_circuit_breaker("test_worker")
+
+        assert result is True
+        info = supervisor.get_worker_info("test_worker")
+        assert info is not None
+        assert info.circuit_open is False
+        assert info.restart_count == 0
+        assert info.status == WorkerStatus.STOPPED
+
+    async def test_reset_circuit_breaker_unknown_worker(
+        self,
+        supervisor: WorkerSupervisor,
+    ) -> None:
+        """Test resetting circuit breaker for unknown worker returns False."""
+        result = supervisor.reset_circuit_breaker("unknown")
+        assert result is False
+
+
+# ============================================================================
+# NEM-2492: get_all_statuses Tests
+# ============================================================================
+
+
+class TestGetAllStatuses:
+    """Tests for get_all_statuses method (NEM-2492)."""
+
+    async def test_get_all_statuses_empty(self, supervisor: WorkerSupervisor) -> None:
+        """Test get_all_statuses with no workers."""
+        statuses = supervisor.get_all_statuses()
+        assert statuses == {}
+
+    async def test_get_all_statuses_single_worker(
+        self,
+        supervisor: WorkerSupervisor,
+    ) -> None:
+        """Test get_all_statuses with a single worker."""
+
+        async def worker() -> None:
+            pass
+
+        await supervisor.register_worker("test_worker", worker)
+        statuses = supervisor.get_all_statuses()
+
+        assert len(statuses) == 1
+        assert "test_worker" in statuses
+        assert statuses["test_worker"]["name"] == "test_worker"
+        assert statuses["test_worker"]["status"] == WorkerStatus.STOPPED.value
+
+    async def test_get_all_statuses_multiple_workers(
+        self,
+        supervisor: WorkerSupervisor,
+    ) -> None:
+        """Test get_all_statuses with multiple workers."""
+
+        async def worker1() -> None:
+            pass
+
+        async def worker2() -> None:
+            pass
+
+        await supervisor.register_worker("worker1", worker1)
+        await supervisor.register_worker("worker2", worker2)
+
+        statuses = supervisor.get_all_statuses()
+
+        assert len(statuses) == 2
+        assert "worker1" in statuses
+        assert "worker2" in statuses
+
+
+# ============================================================================
+# NEM-2492: _calculate_backoff_static Tests
+# ============================================================================
+
+
+class TestCalculateBackoffStatic:
+    """Tests for _calculate_backoff_static static method (NEM-2492)."""
+
+    def test_backoff_zero_restarts(self) -> None:
+        """Test backoff with zero restarts returns base."""
+        result = WorkerSupervisor._calculate_backoff_static(0, 1.0, 60.0)
+        assert result == 1.0
+
+    def test_backoff_first_restart(self) -> None:
+        """Test backoff for first restart."""
+        result = WorkerSupervisor._calculate_backoff_static(1, 1.0, 60.0)
+        assert result == 1.0  # 1.0 * 2^0 = 1.0
+
+    def test_backoff_exponential_growth(self) -> None:
+        """Test exponential backoff growth."""
+        result = WorkerSupervisor._calculate_backoff_static(3, 1.0, 60.0)
+        assert result == 4.0  # 1.0 * 2^2 = 4.0
+
+    def test_backoff_capped_at_max(self) -> None:
+        """Test backoff is capped at max value."""
+        result = WorkerSupervisor._calculate_backoff_static(10, 1.0, 60.0)
+        assert result == 60.0  # Capped at max
+
+    def test_backoff_custom_base(self) -> None:
+        """Test backoff with custom base value."""
+        result = WorkerSupervisor._calculate_backoff_static(2, 2.0, 60.0)
+        assert result == 4.0  # 2.0 * 2^1 = 4.0
+
+    def test_backoff_returns_float(self) -> None:
+        """Test that backoff always returns a float."""
+        result = WorkerSupervisor._calculate_backoff_static(3, 1.0, 60.0)
+        assert isinstance(result, float)

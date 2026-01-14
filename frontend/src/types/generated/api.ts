@@ -1118,6 +1118,11 @@ export interface paths {
          *     Supports both cursor-based pagination (recommended) and offset pagination (deprecated).
          *     Cursor-based pagination offers better performance for large datasets.
          *
+         *     **Performance Note:** Total count queries are expensive for large datasets. By default,
+         *     the total count is not calculated (returns 0). Use `include_total_count=true` only when
+         *     the total count is needed (e.g., for displaying "X of Y results" in UI). For pagination,
+         *     `has_more` and `next_cursor` provide sufficient information.
+         *
          *     Args:
          *         action: Optional action type to filter by
          *         resource_type: Optional resource type to filter by
@@ -1129,6 +1134,7 @@ export interface paths {
          *         limit: Maximum number of results to return (1-1000, default 100)
          *         offset: Number of results to skip (deprecated, use cursor instead)
          *         cursor: Pagination cursor from previous response's next_cursor field
+         *         include_total_count: Whether to calculate total count (default False for performance)
          *         db: Database session
          *
          *     Returns:
@@ -4153,6 +4159,11 @@ export interface paths {
          *     Supports both cursor-based pagination (recommended) and offset pagination (deprecated).
          *     Cursor-based pagination offers better performance for large datasets.
          *
+         *     **Performance Note:** Total count queries are expensive for large datasets. By default,
+         *     the total count is not calculated (returns 0). Use `include_total_count=true` only when
+         *     the total count is needed (e.g., for displaying "X of Y results" in UI). For pagination,
+         *     `has_more` and `next_cursor` provide sufficient information.
+         *
          *     Args:
          *         level: Optional log level to filter by (DEBUG, INFO, WARNING, ERROR, CRITICAL)
          *         component: Optional component name to filter by
@@ -4164,6 +4175,7 @@ export interface paths {
          *         limit: Maximum number of results to return (1-1000, default 100)
          *         offset: Number of results to skip (deprecated, use cursor instead)
          *         cursor: Pagination cursor from previous response's next_cursor field
+         *         include_total_count: Whether to calculate total count (default False for performance)
          *         db: Database session
          *
          *     Returns:
@@ -21095,6 +21107,8 @@ export interface operations {
                 offset?: number;
                 /** @description Pagination cursor from previous response */
                 cursor?: string | null;
+                /** @description Include total count in response. Defaults to False for performance. Total count queries are expensive for large datasets. For cursor-based pagination, has_more and next_cursor provide sufficient information without the total count. */
+                include_total_count?: boolean;
             };
             header?: never;
             path?: never;
@@ -25294,6 +25308,8 @@ export interface operations {
                 offset?: number;
                 /** @description Pagination cursor from previous response */
                 cursor?: string | null;
+                /** @description Include total count in response. Defaults to False for performance. Total count queries are expensive for large datasets. For cursor-based pagination, has_more and next_cursor provide sufficient information without the total count. */
+                include_total_count?: boolean;
             };
             header?: never;
             path?: never;
