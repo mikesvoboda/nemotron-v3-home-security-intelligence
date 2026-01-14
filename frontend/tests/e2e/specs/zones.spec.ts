@@ -200,7 +200,7 @@ test.describe('Zone Drawing - Rectangle', () => {
 
   test('drawing instructions are shown in rectangle mode', async () => {
     await zonesPage.startDrawingRectangle();
-    await expect(zonesPage.page.getByText('Click and drag to draw a rectangle')).toBeVisible();
+    await expect(zonesPage.page.getByText('Click and drag on the camera view to draw a rectangle zone.')).toBeVisible();
   });
 });
 
@@ -228,7 +228,7 @@ test.describe('Zone Drawing - Polygon', () => {
 
   test('drawing instructions are shown in polygon mode', async () => {
     await zonesPage.startDrawingPolygon();
-    await expect(zonesPage.page.getByText('Click to add points. Double-click to complete')).toBeVisible();
+    await expect(zonesPage.page.getByText('Click on the camera view to add polygon points. Double-click to complete the shape.')).toBeVisible();
   });
 
   test('can cancel polygon drawing', async () => {
@@ -391,9 +391,8 @@ test.describe('Zone Deletion', () => {
   test('can cancel deletion', async () => {
     await zonesPage.clickDeleteZone('Front Door Entry');
 
-    // Click the Cancel button in the delete confirmation
-    const cancelButton = zonesPage.page.locator('.bg-red-500\\/5, .bg-red-500\\/10').getByRole('button', { name: /Cancel/i })
-      .or(zonesPage.page.getByRole('button', { name: /^Cancel$/ }).last());
+    // Find the cancel button in the delete confirmation section (border-gray-600 styling)
+    const cancelButton = zonesPage.page.getByRole('button', { name: /^Cancel$/i }).last();
     await cancelButton.click();
 
     // Zone should still be visible in the list
@@ -550,14 +549,15 @@ test.describe('Zone Color Selection', () => {
   test('clicking color button changes selection', async () => {
     await zonesPage.startDrawingRectangle();
 
-    // Click a different color
-    const greenButton = zonesPage.page.locator('button[style*="background-color: rgb(16, 185, 129)"]')
-      .or(zonesPage.page.locator('button[style*="#10B981"]'));
+    // Get all color buttons
+    const colorButtons = zonesPage.zoneColorButtons;
+    const count = await colorButtons.count();
 
-    if (await greenButton.isVisible()) {
-      await greenButton.click();
-      // The button should now have a ring around it indicating selection
-      await expect(greenButton).toHaveClass(/ring-primary/);
+    // Click the second color button (not the currently selected one)
+    if (count >= 2) {
+      await colorButtons.nth(1).click();
+      // Verify the button is now marked as selected with ring styles
+      await expect(colorButtons.nth(1)).toHaveClass(/ring-2|ring-primary/);
     }
   });
 });

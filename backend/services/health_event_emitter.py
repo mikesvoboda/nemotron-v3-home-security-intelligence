@@ -427,7 +427,7 @@ class HealthEventEmitter:
 
 
 # =============================================================================
-# Global Singleton Instance
+# Global Singleton Instance (Legacy + DI Support - NEM-2611)
 # =============================================================================
 
 _health_event_emitter: HealthEventEmitter | None = None
@@ -435,7 +435,11 @@ _emitter_lock = threading.Lock()
 
 
 def get_health_event_emitter() -> HealthEventEmitter:
-    """Get or create the global health event emitter instance.
+    """Get or create the health event emitter instance.
+
+    This function supports both dependency injection and legacy global patterns:
+    1. First, tries to get the emitter from the DI container
+    2. Falls back to the legacy global singleton pattern
 
     Thread-safe singleton pattern ensures a single emitter instance
     across the application.
@@ -445,11 +449,31 @@ def get_health_event_emitter() -> HealthEventEmitter:
     """
     global _health_event_emitter  # noqa: PLW0603
 
+    # Try to get from DI container first (NEM-2611)
+    try:
+        from backend.core.container import ServiceNotFoundError, get_container
+
+        container = get_container()
+        registration = container._registrations.get("health_event_emitter")
+        if registration and registration.instance is not None:
+            # Cast to proper type since container stores Any
+            emitter: HealthEventEmitter = registration.instance
+            return emitter
+        # If registered but not yet instantiated, get it from container
+        if "health_event_emitter" in container._registrations:
+            result = container.get("health_event_emitter")
+            # Cast to proper type since container returns Any
+            return result  # type: ignore[no-any-return]
+    except (ServiceNotFoundError, ImportError, AttributeError):
+        # Container not available or service not registered, use legacy pattern
+        pass
+
+    # Fall back to legacy global singleton
     if _health_event_emitter is None:
         with _emitter_lock:
             if _health_event_emitter is None:
                 _health_event_emitter = HealthEventEmitter()
-                logger.info("Global HealthEventEmitter initialized")
+                logger.info("Global HealthEventEmitter initialized (legacy pattern)")
 
     return _health_event_emitter
 
@@ -487,12 +511,28 @@ async def emit_system_error(
 
 
 def reset_health_event_emitter() -> None:
-    """Reset the global health event emitter state.
+    """Reset the health event emitter state (both DI and legacy).
+
+    This function resets both the DI container instance and the legacy
+    global singleton to ensure clean state for testing.
 
     Warning: Only use this in tests or during system restart.
     """
     global _health_event_emitter  # noqa: PLW0603
 
+    # Reset DI container instance if available (NEM-2611)
+    try:
+        from backend.core.container import get_container
+
+        container = get_container()
+        registration = container._registrations.get("health_event_emitter")
+        if registration and registration.instance is not None:
+            registration.instance.reset()
+            registration.instance = None
+    except (ImportError, AttributeError):
+        pass
+
+    # Reset legacy global singleton
     with _emitter_lock:
         if _health_event_emitter is not None:
             _health_event_emitter.reset()

@@ -23,7 +23,7 @@ from backend.api.pagination import (
     decode_cursor,
     encode_cursor,
     get_deprecation_warning,
-    validate_pagination_params,
+    set_deprecation_headers,
 )
 from backend.api.schemas.bulk import (
     BulkOperationResponse,
@@ -55,7 +55,6 @@ from backend.api.utils.field_filter import (
     validate_fields,
 )
 from backend.api.validators import validate_date_range
-from backend.core.constants import CacheInvalidationReason
 from backend.core.database import get_db
 from backend.core.logging import get_logger
 from backend.core.mime_types import DEFAULT_VIDEO_MIME, normalize_file_type
@@ -168,6 +167,7 @@ detection_media_rate_limiter = RateLimiter(tier=RateLimitTier.MEDIA)
 
 @router.get("", response_model=DetectionListResponse)
 async def list_detections(  # noqa: PLR0912
+    response: Response,
     camera_id: str | None = Query(None, description="Filter by camera ID"),
     object_type: str | None = Query(None, description="Filter by object type"),
     start_date: datetime | None = Query(None, description="Filter by start date (ISO format)"),
@@ -218,15 +218,6 @@ async def list_detections(  # noqa: PLR0912
     """
     # Validate date range
     validate_date_range(start_date, end_date)
-
-    # Validate pagination params - reject simultaneous offset and cursor (NEM-2613)
-    try:
-        validate_pagination_params(cursor, offset)
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        ) from e
 
     # Parse and validate fields parameter for sparse fieldsets (NEM-1434)
     requested_fields = parse_fields_param(fields)
@@ -312,6 +303,9 @@ async def list_detections(  # noqa: PLR0912
 
     # Get deprecation warning if using offset without cursor
     deprecation_warning = get_deprecation_warning(cursor, offset)
+
+    # Set HTTP Deprecation headers per IETF standard (NEM-2603)
+    set_deprecation_headers(response, cursor, offset)
 
     # Convert ORM objects to dicts and apply sparse fieldsets filter if requested (NEM-1434)
     detections_output: list[Detection] | list[dict[str, Any]]
@@ -1633,8 +1627,8 @@ async def bulk_create_detections(
             await db.commit()
             # Invalidate detection-related caches after successful bulk create (NEM-1951)
             try:
-                await cache.invalidate_detections(reason=CacheInvalidationReason.DETECTION_CREATED)
-                await cache.invalidate_event_stats(reason=CacheInvalidationReason.DETECTION_CREATED)
+                await cache.invalidate_detections(reason="detection_created")
+                await cache.invalidate_event_stats(reason="detection_created")
             except Exception as e:
                 # Cache invalidation is non-critical - log but don't fail the request
                 logger.warning(f"Cache invalidation failed after bulk create: {e}")
@@ -1750,8 +1744,8 @@ async def bulk_update_detections(
             await db.commit()
             # Invalidate detection-related caches after successful bulk update (NEM-1951)
             try:
-                await cache.invalidate_detections(reason=CacheInvalidationReason.DETECTION_UPDATED)
-                await cache.invalidate_event_stats(reason=CacheInvalidationReason.DETECTION_UPDATED)
+                await cache.invalidate_detections(reason="detection_updated")
+                await cache.invalidate_event_stats(reason="detection_updated")
             except Exception as e:
                 # Cache invalidation is non-critical - log but don't fail the request
                 logger.warning(f"Cache invalidation failed after bulk update: {e}")
@@ -1864,8 +1858,8 @@ async def bulk_delete_detections(
             await db.commit()
             # Invalidate detection-related caches after successful bulk delete (NEM-1951)
             try:
-                await cache.invalidate_detections(reason=CacheInvalidationReason.DETECTION_DELETED)
-                await cache.invalidate_event_stats(reason=CacheInvalidationReason.DETECTION_DELETED)
+                await cache.invalidate_detections(reason="detection_deleted")
+                await cache.invalidate_event_stats(reason="detection_deleted")
             except Exception as e:
                 # Cache invalidation is non-critical - log but don't fail the request
                 logger.warning(f"Cache invalidation failed after bulk delete: {e}")

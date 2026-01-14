@@ -47,6 +47,12 @@ from enum import Enum
 from typing import TYPE_CHECKING
 
 from backend.core.logging import get_logger
+from backend.core.metrics import (
+    record_worker_crash,
+    record_worker_max_restarts_exceeded,
+    record_worker_restart,
+    set_worker_status,
+)
 
 if TYPE_CHECKING:
     from backend.services.event_broadcaster import EventBroadcaster
@@ -243,7 +249,7 @@ class WorkerSupervisor:
             self._monitor_task = None
 
         # Stop all workers
-        for _name, worker in self._workers.items():
+        for worker_name, worker in self._workers.items():
             if worker.task is not None and not worker.task.done():
                 worker.task.cancel()
                 try:
@@ -252,6 +258,9 @@ class WorkerSupervisor:
                     pass
             worker.status = WorkerStatus.STOPPED
             worker.task = None
+
+            # Record stopped status metric
+            set_worker_status(worker_name, WorkerStatus.STOPPED.value)
 
         logger.info("WorkerSupervisor stopped")
 
@@ -281,6 +290,9 @@ class WorkerSupervisor:
         worker.last_started_at = datetime.now(UTC)
         worker.error = None
 
+        # Record metrics
+        set_worker_status(name, WorkerStatus.RUNNING.value)
+
         await self._broadcast_status(name, WorkerStatus.RUNNING)
         logger.info(f"Started worker '{name}'")
 
@@ -302,6 +314,11 @@ class WorkerSupervisor:
             worker.status = WorkerStatus.CRASHED
             worker.last_crashed_at = datetime.now(UTC)
             worker.error = str(e)
+
+            # Record metrics
+            record_worker_crash(name)
+            set_worker_status(name, WorkerStatus.CRASHED.value)
+
             logger.error(f"Worker '{name}' crashed: {e}", exc_info=True)
             await self._broadcast_status(name, WorkerStatus.CRASHED, str(e))
 
@@ -343,6 +360,11 @@ class WorkerSupervisor:
             if worker.restart_count >= worker.max_restarts:
                 if worker.status != WorkerStatus.FAILED:
                     worker.status = WorkerStatus.FAILED
+
+                    # Record metrics
+                    record_worker_max_restarts_exceeded(name)
+                    set_worker_status(name, WorkerStatus.FAILED.value)
+
                     logger.error(
                         f"Worker '{name}' exceeded max restarts ({worker.max_restarts}), giving up"
                     )
@@ -356,6 +378,9 @@ class WorkerSupervisor:
             # Calculate backoff
             backoff = self._calculate_backoff(worker)
             worker.status = WorkerStatus.RESTARTING
+
+            # Record restarting status metric
+            set_worker_status(name, WorkerStatus.RESTARTING.value)
 
             logger.info(
                 f"Restarting worker '{name}' in {backoff:.1f}s "
@@ -371,6 +396,10 @@ class WorkerSupervisor:
 
             # Increment restart count and start
             worker.restart_count += 1
+
+            # Record restart metric
+            record_worker_restart(name)
+
             await self._start_worker(name)
 
     def _calculate_backoff(self, worker: WorkerInfo) -> float:

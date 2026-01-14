@@ -456,35 +456,24 @@ async def test_rule(
 alerts_instance_router = APIRouter(prefix="/api/alerts", tags=["alerts"])
 
 
+# Legacy aliases for backward compatibility with existing tests
+# These delegate to the unified Alert.to_dict() method on the model
 def _alert_to_response_dict(alert: Alert) -> dict[str, Any]:
-    """Convert an Alert model to response dict."""
-    return {
-        "id": alert.id,
-        "event_id": alert.event_id,
-        "rule_id": alert.rule_id,
-        "severity": alert.severity.value if hasattr(alert.severity, "value") else alert.severity,
-        "status": alert.status.value if hasattr(alert.status, "value") else alert.status,
-        "created_at": alert.created_at,
-        "updated_at": alert.updated_at,
-        "delivered_at": alert.delivered_at,
-        "channels": alert.channels or [],
-        "dedup_key": alert.dedup_key,
-        "alert_metadata": alert.alert_metadata,
-    }
+    """Convert an Alert model to response dict.
+
+    Deprecated: Use alert.to_dict() directly instead.
+    Kept for backward compatibility with existing tests.
+    """
+    return alert.to_dict(for_websocket=False)
 
 
 def _alert_to_websocket_data(alert: Alert) -> dict[str, Any]:
-    """Convert an Alert model to WebSocket broadcast data."""
-    return {
-        "id": alert.id,
-        "event_id": alert.event_id,
-        "rule_id": alert.rule_id,
-        "severity": alert.severity.value if hasattr(alert.severity, "value") else alert.severity,
-        "status": alert.status.value if hasattr(alert.status, "value") else alert.status,
-        "dedup_key": alert.dedup_key,
-        "created_at": alert.created_at.isoformat() if alert.created_at else None,
-        "updated_at": alert.updated_at.isoformat() if alert.updated_at else None,
-    }
+    """Convert an Alert model to WebSocket broadcast data.
+
+    Deprecated: Use alert.to_dict(for_websocket=True) directly instead.
+    Kept for backward compatibility with existing tests.
+    """
+    return alert.to_dict(for_websocket=True)
 
 
 async def _get_alert_or_404(alert_id: str, db: AsyncSession) -> Alert:
@@ -574,7 +563,7 @@ async def acknowledge_alert(
         # Log if broadcaster not initialized, but don't fail the request
         logger.warning(f"Failed to schedule alert broadcast: {e}")
 
-    return AlertResponse(**_alert_to_response_dict(alert))
+    return AlertResponse(**alert.to_dict())
 
 
 @alerts_instance_router.post(
@@ -653,4 +642,4 @@ async def dismiss_alert(
         # Log if broadcaster not initialized, but don't fail the request
         logger.warning(f"Failed to schedule alert broadcast: {e}")
 
-    return AlertResponse(**_alert_to_response_dict(alert))
+    return AlertResponse(**alert.to_dict())

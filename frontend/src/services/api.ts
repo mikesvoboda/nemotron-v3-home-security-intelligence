@@ -4811,7 +4811,7 @@ export async function updateCalibration(
  * - high_threshold: 85
  * - decay_factor: 0.1
  *
- * Note: Feedback counts (false_positive_count, missed_detection_count)
+ * Note: Feedback counts (false_positive_count, missed_threat_count)
  * are NOT reset by this operation.
  *
  * @returns CalibrationResetResponse with success message and reset calibration

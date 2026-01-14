@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import func, literal, select, union_all
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,7 +12,7 @@ from backend.api.pagination import (
     decode_cursor,
     encode_cursor,
     get_deprecation_warning,
-    validate_pagination_params,
+    set_deprecation_headers,
 )
 from backend.api.schemas.audit import (
     AuditLogListResponse,
@@ -37,6 +37,7 @@ router = APIRouter(prefix="/api/audit", tags=["audit"])
     },
 )
 async def list_audit_logs(  # noqa: PLR0912
+    response: Response,
     action: str | None = Query(None, description="Filter by action type"),
     resource_type: str | None = Query(None, description="Filter by resource type"),
     resource_id: str | None = Query(None, description="Filter by resource ID"),
@@ -80,15 +81,6 @@ async def list_audit_logs(  # noqa: PLR0912
     """
     # Validate date range
     validate_date_range(start_date, end_date)
-
-    # Validate pagination params - reject simultaneous offset and cursor (NEM-2613)
-    try:
-        validate_pagination_params(cursor, offset)
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        ) from e
 
     # Decode cursor if provided
     cursor_data: CursorData | None = None
@@ -167,6 +159,9 @@ async def list_audit_logs(  # noqa: PLR0912
 
     # Get deprecation warning if using offset without cursor
     deprecation_warning = get_deprecation_warning(cursor, offset)
+
+    # Set HTTP Deprecation headers per IETF standard (NEM-2603)
+    set_deprecation_headers(response, cursor, offset)
 
     return AuditLogListResponse(
         items=logs,

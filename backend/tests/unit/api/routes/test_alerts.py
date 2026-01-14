@@ -1016,6 +1016,19 @@ class TestAcknowledgeAlert:
         mock_alert.channels = []
         mock_alert.dedup_key = "cam1:rule-id"
         mock_alert.alert_metadata = {}
+        mock_alert.to_dict.return_value = {
+            "id": "alert-id",
+            "event_id": 1,
+            "rule_id": "rule-id",
+            "severity": "high",
+            "status": "acknowledged",
+            "created_at": datetime(2025, 1, 1, tzinfo=UTC),
+            "updated_at": datetime(2025, 1, 1, tzinfo=UTC),
+            "delivered_at": None,
+            "channels": [],
+            "dedup_key": "cam1:rule-id",
+            "metadata": {},
+        }
 
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = mock_alert
@@ -1056,6 +1069,19 @@ class TestAcknowledgeAlert:
         mock_alert.channels = ["pushover"]
         mock_alert.dedup_key = "cam1:rule-id"
         mock_alert.alert_metadata = {}
+        mock_alert.to_dict.return_value = {
+            "id": "alert-id",
+            "event_id": 1,
+            "rule_id": "rule-id",
+            "severity": "high",
+            "status": "acknowledged",
+            "created_at": datetime(2025, 1, 1, tzinfo=UTC),
+            "updated_at": datetime(2025, 1, 1, tzinfo=UTC),
+            "delivered_at": datetime(2025, 1, 1, 0, 1, tzinfo=UTC),
+            "channels": ["pushover"],
+            "dedup_key": "cam1:rule-id",
+            "metadata": {},
+        }
 
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = mock_alert
@@ -1132,6 +1158,19 @@ class TestAcknowledgeAlert:
         mock_alert.channels = []
         mock_alert.dedup_key = "cam1:rule-id"
         mock_alert.alert_metadata = {}
+        mock_alert.to_dict.return_value = {
+            "id": "alert-id",
+            "event_id": 1,
+            "rule_id": "rule-id",
+            "severity": "high",
+            "status": "acknowledged",
+            "created_at": datetime(2025, 1, 1, tzinfo=UTC),
+            "updated_at": datetime(2025, 1, 1, tzinfo=UTC),
+            "delivered_at": None,
+            "channels": [],
+            "dedup_key": "cam1:rule-id",
+            "metadata": {},
+        }
 
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = mock_alert
@@ -1173,6 +1212,19 @@ class TestDismissAlert:
         mock_alert.channels = []
         mock_alert.dedup_key = "cam1:rule-id"
         mock_alert.alert_metadata = {}
+        mock_alert.to_dict.return_value = {
+            "id": "alert-id",
+            "event_id": 1,
+            "rule_id": "rule-id",
+            "severity": "high",
+            "status": "dismissed",
+            "created_at": datetime(2025, 1, 1, tzinfo=UTC),
+            "updated_at": datetime(2025, 1, 1, tzinfo=UTC),
+            "delivered_at": None,
+            "channels": [],
+            "dedup_key": "cam1:rule-id",
+            "metadata": {},
+        }
 
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = mock_alert
@@ -1213,6 +1265,19 @@ class TestDismissAlert:
         mock_alert.channels = ["pushover"]
         mock_alert.dedup_key = "cam1:rule-id"
         mock_alert.alert_metadata = {}
+        mock_alert.to_dict.return_value = {
+            "id": "alert-id",
+            "event_id": 1,
+            "rule_id": "rule-id",
+            "severity": "high",
+            "status": "dismissed",
+            "created_at": datetime(2025, 1, 1, tzinfo=UTC),
+            "updated_at": datetime(2025, 1, 1, tzinfo=UTC),
+            "delivered_at": datetime(2025, 1, 1, 0, 1, tzinfo=UTC),
+            "channels": ["pushover"],
+            "dedup_key": "cam1:rule-id",
+            "metadata": {},
+        }
 
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = mock_alert
@@ -1250,6 +1315,19 @@ class TestDismissAlert:
         mock_alert.channels = []
         mock_alert.dedup_key = "cam1:rule-id"
         mock_alert.alert_metadata = {}
+        mock_alert.to_dict.return_value = {
+            "id": "alert-id",
+            "event_id": 1,
+            "rule_id": "rule-id",
+            "severity": "high",
+            "status": "dismissed",
+            "created_at": datetime(2025, 1, 1, tzinfo=UTC),
+            "updated_at": datetime(2025, 1, 1, tzinfo=UTC),
+            "delivered_at": None,
+            "channels": [],
+            "dedup_key": "cam1:rule-id",
+            "metadata": {},
+        }
 
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = mock_alert
@@ -1324,6 +1402,19 @@ class TestDismissAlert:
         mock_alert.channels = []
         mock_alert.dedup_key = "cam1:rule-id"
         mock_alert.alert_metadata = {}
+        mock_alert.to_dict.return_value = {
+            "id": "alert-id",
+            "event_id": 1,
+            "rule_id": "rule-id",
+            "severity": "high",
+            "status": "dismissed",
+            "created_at": datetime(2025, 1, 1, tzinfo=UTC),
+            "updated_at": datetime(2025, 1, 1, tzinfo=UTC),
+            "delivered_at": None,
+            "channels": [],
+            "dedup_key": "cam1:rule-id",
+            "metadata": {},
+        }
 
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = mock_alert

@@ -133,6 +133,11 @@ repos:
 
   # OpenAPI spec generation - auto-regenerates docs/openapi.json on backend changes
   # Runs before commit so the generated spec is included in the commit
+  #
+  # Performance (NEM-2587):
+  #   - Skip path (no changes): ~5-10ms (hash comparison only)
+  #   - Regeneration path: ~1.5-2s (full app import + spec generation)
+  #   - Uses .openapi-cache file for hash-based change detection
   - repo: local
     hooks:
       - id: generate-openapi

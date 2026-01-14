@@ -61,6 +61,16 @@ DEFAULT_JOB_TIMEOUT = 600  # 10 minutes (default, use settings.default_job_timeo
 # Maximum retry attempts before permanent failure
 DEFAULT_MAX_RETRY_ATTEMPTS = 3
 
+# TTL for timeout config keys (in seconds)
+# 48 hours: provides ample time for job lifecycle (max 2hr backup + 3 retries = 6hr)
+# plus generous buffer for debugging while ensuring eventual cleanup
+# This prevents unbounded memory growth from orphaned timeout config keys (NEM-2508)
+TIMEOUT_CONFIG_TTL_SECONDS = 48 * 60 * 60  # 48 hours = 172800 seconds
+
+# TTL for attempt counter keys (matches REDIS_JOB_TTL_SECONDS in job_tracker.py)
+# This prevents unbounded memory growth from orphaned retry counters
+ATTEMPT_COUNT_TTL_SECONDS = 3600  # 1 hour
+
 
 @dataclass
 class TimeoutConfig:
@@ -180,12 +190,15 @@ class JobTimeoutService:
     ) -> None:
         """Set the timeout configuration for a job.
 
+        The timeout config key is stored with a TTL to prevent unbounded memory
+        growth from orphaned config keys for completed/abandoned jobs (NEM-2508).
+
         Args:
             job_id: The job ID.
             config: Timeout configuration.
         """
         key = self._get_timeout_key(job_id)
-        await self._redis.set(key, config.to_dict())
+        await self._redis.set(key, config.to_dict(), expire=TIMEOUT_CONFIG_TTL_SECONDS)
 
         logger.debug(
             "Set timeout config for job",
@@ -193,6 +206,7 @@ class JobTimeoutService:
                 "job_id": job_id,
                 "timeout_seconds": config.timeout_seconds,
                 "deadline": config.deadline.isoformat() if config.deadline else None,
+                "ttl_seconds": TIMEOUT_CONFIG_TTL_SECONDS,
             },
         )
 
@@ -240,6 +254,9 @@ class JobTimeoutService:
     async def increment_attempt_count(self, job_id: str) -> int:
         """Increment the attempt count for a job.
 
+        The attempt count key is stored with a TTL to prevent unbounded memory
+        growth from orphaned retry counters for completed/abandoned jobs.
+
         Args:
             job_id: The job ID.
 
@@ -249,7 +266,7 @@ class JobTimeoutService:
         key = self._get_attempts_key(job_id)
         current = await self.get_attempt_count(job_id)
         new_count = current + 1
-        await self._redis.set(key, {"count": new_count})
+        await self._redis.set(key, {"count": new_count}, expire=ATTEMPT_COUNT_TTL_SECONDS)
         return new_count
 
     async def is_job_timed_out(

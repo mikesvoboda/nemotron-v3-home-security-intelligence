@@ -18,15 +18,51 @@ import type { Page } from '@playwright/test';
 
 test.describe('Risk Calibration - Settings Page @critical', () => {
   test.beforeEach(async ({ page }) => {
+    // Mock calibration API endpoints
+    await page.route('**/api/calibration', async (route) => {
+      if (route.request().method() === 'GET') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(mockUserCalibration.default),
+        });
+      } else {
+        await route.continue();
+      }
+    });
+
+    await page.route('**/api/calibration/defaults', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          low_threshold: 30,
+          medium_threshold: 60,
+          high_threshold: 85,
+          decay_factor: 0.1,
+        }),
+      });
+    });
+
+    await page.route('**/api/feedback/stats', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          total_feedback: 0,
+          by_type: {},
+          by_camera: {},
+        }),
+      });
+    });
+
     await page.goto('/settings');
     await page.waitForLoadState('networkidle');
   });
 
   test('should display risk sensitivity/calibration settings tab', async ({ page }) => {
-    // Look for calibration or sensitivity settings
-    const calibrationTab = page.locator(
-      '[data-testid="calibration-tab"], button:has-text("Sensitivity"), button:has-text("Calibration"), button:has-text("Thresholds")'
-    );
+    // Look for CALIBRATION tab button (all caps in implementation)
+    const calibrationTab = page.locator('button:has-text("CALIBRATION")');
 
     const tabExists = (await calibrationTab.count()) > 0;
     if (!tabExists) {
@@ -38,68 +74,89 @@ test.describe('Risk Calibration - Settings Page @critical', () => {
   });
 
   test('should show threshold sliders for low, medium, high', async ({ page }) => {
-    // Try to find calibration settings
+    // Click on CALIBRATION tab to navigate to it
+    const calibrationTab = page.locator('button:has-text("CALIBRATION")');
+    if ((await calibrationTab.count()) === 0) {
+      console.log('Calibration tab not found - skipping test');
+      return;
+    }
+    await calibrationTab.click();
+    await page.waitForTimeout(500);
+
+    // Look for calibration settings panel
     const calibrationSection = page.locator(
-      '[data-testid="calibration-settings"], [data-testid="risk-sensitivity"]'
+      '[data-testid="risk-sensitivity-settings"]'
     );
 
     const sectionExists = (await calibrationSection.count()) > 0;
     if (!sectionExists) {
-      console.log('Calibration section not found - checking for individual sliders');
-
-      // Look for threshold sliders directly
-      const lowSlider = page.locator(
-        '[data-testid="low-threshold-slider"], input[type="range"][name*="low"]'
-      );
-      const mediumSlider = page.locator(
-        '[data-testid="medium-threshold-slider"], input[type="range"][name*="medium"]'
-      );
-      const highSlider = page.locator(
-        '[data-testid="high-threshold-slider"], input[type="range"][name*="high"]'
-      );
-
-      const hasSliders =
-        (await lowSlider.count()) > 0 &&
-        (await mediumSlider.count()) > 0 &&
-        (await highSlider.count()) > 0;
-
-      if (!hasSliders) {
-        return;
-      }
-
-      await expect(lowSlider).toBeVisible();
-      await expect(mediumSlider).toBeVisible();
-      await expect(highSlider).toBeVisible();
-    } else {
-      await expect(calibrationSection).toBeVisible();
-    }
-  });
-
-  test('should display current threshold values', async ({ page }) => {
-    // Look for displayed threshold values using valid CSS selectors
-    const thresholdValues = page
-      .locator('[data-testid="threshold-value"]')
-      .or(page.locator('.threshold-display'));
-
-    const valuesExist = (await thresholdValues.count()) > 0;
-    if (!valuesExist) {
+      console.log('Calibration section not found - feature may not be implemented yet');
       return;
     }
 
-    // Default values should be 30, 60, 85
-    const pageText = await page.textContent('body');
-    const hasDefaultValues = pageText?.includes('30') && pageText?.includes('60') && pageText?.includes('85');
+    await expect(calibrationSection).toBeVisible();
 
-    if (!hasDefaultValues) {
-      console.log('Default threshold values not found in expected format');
+    // Look for threshold slider containers with data-testid
+    const lowSlider = calibrationSection.locator('[data-testid="low-threshold-slider"]');
+    const mediumSlider = calibrationSection.locator('[data-testid="medium-threshold-slider"]');
+    const highSlider = calibrationSection.locator('[data-testid="high-threshold-slider"]');
+
+    await expect(lowSlider).toBeVisible();
+    await expect(mediumSlider).toBeVisible();
+    await expect(highSlider).toBeVisible();
+  });
+
+  test('should display current threshold values', async ({ page }) => {
+    // Click on CALIBRATION tab to navigate to it
+    const calibrationTab = page.locator('button:has-text("CALIBRATION")');
+    if ((await calibrationTab.count()) === 0) {
+      return;
     }
+    await calibrationTab.click();
+    await page.waitForTimeout(500);
+
+    const calibrationSection = page.locator('[data-testid="risk-sensitivity-settings"]');
+    if ((await calibrationSection.count()) === 0) {
+      return;
+    }
+
+    // Look for threshold value displays - they are shown in large text next to sliders
+    const lowSliderDiv = calibrationSection.locator('[data-testid="low-threshold-slider"]');
+    const mediumSliderDiv = calibrationSection.locator('[data-testid="medium-threshold-slider"]');
+    const highSliderDiv = calibrationSection.locator('[data-testid="high-threshold-slider"]');
+
+    const hasSliders =
+      (await lowSliderDiv.count()) > 0 &&
+      (await mediumSliderDiv.count()) > 0 &&
+      (await highSliderDiv.count()) > 0;
+
+    if (!hasSliders) {
+      console.log('Threshold sliders not found');
+      return;
+    }
+
+    // Values are displayed as large text within each slider container
+    await expect(lowSliderDiv).toContainText(/\d+/);
+    await expect(mediumSliderDiv).toContainText(/\d+/);
+    await expect(highSliderDiv).toContainText(/\d+/);
   });
 
   test('should allow adjusting threshold sliders', async ({ page }) => {
-    const lowSlider = page.locator(
-      '[data-testid="low-threshold-slider"], input[type="range"][name*="low"]'
-    );
+    // Click on CALIBRATION tab
+    const calibrationTab = page.locator('button:has-text("CALIBRATION")');
+    if ((await calibrationTab.count()) === 0) {
+      return;
+    }
+    await calibrationTab.click();
+    await page.waitForTimeout(500);
 
+    // Find the actual input element inside the low-threshold-slider container
+    const lowSliderDiv = page.locator('[data-testid="low-threshold-slider"]');
+    if ((await lowSliderDiv.count()) === 0) {
+      return;
+    }
+
+    const lowSlider = lowSliderDiv.locator('input[type="range"]');
     const sliderExists = (await lowSlider.count()) > 0;
     if (!sliderExists) {
       return;
@@ -118,12 +175,23 @@ test.describe('Risk Calibration - Settings Page @critical', () => {
   });
 
   test('should validate threshold ordering (low < medium < high)', async ({ page }) => {
-    const lowSlider = page.locator(
-      '[data-testid="low-threshold-slider"], input[type="range"][name*="low"]'
-    );
-    const mediumSlider = page.locator(
-      '[data-testid="medium-threshold-slider"], input[type="range"][name*="medium"]'
-    );
+    // Click on CALIBRATION tab
+    const calibrationTab = page.locator('button:has-text("CALIBRATION")');
+    if ((await calibrationTab.count()) === 0) {
+      return;
+    }
+    await calibrationTab.click();
+    await page.waitForTimeout(500);
+
+    const lowSliderDiv = page.locator('[data-testid="low-threshold-slider"]');
+    const mediumSliderDiv = page.locator('[data-testid="medium-threshold-slider"]');
+
+    if ((await lowSliderDiv.count()) === 0 || (await mediumSliderDiv.count()) === 0) {
+      return;
+    }
+
+    const lowSlider = lowSliderDiv.locator('input[type="range"]');
+    const mediumSlider = mediumSliderDiv.locator('input[type="range"]');
 
     const slidersExist = (await lowSlider.count()) > 0 && (await mediumSlider.count()) > 0;
     if (!slidersExist) {
@@ -134,16 +202,15 @@ test.describe('Risk Calibration - Settings Page @critical', () => {
     await lowSlider.fill('70');
     await mediumSlider.fill('60');
 
-    // Look for validation error
-    const errorMessage = page.locator(
-      '[data-testid="validation-error"], .error, text="must be less than", text="invalid"'
-    );
+    // Look for validation error (displayed in the risk-sensitivity-settings card)
+    const calibrationSection = page.locator('[data-testid="risk-sensitivity-settings"]');
+    const errorMessage = calibrationSection.getByText(/must be less than/i);
 
     await page.waitForTimeout(500);
     const hasError = (await errorMessage.count()) > 0;
 
     if (hasError) {
-      await expect(errorMessage.first()).toBeVisible();
+      await expect(errorMessage).toBeVisible();
     } else {
       // Validation may prevent invalid values - check if sliders reverted
       const lowValue = parseInt(await lowSlider.inputValue());
@@ -153,10 +220,20 @@ test.describe('Risk Calibration - Settings Page @critical', () => {
   });
 
   test('should save calibration changes via API', async ({ page }) => {
-    const lowSlider = page.locator(
-      '[data-testid="low-threshold-slider"], input[type="range"][name*="low"]'
-    );
+    // Click on CALIBRATION tab
+    const calibrationTab = page.locator('button:has-text("CALIBRATION")');
+    if ((await calibrationTab.count()) === 0) {
+      return;
+    }
+    await calibrationTab.click();
+    await page.waitForTimeout(500);
 
+    const lowSliderDiv = page.locator('[data-testid="low-threshold-slider"]');
+    if ((await lowSliderDiv.count()) === 0) {
+      return;
+    }
+
+    const lowSlider = lowSliderDiv.locator('input[type="range"]');
     const sliderExists = (await lowSlider.count()) > 0;
     if (!sliderExists) {
       return;
@@ -186,10 +263,8 @@ test.describe('Risk Calibration - Settings Page @critical', () => {
     // Adjust threshold
     await lowSlider.fill('35');
 
-    // Find and click save button
-    const saveButton = page.locator(
-      '[data-testid="save-calibration"], button:has-text("Save"), button:has-text("Apply")'
-    );
+    // Find and click save button (text is "Save Changes" in implementation)
+    const saveButton = page.locator('button:has-text("Save Changes")');
 
     const saveExists = (await saveButton.count()) > 0;
     if (saveExists) {
@@ -209,9 +284,17 @@ test.describe('Risk Calibration - Reset to Defaults', () => {
   });
 
   test('should display reset to defaults button', async ({ page }) => {
-    const resetButton = page.locator(
-      '[data-testid="reset-calibration"], button:has-text("Reset"), button:has-text("Default")'
-    );
+    // Click on CALIBRATION tab
+    const calibrationTab = page.locator('button:has-text("CALIBRATION")');
+    if ((await calibrationTab.count()) === 0) {
+      console.log('Calibration tab not found - feature may not be implemented yet');
+      return;
+    }
+    await calibrationTab.click();
+    await page.waitForTimeout(500);
+
+    // Look for "Reset to Defaults" button (exact text in implementation)
+    const resetButton = page.locator('button:has-text("Reset to Defaults")');
 
     const buttonExists = (await resetButton.count()) > 0;
     if (!buttonExists) {
@@ -223,9 +306,15 @@ test.describe('Risk Calibration - Reset to Defaults', () => {
   });
 
   test('should reset thresholds to 30/60/85 via API', async ({ page }) => {
-    const resetButton = page.locator(
-      '[data-testid="reset-calibration"], button:has-text("Reset")'
-    );
+    // Click on CALIBRATION tab
+    const calibrationTab = page.locator('button:has-text("CALIBRATION")');
+    if ((await calibrationTab.count()) === 0) {
+      return;
+    }
+    await calibrationTab.click();
+    await page.waitForTimeout(500);
+
+    const resetButton = page.locator('button:has-text("Reset to Defaults")');
 
     const buttonExists = (await resetButton.count()) > 0;
     if (!buttonExists) {
@@ -241,7 +330,10 @@ test.describe('Risk Calibration - Reset to Defaults', () => {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify(mockUserCalibration.default),
+          body: JSON.stringify({
+            message: 'Calibration reset to defaults',
+            calibration: mockUserCalibration.default,
+          }),
         });
       }
     });
@@ -254,9 +346,15 @@ test.describe('Risk Calibration - Reset to Defaults', () => {
   });
 
   test('should show confirmation dialog before reset', async ({ page }) => {
-    const resetButton = page.locator(
-      '[data-testid="reset-calibration"], button:has-text("Reset")'
-    );
+    // Click on CALIBRATION tab
+    const calibrationTab = page.locator('button:has-text("CALIBRATION")');
+    if ((await calibrationTab.count()) === 0) {
+      return;
+    }
+    await calibrationTab.click();
+    await page.waitForTimeout(500);
+
+    const resetButton = page.locator('button:has-text("Reset to Defaults")');
 
     const buttonExists = (await resetButton.count()) > 0;
     if (!buttonExists) {
@@ -265,10 +363,9 @@ test.describe('Risk Calibration - Reset to Defaults', () => {
 
     await resetButton.click();
 
-    // Look for confirmation dialog
-    const confirmDialog = page.locator(
-      '[role="dialog"], [data-testid="confirm-reset"], text="Are you sure"'
-    );
+    // The current implementation may not have a confirmation dialog
+    // Look for confirmation dialog (optional in current implementation)
+    const confirmDialog = page.locator('[role="dialog"]');
 
     await page.waitForTimeout(300);
     const dialogExists = (await confirmDialog.count()) > 0;
@@ -282,14 +379,26 @@ test.describe('Risk Calibration - Reset to Defaults', () => {
       if (confirmExists) {
         await confirmButton.click();
       }
+    } else {
+      console.log('No confirmation dialog - reset may execute immediately');
     }
   });
 
   test('should update slider values after reset', async ({ page }) => {
-    const lowSlider = page.locator(
-      '[data-testid="low-threshold-slider"], input[type="range"][name*="low"]'
-    );
+    // Click on CALIBRATION tab
+    const calibrationTab = page.locator('button:has-text("CALIBRATION")');
+    if ((await calibrationTab.count()) === 0) {
+      return;
+    }
+    await calibrationTab.click();
+    await page.waitForTimeout(500);
 
+    const lowSliderDiv = page.locator('[data-testid="low-threshold-slider"]');
+    if ((await lowSliderDiv.count()) === 0) {
+      return;
+    }
+
+    const lowSlider = lowSliderDiv.locator('input[type="range"]');
     const sliderExists = (await lowSlider.count()) > 0;
     if (!sliderExists) {
       return;
@@ -299,9 +408,7 @@ test.describe('Risk Calibration - Reset to Defaults', () => {
     await lowSlider.fill('40');
 
     // Reset
-    const resetButton = page.locator(
-      '[data-testid="reset-calibration"], button:has-text("Reset")'
-    );
+    const resetButton = page.locator('button:has-text("Reset to Defaults")');
 
     const resetExists = (await resetButton.count()) > 0;
     if (!resetExists) {
@@ -379,10 +486,20 @@ test.describe('Risk Calibration - Bounds Validation', () => {
   });
 
   test('should enforce minimum threshold value (0)', async ({ page }) => {
-    const lowSlider = page.locator(
-      '[data-testid="low-threshold-slider"], input[type="range"][name*="low"]'
-    );
+    // Click on CALIBRATION tab
+    const calibrationTab = page.locator('button:has-text("CALIBRATION")');
+    if ((await calibrationTab.count()) === 0) {
+      return;
+    }
+    await calibrationTab.click();
+    await page.waitForTimeout(500);
 
+    const lowSliderDiv = page.locator('[data-testid="low-threshold-slider"]');
+    if ((await lowSliderDiv.count()) === 0) {
+      return;
+    }
+
+    const lowSlider = lowSliderDiv.locator('input[type="range"]');
     const sliderExists = (await lowSlider.count()) > 0;
     if (!sliderExists) {
       return;
@@ -396,10 +513,20 @@ test.describe('Risk Calibration - Bounds Validation', () => {
   });
 
   test('should enforce maximum threshold value (100)', async ({ page }) => {
-    const highSlider = page.locator(
-      '[data-testid="high-threshold-slider"], input[type="range"][name*="high"]'
-    );
+    // Click on CALIBRATION tab
+    const calibrationTab = page.locator('button:has-text("CALIBRATION")');
+    if ((await calibrationTab.count()) === 0) {
+      return;
+    }
+    await calibrationTab.click();
+    await page.waitForTimeout(500);
 
+    const highSliderDiv = page.locator('[data-testid="high-threshold-slider"]');
+    if ((await highSliderDiv.count()) === 0) {
+      return;
+    }
+
+    const highSlider = highSliderDiv.locator('input[type="range"]');
     const sliderExists = (await highSlider.count()) > 0;
     if (!sliderExists) {
       return;
@@ -420,6 +547,14 @@ test.describe('Risk Calibration - Error Handling', () => {
   });
 
   test('should show error when calibration update fails', async ({ page }) => {
+    // Click on CALIBRATION tab
+    const calibrationTab = page.locator('button:has-text("CALIBRATION")');
+    if ((await calibrationTab.count()) === 0) {
+      return;
+    }
+    await calibrationTab.click();
+    await page.waitForTimeout(500);
+
     // Mock API error
     await page.route('**/api/calibration', async (route) => {
       const method = route.request().method();
@@ -432,10 +567,12 @@ test.describe('Risk Calibration - Error Handling', () => {
       }
     });
 
-    const lowSlider = page.locator(
-      '[data-testid="low-threshold-slider"], input[type="range"][name*="low"]'
-    );
+    const lowSliderDiv = page.locator('[data-testid="low-threshold-slider"]');
+    if ((await lowSliderDiv.count()) === 0) {
+      return;
+    }
 
+    const lowSlider = lowSliderDiv.locator('input[type="range"]');
     const sliderExists = (await lowSlider.count()) > 0;
     if (!sliderExists) {
       return;
@@ -443,25 +580,32 @@ test.describe('Risk Calibration - Error Handling', () => {
 
     await lowSlider.fill('35');
 
-    const saveButton = page.locator('button:has-text("Save"), button:has-text("Apply")');
+    const saveButton = page.locator('button:has-text("Save Changes")');
     const saveExists = (await saveButton.count()) > 0;
     if (saveExists) {
       await saveButton.click();
 
-      // Look for error message
-      const errorMessage = page.locator(
-        '[data-testid="error-message"], .error, text="Failed", text="Error"'
-      );
+      // Look for error message in the calibration settings card
+      const calibrationSection = page.locator('[data-testid="risk-sensitivity-settings"]');
+      const errorMessage = calibrationSection.getByText(/Failed/i);
 
       await page.waitForTimeout(1000);
       const hasError = (await errorMessage.count()) > 0;
       if (hasError) {
-        await expect(errorMessage.first()).toBeVisible();
+        await expect(errorMessage).toBeVisible();
       }
     }
   });
 
   test('should show error when reset fails', async ({ page }) => {
+    // Click on CALIBRATION tab
+    const calibrationTab = page.locator('button:has-text("CALIBRATION")');
+    if ((await calibrationTab.count()) === 0) {
+      return;
+    }
+    await calibrationTab.click();
+    await page.waitForTimeout(500);
+
     // Mock API error for reset
     await page.route('**/api/calibration/reset', async (route) => {
       await route.fulfill({
@@ -471,9 +615,7 @@ test.describe('Risk Calibration - Error Handling', () => {
       });
     });
 
-    const resetButton = page.locator(
-      '[data-testid="reset-calibration"], button:has-text("Reset")'
-    );
+    const resetButton = page.locator('button:has-text("Reset to Defaults")');
 
     const buttonExists = (await resetButton.count()) > 0;
     if (!buttonExists) {
@@ -489,13 +631,14 @@ test.describe('Risk Calibration - Error Handling', () => {
       await confirmButton.click();
     }
 
-    // Look for error message
-    const errorMessage = page.locator('[data-testid="error-message"], .error, text="Failed"');
+    // Look for error message in the calibration settings card
+    const calibrationSection = page.locator('[data-testid="risk-sensitivity-settings"]');
+    const errorMessage = calibrationSection.getByText(/Failed/i);
 
     await page.waitForTimeout(1000);
     const hasError = (await errorMessage.count()) > 0;
     if (hasError) {
-      await expect(errorMessage.first()).toBeVisible();
+      await expect(errorMessage).toBeVisible();
     }
   });
 });
@@ -516,10 +659,20 @@ test.describe('Risk Calibration - Persistence', () => {
     await page.goto('/settings');
     await page.waitForLoadState('networkidle');
 
-    const lowSlider = page.locator(
-      '[data-testid="low-threshold-slider"], input[type="range"][name*="low"]'
-    );
+    // Click on CALIBRATION tab
+    const calibrationTab = page.locator('button:has-text("CALIBRATION")');
+    if ((await calibrationTab.count()) === 0) {
+      return;
+    }
+    await calibrationTab.click();
+    await page.waitForTimeout(500);
 
+    const lowSliderDiv = page.locator('[data-testid="low-threshold-slider"]');
+    if ((await lowSliderDiv.count()) === 0) {
+      return;
+    }
+
+    const lowSlider = lowSliderDiv.locator('input[type="range"]');
     const sliderExists = (await lowSlider.count()) > 0;
     if (!sliderExists) {
       return;

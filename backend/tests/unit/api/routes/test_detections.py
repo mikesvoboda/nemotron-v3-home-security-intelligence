@@ -23,6 +23,7 @@ from unittest.mock import AsyncMock, MagicMock, Mock, mock_open, patch
 
 import pytest
 from fastapi import HTTPException, status
+from starlette.responses import Response
 
 from backend.api.pagination import CursorData, encode_cursor
 from backend.api.routes.detections import (
@@ -56,6 +57,12 @@ def mock_thumbnail_generator():
 def mock_video_processor():
     """Create a mock VideoProcessor for DI."""
     return MagicMock(spec=VideoProcessor)
+
+
+@pytest.fixture
+def mock_response() -> MagicMock:
+    """Create a mock Response object for deprecation header tests."""
+    return MagicMock(spec=Response)
 
 
 # ============================================================================
@@ -545,7 +552,7 @@ class TestListDetections:
     """Tests for list_detections endpoint."""
 
     @pytest.mark.asyncio
-    async def test_list_detections_basic(self, mock_db_session):
+    async def test_list_detections_basic(self, mock_db_session, mock_response: MagicMock):
         """Test listing detections with no filters."""
         # Create mock detections
         det1 = DetectionFactory(id=1, object_type="person", confidence=0.95)
@@ -566,6 +573,7 @@ class TestListDetections:
 
         # Pass default Query parameter values explicitly
         result = await list_detections(
+            response=mock_response,
             camera_id=None,
             object_type=None,
             start_date=None,
@@ -584,7 +592,7 @@ class TestListDetections:
         assert result.pagination.has_more is False
 
     @pytest.mark.asyncio
-    async def test_list_detections_with_filters(self, mock_db_session):
+    async def test_list_detections_with_filters(self, mock_db_session, mock_response: MagicMock):
         """Test listing detections with filters applied."""
         det1 = DetectionFactory(
             id=1,
@@ -604,6 +612,7 @@ class TestListDetections:
         ]
 
         result = await list_detections(
+            response=mock_response,
             camera_id="front_door",
             object_type="person",
             start_date=None,
@@ -619,7 +628,7 @@ class TestListDetections:
         assert len(result.items) == 1
 
     @pytest.mark.asyncio
-    async def test_list_detections_with_date_range(self, mock_db_session):
+    async def test_list_detections_with_date_range(self, mock_db_session, mock_response: MagicMock):
         """Test listing detections with date range filter."""
         start_date = datetime(2025, 12, 1, 0, 0, 0, tzinfo=UTC)
         end_date = datetime(2025, 12, 31, 23, 59, 59, tzinfo=UTC)
@@ -635,6 +644,7 @@ class TestListDetections:
         ]
 
         result = await list_detections(
+            response=mock_response,
             camera_id=None,
             object_type=None,
             start_date=start_date,
@@ -649,13 +659,16 @@ class TestListDetections:
         assert result.pagination.total == 0
 
     @pytest.mark.asyncio
-    async def test_list_detections_invalid_date_range(self, mock_db_session):
+    async def test_list_detections_invalid_date_range(
+        self, mock_db_session, mock_response: MagicMock
+    ):
         """Test listing detections with invalid date range raises HTTPException."""
         start_date = datetime(2025, 12, 31, 0, 0, 0, tzinfo=UTC)
         end_date = datetime(2025, 12, 1, 0, 0, 0, tzinfo=UTC)
 
         with pytest.raises(HTTPException) as exc_info:
             await list_detections(
+                response=mock_response,
                 start_date=start_date,
                 end_date=end_date,
                 db=mock_db_session,
@@ -665,7 +678,7 @@ class TestListDetections:
         assert "start_date" in str(exc_info.value.detail).lower()
 
     @pytest.mark.asyncio
-    async def test_list_detections_with_cursor(self, mock_db_session):
+    async def test_list_detections_with_cursor(self, mock_db_session, mock_response: MagicMock):
         """Test listing detections with cursor-based pagination."""
         cursor_data = CursorData(
             id=50,
@@ -683,6 +696,7 @@ class TestListDetections:
         mock_db_session.execute.return_value = mock_result
 
         result = await list_detections(
+            response=mock_response,
             camera_id=None,
             object_type=None,
             start_date=None,
@@ -700,16 +714,20 @@ class TestListDetections:
         assert result.pagination.total == 0
 
     @pytest.mark.asyncio
-    async def test_list_detections_invalid_cursor(self, mock_db_session):
+    async def test_list_detections_invalid_cursor(self, mock_db_session, mock_response: MagicMock):
         """Test listing detections with invalid cursor raises HTTPException."""
         with pytest.raises(HTTPException) as exc_info:
-            await list_detections(cursor="invalid-cursor", db=mock_db_session)
+            await list_detections(
+                response=mock_response, cursor="invalid-cursor", db=mock_db_session
+            )
 
         assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
         assert "invalid cursor" in str(exc_info.value.detail).lower()
 
     @pytest.mark.asyncio
-    async def test_list_detections_has_more_results(self, mock_db_session):
+    async def test_list_detections_has_more_results(
+        self, mock_db_session, mock_response: MagicMock
+    ):
         """Test listing detections when there are more results."""
         # Create limit + 1 detections to trigger has_more
         detections = [DetectionFactory(id=i) for i in range(51)]
@@ -725,6 +743,7 @@ class TestListDetections:
         ]
 
         result = await list_detections(
+            response=mock_response,
             camera_id=None,
             object_type=None,
             start_date=None,
@@ -741,7 +760,9 @@ class TestListDetections:
         assert result.pagination.next_cursor is not None
 
     @pytest.mark.asyncio
-    async def test_list_detections_with_offset_deprecation_warning(self, mock_db_session):
+    async def test_list_detections_with_offset_deprecation_warning(
+        self, mock_db_session, mock_response: MagicMock
+    ):
         """Test listing detections with offset shows deprecation warning."""
         mock_result = MagicMock()
         mock_scalars = MagicMock()
@@ -754,6 +775,7 @@ class TestListDetections:
         ]
 
         result = await list_detections(
+            response=mock_response,
             camera_id=None,
             object_type=None,
             start_date=None,
@@ -2113,7 +2135,9 @@ class TestSparseFieldsets:
     """Tests for sparse fieldsets functionality in list_detections."""
 
     @pytest.mark.asyncio
-    async def test_list_detections_with_fields_filter(self, mock_db_session):
+    async def test_list_detections_with_fields_filter(
+        self, mock_db_session, mock_response: MagicMock
+    ):
         """Test listing detections with fields parameter.
 
         Note: While the endpoint filters fields, Pydantic converts the dict back to
@@ -2140,6 +2164,7 @@ class TestSparseFieldsets:
 
         # This tests that the sparse fieldsets code path executes successfully
         result = await list_detections(
+            response=mock_response,
             camera_id=None,
             object_type=None,
             start_date=None,
@@ -2161,10 +2186,13 @@ class TestSparseFieldsets:
         assert item.confidence == 0.95
 
     @pytest.mark.asyncio
-    async def test_list_detections_with_invalid_fields(self, mock_db_session):
+    async def test_list_detections_with_invalid_fields(
+        self, mock_db_session, mock_response: MagicMock
+    ):
         """Test listing detections with invalid fields parameter."""
         with pytest.raises(HTTPException) as exc_info:
             await list_detections(
+                response=mock_response,
                 camera_id=None,
                 object_type=None,
                 start_date=None,

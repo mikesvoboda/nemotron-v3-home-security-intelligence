@@ -14,10 +14,18 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from starlette.responses import Response
 
 from backend.api.routes import events as events_routes
 from backend.api.routes.events import parse_detection_ids, parse_severity_filter
 from backend.api.schemas.events import EventUpdate
+
+
+@pytest.fixture
+def mock_response() -> MagicMock:
+    """Create a mock Response object for deprecation header tests."""
+    return MagicMock(spec=Response)
+
 
 # =============================================================================
 # Module-level Fixtures
@@ -323,7 +331,7 @@ def create_mock_camera(
 
 
 @pytest.mark.asyncio
-async def test_list_events_returns_empty_list_when_no_events() -> None:
+async def test_list_events_returns_empty_list_when_no_events(mock_response: MagicMock) -> None:
     """Test that list_events returns an empty list when no events exist."""
     db = AsyncMock()
 
@@ -338,6 +346,7 @@ async def test_list_events_returns_empty_list_when_no_events() -> None:
     db.execute = AsyncMock(side_effect=[count_result, events_result])
 
     response = await events_routes.list_events(
+        response=mock_response,
         camera_id=None,
         risk_level=None,
         start_date=None,
@@ -359,7 +368,7 @@ async def test_list_events_returns_empty_list_when_no_events() -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_events_returns_events_with_detection_count() -> None:
+async def test_list_events_returns_events_with_detection_count(mock_response: MagicMock) -> None:
     """Test that list_events returns events with correct detection count."""
     db = AsyncMock()
 
@@ -376,6 +385,7 @@ async def test_list_events_returns_events_with_detection_count() -> None:
     db.execute = AsyncMock(side_effect=[count_result, events_result])
 
     response = await events_routes.list_events(
+        response=mock_response,
         camera_id=None,
         risk_level=None,
         start_date=None,
@@ -396,7 +406,7 @@ async def test_list_events_returns_events_with_detection_count() -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_events_returns_detection_ids_array() -> None:
+async def test_list_events_returns_detection_ids_array(mock_response: MagicMock) -> None:
     """Test that list_events returns detection_ids as integer array."""
     db = AsyncMock()
 
@@ -413,6 +423,7 @@ async def test_list_events_returns_detection_ids_array() -> None:
     db.execute = AsyncMock(side_effect=[count_result, events_result])
 
     response = await events_routes.list_events(
+        response=mock_response,
         camera_id=None,
         risk_level=None,
         start_date=None,
@@ -432,7 +443,7 @@ async def test_list_events_returns_detection_ids_array() -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_events_with_empty_detection_ids() -> None:
+async def test_list_events_with_empty_detection_ids(mock_response: MagicMock) -> None:
     """Test that list_events handles events with no detection_ids."""
     db = AsyncMock()
 
@@ -449,6 +460,7 @@ async def test_list_events_with_empty_detection_ids() -> None:
     db.execute = AsyncMock(side_effect=[count_result, events_result])
 
     response = await events_routes.list_events(
+        response=mock_response,
         camera_id=None,
         risk_level=None,
         start_date=None,
@@ -467,7 +479,7 @@ async def test_list_events_with_empty_detection_ids() -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_events_with_empty_string_detection_ids() -> None:
+async def test_list_events_with_empty_string_detection_ids(mock_response: MagicMock) -> None:
     """Test that list_events handles events with empty string detection_ids."""
     db = AsyncMock()
 
@@ -484,6 +496,7 @@ async def test_list_events_with_empty_string_detection_ids() -> None:
     db.execute = AsyncMock(side_effect=[count_result, events_result])
 
     response = await events_routes.list_events(
+        response=mock_response,
         camera_id=None,
         risk_level=None,
         start_date=None,
@@ -502,7 +515,7 @@ async def test_list_events_with_empty_string_detection_ids() -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_events_with_camera_id_filter() -> None:
+async def test_list_events_with_camera_id_filter(mock_response: MagicMock) -> None:
     """Test that list_events filters by camera_id."""
     db = AsyncMock()
 
@@ -519,6 +532,7 @@ async def test_list_events_with_camera_id_filter() -> None:
     db.execute = AsyncMock(side_effect=[count_result, events_result])
 
     response = await events_routes.list_events(
+        response=mock_response,
         camera_id="cam-001",
         risk_level=None,
         start_date=None,
@@ -537,7 +551,7 @@ async def test_list_events_with_camera_id_filter() -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_events_with_risk_level_filter() -> None:
+async def test_list_events_with_risk_level_filter(mock_response: MagicMock) -> None:
     """Test that list_events filters by risk_level."""
     db = AsyncMock()
 
@@ -554,6 +568,7 @@ async def test_list_events_with_risk_level_filter() -> None:
     db.execute = AsyncMock(side_effect=[count_result, events_result])
 
     response = await events_routes.list_events(
+        response=mock_response,
         camera_id=None,
         risk_level="high",
         start_date=None,
@@ -572,7 +587,7 @@ async def test_list_events_with_risk_level_filter() -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_events_with_date_filters() -> None:
+async def test_list_events_with_date_filters(mock_response: MagicMock) -> None:
     """Test that list_events filters by start_date and end_date."""
     db = AsyncMock()
 
@@ -593,6 +608,7 @@ async def test_list_events_with_date_filters() -> None:
     end = now + timedelta(hours=1)
 
     response = await events_routes.list_events(
+        response=mock_response,
         camera_id=None,
         risk_level=None,
         start_date=start,
@@ -610,7 +626,7 @@ async def test_list_events_with_date_filters() -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_events_with_reviewed_filter_true() -> None:
+async def test_list_events_with_reviewed_filter_true(mock_response: MagicMock) -> None:
     """Test that list_events filters by reviewed=True."""
     db = AsyncMock()
 
@@ -627,6 +643,7 @@ async def test_list_events_with_reviewed_filter_true() -> None:
     db.execute = AsyncMock(side_effect=[count_result, events_result])
 
     response = await events_routes.list_events(
+        response=mock_response,
         camera_id=None,
         risk_level=None,
         start_date=None,
@@ -645,7 +662,7 @@ async def test_list_events_with_reviewed_filter_true() -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_events_with_reviewed_filter_false() -> None:
+async def test_list_events_with_reviewed_filter_false(mock_response: MagicMock) -> None:
     """Test that list_events filters by reviewed=False."""
     db = AsyncMock()
 
@@ -662,6 +679,7 @@ async def test_list_events_with_reviewed_filter_false() -> None:
     db.execute = AsyncMock(side_effect=[count_result, events_result])
 
     response = await events_routes.list_events(
+        response=mock_response,
         camera_id=None,
         risk_level=None,
         start_date=None,
@@ -680,7 +698,7 @@ async def test_list_events_with_reviewed_filter_false() -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_events_with_object_type_filter_matching() -> None:
+async def test_list_events_with_object_type_filter_matching(mock_response: MagicMock) -> None:
     """Test that list_events filters by object_type using the object_types column."""
     db = AsyncMock()
 
@@ -698,6 +716,7 @@ async def test_list_events_with_object_type_filter_matching() -> None:
     db.execute = AsyncMock(side_effect=[count_result, events_result])
 
     response = await events_routes.list_events(
+        response=mock_response,
         camera_id=None,
         risk_level=None,
         start_date=None,
@@ -715,7 +734,7 @@ async def test_list_events_with_object_type_filter_matching() -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_events_with_object_type_filter_no_matches() -> None:
+async def test_list_events_with_object_type_filter_no_matches(mock_response: MagicMock) -> None:
     """Test that list_events returns empty when no events match object_type."""
     db = AsyncMock()
 
@@ -730,6 +749,7 @@ async def test_list_events_with_object_type_filter_no_matches() -> None:
     db.execute = AsyncMock(side_effect=[count_result, events_result])
 
     response = await events_routes.list_events(
+        response=mock_response,
         camera_id=None,
         risk_level=None,
         start_date=None,
@@ -748,7 +768,7 @@ async def test_list_events_with_object_type_filter_no_matches() -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_events_with_object_type_filter_single_value() -> None:
+async def test_list_events_with_object_type_filter_single_value(mock_response: MagicMock) -> None:
     """Test that list_events filters by object_type when it's the only value."""
     db = AsyncMock()
 
@@ -766,6 +786,7 @@ async def test_list_events_with_object_type_filter_single_value() -> None:
     db.execute = AsyncMock(side_effect=[count_result, events_result])
 
     response = await events_routes.list_events(
+        response=mock_response,
         camera_id=None,
         risk_level=None,
         start_date=None,
@@ -783,7 +804,7 @@ async def test_list_events_with_object_type_filter_single_value() -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_events_with_object_type_filter_at_end() -> None:
+async def test_list_events_with_object_type_filter_at_end(mock_response: MagicMock) -> None:
     """Test that list_events filters by object_type when it's at the end of the list."""
     db = AsyncMock()
 
@@ -801,6 +822,7 @@ async def test_list_events_with_object_type_filter_at_end() -> None:
     db.execute = AsyncMock(side_effect=[count_result, events_result])
 
     response = await events_routes.list_events(
+        response=mock_response,
         camera_id=None,
         risk_level=None,
         start_date=None,
@@ -818,7 +840,9 @@ async def test_list_events_with_object_type_filter_at_end() -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_events_object_type_escapes_wildcard_characters() -> None:
+async def test_list_events_object_type_escapes_wildcard_characters(
+    mock_response: MagicMock,
+) -> None:
     """Test that list_events escapes LIKE wildcard characters in object_type filter.
 
     This prevents pattern injection attacks where special characters like %
@@ -841,6 +865,7 @@ async def test_list_events_object_type_escapes_wildcard_characters() -> None:
 
     # Search for literal "100%_complete" - wildcards should be escaped
     response = await events_routes.list_events(
+        response=mock_response,
         camera_id=None,
         risk_level=None,
         start_date=None,
@@ -862,7 +887,7 @@ async def test_list_events_object_type_escapes_wildcard_characters() -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_events_pagination_with_custom_limit() -> None:
+async def test_list_events_pagination_with_custom_limit(mock_response: MagicMock) -> None:
     """Test that list_events respects custom limit parameter."""
     db = AsyncMock()
 
@@ -879,6 +904,7 @@ async def test_list_events_pagination_with_custom_limit() -> None:
     db.execute = AsyncMock(side_effect=[count_result, events_result])
 
     response = await events_routes.list_events(
+        response=mock_response,
         camera_id=None,
         risk_level=None,
         start_date=None,
@@ -897,7 +923,7 @@ async def test_list_events_pagination_with_custom_limit() -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_events_pagination_with_offset() -> None:
+async def test_list_events_pagination_with_offset(mock_response: MagicMock) -> None:
     """Test that list_events respects offset parameter."""
     db = AsyncMock()
 
@@ -914,6 +940,7 @@ async def test_list_events_pagination_with_offset() -> None:
     db.execute = AsyncMock(side_effect=[count_result, events_result])
 
     response = await events_routes.list_events(
+        response=mock_response,
         camera_id=None,
         risk_level=None,
         start_date=None,
@@ -932,7 +959,7 @@ async def test_list_events_pagination_with_offset() -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_events_multiple_events() -> None:
+async def test_list_events_multiple_events(mock_response: MagicMock) -> None:
     """Test that list_events handles multiple events correctly."""
     db = AsyncMock()
 
@@ -953,6 +980,7 @@ async def test_list_events_multiple_events() -> None:
     db.execute = AsyncMock(side_effect=[count_result, events_result])
 
     response = await events_routes.list_events(
+        response=mock_response,
         camera_id=None,
         risk_level=None,
         start_date=None,
@@ -971,7 +999,7 @@ async def test_list_events_multiple_events() -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_events_detection_ids_with_whitespace() -> None:
+async def test_list_events_detection_ids_with_whitespace(mock_response: MagicMock) -> None:
     """Test that list_events handles detection_ids with whitespace."""
     db = AsyncMock()
 
@@ -988,6 +1016,7 @@ async def test_list_events_detection_ids_with_whitespace() -> None:
     db.execute = AsyncMock(side_effect=[count_result, events_result])
 
     response = await events_routes.list_events(
+        response=mock_response,
         camera_id=None,
         risk_level=None,
         start_date=None,
@@ -1006,7 +1035,7 @@ async def test_list_events_detection_ids_with_whitespace() -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_events_returns_reasoning_field() -> None:
+async def test_list_events_returns_reasoning_field(mock_response: MagicMock) -> None:
     """Test that list_events returns the reasoning field for each event."""
     db = AsyncMock()
 
@@ -1026,6 +1055,7 @@ async def test_list_events_returns_reasoning_field() -> None:
     db.execute = AsyncMock(side_effect=[count_result, events_result])
 
     response = await events_routes.list_events(
+        response=mock_response,
         camera_id=None,
         risk_level=None,
         start_date=None,
@@ -1044,7 +1074,7 @@ async def test_list_events_returns_reasoning_field() -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_events_returns_none_reasoning_when_not_set() -> None:
+async def test_list_events_returns_none_reasoning_when_not_set(mock_response: MagicMock) -> None:
     """Test that list_events returns None reasoning when not set."""
     db = AsyncMock()
 
@@ -1064,6 +1094,7 @@ async def test_list_events_returns_none_reasoning_when_not_set() -> None:
     db.execute = AsyncMock(side_effect=[count_result, events_result])
 
     response = await events_routes.list_events(
+        response=mock_response,
         camera_id=None,
         risk_level=None,
         start_date=None,
@@ -1897,7 +1928,7 @@ async def test_get_event_detections_custom_limit() -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_events_with_all_filters_combined() -> None:
+async def test_list_events_with_all_filters_combined(mock_response: MagicMock) -> None:
     """Test that list_events handles all filters combined."""
     db = AsyncMock()
 
@@ -1922,6 +1953,7 @@ async def test_list_events_with_all_filters_combined() -> None:
     db.execute = AsyncMock(side_effect=[count_result, events_result])
 
     response = await events_routes.list_events(
+        response=mock_response,
         camera_id="cam-001",
         risk_level="high",
         start_date=now - timedelta(hours=1),
@@ -1966,7 +1998,7 @@ async def test_get_event_stats_empty_camera_list() -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_events_count_returns_zero_on_none() -> None:
+async def test_list_events_count_returns_zero_on_none(mock_response: MagicMock) -> None:
     """Test that list_events handles None count result."""
     db = AsyncMock()
 
@@ -1981,6 +2013,7 @@ async def test_list_events_count_returns_zero_on_none() -> None:
     db.execute = AsyncMock(side_effect=[count_result, events_result])
 
     response = await events_routes.list_events(
+        response=mock_response,
         camera_id=None,
         risk_level=None,
         start_date=None,
@@ -2391,7 +2424,7 @@ async def test_export_events_multiple_events() -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_events_invalid_date_range_returns_400() -> None:
+async def test_list_events_invalid_date_range_returns_400(mock_response: MagicMock) -> None:
     """Test that list_events returns HTTP 400 when start_date > end_date."""
     from fastapi import HTTPException
 
@@ -2403,6 +2436,7 @@ async def test_list_events_invalid_date_range_returns_400() -> None:
 
     with pytest.raises(HTTPException) as exc_info:
         await events_routes.list_events(
+            response=mock_response,
             camera_id=None,
             risk_level=None,
             start_date=start_date,
@@ -2419,7 +2453,7 @@ async def test_list_events_invalid_date_range_returns_400() -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_events_equal_dates_is_valid() -> None:
+async def test_list_events_equal_dates_is_valid(mock_response: MagicMock) -> None:
     """Test that list_events accepts start_date == end_date (edge case)."""
     db = AsyncMock()
 
@@ -2439,6 +2473,7 @@ async def test_list_events_equal_dates_is_valid() -> None:
     same_date = datetime(2025, 6, 15, 12, 0, 0, tzinfo=UTC)
 
     response = await events_routes.list_events(
+        response=mock_response,
         camera_id=None,
         risk_level=None,
         start_date=same_date,
