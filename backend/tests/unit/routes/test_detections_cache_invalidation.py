@@ -15,7 +15,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from backend.api.dependencies import get_cache_service_dep
-from backend.api.routes.detections import router
+from backend.api.routes.detections import _bulk_rate_limiter, router
 from backend.core.constants import CacheInvalidationReason
 from backend.core.database import get_db
 from backend.models.camera import Camera
@@ -125,8 +125,13 @@ def client(mock_db_session: AsyncMock, mock_cache_service: MagicMock) -> TestCli
     async def override_cache_service() -> MagicMock:
         yield mock_cache_service
 
+    # Override the rate limiter dependency (NEM-2600)
+    async def override_rate_limiter() -> None:
+        yield None
+
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_cache_service_dep] = override_cache_service
+    app.dependency_overrides[_bulk_rate_limiter] = override_rate_limiter
 
     with TestClient(app) as test_client:
         yield test_client
