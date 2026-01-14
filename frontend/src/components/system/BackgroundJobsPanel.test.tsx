@@ -94,6 +94,7 @@ describe('BackgroundJobsPanel', () => {
       { name: 'gpu_monitor', running: true, message: null },
     ],
     timestamp: '2025-12-30T10:00:00Z',
+    supervisor_healthy: true,
   };
 
   const mockReadinessWithStopped: api.ReadinessResponse = {
@@ -110,6 +111,7 @@ describe('BackgroundJobsPanel', () => {
       { name: 'cleanup_service', running: true, message: null },
     ],
     timestamp: '2025-12-30T10:00:00Z',
+    supervisor_healthy: true,
   };
 
   beforeEach(() => {
