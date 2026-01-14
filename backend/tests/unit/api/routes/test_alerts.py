@@ -1023,14 +1023,19 @@ class TestAcknowledgeAlert:
 
         with patch("backend.api.routes.alerts.EventBroadcaster.get_instance") as mock_broadcaster:
             mock_broadcaster_instance = AsyncMock()
+            mock_broadcaster_instance.broadcast_metrics = MagicMock()
             mock_broadcaster.return_value = mock_broadcaster_instance
 
-            result = await acknowledge_alert(alert_id="alert-id", db=mock_db)
+            mock_background_tasks = MagicMock()
+            result = await acknowledge_alert(
+                alert_id="alert-id", background_tasks=mock_background_tasks, db=mock_db
+            )
 
             assert result.id == "alert-id"
             assert mock_alert.status == AlertStatusEnum.ACKNOWLEDGED
             mock_db.commit.assert_called_once()
-            mock_broadcaster_instance.broadcast_alert.assert_called_once()
+            # NEM-2582: Broadcast now uses background task instead of direct call
+            mock_background_tasks.add_task.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_acknowledge_alert_from_delivered(self) -> None:
@@ -1058,9 +1063,13 @@ class TestAcknowledgeAlert:
 
         with patch("backend.api.routes.alerts.EventBroadcaster.get_instance") as mock_broadcaster:
             mock_broadcaster_instance = AsyncMock()
+            mock_broadcaster_instance.broadcast_metrics = MagicMock()
             mock_broadcaster.return_value = mock_broadcaster_instance
 
-            result = await acknowledge_alert(alert_id="alert-id", db=mock_db)
+            mock_background_tasks = MagicMock()
+            result = await acknowledge_alert(
+                alert_id="alert-id", background_tasks=mock_background_tasks, db=mock_db
+            )
 
             assert mock_alert.status == AlertStatusEnum.ACKNOWLEDGED
             mock_db.commit.assert_called_once()
@@ -1081,7 +1090,7 @@ class TestAcknowledgeAlert:
         mock_db.execute.return_value = mock_result
 
         with pytest.raises(HTTPException) as exc_info:
-            await acknowledge_alert(alert_id="alert-id", db=mock_db)
+            await acknowledge_alert(alert_id="alert-id", background_tasks=MagicMock(), db=mock_db)
 
         assert exc_info.value.status_code == 409
         assert "cannot be acknowledged" in exc_info.value.detail.lower()
@@ -1098,7 +1107,9 @@ class TestAcknowledgeAlert:
         mock_db.execute.return_value = mock_result
 
         with pytest.raises(HTTPException) as exc_info:
-            await acknowledge_alert(alert_id="nonexistent", db=mock_db)
+            await acknowledge_alert(
+                alert_id="nonexistent", background_tasks=MagicMock(), db=mock_db
+            )
 
         assert exc_info.value.status_code == 404
 
@@ -1126,13 +1137,15 @@ class TestAcknowledgeAlert:
         mock_result.scalar_one_or_none.return_value = mock_alert
         mock_db.execute.return_value = mock_result
 
+        # NEM-2582: Broadcast now uses background task, test that broadcaster failure
+        # doesn't block the request - simulate RuntimeError from get_instance
         with patch("backend.api.routes.alerts.EventBroadcaster.get_instance") as mock_broadcaster:
-            mock_broadcaster_instance = AsyncMock()
-            mock_broadcaster_instance.broadcast_alert.side_effect = Exception("WebSocket error")
-            mock_broadcaster.return_value = mock_broadcaster_instance
+            mock_broadcaster.side_effect = RuntimeError("Broadcaster not initialized")
 
             # Should not raise exception, just log warning
-            result = await acknowledge_alert(alert_id="alert-id", db=mock_db)
+            result = await acknowledge_alert(
+                alert_id="alert-id", background_tasks=MagicMock(), db=mock_db
+            )
 
             assert result.id == "alert-id"
             assert mock_alert.status == AlertStatusEnum.ACKNOWLEDGED
@@ -1167,14 +1180,19 @@ class TestDismissAlert:
 
         with patch("backend.api.routes.alerts.EventBroadcaster.get_instance") as mock_broadcaster:
             mock_broadcaster_instance = AsyncMock()
+            mock_broadcaster_instance.broadcast_metrics = MagicMock()
             mock_broadcaster.return_value = mock_broadcaster_instance
 
-            result = await dismiss_alert(alert_id="alert-id", db=mock_db)
+            mock_background_tasks = MagicMock()
+            result = await dismiss_alert(
+                alert_id="alert-id", background_tasks=mock_background_tasks, db=mock_db
+            )
 
             assert result.id == "alert-id"
             assert mock_alert.status == AlertStatusEnum.DISMISSED
             mock_db.commit.assert_called_once()
-            mock_broadcaster_instance.broadcast_alert.assert_called_once()
+            # NEM-2582: Broadcast now uses background task instead of direct call
+            mock_background_tasks.add_task.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_dismiss_alert_from_delivered(self) -> None:
@@ -1202,9 +1220,13 @@ class TestDismissAlert:
 
         with patch("backend.api.routes.alerts.EventBroadcaster.get_instance") as mock_broadcaster:
             mock_broadcaster_instance = AsyncMock()
+            mock_broadcaster_instance.broadcast_metrics = MagicMock()
             mock_broadcaster.return_value = mock_broadcaster_instance
 
-            result = await dismiss_alert(alert_id="alert-id", db=mock_db)
+            mock_background_tasks = MagicMock()
+            result = await dismiss_alert(
+                alert_id="alert-id", background_tasks=mock_background_tasks, db=mock_db
+            )
 
             assert mock_alert.status == AlertStatusEnum.DISMISSED
             mock_db.commit.assert_called_once()
@@ -1235,9 +1257,13 @@ class TestDismissAlert:
 
         with patch("backend.api.routes.alerts.EventBroadcaster.get_instance") as mock_broadcaster:
             mock_broadcaster_instance = AsyncMock()
+            mock_broadcaster_instance.broadcast_metrics = MagicMock()
             mock_broadcaster.return_value = mock_broadcaster_instance
 
-            result = await dismiss_alert(alert_id="alert-id", db=mock_db)
+            mock_background_tasks = MagicMock()
+            result = await dismiss_alert(
+                alert_id="alert-id", background_tasks=mock_background_tasks, db=mock_db
+            )
 
             assert mock_alert.status == AlertStatusEnum.DISMISSED
             mock_db.commit.assert_called_once()
@@ -1258,7 +1284,7 @@ class TestDismissAlert:
         mock_db.execute.return_value = mock_result
 
         with pytest.raises(HTTPException) as exc_info:
-            await dismiss_alert(alert_id="alert-id", db=mock_db)
+            await dismiss_alert(alert_id="alert-id", background_tasks=MagicMock(), db=mock_db)
 
         assert exc_info.value.status_code == 409
         assert "already dismissed" in exc_info.value.detail.lower()
@@ -1275,7 +1301,7 @@ class TestDismissAlert:
         mock_db.execute.return_value = mock_result
 
         with pytest.raises(HTTPException) as exc_info:
-            await dismiss_alert(alert_id="nonexistent", db=mock_db)
+            await dismiss_alert(alert_id="nonexistent", background_tasks=MagicMock(), db=mock_db)
 
         assert exc_info.value.status_code == 404
 
@@ -1303,13 +1329,15 @@ class TestDismissAlert:
         mock_result.scalar_one_or_none.return_value = mock_alert
         mock_db.execute.return_value = mock_result
 
+        # NEM-2582: Broadcast now uses background task, test that broadcaster failure
+        # doesn't block the request - simulate RuntimeError from get_instance
         with patch("backend.api.routes.alerts.EventBroadcaster.get_instance") as mock_broadcaster:
-            mock_broadcaster_instance = AsyncMock()
-            mock_broadcaster_instance.broadcast_alert.side_effect = Exception("WebSocket error")
-            mock_broadcaster.return_value = mock_broadcaster_instance
+            mock_broadcaster.side_effect = RuntimeError("Broadcaster not initialized")
 
             # Should not raise exception, just log warning
-            result = await dismiss_alert(alert_id="alert-id", db=mock_db)
+            result = await dismiss_alert(
+                alert_id="alert-id", background_tasks=MagicMock(), db=mock_db
+            )
 
             assert result.id == "alert-id"
             assert mock_alert.status == AlertStatusEnum.DISMISSED
