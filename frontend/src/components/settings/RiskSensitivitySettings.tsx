@@ -197,7 +197,7 @@ export default function RiskSensitivitySettings({ className }: RiskSensitivitySe
 
   // Calculate total feedback count
   const totalFeedback = calibration
-    ? calibration.false_positive_count + calibration.missed_detection_count
+    ? calibration.false_positive_count + calibration.missed_threat_count
     : 0;
 
   return (
@@ -432,7 +432,7 @@ export default function RiskSensitivitySettings({ className }: RiskSensitivitySe
                 <TrendingUp className="h-5 w-5 text-red-500" />
                 <div>
                   <Text className="text-2xl font-semibold text-white">
-                    {calibration.missed_detection_count}
+                    {calibration.missed_threat_count}
                   </Text>
                   <Text className="text-xs text-gray-500">Missed detections marked</Text>
                 </div>

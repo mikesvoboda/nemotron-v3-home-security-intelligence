@@ -18,6 +18,44 @@ import type { Page } from '@playwright/test';
 
 test.describe('Risk Calibration - Settings Page @critical', () => {
   test.beforeEach(async ({ page }) => {
+    // Mock calibration API endpoints
+    await page.route('**/api/calibration', async (route) => {
+      if (route.request().method() === 'GET') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(mockUserCalibration.default),
+        });
+      } else {
+        await route.continue();
+      }
+    });
+
+    await page.route('**/api/calibration/defaults', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          low_threshold: 30,
+          medium_threshold: 60,
+          high_threshold: 85,
+          decay_factor: 0.1,
+        }),
+      });
+    });
+
+    await page.route('**/api/feedback/stats', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          total_feedback: 0,
+          by_type: {},
+          by_camera: {},
+        }),
+      });
+    });
+
     await page.goto('/settings');
     await page.waitForLoadState('networkidle');
   });

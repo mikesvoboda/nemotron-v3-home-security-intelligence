@@ -82,9 +82,13 @@ test.describe('Full Feedback-Calibration Loop @critical', () => {
           contentType: 'application/json',
           body: JSON.stringify({
             items: [],
-            total: 0,
-            page: 1,
-            limit: 100,
+            pagination: {
+              total: 0,
+              limit: 100,
+              offset: 0,
+              next_cursor: null,
+              has_more: false,
+            },
           }),
         });
       } else {
@@ -94,9 +98,13 @@ test.describe('Full Feedback-Calibration Loop @critical', () => {
           contentType: 'application/json',
           body: JSON.stringify({
             items: testEvents,
-            total: testEvents.length,
-            page: 1,
-            limit: 50,
+            pagination: {
+              total: testEvents.length,
+              limit: 50,
+              offset: 0,
+              next_cursor: null,
+              has_more: false,
+            },
           }),
         });
       }
@@ -120,8 +128,8 @@ test.describe('Full Feedback-Calibration Loop @critical', () => {
 
     // Look for HIGH risk indicator
     const highRiskBadge = firstEventCard.locator(
-      '[data-testid="risk-badge"], .risk-badge, text="High"'
-    );
+      '[data-testid="risk-badge"], .risk-badge'
+    ).or(firstEventCard.getByText('High'));
     const hasBadge = (await highRiskBadge.count()) > 0;
 
     if (hasBadge) {
@@ -379,13 +387,13 @@ test.describe('Feedback-Calibration Loop - Edge Cases', () => {
             medium_threshold: Math.min(70, currentCalibration.medium_threshold + 2),
             false_positive_count: currentCalibration.false_positive_count + 1,
           };
-        } else if (data.feedback_type === 'missed_detection') {
+        } else if (data.feedback_type === 'missed_threat') {
           // Lower thresholds (make more sensitive)
           currentCalibration = {
             ...currentCalibration,
             high_threshold: Math.max(75, currentCalibration.high_threshold - 3),
             medium_threshold: Math.max(50, currentCalibration.medium_threshold - 2),
-            missed_detection_count: currentCalibration.missed_detection_count + 1,
+            missed_threat_count: currentCalibration.missed_threat_count + 1,
           };
         }
 
