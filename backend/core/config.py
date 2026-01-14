@@ -172,6 +172,25 @@ class OrchestratorSettings(BaseSettings):
         le=65535,
         description="JSON Exporter container service port for health checks.",
     )
+    alertmanager_port: int = Field(
+        9093,
+        ge=1,
+        le=65535,
+        description="Alertmanager container service port for health checks.",
+    )
+    blackbox_exporter_port: int = Field(
+        9115,
+        ge=1,
+        le=65535,
+        description="Blackbox Exporter container service port for health checks.",
+    )
+
+    # Monitoring feature flag
+    monitoring_enabled: bool = Field(
+        True,
+        description="Enable monitoring service discovery. When disabled, monitoring "
+        "containers (Prometheus, Grafana, etc.) are excluded from discovery.",
+    )
 
 
 class Settings(BaseSettings):
