@@ -11,6 +11,7 @@ Features:
     - Broadcast status changes via WebSocket (service_status events)
     - Configurable max restart limit to prevent restart storms
     - Thread-safe restart handling with asyncio locks
+    - Callback support for on_restart and on_failure events (NEM-2460)
 
 Usage:
     from backend.services.worker_supervisor import (
@@ -58,6 +59,10 @@ if TYPE_CHECKING:
     from backend.services.event_broadcaster import EventBroadcaster
 
 logger = get_logger(__name__)
+
+# Type aliases for callbacks (NEM-2460)
+OnRestartCallback = Callable[[str, int, str | None], Awaitable[None]]
+OnFailureCallback = Callable[[str, str | None], Awaitable[None]]
 
 
 class WorkerStatus(Enum):
@@ -190,21 +195,33 @@ class WorkerSupervisor:
 
     This supervisor monitors registered worker tasks and automatically
     restarts them with exponential backoff when they fail.
+
+    Callbacks (NEM-2460):
+        on_restart: Called when a worker is about to be restarted with (name, attempt, error).
+        on_failure: Called when a worker exceeds max restarts with (name, error).
     """
 
     def __init__(
         self,
         config: SupervisorConfig | None = None,
         broadcaster: EventBroadcaster | None = None,
+        on_restart: OnRestartCallback | None = None,
+        on_failure: OnFailureCallback | None = None,
     ) -> None:
         """Initialize the WorkerSupervisor.
 
         Args:
             config: Supervisor configuration. Uses defaults if not provided.
             broadcaster: Optional EventBroadcaster for status updates.
+            on_restart: Optional async callback called when a worker is restarted.
+                Signature: async def on_restart(name: str, attempt: int, error: str | None)
+            on_failure: Optional async callback called when a worker exceeds max restarts.
+                Signature: async def on_failure(name: str, error: str | None)
         """
         self._config = config or SupervisorConfig()
         self._broadcaster = broadcaster
+        self._on_restart = on_restart
+        self._on_failure = on_failure
         self._workers: dict[str, WorkerInfo] = {}
         self._running = False
         self._monitor_task: asyncio.Task[None] | None = None
@@ -441,6 +458,13 @@ class WorkerSupervisor:
                         WorkerStatus.FAILED,
                         f"Exceeded max restarts ({worker.max_restarts})",
                     )
+
+                    # Invoke on_failure callback (NEM-2460)
+                    if self._on_failure is not None:
+                        try:
+                            await self._on_failure(name, worker.error)
+                        except Exception as cb_err:
+                            logger.warning(f"on_failure callback raised exception: {cb_err}")
                 return
 
             # Calculate backoff
@@ -455,6 +479,13 @@ class WorkerSupervisor:
                 f"(attempt {worker.restart_count + 1}/{worker.max_restarts})"
             )
             await self._broadcast_status(name, WorkerStatus.RESTARTING)
+
+            # Invoke on_restart callback (NEM-2460)
+            if self._on_restart is not None:
+                try:
+                    await self._on_restart(name, worker.restart_count + 1, worker.error)
+                except Exception as cb_err:
+                    logger.warning(f"on_restart callback raised exception: {cb_err}")
 
             # Wait for backoff
             await asyncio.sleep(backoff)
@@ -636,19 +667,28 @@ _supervisor: WorkerSupervisor | None = None
 def get_worker_supervisor(
     config: SupervisorConfig | None = None,
     broadcaster: EventBroadcaster | None = None,
+    on_restart: OnRestartCallback | None = None,
+    on_failure: OnFailureCallback | None = None,
 ) -> WorkerSupervisor:
     """Get the singleton WorkerSupervisor instance.
 
     Args:
         config: Configuration (only used on first call).
         broadcaster: EventBroadcaster (only used on first call).
+        on_restart: Optional callback for worker restarts (only used on first call).
+        on_failure: Optional callback for worker failures (only used on first call).
 
     Returns:
         The WorkerSupervisor singleton.
     """
     global _supervisor  # noqa: PLW0603
     if _supervisor is None:
-        _supervisor = WorkerSupervisor(config=config, broadcaster=broadcaster)
+        _supervisor = WorkerSupervisor(
+            config=config,
+            broadcaster=broadcaster,
+            on_restart=on_restart,
+            on_failure=on_failure,
+        )
     return _supervisor
 
 
