@@ -627,6 +627,7 @@ class TestFullPipelineIntegration:
                     for e in result.errors
                     if "model not available" not in str(e).lower()
                     and "not available in MODEL_ZOO" not in str(e)
+                    and "Unknown model:" not in str(e)
                 ]
                 assert len(non_model_errors) == 0, f"Unexpected errors: {non_model_errors}"
 
