@@ -1993,7 +1993,7 @@ from backend.models.notification_preferences import (
     CameraNotificationSetting,
     QuietHoursPeriod,
 )
-from datetime import datetime, time
+from datetime import UTC, datetime, time
 
 filter_service = NotificationFilterService()
 
@@ -2001,7 +2001,7 @@ filter_service = NotificationFilterService()
 should_send = filter_service.should_notify(
     risk_score=75,
     camera_id="front_door",
-    timestamp=datetime.now(),
+    timestamp=datetime.now(UTC),
     global_prefs=NotificationPreferences(
         enabled=True,
         risk_filters=["critical", "high"],
@@ -2021,7 +2021,7 @@ should_send = filter_service.should_notify(
 
 # Check if in quiet period
 is_quiet = filter_service.is_quiet_period(
-    timestamp=datetime.now(),
+    timestamp=datetime.now(UTC),
     period=quiet_period,
 )
 ```

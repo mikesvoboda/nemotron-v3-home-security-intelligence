@@ -104,6 +104,19 @@ class WebSocketEventType(StrEnum):
     """Background job was cancelled."""
 
     # ==========================================================================
+    # Legacy Job Events (underscore format - NEM-2505)
+    # These match the actual WebSocket schema message types sent over the wire
+    # ==========================================================================
+    LEGACY_JOB_PROGRESS = "job_progress"
+    """Job progress event (legacy underscore format)."""
+
+    LEGACY_JOB_COMPLETED = "job_completed"
+    """Job completed event (legacy underscore format)."""
+
+    LEGACY_JOB_FAILED = "job_failed"
+    """Job failed event (legacy underscore format)."""
+
+    # ==========================================================================
     # System Events - System health and monitoring
     # ==========================================================================
     SYSTEM_HEALTH_CHANGED = "system.health_changed"
@@ -365,6 +378,25 @@ EVENT_TYPE_METADATA: dict[WebSocketEventType, dict[str, Any]] = {
         "channel": "jobs",
         "requires_payload": True,
         "payload_fields": ["job_id", "cancelled_at"],
+    },
+    # Legacy job events (underscore format - NEM-2505)
+    WebSocketEventType.LEGACY_JOB_PROGRESS: {
+        "description": "Job progress event (legacy underscore format)",
+        "channel": "jobs",
+        "requires_payload": True,
+        "payload_fields": ["job_id", "progress", "status"],
+    },
+    WebSocketEventType.LEGACY_JOB_COMPLETED: {
+        "description": "Job completed event (legacy underscore format)",
+        "channel": "jobs",
+        "requires_payload": True,
+        "payload_fields": ["job_id", "completed_at"],
+    },
+    WebSocketEventType.LEGACY_JOB_FAILED: {
+        "description": "Job failed event (legacy underscore format)",
+        "channel": "jobs",
+        "requires_payload": True,
+        "payload_fields": ["job_id", "error", "failed_at"],
     },
     # System events
     WebSocketEventType.SYSTEM_HEALTH_CHANGED: {

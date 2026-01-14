@@ -207,10 +207,10 @@ class CleanupService:
         """Calculate the next cleanup time.
 
         Returns:
-            Datetime of next scheduled cleanup
+            Datetime of next scheduled cleanup (UTC timezone-aware)
         """
         hours, minutes = self._parse_cleanup_time()
-        now = datetime.now()
+        now = datetime.now(UTC)
 
         # Calculate next cleanup time
         next_cleanup = now.replace(hour=hours, minute=minutes, second=0, microsecond=0)
@@ -224,7 +224,7 @@ class CleanupService:
     async def _wait_until_next_cleanup(self) -> None:
         """Wait until the next scheduled cleanup time."""
         next_cleanup = self._calculate_next_cleanup()
-        wait_seconds = (next_cleanup - datetime.now()).total_seconds()
+        wait_seconds = (next_cleanup - datetime.now(UTC)).total_seconds()
 
         logger.info(f"Next cleanup scheduled for {next_cleanup} ({wait_seconds:.0f}s)")
 

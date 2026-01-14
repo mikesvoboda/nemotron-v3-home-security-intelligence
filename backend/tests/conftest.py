@@ -177,13 +177,49 @@ def _check_redis_connection(host: str = "localhost", port: int = 6379) -> bool:
     return _check_tcp_connection(host, port)
 
 
-def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
-    """Auto-apply markers and timeouts based on test location.
+def _apply_timeout_marker(item: pytest.Item, fspath_str: str) -> None:
+    """Apply appropriate timeout marker to a test item.
 
-    This hook automatically:
-    1. Applies 'unit' marker to tests in /unit/ directory
-    2. Applies 'integration' marker to tests in /integration/ directory
-    3. Assigns timeouts based on test location and markers
+    Helper function extracted from pytest_collection_modifyitems to reduce
+    branch complexity in the main hook.
+
+    Timeout hierarchy:
+    1. Explicit @pytest.mark.timeout(N) on test - unchanged
+    2. @pytest.mark.slow marker - 30 seconds
+    3. Integration tests (in integration/ directory) - 5 seconds
+    4. Default from pyproject.toml - 1 second (no marker needed)
+    """
+    # Skip if test has explicit timeout marker
+    if item.get_closest_marker("timeout"):
+        return
+
+    # Slow-marked tests get 30s
+    if item.get_closest_marker("slow"):
+        item.add_marker(pytest.mark.timeout(30))
+        return
+
+    # Integration tests get 5s
+    if "/integration/" in fspath_str:
+        item.add_marker(pytest.mark.timeout(5))
+
+
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    """Auto-apply markers and timeouts based on test location in a single pass.
+
+    This hook consolidates ALL marker application logic to avoid multiple iterations
+    over the test items list. Previously, separate conftest.py files at different
+    levels each iterated over all items, resulting in O(4n) complexity. This
+    consolidated approach achieves O(n) complexity.
+
+    Marker application (in order of checks):
+    1. Unit tests (/unit/ directory):
+       - Applies 'unit' marker
+       - Skips tests marked with 'integration' (they require a real database)
+    2. Integration tests (/integration/ directory):
+       - Applies 'integration' marker
+       - Repository tests (/integration/repositories/) get xdist_group + serial markers
+    3. Soft delete tests (test_soft_delete.py in /unit/models/):
+       - Gets xdist_group marker to force serial execution (prevents DB deadlocks)
 
     Timeout hierarchy (highest priority first):
     1. CLI --timeout=0 disables all timeouts (for CI)
@@ -192,41 +228,57 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
     4. Integration tests (in integration/ directory) - 5 seconds
     5. Default from pyproject.toml - 1 second
     """
-    import pytest
-
     # Check if timeouts are disabled via CLI (--timeout=0)
     # This is used in CI where environment is slower
     cli_timeout = config.getoption("timeout", default=None)
     timeouts_disabled = cli_timeout == 0
 
+    # Pre-create markers to avoid repeated marker creation in loop
+    skip_integration = pytest.mark.skip(
+        reason="Integration test requires database - skipped in unit test run"
+    )
+    xdist_soft_delete = pytest.mark.xdist_group(name="soft_delete_serial")
+    xdist_repository = pytest.mark.xdist_group(name="repository_tests_serial")
+    serial_marker = pytest.mark.serial
+
     for item in items:
         fspath_str = str(item.fspath)
+        nodeid = item.nodeid
+        is_unit = "/unit/" in fspath_str
+        is_integration = "/integration/" in fspath_str
 
-        # Auto-apply test type markers based on directory
-        if "/integration/" in fspath_str and not item.get_closest_marker("integration"):
-            item.add_marker(pytest.mark.integration)
-        elif "/unit/" in fspath_str and not item.get_closest_marker("unit"):
-            item.add_marker(pytest.mark.unit)
+        # === UNIT TEST HANDLING ===
+        if is_unit:
+            # Apply unit marker
+            if not item.get_closest_marker("unit"):
+                item.add_marker(pytest.mark.unit)
 
-        # Skip timeout assignment if disabled via CLI
-        if timeouts_disabled:
-            continue
+            # Skip integration-marked tests in unit runs
+            # (They require a real database connection)
+            if "integration" in item.keywords:
+                item.add_marker(skip_integration)
 
-        # Skip if test has explicit timeout marker
-        if item.get_closest_marker("timeout"):
-            continue
+            # Soft delete tests need xdist_group for serial execution
+            # to avoid database deadlocks when modifying schema
+            if "test_soft_delete.py" in nodeid and not item.get_closest_marker("xdist_group"):
+                item.add_marker(xdist_soft_delete)
 
-        # Slow-marked tests get 30s
-        if item.get_closest_marker("slow"):
-            item.add_marker(pytest.mark.timeout(30))
-            continue
+        # === INTEGRATION TEST HANDLING ===
+        elif is_integration:
+            # Apply integration marker
+            if not item.get_closest_marker("integration"):
+                item.add_marker(pytest.mark.integration)
 
-        # Integration tests get 5s
-        if "/integration/" in fspath_str:
-            item.add_marker(pytest.mark.timeout(5))
-            continue
+            # Repository tests need serial execution due to shared database state
+            if "/repositories/" in fspath_str:
+                if not item.get_closest_marker("xdist_group"):
+                    item.add_marker(xdist_repository)
+                if not item.get_closest_marker("serial"):
+                    item.add_marker(serial_marker)
 
-        # Unit tests use default (1s from pyproject.toml)
+        # === TIMEOUT HANDLING ===
+        if not timeouts_disabled:
+            _apply_timeout_marker(item, fspath_str)
 
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
