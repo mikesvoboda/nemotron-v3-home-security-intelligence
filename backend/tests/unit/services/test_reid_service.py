@@ -2140,3 +2140,538 @@ class TestReIDRetryLogging:
             # Check that the warning mentions retry
             warning_calls = [str(call) for call in mock_logger.warning.call_args_list]
             assert any("retry" in call.lower() for call in warning_calls)
+
+
+# =============================================================================
+# Hybrid Storage Integration Tests (NEM-2499)
+# =============================================================================
+
+
+class TestHybridStorageInitialization:
+    """Tests for ReIdentificationService initialization with hybrid_storage.
+
+    NEM-2499: Update ReIdentificationService to Use Hybrid Storage.
+    Phase 2.2 of the Hybrid Entity Storage Architecture epic.
+    """
+
+    def test_init_without_hybrid_storage(self) -> None:
+        """Test initialization without providing hybrid_storage (backward compat)."""
+        service = ReIdentificationService()
+        assert service._hybrid_storage is None
+
+    def test_init_with_hybrid_storage(self) -> None:
+        """Test initialization with custom hybrid_storage."""
+        mock_hybrid_storage = MagicMock()
+        service = ReIdentificationService(hybrid_storage=mock_hybrid_storage)
+        assert service._hybrid_storage is mock_hybrid_storage
+
+    def test_hybrid_storage_with_all_parameters(self) -> None:
+        """Test initialization with hybrid_storage and all other parameters."""
+        mock_clip_client = MagicMock()
+        mock_hybrid_storage = MagicMock()
+
+        service = ReIdentificationService(
+            clip_client=mock_clip_client,
+            max_concurrent_requests=5,
+            embedding_timeout=60.0,
+            max_retries=5,
+            hybrid_storage=mock_hybrid_storage,
+        )
+
+        assert service._clip_client is mock_clip_client
+        assert service.max_concurrent_requests == 5
+        assert service._embedding_timeout == 60.0
+        assert service._max_retries == 5
+        assert service._hybrid_storage is mock_hybrid_storage
+
+
+class TestStoreEmbeddingWithHybridStorage:
+    """Tests for store_embedding with hybrid storage and persist_to_postgres parameter.
+
+    NEM-2499: Update ReIdentificationService to Use Hybrid Storage.
+    """
+
+    @pytest.mark.asyncio
+    async def test_store_embedding_persist_to_postgres_false_redis_only(self) -> None:
+        """Test storing embedding with persist_to_postgres=False (Redis only).
+
+        When persist_to_postgres=False, embedding should only be stored in Redis.
+        This preserves the existing Redis-only behavior.
+        """
+        mock_redis = AsyncMock()
+        mock_redis.get.return_value = None
+
+        service = ReIdentificationService()
+        now = datetime(2025, 12, 25, 12, 0, 0, tzinfo=UTC)
+        embedding = EntityEmbedding(
+            entity_type="person",
+            embedding=[0.1] * 10,
+            camera_id="front_door",
+            timestamp=now,
+            detection_id="det_123",
+        )
+
+        result = await service.store_embedding(mock_redis, embedding, persist_to_postgres=False)
+
+        # Should return None (no entity UUID since not persisted to PostgreSQL)
+        assert result is None
+        # Should still store in Redis
+        mock_redis.set.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_store_embedding_persist_to_postgres_true_without_hybrid_storage(self) -> None:
+        """Test storing embedding with persist_to_postgres=True but no hybrid_storage.
+
+        When persist_to_postgres=True but hybrid_storage is not configured,
+        should only store in Redis and return None (graceful degradation).
+        """
+        mock_redis = AsyncMock()
+        mock_redis.get.return_value = None
+
+        # No hybrid_storage configured
+        service = ReIdentificationService()
+        now = datetime(2025, 12, 25, 12, 0, 0, tzinfo=UTC)
+        embedding = EntityEmbedding(
+            entity_type="person",
+            embedding=[0.1] * 10,
+            camera_id="front_door",
+            timestamp=now,
+            detection_id="det_456",
+        )
+
+        result = await service.store_embedding(mock_redis, embedding, persist_to_postgres=True)
+
+        # Should return None (no hybrid_storage configured)
+        assert result is None
+        # Should still store in Redis
+        mock_redis.set.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_store_embedding_persist_to_postgres_true_with_hybrid_storage(self) -> None:
+        """Test storing embedding with persist_to_postgres=True and hybrid_storage configured.
+
+        When persist_to_postgres=True and hybrid_storage is configured,
+        should store in both Redis and PostgreSQL via hybrid_storage.
+        """
+        from uuid import uuid4
+
+        mock_redis = AsyncMock()
+        mock_redis.get.return_value = None
+
+        mock_hybrid_storage = AsyncMock()
+        entity_uuid = uuid4()
+        # Return (entity_id, is_new_entity)
+        mock_hybrid_storage.store_detection_embedding.return_value = (entity_uuid, True)
+
+        service = ReIdentificationService(hybrid_storage=mock_hybrid_storage)
+        now = datetime(2025, 12, 25, 12, 0, 0, tzinfo=UTC)
+        embedding = EntityEmbedding(
+            entity_type="person",
+            embedding=[0.1] * 10,
+            camera_id="front_door",
+            timestamp=now,
+            detection_id="det_789",
+            attributes={"clothing": "blue jacket"},
+        )
+
+        result = await service.store_embedding(mock_redis, embedding, persist_to_postgres=True)
+
+        # Should return entity UUID from hybrid_storage
+        assert result == entity_uuid
+
+        # Should store in Redis
+        mock_redis.set.assert_called_once()
+
+        # Should call hybrid_storage.store_detection_embedding
+        mock_hybrid_storage.store_detection_embedding.assert_called_once()
+        call_kwargs = mock_hybrid_storage.store_detection_embedding.call_args.kwargs
+        assert call_kwargs["entity_type"] == "person"
+        assert call_kwargs["embedding"] == [0.1] * 10
+        assert call_kwargs["camera_id"] == "front_door"
+        assert call_kwargs["attributes"] == {"clothing": "blue jacket"}
+
+    @pytest.mark.asyncio
+    async def test_store_embedding_default_persist_to_postgres_is_true(self) -> None:
+        """Test that persist_to_postgres defaults to True for hybrid storage.
+
+        When hybrid_storage is configured and persist_to_postgres is not specified,
+        it should default to True (store in both Redis and PostgreSQL).
+        """
+        from uuid import uuid4
+
+        mock_redis = AsyncMock()
+        mock_redis.get.return_value = None
+
+        mock_hybrid_storage = AsyncMock()
+        entity_uuid = uuid4()
+        mock_hybrid_storage.store_detection_embedding.return_value = (entity_uuid, False)
+
+        service = ReIdentificationService(hybrid_storage=mock_hybrid_storage)
+        now = datetime(2025, 12, 25, 12, 0, 0, tzinfo=UTC)
+        embedding = EntityEmbedding(
+            entity_type="vehicle",
+            embedding=[0.5] * 10,
+            camera_id="garage",
+            timestamp=now,
+            detection_id="det_vehicle",
+        )
+
+        # Call without persist_to_postgres (should default to True)
+        result = await service.store_embedding(mock_redis, embedding)
+
+        # Should return entity UUID (because hybrid_storage is configured)
+        assert result == entity_uuid
+        mock_hybrid_storage.store_detection_embedding.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_store_embedding_backward_compatibility_no_hybrid_storage(self) -> None:
+        """Test that existing behavior is preserved when hybrid_storage is None.
+
+        This ensures backward compatibility: when no hybrid_storage is configured,
+        store_embedding() returns None just like the original implementation.
+        """
+        mock_redis = AsyncMock()
+        mock_redis.get.return_value = None
+
+        service = ReIdentificationService()  # No hybrid_storage
+        now = datetime(2025, 12, 25, 12, 0, 0, tzinfo=UTC)
+        embedding = EntityEmbedding(
+            entity_type="person",
+            embedding=[0.1] * 10,
+            camera_id="front_door",
+            timestamp=now,
+            detection_id="det_compat",
+        )
+
+        # Original store_embedding returned None implicitly
+        result = await service.store_embedding(mock_redis, embedding)
+
+        assert result is None
+        # Should still store in Redis as before
+        mock_redis.set.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_store_embedding_hybrid_storage_error_handled_gracefully(self) -> None:
+        """Test that hybrid_storage errors are handled gracefully.
+
+        If hybrid_storage.store_detection_embedding fails, Redis storage should
+        still succeed and the error should be logged (not raised).
+        """
+        mock_redis = AsyncMock()
+        mock_redis.get.return_value = None
+
+        mock_hybrid_storage = AsyncMock()
+        mock_hybrid_storage.store_detection_embedding.side_effect = Exception("PostgreSQL error")
+
+        service = ReIdentificationService(hybrid_storage=mock_hybrid_storage)
+        now = datetime(2025, 12, 25, 12, 0, 0, tzinfo=UTC)
+        embedding = EntityEmbedding(
+            entity_type="person",
+            embedding=[0.1] * 10,
+            camera_id="front_door",
+            timestamp=now,
+            detection_id="det_error",
+        )
+
+        with patch("backend.services.reid_service.logger") as mock_logger:
+            result = await service.store_embedding(mock_redis, embedding, persist_to_postgres=True)
+
+            # Should return None due to error
+            assert result is None
+            # Should still store in Redis
+            mock_redis.set.assert_called_once()
+            # Should log warning about PostgreSQL failure
+            mock_logger.warning.assert_called()
+
+
+class TestFindMatchingEntitiesWithHybridStorage:
+    """Tests for find_matching_entities with hybrid storage and include_historical parameter.
+
+    NEM-2499: Update ReIdentificationService to Use Hybrid Storage.
+    """
+
+    @pytest.mark.asyncio
+    async def test_find_matching_include_historical_false_redis_only(self) -> None:
+        """Test finding matches with include_historical=False (Redis only).
+
+        When include_historical=False, should only search Redis for recent
+        entities (existing behavior preserved).
+        """
+        now = datetime.now(UTC)
+        stored_embedding = EntityEmbedding(
+            entity_type="person",
+            embedding=[0.1] * EMBEDDING_DIMENSION,
+            camera_id="front_door",
+            timestamp=now - timedelta(minutes=5),
+            detection_id="det_redis",
+        )
+        stored_data = {"persons": [stored_embedding.to_dict()], "vehicles": []}
+
+        mock_redis = AsyncMock()
+        mock_redis.get.return_value = json.dumps(stored_data)
+
+        service = ReIdentificationService()  # No hybrid_storage
+        query_embedding = [0.1] * EMBEDDING_DIMENSION
+
+        matches = await service.find_matching_entities(
+            mock_redis,
+            query_embedding,
+            entity_type="person",
+            threshold=0.9,
+            include_historical=False,
+        )
+
+        # Should find Redis match
+        assert len(matches) >= 1
+        assert matches[0].entity.detection_id == "det_redis"
+
+    @pytest.mark.asyncio
+    async def test_find_matching_include_historical_true_without_hybrid_storage(self) -> None:
+        """Test finding matches with include_historical=True but no hybrid_storage.
+
+        When include_historical=True but hybrid_storage is not configured,
+        should fall back to Redis-only behavior (graceful degradation).
+        """
+        now = datetime.now(UTC)
+        stored_embedding = EntityEmbedding(
+            entity_type="person",
+            embedding=[0.1] * EMBEDDING_DIMENSION,
+            camera_id="front_door",
+            timestamp=now - timedelta(minutes=5),
+            detection_id="det_fallback",
+        )
+        stored_data = {"persons": [stored_embedding.to_dict()], "vehicles": []}
+
+        mock_redis = AsyncMock()
+        mock_redis.get.return_value = json.dumps(stored_data)
+
+        # No hybrid_storage configured
+        service = ReIdentificationService()
+        query_embedding = [0.1] * EMBEDDING_DIMENSION
+
+        matches = await service.find_matching_entities(
+            mock_redis,
+            query_embedding,
+            entity_type="person",
+            threshold=0.9,
+            include_historical=True,  # Ignored without hybrid_storage
+        )
+
+        # Should still find Redis match
+        assert len(matches) >= 1
+        assert matches[0].entity.detection_id == "det_fallback"
+
+    @pytest.mark.asyncio
+    async def test_find_matching_include_historical_true_with_hybrid_storage(self) -> None:
+        """Test finding matches with include_historical=True and hybrid_storage configured.
+
+        When include_historical=True and hybrid_storage is configured,
+        should use hybrid_storage.find_matches() for combined Redis + PostgreSQL search.
+        """
+        from backend.services.hybrid_entity_storage import HybridEntityMatch
+
+        mock_redis = AsyncMock()
+
+        # Create mock hybrid matches
+        mock_hybrid_match = MagicMock(spec=HybridEntityMatch)
+        mock_hybrid_match.entity_id = "entity_uuid_1"
+        mock_hybrid_match.entity_type = "person"
+        mock_hybrid_match.embedding = [0.1] * EMBEDDING_DIMENSION
+        mock_hybrid_match.camera_id = "front_door"
+        mock_hybrid_match.timestamp = datetime.now(UTC) - timedelta(minutes=5)
+        mock_hybrid_match.detection_id = "det_hybrid"
+        mock_hybrid_match.attributes = {}
+        mock_hybrid_match.similarity = 0.95
+        mock_hybrid_match.time_gap_seconds = 300.0
+        mock_hybrid_match.source = "postgresql"
+
+        mock_hybrid_storage = AsyncMock()
+        mock_hybrid_storage.find_matches.return_value = [mock_hybrid_match]
+
+        service = ReIdentificationService(hybrid_storage=mock_hybrid_storage)
+        query_embedding = [0.1] * EMBEDDING_DIMENSION
+
+        matches = await service.find_matching_entities(
+            mock_redis,
+            query_embedding,
+            entity_type="person",
+            threshold=0.85,
+            include_historical=True,
+        )
+
+        # Should call hybrid_storage.find_matches
+        mock_hybrid_storage.find_matches.assert_called_once()
+        call_kwargs = mock_hybrid_storage.find_matches.call_args.kwargs
+        assert call_kwargs["embedding"] == query_embedding
+        assert call_kwargs["entity_type"] == "person"
+        assert call_kwargs["threshold"] == 0.85
+        assert call_kwargs["include_historical"] is True
+
+        # Should return converted matches
+        assert len(matches) >= 1
+
+    @pytest.mark.asyncio
+    async def test_find_matching_default_include_historical_is_false(self) -> None:
+        """Test that include_historical defaults to False (backward compat).
+
+        When include_historical is not specified, should default to False
+        for backward compatibility with existing Redis-only behavior.
+        """
+        now = datetime.now(UTC)
+        stored_embedding = EntityEmbedding(
+            entity_type="person",
+            embedding=[0.1] * EMBEDDING_DIMENSION,
+            camera_id="front_door",
+            timestamp=now - timedelta(minutes=5),
+            detection_id="det_default",
+        )
+        stored_data = {"persons": [stored_embedding.to_dict()], "vehicles": []}
+
+        mock_redis = AsyncMock()
+        mock_redis.get.return_value = json.dumps(stored_data)
+
+        mock_hybrid_storage = AsyncMock()
+        service = ReIdentificationService(hybrid_storage=mock_hybrid_storage)
+        query_embedding = [0.1] * EMBEDDING_DIMENSION
+
+        # Call without include_historical (should default to False)
+        matches = await service.find_matching_entities(
+            mock_redis,
+            query_embedding,
+            entity_type="person",
+            threshold=0.9,
+        )
+
+        # Should NOT call hybrid_storage.find_matches (include_historical=False)
+        mock_hybrid_storage.find_matches.assert_not_called()
+
+        # Should use Redis-only search
+        assert len(matches) >= 1
+        assert matches[0].entity.detection_id == "det_default"
+
+    @pytest.mark.asyncio
+    async def test_find_matching_hybrid_converts_results_to_entity_match(self) -> None:
+        """Test that hybrid storage results are converted to EntityMatch objects.
+
+        The method should convert HybridEntityMatch objects back to EntityMatch
+        objects so that existing consumers of find_matching_entities() continue
+        to work without modification.
+        """
+        from backend.services.hybrid_entity_storage import HybridEntityMatch
+
+        mock_redis = AsyncMock()
+
+        # Create mock hybrid match with all required fields
+        now = datetime.now(UTC)
+        mock_hybrid_match = MagicMock(spec=HybridEntityMatch)
+        mock_hybrid_match.entity_id = "entity_uuid_1"
+        mock_hybrid_match.entity_type = "person"
+        mock_hybrid_match.embedding = [0.5] * EMBEDDING_DIMENSION
+        mock_hybrid_match.camera_id = "back_door"
+        mock_hybrid_match.timestamp = now - timedelta(hours=2)
+        mock_hybrid_match.detection_id = "det_pg_123"
+        mock_hybrid_match.attributes = {"clothing": "green hat"}
+        mock_hybrid_match.similarity = 0.92
+        mock_hybrid_match.time_gap_seconds = 7200.0
+        mock_hybrid_match.source = "postgresql"
+
+        mock_hybrid_storage = AsyncMock()
+        mock_hybrid_storage.find_matches.return_value = [mock_hybrid_match]
+
+        service = ReIdentificationService(hybrid_storage=mock_hybrid_storage)
+        query_embedding = [0.5] * EMBEDDING_DIMENSION
+
+        matches = await service.find_matching_entities(
+            mock_redis,
+            query_embedding,
+            entity_type="person",
+            threshold=0.85,
+            include_historical=True,
+        )
+
+        # Should return EntityMatch objects
+        assert len(matches) == 1
+        match = matches[0]
+        assert isinstance(match, EntityMatch)
+        assert match.similarity == 0.92
+        assert match.time_gap_seconds == 7200.0
+        assert match.entity.entity_type == "person"
+        assert match.entity.camera_id == "back_door"
+        assert match.entity.detection_id == "det_pg_123"
+        assert match.entity.attributes == {"clothing": "green hat"}
+
+    @pytest.mark.asyncio
+    async def test_find_matching_exclude_detection_id_with_hybrid_storage(self) -> None:
+        """Test that exclude_detection_id is passed to hybrid storage."""
+        mock_redis = AsyncMock()
+
+        mock_hybrid_storage = AsyncMock()
+        mock_hybrid_storage.find_matches.return_value = []
+
+        service = ReIdentificationService(hybrid_storage=mock_hybrid_storage)
+        query_embedding = [0.1] * EMBEDDING_DIMENSION
+
+        await service.find_matching_entities(
+            mock_redis,
+            query_embedding,
+            entity_type="person",
+            threshold=0.85,
+            exclude_detection_id="det_exclude_me",
+            include_historical=True,
+        )
+
+        # Should pass exclude_detection_id to hybrid_storage
+        call_kwargs = mock_hybrid_storage.find_matches.call_args.kwargs
+        assert call_kwargs["exclude_detection_id"] == "det_exclude_me"
+
+    @pytest.mark.asyncio
+    async def test_find_matching_backward_compatibility_no_hybrid_storage(self) -> None:
+        """Test that existing behavior is preserved when hybrid_storage is None.
+
+        This ensures backward compatibility: when no hybrid_storage is configured,
+        find_matching_entities() works exactly like the original implementation.
+        """
+        now = datetime.now(UTC)
+        stored_data = {
+            "persons": [
+                EntityEmbedding(
+                    entity_type="person",
+                    embedding=[0.1] * EMBEDDING_DIMENSION,
+                    camera_id="front_door",
+                    timestamp=now - timedelta(minutes=5),
+                    detection_id="det_compat",
+                ).to_dict(),
+            ],
+            "vehicles": [],
+        }
+
+        mock_redis = AsyncMock()
+        mock_redis.get.return_value = json.dumps(stored_data)
+
+        service = ReIdentificationService()  # No hybrid_storage
+        query_embedding = [0.1] * EMBEDDING_DIMENSION
+
+        matches = await service.find_matching_entities(
+            mock_redis, query_embedding, entity_type="person", threshold=0.9
+        )
+
+        # Should find match just like before
+        assert len(matches) >= 1
+        assert matches[0].entity.detection_id == "det_compat"
+        # Should be EntityMatch object
+        assert isinstance(matches[0], EntityMatch)
+
+
+class TestHybridStorageProperty:
+    """Tests for hybrid_storage property access."""
+
+    def test_hybrid_storage_property_returns_none_when_not_set(self) -> None:
+        """Test that hybrid_storage returns None when not configured."""
+        service = ReIdentificationService()
+        assert service.hybrid_storage is None
+
+    def test_hybrid_storage_property_returns_instance_when_set(self) -> None:
+        """Test that hybrid_storage returns the configured instance."""
+        mock_hybrid_storage = MagicMock()
+        service = ReIdentificationService(hybrid_storage=mock_hybrid_storage)
+        assert service.hybrid_storage is mock_hybrid_storage

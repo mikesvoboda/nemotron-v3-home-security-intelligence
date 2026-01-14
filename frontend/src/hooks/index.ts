@@ -228,6 +228,20 @@ export type {
   UseEntitiesInfiniteQueryReturn,
 } from './useEntitiesInfiniteQuery';
 
+export {
+  useEntitiesV2Query,
+  useEntityHistory,
+  useEntityStats,
+} from './useEntityHistory';
+export type {
+  UseEntitiesV2QueryOptions,
+  UseEntitiesV2QueryReturn,
+  UseEntityHistoryOptions,
+  UseEntityHistoryReturn,
+  UseEntityStatsOptions,
+  UseEntityStatsReturn,
+} from './useEntityHistory';
+
 export { useServiceStatus } from './useServiceStatus';
 export type {
   ServiceName,
