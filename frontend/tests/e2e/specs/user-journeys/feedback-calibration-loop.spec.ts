@@ -56,7 +56,7 @@ test.describe('Full Feedback-Calibration Loop @critical', () => {
     // Mock events API with consistent data
     const testEvents = [
       {
-        id: '100',
+        id: 100,
         timestamp: new Date().toISOString(),
         camera_id: 'cam-1',
         camera_name: 'Front Door',
