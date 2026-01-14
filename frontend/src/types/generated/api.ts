@@ -2884,6 +2884,142 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/entities/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Entity Stats
+         * @description Get aggregated entity statistics.
+         *
+         *     Returns statistics about tracked entities including counts by type,
+         *     camera, and repeat visitors.
+         *
+         *     Args:
+         *         since: Filter entities seen since this timestamp
+         *         until: Filter entities seen until this timestamp
+         *         entity_repo: Entity repository dependency
+         *
+         *     Returns:
+         *         EntityStatsResponse with aggregated statistics
+         */
+        get: operations["get_entity_stats_api_entities_stats_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/entities/v2": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Entities V2
+         * @description List tracked entities with historical query support.
+         *
+         *     Returns a paginated list of entities from Redis (hot cache) and/or
+         *     PostgreSQL (historical data). Use the source parameter to control
+         *     which backend to query.
+         *
+         *     Args:
+         *         entity_type: Filter by entity type ('person' or 'vehicle')
+         *         camera_id: Filter by camera ID
+         *         since: Filter entities seen since this timestamp
+         *         until: Filter entities seen until this timestamp
+         *         source: Data source ('redis', 'postgres', 'both') - default 'both'
+         *         limit: Maximum number of results (1-1000, default 50)
+         *         offset: Number of results to skip for pagination (default 0)
+         *         reid_service: Re-identification service dependency
+         *         hybrid_storage: Hybrid storage service dependency
+         *
+         *     Returns:
+         *         EntityListResponse with filtered entities and pagination info
+         */
+        get: operations["list_entities_v2_api_entities_v2_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/entities/v2/{entity_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Entity V2
+         * @description Get detailed information about a specific entity from PostgreSQL.
+         *
+         *     Returns the canonical PostgreSQL entity record with full history.
+         *     For real-time Redis entities, use the original /api/entities/{entity_id} endpoint.
+         *
+         *     Args:
+         *         entity_id: UUID of the entity
+         *         hybrid_storage: Hybrid storage service dependency
+         *
+         *     Returns:
+         *         EntityDetail with full entity information
+         *
+         *     Raises:
+         *         HTTPException: 404 if entity not found
+         */
+        get: operations["get_entity_v2_api_entities_v2__entity_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/entities/v2/{entity_id}/detections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Entity Detections
+         * @description List all detections linked to an entity.
+         *
+         *     Returns paginated detections associated with the specified entity.
+         *
+         *     Args:
+         *         entity_id: UUID of the entity
+         *         limit: Maximum number of results (1-1000, default 50)
+         *         offset: Number of results to skip for pagination (default 0)
+         *         entity_repo: Entity repository dependency
+         *
+         *     Returns:
+         *         EntityDetectionsResponse with linked detections and pagination info
+         *
+         *     Raises:
+         *         HTTPException: 404 if entity not found
+         */
+        get: operations["get_entity_detections_api_entities_v2__entity_id__detections_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/entities/{entity_id}": {
         parameters: {
             query?: never;
@@ -9811,6 +9947,60 @@ export interface components {
             total_detections: number;
         };
         /**
+         * DetectionSummary
+         * @description Summary of a detection linked to an entity.
+         *
+         *     Represents a single detection occurrence for an entity, used in
+         *     the entity detections list endpoint.
+         * @example {
+         *       "camera_id": "front_door",
+         *       "camera_name": "Front Door",
+         *       "confidence": 0.95,
+         *       "detection_id": 123,
+         *       "object_type": "person",
+         *       "thumbnail_url": "/api/detections/123/image",
+         *       "timestamp": "2025-12-23T10:00:00Z"
+         *     }
+         */
+        DetectionSummary: {
+            /**
+             * Camera Id
+             * @description Camera ID where detection occurred
+             */
+            camera_id: string;
+            /**
+             * Camera Name
+             * @description Human-readable camera name
+             */
+            camera_name?: string | null;
+            /**
+             * Confidence
+             * @description Detection confidence score
+             */
+            confidence?: number | null;
+            /**
+             * Detection Id
+             * @description Detection database ID
+             */
+            detection_id: number;
+            /**
+             * Object Type
+             * @description Detected object type
+             */
+            object_type?: string | null;
+            /**
+             * Thumbnail Url
+             * @description URL to detection thumbnail
+             */
+            thumbnail_url?: string | null;
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description When the detection occurred
+             */
+            timestamp: string;
+        };
+        /**
          * DetectionTrendDataPoint
          * @description Schema for a single detection trend data point.
          * @example {
@@ -10226,6 +10416,52 @@ export interface components {
             thumbnail_url?: string | null;
         };
         /**
+         * EntityDetectionsResponse
+         * @description Response for entity detections list endpoint.
+         *
+         *     Returns all detections linked to a specific entity with pagination.
+         * @example {
+         *       "detections": [
+         *         {
+         *           "camera_id": "front_door",
+         *           "camera_name": "Front Door",
+         *           "confidence": 0.95,
+         *           "detection_id": 123,
+         *           "object_type": "person",
+         *           "thumbnail_url": "/api/detections/123/image",
+         *           "timestamp": "2025-12-23T10:00:00Z"
+         *         }
+         *       ],
+         *       "entity_id": "550e8400-e29b-41d4-a716-446655440000",
+         *       "entity_type": "person",
+         *       "pagination": {
+         *         "has_more": false,
+         *         "limit": 50,
+         *         "offset": 0,
+         *         "total": 5
+         *       }
+         *     }
+         */
+        EntityDetectionsResponse: {
+            /**
+             * Detections
+             * @description List of detections for this entity
+             */
+            detections?: components["schemas"]["DetectionSummary"][];
+            /**
+             * Entity Id
+             * @description UUID of the entity
+             */
+            entity_id: string;
+            /**
+             * Entity Type
+             * @description Type of entity
+             */
+            entity_type: string;
+            /** @description Pagination metadata */
+            pagination: components["schemas"]["PaginationInfo"];
+        };
+        /**
          * EntityHistoryResponse
          * @description Schema for entity appearance history response.
          * @example {
@@ -10428,6 +10664,72 @@ export interface components {
              * @description Total number of matches found
              */
             total_matches: number;
+        };
+        /**
+         * EntityStatsResponse
+         * @description Response for entity statistics endpoint.
+         *
+         *     Returns aggregated statistics about tracked entities.
+         * @example {
+         *       "by_camera": {
+         *         "backyard": 42,
+         *         "driveway": 68,
+         *         "front_door": 85,
+         *         "garage": 12
+         *       },
+         *       "by_type": {
+         *         "animal": 12,
+         *         "other": 0,
+         *         "package": 0,
+         *         "person": 150,
+         *         "vehicle": 45
+         *       },
+         *       "repeat_visitors": 89,
+         *       "time_range": {
+         *         "since": "2025-12-23T00:00:00Z",
+         *         "until": "2025-12-23T23:59:59Z"
+         *       },
+         *       "total_appearances": 1523,
+         *       "total_entities": 207
+         *     }
+         */
+        EntityStatsResponse: {
+            /**
+             * By Camera
+             * @description Entity counts grouped by camera
+             */
+            by_camera?: {
+                [key: string]: number;
+            };
+            /**
+             * By Type
+             * @description Entity counts grouped by entity type
+             */
+            by_type?: {
+                [key: string]: number;
+            };
+            /**
+             * Repeat Visitors
+             * @description Count of entities seen more than once
+             */
+            repeat_visitors: number;
+            /**
+             * Time Range
+             * @description Time range for the statistics query
+             */
+            time_range?: {
+                [key: string]: string | null;
+            } | null;
+            /**
+             * Total Appearances
+             * @description Sum of all detection counts across entities
+             */
+            total_appearances: number;
+            /**
+             * Total Entities
+             * @description Count of unique entities
+             */
+            total_entities: number;
         };
         /**
          * EntitySummary
@@ -17869,6 +18171,17 @@ export interface components {
             medium_max: number;
         };
         /**
+         * SourceFilter
+         * @description Data source for entity queries.
+         *
+         *     Controls which storage backend to query for entities:
+         *     - redis: Only query Redis hot cache (24h window)
+         *     - postgres: Only query PostgreSQL (30d retention)
+         *     - both: Query both and merge results (default)
+         * @enum {string}
+         */
+        SourceFilter: "redis" | "postgres" | "both";
+        /**
          * StageLatency
          * @description Latency statistics for a single pipeline stage.
          * @example {
@@ -22785,6 +23098,191 @@ export interface operations {
             };
             /** @description Redis service unavailable */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_entity_stats_api_entities_stats_get: {
+        parameters: {
+            query?: {
+                /** @description Filter entities seen since this time */
+                since?: string | null;
+                /** @description Filter entities seen until this time */
+                until?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EntityStatsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    list_entities_v2_api_entities_v2_get: {
+        parameters: {
+            query?: {
+                /** @description Filter by entity type: 'person' or 'vehicle' */
+                entity_type?: components["schemas"]["EntityTypeFilter"] | null;
+                /** @description Filter by camera ID */
+                camera_id?: string | null;
+                /** @description Filter entities seen since this time */
+                since?: string | null;
+                /** @description Filter entities seen until this time */
+                until?: string | null;
+                /** @description Data source: 'redis', 'postgres', or 'both' */
+                source?: components["schemas"]["SourceFilter"];
+                /** @description Maximum number of results */
+                limit?: number;
+                /** @description Number of results to skip */
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EntityListResponse"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_entity_v2_api_entities_v2__entity_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                entity_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EntityDetail"];
+                };
+            };
+            /** @description Entity not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_entity_detections_api_entities_v2__entity_id__detections_get: {
+        parameters: {
+            query?: {
+                /** @description Maximum number of results */
+                limit?: number;
+                /** @description Number of results to skip */
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                entity_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EntityDetectionsResponse"];
+                };
+            };
+            /** @description Entity not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
                 headers: {
                     [name: string]: unknown;
                 };
