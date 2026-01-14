@@ -556,20 +556,17 @@ class TestCursorSecurityLogging:
             assert "exceeds maximum length" in call_args[1]["extra"]["reason"]
 
     def test_invalid_base64_logs_security_event(self):
-        """Test that invalid base64/JSON triggers security logging."""
-        # Note: "not-valid-base64!!!" is actually valid base64 but decodes to
-        # garbage that fails JSON parsing. Test that this logs a security event.
+        """Test that invalid base64 characters trigger security logging."""
+        # Note: "not-valid-base64!!!" contains invalid base64url characters (!)
+        # and is rejected at the format validation stage (NEM-2585)
         with patch("backend.api.pagination.logger") as mock_logger:
             with pytest.raises(ValueError):
                 decode_cursor("not-valid-base64!!!")
             mock_logger.warning.assert_called_once()
             call_args = mock_logger.warning.call_args
             assert call_args[1]["extra"]["security_event"] == "cursor_validation_failure"
-            # Will fail at JSON stage (invalid structure) since base64 decodes to garbage
-            assert (
-                "JSON" in call_args[1]["extra"]["reason"]
-                or "base64" in call_args[1]["extra"]["reason"].lower()
-            )
+            # Fails at format validation due to invalid characters
+            assert "invalid characters" in call_args[1]["extra"]["reason"].lower()
 
     def test_invalid_json_logs_security_event(self):
         """Test that invalid JSON triggers security logging."""
