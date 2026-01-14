@@ -87,10 +87,10 @@ export class ZonesPage extends BasePage {
     this.zoneFormCancelButton = page.getByRole('button', { name: /^Cancel$/i });
     this.zoneColorButtons = page.locator('button[style*="background-color"]');
 
-    // Delete Confirmation
-    this.deleteConfirmation = page.getByText(/Delete zone.*This action cannot be undone/i);
-    this.deleteConfirmButton = page.getByRole('button', { name: /^Delete$/i });
-    this.deleteCancelButton = page.locator('button').filter({ hasText: /^Cancel$/ });
+    // Delete Confirmation - now shown at the bottom of the dialog in a red-tinted section
+    this.deleteConfirmation = page.getByText(/Delete zone.*cannot be undone/i);
+    this.deleteConfirmButton = page.getByRole('button', { name: /^Delete$/i, exact: false });
+    this.deleteCancelButton = page.getByRole('button', { name: /^Cancel$/i });
 
     // Error Display
     this.errorMessage = page.locator('.text-red-400, .text-red-500').filter({ hasText: /Failed|Error/i });
@@ -314,9 +314,8 @@ export class ZonesPage extends BasePage {
    */
   async cancelDelete(): Promise<void> {
     await expect(this.deleteConfirmation).toBeVisible();
-    // Find the cancel button in the delete confirmation area
-    const cancelButton = this.page.locator('.bg-red-500\\/5').getByRole('button', { name: /Cancel/i });
-    await cancelButton.click();
+    // Use the Cancel button (last one in the dialog, as there may be form cancel too)
+    await this.deleteCancelButton.click();
   }
 
   /**

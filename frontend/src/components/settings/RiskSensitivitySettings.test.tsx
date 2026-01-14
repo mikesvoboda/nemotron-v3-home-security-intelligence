@@ -22,7 +22,7 @@ const mockCalibration: api.CalibrationResponse = {
   high_threshold: 85,
   decay_factor: 0.1,
   false_positive_count: 5,
-  missed_detection_count: 3,
+  missed_threat_count: 3,
   created_at: '2024-01-01T00:00:00Z',
   updated_at: '2024-01-01T00:00:00Z',
 };
@@ -101,7 +101,7 @@ describe('RiskSensitivitySettings', () => {
       render(<RiskSensitivitySettings />);
 
       await waitFor(() => {
-        // Total feedback = false_positive_count + missed_detection_count = 5 + 3 = 8
+        // Total feedback = false_positive_count + missed_threat_count = 5 + 3 = 8
         expect(screen.getByText('8')).toBeInTheDocument();
         expect(screen.getByText(/feedback submissions/)).toBeInTheDocument();
       });

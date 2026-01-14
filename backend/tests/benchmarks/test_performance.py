@@ -34,20 +34,21 @@ if TYPE_CHECKING:
 
 @pytest.fixture
 def performance_env() -> Generator[str]:
-    """Set DATABASE_URL/REDIS_URL to a temporary per-test database."""
+    """Set DATABASE_URL/REDIS_URL to test database (PostgreSQL required)."""
     from backend.core.config import get_settings
+    from backend.tests.conftest import get_test_db_url, get_test_redis_url
 
     original_db_url = os.environ.get("DATABASE_URL")
     original_redis_url = os.environ.get("REDIS_URL")
     original_runtime_env_path = os.environ.get("HSI_RUNTIME_ENV_PATH")
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        db_path = Path(tmpdir) / "perf_test.db"
-        test_db_url = f"sqlite+aiosqlite:///{db_path}"
+        # Use PostgreSQL test database (Settings only accepts PostgreSQL URLs)
+        test_db_url = get_test_db_url()
         runtime_env_path = str(Path(tmpdir) / "runtime.env")
 
         os.environ["DATABASE_URL"] = test_db_url
-        os.environ["REDIS_URL"] = "redis://localhost:6379/15"
+        os.environ["REDIS_URL"] = get_test_redis_url()
         os.environ["HSI_RUNTIME_ENV_PATH"] = runtime_env_path
 
         get_settings.cache_clear()
@@ -259,14 +260,14 @@ class TestDatabaseQueryBenchmarks:
     """Benchmark tests for database query performance."""
 
     @pytest.mark.benchmark(group="db-simple")
-    def test_simple_select_query(self, benchmark, _performance_db: str):
+    def test_simple_select_query(self, benchmark, performance_db: str):
         """Benchmark simple SELECT query execution."""
         from sqlalchemy import text
 
-        from backend.core.database import get_async_session
+        from backend.core.database import get_session
 
         async def run_select():
-            async with get_async_session() as session:
+            async with get_session() as session:
                 result = await session.execute(text("SELECT 1"))
                 return result.scalar()
 
@@ -274,26 +275,26 @@ class TestDatabaseQueryBenchmarks:
         assert result == 1
 
     @pytest.mark.benchmark(group="db-simple")
-    def test_session_creation(self, benchmark, _performance_db: str):
+    def test_session_creation(self, benchmark, performance_db: str):
         """Benchmark database session creation overhead."""
-        from backend.core.database import get_async_session
+        from backend.core.database import get_session
 
         async def create_session():
-            async with get_async_session() as session:
+            async with get_session() as session:
                 return session is not None
 
         result = benchmark(lambda: run_async(create_session()))
         assert result is True
 
     @pytest.mark.benchmark(group="db-transaction")
-    def test_transaction_commit(self, benchmark, _performance_db: str):
+    def test_transaction_commit(self, benchmark, performance_db: str):
         """Benchmark transaction commit overhead."""
         from sqlalchemy import text
 
-        from backend.core.database import get_async_session
+        from backend.core.database import get_session
 
         async def run_transaction():
-            async with get_async_session() as session:
+            async with get_session() as session:
                 await session.execute(text("SELECT 1"))
                 await session.commit()
                 return True
