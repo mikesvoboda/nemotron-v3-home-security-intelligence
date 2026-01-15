@@ -11,14 +11,14 @@ watch folders, causing the file watcher to process them through:
 This creates real events with actual LLM prompts for comprehensive testing.
 
 Usage:
-    # Default: Process 20 images through the full pipeline
+    # Default: Full pipeline + all supporting data (recommended for UI validation)
     uv run python scripts/seed-mock-events.py
 
     # Process more images
     uv run python scripts/seed-mock-events.py --images 50
 
-    # Also seed supporting data (entities, alerts, logs)
-    uv run python scripts/seed-mock-events.py --with-extras
+    # Skip supporting data (entities, alerts, logs) - only pipeline data
+    uv run python scripts/seed-mock-events.py --no-extras
 
     # Use mock data instead of real pipeline (legacy behavior)
     uv run python scripts/seed-mock-events.py --mock
@@ -1251,7 +1251,7 @@ async def main() -> int:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Default: Full end-to-end pipeline test (recommended for UI validation)
+  # Default: Full pipeline + all supporting data (recommended for UI validation)
   uv run python scripts/seed-mock-events.py
 
   # Process more images and wait longer
@@ -1263,11 +1263,11 @@ Examples:
   # Quick run without waiting for pipeline completion
   uv run python scripts/seed-mock-events.py --no-wait
 
-  # Also seed supporting data (entities, alerts, logs)
-  uv run python scripts/seed-mock-events.py --with-extras
+  # Skip supporting data (entities, alerts, logs) - only pipeline data
+  uv run python scripts/seed-mock-events.py --no-extras
 
   # Legacy: Use mock data instead of real pipeline (for testing without AI)
-  uv run python scripts/seed-mock-events.py --mock --with-extras
+  uv run python scripts/seed-mock-events.py --mock
 
 Pipeline Flow:
   1. Touch camera images to trigger file watcher
@@ -1282,6 +1282,13 @@ This generates real data including:
   - Detection bounding boxes from RT-DETRv2
   - Pipeline latency metrics for performance monitoring
   - Activity baselines for anomaly detection
+
+By default, also seeds supporting data for full UI testing:
+  - Entities (persons, vehicles) for the Entities page
+  - Alerts for the Alerts page
+  - Audit logs for the Audit Log page
+  - Application logs for the Logs page
+  - Soft-deleted events for the Trash page
 """,
     )
     parser.add_argument(
@@ -1313,9 +1320,9 @@ This generates real data including:
         help="Use mock data instead of real pipeline (legacy, for testing without AI services)",
     )
     parser.add_argument(
-        "--with-extras",
+        "--no-extras",
         action="store_true",
-        help="Also seed entities, alerts, audit logs, and app logs",
+        help="Skip seeding entities, alerts, audit logs, and app logs (seeded by default)",
     )
     parser.add_argument(
         "--no-baselines",
@@ -1407,13 +1414,14 @@ This generates real data including:
             print("\n--no-wait specified, skipping pipeline completion wait")
             print("Events will be created asynchronously as pipeline processes images")
 
-        # Seed extras if requested
-        if args.with_extras:
+        # Seed extras by default (unless --no-extras is specified)
+        if not args.no_extras:
             print("\nSeeding supporting data...")
             entities_count = args.entities or 30
             alerts_count = args.alerts or 20
             audit_logs_count = args.audit_logs or 50
             logs_count = args.logs or 100
+            trash_count = args.trash or 10
 
             print(f"\nSeeding {entities_count} entities...")
             total_created["entities"] = await seed_entities(entities_count)
@@ -1426,6 +1434,10 @@ This generates real data including:
 
             print(f"\nSeeding {logs_count} application logs...")
             total_created["logs"] = await seed_application_logs(logs_count)
+
+            if trash_count:
+                print(f"\nSoft-deleting {trash_count} events for trash...")
+                total_created["trash"] = await seed_trash(trash_count)
 
     else:
         # Legacy mock data mode
