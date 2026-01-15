@@ -618,14 +618,25 @@ async def seed_entities(num_entities: int = 30) -> int:
                 min(len(camera_names), random.randint(1, 3)),  # noqa: S311
             )
 
-            # Optionally link to a detection (only if it has a real image, not mock://)
+            # Link to a detection for thumbnail (map entity types to detection object_types)
+            # Detection object_types: car, truck, vehicle, bicycle, person, animal, bird, package
+            # Entity types: person, vehicle, animal, package, other
+            entity_to_detection_types = {
+                "person": ["person"],
+                "vehicle": ["car", "truck", "vehicle", "bicycle"],
+                "animal": ["animal", "bird"],
+                "package": ["package"],
+                "other": [],  # No matching detections for "other" type
+            }
+            matching_object_types = entity_to_detection_types.get(entity_type.value, [])
+
             primary_detection_id = None
-            if detections and random.random() < 0.7:  # noqa: S311
-                # Filter to detections with real file paths (not mock://) and matching type
+            if detections and matching_object_types:
+                # Filter to detections with real file paths and matching object types
                 matching_detections = [
                     d
                     for d in detections
-                    if d.object_type == entity_type.value
+                    if d.object_type in matching_object_types
                     and d.file_path
                     and not d.file_path.startswith("mock://")
                 ]
