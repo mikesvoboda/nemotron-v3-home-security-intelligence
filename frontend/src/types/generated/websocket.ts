@@ -10,7 +10,7 @@
  * Source schemas:
  *   backend/api/schemas/websocket.py
  *
- * Generated at: 2026-01-15T13:39:07Z
+ * Generated at: 2026-01-15T22:06:37Z
  *
  * Note: WebSocket messages are not covered by OpenAPI, so we generate these
  * types separately to ensure frontend/backend type synchronization.
@@ -44,7 +44,7 @@ export type WebSocketMessageType = 'ping' | 'pong' | 'subscribe' | 'unsubscribe'
  * Includes both health states and worker lifecycle states for comprehensive
  * status reporting across services and workers.
  */
-export type WebSocketServiceStatus = 'healthy' | 'unhealthy' | 'running' | 'stopped' | 'crashed' | 'restarting' | 'restart_failed' | 'failed';
+export type WebSocketServiceStatus = 'healthy' | 'unhealthy' | 'running' | 'stopped' | 'crashed' | 'disabled' | 'restarting' | 'restart_failed' | 'failed';
 
 /**
  * WebSocket event types for alert state changes.
@@ -133,12 +133,15 @@ export interface WebSocketEventData {
  * Data payload for service status messages.
  *
  * Broadcast by the health monitor when a service's status changes.
+ *
+ * Note: Accepts both 'service' and 'name' fields for compatibility with
+ * ServiceInfo schema used by container orchestrator.
  */
 export interface WebSocketServiceStatusData {
   /** Name of the service (redis, rtdetr, nemotron) */
   service: string;
   /** Current service status */
-  status: 'healthy' | 'unhealthy' | 'running' | 'stopped' | 'crashed' | 'restarting' | 'restart_failed' | 'failed';
+  status: 'healthy' | 'unhealthy' | 'running' | 'stopped' | 'crashed' | 'disabled' | 'restarting' | 'restart_failed' | 'failed';
   /** Optional descriptive message */
   message?: string | null;
 }
