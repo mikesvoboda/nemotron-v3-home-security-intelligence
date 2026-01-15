@@ -67,7 +67,7 @@ class TestEventsFieldSelectionLogic:
             "reviewed": False,
             "detection_count": 5,
             "detection_ids": [1, 2, 3, 4, 5],
-            "thumbnail_url": "/api/media/detections/1",
+            "thumbnail_url": "/api/detections/1/image",
         }
 
         result = filter_fields(event_dict, {"id"})
@@ -89,7 +89,7 @@ class TestEventsFieldSelectionLogic:
             "reviewed": False,
             "detection_count": 5,
             "detection_ids": [1, 2, 3, 4, 5],
-            "thumbnail_url": "/api/media/detections/1",
+            "thumbnail_url": "/api/detections/1/image",
         }
 
         result = filter_fields(event_dict, {"id", "camera_id", "risk_level", "summary", "reviewed"})
@@ -232,7 +232,7 @@ class TestEventsFieldSelectionUsageExample:
             "reviewed": False,
             "detection_count": 5,
             "detection_ids": [1, 2, 3, 4, 5],
-            "thumbnail_url": "/api/media/detections/1",
+            "thumbnail_url": "/api/detections/1/image",
         }
 
         result = filter_fields(event_dict, validated)

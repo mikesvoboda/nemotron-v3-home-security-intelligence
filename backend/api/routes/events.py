@@ -409,7 +409,7 @@ async def list_events(  # noqa: PLR0912
 
         # Compute thumbnail_url from first detection ID
         thumbnail_url = (
-            f"/api/media/detections/{parsed_detection_ids[0]}" if parsed_detection_ids else None
+            f"/api/detections/{parsed_detection_ids[0]}/image" if parsed_detection_ids else None
         )
 
         # Create response with detection count and detection_ids
@@ -926,7 +926,7 @@ async def list_deleted_events(
     events_data = []
     for event in deleted_events:
         detection_ids = get_detection_ids_from_event(event)
-        thumbnail_url = f"/api/media/detections/{detection_ids[0]}" if detection_ids else None
+        thumbnail_url = f"/api/detections/{detection_ids[0]}/image" if detection_ids else None
 
         events_data.append(
             EventResponse(
@@ -1377,7 +1377,7 @@ async def get_event(
 
     # Compute thumbnail_url from first detection ID
     thumbnail_url = (
-        f"/api/media/detections/{parsed_detection_ids[0]}" if parsed_detection_ids else None
+        f"/api/detections/{parsed_detection_ids[0]}/image" if parsed_detection_ids else None
     )
 
     return EventResponse(
@@ -1507,7 +1507,7 @@ async def update_event(  # noqa: PLR0912  # Allow branches for audit logging log
 
     # Compute thumbnail_url from first detection ID
     thumbnail_url = (
-        f"/api/media/detections/{parsed_detection_ids[0]}" if parsed_detection_ids else None
+        f"/api/detections/{parsed_detection_ids[0]}/image" if parsed_detection_ids else None
     )
 
     return EventResponse(
@@ -2102,7 +2102,7 @@ async def restore_event(
 
         # Get detection IDs for the response
         detection_ids = get_detection_ids_from_event(event)
-        thumbnail_url = f"/api/media/detections/{detection_ids[0]}" if detection_ids else None
+        thumbnail_url = f"/api/detections/{detection_ids[0]}/image" if detection_ids else None
 
         return EventResponse(
             id=event.id,

@@ -5061,7 +5061,7 @@
               "risk_score": 75,
               "started_at": "2025-12-23T12:00:00Z",
               "summary": "Person detected near front entrance",
-              "thumbnail_url": "/api/media/detections/1"
+              "thumbnail_url": "/api/detections/1/image"
             }
           ],
           "pagination": {
@@ -7690,7 +7690,7 @@
               "risk_score": 75,
               "started_at": "2025-12-23T12:00:00Z",
               "summary": "Person detected near front entrance",
-              "thumbnail_url": "/api/media/detections/1"
+              "thumbnail_url": "/api/detections/1/image"
             }
           ],
           "pagination": {
@@ -7819,7 +7819,7 @@
           "risk_score": 75,
           "started_at": "2025-12-23T12:00:00Z",
           "summary": "Person detected near front entrance",
-          "thumbnail_url": "/api/media/detections/1"
+          "thumbnail_url": "/api/detections/1/image"
         },
         "properties": {
           "camera_id": {

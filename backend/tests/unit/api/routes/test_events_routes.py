@@ -451,7 +451,7 @@ class TestGetEventRoute:
         assert result.id == 1
         assert result.detection_count == 3
         assert result.detection_ids == [1, 2, 3]
-        assert result.thumbnail_url == "/api/media/detections/1"
+        assert result.thumbnail_url == "/api/detections/1/image"
 
 
 class TestUpdateEventRoute:
