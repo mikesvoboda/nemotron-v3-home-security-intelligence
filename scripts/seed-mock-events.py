@@ -489,7 +489,9 @@ async def seed_mock_data(num_events: int = 15) -> tuple[int, int]:
             detection_ids = []
 
             # Discover real images for this camera
-            camera_images = discover_camera_images(camera.folder_path)
+            # Convert container path (/cameras/...) to host path (/export/foscam/...)
+            host_folder_path = camera.folder_path.replace("/cameras", "/export/foscam")
+            camera_images = discover_camera_images(host_folder_path)
 
             for j in range(num_detections):
                 object_type = random.choice(OBJECT_TYPES)  # noqa: S311

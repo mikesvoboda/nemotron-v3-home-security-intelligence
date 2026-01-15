@@ -235,7 +235,7 @@ services:
     volumes:
       # :U tells Podman to recursively chown the volume to match container user (appuser)
       # Docker ignores the :U flag, making this backward compatible
-      - ./backend/data:/app/data:U
+      - ./backend/data:/app/data:z,U
       - ${FOSCAM_BASE_PATH:-/export/foscam}:/cameras:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo:/models/model-zoo:ro,z
     environment:
