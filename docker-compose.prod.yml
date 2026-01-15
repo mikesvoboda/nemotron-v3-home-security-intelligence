@@ -519,12 +519,10 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+    # NOTE: redis_exporter is a minimal Go binary without shell tools (wget/curl).
+    # Disable container health check; rely on process running and Prometheus scraping.
     healthcheck:
-      test:
-        ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:9121/metrics']
-      interval: 15s
-      timeout: 5s
-      retries: 3
+      disable: true
     restart: unless-stopped
     networks:
       - security-net
