@@ -8,6 +8,7 @@ This module provides:
 """
 
 import asyncio
+import pathlib
 import signal
 import ssl
 from collections.abc import AsyncGenerator
@@ -281,12 +282,32 @@ def init_circuit_breakers() -> list[str]:
     return breaker_names
 
 
+def _directory_has_images(folder: pathlib.Path) -> bool:
+    """Check if a directory contains any image files (recursively).
+
+    This is used to filter out empty camera directories during seeding.
+    Only cameras with actual image data should be seeded.
+
+    Args:
+        folder: Path to the camera directory
+
+    Returns:
+        True if directory contains at least one image file
+    """
+    # Supported image extensions (case-insensitive via glob)
+    # Use rglob for recursive search (cameras may have date subdirectories)
+    image_patterns = ["*.jpg", "*.JPG", "*.jpeg", "*.JPEG", "*.png", "*.PNG"]
+    return any(any(folder.rglob(pattern)) for pattern in image_patterns)
+
+
 async def seed_cameras_if_empty() -> int:
     """Seed cameras from filesystem if database is empty.
 
     This function runs on startup to auto-discover and seed camera records
     from the configured foscam_base_path. Only seeds if no cameras exist
     in the database (safe for restarts).
+
+    Only cameras with actual image data are seeded - empty directories are skipped.
 
     Returns:
         Number of cameras created (0 if database already had cameras)
@@ -318,8 +339,18 @@ async def seed_cameras_if_empty() -> int:
             return 0
 
         created = 0
+        skipped = 0
         for folder in sorted(base_path.iterdir()):
             if folder.is_dir() and not folder.name.startswith("."):
+                # Only seed cameras that have actual image data
+                if not _directory_has_images(folder):
+                    logger.debug(
+                        f"Skipping empty camera directory: {folder.name}",
+                        extra={"folder_path": str(folder)},
+                    )
+                    skipped += 1
+                    continue
+
                 camera_id = normalize_camera_id(folder.name)
                 display_name = folder.name.replace("_", " ").title()
 
@@ -338,7 +369,9 @@ async def seed_cameras_if_empty() -> int:
 
         if created > 0:
             await session.commit()
-            logger.info(f"Auto-seeded {created} cameras from {base_path}")
+            logger.info(
+                f"Auto-seeded {created} cameras from {base_path} (skipped {skipped} empty directories)"
+            )
 
         return created
 
