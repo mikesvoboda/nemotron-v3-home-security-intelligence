@@ -578,7 +578,7 @@ class TestCollectContainerHealth:
         """Test that backend is always marked as healthy."""
         with patch("backend.services.performance_collector.get_settings") as mock_settings:
             mock_settings.return_value = MagicMock(
-                frontend_url="http://frontend:80",
+                frontend_url="http://frontend:8080",
                 rtdetr_url="http://ai-detector:8090",
                 nemotron_url="http://ai-llm:8091",
             )
