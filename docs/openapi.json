@@ -9090,6 +9090,43 @@
         "title": "FileWatcherStatusResponse",
         "type": "object"
       },
+      "FrontendLogBatchCreate": {
+        "description": "Schema for batch frontend log submission.",
+        "example": {
+          "entries": [
+            {
+              "component": "WebSocket",
+              "extra": {
+                "reconnect_attempts": 3
+              },
+              "level": "ERROR",
+              "message": "Connection lost"
+            },
+            {
+              "component": "WebSocket",
+              "level": "INFO",
+              "message": "Reconnected successfully"
+            }
+          ]
+        },
+        "properties": {
+          "entries": {
+            "description": "List of frontend log entries (max 100 per batch)",
+            "items": {
+              "$ref": "#/components/schemas/FrontendLogCreate"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Entries",
+            "type": "array"
+          }
+        },
+        "required": [
+          "entries"
+        ],
+        "title": "FrontendLogBatchCreate",
+        "type": "object"
+      },
       "FrontendLogCreate": {
         "description": "Schema for frontend log submission.",
         "example": {
@@ -28068,6 +28105,46 @@
           }
         },
         "summary": "Create Frontend Log",
+        "tags": [
+          "logs"
+        ]
+      }
+    },
+    "/api/logs/frontend/batch": {
+      "post": {
+        "description": "Receive and store multiple logs from the frontend in a single request.\n\nThis endpoint is optimized for batch log submission to reduce HTTP overhead.\nMaximum 100 log entries per batch.",
+        "operationId": "create_frontend_logs_batch_api_logs_frontend_batch_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FrontendLogBatchCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Create Frontend Logs Batch Api Logs Frontend Batch Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Create Frontend Logs Batch",
         "tags": [
           "logs"
         ]
