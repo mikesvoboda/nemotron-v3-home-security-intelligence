@@ -616,10 +616,17 @@ async def seed_entities(num_entities: int = 30) -> int:
                 min(len(camera_names), random.randint(1, 3)),  # noqa: S311
             )
 
-            # Optionally link to a detection
+            # Optionally link to a detection (only if it has a real image, not mock://)
             primary_detection_id = None
             if detections and random.random() < 0.7:  # noqa: S311
-                matching_detections = [d for d in detections if d.object_type == entity_type.value]
+                # Filter to detections with real file paths (not mock://) and matching type
+                matching_detections = [
+                    d
+                    for d in detections
+                    if d.object_type == entity_type.value
+                    and d.file_path
+                    and not d.file_path.startswith("mock://")
+                ]
                 if matching_detections:
                     primary_detection_id = random.choice(matching_detections).id  # noqa: S311
 
