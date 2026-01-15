@@ -192,3 +192,34 @@ class FrontendLogCreate(BaseModel):
     extra: dict[str, Any] | None = Field(None, description="Additional context (JSON-serializable)")
     user_agent: str | None = Field(None, max_length=500, description="Browser user agent string")
     url: str | None = Field(None, max_length=2000, description="Page URL where log occurred")
+
+
+class FrontendLogBatchCreate(BaseModel):
+    """Schema for batch frontend log submission."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "entries": [
+                    {
+                        "level": "ERROR",
+                        "component": "WebSocket",
+                        "message": "Connection lost",
+                        "extra": {"reconnect_attempts": 3},
+                    },
+                    {
+                        "level": "INFO",
+                        "component": "WebSocket",
+                        "message": "Reconnected successfully",
+                    },
+                ]
+            }
+        }
+    )
+
+    entries: list[FrontendLogCreate] = Field(
+        ...,
+        min_length=1,
+        max_length=100,
+        description="List of frontend log entries (max 100 per batch)",
+    )

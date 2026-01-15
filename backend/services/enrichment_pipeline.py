@@ -1347,12 +1347,16 @@ class DetectionInput:
         class_name: Object class (e.g., "car", "person")
         confidence: Detection confidence
         bbox: Bounding box coordinates
+        video_width: Original video/image width (for bbox scaling)
+        video_height: Original video/image height (for bbox scaling)
     """
 
     class_name: str
     confidence: float
     bbox: BoundingBox
     id: int | None = None
+    video_width: int | None = None
+    video_height: int | None = None
 
 
 class EnrichmentPipeline:
@@ -2491,7 +2495,27 @@ class EnrichmentPipeline:
 
                 try:
                     # Generate embedding using ai-clip HTTP service
-                    bbox = det.bbox.to_int_tuple() if det.bbox else None
+                    # Scale bbox if image was resized (e.g., thumbnail vs original video)
+                    bbox = None
+                    if det.bbox:
+                        bbox_tuple = det.bbox.to_int_tuple()
+                        # Check if we need to scale the bbox
+                        if det.video_width and det.video_height:
+                            img_width, img_height = image.size
+                            # Only scale if dimensions differ
+                            if img_width != det.video_width or img_height != det.video_height:
+                                scale_x = img_width / det.video_width
+                                scale_y = img_height / det.video_height
+                                bbox = (
+                                    int(bbox_tuple[0] * scale_x),
+                                    int(bbox_tuple[1] * scale_y),
+                                    int(bbox_tuple[2] * scale_x),
+                                    int(bbox_tuple[3] * scale_y),
+                                )
+                            else:
+                                bbox = bbox_tuple
+                        else:
+                            bbox = bbox_tuple
                     embedding = await self._reid_service.generate_embedding(image, bbox=bbox)
 
                     # Find matches

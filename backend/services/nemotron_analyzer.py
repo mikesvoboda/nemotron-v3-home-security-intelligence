@@ -1321,7 +1321,7 @@ class NemotronAnalyzer:
             ):
                 continue
 
-            # Create DetectionInput with bounding box
+            # Create DetectionInput with bounding box and video dimensions for scaling
             detection_input = DetectionInput(
                 id=det.id,
                 class_name=det.object_type,
@@ -1332,6 +1332,8 @@ class NemotronAnalyzer:
                     x2=float(det.bbox_x + det.bbox_width),
                     y2=float(det.bbox_y + det.bbox_height),
                 ),
+                video_width=det.video_width,
+                video_height=det.video_height,
             )
             detection_inputs.append(detection_input)
 

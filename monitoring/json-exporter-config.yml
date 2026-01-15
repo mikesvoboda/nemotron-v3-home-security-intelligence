@@ -1,5 +1,8 @@
 # JSON Exporter configuration for Home Security Intelligence
 # Converts JSON API responses to Prometheus metrics
+#
+# Note: For string-to-number mapping, we use type: object with values: mapping.
+# type: value only works with numeric JSON values.
 
 modules:
   # System health metrics
@@ -7,7 +10,7 @@ modules:
     metrics:
       - name: hsi_system_healthy
         path: '{ .status }'
-        type: value
+        type: object
         help: 'System health status (1=healthy, 0=unhealthy)'
         values:
           healthy: 1
@@ -16,7 +19,7 @@ modules:
 
       - name: hsi_database_healthy
         path: '{ .services.database.status }'
-        type: value
+        type: object
         help: 'Database health status'
         values:
           healthy: 1
@@ -24,7 +27,7 @@ modules:
 
       - name: hsi_redis_healthy
         path: '{ .services.redis.status }'
-        type: value
+        type: object
         help: 'Redis health status'
         values:
           healthy: 1
@@ -32,7 +35,7 @@ modules:
 
       - name: hsi_ai_healthy
         path: '{ .services.ai.status }'
-        type: value
+        type: object
         help: 'AI services health status'
         values:
           healthy: 1
@@ -52,21 +55,8 @@ modules:
         type: value
         help: 'Number of batches in analysis queue'
 
-      # Watch stage latencies
-      - name: hsi_watch_latency_avg_ms
-        path: '{ .latencies.watch.avg_ms }'
-        type: value
-        help: 'Watch stage average latency in milliseconds'
-
-      - name: hsi_watch_latency_p95_ms
-        path: '{ .latencies.watch.p95_ms }'
-        type: value
-        help: 'Watch stage P95 latency in milliseconds'
-
-      - name: hsi_watch_latency_p99_ms
-        path: '{ .latencies.watch.p99_ms }'
-        type: value
-        help: 'Watch stage P99 latency in milliseconds'
+      # Note: Watch stage metrics removed - watch stage not currently active.
+      # Re-add when file watcher latency tracking is enabled.
 
       # Detect stage latencies
       - name: hsi_detect_latency_avg_ms

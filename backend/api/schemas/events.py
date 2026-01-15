@@ -79,7 +79,7 @@ class EventResponse(BaseModel):
                 "snooze_until": None,
                 "detection_count": 5,
                 "detection_ids": [1, 2, 3, 4, 5],
-                "thumbnail_url": "/api/media/detections/1",
+                "thumbnail_url": "/api/detections/1/image",
                 "enrichment_status": {
                     "status": "full",
                     "successful_models": ["violence", "weather", "face", "clothing"],
@@ -165,7 +165,7 @@ class EventListResponse(BaseModel):
                         "notes": None,
                         "detection_count": 5,
                         "detection_ids": [1, 2, 3, 4, 5],
-                        "thumbnail_url": "/api/media/detections/1",
+                        "thumbnail_url": "/api/detections/1/image",
                     }
                 ],
                 "pagination": {
@@ -286,7 +286,7 @@ class DeletedEventsListResponse(BaseModel):
                         "notes": None,
                         "detection_count": 5,
                         "detection_ids": [1, 2, 3, 4, 5],
-                        "thumbnail_url": "/api/media/detections/1",
+                        "thumbnail_url": "/api/detections/1/image",
                     }
                 ],
                 "pagination": {

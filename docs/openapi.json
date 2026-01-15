@@ -5061,7 +5061,7 @@
               "risk_score": 75,
               "started_at": "2025-12-23T12:00:00Z",
               "summary": "Person detected near front entrance",
-              "thumbnail_url": "/api/media/detections/1"
+              "thumbnail_url": "/api/detections/1/image"
             }
           ],
           "pagination": {
@@ -7690,7 +7690,7 @@
               "risk_score": 75,
               "started_at": "2025-12-23T12:00:00Z",
               "summary": "Person detected near front entrance",
-              "thumbnail_url": "/api/media/detections/1"
+              "thumbnail_url": "/api/detections/1/image"
             }
           ],
           "pagination": {
@@ -7819,7 +7819,7 @@
           "risk_score": 75,
           "started_at": "2025-12-23T12:00:00Z",
           "summary": "Person detected near front entrance",
-          "thumbnail_url": "/api/media/detections/1"
+          "thumbnail_url": "/api/detections/1/image"
         },
         "properties": {
           "camera_id": {
@@ -9088,6 +9088,43 @@
           "observer_type"
         ],
         "title": "FileWatcherStatusResponse",
+        "type": "object"
+      },
+      "FrontendLogBatchCreate": {
+        "description": "Schema for batch frontend log submission.",
+        "example": {
+          "entries": [
+            {
+              "component": "WebSocket",
+              "extra": {
+                "reconnect_attempts": 3
+              },
+              "level": "ERROR",
+              "message": "Connection lost"
+            },
+            {
+              "component": "WebSocket",
+              "level": "INFO",
+              "message": "Reconnected successfully"
+            }
+          ]
+        },
+        "properties": {
+          "entries": {
+            "description": "List of frontend log entries (max 100 per batch)",
+            "items": {
+              "$ref": "#/components/schemas/FrontendLogCreate"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Entries",
+            "type": "array"
+          }
+        },
+        "required": [
+          "entries"
+        ],
+        "title": "FrontendLogBatchCreate",
         "type": "object"
       },
       "FrontendLogCreate": {
@@ -17163,6 +17200,61 @@
         "title": "SeedEventsResponse",
         "type": "object"
       },
+      "SeedPipelineLatencyRequest": {
+        "description": "Request schema for seeding pipeline latency data.",
+        "properties": {
+          "num_samples": {
+            "default": 100,
+            "description": "Number of latency samples to generate per stage (10-1000)",
+            "maximum": 1000.0,
+            "minimum": 10.0,
+            "title": "Num Samples",
+            "type": "integer"
+          },
+          "time_span_hours": {
+            "default": 24,
+            "description": "Time span in hours for the generated samples (1-168)",
+            "maximum": 168.0,
+            "minimum": 1.0,
+            "title": "Time Span Hours",
+            "type": "integer"
+          }
+        },
+        "title": "SeedPipelineLatencyRequest",
+        "type": "object"
+      },
+      "SeedPipelineLatencyResponse": {
+        "description": "Response schema for seed pipeline latency endpoint.",
+        "properties": {
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "samples_per_stage": {
+            "title": "Samples Per Stage",
+            "type": "integer"
+          },
+          "stages_seeded": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Stages Seeded",
+            "type": "array"
+          },
+          "time_span_hours": {
+            "title": "Time Span Hours",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "samples_per_stage",
+          "stages_seeded",
+          "time_span_hours",
+          "message"
+        ],
+        "title": "SeedPipelineLatencyResponse",
+        "type": "object"
+      },
       "ServiceActionResponse": {
         "description": "Response for service action endpoints (restart, enable, disable, start).\n\nReturned after POST /api/system/services/{name}/restart, enable, disable, or start.",
         "example": {
@@ -19744,6 +19836,75 @@
           }
         },
         "summary": "Seed Events",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/seed/pipeline-latency": {
+      "post": {
+        "description": "Seed the pipeline latency tracker with mock historical data.\n\nThis populates the in-memory PipelineLatencyTracker with realistic\nlatency samples for UI testing and development. Data is distributed\nacross the specified time span with realistic variance.\n\nSECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.\nIf ADMIN_API_KEY is set, requires X-Admin-API-Key header.\n\nTypical latency ranges (ms):\n- watch_to_detect: 50-200ms (file processing + RT-DETR inference)\n- detect_to_batch: 10-50ms (detection aggregation)\n- batch_to_analyze: 5000-15000ms (Nemotron LLM analysis)\n- total_pipeline: 5100-15300ms (end-to-end)\n\nArgs:\n    request: Configuration for sample generation\n    _admin: Admin access validation (via dependency)\n\nReturns:\n    Summary of seeded latency data",
+        "operationId": "seed_pipeline_latency_api_admin_seed_pipeline_latency_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-admin-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SeedPipelineLatencyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeedPipelineLatencyResponse"
+                }
+              }
+            },
+            "description": "Pipeline latency data seeded successfully"
+          },
+          "401": {
+            "description": "Unauthorized - Admin API key required"
+          },
+          "403": {
+            "description": "Forbidden - Debug mode or admin not enabled"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Seed Pipeline Latency",
         "tags": [
           "admin"
         ]
@@ -27944,6 +28105,46 @@
           }
         },
         "summary": "Create Frontend Log",
+        "tags": [
+          "logs"
+        ]
+      }
+    },
+    "/api/logs/frontend/batch": {
+      "post": {
+        "description": "Receive and store multiple logs from the frontend in a single request.\n\nThis endpoint is optimized for batch log submission to reduce HTTP overhead.\nMaximum 100 log entries per batch.",
+        "operationId": "create_frontend_logs_batch_api_logs_frontend_batch_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FrontendLogBatchCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Create Frontend Logs Batch Api Logs Frontend Batch Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Create Frontend Logs Batch",
         "tags": [
           "logs"
         ]

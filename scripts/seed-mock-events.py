@@ -11,14 +11,14 @@ watch folders, causing the file watcher to process them through:
 This creates real events with actual LLM prompts for comprehensive testing.
 
 Usage:
-    # Default: Process 20 images through the full pipeline
+    # Default: Full pipeline + all supporting data (recommended for UI validation)
     uv run python scripts/seed-mock-events.py
 
     # Process more images
     uv run python scripts/seed-mock-events.py --images 50
 
-    # Also seed supporting data (entities, alerts, logs)
-    uv run python scripts/seed-mock-events.py --with-extras
+    # Skip supporting data (entities, alerts, logs) - only pipeline data
+    uv run python scripts/seed-mock-events.py --no-extras
 
     # Use mock data instead of real pipeline (legacy behavior)
     uv run python scripts/seed-mock-events.py --mock
@@ -44,6 +44,7 @@ FOSCAM_BASE_PATH = os.environ.get("FOSCAM_BASE_PATH", "/export/foscam")
 from backend.core.database import get_session, init_db  # noqa: E402
 from backend.models.alert import Alert, AlertRule, AlertSeverity, AlertStatus  # noqa: E402
 from backend.models.audit import AuditAction, AuditLog  # noqa: E402
+from backend.models.baseline import ActivityBaseline, ClassBaseline  # noqa: E402
 from backend.models.camera import Camera  # noqa: E402
 from backend.models.detection import Detection  # noqa: E402
 from backend.models.entity import Entity  # noqa: E402
@@ -119,9 +120,135 @@ def trigger_pipeline(num_images: int = 20, delay_between: float = 0.5) -> int:
             print(f"  [{i}/{len(selected)}] Failed: {img_path.name} - {e}")
 
     print(f"\nTriggered pipeline for {touched} images")
-    print("Note: Events will appear as the pipeline processes them (may take 1-2 minutes)")
 
     return touched
+
+
+async def wait_for_pipeline_completion(
+    initial_event_count: int,
+    expected_min_events: int = 5,
+    timeout_seconds: int = 300,
+    poll_interval: float = 5.0,
+) -> tuple[int, int, bool]:
+    """Wait for the AI pipeline to process images and create events.
+
+    Polls the database for new events until either:
+    - At least expected_min_events new events are created
+    - Timeout is reached
+    - No new events are created for 60 seconds (pipeline idle)
+
+    Args:
+        initial_event_count: Event count before triggering pipeline
+        expected_min_events: Minimum new events to wait for
+        timeout_seconds: Maximum wait time (default 5 minutes)
+        poll_interval: Seconds between polling
+
+    Returns:
+        Tuple of (final_event_count, new_events_created, success)
+    """
+    import time
+
+    print(f"\n{'=' * 50}")
+    print("WAITING FOR PIPELINE COMPLETION")
+    print(f"{'=' * 50}")
+    print(f"Initial events: {initial_event_count}")
+    print(f"Waiting for at least {expected_min_events} new events...")
+    print(f"Timeout: {timeout_seconds}s | Poll interval: {poll_interval}s\n")
+
+    start_time = time.time()
+    last_count = initial_event_count
+    last_change_time = start_time
+    idle_timeout = 90  # Consider pipeline idle if no new events for 90 seconds
+
+    while True:
+        elapsed = time.time() - start_time
+        time_since_last_change = time.time() - last_change_time
+
+        # Get current event count
+        events = await get_events()
+        current_count = len(events)
+        new_events = current_count - initial_event_count
+
+        # Check if new events were created
+        if current_count > last_count:
+            last_change_time = time.time()
+            print(f"  [{elapsed:.0f}s] Events: {current_count} (+{current_count - last_count} new)")
+            last_count = current_count
+
+        # Success condition: got enough events
+        if new_events >= expected_min_events:
+            print("\n✓ Pipeline completed successfully!")
+            print(f"  Created {new_events} new events in {elapsed:.0f} seconds")
+            return current_count, new_events, True
+
+        # Timeout condition
+        if elapsed >= timeout_seconds:
+            print(f"\n⚠ Timeout reached after {timeout_seconds}s")
+            print(f"  Created {new_events} events (expected at least {expected_min_events})")
+            return current_count, new_events, new_events > 0
+
+        # Idle condition: no new events for a while after some were created
+        if new_events > 0 and time_since_last_change >= idle_timeout:
+            print(f"\n✓ Pipeline appears idle (no new events for {idle_timeout}s)")
+            print(f"  Created {new_events} new events in {elapsed:.0f} seconds")
+            return current_count, new_events, True
+
+        # Still waiting
+        if int(elapsed) % 30 == 0 and int(elapsed) > 0:
+            print(f"  [{elapsed:.0f}s] Waiting... ({new_events} events so far)")
+
+        await asyncio.sleep(poll_interval)
+
+
+async def verify_pipeline_data() -> dict[str, int]:
+    """Verify that pipeline-generated data exists in the database.
+
+    Returns:
+        Dictionary with counts of various data types
+    """
+    from sqlalchemy import func
+
+    counts = {}
+
+    async with get_session() as session:
+        # Count events
+        result = await session.execute(select(func.count()).select_from(Event))
+        counts["events"] = result.scalar() or 0
+
+        # Count detections
+        result = await session.execute(select(func.count()).select_from(Detection))
+        counts["detections"] = result.scalar() or 0
+
+        # Count events by risk level
+        result = await session.execute(
+            select(Event.risk_level, func.count())
+            .where(Event.deleted_at.is_(None))
+            .group_by(Event.risk_level)
+        )
+        risk_levels = dict(result.fetchall())
+        counts["events_critical"] = risk_levels.get("critical", 0)
+        counts["events_high"] = risk_levels.get("high", 0)
+        counts["events_medium"] = risk_levels.get("medium", 0)
+        counts["events_low"] = risk_levels.get("low", 0)
+
+        # Count events by camera
+        result = await session.execute(
+            select(Event.camera_id, func.count())
+            .where(Event.deleted_at.is_(None))
+            .group_by(Event.camera_id)
+        )
+        cameras = dict(result.fetchall())
+        counts["cameras_with_events"] = len(cameras)
+
+        # Count activity baselines
+        result = await session.execute(select(func.count()).select_from(ActivityBaseline))
+        counts["activity_baselines"] = result.scalar() or 0
+
+        # Count class baselines
+        result = await session.execute(select(func.count()).select_from(ClassBaseline))
+        counts["class_baselines"] = result.scalar() or 0
+
+    return counts
 
 
 # Mock AI summaries for different risk levels
@@ -362,7 +489,9 @@ async def seed_mock_data(num_events: int = 15) -> tuple[int, int]:
             detection_ids = []
 
             # Discover real images for this camera
-            camera_images = discover_camera_images(camera.folder_path)
+            # Convert container path (/cameras/...) to host path (/export/foscam/...)
+            host_folder_path = camera.folder_path.replace("/cameras", "/export/foscam")
+            camera_images = discover_camera_images(host_folder_path)
 
             for j in range(num_detections):
                 object_type = random.choice(OBJECT_TYPES)  # noqa: S311
@@ -489,10 +618,28 @@ async def seed_entities(num_entities: int = 30) -> int:
                 min(len(camera_names), random.randint(1, 3)),  # noqa: S311
             )
 
-            # Optionally link to a detection
+            # Link to a detection for thumbnail (map entity types to detection object_types)
+            # Detection object_types: car, truck, vehicle, bicycle, person, animal, bird, package
+            # Entity types: person, vehicle, animal, package, other
+            entity_to_detection_types = {
+                "person": ["person"],
+                "vehicle": ["car", "truck", "vehicle", "bicycle"],
+                "animal": ["animal", "bird"],
+                "package": ["package"],
+                "other": [],  # No matching detections for "other" type
+            }
+            matching_object_types = entity_to_detection_types.get(entity_type.value, [])
+
             primary_detection_id = None
-            if detections and random.random() < 0.7:  # noqa: S311
-                matching_detections = [d for d in detections if d.object_type == entity_type.value]
+            if detections and matching_object_types:
+                # Filter to detections with real file paths and matching object types
+                matching_detections = [
+                    d
+                    for d in detections
+                    if d.object_type in matching_object_types
+                    and d.file_path
+                    and not d.file_path.startswith("mock://")
+                ]
                 if matching_detections:
                     primary_detection_id = random.choice(matching_detections).id  # noqa: S311
 
@@ -858,6 +1005,227 @@ async def seed_trash(num_deleted: int = 10) -> int:
     return deleted_count
 
 
+async def seed_activity_baselines(min_samples_per_slot: int = 15) -> int:
+    """Seed activity baseline data for all cameras to ensure learning is complete.
+
+    Creates 168 entries per camera (24 hours x 7 days), each with sufficient
+    samples to mark the baseline as "learning complete" (requires 134+ slots
+    with 10+ samples each).
+
+    Uses UPSERT to handle cases where the pipeline has already created some baselines.
+
+    Args:
+        min_samples_per_slot: Minimum samples per time slot (default 15, above the 10 required)
+
+    Returns:
+        Number of baseline entries created/updated
+    """
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+    cameras = await get_cameras()
+    if not cameras:
+        print("Error: No cameras found in database. Run seed-cameras.py first.")
+        return 0
+
+    baselines_upserted = 0
+
+    # Activity patterns - simulate realistic activity throughout the day
+    # Higher activity during daytime hours (7am-9pm), lower at night
+    def get_activity_weight(hour: int) -> float:
+        if 0 <= hour < 6:
+            return 0.2  # Very low overnight
+        elif 6 <= hour < 8:
+            return 0.6  # Morning ramp-up
+        elif 8 <= hour < 18:
+            return 1.0  # Daytime peak
+        elif 18 <= hour < 21:
+            return 0.8  # Evening
+        else:
+            return 0.4  # Late evening
+
+    async with get_session() as session:
+        for camera in cameras:
+            # Build all baseline records for this camera
+            baseline_records = []
+            for day_of_week in range(7):
+                for hour in range(24):
+                    # Generate realistic activity counts based on time patterns
+                    base_activity = random.uniform(2.0, 8.0)  # noqa: S311
+                    weight = get_activity_weight(hour)
+                    # Weekends have slightly different patterns
+                    if day_of_week in (5, 6):  # Saturday, Sunday
+                        weight *= 0.85  # Less activity on weekends
+
+                    avg_count = base_activity * weight
+                    # Add some randomness
+                    avg_count *= random.uniform(0.8, 1.2)  # noqa: S311
+
+                    baseline_records.append(
+                        {
+                            "camera_id": camera.id,
+                            "hour": hour,
+                            "day_of_week": day_of_week,
+                            "avg_count": round(avg_count, 2),
+                            "sample_count": min_samples_per_slot + random.randint(0, 20),  # noqa: S311
+                            "last_updated": datetime.now(UTC),
+                        }
+                    )
+
+            # Use PostgreSQL UPSERT (INSERT ON CONFLICT UPDATE)
+            stmt = pg_insert(ActivityBaseline).values(baseline_records)
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["camera_id", "hour", "day_of_week"],
+                set_={
+                    "avg_count": stmt.excluded.avg_count,
+                    "sample_count": stmt.excluded.sample_count,
+                    "last_updated": stmt.excluded.last_updated,
+                },
+            )
+            await session.execute(stmt)
+            baselines_upserted += len(baseline_records)
+
+            print(f"  Created/updated 168 activity baselines for camera: {camera.name}")
+
+        await session.commit()
+
+    print(f"  Created/updated {baselines_upserted} total activity baseline entries")
+    return baselines_upserted
+
+
+async def seed_pipeline_latency(num_samples: int = 100, time_span_hours: int = 24) -> int:
+    """Seed pipeline latency data via the admin API.
+
+    This calls the backend API to populate the in-memory PipelineLatencyTracker
+    with realistic latency samples for UI testing.
+
+    Args:
+        num_samples: Number of samples per pipeline stage
+        time_span_hours: Time span for the historical data
+
+    Returns:
+        Total number of samples seeded (samples * stages)
+    """
+    import httpx
+
+    backend_url = os.environ.get("BACKEND_URL", "http://localhost:8000")
+    api_key = os.environ.get("ADMIN_API_KEY", "")
+
+    headers = {}
+    if api_key:
+        headers["X-Admin-API-Key"] = api_key
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                f"{backend_url}/api/admin/seed/pipeline-latency",
+                json={
+                    "num_samples": num_samples,
+                    "time_span_hours": time_span_hours,
+                },
+                headers=headers,
+            )
+
+            if response.status_code == 200:
+                data = response.json()
+                stages = len(data.get("stages_seeded", []))
+                samples = data.get("samples_per_stage", 0)
+                print(f"  Seeded {samples} samples for {stages} pipeline stages")
+                print(f"  Stages: {', '.join(data.get('stages_seeded', []))}")
+                return samples * stages
+            elif response.status_code == 403:
+                print("  ⚠ Admin API not enabled (DEBUG=true and ADMIN_ENABLED=true required)")
+                print("  Pipeline latency will be empty until real pipeline processes images")
+                return 0
+            else:
+                print(f"  ⚠ Failed to seed pipeline latency: {response.status_code}")
+                print(f"    Response: {response.text[:200]}")
+                return 0
+    except httpx.ConnectError:
+        print("  ⚠ Could not connect to backend API")
+        print("  Pipeline latency will be empty until real pipeline processes images")
+        return 0
+    except Exception as e:
+        print(f"  ⚠ Error seeding pipeline latency: {e}")
+        return 0
+
+
+async def seed_class_baselines(min_samples_per_slot: int = 15) -> int:
+    """Seed class frequency baseline data for all cameras.
+
+    Creates baseline entries for common object classes (person, vehicle, animal, package)
+    across all hours for each camera. This enables class-based anomaly detection.
+
+    Uses UPSERT to handle cases where the pipeline has already created some baselines.
+
+    Args:
+        min_samples_per_slot: Minimum samples per time slot (default 15)
+
+    Returns:
+        Number of class baseline entries created/updated
+    """
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+    cameras = await get_cameras()
+    if not cameras:
+        print("Error: No cameras found in database. Run seed-cameras.py first.")
+        return 0
+
+    baselines_upserted = 0
+
+    # Detection classes with typical frequency patterns
+    class_patterns = {
+        "person": {"base_freq": 3.0, "peak_hours": range(7, 22)},
+        "vehicle": {"base_freq": 2.0, "peak_hours": range(6, 20)},
+        "animal": {"base_freq": 0.5, "peak_hours": list(range(5, 8)) + list(range(18, 22))},
+        "package": {"base_freq": 0.3, "peak_hours": range(10, 17)},
+    }
+
+    async with get_session() as session:
+        for camera in cameras:
+            # Build all baseline records for this camera
+            baseline_records = []
+            for detection_class, pattern in class_patterns.items():
+                for hour in range(24):
+                    # Higher frequency during peak hours
+                    if hour in pattern["peak_hours"]:
+                        frequency = pattern["base_freq"] * random.uniform(0.8, 1.5)  # noqa: S311
+                    else:
+                        frequency = pattern["base_freq"] * random.uniform(0.1, 0.4)  # noqa: S311
+
+                    baseline_records.append(
+                        {
+                            "camera_id": camera.id,
+                            "detection_class": detection_class,
+                            "hour": hour,
+                            "frequency": round(frequency, 4),
+                            "sample_count": min_samples_per_slot + random.randint(0, 15),  # noqa: S311
+                            "last_updated": datetime.now(UTC),
+                        }
+                    )
+
+            # Use PostgreSQL UPSERT (INSERT ON CONFLICT UPDATE)
+            stmt = pg_insert(ClassBaseline).values(baseline_records)
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["camera_id", "detection_class", "hour"],
+                set_={
+                    "frequency": stmt.excluded.frequency,
+                    "sample_count": stmt.excluded.sample_count,
+                    "last_updated": stmt.excluded.last_updated,
+                },
+            )
+            await session.execute(stmt)
+            baselines_upserted += len(baseline_records)
+
+            print(
+                f"  Created/updated {len(class_patterns) * 24} class baselines for camera: {camera.name}"
+            )
+
+        await session.commit()
+
+    print(f"  Created/updated {baselines_upserted} total class baseline entries")
+    return baselines_upserted
+
+
 async def clear_all_data() -> None:
     """Clear all seeded data from the database."""
     async with get_session() as session:
@@ -883,6 +1251,12 @@ async def clear_all_data() -> None:
         print("  Clearing detections...")
         await session.execute(delete(Detection))
 
+        print("  Clearing activity baselines...")
+        await session.execute(delete(ActivityBaseline))
+
+        print("  Clearing class baselines...")
+        await session.execute(delete(ClassBaseline))
+
         await session.commit()
 
     print("Cleared all seeded data")
@@ -897,43 +1271,83 @@ async def main() -> int:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Default: Trigger pipeline with 20 images
+  # Default: Full pipeline + all supporting data (recommended for UI validation)
   uv run python scripts/seed-mock-events.py
 
-  # Process more images through the pipeline
-  uv run python scripts/seed-mock-events.py --images 50
+  # Process more images and wait longer
+  uv run python scripts/seed-mock-events.py --images 50 --timeout 600
 
-  # Clear data and trigger pipeline
-  uv run python scripts/seed-mock-events.py --clear --images 30
+  # Clear all data first, then run full pipeline
+  uv run python scripts/seed-mock-events.py --clear
 
-  # Also seed supporting data (entities, alerts, logs)
-  uv run python scripts/seed-mock-events.py --with-extras
+  # Quick run without waiting for pipeline completion
+  uv run python scripts/seed-mock-events.py --no-wait
 
-  # Use mock data instead of real pipeline (legacy)
-  uv run python scripts/seed-mock-events.py --mock --count 100
+  # Skip supporting data (entities, alerts, logs) - only pipeline data
+  uv run python scripts/seed-mock-events.py --no-extras
+
+  # Legacy: Use mock data instead of real pipeline (for testing without AI)
+  uv run python scripts/seed-mock-events.py --mock
+
+Pipeline Flow:
+  1. Touch camera images to trigger file watcher
+  2. File Watcher → RT-DETRv2 (object detection)
+  3. RT-DETRv2 → Batch Aggregator (group detections)
+  4. Batch Aggregator → Nemotron LLM (risk analysis)
+  5. Events created with AI-generated summaries and risk scores
+  6. Pipeline latency telemetry recorded for monitoring
+
+This generates real data including:
+  - Events with actual LLM reasoning
+  - Detection bounding boxes from RT-DETRv2
+  - Pipeline latency metrics for performance monitoring
+  - Activity baselines for anomaly detection
+
+By default, also seeds supporting data for full UI testing:
+  - Entities (persons, vehicles) for the Entities page
+  - Alerts for the Alerts page
+  - Audit logs for the Audit Log page
+  - Application logs for the Logs page
+  - Soft-deleted events for the Trash page
 """,
     )
     parser.add_argument(
         "--images",
         type=int,
-        default=20,
-        help="Number of images to process through the pipeline (default: 20)",
+        default=30,
+        help="Number of images to process through the pipeline (default: 30)",
     )
     parser.add_argument(
         "--delay",
         type=float,
-        default=0.5,
-        help="Delay between touching images in seconds (default: 0.5)",
+        default=0.3,
+        help="Delay between touching images in seconds (default: 0.3)",
+    )
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=300,
+        help="Max seconds to wait for pipeline completion (default: 300)",
+    )
+    parser.add_argument(
+        "--no-wait",
+        action="store_true",
+        help="Don't wait for pipeline completion (trigger and exit immediately)",
     )
     parser.add_argument(
         "--mock",
         action="store_true",
-        help="Use mock data instead of real pipeline (legacy behavior)",
+        help="Use mock data instead of real pipeline (legacy, for testing without AI services)",
     )
     parser.add_argument(
-        "--with-extras",
+        "--no-extras",
         action="store_true",
-        help="Also seed entities, alerts, audit logs, and app logs",
+        help="Skip seeding entities, alerts, audit logs, and app logs (seeded by default)",
+    )
+    parser.add_argument(
+        "--no-baselines",
+        action="store_true",
+        help="Skip seeding baseline data (baselines are seeded by default)",
     )
     parser.add_argument(
         "--count",
@@ -988,21 +1402,56 @@ Examples:
 
     total_created = {}
 
-    # Default behavior: trigger real pipeline
+    # Default behavior: trigger real pipeline and wait for completion
     if not args.mock:
+        # Get initial event count
+        initial_events = await get_events()
+        initial_count = len(initial_events)
+
         print("\n" + "=" * 50)
         print("TRIGGERING REAL AI PIPELINE")
         print("=" * 50)
+        print(f"Current events in database: {initial_count}")
+
         touched = trigger_pipeline(num_images=args.images, delay_between=args.delay)
         total_created["images_triggered"] = touched
 
-        # Seed extras if requested
-        if args.with_extras:
+        # Wait for pipeline completion unless --no-wait
+        if not args.no_wait and touched > 0:
+            # Expect roughly 1 event per 2-3 images processed (due to batching)
+            expected_events = max(5, touched // 3)
+            _final_count, new_events, success = await wait_for_pipeline_completion(
+                initial_event_count=initial_count,
+                expected_min_events=expected_events,
+                timeout_seconds=args.timeout,
+            )
+            total_created["events_created"] = new_events
+
+            if not success:
+                print("\n⚠ Warning: Pipeline may not have completed fully")
+                print("  Check that AI services (RT-DETR, Nemotron) are running")
+        elif args.no_wait:
+            print("\n--no-wait specified, skipping pipeline completion wait")
+            print("Events will be created asynchronously as pipeline processes images")
+
+        # Seed extras by default (unless --no-extras is specified)
+        if not args.no_extras:
             print("\nSeeding supporting data...")
             entities_count = args.entities or 30
             alerts_count = args.alerts or 20
             audit_logs_count = args.audit_logs or 50
             logs_count = args.logs or 100
+            trash_count = args.trash or 10
+
+            # Check if events exist - alerts and trash need events to link to
+            current_events = await get_events()
+            if not current_events:
+                print("\n⚠ No events found after pipeline phase.")
+                print("  Seeding mock events so alerts/trash can be created...")
+                mock_event_count = args.count or 50
+                events, detections = await seed_mock_data(mock_event_count)
+                total_created["mock_events"] = events
+                total_created["mock_detections"] = detections
 
             print(f"\nSeeding {entities_count} entities...")
             total_created["entities"] = await seed_entities(entities_count)
@@ -1015,6 +1464,10 @@ Examples:
 
             print(f"\nSeeding {logs_count} application logs...")
             total_created["logs"] = await seed_application_logs(logs_count)
+
+            if trash_count:
+                print(f"\nSoft-deleting {trash_count} events for trash...")
+                total_created["trash"] = await seed_trash(trash_count)
 
     else:
         # Legacy mock data mode
@@ -1050,6 +1503,24 @@ Examples:
             print(f"\nSoft-deleting {trash_count} events for trash...")
             total_created["trash"] = await seed_trash(trash_count)
 
+    # Seed baselines by default (unless --no-baselines is used)
+    # This ensures "learning complete" status for analytics dashboards
+    if not args.no_baselines:
+        print("\n" + "=" * 50)
+        print("SEEDING BASELINE DATA (for 'Learning Complete' status)")
+        print("=" * 50)
+
+        print("\nSeeding activity baselines (168 time slots per camera)...")
+        total_created["activity_baselines"] = await seed_activity_baselines()
+
+        print("\nSeeding class baselines (4 classes x 24 hours per camera)...")
+        total_created["class_baselines"] = await seed_class_baselines()
+
+        print("\nSeeding pipeline latency data (for monitoring charts)...")
+        total_created["pipeline_latency_samples"] = await seed_pipeline_latency(
+            num_samples=100, time_span_hours=24
+        )
+
     # Print summary
     print("\n" + "=" * 50)
     print("SEEDING COMPLETE")
@@ -1057,6 +1528,60 @@ Examples:
     for data_type, count in total_created.items():
         print(f"  {data_type}: {count}")
 
+    # Final verification
+    print("\n" + "=" * 50)
+    print("DATA VERIFICATION")
+    print("=" * 50)
+    counts = await verify_pipeline_data()
+    print(f"  Total events: {counts['events']}")
+    print(f"  Total detections: {counts['detections']}")
+    print("  Events by risk level:")
+    print(f"    - Critical: {counts['events_critical']}")
+    print(f"    - High: {counts['events_high']}")
+    print(f"    - Medium: {counts['events_medium']}")
+    print(f"    - Low: {counts['events_low']}")
+    print(f"  Cameras with events: {counts['cameras_with_events']}")
+    print(f"  Activity baselines: {counts['activity_baselines']}")
+    print(f"  Class baselines: {counts['class_baselines']}")
+
+    # Check for UI readiness
+    print("\n" + "=" * 50)
+    print("UI READINESS CHECK")
+    print("=" * 50)
+    issues = []
+
+    if counts["events"] == 0:
+        issues.append("❌ No events - Events page will be empty")
+    else:
+        print(f"✓ Events: {counts['events']} events available")
+
+    if counts["detections"] == 0:
+        issues.append("❌ No detections - Detection analytics will be empty")
+    else:
+        print(f"✓ Detections: {counts['detections']} detections available")
+
+    if counts["activity_baselines"] < 134:
+        issues.append("⚠ Activity baselines incomplete - 'Still Learning' may show")
+    else:
+        print(f"✓ Activity baselines: Learning complete ({counts['activity_baselines']} entries)")
+
+    if counts["class_baselines"] == 0:
+        issues.append("⚠ No class baselines - Class frequency charts will be empty")
+    else:
+        print(f"✓ Class baselines: {counts['class_baselines']} entries")
+
+    if counts["cameras_with_events"] == 0:
+        issues.append("❌ No cameras with events - Camera analytics will be empty")
+    else:
+        print(f"✓ Cameras with data: {counts['cameras_with_events']} cameras")
+
+    if issues:
+        print("\nIssues found:")
+        for issue in issues:
+            print(f"  {issue}")
+        return 1
+
+    print("\n✓ All UI components should have data!")
     return 0
 
 
