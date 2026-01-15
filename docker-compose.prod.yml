@@ -251,7 +251,8 @@ services:
       - CLIP_URL=http://ai-clip:8093
       - ENRICHMENT_URL=http://ai-enrichment:8094
       - FRONTEND_URL=http://frontend:${FRONTEND_INTERNAL_PORT:-8080}
-      - FOSCAM_BASE_PATH=${FOSCAM_BASE_PATH:-/cameras}
+      # Always use /cameras (container mount point) regardless of host env var
+      - FOSCAM_BASE_PATH=/cameras
       - DEBUG=${DEBUG:-false}
       - FAST_PATH_ENABLED=${FAST_PATH_ENABLED:-false}
       - FAST_PATH_CONFIDENCE_THRESHOLD=${FAST_PATH_CONFIDENCE_THRESHOLD:-0.90}
