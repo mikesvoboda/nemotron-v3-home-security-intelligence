@@ -192,6 +192,61 @@ async def list_entities(
 
 
 @router.get(
+    "/stats",
+    response_model=EntityStatsResponse,
+    responses={
+        500: {"description": "Internal server error"},
+    },
+)
+async def get_entity_stats(
+    since: datetime | None = Query(None, description="Filter entities seen since this time"),
+    until: datetime | None = Query(None, description="Filter entities seen until this time"),
+    entity_repo: EntityRepository = Depends(get_entity_repository),
+) -> EntityStatsResponse:
+    """Get aggregated entity statistics.
+
+    Returns statistics about tracked entities including counts by type,
+    camera, and repeat visitors.
+
+    Args:
+        since: Filter entities seen since this timestamp
+        until: Filter entities seen until this timestamp
+        entity_repo: Entity repository dependency
+
+    Returns:
+        EntityStatsResponse with aggregated statistics
+    """
+    # Get type counts
+    by_type = await entity_repo.get_type_counts()
+
+    # Get total detection count
+    total_appearances = await entity_repo.get_total_detection_count()
+
+    # Get camera counts
+    by_camera = await entity_repo.get_camera_counts()
+
+    # Get repeat visitor count
+    repeat_visitors = await entity_repo.get_repeat_visitor_count()
+
+    # Get total entity count
+    total_entities = await entity_repo.count()
+
+    # Build time range if filters provided
+    time_range = None
+    if since is not None or until is not None:
+        time_range = {"since": since, "until": until}
+
+    return EntityStatsResponse(
+        total_entities=total_entities,
+        total_appearances=total_appearances,
+        by_type=by_type,
+        by_camera=by_camera,
+        repeat_visitors=repeat_visitors,
+        time_range=time_range,
+    )
+
+
+@router.get(
     "/{entity_id}",
     response_model=EntityDetail,
     responses={
@@ -841,59 +896,4 @@ async def get_entity_detections(
             offset=offset,
             has_more=has_more,
         ),
-    )
-
-
-@router.get(
-    "/stats",
-    response_model=EntityStatsResponse,
-    responses={
-        500: {"description": "Internal server error"},
-    },
-)
-async def get_entity_stats(
-    since: datetime | None = Query(None, description="Filter entities seen since this time"),
-    until: datetime | None = Query(None, description="Filter entities seen until this time"),
-    entity_repo: EntityRepository = Depends(get_entity_repository),
-) -> EntityStatsResponse:
-    """Get aggregated entity statistics.
-
-    Returns statistics about tracked entities including counts by type,
-    camera, and repeat visitors.
-
-    Args:
-        since: Filter entities seen since this timestamp
-        until: Filter entities seen until this timestamp
-        entity_repo: Entity repository dependency
-
-    Returns:
-        EntityStatsResponse with aggregated statistics
-    """
-    # Get type counts
-    by_type = await entity_repo.get_type_counts()
-
-    # Get total detection count
-    total_appearances = await entity_repo.get_total_detection_count()
-
-    # Get camera counts
-    by_camera = await entity_repo.get_camera_counts()
-
-    # Get repeat visitor count
-    repeat_visitors = await entity_repo.get_repeat_visitor_count()
-
-    # Get total entity count
-    total_entities = await entity_repo.count()
-
-    # Build time range if filters provided
-    time_range = None
-    if since is not None or until is not None:
-        time_range = {"since": since, "until": until}
-
-    return EntityStatsResponse(
-        total_entities=total_entities,
-        total_appearances=total_appearances,
-        by_type=by_type,
-        by_camera=by_camera,
-        repeat_visitors=repeat_visitors,
-        time_range=time_range,
     )

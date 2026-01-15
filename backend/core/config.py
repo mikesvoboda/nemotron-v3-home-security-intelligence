@@ -712,9 +712,9 @@ class Settings(BaseSettings):
 
     # Frontend URL for health checks (internal Docker network URL)
     frontend_url: str = Field(
-        default="http://frontend:80",
+        default="http://frontend:8080",
         description="Frontend container URL for health checks (Docker internal network). "
-        "Use 'http://frontend:80' for Docker/Podman, or 'http://localhost:5173' for local dev.",
+        "Use 'http://frontend:8080' for Docker/Podman (nginx-unprivileged), or 'http://localhost:5173' for local dev.",
     )
 
     @field_validator("florence_url", "clip_url", "enrichment_url", mode="before")

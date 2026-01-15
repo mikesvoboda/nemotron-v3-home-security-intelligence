@@ -21,6 +21,7 @@ from backend.services.vision_extractor import (
     SceneAnalysis,
     VehicleAttributes,
     VisionExtractor,
+    clean_vqa_output,
     format_batch_extraction_result,
     format_detections_with_attributes,
     format_environment_context,
@@ -251,6 +252,144 @@ class TestConstants:
     def test_person_class(self) -> None:
         """Test PERSON_CLASS is 'person'."""
         assert PERSON_CLASS == "person"
+
+
+class TestCleanVqaOutput:
+    """Tests for clean_vqa_output function.
+
+    This function removes Florence-2 VQA artifacts including:
+    - VQA> prefix with echoed question
+    - <loc_N> location tokens
+    - Duplicated consecutive words
+    """
+
+    def test_clean_vqa_output_empty_string(self) -> None:
+        """Test clean_vqa_output returns empty string for empty input."""
+        assert clean_vqa_output("") == ""
+
+    def test_clean_vqa_output_none_like_empty(self) -> None:
+        """Test clean_vqa_output handles None-like inputs gracefully."""
+        # Empty string case
+        assert clean_vqa_output("") == ""
+
+    def test_clean_vqa_output_removes_vqa_prefix(self) -> None:
+        """Test clean_vqa_output removes VQA> prefix and echoed question."""
+        # Full artifact from the issue description
+        result = clean_vqa_output(
+            "VQA>Are there any unusual objects in this scene<loc_1><loc_1><loc_998><loc_998>"
+        )
+        assert result == ""
+
+        # VQA prefix with some actual answer
+        result = clean_vqa_output("VQA>What tools are visible?A ladder and crowbar")
+        assert result == "A ladder and crowbar"
+
+    def test_clean_vqa_output_removes_loc_tokens(self) -> None:
+        """Test clean_vqa_output removes <loc_N> location tokens."""
+        # Simple case from issue description
+        result = clean_vqa_output("A ladder against the wall<loc_100><loc_200>")
+        assert result == "A ladder against the wall"
+
+        # Multiple loc tokens scattered
+        result = clean_vqa_output("<loc_684><loc_181><loc_999><loc_555>")
+        assert result == ""
+
+        # Loc tokens in middle of text
+        result = clean_vqa_output("Person<loc_50>walking<loc_100>towards door")
+        assert result == "Person walking towards door"
+
+    def test_clean_vqa_output_removes_duplicated_words(self) -> None:
+        """Test clean_vqa_output removes consecutive duplicated words."""
+        # Case from issue description
+        result = clean_vqa_output("tools visible visible (ladder)")
+        assert result == "tools visible (ladder)"
+
+        # Another duplication pattern from issue
+        result = clean_vqa_output("etc.) etc.)")
+        assert result == "etc.)"
+
+        # Multiple duplications
+        result = clean_vqa_output("the the quick brown brown fox")
+        assert result == "the quick brown fox"
+
+    def test_clean_vqa_output_case_insensitive_duplicates(self) -> None:
+        """Test clean_vqa_output handles case-insensitive duplicates."""
+        # Mixed case duplicates
+        result = clean_vqa_output("Visible visible tools")
+        assert result == "Visible tools"
+
+        result = clean_vqa_output("NO no nothing detected")
+        assert result == "NO nothing detected"
+
+    def test_clean_vqa_output_preserves_valid_text(self) -> None:
+        """Test clean_vqa_output preserves valid text without artifacts."""
+        # Clean text should pass through unchanged
+        assert clean_vqa_output("A ladder against the wall") == "A ladder against the wall"
+        assert clean_vqa_output("Person walking towards door") == "Person walking towards door"
+        assert clean_vqa_output("No unusual objects detected") == "No unusual objects detected"
+
+    def test_clean_vqa_output_handles_whitespace(self) -> None:
+        """Test clean_vqa_output normalizes whitespace."""
+        # Multiple spaces
+        result = clean_vqa_output("A   ladder   against   wall")
+        assert result == "A ladder against wall"
+
+        # Leading/trailing whitespace
+        result = clean_vqa_output("  ladder against wall  ")
+        assert result == "ladder against wall"
+
+        # Newlines and tabs
+        result = clean_vqa_output("ladder\t\tagainst\n\nwall")
+        assert result == "ladder against wall"
+
+    def test_clean_vqa_output_combined_artifacts(self) -> None:
+        """Test clean_vqa_output handles multiple artifact types together."""
+        # VQA prefix + loc tokens + duplicates + whitespace
+        result = clean_vqa_output("VQA>Are there tools?ladder ladder visible<loc_100><loc_200>  ")
+        assert result == "ladder visible"
+
+        # Loc tokens + duplicates
+        result = clean_vqa_output("tools<loc_50> visible visible<loc_100>")
+        assert result == "tools visible"
+
+    def test_clean_vqa_output_only_loc_tokens(self) -> None:
+        """Test clean_vqa_output returns empty for only loc tokens."""
+        result = clean_vqa_output("<loc_1><loc_2><loc_3>")
+        assert result == ""
+
+    def test_clean_vqa_output_loc_with_various_numbers(self) -> None:
+        """Test clean_vqa_output handles loc tokens with various digit counts."""
+        result = clean_vqa_output("test<loc_1><loc_12><loc_123><loc_1234>value")
+        assert result == "test value"
+
+    def test_clean_vqa_output_preserves_non_loc_angle_brackets(self) -> None:
+        """Test clean_vqa_output preserves angle brackets that aren't loc tokens."""
+        # Note: <other_tag> should be preserved (not a loc token)
+        result = clean_vqa_output("text <something> more")
+        assert result == "text <something> more"
+
+    def test_clean_vqa_output_single_word(self) -> None:
+        """Test clean_vqa_output handles single word input."""
+        assert clean_vqa_output("ladder") == "ladder"
+        assert clean_vqa_output("ladder<loc_1>") == "ladder"
+
+    def test_clean_vqa_output_real_world_examples(self) -> None:
+        """Test clean_vqa_output with real-world Florence-2 output examples."""
+        # Example 1: VQA query echo with loc tokens
+        result = clean_vqa_output(
+            "VQA>Are there any unusual objects in this scene<loc_1><loc_1><loc_998><loc_998>"
+        )
+        assert result == ""
+
+        # Example 2: Actual answer with loc tokens
+        result = clean_vqa_output(
+            "A suspicious person near the door<loc_684><loc_181><loc_999><loc_555>"
+        )
+        assert result == "A suspicious person near the door"
+
+        # Example 3: Tools response with duplicates
+        result = clean_vqa_output("ladder, crowbar visible visible")
+        assert result == "ladder, crowbar visible"
 
 
 class TestVisionExtractorInit:

@@ -2116,10 +2116,21 @@ class NemotronAnalyzer:
         This allows EventBroadcaster (which subscribes to 'security_events') to forward
         the event to all connected /ws/events WebSocket clients.
 
+        NEM-2661: Soft-deleted events are not broadcast to prevent console errors
+        when frontend tries to fetch non-existent event details.
+
         Args:
             event: Event to broadcast
         """
         if not self._redis:
+            return
+
+        # NEM-2661: Skip broadcasting soft-deleted events
+        if event.deleted_at is not None:
+            logger.debug(
+                f"Skipping broadcast of soft-deleted event {event.id}",
+                extra={"event_id": event.id, "deleted_at": event.deleted_at.isoformat()},
+            )
             return
 
         try:

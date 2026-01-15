@@ -44,6 +44,7 @@ docs-output/
 # Data
 *.db
 *.sqlite
+*.mp4
 backend/data/thumbnails/*
 !backend/data/thumbnails/.gitkeep
 backend/data/security.db
