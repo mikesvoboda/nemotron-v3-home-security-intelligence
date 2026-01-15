@@ -39,6 +39,7 @@ from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from typing import Any
 
+from fastapi import HTTPException
 from sqlalchemy import event, text
 from sqlalchemy.exc import (
     IntegrityError,
@@ -398,6 +399,10 @@ async def get_session() -> AsyncGenerator[AsyncSession]:
                 },
             )
             raise
+        except HTTPException:
+            # HTTPException is an expected application-level exception (e.g., 404 not found)
+            # Do not log or rollback - let it propagate to FastAPI's exception handlers
+            raise
         except Exception as e:
             await session.rollback()
             # Catch-all for unexpected database errors
@@ -537,6 +542,10 @@ async def get_db() -> AsyncGenerator[AsyncSession]:
                     "detail": str(e.orig) if e.orig else str(e),
                 },
             )
+            raise
+        except HTTPException:
+            # HTTPException is an expected application-level exception (e.g., 404 not found)
+            # Do not log or rollback - let it propagate to FastAPI's exception handlers
             raise
         except Exception as e:
             await session.rollback()

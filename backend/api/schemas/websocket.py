@@ -332,10 +332,20 @@ class WebSocketEventMessage(BaseModel):
 
 
 class WebSocketServiceStatus(StrEnum):
-    """Valid service status values for WebSocket health monitoring messages."""
+    """Valid service status values for WebSocket health monitoring messages.
 
+    Includes both health states and worker lifecycle states for comprehensive
+    status reporting across services and workers.
+    """
+
+    # Health states
     HEALTHY = auto()
     UNHEALTHY = auto()
+    # Worker lifecycle states
+    RUNNING = auto()
+    STOPPED = auto()
+    CRASHED = auto()
+    # Transition states
     RESTARTING = auto()
     RESTART_FAILED = auto()
     FAILED = auto()
@@ -2146,7 +2156,16 @@ EVENT_REGISTRY: dict[WSEventType, dict[str, Any]] = {
             },
             "status": {
                 "type": "string",
-                "enum": ["healthy", "unhealthy", "restarting", "restart_failed", "failed"],
+                "enum": [
+                    "healthy",
+                    "unhealthy",
+                    "running",
+                    "stopped",
+                    "crashed",
+                    "restarting",
+                    "restart_failed",
+                    "failed",
+                ],
                 "description": "Service status",
             },
             "previous_status": {"type": "string", "description": "Previous service status"},
