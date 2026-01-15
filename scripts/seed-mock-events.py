@@ -1,33 +1,34 @@
 #!/usr/bin/env python3
-"""Seed the database with mock data for comprehensive UI testing.
+"""Seed the system by exercising the full AI pipeline end-to-end.
 
-This script seeds all data types needed for exhaustive UI testing:
-- Events and Detections (core data)
-- Entities (for /entities page)
-- Alerts and AlertRules (for /alerts page)
-- Audit Logs (for /audit page)
-- Application Logs (for /logs page)
-- Soft-deleted events (for /trash page)
+This script triggers real pipeline processing by copying images to camera
+watch folders, causing the file watcher to process them through:
+  1. File Watcher → detects new images
+  2. RT-DETRv2 → object detection
+  3. Batch Aggregator → groups detections into events
+  4. Nemotron LLM → risk analysis with reasoning
+
+This creates real events with actual LLM prompts for comprehensive testing.
 
 Usage:
-    # Seed everything with defaults
-    uv run python scripts/seed-mock-events.py --all
+    # Default: Process 20 images through the full pipeline
+    uv run python scripts/seed-mock-events.py
 
-    # Seed only events (legacy behavior)
-    uv run python scripts/seed-mock-events.py --count 100
+    # Process more images
+    uv run python scripts/seed-mock-events.py --images 50
 
-    # Seed specific data types
-    uv run python scripts/seed-mock-events.py --entities 50
-    uv run python scripts/seed-mock-events.py --alerts 30
-    uv run python scripts/seed-mock-events.py --audit-logs 100
-    uv run python scripts/seed-mock-events.py --logs 200
-    uv run python scripts/seed-mock-events.py --trash 10
+    # Also seed supporting data (entities, alerts, logs)
+    uv run python scripts/seed-mock-events.py --with-extras
 
-    # Clear all and reseed everything
-    uv run python scripts/seed-mock-events.py --clear --all
+    # Use mock data instead of real pipeline (legacy behavior)
+    uv run python scripts/seed-mock-events.py --mock
+
+    # Clear all data before seeding
+    uv run python scripts/seed-mock-events.py --clear
 """
 
 import asyncio
+import os
 import random
 import sys
 import uuid
@@ -37,16 +38,91 @@ from pathlib import Path
 # Add backend to Python path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from backend.core.database import get_session, init_db
-from backend.models.alert import Alert, AlertRule, AlertSeverity, AlertStatus
-from backend.models.audit import AuditAction, AuditLog
-from backend.models.camera import Camera
-from backend.models.detection import Detection
-from backend.models.entity import Entity
-from backend.models.enums import EntityType
-from backend.models.event import Event
-from backend.models.log import Log
-from sqlalchemy import delete, select
+# Base path for camera images
+FOSCAM_BASE_PATH = os.environ.get("FOSCAM_BASE_PATH", "/export/foscam")
+
+from backend.core.database import get_session, init_db  # noqa: E402
+from backend.models.alert import Alert, AlertRule, AlertSeverity, AlertStatus  # noqa: E402
+from backend.models.audit import AuditAction, AuditLog  # noqa: E402
+from backend.models.camera import Camera  # noqa: E402
+from backend.models.detection import Detection  # noqa: E402
+from backend.models.entity import Entity  # noqa: E402
+from backend.models.enums import EntityType  # noqa: E402
+from backend.models.event import Event  # noqa: E402
+from backend.models.log import Log  # noqa: E402
+from sqlalchemy import delete, select  # noqa: E402
+
+
+def find_camera_images(base_path: str = FOSCAM_BASE_PATH, limit: int = 500) -> list[Path]:
+    """Find all camera images in the foscam directory structure.
+
+    Returns a list of image paths, sorted by modification time (oldest first).
+    """
+    base = Path(base_path)
+    if not base.exists():
+        print(f"Warning: Camera base path {base_path} does not exist")
+        return []
+
+    images = []
+    for pattern in ["**/*.jpg", "**/*.JPG", "**/*.png", "**/*.PNG"]:
+        images.extend(base.glob(pattern))
+
+    # Sort by mtime (oldest first) and limit
+    images = sorted(images, key=lambda p: p.stat().st_mtime)[:limit]
+    return images
+
+
+def trigger_pipeline(num_images: int = 20, delay_between: float = 0.5) -> int:
+    """Trigger the AI pipeline by touching existing camera images.
+
+    This updates the mtime of existing images, causing the file watcher
+    to detect them as "new" and process them through the full pipeline:
+    File Watcher → RT-DETRv2 → Batch Aggregator → Nemotron LLM
+
+    Args:
+        num_images: Number of images to process
+        delay_between: Seconds to wait between touching images (allows batching)
+
+    Returns:
+        Number of images touched
+    """
+    import time
+
+    print(f"Finding camera images in {FOSCAM_BASE_PATH}...")
+    all_images = find_camera_images(limit=num_images * 3)  # Get extra for variety
+
+    if not all_images:
+        print("Error: No camera images found. Check FOSCAM_BASE_PATH.")
+        return 0
+
+    # Select random subset if we have more than needed
+    selected = random.sample(all_images, num_images) if len(all_images) > num_images else all_images
+
+    print(f"Found {len(all_images)} images, will process {len(selected)}")
+    print(f"\nTouching {len(selected)} images to trigger pipeline processing...")
+    print("(Images will be processed: File Watcher → RT-DETRv2 → Batching → Nemotron)\n")
+
+    touched = 0
+    for i, img_path in enumerate(selected, 1):
+        try:
+            # Touch the file to update mtime
+            img_path.touch()
+            camera_name = img_path.parts[-4] if len(img_path.parts) >= 4 else "unknown"
+            print(f"  [{i}/{len(selected)}] Touched: {camera_name}/{img_path.name}")
+            touched += 1
+
+            # Small delay to allow file watcher to pick up and batch appropriately
+            if delay_between > 0 and i < len(selected):
+                time.sleep(delay_between)
+
+        except (OSError, PermissionError) as e:
+            print(f"  [{i}/{len(selected)}] Failed: {img_path.name} - {e}")
+
+    print(f"\nTriggered pipeline for {touched} images")
+    print("Note: Events will appear as the pipeline processes them (may take 1-2 minutes)")
+
+    return touched
+
 
 # Mock AI summaries for different risk levels
 MOCK_SUMMARIES = {
@@ -817,28 +893,53 @@ async def main() -> int:
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="Seed mock data for comprehensive UI testing",
+        description="Seed the system by exercising the full AI pipeline end-to-end",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Seed everything with good defaults
-  uv run python scripts/seed-mock-events.py --all
+  # Default: Trigger pipeline with 20 images
+  uv run python scripts/seed-mock-events.py
 
-  # Seed only events (100 events)
-  uv run python scripts/seed-mock-events.py --count 100
+  # Process more images through the pipeline
+  uv run python scripts/seed-mock-events.py --images 50
 
-  # Clear and reseed everything
-  uv run python scripts/seed-mock-events.py --clear --all
+  # Clear data and trigger pipeline
+  uv run python scripts/seed-mock-events.py --clear --images 30
 
-  # Seed specific data types
-  uv run python scripts/seed-mock-events.py --entities 50 --alerts 30
+  # Also seed supporting data (entities, alerts, logs)
+  uv run python scripts/seed-mock-events.py --with-extras
+
+  # Use mock data instead of real pipeline (legacy)
+  uv run python scripts/seed-mock-events.py --mock --count 100
 """,
+    )
+    parser.add_argument(
+        "--images",
+        type=int,
+        default=20,
+        help="Number of images to process through the pipeline (default: 20)",
+    )
+    parser.add_argument(
+        "--delay",
+        type=float,
+        default=0.5,
+        help="Delay between touching images in seconds (default: 0.5)",
+    )
+    parser.add_argument(
+        "--mock",
+        action="store_true",
+        help="Use mock data instead of real pipeline (legacy behavior)",
+    )
+    parser.add_argument(
+        "--with-extras",
+        action="store_true",
+        help="Also seed entities, alerts, audit logs, and app logs",
     )
     parser.add_argument(
         "--count",
         type=int,
         default=None,
-        help="Number of mock events to create",
+        help="Number of mock events (only with --mock)",
     )
     parser.add_argument(
         "--entities",
@@ -871,11 +972,6 @@ Examples:
         help="Number of events to soft-delete for trash",
     )
     parser.add_argument(
-        "--all",
-        action="store_true",
-        help="Seed all data types with good defaults for UI testing",
-    )
-    parser.add_argument(
         "--clear",
         action="store_true",
         help="Clear existing data before seeding",
@@ -890,63 +986,69 @@ Examples:
         print("\nClearing existing data...")
         await clear_all_data()
 
-    # Determine what to seed
-    if args.all:
-        # Good defaults for comprehensive UI testing
+    total_created = {}
+
+    # Default behavior: trigger real pipeline
+    if not args.mock:
+        print("\n" + "=" * 50)
+        print("TRIGGERING REAL AI PIPELINE")
+        print("=" * 50)
+        touched = trigger_pipeline(num_images=args.images, delay_between=args.delay)
+        total_created["images_triggered"] = touched
+
+        # Seed extras if requested
+        if args.with_extras:
+            print("\nSeeding supporting data...")
+            entities_count = args.entities or 30
+            alerts_count = args.alerts or 20
+            audit_logs_count = args.audit_logs or 50
+            logs_count = args.logs or 100
+
+            print(f"\nSeeding {entities_count} entities...")
+            total_created["entities"] = await seed_entities(entities_count)
+
+            print(f"\nSeeding {alerts_count} alerts...")
+            total_created["alerts"] = await seed_alerts(alerts_count)
+
+            print(f"\nSeeding {audit_logs_count} audit logs...")
+            total_created["audit_logs"] = await seed_audit_logs(audit_logs_count)
+
+            print(f"\nSeeding {logs_count} application logs...")
+            total_created["logs"] = await seed_application_logs(logs_count)
+
+    else:
+        # Legacy mock data mode
+        print("\n" + "=" * 50)
+        print("SEEDING MOCK DATA (legacy mode)")
+        print("=" * 50)
+
         events_count = args.count or 100
         entities_count = args.entities or 50
         alerts_count = args.alerts or 30
         audit_logs_count = args.audit_logs or 75
         logs_count = args.logs or 150
         trash_count = args.trash or 15
-    else:
-        events_count = args.count
-        entities_count = args.entities
-        alerts_count = args.alerts
-        audit_logs_count = args.audit_logs
-        logs_count = args.logs
-        trash_count = args.trash
 
-    # Default to --all behavior if nothing was specified
-    if not any(
-        [events_count, entities_count, alerts_count, audit_logs_count, logs_count, trash_count]
-    ):
-        print("\nNo arguments specified, using --all defaults...")
-        events_count = 100
-        entities_count = 50
-        alerts_count = 30
-        audit_logs_count = 75
-        logs_count = 150
-        trash_count = 15
-
-    # Seed data in order (events first, as other data may reference them)
-    total_created = {}
-
-    if events_count:
-        print(f"\nSeeding {events_count} events...")
+        print(f"\nSeeding {events_count} mock events...")
         events, detections = await seed_mock_data(events_count)
         total_created["events"] = events
         total_created["detections"] = detections
 
-    if entities_count:
         print(f"\nSeeding {entities_count} entities...")
         total_created["entities"] = await seed_entities(entities_count)
 
-    if alerts_count:
         print(f"\nSeeding {alerts_count} alerts...")
         total_created["alerts"] = await seed_alerts(alerts_count)
 
-    if audit_logs_count:
         print(f"\nSeeding {audit_logs_count} audit logs...")
         total_created["audit_logs"] = await seed_audit_logs(audit_logs_count)
 
-    if logs_count:
         print(f"\nSeeding {logs_count} application logs...")
         total_created["logs"] = await seed_application_logs(logs_count)
 
-    if trash_count:
-        print(f"\nSoft-deleting {trash_count} events for trash...")
-        total_created["trash"] = await seed_trash(trash_count)
+        if trash_count:
+            print(f"\nSoft-deleting {trash_count} events for trash...")
+            total_created["trash"] = await seed_trash(trash_count)
 
     # Print summary
     print("\n" + "=" * 50)
