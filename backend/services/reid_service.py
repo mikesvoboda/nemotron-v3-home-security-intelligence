@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
@@ -55,6 +56,58 @@ DEFAULT_SIMILARITY_THRESHOLD = 0.85
 
 # CLIP ViT-L embedding dimension
 EMBEDDING_DIMENSION = 768
+
+# Regex pattern for Florence-2 location tokens like <loc_71>, <loc_86>, etc.
+_LOC_TOKEN_PATTERN = re.compile(r"<loc_\d+>")
+
+# Regex pattern for VQA prefix with query text: VQA>question text
+_VQA_PREFIX_PATTERN = re.compile(r"VQA>[^<]*")
+
+
+def clean_vqa_output(text: str | None) -> str | None:
+    """Clean raw Florence-2 VQA output by removing artifacts.
+
+    Florence-2 VQA responses may contain artifacts like:
+    - VQA> prefix followed by the query text
+    - <loc_N> location tokens (bounding box coordinates)
+
+    This function removes these artifacts to produce clean text suitable
+    for human-readable prompt inclusion.
+
+    Args:
+        text: Raw VQA output text, possibly containing artifacts
+
+    Returns:
+        Cleaned text with artifacts removed, or None if the cleaned text
+        is empty or was None/empty to begin with.
+
+    Examples:
+        >>> clean_vqa_output("VQA>person wearing<loc_71><loc_86>blue jacket")
+        'blue jacket'
+        >>> clean_vqa_output("<loc_10><loc_20>backpack")
+        'backpack'
+        >>> clean_vqa_output("VQA>Is this person carrying anything<loc_1><loc_2>")
+        None  # No meaningful content after cleaning
+        >>> clean_vqa_output("blue jacket, dark pants")
+        'blue jacket, dark pants'  # Clean text unchanged
+    """
+    if not text:
+        return None
+
+    # Remove VQA> prefix and query text
+    cleaned = _VQA_PREFIX_PATTERN.sub("", text)
+
+    # Remove all <loc_N> tokens
+    cleaned = _LOC_TOKEN_PATTERN.sub("", cleaned)
+
+    # Strip whitespace and clean up any double spaces left behind
+    cleaned = " ".join(cleaned.split())
+
+    # Return None if nothing meaningful remains
+    if not cleaned or cleaned.isspace():
+        return None
+
+    return cleaned
 
 
 @dataclass(slots=True)
@@ -852,18 +905,26 @@ def format_entity_match(match: EntityMatch) -> str:
         f"  - Camera: {entity.camera_id}, Time: {time_str} (similarity: {similarity_pct:.0f}%)"
     ]
 
-    # Add attributes if available
+    # Add attributes if available, cleaning any VQA artifacts
     attrs = entity.attributes
     if attrs:
         attr_parts = []
-        if attrs.get("clothing"):
-            attr_parts.append(f"wearing {attrs['clothing']}")
-        if attrs.get("carrying"):
-            attr_parts.append(f"carrying {attrs['carrying']}")
-        if attrs.get("color"):
-            attr_parts.append(f"{attrs['color']}")
-        if attrs.get("vehicle_type"):
-            attr_parts.append(attrs["vehicle_type"])
+        # Clean clothing attribute (may contain raw VQA output)
+        clothing = clean_vqa_output(attrs.get("clothing"))
+        if clothing:
+            attr_parts.append(f"wearing {clothing}")
+        # Clean carrying attribute (may contain raw VQA output)
+        carrying = clean_vqa_output(attrs.get("carrying"))
+        if carrying:
+            attr_parts.append(f"carrying {carrying}")
+        # Clean color attribute (may contain raw VQA output)
+        color = clean_vqa_output(attrs.get("color"))
+        if color:
+            attr_parts.append(color)
+        # Clean vehicle_type attribute (may contain raw VQA output)
+        vehicle_type = clean_vqa_output(attrs.get("vehicle_type"))
+        if vehicle_type:
+            attr_parts.append(vehicle_type)
         if attr_parts:
             lines.append(f"    Attributes: {', '.join(attr_parts)}")
 

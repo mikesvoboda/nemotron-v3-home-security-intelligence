@@ -725,6 +725,54 @@ def format_image_quality_context(
     return "\n".join(lines)
 
 
+def _collect_detection_ids_from_enrichment(
+    enrichment_result: EnrichmentResult | None,
+    vision_extraction: BatchExtractionResult | None,
+) -> dict[str, str]:
+    """Collect all detection IDs from enrichment sources and infer their types.
+
+    Returns a dict mapping detection_id to inferred class_name ('person' or 'vehicle').
+
+    Note: Uses getattr with empty dict defaults to handle mock objects in tests
+    that may not have all attributes.
+    """
+    detection_ids: dict[str, str] = {}
+
+    # Collect from enrichment_result
+    if enrichment_result:
+        # Person detections from clothing/segmentation/pose
+        for det_id in getattr(enrichment_result, "clothing_classifications", {}) or {}:
+            detection_ids[det_id] = "person"
+        for det_id in getattr(enrichment_result, "clothing_segmentation", {}) or {}:
+            detection_ids[det_id] = "person"
+        for det_id in getattr(enrichment_result, "pose_results", {}) or {}:
+            detection_ids[det_id] = "person"
+
+        # Vehicle detections
+        for det_id in getattr(enrichment_result, "vehicle_classifications", {}) or {}:
+            detection_ids[det_id] = "vehicle"
+        for det_id in getattr(enrichment_result, "vehicle_damage", {}) or {}:
+            detection_ids[det_id] = "vehicle"
+
+        # Pet detections
+        pet_classifications = getattr(enrichment_result, "pet_classifications", {}) or {}
+        for det_id in pet_classifications:
+            pet = pet_classifications[det_id]
+            animal_type = getattr(pet, "animal_type", None)
+            detection_ids[det_id] = animal_type or "animal"
+
+    # Collect from vision_extraction (Florence-2)
+    if vision_extraction:
+        for det_id in getattr(vision_extraction, "person_attributes", {}) or {}:
+            if det_id not in detection_ids:
+                detection_ids[det_id] = "person"
+        for det_id in getattr(vision_extraction, "vehicle_attributes", {}) or {}:
+            if det_id not in detection_ids:
+                detection_ids[det_id] = "vehicle"
+
+    return detection_ids
+
+
 def format_detections_with_all_enrichment(  # noqa: PLR0912
     detections: list[dict[str, Any]],
     enrichment_result: EnrichmentResult | None = None,
@@ -747,12 +795,31 @@ def format_detections_with_all_enrichment(  # noqa: PLR0912
         Sanitizes class_name/object_type to prevent prompt injection via
         adversarial ML model outputs. See NEM-1722.
     """
-    if not detections:
+    # Collect detection IDs from enrichment sources
+    enrichment_detection_ids = _collect_detection_ids_from_enrichment(
+        enrichment_result, vision_extraction
+    )
+
+    # If detections list is empty but we have enrichment data, synthesize detections
+    working_detections = list(detections)
+    if not working_detections and enrichment_detection_ids:
+        for det_id, class_name in enrichment_detection_ids.items():
+            working_detections.append(
+                {
+                    "detection_id": det_id,
+                    "class_name": class_name,
+                    "confidence": 0.0,  # Unknown from enrichment alone
+                    "bbox": [],  # Unknown from enrichment alone
+                }
+            )
+
+    # Now check if we truly have no detections anywhere
+    if not working_detections:
         return "No detections in this batch."
 
     lines = []
 
-    for det in detections:
+    for det in working_detections:
         det_id = str(det.get("detection_id", det.get("id", "")))
         # Sanitize class_name to prevent prompt injection (NEM-1722)
         raw_class_name = det.get("class_name", det.get("object_type", "unknown"))

@@ -29,6 +29,7 @@ from backend.services.reid_service import (
     EntityMatch,
     ReIdentificationService,
     batch_cosine_similarity,
+    clean_vqa_output,
     cosine_similarity,
     format_entity_match,
     format_full_reid_context,
@@ -2676,3 +2677,200 @@ class TestHybridStorageProperty:
         mock_hybrid_storage = MagicMock()
         service = ReIdentificationService(hybrid_storage=mock_hybrid_storage)
         assert service.hybrid_storage is mock_hybrid_storage
+
+
+# =============================================================================
+# VQA Output Cleaning Tests
+# =============================================================================
+
+
+class TestCleanVqaOutput:
+    """Tests for clean_vqa_output function.
+
+    The clean_vqa_output function removes Florence-2 VQA artifacts from
+    raw output text, including:
+    - VQA> prefix and query text
+    - <loc_N> location tokens (bounding box coordinates)
+    """
+
+    def test_clean_vqa_output_with_none_returns_none(self) -> None:
+        """Test that None input returns None."""
+        assert clean_vqa_output(None) is None
+
+    def test_clean_vqa_output_with_empty_string_returns_none(self) -> None:
+        """Test that empty string returns None."""
+        assert clean_vqa_output("") is None
+
+    def test_clean_vqa_output_with_whitespace_only_returns_none(self) -> None:
+        """Test that whitespace-only string returns None."""
+        assert clean_vqa_output("   ") is None
+
+    def test_clean_vqa_output_removes_vqa_prefix(self) -> None:
+        """Test that VQA> prefix and query text is removed."""
+        raw = "VQA>person wearing<loc_71><loc_86>blue jacket"
+        result = clean_vqa_output(raw)
+        assert result == "blue jacket"
+        assert "VQA>" not in result
+        assert "person wearing" not in result
+
+    def test_clean_vqa_output_removes_location_tokens(self) -> None:
+        """Test that <loc_N> tokens are removed."""
+        raw = "<loc_10><loc_20>backpack<loc_30><loc_40>"
+        result = clean_vqa_output(raw)
+        assert result == "backpack"
+        assert "<loc_" not in result
+
+    def test_clean_vqa_output_removes_multiple_location_tokens(self) -> None:
+        """Test removing multiple location tokens with various numbers."""
+        raw = "<loc_71><loc_86><loc_920><loc_916>red shirt, dark pants"
+        result = clean_vqa_output(raw)
+        assert result == "red shirt, dark pants"
+
+    def test_clean_vqa_output_handles_query_with_only_artifacts(self) -> None:
+        """Test that if cleaning leaves nothing, None is returned."""
+        raw = "VQA>Is this person carrying anything<loc_1><loc_2>"
+        result = clean_vqa_output(raw)
+        assert result is None
+
+    def test_clean_vqa_output_preserves_clean_text(self) -> None:
+        """Test that clean text without artifacts is unchanged."""
+        clean_text = "blue jacket, dark pants"
+        result = clean_vqa_output(clean_text)
+        assert result == "blue jacket, dark pants"
+
+    def test_clean_vqa_output_normalizes_whitespace(self) -> None:
+        """Test that extra whitespace is normalized."""
+        raw = "<loc_10>  <loc_20>   backpack   "
+        result = clean_vqa_output(raw)
+        assert result == "backpack"
+
+    def test_clean_vqa_output_complex_example(self) -> None:
+        """Test a complex real-world example with all artifact types."""
+        raw = "VQA>What is this person wearing<loc_100><loc_200><loc_300><loc_400>black hoodie and jeans"
+        result = clean_vqa_output(raw)
+        assert result == "black hoodie and jeans"
+
+    def test_clean_vqa_output_partial_vqa_prefix(self) -> None:
+        """Test handling of VQA prefix with query text containing angle brackets."""
+        raw = "VQA>Is the person<loc_50>carrying a bag"
+        result = clean_vqa_output(raw)
+        # The pattern VQA>[^<]* will match "VQA>Is the person" and stop at <loc_50>
+        assert "VQA>" not in result
+        assert "carrying a bag" in result
+
+
+class TestFormatEntityMatchWithVqaArtifacts:
+    """Tests for format_entity_match handling of VQA artifacts in attributes."""
+
+    def test_format_match_cleans_clothing_vqa_artifacts(self) -> None:
+        """Test that VQA artifacts in clothing attribute are cleaned."""
+        entity = EntityEmbedding(
+            entity_type="person",
+            embedding=[0.1] * 10,
+            camera_id="front_door",
+            timestamp=datetime.now(UTC),
+            detection_id="det_123",
+            attributes={
+                "clothing": "VQA>person wearing<loc_71><loc_86><loc_920><loc_916>blue jacket"
+            },
+        )
+        match = EntityMatch(entity=entity, similarity=0.9, time_gap_seconds=60)
+
+        result = format_entity_match(match)
+
+        assert "wearing blue jacket" in result
+        assert "VQA>" not in result
+        assert "<loc_" not in result
+
+    def test_format_match_cleans_carrying_vqa_artifacts(self) -> None:
+        """Test that VQA artifacts in carrying attribute are cleaned."""
+        entity = EntityEmbedding(
+            entity_type="person",
+            embedding=[0.1] * 10,
+            camera_id="front_door",
+            timestamp=datetime.now(UTC),
+            detection_id="det_123",
+            attributes={
+                "carrying": "VQA>Is this person carrying anything<loc_1><loc_2><loc_3><loc_4>backpack"
+            },
+        )
+        match = EntityMatch(entity=entity, similarity=0.9, time_gap_seconds=60)
+
+        result = format_entity_match(match)
+
+        assert "carrying backpack" in result
+        assert "VQA>" not in result
+        assert "<loc_" not in result
+
+    def test_format_match_cleans_color_vqa_artifacts(self) -> None:
+        """Test that VQA artifacts in color attribute are cleaned."""
+        entity = EntityEmbedding(
+            entity_type="vehicle",
+            embedding=[0.5] * 10,
+            camera_id="driveway",
+            timestamp=datetime.now(UTC),
+            detection_id="det_car",
+            attributes={"color": "<loc_10><loc_20>red<loc_30><loc_40>"},
+        )
+        match = EntityMatch(entity=entity, similarity=0.85, time_gap_seconds=300)
+
+        result = format_entity_match(match)
+
+        assert "red" in result
+        assert "<loc_" not in result
+
+    def test_format_match_cleans_vehicle_type_vqa_artifacts(self) -> None:
+        """Test that VQA artifacts in vehicle_type attribute are cleaned."""
+        entity = EntityEmbedding(
+            entity_type="vehicle",
+            embedding=[0.5] * 10,
+            camera_id="driveway",
+            timestamp=datetime.now(UTC),
+            detection_id="det_car",
+            attributes={"vehicle_type": "VQA>What type of vehicle<loc_5><loc_10>SUV"},
+        )
+        match = EntityMatch(entity=entity, similarity=0.85, time_gap_seconds=300)
+
+        result = format_entity_match(match)
+
+        assert "SUV" in result
+        assert "VQA>" not in result
+        assert "<loc_" not in result
+
+    def test_format_match_omits_empty_attribute_after_cleaning(self) -> None:
+        """Test that attributes with only artifacts are omitted after cleaning."""
+        entity = EntityEmbedding(
+            entity_type="person",
+            embedding=[0.1] * 10,
+            camera_id="front_door",
+            timestamp=datetime.now(UTC),
+            detection_id="det_123",
+            attributes={
+                "clothing": "blue jacket",  # Clean
+                "carrying": "VQA>Is carrying<loc_1><loc_2>",  # Only artifacts
+            },
+        )
+        match = EntityMatch(entity=entity, similarity=0.9, time_gap_seconds=60)
+
+        result = format_entity_match(match)
+
+        # Should have clothing but not carrying (since it's empty after cleaning)
+        assert "wearing blue jacket" in result
+        assert "carrying" not in result
+
+    def test_format_match_handles_all_clean_attributes(self) -> None:
+        """Test that already-clean attributes are preserved."""
+        entity = EntityEmbedding(
+            entity_type="person",
+            embedding=[0.1] * 10,
+            camera_id="front_door",
+            timestamp=datetime.now(UTC),
+            detection_id="det_123",
+            attributes={"clothing": "red shirt", "carrying": "shopping bag"},
+        )
+        match = EntityMatch(entity=entity, similarity=0.9, time_gap_seconds=60)
+
+        result = format_entity_match(match)
+
+        assert "wearing red shirt" in result
+        assert "carrying shopping bag" in result

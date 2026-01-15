@@ -14,6 +14,7 @@ improves VRAM management by keeping Florence-2 in a separate container.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
@@ -24,6 +25,87 @@ if TYPE_CHECKING:
     from PIL import Image
 
 logger = get_logger(__name__)
+
+# Regex pattern to match Florence-2 location tokens like <loc_123>
+# Replace with a space to preserve word boundaries
+_LOC_TOKEN_PATTERN = re.compile(r"<loc_\d+>")
+
+# Pattern to match VQA prefix and question up to the first loc token or end
+# Handles: "VQA>What tools are visible?A ladder" -> removes "VQA>What tools are visible?"
+# The question typically ends with ? followed by the actual answer
+_VQA_PREFIX_PATTERN = re.compile(r"^.*?VQA>[^?]*\?", re.IGNORECASE)
+
+
+def clean_vqa_output(text: str) -> str:
+    """Clean Florence-2 VQA output by removing artifacts.
+
+    Florence-2 VQA responses can contain artifacts that leak into downstream
+    prompts, including:
+    - VQA> prefix with the original question echoed
+    - <loc_N> location tokens from the model's spatial encoding
+    - Duplicated words like "visible visible" or "etc.) etc.)"
+
+    Args:
+        text: Raw VQA output text from Florence-2
+
+    Returns:
+        Cleaned text with artifacts removed. Returns empty string if the
+        cleaned result would be empty or just whitespace.
+
+    Examples:
+        >>> clean_vqa_output("VQA>Are there any unusual objects<loc_1><loc_998>")
+        ''
+        >>> clean_vqa_output("A ladder against the wall<loc_100><loc_200>")
+        'A ladder against the wall'
+        >>> clean_vqa_output("tools visible visible (ladder)")
+        'tools visible (ladder)'
+    """
+    if not text:
+        return ""
+
+    result = text
+
+    # Remove VQA> prefix and the question (up to and including the ?)
+    # This handles cases like "VQA>What tools are visible?A ladder"
+    result = _VQA_PREFIX_PATTERN.sub("", result)
+
+    # Also handle case where VQA prefix exists but no question mark follows
+    # (the question may have been truncated or not include ?)
+    # Remove "VQA>" and any following text that looks like a question
+    if "VQA>" in result:
+        # Find VQA> and remove everything from start to the first < (loc token)
+        vqa_idx = result.find("VQA>")
+        if vqa_idx != -1:
+            # Find the first < after VQA>, or empty if no loc tokens
+            loc_start = result.find("<", vqa_idx)
+            result = result[loc_start:] if loc_start != -1 else ""
+
+    # Replace all <loc_N> tokens with spaces to preserve word boundaries
+    result = _LOC_TOKEN_PATTERN.sub(" ", result)
+
+    # Remove duplicated consecutive words (case-insensitive)
+    # Handles "visible visible", "etc.) etc.)", "the the", etc.
+    # Use a function to preserve original case of first occurrence
+    def remove_consecutive_duplicates(s: str) -> str:
+        words = s.split()
+        if len(words) < 2:
+            return s
+
+        cleaned_words = [words[0]]
+        for i in range(1, len(words)):
+            # Compare lowercase versions to catch "Visible visible"
+            if words[i].lower() != words[i - 1].lower():
+                cleaned_words.append(words[i])
+
+        return " ".join(cleaned_words)
+
+    result = remove_consecutive_duplicates(result)
+
+    # Strip extra whitespace (normalizes multiple spaces to single space)
+    result = " ".join(result.split())
+
+    return result.strip()
+
 
 # Florence-2 task prompts
 CAPTION_TASK = "<CAPTION>"
@@ -481,19 +563,24 @@ class VisionExtractor:
         tools_response = await self._query_florence(image, VQA_TASK, SCENE_QUERIES["tools"])
         abandoned_response = await self._query_florence(image, VQA_TASK, SCENE_QUERIES["abandoned"])
 
+        # Clean VQA responses to remove Florence-2 artifacts
+        unusual_cleaned = clean_vqa_output(unusual_response)
+        tools_cleaned = clean_vqa_output(tools_response)
+        abandoned_cleaned = clean_vqa_output(abandoned_response)
+
         # Parse responses into lists
         unusual_objects: list[str] = []
-        if unusual_response and not self._is_negative_response(unusual_response):
-            unusual_objects = [unusual_response.strip()]
+        if unusual_cleaned and not self._is_negative_response(unusual_cleaned):
+            unusual_objects = [unusual_cleaned]
 
         tools_detected: list[str] = []
-        if tools_response and not self._is_negative_response(tools_response):
+        if tools_cleaned and not self._is_negative_response(tools_cleaned):
             # Parse comma-separated tools
-            tools_detected = [t.strip() for t in tools_response.split(",") if t.strip()]
+            tools_detected = [t.strip() for t in tools_cleaned.split(",") if t.strip()]
 
         abandoned_items: list[str] = []
-        if abandoned_response and not self._is_negative_response(abandoned_response):
-            abandoned_items = [abandoned_response.strip()]
+        if abandoned_cleaned and not self._is_negative_response(abandoned_cleaned):
+            abandoned_items = [abandoned_cleaned]
 
         return SceneAnalysis(
             unusual_objects=unusual_objects,
@@ -717,17 +804,22 @@ class VisionExtractor:
         tools_response = await self._query_florence(image, VQA_TASK, SCENE_QUERIES["tools"])
         abandoned_response = await self._query_florence(image, VQA_TASK, SCENE_QUERIES["abandoned"])
 
+        # Clean VQA responses to remove Florence-2 artifacts
+        unusual_cleaned = clean_vqa_output(unusual_response)
+        tools_cleaned = clean_vqa_output(tools_response)
+        abandoned_cleaned = clean_vqa_output(abandoned_response)
+
         unusual_objects: list[str] = []
-        if unusual_response and not self._is_negative_response(unusual_response):
-            unusual_objects = [unusual_response.strip()]
+        if unusual_cleaned and not self._is_negative_response(unusual_cleaned):
+            unusual_objects = [unusual_cleaned]
 
         tools_detected: list[str] = []
-        if tools_response and not self._is_negative_response(tools_response):
-            tools_detected = [t.strip() for t in tools_response.split(",") if t.strip()]
+        if tools_cleaned and not self._is_negative_response(tools_cleaned):
+            tools_detected = [t.strip() for t in tools_cleaned.split(",") if t.strip()]
 
         abandoned_items: list[str] = []
-        if abandoned_response and not self._is_negative_response(abandoned_response):
-            abandoned_items = [abandoned_response.strip()]
+        if abandoned_cleaned and not self._is_negative_response(abandoned_cleaned):
+            abandoned_items = [abandoned_cleaned]
 
         return SceneAnalysis(
             unusual_objects=unusual_objects,

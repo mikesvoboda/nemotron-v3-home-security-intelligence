@@ -1655,6 +1655,109 @@ class TestFormatDetectionsWithAllEnrichment:
         assert "det_m002" in result
         assert "det_m003" in result
 
+    def test_empty_detections_with_person_enrichment_synthesizes_detection(self) -> None:
+        """Test that empty detections list with person enrichment synthesizes detection.
+
+        This test verifies the fix for contradictory detection data in Nemotron prompts.
+        When detections list is empty but enrichment data exists, the function should
+        synthesize detections from the enrichment data rather than returning
+        'No detections in this batch.'
+        """
+        vision_extraction = MockBatchExtractionResult(
+            person_attributes={
+                "det_p001": MockPersonAttributes(
+                    clothing="red hoodie and dark pants",
+                    carrying="backpack",
+                    action="walking toward door",
+                    is_service_worker=False,
+                    caption="Person approaching house",
+                )
+            }
+        )
+        result = format_detections_with_all_enrichment([], vision_extraction=vision_extraction)
+
+        # Should NOT say "No detections" since we have person enrichment
+        assert result != "No detections in this batch."
+        # Should synthesize a person detection
+        assert "### PERSON" in result
+        assert "det_p001" in result
+        # Should include the enrichment attributes
+        assert "Wearing: red hoodie and dark pants" in result
+        assert "Carrying: backpack" in result
+        assert "Action: walking toward door" in result
+
+    def test_empty_detections_with_vehicle_enrichment_synthesizes_detection(self) -> None:
+        """Test that empty detections list with vehicle enrichment synthesizes detection."""
+        vision_extraction = MockBatchExtractionResult(
+            vehicle_attributes={
+                "det_v001": MockVehicleAttributes(
+                    color="white",
+                    vehicle_type="van",
+                    is_commercial=True,
+                    commercial_text="ACME Delivery",
+                    caption="White delivery van in driveway",
+                )
+            }
+        )
+        result = format_detections_with_all_enrichment([], vision_extraction=vision_extraction)
+
+        # Should NOT say "No detections" since we have vehicle enrichment
+        assert result != "No detections in this batch."
+        # Should synthesize a vehicle detection
+        assert "### VEHICLE" in result
+        assert "det_v001" in result
+        # Should include the enrichment attributes
+        assert "Color: white" in result
+        assert "Type: van" in result
+
+    def test_empty_detections_with_clothing_classification_synthesizes_detection(
+        self,
+    ) -> None:
+        """Test that empty detections list with clothing enrichment synthesizes detection."""
+        enrichment = MockEnrichmentResult(
+            clothing_classifications={
+                "det_c001": MockClothingClassification(
+                    raw_description="dark hoodie, face mask, gloves",
+                    confidence=0.89,
+                    is_suspicious=True,
+                    is_service_uniform=False,
+                    top_category="hoodie",
+                )
+            }
+        )
+        result = format_detections_with_all_enrichment([], enrichment_result=enrichment)
+
+        # Should NOT say "No detections" since we have clothing enrichment
+        assert result != "No detections in this batch."
+        # Should synthesize a person detection (clothing implies person)
+        assert "### PERSON" in result
+        assert "det_c001" in result
+        # Should include the clothing attributes
+        assert "dark hoodie, face mask, gloves" in result
+        assert "**SUSPICIOUS**" in result
+
+    def test_empty_detections_truly_empty_returns_no_detections(self) -> None:
+        """Test that truly empty inputs return 'No detections in this batch.'"""
+        # No detections, no enrichment, no vision extraction
+        result = format_detections_with_all_enrichment([])
+        assert result == "No detections in this batch."
+
+        # With empty enrichment result
+        enrichment = MockEnrichmentResult(
+            clothing_classifications={},
+            clothing_segmentation={},
+            vehicle_classifications={},
+            vehicle_damage={},
+            pet_classifications={},
+        )
+        result = format_detections_with_all_enrichment([], enrichment_result=enrichment)
+        assert result == "No detections in this batch."
+
+        # With empty vision extraction
+        vision_extraction = MockBatchExtractionResult(person_attributes={}, vehicle_attributes={})
+        result = format_detections_with_all_enrichment([], vision_extraction=vision_extraction)
+        assert result == "No detections in this batch."
+
 
 # =============================================================================
 # Test Classes for Edge Cases and Error Handling

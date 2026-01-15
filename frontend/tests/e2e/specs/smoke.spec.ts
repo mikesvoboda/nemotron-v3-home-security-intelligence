@@ -85,8 +85,9 @@ test.describe('Layout Smoke Tests @smoke', () => {
   test('header displays branding', async ({ page }) => {
     await dashboardPage.goto();
     await dashboardPage.waitForDashboardLoad();
-    await expect(page.getByText(/NVIDIA/i).first()).toBeVisible();
-    await expect(page.getByText(/SECURITY/i).first()).toBeVisible();
+    // Check for NVIDIA logo image and Nemotron branding text
+    await expect(page.getByAltText(/NVIDIA/i).first()).toBeVisible();
+    await expect(page.getByText(/Nemotron/i).first()).toBeVisible();
   });
 
   test('sidebar navigation is visible', async () => {

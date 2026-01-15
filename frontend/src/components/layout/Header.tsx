@@ -243,16 +243,11 @@ export default function Header() {
           <Menu className="h-6 w-6" />
         </button>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col">
           <img src="/images/nvidia-logo-white.svg" alt="NVIDIA" className="h-6 w-auto md:h-8" />
-          <div>
-            <h1 className="text-base font-bold tracking-wide text-white md:text-lg">
-              NVIDIA SECURITY
-            </h1>
-            <p className="hidden text-xs font-medium tracking-wider text-[#76B900] sm:block">
-              Nemotron v3 Nano Intelligence
-            </p>
-          </div>
+          <p className="whitespace-nowrap text-[9px] font-medium text-[#76B900] md:text-[10px]">
+            Powered by Nemotron v3 Nano
+          </p>
         </div>
       </div>
 

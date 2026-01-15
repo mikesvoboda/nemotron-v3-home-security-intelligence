@@ -600,6 +600,43 @@ async def test_broadcast_event_no_redis(analyzer):
     await analyzer._broadcast_event(event)
 
 
+@pytest.mark.asyncio
+async def test_broadcast_event_soft_deleted_skipped(analyzer, mock_redis_client):
+    """Test soft-deleted events are not broadcast (NEM-2661).
+
+    Verifies that events with deleted_at set are skipped to prevent
+    console errors when the frontend tries to fetch non-existent event details.
+    """
+    from datetime import UTC
+
+    # Create a soft-deleted event
+    event = Event(
+        id=1,
+        batch_id="batch_123",
+        camera_id="front_door",
+        started_at=datetime(2025, 12, 23, 14, 30, 0),
+        ended_at=datetime(2025, 12, 23, 14, 31, 0),
+        risk_score=75,
+        risk_level="high",
+        summary="Test event",
+        reasoning="Test reasoning",
+        deleted_at=datetime.now(UTC),  # Soft-deleted
+    )
+
+    # Mock the EventBroadcaster.broadcast_event method
+    mock_broadcaster = MagicMock()
+    mock_broadcaster.broadcast_event = AsyncMock()
+
+    with patch(
+        "backend.services.event_broadcaster.get_broadcaster",
+        new=AsyncMock(return_value=mock_broadcaster),
+    ):
+        await analyzer._broadcast_event(event)
+
+    # Verify broadcast_event was NOT called for soft-deleted event
+    mock_broadcaster.broadcast_event.assert_not_called()
+
+
 # Test: Fast Path Analysis (Unit tests - no DB)
 
 
