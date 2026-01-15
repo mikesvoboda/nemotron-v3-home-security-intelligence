@@ -74,11 +74,25 @@ SAMPLE_CAMERAS = [
 ]
 
 
-def discover_cameras(base_path: str) -> list[dict]:
+def _directory_has_images(folder: Path) -> bool:
+    """Check if a directory contains any image files (recursively).
+
+    Args:
+        folder: Path to the camera directory
+
+    Returns:
+        True if directory contains at least one image file
+    """
+    image_patterns = ["*.jpg", "*.JPG", "*.jpeg", "*.JPEG", "*.png", "*.PNG"]
+    return any(any(folder.rglob(pattern)) for pattern in image_patterns)
+
+
+def discover_cameras(base_path: str, include_empty: bool = False) -> list[dict]:
     """Discover camera directories from filesystem.
 
     Args:
         base_path: Root directory containing camera subdirectories
+        include_empty: If False (default), skip directories without images
 
     Returns:
         List of camera configurations discovered from filesystem
@@ -89,8 +103,15 @@ def discover_cameras(base_path: str) -> list[dict]:
         return []
 
     cameras = []
+    skipped = 0
     for folder in sorted(base.iterdir()):
         if folder.is_dir() and not folder.name.startswith("."):
+            # Skip empty directories unless explicitly included
+            if not include_empty and not _directory_has_images(folder):
+                print(f"Skipping empty directory: {folder.name}")
+                skipped += 1
+                continue
+
             # Normalize ID from folder name
             camera_id = normalize_camera_id(folder.name)
             # Create display name (replace underscores with spaces, title case)
@@ -105,6 +126,9 @@ def discover_cameras(base_path: str) -> list[dict]:
                 }
             )
             print(f"Discovered: {folder.name} -> {camera_id}")
+
+    if skipped > 0:
+        print(f"Skipped {skipped} empty directories")
 
     return cameras
 
@@ -277,6 +301,11 @@ Examples:
         action="store_true",
         help="List all cameras in the database and exit",
     )
+    parser.add_argument(
+        "--include-empty",
+        action="store_true",
+        help="Include directories without images when discovering cameras",
+    )
 
     args = parser.parse_args()
 
@@ -297,7 +326,7 @@ Examples:
     if args.discover:
         # Auto-discover from filesystem
         print(f"\nDiscovering cameras from {args.discover}...")
-        discovered = discover_cameras(args.discover)
+        discovered = discover_cameras(args.discover, include_empty=args.include_empty)
         if discovered:
             created = await seed_cameras_from_list(discovered, create_folders=False)
             if created > 0:
