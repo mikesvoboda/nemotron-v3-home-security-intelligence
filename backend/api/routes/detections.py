@@ -54,7 +54,7 @@ from backend.api.utils.field_filter import (
     parse_fields_param,
     validate_fields,
 )
-from backend.api.validators import validate_date_range
+from backend.api.validators import normalize_end_date_to_end_of_day, validate_date_range
 from backend.core.database import get_db
 from backend.core.logging import get_logger
 from backend.core.mime_types import DEFAULT_VIDEO_MIME, normalize_file_type
@@ -240,6 +240,10 @@ async def list_detections(  # noqa: PLR0912
                 detail=f"Invalid cursor: {e}",
             ) from e
 
+    # Normalize end_date to end of day if it's at midnight (date-only input)
+    # This ensures date-only filters like "2026-01-15" include all detections from that day
+    normalized_end_date = normalize_end_date_to_end_of_day(end_date)
+
     # Build base query
     query = select(Detection)
 
@@ -250,8 +254,8 @@ async def list_detections(  # noqa: PLR0912
         query = query.where(Detection.object_type == object_type)
     if start_date:
         query = query.where(Detection.detected_at >= start_date)
-    if end_date:
-        query = query.where(Detection.detected_at <= end_date)
+    if normalized_end_date:
+        query = query.where(Detection.detected_at <= normalized_end_date)
     if min_confidence is not None:
         query = query.where(Detection.confidence >= min_confidence)
 
@@ -457,6 +461,11 @@ async def search_detections(
     from sqlalchemy.dialects.postgresql import JSONB as PG_JSONB
 
     validate_date_range(start_date, end_date)
+
+    # Normalize end_date to end of day if it's at midnight (date-only input)
+    # This ensures date-only filters like "2026-01-15" include all detections from that day
+    normalized_end_date = normalize_end_date_to_end_of_day(end_date)
+
     search_words = q.strip().split()
     search_query = r" \& ".join(f"{word}:*" for word in search_words if word)
     ts_query = func.to_tsquery("english", search_query)
@@ -472,8 +481,8 @@ async def search_detections(
         base_query = base_query.where(Detection.camera_id == camera_id)
     if start_date:
         base_query = base_query.where(Detection.detected_at >= start_date)
-    if end_date:
-        base_query = base_query.where(Detection.detected_at <= end_date)
+    if normalized_end_date:
+        base_query = base_query.where(Detection.detected_at <= normalized_end_date)
     count_query = select(func.count()).select_from(base_query.subquery())
     count_result = await db.execute(count_query)
     total_count = count_result.scalar() or 0

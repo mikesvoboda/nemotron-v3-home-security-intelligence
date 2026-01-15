@@ -164,6 +164,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/seed/pipeline-latency": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Seed Pipeline Latency
+         * @description Seed the pipeline latency tracker with mock historical data.
+         *
+         *     This populates the in-memory PipelineLatencyTracker with realistic
+         *     latency samples for UI testing and development. Data is distributed
+         *     across the specified time span with realistic variance.
+         *
+         *     SECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.
+         *     If ADMIN_API_KEY is set, requires X-Admin-API-Key header.
+         *
+         *     Typical latency ranges (ms):
+         *     - watch_to_detect: 50-200ms (file processing + RT-DETR inference)
+         *     - detect_to_batch: 10-50ms (detection aggregation)
+         *     - batch_to_analyze: 5000-15000ms (Nemotron LLM analysis)
+         *     - total_pipeline: 5100-15300ms (end-to-end)
+         *
+         *     Args:
+         *         request: Configuration for sample generation
+         *         _admin: Admin access validation (via dependency)
+         *
+         *     Returns:
+         *         Summary of seeded latency data
+         */
+        post: operations["seed_pipeline_latency_api_admin_seed_pipeline_latency_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/ai-audit/batch": {
         parameters: {
             query?: never;
@@ -4211,6 +4251,29 @@ export interface paths {
          * @description Receive and store a log from the frontend.
          */
         post: operations["create_frontend_log_api_logs_frontend_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/logs/frontend/batch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Frontend Logs Batch
+         * @description Receive and store multiple logs from the frontend in a single request.
+         *
+         *     This endpoint is optimized for batch log submission to reduce HTTP overhead.
+         *     Maximum 100 log entries per batch.
+         */
+        post: operations["create_frontend_logs_batch_api_logs_frontend_batch_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -9795,7 +9858,7 @@ export interface components {
          *           "risk_score": 75,
          *           "started_at": "2025-12-23T12:00:00Z",
          *           "summary": "Person detected near front entrance",
-         *           "thumbnail_url": "/api/media/detections/1"
+         *           "thumbnail_url": "/api/detections/1/image"
          *         }
          *       ],
          *       "pagination": {
@@ -11610,7 +11673,7 @@ export interface components {
          *           "risk_score": 75,
          *           "started_at": "2025-12-23T12:00:00Z",
          *           "summary": "Person detected near front entrance",
-         *           "thumbnail_url": "/api/media/detections/1"
+         *           "thumbnail_url": "/api/detections/1/image"
          *         }
          *       ],
          *       "pagination": {
@@ -11709,7 +11772,7 @@ export interface components {
          *       "risk_score": 75,
          *       "started_at": "2025-12-23T12:00:00Z",
          *       "summary": "Person detected near front entrance",
-         *       "thumbnail_url": "/api/media/detections/1"
+         *       "thumbnail_url": "/api/detections/1/image"
          *     }
          */
         EventResponse: {
@@ -12553,6 +12616,34 @@ export interface components {
              * @description Whether the file watcher is currently running
              */
             running: boolean;
+        };
+        /**
+         * FrontendLogBatchCreate
+         * @description Schema for batch frontend log submission.
+         * @example {
+         *       "entries": [
+         *         {
+         *           "component": "WebSocket",
+         *           "extra": {
+         *             "reconnect_attempts": 3
+         *           },
+         *           "level": "ERROR",
+         *           "message": "Connection lost"
+         *         },
+         *         {
+         *           "component": "WebSocket",
+         *           "level": "INFO",
+         *           "message": "Reconnected successfully"
+         *         }
+         *       ]
+         *     }
+         */
+        FrontendLogBatchCreate: {
+            /**
+             * Entries
+             * @description List of frontend log entries (max 100 per batch)
+             */
+            entries: components["schemas"]["FrontendLogCreate"][];
         };
         /**
          * FrontendLogCreate
@@ -18250,6 +18341,38 @@ export interface components {
             events_created: number;
         };
         /**
+         * SeedPipelineLatencyRequest
+         * @description Request schema for seeding pipeline latency data.
+         */
+        SeedPipelineLatencyRequest: {
+            /**
+             * Num Samples
+             * @description Number of latency samples to generate per stage (10-1000)
+             * @default 100
+             */
+            num_samples: number;
+            /**
+             * Time Span Hours
+             * @description Time span in hours for the generated samples (1-168)
+             * @default 24
+             */
+            time_span_hours: number;
+        };
+        /**
+         * SeedPipelineLatencyResponse
+         * @description Response schema for seed pipeline latency endpoint.
+         */
+        SeedPipelineLatencyResponse: {
+            /** Message */
+            message: string;
+            /** Samples Per Stage */
+            samples_per_stage: number;
+            /** Stages Seeded */
+            stages_seeded: string[];
+            /** Time Span Hours */
+            time_span_hours: number;
+        };
+        /**
          * ServiceActionResponse
          * @description Response for service action endpoints (restart, enable, disable, start).
          *
@@ -20094,6 +20217,62 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    seed_pipeline_latency_api_admin_seed_pipeline_latency_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-admin-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SeedPipelineLatencyRequest"];
+            };
+        };
+        responses: {
+            /** @description Pipeline latency data seeded successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SeedPipelineLatencyResponse"];
+                };
+            };
+            /** @description Unauthorized - Admin API key required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden - Debug mode or admin not enabled */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
             /** @description Internal server error */
             500: {
@@ -25717,6 +25896,46 @@ export interface operations {
                 content: {
                     "application/json": {
                         [key: string]: string;
+                    };
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    create_frontend_logs_batch_api_logs_frontend_batch_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FrontendLogBatchCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
                     };
                 };
             };

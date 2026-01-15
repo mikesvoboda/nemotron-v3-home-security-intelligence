@@ -146,7 +146,7 @@ EVENT_LIST_RESPONSE_EXAMPLE: dict[str, Any] = {
             "reviewed": False,
             "detection_count": 5,
             "detection_ids": [101, 102, 103, 104, 105],
-            "thumbnail_url": "/api/media/detections/101",
+            "thumbnail_url": "/api/detections/101/image",
         },
         {
             "id": 12344,
@@ -160,7 +160,7 @@ EVENT_LIST_RESPONSE_EXAMPLE: dict[str, Any] = {
             "reviewed": True,
             "detection_count": 2,
             "detection_ids": [99, 100],
-            "thumbnail_url": "/api/media/detections/99",
+            "thumbnail_url": "/api/detections/99/image",
         },
     ],
     "pagination": {
@@ -307,7 +307,7 @@ EVENT_RESPONSE_EXAMPLE: dict[str, Any] = {
     "notes": None,
     "detection_count": 5,
     "detection_ids": [101, 102, 103, 104, 105],
-    "thumbnail_url": "/api/media/detections/101",
+    "thumbnail_url": "/api/detections/101/image",
     "links": {
         "self": "/api/events/12345",
         "camera": "/api/cameras/front_door",

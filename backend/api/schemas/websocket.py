@@ -15,7 +15,7 @@ from __future__ import annotations
 from enum import StrEnum, auto
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class RiskLevel(StrEnum):
@@ -332,10 +332,21 @@ class WebSocketEventMessage(BaseModel):
 
 
 class WebSocketServiceStatus(StrEnum):
-    """Valid service status values for WebSocket health monitoring messages."""
+    """Valid service status values for WebSocket health monitoring messages.
 
+    Includes both health states and worker lifecycle states for comprehensive
+    status reporting across services and workers.
+    """
+
+    # Health states
     HEALTHY = auto()
     UNHEALTHY = auto()
+    # Worker lifecycle states
+    RUNNING = auto()
+    STOPPED = auto()
+    CRASHED = auto()
+    DISABLED = auto()  # Service intentionally disabled
+    # Transition states
     RESTARTING = auto()
     RESTART_FAILED = auto()
     FAILED = auto()
@@ -345,9 +356,16 @@ class WebSocketServiceStatusData(BaseModel):
     """Data payload for service status messages.
 
     Broadcast by the health monitor when a service's status changes.
+
+    Note: Accepts both 'service' and 'name' fields for compatibility with
+    ServiceInfo schema used by container orchestrator.
     """
 
-    service: str = Field(..., description="Name of the service (redis, rtdetr, nemotron)")
+    service: str = Field(
+        ...,
+        validation_alias=AliasChoices("service", "name"),
+        description="Name of the service (redis, rtdetr, nemotron)",
+    )
     status: WebSocketServiceStatus = Field(..., description="Current service status")
     message: str | None = Field(None, description="Optional descriptive message")
 
@@ -366,13 +384,14 @@ class WebSocketServiceStatusData(BaseModel):
         raise ValueError(f"status must be a string or WebSocketServiceStatus enum, got {type(v)}")
 
     model_config = ConfigDict(
+        extra="ignore",  # Allow extra fields from ServiceInfo
         json_schema_extra={
             "example": {
                 "service": "redis",
                 "status": "healthy",
                 "message": "Service responding normally",
             }
-        }
+        },
     )
 
 
@@ -2146,7 +2165,16 @@ EVENT_REGISTRY: dict[WSEventType, dict[str, Any]] = {
             },
             "status": {
                 "type": "string",
-                "enum": ["healthy", "unhealthy", "restarting", "restart_failed", "failed"],
+                "enum": [
+                    "healthy",
+                    "unhealthy",
+                    "running",
+                    "stopped",
+                    "crashed",
+                    "restarting",
+                    "restart_failed",
+                    "failed",
+                ],
                 "description": "Service status",
             },
             "previous_status": {"type": "string", "description": "Previous service status"},

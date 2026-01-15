@@ -1913,3 +1913,84 @@ class TestDatabaseErrorLogging:
                 assert "detail" in call_args[1]["extra"]
         finally:
             db_module._async_session_factory = original_factory
+
+    @pytest.mark.asyncio
+    async def test_get_session_does_not_log_http_exception(self) -> None:
+        """Test that HTTPException is not logged as unexpected database error.
+
+        HTTPException is an expected application-level exception (e.g., 404 not found)
+        and should pass through without error logging or rollback.
+        """
+        from fastapi import HTTPException
+
+        import backend.core.database as db_module
+
+        # Save original state
+        original_factory = db_module._async_session_factory
+
+        try:
+            mock_session = AsyncMock()
+            mock_session.rollback = AsyncMock()
+
+            mock_factory = MagicMock()
+            mock_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_factory.return_value.__aexit__ = AsyncMock(return_value=None)
+
+            db_module._async_session_factory = mock_factory
+
+            with patch.object(db_module._logger, "exception") as mock_logger:
+                with pytest.raises(HTTPException) as exc_info:
+                    async with db_module.get_session():
+                        raise HTTPException(status_code=404, detail="Not found")
+
+                # HTTPException should NOT be logged as unexpected error
+                mock_logger.assert_not_called()
+                # Verify the exception was raised correctly
+                assert exc_info.value.status_code == 404
+                assert exc_info.value.detail == "Not found"
+
+            # Rollback should NOT be called for HTTPException
+            mock_session.rollback.assert_not_called()
+        finally:
+            db_module._async_session_factory = original_factory
+
+    @pytest.mark.asyncio
+    async def test_get_db_does_not_log_http_exception(self) -> None:
+        """Test that get_db does not log HTTPException as unexpected database error.
+
+        HTTPException is an expected application-level exception (e.g., 404 not found)
+        and should pass through without error logging or rollback.
+        """
+        from fastapi import HTTPException
+
+        import backend.core.database as db_module
+
+        # Save original state
+        original_factory = db_module._async_session_factory
+
+        try:
+            mock_session = AsyncMock()
+            mock_session.rollback = AsyncMock()
+            mock_session.close = AsyncMock()
+
+            mock_factory = MagicMock()
+            mock_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_factory.return_value.__aexit__ = AsyncMock(return_value=None)
+
+            db_module._async_session_factory = mock_factory
+
+            with patch.object(db_module._logger, "exception") as mock_logger:
+                with pytest.raises(HTTPException) as exc_info:
+                    async for _session in db_module.get_db():
+                        raise HTTPException(status_code=404, detail="Camera not found")
+
+                # HTTPException should NOT be logged as unexpected error
+                mock_logger.assert_not_called()
+                # Verify the exception was raised correctly
+                assert exc_info.value.status_code == 404
+                assert exc_info.value.detail == "Camera not found"
+
+            # Rollback should NOT be called for HTTPException
+            mock_session.rollback.assert_not_called()
+        finally:
+            db_module._async_session_factory = original_factory

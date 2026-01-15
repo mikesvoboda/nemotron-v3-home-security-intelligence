@@ -491,6 +491,19 @@
     color: inherit;
   }
 
+  /* Tremor DonutChart dark mode fixes */
+  /* Ensure chart segments are visible in dark mode */
+  .recharts-pie-sector path,
+  .recharts-sector {
+    stroke: rgba(0, 0, 0, 0.3) !important;
+    stroke-width: 2px !important;
+  }
+
+  /* Ensure the chart center text is visible */
+  .recharts-pie-label-text {
+    fill: #ffffff !important;
+  }
+
   /* Glass morphism effect */
   .glass {
     background: rgba(26, 26, 26, 0.8);

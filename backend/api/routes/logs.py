@@ -1,6 +1,7 @@
 """API routes for logs management."""
 
 from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from sqlalchemy import case, func, literal, select
@@ -14,13 +15,14 @@ from backend.api.pagination import (
     set_deprecation_headers,
 )
 from backend.api.schemas.logs import (
+    FrontendLogBatchCreate,
     FrontendLogCreate,
     LogEntry,
     LogsResponse,
     LogStats,
     PaginationInfo,
 )
-from backend.api.validators import validate_date_range
+from backend.api.validators import normalize_end_date_to_end_of_day, validate_date_range
 from backend.core.database import escape_ilike_pattern, get_db
 from backend.models.log import Log
 
@@ -103,6 +105,10 @@ async def list_logs(  # noqa: PLR0912
 
     query = select(Log)
 
+    # Normalize end_date to end of day if it's at midnight (date-only input)
+    # This ensures date-only filters like "2026-01-15" include all logs from that day
+    normalized_end_date = normalize_end_date_to_end_of_day(end_date)
+
     # Apply filters
     if level:
         query = query.where(Log.level == level.upper())
@@ -117,8 +123,8 @@ async def list_logs(  # noqa: PLR0912
         query = query.where(Log.message.ilike(f"%{escape_ilike_pattern(search)}%"))
     if start_date:
         query = query.where(Log.timestamp >= start_date)
-    if end_date:
-        query = query.where(Log.timestamp <= end_date)
+    if normalized_end_date:
+        query = query.where(Log.timestamp <= normalized_end_date)
 
     # Apply cursor-based pagination filter (takes precedence over offset)
     if cursor_data:
@@ -338,3 +344,45 @@ async def create_frontend_log(
     await db.commit()
 
     return {"status": "created"}
+
+
+@router.post(
+    "/frontend/batch",
+    status_code=status.HTTP_201_CREATED,
+    responses={
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def create_frontend_logs_batch(
+    batch_data: FrontendLogBatchCreate,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Receive and store multiple logs from the frontend in a single request.
+
+    This endpoint is optimized for batch log submission to reduce HTTP overhead.
+    Maximum 100 log entries per batch.
+    """
+    # Get default user agent from request
+    default_user_agent = request.headers.get("user-agent")
+
+    logs_to_add = []
+    for log_data in batch_data.entries:
+        user_agent = log_data.user_agent or default_user_agent
+
+        log = Log(
+            timestamp=datetime.now(UTC),
+            level=log_data.level.upper(),
+            component=log_data.component,
+            message=log_data.message,
+            extra=log_data.extra,
+            source="frontend",
+            user_agent=user_agent,
+        )
+        logs_to_add.append(log)
+
+    db.add_all(logs_to_add)
+    await db.commit()
+
+    return {"status": "created", "count": len(logs_to_add)}

@@ -123,6 +123,32 @@ class OrphanCleanupResponse(BaseModel):
     skipped_size_limit: int
 
 
+class SeedPipelineLatencyRequest(BaseModel):
+    """Request schema for seeding pipeline latency data."""
+
+    num_samples: int = Field(
+        default=100,
+        ge=10,
+        le=1000,
+        description="Number of latency samples to generate per stage (10-1000)",
+    )
+    time_span_hours: int = Field(
+        default=24,
+        ge=1,
+        le=168,
+        description="Time span in hours for the generated samples (1-168)",
+    )
+
+
+class SeedPipelineLatencyResponse(BaseModel):
+    """Response schema for seed pipeline latency endpoint."""
+
+    samples_per_stage: int
+    stages_seeded: list[str]
+    time_span_hours: int
+    message: str
+
+
 # --- Sample Data ---
 
 
@@ -711,4 +737,94 @@ async def cleanup_orphans(
         dry_run=report.dry_run,
         skipped_young=report.skipped_young,
         skipped_size_limit=report.skipped_size_limit,
+    )
+
+
+@router.post(
+    "/seed/pipeline-latency",
+    response_model=SeedPipelineLatencyResponse,
+    responses={
+        200: {"description": "Pipeline latency data seeded successfully"},
+        401: {"description": "Unauthorized - Admin API key required"},
+        403: {"description": "Forbidden - Debug mode or admin not enabled"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def seed_pipeline_latency(
+    request: SeedPipelineLatencyRequest,
+    _admin: None = Depends(require_admin_access),
+) -> SeedPipelineLatencyResponse:
+    """Seed the pipeline latency tracker with mock historical data.
+
+    This populates the in-memory PipelineLatencyTracker with realistic
+    latency samples for UI testing and development. Data is distributed
+    across the specified time span with realistic variance.
+
+    SECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.
+    If ADMIN_API_KEY is set, requires X-Admin-API-Key header.
+
+    Typical latency ranges (ms):
+    - watch_to_detect: 50-200ms (file processing + RT-DETR inference)
+    - detect_to_batch: 10-50ms (detection aggregation)
+    - batch_to_analyze: 5000-15000ms (Nemotron LLM analysis)
+    - total_pipeline: 5100-15300ms (end-to-end)
+
+    Args:
+        request: Configuration for sample generation
+        _admin: Admin access validation (via dependency)
+
+    Returns:
+        Summary of seeded latency data
+    """
+    import time
+
+    from backend.core.metrics import get_pipeline_latency_tracker
+
+    tracker = get_pipeline_latency_tracker()
+
+    # Latency ranges (min_ms, max_ms, typical_ms) for each stage
+    stage_latency_ranges = {
+        "watch_to_detect": (50, 300, 120),  # RT-DETR inference
+        "detect_to_batch": (10, 100, 30),  # Batch aggregation
+        "batch_to_analyze": (3000, 20000, 8000),  # Nemotron LLM
+        "total_pipeline": (3100, 20500, 8200),  # End-to-end
+    }
+
+    # Calculate time interval between samples
+    time_span_seconds = request.time_span_hours * 3600
+    interval_seconds = time_span_seconds / request.num_samples
+    current_time = time.time()
+    start_time = current_time - time_span_seconds
+
+    stages_seeded = []
+
+    for stage, (min_ms, max_ms, typical_ms) in stage_latency_ranges.items():
+        for i in range(request.num_samples):
+            # Generate realistic latency with occasional spikes
+            # S311: pseudo-random is fine for test data seeding
+            if random.random() < 0.05:  # noqa: S311 - 5% chance of spike
+                latency = random.uniform(typical_ms * 1.5, max_ms)  # noqa: S311
+            else:
+                # Normal distribution around typical value
+                latency = random.gauss(typical_ms, (typical_ms - min_ms) / 2)
+                latency = max(min_ms, min(max_ms, latency))  # Clamp to range
+
+            # Calculate timestamp for this sample
+            sample_time = start_time + (i * interval_seconds)
+
+            # Record with backdated timestamp by temporarily modifying tracker's time source
+            # We use the internal _samples deque directly for backdated data
+            tracker._samples[stage].append((sample_time, latency))
+
+        stages_seeded.append(stage)
+        logger.info(
+            f"Seeded {request.num_samples} latency samples for stage {stage}",
+            extra={"stage": stage, "num_samples": request.num_samples},
+        )
+
+    return SeedPipelineLatencyResponse(
+        samples_per_stage=request.num_samples,
+        stages_seeded=stages_seeded,
+        time_span_hours=request.time_span_hours,
+        message=f"Seeded {request.num_samples} samples per stage across {request.time_span_hours} hours",
     )

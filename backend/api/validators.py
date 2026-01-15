@@ -7,10 +7,11 @@ Validators:
 - validate_date_range: Ensures start_date is not after end_date
 - validate_camera_id_format: Validates camera ID format and length
 - validate_risk_score_range: Validates risk score is within 0-100 range
+- normalize_end_date_to_end_of_day: Converts date-only end_date to end of day
 """
 
 import re
-from datetime import datetime
+from datetime import datetime, time
 
 from fastapi import HTTPException, status
 
@@ -202,3 +203,45 @@ def validate_risk_score_range(risk_score: int) -> int:
         )
 
     return risk_score
+
+
+def normalize_end_date_to_end_of_day(end_date: datetime | None) -> datetime | None:
+    """Normalize end_date to end of day (23:59:59.999999) if it's at midnight.
+
+    When users pass date-only strings like "2026-01-15", they typically mean
+    "include all events from that day". However, parsing such strings results
+    in midnight (00:00:00), which excludes events from the day itself.
+
+    This function detects date-only inputs (time == 00:00:00) and converts
+    them to end of day (23:59:59.999999) to provide inclusive date filtering.
+
+    Args:
+        end_date: The end date to normalize (may be None or a datetime)
+
+    Returns:
+        The normalized datetime (end of day if input was at midnight),
+        or None if input was None or not a datetime instance.
+
+    Examples:
+        >>> # Date at midnight gets extended to end of day
+        >>> normalize_end_date_to_end_of_day(datetime(2026, 1, 15, 0, 0, 0))
+        datetime(2026, 1, 15, 23, 59, 59, 999999)
+
+        >>> # Date with time is left unchanged
+        >>> normalize_end_date_to_end_of_day(datetime(2026, 1, 15, 14, 30, 0))
+        datetime(2026, 1, 15, 14, 30, 0)
+
+        >>> # None returns None
+        >>> normalize_end_date_to_end_of_day(None)
+        None
+    """
+    if not isinstance(end_date, datetime):
+        return end_date
+
+    # Check if time is exactly midnight (00:00:00.000000)
+    # This indicates a date-only input that was parsed without time
+    if end_date.time() == time(0, 0, 0, 0):
+        # Extend to end of day: 23:59:59.999999
+        return end_date.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+    return end_date
