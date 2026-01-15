@@ -9,8 +9,8 @@ import {
   Text,
   Metric,
   AreaChart,
-  DonutChart,
   BarChart,
+  BarList,
   ProgressBar,
   Badge,
   Table,
@@ -236,8 +236,9 @@ export default function AnalyticsPage() {
     const riskLevels = eventStats.events_by_risk_level || {};
     return [
       { name: 'Low (0-30)', value: riskLevels.low || 0 },
-      { name: 'Medium (30-70)', value: riskLevels.medium || 0 },
-      { name: 'High (70+)', value: riskLevels.high || 0 },
+      { name: 'Medium (31-60)', value: riskLevels.medium || 0 },
+      { name: 'High (61-80)', value: riskLevels.high || 0 },
+      { name: 'Critical (81+)', value: riskLevels.critical || 0 },
     ].filter((item) => item.value > 0);
   };
 
@@ -479,14 +480,26 @@ export default function AnalyticsPage() {
                   <Card>
                     <Title>Object Type Distribution</Title>
                     {prepareObjectDistributionData().length > 0 ? (
-                      <DonutChart
-                        className="mt-4 h-72"
-                        data={prepareObjectDistributionData()}
-                        category="value"
-                        index="name"
-                        colors={['green', 'blue', 'yellow', 'red', 'purple', 'pink']}
-                        valueFormatter={(value) => `${value} detections`}
-                      />
+                      <div className="mt-4">
+                        <div className="mb-4 flex items-center justify-between">
+                          <Text className="text-gray-400">Detection counts by object type</Text>
+                          <Text className="font-semibold text-white">
+                            {detectionStats?.total_detections || 0} total
+                          </Text>
+                        </div>
+                        <BarList
+                          data={prepareObjectDistributionData().map((item, index) => {
+                            const colors = ['cyan', 'violet', 'amber', 'rose', 'emerald', 'fuchsia'];
+                            return {
+                              name: item.name,
+                              value: item.value,
+                              color: colors[index % colors.length],
+                            };
+                          })}
+                          valueFormatter={(value: number) => `${value} detections`}
+                          className="mt-2"
+                        />
+                      </div>
                     ) : (
                       <EmptyState message="No detection class data available" />
                     )}
@@ -572,14 +585,26 @@ export default function AnalyticsPage() {
                   <Card>
                     <Title>Risk Score Distribution</Title>
                     {prepareRiskDistributionData().length > 0 ? (
-                      <DonutChart
-                        className="mt-4 h-72"
-                        data={prepareRiskDistributionData()}
-                        category="value"
-                        index="name"
-                        colors={['green', 'yellow', 'red']}
-                        valueFormatter={(value) => `${value} events`}
-                      />
+                      <div className="mt-4">
+                        <div className="mb-4 flex items-center justify-between">
+                          <Text className="text-gray-400">Events by risk level</Text>
+                          <Text className="font-semibold text-white">
+                            {eventStats?.total_events || 0} total
+                          </Text>
+                        </div>
+                        <BarList
+                          data={prepareRiskDistributionData().map((item, index) => {
+                            const colors = ['emerald', 'amber', 'orange', 'rose'];
+                            return {
+                              name: item.name,
+                              value: item.value,
+                              color: colors[index % colors.length],
+                            };
+                          })}
+                          valueFormatter={(value: number) => `${value} events`}
+                          className="mt-2"
+                        />
+                      </div>
                     ) : (
                       <EmptyState message="No risk distribution data available" />
                     )}
@@ -661,15 +686,23 @@ export default function AnalyticsPage() {
                 <Card>
                   <Title>Detection Counts by Camera</Title>
                   {prepareCameraActivityData().length > 0 ? (
-                    <BarChart
-                      className="mt-4 h-72"
-                      data={prepareCameraActivityData()}
-                      index="camera"
-                      categories={['events']}
-                      colors={['blue']}
-                      valueFormatter={(value) => `${value} detections`}
-                      layout="vertical"
-                    />
+                    <div className="mt-4">
+                      <div className="mb-4 flex items-center justify-between">
+                        <Text className="text-gray-400">Events per camera</Text>
+                        <Text className="font-semibold text-white">
+                          {prepareCameraActivityData().reduce((sum, item) => sum + item.events, 0)} total
+                        </Text>
+                      </div>
+                      <BarList
+                        data={prepareCameraActivityData().map((item) => ({
+                          name: item.camera,
+                          value: item.events,
+                          color: 'blue',
+                        }))}
+                        valueFormatter={(value: number) => `${value} events`}
+                        className="mt-2"
+                      />
+                    </div>
                   ) : (
                     <EmptyState message="No camera detection data available" />
                   )}

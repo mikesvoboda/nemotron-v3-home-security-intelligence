@@ -20,7 +20,7 @@ from backend.api.schemas.logs import (
     LogStats,
     PaginationInfo,
 )
-from backend.api.validators import validate_date_range
+from backend.api.validators import normalize_end_date_to_end_of_day, validate_date_range
 from backend.core.database import escape_ilike_pattern, get_db
 from backend.models.log import Log
 
@@ -103,6 +103,10 @@ async def list_logs(  # noqa: PLR0912
 
     query = select(Log)
 
+    # Normalize end_date to end of day if it's at midnight (date-only input)
+    # This ensures date-only filters like "2026-01-15" include all logs from that day
+    normalized_end_date = normalize_end_date_to_end_of_day(end_date)
+
     # Apply filters
     if level:
         query = query.where(Log.level == level.upper())
@@ -117,8 +121,8 @@ async def list_logs(  # noqa: PLR0912
         query = query.where(Log.message.ilike(f"%{escape_ilike_pattern(search)}%"))
     if start_date:
         query = query.where(Log.timestamp >= start_date)
-    if end_date:
-        query = query.where(Log.timestamp <= end_date)
+    if normalized_end_date:
+        query = query.where(Log.timestamp <= normalized_end_date)
 
     # Apply cursor-based pagination filter (takes precedence over offset)
     if cursor_data:

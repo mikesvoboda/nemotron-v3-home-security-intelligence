@@ -20,7 +20,7 @@ from backend.api.schemas.audit import (
     AuditLogStats,
 )
 from backend.api.schemas.pagination import PaginationMeta
-from backend.api.validators import validate_date_range
+from backend.api.validators import normalize_end_date_to_end_of_day, validate_date_range
 from backend.core.database import get_db
 from backend.models.audit import AuditLog
 
@@ -108,6 +108,10 @@ async def list_audit_logs(  # noqa: PLR0912
     # Build base query
     query = select(AuditLog)
 
+    # Normalize end_date to end of day if it's at midnight (date-only input)
+    # This ensures date-only filters like "2026-01-15" include all audit logs from that day
+    normalized_end_date = normalize_end_date_to_end_of_day(end_date)
+
     # Apply filters
     if action:
         query = query.where(AuditLog.action == action)
@@ -121,8 +125,8 @@ async def list_audit_logs(  # noqa: PLR0912
         query = query.where(AuditLog.status == status_filter)
     if start_date:
         query = query.where(AuditLog.timestamp >= start_date)
-    if end_date:
-        query = query.where(AuditLog.timestamp <= end_date)
+    if normalized_end_date:
+        query = query.where(AuditLog.timestamp <= normalized_end_date)
 
     # Apply cursor-based pagination filter (takes precedence over offset)
     if cursor_data:

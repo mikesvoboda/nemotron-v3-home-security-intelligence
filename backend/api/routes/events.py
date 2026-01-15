@@ -56,7 +56,7 @@ from backend.api.utils.field_filter import (
     parse_fields_param,
     validate_fields,
 )
-from backend.api.validators import validate_date_range
+from backend.api.validators import normalize_end_date_to_end_of_day, validate_date_range
 from backend.core.database import escape_ilike_pattern, get_db
 from backend.core.logging import get_logger, sanitize_log_value
 from backend.core.metrics import record_event_reviewed
@@ -323,6 +323,10 @@ async def list_events(  # noqa: PLR0912
                 detail=f"Invalid cursor: {e}",
             ) from e
 
+    # Normalize end_date to end of day if it's at midnight (date-only input)
+    # This ensures date-only filters like "2026-01-15" include all events from that day
+    normalized_end_date = normalize_end_date_to_end_of_day(end_date)
+
     # Build base query with eager loading for camera relationship (NEM-1619)
     query = select(Event).options(joinedload(Event.camera))
 
@@ -333,8 +337,8 @@ async def list_events(  # noqa: PLR0912
         query = query.where(Event.risk_level == risk_level)
     if start_date:
         query = query.where(Event.started_at >= start_date)
-    if end_date:
-        query = query.where(Event.started_at <= end_date)
+    if normalized_end_date:
+        query = query.where(Event.started_at <= normalized_end_date)
     if reviewed is not None:
         query = query.where(Event.reviewed == reviewed)
 
@@ -504,12 +508,16 @@ async def get_event_stats(
     except Exception as e:
         logger.warning(f"Cache read failed, falling back to database: {e}")
 
+    # Normalize end_date to end of day if it's at midnight (date-only input)
+    # This ensures date-only filters like "2026-01-15" include all events from that day
+    normalized_end_date = normalize_end_date_to_end_of_day(end_date)
+
     # Build filter conditions (reused across queries)
     filters = []
     if start_date:
         filters.append(Event.started_at >= start_date)
-    if end_date:
-        filters.append(Event.started_at <= end_date)
+    if normalized_end_date:
+        filters.append(Event.started_at <= normalized_end_date)
     if camera_id:
         filters.append(Event.camera_id == camera_id)
 
@@ -770,6 +778,10 @@ async def export_events(
     accept_header = request.headers.get("Accept")
     export_format = parse_accept_header(accept_header)
 
+    # Normalize end_date to end of day if it's at midnight (date-only input)
+    # This ensures date-only filters like "2026-01-15" include all events from that day
+    normalized_end_date = normalize_end_date_to_end_of_day(end_date)
+
     # Build base query
     query = select(Event)
 
@@ -780,8 +792,8 @@ async def export_events(
         query = query.where(Event.risk_level == risk_level)
     if start_date:
         query = query.where(Event.started_at >= start_date)
-    if end_date:
-        query = query.where(Event.started_at <= end_date)
+    if normalized_end_date:
+        query = query.where(Event.started_at <= normalized_end_date)
     if reviewed is not None:
         query = query.where(Event.reviewed == reviewed)
 
