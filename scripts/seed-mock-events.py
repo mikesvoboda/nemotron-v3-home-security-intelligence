@@ -298,14 +298,16 @@ async def seed_mock_data(num_events: int = 15) -> tuple[int, int]:
                 bbox_width = random.randint(80, 200)  # noqa: S311
                 bbox_height = random.randint(100, 250)  # noqa: S311
 
-                # Use actual image path if available, otherwise use placeholder
+                # Use actual image path if available, otherwise use mock placeholder
+                # Bug fix for NEM-2665: Use a clear mock indicator that won't trigger
+                # thumbnail generation failures
                 if camera_images:
                     file_path = random.choice(camera_images)  # noqa: S311
                 else:
-                    # Fallback to placeholder path (use container path format)
-                    # Convert /export/foscam/... to /cameras/...
-                    container_folder = camera.folder_path.replace("/export/foscam", "/cameras")
-                    file_path = f"{container_folder}/placeholder_{j + 1}.jpg"
+                    # Fallback to a mock:// URI scheme that indicates this is mock data
+                    # This prevents thumbnail generation from failing on non-existent files
+                    # Format: mock://camera_name/detection_index.jpg
+                    file_path = f"mock://{camera.id}/detection_{i}_{j + 1}.jpg"
 
                 detection = Detection(
                     camera_id=camera.id,
@@ -366,7 +368,8 @@ async def seed_entities(num_entities: int = 30) -> int:
         print("Warning: No detections found. Entities will not have primary detections.")
 
     cameras = await get_cameras()
-    camera_ids = [c.id for c in cameras] if cameras else ["unknown"]
+    # Use camera names (not IDs) for cameras_seen field - Bug fix for NEM-2666
+    camera_names = [c.name for c in cameras] if cameras else ["unknown"]
 
     entities_created = 0
 
@@ -404,9 +407,10 @@ async def seed_entities(num_entities: int = 30) -> int:
             # Get metadata template
             metadata_templates = ENTITY_METADATA_TEMPLATES.get(entity_type.value, [{}])
             entity_metadata = random.choice(metadata_templates).copy()  # noqa: S311
+            # Use camera names for cameras_seen field - Bug fix for NEM-2666
             entity_metadata["cameras_seen"] = random.sample(
-                camera_ids,
-                min(len(camera_ids), random.randint(1, 3)),  # noqa: S311
+                camera_names,
+                min(len(camera_names), random.randint(1, 3)),  # noqa: S311
             )
 
             # Optionally link to a detection
@@ -738,6 +742,9 @@ async def seed_application_logs(num_logs: int = 100) -> int:
 async def seed_trash(num_deleted: int = 10) -> int:
     """Soft-delete some events to populate the Trash page.
 
+    Bug fix for NEM-2664: Ensure all trashed events have a valid deleted_at
+    timestamp within the last 7 days.
+
     Args:
         num_deleted: Number of events to soft-delete
 
@@ -760,10 +767,14 @@ async def seed_trash(num_deleted: int = 10) -> int:
         deleted_count = 0
 
         for event in to_delete:
-            # Set deleted_at to a random time in the past week
-            days_ago = random.uniform(0, 7)  # noqa: S311
-            event.deleted_at = datetime.now(UTC) - timedelta(days=days_ago)
+            # Bug fix for NEM-2664: Set deleted_at to a valid timestamp
+            # Generate a random time within the last 7 days (minimum 1 hour ago)
+            hours_ago = random.uniform(1, 168)  # noqa: S311  # 1 hour to 7 days
+            deleted_timestamp = datetime.now(UTC) - timedelta(hours=hours_ago)
+            # Ensure the timestamp is valid and timezone-aware
+            event.deleted_at = deleted_timestamp.replace(microsecond=0)
             deleted_count += 1
+            print(f"    Soft-deleted event {event.id} (deleted_at: {event.deleted_at})")
 
         await session.commit()
 
@@ -896,13 +907,17 @@ Examples:
         logs_count = args.logs
         trash_count = args.trash
 
-    # Check if anything was specified
+    # Default to --all behavior if nothing was specified
     if not any(
         [events_count, entities_count, alerts_count, audit_logs_count, logs_count, trash_count]
     ):
-        print("\nNo seeding options specified. Use --all or specify individual counts.")
-        parser.print_help()
-        return 1
+        print("\nNo arguments specified, using --all defaults...")
+        events_count = 100
+        entities_count = 50
+        alerts_count = 30
+        audit_logs_count = 75
+        logs_count = 150
+        trash_count = 15
 
     # Seed data in order (events first, as other data may reference them)
     total_created = {}
