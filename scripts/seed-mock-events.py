@@ -1423,6 +1423,16 @@ By default, also seeds supporting data for full UI testing:
             logs_count = args.logs or 100
             trash_count = args.trash or 10
 
+            # Check if events exist - alerts and trash need events to link to
+            current_events = await get_events()
+            if not current_events:
+                print("\n⚠ No events found after pipeline phase.")
+                print("  Seeding mock events so alerts/trash can be created...")
+                mock_event_count = args.count or 50
+                events, detections = await seed_mock_data(mock_event_count)
+                total_created["mock_events"] = events
+                total_created["mock_detections"] = detections
+
             print(f"\nSeeding {entities_count} entities...")
             total_created["entities"] = await seed_entities(entities_count)
 
