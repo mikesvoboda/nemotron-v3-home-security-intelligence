@@ -112,7 +112,10 @@ export default function ActivityFeed({
   };
 
   return (
-    <div className={clsx('flex h-full flex-col rounded-lg bg-gray-900 shadow-lg', className)} data-testid="activity-feed">
+    <div
+      className={clsx('flex h-full flex-col rounded-lg bg-gray-900 shadow-lg', className)}
+      data-testid="activity-feed"
+    >
       {/* Header */}
       {showHeader && (
         <div className="flex items-center justify-between border-b border-gray-800 px-4 py-3">
@@ -148,7 +151,9 @@ export default function ActivityFeed({
           <div className="flex h-full flex-col items-center justify-center text-center">
             <Camera className="mb-4 h-16 w-16 text-gray-700" />
             <h4 className="mb-2 text-lg font-medium text-text-secondary">No Activity Yet</h4>
-            <p className="text-sm text-text-muted">Security events will appear here as they occur.</p>
+            <p className="text-sm text-text-muted">
+              Security events will appear here as they occur.
+            </p>
           </div>
         ) : (
           /* Event Items */
@@ -195,10 +200,15 @@ export default function ActivityFeed({
                     </div>
 
                     {/* Summary */}
-                    <p className="mb-1.5 line-clamp-2 text-sm text-text-secondary">{event.summary}</p>
+                    <p className="mb-1.5 line-clamp-2 text-sm text-text-secondary">
+                      {event.summary}
+                    </p>
 
                     {/* Timestamp */}
-                    <div className="flex items-center gap-1.5 text-xs text-text-muted" data-testid="card-timestamp">
+                    <div
+                      className="flex items-center gap-1.5 text-xs text-text-muted"
+                      data-testid="card-timestamp"
+                    >
                       <Clock className="h-3 w-3" />
                       <time dateTime={event.timestamp}>{formatTimestamp(event.timestamp)}</time>
                     </div>

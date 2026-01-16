@@ -278,9 +278,7 @@ export default function ScheduleSelector({
                 </button>
               ))}
             </div>
-            <p className="mt-1 text-xs text-text-secondary">
-              Leave empty for all days
-            </p>
+            <p className="mt-1 text-xs text-text-secondary">Leave empty for all days</p>
           </div>
 
           {/* Time selection */}

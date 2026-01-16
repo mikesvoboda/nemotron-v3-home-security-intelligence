@@ -216,16 +216,33 @@ import type {
 } from '../types/generated';
 
 // Re-export entity types for consumers of this module
-export type { EntityAppearance, EntitySummary, EntityDetail, EntityListResponse, EntityHistoryResponse };
+export type {
+  EntityAppearance,
+  EntitySummary,
+  EntityDetail,
+  EntityListResponse,
+  EntityHistoryResponse,
+};
 
 // Re-export job types for consumers of this module
-export type { JobResponse, JobListResponse, JobStatusEnum, CleanupStatusResponse, OrphanedFileCleanupResponse };
+export type {
+  JobResponse,
+  JobListResponse,
+  JobStatusEnum,
+  CleanupStatusResponse,
+  OrphanedFileCleanupResponse,
+};
 
 // Re-export feedback types for consumers of this module
 export type { EventFeedbackCreate, EventFeedbackResponse, FeedbackType, FeedbackStatsResponse };
 
 // Re-export calibration types for consumers of this module
-export type { CalibrationResponse, CalibrationUpdate, CalibrationDefaultsResponse, CalibrationResetResponse };
+export type {
+  CalibrationResponse,
+  CalibrationUpdate,
+  CalibrationDefaultsResponse,
+  CalibrationResetResponse,
+};
 
 // Re-export enrichment types for consumers of this module
 // Note: EnrichmentResponse is already defined in this file (see fetchDetectionEnrichment)
@@ -739,11 +756,7 @@ export async function fetchWithTimeout(
     return response;
   } catch (error) {
     // Check if this was a timeout abort
-    if (
-      error instanceof DOMException &&
-      error.name === 'AbortError' &&
-      timedOut
-    ) {
+    if (error instanceof DOMException && error.name === 'AbortError' && timedOut) {
       throw new TimeoutError(effectiveTimeout);
     }
     // Re-throw other errors (including user-initiated AbortErrors)
@@ -1418,9 +1431,7 @@ export async function fetchCameraActivityBaseline(
  * @param cameraId - Camera ID
  * @returns ClassBaselineResponse with entries for each class/hour combination
  */
-export async function fetchCameraClassBaseline(
-  cameraId: string
-): Promise<ClassBaselineResponse> {
+export async function fetchCameraClassBaseline(cameraId: string): Promise<ClassBaselineResponse> {
   return fetchApi<ClassBaselineResponse>(
     `/api/cameras/${encodeURIComponent(cameraId)}/baseline/classes`
   );
@@ -1441,9 +1452,7 @@ export async function fetchAnomalyConfig(): Promise<AnomalyConfig> {
  * @param config - Configuration values to update (only provided values are changed)
  * @returns AnomalyConfig with updated settings
  */
-export async function updateAnomalyConfig(
-  config: AnomalyConfigUpdate
-): Promise<AnomalyConfig> {
+export async function updateAnomalyConfig(config: AnomalyConfigUpdate): Promise<AnomalyConfig> {
   return fetchApi<AnomalyConfig>('/api/system/anomaly-config', {
     method: 'PATCH',
     body: JSON.stringify(config),
@@ -1582,10 +1591,14 @@ export async function fetchReadiness(): Promise<ReadinessResponse> {
  * @param windowMinutes - Time window for calculating statistics (default: 60)
  * @returns PipelineLatencyResponse with latency stats for each stage
  */
-export async function fetchPipelineLatency(windowMinutes: number = 60): Promise<PipelineLatencyResponse> {
+export async function fetchPipelineLatency(
+  windowMinutes: number = 60
+): Promise<PipelineLatencyResponse> {
   const queryParams = new URLSearchParams();
   queryParams.append('window_minutes', String(windowMinutes));
-  return fetchApi<PipelineLatencyResponse>(`/api/system/pipeline-latency?${queryParams.toString()}`);
+  return fetchApi<PipelineLatencyResponse>(
+    `/api/system/pipeline-latency?${queryParams.toString()}`
+  );
 }
 
 /**
@@ -1603,7 +1616,9 @@ export async function fetchPipelineLatencyHistory(
   const queryParams = new URLSearchParams();
   queryParams.append('since', String(since));
   queryParams.append('bucket_seconds', String(bucketSeconds));
-  return fetchApi<PipelineLatencyHistoryResponse>(`/api/system/pipeline-latency/history?${queryParams.toString()}`);
+  return fetchApi<PipelineLatencyHistoryResponse>(
+    `/api/system/pipeline-latency/history?${queryParams.toString()}`
+  );
 }
 
 // ============================================================================
@@ -1783,13 +1798,8 @@ interface DeletedEventsBackendResponse {
  * @param options - Optional fetch options (timeout, abort signal)
  * @returns List of deleted events with total count
  */
-export async function fetchDeletedEvents(
-  options?: FetchOptions
-): Promise<DeletedEventsResponse> {
-  const response = await fetchApi<DeletedEventsBackendResponse>(
-    '/api/events/deleted',
-    options
-  );
+export async function fetchDeletedEvents(options?: FetchOptions): Promise<DeletedEventsResponse> {
+  const response = await fetchApi<DeletedEventsBackendResponse>('/api/events/deleted', options);
   // Map from NEM-2075 pagination envelope to frontend interface
   return {
     events: response.items,
@@ -2709,9 +2719,7 @@ export async function submitEventFeedback(
  * @param eventId - The event ID to get feedback for
  * @returns EventFeedbackResponse if feedback exists, null if not found
  */
-export async function getEventFeedback(
-  eventId: number
-): Promise<EventFeedbackResponse | null> {
+export async function getEventFeedback(eventId: number): Promise<EventFeedbackResponse | null> {
   try {
     return await fetchApi<EventFeedbackResponse>(`/api/feedback/event/${eventId}`);
   } catch (error) {
@@ -3223,10 +3231,7 @@ export async function createAlertRule(data: AlertRuleCreate): Promise<AlertRule>
  * @param data - Alert rule update data
  * @returns Updated AlertRule
  */
-export async function updateAlertRule(
-  id: string,
-  data: AlertRuleUpdate
-): Promise<AlertRule> {
+export async function updateAlertRule(id: string, data: AlertRuleUpdate): Promise<AlertRule> {
   return fetchApi<AlertRule>(`/api/alerts/rules/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),
@@ -3288,7 +3293,10 @@ export interface RuleTestRequest {
  * @param request - Test request parameters
  * @returns RuleTestResponse with per-event match results
  */
-export async function testAlertRule(id: string, request?: RuleTestRequest): Promise<RuleTestResponse> {
+export async function testAlertRule(
+  id: string,
+  request?: RuleTestRequest
+): Promise<RuleTestResponse> {
   return fetchApi<RuleTestResponse>(`/api/alerts/rules/${id}/test`, {
     method: 'POST',
     body: JSON.stringify(request || { limit: 10 }),
@@ -3526,7 +3534,9 @@ export async function fetchCircuitBreakers(): Promise<GeneratedCircuitBreakersRe
  * @throws ApiError 400 if name is invalid
  * @throws ApiError 404 if circuit breaker not found
  */
-export async function resetCircuitBreaker(name: string): Promise<GeneratedCircuitBreakerResetResponse> {
+export async function resetCircuitBreaker(
+  name: string
+): Promise<GeneratedCircuitBreakerResetResponse> {
   return fetchApi<GeneratedCircuitBreakerResetResponse>(
     `/api/system/circuit-breakers/${encodeURIComponent(name)}/reset`,
     { method: 'POST' }
@@ -4220,9 +4230,7 @@ export async function fetchEntity(entityId: string): Promise<EntityDetail> {
  * @returns EntityHistoryResponse with appearance timeline
  */
 export async function fetchEntityHistory(entityId: string): Promise<EntityHistoryResponse> {
-  return fetchApi<EntityHistoryResponse>(
-    `/api/entities/${encodeURIComponent(entityId)}/history`
-  );
+  return fetchApi<EntityHistoryResponse>(`/api/entities/${encodeURIComponent(entityId)}/history`);
 }
 
 /**
@@ -4308,9 +4316,7 @@ export async function fetchEventEntityMatches(
   eventId: number
 ): Promise<EventEntityMatchesResponse> {
   try {
-    return await fetchApi<EventEntityMatchesResponse>(
-      `/api/events/${eventId}/entity-matches`
-    );
+    return await fetchApi<EventEntityMatchesResponse>(`/api/events/${eventId}/entity-matches`);
   } catch (error) {
     // If no matches exist (404) or endpoint not implemented, return empty response
     if (error instanceof ApiError && (error.status === 404 || error.status === 501)) {
@@ -4793,9 +4799,7 @@ export async function fetchCalibration(): Promise<CalibrationResponse> {
  * console.log(`Updated thresholds: ${updated.low_threshold}, ${updated.medium_threshold}`);
  * ```
  */
-export async function updateCalibration(
-  update: CalibrationUpdate
-): Promise<CalibrationResponse> {
+export async function updateCalibration(update: CalibrationUpdate): Promise<CalibrationResponse> {
   return fetchApi<CalibrationResponse>('/api/calibration', {
     method: 'PUT',
     body: JSON.stringify(update),
@@ -4951,9 +4955,7 @@ export interface EntityStatsResponse {
  * });
  * ```
  */
-export async function fetchEntitiesV2(
-  params?: EntitiesV2QueryParams
-): Promise<EntityListResponse> {
+export async function fetchEntitiesV2(params?: EntitiesV2QueryParams): Promise<EntityListResponse> {
   const searchParams = new URLSearchParams();
 
   if (params?.entity_type) {
@@ -5073,9 +5075,10 @@ export async function fetchEntityDetections(
  * });
  * ```
  */
-export async function fetchEntityStats(
-  params?: { since?: string; until?: string }
-): Promise<EntityStatsResponse> {
+export async function fetchEntityStats(params?: {
+  since?: string;
+  until?: string;
+}): Promise<EntityStatsResponse> {
   const searchParams = new URLSearchParams();
 
   if (params?.since) {

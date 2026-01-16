@@ -96,9 +96,7 @@ export interface UseCamerasQueryReturn {
  * );
  * ```
  */
-export function useCamerasQuery(
-  options: UseCamerasQueryOptions = {}
-): UseCamerasQueryReturn {
+export function useCamerasQuery(options: UseCamerasQueryOptions = {}): UseCamerasQueryReturn {
   const { enabled = true, refetchInterval = false, staleTime = DEFAULT_STALE_TIME } = options;
 
   const query = useQuery({
@@ -286,9 +284,7 @@ export function useCameraMutation(): UseCameraMutationReturn {
     // Replace the optimistic camera with the real one on success
     onSuccess: (newCamera, _variables, context) => {
       queryClient.setQueryData<Camera[]>(queryKeys.cameras.list(), (old) =>
-        old?.map((camera) =>
-          camera.id === context?.optimisticId ? newCamera : camera
-        )
+        old?.map((camera) => (camera.id === context?.optimisticId ? newCamera : camera))
       );
     },
 
@@ -316,7 +312,8 @@ export function useCameraMutation(): UseCameraMutationReturn {
           // Filter out null/undefined values to avoid overwriting with nulls
           const updates: Partial<Camera> = {};
           if (data.name !== null && data.name !== undefined) updates.name = data.name;
-          if (data.folder_path !== null && data.folder_path !== undefined) updates.folder_path = data.folder_path;
+          if (data.folder_path !== null && data.folder_path !== undefined)
+            updates.folder_path = data.folder_path;
           if (data.status !== null && data.status !== undefined) updates.status = data.status;
           return { ...camera, ...updates };
         })

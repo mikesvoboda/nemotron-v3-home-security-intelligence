@@ -237,7 +237,11 @@ describe('TypedWebSocketEmitter', () => {
         queue: { pending: 0, processing: 0 },
         health: 'healthy',
       };
-      const message = { type: 'system_status', data: statusData, timestamp: '2024-01-01T00:00:00Z' };
+      const message = {
+        type: 'system_status',
+        data: statusData,
+        timestamp: '2024-01-01T00:00:00Z',
+      };
 
       emitter.on('system_status', handler);
       const handled = emitter.handleMessage(message);
@@ -394,10 +398,7 @@ describe('TypedWebSocketEmitter', () => {
         summary: 'Person detected',
       });
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        'Error in event handler:',
-        expect.any(Error)
-      );
+      expect(consoleSpy).toHaveBeenCalledWith('Error in event handler:', expect.any(Error));
 
       consoleSpy.mockRestore();
     });
@@ -418,10 +419,7 @@ describe('TypedWebSocketEmitter', () => {
       });
 
       // Verify the log includes the event type
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('event'),
-        expect.any(Error)
-      );
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('event'), expect.any(Error));
 
       consoleSpy.mockRestore();
     });

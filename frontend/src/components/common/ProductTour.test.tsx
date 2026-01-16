@@ -22,25 +22,57 @@ vi.mock('react-joyride', () => ({
           <span data-testid="joyride-steps-count">{steps?.length || 0}</span>
           <button
             data-testid="joyride-next"
-            onClick={() => callback({ action: 'next', index: 0, status: 'running', type: 'step:after', lifecycle: 'complete' })}
+            onClick={() =>
+              callback({
+                action: 'next',
+                index: 0,
+                status: 'running',
+                type: 'step:after',
+                lifecycle: 'complete',
+              })
+            }
           >
             Next
           </button>
           <button
             data-testid="joyride-skip"
-            onClick={() => callback({ action: 'skip', index: 0, status: 'skipped', type: 'tour:end', lifecycle: 'complete' })}
+            onClick={() =>
+              callback({
+                action: 'skip',
+                index: 0,
+                status: 'skipped',
+                type: 'tour:end',
+                lifecycle: 'complete',
+              })
+            }
           >
             Skip
           </button>
           <button
             data-testid="joyride-close"
-            onClick={() => callback({ action: 'close', index: 0, status: 'running', type: 'tour:end', lifecycle: 'complete' })}
+            onClick={() =>
+              callback({
+                action: 'close',
+                index: 0,
+                status: 'running',
+                type: 'tour:end',
+                lifecycle: 'complete',
+              })
+            }
           >
             Close
           </button>
           <button
             data-testid="joyride-finish"
-            onClick={() => callback({ action: 'next', index: steps.length - 1, status: 'finished', type: 'tour:end', lifecycle: 'complete' })}
+            onClick={() =>
+              callback({
+                action: 'next',
+                index: steps.length - 1,
+                status: 'finished',
+                type: 'tour:end',
+                lifecycle: 'complete',
+              })
+            }
           >
             Finish
           </button>

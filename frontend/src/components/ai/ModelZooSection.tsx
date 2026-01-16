@@ -6,7 +6,18 @@
  * disabled models at the bottom (grayed out).
  */
 
-import { Card, Title, Text, AreaChart, Select, SelectItem, Accordion, AccordionHeader, AccordionBody, AccordionList } from '@tremor/react';
+import {
+  Card,
+  Title,
+  Text,
+  AreaChart,
+  Select,
+  SelectItem,
+  Accordion,
+  AccordionHeader,
+  AccordionBody,
+  AccordionList,
+} from '@tremor/react';
 import { clsx } from 'clsx';
 import { TrendingUp, Boxes, Cpu, MemoryStick, Clock } from 'lucide-react';
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -254,10 +265,7 @@ function ModelLatencyChart({ selectedModel, onModelChange, models }: ModelLatenc
   const modelDisplayName = selectedModelData?.display_name ?? selectedModel;
 
   return (
-    <Card
-      className="border-gray-800 bg-[#1A1A1A] shadow-lg"
-      data-testid="model-zoo-latency-chart"
-    >
+    <Card className="border-gray-800 bg-[#1A1A1A] shadow-lg" data-testid="model-zoo-latency-chart">
       <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <Title className="flex items-center gap-2 text-white">
           <TrendingUp className="h-5 w-5 text-[#76B900]" />
@@ -335,7 +343,10 @@ function ModelLatencyChart({ selectedModel, onModelChange, models }: ModelLatenc
 /**
  * ModelZooSection - Main component for Model Zoo status and latency visualization
  */
-export default function ModelZooSection({ className, pollingInterval = 30000 }: ModelZooSectionProps) {
+export default function ModelZooSection({
+  className,
+  pollingInterval = 30000,
+}: ModelZooSectionProps) {
   const [statusData, setStatusData] = useState<ModelZooStatusResponse | null>(null);
   const [selectedModel, setSelectedModel] = useState<string>('yolo11-license-plate');
   const [loading, setLoading] = useState(true);

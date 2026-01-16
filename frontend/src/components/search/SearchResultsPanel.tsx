@@ -114,8 +114,9 @@ export default function SearchResultsPanel({
           <p className="mb-4 max-w-md text-sm text-gray-500">
             {searchQuery ? (
               <>
-                No events match your search for &quot;<span className="text-[#76B900]">{searchQuery}</span>&quot;. Try
-                different keywords or adjust your filters.
+                No events match your search for &quot;
+                <span className="text-[#76B900]">{searchQuery}</span>&quot;. Try different keywords
+                or adjust your filters.
               </>
             ) : (
               'Enter a search query to find events.'
@@ -139,11 +140,16 @@ export default function SearchResultsPanel({
       {/* Results Header */}
       <div className="mb-4 flex items-center justify-between">
         <div className="text-sm text-gray-400">
-          Showing <span className="font-medium text-white">{showingFrom}-{showingTo}</span> of{' '}
-          <span className="font-medium text-white">{totalCount}</span> result{totalCount !== 1 ? 's' : ''}
+          Showing{' '}
+          <span className="font-medium text-white">
+            {showingFrom}-{showingTo}
+          </span>{' '}
+          of <span className="font-medium text-white">{totalCount}</span> result
+          {totalCount !== 1 ? 's' : ''}
           {searchQuery && (
             <span>
-              {' '}for &quot;<span className="text-[#76B900]">{searchQuery}</span>&quot;
+              {' '}
+              for &quot;<span className="text-[#76B900]">{searchQuery}</span>&quot;
             </span>
           )}
         </div>
@@ -160,11 +166,7 @@ export default function SearchResultsPanel({
       {/* Results Grid */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
         {results.map((result) => (
-          <SearchResultCard
-            key={result.id}
-            result={result}
-            onClick={onResultClick}
-          />
+          <SearchResultCard key={result.id} result={result} onClick={onResultClick} />
         ))}
       </div>
 

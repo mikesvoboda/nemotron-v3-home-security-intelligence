@@ -36,9 +36,7 @@ function ConnectionStatus({ isConnected }: ConnectionStatusProps) {
     <div
       className={clsx(
         'flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
-        isConnected
-          ? 'bg-[#76B900]/10 text-[#76B900]'
-          : 'bg-yellow-500/10 text-yellow-500'
+        isConnected ? 'bg-[#76B900]/10 text-[#76B900]' : 'bg-yellow-500/10 text-yellow-500'
       )}
       role="status"
       aria-live="polite"
@@ -181,15 +179,10 @@ export default function LiveActivitySection({
 
           {/* Title */}
           <div>
-            <h2
-              id="live-activity-heading"
-              className="text-lg font-semibold text-white sm:text-xl"
-            >
+            <h2 id="live-activity-heading" className="text-lg font-semibold text-white sm:text-xl">
               Live Activity
             </h2>
-            <p className="text-xs text-gray-500 sm:text-sm">
-              Real-time security event stream
-            </p>
+            <p className="text-xs text-gray-500 sm:text-sm">Real-time security event stream</p>
           </div>
         </div>
 
@@ -248,9 +241,7 @@ export default function LiveActivitySection({
             <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-800">
               <Signal className="h-8 w-8 text-gray-600" aria-hidden="true" />
             </div>
-            <h3 className="mb-2 text-lg font-medium text-gray-300">
-              No Live Activity
-            </h3>
+            <h3 className="mb-2 text-lg font-medium text-gray-300">No Live Activity</h3>
             <p className="max-w-sm text-sm text-gray-500">
               {isConnected
                 ? 'Waiting for security events. New detections will appear here automatically.'

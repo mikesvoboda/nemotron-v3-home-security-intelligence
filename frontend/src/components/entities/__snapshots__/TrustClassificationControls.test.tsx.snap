@@ -1,0 +1,1599 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`TrustClassificationControls > Snapshots > renders confirmation dialog correctly 1`] = `
+<div
+  class="flex flex-col gap-3"
+  data-testid="trust-classification-controls"
+>
+  <div
+    class="flex items-center gap-2"
+  >
+    <span
+      aria-label="Trust status: Unknown"
+      class="inline-flex items-center gap-1.5 rounded-full border font-medium text-sm px-3 py-1 bg-gray-500/10 text-gray-400 border-gray-500/30"
+      data-testid="trust-status-badge"
+      role="status"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-shield-question-mark h-4 w-4"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+        />
+        <path
+          d="M9.1 9a3 3 0 0 1 5.82 1c0 2-3 3-3 3"
+        />
+        <path
+          d="M12 17h.01"
+        />
+      </svg>
+      Unknown
+    </span>
+    <button
+      aria-label="Trust status help"
+      class="text-gray-500 transition-colors hover:text-gray-300"
+      title="This entity has not been classified"
+      type="button"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-circle-question-mark h-4 w-4"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <circle
+          cx="12"
+          cy="12"
+          r="10"
+        />
+        <path
+          d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"
+        />
+        <path
+          d="M12 17h.01"
+        />
+      </svg>
+    </button>
+  </div>
+  <div
+    class="flex items-center gap-2 rounded-lg border border-gray-700 bg-[#1F1F1F] px-3 py-2"
+    data-testid="trust-confirmation-dialog"
+  >
+    <span
+      class="text-sm text-gray-300"
+    >
+      Change status to
+
+      <span
+        class="font-semibold text-green-400"
+      >
+        Trusted
+      </span>
+      ?
+    </span>
+    <button
+      aria-label="Confirm status change"
+      class="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors bg-green-600 text-white hover:bg-green-700"
+      data-testid="trust-confirm-button"
+      type="button"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-check h-3 w-3"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M20 6 9 17l-5-5"
+        />
+      </svg>
+      Confirm
+    </button>
+    <button
+      aria-label="Cancel status change"
+      class="flex items-center gap-1 rounded-md bg-gray-700 px-2 py-1 text-xs font-medium text-gray-300 transition-colors hover:bg-gray-600 disabled:cursor-not-allowed disabled:opacity-50"
+      data-testid="trust-cancel-button"
+      type="button"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-x h-3 w-3"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M18 6 6 18"
+        />
+        <path
+          d="m6 6 12 12"
+        />
+      </svg>
+      Cancel
+    </button>
+  </div>
+</div>
+`;
+
+exports[`TrustClassificationControls > Snapshots > renders error state correctly 1`] = `
+<div
+  class="flex flex-col gap-3"
+  data-testid="trust-classification-controls"
+>
+  <div
+    class="flex items-center gap-2"
+  >
+    <span
+      aria-label="Trust status: Unknown"
+      class="inline-flex items-center gap-1.5 rounded-full border font-medium text-sm px-3 py-1 bg-gray-500/10 text-gray-400 border-gray-500/30"
+      data-testid="trust-status-badge"
+      role="status"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-shield-question-mark h-4 w-4"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+        />
+        <path
+          d="M9.1 9a3 3 0 0 1 5.82 1c0 2-3 3-3 3"
+        />
+        <path
+          d="M12 17h.01"
+        />
+      </svg>
+      Unknown
+    </span>
+    <button
+      aria-label="Trust status help"
+      class="text-gray-500 transition-colors hover:text-gray-300"
+      title="This entity has not been classified"
+      type="button"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-circle-question-mark h-4 w-4"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <circle
+          cx="12"
+          cy="12"
+          r="10"
+        />
+        <path
+          d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"
+        />
+        <path
+          d="M12 17h.01"
+        />
+      </svg>
+    </button>
+  </div>
+  <div
+    class="flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400"
+    data-testid="trust-error-message"
+    role="alert"
+  >
+    <svg
+      aria-hidden="true"
+      class="lucide lucide-circle-alert h-4 w-4 flex-shrink-0"
+      fill="none"
+      height="24"
+      stroke="currentColor"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      stroke-width="2"
+      viewBox="0 0 24 24"
+      width="24"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <circle
+        cx="12"
+        cy="12"
+        r="10"
+      />
+      <line
+        x1="12"
+        x2="12"
+        y1="8"
+        y2="12"
+      />
+      <line
+        x1="12"
+        x2="12.01"
+        y1="16"
+        y2="16"
+      />
+    </svg>
+    <span>
+      Test error
+    </span>
+  </div>
+  <div
+    class="flex items-center gap-2 rounded-lg border border-gray-700 bg-[#1F1F1F] px-3 py-2"
+    data-testid="trust-confirmation-dialog"
+  >
+    <span
+      class="text-sm text-gray-300"
+    >
+      Change status to
+
+      <span
+        class="font-semibold text-green-400"
+      >
+        Trusted
+      </span>
+      ?
+    </span>
+    <button
+      aria-label="Confirm status change"
+      class="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors bg-green-600 text-white hover:bg-green-700"
+      data-testid="trust-confirm-button"
+      type="button"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-check h-3 w-3"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M20 6 9 17l-5-5"
+        />
+      </svg>
+      Confirm
+    </button>
+    <button
+      aria-label="Cancel status change"
+      class="flex items-center gap-1 rounded-md bg-gray-700 px-2 py-1 text-xs font-medium text-gray-300 transition-colors hover:bg-gray-600 disabled:cursor-not-allowed disabled:opacity-50"
+      data-testid="trust-cancel-button"
+      type="button"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-x h-3 w-3"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M18 6 6 18"
+        />
+        <path
+          d="m6 6 12 12"
+        />
+      </svg>
+      Cancel
+    </button>
+  </div>
+</div>
+`;
+
+exports[`TrustClassificationControls > Snapshots > renders lg size variant correctly 1`] = `
+<div
+  class="flex flex-col gap-3"
+  data-testid="trust-classification-controls"
+>
+  <div
+    class="flex items-center gap-2"
+  >
+    <span
+      aria-label="Trust status: Unknown"
+      class="inline-flex items-center gap-1.5 rounded-full border font-medium text-base px-4 py-2 bg-gray-500/10 text-gray-400 border-gray-500/30"
+      data-testid="trust-status-badge"
+      role="status"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-shield-question-mark h-5 w-5"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+        />
+        <path
+          d="M9.1 9a3 3 0 0 1 5.82 1c0 2-3 3-3 3"
+        />
+        <path
+          d="M12 17h.01"
+        />
+      </svg>
+      Unknown
+    </span>
+    <button
+      aria-label="Trust status help"
+      class="text-gray-500 transition-colors hover:text-gray-300"
+      title="This entity has not been classified"
+      type="button"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-circle-question-mark h-5 w-5"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <circle
+          cx="12"
+          cy="12"
+          r="10"
+        />
+        <path
+          d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"
+        />
+        <path
+          d="M12 17h.01"
+        />
+      </svg>
+    </button>
+  </div>
+  <div
+    class="flex flex-wrap gap-2"
+    data-testid="trust-action-buttons"
+  >
+    <button
+      aria-label="Set trust status to Trusted"
+      aria-pressed="false"
+      class="flex items-center gap-1.5 rounded-md border font-medium transition-colors text-sm px-4 py-2 bg-green-600/20 text-green-400 hover:bg-green-600/30 border-green-500/30"
+      data-testid="trust-button-trusted"
+      type="button"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-shield-check h-4 w-4"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+        />
+        <path
+          d="m9 12 2 2 4-4"
+        />
+      </svg>
+      Trusted
+    </button>
+    <button
+      aria-label="Set trust status to Untrusted"
+      aria-pressed="false"
+      class="flex items-center gap-1.5 rounded-md border font-medium transition-colors text-sm px-4 py-2 bg-red-600/20 text-red-400 hover:bg-red-600/30 border-red-500/30"
+      data-testid="trust-button-untrusted"
+      type="button"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-shield-alert h-4 w-4"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+        />
+        <path
+          d="M12 8v4"
+        />
+        <path
+          d="M12 16h.01"
+        />
+      </svg>
+      Untrusted
+    </button>
+    <button
+      aria-label="Set trust status to Unknown"
+      aria-pressed="true"
+      class="flex items-center gap-1.5 rounded-md border font-medium transition-colors text-sm px-4 py-2 cursor-default border-[#76B900] bg-[#76B900]/10 text-[#76B900]"
+      data-testid="trust-button-unknown"
+      disabled=""
+      type="button"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-shield-question-mark h-4 w-4"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+        />
+        <path
+          d="M9.1 9a3 3 0 0 1 5.82 1c0 2-3 3-3 3"
+        />
+        <path
+          d="M12 17h.01"
+        />
+      </svg>
+      Unknown
+    </button>
+  </div>
+</div>
+`;
+
+exports[`TrustClassificationControls > Snapshots > renders loading state correctly 1`] = `
+<div
+  class="flex flex-col gap-3"
+  data-testid="trust-classification-controls"
+>
+  <div
+    class="flex items-center gap-2"
+  >
+    <span
+      aria-label="Trust status: Unknown"
+      class="inline-flex items-center gap-1.5 rounded-full border font-medium text-sm px-3 py-1 bg-gray-500/10 text-gray-400 border-gray-500/30"
+      data-testid="trust-status-badge"
+      role="status"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-shield-question-mark h-4 w-4"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+        />
+        <path
+          d="M9.1 9a3 3 0 0 1 5.82 1c0 2-3 3-3 3"
+        />
+        <path
+          d="M12 17h.01"
+        />
+      </svg>
+      Unknown
+    </span>
+    <button
+      aria-label="Trust status help"
+      class="text-gray-500 transition-colors hover:text-gray-300"
+      title="This entity has not been classified"
+      type="button"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-circle-question-mark h-4 w-4"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <circle
+          cx="12"
+          cy="12"
+          r="10"
+        />
+        <path
+          d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"
+        />
+        <path
+          d="M12 17h.01"
+        />
+      </svg>
+    </button>
+  </div>
+  <div
+    class="flex flex-wrap gap-2"
+    data-testid="trust-action-buttons"
+  >
+    <button
+      aria-label="Set trust status to Trusted"
+      aria-pressed="false"
+      class="flex items-center gap-1.5 rounded-md border font-medium transition-colors text-sm px-3 py-1.5 bg-green-600/20 text-green-400 hover:bg-green-600/30 border-green-500/30 cursor-not-allowed opacity-50"
+      data-testid="trust-button-trusted"
+      disabled=""
+      type="button"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-shield-check h-3.5 w-3.5"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+        />
+        <path
+          d="m9 12 2 2 4-4"
+        />
+      </svg>
+      Trusted
+    </button>
+    <button
+      aria-label="Set trust status to Untrusted"
+      aria-pressed="false"
+      class="flex items-center gap-1.5 rounded-md border font-medium transition-colors text-sm px-3 py-1.5 bg-red-600/20 text-red-400 hover:bg-red-600/30 border-red-500/30 cursor-not-allowed opacity-50"
+      data-testid="trust-button-untrusted"
+      disabled=""
+      type="button"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-shield-alert h-3.5 w-3.5"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+        />
+        <path
+          d="M12 8v4"
+        />
+        <path
+          d="M12 16h.01"
+        />
+      </svg>
+      Untrusted
+    </button>
+    <button
+      aria-label="Set trust status to Unknown"
+      aria-pressed="true"
+      class="flex items-center gap-1.5 rounded-md border font-medium transition-colors text-sm px-3 py-1.5 cursor-default border-[#76B900] bg-[#76B900]/10 text-[#76B900]"
+      data-testid="trust-button-unknown"
+      disabled=""
+      type="button"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-shield-question-mark h-3.5 w-3.5"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+        />
+        <path
+          d="M9.1 9a3 3 0 0 1 5.82 1c0 2-3 3-3 3"
+        />
+        <path
+          d="M12 17h.01"
+        />
+      </svg>
+      Unknown
+    </button>
+  </div>
+  <div
+    class="flex items-center gap-2 text-sm text-gray-400"
+    data-testid="trust-loading"
+  >
+    <div
+      class="h-4 w-4 animate-spin rounded-full border-2 border-gray-600 border-t-[#76B900]"
+    />
+    <span>
+      Loading trust status...
+    </span>
+  </div>
+</div>
+`;
+
+exports[`TrustClassificationControls > Snapshots > renders md size variant correctly 1`] = `
+<div
+  class="flex flex-col gap-3"
+  data-testid="trust-classification-controls"
+>
+  <div
+    class="flex items-center gap-2"
+  >
+    <span
+      aria-label="Trust status: Unknown"
+      class="inline-flex items-center gap-1.5 rounded-full border font-medium text-sm px-3 py-1 bg-gray-500/10 text-gray-400 border-gray-500/30"
+      data-testid="trust-status-badge"
+      role="status"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-shield-question-mark h-4 w-4"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+        />
+        <path
+          d="M9.1 9a3 3 0 0 1 5.82 1c0 2-3 3-3 3"
+        />
+        <path
+          d="M12 17h.01"
+        />
+      </svg>
+      Unknown
+    </span>
+    <button
+      aria-label="Trust status help"
+      class="text-gray-500 transition-colors hover:text-gray-300"
+      title="This entity has not been classified"
+      type="button"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-circle-question-mark h-4 w-4"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <circle
+          cx="12"
+          cy="12"
+          r="10"
+        />
+        <path
+          d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"
+        />
+        <path
+          d="M12 17h.01"
+        />
+      </svg>
+    </button>
+  </div>
+  <div
+    class="flex flex-wrap gap-2"
+    data-testid="trust-action-buttons"
+  >
+    <button
+      aria-label="Set trust status to Trusted"
+      aria-pressed="false"
+      class="flex items-center gap-1.5 rounded-md border font-medium transition-colors text-sm px-3 py-1.5 bg-green-600/20 text-green-400 hover:bg-green-600/30 border-green-500/30"
+      data-testid="trust-button-trusted"
+      type="button"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-shield-check h-3.5 w-3.5"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+        />
+        <path
+          d="m9 12 2 2 4-4"
+        />
+      </svg>
+      Trusted
+    </button>
+    <button
+      aria-label="Set trust status to Untrusted"
+      aria-pressed="false"
+      class="flex items-center gap-1.5 rounded-md border font-medium transition-colors text-sm px-3 py-1.5 bg-red-600/20 text-red-400 hover:bg-red-600/30 border-red-500/30"
+      data-testid="trust-button-untrusted"
+      type="button"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-shield-alert h-3.5 w-3.5"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+        />
+        <path
+          d="M12 8v4"
+        />
+        <path
+          d="M12 16h.01"
+        />
+      </svg>
+      Untrusted
+    </button>
+    <button
+      aria-label="Set trust status to Unknown"
+      aria-pressed="true"
+      class="flex items-center gap-1.5 rounded-md border font-medium transition-colors text-sm px-3 py-1.5 cursor-default border-[#76B900] bg-[#76B900]/10 text-[#76B900]"
+      data-testid="trust-button-unknown"
+      disabled=""
+      type="button"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-shield-question-mark h-3.5 w-3.5"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+        />
+        <path
+          d="M9.1 9a3 3 0 0 1 5.82 1c0 2-3 3-3 3"
+        />
+        <path
+          d="M12 17h.01"
+        />
+      </svg>
+      Unknown
+    </button>
+  </div>
+</div>
+`;
+
+exports[`TrustClassificationControls > Snapshots > renders readOnly mode correctly 1`] = `
+<div
+  class="flex flex-col gap-3"
+  data-testid="trust-classification-controls"
+>
+  <div
+    class="flex items-center gap-2"
+  >
+    <span
+      aria-label="Trust status: Trusted"
+      class="inline-flex items-center gap-1.5 rounded-full border font-medium text-sm px-3 py-1 bg-green-500/10 text-green-400 border-green-500/30"
+      data-testid="trust-status-badge"
+      role="status"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-shield-check h-4 w-4"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+        />
+        <path
+          d="m9 12 2 2 4-4"
+        />
+      </svg>
+      Trusted
+    </span>
+  </div>
+</div>
+`;
+
+exports[`TrustClassificationControls > Snapshots > renders sm size variant correctly 1`] = `
+<div
+  class="flex flex-col gap-3"
+  data-testid="trust-classification-controls"
+>
+  <div
+    class="flex items-center gap-2"
+  >
+    <span
+      aria-label="Trust status: Unknown"
+      class="inline-flex items-center gap-1.5 rounded-full border font-medium text-xs px-2 py-0.5 bg-gray-500/10 text-gray-400 border-gray-500/30"
+      data-testid="trust-status-badge"
+      role="status"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-shield-question-mark h-3 w-3"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+        />
+        <path
+          d="M9.1 9a3 3 0 0 1 5.82 1c0 2-3 3-3 3"
+        />
+        <path
+          d="M12 17h.01"
+        />
+      </svg>
+      Unknown
+    </span>
+    <button
+      aria-label="Trust status help"
+      class="text-gray-500 transition-colors hover:text-gray-300"
+      title="This entity has not been classified"
+      type="button"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-circle-question-mark h-3 w-3"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <circle
+          cx="12"
+          cy="12"
+          r="10"
+        />
+        <path
+          d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"
+        />
+        <path
+          d="M12 17h.01"
+        />
+      </svg>
+    </button>
+  </div>
+  <div
+    class="flex flex-wrap gap-2"
+    data-testid="trust-action-buttons"
+  >
+    <button
+      aria-label="Set trust status to Trusted"
+      aria-pressed="false"
+      class="flex items-center gap-1.5 rounded-md border font-medium transition-colors text-xs px-2 py-1 bg-green-600/20 text-green-400 hover:bg-green-600/30 border-green-500/30"
+      data-testid="trust-button-trusted"
+      type="button"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-shield-check h-3 w-3"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+        />
+        <path
+          d="m9 12 2 2 4-4"
+        />
+      </svg>
+      Trusted
+    </button>
+    <button
+      aria-label="Set trust status to Untrusted"
+      aria-pressed="false"
+      class="flex items-center gap-1.5 rounded-md border font-medium transition-colors text-xs px-2 py-1 bg-red-600/20 text-red-400 hover:bg-red-600/30 border-red-500/30"
+      data-testid="trust-button-untrusted"
+      type="button"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-shield-alert h-3 w-3"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+        />
+        <path
+          d="M12 8v4"
+        />
+        <path
+          d="M12 16h.01"
+        />
+      </svg>
+      Untrusted
+    </button>
+    <button
+      aria-label="Set trust status to Unknown"
+      aria-pressed="true"
+      class="flex items-center gap-1.5 rounded-md border font-medium transition-colors text-xs px-2 py-1 cursor-default border-[#76B900] bg-[#76B900]/10 text-[#76B900]"
+      data-testid="trust-button-unknown"
+      disabled=""
+      type="button"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-shield-question-mark h-3 w-3"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+        />
+        <path
+          d="M9.1 9a3 3 0 0 1 5.82 1c0 2-3 3-3 3"
+        />
+        <path
+          d="M12 17h.01"
+        />
+      </svg>
+      Unknown
+    </button>
+  </div>
+</div>
+`;
+
+exports[`TrustClassificationControls > Snapshots > renders trusted status correctly 1`] = `
+<div
+  class="flex flex-col gap-3"
+  data-testid="trust-classification-controls"
+>
+  <div
+    class="flex items-center gap-2"
+  >
+    <span
+      aria-label="Trust status: Trusted"
+      class="inline-flex items-center gap-1.5 rounded-full border font-medium text-sm px-3 py-1 bg-green-500/10 text-green-400 border-green-500/30"
+      data-testid="trust-status-badge"
+      role="status"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-shield-check h-4 w-4"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+        />
+        <path
+          d="m9 12 2 2 4-4"
+        />
+      </svg>
+      Trusted
+    </span>
+    <button
+      aria-label="Trust status help"
+      class="text-gray-500 transition-colors hover:text-gray-300"
+      title="This entity is a known trusted individual"
+      type="button"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-circle-question-mark h-4 w-4"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <circle
+          cx="12"
+          cy="12"
+          r="10"
+        />
+        <path
+          d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"
+        />
+        <path
+          d="M12 17h.01"
+        />
+      </svg>
+    </button>
+  </div>
+  <div
+    class="flex flex-wrap gap-2"
+    data-testid="trust-action-buttons"
+  >
+    <button
+      aria-label="Set trust status to Trusted"
+      aria-pressed="true"
+      class="flex items-center gap-1.5 rounded-md border font-medium transition-colors text-sm px-3 py-1.5 cursor-default border-[#76B900] bg-[#76B900]/10 text-[#76B900]"
+      data-testid="trust-button-trusted"
+      disabled=""
+      type="button"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-shield-check h-3.5 w-3.5"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+        />
+        <path
+          d="m9 12 2 2 4-4"
+        />
+      </svg>
+      Trusted
+    </button>
+    <button
+      aria-label="Set trust status to Untrusted"
+      aria-pressed="false"
+      class="flex items-center gap-1.5 rounded-md border font-medium transition-colors text-sm px-3 py-1.5 bg-red-600/20 text-red-400 hover:bg-red-600/30 border-red-500/30"
+      data-testid="trust-button-untrusted"
+      type="button"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-shield-alert h-3.5 w-3.5"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+        />
+        <path
+          d="M12 8v4"
+        />
+        <path
+          d="M12 16h.01"
+        />
+      </svg>
+      Untrusted
+    </button>
+    <button
+      aria-label="Set trust status to Unknown"
+      aria-pressed="false"
+      class="flex items-center gap-1.5 rounded-md border font-medium transition-colors text-sm px-3 py-1.5 bg-gray-600/20 text-gray-400 hover:bg-gray-600/30 border-gray-500/30"
+      data-testid="trust-button-unknown"
+      type="button"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-shield-question-mark h-3.5 w-3.5"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+        />
+        <path
+          d="M9.1 9a3 3 0 0 1 5.82 1c0 2-3 3-3 3"
+        />
+        <path
+          d="M12 17h.01"
+        />
+      </svg>
+      Unknown
+    </button>
+  </div>
+</div>
+`;
+
+exports[`TrustClassificationControls > Snapshots > renders unknown status correctly 1`] = `
+<div
+  class="flex flex-col gap-3"
+  data-testid="trust-classification-controls"
+>
+  <div
+    class="flex items-center gap-2"
+  >
+    <span
+      aria-label="Trust status: Unknown"
+      class="inline-flex items-center gap-1.5 rounded-full border font-medium text-sm px-3 py-1 bg-gray-500/10 text-gray-400 border-gray-500/30"
+      data-testid="trust-status-badge"
+      role="status"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-shield-question-mark h-4 w-4"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+        />
+        <path
+          d="M9.1 9a3 3 0 0 1 5.82 1c0 2-3 3-3 3"
+        />
+        <path
+          d="M12 17h.01"
+        />
+      </svg>
+      Unknown
+    </span>
+    <button
+      aria-label="Trust status help"
+      class="text-gray-500 transition-colors hover:text-gray-300"
+      title="This entity has not been classified"
+      type="button"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-circle-question-mark h-4 w-4"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <circle
+          cx="12"
+          cy="12"
+          r="10"
+        />
+        <path
+          d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"
+        />
+        <path
+          d="M12 17h.01"
+        />
+      </svg>
+    </button>
+  </div>
+  <div
+    class="flex flex-wrap gap-2"
+    data-testid="trust-action-buttons"
+  >
+    <button
+      aria-label="Set trust status to Trusted"
+      aria-pressed="false"
+      class="flex items-center gap-1.5 rounded-md border font-medium transition-colors text-sm px-3 py-1.5 bg-green-600/20 text-green-400 hover:bg-green-600/30 border-green-500/30"
+      data-testid="trust-button-trusted"
+      type="button"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-shield-check h-3.5 w-3.5"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+        />
+        <path
+          d="m9 12 2 2 4-4"
+        />
+      </svg>
+      Trusted
+    </button>
+    <button
+      aria-label="Set trust status to Untrusted"
+      aria-pressed="false"
+      class="flex items-center gap-1.5 rounded-md border font-medium transition-colors text-sm px-3 py-1.5 bg-red-600/20 text-red-400 hover:bg-red-600/30 border-red-500/30"
+      data-testid="trust-button-untrusted"
+      type="button"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-shield-alert h-3.5 w-3.5"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+        />
+        <path
+          d="M12 8v4"
+        />
+        <path
+          d="M12 16h.01"
+        />
+      </svg>
+      Untrusted
+    </button>
+    <button
+      aria-label="Set trust status to Unknown"
+      aria-pressed="true"
+      class="flex items-center gap-1.5 rounded-md border font-medium transition-colors text-sm px-3 py-1.5 cursor-default border-[#76B900] bg-[#76B900]/10 text-[#76B900]"
+      data-testid="trust-button-unknown"
+      disabled=""
+      type="button"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-shield-question-mark h-3.5 w-3.5"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+        />
+        <path
+          d="M9.1 9a3 3 0 0 1 5.82 1c0 2-3 3-3 3"
+        />
+        <path
+          d="M12 17h.01"
+        />
+      </svg>
+      Unknown
+    </button>
+  </div>
+</div>
+`;
+
+exports[`TrustClassificationControls > Snapshots > renders untrusted status correctly 1`] = `
+<div
+  class="flex flex-col gap-3"
+  data-testid="trust-classification-controls"
+>
+  <div
+    class="flex items-center gap-2"
+  >
+    <span
+      aria-label="Trust status: Untrusted"
+      class="inline-flex items-center gap-1.5 rounded-full border font-medium text-sm px-3 py-1 bg-red-500/10 text-red-400 border-red-500/30"
+      data-testid="trust-status-badge"
+      role="status"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-shield-alert h-4 w-4"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+        />
+        <path
+          d="M12 8v4"
+        />
+        <path
+          d="M12 16h.01"
+        />
+      </svg>
+      Untrusted
+    </span>
+    <button
+      aria-label="Trust status help"
+      class="text-gray-500 transition-colors hover:text-gray-300"
+      title="This entity is flagged as suspicious"
+      type="button"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-circle-question-mark h-4 w-4"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <circle
+          cx="12"
+          cy="12"
+          r="10"
+        />
+        <path
+          d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"
+        />
+        <path
+          d="M12 17h.01"
+        />
+      </svg>
+    </button>
+  </div>
+  <div
+    class="flex flex-wrap gap-2"
+    data-testid="trust-action-buttons"
+  >
+    <button
+      aria-label="Set trust status to Trusted"
+      aria-pressed="false"
+      class="flex items-center gap-1.5 rounded-md border font-medium transition-colors text-sm px-3 py-1.5 bg-green-600/20 text-green-400 hover:bg-green-600/30 border-green-500/30"
+      data-testid="trust-button-trusted"
+      type="button"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-shield-check h-3.5 w-3.5"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+        />
+        <path
+          d="m9 12 2 2 4-4"
+        />
+      </svg>
+      Trusted
+    </button>
+    <button
+      aria-label="Set trust status to Untrusted"
+      aria-pressed="true"
+      class="flex items-center gap-1.5 rounded-md border font-medium transition-colors text-sm px-3 py-1.5 cursor-default border-[#76B900] bg-[#76B900]/10 text-[#76B900]"
+      data-testid="trust-button-untrusted"
+      disabled=""
+      type="button"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-shield-alert h-3.5 w-3.5"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+        />
+        <path
+          d="M12 8v4"
+        />
+        <path
+          d="M12 16h.01"
+        />
+      </svg>
+      Untrusted
+    </button>
+    <button
+      aria-label="Set trust status to Unknown"
+      aria-pressed="false"
+      class="flex items-center gap-1.5 rounded-md border font-medium transition-colors text-sm px-3 py-1.5 bg-gray-600/20 text-gray-400 hover:bg-gray-600/30 border-gray-500/30"
+      data-testid="trust-button-unknown"
+      type="button"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-shield-question-mark h-3.5 w-3.5"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+        />
+        <path
+          d="M9.1 9a3 3 0 0 1 5.82 1c0 2-3 3-3 3"
+        />
+        <path
+          d="M12 17h.01"
+        />
+      </svg>
+      Unknown
+    </button>
+  </div>
+</div>
+`;

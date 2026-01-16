@@ -101,7 +101,10 @@ function formatMs(ms: number | null | undefined): string {
 /**
  * Get color based on latency thresholds
  */
-function getLatencyColor(ms: number | null | undefined, thresholds: { warning: number; critical: number }): string {
+function getLatencyColor(
+  ms: number | null | undefined,
+  thresholds: { warning: number; critical: number }
+): string {
   if (ms === null || ms === undefined) return 'gray';
   if (ms >= thresholds.critical) return 'red';
   if (ms >= thresholds.warning) return 'yellow';
@@ -111,7 +114,10 @@ function getLatencyColor(ms: number | null | undefined, thresholds: { warning: n
 /**
  * Get progress bar color class
  */
-function getProgressColor(ms: number | null | undefined, thresholds: { warning: number; critical: number }): 'green' | 'yellow' | 'red' | 'gray' {
+function getProgressColor(
+  ms: number | null | undefined,
+  thresholds: { warning: number; critical: number }
+): 'green' | 'yellow' | 'red' | 'gray' {
   const color = getLatencyColor(ms, thresholds);
   if (color === 'green') return 'green';
   if (color === 'yellow') return 'yellow';
@@ -178,40 +184,50 @@ function LatencyStatRow({ label, latency, thresholds, maxDisplay, icon }: Latenc
       <div className="grid grid-cols-4 gap-2 text-center">
         <div>
           <Text className="text-xs text-gray-500">Avg</Text>
-          <Text className={clsx(
-            'text-sm font-semibold',
-            getLatencyColor(latency.avg_ms, thresholds) === 'red' ? 'text-red-400' :
-            getLatencyColor(latency.avg_ms, thresholds) === 'yellow' ? 'text-yellow-400' :
-            'text-white'
-          )}>
+          <Text
+            className={clsx(
+              'text-sm font-semibold',
+              getLatencyColor(latency.avg_ms, thresholds) === 'red'
+                ? 'text-red-400'
+                : getLatencyColor(latency.avg_ms, thresholds) === 'yellow'
+                  ? 'text-yellow-400'
+                  : 'text-white'
+            )}
+          >
             {formatMs(latency.avg_ms)}
           </Text>
         </div>
         <div>
           <Text className="text-xs text-gray-500">P50</Text>
-          <Text className="text-sm font-semibold text-white">
-            {formatMs(latency.p50_ms)}
-          </Text>
+          <Text className="text-sm font-semibold text-white">{formatMs(latency.p50_ms)}</Text>
         </div>
         <div>
           <Text className="text-xs text-gray-500">P95</Text>
-          <Text className={clsx(
-            'text-sm font-semibold',
-            getLatencyColor(latency.p95_ms, thresholds) === 'red' ? 'text-red-400' :
-            getLatencyColor(latency.p95_ms, thresholds) === 'yellow' ? 'text-yellow-400' :
-            'text-white'
-          )}>
+          <Text
+            className={clsx(
+              'text-sm font-semibold',
+              getLatencyColor(latency.p95_ms, thresholds) === 'red'
+                ? 'text-red-400'
+                : getLatencyColor(latency.p95_ms, thresholds) === 'yellow'
+                  ? 'text-yellow-400'
+                  : 'text-white'
+            )}
+          >
             {formatMs(latency.p95_ms)}
           </Text>
         </div>
         <div>
           <Text className="text-xs text-gray-500">P99</Text>
-          <Text className={clsx(
-            'text-sm font-semibold',
-            getLatencyColor(latency.p99_ms, thresholds) === 'red' ? 'text-red-400' :
-            getLatencyColor(latency.p99_ms, thresholds) === 'yellow' ? 'text-yellow-400' :
-            'text-white'
-          )}>
+          <Text
+            className={clsx(
+              'text-sm font-semibold',
+              getLatencyColor(latency.p99_ms, thresholds) === 'red'
+                ? 'text-red-400'
+                : getLatencyColor(latency.p99_ms, thresholds) === 'yellow'
+                  ? 'text-yellow-400'
+                  : 'text-white'
+            )}
+          >
             {formatMs(latency.p99_ms)}
           </Text>
         </div>
@@ -237,7 +253,9 @@ function LatencyHistoryChart({ selectedStage, onStageChange }: LatencyHistoryCha
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch('/api/system/pipeline-latency/history?since=60&bucket_seconds=60');
+      const response = await fetch(
+        '/api/system/pipeline-latency/history?since=60&bucket_seconds=60'
+      );
       if (!response.ok) {
         throw new Error(`HTTP error ${response.status}`);
       }
@@ -258,19 +276,20 @@ function LatencyHistoryChart({ selectedStage, onStageChange }: LatencyHistoryCha
   }, [fetchHistory]);
 
   // Transform data for chart
-  const chartData = historyData?.snapshots.map((snapshot) => {
-    const stageStats = snapshot.stages[selectedStage];
-    const time = new Date(snapshot.timestamp).toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-    return {
-      time,
-      'Avg (ms)': stageStats?.avg_ms ?? null,
-      'P50 (ms)': stageStats?.p50_ms ?? null,
-      'P95 (ms)': stageStats?.p95_ms ?? null,
-    };
-  }) ?? [];
+  const chartData =
+    historyData?.snapshots.map((snapshot) => {
+      const stageStats = snapshot.stages[selectedStage];
+      const time = new Date(snapshot.timestamp).toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+      return {
+        time,
+        'Avg (ms)': stageStats?.avg_ms ?? null,
+        'P50 (ms)': stageStats?.p50_ms ?? null,
+        'P95 (ms)': stageStats?.p95_ms ?? null,
+      };
+    }) ?? [];
 
   const stageLabel = STAGE_OPTIONS.find((s) => s.value === selectedStage)?.label ?? selectedStage;
 
@@ -378,14 +397,14 @@ export default function LatencyPanel({
       </Card>
 
       {/* Latency History Chart */}
-      <LatencyHistoryChart
-        selectedStage={selectedStage}
-        onStageChange={setSelectedStage}
-      />
+      <LatencyHistoryChart selectedStage={selectedStage} onStageChange={setSelectedStage} />
 
       {/* Pipeline Stage Latencies */}
       {pipelineLatency && (
-        <Card className="border-gray-800 bg-[#1A1A1A] shadow-lg" data-testid="pipeline-latency-card">
+        <Card
+          className="border-gray-800 bg-[#1A1A1A] shadow-lg"
+          data-testid="pipeline-latency-card"
+        >
           <Title className="mb-4 flex items-center gap-2 text-white">
             <ArrowRight className="h-5 w-5 text-[#76B900]" />
             Pipeline Stage Latency

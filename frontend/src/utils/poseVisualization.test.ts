@@ -403,9 +403,7 @@ describe('poseVisualization utilities', () => {
       const result = getValidConnections(keypoints, 0.5);
 
       // nose -> left_eye connection should be filtered out
-      const noseToLeftEye = result.find(
-        (r) => r.connection.from === 0 && r.connection.to === 1
-      );
+      const noseToLeftEye = result.find((r) => r.connection.from === 0 && r.connection.to === 1);
       expect(noseToLeftEye).toBeUndefined();
     });
   });
@@ -431,17 +429,13 @@ describe('poseVisualization utilities', () => {
     });
 
     it('returns false when alert has no keypoints defined', () => {
-      const alertsWithoutKeypoints: PoseAlert[] = [
-        { type: 'generic', message: 'Generic alert' },
-      ];
+      const alertsWithoutKeypoints: PoseAlert[] = [{ type: 'generic', message: 'Generic alert' }];
       expect(isKeypointInAlert(5, alertsWithoutKeypoints)).toBe(false);
     });
   });
 
   describe('isConnectionInAlert', () => {
-    const alerts: PoseAlert[] = [
-      { type: 'arm', message: 'Arm raised', keypoints: [5, 7, 9] },
-    ];
+    const alerts: PoseAlert[] = [{ type: 'arm', message: 'Arm raised', keypoints: [5, 7, 9] }];
 
     it('returns true when from keypoint is in alert', () => {
       const connection: SkeletonConnection = { from: 5, to: 6 };

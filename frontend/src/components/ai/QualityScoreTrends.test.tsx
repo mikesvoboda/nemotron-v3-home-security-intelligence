@@ -69,13 +69,7 @@ describe('QualityScoreTrends', () => {
   });
 
   it('handles zero total events', () => {
-    render(
-      <QualityScoreTrends
-        {...defaultProps}
-        totalEvents={0}
-        fullyEvaluatedEvents={0}
-      />
-    );
+    render(<QualityScoreTrends {...defaultProps} totalEvents={0} fullyEvaluatedEvents={0} />);
 
     // Evaluation coverage should be 0%
     expect(screen.getByText('0%')).toBeInTheDocument();

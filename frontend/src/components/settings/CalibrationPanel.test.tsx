@@ -85,7 +85,9 @@ describe('CalibrationPanel', () => {
     it('renders the introduction card description', () => {
       render(<CalibrationPanel />);
 
-      expect(screen.getByText(/Fine-tune how the AI classifies security events/)).toBeInTheDocument();
+      expect(
+        screen.getByText(/Fine-tune how the AI classifies security events/)
+      ).toBeInTheDocument();
     });
 
     it('renders the How It Works section', () => {
@@ -183,9 +185,7 @@ describe('CalibrationPanel', () => {
     it('shows threshold adjustment description', () => {
       render(<CalibrationPanel />);
 
-      expect(
-        screen.getByText(/Set the risk score boundaries that determine/)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Set the risk score boundaries that determine/)).toBeInTheDocument();
     });
 
     it('shows feedback learning description', () => {

@@ -63,7 +63,7 @@
 
   /* Interactive Card - For cards with primary actions */
   .nvidia-card-interactive {
-    @apply nvidia-card transition-all duration-200 ease-out cursor-pointer;
+    @apply nvidia-card cursor-pointer transition-all duration-200 ease-out;
     @apply hover:border-primary-500/50 hover:shadow-nvidia-glow;
     @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background;
     @apply active:scale-[0.99];
@@ -175,7 +175,7 @@
 
   /* Selected List Item */
   .nvidia-list-item-selected {
-    @apply bg-primary-500/10 border-l-2 border-primary-500;
+    @apply border-l-2 border-primary-500 bg-primary-500/10;
     @apply hover:bg-primary-500/15;
   }
 
@@ -195,8 +195,8 @@
   /* WCAG 2.1 AA: Using dark text on NVIDIA green for 4.5:1+ contrast ratio */
   .btn-primary {
     @apply btn-base bg-primary-500 text-gray-950;
-    @apply hover:bg-primary-400 hover:scale-102 hover:shadow-dark-md;
-    @apply active:bg-primary-600 active:scale-98;
+    @apply hover:scale-102 hover:bg-primary-400 hover:shadow-dark-md;
+    @apply active:scale-98 active:bg-primary-600;
     @apply focus-visible:ring-primary-500;
   }
 
@@ -204,7 +204,7 @@
   .btn-secondary {
     @apply btn-base bg-gray-800 text-text-primary;
     @apply hover:bg-gray-700 hover:shadow-dark-sm;
-    @apply active:bg-gray-600 active:scale-98;
+    @apply active:scale-98 active:bg-gray-600;
     @apply focus-visible:ring-gray-500;
   }
 
@@ -212,7 +212,7 @@
   .btn-ghost {
     @apply btn-base bg-transparent text-text-primary;
     @apply hover:bg-gray-800;
-    @apply active:bg-gray-700 active:scale-98;
+    @apply active:scale-98 active:bg-gray-700;
     @apply focus-visible:ring-gray-500;
   }
 
@@ -220,15 +220,15 @@
   .btn-outline {
     @apply btn-base border border-gray-700 bg-transparent text-text-primary;
     @apply hover:border-gray-600 hover:bg-gray-800/50;
-    @apply active:bg-gray-700 active:scale-98;
+    @apply active:scale-98 active:bg-gray-700;
     @apply focus-visible:ring-gray-500;
   }
 
   /* Outline Primary Button - Green border */
   .btn-outline-primary {
     @apply btn-base border border-primary-500 bg-transparent text-primary-500;
-    @apply hover:bg-primary-500/10 hover:border-primary-400;
-    @apply active:bg-primary-500/20 active:scale-98;
+    @apply hover:border-primary-400 hover:bg-primary-500/10;
+    @apply active:scale-98 active:bg-primary-500/20;
     @apply focus-visible:ring-primary-500;
   }
 
@@ -236,7 +236,7 @@
   .btn-danger {
     @apply btn-base bg-danger text-white;
     @apply hover:bg-danger-hover hover:shadow-dark-md;
-    @apply active:bg-red-800 active:scale-98;
+    @apply active:scale-98 active:bg-red-800;
     @apply focus-visible:ring-red-500;
   }
 
@@ -359,18 +359,18 @@
   /* Enhanced slider/range input styles for dark theme visibility */
   .nvidia-slider {
     @apply h-3 w-full cursor-pointer appearance-none rounded-lg;
-    background: linear-gradient(to right, #3A3A3A 0%, #3A3A3A 100%);
+    background: linear-gradient(to right, #3a3a3a 0%, #3a3a3a 100%);
   }
 
   .nvidia-slider::-webkit-slider-track {
     @apply h-3 rounded-lg;
-    background: linear-gradient(to right, #3A3A3A, #4A4A4A);
+    background: linear-gradient(to right, #3a3a3a, #4a4a4a);
     border: 1px solid #555555;
   }
 
   .nvidia-slider::-moz-range-track {
     @apply h-3 rounded-lg;
-    background: linear-gradient(to right, #3A3A3A, #4A4A4A);
+    background: linear-gradient(to right, #3a3a3a, #4a4a4a);
     border: 1px solid #555555;
   }
 
@@ -379,9 +379,11 @@
     width: 20px;
     height: 20px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #76B900 0%, #5c8f00 100%);
+    background: linear-gradient(135deg, #76b900 0%, #5c8f00 100%);
     border: 2px solid #ffffff;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4), 0 0 8px rgba(118, 185, 0, 0.4);
+    box-shadow:
+      0 2px 6px rgba(0, 0, 0, 0.4),
+      0 0 8px rgba(118, 185, 0, 0.4);
     cursor: pointer;
     transition: all 0.15s ease;
   }
@@ -390,22 +392,28 @@
     width: 20px;
     height: 20px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #76B900 0%, #5c8f00 100%);
+    background: linear-gradient(135deg, #76b900 0%, #5c8f00 100%);
     border: 2px solid #ffffff;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4), 0 0 8px rgba(118, 185, 0, 0.4);
+    box-shadow:
+      0 2px 6px rgba(0, 0, 0, 0.4),
+      0 0 8px rgba(118, 185, 0, 0.4);
     cursor: pointer;
     transition: all 0.15s ease;
   }
 
   .nvidia-slider::-webkit-slider-thumb:hover {
-    background: linear-gradient(135deg, #8BD000 0%, #76B900 100%);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5), 0 0 12px rgba(118, 185, 0, 0.6);
+    background: linear-gradient(135deg, #8bd000 0%, #76b900 100%);
+    box-shadow:
+      0 2px 8px rgba(0, 0, 0, 0.5),
+      0 0 12px rgba(118, 185, 0, 0.6);
     transform: scale(1.1);
   }
 
   .nvidia-slider::-moz-range-thumb:hover {
-    background: linear-gradient(135deg, #8BD000 0%, #76B900 100%);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5), 0 0 12px rgba(118, 185, 0, 0.6);
+    background: linear-gradient(135deg, #8bd000 0%, #76b900 100%);
+    box-shadow:
+      0 2px 8px rgba(0, 0, 0, 0.5),
+      0 0 12px rgba(118, 185, 0, 0.6);
     transform: scale(1.1);
   }
 
@@ -414,11 +422,15 @@
   }
 
   .nvidia-slider:focus::-webkit-slider-thumb {
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5), 0 0 16px rgba(118, 185, 0, 0.8);
+    box-shadow:
+      0 2px 8px rgba(0, 0, 0, 0.5),
+      0 0 16px rgba(118, 185, 0, 0.8);
   }
 
   .nvidia-slider:focus::-moz-range-thumb {
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5), 0 0 16px rgba(118, 185, 0, 0.8);
+    box-shadow:
+      0 2px 8px rgba(0, 0, 0, 0.5),
+      0 0 16px rgba(118, 185, 0, 0.8);
   }
 
   /* Slider with filled track (shows progress) */
@@ -432,8 +444,8 @@
   }
 
   .nvidia-slider-value {
-    @apply rounded bg-gray-800 px-2 py-1 text-sm font-semibold text-white tabular-nums;
-    border: 1px solid #4A4A4A;
+    @apply rounded bg-gray-800 px-2 py-1 text-sm font-semibold tabular-nums text-white;
+    border: 1px solid #4a4a4a;
   }
 
   .nvidia-slider-description {
@@ -477,13 +489,13 @@
   .bg-gray-500,
   .dark\:bg-gray-500 {
     /* Override Tremor's dark gray badge background */
-    background-color: #3A3A3A !important;
+    background-color: #3a3a3a !important;
   }
 
   .text-gray-600,
   .dark\:text-gray-600 {
     /* Override Tremor's gray text to meet 4.5:1 contrast */
-    color: #B0B0B0 !important;
+    color: #b0b0b0 !important;
   }
 
   /* Tremor Badge text class override */

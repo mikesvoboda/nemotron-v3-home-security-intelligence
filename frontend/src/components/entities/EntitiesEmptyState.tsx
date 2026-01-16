@@ -25,20 +25,14 @@ export default function EntitiesEmptyState() {
           </div>
 
           {/* Floating person icon - top left */}
-          <div
-            className="absolute left-1/4 top-0 animate-float"
-            style={{ animationDelay: '0s' }}
-          >
+          <div className="absolute left-1/4 top-0 animate-float" style={{ animationDelay: '0s' }}>
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-500/10 ring-2 ring-blue-500/30">
               <User className="h-6 w-6 text-blue-400" />
             </div>
           </div>
 
           {/* Floating vehicle icon - top right */}
-          <div
-            className="absolute right-1/4 top-0 animate-float"
-            style={{ animationDelay: '1s' }}
-          >
+          <div className="absolute right-1/4 top-0 animate-float" style={{ animationDelay: '1s' }}>
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-purple-500/10 ring-2 ring-purple-500/30">
               <Car className="h-6 w-6 text-purple-400" />
             </div>
@@ -115,7 +109,9 @@ export default function EntitiesEmptyState() {
                 4
               </div>
               <div>
-                <p className="text-sm text-gray-300">Entity profile created with movement history</p>
+                <p className="text-sm text-gray-300">
+                  Entity profile created with movement history
+                </p>
               </div>
             </div>
           </div>

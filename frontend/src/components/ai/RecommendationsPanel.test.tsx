@@ -117,7 +117,10 @@ describe('RecommendationsPanel', () => {
       },
     ];
     render(
-      <RecommendationsPanel recommendations={lowPriorityRecommendations} totalEventsAnalyzed={100} />
+      <RecommendationsPanel
+        recommendations={lowPriorityRecommendations}
+        totalEventsAnalyzed={100}
+      />
     );
     expect(screen.queryByText(/High Priority/)).not.toBeInTheDocument();
   });

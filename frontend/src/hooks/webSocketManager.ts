@@ -72,25 +72,25 @@ export interface ConnectionConfig {
  * Heartbeat message structure from the server.
  */
 interface HeartbeatMessage {
-  type: "ping";
+  type: 'ping';
 }
 
 /**
  * Pong response structure to send back to server.
  */
 interface PongMessage {
-  type: "pong";
+  type: 'pong';
 }
 
 /**
  * Check if a message is a server heartbeat (ping) message.
  */
 function isHeartbeatMessage(data: unknown): data is HeartbeatMessage {
-  if (!data || typeof data !== "object") {
+  if (!data || typeof data !== 'object') {
     return false;
   }
   const msg = data as Record<string, unknown>;
-  return msg.type === "ping";
+  return msg.type === 'ping';
 }
 
 /**
@@ -140,11 +140,7 @@ class WebSocketManager {
   /**
    * Subscribe to a WebSocket URL.
    */
-  subscribe(
-    url: string,
-    subscriber: Subscriber,
-    config: ConnectionConfig
-  ): () => void {
+  subscribe(url: string, subscriber: Subscriber, config: ConnectionConfig): () => void {
     let connection = this.connections.get(url);
 
     if (!connection) {
@@ -196,15 +192,15 @@ class WebSocketManager {
     const connection = this.connections.get(url);
 
     if (!connection?.ws || connection.ws.readyState !== WebSocket.OPEN) {
-      logger.warn("WebSocket is not connected. Message not sent", {
-        component: "WebSocketManager",
+      logger.warn('WebSocket is not connected. Message not sent', {
+        component: 'WebSocketManager',
         url,
         data,
       });
       return false;
     }
 
-    const message = typeof data === "string" ? data : JSON.stringify(data);
+    const message = typeof data === 'string' ? data : JSON.stringify(data);
     connection.ws.send(message);
     return true;
   }
@@ -230,8 +226,7 @@ class WebSocketManager {
     return {
       isConnected: connection.ws?.readyState === WebSocket.OPEN,
       reconnectCount: connection.reconnectAttempts,
-      hasExhaustedRetries:
-        connection.reconnectAttempts >= (config?.maxReconnectAttempts ?? 5),
+      hasExhaustedRetries: connection.reconnectAttempts >= (config?.maxReconnectAttempts ?? 5),
       lastHeartbeat: connection.lastHeartbeat,
     };
   }
@@ -247,7 +242,7 @@ class WebSocketManager {
   }
 
   private connect(url: string): void {
-    if (typeof window === "undefined" || !window.WebSocket) {
+    if (typeof window === 'undefined' || !window.WebSocket) {
       return;
     }
 
@@ -274,8 +269,8 @@ class WebSocketManager {
       if (config.connectionTimeout > 0) {
         connection.connectionTimeout = setTimeout(() => {
           if (ws.readyState === WebSocket.CONNECTING) {
-            logger.warn("WebSocket connection timeout, retrying", {
-              component: "WebSocketManager",
+            logger.warn('WebSocket connection timeout, retrying', {
+              component: 'WebSocketManager',
               url,
               timeoutMs: config.connectionTimeout,
             });
@@ -358,7 +353,7 @@ class WebSocketManager {
             connection.lastHeartbeat = new Date();
 
             if (config.autoRespondToHeartbeat && ws.readyState === WebSocket.OPEN) {
-              const pongMessage: PongMessage = { type: "pong" };
+              const pongMessage: PongMessage = { type: 'pong' };
               ws.send(JSON.stringify(pongMessage));
             }
 
@@ -379,8 +374,8 @@ class WebSocketManager {
         }
       };
     } catch (error) {
-      logger.error("WebSocket connection error", {
-        component: "WebSocketManager",
+      logger.error('WebSocket connection error', {
+        component: 'WebSocketManager',
         url,
         error,
       });
@@ -466,20 +461,11 @@ export interface TypedSubscription {
   /** The typed event emitter for this subscription */
   emitter: TypedWebSocketEmitter;
   /** Subscribe to a specific event type with type safety */
-  on: <K extends WebSocketEventKey>(
-    event: K,
-    handler: WebSocketEventHandler<K>
-  ) => () => void;
+  on: <K extends WebSocketEventKey>(event: K, handler: WebSocketEventHandler<K>) => () => void;
   /** Unsubscribe from a specific event type */
-  off: <K extends WebSocketEventKey>(
-    event: K,
-    handler: WebSocketEventHandler<K>
-  ) => void;
+  off: <K extends WebSocketEventKey>(event: K, handler: WebSocketEventHandler<K>) => void;
   /** Subscribe to an event that fires only once */
-  once: <K extends WebSocketEventKey>(
-    event: K,
-    handler: WebSocketEventHandler<K>
-  ) => () => void;
+  once: <K extends WebSocketEventKey>(event: K, handler: WebSocketEventHandler<K>) => () => void;
   /** Send data through the WebSocket connection */
   send: (data: unknown) => boolean;
   /** Get the current connection state */

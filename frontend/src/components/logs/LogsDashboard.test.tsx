@@ -706,18 +706,14 @@ describe('LogsDashboard', () => {
       await user.click(errorCard);
 
       await waitFor(() => {
-        expect(api.fetchLogs).toHaveBeenCalledWith(
-          expect.objectContaining({ level: 'ERROR' })
-        );
+        expect(api.fetchLogs).toHaveBeenCalledWith(expect.objectContaining({ level: 'ERROR' }));
       });
 
       // Click again to deactivate (toggle off)
       await user.click(errorCard);
 
       await waitFor(() => {
-        expect(api.fetchLogs).toHaveBeenCalledWith(
-          expect.objectContaining({ level: undefined })
-        );
+        expect(api.fetchLogs).toHaveBeenCalledWith(expect.objectContaining({ level: undefined }));
       });
     });
 
@@ -734,9 +730,7 @@ describe('LogsDashboard', () => {
       await user.click(errorCard);
 
       await waitFor(() => {
-        expect(api.fetchLogs).toHaveBeenCalledWith(
-          expect.objectContaining({ level: 'ERROR' })
-        );
+        expect(api.fetchLogs).toHaveBeenCalledWith(expect.objectContaining({ level: 'ERROR' }));
       });
 
       // Open filters and verify dropdown shows ERROR
@@ -764,9 +758,7 @@ describe('LogsDashboard', () => {
       await user.selectOptions(levelSelect, 'ERROR');
 
       await waitFor(() => {
-        expect(api.fetchLogs).toHaveBeenCalledWith(
-          expect.objectContaining({ level: 'ERROR' })
-        );
+        expect(api.fetchLogs).toHaveBeenCalledWith(expect.objectContaining({ level: 'ERROR' }));
       });
 
       // Verify the Errors Today card shows active state

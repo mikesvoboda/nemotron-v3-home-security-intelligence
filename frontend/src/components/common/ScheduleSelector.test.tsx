@@ -12,13 +12,16 @@ describe('ScheduleSelector', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Mock Intl.DateTimeFormat to return consistent timezone
-    vi.spyOn(Intl, 'DateTimeFormat').mockImplementation(() => ({
-      resolvedOptions: () => ({ timeZone: 'America/New_York' }),
-      format: () => '',
-      formatToParts: () => [],
-      formatRange: () => '',
-      formatRangeToParts: () => [],
-    } as unknown as Intl.DateTimeFormat));
+    vi.spyOn(Intl, 'DateTimeFormat').mockImplementation(
+      () =>
+        ({
+          resolvedOptions: () => ({ timeZone: 'America/New_York' }),
+          format: () => '',
+          formatToParts: () => [],
+          formatRange: () => '',
+          formatRangeToParts: () => [],
+        }) as unknown as Intl.DateTimeFormat
+    );
   });
 
   describe('Initial Rendering', () => {
@@ -77,9 +80,11 @@ describe('ScheduleSelector', () => {
       await user.click(toggle);
 
       expect(screen.getByTestId('schedule-content')).toBeInTheDocument();
-      expect(mockOnChange).toHaveBeenCalledWith(expect.objectContaining({
-        timezone: 'America/New_York',
-      }));
+      expect(mockOnChange).toHaveBeenCalledWith(
+        expect.objectContaining({
+          timezone: 'America/New_York',
+        })
+      );
     });
 
     it('disables schedule when toggle is clicked on enabled schedule', async () => {
@@ -134,9 +139,11 @@ describe('ScheduleSelector', () => {
       const monButton = screen.getByRole('button', { name: 'Mon' });
       await user.click(monButton);
 
-      expect(mockOnChange).toHaveBeenCalledWith(expect.objectContaining({
-        days: ['monday'],
-      }));
+      expect(mockOnChange).toHaveBeenCalledWith(
+        expect.objectContaining({
+          days: ['monday'],
+        })
+      );
     });
 
     it('deselects a day when clicked again', async () => {
@@ -153,9 +160,11 @@ describe('ScheduleSelector', () => {
       const monButton = screen.getByRole('button', { name: 'Mon' });
       await user.click(monButton);
 
-      expect(mockOnChange).toHaveBeenCalledWith(expect.objectContaining({
-        days: ['tuesday'],
-      }));
+      expect(mockOnChange).toHaveBeenCalledWith(
+        expect.objectContaining({
+          days: ['tuesday'],
+        })
+      );
     });
 
     it('renders all seven days of the week', () => {
@@ -193,9 +202,11 @@ describe('ScheduleSelector', () => {
       const allDaysButton = screen.getByRole('button', { name: 'All Days' });
       await user.click(allDaysButton);
 
-      expect(mockOnChange).toHaveBeenCalledWith(expect.objectContaining({
-        days: null, // Empty array is converted to null
-      }));
+      expect(mockOnChange).toHaveBeenCalledWith(
+        expect.objectContaining({
+          days: null, // Empty array is converted to null
+        })
+      );
     });
 
     it('selects weekdays when "Weekdays" is clicked', async () => {
@@ -212,9 +223,11 @@ describe('ScheduleSelector', () => {
       const weekdaysButton = screen.getByRole('button', { name: 'Weekdays' });
       await user.click(weekdaysButton);
 
-      expect(mockOnChange).toHaveBeenCalledWith(expect.objectContaining({
-        days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
-      }));
+      expect(mockOnChange).toHaveBeenCalledWith(
+        expect.objectContaining({
+          days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+        })
+      );
     });
 
     it('selects weekends when "Weekends" is clicked', async () => {
@@ -231,9 +244,11 @@ describe('ScheduleSelector', () => {
       const weekendsButton = screen.getByRole('button', { name: 'Weekends' });
       await user.click(weekendsButton);
 
-      expect(mockOnChange).toHaveBeenCalledWith(expect.objectContaining({
-        days: ['saturday', 'sunday'],
-      }));
+      expect(mockOnChange).toHaveBeenCalledWith(
+        expect.objectContaining({
+          days: ['saturday', 'sunday'],
+        })
+      );
     });
 
     it('highlights "Weekdays" button when weekdays are selected', () => {
@@ -295,9 +310,11 @@ describe('ScheduleSelector', () => {
       await user.clear(startTimeInput);
       await user.type(startTimeInput, '10:30');
 
-      expect(mockOnChange).toHaveBeenLastCalledWith(expect.objectContaining({
-        start_time: '10:30',
-      }));
+      expect(mockOnChange).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          start_time: '10:30',
+        })
+      );
     });
 
     it('updates end time when changed', async () => {
@@ -315,9 +332,11 @@ describe('ScheduleSelector', () => {
       await user.clear(endTimeInput);
       await user.type(endTimeInput, '18:00');
 
-      expect(mockOnChange).toHaveBeenLastCalledWith(expect.objectContaining({
-        end_time: '18:00',
-      }));
+      expect(mockOnChange).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          end_time: '18:00',
+        })
+      );
     });
 
     it('supports overnight schedules (22:00-06:00)', () => {
@@ -350,10 +369,12 @@ describe('ScheduleSelector', () => {
       const allDayButton = screen.getByRole('button', { name: 'All Day' });
       await user.click(allDayButton);
 
-      expect(mockOnChange).toHaveBeenCalledWith(expect.objectContaining({
-        start_time: '00:00',
-        end_time: '23:59',
-      }));
+      expect(mockOnChange).toHaveBeenCalledWith(
+        expect.objectContaining({
+          start_time: '00:00',
+          end_time: '23:59',
+        })
+      );
     });
 
     it('highlights "All Day" button when times are 00:00-23:59', () => {
@@ -405,9 +426,11 @@ describe('ScheduleSelector', () => {
       const timezoneSelect = screen.getByLabelText('Timezone');
       await user.selectOptions(timezoneSelect, 'America/Los_Angeles');
 
-      expect(mockOnChange).toHaveBeenCalledWith(expect.objectContaining({
-        timezone: 'America/Los_Angeles',
-      }));
+      expect(mockOnChange).toHaveBeenCalledWith(
+        expect.objectContaining({
+          timezone: 'America/Los_Angeles',
+        })
+      );
     });
 
     it('defaults to browser timezone when no timezone specified', async () => {
@@ -420,9 +443,11 @@ describe('ScheduleSelector', () => {
       await user.click(toggle);
 
       // The onChange should be called with the browser timezone
-      expect(mockOnChange).toHaveBeenCalledWith(expect.objectContaining({
-        timezone: 'America/New_York',
-      }));
+      expect(mockOnChange).toHaveBeenCalledWith(
+        expect.objectContaining({
+          timezone: 'America/New_York',
+        })
+      );
     });
   });
 
@@ -546,9 +571,7 @@ describe('ScheduleSelector', () => {
 
   describe('Custom className', () => {
     it('applies custom className to container', () => {
-      render(
-        <ScheduleSelector value={null} onChange={mockOnChange} className="custom-class" />
-      );
+      render(<ScheduleSelector value={null} onChange={mockOnChange} className="custom-class" />);
 
       expect(screen.getByTestId('schedule-selector')).toHaveClass('custom-class');
     });

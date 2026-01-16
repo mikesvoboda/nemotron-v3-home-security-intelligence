@@ -97,9 +97,9 @@ interface GpuChartPoint {
  */
 interface TemperatureChartPoint {
   time: string;
-  'Temperature': number;
-  'Warning': number;
-  'Critical': number;
+  Temperature: number;
+  Warning: number;
+  Critical: number;
 }
 
 /**
@@ -108,8 +108,8 @@ interface TemperatureChartPoint {
 interface LatencyChartPoint {
   time: string;
   'RT-DETRv2': number | null;
-  'Nemotron': number | null;
-  'Pipeline': number | null;
+  Nemotron: number | null;
+  Pipeline: number | null;
 }
 
 /**
@@ -117,9 +117,9 @@ interface LatencyChartPoint {
  */
 interface ResourceChartPoint {
   time: string;
-  'CPU': number;
-  'RAM': number;
-  'Disk': number;
+  CPU: number;
+  RAM: number;
+  Disk: number;
 }
 
 /**
@@ -146,9 +146,9 @@ function transformGpuData(history: PerformanceUpdate[]): GpuChartPoint[] {
 function transformTemperatureData(history: PerformanceUpdate[]): TemperatureChartPoint[] {
   return history.map((snapshot) => ({
     time: formatTime(snapshot.timestamp),
-    'Temperature': snapshot.gpu?.temperature ?? 0,
-    'Warning': TEMPERATURE_THRESHOLDS.warning,
-    'Critical': TEMPERATURE_THRESHOLDS.critical,
+    Temperature: snapshot.gpu?.temperature ?? 0,
+    Warning: TEMPERATURE_THRESHOLDS.warning,
+    Critical: TEMPERATURE_THRESHOLDS.critical,
   }));
 }
 
@@ -159,8 +159,8 @@ function transformLatencyData(history: PerformanceUpdate[]): LatencyChartPoint[]
   return history.map((snapshot) => ({
     time: formatTime(snapshot.timestamp),
     'RT-DETRv2': snapshot.inference?.rtdetr_latency_ms?.avg ?? null,
-    'Nemotron': snapshot.inference?.nemotron_latency_ms?.avg ?? null,
-    'Pipeline': snapshot.inference?.pipeline_latency_ms?.avg ?? null,
+    Nemotron: snapshot.inference?.nemotron_latency_ms?.avg ?? null,
+    Pipeline: snapshot.inference?.pipeline_latency_ms?.avg ?? null,
   }));
 }
 
@@ -181,9 +181,9 @@ function transformResourceData(history: PerformanceUpdate[]): ResourceChartPoint
 
     return {
       time: formatTime(snapshot.timestamp),
-      'CPU': snapshot.host?.cpu_percent ?? 0,
-      'RAM': ramPercent,
-      'Disk': diskPercent,
+      CPU: snapshot.host?.cpu_percent ?? 0,
+      RAM: ramPercent,
+      Disk: diskPercent,
     };
   });
 }
@@ -218,7 +218,13 @@ function hasHostData(history: PerformanceUpdate[]): boolean {
 /**
  * Empty state placeholder component
  */
-function EmptyChart({ message, icon: Icon }: { message: string; icon: React.ComponentType<{ className?: string }> }) {
+function EmptyChart({
+  message,
+  icon: Icon,
+}: {
+  message: string;
+  icon: React.ComponentType<{ className?: string }>;
+}) {
   return (
     <div className="flex h-48 items-center justify-center" data-testid="empty-chart">
       <div className="text-center">
@@ -251,7 +257,10 @@ export default function PerformanceCharts({
 
   // Memoize chart data transformations
   const gpuChartData = useMemo(() => transformGpuData(activeHistory), [activeHistory]);
-  const temperatureChartData = useMemo(() => transformTemperatureData(activeHistory), [activeHistory]);
+  const temperatureChartData = useMemo(
+    () => transformTemperatureData(activeHistory),
+    [activeHistory]
+  );
   const latencyChartData = useMemo(() => transformLatencyData(activeHistory), [activeHistory]);
   const resourceChartData = useMemo(() => transformResourceData(activeHistory), [activeHistory]);
 
@@ -284,10 +293,7 @@ export default function PerformanceCharts({
           </div>
           <div className="flex items-center gap-2">
             <div
-              className={clsx(
-                'h-2 w-2 rounded-full',
-                isConnected ? 'bg-green-500' : 'bg-red-500'
-              )}
+              className={clsx('h-2 w-2 rounded-full', isConnected ? 'bg-green-500' : 'bg-red-500')}
               data-testid="connection-indicator"
             />
             <Text className="text-xs text-gray-500">
@@ -330,19 +336,14 @@ export default function PerformanceCharts({
             )}
 
             {activeHistory.length > 0 && showGpuChart && (
-              <Text className="mt-2 text-xs text-gray-500">
-                {activeHistory.length} data points
-              </Text>
+              <Text className="mt-2 text-xs text-gray-500">{activeHistory.length} data points</Text>
             )}
           </Card>
         </Col>
 
         {/* Temperature Chart */}
         <Col>
-          <Card
-            className="border-gray-800 bg-[#1A1A1A] shadow-lg"
-            data-testid="temperature-card"
-          >
+          <Card className="border-gray-800 bg-[#1A1A1A] shadow-lg" data-testid="temperature-card">
             <Title className="mb-4 flex items-center gap-2 text-white">
               <Thermometer className="h-5 w-5 text-[#76B900]" />
               GPU Temperature
@@ -369,17 +370,19 @@ export default function PerformanceCharts({
 
             {activeHistory.length > 0 && showGpuChart && (
               <div className="mt-2 flex items-center justify-between">
-                <Text className="text-xs text-gray-500">
-                  {activeHistory.length} data points
-                </Text>
+                <Text className="text-xs text-gray-500">{activeHistory.length} data points</Text>
                 <div className="flex items-center gap-3 text-xs">
                   <span className="flex items-center gap-1">
                     <span className="h-2 w-2 rounded-full bg-yellow-500" />
-                    <span className="text-gray-400">Warning: {TEMPERATURE_THRESHOLDS.warning}C</span>
+                    <span className="text-gray-400">
+                      Warning: {TEMPERATURE_THRESHOLDS.warning}C
+                    </span>
                   </span>
                   <span className="flex items-center gap-1">
                     <span className="h-2 w-2 rounded-full bg-red-500" />
-                    <span className="text-gray-400">Critical: {TEMPERATURE_THRESHOLDS.critical}C</span>
+                    <span className="text-gray-400">
+                      Critical: {TEMPERATURE_THRESHOLDS.critical}C
+                    </span>
                   </span>
                 </div>
               </div>
@@ -389,10 +392,7 @@ export default function PerformanceCharts({
 
         {/* Inference Latency Chart */}
         <Col>
-          <Card
-            className="border-gray-800 bg-[#1A1A1A] shadow-lg"
-            data-testid="latency-card"
-          >
+          <Card className="border-gray-800 bg-[#1A1A1A] shadow-lg" data-testid="latency-card">
             <Title className="mb-4 flex items-center gap-2 text-white">
               <Timer className="h-5 w-5 text-[#76B900]" />
               Inference Latency
@@ -418,9 +418,7 @@ export default function PerformanceCharts({
             )}
 
             {activeHistory.length > 0 && showInferenceChart && (
-              <Text className="mt-2 text-xs text-gray-500">
-                {activeHistory.length} data points
-              </Text>
+              <Text className="mt-2 text-xs text-gray-500">{activeHistory.length} data points</Text>
             )}
           </Card>
         </Col>
@@ -456,9 +454,7 @@ export default function PerformanceCharts({
             )}
 
             {activeHistory.length > 0 && showResourceChart && (
-              <Text className="mt-2 text-xs text-gray-500">
-                {activeHistory.length} data points
-              </Text>
+              <Text className="mt-2 text-xs text-gray-500">{activeHistory.length} data points</Text>
             )}
           </Card>
         </Col>

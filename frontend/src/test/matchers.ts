@@ -113,11 +113,7 @@ export function expectApiSuccess(response: Response, expectedStatus = 200) {
  * expectApiError(response, 404, 'Camera not found');
  * ```
  */
-export function expectApiError(
-  response: Response,
-  expectedStatus: number,
-  errorMessage?: string
-) {
+export function expectApiError(response: Response, expectedStatus: number, errorMessage?: string) {
   expect(response.ok).toBe(false);
   expect(response.status).toBe(expectedStatus);
 
@@ -198,9 +194,7 @@ export function expectValidEvent(event: unknown): asserts event is Event {
  * expectValidDetection(detection);
  * ```
  */
-export function expectValidDetection(
-  detection: unknown
-): asserts detection is Detection {
+export function expectValidDetection(detection: unknown): asserts detection is Detection {
   expect(detection).toBeDefined();
   expect(detection).toHaveProperty('id');
   expect(detection).toHaveProperty('camera_id');
@@ -256,10 +250,7 @@ export function expectValidBoundingBox(bbox: number[]) {
  * expectRecentTimestamp(event.started_at, 30);
  * ```
  */
-export function expectRecentTimestamp(
-  timestamp: string,
-  maxAgeSeconds = 60
-) {
+export function expectRecentTimestamp(timestamp: string, maxAgeSeconds = 60) {
   const date = new Date(timestamp);
   const now = new Date();
   const ageSeconds = (now.getTime() - date.getTime()) / 1000;

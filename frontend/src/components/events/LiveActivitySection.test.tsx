@@ -215,10 +215,34 @@ describe('LiveActivitySection', () => {
     it('displays risk breakdown on larger screens', () => {
       // Create events with different risk levels
       const mixedEvents: ActivityEvent[] = [
-        { id: '1', timestamp: '2024-01-01T10:00:00Z', camera_name: 'Cam1', risk_score: 95, summary: 'Critical event' },
-        { id: '2', timestamp: '2024-01-01T10:01:00Z', camera_name: 'Cam2', risk_score: 75, summary: 'High event' },
-        { id: '3', timestamp: '2024-01-01T10:02:00Z', camera_name: 'Cam3', risk_score: 45, summary: 'Medium event' },
-        { id: '4', timestamp: '2024-01-01T10:03:00Z', camera_name: 'Cam4', risk_score: 20, summary: 'Low event' },
+        {
+          id: '1',
+          timestamp: '2024-01-01T10:00:00Z',
+          camera_name: 'Cam1',
+          risk_score: 95,
+          summary: 'Critical event',
+        },
+        {
+          id: '2',
+          timestamp: '2024-01-01T10:01:00Z',
+          camera_name: 'Cam2',
+          risk_score: 75,
+          summary: 'High event',
+        },
+        {
+          id: '3',
+          timestamp: '2024-01-01T10:02:00Z',
+          camera_name: 'Cam3',
+          risk_score: 45,
+          summary: 'Medium event',
+        },
+        {
+          id: '4',
+          timestamp: '2024-01-01T10:03:00Z',
+          camera_name: 'Cam4',
+          risk_score: 20,
+          summary: 'Low event',
+        },
       ];
 
       render(<LiveActivitySection {...defaultProps} events={mixedEvents} />);

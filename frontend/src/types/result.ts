@@ -266,10 +266,7 @@ export function unwrapErr<T, E>(result: Result<T, E>): E {
  * const mapped = map(error, x => x * 2); // Err(Error('Failed'))
  * ```
  */
-export function map<T, U, E>(
-  result: Result<T, E>,
-  fn: (value: T) => U
-): Result<U, E> {
+export function map<T, U, E>(result: Result<T, E>, fn: (value: T) => U): Result<U, E> {
   if (result.ok === true) {
     return Ok(fn(result.value));
   }
@@ -293,10 +290,7 @@ export function map<T, U, E>(
  * const mapped = mapErr(ok, e => new Error(e)); // Ok(42)
  * ```
  */
-export function mapErr<T, E, F>(
-  result: Result<T, E>,
-  fn: (error: E) => F
-): Result<T, F> {
+export function mapErr<T, E, F>(result: Result<T, E>, fn: (error: E) => F): Result<T, F> {
   if (result.ok === true) {
     return Ok(result.value);
   }

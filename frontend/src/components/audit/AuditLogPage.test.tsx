@@ -478,12 +478,8 @@ describe('AuditLogPage', () => {
       });
 
       // Empty state now includes helpful guidance
-      expect(
-        screen.getByText(/No audit logs match the current filters/i)
-      ).toBeInTheDocument();
-      expect(
-        screen.getByText(/Try these actions to generate entries/i)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/No audit logs match the current filters/i)).toBeInTheDocument();
+      expect(screen.getByText(/Try these actions to generate entries/i)).toBeInTheDocument();
     });
   });
 
@@ -532,7 +528,10 @@ describe('AuditLogPage', () => {
 
       // Verify the API was called with the filter
       await waitFor(() => {
-        expect(api.fetchAuditLogs).toHaveBeenCalledWith(expect.objectContaining({ action: 'event_reviewed' }), expect.anything());
+        expect(api.fetchAuditLogs).toHaveBeenCalledWith(
+          expect.objectContaining({ action: 'event_reviewed' }),
+          expect.anything()
+        );
       });
     });
 
@@ -553,7 +552,10 @@ describe('AuditLogPage', () => {
 
       // Verify the API was called with the filter
       await waitFor(() => {
-        expect(api.fetchAuditLogs).toHaveBeenCalledWith(expect.objectContaining({ status: 'failure' }), expect.anything());
+        expect(api.fetchAuditLogs).toHaveBeenCalledWith(
+          expect.objectContaining({ status: 'failure' }),
+          expect.anything()
+        );
       });
     });
 
@@ -626,7 +628,10 @@ describe('AuditLogPage', () => {
       await user.click(screen.getByLabelText('Next page'));
 
       await waitFor(() => {
-        expect(api.fetchAuditLogs).toHaveBeenCalledWith(expect.objectContaining({ offset: 50 }), expect.anything());
+        expect(api.fetchAuditLogs).toHaveBeenCalledWith(
+          expect.objectContaining({ offset: 50 }),
+          expect.anything()
+        );
       });
     });
 
@@ -730,10 +735,13 @@ describe('AuditLogPage', () => {
       render(<AuditLogPage />);
 
       await waitFor(() => {
-        expect(api.fetchAuditLogs).toHaveBeenCalledWith({
-          limit: 50,
-          offset: 0,
-        }, expect.anything());
+        expect(api.fetchAuditLogs).toHaveBeenCalledWith(
+          {
+            limit: 50,
+            offset: 0,
+          },
+          expect.anything()
+        );
       });
     });
 

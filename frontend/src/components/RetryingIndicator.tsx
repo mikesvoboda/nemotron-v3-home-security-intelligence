@@ -35,9 +35,7 @@ export interface RetryingIndicatorProps {
  * 1. Client is rate limited (remaining = 0)
  * 2. AND there are active queries or mutations
  */
-export default function RetryingIndicator({
-  className,
-}: RetryingIndicatorProps) {
+export default function RetryingIndicator({ className }: RetryingIndicatorProps) {
   const { isLimited } = useRateLimitStore();
   const fetchingCount = useIsFetching();
   const mutatingCount = useIsMutating();
@@ -63,9 +61,7 @@ export default function RetryingIndicator({
         data-testid="retrying-spinner"
         aria-hidden="true"
       />
-      <span className="text-sm font-medium text-blue-800">
-        Retrying request...
-      </span>
+      <span className="text-sm font-medium text-blue-800">Retrying request...</span>
     </div>
   );
 }

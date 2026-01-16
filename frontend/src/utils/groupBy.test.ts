@@ -93,12 +93,7 @@ describe('groupBy', () => {
 
   describe('with computed keys', () => {
     it('groups by computed boolean condition', () => {
-      const items = [
-        { value: 10 },
-        { value: 25 },
-        { value: 5 },
-        { value: 30 },
-      ];
+      const items = [{ value: 10 }, { value: 25 }, { value: 5 }, { value: 30 }];
 
       const result = groupBy(items, (item) => (item.value >= 20 ? 'high' : 'low'));
 
@@ -293,13 +288,7 @@ describe('countBy', () => {
 
   describe('with computed keys', () => {
     it('counts by computed boolean condition', () => {
-      const items = [
-        { value: 10 },
-        { value: 25 },
-        { value: 5 },
-        { value: 30 },
-        { value: 15 },
-      ];
+      const items = [{ value: 10 }, { value: 25 }, { value: 5 }, { value: 30 }, { value: 15 }];
 
       const result = countBy(items, (item) => (item.value >= 20 ? 'high' : 'low'));
 

@@ -578,12 +578,8 @@ describe('useWebSocket', () => {
 
       (webSocketManager.getSubscriberCount as Mock).mockReturnValue(2);
 
-      const { result: result1 } = renderHook(() =>
-        useWebSocket({ url: 'ws://test/events' })
-      );
-      const { result: result2 } = renderHook(() =>
-        useWebSocket({ url: 'ws://test/events' })
-      );
+      const { result: result1 } = renderHook(() => useWebSocket({ url: 'ws://test/events' }));
+      const { result: result2 } = renderHook(() => useWebSocket({ url: 'ws://test/events' }));
 
       await waitFor(() => {
         expect(result1.current.isConnected).toBe(true);
@@ -705,9 +701,7 @@ describe('calculateBackoffDelay', () => {
 
       // Calculate total time for 5 reconnection attempts (default)
       // Attempt 0: wait 1s, Attempt 1: wait 2s, Attempt 2: wait 4s, Attempt 3: wait 8s, Attempt 4: wait 16s
-      const delays = [0, 1, 2, 3, 4].map((attempt) =>
-        calculateBackoffDelay(attempt, baseInterval)
-      );
+      const delays = [0, 1, 2, 3, 4].map((attempt) => calculateBackoffDelay(attempt, baseInterval));
       const totalDelay = delays.reduce((sum, delay) => sum + delay, 0);
 
       // Total: 1000 + 2000 + 4000 + 8000 + 16000 = 31000ms = 31 seconds

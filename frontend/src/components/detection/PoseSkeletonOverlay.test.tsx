@@ -666,8 +666,20 @@ describe('arePropsEqual - React.memo custom comparator', () => {
   });
 
   it('returns true when keypoints array has same content', () => {
-    const prevProps = { ...baseProps, keypoints: [[100, 50, 0.95], [90, 45, 0.9]] as Keypoint[] };
-    const nextProps = { ...baseProps, keypoints: [[100, 50, 0.95], [90, 45, 0.9]] as Keypoint[] };
+    const prevProps = {
+      ...baseProps,
+      keypoints: [
+        [100, 50, 0.95],
+        [90, 45, 0.9],
+      ] as Keypoint[],
+    };
+    const nextProps = {
+      ...baseProps,
+      keypoints: [
+        [100, 50, 0.95],
+        [90, 45, 0.9],
+      ] as Keypoint[],
+    };
     expect(arePropsEqual(prevProps, nextProps)).toBe(true);
   });
 

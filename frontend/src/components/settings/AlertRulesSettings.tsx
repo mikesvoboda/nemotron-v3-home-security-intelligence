@@ -479,7 +479,8 @@ export default function AlertRulesSettings() {
     if (!schedule) return 'Always active';
     const days =
       (schedule.days?.length ?? 0) > 0
-        ? (schedule.days?.map((d) => d.charAt(0).toUpperCase() + d.slice(1, 3)).join(', ') ?? 'All days')
+        ? (schedule.days?.map((d) => d.charAt(0).toUpperCase() + d.slice(1, 3)).join(', ') ??
+          'All days')
         : 'All days';
     const times =
       schedule.start_time && schedule.end_time
@@ -1370,7 +1371,9 @@ export default function AlertRulesSettings() {
                     {testLoading ? (
                       <div className="flex items-center justify-center py-8">
                         <Loader2 className="mr-2 h-6 w-6 animate-spin text-primary" />
-                        <span className="text-text-secondary">Testing rule against recent events...</span>
+                        <span className="text-text-secondary">
+                          Testing rule against recent events...
+                        </span>
                       </div>
                     ) : testResult ? (
                       <div className="space-y-4">
@@ -1402,7 +1405,7 @@ export default function AlertRulesSettings() {
                             <h4 className="text-sm font-semibold text-text-primary">
                               Event Results
                             </h4>
-                            <div className="max-h-60 overflow-y-auto space-y-2">
+                            <div className="max-h-60 space-y-2 overflow-y-auto">
                               {testResult.results.map((result) => (
                                 <div
                                   key={result.event_id}
@@ -1430,9 +1433,7 @@ export default function AlertRulesSettings() {
                                   </div>
                                   <div className="mt-1 flex items-center gap-4 text-xs text-text-secondary">
                                     <span>Risk: {result.risk_score ?? 'N/A'}</span>
-                                    <span>
-                                      Objects: {result.object_types.join(', ') || 'None'}
-                                    </span>
+                                    <span>Objects: {result.object_types.join(', ') || 'None'}</span>
                                   </div>
                                   {result.matches && result.matched_conditions.length > 0 && (
                                     <div className="mt-2 text-xs text-green-400">
@@ -1446,7 +1447,7 @@ export default function AlertRulesSettings() {
                         )}
 
                         {testResult.events_tested === 0 && (
-                          <div className="text-center py-4 text-text-secondary">
+                          <div className="py-4 text-center text-text-secondary">
                             No recent events to test against
                           </div>
                         )}

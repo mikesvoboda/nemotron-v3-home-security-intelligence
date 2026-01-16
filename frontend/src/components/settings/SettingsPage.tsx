@@ -1,6 +1,15 @@
 import { Tab } from '@headlessui/react';
 import { clsx } from 'clsx';
-import { Bell, Camera, Eye, FileText, HardDrive, Settings as SettingsIcon, Shield, Sliders } from 'lucide-react';
+import {
+  Bell,
+  Camera,
+  Eye,
+  FileText,
+  HardDrive,
+  Settings as SettingsIcon,
+  Shield,
+  Sliders,
+} from 'lucide-react';
 import { Fragment } from 'react';
 
 import { SecureContextWarning } from '../common';

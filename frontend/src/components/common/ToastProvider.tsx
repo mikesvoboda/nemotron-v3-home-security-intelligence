@@ -104,9 +104,7 @@ function ToastProvider({
   duration = 4000,
 }: ToastProviderProps): JSX.Element {
   // Combine default nvidia-toast class with any custom className
-  const toasterClassName = className
-    ? `nvidia-toast ${className}`
-    : 'nvidia-toast';
+  const toasterClassName = className ? `nvidia-toast ${className}` : 'nvidia-toast';
 
   return (
     <>

@@ -128,7 +128,13 @@ export {
   numericLiteralUnion,
 } from './guards';
 
-export type { ApiErrorShape, PaginatedResponseShape, TypeGuard, GuardedType, ObjectSchema } from './guards';
+export type {
+  ApiErrorShape,
+  PaginatedResponseShape,
+  TypeGuard,
+  GuardedType,
+  ObjectSchema,
+} from './guards';
 
 // ============================================================================
 // Constants and Utilities
@@ -190,7 +196,20 @@ export type {
 
 export type { Result, OkResult, ErrResult } from './result';
 
-export { Ok, Err, isOk, isErr, unwrap, unwrapOr, unwrapErr, map, mapErr, andThen, orElse, match } from './result';
+export {
+  Ok,
+  Err,
+  isOk,
+  isErr,
+  unwrap,
+  unwrapOr,
+  unwrapErr,
+  map,
+  mapErr,
+  andThen,
+  orElse,
+  match,
+} from './result';
 
 // ============================================================================
 // WebSocket Types
@@ -227,11 +246,7 @@ export type {
 // Prompt Management Types
 // ============================================================================
 
-export type {
-  PromptVersionInfo,
-  PromptTestResult,
-  ModelPromptConfig,
-} from './promptManagement';
+export type { PromptVersionInfo, PromptTestResult, ModelPromptConfig } from './promptManagement';
 
 // ============================================================================
 // Performance Types

@@ -83,10 +83,7 @@ describe('AuditFilters', () => {
       const user = userEvent.setup();
 
       render(
-        <AuditFilters
-          onFilterChange={handleFilterChange}
-          availableActions={mockAvailableActions}
-        />
+        <AuditFilters onFilterChange={handleFilterChange} availableActions={mockAvailableActions} />
       );
 
       await user.click(screen.getByText('Show Filters'));
@@ -106,10 +103,7 @@ describe('AuditFilters', () => {
       const user = userEvent.setup();
 
       render(
-        <AuditFilters
-          onFilterChange={handleFilterChange}
-          availableActions={mockAvailableActions}
-        />
+        <AuditFilters onFilterChange={handleFilterChange} availableActions={mockAvailableActions} />
       );
 
       await user.click(screen.getByText('Show Filters'));
@@ -129,10 +123,7 @@ describe('AuditFilters', () => {
       const user = userEvent.setup();
 
       render(
-        <AuditFilters
-          onFilterChange={handleFilterChange}
-          availableActions={mockAvailableActions}
-        />
+        <AuditFilters onFilterChange={handleFilterChange} availableActions={mockAvailableActions} />
       );
 
       await user.click(screen.getByText('Show Filters'));
@@ -578,10 +569,7 @@ describe('AuditFilters', () => {
       const user = userEvent.setup();
 
       render(
-        <AuditFilters
-          onFilterChange={handleFilterChange}
-          availableActions={mockAvailableActions}
-        />
+        <AuditFilters onFilterChange={handleFilterChange} availableActions={mockAvailableActions} />
       );
 
       await user.click(screen.getByText('Show Filters'));

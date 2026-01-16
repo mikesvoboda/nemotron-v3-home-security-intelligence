@@ -47,11 +47,7 @@ const createTestWrapper = () => {
   });
 
   return function TestWrapper({ children }: { children: React.ReactNode }) {
-    return (
-      <QueryClientProvider client={queryClient}>
-        {children}
-      </QueryClientProvider>
-    );
+    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
   };
 };
 
@@ -367,7 +363,8 @@ describe('PromptVersionHistory', () => {
     it('shows error message after failed restore', async () => {
       const user = userEvent.setup();
       const { useAIAuditPromptHistoryQuery } = await import('../../../hooks/useAIAuditQueries');
-      const { restorePromptVersion, PromptApiError } = await import('../../../services/promptManagementApi');
+      const { restorePromptVersion, PromptApiError } =
+        await import('../../../services/promptManagementApi');
 
       vi.mocked(useAIAuditPromptHistoryQuery).mockReturnValue({
         data: {

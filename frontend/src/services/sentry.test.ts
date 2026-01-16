@@ -206,9 +206,7 @@ describe('Sentry Integration', () => {
 
       expect(Sentry.init).toHaveBeenCalledWith(
         expect.objectContaining({
-          integrations: expect.arrayContaining([
-            expect.objectContaining({ name: 'Replay' }),
-          ]),
+          integrations: expect.arrayContaining([expect.objectContaining({ name: 'Replay' })]),
         })
       );
     });

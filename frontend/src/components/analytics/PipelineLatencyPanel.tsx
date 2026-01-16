@@ -153,10 +153,7 @@ export default function PipelineLatencyPanel({ refreshInterval = 0 }: PipelineLa
   };
 
   // Render stage bar
-  const renderStageBar = (
-    stageKey: string,
-    stageData: PipelineStageLatency | null | undefined
-  ) => {
+  const renderStageBar = (stageKey: string, stageData: PipelineStageLatency | null | undefined) => {
     if (!stageData) return null;
 
     const config = STAGE_CONFIG[stageKey];
@@ -177,9 +174,7 @@ export default function PipelineLatencyPanel({ refreshInterval = 0 }: PipelineLa
               </span>
             )}
           </div>
-          <span className="text-sm text-gray-500">
-            {percentage.toFixed(1)}% of total
-          </span>
+          <span className="text-sm text-gray-500">{percentage.toFixed(1)}% of total</span>
         </div>
 
         {/* Bar chart */}
@@ -233,8 +228,11 @@ export default function PipelineLatencyPanel({ refreshInterval = 0 }: PipelineLa
     const maxP95 = Math.max(
       ...historyData.snapshots.flatMap((snapshot) =>
         Object.values(snapshot.stages)
-          .filter((stage): stage is NonNullable<typeof stage> => stage !== null && stage !== undefined && typeof stage === 'object')
-          .map((stage) => ('p95_ms' in stage ? stage.p95_ms ?? 0 : 0))
+          .filter(
+            (stage): stage is NonNullable<typeof stage> =>
+              stage !== null && stage !== undefined && typeof stage === 'object'
+          )
+          .map((stage) => ('p95_ms' in stage ? (stage.p95_ms ?? 0) : 0))
       ),
       1
     );
@@ -246,7 +244,10 @@ export default function PipelineLatencyPanel({ refreshInterval = 0 }: PipelineLa
             const stage = snapshot.stages[stageKey];
             return {
               timestamp: snapshot.timestamp,
-              p95: stage && typeof stage === 'object' && 'p95_ms' in stage ? stage.p95_ms ?? null : null,
+              p95:
+                stage && typeof stage === 'object' && 'p95_ms' in stage
+                  ? (stage.p95_ms ?? null)
+                  : null,
             };
           });
 

@@ -117,11 +117,7 @@ export interface UseHealthStatusQueryReturn {
 export function useHealthStatusQuery(
   options: UseHealthStatusQueryOptions = {}
 ): UseHealthStatusQueryReturn {
-  const {
-    enabled = true,
-    refetchInterval = false,
-    staleTime = REALTIME_STALE_TIME,
-  } = options;
+  const { enabled = true, refetchInterval = false, staleTime = REALTIME_STALE_TIME } = options;
 
   const query = useQuery({
     queryKey: queryKeys.system.health,

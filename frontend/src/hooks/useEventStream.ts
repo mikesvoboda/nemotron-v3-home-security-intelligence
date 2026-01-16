@@ -152,72 +152,75 @@ export function useEventStream(): UseEventStreamReturn {
     });
   }, []);
 
-  const handleMessage = useCallback((data: unknown) => {
-    // Check if component is still mounted before updating state (wa0t.31)
-    if (!isMountedRef.current) {
-      return;
-    }
-
-    // Use type guards to validate and narrow the message type
-    // First, check for event messages (most common case)
-    if (isEventMessage(data)) {
-      const event = data.data;
-
-      // NEM-1999: Check if message has sequence number for ordering
-      if (data.sequence !== undefined && data.sequence !== null) {
-        // Use sequence validator for ordering
-        const sequencedMessage: SequencedMessage = {
-          type: data.type,
-          sequence: data.sequence,
-          data: event,
-          replay: data.replay,
-          requires_ack: data.requires_ack,
-          timestamp: data.timestamp,
-        };
-
-        const result = sequenceValidatorRef.current?.handleMessage(
-          EVENTS_CHANNEL,
-          sequencedMessage
-        );
-
-        if (result) {
-          // Process all events that are now in order
-          for (const processedMsg of result.processed) {
-            const processedEvent = processedMsg.data as SecurityEvent;
-            processEvent(processedEvent);
-          }
-
-          // Update sequence statistics
-          const stats = sequenceValidatorRef.current?.getStatistics(EVENTS_CHANNEL);
-          if (stats) {
-            setSequenceStats(stats);
-          }
-        }
-      } else {
-        // No sequence number - process immediately (backward compatibility)
-        processEvent(event);
+  const handleMessage = useCallback(
+    (data: unknown) => {
+      // Check if component is still mounted before updating state (wa0t.31)
+      if (!isMountedRef.current) {
+        return;
       }
-      return;
-    }
 
-    // Handle other valid EventsChannelMessage types with exhaustive checking pattern
-    if (isHeartbeatMessage(data)) {
-      // Heartbeat messages are handled by useWebSocket internally
-      return;
-    }
+      // Use type guards to validate and narrow the message type
+      // First, check for event messages (most common case)
+      if (isEventMessage(data)) {
+        const event = data.data;
 
-    if (isErrorMessage(data)) {
-      // Error messages are logged via the structured logger
-      logger.warn('WebSocket error received', {
-        component: 'useEventStream',
-        errorMessage: data.message,
-      });
-      return;
-    }
+        // NEM-1999: Check if message has sequence number for ordering
+        if (data.sequence !== undefined && data.sequence !== null) {
+          // Use sequence validator for ordering
+          const sequencedMessage: SequencedMessage = {
+            type: data.type,
+            sequence: data.sequence,
+            data: event,
+            replay: data.replay,
+            requires_ack: data.requires_ack,
+            timestamp: data.timestamp,
+          };
 
-    // Unknown message types are silently ignored
-    // This is intentional - the backend may send messages we don't care about
-  }, [processEvent]);
+          const result = sequenceValidatorRef.current?.handleMessage(
+            EVENTS_CHANNEL,
+            sequencedMessage
+          );
+
+          if (result) {
+            // Process all events that are now in order
+            for (const processedMsg of result.processed) {
+              const processedEvent = processedMsg.data as SecurityEvent;
+              processEvent(processedEvent);
+            }
+
+            // Update sequence statistics
+            const stats = sequenceValidatorRef.current?.getStatistics(EVENTS_CHANNEL);
+            if (stats) {
+              setSequenceStats(stats);
+            }
+          }
+        } else {
+          // No sequence number - process immediately (backward compatibility)
+          processEvent(event);
+        }
+        return;
+      }
+
+      // Handle other valid EventsChannelMessage types with exhaustive checking pattern
+      if (isHeartbeatMessage(data)) {
+        // Heartbeat messages are handled by useWebSocket internally
+        return;
+      }
+
+      if (isErrorMessage(data)) {
+        // Error messages are logged via the structured logger
+        logger.warn('WebSocket error received', {
+          component: 'useEventStream',
+          errorMessage: data.message,
+        });
+        return;
+      }
+
+      // Unknown message types are silently ignored
+      // This is intentional - the backend may send messages we don't care about
+    },
+    [processEvent]
+  );
 
   // Build WebSocket options using helper (respects VITE_WS_BASE_URL)
   // SECURITY: API key is passed via Sec-WebSocket-Protocol header, not URL query param

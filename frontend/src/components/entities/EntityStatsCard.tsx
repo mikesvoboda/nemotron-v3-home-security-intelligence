@@ -35,15 +35,8 @@ export default function EntityStatsCard({
     refetchInterval: 60000, // Refresh every minute
   };
 
-  const {
-    totalEntities,
-    totalAppearances,
-    byType,
-    repeatVisitors,
-    isLoading,
-    error,
-    refetch,
-  } = useEntityStats(options);
+  const { totalEntities, totalAppearances, byType, repeatVisitors, isLoading, error, refetch } =
+    useEntityStats(options);
 
   // Loading state
   if (isLoading) {

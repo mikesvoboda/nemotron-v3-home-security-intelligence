@@ -239,8 +239,12 @@ export default function ZoneForm({
       {/* Enabled Toggle */}
       <div className="flex items-center justify-between">
         <div>
-          <span id="enabled-label" className="text-sm font-medium text-text-primary">Enabled</span>
-          <p id="enabled-description" className="text-xs text-text-secondary">Active zones are used for detection analysis</p>
+          <span id="enabled-label" className="text-sm font-medium text-text-primary">
+            Enabled
+          </span>
+          <p id="enabled-description" className="text-xs text-text-secondary">
+            Active zones are used for detection analysis
+          </p>
         </div>
         <button
           type="button"

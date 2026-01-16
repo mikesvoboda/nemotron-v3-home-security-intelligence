@@ -191,7 +191,9 @@ export function useCachedEvents(): UseCachedEventsReturn {
             const filtered = prev.filter((e) => e.id !== event.id);
             const updated = [event, ...filtered];
             // Sort by timestamp, newest first
-            updated.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+            updated.sort(
+              (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+            );
             return updated;
           });
           resolve();

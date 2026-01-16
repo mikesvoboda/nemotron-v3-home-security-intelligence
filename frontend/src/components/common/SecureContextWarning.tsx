@@ -52,15 +52,11 @@ export default function SecureContextWarning({
         <div className="flex-shrink-0">
           <AlertTriangle className="h-5 w-5 text-amber-500" aria-hidden="true" />
         </div>
-        <div className="flex-1 min-w-0">
-          <h3 className="text-sm font-medium text-amber-500">
-            Insecure Context Detected
-          </h3>
+        <div className="min-w-0 flex-1">
+          <h3 className="text-sm font-medium text-amber-500">Insecure Context Detected</h3>
           <div className="mt-1 text-sm text-amber-400/80">
             <p>{status.message}</p>
-            {status.recommendation && (
-              <p className="mt-2">{status.recommendation}</p>
-            )}
+            {status.recommendation && <p className="mt-2">{status.recommendation}</p>}
           </div>
           <div className="mt-3 flex items-center gap-4 text-xs text-amber-400/60">
             <div className="flex items-center gap-1">

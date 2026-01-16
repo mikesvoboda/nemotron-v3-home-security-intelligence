@@ -146,9 +146,7 @@ function VersionHistorySkeleton() {
 /**
  * PromptVersionHistory - Display and manage prompt version history
  */
-export default function PromptVersionHistory({
-  className,
-}: PromptVersionHistoryProps) {
+export default function PromptVersionHistory({ className }: PromptVersionHistoryProps) {
   // State
   const [selectedModel, setSelectedModel] = useState<AIModelEnum | undefined>(undefined);
   const [restoringVersion, setRestoringVersion] = useState<number | null>(null);
@@ -322,9 +320,7 @@ export default function PromptVersionHistory({
           <TableBody>
             {versions.map((version: PromptVersionInfo) => (
               <TableRow key={version.id} data-testid={`version-row-${version.id}`}>
-                <TableCell className="font-mono text-[#76B900]">
-                  v{version.version}
-                </TableCell>
+                <TableCell className="font-mono text-[#76B900]">v{version.version}</TableCell>
                 <TableCell className="font-medium text-white">
                   {formatModelName(version.model)}
                 </TableCell>

@@ -186,7 +186,9 @@ describe('DatabasesPanel', () => {
     });
 
     it('handles both null metrics gracefully', () => {
-      render(<DatabasesPanel postgresql={null} redis={null} timeRange="5m" history={mockHistoryData} />);
+      render(
+        <DatabasesPanel postgresql={null} redis={null} timeRange="5m" history={mockHistoryData} />
+      );
 
       expect(screen.getByTestId('databases-panel')).toBeInTheDocument();
       expect(screen.getAllByText('No data available')).toHaveLength(2);

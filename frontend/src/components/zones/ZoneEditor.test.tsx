@@ -287,7 +287,10 @@ describe('ZoneEditor', () => {
       vi.mocked(api.updateZone).mockResolvedValue(updatedZone);
       vi.mocked(api.fetchZones)
         .mockResolvedValueOnce(mockZoneListResponse)
-        .mockResolvedValueOnce({ items: [updatedZone, mockZones[1]], pagination: { total: 2, limit: 50, offset: 0, has_more: false } });
+        .mockResolvedValueOnce({
+          items: [updatedZone, mockZones[1]],
+          pagination: { total: 2, limit: 50, offset: 0, has_more: false },
+        });
 
       render(<ZoneEditor {...defaultProps} />);
 
@@ -324,7 +327,10 @@ describe('ZoneEditor', () => {
       vi.mocked(api.updateZone).mockResolvedValue(updatedZone);
       vi.mocked(api.fetchZones)
         .mockResolvedValueOnce(mockZoneListResponse)
-        .mockResolvedValueOnce({ items: [updatedZone, mockZones[1]], pagination: { total: 2, limit: 50, offset: 0, has_more: false } });
+        .mockResolvedValueOnce({
+          items: [updatedZone, mockZones[1]],
+          pagination: { total: 2, limit: 50, offset: 0, has_more: false },
+        });
 
       render(<ZoneEditor {...defaultProps} />);
 
@@ -376,7 +382,10 @@ describe('ZoneEditor', () => {
       vi.mocked(api.deleteZone).mockResolvedValue(undefined);
       vi.mocked(api.fetchZones)
         .mockResolvedValueOnce(mockZoneListResponse)
-        .mockResolvedValueOnce({ items: [mockZones[1]], pagination: { total: 1, limit: 50, offset: 0, has_more: false } });
+        .mockResolvedValueOnce({
+          items: [mockZones[1]],
+          pagination: { total: 1, limit: 50, offset: 0, has_more: false },
+        });
 
       render(<ZoneEditor {...defaultProps} />);
 
@@ -518,7 +527,10 @@ describe('ZoneEditor', () => {
 
   describe('Empty State', () => {
     it('should display zones list even when empty', async () => {
-      vi.mocked(api.fetchZones).mockResolvedValue({ items: [], pagination: { total: 0, limit: 50, offset: 0, has_more: false } });
+      vi.mocked(api.fetchZones).mockResolvedValue({
+        items: [],
+        pagination: { total: 0, limit: 50, offset: 0, has_more: false },
+      });
 
       render(<ZoneEditor {...defaultProps} />);
 

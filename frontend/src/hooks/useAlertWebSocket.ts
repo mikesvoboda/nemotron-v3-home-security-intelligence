@@ -115,7 +115,8 @@ export interface UseAlertWebSocketReturn {
 // Hook Implementation
 // ============================================================================
 
-const DEFAULT_WS_URL = (import.meta.env.VITE_WS_URL as string | undefined) ?? 'ws://localhost:8000/ws/events';
+const DEFAULT_WS_URL =
+  (import.meta.env.VITE_WS_URL as string | undefined) ?? 'ws://localhost:8000/ws/events';
 
 /**
  * Hook to subscribe to real-time alert WebSocket events.
@@ -139,9 +140,7 @@ const DEFAULT_WS_URL = (import.meta.env.VITE_WS_URL as string | undefined) ?? 'w
  * });
  * ```
  */
-export function useAlertWebSocket(
-  options: UseAlertWebSocketOptions = {}
-): UseAlertWebSocketReturn {
+export function useAlertWebSocket(options: UseAlertWebSocketOptions = {}): UseAlertWebSocketReturn {
   const {
     url: urlOption = DEFAULT_WS_URL,
     autoInvalidateCache = true,
@@ -240,13 +239,9 @@ export function useAlertWebSocket(
   };
 
   // Use the base WebSocket hook
-  const {
-    isConnected,
-    connect,
-    disconnect,
-    hasExhaustedRetries,
-    reconnectCount,
-  } = useWebSocket(enabled ? wsOptions : { ...wsOptions, reconnect: false });
+  const { isConnected, connect, disconnect, hasExhaustedRetries, reconnectCount } = useWebSocket(
+    enabled ? wsOptions : { ...wsOptions, reconnect: false }
+  );
 
   // Manual connect/disconnect if not enabled
   useEffect(() => {

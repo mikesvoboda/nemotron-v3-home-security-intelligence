@@ -53,9 +53,7 @@ describe('Test Utilities', () => {
 
     it('allows interaction with userEvent', async () => {
       const handleClick = vi.fn();
-      const { user } = renderWithProviders(
-        <button onClick={handleClick}>Click me</button>
-      );
+      const { user } = renderWithProviders(<button onClick={handleClick}>Click me</button>);
 
       await user.click(screen.getByRole('button'));
       expect(handleClick).toHaveBeenCalled();

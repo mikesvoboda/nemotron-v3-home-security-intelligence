@@ -191,11 +191,9 @@ export const cooldownSecondsSchema = z
  * Dedup key template schema - matches backend AlertRuleCreate.dedup_key_template field.
  * Backend constraint: max_length=255
  */
-export const dedupKeyTemplateSchema = z
-  .string()
-  .max(DEDUP_KEY_TEMPLATE_CONSTRAINTS.maxLength, {
-    message: `Dedup key template must be at most ${DEDUP_KEY_TEMPLATE_CONSTRAINTS.maxLength} characters`,
-  });
+export const dedupKeyTemplateSchema = z.string().max(DEDUP_KEY_TEMPLATE_CONSTRAINTS.maxLength, {
+  message: `Dedup key template must be at most ${DEDUP_KEY_TEMPLATE_CONSTRAINTS.maxLength} characters`,
+});
 
 /**
  * Time string schema - matches backend AlertRuleSchedule.start_time/end_time fields.

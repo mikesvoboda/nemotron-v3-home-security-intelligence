@@ -381,9 +381,7 @@ describe('ObjectTypeBadge', () => {
     });
 
     it('renders with custom className', () => {
-      const { container } = render(
-        <ObjectTypeBadge type="car" className="custom-badge ml-2" />
-      );
+      const { container } = render(<ObjectTypeBadge type="car" className="custom-badge ml-2" />);
       expect(container.firstChild).toMatchSnapshot();
     });
 

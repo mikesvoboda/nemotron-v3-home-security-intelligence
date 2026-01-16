@@ -109,9 +109,7 @@ describe('AlertActions', () => {
     it('does not show Clear Selection when nothing is selected', () => {
       render(<AlertActions {...defaultProps} selectedCount={0} />);
 
-      expect(
-        screen.queryByRole('button', { name: /clear selection/i })
-      ).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /clear selection/i })).not.toBeInTheDocument();
     });
   });
 
@@ -140,7 +138,9 @@ describe('AlertActions', () => {
       render(<AlertActions {...defaultProps} selectedCount={0} />);
 
       // Batch action buttons are not rendered when nothing is selected
-      expect(screen.queryByRole('button', { name: /acknowledge selected/i })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: /acknowledge selected/i })
+      ).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /dismiss selected/i })).not.toBeInTheDocument();
     });
 

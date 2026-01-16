@@ -178,10 +178,16 @@ function formatTimestamp(timestamp: string | null): string {
 /**
  * Service status row component
  */
-function ServiceStatusRow({ service, state }: { service: AIServiceName; state: AIServiceState | null }) {
+function ServiceStatusRow({
+  service,
+  state,
+}: {
+  service: AIServiceName;
+  state: AIServiceState | null;
+}) {
   if (!state) {
     return (
-      <div className="flex items-center justify-between py-2 px-3 rounded-md bg-gray-50">
+      <div className="flex items-center justify-between rounded-md bg-gray-50 px-3 py-2">
         <div className="flex items-center gap-2">
           <Activity className="h-4 w-4 text-gray-400" />
           <span className="font-medium text-gray-700">{SERVICE_DISPLAY_NAMES[service]}</span>
@@ -205,7 +211,7 @@ function ServiceStatusRow({ service, state }: { service: AIServiceName; state: A
   return (
     <div
       className={clsx(
-        'flex flex-col py-2 px-3 rounded-md',
+        'flex flex-col rounded-md px-3 py-2',
         state.status === 'healthy' && 'bg-green-50',
         state.status === 'degraded' && 'bg-yellow-50',
         state.status === 'unavailable' && 'bg-red-50'
@@ -219,7 +225,7 @@ function ServiceStatusRow({ service, state }: { service: AIServiceName; state: A
         <div className="flex items-center gap-2">
           <span
             className={clsx(
-              'px-2 py-0.5 rounded text-xs font-medium',
+              'rounded px-2 py-0.5 text-xs font-medium',
               circuitConfig.bgColor,
               circuitConfig.textColor
             )}
@@ -229,7 +235,7 @@ function ServiceStatusRow({ service, state }: { service: AIServiceName; state: A
         </div>
       </div>
 
-      <div className="flex items-center justify-between mt-1 text-xs text-gray-500">
+      <div className="mt-1 flex items-center justify-between text-xs text-gray-500">
         <span>{SERVICE_DESCRIPTIONS[service]}</span>
         <div className="flex items-center gap-3">
           {state.failure_count > 0 && (
@@ -246,7 +252,7 @@ function ServiceStatusRow({ service, state }: { service: AIServiceName; state: A
       </div>
 
       {state.error_message && (
-        <div className="mt-1 text-xs text-red-600 bg-red-100 px-2 py-1 rounded">
+        <div className="mt-1 rounded bg-red-100 px-2 py-1 text-xs text-red-600">
           {state.error_message}
         </div>
       )}
@@ -263,15 +269,15 @@ function FeaturesList({ features }: { features: string[] }) {
   }
 
   return (
-    <div className="mt-3 pt-3 border-t border-gray-200">
-      <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
+    <div className="mt-3 border-t border-gray-200 pt-3">
+      <h4 className="mb-2 text-xs font-medium uppercase tracking-wider text-gray-500">
         Available Features
       </h4>
       <div className="flex flex-wrap gap-2">
         {features.map((feature) => (
           <span
             key={feature}
-            className="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-700 flex items-center gap-1"
+            className="flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-700"
           >
             <Zap className="h-3 w-3" />
             {feature.replace(/_/g, ' ')}
@@ -292,7 +298,7 @@ function CompactBadge({ degradationMode }: { degradationMode: DegradationLevel }
   return (
     <div
       className={clsx(
-        'flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium',
+        'flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-medium',
         config.bgColor,
         config.textColor
       )}
@@ -318,12 +324,7 @@ export function AIServiceStatus({
   className,
   compact = false,
 }: AIServiceStatusProps): React.ReactNode {
-  const {
-    degradationMode,
-    services,
-    availableFeatures,
-    lastUpdate,
-  } = useAIServiceStatus();
+  const { degradationMode, services, availableFeatures, lastUpdate } = useAIServiceStatus();
 
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
@@ -336,21 +337,14 @@ export function AIServiceStatus({
   const Icon = config.icon;
 
   return (
-    <div
-      className={clsx(
-        'rounded-lg border',
-        config.borderColor,
-        config.bgColor,
-        className
-      )}
-    >
+    <div className={clsx('rounded-lg border', config.borderColor, config.bgColor, className)}>
       {/* Header */}
       {showDetails ? (
         <button
           type="button"
           className={clsx(
-            'flex items-center justify-between p-4 w-full text-left',
-            'cursor-pointer hover:bg-opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 rounded-t-lg'
+            'flex w-full items-center justify-between p-4 text-left',
+            'cursor-pointer rounded-t-lg hover:bg-opacity-80 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'
           )}
           onClick={() => setIsExpanded(!isExpanded)}
           aria-expanded={isExpanded}
@@ -365,7 +359,7 @@ export function AIServiceStatus({
 
           <div className="flex items-center gap-2">
             {lastUpdate && (
-              <span className="text-xs text-gray-500 flex items-center gap-1">
+              <span className="flex items-center gap-1 text-xs text-gray-500">
                 <RefreshCw className="h-3 w-3" />
                 {formatTimestamp(lastUpdate)}
               </span>
@@ -389,7 +383,7 @@ export function AIServiceStatus({
 
           <div className="flex items-center gap-2">
             {lastUpdate && (
-              <span className="text-xs text-gray-500 flex items-center gap-1">
+              <span className="flex items-center gap-1 text-xs text-gray-500">
                 <RefreshCw className="h-3 w-3" />
                 {formatTimestamp(lastUpdate)}
               </span>
@@ -400,9 +394,9 @@ export function AIServiceStatus({
 
       {/* Details (expandable) */}
       {showDetails && isExpanded && (
-        <div className="px-4 pb-4 space-y-2">
-          <div className="border-t border-gray-200 pt-3 space-y-2">
-            <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
+        <div className="space-y-2 px-4 pb-4">
+          <div className="space-y-2 border-t border-gray-200 pt-3">
+            <h4 className="mb-2 text-xs font-medium uppercase tracking-wider text-gray-500">
               Service Status
             </h4>
             <ServiceStatusRow service="rtdetr" state={services.rtdetr} />

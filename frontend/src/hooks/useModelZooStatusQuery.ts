@@ -145,11 +145,7 @@ function calculateVramStats(registry: ModelRegistryResponse): VRAMStats {
 export function useModelZooStatusQuery(
   options: UseModelZooStatusQueryOptions = {}
 ): UseModelZooStatusQueryReturn {
-  const {
-    enabled = true,
-    refetchInterval = 10000,
-    staleTime = DEFAULT_STALE_TIME,
-  } = options;
+  const { enabled = true, refetchInterval = 10000, staleTime = DEFAULT_STALE_TIME } = options;
 
   const query = useQuery({
     queryKey: queryKeys.ai.modelZoo,
@@ -161,10 +157,7 @@ export function useModelZooStatusQuery(
   });
 
   // Derive models list
-  const models = useMemo(
-    () => query.data?.models ?? [],
-    [query.data?.models]
-  );
+  const models = useMemo(() => query.data?.models ?? [], [query.data?.models]);
 
   // Calculate VRAM stats
   const vramStats = useMemo(

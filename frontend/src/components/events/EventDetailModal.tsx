@@ -60,7 +60,11 @@ import VideoPlayer from '../video/VideoPlayer';
 import type { DetectionThumbnail } from './ThumbnailStrip';
 import type { EntityDetail } from '../../services/api';
 import type { EnrichmentData } from '../../types/enrichment';
-import type { Detection as ApiDetection, FeedbackType, EventFeedbackResponse } from '../../types/generated';
+import type {
+  Detection as ApiDetection,
+  FeedbackType,
+  EventFeedbackResponse,
+} from '../../types/generated';
 import type { LightboxImage } from '../common/Lightbox';
 import type { BoundingBox } from '../detection/BoundingBoxOverlay';
 
@@ -163,15 +167,13 @@ export default function EventDetailModal({
   const eventIdNumber = event ? parseInt(event.id, 10) : NaN;
 
   // Query for existing feedback
-  const {
-    data: existingFeedback,
-    isLoading: isLoadingFeedback,
-  } = useQuery<EventFeedbackResponse | null>({
-    queryKey: ['eventFeedback', eventIdNumber],
-    queryFn: () => getEventFeedback(eventIdNumber),
-    enabled: !isNaN(eventIdNumber) && isOpen,
-    staleTime: 30000, // 30 seconds
-  });
+  const { data: existingFeedback, isLoading: isLoadingFeedback } =
+    useQuery<EventFeedbackResponse | null>({
+      queryKey: ['eventFeedback', eventIdNumber],
+      queryFn: () => getEventFeedback(eventIdNumber),
+      enabled: !isNaN(eventIdNumber) && isOpen,
+      staleTime: 30000, // 30 seconds
+    });
 
   // Mutation for submitting feedback
   const feedbackMutation = useMutation({
@@ -369,7 +371,11 @@ export default function EventDetailModal({
       // Note: The backend doesn't have expected_severity in the schema currently,
       // so we include it in the notes for now
       ...(expectedSeverity !== undefined && feedbackFormType === 'severity_wrong'
-        ? { notes: notes ? `Expected severity: ${expectedSeverity}. ${notes}` : `Expected severity: ${expectedSeverity}` }
+        ? {
+            notes: notes
+              ? `Expected severity: ${expectedSeverity}. ${notes}`
+              : `Expected severity: ${expectedSeverity}`,
+          }
         : {}),
     });
   };
@@ -554,7 +560,10 @@ export default function EventDetailModal({
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className="w-full max-w-4xl transform overflow-hidden rounded-xl border border-gray-800 bg-[#1A1A1A] shadow-2xl transition-all" data-testid="event-detail-modal">
+              <Dialog.Panel
+                className="w-full max-w-4xl transform overflow-hidden rounded-xl border border-gray-800 bg-[#1A1A1A] shadow-2xl transition-all"
+                data-testid="event-detail-modal"
+              >
                 {/* Header */}
                 <div className="flex items-start justify-between border-b border-gray-800 p-6">
                   <div className="flex-1">
@@ -567,7 +576,10 @@ export default function EventDetailModal({
                       {event.camera_name}
                     </Dialog.Title>
                     <div className="mt-2 flex flex-col gap-1">
-                      <div className="flex items-center gap-2 text-sm text-gray-400" data-testid="detection-timestamp">
+                      <div
+                        className="flex items-center gap-2 text-sm text-gray-400"
+                        data-testid="detection-timestamp"
+                      >
                         <Clock className="h-4 w-4" />
                         <span>{formatTimestamp(event.timestamp)}</span>
                       </div>
@@ -647,484 +659,505 @@ export default function EventDetailModal({
                   ) : activeTab === 'details' ? (
                     <>
                       {/* Media display: Video or Image based on selected detection */}
-                  {isVideoDetection && selectedDetectionId ? (
-                    <div className="mb-6 overflow-hidden rounded-lg bg-black">
-                      <VideoPlayer
-                        src={getDetectionVideoUrl(selectedDetectionId)}
-                        poster={getDetectionVideoThumbnailUrl(selectedDetectionId)}
-                        className="w-full"
-                      />
-                      {/* Video metadata badge */}
-                      <div className="flex items-center gap-3 border-t border-gray-800 bg-black/50 px-4 py-2">
-                        <div className="flex items-center gap-1.5 text-xs text-gray-400">
-                          <Film className="h-3.5 w-3.5" />
-                          <span>Video</span>
-                        </div>
-                        {selectedDetection?.duration && (
-                          <div className="text-xs text-gray-400">
-                            <span className="font-medium text-gray-300">
-                              {formatVideoDuration(selectedDetection.duration)}
-                            </span>
-                          </div>
-                        )}
-                        {formatVideoResolution(
-                          selectedDetection?.video_width,
-                          selectedDetection?.video_height
-                        ) && (
-                          <div className="text-xs text-gray-400">
-                            <span className="font-medium text-gray-300">
-                              {formatVideoResolution(
-                                selectedDetection?.video_width,
-                                selectedDetection?.video_height
-                              )}
-                            </span>
-                          </div>
-                        )}
-                        {selectedDetection?.video_codec && (
-                          <div className="text-xs text-gray-400">
-                            <span className="font-medium text-gray-300">
-                              {selectedDetection.video_codec.toUpperCase()}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ) : imageUrl ? (
-                    <div className="mb-6 overflow-hidden rounded-lg bg-black">
-                      {hasBoundingBoxes ? (
-                        <DetectionImage
-                          src={imageUrl}
-                          alt={`${event.camera_name} detection at ${formatTimestamp(event.timestamp)}`}
-                          boxes={convertToBoundingBoxes()}
-                          showLabels={true}
-                          showConfidence={true}
-                          className="w-full"
-                          enableLightbox={true}
-                          lightboxCaption={`${event.camera_name} - ${formatTimestamp(event.timestamp)}`}
-                        />
-                      ) : (
-                        <DetectionImage
-                          src={imageUrl}
-                          alt={`${event.camera_name} at ${formatTimestamp(event.timestamp)}`}
-                          boxes={[]}
-                          className="w-full"
-                          enableLightbox={true}
-                          lightboxCaption={`${event.camera_name} - ${formatTimestamp(event.timestamp)}`}
-                        />
-                      )}
-                    </div>
-                  ) : null}
-
-                  {/* Detection Sequence Thumbnail Strip */}
-                  <div className="mb-6">
-                    <ThumbnailStrip
-                      detections={detectionSequence}
-                      selectedDetectionId={selectedDetectionId}
-                      onThumbnailClick={handleThumbnailClick}
-                      onThumbnailDoubleClick={handleThumbnailLightbox}
-                      loading={loadingDetections}
-                    />
-                  </div>
-
-                  {/* AI Summary */}
-                  <div className="mb-6" data-testid="ai-analysis-section">
-                    <div className="mb-2 flex items-center justify-between">
-                      <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-400">
-                        AI Summary
-                      </h3>
-                      <button
-                        onClick={() => void handleReEvaluate()}
-                        disabled={isReEvaluating}
-                        className="flex items-center gap-1.5 rounded-md bg-gray-800 px-2.5 py-1 text-xs font-medium text-gray-300 transition-colors hover:bg-gray-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
-                        aria-label="Re-evaluate AI analysis"
-                        data-testid="re-evaluate-button"
-                      >
-                        <RefreshCw className={`h-3.5 w-3.5 ${isReEvaluating ? 'animate-spin' : ''}`} />
-                        {isReEvaluating ? 'Re-evaluating...' : 'Re-evaluate'}
-                      </button>
-                    </div>
-                    {/* Re-evaluate feedback */}
-                    {reEvaluateError && (
-                      <div className="mb-2 rounded-md bg-red-900/20 px-3 py-2 text-xs text-red-400" data-testid="re-evaluate-error">
-                        {reEvaluateError}
-                      </div>
-                    )}
-                    {reEvaluateSuccess && (
-                      <div className="mb-2 flex items-center gap-1.5 rounded-md bg-green-900/20 px-3 py-2 text-xs text-green-400" data-testid="re-evaluate-success">
-                        <CheckCircle2 className="h-3.5 w-3.5" />
-                        Re-evaluation triggered successfully
-                      </div>
-                    )}
-                    <p className="text-base leading-relaxed text-gray-200">{event.summary}</p>
-                  </div>
-
-                  {/* AI Scene Description (Florence-2 Caption) */}
-                  {event.scene_caption && (
-                    <div className="mb-6" data-testid="scene-caption-section">
-                      <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-gray-400">
-                        <Eye className="h-4 w-4" aria-hidden="true" />
-                        AI Scene Description
-                      </h3>
-                      <div className="rounded-lg border border-gray-700 bg-black/20 p-4">
-                        <p
-                          className="text-sm italic leading-relaxed text-gray-300"
-                          data-testid="scene-caption-text"
-                        >
-                          {event.scene_caption}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* AI Reasoning */}
-                  {event.reasoning && (
-                    <div className="mb-6" data-testid="ai-reasoning">
-                      <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-gray-400">
-                        AI Reasoning
-                      </h3>
-                      <div className="rounded-lg bg-[#76B900]/10 p-4">
-                        <p className="text-sm leading-relaxed text-gray-300">{event.reasoning}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Detections with Color-Coded Confidence */}
-                  {event.detections.length > 0 && (
-                    <div className="mb-6" data-testid="detection-objects">
-                      <div className="mb-3 flex items-center justify-between">
-                        <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-400">
-                          Detected Objects ({event.detections.length})
-                        </h3>
-                        {/* Aggregate Confidence Display */}
-                        {event.detections.length > 0 && (
-                          <div className="flex items-center gap-3 text-sm">
-                            <TrendingUp className="h-4 w-4 text-gray-400" aria-hidden="true" />
-                            {calculateAverageConfidence(event.detections) !== null && (
-                              <div className="flex items-center gap-1">
-                                <span className="text-gray-400">Avg:</span>
-                                <span
-                                  className={`font-semibold ${getConfidenceTextColorClass(
-                                    getConfidenceLevel(
-                                      calculateAverageConfidence(event.detections) as number
-                                    )
-                                  )}`}
-                                >
-                                  {formatConfidencePercent(
-                                    calculateAverageConfidence(event.detections) as number
-                                  )}
-                                </span>
-                              </div>
-                            )}
-                            {calculateMaxConfidence(event.detections) !== null && (
-                              <div className="flex items-center gap-1">
-                                <span className="text-gray-400">Max:</span>
-                                <span
-                                  className={`font-semibold ${getConfidenceTextColorClass(
-                                    getConfidenceLevel(
-                                      calculateMaxConfidence(event.detections) as number
-                                    )
-                                  )}`}
-                                >
-                                  {formatConfidencePercent(
-                                    calculateMaxConfidence(event.detections) as number
-                                  )}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                      <div className="grid gap-2">
-                        {sortDetectionsByConfidence(event.detections).map((detection, index) => {
-                          const level = getConfidenceLevel(detection.confidence);
-                          const confidenceLabel = getConfidenceLabel(level);
-                          return (
-                            <div
-                              key={`${detection.label}-${index}`}
-                              className={`flex items-center justify-between rounded-lg border px-4 py-3 ${getConfidenceBgColorClass(level)} ${getConfidenceBorderColorClass(level)}`}
-                              title={`${confidenceLabel}`}
-                            >
-                              <span className="text-sm font-medium text-white">
-                                {detection.label}
-                              </span>
-                              <div className="flex items-center gap-2">
-                                {/* Confidence bar */}
-                                <div
-                                  className="h-2 w-16 overflow-hidden rounded-full bg-gray-700"
-                                  aria-hidden="true"
-                                >
-                                  <div
-                                    className={`h-full rounded-full transition-all duration-300 ${
-                                      level === 'low'
-                                        ? 'bg-red-500'
-                                        : level === 'medium'
-                                          ? 'bg-yellow-500'
-                                          : 'bg-green-500'
-                                    }`}
-                                    style={{ width: `${Math.round(detection.confidence * 100)}%` }}
-                                  />
-                                </div>
-                                <span
-                                  className={`min-w-[3rem] text-right text-xs font-semibold ${getConfidenceTextColorClass(level)}`}
-                                >
-                                  {formatConfidence(detection.confidence)}
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* AI Enrichment Analysis */}
-                  {event.detections.some((d) => d.enrichment_data) && (
-                    <div className="mb-6">
-                      {event.detections
-                        .filter((d) => d.enrichment_data)
-                        .map((detection, index) => (
-                          <EnrichmentPanel
-                            key={`enrichment-${index}`}
-                            enrichment_data={detection.enrichment_data}
-                            className="mb-3"
+                      {isVideoDetection && selectedDetectionId ? (
+                        <div className="mb-6 overflow-hidden rounded-lg bg-black">
+                          <VideoPlayer
+                            src={getDetectionVideoUrl(selectedDetectionId)}
+                            poster={getDetectionVideoThumbnailUrl(selectedDetectionId)}
+                            className="w-full"
                           />
-                        ))}
-                    </div>
-                  )}
-
-                  {/* Re-Identification Matches */}
-                  {selectedDetectionId && (
-                    <div className="mb-6">
-                      <ReidMatchesPanel
-                        detectionId={selectedDetectionId}
-                        entityType={
-                          event.detections.some((d) =>
-                            d.label.toLowerCase().includes('vehicle') ||
-                            d.label.toLowerCase().includes('car') ||
-                            d.label.toLowerCase().includes('truck')
-                          )
-                            ? 'vehicle'
-                            : 'person'
-                        }
-                      />
-                    </div>
-                  )}
-
-                  {/* Cross-Camera Entity Tracking */}
-                  {event.entity_id && (
-                    <div className="mb-6">
-                      <EntityTrackingPanel
-                        entityId={event.entity_id}
-                        currentCameraId={event.camera_id || event.camera_name}
-                        currentTimestamp={event.timestamp}
-                      />
-                    </div>
-                  )}
-
-                  {/* User Notes */}
-                  <div className="mb-6">
-                    <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">
-                      Notes
-                    </h3>
-                    <div className="space-y-3">
-                      <textarea
-                        value={notesText}
-                        onChange={(e) => setNotesText(e.target.value)}
-                        placeholder="Add notes about this event..."
-                        rows={4}
-                        className="w-full rounded-lg border border-gray-700 bg-black/30 px-4 py-3 text-sm text-gray-200 placeholder-gray-500 transition-colors focus:border-[#76B900] focus:outline-none focus:ring-2 focus:ring-[#76B900]/20"
-                      />
-                      <div className="flex items-center justify-between">
-                        <button
-                          onClick={() => void handleSaveNotes()}
-                          disabled={isSavingNotes || !onSaveNotes}
-                          className="flex items-center gap-2 rounded-lg bg-[#76B900] px-4 py-2 text-sm font-semibold text-black transition-all hover:bg-[#88d200] active:bg-[#68a000] disabled:cursor-not-allowed disabled:opacity-50"
-                          aria-label="Save notes"
-                        >
-                          <Save className="h-4 w-4" />
-                          {isSavingNotes ? 'Saving...' : 'Save Notes'}
-                        </button>
-                        {notesSaved && (
-                          <span className="flex items-center gap-1 text-sm text-green-500">
-                            <CheckCircle2 className="h-4 w-4" />
-                            Saved
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Event Feedback */}
-                  <div className="mb-6" data-testid="feedback-section">
-                    <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">
-                      Detection Feedback
-                    </h3>
-
-                    {/* Loading state */}
-                    {isLoadingFeedback && (
-                      <div className="flex items-center gap-2 text-sm text-gray-400">
-                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-600 border-t-[#76B900]" />
-                        Loading feedback...
-                      </div>
-                    )}
-
-                    {/* Existing feedback display */}
-                    {!isLoadingFeedback && existingFeedback && (
-                      <div
-                        className="flex items-center gap-3 rounded-lg border border-gray-700 bg-[#1F1F1F] p-4"
-                        data-testid="existing-feedback"
-                      >
-                        <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-[#76B900]" />
-                        <div>
-                          <div className="font-medium text-white">
-                            {getFeedbackTypeLabel(existingFeedback.feedback_type)}
-                          </div>
-                          {existingFeedback.notes && (
-                            <p className="mt-1 text-sm text-gray-400">{existingFeedback.notes}</p>
-                          )}
-                          <p className="mt-1 text-xs text-gray-500">
-                            Submitted {new Date(existingFeedback.created_at).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Feedback form (when a type is selected) */}
-                    {!isLoadingFeedback && !existingFeedback && feedbackFormType && (
-                      <FeedbackForm
-                        eventId={eventIdNumber}
-                        feedbackType={feedbackFormType}
-                        currentSeverity={event.risk_score}
-                        onSubmit={handleFeedbackSubmit}
-                        onCancel={() => setFeedbackFormType(null)}
-                        isSubmitting={feedbackMutation.isPending}
-                      />
-                    )}
-
-                    {/* Feedback buttons (when no feedback exists and no form is open) */}
-                    {!isLoadingFeedback && !existingFeedback && !feedbackFormType && (
-                      <div className="space-y-3">
-                        <p className="text-sm text-gray-400">
-                          Help improve AI accuracy by providing feedback on this detection.
-                        </p>
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            onClick={() => handleQuickFeedback('accurate')}
-                            disabled={feedbackMutation.isPending}
-                            className="flex items-center gap-2 rounded-lg border border-green-600/40 bg-green-600/10 px-3 py-2 text-sm font-medium text-green-400 transition-colors hover:bg-green-600/20 disabled:cursor-not-allowed disabled:opacity-50"
-                            data-testid="feedback-accurate-button"
-                          >
-                            <ThumbsUp className="h-4 w-4" />
-                            Correct Detection
-                          </button>
-                          <button
-                            onClick={() => setFeedbackFormType('false_positive')}
-                            disabled={feedbackMutation.isPending}
-                            className="flex items-center gap-2 rounded-lg border border-red-600/40 bg-red-600/10 px-3 py-2 text-sm font-medium text-red-400 transition-colors hover:bg-red-600/20 disabled:cursor-not-allowed disabled:opacity-50"
-                            data-testid="feedback-false-positive-button"
-                          >
-                            <ThumbsDown className="h-4 w-4" />
-                            False Positive
-                          </button>
-                          <button
-                            onClick={() => setFeedbackFormType('severity_wrong')}
-                            disabled={feedbackMutation.isPending}
-                            className="flex items-center gap-2 rounded-lg border border-yellow-600/40 bg-yellow-600/10 px-3 py-2 text-sm font-medium text-yellow-400 transition-colors hover:bg-yellow-600/20 disabled:cursor-not-allowed disabled:opacity-50"
-                            data-testid="feedback-wrong-severity-button"
-                          >
-                            <AlertCircle className="h-4 w-4" />
-                            Wrong Severity
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Event Metadata */}
-                  <div className="rounded-lg border border-gray-800 bg-black/20 p-4">
-                    <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">
-                      Event Details
-                    </h3>
-                    <dl className="grid gap-2 text-sm">
-                      <div className="flex justify-between">
-                        <dt className="text-gray-400">Event ID</dt>
-                        <dd className="font-mono text-gray-300">{event.id}</dd>
-                      </div>
-                      <div className="flex justify-between">
-                        <dt className="text-gray-400">Camera</dt>
-                        <dd className="text-gray-300">{event.camera_name}</dd>
-                      </div>
-                      <div className="flex justify-between">
-                        <dt className="text-gray-400">Risk Score</dt>
-                        <dd className="text-gray-300">{event.risk_score} / 100</dd>
-                      </div>
-                      {(event.started_at || event.ended_at !== undefined) && (
-                        <div className="flex justify-between">
-                          <dt className="text-gray-400">Duration</dt>
-                          <dd className="text-gray-300">
-                            {formatDuration(
-                              event.started_at || event.timestamp,
-                              event.ended_at ?? null
+                          {/* Video metadata badge */}
+                          <div className="flex items-center gap-3 border-t border-gray-800 bg-black/50 px-4 py-2">
+                            <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                              <Film className="h-3.5 w-3.5" />
+                              <span>Video</span>
+                            </div>
+                            {selectedDetection?.duration && (
+                              <div className="text-xs text-gray-400">
+                                <span className="font-medium text-gray-300">
+                                  {formatVideoDuration(selectedDetection.duration)}
+                                </span>
+                              </div>
                             )}
-                          </dd>
+                            {formatVideoResolution(
+                              selectedDetection?.video_width,
+                              selectedDetection?.video_height
+                            ) && (
+                              <div className="text-xs text-gray-400">
+                                <span className="font-medium text-gray-300">
+                                  {formatVideoResolution(
+                                    selectedDetection?.video_width,
+                                    selectedDetection?.video_height
+                                  )}
+                                </span>
+                              </div>
+                            )}
+                            {selectedDetection?.video_codec && (
+                              <div className="text-xs text-gray-400">
+                                <span className="font-medium text-gray-300">
+                                  {selectedDetection.video_codec.toUpperCase()}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ) : imageUrl ? (
+                        <div className="mb-6 overflow-hidden rounded-lg bg-black">
+                          {hasBoundingBoxes ? (
+                            <DetectionImage
+                              src={imageUrl}
+                              alt={`${event.camera_name} detection at ${formatTimestamp(event.timestamp)}`}
+                              boxes={convertToBoundingBoxes()}
+                              showLabels={true}
+                              showConfidence={true}
+                              className="w-full"
+                              enableLightbox={true}
+                              lightboxCaption={`${event.camera_name} - ${formatTimestamp(event.timestamp)}`}
+                            />
+                          ) : (
+                            <DetectionImage
+                              src={imageUrl}
+                              alt={`${event.camera_name} at ${formatTimestamp(event.timestamp)}`}
+                              boxes={[]}
+                              className="w-full"
+                              enableLightbox={true}
+                              lightboxCaption={`${event.camera_name} - ${formatTimestamp(event.timestamp)}`}
+                            />
+                          )}
+                        </div>
+                      ) : null}
+
+                      {/* Detection Sequence Thumbnail Strip */}
+                      <div className="mb-6">
+                        <ThumbnailStrip
+                          detections={detectionSequence}
+                          selectedDetectionId={selectedDetectionId}
+                          onThumbnailClick={handleThumbnailClick}
+                          onThumbnailDoubleClick={handleThumbnailLightbox}
+                          loading={loadingDetections}
+                        />
+                      </div>
+
+                      {/* AI Summary */}
+                      <div className="mb-6" data-testid="ai-analysis-section">
+                        <div className="mb-2 flex items-center justify-between">
+                          <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-400">
+                            AI Summary
+                          </h3>
+                          <button
+                            onClick={() => void handleReEvaluate()}
+                            disabled={isReEvaluating}
+                            className="flex items-center gap-1.5 rounded-md bg-gray-800 px-2.5 py-1 text-xs font-medium text-gray-300 transition-colors hover:bg-gray-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                            aria-label="Re-evaluate AI analysis"
+                            data-testid="re-evaluate-button"
+                          >
+                            <RefreshCw
+                              className={`h-3.5 w-3.5 ${isReEvaluating ? 'animate-spin' : ''}`}
+                            />
+                            {isReEvaluating ? 'Re-evaluating...' : 'Re-evaluate'}
+                          </button>
+                        </div>
+                        {/* Re-evaluate feedback */}
+                        {reEvaluateError && (
+                          <div
+                            className="mb-2 rounded-md bg-red-900/20 px-3 py-2 text-xs text-red-400"
+                            data-testid="re-evaluate-error"
+                          >
+                            {reEvaluateError}
+                          </div>
+                        )}
+                        {reEvaluateSuccess && (
+                          <div
+                            className="mb-2 flex items-center gap-1.5 rounded-md bg-green-900/20 px-3 py-2 text-xs text-green-400"
+                            data-testid="re-evaluate-success"
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            Re-evaluation triggered successfully
+                          </div>
+                        )}
+                        <p className="text-base leading-relaxed text-gray-200">{event.summary}</p>
+                      </div>
+
+                      {/* AI Scene Description (Florence-2 Caption) */}
+                      {event.scene_caption && (
+                        <div className="mb-6" data-testid="scene-caption-section">
+                          <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-gray-400">
+                            <Eye className="h-4 w-4" aria-hidden="true" />
+                            AI Scene Description
+                          </h3>
+                          <div className="rounded-lg border border-gray-700 bg-black/20 p-4">
+                            <p
+                              className="text-sm italic leading-relaxed text-gray-300"
+                              data-testid="scene-caption-text"
+                            >
+                              {event.scene_caption}
+                            </p>
+                          </div>
                         </div>
                       )}
-                      <div className="flex justify-between">
-                        <dt className="text-gray-400">Status</dt>
-                        <dd className="text-gray-300">
-                          {event.reviewed ? (
-                            <span className="inline-flex items-center gap-1 text-green-500" data-testid="status-reviewed">
-                              <CheckCircle2 className="h-4 w-4" />
-                              Reviewed
-                            </span>
-                          ) : (
-                            <span className="text-yellow-500">Pending Review</span>
-                          )}
-                        </dd>
+
+                      {/* AI Reasoning */}
+                      {event.reasoning && (
+                        <div className="mb-6" data-testid="ai-reasoning">
+                          <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-gray-400">
+                            AI Reasoning
+                          </h3>
+                          <div className="rounded-lg bg-[#76B900]/10 p-4">
+                            <p className="text-sm leading-relaxed text-gray-300">
+                              {event.reasoning}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Detections with Color-Coded Confidence */}
+                      {event.detections.length > 0 && (
+                        <div className="mb-6" data-testid="detection-objects">
+                          <div className="mb-3 flex items-center justify-between">
+                            <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-400">
+                              Detected Objects ({event.detections.length})
+                            </h3>
+                            {/* Aggregate Confidence Display */}
+                            {event.detections.length > 0 && (
+                              <div className="flex items-center gap-3 text-sm">
+                                <TrendingUp className="h-4 w-4 text-gray-400" aria-hidden="true" />
+                                {calculateAverageConfidence(event.detections) !== null && (
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-gray-400">Avg:</span>
+                                    <span
+                                      className={`font-semibold ${getConfidenceTextColorClass(
+                                        getConfidenceLevel(
+                                          calculateAverageConfidence(event.detections) as number
+                                        )
+                                      )}`}
+                                    >
+                                      {formatConfidencePercent(
+                                        calculateAverageConfidence(event.detections) as number
+                                      )}
+                                    </span>
+                                  </div>
+                                )}
+                                {calculateMaxConfidence(event.detections) !== null && (
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-gray-400">Max:</span>
+                                    <span
+                                      className={`font-semibold ${getConfidenceTextColorClass(
+                                        getConfidenceLevel(
+                                          calculateMaxConfidence(event.detections) as number
+                                        )
+                                      )}`}
+                                    >
+                                      {formatConfidencePercent(
+                                        calculateMaxConfidence(event.detections) as number
+                                      )}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                          <div className="grid gap-2">
+                            {sortDetectionsByConfidence(event.detections).map(
+                              (detection, index) => {
+                                const level = getConfidenceLevel(detection.confidence);
+                                const confidenceLabel = getConfidenceLabel(level);
+                                return (
+                                  <div
+                                    key={`${detection.label}-${index}`}
+                                    className={`flex items-center justify-between rounded-lg border px-4 py-3 ${getConfidenceBgColorClass(level)} ${getConfidenceBorderColorClass(level)}`}
+                                    title={`${confidenceLabel}`}
+                                  >
+                                    <span className="text-sm font-medium text-white">
+                                      {detection.label}
+                                    </span>
+                                    <div className="flex items-center gap-2">
+                                      {/* Confidence bar */}
+                                      <div
+                                        className="h-2 w-16 overflow-hidden rounded-full bg-gray-700"
+                                        aria-hidden="true"
+                                      >
+                                        <div
+                                          className={`h-full rounded-full transition-all duration-300 ${
+                                            level === 'low'
+                                              ? 'bg-red-500'
+                                              : level === 'medium'
+                                                ? 'bg-yellow-500'
+                                                : 'bg-green-500'
+                                          }`}
+                                          style={{
+                                            width: `${Math.round(detection.confidence * 100)}%`,
+                                          }}
+                                        />
+                                      </div>
+                                      <span
+                                        className={`min-w-[3rem] text-right text-xs font-semibold ${getConfidenceTextColorClass(level)}`}
+                                      >
+                                        {formatConfidence(detection.confidence)}
+                                      </span>
+                                    </div>
+                                  </div>
+                                );
+                              }
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* AI Enrichment Analysis */}
+                      {event.detections.some((d) => d.enrichment_data) && (
+                        <div className="mb-6">
+                          {event.detections
+                            .filter((d) => d.enrichment_data)
+                            .map((detection, index) => (
+                              <EnrichmentPanel
+                                key={`enrichment-${index}`}
+                                enrichment_data={detection.enrichment_data}
+                                className="mb-3"
+                              />
+                            ))}
+                        </div>
+                      )}
+
+                      {/* Re-Identification Matches */}
+                      {selectedDetectionId && (
+                        <div className="mb-6">
+                          <ReidMatchesPanel
+                            detectionId={selectedDetectionId}
+                            entityType={
+                              event.detections.some(
+                                (d) =>
+                                  d.label.toLowerCase().includes('vehicle') ||
+                                  d.label.toLowerCase().includes('car') ||
+                                  d.label.toLowerCase().includes('truck')
+                              )
+                                ? 'vehicle'
+                                : 'person'
+                            }
+                          />
+                        </div>
+                      )}
+
+                      {/* Cross-Camera Entity Tracking */}
+                      {event.entity_id && (
+                        <div className="mb-6">
+                          <EntityTrackingPanel
+                            entityId={event.entity_id}
+                            currentCameraId={event.camera_id || event.camera_name}
+                            currentTimestamp={event.timestamp}
+                          />
+                        </div>
+                      )}
+
+                      {/* User Notes */}
+                      <div className="mb-6">
+                        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">
+                          Notes
+                        </h3>
+                        <div className="space-y-3">
+                          <textarea
+                            value={notesText}
+                            onChange={(e) => setNotesText(e.target.value)}
+                            placeholder="Add notes about this event..."
+                            rows={4}
+                            className="w-full rounded-lg border border-gray-700 bg-black/30 px-4 py-3 text-sm text-gray-200 placeholder-gray-500 transition-colors focus:border-[#76B900] focus:outline-none focus:ring-2 focus:ring-[#76B900]/20"
+                          />
+                          <div className="flex items-center justify-between">
+                            <button
+                              onClick={() => void handleSaveNotes()}
+                              disabled={isSavingNotes || !onSaveNotes}
+                              className="flex items-center gap-2 rounded-lg bg-[#76B900] px-4 py-2 text-sm font-semibold text-black transition-all hover:bg-[#88d200] active:bg-[#68a000] disabled:cursor-not-allowed disabled:opacity-50"
+                              aria-label="Save notes"
+                            >
+                              <Save className="h-4 w-4" />
+                              {isSavingNotes ? 'Saving...' : 'Save Notes'}
+                            </button>
+                            {notesSaved && (
+                              <span className="flex items-center gap-1 text-sm text-green-500">
+                                <CheckCircle2 className="h-4 w-4" />
+                                Saved
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                      {/* Video metadata in event details */}
-                      {isVideoDetection && selectedDetection && (
-                        <>
-                          <div className="mt-2 border-t border-gray-700 pt-2">
-                            <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-primary">
-                              <Film className="h-3.5 w-3.5" />
-                              <span>Video Details</span>
+
+                      {/* Event Feedback */}
+                      <div className="mb-6" data-testid="feedback-section">
+                        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">
+                          Detection Feedback
+                        </h3>
+
+                        {/* Loading state */}
+                        {isLoadingFeedback && (
+                          <div className="flex items-center gap-2 text-sm text-gray-400">
+                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-600 border-t-[#76B900]" />
+                            Loading feedback...
+                          </div>
+                        )}
+
+                        {/* Existing feedback display */}
+                        {!isLoadingFeedback && existingFeedback && (
+                          <div
+                            className="flex items-center gap-3 rounded-lg border border-gray-700 bg-[#1F1F1F] p-4"
+                            data-testid="existing-feedback"
+                          >
+                            <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-[#76B900]" />
+                            <div>
+                              <div className="font-medium text-white">
+                                {getFeedbackTypeLabel(existingFeedback.feedback_type)}
+                              </div>
+                              {existingFeedback.notes && (
+                                <p className="mt-1 text-sm text-gray-400">
+                                  {existingFeedback.notes}
+                                </p>
+                              )}
+                              <p className="mt-1 text-xs text-gray-500">
+                                Submitted{' '}
+                                {new Date(existingFeedback.created_at).toLocaleDateString()}
+                              </p>
                             </div>
                           </div>
-                          {selectedDetection.duration && (
-                            <div className="flex justify-between">
-                              <dt className="text-gray-400">Video Duration</dt>
-                              <dd className="text-gray-300">
-                                {formatVideoDuration(selectedDetection.duration)}
-                              </dd>
+                        )}
+
+                        {/* Feedback form (when a type is selected) */}
+                        {!isLoadingFeedback && !existingFeedback && feedbackFormType && (
+                          <FeedbackForm
+                            eventId={eventIdNumber}
+                            feedbackType={feedbackFormType}
+                            currentSeverity={event.risk_score}
+                            onSubmit={handleFeedbackSubmit}
+                            onCancel={() => setFeedbackFormType(null)}
+                            isSubmitting={feedbackMutation.isPending}
+                          />
+                        )}
+
+                        {/* Feedback buttons (when no feedback exists and no form is open) */}
+                        {!isLoadingFeedback && !existingFeedback && !feedbackFormType && (
+                          <div className="space-y-3">
+                            <p className="text-sm text-gray-400">
+                              Help improve AI accuracy by providing feedback on this detection.
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                onClick={() => handleQuickFeedback('accurate')}
+                                disabled={feedbackMutation.isPending}
+                                className="flex items-center gap-2 rounded-lg border border-green-600/40 bg-green-600/10 px-3 py-2 text-sm font-medium text-green-400 transition-colors hover:bg-green-600/20 disabled:cursor-not-allowed disabled:opacity-50"
+                                data-testid="feedback-accurate-button"
+                              >
+                                <ThumbsUp className="h-4 w-4" />
+                                Correct Detection
+                              </button>
+                              <button
+                                onClick={() => setFeedbackFormType('false_positive')}
+                                disabled={feedbackMutation.isPending}
+                                className="flex items-center gap-2 rounded-lg border border-red-600/40 bg-red-600/10 px-3 py-2 text-sm font-medium text-red-400 transition-colors hover:bg-red-600/20 disabled:cursor-not-allowed disabled:opacity-50"
+                                data-testid="feedback-false-positive-button"
+                              >
+                                <ThumbsDown className="h-4 w-4" />
+                                False Positive
+                              </button>
+                              <button
+                                onClick={() => setFeedbackFormType('severity_wrong')}
+                                disabled={feedbackMutation.isPending}
+                                className="flex items-center gap-2 rounded-lg border border-yellow-600/40 bg-yellow-600/10 px-3 py-2 text-sm font-medium text-yellow-400 transition-colors hover:bg-yellow-600/20 disabled:cursor-not-allowed disabled:opacity-50"
+                                data-testid="feedback-wrong-severity-button"
+                              >
+                                <AlertCircle className="h-4 w-4" />
+                                Wrong Severity
+                              </button>
                             </div>
-                          )}
-                          {formatVideoResolution(
-                            selectedDetection.video_width,
-                            selectedDetection.video_height
-                          ) && (
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Event Metadata */}
+                      <div className="rounded-lg border border-gray-800 bg-black/20 p-4">
+                        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">
+                          Event Details
+                        </h3>
+                        <dl className="grid gap-2 text-sm">
+                          <div className="flex justify-between">
+                            <dt className="text-gray-400">Event ID</dt>
+                            <dd className="font-mono text-gray-300">{event.id}</dd>
+                          </div>
+                          <div className="flex justify-between">
+                            <dt className="text-gray-400">Camera</dt>
+                            <dd className="text-gray-300">{event.camera_name}</dd>
+                          </div>
+                          <div className="flex justify-between">
+                            <dt className="text-gray-400">Risk Score</dt>
+                            <dd className="text-gray-300">{event.risk_score} / 100</dd>
+                          </div>
+                          {(event.started_at || event.ended_at !== undefined) && (
                             <div className="flex justify-between">
-                              <dt className="text-gray-400">Resolution</dt>
+                              <dt className="text-gray-400">Duration</dt>
                               <dd className="text-gray-300">
-                                {formatVideoResolution(
-                                  selectedDetection.video_width,
-                                  selectedDetection.video_height
+                                {formatDuration(
+                                  event.started_at || event.timestamp,
+                                  event.ended_at ?? null
                                 )}
                               </dd>
                             </div>
                           )}
-                          {selectedDetection.video_codec && (
-                            <div className="flex justify-between">
-                              <dt className="text-gray-400">Codec</dt>
-                              <dd className="text-gray-300">
-                                {selectedDetection.video_codec.toUpperCase()}
-                              </dd>
-                            </div>
+                          <div className="flex justify-between">
+                            <dt className="text-gray-400">Status</dt>
+                            <dd className="text-gray-300">
+                              {event.reviewed ? (
+                                <span
+                                  className="inline-flex items-center gap-1 text-green-500"
+                                  data-testid="status-reviewed"
+                                >
+                                  <CheckCircle2 className="h-4 w-4" />
+                                  Reviewed
+                                </span>
+                              ) : (
+                                <span className="text-yellow-500">Pending Review</span>
+                              )}
+                            </dd>
+                          </div>
+                          {/* Video metadata in event details */}
+                          {isVideoDetection && selectedDetection && (
+                            <>
+                              <div className="mt-2 border-t border-gray-700 pt-2">
+                                <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-primary">
+                                  <Film className="h-3.5 w-3.5" />
+                                  <span>Video Details</span>
+                                </div>
+                              </div>
+                              {selectedDetection.duration && (
+                                <div className="flex justify-between">
+                                  <dt className="text-gray-400">Video Duration</dt>
+                                  <dd className="text-gray-300">
+                                    {formatVideoDuration(selectedDetection.duration)}
+                                  </dd>
+                                </div>
+                              )}
+                              {formatVideoResolution(
+                                selectedDetection.video_width,
+                                selectedDetection.video_height
+                              ) && (
+                                <div className="flex justify-between">
+                                  <dt className="text-gray-400">Resolution</dt>
+                                  <dd className="text-gray-300">
+                                    {formatVideoResolution(
+                                      selectedDetection.video_width,
+                                      selectedDetection.video_height
+                                    )}
+                                  </dd>
+                                </div>
+                              )}
+                              {selectedDetection.video_codec && (
+                                <div className="flex justify-between">
+                                  <dt className="text-gray-400">Codec</dt>
+                                  <dd className="text-gray-300">
+                                    {selectedDetection.video_codec.toUpperCase()}
+                                  </dd>
+                                </div>
+                              )}
+                            </>
                           )}
-                        </>
-                      )}
-                    </dl>
-                  </div>
+                        </dl>
+                      </div>
                     </>
                   ) : (
                     <EventAuditDetail eventId={parseInt(event.id, 10)} />

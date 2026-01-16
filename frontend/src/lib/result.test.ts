@@ -169,7 +169,10 @@ describe('map', () => {
 
   it('chains multiple maps', () => {
     const result = ok(5);
-    const final = map(map(result, (n) => n * 2), (n) => n + 1);
+    const final = map(
+      map(result, (n) => n * 2),
+      (n) => n + 1
+    );
 
     expect(final).toEqual({ _tag: 'Ok', value: 11 });
   });

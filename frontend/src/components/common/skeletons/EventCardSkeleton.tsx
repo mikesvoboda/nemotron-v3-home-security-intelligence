@@ -12,7 +12,7 @@ export default function EventCardSkeleton({ className }: EventCardSkeletonProps)
   return (
     <div
       className={clsx(
-        'rounded-lg border border-gray-800 border-l-4 border-l-gray-700 bg-[#1F1F1F] p-4 shadow-lg',
+        'rounded-lg border border-l-4 border-gray-800 border-l-gray-700 bg-[#1F1F1F] p-4 shadow-lg',
         className
       )}
       data-testid="event-card-skeleton"
@@ -47,10 +47,7 @@ export default function EventCardSkeleton({ className }: EventCardSkeletonProps)
       </div>
 
       {/* Detections */}
-      <div
-        className="rounded-md bg-black/30 p-3"
-        data-testid="event-card-skeleton-detections"
-      >
+      <div className="rounded-md bg-black/30 p-3" data-testid="event-card-skeleton-detections">
         <div className="flex flex-wrap gap-2">
           <div className="h-6 w-20 animate-pulse rounded-full bg-gray-800" />
           <div className="h-6 w-24 animate-pulse rounded-full bg-gray-800" />

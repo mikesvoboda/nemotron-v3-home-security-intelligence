@@ -100,15 +100,18 @@ export default function RiskSensitivitySettings({ className }: RiskSensitivitySe
   }, []);
 
   // Validate threshold ordering
-  const validateThresholds = useCallback((low: number, medium: number, high: number): string | null => {
-    if (low >= medium) {
-      return `Low threshold (${low}) must be less than Medium threshold (${medium})`;
-    }
-    if (medium >= high) {
-      return `Medium threshold (${medium}) must be less than High threshold (${high})`;
-    }
-    return null;
-  }, []);
+  const validateThresholds = useCallback(
+    (low: number, medium: number, high: number): string | null => {
+      if (low >= medium) {
+        return `Low threshold (${low}) must be less than Medium threshold (${medium})`;
+      }
+      if (medium >= high) {
+        return `Medium threshold (${medium}) must be less than High threshold (${high})`;
+      }
+      return null;
+    },
+    []
+  );
 
   // Handle threshold changes with validation
   const handleThresholdChange = useCallback(
@@ -448,7 +451,7 @@ export default function RiskSensitivitySettings({ className }: RiskSensitivitySe
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   {Object.entries(feedbackStats.by_type).map(([type, count]) => (
                     <div key={type} className="flex justify-between">
-                      <Text className="text-gray-400 capitalize">{type.replace(/_/g, ' ')}</Text>
+                      <Text className="capitalize text-gray-400">{type.replace(/_/g, ' ')}</Text>
                       <Text className="font-medium text-white">{String(count)}</Text>
                     </div>
                   ))}

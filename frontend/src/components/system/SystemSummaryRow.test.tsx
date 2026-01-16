@@ -57,8 +57,20 @@ const defaultPerformanceData: PerformanceUpdate = {
     },
   },
   databases: {
-    postgres: { status: 'connected', connections_active: 5, connections_max: 20, cache_hit_ratio: 0.99, transactions_per_min: 120 },
-    redis: { status: 'connected', connected_clients: 3, memory_mb: 128, hit_ratio: 0.95, blocked_clients: 0 },
+    postgres: {
+      status: 'connected',
+      connections_active: 5,
+      connections_max: 20,
+      cache_hit_ratio: 0.99,
+      transactions_per_min: 120,
+    },
+    redis: {
+      status: 'connected',
+      connected_clients: 3,
+      memory_mb: 128,
+      hit_ratio: 0.95,
+      blocked_clients: 0,
+    },
   },
   host: {
     cpu_percent: 12,
@@ -89,9 +101,33 @@ interface MockModel {
 }
 
 const defaultModels: MockModel[] = [
-  { name: 'rtdetr', display_name: 'RT-DETRv2', vram_mb: 1200, status: 'loaded', category: 'detection', enabled: true, available: true },
-  { name: 'nemotron', display_name: 'Nemotron', vram_mb: 8000, status: 'loaded', category: 'llm', enabled: true, available: true },
-  { name: 'clip', display_name: 'CLIP ViT-L', vram_mb: 800, status: 'unloaded', category: 'embedding', enabled: true, available: true },
+  {
+    name: 'rtdetr',
+    display_name: 'RT-DETRv2',
+    vram_mb: 1200,
+    status: 'loaded',
+    category: 'detection',
+    enabled: true,
+    available: true,
+  },
+  {
+    name: 'nemotron',
+    display_name: 'Nemotron',
+    vram_mb: 8000,
+    status: 'loaded',
+    category: 'llm',
+    enabled: true,
+    available: true,
+  },
+  {
+    name: 'clip',
+    display_name: 'CLIP ViT-L',
+    vram_mb: 800,
+    status: 'unloaded',
+    category: 'embedding',
+    enabled: true,
+    available: true,
+  },
 ];
 
 const defaultVramStats = {
@@ -120,7 +156,10 @@ function setupMocks(overrides?: {
   const mockedUseModelZooStatusQuery = useModelZooStatusQuery as Mock;
 
   mockedUsePerformanceMetrics.mockReturnValue({
-    current: overrides?.performance === null ? null : { ...defaultPerformanceData, ...overrides?.performance },
+    current:
+      overrides?.performance === null
+        ? null
+        : { ...defaultPerformanceData, ...overrides?.performance },
     history: { '5m': [], '15m': [], '60m': [] },
     alerts: [],
     isConnected: overrides?.isConnected ?? true,
@@ -203,8 +242,12 @@ describe('SystemSummaryRow', () => {
       render(<SystemSummaryRow />);
 
       const gpuIndicator = screen.getByTestId('summary-indicator-gpu');
-      expect(within(gpuIndicator).getByTestId('indicator-primary-gpu')).toHaveTextContent('38% 40C');
-      expect(within(gpuIndicator).getByTestId('indicator-secondary-gpu')).toHaveTextContent('2.0GB/24.0GB');
+      expect(within(gpuIndicator).getByTestId('indicator-primary-gpu')).toHaveTextContent(
+        '38% 40C'
+      );
+      expect(within(gpuIndicator).getByTestId('indicator-secondary-gpu')).toHaveTextContent(
+        '2.0GB/24.0GB'
+      );
     });
 
     it('shows healthy state when GPU is cool and under-utilized', () => {
@@ -272,7 +315,9 @@ describe('SystemSummaryRow', () => {
       render(<SystemSummaryRow />);
 
       const gpuIndicator = screen.getByTestId('summary-indicator-gpu');
-      expect(within(gpuIndicator).getByTestId('indicator-primary-gpu')).toHaveTextContent('No data');
+      expect(within(gpuIndicator).getByTestId('indicator-primary-gpu')).toHaveTextContent(
+        'No data'
+      );
     });
   });
 
@@ -281,8 +326,12 @@ describe('SystemSummaryRow', () => {
       render(<SystemSummaryRow />);
 
       const pipelineIndicator = screen.getByTestId('summary-indicator-pipeline');
-      expect(within(pipelineIndicator).getByTestId('indicator-primary-pipeline')).toHaveTextContent('0 queue');
-      expect(within(pipelineIndicator).getByTestId('indicator-secondary-pipeline')).toHaveTextContent('1.2/min');
+      expect(within(pipelineIndicator).getByTestId('indicator-primary-pipeline')).toHaveTextContent(
+        '0 queue'
+      );
+      expect(
+        within(pipelineIndicator).getByTestId('indicator-secondary-pipeline')
+      ).toHaveTextContent('1.2/min');
     });
 
     it('shows healthy state when queue depth is low', () => {
@@ -337,14 +386,18 @@ describe('SystemSummaryRow', () => {
 
       const aiIndicator = screen.getByTestId('summary-indicator-ai-models');
       // Now shows core models (RT-DETR + Nemotron) = 2/2 when both healthy
-      expect(within(aiIndicator).getByTestId('indicator-primary-ai-models')).toHaveTextContent('2/2');
+      expect(within(aiIndicator).getByTestId('indicator-primary-ai-models')).toHaveTextContent(
+        '2/2'
+      );
     });
 
     it('shows inference count', () => {
       render(<SystemSummaryRow />);
 
       const aiIndicator = screen.getByTestId('summary-indicator-ai-models');
-      expect(within(aiIndicator).getByTestId('indicator-secondary-ai-models')).toHaveTextContent('1.9k inf');
+      expect(within(aiIndicator).getByTestId('indicator-secondary-ai-models')).toHaveTextContent(
+        '1.9k inf'
+      );
     });
 
     it('shows healthy state when both core models are healthy', () => {
@@ -409,7 +462,9 @@ describe('SystemSummaryRow', () => {
 
       const infraIndicator = screen.getByTestId('summary-indicator-infra');
       // Should show 4/4 (postgres, redis, containers, host)
-      expect(within(infraIndicator).getByTestId('indicator-primary-infra')).toHaveTextContent('4/4');
+      expect(within(infraIndicator).getByTestId('indicator-primary-infra')).toHaveTextContent(
+        '4/4'
+      );
     });
 
     it('shows healthy state when all components are healthy', () => {
@@ -423,8 +478,20 @@ describe('SystemSummaryRow', () => {
       setupMocks({
         performance: {
           databases: {
-            postgres: { status: 'error', connections_active: 0, connections_max: 20, cache_hit_ratio: 0, transactions_per_min: 0 },
-            redis: { status: 'connected', connected_clients: 3, memory_mb: 128, hit_ratio: 0.95, blocked_clients: 0 },
+            postgres: {
+              status: 'error',
+              connections_active: 0,
+              connections_max: 20,
+              cache_hit_ratio: 0,
+              transactions_per_min: 0,
+            },
+            redis: {
+              status: 'connected',
+              connected_clients: 3,
+              memory_mb: 128,
+              hit_ratio: 0.95,
+              blocked_clients: 0,
+            },
           },
         },
       });
@@ -778,7 +845,9 @@ describe('SystemSummaryRow', () => {
 
       const aiIndicator = screen.getByTestId('summary-indicator-ai-models');
       // When core models are missing, count shows 0/2
-      expect(within(aiIndicator).getByTestId('indicator-primary-ai-models')).toHaveTextContent('0/2');
+      expect(within(aiIndicator).getByTestId('indicator-primary-ai-models')).toHaveTextContent(
+        '0/2'
+      );
     });
 
     it('handles disconnected WebSocket', () => {
@@ -791,7 +860,9 @@ describe('SystemSummaryRow', () => {
 
       // Pipeline should show degraded state when disconnected
       const pipelineIndicator = screen.getByTestId('summary-indicator-pipeline');
-      expect(within(pipelineIndicator).getByTestId('indicator-primary-pipeline')).toHaveTextContent('No data');
+      expect(within(pipelineIndicator).getByTestId('indicator-primary-pipeline')).toHaveTextContent(
+        'No data'
+      );
     });
 
     it('handles missing vramStats', () => {
@@ -823,7 +894,9 @@ describe('SystemSummaryRow', () => {
 
       const aiIndicator = screen.getByTestId('summary-indicator-ai-models');
       // 1.5M + 50k = 1.55M, formatted as 1.6M
-      expect(within(aiIndicator).getByTestId('indicator-secondary-ai-models')).toHaveTextContent('1.6M inf');
+      expect(within(aiIndicator).getByTestId('indicator-secondary-ai-models')).toHaveTextContent(
+        '1.6M inf'
+      );
     });
   });
 
@@ -833,7 +906,9 @@ describe('SystemSummaryRow', () => {
 
       // Initial render
       let gpuIndicator = screen.getByTestId('summary-indicator-gpu');
-      expect(within(gpuIndicator).getByTestId('indicator-primary-gpu')).toHaveTextContent('38% 40C');
+      expect(within(gpuIndicator).getByTestId('indicator-primary-gpu')).toHaveTextContent(
+        '38% 40C'
+      );
 
       // Update mock and rerender
       setupMocks({
@@ -849,7 +924,9 @@ describe('SystemSummaryRow', () => {
       rerender(<SystemSummaryRow />);
 
       gpuIndicator = screen.getByTestId('summary-indicator-gpu');
-      expect(within(gpuIndicator).getByTestId('indicator-primary-gpu')).toHaveTextContent('75% 65C');
+      expect(within(gpuIndicator).getByTestId('indicator-primary-gpu')).toHaveTextContent(
+        '75% 65C'
+      );
     });
   });
 });

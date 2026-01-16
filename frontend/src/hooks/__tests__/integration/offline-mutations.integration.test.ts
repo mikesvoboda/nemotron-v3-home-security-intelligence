@@ -325,9 +325,7 @@ describe('Offline Mutations Integration', () => {
       });
 
       // Make the API fail when offline
-      (api.fetchCameras as ReturnType<typeof vi.fn>).mockRejectedValue(
-        new Error('Network error')
-      );
+      (api.fetchCameras as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Network error'));
 
       // Trigger a refetch
       rerender();

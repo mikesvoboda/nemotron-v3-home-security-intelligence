@@ -88,8 +88,7 @@ export function useSnoozeEvent(options: UseSnoozeEventOptions = {}): UseSnoozeEv
   const error = (snoozeMutation.error ?? unsnoozeMutation.error) as Error | null;
 
   return {
-    snooze: (eventId: number, seconds: number) =>
-      snoozeMutation.mutateAsync({ eventId, seconds }),
+    snooze: (eventId: number, seconds: number) => snoozeMutation.mutateAsync({ eventId, seconds }),
     unsnooze: (eventId: number) => unsnoozeMutation.mutateAsync(eventId),
     isSnoozing: snoozeMutation.isPending,
     isUnsnoozing: unsnoozeMutation.isPending,

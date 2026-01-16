@@ -16,7 +16,12 @@ import {
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 
 import { useServiceStatus, type ServiceName } from '../../hooks/useServiceStatus';
-import { fetchHealth, restartService, type HealthResponse, type ServiceStatus } from '../../services/api';
+import {
+  fetchHealth,
+  restartService,
+  type HealthResponse,
+  type ServiceStatus,
+} from '../../services/api';
 
 /**
  * Service category types
@@ -138,11 +143,14 @@ const CATEGORY_CONFIG: Record<ServiceCategory, { label: string; icon: typeof Ser
 /**
  * Map status string to normalized status type
  */
-function normalizeStatus(status: string | undefined): 'healthy' | 'unhealthy' | 'degraded' | 'unknown' {
+function normalizeStatus(
+  status: string | undefined
+): 'healthy' | 'unhealthy' | 'degraded' | 'unknown' {
   if (!status) return 'unknown';
   const normalized = status.toLowerCase();
   if (normalized === 'healthy') return 'healthy';
-  if (normalized === 'unhealthy' || normalized === 'failed' || normalized === 'restart_failed') return 'unhealthy';
+  if (normalized === 'unhealthy' || normalized === 'failed' || normalized === 'restart_failed')
+    return 'unhealthy';
   if (normalized === 'degraded' || normalized === 'restarting') return 'degraded';
   return 'unknown';
 }
@@ -150,7 +158,9 @@ function normalizeStatus(status: string | undefined): 'healthy' | 'unhealthy' | 
 /**
  * Get badge color for status
  */
-function getStatusColor(status: 'healthy' | 'unhealthy' | 'degraded' | 'unknown'): 'emerald' | 'red' | 'yellow' | 'gray' {
+function getStatusColor(
+  status: 'healthy' | 'unhealthy' | 'degraded' | 'unknown'
+): 'emerald' | 'red' | 'yellow' | 'gray' {
   switch (status) {
     case 'healthy':
       return 'emerald'; // Changed from 'green' for WCAG 4.5:1 contrast
@@ -173,7 +183,9 @@ function StatusIcon({ status }: { status: 'healthy' | 'unhealthy' | 'degraded' |
     case 'unhealthy':
       return <XCircle className="h-4 w-4 text-red-500" data-testid="status-icon-unhealthy" />;
     case 'degraded':
-      return <AlertTriangle className="h-4 w-4 text-yellow-500" data-testid="status-icon-degraded" />;
+      return (
+        <AlertTriangle className="h-4 w-4 text-yellow-500" data-testid="status-icon-degraded" />
+      );
     default:
       return <AlertTriangle className="h-4 w-4 text-gray-500" data-testid="status-icon-unknown" />;
   }
@@ -206,12 +218,8 @@ function ServiceCard({ service, onRestart, onToggle }: ServiceCardProps) {
           <StatusIcon status={service.status} />
           <div className="flex flex-col">
             <div className="flex items-center gap-2">
-              <Text className="text-sm font-medium text-gray-200">
-                {service.displayName}
-              </Text>
-              {service.port && (
-                <Text className="text-xs text-gray-500">:{service.port}</Text>
-              )}
+              <Text className="text-sm font-medium text-gray-200">{service.displayName}</Text>
+              {service.port && <Text className="text-xs text-gray-500">:{service.port}</Text>}
             </div>
             <Text className="text-xs text-gray-500">{service.description}</Text>
             {service.message && (
@@ -227,7 +235,9 @@ function ServiceCard({ service, onRestart, onToggle }: ServiceCardProps) {
             size="xs"
             data-testid={`service-status-badge-${service.name}`}
           >
-            {service.isRestarting ? 'Restarting' : service.status.charAt(0).toUpperCase() + service.status.slice(1)}
+            {service.isRestarting
+              ? 'Restarting'
+              : service.status.charAt(0).toUpperCase() + service.status.slice(1)}
           </Badge>
 
           {/* Action buttons */}
@@ -239,10 +249,7 @@ function ServiceCard({ service, onRestart, onToggle }: ServiceCardProps) {
               icon={service.isRestarting ? Loader2 : RefreshCw}
               onClick={onRestart}
               disabled={service.isRestarting || !service.enabled}
-              className={clsx(
-                'h-6 px-2 text-xs',
-                service.isRestarting && '[&>svg]:animate-spin'
-              )}
+              className={clsx('h-6 px-2 text-xs', service.isRestarting && '[&>svg]:animate-spin')}
               data-testid={`service-restart-btn-${service.name}`}
               title="Restart service"
             >
@@ -300,9 +307,7 @@ function CategorySummaryBar({ summaries }: CategorySummaryBarProps) {
             data-testid={`category-summary-${summary.category}`}
           >
             <CategoryIcon className="h-4 w-4 text-gray-400" />
-            <Text className="text-sm text-gray-300">
-              {CATEGORY_CONFIG[summary.category].label}
-            </Text>
+            <Text className="text-sm text-gray-300">{CATEGORY_CONFIG[summary.category].label}</Text>
             <Badge
               color={isAllHealthy ? 'emerald' : summary.unhealthy > 0 ? 'red' : 'yellow'}
               size="xs"
@@ -413,9 +418,7 @@ export default function ServicesPanel({
       }
 
       // Check if service is currently restarting (from WebSocket or local state)
-      const isRestarting =
-        (wsStatus?.status === 'restarting') ||
-        restartingServices.has(def.name);
+      const isRestarting = wsStatus?.status === 'restarting' || restartingServices.has(def.name);
 
       return {
         ...def,
@@ -483,7 +486,9 @@ export default function ServicesPanel({
       } catch (err) {
         console.error(`Failed to restart service ${serviceName}:`, err);
         // Show error to user
-        alert(`Failed to restart ${serviceName}: ${err instanceof Error ? err.message : 'Unknown error'}`);
+        alert(
+          `Failed to restart ${serviceName}: ${err instanceof Error ? err.message : 'Unknown error'}`
+        );
       } finally {
         if (isMountedRef.current) {
           setRestartingServices((prev) => {

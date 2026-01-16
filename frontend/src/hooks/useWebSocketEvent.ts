@@ -285,7 +285,7 @@ export function useWebSocketEvent<T extends WSEventType>(
       subscription.unsubscribe();
       subscriptionRef.current = null;
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, wsUrl, mergedConfig, eventType, stableHandler, ...deps]);
 
   return {

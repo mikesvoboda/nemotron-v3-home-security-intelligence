@@ -254,16 +254,12 @@ export const abTestService: ABTestService = {
       const errorMessages: string[] = [];
       if (originalError) {
         const errMsg =
-          originalError instanceof Error
-            ? originalError.message
-            : 'Original prompt test failed';
+          originalError instanceof Error ? originalError.message : 'Original prompt test failed';
         errorMessages.push(`Original: ${errMsg}`);
       }
       if (modifiedError) {
         const errMsg =
-          modifiedError instanceof Error
-            ? modifiedError.message
-            : 'Modified prompt test failed';
+          modifiedError instanceof Error ? modifiedError.message : 'Modified prompt test failed';
         errorMessages.push(`Modified: ${errMsg}`);
       }
 

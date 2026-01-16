@@ -91,20 +91,14 @@ function DetectionModelCard({ modelKey, metrics }: DetectionModelCardProps) {
   const statusTestId = `${modelKey}-status-badge`;
 
   return (
-    <Card
-      className="border-gray-800 bg-[#1A1A1A] shadow-lg"
-      data-testid={testId}
-    >
+    <Card className="border-gray-800 bg-[#1A1A1A] shadow-lg" data-testid={testId}>
       <div className="mb-4 flex items-center justify-between">
         <Title className="flex items-center gap-2 text-white">
           <Cpu className="h-5 w-5 text-[#76B900]" />
           {displayName}
         </Title>
         {metrics ? (
-          <Badge
-            color={getStatusColor(metrics.status)}
-            data-testid={statusTestId}
-          >
+          <Badge color={getStatusColor(metrics.status)} data-testid={statusTestId}>
             {metrics.status}
           </Badge>
         ) : (
@@ -130,9 +124,7 @@ function DetectionModelCard({ modelKey, metrics }: DetectionModelCardProps) {
             />
             <div>
               <Text className="text-sm text-gray-400">VRAM Usage</Text>
-              <Text className="text-lg font-semibold text-white">
-                {vram.toFixed(2)} GB
-              </Text>
+              <Text className="text-lg font-semibold text-white">{vram.toFixed(2)} GB</Text>
             </div>
           </div>
 
@@ -173,20 +165,14 @@ function LlmModelCard({ modelKey, metrics }: LlmModelCardProps) {
   const statusTestId = `${modelKey}-status-badge`;
 
   return (
-    <Card
-      className="border-gray-800 bg-[#1A1A1A] shadow-lg"
-      data-testid={testId}
-    >
+    <Card className="border-gray-800 bg-[#1A1A1A] shadow-lg" data-testid={testId}>
       <div className="mb-4 flex items-center justify-between">
         <Title className="flex items-center gap-2 text-white">
           <Brain className="h-5 w-5 text-[#76B900]" />
           {displayName}
         </Title>
         {metrics ? (
-          <Badge
-            color={getStatusColor(metrics.status)}
-            data-testid={statusTestId}
-          >
+          <Badge color={getStatusColor(metrics.status)} data-testid={statusTestId}>
             {metrics.status}
           </Badge>
         ) : (
@@ -227,7 +213,8 @@ function LlmModelCard({ modelKey, metrics }: LlmModelCardProps) {
               <span>
                 {metrics.slots_total > 0
                   ? Math.round((metrics.slots_active / metrics.slots_total) * 100)
-                  : 0}%
+                  : 0}
+                %
               </span>
             </div>
             <div className="h-2 overflow-hidden rounded-full bg-gray-700">
@@ -302,20 +289,11 @@ export default function AiModelsPanel({
   });
 
   return (
-    <div
-      className={clsx('grid gap-4 md:grid-cols-2', className)}
-      data-testid={testId}
-    >
+    <div className={clsx('grid gap-4 md:grid-cols-2', className)} data-testid={testId}>
       {sortedEntries.map(([key, modelData]) => {
         // Determine model type and render appropriate card
         if (modelData && isLlmModel(modelData)) {
-          return (
-            <LlmModelCard
-              key={key}
-              modelKey={key}
-              metrics={modelData}
-            />
-          );
+          return <LlmModelCard key={key} modelKey={key} metrics={modelData} />;
         }
 
         // Default to detection model card (for rtdetr or unknown detection models)

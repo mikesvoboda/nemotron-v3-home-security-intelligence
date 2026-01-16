@@ -128,9 +128,7 @@ export function idle<T>(): AsyncState<T> {
  * ```
  */
 export function loading<T>(previousData?: T): AsyncState<T> {
-  return previousData !== undefined
-    ? { status: 'loading', previousData }
-    : { status: 'loading' };
+  return previousData !== undefined ? { status: 'loading', previousData } : { status: 'loading' };
 }
 
 /**
@@ -209,7 +207,7 @@ export function isSuccess<T>(state: AsyncState<T>): state is SuccessState<T> {
  */
 export function hasData<T>(
   state: AsyncState<T>
-): state is LoadingState<T> & { previousData: T } | SuccessState<T> {
+): state is (LoadingState<T> & { previousData: T }) | SuccessState<T> {
   if (state.status === 'success') return true;
   if (state.status === 'loading' && state.previousData !== undefined) return true;
   return false;
@@ -253,10 +251,7 @@ export function getError<T>(state: AsyncState<T>): Error | undefined {
  * const mappedState = mapData(state, events => events.filter(e => e.risk_score > 50));
  * ```
  */
-export function mapData<T, U>(
-  state: AsyncState<T>,
-  fn: (data: T) => U
-): AsyncState<U> {
+export function mapData<T, U>(state: AsyncState<T>, fn: (data: T) => U): AsyncState<U> {
   if (state.status === 'success') {
     return success(fn(state.data), state.fetchedAt);
   }
@@ -326,9 +321,7 @@ export type RefreshableState<T> = AsyncState<T> | RefreshingState<T>;
 /**
  * Type guard for refreshing state.
  */
-export function isRefreshing<T>(
-  state: RefreshableState<T>
-): state is RefreshingState<T> {
+export function isRefreshing<T>(state: RefreshableState<T>): state is RefreshingState<T> {
   return (state as RefreshingState<T>).status === 'refreshing';
 }
 

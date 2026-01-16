@@ -498,7 +498,9 @@ describe('usePaginationState', () => {
     });
 
     it('allows multiple paginated lists on same page', () => {
-      const wrapper = createWrapper('/?events_cursor=ev123&alerts_page=3&events_limit=25&alerts_limit=10');
+      const wrapper = createWrapper(
+        '/?events_cursor=ev123&alerts_page=3&events_limit=25&alerts_limit=10'
+      );
 
       const { result: eventsResult } = renderHook(
         () =>
@@ -549,10 +551,9 @@ describe('usePaginationState', () => {
     it('calls onStateChange when cursor changes', async () => {
       const onStateChange = vi.fn();
 
-      const { result } = renderHook(
-        () => usePaginationState({ type: 'cursor', onStateChange }),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => usePaginationState({ type: 'cursor', onStateChange }), {
+        wrapper: createWrapper(),
+      });
 
       act(() => {
         result.current.setCursor('new-cursor');
@@ -570,10 +571,9 @@ describe('usePaginationState', () => {
     it('calls onStateChange when page changes', async () => {
       const onStateChange = vi.fn();
 
-      const { result } = renderHook(
-        () => usePaginationState({ type: 'offset', onStateChange }),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => usePaginationState({ type: 'offset', onStateChange }), {
+        wrapper: createWrapper(),
+      });
 
       act(() => {
         result.current.setPage(3);
@@ -592,10 +592,9 @@ describe('usePaginationState', () => {
     it('calls onStateChange when limit changes', async () => {
       const onStateChange = vi.fn();
 
-      const { result } = renderHook(
-        () => usePaginationState({ type: 'cursor', onStateChange }),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => usePaginationState({ type: 'cursor', onStateChange }), {
+        wrapper: createWrapper(),
+      });
 
       act(() => {
         result.current.setLimit(50);

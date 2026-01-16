@@ -251,9 +251,13 @@ describe('AlertsPage Integration Tests', () => {
 
       // Verify the filter buttons exist with proper labels
       expect(screen.getByRole('button', { name: /filter by all alerts/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /filter by critical severity/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: /filter by critical severity/i })
+      ).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /filter by high severity/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /filter by medium severity/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: /filter by medium severity/i })
+      ).toBeInTheDocument();
     });
 
     it('updates displayed alerts when switching between filters', async () => {
@@ -568,7 +572,9 @@ describe('AlertsPage Integration Tests', () => {
       render(<TestAlertsPage />);
 
       // Initially no selection - no batch action buttons
-      expect(screen.queryByRole('button', { name: /acknowledge selected/i })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: /acknowledge selected/i })
+      ).not.toBeInTheDocument();
 
       // Select an alert
       const checkboxes = screen.getAllByRole('checkbox');

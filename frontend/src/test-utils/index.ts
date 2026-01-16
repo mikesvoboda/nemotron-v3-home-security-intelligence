@@ -32,10 +32,7 @@ export {
   userEvent,
 } from './renderWithProviders';
 
-export type {
-  RenderWithProvidersOptions,
-  RenderWithProvidersResult,
-} from './renderWithProviders';
+export type { RenderWithProvidersOptions, RenderWithProvidersResult } from './renderWithProviders';
 
 // Test data factories
 export {

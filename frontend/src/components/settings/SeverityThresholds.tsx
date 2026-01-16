@@ -365,9 +365,7 @@ export default function SeverityThresholds({ className }: SeverityThresholdsProp
                   />
                   <Text className="font-medium text-gray-300">Critical Range</Text>
                 </div>
-                <Text className="font-mono text-white">
-                  {editedThresholds.high_max + 1}-100
-                </Text>
+                <Text className="font-mono text-white">{editedThresholds.high_max + 1}-100</Text>
               </div>
               <Text className="mt-1 text-xs text-gray-300">
                 Automatically calculated from High Max threshold

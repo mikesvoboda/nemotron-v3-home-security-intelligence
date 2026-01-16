@@ -74,38 +74,38 @@ export default function App() {
       <ToastProvider>
         <RateLimitProvider>
           <BrowserRouter>
-          <ErrorBoundary
-            title="Application Error"
-            description="The application encountered an unexpected error. Please try again or refresh the page."
-          >
-            {/* Ambient status provider for visual/audio status awareness */}
-            <AmbientStatusProvider>
-              <Layout>
-                <ChunkLoadErrorBoundary>
-                  <Suspense fallback={<RouteLoadingFallback />}>
-                    <PageTransition>
-                      <Routes>
-                        <Route path="/" element={<DashboardPage />} />
-                        <Route path="/timeline" element={<EventTimeline />} />
-                        <Route path="/analytics" element={<AnalyticsPage />} />
-                        <Route path="/alerts" element={<AlertsPage />} />
-                        <Route path="/entities" element={<EntitiesPage />} />
-                        <Route path="/logs" element={<LogsDashboard />} />
-                        <Route path="/audit" element={<AuditLogPage />} />
-                        <Route path="/ai" element={<AIPerformancePage />} />
-                        <Route path="/ai-audit" element={<AIAuditPage />} />
-                        <Route path="/system" element={<SystemMonitoringPage />} />
-                        <Route path="/settings" element={<SettingsPage />} />
-                        <Route path="/trash" element={<TrashPage />} />
-                      </Routes>
-                    </PageTransition>
-                  </Suspense>
-                </ChunkLoadErrorBoundary>
-              </Layout>
-            </AmbientStatusProvider>
-          </ErrorBoundary>
-          {/* Interactive product tour for first-time users */}
-          <ProductTour />
+            <ErrorBoundary
+              title="Application Error"
+              description="The application encountered an unexpected error. Please try again or refresh the page."
+            >
+              {/* Ambient status provider for visual/audio status awareness */}
+              <AmbientStatusProvider>
+                <Layout>
+                  <ChunkLoadErrorBoundary>
+                    <Suspense fallback={<RouteLoadingFallback />}>
+                      <PageTransition>
+                        <Routes>
+                          <Route path="/" element={<DashboardPage />} />
+                          <Route path="/timeline" element={<EventTimeline />} />
+                          <Route path="/analytics" element={<AnalyticsPage />} />
+                          <Route path="/alerts" element={<AlertsPage />} />
+                          <Route path="/entities" element={<EntitiesPage />} />
+                          <Route path="/logs" element={<LogsDashboard />} />
+                          <Route path="/audit" element={<AuditLogPage />} />
+                          <Route path="/ai" element={<AIPerformancePage />} />
+                          <Route path="/ai-audit" element={<AIAuditPage />} />
+                          <Route path="/system" element={<SystemMonitoringPage />} />
+                          <Route path="/settings" element={<SettingsPage />} />
+                          <Route path="/trash" element={<TrashPage />} />
+                        </Routes>
+                      </PageTransition>
+                    </Suspense>
+                  </ChunkLoadErrorBoundary>
+                </Layout>
+              </AmbientStatusProvider>
+            </ErrorBoundary>
+            {/* Interactive product tour for first-time users */}
+            <ProductTour />
           </BrowserRouter>
           {/* Rate limit indicator - fixed position overlay */}
           <RateLimitIndicator />

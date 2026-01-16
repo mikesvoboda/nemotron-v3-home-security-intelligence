@@ -160,12 +160,22 @@ describe('WebSocket Event Types', () => {
 
     it('should handle system_status messages with nested data', () => {
       const systemData = {
-        gpu: { utilization: 50, memory_used: 1024, memory_total: 2048, temperature: 65, inference_fps: 30 },
+        gpu: {
+          utilization: 50,
+          memory_used: 1024,
+          memory_total: 2048,
+          temperature: 65,
+          inference_fps: 30,
+        },
         cameras: { active: 4, total: 4 },
         queue: { pending: 0, processing: 0 },
         health: 'healthy',
       };
-      const message = { type: 'system_status', data: systemData, timestamp: '2024-01-01T00:00:00Z' };
+      const message = {
+        type: 'system_status',
+        data: systemData,
+        timestamp: '2024-01-01T00:00:00Z',
+      };
 
       const payload = extractEventPayload(message, 'system_status');
       expect(payload).toEqual(systemData);

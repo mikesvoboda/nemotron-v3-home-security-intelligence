@@ -313,9 +313,7 @@ describe('useAudioNotifications', () => {
 
   describe('custom sounds path', () => {
     it('uses custom sounds path when provided', async () => {
-      const { result } = renderHook(() =>
-        useAudioNotifications({ soundsPath: '/custom/sounds' })
-      );
+      const { result } = renderHook(() => useAudioNotifications({ soundsPath: '/custom/sounds' }));
 
       await act(async () => {
         await result.current.playSound('info');
@@ -335,9 +333,7 @@ describe('useAudioNotifications', () => {
       const { result } = renderHook(() => useAudioNotifications());
 
       expect(result.current.isReady).toBe(false);
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        'Web Audio API is not supported in this browser'
-      );
+      expect(consoleWarnSpy).toHaveBeenCalledWith('Web Audio API is not supported in this browser');
 
       consoleWarnSpy.mockRestore();
     });

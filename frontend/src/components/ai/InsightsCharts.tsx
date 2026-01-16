@@ -181,7 +181,10 @@ export default function InsightsCharts({
   return (
     <div className={clsx('space-y-4', className)} data-testid="insights-charts">
       {/* Detection Class Distribution */}
-      <Card className="border-gray-800 bg-[#1A1A1A] shadow-lg" data-testid="detection-distribution-card">
+      <Card
+        className="border-gray-800 bg-[#1A1A1A] shadow-lg"
+        data-testid="detection-distribution-card"
+      >
         <Title className="mb-4 flex items-center gap-2 text-white">
           <PieChart className="h-5 w-5 text-[#76B900]" />
           Detection Class Distribution
@@ -202,7 +205,8 @@ export default function InsightsCharts({
             />
             <div className="flex-1 space-y-2">
               <Text className="text-sm text-gray-400">
-                Total Detections: <span className="font-semibold text-white">{formatCount(totalDetectionCount)}</span>
+                Total Detections:{' '}
+                <span className="font-semibold text-white">{formatCount(totalDetectionCount)}</span>
               </Text>
               <div className="space-y-1">
                 {detectionData.slice(0, 5).map((item, index) => (
@@ -214,7 +218,9 @@ export default function InsightsCharts({
                           `bg-${DETECTION_COLORS[index % DETECTION_COLORS.length]}-500`
                         )}
                         style={{
-                          backgroundColor: getColorHex(DETECTION_COLORS[index % DETECTION_COLORS.length]),
+                          backgroundColor: getColorHex(
+                            DETECTION_COLORS[index % DETECTION_COLORS.length]
+                          ),
                         }}
                       />
                       <Text className="text-gray-300">{item.name}</Text>
@@ -300,7 +306,7 @@ export default function InsightsCharts({
                       className={clsx(
                         'absolute -top-10 z-10 whitespace-nowrap rounded-md px-2 py-1 text-xs font-medium text-white shadow-lg',
                         'opacity-0 transition-opacity group-hover:opacity-100',
-                        'bg-gray-900 border border-gray-700'
+                        'border border-gray-700 bg-gray-900'
                       )}
                     >
                       Click to view {item.count} events
@@ -336,10 +342,10 @@ export default function InsightsCharts({
                 <button
                   key={item.name}
                   onClick={() => {
-                      void navigate(`/timeline?risk_level=${item.riskLevelKey}`);
-                    }}
+                    void navigate(`/timeline?risk_level=${item.riskLevelKey}`);
+                  }}
                   className={clsx(
-                    'text-center cursor-pointer rounded-md p-2 transition-colors',
+                    'cursor-pointer rounded-md p-2 text-center transition-colors',
                     'hover:bg-gray-800/50 focus:outline-none focus:ring-2 focus:ring-[#76B900]'
                   )}
                   title={`Click to view ${item.count} ${item.name.toLowerCase()} risk events`}

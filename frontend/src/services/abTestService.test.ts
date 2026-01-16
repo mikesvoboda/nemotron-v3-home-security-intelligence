@@ -55,7 +55,6 @@ function createMockResponse<T>(data: T, status = 200): Response {
   } as Response;
 }
 
-
 // ============================================================================
 // Test Setup
 // ============================================================================
@@ -220,12 +219,7 @@ describe('abTestService', () => {
       });
 
       // Act
-      await abTestService.runRandomTests(
-        3,
-        'Original prompt',
-        'Modified prompt',
-        mockModelConfig
-      );
+      await abTestService.runRandomTests(3, 'Original prompt', 'Modified prompt', mockModelConfig);
 
       // Assert: First call should be to fetch events
       const firstCall = fetchMock.mock.calls[0];
@@ -249,7 +243,9 @@ describe('abTestService', () => {
       // First event succeeds (snake_case from API)
       fetchMock
         .mockResolvedValueOnce(createMockResponse({ ...mockApiTestPromptResponse, risk_score: 50 }))
-        .mockResolvedValueOnce(createMockResponse({ ...mockApiTestPromptResponse, risk_score: 60 }));
+        .mockResolvedValueOnce(
+          createMockResponse({ ...mockApiTestPromptResponse, risk_score: 60 })
+        );
 
       // Second event fails
       fetchMock
@@ -259,7 +255,9 @@ describe('abTestService', () => {
       // Third event succeeds (snake_case from API)
       fetchMock
         .mockResolvedValueOnce(createMockResponse({ ...mockApiTestPromptResponse, risk_score: 30 }))
-        .mockResolvedValueOnce(createMockResponse({ ...mockApiTestPromptResponse, risk_score: 40 }));
+        .mockResolvedValueOnce(
+          createMockResponse({ ...mockApiTestPromptResponse, risk_score: 40 })
+        );
 
       // Act
       const results = await abTestService.runRandomTests(

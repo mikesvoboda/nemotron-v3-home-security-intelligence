@@ -40,10 +40,7 @@ export default function PerformanceAlerts({ alerts, className }: PerformanceAler
   }
 
   return (
-    <div
-      className={clsx('space-y-2', className)}
-      data-testid="performance-alerts"
-    >
+    <div className={clsx('space-y-2', className)} data-testid="performance-alerts">
       {alerts.map((alert) => (
         <Callout
           key={`${alert.severity}-${alert.metric}`}

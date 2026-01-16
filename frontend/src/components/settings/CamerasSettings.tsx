@@ -1,6 +1,15 @@
 import { Dialog, Transition } from '@headlessui/react';
 import { clsx } from 'clsx';
-import { AlertCircle, Camera as CameraIcon, Edit2, MapPin, Plus, Search, Trash2, X } from 'lucide-react';
+import {
+  AlertCircle,
+  Camera as CameraIcon,
+  Edit2,
+  MapPin,
+  Plus,
+  Search,
+  Trash2,
+  X,
+} from 'lucide-react';
 import { Fragment, useState } from 'react';
 
 import { useCamerasQuery, useCameraMutation } from '../../hooks';
@@ -63,7 +72,8 @@ export default function CamerasSettings() {
   // Derive loading/error states from query and mutations
   const loading = isLoading;
   const error = queryError?.message ?? mutationError;
-  const submitting = createMutation.isPending || updateMutation.isPending || deleteMutation.isPending;
+  const submitting =
+    createMutation.isPending || updateMutation.isPending || deleteMutation.isPending;
 
   // Filter cameras based on search query
   const filteredCameras = cameras.filter((camera) =>
@@ -257,7 +267,8 @@ export default function CamerasSettings() {
           <CameraIcon className="mx-auto h-12 w-12 text-gray-600" />
           <h3 className="mt-4 text-lg font-medium text-text-primary">No cameras configured</h3>
           <p className="mt-2 text-sm text-text-secondary">
-            Add your first camera to start monitoring. Each camera should point to a folder where images are uploaded via FTP.
+            Add your first camera to start monitoring. Each camera should point to a folder where
+            images are uploaded via FTP.
           </p>
           <button
             onClick={handleOpenAddModal}
@@ -496,7 +507,9 @@ export default function CamerasSettings() {
                         id="status"
                         data-testid="camera-status-select"
                         value={formData.status}
-                        onChange={(e) => setFormData({ ...formData, status: e.target.value as CameraStatusValue })}
+                        onChange={(e) =>
+                          setFormData({ ...formData, status: e.target.value as CameraStatusValue })
+                        }
                         className={clsx(
                           'mt-1 block w-full rounded-lg border bg-card px-3 py-2 text-text-primary focus:outline-none focus:ring-2',
                           formErrors.status

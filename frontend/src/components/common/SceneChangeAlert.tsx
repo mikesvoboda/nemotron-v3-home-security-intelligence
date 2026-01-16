@@ -113,18 +113,16 @@ function AlertItem({ alert, onDismiss }: AlertItemProps) {
       )}
       data-testid={`scene-change-alert-${alert.id}`}
     >
-      <div className="flex-1 min-w-0">
+      <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <Camera className={clsx('h-3.5 w-3.5 flex-shrink-0', config.textColor)} />
-          <span className="text-sm font-medium text-white truncate">{alert.cameraId}</span>
+          <span className="truncate text-sm font-medium text-white">{alert.cameraId}</span>
         </div>
         <div className="mt-1 flex items-center gap-2">
           <span className={clsx('text-xs font-medium', config.textColor)}>
             {formatChangeType(alert.changeType)}
           </span>
-          <span className="text-xs text-gray-500">
-            {formatTimestamp(alert.detectedAt)}
-          </span>
+          <span className="text-xs text-gray-500">{formatTimestamp(alert.detectedAt)}</span>
         </div>
         <div className="mt-0.5 text-xs text-gray-500">
           Similarity: {(alert.similarityScore * 100).toFixed(1)}%
@@ -132,7 +130,7 @@ function AlertItem({ alert, onDismiss }: AlertItemProps) {
       </div>
       <button
         onClick={handleDismiss}
-        className="flex-shrink-0 p-1 text-gray-500 hover:text-gray-300 transition-colors"
+        className="flex-shrink-0 p-1 text-gray-500 transition-colors hover:text-gray-300"
         aria-label={`Dismiss alert for ${alert.cameraId}`}
         data-testid={`dismiss-alert-${alert.id}`}
       >
@@ -215,10 +213,7 @@ export default function SceneChangeAlert({
         <AlertTriangle className="h-4 w-4" aria-hidden="true" />
         <span className="text-sm font-medium">{unacknowledgedCount}</span>
         <ChevronDown
-          className={clsx(
-            'h-3.5 w-3.5 transition-transform',
-            isExpanded && 'rotate-180'
-          )}
+          className={clsx('h-3.5 w-3.5 transition-transform', isExpanded && 'rotate-180')}
           aria-hidden="true"
         />
       </button>
@@ -226,18 +221,16 @@ export default function SceneChangeAlert({
       {/* Dropdown */}
       {isExpanded && (
         <div
-          className="absolute right-0 top-full z-50 mt-2 w-72 max-h-96 overflow-hidden rounded-lg border border-gray-700 bg-gray-900 shadow-lg"
+          className="absolute right-0 top-full z-50 mt-2 max-h-96 w-72 overflow-hidden rounded-lg border border-gray-700 bg-gray-900 shadow-lg"
           role="menu"
           data-testid="scene-change-dropdown"
         >
           {/* Header */}
           <div className="flex items-center justify-between border-b border-gray-800 px-3 py-2">
-            <div className="text-sm font-semibold text-white">
-              Scene Change Alerts
-            </div>
+            <div className="text-sm font-semibold text-white">Scene Change Alerts</div>
             <button
               onClick={onDismissAll}
-              className="text-xs text-gray-400 hover:text-white transition-colors"
+              className="text-xs text-gray-400 transition-colors hover:text-white"
               data-testid="dismiss-all-alerts"
             >
               Dismiss All
@@ -245,15 +238,13 @@ export default function SceneChangeAlert({
           </div>
 
           {/* Alert List */}
-          <div className="max-h-64 overflow-y-auto p-2 space-y-2">
+          <div className="max-h-64 space-y-2 overflow-y-auto p-2">
             {activeAlerts.length === 0 ? (
-              <div className="py-4 text-center text-sm text-gray-500">
-                No active alerts
-              </div>
+              <div className="py-4 text-center text-sm text-gray-500">No active alerts</div>
             ) : (
-              activeAlerts.slice(0, 10).map((alert) => (
-                <AlertItem key={alert.id} alert={alert} onDismiss={onDismiss} />
-              ))
+              activeAlerts
+                .slice(0, 10)
+                .map((alert) => <AlertItem key={alert.id} alert={alert} onDismiss={onDismiss} />)
             )}
           </div>
 
@@ -261,7 +252,7 @@ export default function SceneChangeAlert({
           <div className="border-t border-gray-800 px-3 py-2">
             <button
               onClick={handleViewAll}
-              className="w-full text-center text-xs text-[#76B900] hover:text-[#8BD000] transition-colors"
+              className="w-full text-center text-xs text-[#76B900] transition-colors hover:text-[#8BD000]"
               data-testid="view-all-scene-changes"
             >
               View All Scene Changes

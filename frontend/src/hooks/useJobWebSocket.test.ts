@@ -9,11 +9,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { useJobWebSocket } from './useJobWebSocket';
 
-import type {
-  JobProgressMessage,
-  JobCompletedMessage,
-  JobFailedMessage,
-} from '../types/websocket';
+import type { JobProgressMessage, JobCompletedMessage, JobFailedMessage } from '../types/websocket';
 
 const mockOnMessage = vi.fn<(data: unknown) => void>();
 const mockWsReturn = {

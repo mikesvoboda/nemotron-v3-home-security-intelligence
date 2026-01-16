@@ -8,11 +8,7 @@
  * @module hooks/useAlertsQuery
  */
 
-import {
-  useInfiniteQuery,
-  type InfiniteData,
-  type QueryKey,
-} from '@tanstack/react-query';
+import { useInfiniteQuery, type InfiniteData, type QueryKey } from '@tanstack/react-query';
 import { useMemo } from 'react';
 
 import { fetchEvents, type EventListResponse, type Event } from '../services/api';
@@ -266,9 +262,7 @@ export function useAlertsInfiniteQuery(
     }
 
     // Remove duplicates by ID and sort by timestamp (newest first)
-    const uniqueAlerts = Array.from(
-      new Map(allAlerts.map((alert) => [alert.id, alert])).values()
-    );
+    const uniqueAlerts = Array.from(new Map(allAlerts.map((alert) => [alert.id, alert])).values());
 
     return uniqueAlerts.sort((a, b) => {
       const dateA = new Date(a.started_at).getTime();
@@ -290,13 +284,17 @@ export function useAlertsInfiniteQuery(
   }, [highQuery.totalCount, criticalQuery.totalCount, fetchHigh, fetchCritical]);
 
   // Combine loading states
-  const isLoading = (fetchHigh && highQuery.isLoading) || (fetchCritical && criticalQuery.isLoading);
-  const isFetching = (fetchHigh && highQuery.isFetching) || (fetchCritical && criticalQuery.isFetching);
+  const isLoading =
+    (fetchHigh && highQuery.isLoading) || (fetchCritical && criticalQuery.isLoading);
+  const isFetching =
+    (fetchHigh && highQuery.isFetching) || (fetchCritical && criticalQuery.isFetching);
   const isFetchingNextPage =
-    (fetchHigh && highQuery.isFetchingNextPage) || (fetchCritical && criticalQuery.isFetchingNextPage);
+    (fetchHigh && highQuery.isFetchingNextPage) ||
+    (fetchCritical && criticalQuery.isFetchingNextPage);
 
   // Combine hasNextPage - true if either has more
-  const hasNextPage = (fetchHigh && highQuery.hasNextPage) || (fetchCritical && criticalQuery.hasNextPage);
+  const hasNextPage =
+    (fetchHigh && highQuery.hasNextPage) || (fetchCritical && criticalQuery.hasNextPage);
 
   // Combine error states
   const error = highQuery.error || criticalQuery.error;

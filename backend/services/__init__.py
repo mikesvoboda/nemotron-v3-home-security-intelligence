@@ -284,6 +284,13 @@ from .severity import (
     severity_lte,
 )
 from .thumbnail_generator import ThumbnailGenerator
+from .transcode_cache import (
+    CacheEntry,
+    CacheStats,
+    TranscodeCache,
+    get_transcode_cache,
+    reset_transcode_cache,
+)
 from .worker_supervisor import (
     SupervisorConfig,
     WorkerInfo,
@@ -436,6 +443,10 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "SeverityDefinition",
     "SeverityService",
     "ThumbnailGenerator",
+    # Transcode Cache
+    "CacheEntry",
+    "CacheStats",
+    "TranscodeCache",
     "TriggeredRule",
     "VehicleAttributes",
     "VehicleDetection",
@@ -499,6 +510,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "get_severity_priority",
     "get_severity_service",
     "get_total_vram_if_loaded",
+    "get_transcode_cache",
     "get_worker_supervisor",
     "get_zones_for_detection",
     "is_image_file",
@@ -539,6 +551,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "reset_scene_change_detector",
     "reset_audit_service",
     "reset_severity_service",
+    "reset_transcode_cache",
     "reset_worker_supervisor",
     "search_events",
     "severity_from_string",

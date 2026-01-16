@@ -1,6 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
-import { fetchModelZooStatus, type ModelRegistryResponse, type ModelStatusResponse } from '../services/api';
+import {
+  fetchModelZooStatus,
+  type ModelRegistryResponse,
+  type ModelStatusResponse,
+} from '../services/api';
 
 /**
  * VRAM statistics derived from the Model Zoo registry.
@@ -59,9 +63,7 @@ export interface UseModelZooStatusReturn {
  * });
  * ```
  */
-export function useModelZooStatus(
-  options: UseModelZooStatusOptions = {}
-): UseModelZooStatusReturn {
+export function useModelZooStatus(options: UseModelZooStatusOptions = {}): UseModelZooStatusReturn {
   const { pollingInterval = 10000 } = options;
 
   const [models, setModels] = useState<ModelStatusResponse[]>([]);
@@ -100,8 +102,7 @@ export function useModelZooStatus(
       setModels(registry.models);
       setVramStats(calculateVramStats(registry));
     } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : 'Failed to fetch Model Zoo status';
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch Model Zoo status';
       setError(errorMessage);
     } finally {
       setIsLoading(false);

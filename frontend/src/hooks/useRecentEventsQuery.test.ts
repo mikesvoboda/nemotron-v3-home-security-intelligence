@@ -216,9 +216,7 @@ describe('useRecentEventsQuery', () => {
   describe('error handling', () => {
     it('sets error on fetch failure', async () => {
       const errorMessage = 'Failed to fetch events';
-      (api.fetchEvents as ReturnType<typeof vi.fn>).mockRejectedValue(
-        new Error(errorMessage)
-      );
+      (api.fetchEvents as ReturnType<typeof vi.fn>).mockRejectedValue(new Error(errorMessage));
 
       const { result } = renderHook(() => useRecentEventsQuery(), {
         wrapper: createQueryWrapper(),
@@ -234,9 +232,7 @@ describe('useRecentEventsQuery', () => {
     });
 
     it('sets isError true on failure', async () => {
-      (api.fetchEvents as ReturnType<typeof vi.fn>).mockRejectedValue(
-        new Error('Network error')
-      );
+      (api.fetchEvents as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Network error'));
 
       const { result } = renderHook(() => useRecentEventsQuery(), {
         wrapper: createQueryWrapper(),
@@ -251,9 +247,7 @@ describe('useRecentEventsQuery', () => {
     });
 
     it('returns empty events array on error', async () => {
-      (api.fetchEvents as ReturnType<typeof vi.fn>).mockRejectedValue(
-        new Error('Server error')
-      );
+      (api.fetchEvents as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Server error'));
 
       const { result } = renderHook(() => useRecentEventsQuery(), {
         wrapper: createQueryWrapper(),
@@ -290,13 +284,10 @@ describe('useRecentEventsQuery', () => {
     });
 
     it('fetches when enabled changes from false to true', async () => {
-      const { rerender } = renderHook(
-        ({ enabled }) => useRecentEventsQuery({ enabled }),
-        {
-          wrapper: createQueryWrapper(),
-          initialProps: { enabled: false },
-        }
-      );
+      const { rerender } = renderHook(({ enabled }) => useRecentEventsQuery({ enabled }), {
+        wrapper: createQueryWrapper(),
+        initialProps: { enabled: false },
+      });
 
       await new Promise((r) => setTimeout(r, 50));
       expect(api.fetchEvents).not.toHaveBeenCalled();

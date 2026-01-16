@@ -57,7 +57,6 @@ export interface ProductTourProps {
   onStepChange?: (stepIndex: number) => void;
 }
 
-
 /**
  * Check if the viewport is mobile-sized.
  */
@@ -186,9 +185,8 @@ export default function ProductTour({
   );
 
   // Determine if tour should run
-  const shouldRun = externalRun !== undefined
-    ? externalRun && (forceRun || shouldShowTour())
-    : internalRun;
+  const shouldRun =
+    externalRun !== undefined ? externalRun && (forceRun || shouldShowTour()) : internalRun;
 
   // Don't render anything if not running
   if (!shouldRun) {

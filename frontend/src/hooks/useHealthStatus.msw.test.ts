@@ -170,10 +170,7 @@ describe('useHealthStatus (MSW)', () => {
       // Use 400 to avoid retry backoff
       server.use(
         http.get('/api/system/health', () => {
-          return HttpResponse.json(
-            { detail: 'Network error' },
-            { status: 400 }
-          );
+          return HttpResponse.json({ detail: 'Network error' }, { status: 400 });
         })
       );
 
@@ -187,10 +184,7 @@ describe('useHealthStatus (MSW)', () => {
     it('sets isLoading false on error', async () => {
       server.use(
         http.get('/api/system/health', () => {
-          return HttpResponse.json(
-            { detail: 'Error' },
-            { status: 400 }
-          );
+          return HttpResponse.json({ detail: 'Error' }, { status: 400 });
         })
       );
 

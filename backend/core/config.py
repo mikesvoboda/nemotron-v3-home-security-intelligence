@@ -4,6 +4,7 @@ __all__ = [
     # Classes
     "OrchestratorSettings",
     "Settings",
+    "TranscodeCacheSettings",
     # Functions
     "get_settings",
 ]
@@ -19,6 +20,79 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from backend.core.sanitization import URLValidationError, validate_grafana_url
 from backend.core.url_validation import SSRFValidationError
 from backend.core.url_validation import validate_webhook_url as validate_webhook_url_ssrf
+
+
+class TranscodeCacheSettings(BaseSettings):
+    """Transcoding cache configuration for disk-based video transcode caching.
+
+    This settings model configures the transcode cache service that provides
+    LRU-based caching of transcoded videos to avoid repeated transcoding.
+
+    Environment variables use the TRANSCODE_CACHE_ prefix (e.g., TRANSCODE_CACHE_DIR).
+    """
+
+    model_config = SettingsConfigDict(
+        env_prefix="TRANSCODE_CACHE_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
+    # Cache location
+    cache_dir: str = Field(
+        default="data/transcode_cache",
+        description="Directory for storing transcoded video cache files. "
+        "Relative paths are resolved from the application root.",
+    )
+
+    # Size limits
+    max_cache_size_gb: float = Field(
+        default=10.0,
+        ge=0.1,
+        le=1000.0,
+        description="Maximum cache size in gigabytes. When exceeded, LRU eviction "
+        "removes least recently accessed files until below cleanup_target_percent.",
+    )
+    max_file_age_days: int = Field(
+        default=7,
+        ge=1,
+        le=365,
+        description="Maximum age in days before a cached file is eligible for eviction, "
+        "regardless of LRU status. Files older than this are evicted first.",
+    )
+
+    # Cleanup thresholds
+    cleanup_threshold_percent: float = Field(
+        default=0.9,
+        ge=0.5,
+        le=0.99,
+        description="Trigger cleanup when cache reaches this percentage of max_cache_size_gb. "
+        "Default: 0.9 (90%). Cleanup removes files until below cleanup_target_percent.",
+    )
+    cleanup_target_percent: float = Field(
+        default=0.8,
+        ge=0.3,
+        le=0.95,
+        description="Target percentage of max_cache_size_gb after cleanup. "
+        "Default: 0.8 (80%). Must be less than cleanup_threshold_percent.",
+    )
+
+    # Locking
+    lock_timeout_seconds: int = Field(
+        default=30,
+        ge=1,
+        le=300,
+        description="Timeout in seconds for cache operation locks. "
+        "Prevents deadlocks when multiple processes access the cache.",
+    )
+
+    # Feature flag
+    enabled: bool = Field(
+        default=True,
+        description="Enable transcoding cache. When disabled, all transcode operations "
+        "bypass the cache and transcode on every request.",
+    )
 
 
 class OrchestratorSettings(BaseSettings):
@@ -391,8 +465,16 @@ class Settings(BaseSettings):
     )
 
     # API settings
-    api_host: str = "0.0.0.0"  # noqa: S104
-    api_port: int = 8000
+    api_host: str = Field(
+        default="0.0.0.0",  # noqa: S104
+        description="API server host address",
+    )
+    api_port: int = Field(
+        default=8000,
+        gt=0,
+        le=65535,
+        description="API server port",
+    )
 
     # CORS settings
     # Includes common development ports and 0.0.0.0 (accept from any origin when bound to all interfaces)
@@ -429,12 +511,14 @@ class Settings(BaseSettings):
     # Retention settings
     retention_days: int = Field(
         default=30,
+        gt=0,
         description="Number of days to retain events and detections",
     )
 
     # Batch processing settings
     batch_window_seconds: int = Field(
         default=90,
+        gt=0,
         description="Time window for batch processing detections",
     )
     batch_idle_timeout_seconds: int = Field(
@@ -1356,6 +1440,35 @@ class Settings(BaseSettings):
         description="Enable automatic clip generation for events",
     )
 
+    # Hardware acceleration settings for video transcoding (NEM-2682)
+    hardware_acceleration_enabled: bool = Field(
+        default=True,
+        description="Enable NVIDIA NVENC hardware acceleration for video transcoding. "
+        "When enabled, uses GPU-based H.264 encoding (h264_nvenc) for faster clip generation. "
+        "Automatically falls back to software encoding (libx264) if NVENC is unavailable.",
+    )
+    nvenc_preset: str = Field(
+        default="p4",
+        description="NVENC encoding preset. Options: p1 (fastest) to p7 (slowest/best quality). "
+        "p4 provides good balance. Only used when hardware acceleration is enabled and available.",
+    )
+    nvenc_cq: int = Field(
+        default=23,
+        ge=0,
+        le=51,
+        description="NVENC constant quality (CQ) value. Lower = higher quality, larger files. "
+        "Range: 0-51. Default: 23 (similar to libx264 CRF 23). Only used with hardware acceleration.",
+    )
+
+    @field_validator("nvenc_preset")
+    @classmethod
+    def validate_nvenc_preset(cls, v: str) -> str:
+        """Validate NVENC preset is a valid option."""
+        valid_presets = {"p1", "p2", "p3", "p4", "p5", "p6", "p7"}
+        if v not in valid_presets:
+            raise ValueError(f"nvenc_preset must be one of: {', '.join(sorted(valid_presets))}")
+        return v
+
     # Video thumbnails settings
     video_thumbnails_dir: str = Field(
         default="data/thumbnails",
@@ -1436,6 +1549,13 @@ class Settings(BaseSettings):
     orchestrator: OrchestratorSettings = Field(
         default_factory=OrchestratorSettings,
         description="Container orchestrator configuration for health monitoring and self-healing",
+    )
+
+    # Transcode cache settings (for disk-based video transcode caching)
+    # Environment variables use TRANSCODE_CACHE_ prefix (e.g., TRANSCODE_CACHE_DIR)
+    transcode_cache: TranscodeCacheSettings = Field(
+        default_factory=TranscodeCacheSettings,
+        description="Transcode cache configuration for LRU-based video transcode caching",
     )
 
     # Background evaluation settings

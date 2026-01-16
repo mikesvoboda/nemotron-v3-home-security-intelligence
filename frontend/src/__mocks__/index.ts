@@ -207,12 +207,8 @@ export type { MockData } from '../services/__mocks__/api';
 // =============================================================================
 
 // Import functions needed for resetAllMocks helper
-import {
-  resetEventIdCounter as _resetSecurityEventIdCounter,
-} from '../hooks/__mocks__/useEventStream';
-import {
-  resetAllIdCounters as _resetAllIdCounters,
-} from '../services/__mocks__/api';
+import { resetEventIdCounter as _resetSecurityEventIdCounter } from '../hooks/__mocks__/useEventStream';
+import { resetAllIdCounters as _resetAllIdCounters } from '../services/__mocks__/api';
 
 /**
  * Resets all mocks and ID counters.

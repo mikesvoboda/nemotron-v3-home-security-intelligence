@@ -50,7 +50,8 @@ describe('EventAuditDetail', () => {
     },
     consistency_risk_score: 65,
     consistency_diff: 5,
-    self_eval_critique: 'The analysis correctly identified the vehicle and assessed the risk appropriately.',
+    self_eval_critique:
+      'The analysis correctly identified the vehicle and assessed the risk appropriately.',
     improvements: {
       missing_context: ['Weather conditions at time of event'],
       confusing_sections: [],
@@ -102,9 +103,7 @@ describe('EventAuditDetail', () => {
     });
 
     it('shows loading animation', () => {
-      vi.mocked(auditApi.fetchEventAudit).mockImplementation(
-        () => new Promise(() => {})
-      );
+      vi.mocked(auditApi.fetchEventAudit).mockImplementation(() => new Promise(() => {}));
 
       const { container } = render(<EventAuditDetail eventId={42} />);
 
@@ -149,9 +148,7 @@ describe('EventAuditDetail', () => {
     });
 
     it('shows Retry button on error', async () => {
-      vi.mocked(auditApi.fetchEventAudit).mockRejectedValue(
-        new AuditApiError(500, 'Server error')
-      );
+      vi.mocked(auditApi.fetchEventAudit).mockRejectedValue(new AuditApiError(500, 'Server error'));
 
       render(<EventAuditDetail eventId={42} />);
 
@@ -287,9 +284,7 @@ describe('EventAuditDetail', () => {
 
     it('disables button while evaluating', async () => {
       vi.mocked(auditApi.fetchEventAudit).mockResolvedValue(mockUnevaluatedAudit);
-      vi.mocked(auditApi.triggerEvaluation).mockImplementation(
-        () => new Promise(() => {})
-      );
+      vi.mocked(auditApi.triggerEvaluation).mockImplementation(() => new Promise(() => {}));
 
       const user = userEvent.setup();
       render(<EventAuditDetail eventId={42} />);

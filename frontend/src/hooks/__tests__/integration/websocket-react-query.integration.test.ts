@@ -295,8 +295,7 @@ describe('WebSocket + React Query Integration', () => {
         return {
           ...eventStream,
           ...cameras,
-          invalidateCameras: () =>
-            qc.invalidateQueries({ queryKey: queryKeys.cameras.all }),
+          invalidateCameras: () => qc.invalidateQueries({ queryKey: queryKeys.cameras.all }),
         };
       };
 

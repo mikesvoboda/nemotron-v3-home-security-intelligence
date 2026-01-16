@@ -136,7 +136,9 @@ describe('AIAuditPage', () => {
     renderWithRouter();
     await waitFor(() => {
       expect(
-        screen.getByText(/Model contribution rates, quality metrics, and prompt improvement recommendations/)
+        screen.getByText(
+          /Model contribution rates, quality metrics, and prompt improvement recommendations/
+        )
       ).toBeInTheDocument();
     });
   });

@@ -84,10 +84,7 @@ export default function InstallBanner({
   const [isInstalling, setIsInstalling] = useState(false);
 
   // Check if we should show based on previous dismissal
-  const canShow = useMemo(
-    () => shouldShowBanner(dismissalTimeoutDays),
-    [dismissalTimeoutDays]
-  );
+  const canShow = useMemo(() => shouldShowBanner(dismissalTimeoutDays), [dismissalTimeoutDays]);
 
   // Handle install button click
   const handleInstall = useCallback(async () => {
@@ -126,26 +123,16 @@ export default function InstallBanner({
     <div
       data-testid="install-banner"
       role="banner"
-      className={`
-        fixed bottom-0 left-0 right-0 z-50
-        bg-gray-900 border-t border-gray-700
-        px-4 py-3 sm:px-6
-        ${className}
-      `}
+      className={`fixed bottom-0 left-0 right-0 z-50 border-t border-gray-700 bg-gray-900 px-4 py-3 sm:px-6 ${className} `}
     >
-      <div className="mx-auto max-w-7xl flex items-center justify-between gap-4">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
         {/* Icon and message */}
         <div className="flex items-center gap-3">
           <div className="flex-shrink-0 rounded-lg bg-[#76B900]/10 p-2">
-            <Download
-              className="h-5 w-5 text-[#76B900]"
-              aria-hidden="true"
-            />
+            <Download className="h-5 w-5 text-[#76B900]" aria-hidden="true" />
           </div>
           <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
-            <p className="text-sm font-medium text-white">
-              Install Nemotron Security
-            </p>
+            <p className="text-sm font-medium text-white">Install Nemotron Security</p>
             <p className="text-xs text-gray-400 sm:text-sm">
               Get instant alerts and offline access
             </p>
@@ -158,14 +145,7 @@ export default function InstallBanner({
             type="button"
             onClick={() => void handleInstall()}
             disabled={isInstalling}
-            className="
-              inline-flex items-center gap-1.5
-              rounded-md bg-[#76B900] px-3 py-1.5
-              text-sm font-medium text-black
-              hover:bg-[#8BC34A] focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:ring-offset-2 focus:ring-offset-gray-900
-              disabled:opacity-50 disabled:cursor-not-allowed
-              transition-colors
-            "
+            className="inline-flex items-center gap-1.5 rounded-md bg-[#76B900] px-3 py-1.5 text-sm font-medium text-black transition-colors hover:bg-[#8BC34A] focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:ring-offset-2 focus:ring-offset-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Download className="h-4 w-4" aria-hidden="true" />
             {isInstalling ? 'Installing...' : 'Install'}
@@ -174,12 +154,7 @@ export default function InstallBanner({
           <button
             type="button"
             onClick={handleDismiss}
-            className="
-              rounded-md p-1.5
-              text-gray-400 hover:text-white hover:bg-gray-800
-              focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 focus:ring-offset-gray-900
-              transition-colors
-            "
+            className="rounded-md p-1.5 text-gray-400 transition-colors hover:bg-gray-800 hover:text-white focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 focus:ring-offset-gray-900"
             aria-label="Dismiss install banner"
           >
             <X className="h-5 w-5" aria-hidden="true" />

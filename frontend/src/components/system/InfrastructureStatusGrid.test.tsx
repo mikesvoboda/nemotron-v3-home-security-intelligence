@@ -42,7 +42,13 @@ describe('InfrastructureStatusGrid', () => {
       { name: 'frontend', status: 'running', cpu_percent: 5, memory_mb: 128, restart_count: 0 },
       { name: 'postgres', status: 'running', cpu_percent: 10, memory_mb: 512, restart_count: 1 },
       { name: 'redis', status: 'running', cpu_percent: 3, memory_mb: 64, restart_count: 0 },
-      { name: 'ai-detector', status: 'running', cpu_percent: 45, memory_mb: 2048, restart_count: 0 },
+      {
+        name: 'ai-detector',
+        status: 'running',
+        cpu_percent: 45,
+        memory_mb: 2048,
+        restart_count: 0,
+      },
     ],
   };
 
@@ -194,9 +200,7 @@ describe('InfrastructureStatusGrid', () => {
       const user = userEvent.setup();
       const onCardClick = vi.fn();
 
-      render(
-        <InfrastructureStatusGrid {...defaultProps} onCardClick={onCardClick} />
-      );
+      render(<InfrastructureStatusGrid {...defaultProps} onCardClick={onCardClick} />);
 
       const postgresCard = screen.getByTestId('infra-card-postgresql');
       await user.click(postgresCard);
@@ -205,12 +209,7 @@ describe('InfrastructureStatusGrid', () => {
     });
 
     it('shows PostgreSQL details when expanded', () => {
-      render(
-        <InfrastructureStatusGrid
-          {...defaultProps}
-          expandedCard="postgresql"
-        />
-      );
+      render(<InfrastructureStatusGrid {...defaultProps} expandedCard="postgresql" />);
 
       expect(screen.getByTestId('infra-details-postgresql')).toBeInTheDocument();
       expect(screen.getByText(/Pool usage:/i)).toBeInTheDocument();
@@ -221,12 +220,7 @@ describe('InfrastructureStatusGrid', () => {
     });
 
     it('shows Redis details when expanded', () => {
-      render(
-        <InfrastructureStatusGrid
-          {...defaultProps}
-          expandedCard="redis"
-        />
-      );
+      render(<InfrastructureStatusGrid {...defaultProps} expandedCard="redis" />);
 
       expect(screen.getByTestId('infra-details-redis')).toBeInTheDocument();
       expect(screen.getByText(/Memory usage:/i)).toBeInTheDocument();
@@ -237,12 +231,7 @@ describe('InfrastructureStatusGrid', () => {
     });
 
     it('shows Containers list when expanded', () => {
-      render(
-        <InfrastructureStatusGrid
-          {...defaultProps}
-          expandedCard="containers"
-        />
-      );
+      render(<InfrastructureStatusGrid {...defaultProps} expandedCard="containers" />);
 
       expect(screen.getByTestId('infra-details-containers')).toBeInTheDocument();
       expect(screen.getByText('backend')).toBeInTheDocument();
@@ -253,12 +242,7 @@ describe('InfrastructureStatusGrid', () => {
     });
 
     it('shows Host metrics with progress bars when expanded', () => {
-      render(
-        <InfrastructureStatusGrid
-          {...defaultProps}
-          expandedCard="host"
-        />
-      );
+      render(<InfrastructureStatusGrid {...defaultProps} expandedCard="host" />);
 
       expect(screen.getByTestId('infra-details-host')).toBeInTheDocument();
       expect(screen.getByTestId('host-cpu-bar')).toBeInTheDocument();
@@ -267,12 +251,7 @@ describe('InfrastructureStatusGrid', () => {
     });
 
     it('shows Circuit breaker states when expanded', () => {
-      render(
-        <InfrastructureStatusGrid
-          {...defaultProps}
-          expandedCard="circuits"
-        />
-      );
+      render(<InfrastructureStatusGrid {...defaultProps} expandedCard="circuits" />);
 
       expect(screen.getByTestId('infra-details-circuits')).toBeInTheDocument();
       expect(screen.getByText('rtdetr')).toBeInTheDocument();
@@ -335,10 +314,7 @@ describe('InfrastructureStatusGrid', () => {
   describe('error state', () => {
     it('shows error message when error prop is set', () => {
       render(
-        <InfrastructureStatusGrid
-          {...defaultProps}
-          error="Failed to fetch infrastructure data"
-        />
+        <InfrastructureStatusGrid {...defaultProps} error="Failed to fetch infrastructure data" />
       );
 
       expect(screen.getByTestId('infrastructure-grid-error')).toBeInTheDocument();
@@ -347,10 +323,7 @@ describe('InfrastructureStatusGrid', () => {
 
     it('does not render cards when error', () => {
       render(
-        <InfrastructureStatusGrid
-          {...defaultProps}
-          error="Failed to fetch infrastructure data"
-        />
+        <InfrastructureStatusGrid {...defaultProps} error="Failed to fetch infrastructure data" />
       );
 
       expect(screen.queryByTestId('infra-card-postgresql')).not.toBeInTheDocument();
@@ -410,24 +383,14 @@ describe('InfrastructureStatusGrid', () => {
     });
 
     it('formats memory values correctly', () => {
-      render(
-        <InfrastructureStatusGrid
-          {...defaultProps}
-          expandedCard="host"
-        />
-      );
+      render(<InfrastructureStatusGrid {...defaultProps} expandedCard="host" />);
 
       // Memory: 8/32 GB = 25%
       expect(screen.getByText(/8\/32 GB/)).toBeInTheDocument();
     });
 
     it('formats disk values correctly', () => {
-      render(
-        <InfrastructureStatusGrid
-          {...defaultProps}
-          expandedCard="host"
-        />
-      );
+      render(<InfrastructureStatusGrid {...defaultProps} expandedCard="host" />);
 
       // Disk: 120/500 GB = 24%
       expect(screen.getByText(/120\/500 GB/)).toBeInTheDocument();
@@ -478,11 +441,7 @@ describe('InfrastructureStatusGrid', () => {
       };
 
       render(
-        <InfrastructureStatusGrid
-          {...defaultProps}
-          data={halfOpenData}
-          expandedCard="circuits"
-        />
+        <InfrastructureStatusGrid {...defaultProps} data={halfOpenData} expandedCard="circuits" />
       );
 
       const rtdetrRow = screen.getByTestId('circuit-row-rtdetr');
@@ -492,12 +451,7 @@ describe('InfrastructureStatusGrid', () => {
 
   describe('container restart counts', () => {
     it('shows restart count in container details', () => {
-      render(
-        <InfrastructureStatusGrid
-          {...defaultProps}
-          expandedCard="containers"
-        />
-      );
+      render(<InfrastructureStatusGrid {...defaultProps} expandedCard="containers" />);
 
       // postgres has restart_count: 1
       const postgresRow = screen.getByTestId('container-row-postgres');
@@ -511,7 +465,13 @@ describe('InfrastructureStatusGrid', () => {
           ...mockContainers,
           containers: [
             ...mockContainers.containers.slice(0, 2),
-            { name: 'postgres', status: 'running', cpu_percent: 10, memory_mb: 512, restart_count: 5 },
+            {
+              name: 'postgres',
+              status: 'running',
+              cpu_percent: 10,
+              memory_mb: 512,
+              restart_count: 5,
+            },
             ...mockContainers.containers.slice(3),
           ],
         },
@@ -535,9 +495,7 @@ describe('InfrastructureStatusGrid', () => {
       const user = userEvent.setup();
       const onCardClick = vi.fn();
 
-      render(
-        <InfrastructureStatusGrid {...defaultProps} onCardClick={onCardClick} />
-      );
+      render(<InfrastructureStatusGrid {...defaultProps} onCardClick={onCardClick} />);
 
       const postgresCard = screen.getByTestId('infra-card-postgresql');
       postgresCard.focus();
@@ -547,12 +505,7 @@ describe('InfrastructureStatusGrid', () => {
     });
 
     it('expanded details are announced to screen readers', () => {
-      render(
-        <InfrastructureStatusGrid
-          {...defaultProps}
-          expandedCard="postgresql"
-        />
-      );
+      render(<InfrastructureStatusGrid {...defaultProps} expandedCard="postgresql" />);
 
       const details = screen.getByTestId('infra-details-postgresql');
       expect(details).toHaveAttribute('role', 'region');

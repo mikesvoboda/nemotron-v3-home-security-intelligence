@@ -114,11 +114,13 @@ export interface AnalysisStreamError {
  * }
  * ```
  */
-export function useAnalysisStream(options: {
-  onProgress?: (text: string) => void;
-  onComplete?: (result: AnalysisStreamResult) => void;
-  onError?: (error: AnalysisStreamError) => void;
-} = {}): UseAnalysisStreamReturn {
+export function useAnalysisStream(
+  options: {
+    onProgress?: (text: string) => void;
+    onComplete?: (result: AnalysisStreamResult) => void;
+    onError?: (error: AnalysisStreamError) => void;
+  } = {}
+): UseAnalysisStreamReturn {
   const [status, setStatus] = useState<AnalysisStreamStatus>('idle');
   const [accumulatedText, setAccumulatedText] = useState<string>('');
   const [result, setResult] = useState<AnalysisStreamResult | null>(null);
@@ -167,142 +169,145 @@ export function useAnalysisStream(options: {
     }
   }, [status]);
 
-  const startStream = useCallback((params: AnalysisStreamParams) => {
-    // Close any existing connection
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
-      eventSourceRef.current = null;
-    }
+  const startStream = useCallback(
+    (params: AnalysisStreamParams) => {
+      // Close any existing connection
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
 
-    // Reset state
-    if (isMountedRef.current) {
-      setStatus('connecting');
-      setAccumulatedText('');
-      setResult(null);
-      setError(null);
-    }
-
-    logger.debug('Starting analysis stream', {
-      component: 'useAnalysisStream',
-      batchId: params.batchId,
-      cameraId: params.cameraId,
-    });
-
-    const eventSource = createAnalysisStream(params);
-    eventSourceRef.current = eventSource;
-
-    eventSource.onopen = () => {
+      // Reset state
       if (isMountedRef.current) {
-        setStatus('connected');
-        logger.debug('Analysis stream connected', { component: 'useAnalysisStream' });
-      }
-    };
-
-    eventSource.onmessage = (event: MessageEvent) => {
-      if (!isMountedRef.current) {
-        return;
+        setStatus('connecting');
+        setAccumulatedText('');
+        setResult(null);
+        setError(null);
       }
 
-      try {
-        const data = JSON.parse(event.data as string) as AnalysisStreamEvent;
+      logger.debug('Starting analysis stream', {
+        component: 'useAnalysisStream',
+        batchId: params.batchId,
+        cameraId: params.cameraId,
+      });
 
-        switch (data.event_type) {
-          case 'progress':
-            if (data.accumulated_text !== undefined) {
-              setAccumulatedText(data.accumulated_text);
-              onProgressRef.current?.(data.accumulated_text);
-            }
-            break;
+      const eventSource = createAnalysisStream(params);
+      eventSourceRef.current = eventSource;
 
-          case 'complete':
-            if (
-              data.event_id !== undefined &&
-              data.risk_score !== undefined &&
-              data.risk_level !== undefined &&
-              data.summary !== undefined
-            ) {
-              const completedResult: AnalysisStreamResult = {
-                eventId: data.event_id,
-                riskScore: data.risk_score,
-                riskLevel: data.risk_level,
-                summary: data.summary,
-              };
-              setResult(completedResult);
-              setStatus('complete');
-              onCompleteRef.current?.(completedResult);
-              logger.info('Analysis stream completed', {
-                component: 'useAnalysisStream',
-                eventId: data.event_id,
-                riskScore: data.risk_score,
-              });
-            }
-            // Close connection after complete
-            eventSource.close();
-            eventSourceRef.current = null;
-            break;
-
-          case 'error': {
-            const streamError: AnalysisStreamError = {
-              code: data.error_code ?? 'UNKNOWN_ERROR',
-              message: data.error_message ?? 'An unknown error occurred',
-              recoverable: data.recoverable ?? false,
-            };
-            setError(streamError);
-            setStatus('error');
-            onErrorRef.current?.(streamError);
-            logger.error('Analysis stream error', {
-              component: 'useAnalysisStream',
-              errorCode: streamError.code,
-              errorMessage: streamError.message,
-              recoverable: streamError.recoverable,
-            });
-            // Close connection after error
-            eventSource.close();
-            eventSourceRef.current = null;
-            break;
-          }
-
-          default:
-            // Ignore unknown event types
-            logger.warn('Unknown analysis stream event type', {
-              component: 'useAnalysisStream',
-              eventType: (data as { event_type: string }).event_type,
-            });
+      eventSource.onopen = () => {
+        if (isMountedRef.current) {
+          setStatus('connected');
+          logger.debug('Analysis stream connected', { component: 'useAnalysisStream' });
         }
-      } catch (parseError) {
-        logger.error('Failed to parse analysis stream event', {
-          component: 'useAnalysisStream',
-          error: parseError instanceof Error ? parseError.message : 'Unknown parse error',
-          rawData: event.data,
-        });
-      }
-    };
+      };
 
-    eventSource.onerror = () => {
-      if (!isMountedRef.current) {
-        return;
-      }
+      eventSource.onmessage = (event: MessageEvent) => {
+        if (!isMountedRef.current) {
+          return;
+        }
 
-      // Only set error state if we're not already complete
-      if (status !== 'complete') {
-        const connectionError: AnalysisStreamError = {
-          code: 'CONNECTION_ERROR',
-          message: 'Lost connection to analysis stream',
-          recoverable: true,
-        };
-        setError(connectionError);
-        setStatus('error');
-        onErrorRef.current?.(connectionError);
-        logger.error('Analysis stream connection error', {
-          component: 'useAnalysisStream',
-        });
-      }
+        try {
+          const data = JSON.parse(event.data as string) as AnalysisStreamEvent;
 
-      // Close on error
-      eventSource.close();
-      eventSourceRef.current = null;
-    };
-  }, [status]);
+          switch (data.event_type) {
+            case 'progress':
+              if (data.accumulated_text !== undefined) {
+                setAccumulatedText(data.accumulated_text);
+                onProgressRef.current?.(data.accumulated_text);
+              }
+              break;
+
+            case 'complete':
+              if (
+                data.event_id !== undefined &&
+                data.risk_score !== undefined &&
+                data.risk_level !== undefined &&
+                data.summary !== undefined
+              ) {
+                const completedResult: AnalysisStreamResult = {
+                  eventId: data.event_id,
+                  riskScore: data.risk_score,
+                  riskLevel: data.risk_level,
+                  summary: data.summary,
+                };
+                setResult(completedResult);
+                setStatus('complete');
+                onCompleteRef.current?.(completedResult);
+                logger.info('Analysis stream completed', {
+                  component: 'useAnalysisStream',
+                  eventId: data.event_id,
+                  riskScore: data.risk_score,
+                });
+              }
+              // Close connection after complete
+              eventSource.close();
+              eventSourceRef.current = null;
+              break;
+
+            case 'error': {
+              const streamError: AnalysisStreamError = {
+                code: data.error_code ?? 'UNKNOWN_ERROR',
+                message: data.error_message ?? 'An unknown error occurred',
+                recoverable: data.recoverable ?? false,
+              };
+              setError(streamError);
+              setStatus('error');
+              onErrorRef.current?.(streamError);
+              logger.error('Analysis stream error', {
+                component: 'useAnalysisStream',
+                errorCode: streamError.code,
+                errorMessage: streamError.message,
+                recoverable: streamError.recoverable,
+              });
+              // Close connection after error
+              eventSource.close();
+              eventSourceRef.current = null;
+              break;
+            }
+
+            default:
+              // Ignore unknown event types
+              logger.warn('Unknown analysis stream event type', {
+                component: 'useAnalysisStream',
+                eventType: (data as { event_type: string }).event_type,
+              });
+          }
+        } catch (parseError) {
+          logger.error('Failed to parse analysis stream event', {
+            component: 'useAnalysisStream',
+            error: parseError instanceof Error ? parseError.message : 'Unknown parse error',
+            rawData: event.data,
+          });
+        }
+      };
+
+      eventSource.onerror = () => {
+        if (!isMountedRef.current) {
+          return;
+        }
+
+        // Only set error state if we're not already complete
+        if (status !== 'complete') {
+          const connectionError: AnalysisStreamError = {
+            code: 'CONNECTION_ERROR',
+            message: 'Lost connection to analysis stream',
+            recoverable: true,
+          };
+          setError(connectionError);
+          setStatus('error');
+          onErrorRef.current?.(connectionError);
+          logger.error('Analysis stream connection error', {
+            component: 'useAnalysisStream',
+          });
+        }
+
+        // Close on error
+        eventSource.close();
+        eventSourceRef.current = null;
+      };
+    },
+    [status]
+  );
 
   const isStreaming = status === 'connecting' || status === 'connected';
 

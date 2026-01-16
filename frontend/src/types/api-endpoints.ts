@@ -640,175 +640,403 @@ export function parseEndpoint(endpoint: string): ParsedEndpoint | null {
 
   // Camera endpoints
   if (ENDPOINT_PATTERNS.cameras.test(endpoint)) {
-    return { resource: 'cameras', action: 'list', id: undefined, subResource: undefined, subId: undefined };
+    return {
+      resource: 'cameras',
+      action: 'list',
+      id: undefined,
+      subResource: undefined,
+      subId: undefined,
+    };
   }
 
   let match = endpoint.match(ENDPOINT_PATTERNS.cameraZoneDetail);
   if (match) {
-    return { resource: 'cameras', action: 'subdetail', id: match[1], subResource: 'zones', subId: match[2] };
+    return {
+      resource: 'cameras',
+      action: 'subdetail',
+      id: match[1],
+      subResource: 'zones',
+      subId: match[2],
+    };
   }
 
   match = endpoint.match(ENDPOINT_PATTERNS.cameraZones);
   if (match) {
-    return { resource: 'cameras', action: 'sublist', id: match[1], subResource: 'zones', subId: undefined };
+    return {
+      resource: 'cameras',
+      action: 'sublist',
+      id: match[1],
+      subResource: 'zones',
+      subId: undefined,
+    };
   }
 
   match = endpoint.match(ENDPOINT_PATTERNS.cameraSnapshot);
   if (match) {
-    return { resource: 'cameras', action: 'snapshot', id: match[1], subResource: undefined, subId: undefined };
+    return {
+      resource: 'cameras',
+      action: 'snapshot',
+      id: match[1],
+      subResource: undefined,
+      subId: undefined,
+    };
   }
 
   match = endpoint.match(ENDPOINT_PATTERNS.cameraBaseline);
   if (match) {
-    return { resource: 'cameras', action: 'baseline', id: match[1], subResource: match[2], subId: undefined };
+    return {
+      resource: 'cameras',
+      action: 'baseline',
+      id: match[1],
+      subResource: match[2],
+      subId: undefined,
+    };
   }
 
   match = endpoint.match(ENDPOINT_PATTERNS.cameraDetail);
   if (match) {
-    return { resource: 'cameras', action: 'detail', id: match[1], subResource: undefined, subId: undefined };
+    return {
+      resource: 'cameras',
+      action: 'detail',
+      id: match[1],
+      subResource: undefined,
+      subId: undefined,
+    };
   }
 
   // Event endpoints
   if (ENDPOINT_PATTERNS.events.test(endpoint)) {
-    return { resource: 'events', action: 'list', id: undefined, subResource: undefined, subId: undefined };
+    return {
+      resource: 'events',
+      action: 'list',
+      id: undefined,
+      subResource: undefined,
+      subId: undefined,
+    };
   }
 
   if (ENDPOINT_PATTERNS.eventStats.test(endpoint)) {
-    return { resource: 'events', action: 'stats', id: undefined, subResource: undefined, subId: undefined };
+    return {
+      resource: 'events',
+      action: 'stats',
+      id: undefined,
+      subResource: undefined,
+      subId: undefined,
+    };
   }
 
   if (ENDPOINT_PATTERNS.eventSearch.test(endpoint)) {
-    return { resource: 'events', action: 'search', id: undefined, subResource: undefined, subId: undefined };
+    return {
+      resource: 'events',
+      action: 'search',
+      id: undefined,
+      subResource: undefined,
+      subId: undefined,
+    };
   }
 
   if (ENDPOINT_PATTERNS.eventExport.test(endpoint)) {
-    return { resource: 'events', action: 'export', id: undefined, subResource: undefined, subId: undefined };
+    return {
+      resource: 'events',
+      action: 'export',
+      id: undefined,
+      subResource: undefined,
+      subId: undefined,
+    };
   }
 
   match = endpoint.match(ENDPOINT_PATTERNS.eventDetections);
   if (match) {
-    return { resource: 'events', action: 'sublist', id: match[1], subResource: 'detections', subId: undefined };
+    return {
+      resource: 'events',
+      action: 'sublist',
+      id: match[1],
+      subResource: 'detections',
+      subId: undefined,
+    };
   }
 
   match = endpoint.match(ENDPOINT_PATTERNS.eventDetail);
   if (match) {
-    return { resource: 'events', action: 'detail', id: match[1], subResource: undefined, subId: undefined };
+    return {
+      resource: 'events',
+      action: 'detail',
+      id: match[1],
+      subResource: undefined,
+      subId: undefined,
+    };
   }
 
   // System endpoints
   if (ENDPOINT_PATTERNS.systemHealth.test(endpoint)) {
-    return { resource: 'system', action: 'health', id: undefined, subResource: undefined, subId: undefined };
+    return {
+      resource: 'system',
+      action: 'health',
+      id: undefined,
+      subResource: undefined,
+      subId: undefined,
+    };
   }
 
   if (ENDPOINT_PATTERNS.systemReady.test(endpoint)) {
-    return { resource: 'system', action: 'ready', id: undefined, subResource: undefined, subId: undefined };
+    return {
+      resource: 'system',
+      action: 'ready',
+      id: undefined,
+      subResource: undefined,
+      subId: undefined,
+    };
   }
 
   if (ENDPOINT_PATTERNS.systemGpu.test(endpoint)) {
-    return { resource: 'system', action: 'gpu', id: undefined, subResource: undefined, subId: undefined };
+    return {
+      resource: 'system',
+      action: 'gpu',
+      id: undefined,
+      subResource: undefined,
+      subId: undefined,
+    };
   }
 
   if (ENDPOINT_PATTERNS.systemGpuHistory.test(endpoint)) {
-    return { resource: 'system', action: 'gpu-history', id: undefined, subResource: undefined, subId: undefined };
+    return {
+      resource: 'system',
+      action: 'gpu-history',
+      id: undefined,
+      subResource: undefined,
+      subId: undefined,
+    };
   }
 
   if (ENDPOINT_PATTERNS.systemConfig.test(endpoint)) {
-    return { resource: 'system', action: 'config', id: undefined, subResource: undefined, subId: undefined };
+    return {
+      resource: 'system',
+      action: 'config',
+      id: undefined,
+      subResource: undefined,
+      subId: undefined,
+    };
   }
 
   if (ENDPOINT_PATTERNS.systemStats.test(endpoint)) {
-    return { resource: 'system', action: 'stats', id: undefined, subResource: undefined, subId: undefined };
+    return {
+      resource: 'system',
+      action: 'stats',
+      id: undefined,
+      subResource: undefined,
+      subId: undefined,
+    };
   }
 
   if (ENDPOINT_PATTERNS.systemStorage.test(endpoint)) {
-    return { resource: 'system', action: 'storage', id: undefined, subResource: undefined, subId: undefined };
+    return {
+      resource: 'system',
+      action: 'storage',
+      id: undefined,
+      subResource: undefined,
+      subId: undefined,
+    };
   }
 
   if (ENDPOINT_PATTERNS.systemTelemetry.test(endpoint)) {
-    return { resource: 'system', action: 'telemetry', id: undefined, subResource: undefined, subId: undefined };
+    return {
+      resource: 'system',
+      action: 'telemetry',
+      id: undefined,
+      subResource: undefined,
+      subId: undefined,
+    };
   }
 
   if (ENDPOINT_PATTERNS.systemModels.test(endpoint)) {
-    return { resource: 'system', action: 'models', id: undefined, subResource: undefined, subId: undefined };
+    return {
+      resource: 'system',
+      action: 'models',
+      id: undefined,
+      subResource: undefined,
+      subId: undefined,
+    };
   }
 
   if (ENDPOINT_PATTERNS.systemSeverity.test(endpoint)) {
-    return { resource: 'system', action: 'severity', id: undefined, subResource: undefined, subId: undefined };
+    return {
+      resource: 'system',
+      action: 'severity',
+      id: undefined,
+      subResource: undefined,
+      subId: undefined,
+    };
   }
 
   if (ENDPOINT_PATTERNS.systemCleanup.test(endpoint)) {
-    return { resource: 'system', action: 'cleanup', id: undefined, subResource: undefined, subId: undefined };
+    return {
+      resource: 'system',
+      action: 'cleanup',
+      id: undefined,
+      subResource: undefined,
+      subId: undefined,
+    };
   }
 
   if (ENDPOINT_PATTERNS.systemCircuitBreakers.test(endpoint)) {
-    return { resource: 'system', action: 'circuit-breakers', id: undefined, subResource: undefined, subId: undefined };
+    return {
+      resource: 'system',
+      action: 'circuit-breakers',
+      id: undefined,
+      subResource: undefined,
+      subId: undefined,
+    };
   }
 
   if (ENDPOINT_PATTERNS.systemPipelineLatency.test(endpoint)) {
-    return { resource: 'system', action: 'pipeline-latency', id: undefined, subResource: undefined, subId: undefined };
+    return {
+      resource: 'system',
+      action: 'pipeline-latency',
+      id: undefined,
+      subResource: undefined,
+      subId: undefined,
+    };
   }
 
   if (ENDPOINT_PATTERNS.systemPipelineLatencyHistory.test(endpoint)) {
-    return { resource: 'system', action: 'pipeline-latency-history', id: undefined, subResource: undefined, subId: undefined };
+    return {
+      resource: 'system',
+      action: 'pipeline-latency-history',
+      id: undefined,
+      subResource: undefined,
+      subId: undefined,
+    };
   }
 
   // Detection endpoints
   if (ENDPOINT_PATTERNS.detectionStats.test(endpoint)) {
-    return { resource: 'detections', action: 'stats', id: undefined, subResource: undefined, subId: undefined };
+    return {
+      resource: 'detections',
+      action: 'stats',
+      id: undefined,
+      subResource: undefined,
+      subId: undefined,
+    };
   }
 
   match = endpoint.match(ENDPOINT_PATTERNS.detectionImage);
   if (match) {
-    return { resource: 'detections', action: 'image', id: match[1], subResource: undefined, subId: undefined };
+    return {
+      resource: 'detections',
+      action: 'image',
+      id: match[1],
+      subResource: undefined,
+      subId: undefined,
+    };
   }
 
   match = endpoint.match(ENDPOINT_PATTERNS.detectionVideo);
   if (match) {
-    return { resource: 'detections', action: 'video', id: match[1], subResource: undefined, subId: undefined };
+    return {
+      resource: 'detections',
+      action: 'video',
+      id: match[1],
+      subResource: undefined,
+      subId: undefined,
+    };
   }
 
   // Enrichment endpoints (nested under detections)
   match = endpoint.match(ENDPOINT_PATTERNS.enrichment);
   if (match) {
-    return { resource: 'detections', action: 'enrichment', id: match[1], subResource: undefined, subId: undefined };
+    return {
+      resource: 'detections',
+      action: 'enrichment',
+      id: match[1],
+      subResource: undefined,
+      subId: undefined,
+    };
   }
 
   // Alert rule endpoints
   if (ENDPOINT_PATTERNS.alertRules.test(endpoint)) {
-    return { resource: 'alerts', action: 'list', id: undefined, subResource: 'rules', subId: undefined };
+    return {
+      resource: 'alerts',
+      action: 'list',
+      id: undefined,
+      subResource: 'rules',
+      subId: undefined,
+    };
   }
 
   match = endpoint.match(ENDPOINT_PATTERNS.alertRuleTest);
   if (match) {
-    return { resource: 'alerts', action: 'test', id: match[1], subResource: 'rules', subId: undefined };
+    return {
+      resource: 'alerts',
+      action: 'test',
+      id: match[1],
+      subResource: 'rules',
+      subId: undefined,
+    };
   }
 
   match = endpoint.match(ENDPOINT_PATTERNS.alertRuleDetail);
   if (match) {
-    return { resource: 'alerts', action: 'detail', id: match[1], subResource: 'rules', subId: undefined };
+    return {
+      resource: 'alerts',
+      action: 'detail',
+      id: match[1],
+      subResource: 'rules',
+      subId: undefined,
+    };
   }
 
   // Audit endpoints
   if (ENDPOINT_PATTERNS.audit.test(endpoint)) {
-    return { resource: 'audit', action: 'list', id: undefined, subResource: undefined, subId: undefined };
+    return {
+      resource: 'audit',
+      action: 'list',
+      id: undefined,
+      subResource: undefined,
+      subId: undefined,
+    };
   }
 
   if (ENDPOINT_PATTERNS.auditStats.test(endpoint)) {
-    return { resource: 'audit', action: 'stats', id: undefined, subResource: undefined, subId: undefined };
+    return {
+      resource: 'audit',
+      action: 'stats',
+      id: undefined,
+      subResource: undefined,
+      subId: undefined,
+    };
   }
 
   match = endpoint.match(ENDPOINT_PATTERNS.auditDetail);
   if (match) {
-    return { resource: 'audit', action: 'detail', id: match[1], subResource: undefined, subId: undefined };
+    return {
+      resource: 'audit',
+      action: 'detail',
+      id: match[1],
+      subResource: undefined,
+      subId: undefined,
+    };
   }
 
   // Log endpoints
   if (ENDPOINT_PATTERNS.logs.test(endpoint)) {
-    return { resource: 'logs', action: 'list', id: undefined, subResource: undefined, subId: undefined };
+    return {
+      resource: 'logs',
+      action: 'list',
+      id: undefined,
+      subResource: undefined,
+      subId: undefined,
+    };
   }
 
   if (ENDPOINT_PATTERNS.logStats.test(endpoint)) {
-    return { resource: 'logs', action: 'stats', id: undefined, subResource: undefined, subId: undefined };
+    return {
+      resource: 'logs',
+      action: 'stats',
+      id: undefined,
+      subResource: undefined,
+      subId: undefined,
+    };
   }
 
   return null;
@@ -871,7 +1099,10 @@ export function eventEndpoint(): '/api/events';
 export function eventEndpoint(id: number): EventEndpoint;
 export function eventEndpoint(id: number, action: 'detections'): EventEndpoint;
 export function eventEndpoint(id: undefined, action: 'stats' | 'search' | 'export'): EventEndpoint;
-export function eventEndpoint(id?: number, action?: 'detections' | 'stats' | 'search' | 'export'): EventEndpoint {
+export function eventEndpoint(
+  id?: number,
+  action?: 'detections' | 'stats' | 'search' | 'export'
+): EventEndpoint {
   if (id === undefined && !action) {
     return '/api/events';
   }
@@ -901,7 +1132,10 @@ export function eventEndpoint(id?: number, action?: 'detections' | 'stats' | 'se
  */
 export function detectionEndpoint(id: undefined, action: 'stats'): '/api/detections/stats';
 export function detectionEndpoint(id: number, action: 'enrichment'): EnrichmentEndpoint;
-export function detectionEndpoint(id: number, action: 'image' | 'video' | 'video/thumbnail'): DetectionEndpoint;
+export function detectionEndpoint(
+  id: number,
+  action: 'image' | 'video' | 'video/thumbnail'
+): DetectionEndpoint;
 export function detectionEndpoint(
   id?: number,
   action?: 'stats' | 'image' | 'video' | 'video/thumbnail' | 'enrichment'
@@ -1057,6 +1291,9 @@ export function apiPut<T extends ApiEndpoint>(
  * @param options - Optional fetch options
  * @returns Promise with void
  */
-export function apiDelete<T extends ApiEndpoint>(endpoint: T, _options?: RequestInit): Promise<void> {
+export function apiDelete<T extends ApiEndpoint>(
+  endpoint: T,
+  _options?: RequestInit
+): Promise<void> {
   throw new Error(`apiDelete not implemented - use existing fetchApi for now: ${endpoint}`);
 }

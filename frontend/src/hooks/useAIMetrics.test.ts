@@ -363,9 +363,7 @@ describe('useAIMetrics', () => {
 
   describe('partial failures (fault tolerance)', () => {
     it('should handle metrics endpoint failure gracefully', async () => {
-      vi.mocked(metricsParser.fetchAIMetrics).mockRejectedValue(
-        new Error('Metrics unavailable')
-      );
+      vi.mocked(metricsParser.fetchAIMetrics).mockRejectedValue(new Error('Metrics unavailable'));
 
       const { result } = renderHook(() => useAIMetrics({ enablePolling: false }));
 
@@ -383,9 +381,7 @@ describe('useAIMetrics', () => {
     });
 
     it('should handle telemetry endpoint failure gracefully', async () => {
-      vi.mocked(api.fetchTelemetry).mockRejectedValue(
-        new Error('Telemetry unavailable')
-      );
+      vi.mocked(api.fetchTelemetry).mockRejectedValue(new Error('Telemetry unavailable'));
 
       const { result } = renderHook(() => useAIMetrics({ enablePolling: false }));
 
@@ -400,9 +396,7 @@ describe('useAIMetrics', () => {
     });
 
     it('should handle health endpoint failure gracefully', async () => {
-      vi.mocked(api.fetchHealth).mockRejectedValue(
-        new Error('Health unavailable')
-      );
+      vi.mocked(api.fetchHealth).mockRejectedValue(new Error('Health unavailable'));
 
       const { result } = renderHook(() => useAIMetrics({ enablePolling: false }));
 

@@ -51,7 +51,11 @@ const AlertFilters = memo(function AlertFilters({
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-3" role="group" aria-label="Alert severity filters">
+    <div
+      className="flex flex-wrap items-center gap-3"
+      role="group"
+      aria-label="Alert severity filters"
+    >
       {/* All Alerts - Using darker green (#4B7600) for WCAG AA color contrast compliance */}
       <button
         onClick={() => handleFilterClick('all')}

@@ -53,8 +53,7 @@ export class EnvValidationError extends Error {
   public readonly validationErrors: string[];
 
   constructor(message: string, errors: string[] = []) {
-    const fullMessage =
-      errors.length > 0 ? `${message}:\n  - ${errors.join('\n  - ')}` : message;
+    const fullMessage = errors.length > 0 ? `${message}:\n  - ${errors.join('\n  - ')}` : message;
 
     super(fullMessage);
     this.name = 'EnvValidationError';

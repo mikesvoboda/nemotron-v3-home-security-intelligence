@@ -13,22 +13,30 @@ import { ToastProvider } from './ToastProvider';
 
 // Mock sonner
 vi.mock('sonner', () => ({
-  Toaster: vi.fn(({ theme, position, richColors, closeButton, className }: {
-    theme?: string;
-    position?: string;
-    richColors?: boolean;
-    closeButton?: boolean;
-    className?: string;
-  }) => (
-    <div
-      data-testid="sonner-toaster"
-      data-theme={theme}
-      data-position={position}
-      data-rich-colors={richColors}
-      data-close-button={closeButton}
-      className={className}
-    />
-  )),
+  Toaster: vi.fn(
+    ({
+      theme,
+      position,
+      richColors,
+      closeButton,
+      className,
+    }: {
+      theme?: string;
+      position?: string;
+      richColors?: boolean;
+      closeButton?: boolean;
+      className?: string;
+    }) => (
+      <div
+        data-testid="sonner-toaster"
+        data-theme={theme}
+        data-position={position}
+        data-rich-colors={richColors}
+        data-close-button={closeButton}
+        className={className}
+      />
+    )
+  ),
   toast: Object.assign(vi.fn(), {
     success: vi.fn(),
     error: vi.fn(),

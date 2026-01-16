@@ -189,7 +189,10 @@ export default function FeedbackPanel({
   // Loading state
   if (isLoadingFeedback) {
     return (
-      <div className={clsx('rounded-lg border border-gray-800 bg-[#1A1A1A] p-4', className)} data-testid="feedback-panel">
+      <div
+        className={clsx('rounded-lg border border-gray-800 bg-[#1A1A1A] p-4', className)}
+        data-testid="feedback-panel"
+      >
         <div className="flex items-center gap-2 text-sm text-gray-400">
           <Loader2 className="h-4 w-4 animate-spin" />
           Loading feedback...
@@ -201,7 +204,10 @@ export default function FeedbackPanel({
   // Error state (only show if not a 404 - which means no feedback exists yet)
   if (feedbackError && (feedbackError as { status?: number }).status !== 404) {
     return (
-      <div className={clsx('rounded-lg border border-red-800 bg-red-900/20 p-4', className)} data-testid="feedback-panel">
+      <div
+        className={clsx('rounded-lg border border-red-800 bg-red-900/20 p-4', className)}
+        data-testid="feedback-panel"
+      >
         <p className="text-sm text-red-400">Failed to load feedback status.</p>
       </div>
     );

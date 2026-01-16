@@ -84,8 +84,11 @@ export interface ApiValidationException {
 /**
  * Options for useApiMutation hook.
  */
-export interface UseApiMutationOptions<TVariables extends FieldValues, TData, TError = ApiError>
-  extends Omit<UseMutationOptions<TData, TError, TVariables>, 'mutationFn'> {
+export interface UseApiMutationOptions<
+  TVariables extends FieldValues,
+  TData,
+  TError = ApiError,
+> extends Omit<UseMutationOptions<TData, TError, TVariables>, 'mutationFn'> {
   /** The mutation function to execute */
   mutationFn: (variables: TVariables) => Promise<TData>;
   /** React-hook-form instance to apply field errors to */
@@ -132,7 +135,9 @@ function hasFastAPIValidationDetail(data: unknown): data is { detail: FastAPIVal
   }
   // Check if first item looks like FastAPI validation error
   const firstItem = obj.detail[0] as Record<string, unknown> | undefined;
-  return firstItem !== undefined && Array.isArray(firstItem.loc) && typeof firstItem.msg === 'string';
+  return (
+    firstItem !== undefined && Array.isArray(firstItem.loc) && typeof firstItem.msg === 'string'
+  );
 }
 
 /**

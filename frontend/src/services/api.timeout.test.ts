@@ -337,18 +337,16 @@ describe('fetchWithTimeout', () => {
 
     // Fetch that captures the signal
     let capturedSignal: AbortSignal | undefined;
-    const fetchMock = vi.fn().mockImplementation(
-      (_url: string, options: RequestInit) => {
-        capturedSignal = options.signal ?? undefined;
-        return new Promise((_resolve, reject) => {
-          if (options.signal) {
-            options.signal.addEventListener('abort', () => {
-              reject(new DOMException('The operation was aborted', 'AbortError'));
-            });
-          }
-        });
-      }
-    );
+    const fetchMock = vi.fn().mockImplementation((_url: string, options: RequestInit) => {
+      capturedSignal = options.signal ?? undefined;
+      return new Promise((_resolve, reject) => {
+        if (options.signal) {
+          options.signal.addEventListener('abort', () => {
+            reject(new DOMException('The operation was aborted', 'AbortError'));
+          });
+        }
+      });
+    });
     vi.stubGlobal('fetch', fetchMock);
 
     const promise = fetchWithTimeout('https://api.example.com/data', {

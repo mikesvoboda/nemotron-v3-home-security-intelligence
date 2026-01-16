@@ -102,10 +102,7 @@ export default function ZoneList({
             }}
           >
             {/* Color indicator */}
-            <div
-              className="h-8 w-8 shrink-0 rounded"
-              style={{ backgroundColor: zone.color }}
-            />
+            <div className="h-8 w-8 shrink-0 rounded" style={{ backgroundColor: zone.color }} />
 
             {/* Zone info */}
             <div className="min-w-0 flex-1">

@@ -1,10 +1,7 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import {
-  useCursorPaginatedQuery,
-  type CursorPaginatedResponse,
-} from './useCursorPaginatedQuery';
+import { useCursorPaginatedQuery, type CursorPaginatedResponse } from './useCursorPaginatedQuery';
 import { createQueryWrapper } from '../test-utils/renderWithProviders';
 
 // Test response type that extends CursorPaginatedResponse
@@ -56,11 +53,14 @@ describe('useCursorPaginatedQuery', () => {
     },
   };
 
-  let mockQueryFn: ReturnType<typeof vi.fn<(params: { cursor?: string; filters?: TestFilters }) => Promise<TestResponse>>>;
+  let mockQueryFn: ReturnType<
+    typeof vi.fn<(params: { cursor?: string; filters?: TestFilters }) => Promise<TestResponse>>
+  >;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockQueryFn = vi.fn<(params: { cursor?: string; filters?: TestFilters }) => Promise<TestResponse>>();
+    mockQueryFn =
+      vi.fn<(params: { cursor?: string; filters?: TestFilters }) => Promise<TestResponse>>();
   });
 
   afterEach(() => {
@@ -229,14 +229,20 @@ describe('useCursorPaginatedQuery', () => {
       await waitFor(() => {
         expect(mockQueryFn).toHaveBeenCalledTimes(2);
       });
-      expect(mockQueryFn).toHaveBeenNthCalledWith(2, { cursor: 'cursor-page-2', filters: undefined });
+      expect(mockQueryFn).toHaveBeenNthCalledWith(2, {
+        cursor: 'cursor-page-2',
+        filters: undefined,
+      });
 
       // Fetch page 3
       result.current.fetchNextPage();
       await waitFor(() => {
         expect(mockQueryFn).toHaveBeenCalledTimes(3);
       });
-      expect(mockQueryFn).toHaveBeenNthCalledWith(3, { cursor: 'cursor-page-3', filters: undefined });
+      expect(mockQueryFn).toHaveBeenNthCalledWith(3, {
+        cursor: 'cursor-page-3',
+        filters: undefined,
+      });
     });
   });
 

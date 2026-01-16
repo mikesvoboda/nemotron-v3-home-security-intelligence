@@ -356,14 +356,7 @@ export function useDesktopNotifications(
         return null;
       }
     },
-    [
-      isSupported,
-      hasPermission,
-      isEnabled,
-      suppressWhenFocused,
-      isFocused,
-      defaultAutoCloseMs,
-    ]
+    [isSupported, hasPermission, isEnabled, suppressWhenFocused, isFocused, defaultAutoCloseMs]
   );
 
   /**

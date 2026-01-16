@@ -175,9 +175,7 @@ export class FeatureErrorBoundary extends Component<
             />
             <div className="flex-1">
               <h3 className="font-medium text-red-400">{feature} encountered an error</h3>
-              {error && (
-                <p className="mt-1 text-sm text-gray-400">{error.message}</p>
-              )}
+              {error && <p className="mt-1 text-sm text-gray-400">{error.message}</p>}
               <button
                 type="button"
                 onClick={this.handleRetry}

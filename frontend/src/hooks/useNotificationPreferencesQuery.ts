@@ -105,9 +105,12 @@ async function createQuietHours(data: QuietHoursPeriodCreate): Promise<QuietHour
 }
 
 async function deleteQuietHours(periodId: string): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/api/notification-preferences/quiet-hours/${periodId}`, {
-    method: 'DELETE',
-  });
+  const response = await fetch(
+    `${API_BASE_URL}/api/notification-preferences/quiet-hours/${periodId}`,
+    {
+      method: 'DELETE',
+    }
+  );
   return handleResponse<void>(response);
 }
 

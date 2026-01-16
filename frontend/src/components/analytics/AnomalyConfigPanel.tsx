@@ -20,10 +20,7 @@ interface AnomalyConfigPanelProps {
  * - Minimum samples input
  * - Read-only display of decay factor and window days
  */
-export default function AnomalyConfigPanel({
-  config,
-  onConfigUpdated,
-}: AnomalyConfigPanelProps) {
+export default function AnomalyConfigPanel({ config, onConfigUpdated }: AnomalyConfigPanelProps) {
   const [threshold, setThreshold] = useState(config.threshold_stdev);
   const [minSamples, setMinSamples] = useState(config.min_samples);
   const [isSaving, setIsSaving] = useState(false);
@@ -39,8 +36,7 @@ export default function AnomalyConfigPanel({
 
   // Check for changes
   useEffect(() => {
-    const changed =
-      threshold !== config.threshold_stdev || minSamples !== config.min_samples;
+    const changed = threshold !== config.threshold_stdev || minSamples !== config.min_samples;
     setHasChanges(changed);
   }, [threshold, minSamples, config.threshold_stdev, config.min_samples]);
 
@@ -91,11 +87,7 @@ export default function AnomalyConfigPanel({
             className="flex items-center gap-2 rounded bg-[#76B900] px-3 py-1.5 text-sm font-medium text-black transition-colors hover:bg-[#8BD000] disabled:opacity-50"
             data-testid="save-config-button"
           >
-            {isSaving ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4" />
-            )}
+            {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             Save Changes
           </button>
         )}
@@ -116,13 +108,19 @@ export default function AnomalyConfigPanel({
               Detection Threshold
             </label>
             <div className="flex items-center gap-3">
-              <span className={`rounded px-2 py-0.5 text-sm font-medium ${sensitivity.color} ${
-                sensitivity.label === 'Very High' ? 'bg-red-500/10' :
-                sensitivity.label === 'High' ? 'bg-orange-500/10' :
-                sensitivity.label === 'Medium' ? 'bg-yellow-500/10' :
-                sensitivity.label === 'Low' ? 'bg-green-500/10' :
-                'bg-blue-500/10'
-              }`}>
+              <span
+                className={`rounded px-2 py-0.5 text-sm font-medium ${sensitivity.color} ${
+                  sensitivity.label === 'Very High'
+                    ? 'bg-red-500/10'
+                    : sensitivity.label === 'High'
+                      ? 'bg-orange-500/10'
+                      : sensitivity.label === 'Medium'
+                        ? 'bg-yellow-500/10'
+                        : sensitivity.label === 'Low'
+                          ? 'bg-green-500/10'
+                          : 'bg-blue-500/10'
+                }`}
+              >
                 {sensitivity.label} Sensitivity
               </span>
             </div>

@@ -30,10 +30,7 @@ import PromptPlayground from './PromptPlayground';
 import { ChartSkeleton, StatsCardSkeleton, Skeleton } from '../common';
 import QualityScoreTrends from './QualityScoreTrends';
 import RecommendationsPanel from './RecommendationsPanel';
-import {
-  fetchAiAuditStats,
-  fetchAuditRecommendations,
-} from '../../services/api';
+import { fetchAiAuditStats, fetchAuditRecommendations } from '../../services/api';
 import { ModelContributionChart, PromptVersionHistory } from '../ai-audit';
 
 import type {
@@ -114,30 +111,34 @@ export default function AIAuditPage() {
 
   // Prompt playground state
   const [isPlaygroundOpen, setIsPlaygroundOpen] = useState(false);
-  const [selectedRecommendation, setSelectedRecommendation] = useState<AiAuditRecommendationItem | null>(null);
+  const [selectedRecommendation, setSelectedRecommendation] =
+    useState<AiAuditRecommendationItem | null>(null);
 
   // Load data
-  const loadData = useCallback(async (showLoading = true) => {
-    if (showLoading) {
-      setIsLoading(true);
-    }
-    setError(null);
+  const loadData = useCallback(
+    async (showLoading = true) => {
+      if (showLoading) {
+        setIsLoading(true);
+      }
+      setError(null);
 
-    try {
-      const [statsData, recommendationsData] = await Promise.all([
-        fetchAiAuditStats({ days: periodDays }),
-        fetchAuditRecommendations({ days: periodDays }),
-      ]);
+      try {
+        const [statsData, recommendationsData] = await Promise.all([
+          fetchAiAuditStats({ days: periodDays }),
+          fetchAuditRecommendations({ days: periodDays }),
+        ]);
 
-      setStats(statsData);
-      setRecommendations(recommendationsData);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load AI audit data');
-      console.error('Failed to fetch AI audit data:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [periodDays]);
+        setStats(statsData);
+        setRecommendations(recommendationsData);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load AI audit data');
+        console.error('Failed to fetch AI audit data:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [periodDays]
+  );
 
   // Initial load and period change
   useEffect(() => {
@@ -195,7 +196,7 @@ export default function AIAuditPage() {
         <div className="mx-auto max-w-[1920px]">
           {/* Header skeleton */}
           <div className="mb-8">
-            <div className="flex items-center gap-3 mb-2">
+            <div className="mb-2 flex items-center gap-3">
               <Skeleton variant="circular" width={32} height={32} />
               <Skeleton variant="text" width={288} height={40} />
             </div>
@@ -221,7 +222,7 @@ export default function AIAuditPage() {
               <Skeleton variant="text" width={200} height={24} className="mb-4" />
               <div className="space-y-3">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="flex items-start gap-4 p-4 rounded-lg bg-gray-800/30">
+                  <div key={i} className="flex items-start gap-4 rounded-lg bg-gray-800/30 p-4">
                     <Skeleton variant="circular" width={40} height={40} />
                     <div className="flex-1 space-y-2">
                       <Skeleton variant="text" width="80%" height={20} />
@@ -348,9 +349,9 @@ export default function AIAuditPage() {
             <ClipboardCheck className="mb-4 h-16 w-16 text-gray-600" />
             <h2 className="mb-2 text-2xl font-bold text-white">No Events Have Been Audited Yet</h2>
             <p className="mb-6 max-w-md text-sm text-gray-400">
-              Start by triggering a batch audit to evaluate your AI pipeline&apos;s performance.
-              The audit will analyze model contributions, quality scores, and provide prompt
-              improvement recommendations.
+              Start by triggering a batch audit to evaluate your AI pipeline&apos;s performance. The
+              audit will analyze model contributions, quality scores, and provide prompt improvement
+              recommendations.
             </p>
             <button
               onClick={() => setIsBatchModalOpen(true)}
@@ -397,10 +398,7 @@ export default function AIAuditPage() {
             {/* Tab Panels */}
             <Tab.Panels>
               {/* Dashboard Tab */}
-              <Tab.Panel
-                className="focus:outline-none"
-                data-testid="tab-panel-dashboard"
-              >
+              <Tab.Panel className="focus:outline-none" data-testid="tab-panel-dashboard">
                 <div className="space-y-6">
                   {/* Quality Score Metrics */}
                   <QualityScoreTrends
@@ -433,21 +431,19 @@ export default function AIAuditPage() {
               </Tab.Panel>
 
               {/* Prompt Playground Tab */}
-              <Tab.Panel
-                className="focus:outline-none"
-                data-testid="tab-panel-playground"
-              >
+              <Tab.Panel className="focus:outline-none" data-testid="tab-panel-playground">
                 <div className="rounded-lg border border-gray-800 bg-[#1A1A1A] p-8">
                   <div className="mx-auto max-w-2xl text-center">
                     <Sparkles className="mx-auto mb-4 h-16 w-16 text-[#76B900]" />
                     <h2 className="mb-4 text-2xl font-bold text-white">Prompt Playground</h2>
                     <p className="mb-6 text-gray-400">
-                      Edit, test, and refine AI model prompts. Experiment with different configurations,
-                      run A/B tests against real events, and save successful changes.
+                      Edit, test, and refine AI model prompts. Experiment with different
+                      configurations, run A/B tests against real events, and save successful
+                      changes.
                     </p>
                     <button
                       onClick={handleOpenPlayground}
-                      className="flex items-center gap-2 mx-auto rounded-lg bg-[#76B900] px-6 py-3 text-sm font-semibold text-black transition-colors hover:bg-[#8ACE00]"
+                      className="mx-auto flex items-center gap-2 rounded-lg bg-[#76B900] px-6 py-3 text-sm font-semibold text-black transition-colors hover:bg-[#8ACE00]"
                       data-testid="open-playground-button"
                     >
                       <Sparkles className="h-5 w-5" />
@@ -455,21 +451,23 @@ export default function AIAuditPage() {
                     </button>
 
                     {/* Feature Highlights */}
-                    <div className="mt-8 grid gap-4 sm:grid-cols-3 text-left">
+                    <div className="mt-8 grid gap-4 text-left sm:grid-cols-3">
                       <div className="rounded-lg border border-gray-700 bg-gray-900/50 p-4">
-                        <h3 className="font-semibold text-white mb-2">Model Editors</h3>
+                        <h3 className="mb-2 font-semibold text-white">Model Editors</h3>
                         <p className="text-sm text-gray-400">
-                          Edit prompts for Nemotron, Florence-2, YOLO-World, X-CLIP, and Fashion-CLIP models.
+                          Edit prompts for Nemotron, Florence-2, YOLO-World, X-CLIP, and
+                          Fashion-CLIP models.
                         </p>
                       </div>
                       <div className="rounded-lg border border-gray-700 bg-gray-900/50 p-4">
-                        <h3 className="font-semibold text-white mb-2">A/B Testing</h3>
+                        <h3 className="mb-2 font-semibold text-white">A/B Testing</h3>
                         <p className="text-sm text-gray-400">
-                          Test modified prompts against real events and compare results before saving.
+                          Test modified prompts against real events and compare results before
+                          saving.
                         </p>
                       </div>
                       <div className="rounded-lg border border-gray-700 bg-gray-900/50 p-4">
-                        <h3 className="font-semibold text-white mb-2">Import/Export</h3>
+                        <h3 className="mb-2 font-semibold text-white">Import/Export</h3>
                         <p className="text-sm text-gray-400">
                           Export configurations for backup or import from other instances.
                         </p>
@@ -480,10 +478,7 @@ export default function AIAuditPage() {
               </Tab.Panel>
 
               {/* Batch Audit Tab */}
-              <Tab.Panel
-                className="focus:outline-none"
-                data-testid="tab-panel-batch"
-              >
+              <Tab.Panel className="focus:outline-none" data-testid="tab-panel-batch">
                 <div className="rounded-lg border border-gray-800 bg-[#1A1A1A] p-8">
                   <div className="mx-auto max-w-2xl text-center">
                     <Play className="mx-auto mb-4 h-16 w-16 text-[#76B900]" />
@@ -494,7 +489,7 @@ export default function AIAuditPage() {
                     </p>
                     <button
                       onClick={() => setIsBatchModalOpen(true)}
-                      className="flex items-center gap-2 mx-auto rounded-lg bg-[#76B900] px-6 py-3 text-sm font-semibold text-black transition-colors hover:bg-[#8ACE00]"
+                      className="mx-auto flex items-center gap-2 rounded-lg bg-[#76B900] px-6 py-3 text-sm font-semibold text-black transition-colors hover:bg-[#8ACE00]"
                       data-testid="trigger-batch-audit-button"
                     >
                       <Play className="h-5 w-5" />
@@ -527,10 +522,7 @@ export default function AIAuditPage() {
               </Tab.Panel>
 
               {/* Version History Tab */}
-              <Tab.Panel
-                className="focus:outline-none"
-                data-testid="tab-panel-history"
-              >
+              <Tab.Panel className="focus:outline-none" data-testid="tab-panel-history">
                 <PromptVersionHistory periodDays={periodDays} />
               </Tab.Panel>
             </Tab.Panels>

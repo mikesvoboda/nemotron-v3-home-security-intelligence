@@ -20,7 +20,7 @@
  */
 
 import { QueryClient } from '@tanstack/react-query';
-import { screen, waitFor , fireEvent } from '@testing-library/react';
+import { screen, waitFor, fireEvent } from '@testing-library/react';
 import { http, HttpResponse, delay } from 'msw';
 import { describe, expect, it, beforeEach, vi, afterEach } from 'vitest';
 
@@ -193,10 +193,7 @@ describe('StorageDashboard (MSW)', () => {
     // with exponential backoff which would make the test take too long.
     server.use(
       http.get('/api/system/storage', () => {
-        return HttpResponse.json(
-          { detail: 'Network error' },
-          { status: 400 }
-        );
+        return HttpResponse.json({ detail: 'Network error' }, { status: 400 });
       })
     );
 
@@ -220,10 +217,7 @@ describe('StorageDashboard (MSW)', () => {
       http.get('/api/system/storage', () => {
         callCount++;
         if (callCount === 1) {
-          return HttpResponse.json(
-            { detail: 'Network error' },
-            { status: 400 }
-          );
+          return HttpResponse.json({ detail: 'Network error' }, { status: 400 });
         }
         return HttpResponse.json(mockStorageStats);
       })
@@ -285,10 +279,7 @@ describe('StorageDashboard (MSW)', () => {
       }),
       // Use 400 to avoid retry backoff delays
       http.post('/api/system/cleanup', () => {
-        return HttpResponse.json(
-          { detail: 'Preview failed' },
-          { status: 400 }
-        );
+        return HttpResponse.json({ detail: 'Preview failed' }, { status: 400 });
       })
     );
 

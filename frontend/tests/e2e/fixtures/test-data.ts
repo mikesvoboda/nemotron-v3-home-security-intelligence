@@ -55,7 +55,8 @@ export const mockEvents = {
     risk_score: 25,
     risk_level: 'low',
     summary: 'Person detected at front door - appears to be delivery',
-    reasoning: 'Single person approaching front door during daytime hours. Carrying a package, consistent with delivery behavior. No signs of suspicious activity.',
+    reasoning:
+      'Single person approaching front door during daytime hours. Carrying a package, consistent with delivery behavior. No signs of suspicious activity.',
     reviewed: false,
     notes: '',
     detections: [
@@ -73,12 +74,11 @@ export const mockEvents = {
     risk_score: 55,
     risk_level: 'medium',
     summary: 'Unknown person lingering near back fence',
-    reasoning: 'Unidentified individual observed near property boundary for extended period. Movement patterns suggest surveillance. Elevated risk due to unusual behavior.',
+    reasoning:
+      'Unidentified individual observed near property boundary for extended period. Movement patterns suggest surveillance. Elevated risk due to unusual behavior.',
     reviewed: false,
     notes: '',
-    detections: [
-      { label: 'person', confidence: 0.88 },
-    ],
+    detections: [{ label: 'person', confidence: 0.88 }],
   },
   highRisk: {
     id: 3,
@@ -90,7 +90,8 @@ export const mockEvents = {
     risk_score: 78,
     risk_level: 'high',
     summary: 'Suspicious vehicle parked with occupants inside',
-    reasoning: 'Unknown vehicle stationary in driveway for over 10 minutes. Multiple occupants visible inside vehicle. No interaction with property. High risk due to potential surveillance or casing behavior.',
+    reasoning:
+      'Unknown vehicle stationary in driveway for over 10 minutes. Multiple occupants visible inside vehicle. No interaction with property. High risk due to potential surveillance or casing behavior.',
     reviewed: false,
     notes: '',
     detections: [
@@ -109,7 +110,8 @@ export const mockEvents = {
     risk_score: 92,
     risk_level: 'critical',
     summary: 'Multiple unknown individuals attempting door entry',
-    reasoning: 'Multiple unidentified individuals gathered at front door. Attempting to manipulate door lock. Critical risk - immediate attention required. Evidence of forced entry attempt.',
+    reasoning:
+      'Multiple unidentified individuals gathered at front door. Attempting to manipulate door lock. Critical risk - immediate attention required. Evidence of forced entry attempt.',
     reviewed: true,
     notes: 'Reported to authorities',
     detections: [
@@ -768,18 +770,63 @@ export const mockAiAuditStats = {
 export const mockAiAuditLeaderboard = {
   normal: {
     entries: [
-      { model_name: 'rtdetr', contribution_rate: 1.0, quality_correlation: null, event_count: 1000 },
-      { model_name: 'florence', contribution_rate: 0.85, quality_correlation: 0.75, event_count: 850 },
-      { model_name: 'image_quality', contribution_rate: 0.7, quality_correlation: 0.65, event_count: 700 },
+      {
+        model_name: 'rtdetr',
+        contribution_rate: 1.0,
+        quality_correlation: null,
+        event_count: 1000,
+      },
+      {
+        model_name: 'florence',
+        contribution_rate: 0.85,
+        quality_correlation: 0.75,
+        event_count: 850,
+      },
+      {
+        model_name: 'image_quality',
+        contribution_rate: 0.7,
+        quality_correlation: 0.65,
+        event_count: 700,
+      },
       { model_name: 'zones', contribution_rate: 0.65, quality_correlation: null, event_count: 650 },
       { model_name: 'clip', contribution_rate: 0.6, quality_correlation: 0.5, event_count: 600 },
-      { model_name: 'baseline', contribution_rate: 0.55, quality_correlation: null, event_count: 550 },
-      { model_name: 'clothing', contribution_rate: 0.5, quality_correlation: 0.45, event_count: 500 },
-      { model_name: 'vehicle', contribution_rate: 0.4, quality_correlation: null, event_count: 400 },
-      { model_name: 'violence', contribution_rate: 0.3, quality_correlation: 0.3, event_count: 300 },
+      {
+        model_name: 'baseline',
+        contribution_rate: 0.55,
+        quality_correlation: null,
+        event_count: 550,
+      },
+      {
+        model_name: 'clothing',
+        contribution_rate: 0.5,
+        quality_correlation: 0.45,
+        event_count: 500,
+      },
+      {
+        model_name: 'vehicle',
+        contribution_rate: 0.4,
+        quality_correlation: null,
+        event_count: 400,
+      },
+      {
+        model_name: 'violence',
+        contribution_rate: 0.3,
+        quality_correlation: 0.3,
+        event_count: 300,
+      },
       { model_name: 'pet', contribution_rate: 0.25, quality_correlation: null, event_count: 250 },
-      { model_name: 'weather', contribution_rate: 0.2, quality_correlation: null, event_count: 200 },
-      { model_name: 'cross_camera', contribution_rate: 0.15, quality_correlation: null, event_count: 150 },
+      {
+        model_name: 'weather',
+        contribution_rate: 0.2,
+        quality_correlation: null,
+        event_count: 200,
+      },
+      {
+        model_name: 'cross_camera',
+        contribution_rate: 0.15,
+        quality_correlation: null,
+        event_count: 150,
+      },
     ],
     period_days: 7,
   },
@@ -1060,4 +1107,77 @@ export const mockUserCalibration = {
     created_at: '2025-01-01T12:00:00Z',
     updated_at: new Date().toISOString(),
   },
+};
+
+// Entity Trust Classification Mock Data
+export const mockEntitiesWithTrust = [
+  {
+    id: 'entity-trust-1',
+    entity_type: 'person',
+    trust_status: 'unknown',
+    appearance_count: 5,
+    first_seen: '2026-01-10T10:00:00Z',
+    last_seen: '2026-01-15T14:30:00Z',
+    cameras_seen: ['cam-1', 'cam-2'],
+    thumbnail_url: '/api/detections/det-trust-1/image',
+  },
+  {
+    id: 'entity-trust-2',
+    entity_type: 'vehicle',
+    trust_status: 'trusted',
+    appearance_count: 12,
+    first_seen: '2026-01-05T08:00:00Z',
+    last_seen: '2026-01-15T18:45:00Z',
+    cameras_seen: ['cam-4'],
+    thumbnail_url: '/api/detections/det-trust-2/image',
+  },
+  {
+    id: 'entity-trust-3',
+    entity_type: 'person',
+    trust_status: 'suspicious',
+    appearance_count: 3,
+    first_seen: '2026-01-14T22:00:00Z',
+    last_seen: '2026-01-15T23:30:00Z',
+    cameras_seen: ['cam-2', 'cam-3'],
+    thumbnail_url: '/api/detections/det-trust-3/image',
+  },
+  {
+    id: 'entity-trust-4',
+    entity_type: 'person',
+    trust_status: 'trusted',
+    appearance_count: 25,
+    first_seen: '2025-12-20T07:00:00Z',
+    last_seen: '2026-01-15T17:00:00Z',
+    cameras_seen: ['cam-1'],
+    thumbnail_url: '/api/detections/det-trust-4/image',
+  },
+  {
+    id: 'entity-trust-5',
+    entity_type: 'vehicle',
+    trust_status: 'unknown',
+    appearance_count: 8,
+    first_seen: '2026-01-12T12:00:00Z',
+    last_seen: '2026-01-15T15:30:00Z',
+    cameras_seen: ['cam-4', 'cam-1'],
+    thumbnail_url: '/api/detections/det-trust-5/image',
+  },
+];
+
+// Mock Detection with Bounding Box
+export const mockDetectionWithBbox = {
+  id: 'det-trust-1',
+  label: 'person',
+  confidence: 0.94,
+  bbox: {
+    x: 100,
+    y: 150,
+    width: 200,
+    height: 400,
+  },
+  video_width: 1920,
+  video_height: 1080,
+  timestamp: '2026-01-15T14:30:00Z',
+  camera_id: 'cam-1',
+  camera_name: 'Front Door',
+  image_url: '/api/detections/det-trust-1/image',
 };

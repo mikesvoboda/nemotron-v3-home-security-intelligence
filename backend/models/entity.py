@@ -18,7 +18,7 @@ Referential integrity is enforced at the application level via:
 See docs/decisions/entity-detection-referential-integrity.md
 for the full architectural decision record.
 
-Related to NEM-1880 (Re-identification feature), NEM-2210 (Entity model), NEM-2431.
+Related to NEM-1880 (Re-identification feature), NEM-2210 (Entity model), NEM-2431, NEM-2670.
 """
 
 from __future__ import annotations
@@ -33,7 +33,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .camera import Base
-from .enums import EntityType
+from .enums import EntityType, TrustStatus
 
 if TYPE_CHECKING:
     from .detection import Detection
@@ -55,6 +55,7 @@ class Entity(Base):
     Attributes:
         id: Unique entity identifier (UUID)
         entity_type: Type of entity (person, vehicle, animal, package, other)
+        trust_status: Trust classification (trusted, untrusted, unknown)
         embedding_vector: Feature vector for re-identification (JSONB array)
         first_seen_at: Timestamp of first detection
         last_seen_at: Timestamp of most recent detection
@@ -68,6 +69,11 @@ class Entity(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     entity_type: Mapped[str] = mapped_column(
         String(20), nullable=False, default=EntityType.PERSON.value
+    )
+    # Trust status for alert handling: trusted entities may skip/reduce alerts,
+    # untrusted entities may increase alert severity, unknown entities process normally.
+    trust_status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default=TrustStatus.UNKNOWN.value
     )
     # Embedding vector stored as JSONB array for flexibility.
     # Contains keys: vector (list of floats), model (str), dimension (int).
@@ -108,6 +114,8 @@ class Entity(Base):
     __table_args__ = (
         # Index on entity_type for filtering by type
         Index("idx_entities_entity_type", "entity_type"),
+        # Index on trust_status for filtering by trust level
+        Index("idx_entities_trust_status", "trust_status"),
         # Index on first_seen_at for time-range queries
         Index("idx_entities_first_seen_at", "first_seen_at"),
         # Index on last_seen_at for recent activity queries
@@ -126,6 +134,11 @@ class Entity(Base):
             "entity_type IN ('person', 'vehicle', 'animal', 'package', 'other')",
             name="ck_entities_entity_type",
         ),
+        # CHECK constraint for valid trust status values
+        CheckConstraint(
+            "trust_status IN ('trusted', 'untrusted', 'unknown')",
+            name="ck_entities_trust_status",
+        ),
         # CHECK constraint for non-negative detection count
         CheckConstraint(
             "detection_count >= 0",
@@ -136,8 +149,36 @@ class Entity(Base):
     def __repr__(self) -> str:
         return (
             f"<Entity(id={self.id}, entity_type={self.entity_type!r}, "
+            f"trust_status={self.trust_status!r}, "
             f"detection_count={self.detection_count}, last_seen_at={self.last_seen_at})>"
         )
+
+    def get_trust_status(self) -> TrustStatus:
+        """Get the trust status as an enum value.
+
+        Returns:
+            TrustStatus enum value (TRUSTED, UNTRUSTED, or UNKNOWN)
+        """
+        try:
+            return TrustStatus(self.trust_status)
+        except ValueError:
+            return TrustStatus.UNKNOWN
+
+    def is_trusted(self) -> bool:
+        """Check if entity is trusted.
+
+        Returns:
+            True if entity trust_status is 'trusted', False otherwise
+        """
+        return self.trust_status == TrustStatus.TRUSTED.value
+
+    def is_untrusted(self) -> bool:
+        """Check if entity is explicitly untrusted.
+
+        Returns:
+            True if entity trust_status is 'untrusted', False otherwise
+        """
+        return self.trust_status == TrustStatus.UNTRUSTED.value
 
     def update_seen(self, timestamp: datetime | None = None) -> None:
         """Update the entity's last_seen_at timestamp and increment detection count.
@@ -200,6 +241,7 @@ class Entity(Base):
         embedding: list[float] | None = None,
         model: str = "clip",
         entity_metadata: dict[str, Any] | None = None,
+        trust_status: TrustStatus | str = TrustStatus.UNKNOWN,
     ) -> Entity:
         """Create a new Entity from a detection.
 
@@ -211,14 +253,19 @@ class Entity(Base):
             embedding: Optional embedding vector
             model: Model used for embedding (default: "clip")
             entity_metadata: Optional additional metadata
+            trust_status: Trust classification (default: unknown)
 
         Returns:
             A new Entity instance
         """
         entity_type_str = entity_type.value if isinstance(entity_type, EntityType) else entity_type
+        trust_status_str = (
+            trust_status.value if isinstance(trust_status, TrustStatus) else trust_status
+        )
 
         entity = cls(
             entity_type=entity_type_str,
+            trust_status=trust_status_str,
             primary_detection_id=detection_id,
             detection_count=1,
             entity_metadata=entity_metadata,

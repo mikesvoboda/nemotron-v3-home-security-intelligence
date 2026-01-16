@@ -15,6 +15,7 @@ from backend.api.dependencies import (
     get_cache_service_dep,
     get_detection_or_404,
     get_thumbnail_generator_dep,
+    get_transcoding_service_dep,
     get_video_processor_dep,
 )
 from backend.api.middleware import RateLimiter, RateLimitTier
@@ -57,15 +58,16 @@ from backend.api.utils.field_filter import (
 from backend.api.validators import normalize_end_date_to_end_of_day, validate_date_range
 from backend.core.database import get_db
 from backend.core.logging import get_logger
-from backend.core.mime_types import DEFAULT_VIDEO_MIME, normalize_file_type
 from backend.models.camera import Camera
 from backend.models.detection import Detection
 from backend.services.cache_service import CacheService
 from backend.services.thumbnail_generator import ThumbnailGenerator
+from backend.services.transcoding_service import TranscodingService
 from backend.services.video_processor import VideoProcessor
 
 # Type aliases for dependency injection
 ThumbnailGeneratorDep = ThumbnailGenerator
+TranscodingServiceDep = TranscodingService
 VideoProcessorDep = VideoProcessor
 
 logger = get_logger(__name__)
@@ -1296,6 +1298,7 @@ def _parse_range_header(range_header: str, file_size: int) -> tuple[int, int]:
         404: {"description": "Detection or video file not found"},
         416: {"description": "Range not satisfiable"},
         429: {"description": "Too many requests"},
+        500: {"description": "Transcoding failed"},
     },
 )
 async def stream_detection_video(
@@ -1303,13 +1306,19 @@ async def stream_detection_video(
     range_header: str | None = Header(None, alias="Range"),
     db: AsyncSession = Depends(get_db),
     _rate_limit: None = Depends(detection_media_rate_limiter),
+    transcoding_service: TranscodingServiceDep = Depends(get_transcoding_service_dep),
 ) -> StreamingResponse:
-    """Stream detection video with HTTP Range request support.
+    """Stream detection video with HTTP Range request support and transcoding.
 
     This endpoint is exempt from API key authentication because:
     1. It serves video content accessed directly by browsers via <video> tags
     2. Detection IDs are not predictable (integer IDs require prior knowledge)
     3. It has rate limiting to prevent abuse
+
+    NEM-2681: Videos are automatically transcoded to browser-compatible H.264/MP4
+    format. Transcoded videos are cached to avoid re-transcoding on subsequent
+    requests. Videos that are already browser-compatible (H.264 MP4) are served
+    directly without transcoding.
 
     Supports partial content requests for video seeking and efficient playback.
     Returns 206 Partial Content for range requests, 200 OK for full content.
@@ -1318,14 +1327,19 @@ async def stream_detection_video(
         detection_id: Detection ID
         range_header: HTTP Range header for partial content requests
         db: Database session
+        transcoding_service: Service for transcoding videos to browser-compatible format
 
     Returns:
-        StreamingResponse with video content
+        StreamingResponse with browser-compatible video content
 
     Raises:
-        HTTPException: 404 if detection not found or not a video
+        HTTPException: 400 if detection is not a video
+        HTTPException: 404 if detection not found or video file not found
         HTTPException: 416 if range is not satisfiable
+        HTTPException: 500 if transcoding fails
     """
+    from backend.services.transcoding_service import TranscodingError
+
     detection = await get_detection_or_404(detection_id, db)
 
     # Verify this is a video detection
@@ -1342,11 +1356,20 @@ async def stream_detection_video(
             detail=f"Video file not found: {detection.file_path}",
         )
 
-    file_size = Path(detection.file_path).stat().st_size
-    # Normalize file_type to MIME type, handling legacy extension values (e.g., ".mp4")
-    content_type = (
-        normalize_file_type(detection.file_type, detection.file_path) or DEFAULT_VIDEO_MIME
-    )
+    # NEM-2681: Check cache first, then transcode if needed for browser compatibility
+    # This ensures all videos can play in web browsers
+    try:
+        video_path = await transcoding_service.get_or_transcode(detection.file_path)
+    except TranscodingError as e:
+        logger.error(f"Transcoding failed for detection {detection_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to transcode video for browser playback: {e}",
+        ) from e
+
+    file_size = Path(video_path).stat().st_size
+    # Transcoded videos are always MP4
+    content_type = "video/mp4"
 
     # Handle range request
     if range_header:
@@ -1360,11 +1383,13 @@ async def stream_detection_video(
             ) from e
 
         content_length = end - start + 1
+        # Capture video_path for use in closure
+        _video_path = str(video_path)
 
         def iter_file_range() -> Generator[bytes]:
             """Generator to stream file range."""
-            # nosemgrep: path-traversal-open - file_path from database, not user input
-            with open(detection.file_path, "rb") as f:
+            # nosemgrep: path-traversal-open - video_path from transcoding service
+            with open(_video_path, "rb") as f:
                 f.seek(start)
                 remaining = content_length
                 chunk_size = 64 * 1024  # 64KB chunks
@@ -1390,11 +1415,14 @@ async def stream_detection_video(
         )
     else:
         # Full content request
+        # Capture video_path for use in closure
+        _video_path = str(video_path)
+
         def iter_file() -> Generator[bytes]:
             """Generator to stream entire file."""
             chunk_size = 64 * 1024  # 64KB chunks
-            # nosemgrep: path-traversal-open - file_path from database, not user input
-            with open(detection.file_path, "rb") as f:
+            # nosemgrep: path-traversal-open - video_path from transcoding service
+            with open(_video_path, "rb") as f:
                 while chunk := f.read(chunk_size):
                     yield chunk
 

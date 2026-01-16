@@ -440,22 +440,14 @@ describe('ToastContext', () => {
       });
 
       expect(result.current.toasts).toHaveLength(3);
-      expect(result.current.toasts.map((t) => t.message)).toEqual([
-        'First',
-        'Second',
-        'Third',
-      ]);
+      expect(result.current.toasts.map((t) => t.message)).toEqual(['First', 'Second', 'Third']);
 
       act(() => {
         result.current.showToast('Fourth', 'success');
       });
 
       expect(result.current.toasts).toHaveLength(3);
-      expect(result.current.toasts.map((t) => t.message)).toEqual([
-        'Second',
-        'Third',
-        'Fourth',
-      ]);
+      expect(result.current.toasts.map((t) => t.message)).toEqual(['Second', 'Third', 'Fourth']);
     });
 
     it('should respect custom maxToasts from provider', () => {

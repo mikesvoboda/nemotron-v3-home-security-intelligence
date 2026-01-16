@@ -121,7 +121,9 @@ describe('PerformanceAlerts', () => {
 
       render(<PerformanceAlerts />);
 
-      expect(screen.getByText('RT-DETRv2 latency P95 high: 250ms (threshold: 200ms)')).toBeInTheDocument();
+      expect(
+        screen.getByText('RT-DETRv2 latency P95 high: 250ms (threshold: 200ms)')
+      ).toBeInTheDocument();
     });
   });
 

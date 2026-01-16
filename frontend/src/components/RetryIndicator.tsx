@@ -18,11 +18,7 @@
  */
 import { clsx } from 'clsx';
 
-import {
-  useActiveRetries,
-  useRetryStore,
-  formatRetryCountdown,
-} from '../hooks/useRetry';
+import { useActiveRetries, useRetryStore, formatRetryCountdown } from '../hooks/useRetry';
 
 // ============================================================================
 // Types
@@ -122,12 +118,7 @@ export default function RetryIndicator({
             aria-label="Cancel retry"
             data-testid="retry-cancel-single"
           >
-            <svg
-              className="h-5 w-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -147,10 +138,7 @@ export default function RetryIndicator({
             {formatRetryCountdown(primaryRetry.secondsRemaining * 1000)}
           </span>
         </p>
-        <p
-          className="mt-1 text-xs text-amber-600 dark:text-amber-400"
-          data-testid="retry-attempt"
-        >
+        <p className="mt-1 text-xs text-amber-600 dark:text-amber-400" data-testid="retry-attempt">
           Attempt {primaryRetry.attempt} of {primaryRetry.maxAttempts}
         </p>
       </div>
@@ -228,9 +216,7 @@ export function RetryIndicatorCompact({ className }: RetryIndicatorCompactProps)
         className="h-3 w-3 animate-spin rounded-full border-2 border-amber-500 border-t-transparent"
         aria-hidden="true"
       />
-      <span>
-        Retrying in {formatRetryCountdown(primaryRetry.secondsRemaining * 1000)}
-      </span>
+      <span>Retrying in {formatRetryCountdown(primaryRetry.secondsRemaining * 1000)}</span>
     </div>
   );
 }

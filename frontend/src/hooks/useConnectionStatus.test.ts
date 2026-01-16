@@ -74,12 +74,15 @@ describe('useConnectionStatus', () => {
     mockWsInstances = [];
 
     // Mock WebSocket constructor
-    vi.stubGlobal('WebSocket', class extends MockWebSocket {
-      constructor(url: string) {
-        super(url);
-        mockWsInstances.push(this);
+    vi.stubGlobal(
+      'WebSocket',
+      class extends MockWebSocket {
+        constructor(url: string) {
+          super(url);
+          mockWsInstances.push(this);
+        }
       }
-    });
+    );
   });
 
   afterEach(() => {

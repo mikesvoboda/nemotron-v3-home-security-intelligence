@@ -152,7 +152,11 @@ function HealthTooltip({ services, isVisible }: HealthTooltipProps) {
 export default function Header() {
   const { toggleMobileMenu } = useSidebarContext();
   const { summary, systemStatus, isPollingFallback, retryConnection } = useConnectionStatus();
-  const { overallStatus: apiHealth, services, isLoading: healthLoading } = useHealthStatusQuery({
+  const {
+    overallStatus: apiHealth,
+    services,
+    isLoading: healthLoading,
+  } = useHealthStatusQuery({
     refetchInterval: 30000, // Poll every 30 seconds
   });
   const { isCritical: isStorageCritical, status: storageStatus } = useStorageStatusStore();
@@ -229,10 +233,7 @@ export default function Header() {
   return (
     <header className="flex h-16 items-center justify-between border-b border-gray-800 bg-[#1A1A1A]">
       {/* Branding container - aligned with sidebar width and padding */}
-      <div
-        className="flex items-center gap-2 px-4 md:w-64 md:gap-4"
-        data-testid="header-branding"
-      >
+      <div className="flex items-center gap-2 px-4 md:w-64 md:gap-4" data-testid="header-branding">
         {/* Mobile hamburger menu button */}
         <button
           onClick={toggleMobileMenu}

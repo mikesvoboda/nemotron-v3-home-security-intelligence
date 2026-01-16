@@ -215,7 +215,12 @@ describe('useCircuitBreakerStatus', () => {
 
     const message = createCircuitBreakerUpdateMessage({
       rtdetr: { state: 'closed', failure_count: 0, success_count: 5 },
-      nemotron: { state: 'open', failure_count: 5, success_count: 0, last_failure_time: '2026-01-08T09:55:00Z' },
+      nemotron: {
+        state: 'open',
+        failure_count: 5,
+        success_count: 0,
+        last_failure_time: '2026-01-08T09:55:00Z',
+      },
     });
 
     act(() => {
@@ -343,7 +348,8 @@ describe('useCircuitBreakerStatus', () => {
     const { result } = renderHook(() => useCircuitBreakerStatus());
 
     for (let i = 0; i < 10; i++) {
-      const state: CircuitBreakerStateType = i % 3 === 0 ? 'closed' : i % 3 === 1 ? 'open' : 'half_open';
+      const state: CircuitBreakerStateType =
+        i % 3 === 0 ? 'closed' : i % 3 === 1 ? 'open' : 'half_open';
       const message = createCircuitBreakerUpdateMessage(
         {
           rtdetr: { state, failure_count: i, success_count: 10 - i },

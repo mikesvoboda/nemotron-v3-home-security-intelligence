@@ -133,14 +133,36 @@ def _is_path_within(path: Path, base: Path) -> bool:
 
 
 def _try_alternate_path(file_path: str, base_path: Path) -> Path | None:
-    """Try to find file under base_path if it references seeded data path."""
+    """Try to find file under base_path if it references seeded data or host path.
+
+    This handles two path translation scenarios:
+    1. Seeded data path (/app/data/cameras/) -> base_path
+    2. Host path (/export/foscam/) -> container path (/cameras/)
+
+    This fixes NEM-2662 where detections created with host paths (/export/foscam/...)
+    need to be served from container paths (/cameras/...).
+    """
+    # Try seeded data path translation
     seeded_prefix = "/app/data/cameras/"
-    if not file_path.startswith(seeded_prefix):
-        return None
-    relative = file_path[len(seeded_prefix) :]
-    alt_path = (base_path / relative).resolve()
-    if alt_path.exists() and alt_path.is_file() and _is_path_within(alt_path, base_path):
-        return alt_path
+    if file_path.startswith(seeded_prefix):
+        relative = file_path[len(seeded_prefix) :]
+        alt_path = (base_path / relative).resolve()
+        if alt_path.exists() and alt_path.is_file() and _is_path_within(alt_path, base_path):
+            return alt_path
+
+    # Try host path translation (NEM-2662)
+    # Common host paths: /export/foscam/, /mnt/foscam/, etc.
+    # These should map to the container path configured in settings.foscam_base_path
+    host_prefixes = ["/export/foscam/", "/mnt/foscam/"]
+    for host_prefix in host_prefixes:
+        if file_path.startswith(host_prefix):
+            # Extract the relative path after the host prefix
+            # e.g., /export/foscam/front_door/image.jpg -> front_door/image.jpg
+            relative = file_path[len(host_prefix) :]
+            alt_path = (base_path / relative).resolve()
+            if alt_path.exists() and alt_path.is_file() and _is_path_within(alt_path, base_path):
+                return alt_path
+
     return None
 
 
@@ -372,28 +394,31 @@ async def serve_detection_image(
     base_path = Path(settings.foscam_base_path)
     data_path = Path(__file__).parent.parent.parent.parent / "data" / "cameras"
 
-    # Determine full path (absolute or relative)
-    full_path = (
-        Path(file_path)
-        if Path(file_path).is_absolute()
-        else base_path / detection.camera_id / file_path
-    ).resolve()
+    # Try alternate path first (NEM-2662) for host-to-container path translation
+    # This handles cases where file_path uses host paths like /export/foscam/...
+    # but the container uses /cameras/...
+    alt_path = _try_alternate_path(file_path, base_path)
+    if alt_path:
+        # Found a valid alternate path, use it (already validated by _try_alternate_path)
+        full_path = alt_path
+    else:
+        # No alternate path found, use the original path logic
+        # Determine full path (absolute or relative)
+        full_path = (
+            Path(file_path)
+            if Path(file_path).is_absolute()
+            else base_path / detection.camera_id / file_path
+        ).resolve()
 
-    # Security check: ensure path is within allowed directories
-    if not _is_path_within(full_path, base_path) and not _is_path_within(full_path, data_path):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=MediaErrorResponse(
-                error="Access denied - file outside allowed directory",
-                path=f"detections/{detection_id}",
-            ).model_dump(),
-        )
-
-    # Try alternate path if file doesn't exist (seeded data -> real camera path)
-    if not full_path.exists() or not full_path.is_file():
-        alt_path = _try_alternate_path(file_path, base_path)
-        if alt_path:
-            full_path = alt_path
+        # Security check: ensure path is within allowed directories
+        if not _is_path_within(full_path, base_path) and not _is_path_within(full_path, data_path):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=MediaErrorResponse(
+                    error="Access denied - file outside allowed directory",
+                    path=f"detections/{detection_id}",
+                ).model_dump(),
+            )
 
     # Final check if file exists
     if not full_path.exists() or not full_path.is_file():

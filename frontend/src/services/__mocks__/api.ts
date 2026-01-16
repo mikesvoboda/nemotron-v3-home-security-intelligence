@@ -200,7 +200,10 @@ export interface MockHealthOptions {
   /** Overall status. Default: 'healthy' */
   status?: string;
   /** Services status map. Default: all healthy */
-  services?: Record<string, { status: string; message?: string | null; details?: Record<string, unknown> | null }>;
+  services?: Record<
+    string,
+    { status: string; message?: string | null; details?: Record<string, unknown> | null }
+  >;
 }
 
 /**
@@ -714,15 +717,17 @@ export function createMockApi(): MockApi {
   return {
     // Camera endpoints
     fetchCameras: vi.fn().mockResolvedValue(createMockCameraList()),
-    fetchCamera: vi.fn().mockImplementation((id: string) =>
-      Promise.resolve(createMockCamera({ id }))
-    ),
-    createCamera: vi.fn().mockImplementation((data: MockCameraOptions) =>
-      Promise.resolve(createMockCamera(data))
-    ),
-    updateCamera: vi.fn().mockImplementation((id: string, data: MockCameraOptions) =>
-      Promise.resolve(createMockCamera({ id, ...data }))
-    ),
+    fetchCamera: vi
+      .fn()
+      .mockImplementation((id: string) => Promise.resolve(createMockCamera({ id }))),
+    createCamera: vi
+      .fn()
+      .mockImplementation((data: MockCameraOptions) => Promise.resolve(createMockCamera(data))),
+    updateCamera: vi
+      .fn()
+      .mockImplementation((id: string, data: MockCameraOptions) =>
+        Promise.resolve(createMockCamera({ id, ...data }))
+      ),
     deleteCamera: vi.fn().mockResolvedValue(undefined),
 
     // Health endpoints
@@ -734,32 +739,38 @@ export function createMockApi(): MockApi {
     fetchGPUStats: vi.fn().mockResolvedValue(createMockGPUStats()),
     fetchGpuHistory: vi.fn().mockResolvedValue({ samples: [] }),
     fetchConfig: vi.fn().mockResolvedValue(createMockSystemConfig()),
-    updateConfig: vi.fn().mockImplementation((data: MockData) =>
-      Promise.resolve({ ...createMockSystemConfig(), ...data })
-    ),
+    updateConfig: vi
+      .fn()
+      .mockImplementation((data: MockData) =>
+        Promise.resolve({ ...createMockSystemConfig(), ...data })
+      ),
     fetchStats: vi.fn().mockResolvedValue(createMockSystemStats()),
     triggerCleanup: vi.fn().mockResolvedValue({ deleted_count: 0 }),
     fetchTelemetry: vi.fn().mockResolvedValue(createMockTelemetry()),
 
     // Event endpoints
     fetchEvents: vi.fn().mockResolvedValue({ events: createMockEventList(), total: 10 }),
-    fetchEvent: vi.fn().mockImplementation((id: number) =>
-      Promise.resolve(createMockEvent({ id }))
-    ),
+    fetchEvent: vi
+      .fn()
+      .mockImplementation((id: number) => Promise.resolve(createMockEvent({ id }))),
     fetchEventStats: vi.fn().mockResolvedValue({
       total: 100,
       by_risk_level: { low: 40, medium: 35, high: 20, critical: 5 },
     }),
-    updateEvent: vi.fn().mockImplementation((id: number, data: MockData) =>
-      Promise.resolve({ ...createMockEvent({ id }), ...data })
-    ),
+    updateEvent: vi
+      .fn()
+      .mockImplementation((id: number, data: MockData) =>
+        Promise.resolve({ ...createMockEvent({ id }), ...data })
+      ),
     bulkUpdateEvents: vi.fn().mockResolvedValue({ updated_count: 5 }),
     searchEvents: vi.fn().mockResolvedValue({ results: createMockEventList(5), total: 5 }),
 
     // Detection endpoints
-    fetchEventDetections: vi.fn().mockImplementation((eventId: number) =>
-      Promise.resolve({ detections: createMockDetectionList(eventId), total: 3 })
-    ),
+    fetchEventDetections: vi
+      .fn()
+      .mockImplementation((eventId: number) =>
+        Promise.resolve({ detections: createMockDetectionList(eventId), total: 3 })
+      ),
     fetchDetectionStats: vi.fn().mockResolvedValue({
       total: 500,
       by_label: { person: 300, vehicle: 150, animal: 50 },
@@ -772,12 +783,16 @@ export function createMockApi(): MockApi {
 
     // Zone endpoints
     fetchZones: vi.fn().mockResolvedValue({ zones: [createMockZone()], total: 1 }),
-    fetchZone: vi.fn().mockImplementation((cameraId: string, zoneId: string) =>
-      Promise.resolve(createMockZone({ id: zoneId, camera_id: cameraId }))
-    ),
-    createZone: vi.fn().mockImplementation((cameraId: string, data: MockZoneOptions) =>
-      Promise.resolve(createMockZone({ camera_id: cameraId, ...data }))
-    ),
+    fetchZone: vi
+      .fn()
+      .mockImplementation((cameraId: string, zoneId: string) =>
+        Promise.resolve(createMockZone({ id: zoneId, camera_id: cameraId }))
+      ),
+    createZone: vi
+      .fn()
+      .mockImplementation((cameraId: string, data: MockZoneOptions) =>
+        Promise.resolve(createMockZone({ camera_id: cameraId, ...data }))
+      ),
     updateZone: vi
       .fn()
       .mockImplementation((cameraId: string, zoneId: string, data: MockZoneOptions) =>
@@ -787,15 +802,19 @@ export function createMockApi(): MockApi {
 
     // Alert Rule endpoints
     fetchAlertRules: vi.fn().mockResolvedValue({ rules: [createMockAlertRule()], total: 1 }),
-    fetchAlertRule: vi.fn().mockImplementation((id: string) =>
-      Promise.resolve(createMockAlertRule({ id }))
-    ),
-    createAlertRule: vi.fn().mockImplementation((data: MockAlertRuleOptions) =>
-      Promise.resolve(createMockAlertRule(data))
-    ),
-    updateAlertRule: vi.fn().mockImplementation((id: string, data: MockAlertRuleOptions) =>
-      Promise.resolve(createMockAlertRule({ id, ...data }))
-    ),
+    fetchAlertRule: vi
+      .fn()
+      .mockImplementation((id: string) => Promise.resolve(createMockAlertRule({ id }))),
+    createAlertRule: vi
+      .fn()
+      .mockImplementation((data: MockAlertRuleOptions) =>
+        Promise.resolve(createMockAlertRule(data))
+      ),
+    updateAlertRule: vi
+      .fn()
+      .mockImplementation((id: string, data: MockAlertRuleOptions) =>
+        Promise.resolve(createMockAlertRule({ id, ...data }))
+      ),
     deleteAlertRule: vi.fn().mockResolvedValue(undefined),
 
     // Utility functions
@@ -885,7 +904,13 @@ export function createMockFetchHttpError(
  * Test cases for object types.
  * Use with describe.each() for parameterized tests.
  */
-export const OBJECT_TYPE_TEST_CASES: string[] = ['person', 'vehicle', 'animal', 'package', 'unknown'];
+export const OBJECT_TYPE_TEST_CASES: string[] = [
+  'person',
+  'vehicle',
+  'animal',
+  'package',
+  'unknown',
+];
 
 /**
  * Test cases for HTTP status codes.
@@ -983,7 +1008,10 @@ export const resetCircuitBreaker = vi.fn().mockResolvedValue({ success: true });
 // Additional endpoints
 export const fetchPipelineLatency = vi.fn().mockResolvedValue({});
 export const fetchPipelineLatencyHistory = vi.fn().mockResolvedValue({ samples: [] });
-export const fetchLogs = vi.fn().mockResolvedValue({ items: [], pagination: { total: 0, limit: 50, offset: 0, has_more: false, next_cursor: null } });
+export const fetchLogs = vi.fn().mockResolvedValue({
+  items: [],
+  pagination: { total: 0, limit: 50, offset: 0, has_more: false, next_cursor: null },
+});
 export const fetchLogStats = vi.fn().mockResolvedValue({});
 export const submitFrontendLog = vi.fn().mockResolvedValue({ success: true });
 export const fetchCameraActivityBaseline = vi.fn().mockResolvedValue({});
@@ -1062,13 +1090,21 @@ export const fetchSceneChanges = vi.fn().mockResolvedValue({ changes: [] });
 export const acknowledgeSceneChange = vi.fn().mockResolvedValue({ success: true });
 
 // Entity endpoints (NEM-2075: pagination envelope format)
-export const fetchEntities = vi.fn().mockResolvedValue({ items: [], pagination: { total: 0, limit: 50, offset: 0, has_more: false } });
+export const fetchEntities = vi.fn().mockResolvedValue({
+  items: [],
+  pagination: { total: 0, limit: 50, offset: 0, has_more: false },
+});
 export const fetchEntity = vi.fn().mockResolvedValue({});
 export const fetchEntityHistory = vi.fn().mockResolvedValue({ history: [] });
-export const fetchEventEntityMatches = vi.fn().mockResolvedValue({ event_id: 0, person_matches: [], vehicle_matches: [], total_matches: 0 });
+export const fetchEventEntityMatches = vi
+  .fn()
+  .mockResolvedValue({ event_id: 0, person_matches: [], vehicle_matches: [], total_matches: 0 });
 
 // Audit log endpoints
-export const fetchAuditLogs = vi.fn().mockResolvedValue({ items: [], pagination: { total: 0, limit: 50, offset: 0, has_more: false, next_cursor: null } });
+export const fetchAuditLogs = vi.fn().mockResolvedValue({
+  items: [],
+  pagination: { total: 0, limit: 50, offset: 0, has_more: false, next_cursor: null },
+});
 export const fetchAuditStats = vi.fn().mockResolvedValue({});
 
 // AI Audit endpoints

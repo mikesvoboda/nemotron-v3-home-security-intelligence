@@ -336,9 +336,7 @@ export function normalizeEventType(eventType: string): WebSocketEventKey | undef
  * ```
  */
 export function isWebSocketEventKey(value: unknown): value is WebSocketEventKey {
-  return (
-    typeof value === 'string' && WEBSOCKET_EVENT_KEYS.includes(value as WebSocketEventKey)
-  );
+  return typeof value === 'string' && WEBSOCKET_EVENT_KEYS.includes(value as WebSocketEventKey);
 }
 
 /**

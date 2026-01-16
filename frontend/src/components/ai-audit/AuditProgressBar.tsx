@@ -85,7 +85,7 @@ export default function AuditProgressBar({
             className="rounded-lg bg-red-700 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-red-800"
             aria-label="Cancel batch audit"
           >
-            <X className="inline h-4 w-4 mr-1" />
+            <X className="mr-1 inline h-4 w-4" />
             Cancel
           </button>
         )}
@@ -108,7 +108,9 @@ export default function AuditProgressBar({
       {/* Details */}
       <div className="flex items-center justify-between text-sm">
         <div className="text-gray-400">
-          {currentEventId && <span className="font-medium">Processing Event #{currentEventId}</span>}
+          {currentEventId && (
+            <span className="font-medium">Processing Event #{currentEventId}</span>
+          )}
           {!currentEventId && !isComplete && <span>Processing events...</span>}
           {isComplete && <span className="text-[#76B900]">All events processed successfully</span>}
         </div>

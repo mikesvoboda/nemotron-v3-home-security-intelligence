@@ -17,13 +17,13 @@ const CHORD_TIMEOUT = 1000;
 
 /** Map of chord second keys to routes */
 const CHORD_ROUTES: Record<string, string> = {
-  d: '/',         // Dashboard
+  d: '/', // Dashboard
   t: '/timeline', // Timeline
   a: '/analytics', // Analytics
-  l: '/alerts',   // Alerts
+  l: '/alerts', // Alerts
   e: '/entities', // Entities
-  o: '/logs',     // Logs (o for lOgs since l is taken)
-  s: '/system',   // System monitoring
+  o: '/logs', // Logs (o for lOgs since l is taken)
+  s: '/system', // System monitoring
   ',': '/settings', // Settings (Vim-style)
 };
 

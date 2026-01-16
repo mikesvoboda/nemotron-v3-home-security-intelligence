@@ -1,10 +1,7 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import {
-  useDetectionsInfiniteQuery,
-  detectionsQueryKeys,
-} from './useDetectionsQuery';
+import { useDetectionsInfiniteQuery, detectionsQueryKeys } from './useDetectionsQuery';
 import * as api from '../services/api';
 import { createQueryWrapper } from '../test-utils/renderWithProviders';
 
@@ -97,10 +94,9 @@ describe('useDetectionsInfiniteQuery', () => {
     it('starts with isLoading true', () => {
       (api.fetchEventDetections as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => {}));
 
-      const { result } = renderHook(
-        () => useDetectionsInfiniteQuery({ eventId: 1 }),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useDetectionsInfiniteQuery({ eventId: 1 }), {
+        wrapper: createQueryWrapper(),
+      });
 
       expect(result.current.isLoading).toBe(true);
     });
@@ -108,10 +104,9 @@ describe('useDetectionsInfiniteQuery', () => {
     it('starts with empty detections array', () => {
       (api.fetchEventDetections as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => {}));
 
-      const { result } = renderHook(
-        () => useDetectionsInfiniteQuery({ eventId: 1 }),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useDetectionsInfiniteQuery({ eventId: 1 }), {
+        wrapper: createQueryWrapper(),
+      });
 
       expect(result.current.detections).toEqual([]);
     });
@@ -119,10 +114,9 @@ describe('useDetectionsInfiniteQuery', () => {
     it('starts with totalCount of 0', () => {
       (api.fetchEventDetections as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => {}));
 
-      const { result } = renderHook(
-        () => useDetectionsInfiniteQuery({ eventId: 1 }),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useDetectionsInfiniteQuery({ eventId: 1 }), {
+        wrapper: createQueryWrapper(),
+      });
 
       expect(result.current.totalCount).toBe(0);
     });
@@ -130,10 +124,9 @@ describe('useDetectionsInfiniteQuery', () => {
 
   describe('fetching data', () => {
     it('fetches detections for event on mount', async () => {
-      renderHook(
-        () => useDetectionsInfiniteQuery({ eventId: 42 }),
-        { wrapper: createQueryWrapper() }
-      );
+      renderHook(() => useDetectionsInfiniteQuery({ eventId: 42 }), {
+        wrapper: createQueryWrapper(),
+      });
 
       await waitFor(() => {
         expect(api.fetchEventDetections).toHaveBeenCalledTimes(1);
@@ -145,10 +138,9 @@ describe('useDetectionsInfiniteQuery', () => {
     });
 
     it('updates detections after successful fetch', async () => {
-      const { result } = renderHook(
-        () => useDetectionsInfiniteQuery({ eventId: 1 }),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useDetectionsInfiniteQuery({ eventId: 1 }), {
+        wrapper: createQueryWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.detections).toEqual(mockDetections.items);
@@ -156,10 +148,9 @@ describe('useDetectionsInfiniteQuery', () => {
     });
 
     it('sets totalCount from pagination', async () => {
-      const { result } = renderHook(
-        () => useDetectionsInfiniteQuery({ eventId: 1 }),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useDetectionsInfiniteQuery({ eventId: 1 }), {
+        wrapper: createQueryWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.totalCount).toBe(10);
@@ -167,10 +158,9 @@ describe('useDetectionsInfiniteQuery', () => {
     });
 
     it('sets isLoading false after fetch', async () => {
-      const { result } = renderHook(
-        () => useDetectionsInfiniteQuery({ eventId: 1 }),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useDetectionsInfiniteQuery({ eventId: 1 }), {
+        wrapper: createQueryWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
@@ -178,10 +168,9 @@ describe('useDetectionsInfiniteQuery', () => {
     });
 
     it('sets hasNextPage from pagination', async () => {
-      const { result } = renderHook(
-        () => useDetectionsInfiniteQuery({ eventId: 1 }),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useDetectionsInfiniteQuery({ eventId: 1 }), {
+        wrapper: createQueryWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.hasNextPage).toBe(true);
@@ -195,10 +184,9 @@ describe('useDetectionsInfiniteQuery', () => {
         .mockResolvedValueOnce(mockDetections)
         .mockResolvedValueOnce(mockDetectionsPage2);
 
-      const { result } = renderHook(
-        () => useDetectionsInfiniteQuery({ eventId: 1 }),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useDetectionsInfiniteQuery({ eventId: 1 }), {
+        wrapper: createQueryWrapper(),
+      });
 
       // Wait for first page to load
       await waitFor(() => {
@@ -224,10 +212,9 @@ describe('useDetectionsInfiniteQuery', () => {
         .mockResolvedValueOnce(mockDetections)
         .mockResolvedValueOnce(mockDetectionsPage2);
 
-      const { result } = renderHook(
-        () => useDetectionsInfiniteQuery({ eventId: 1 }),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useDetectionsInfiniteQuery({ eventId: 1 }), {
+        wrapper: createQueryWrapper(),
+      });
 
       // Wait for first page to load
       await waitFor(() => {
@@ -249,10 +236,9 @@ describe('useDetectionsInfiniteQuery', () => {
         .mockResolvedValueOnce(mockDetections)
         .mockResolvedValueOnce(mockDetectionsPage2);
 
-      const { result } = renderHook(
-        () => useDetectionsInfiniteQuery({ eventId: 1 }),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useDetectionsInfiniteQuery({ eventId: 1 }), {
+        wrapper: createQueryWrapper(),
+      });
 
       // Wait for first page
       await waitFor(() => {
@@ -275,10 +261,9 @@ describe('useDetectionsInfiniteQuery', () => {
         new Error(errorMessage)
       );
 
-      const { result } = renderHook(
-        () => useDetectionsInfiniteQuery({ eventId: 1 }),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useDetectionsInfiniteQuery({ eventId: 1 }), {
+        wrapper: createQueryWrapper(),
+      });
 
       await waitFor(
         () => {
@@ -294,10 +279,9 @@ describe('useDetectionsInfiniteQuery', () => {
         new Error('Network error')
       );
 
-      const { result } = renderHook(
-        () => useDetectionsInfiniteQuery({ eventId: 1 }),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useDetectionsInfiniteQuery({ eventId: 1 }), {
+        wrapper: createQueryWrapper(),
+      });
 
       await waitFor(
         () => {
@@ -310,10 +294,9 @@ describe('useDetectionsInfiniteQuery', () => {
 
   describe('options', () => {
     it('respects custom limit', async () => {
-      renderHook(
-        () => useDetectionsInfiniteQuery({ eventId: 1, limit: 25 }),
-        { wrapper: createQueryWrapper() }
-      );
+      renderHook(() => useDetectionsInfiniteQuery({ eventId: 1, limit: 25 }), {
+        wrapper: createQueryWrapper(),
+      });
 
       await waitFor(() => {
         expect(api.fetchEventDetections).toHaveBeenCalledWith(1, {
@@ -324,20 +307,18 @@ describe('useDetectionsInfiniteQuery', () => {
     });
 
     it('does not fetch when enabled is false', async () => {
-      renderHook(
-        () => useDetectionsInfiniteQuery({ eventId: 1, enabled: false }),
-        { wrapper: createQueryWrapper() }
-      );
+      renderHook(() => useDetectionsInfiniteQuery({ eventId: 1, enabled: false }), {
+        wrapper: createQueryWrapper(),
+      });
 
       await new Promise((r) => setTimeout(r, 100));
       expect(api.fetchEventDetections).not.toHaveBeenCalled();
     });
 
     it('provides refetch function', async () => {
-      const { result } = renderHook(
-        () => useDetectionsInfiniteQuery({ eventId: 1 }),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useDetectionsInfiniteQuery({ eventId: 1 }), {
+        wrapper: createQueryWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);

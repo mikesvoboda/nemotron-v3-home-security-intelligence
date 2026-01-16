@@ -1,4 +1,4 @@
-import { render, screen, fireEvent , renderHook } from '@testing-library/react';
+import { render, screen, fireEvent, renderHook } from '@testing-library/react';
 import { useState, type ReactNode } from 'react';
 import { describe, it, expect, vi } from 'vitest';
 
@@ -421,9 +421,7 @@ describe('useSidebarContext', () => {
 
       function Consumer2() {
         const { isMobileMenuOpen } = useSidebarContext();
-        return (
-          <span data-testid="consumer2-state">{isMobileMenuOpen ? 'open' : 'closed'}</span>
-        );
+        return <span data-testid="consumer2-state">{isMobileMenuOpen ? 'open' : 'closed'}</span>;
       }
 
       render(

@@ -234,18 +234,16 @@ export function ExportButton({
   if (isExporting) {
     return (
       <div className={`flex items-center gap-3 ${className}`}>
-        <div className="flex-1 min-w-[200px]">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-sm text-gray-600 dark:text-gray-400">
-              Exporting...
-            </span>
+        <div className="min-w-[200px] flex-1">
+          <div className="mb-1 flex items-center justify-between">
+            <span className="text-sm text-gray-600 dark:text-gray-400">Exporting...</span>
             <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
               {jobStatus.progress}%
             </span>
           </div>
-          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
+          <div className="h-2.5 w-full rounded-full bg-gray-200 dark:bg-gray-700">
             <div
-              className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
+              className="h-2.5 rounded-full bg-blue-600 transition-all duration-300"
               style={{ width: `${jobStatus.progress}%` }}
               role="progressbar"
               aria-valuenow={jobStatus.progress}
@@ -254,17 +252,12 @@ export function ExportButton({
             />
           </div>
           {jobStatus.message && (
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate">
+            <p className="mt-1 truncate text-xs text-gray-500 dark:text-gray-400">
               {jobStatus.message}
             </p>
           )}
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleReset}
-          aria-label="Cancel export"
-        >
+        <Button variant="ghost" size="sm" onClick={handleReset} aria-label="Cancel export">
           Cancel
         </Button>
       </div>
@@ -277,24 +270,20 @@ export function ExportButton({
       <div className={`flex items-center gap-3 ${className}`}>
         <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
           <svg
-            className="w-5 h-5"
+            className="h-5 w-5"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
             aria-hidden="true"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M5 13l4 4L19 7"
-            />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
           <span className="text-sm">
             Export complete
             {jobStatus?.result && (
-              <span className="text-gray-500 dark:text-gray-400 ml-1">
-                ({jobStatus.result.event_count} events, {formatFileSize(jobStatus.result.file_size)})
+              <span className="ml-1 text-gray-500 dark:text-gray-400">
+                ({jobStatus.result.event_count} events, {formatFileSize(jobStatus.result.file_size)}
+                )
               </span>
             )}
           </span>
@@ -305,7 +294,7 @@ export function ExportButton({
           onClick={handleDownload}
           leftIcon={
             <svg
-              className="w-4 h-4"
+              className="h-4 w-4"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -335,7 +324,7 @@ export function ExportButton({
       <div className={`flex items-center gap-3 ${className}`}>
         <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
           <svg
-            className="w-5 h-5"
+            className="h-5 w-5"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -351,9 +340,7 @@ export function ExportButton({
           <span className="text-sm">
             Export failed
             {jobStatus?.error && (
-              <span className="text-gray-500 dark:text-gray-400 ml-1">
-                ({jobStatus.error})
-              </span>
+              <span className="ml-1 text-gray-500 dark:text-gray-400">({jobStatus.error})</span>
             )}
           </span>
         </div>
@@ -375,7 +362,7 @@ export function ExportButton({
         isLoading={startExportMutation.isPending}
         rightIcon={
           <svg
-            className={`w-4 h-4 transition-transform ${isMenuOpen ? 'rotate-180' : ''}`}
+            className={`h-4 w-4 transition-transform ${isMenuOpen ? 'rotate-180' : ''}`}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -401,19 +388,19 @@ export function ExportButton({
 
           {/* Dropdown menu */}
           <div
-            className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-20"
+            className="absolute right-0 z-20 mt-2 w-48 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 dark:bg-gray-800"
             role="menu"
             aria-orientation="vertical"
           >
             <div className="py-1">
               <button
                 type="button"
-                className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
                 onClick={() => handleExport('csv')}
                 role="menuitem"
               >
                 <svg
-                  className="w-4 h-4 text-gray-500"
+                  className="h-4 w-4 text-gray-500"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -430,12 +417,12 @@ export function ExportButton({
               </button>
               <button
                 type="button"
-                className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
                 onClick={() => handleExport('json')}
                 role="menuitem"
               >
                 <svg
-                  className="w-4 h-4 text-gray-500"
+                  className="h-4 w-4 text-gray-500"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -452,12 +439,12 @@ export function ExportButton({
               </button>
               <button
                 type="button"
-                className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
                 onClick={() => handleExport('zip')}
                 role="menuitem"
               >
                 <svg
-                  className="w-4 h-4 text-gray-500"
+                  className="h-4 w-4 text-gray-500"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"

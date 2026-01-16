@@ -29,9 +29,7 @@ describe('renderWithProviders', () => {
   });
 
   it('passes props to component', () => {
-    const { getByText } = renderWithProviders(
-      <TestComponent text="Custom Text" />
-    );
+    const { getByText } = renderWithProviders(<TestComponent text="Custom Text" />);
     expect(getByText('Custom Text')).toBeInTheDocument();
   });
 

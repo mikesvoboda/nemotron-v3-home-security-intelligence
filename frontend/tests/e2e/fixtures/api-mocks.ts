@@ -113,6 +113,8 @@ export interface ApiMockConfig {
     appearance_count: number;
     cameras_seen: string[];
     thumbnail_url?: string;
+    trust_status?: string;
+    trust_updated_at?: string;
   }>;
   entitiesError?: boolean;
 
@@ -904,6 +906,91 @@ export async function setupApiMocks(
             next_cursor: null,
             has_more: false,
           },
+        }),
+      });
+    }
+  });
+
+  // Entity Trust endpoint (BEFORE /api/entities/stats and /api/entities*)
+  await page.route('**/api/entities/*/trust', async (route) => {
+    if (route.request().method() !== 'PATCH') {
+      await route.continue();
+      return;
+    }
+
+    if (mergedConfig.entitiesError) {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Failed to update entity trust status' }),
+      });
+    } else {
+      // Extract entity ID from URL
+      const url = route.request().url();
+      const match = url.match(/\/api\/entities\/([^/]+)\/trust/);
+      const entityId = match?.[1] || 'unknown';
+
+      // Get the requested trust status from body
+      const body = route.request().postDataJSON() as { trust_status?: string } | null;
+      const trustStatus = body?.trust_status || 'unknown';
+
+      // Find the entity in mock data
+      const entities = mergedConfig.entities || [];
+      const entity = entities.find((e) => e.id === entityId);
+
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: entityId,
+          entity_type: entity?.entity_type || 'person',
+          trust_status: trustStatus,
+          trust_updated_at: new Date().toISOString(),
+          first_seen: entity?.first_seen || new Date().toISOString(),
+          last_seen: entity?.last_seen || new Date().toISOString(),
+          appearance_count: entity?.appearance_count || 1,
+          cameras_seen: entity?.cameras_seen || [],
+        }),
+      });
+    }
+  });
+
+  // Entity Stats endpoint (BEFORE /api/entities*)
+  await page.route('**/api/entities/stats*', async (route) => {
+    if (mergedConfig.entitiesError) {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Failed to fetch entity stats' }),
+      });
+    } else {
+      // Calculate stats from entities if provided, otherwise use defaults
+      const entities = mergedConfig.entities || [];
+      const personCount = entities.filter((e) => e.entity_type === 'person').length;
+      const vehicleCount = entities.filter((e) => e.entity_type === 'vehicle').length;
+      const totalAppearances = entities.reduce((sum, e) => sum + e.appearance_count, 0);
+      const repeatVisitors = entities.filter((e) => e.appearance_count > 1).length;
+
+      // Build by_camera counts
+      const byCamera: Record<string, number> = {};
+      entities.forEach((e) => {
+        e.cameras_seen?.forEach((cam) => {
+          byCamera[cam] = (byCamera[cam] || 0) + 1;
+        });
+      });
+
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          total_entities: entities.length,
+          total_appearances: totalAppearances,
+          by_type: {
+            person: personCount,
+            vehicle: vehicleCount,
+          },
+          by_camera: byCamera,
+          repeat_visitors: repeatVisitors,
         }),
       });
     }

@@ -136,9 +136,7 @@ describe('ZoneForm', () => {
       await userEvent.click(submitButton);
 
       await waitFor(() => {
-        expect(onSubmit).toHaveBeenCalledWith(
-          expect.objectContaining({ name: 'Test Zone' })
-        );
+        expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ name: 'Test Zone' }));
       });
     });
 
@@ -184,9 +182,7 @@ describe('ZoneForm', () => {
       await userEvent.click(submitButton);
 
       await waitFor(() => {
-        expect(onSubmit).toHaveBeenCalledWith(
-          expect.objectContaining({ zone_type: 'driveway' })
-        );
+        expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ zone_type: 'driveway' }));
       });
     });
 
@@ -215,9 +211,7 @@ describe('ZoneForm', () => {
     });
 
     it('should highlight selected color', () => {
-      render(
-        <ZoneForm {...defaultProps} initialData={{ color: '#EF4444' }} />
-      );
+      render(<ZoneForm {...defaultProps} initialData={{ color: '#EF4444' }} />);
 
       const colorFieldset = screen.getByText('Zone Color').closest('fieldset');
       const colorButtons = colorFieldset?.querySelectorAll('button');
@@ -245,9 +239,7 @@ describe('ZoneForm', () => {
       await userEvent.click(submitButton);
 
       await waitFor(() => {
-        expect(onSubmit).toHaveBeenCalledWith(
-          expect.objectContaining({ color: '#EF4444' })
-        );
+        expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ color: '#EF4444' }));
       });
     });
 
@@ -337,18 +329,14 @@ describe('ZoneForm', () => {
       await userEvent.click(submitButton);
 
       await waitFor(() => {
-        expect(onSubmit).toHaveBeenCalledWith(
-          expect.objectContaining({ enabled: false })
-        );
+        expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ enabled: false }));
       });
     });
 
     it('should show description for enabled toggle', () => {
       render(<ZoneForm {...defaultProps} />);
 
-      expect(
-        screen.getByText('Active zones are used for detection analysis')
-      ).toBeInTheDocument();
+      expect(screen.getByText('Active zones are used for detection analysis')).toBeInTheDocument();
     });
   });
 
@@ -426,9 +414,7 @@ describe('ZoneForm', () => {
       const nameInput = screen.getByLabelText<HTMLInputElement>('Zone Name');
       expect(nameInput.value).toBe('');
 
-      rerender(
-        <ZoneForm {...defaultProps} initialData={{ name: 'Updated Zone' }} />
-      );
+      rerender(<ZoneForm {...defaultProps} initialData={{ name: 'Updated Zone' }} />);
 
       await waitFor(() => {
         expect(nameInput.value).toBe('Updated Zone');

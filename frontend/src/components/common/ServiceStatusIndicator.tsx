@@ -53,10 +53,7 @@ function deriveOverallStatus(
     // Check if ALL known services are unhealthy
     const knownServices = Object.values(services).filter((s) => s !== null);
     const allUnhealthy = knownServices.every(
-      (s) =>
-        s?.status === 'unhealthy' ||
-        s?.status === 'failed' ||
-        s?.status === 'restart_failed'
+      (s) => s?.status === 'unhealthy' || s?.status === 'failed' || s?.status === 'restart_failed'
     );
     return allUnhealthy ? 'offline' : 'degraded';
   }
@@ -170,10 +167,7 @@ function ServiceDetailRow({ name, status }: ServiceDetailRowProps) {
   const Icon = config.icon;
 
   return (
-    <div
-      className="flex items-center justify-between py-1.5"
-      data-testid={`service-row-${name}`}
-    >
+    <div className="flex items-center justify-between py-1.5" data-testid={`service-row-${name}`}>
       <span className="text-sm text-gray-300">{formatServiceName(name)}</span>
       <div className="flex items-center gap-2">
         <Icon className={clsx('h-3 w-3', config.textColor)} aria-hidden="true" />

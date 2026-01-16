@@ -119,7 +119,9 @@ describe('ZoneCanvas', () => {
       const { container } = render(<ZoneCanvas {...defaultProps} />);
 
       // Get container and mock its size
-      const canvasContainer = container.querySelector('[aria-label="Camera zones view"]') as HTMLElement;
+      const canvasContainer = container.querySelector(
+        '[aria-label="Camera zones view"]'
+      ) as HTMLElement;
       mockElementSize(canvasContainer, 800, 450);
 
       // Fire image load
@@ -167,9 +169,7 @@ describe('ZoneCanvas', () => {
 
   describe('Rectangle Drawing Mode', () => {
     it('should show rectangle drawing instructions when drawing', () => {
-      render(
-        <ZoneCanvas {...defaultProps} isDrawing={true} drawShape="rectangle" />
-      );
+      render(<ZoneCanvas {...defaultProps} isDrawing={true} drawShape="rectangle" />);
 
       expect(
         screen.getByText('Click and drag to draw a rectangle. Press ESC to cancel.')
@@ -188,7 +188,9 @@ describe('ZoneCanvas', () => {
       );
 
       // Get canvas container and mock its size
-      const canvas = container.querySelector('[aria-label="Zone drawing canvas - click and drag to draw"]') as HTMLElement;
+      const canvas = container.querySelector(
+        '[aria-label="Zone drawing canvas - click and drag to draw"]'
+      ) as HTMLElement;
       expect(canvas).toBeTruthy();
       mockElementSize(canvas, 800, 450);
 
@@ -238,7 +240,9 @@ describe('ZoneCanvas', () => {
       const image = screen.getByAltText('Camera snapshot');
       fireEvent.load(image);
 
-      const canvas = container.querySelector('[aria-label="Zone drawing canvas - click and drag to draw"]') as HTMLElement;
+      const canvas = container.querySelector(
+        '[aria-label="Zone drawing canvas - click and drag to draw"]'
+      ) as HTMLElement;
       mockElementSize(canvas, 800, 450);
 
       // Draw a very small rectangle
@@ -252,9 +256,7 @@ describe('ZoneCanvas', () => {
 
   describe('Polygon Drawing Mode', () => {
     it('should show polygon drawing instructions when drawing', () => {
-      render(
-        <ZoneCanvas {...defaultProps} isDrawing={true} drawShape="polygon" />
-      );
+      render(<ZoneCanvas {...defaultProps} isDrawing={true} drawShape="polygon" />);
 
       expect(
         screen.getByText('Click to add points. Double-click to complete. Press ESC to cancel.')
@@ -263,14 +265,12 @@ describe('ZoneCanvas', () => {
 
     it('should add points on mouse down in polygon mode', () => {
       const { container } = render(
-        <ZoneCanvas
-          {...defaultProps}
-          isDrawing={true}
-          drawShape="polygon"
-        />
+        <ZoneCanvas {...defaultProps} isDrawing={true} drawShape="polygon" />
       );
 
-      const canvas = container.querySelector('[aria-label="Zone drawing canvas - click and drag to draw"]') as HTMLElement;
+      const canvas = container.querySelector(
+        '[aria-label="Zone drawing canvas - click and drag to draw"]'
+      ) as HTMLElement;
       mockElementSize(canvas, 800, 450);
 
       // Add points by clicking
@@ -293,7 +293,9 @@ describe('ZoneCanvas', () => {
         />
       );
 
-      const canvas = container.querySelector('[aria-label="Zone drawing canvas - click and drag to draw"]') as HTMLElement;
+      const canvas = container.querySelector(
+        '[aria-label="Zone drawing canvas - click and drag to draw"]'
+      ) as HTMLElement;
       mockElementSize(canvas, 800, 450);
 
       // Add 3 points
@@ -331,13 +333,7 @@ describe('ZoneCanvas', () => {
 
     it('should not call onDrawCancel when escape is pressed while not drawing', () => {
       const onDrawCancel = vi.fn();
-      render(
-        <ZoneCanvas
-          {...defaultProps}
-          isDrawing={false}
-          onDrawCancel={onDrawCancel}
-        />
-      );
+      render(<ZoneCanvas {...defaultProps} isDrawing={false} onDrawCancel={onDrawCancel} />);
 
       fireEvent.keyDown(window, { key: 'Escape' });
 
@@ -348,9 +344,7 @@ describe('ZoneCanvas', () => {
   describe('Zone Click Handling', () => {
     it('should have onClick handler prop passed to component', () => {
       const onZoneClick = vi.fn();
-      const { container } = render(
-        <ZoneCanvas {...defaultProps} onZoneClick={onZoneClick} />
-      );
+      const { container } = render(<ZoneCanvas {...defaultProps} onZoneClick={onZoneClick} />);
 
       // Component should render without errors
       expect(container.querySelector('[aria-label="Camera zones view"]')).toBeInTheDocument();
@@ -359,9 +353,7 @@ describe('ZoneCanvas', () => {
 
   describe('Selected Zone', () => {
     it('should accept selectedZoneId prop', () => {
-      const { container } = render(
-        <ZoneCanvas {...defaultProps} selectedZoneId="zone-1" />
-      );
+      const { container } = render(<ZoneCanvas {...defaultProps} selectedZoneId="zone-1" />);
 
       // Component should render without errors
       expect(container.querySelector('[aria-label="Camera zones view"]')).toBeInTheDocument();
@@ -391,19 +383,17 @@ describe('ZoneCanvas', () => {
 
       // The draw color is applied to preview elements during drawing
       // This verifies the prop is accepted without error
-      expect(screen.getByLabelText('Zone drawing canvas - click and drag to draw')).toBeInTheDocument();
+      expect(
+        screen.getByLabelText('Zone drawing canvas - click and drag to draw')
+      ).toBeInTheDocument();
     });
 
     it('should use default color when drawColor not specified', () => {
-      render(
-        <ZoneCanvas
-          {...defaultProps}
-          isDrawing={true}
-          drawShape="rectangle"
-        />
-      );
+      render(<ZoneCanvas {...defaultProps} isDrawing={true} drawShape="rectangle" />);
 
-      expect(screen.getByLabelText('Zone drawing canvas - click and drag to draw')).toBeInTheDocument();
+      expect(
+        screen.getByLabelText('Zone drawing canvas - click and drag to draw')
+      ).toBeInTheDocument();
     });
   });
 
@@ -427,9 +417,7 @@ describe('ZoneCanvas', () => {
       );
 
       // Change isDrawing to false
-      rerender(
-        <ZoneCanvas {...defaultProps} isDrawing={false} drawShape="rectangle" />
-      );
+      rerender(<ZoneCanvas {...defaultProps} isDrawing={false} drawShape="rectangle" />);
 
       // Should now show view mode label
       expect(screen.getByLabelText('Camera zones view')).toBeInTheDocument();

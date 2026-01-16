@@ -103,24 +103,22 @@ const TruncatedText = memo(function TruncatedText({
   }
 
   // Build line-clamp style if maxLines is specified and not expanded
-  const lineClampStyle = maxLines && !isExpanded
-    ? {
-        display: '-webkit-box',
-        WebkitLineClamp: maxLines,
-        WebkitBoxOrient: 'vertical' as const,
-        overflow: 'hidden',
-      }
-    : undefined;
+  const lineClampStyle =
+    maxLines && !isExpanded
+      ? {
+          display: '-webkit-box',
+          WebkitLineClamp: maxLines,
+          WebkitBoxOrient: 'vertical' as const,
+          overflow: 'hidden',
+        }
+      : undefined;
 
   return (
     <div
       className={`transition-all duration-300 ease-in-out ${className}`}
       data-testid="truncated-text"
     >
-      <p
-        className="text-sm leading-relaxed text-gray-200"
-        style={lineClampStyle}
-      >
+      <p className="text-sm leading-relaxed text-gray-200" style={lineClampStyle}>
         {displayText}
       </p>
       {shouldTruncate && (

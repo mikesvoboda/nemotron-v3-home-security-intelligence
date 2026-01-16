@@ -13,21 +13,10 @@
  */
 
 import { ProgressBar, Button, Card } from '@tremor/react';
-import {
-  AlertCircle,
-  Check,
-  Download,
-  FileSpreadsheet,
-  Loader2,
-  X,
-} from 'lucide-react';
+import { AlertCircle, Check, Download, FileSpreadsheet, Loader2, X } from 'lucide-react';
 import { useEffect, useState, useCallback, useRef } from 'react';
 
-import {
-  getExportStatus,
-  cancelExportJob,
-  downloadExportFile,
-} from '../../services/api';
+import { getExportStatus, cancelExportJob, downloadExportFile } from '../../services/api';
 import {
   isExportJobComplete,
   isExportJobRunning,
@@ -244,12 +233,10 @@ export default function ExportProgress({
   return (
     <Card className={`p-4 ${className}`}>
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <FileSpreadsheet className="h-5 w-5 text-gray-500" />
-          <span className="font-medium">
-            {export_format.toUpperCase()} Export
-          </span>
+          <span className="font-medium">{export_format.toUpperCase()} Export</span>
         </div>
         {isRunning && !showCancelConfirm && (
           <Button
@@ -265,19 +252,10 @@ export default function ExportProgress({
         {showCancelConfirm && (
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-500">Cancel export?</span>
-            <Button
-              size="xs"
-              variant="secondary"
-              onClick={() => setShowCancelConfirm(false)}
-            >
+            <Button size="xs" variant="secondary" onClick={() => setShowCancelConfirm(false)}>
               No
             </Button>
-            <Button
-              size="xs"
-              color="red"
-              onClick={() => void handleCancel()}
-              loading={cancelling}
-            >
+            <Button size="xs" color="red" onClick={() => void handleCancel()} loading={cancelling}>
               Yes
             </Button>
           </div>
@@ -286,13 +264,11 @@ export default function ExportProgress({
 
       {/* Progress bar */}
       <div className="mb-3">
-        <div className="flex justify-between mb-1">
+        <div className="mb-1 flex justify-between">
           <span className="text-sm text-gray-500">
             {progress.current_step || (isRunning ? 'Processing...' : status)}
           </span>
-          <span className="text-sm font-medium">
-            {progress.progress_percent}%
-          </span>
+          <span className="text-sm font-medium">{progress.progress_percent}%</span>
         </div>
         <ProgressBar
           value={progress.progress_percent}
@@ -305,14 +281,13 @@ export default function ExportProgress({
         {/* Items processed */}
         {progress.total_items !== null && (
           <div>
-            {progress.processed_items.toLocaleString()} / {progress.total_items.toLocaleString()} items
+            {progress.processed_items.toLocaleString()} / {progress.total_items.toLocaleString()}{' '}
+            items
           </div>
         )}
 
         {/* Time remaining */}
-        {isRunning && timeRemaining && (
-          <div>{timeRemaining}</div>
-        )}
+        {isRunning && timeRemaining && <div>{timeRemaining}</div>}
 
         {/* File size (when complete) */}
         {isComplete && job.result?.output_size_bytes && (
@@ -322,14 +297,18 @@ export default function ExportProgress({
         {/* Duration (when complete) */}
         {isComplete && job.started_at && job.completed_at && (
           <div>
-            Completed in {Math.round((new Date(job.completed_at).getTime() - new Date(job.started_at).getTime()) / 1000)}s
+            Completed in{' '}
+            {Math.round(
+              (new Date(job.completed_at).getTime() - new Date(job.started_at).getTime()) / 1000
+            )}
+            s
           </div>
         )}
       </div>
 
       {/* Error message */}
       {isFailed && error_message && (
-        <div className="mt-3 flex items-center gap-2 text-red-500 text-sm">
+        <div className="mt-3 flex items-center gap-2 text-sm text-red-500">
           <AlertCircle className="h-4 w-4" />
           <span>{error_message}</span>
         </div>
@@ -338,11 +317,7 @@ export default function ExportProgress({
       {/* Download button */}
       {isComplete && (
         <div className="mt-4">
-          <Button
-            icon={Download}
-            onClick={() => void handleDownload()}
-            loading={downloading}
-          >
+          <Button icon={Download} onClick={() => void handleDownload()} loading={downloading}>
             Download {export_format.toUpperCase()}
           </Button>
         </div>
@@ -350,7 +325,7 @@ export default function ExportProgress({
 
       {/* Local error display */}
       {error && (
-        <div className="mt-3 flex items-center gap-2 text-red-500 text-sm">
+        <div className="mt-3 flex items-center gap-2 text-sm text-red-500">
           <AlertCircle className="h-4 w-4" />
           <span>{error}</span>
         </div>

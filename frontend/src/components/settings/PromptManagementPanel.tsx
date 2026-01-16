@@ -12,9 +12,34 @@
  * @see NEM-1761 - Original task specification
  */
 
-import { Badge, Button, Card, Select, SelectItem, Tab, TabGroup, TabList, TabPanel, TabPanels, Text, Title } from '@tremor/react';
+import {
+  Badge,
+  Button,
+  Card,
+  Select,
+  SelectItem,
+  Tab,
+  TabGroup,
+  TabList,
+  TabPanel,
+  TabPanels,
+  Text,
+  Title,
+} from '@tremor/react';
 import { clsx } from 'clsx';
-import { AlertCircle, Calendar, ChevronLeft, ChevronRight, Clock, Download, FileText, History, Loader2, RotateCcw, User } from 'lucide-react';
+import {
+  AlertCircle,
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Download,
+  FileText,
+  History,
+  Loader2,
+  RotateCcw,
+  User,
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import {
@@ -25,7 +50,13 @@ import {
   exportPrompts,
   PromptApiError,
 } from '../../services/promptManagementApi';
-import { AIModelEnum, type AllPromptsResponse, type ModelPromptConfig, type PromptHistoryResponse, type PromptRestoreResponse } from '../../types/promptManagement';
+import {
+  AIModelEnum,
+  type AllPromptsResponse,
+  type ModelPromptConfig,
+  type PromptHistoryResponse,
+  type PromptRestoreResponse,
+} from '../../types/promptManagement';
 
 // ============================================================================
 // Constants
@@ -163,7 +194,10 @@ export default function PromptManagementPanel({ className }: PromptManagementPan
   useEffect(() => {
     setIsLoadingHistory(true);
     setHistoryError(null);
-    fetchPromptHistory(selectedModel, { limit: ITEMS_PER_PAGE, offset: currentPage * ITEMS_PER_PAGE })
+    fetchPromptHistory(selectedModel, {
+      limit: ITEMS_PER_PAGE,
+      offset: currentPage * ITEMS_PER_PAGE,
+    })
       .then(setHistoryData)
       .catch(setHistoryError)
       .finally(() => setIsLoadingHistory(false));
@@ -179,7 +213,10 @@ export default function PromptManagementPanel({ className }: PromptManagementPan
   // Refresh all data
   const refreshData = () => {
     fetchPromptForModel(selectedModel).then(setCurrentConfig).catch(setConfigError);
-    fetchPromptHistory(selectedModel, { limit: ITEMS_PER_PAGE, offset: currentPage * ITEMS_PER_PAGE })
+    fetchPromptHistory(selectedModel, {
+      limit: ITEMS_PER_PAGE,
+      offset: currentPage * ITEMS_PER_PAGE,
+    })
       .then(setHistoryData)
       .catch(setHistoryError);
   };
@@ -189,7 +226,11 @@ export default function PromptManagementPanel({ className }: PromptManagementPan
   // ============================================================================
 
   const handleRestore = async (versionId: number, versionNumber: number) => {
-    if (confirm(`Restore version ${versionNumber}? This will create a new version with the same configuration.`)) {
+    if (
+      confirm(
+        `Restore version ${versionNumber}? This will create a new version with the same configuration.`
+      )
+    ) {
       setIsRestoring(true);
       setRestoreError(null);
       setRestoreSuccess(null);
@@ -282,7 +323,10 @@ export default function PromptManagementPanel({ className }: PromptManagementPan
       <Card>
         <div className="space-y-3">
           <Text className="font-semibold">Select Model</Text>
-          <Select value={selectedModel} onValueChange={(value) => setSelectedModel(value as AIModelEnum)}>
+          <Select
+            value={selectedModel}
+            onValueChange={(value) => setSelectedModel(value as AIModelEnum)}
+          >
             {Object.entries(MODEL_DISPLAY_NAMES).map(([key, label]) => (
               <SelectItem key={key} value={key}>
                 {label}
@@ -332,7 +376,9 @@ export default function PromptManagementPanel({ className }: PromptManagementPan
 
                   {currentConfig.change_description && (
                     <div className="rounded-lg border border-gray-700 bg-gray-800/50 p-3">
-                      <Text className="text-sm text-gray-300">{currentConfig.change_description}</Text>
+                      <Text className="text-sm text-gray-300">
+                        {currentConfig.change_description}
+                      </Text>
                     </div>
                   )}
 
@@ -347,7 +393,9 @@ export default function PromptManagementPanel({ className }: PromptManagementPan
               </Card>
             ) : (
               <Card>
-                <Text className="text-center text-gray-400">No configuration found for this model</Text>
+                <Text className="text-center text-gray-400">
+                  No configuration found for this model
+                </Text>
               </Card>
             )}
           </TabPanel>
@@ -365,7 +413,10 @@ export default function PromptManagementPanel({ className }: PromptManagementPan
                 {/* Version List */}
                 <div className="space-y-3">
                   {historyData.versions.map((version) => (
-                    <Card key={version.id} className={clsx(version.is_active && 'border-[#76B900]/50')}>
+                    <Card
+                      key={version.id}
+                      className={clsx(version.is_active && 'border-[#76B900]/50')}
+                    >
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1 space-y-2">
                           <div className="flex items-center gap-3">
@@ -387,7 +438,9 @@ export default function PromptManagementPanel({ className }: PromptManagementPan
                           </div>
 
                           {version.change_description && (
-                            <Text className="text-sm text-gray-400">{version.change_description}</Text>
+                            <Text className="text-sm text-gray-400">
+                              {version.change_description}
+                            </Text>
                           )}
                         </div>
 
@@ -441,7 +494,9 @@ export default function PromptManagementPanel({ className }: PromptManagementPan
               </div>
             ) : (
               <Card>
-                <Text className="text-center text-gray-400">No version history found for this model</Text>
+                <Text className="text-center text-gray-400">
+                  No version history found for this model
+                </Text>
               </Card>
             )}
           </TabPanel>

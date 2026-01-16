@@ -159,9 +159,7 @@ function TimelineItem({
       <div
         className={clsx(
           'relative z-10 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full',
-          isCurrentLocation
-            ? 'bg-[#76B900] ring-2 ring-[#76B900]/30'
-            : 'bg-gray-800'
+          isCurrentLocation ? 'bg-[#76B900] ring-2 ring-[#76B900]/30' : 'bg-gray-800'
         )}
       >
         {isCurrentLocation ? (
@@ -176,10 +174,7 @@ function TimelineItem({
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <span
-              className={clsx(
-                'font-medium',
-                isCurrentLocation ? 'text-[#76B900]' : 'text-white'
-              )}
+              className={clsx('font-medium', isCurrentLocation ? 'text-[#76B900]' : 'text-white')}
             >
               {cameraName}
             </span>
@@ -207,9 +202,7 @@ function TimelineItem({
         </div>
 
         {/* Timestamp */}
-        <div className="mt-0.5 text-xs text-gray-400">
-          {formatTimestamp(appearance.timestamp)}
-        </div>
+        <div className="mt-0.5 text-xs text-gray-400">{formatTimestamp(appearance.timestamp)}</div>
       </div>
     </div>
   );

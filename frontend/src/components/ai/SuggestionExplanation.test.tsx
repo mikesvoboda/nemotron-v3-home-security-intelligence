@@ -34,9 +34,7 @@ describe('SuggestionExplanation', () => {
     expect(screen.getByText('Why this matters')).toBeInTheDocument();
 
     // Content should be hidden (impact explanation not visible)
-    expect(
-      screen.queryByText(/Adding time-since-last-event helps/)
-    ).not.toBeVisible();
+    expect(screen.queryByText(/Adding time-since-last-event helps/)).not.toBeVisible();
   });
 
   it('expands on click', () => {
@@ -47,29 +45,21 @@ describe('SuggestionExplanation', () => {
     fireEvent.click(header);
 
     // Content should now be visible
-    expect(
-      screen.getByText(/Adding time-since-last-event helps/)
-    ).toBeVisible();
+    expect(screen.getByText(/Adding time-since-last-event helps/)).toBeVisible();
   });
 
   it('shows impact explanation', () => {
-    render(
-      <SuggestionExplanation suggestion={mockSuggestion} defaultExpanded />
-    );
+    render(<SuggestionExplanation suggestion={mockSuggestion} defaultExpanded />);
 
     // Impact explanation should be visible
-    expect(
-      screen.getByText(/Adding time-since-last-event helps/)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Adding time-since-last-event helps/)).toBeInTheDocument();
 
     // Impact section header should be present
     expect(screen.getByText('Impact')).toBeInTheDocument();
   });
 
   it('shows event count', () => {
-    render(
-      <SuggestionExplanation suggestion={mockSuggestion} defaultExpanded />
-    );
+    render(<SuggestionExplanation suggestion={mockSuggestion} defaultExpanded />);
 
     // Should show the count of events
     expect(screen.getByText(/3 events/i)).toBeInTheDocument();
@@ -94,25 +84,17 @@ describe('SuggestionExplanation', () => {
   });
 
   it('shows category-specific tip', () => {
-    render(
-      <SuggestionExplanation suggestion={mockSuggestion} defaultExpanded />
-    );
+    render(<SuggestionExplanation suggestion={mockSuggestion} defaultExpanded />);
 
     // Should show the tip for missing_context category
-    expect(
-      screen.getByText(/temporal context variables/i)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/temporal context variables/i)).toBeInTheDocument();
   });
 
   it('respects defaultExpanded prop', () => {
-    render(
-      <SuggestionExplanation suggestion={mockSuggestion} defaultExpanded />
-    );
+    render(<SuggestionExplanation suggestion={mockSuggestion} defaultExpanded />);
 
     // Content should be visible when defaultExpanded is true
-    expect(
-      screen.getByText(/Adding time-since-last-event helps/)
-    ).toBeVisible();
+    expect(screen.getByText(/Adding time-since-last-event helps/)).toBeVisible();
   });
 
   it('handles empty sourceEventIds', () => {
@@ -121,12 +103,7 @@ describe('SuggestionExplanation', () => {
       sourceEventIds: [],
     };
 
-    render(
-      <SuggestionExplanation
-        suggestion={suggestionWithNoEvents}
-        defaultExpanded
-      />
-    );
+    render(<SuggestionExplanation suggestion={suggestionWithNoEvents} defaultExpanded />);
 
     // Should not crash and show appropriate message
     expect(screen.getByText(/no events/i)).toBeInTheDocument();
@@ -155,9 +132,7 @@ describe('SuggestionExplanation category tips', () => {
 
     render(<SuggestionExplanation suggestion={suggestion} defaultExpanded />);
 
-    expect(
-      screen.getByText(/removing unused fields to reduce token count/i)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/removing unused fields to reduce token count/i)).toBeInTheDocument();
   });
 
   it('shows model_gaps tip for model_gaps category', () => {
@@ -168,9 +143,7 @@ describe('SuggestionExplanation category tips', () => {
 
     render(<SuggestionExplanation suggestion={suggestion} defaultExpanded />);
 
-    expect(
-      screen.getByText(/model-specific sections/i)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/model-specific sections/i)).toBeInTheDocument();
   });
 
   it('shows format_suggestions tip for format_suggestions category', () => {
@@ -181,9 +154,7 @@ describe('SuggestionExplanation category tips', () => {
 
     render(<SuggestionExplanation suggestion={suggestion} defaultExpanded />);
 
-    expect(
-      screen.getByText(/section headers help the AI navigate/i)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/section headers help the AI navigate/i)).toBeInTheDocument();
   });
 });
 
@@ -252,12 +223,7 @@ describe('SuggestionExplanation styling', () => {
   };
 
   it('applies className prop', () => {
-    render(
-      <SuggestionExplanation
-        suggestion={mockSuggestion}
-        className="custom-class"
-      />
-    );
+    render(<SuggestionExplanation suggestion={mockSuggestion} className="custom-class" />);
 
     const container = screen.getByTestId('suggestion-explanation');
     expect(container).toHaveClass('custom-class');

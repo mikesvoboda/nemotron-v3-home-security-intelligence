@@ -646,3 +646,107 @@ class EntityRepository(Repository[Entity]):
         total = count_result.scalar_one()
 
         return entities, total
+
+    # =========================================================================
+    # Trust Classification Methods (NEM-2671)
+    # =========================================================================
+
+    async def update_trust_status(
+        self,
+        entity_id: UUID,
+        trust_status: str,
+        trust_notes: str | None = None,
+    ) -> Entity | None:
+        """Update an entity's trust classification status.
+
+        Updates the trust_status and trust_notes fields in entity_metadata JSONB.
+
+        Args:
+            entity_id: UUID of the entity to update
+            trust_status: Trust classification ('trusted', 'untrusted', 'unclassified')
+            trust_notes: Optional notes explaining the classification decision
+
+        Returns:
+            Updated Entity or None if not found
+
+        Example:
+            entity = await repo.update_trust_status(
+                entity_id=uuid,
+                trust_status="trusted",
+                trust_notes="Regular mail carrier",
+            )
+        """
+        entity = await self.get_by_id(entity_id)
+        if entity is None:
+            return None
+
+        # Initialize entity_metadata if None
+        if entity.entity_metadata is None:
+            entity.entity_metadata = {}
+
+        # Update trust fields in metadata
+        entity.entity_metadata = {
+            **entity.entity_metadata,
+            "trust_status": trust_status,
+            "trust_notes": trust_notes,
+            "trust_updated_at": datetime.now(UTC).isoformat(),
+        }
+
+        await self.session.flush()
+        await self.session.refresh(entity)
+        return entity
+
+    async def list_by_trust_status(
+        self,
+        trust_status: str,
+        entity_type: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[_list[Entity], int]:
+        """List entities with a specific trust status.
+
+        Args:
+            trust_status: Trust classification to filter by ('trusted', 'untrusted')
+            entity_type: Optional filter by entity type (person, vehicle, etc.)
+            limit: Maximum number of entities to return (default: 50)
+            offset: Number of entities to skip (default: 0)
+
+        Returns:
+            Tuple of (list of entities, total count matching filters)
+
+        Example:
+            trusted_entities, total = await repo.list_by_trust_status(
+                trust_status="trusted",
+                entity_type="person",
+                limit=20,
+                offset=0,
+            )
+        """
+        # Build base query filtering by trust_status in entity_metadata
+        stmt = select(Entity).where(Entity.entity_metadata.op("@>")({"trust_status": trust_status}))
+
+        if entity_type:
+            stmt = stmt.where(Entity.entity_type == entity_type)
+
+        # Order by most recently updated trust status (approximated by last_seen)
+        stmt = stmt.order_by(desc(Entity.last_seen_at))
+
+        # Apply pagination
+        stmt = stmt.offset(offset).limit(limit)
+
+        # Execute entity query
+        result = await self.session.execute(stmt)
+        entities = list(result.scalars().all())
+
+        # Build count query with same filters
+        count_stmt = select(func.count(Entity.id)).where(
+            Entity.entity_metadata.op("@>")({"trust_status": trust_status})
+        )
+
+        if entity_type:
+            count_stmt = count_stmt.where(Entity.entity_type == entity_type)
+
+        count_result = await self.session.execute(count_stmt)
+        total = count_result.scalar_one()
+
+        return entities, total

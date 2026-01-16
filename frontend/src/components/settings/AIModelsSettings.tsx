@@ -273,7 +273,9 @@ export default function AIModelsSettings({
             <div>
               <Text className="text-sm text-gray-400">Total GPU Memory</Text>
               <Text className="mt-1 text-lg font-semibold text-white">
-                {gpuTotalMemory !== null && gpuTotalMemory !== undefined ? `${(gpuTotalMemory / 1024).toFixed(1)} GB` : 'N/A'}
+                {gpuTotalMemory !== null && gpuTotalMemory !== undefined
+                  ? `${(gpuTotalMemory / 1024).toFixed(1)} GB`
+                  : 'N/A'}
               </Text>
             </div>
             <Cpu className="h-8 w-8 text-[#76B900]" />

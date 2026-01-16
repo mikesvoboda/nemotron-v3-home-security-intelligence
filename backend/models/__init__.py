@@ -6,7 +6,7 @@ from .baseline import ActivityBaseline, ClassBaseline
 from .camera import Base, Camera
 from .detection import Detection
 from .entity import Entity
-from .enums import CameraStatus, EntityType, Severity
+from .enums import CameraStatus, EntityType, Severity, TrustStatus
 from .event import Event
 from .event_audit import EventAudit
 from .event_detection import EventDetection, event_detections
@@ -75,6 +75,7 @@ __all__ = [
     "SceneChange",
     "SceneChangeType",
     "Severity",
+    "TrustStatus",
     "UserCalibration",
     "Zone",
     "ZoneShape",

@@ -391,7 +391,9 @@ describe('FeedbackPanel', () => {
       await user.click(screen.getByTestId('feedback-accurate-button'));
 
       await waitFor(() => {
-        expect(screen.getByText('Failed to submit feedback. Please try again.')).toBeInTheDocument();
+        expect(
+          screen.getByText('Failed to submit feedback. Please try again.')
+        ).toBeInTheDocument();
       });
     });
 
@@ -410,7 +412,9 @@ describe('FeedbackPanel', () => {
       await user.click(screen.getByTestId('submit-feedback-button'));
 
       await waitFor(() => {
-        expect(screen.getByText('Failed to submit feedback. Please try again.')).toBeInTheDocument();
+        expect(
+          screen.getByText('Failed to submit feedback. Please try again.')
+        ).toBeInTheDocument();
       });
     });
   });

@@ -9,7 +9,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-
 import {
   useDeletedEventsQuery,
   useRestoreEventMutation,
@@ -46,9 +45,7 @@ function createTestQueryClient() {
 function createWrapper() {
   const queryClient = createTestQueryClient();
   return function Wrapper({ children }: { children: ReactNode }) {
-    return (
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    );
+    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
   };
 }
 
@@ -157,20 +154,20 @@ describe('useDeletedEventsQuery', () => {
     });
 
     // Wait for error state
-    await waitFor(() => {
-      expect(result.current.error).toBeTruthy();
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(result.current.error).toBeTruthy();
+      },
+      { timeout: 3000 }
+    );
 
     expect(result.current.deletedEvents).toEqual([]);
   });
 
   it('can be disabled with enabled option', () => {
-    const { result } = renderHook(
-      () => useDeletedEventsQuery({ enabled: false }),
-      {
-        wrapper: createWrapper(),
-      }
-    );
+    const { result } = renderHook(() => useDeletedEventsQuery({ enabled: false }), {
+      wrapper: createWrapper(),
+    });
 
     // Should not fetch when disabled
     expect(api.fetchDeletedEvents).not.toHaveBeenCalled();
