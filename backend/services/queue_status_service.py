@@ -22,7 +22,6 @@ from backend.core.constants import (
     DETECTION_QUEUE,
     DLQ_ANALYSIS_QUEUE,
     DLQ_DETECTION_QUEUE,
-    get_prefixed_queue_name,
 )
 from backend.core.logging import get_logger
 from backend.core.redis import RedisClient
@@ -157,13 +156,15 @@ class QueueStatusService:
             QueueStatus with current metrics
         """
         display_name = QUEUE_NAME_MAP.get(queue_name, queue_name)
-        prefixed_name = get_prefixed_queue_name(queue_name)
+        # Note: Workers use unprefixed queue names, so we must too for accurate monitoring
+        # The get_prefixed_queue_name() was incorrectly used here - workers add/consume
+        # from raw queue names like "detection_queue", not "hsi:queue:detection_queue"
 
         # Get queue depth
-        depth = await self._redis.get_queue_length(prefixed_name)
+        depth = await self._redis.get_queue_length(queue_name)
 
         # Get oldest job info (peek first item)
-        oldest_job = await self._get_oldest_job_info(prefixed_name)
+        oldest_job = await self._get_oldest_job_info(queue_name)
 
         # Calculate health status
         wait_seconds = oldest_job.wait_seconds if oldest_job else None
