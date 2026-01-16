@@ -498,3 +498,32 @@ class TestEdgeCases:
 
         with pytest.raises(Exception):  # FrozenInstanceError
             result.change_detected = True  # type: ignore[misc]
+
+
+class TestNullFrameValidation:
+    """Tests for null/invalid frame validation."""
+
+    def test_detect_changes_none_frame_raises(self, detector: SceneChangeDetector) -> None:
+        """Test that None frame raises ValueError."""
+        with pytest.raises(ValueError, match="cannot be None"):
+            detector.detect_changes("camera1", None)  # type: ignore[arg-type]
+
+    def test_detect_changes_invalid_type_raises(self, detector: SceneChangeDetector) -> None:
+        """Test that non-array frame raises ValueError."""
+        with pytest.raises(ValueError, match="numpy array with shape"):
+            detector.detect_changes("camera1", "not an array")  # type: ignore[arg-type]
+
+    def test_detect_changes_list_without_shape_raises(self, detector: SceneChangeDetector) -> None:
+        """Test that list (no .shape attribute) raises ValueError."""
+        with pytest.raises(ValueError, match="numpy array with shape"):
+            detector.detect_changes("camera1", [[1, 2], [3, 4]])  # type: ignore[arg-type]
+
+    def test_grayscale_conversion_none_raises(self, detector: SceneChangeDetector) -> None:
+        """Test that _to_grayscale with None raises ValueError."""
+        with pytest.raises(ValueError, match="cannot be None"):
+            detector._to_grayscale(None)  # type: ignore[arg-type]
+
+    def test_grayscale_conversion_invalid_type_raises(self, detector: SceneChangeDetector) -> None:
+        """Test that _to_grayscale with invalid type raises ValueError."""
+        with pytest.raises(ValueError, match="must be a numpy array"):
+            detector._to_grayscale("not an array")  # type: ignore[arg-type]

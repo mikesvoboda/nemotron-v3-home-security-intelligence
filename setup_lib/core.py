@@ -24,30 +24,45 @@ WEAK_PASSWORDS = {
 def check_port_available(port: int) -> bool:
     """Check if a port is available for binding.
 
+    Checks both IPv4 and IPv6 localhost to detect processes bound to either.
+
     Args:
         port: Port number to check
 
     Returns:
-        True if port is available, False if in use
+        True if port is available on both IPv4 and IPv6, False if in use
     """
+    # Check IPv4
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        return s.connect_ex(("localhost", port)) != 0
+        if s.connect_ex(("127.0.0.1", port)) == 0:
+            return False
+    # Check IPv6
+    try:
+        with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as s:
+            if s.connect_ex(("::1", port)) == 0:
+                return False
+    except OSError:
+        pass  # IPv6 not available
+    return True
 
 
-def find_available_port(start: int) -> int:
+def find_available_port(start: int, exclude: set[int] | None = None) -> int:
     """Find the next available port starting from a given port.
 
     Args:
         start: Starting port number
+        exclude: Set of ports to skip (already assigned to other services)
 
     Returns:
-        First available port >= start
+        First available port >= start that is not in exclude set
 
     Raises:
         RuntimeError: If no available ports found up to 65535
     """
+    if exclude is None:
+        exclude = set()
     port = start
-    while not check_port_available(port):
+    while not check_port_available(port) or port in exclude:
         port += 1
         if port > 65535:
             raise RuntimeError(f"No available ports found starting from {start}")

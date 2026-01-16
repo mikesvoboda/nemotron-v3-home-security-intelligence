@@ -6,6 +6,7 @@ import {
   Database,
   Loader2,
   RefreshCw,
+  Shield,
   User,
   Users,
 } from 'lucide-react';
@@ -23,14 +24,20 @@ import {
 } from '../../hooks/useEntitiesInfiniteQuery';
 import { useEntityDetailQuery, type TimeRangeFilter } from '../../hooks/useEntitiesQuery';
 import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
+import { updateEntityTrust } from '../../services/api';
 import { EntityCardSkeleton, InfiniteScrollStatus, SafeErrorMessage } from '../common';
 
-import type { SourceFilter } from '../../services/api';
+import type { SourceFilter, TrustStatus } from '../../services/api';
 
 /**
  * Sort options for entity list
  */
 type SortOption = 'last_seen' | 'first_seen' | 'appearance_count';
+
+/**
+ * Trust filter options - 'all' shows all entities regardless of trust status
+ */
+type TrustFilter = 'all' | TrustStatus;
 
 /**
  * EntitiesPage component - Display and manage tracked entities
@@ -55,6 +62,7 @@ export default function EntitiesPage() {
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>('both');
   const [sortOption, setSortOption] = useState<SortOption>('last_seen');
   const [showStats, setShowStats] = useState<boolean>(true);
+  const [trustFilter, setTrustFilter] = useState<TrustFilter>('all');
 
   // Custom date range state
   const [customDateRange, setCustomDateRange] = useState<{ since?: Date; until?: Date }>({});
@@ -63,6 +71,13 @@ export default function EntitiesPage() {
   // State for entity detail modal
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+
+  // Trust status map - tracks local trust status updates before they're reflected in API
+  // Key: entity ID, Value: trust status
+  const [entityTrustStatusMap, setEntityTrustStatusMap] = useState<Map<string, TrustStatus>>(
+    new Map()
+  );
+  const [isTrustUpdating, setIsTrustUpdating] = useState(false);
 
   // Fetch cameras for the filter dropdown
   const { cameras, isLoading: camerasLoading } = useCamerasQuery();
@@ -174,9 +189,75 @@ export default function EntitiesPage() {
     void refetch();
   }, [refetch]);
 
-  // Count entities by type (from loaded entities)
-  const personCount = sortedEntities.filter((e) => e.entity_type === 'person').length;
-  const vehicleCount = sortedEntities.filter((e) => e.entity_type === 'vehicle').length;
+  // Handle trust status change from the detail modal
+  const handleTrustStatusChange = useCallback(
+    (entityId: string, newStatus: TrustStatus) => {
+      setIsTrustUpdating(true);
+      updateEntityTrust(entityId, newStatus)
+        .then(() => {
+          // Update local state optimistically
+          setEntityTrustStatusMap((prev) => {
+            const updated = new Map(prev);
+            updated.set(entityId, newStatus);
+            return updated;
+          });
+          // Refetch to get the updated data from the server
+          void refetch();
+        })
+        .catch((err) => {
+          console.error('Failed to update entity trust status:', err);
+          // Could add toast notification here
+        })
+        .finally(() => {
+          setIsTrustUpdating(false);
+        });
+    },
+    [refetch]
+  );
+
+  // Helper to get effective trust status for an entity (local override or from API)
+  const getEntityTrustStatus = useCallback(
+    (entityId: string, apiTrustStatus: string | null | undefined): TrustStatus | null => {
+      // Check local override first
+      const localOverride = entityTrustStatusMap.get(entityId);
+      if (localOverride) {
+        return localOverride;
+      }
+      // Return API value or default to unclassified
+      // Map common variants to canonical values
+      if (apiTrustStatus === 'trusted') return 'trusted';
+      if (apiTrustStatus === 'untrusted' || apiTrustStatus === 'suspicious') return 'untrusted';
+      return 'unclassified';
+    },
+    [entityTrustStatusMap]
+  );
+
+  // Filter entities by trust status
+  const filteredByTrust = useMemo(() => {
+    if (trustFilter === 'all') {
+      return sortedEntities;
+    }
+    return sortedEntities.filter((entity) => {
+      const effectiveStatus = getEntityTrustStatus(entity.id, entity.trust_status);
+      return effectiveStatus === trustFilter;
+    });
+  }, [sortedEntities, trustFilter, getEntityTrustStatus]);
+
+  // Count entities by type (from filtered entities)
+  const personCount = filteredByTrust.filter((e) => e.entity_type === 'person').length;
+  const vehicleCount = filteredByTrust.filter((e) => e.entity_type === 'vehicle').length;
+
+  // Count entities by trust status for filter dropdown
+  const trustCounts = useMemo(() => {
+    const counts = { trusted: 0, untrusted: 0, unclassified: 0 };
+    sortedEntities.forEach((entity) => {
+      const status = getEntityTrustStatus(entity.id, entity.trust_status);
+      if (status === 'trusted') counts.trusted++;
+      else if (status === 'untrusted') counts.untrusted++;
+      else counts.unclassified++;
+    });
+    return counts;
+  }, [sortedEntities, getEntityTrustStatus]);
 
   // Time range options
   const timeRangeOptions: { value: TimeRangeFilter; label: string }[] = [
@@ -368,6 +449,24 @@ export default function EntitiesPage() {
           </select>
         </div>
 
+        {/* Trust status filter */}
+        <div className="flex items-center gap-2">
+          <Shield className="h-4 w-4 text-gray-400" />
+          <select
+            id="trust-filter"
+            value={trustFilter}
+            onChange={(e) => setTrustFilter(e.target.value as TrustFilter)}
+            className="rounded-lg border border-gray-700 bg-[#1F1F1F] px-3 py-2 text-sm text-white focus:border-[#76B900] focus:outline-none focus:ring-1 focus:ring-[#76B900]"
+            aria-label="Filter by trust status"
+            data-testid="trust-filter-dropdown"
+          >
+            <option value="all">All Trust ({sortedEntities.length})</option>
+            <option value="trusted">Trusted ({trustCounts.trusted})</option>
+            <option value="untrusted">Suspicious ({trustCounts.untrusted})</option>
+            <option value="unclassified">Unknown ({trustCounts.unclassified})</option>
+          </select>
+        </div>
+
         {/* Sort option */}
         <div className="flex items-center gap-2">
           <ArrowDownAZ className="h-4 w-4 text-gray-400" />
@@ -402,7 +501,7 @@ export default function EntitiesPage() {
       {/* Result summary */}
       <div className="mb-4 flex flex-wrap items-center gap-4">
         {/* Stats */}
-        {!loading && !error && sortedEntities.length > 0 && (
+        {!loading && !error && filteredByTrust.length > 0 && (
           <div className="flex items-center gap-4 text-sm text-gray-400">
             <span className="flex items-center gap-1">
               <User className="h-4 w-4" />
@@ -412,9 +511,9 @@ export default function EntitiesPage() {
               <Car className="h-4 w-4" />
               {vehicleCount} {vehicleCount === 1 ? 'vehicle' : 'vehicles'}
             </span>
-            {totalCount > sortedEntities.length && (
+            {totalCount > filteredByTrust.length && (
               <span className="text-gray-500">
-                (showing {sortedEntities.length} of {totalCount})
+                (showing {filteredByTrust.length} of {totalCount})
               </span>
             )}
           </div>
@@ -451,12 +550,13 @@ export default function EntitiesPage() {
             </button>
           </div>
         </div>
-      ) : sortedEntities.length === 0 ? (
+      ) : filteredByTrust.length === 0 ? (
         /* Empty state */
         entityTypeFilter === 'all' &&
         timeRangeFilter === 'all' &&
         !cameraFilter &&
-        !useCustomDateRange ? (
+        !useCustomDateRange &&
+        trustFilter === 'all' ? (
           <EntitiesEmptyState />
         ) : (
           /* Filtered empty state - simpler message */
@@ -472,18 +572,26 @@ export default function EntitiesPage() {
                 )}
               </div>
               <h2 className="mb-3 text-xl font-semibold text-white">
-                {entityTypeFilter === 'person'
-                  ? 'No Persons Found'
-                  : entityTypeFilter === 'vehicle'
-                    ? 'No Vehicles Found'
-                    : 'No Entities Found'}
+                {trustFilter !== 'all'
+                  ? trustFilter === 'trusted'
+                    ? 'No Trusted Entities Found'
+                    : trustFilter === 'untrusted'
+                      ? 'No Suspicious Entities Found'
+                      : 'No Unknown Entities Found'
+                  : entityTypeFilter === 'person'
+                    ? 'No Persons Found'
+                    : entityTypeFilter === 'vehicle'
+                      ? 'No Vehicles Found'
+                      : 'No Entities Found'}
               </h2>
               <p className="text-gray-400">
-                {entityTypeFilter === 'person'
-                  ? 'No persons have been tracked'
-                  : entityTypeFilter === 'vehicle'
-                    ? 'No vehicles have been tracked'
-                    : 'No entities have been tracked'}
+                {trustFilter !== 'all'
+                  ? `No entities with ${trustFilter === 'trusted' ? 'trusted' : trustFilter === 'untrusted' ? 'suspicious' : 'unknown'} status`
+                  : entityTypeFilter === 'person'
+                    ? 'No persons have been tracked'
+                    : entityTypeFilter === 'vehicle'
+                      ? 'No vehicles have been tracked'
+                      : 'No entities have been tracked'}
                 {useCustomDateRange
                   ? ' in the selected date range'
                   : timeRangeFilter !== 'all' &&
@@ -496,6 +604,7 @@ export default function EntitiesPage() {
                   setTimeRangeFilter('all');
                   setCameraFilter('');
                   setSourceFilter('both');
+                  setTrustFilter('all');
                   setUseCustomDateRange(false);
                   setCustomDateRange({});
                 }}
@@ -510,7 +619,7 @@ export default function EntitiesPage() {
         /* Entity grid with infinite scroll */
         <>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {sortedEntities.map((entity) => (
+            {filteredByTrust.map((entity) => (
               <EntityCard
                 key={entity.id}
                 id={entity.id}
@@ -520,6 +629,7 @@ export default function EntitiesPage() {
                 appearance_count={entity.appearance_count}
                 cameras_seen={entity.cameras_seen}
                 thumbnail_url={entity.thumbnail_url}
+                trust_status={getEntityTrustStatus(entity.id, entity.trust_status)}
                 onClick={handleEntityClick}
               />
             ))}
@@ -533,7 +643,7 @@ export default function EntitiesPage() {
             error={scrollError}
             onRetry={retry}
             totalCount={totalCount}
-            loadedCount={sortedEntities.length}
+            loadedCount={filteredByTrust.length}
             endMessage="You've seen all entities"
             loadingMessage="Loading more entities..."
             className="mt-6"
@@ -546,6 +656,13 @@ export default function EntitiesPage() {
         entity={selectedEntity ?? null}
         isOpen={modalOpen}
         onClose={handleCloseModal}
+        trustStatus={
+          selectedEntity
+            ? getEntityTrustStatus(selectedEntity.id, selectedEntity.trust_status)
+            : undefined
+        }
+        onTrustStatusChange={handleTrustStatusChange}
+        isTrustUpdating={isTrustUpdating}
       />
 
       {/* Loading overlay for modal */}

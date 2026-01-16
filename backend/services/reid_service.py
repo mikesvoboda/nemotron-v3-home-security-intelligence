@@ -750,10 +750,22 @@ class ReIdentificationService:
                     if not data_raw:
                         continue
 
-                    data = json.loads(data_raw)
+                    # Handle both raw Redis (returns bytes/string) and RedisClient wrapper (returns JSON-decoded)
+                    data = data_raw if isinstance(data_raw, dict) else json.loads(data_raw)
                     list_key = "persons" if entity_type == "person" else "vehicles"
 
-                    for stored_data in data.get(list_key, []):
+                    # Safely get the list, handling edge case where data might be malformed
+                    entity_list = data.get(list_key, []) if isinstance(data, dict) else []
+                    for stored_data in entity_list:
+                        # Skip if stored_data is not a dict (malformed data)
+                        if not isinstance(stored_data, dict):
+                            logger.warning(
+                                "Skipping malformed entity data in Redis key %s: expected dict, got %s",
+                                key,
+                                type(stored_data).__name__,
+                            )
+                            continue
+
                         # Skip if this is the same detection
                         if (
                             exclude_detection_id
@@ -830,10 +842,22 @@ class ReIdentificationService:
                     if not data_raw:
                         continue
 
-                    data = json.loads(data_raw)
+                    # Handle both raw Redis (returns bytes/string) and RedisClient wrapper (returns JSON-decoded)
+                    data = data_raw if isinstance(data_raw, dict) else json.loads(data_raw)
                     list_key = "persons" if entity_type == "person" else "vehicles"
 
-                    for stored_data in data.get(list_key, []):
+                    # Safely get the list, handling edge case where data might be malformed
+                    entity_list = data.get(list_key, []) if isinstance(data, dict) else []
+                    for stored_data in entity_list:
+                        # Skip if stored_data is not a dict (malformed data)
+                        if not isinstance(stored_data, dict):
+                            logger.warning(
+                                "Skipping malformed entity data in Redis key %s: expected dict, got %s",
+                                key,
+                                type(stored_data).__name__,
+                            )
+                            continue
+
                         entity = EntityEmbedding.from_dict(stored_data)
 
                         # Filter by camera if specified

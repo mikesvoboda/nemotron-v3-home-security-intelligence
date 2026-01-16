@@ -2540,3 +2540,101 @@ async def test_export_events_invalid_date_range_returns_400() -> None:
 
     assert exc_info.value.status_code == 400
     assert "start_date" in exc_info.value.detail.lower()
+
+
+# =============================================================================
+# Soft Delete Tests
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_list_events_excludes_soft_deleted(mock_response: MagicMock) -> None:
+    """Test that list_events excludes soft-deleted events by default."""
+    db = AsyncMock()
+
+    # Create active and soft-deleted events
+    active_event = create_mock_event(event_id=1, camera_id="cam-001")
+    active_event.deleted_at = None
+
+    deleted_event = create_mock_event(event_id=2, camera_id="cam-001")
+    deleted_event.deleted_at = datetime.now(UTC)
+
+    # Mock count query - should only count active events
+    count_result = MagicMock()
+    count_result.scalar.return_value = 1
+
+    # Mock events query - should only return active events
+    events_result = MagicMock()
+    events_result.scalars.return_value.all.return_value = [active_event]
+
+    db.execute = AsyncMock(side_effect=[count_result, events_result])
+
+    response = await events_routes.list_events(
+        response=mock_response,
+        camera_id=None,
+        risk_level=None,
+        start_date=None,
+        end_date=None,
+        reviewed=None,
+        object_type=None,
+        limit=50,
+        offset=0,
+        cursor=None,
+        fields=None,
+        include_deleted=False,  # Default behavior
+        db=db,
+    )
+
+    assert len(response.items) == 1
+    assert response.items[0].id == 1
+    assert response.pagination.total == 1
+
+
+@pytest.mark.asyncio
+async def test_list_events_includes_soft_deleted_with_flag(mock_response: MagicMock) -> None:
+    """Test that list_events includes soft-deleted events when include_deleted=True."""
+    db = AsyncMock()
+
+    # Create active and soft-deleted events
+    active_event = create_mock_event(event_id=1, camera_id="cam-001")
+    active_event.deleted_at = None
+
+    deleted_event = create_mock_event(event_id=2, camera_id="cam-001")
+    deleted_event.deleted_at = datetime.now(UTC)
+
+    # Mock count query - should count both active and deleted events
+    count_result = MagicMock()
+    count_result.scalar.return_value = 2
+
+    # Mock events query - should return both events
+    events_result = MagicMock()
+    events_result.scalars.return_value.all.return_value = [active_event, deleted_event]
+
+    db.execute = AsyncMock(side_effect=[count_result, events_result])
+
+    response = await events_routes.list_events(
+        response=mock_response,
+        camera_id=None,
+        risk_level=None,
+        start_date=None,
+        end_date=None,
+        reviewed=None,
+        object_type=None,
+        limit=50,
+        offset=0,
+        cursor=None,
+        fields=None,
+        include_deleted=True,  # Include soft-deleted events
+        db=db,
+    )
+
+    assert len(response.items) == 2
+    assert response.pagination.total == 2
+    # response.items contains EventResponse objects (dicts converted by Pydantic)
+    # Check if items are objects or dicts for compatibility
+    if response.items and hasattr(response.items[0], "id"):
+        event_ids = [item.id for item in response.items]
+    else:
+        event_ids = [item["id"] for item in response.items]
+    assert 1 in event_ids
+    assert 2 in event_ids

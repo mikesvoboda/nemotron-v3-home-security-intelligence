@@ -3312,6 +3312,9 @@ export interface paths {
          *     Supports both cursor-based pagination (recommended) and offset pagination (deprecated).
          *     Cursor-based pagination offers better performance for large datasets.
          *
+         *     By default, soft-deleted events (events with deleted_at set) are excluded from results.
+         *     Use include_deleted=true to include them.
+         *
          *     Sparse Fieldsets (NEM-1434):
          *     Use the `fields` parameter to request only specific fields in the response,
          *     reducing payload size. Example: ?fields=id,camera_id,risk_level,summary,reviewed
@@ -3327,6 +3330,7 @@ export interface paths {
          *         offset: Number of results to skip (deprecated, use cursor instead)
          *         cursor: Pagination cursor from previous response's next_cursor field
          *         fields: Comma-separated list of fields to include (sparse fieldsets)
+         *         include_deleted: Include soft-deleted events in results (default False)
          *         db: Database session
          *
          *     Returns:
@@ -24699,6 +24703,8 @@ export interface operations {
                 cursor?: string | null;
                 /** @description Comma-separated list of fields to include in response (sparse fieldsets). Valid fields: id, camera_id, started_at, ended_at, risk_score, risk_level, summary, reasoning, reviewed, detection_count, detection_ids, thumbnail_url */
                 fields?: string | null;
+                /** @description Include soft-deleted events in results. Default is False to hide deleted events. */
+                include_deleted?: boolean;
             };
             header?: never;
             path?: never;

@@ -72,11 +72,48 @@ export class EntitiesPage extends BasePage {
 
   /**
    * Wait for the entities page to fully load
+   * This includes waiting for the API call to complete and entity cards to render
    */
   async waitForEntitiesLoad(): Promise<void> {
     await expect(this.pageTitle).toBeVisible({ timeout: this.pageLoadTimeout });
-    // Wait for filter buttons to be visible (indicates page has loaded)
+    // Wait for filter buttons to be visible (indicates page shell has loaded)
     await expect(this.allFilterButton).toBeVisible({ timeout: this.pageLoadTimeout });
+
+    // Wait for either entity cards to appear OR empty state to appear
+    // This ensures the API call has completed and data has been processed
+    await this.page.waitForFunction(
+      () => {
+        const hasEntityCards =
+          document.querySelectorAll('[data-testid="entity-card"]').length > 0;
+
+        // Check for empty state - look for the specific heading text
+        // EntitiesEmptyState renders <h2>No Entities Tracked Yet</h2>
+        // Filtered empty state renders <h2>No Persons Found/No Vehicles Found/No Entities Found</h2>
+        const h2Elements = document.querySelectorAll('h2');
+        let hasEmptyState = false;
+        for (const h2 of h2Elements) {
+          const text = h2.textContent ?? '';
+          if (
+            text.includes('No Entities Tracked Yet') ||
+            text.includes('No Persons Found') ||
+            text.includes('No Vehicles Found') ||
+            text.includes('No Entities Found')
+          ) {
+            hasEmptyState = true;
+            break;
+          }
+        }
+
+        // Only check for skeleton elements as loading indicator
+        // Note: The empty state has animate-pulse on the Scan icon, so we can't use that
+        const hasLoadingIndicator =
+          document.querySelectorAll('[data-testid="entity-card-skeleton"]').length > 0;
+
+        // Wait until we have entity cards or empty state, and loading is complete
+        return (hasEntityCards || hasEmptyState) && !hasLoadingIndicator;
+      },
+      { timeout: this.pageLoadTimeout }
+    );
   }
 
   /**

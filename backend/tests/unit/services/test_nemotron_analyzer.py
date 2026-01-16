@@ -74,6 +74,8 @@ def mock_settings():
     mock.nemotron_warmup_prompt = "Test warmup prompt"
     # Scene change detector settings (NEM-2520)
     mock.scene_change_resize_width = 640
+    # Enrichment pipeline service routing
+    mock.use_enrichment_service = False
     return mock
 
 

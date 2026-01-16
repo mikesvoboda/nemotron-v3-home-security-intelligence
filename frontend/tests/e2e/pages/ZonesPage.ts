@@ -102,17 +102,24 @@ export class ZonesPage extends BasePage {
   async gotoSettings(): Promise<void> {
     await this.page.goto('/settings');
     await expect(this.page.getByRole('heading', { name: /Settings/i })).toBeVisible({ timeout: this.pageLoadTimeout });
+
+    // Wait for camera table to load
+    // Look for either the table or "no cameras" message
+    const cameraTable = this.page.locator('table').or(this.page.getByText(/No cameras configured/i));
+    await expect(cameraTable).toBeVisible({ timeout: this.pageLoadTimeout });
   }
 
   /**
    * Open zone editor for a specific camera
    */
   async openZoneEditor(cameraName: string): Promise<void> {
-    // Find the camera row and click the zones button
+    // Find the camera row and wait for it to be visible
     const cameraRow = this.page.locator('tr').filter({ hasText: cameraName });
+    await expect(cameraRow).toBeVisible({ timeout: this.pageLoadTimeout });
 
     // Click the "Configure zones" button
     const zonesButton = cameraRow.getByRole('button', { name: new RegExp(`Configure zones for ${cameraName}`, 'i') });
+    await expect(zonesButton).toBeVisible({ timeout: 5000 });
     await zonesButton.click();
 
     // Wait for the dialog title to be visible (more reliable than dialog itself during transitions)
@@ -124,8 +131,17 @@ export class ZonesPage extends BasePage {
    */
   async waitForZoneEditorLoad(): Promise<void> {
     await expect(this.zoneEditorTitle).toBeVisible({ timeout: this.pageLoadTimeout });
+
+    // Wait for loading state to disappear
+    const loadingIndicator = this.page.getByText('Loading zones...');
+    await expect(loadingIndicator).not.toBeVisible({ timeout: this.pageLoadTimeout });
+
     // Wait for zones list header to be visible (always shown even if empty)
     await expect(this.zoneListHeader).toBeVisible({ timeout: this.pageLoadTimeout });
+
+    // Wait a moment for zone list items to render (if any exist)
+    // Use a short timeout and don't fail if no zones exist
+    await this.page.waitForTimeout(200);
   }
 
   /**
@@ -133,7 +149,9 @@ export class ZonesPage extends BasePage {
    */
   async closeZoneEditor(): Promise<void> {
     await this.zoneEditorCloseButton.click();
-    await expect(this.zoneEditorModal).not.toBeVisible();
+    await expect(this.zoneEditorModal).not.toBeVisible({ timeout: 10000 });
+    // Wait for the dialog to fully close (Headless UI transition duration is 200ms)
+    await this.page.waitForTimeout(300);
   }
 
   /**
@@ -243,10 +261,25 @@ export class ZonesPage extends BasePage {
   }
 
   /**
-   * Submit zone form
+   * Submit zone form and wait for completion
    */
   async submitZoneForm(): Promise<void> {
     await this.zoneFormSubmitButton.click();
+
+    // Wait for form to hide
+    await expect(this.zoneFormTitle).not.toBeVisible({ timeout: 5000 });
+
+    // Wait for zones to reload (loading indicator appears and disappears)
+    const loadingIndicator = this.page.getByText('Loading zones...');
+    // Either wait for it to appear and disappear, or skip if it doesn't appear (fast)
+    await Promise.race([
+      loadingIndicator.waitFor({ state: 'visible', timeout: 1000 }).then(() =>
+        expect(loadingIndicator).not.toBeVisible({ timeout: 5000 })
+      ),
+      this.page.waitForTimeout(500), // If loading is too fast to catch
+    ]).catch(() => {
+      // Ignore timeout if loading was instant
+    });
   }
 
   /**
@@ -302,11 +335,25 @@ export class ZonesPage extends BasePage {
   }
 
   /**
-   * Confirm zone deletion
+   * Confirm zone deletion and wait for completion
    */
   async confirmDelete(): Promise<void> {
     await expect(this.deleteConfirmation).toBeVisible();
     await this.deleteConfirmButton.click();
+
+    // Wait for delete confirmation to disappear
+    await expect(this.deleteConfirmation).not.toBeVisible({ timeout: 5000 });
+
+    // Wait for zones to reload (loading indicator appears and disappears)
+    const loadingIndicator = this.page.getByText('Loading zones...');
+    await Promise.race([
+      loadingIndicator.waitFor({ state: 'visible', timeout: 1000 }).then(() =>
+        expect(loadingIndicator).not.toBeVisible({ timeout: 5000 })
+      ),
+      this.page.waitForTimeout(500), // If loading is too fast to catch
+    ]).catch(() => {
+      // Ignore timeout if loading was instant
+    });
   }
 
   /**

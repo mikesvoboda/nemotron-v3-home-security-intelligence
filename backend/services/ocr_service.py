@@ -27,6 +27,7 @@ import numpy as np
 from PIL import Image
 
 from backend.core.logging import get_logger
+from backend.services.bbox_validation import prepare_bbox_for_crop
 from backend.services.plate_detector import PlateDetection
 
 if TYPE_CHECKING:
@@ -88,8 +89,13 @@ def _crop_plate_region(
     image: PILImage,
     bbox: tuple[float, float, float, float],
     padding: float = 0.05,
-) -> PILImage:
+) -> PILImage | None:
     """Crop image to plate bounding box with minimal padding.
+
+    Handles edge cases such as:
+    - Inverted coordinates (x2 < x1 or y2 < y1)
+    - Out-of-bounds coordinates
+    - Zero-dimension boxes
 
     Args:
         image: PIL Image containing the plate
@@ -97,24 +103,34 @@ def _crop_plate_region(
         padding: Small padding ratio to ensure full plate capture
 
     Returns:
-        Cropped PIL Image of plate region
+        Cropped PIL Image of plate region, or None if bbox is invalid
     """
     img_w, img_h = image.size
     x1, y1, x2, y2 = bbox
 
-    # Calculate padding
-    w = x2 - x1
-    h = y2 - y1
-    pad_w = int(w * padding)
-    pad_h = int(h * padding)
+    # Calculate padding based on box dimensions (handle inverted coords)
+    w = abs(x2 - x1)
+    h = abs(y2 - y1)
+    pad_w = int(w * padding) if w > 0 else 0
+    pad_h = int(h * padding) if h > 0 else 0
 
-    # Apply padding with bounds checking
-    x1 = max(0, int(x1) - pad_w)
-    y1 = max(0, int(y1) - pad_h)
-    x2 = min(img_w, int(x2) + pad_w)
-    y2 = min(img_h, int(y2) + pad_h)
+    # Use safe crop preparation that handles all edge cases
+    # Note: prepare_bbox_for_crop takes pixel padding, so we pass max(pad_w, pad_h)
+    safe_bbox = prepare_bbox_for_crop(
+        bbox,
+        image_width=img_w,
+        image_height=img_h,
+        padding=max(pad_w, pad_h),
+        min_size=1,
+    )
 
-    return image.crop((x1, y1, x2, y2))
+    if safe_bbox is None:
+        logger.warning(
+            f"Invalid plate bounding box {bbox} for image size {img_w}x{img_h}. Skipping crop."
+        )
+        return None
+
+    return image.crop(safe_bbox)
 
 
 def _run_ocr_sync(
@@ -298,6 +314,12 @@ async def read_plates(
 
             # Crop plate region
             plate_crop = _crop_plate_region(image, plate.bbox)
+            if plate_crop is None:
+                logger.warning(
+                    f"Invalid plate bounding box for plate {plate.vehicle_detection_id}. "
+                    f"Skipping OCR."
+                )
+                continue
 
             # Run OCR in thread pool
             raw_text, confidence = await asyncio.to_thread(

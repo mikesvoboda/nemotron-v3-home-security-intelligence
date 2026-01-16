@@ -268,6 +268,9 @@ def clamp_bbox_to_image(
     image bounds, adjusting coordinates as needed while preserving as
     much of the original box as possible.
 
+    If coordinates are inverted (x2 < x1 or y2 < y1), they are automatically
+    swapped to fix the bounding box before clamping.
+
     Args:
         bbox: Bounding box as (x1, y1, x2, y2)
         image_width: Image width in pixels
@@ -288,8 +291,20 @@ def clamp_bbox_to_image(
 
         >>> clamp_bbox_to_image((200, 200, 300, 300), 100, 100)
         None  # Completely outside image
+
+        >>> clamp_bbox_to_image((50, 50, 10, 10), 100, 100)  # Inverted
+        (10, 10, 50, 50)  # Fixed by swapping
     """
     x1, y1, x2, y2 = bbox
+
+    # Fix inverted coordinates before clamping
+    if x2 < x1:
+        logger.debug(f"Swapping inverted X coordinates: x1={x1}, x2={x2}")
+        x1, x2 = x2, x1
+
+    if y2 < y1:
+        logger.debug(f"Swapping inverted Y coordinates: y1={y1}, y2={y2}")
+        y1, y2 = y2, y1
 
     # Clamp coordinates to image boundaries
     x1_clamped = max(0, min(x1, image_width))
@@ -516,3 +531,97 @@ def calculate_bbox_iou(
         return 0.0
 
     return intersection / union
+
+
+def prepare_bbox_for_crop(
+    bbox: tuple[float, float, float, float] | tuple[int, int, int, int],
+    image_width: int,
+    image_height: int,
+    padding: int = 0,
+    min_size: int = 1,
+) -> tuple[int, int, int, int] | None:
+    """Prepare a bounding box for safe PIL Image.crop() operation.
+
+    This function handles all edge cases that can cause PIL to raise
+    "Coordinate 'right' is less than 'left'" or similar errors:
+    - Inverted coordinates (x2 < x1 or y2 < y1) are swapped
+    - Out-of-bounds coordinates are clamped to image dimensions
+    - Padding is applied after validation
+    - Boxes that become too small after clamping return None
+
+    Args:
+        bbox: Bounding box as (x1, y1, x2, y2)
+        image_width: Image width in pixels
+        image_height: Image height in pixels
+        padding: Pixels to add around bbox (applied after clamping)
+        min_size: Minimum width/height required (default 1)
+
+    Returns:
+        Safe bounding box tuple (x1, y1, x2, y2) ready for PIL crop,
+        or None if the box is invalid or too small after processing.
+
+    Examples:
+        >>> prepare_bbox_for_crop((50, 50, 10, 10), 100, 100)  # Inverted
+        (10, 10, 50, 50)  # Fixed by swapping
+
+        >>> prepare_bbox_for_crop((-10, -10, 50, 50), 100, 100)  # Negative
+        (0, 0, 50, 50)  # Clamped
+
+        >>> prepare_bbox_for_crop((10, 10, 150, 150), 100, 100)  # Out of bounds
+        (10, 10, 100, 100)  # Clamped
+    """
+    x1, y1, x2, y2 = bbox
+
+    # Fix inverted coordinates
+    if x2 < x1:
+        logger.debug(f"Fixing inverted X coordinates for crop: x1={x1}, x2={x2}")
+        x1, x2 = x2, x1
+
+    if y2 < y1:
+        logger.debug(f"Fixing inverted Y coordinates for crop: y1={y1}, y2={y2}")
+        y1, y2 = y2, y1
+
+    # Convert to integers for PIL
+    x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
+
+    # Check for zero-dimension boxes (after int conversion)
+    if x2 <= x1 or y2 <= y1:
+        logger.debug(f"Bounding box has zero dimensions: ({x1}, {y1}, {x2}, {y2})")
+        return None
+
+    # Check if bbox is completely outside image boundaries BEFORE padding
+    # This prevents creating tiny boxes at corners for completely outside bboxes
+    if x1 >= image_width or y1 >= image_height or x2 <= 0 or y2 <= 0:
+        logger.debug(
+            f"Bounding box ({x1}, {y1}, {x2}, {y2}) is completely outside "
+            f"image boundaries ({image_width}x{image_height})"
+        )
+        return None
+
+    # Apply padding (expand the box)
+    if padding > 0:
+        x1 = x1 - padding
+        y1 = y1 - padding
+        x2 = x2 + padding
+        y2 = y2 + padding
+
+    # Clamp to image bounds
+    x1 = max(0, min(x1, image_width - 1))
+    y1 = max(0, min(y1, image_height - 1))
+    x2 = max(1, min(x2, image_width))
+    y2 = max(1, min(y2, image_height))
+
+    # Ensure x2 > x1 and y2 > y1 after clamping
+    if x2 <= x1 or y2 <= y1:
+        logger.debug(f"Bounding box became invalid after clamping: ({x1}, {y1}, {x2}, {y2})")
+        return None
+
+    # Check minimum size
+    if (x2 - x1) < min_size or (y2 - y1) < min_size:
+        logger.debug(
+            f"Bounding box too small after processing: "
+            f"width={x2 - x1}, height={y2 - y1}, min_size={min_size}"
+        )
+        return None
+
+    return (x1, y1, x2, y2)

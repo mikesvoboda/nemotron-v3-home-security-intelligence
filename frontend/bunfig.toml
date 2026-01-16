@@ -1,0 +1,32 @@
+# Bun Configuration
+# https://bun.sh/docs/runtime/bunfig
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# IMPORTANT: This project uses Vitest, not Bun's native test runner
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#
+# ❌ DO NOT USE: bun test
+# ✅ USE INSTEAD: bun run test (which invokes Vitest)
+#
+# Why 'bun test' doesn't work:
+#
+# 1. Tests use Vitest-specific APIs (vi.mock, vi.spyOn, etc.)
+# 2. jsdom environment is configured in vite.config.ts (Vitest-specific)
+# 3. Tests use Vitest's setupFiles (src/test/setup.ts)
+# 4. Tests rely on @testing-library/jest-dom/vitest matchers
+# 5. Bun's native test runner has incompatible APIs
+#
+# Errors you'll see with 'bun test':
+# - "TypeError: mock(module, fn) requires a function"
+# - "ReferenceError: document is not defined"
+# - "TypeError: undefined is not an object (evaluating 'document[isPrepared]')"
+#
+# ✅ Correct test commands:
+#
+#   bun run test           # Run Vitest in watch mode
+#   bun run test:coverage  # Run Vitest with coverage
+#   bun run test:ui        # Open Vitest UI
+#   npm test               # Also runs Vitest (same as bun run test)
+#
+# See TESTING.md for more information.
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

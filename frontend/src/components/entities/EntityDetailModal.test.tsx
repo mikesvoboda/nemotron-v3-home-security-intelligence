@@ -325,24 +325,25 @@ describe('EntityDetailModal', () => {
   describe('trust status', () => {
     it('displays default unknown trust status', () => {
       renderWithQueryClient(<EntityDetailModal {...defaultProps} />);
-      expect(screen.getByTestId('trust-status-badge')).toHaveTextContent('Unknown');
+      expect(screen.getByTestId('trust-badge-unknown')).toHaveTextContent('Unknown');
     });
 
     it('displays trusted status when provided', () => {
       renderWithQueryClient(
         <EntityDetailModal {...defaultProps} trustStatus="trusted" />
       );
-      expect(screen.getByTestId('trust-status-badge')).toHaveTextContent('Trusted');
+      expect(screen.getByTestId('trust-badge-trusted')).toHaveTextContent('Trusted');
     });
 
-    it('displays flagged status when provided', () => {
+    it('displays suspicious status when flagged is provided (backward compat)', () => {
       renderWithQueryClient(
         <EntityDetailModal {...defaultProps} trustStatus="flagged" />
       );
-      expect(screen.getByTestId('trust-status-badge')).toHaveTextContent('Flagged');
+      // 'flagged' is now normalized to 'untrusted' which displays as 'Suspicious'
+      expect(screen.getByTestId('trust-badge-suspicious')).toHaveTextContent('Suspicious');
     });
 
-    it('calls onTrustStatusChange when change button is clicked', async () => {
+    it('calls onTrustStatusChange when Mark as Trusted button is clicked', async () => {
       vi.useRealTimers();
       const user = userEvent.setup();
       const onTrustStatusChange = vi.fn();
@@ -354,17 +355,19 @@ describe('EntityDetailModal', () => {
         />
       );
 
-      const changeButton = screen.getByTestId('change-trust-status');
-      await user.click(changeButton);
+      const trustedButton = screen.getByTestId('mark-as-trusted-button');
+      await user.click(trustedButton);
 
       expect(onTrustStatusChange).toHaveBeenCalledWith(mockEntity.id, 'trusted');
       vi.useFakeTimers({ shouldAdvanceTime: true });
       vi.setSystemTime(BASE_TIME);
     });
 
-    it('does not show change button when onTrustStatusChange is not provided', () => {
+    it('does not show trust action buttons when onTrustStatusChange is not provided', () => {
       renderWithQueryClient(<EntityDetailModal {...defaultProps} />);
-      expect(screen.queryByTestId('change-trust-status')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('mark-as-trusted-button')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('mark-as-suspicious-button')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('reset-trust-button')).not.toBeInTheDocument();
     });
   });
 

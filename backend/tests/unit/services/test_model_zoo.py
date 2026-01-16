@@ -979,38 +979,106 @@ class TestModelZooLoadFunctions:
             await load_yolo_model("invalid/path")
 
     @pytest.mark.asyncio
-    async def test_load_paddle_ocr_import_error(self) -> None:
-        """Test that load_paddle_ocr raises ImportError when paddleocr missing."""
+    async def test_load_paddle_ocr_not_installed(self) -> None:
+        """Test that load_paddle_ocr raises RuntimeError when paddleocr not installed.
+
+        PaddleOCR is an optional dependency. When not installed, the loader raises
+        RuntimeError (not ImportError) to enable graceful degradation without
+        logging full tracebacks.
+        """
         from backend.services.model_zoo import load_paddle_ocr
 
-        with patch.dict("sys.modules", {"paddleocr": None}):
-            import sys
-
-            if "paddleocr" in sys.modules:
-                del sys.modules["paddleocr"]
-
-            with (
-                patch(
-                    "builtins.__import__",
-                    side_effect=ImportError("No module named 'paddleocr'"),
-                ),
-                pytest.raises(ImportError),
-            ):
-                await load_paddle_ocr("test/config")
+        # Mock _is_paddleocr_available to return False
+        with (
+            patch(
+                "backend.services.model_zoo._is_paddleocr_available",
+                return_value=False,
+            ),
+            pytest.raises(RuntimeError, match="paddleocr package not installed"),
+        ):
+            await load_paddle_ocr("test/config")
 
     @pytest.mark.asyncio
     async def test_load_paddle_ocr_runtime_error(self) -> None:
         """Test that load_paddle_ocr raises RuntimeError on load failure."""
         from backend.services.model_zoo import load_paddle_ocr
 
-        mock_paddleocr = MagicMock()
-        mock_paddleocr.side_effect = ValueError("PaddleOCR initialization failed")
+        mock_paddleocr_module = MagicMock()
+        mock_paddleocr_class = MagicMock()
+        mock_paddleocr_class.side_effect = ValueError("PaddleOCR initialization failed")
+        mock_paddleocr_module.PaddleOCR = mock_paddleocr_class
 
+        # Mock both the availability check and the module import
         with (
-            patch.dict("sys.modules", {"paddleocr": MagicMock(PaddleOCR=mock_paddleocr)}),
+            patch(
+                "backend.services.model_zoo._is_paddleocr_available",
+                return_value=True,
+            ),
+            patch.dict("sys.modules", {"paddleocr": mock_paddleocr_module}),
             pytest.raises(RuntimeError, match="Failed to load PaddleOCR"),
         ):
             await load_paddle_ocr("config/path")
+
+
+class TestPaddleocrAvailability:
+    """Tests for PaddleOCR availability checking."""
+
+    def test_is_paddleocr_available_when_not_installed(self) -> None:
+        """Test _is_paddleocr_available returns False when paddleocr not installed."""
+        from backend.services.model_zoo import _is_paddleocr_available
+
+        # Mock find_spec to return None (module not found)
+        with patch("importlib.util.find_spec", return_value=None):
+            assert _is_paddleocr_available() is False
+
+    def test_is_paddleocr_available_when_installed(self) -> None:
+        """Test _is_paddleocr_available returns True when paddleocr is installed."""
+        from backend.services.model_zoo import _is_paddleocr_available
+
+        # Mock find_spec to return a spec (module found)
+        mock_spec = MagicMock()
+        with patch("importlib.util.find_spec", return_value=mock_spec):
+            assert _is_paddleocr_available() is True
+
+    def test_is_paddleocr_available_handles_import_error(self) -> None:
+        """Test _is_paddleocr_available handles ImportError gracefully."""
+        from backend.services.model_zoo import _is_paddleocr_available
+
+        # Mock find_spec to raise ImportError
+        with patch("importlib.util.find_spec", side_effect=ImportError("test")):
+            assert _is_paddleocr_available() is False
+
+
+class TestOptionalDependencyHandling:
+    """Tests for graceful handling of missing optional dependencies."""
+
+    def setup_method(self) -> None:
+        """Reset managers before each test."""
+        reset_model_zoo()
+        reset_model_manager()
+
+    def teardown_method(self) -> None:
+        """Reset managers after each test."""
+        reset_model_zoo()
+        reset_model_manager()
+
+    @pytest.mark.asyncio
+    async def test_load_paddleocr_logs_info_when_not_installed(self) -> None:
+        """Test that loading paddleocr when not installed logs at INFO level, not ERROR."""
+        manager = ModelManager()
+
+        # Mock paddleocr as unavailable
+        with (
+            patch(
+                "backend.services.model_zoo._is_paddleocr_available",
+                return_value=False,
+            ),
+            pytest.raises(RuntimeError, match="paddleocr package not installed"),
+        ):
+            await manager.preload("paddleocr")
+
+        # Model should not be loaded
+        assert not manager.is_loaded("paddleocr")
 
 
 class TestConcurrentModelLoading:

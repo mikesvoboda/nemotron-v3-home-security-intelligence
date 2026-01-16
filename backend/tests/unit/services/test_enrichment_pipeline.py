@@ -4181,13 +4181,19 @@ class TestEnrichmentPipelineAsyncMethods:
 
     @pytest.mark.asyncio
     async def test_crop_to_bbox_invalid_dimensions(self, test_image: Image.Image) -> None:
-        """Test _crop_to_bbox returns None for invalid dimensions."""
-        # x2 <= x1 should fail
+        """Test _crop_to_bbox swaps inverted coordinates and returns valid image."""
+        # x2 < x1 should be automatically fixed by swapping
         bbox = BoundingBox(x1=100, y1=10, x2=50, y2=50)
         pipeline = EnrichmentPipeline()
 
         result = await pipeline._crop_to_bbox(test_image, bbox)
-        assert result is None
+        # Should not be None - coordinates should be swapped automatically
+        assert result is not None
+        assert isinstance(result, Image.Image)
+        # Verify the image has valid dimensions
+        width, height = result.size
+        assert width > 0
+        assert height > 0
 
     @pytest.mark.asyncio
     async def test_crop_to_bbox_zero_height(self, test_image: Image.Image) -> None:
