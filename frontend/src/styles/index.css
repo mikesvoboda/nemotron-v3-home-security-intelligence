@@ -492,6 +492,13 @@
     background-color: #3a3a3a !important;
   }
 
+  .text-gray-500,
+  .dark\:text-gray-500 {
+    /* Override Tailwind gray-500 text to meet WCAG 2.1 AA 4.5:1 contrast on dark backgrounds */
+    /* Default Tailwind gray-500 (#6b7280) only achieves ~3.2:1 on dark backgrounds (#1c1c1c) */
+    color: #9a9a9a !important;
+  }
+
   .text-gray-600,
   .dark\:text-gray-600 {
     /* Override Tremor's gray text to meet 4.5:1 contrast */

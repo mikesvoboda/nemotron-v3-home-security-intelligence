@@ -63,8 +63,54 @@ function createMockVideoBlob(): string {
   return URL.createObjectURL(blob);
 }
 
-// TODO: Fix modal stability issues - elements detached from DOM during tab interactions
-// See: event detail modal re-renders causing video-clip-tab to be detached
+/**
+ * Helper to open an event modal and navigate to the Video Clip tab safely.
+ * This handles the DOM stability issues that can occur during modal transitions
+ * and data loading by waiting for proper conditions before interactions.
+ *
+ * @param page - Playwright page object
+ * @param timelinePage - TimelinePage page object
+ * @returns Object with modal and tab locators for further assertions
+ */
+async function openEventAndNavigateToVideoClipTab(
+  page: import('@playwright/test').Page,
+  timelinePage: TimelinePage
+) {
+  const eventCount = await timelinePage.getEventCount();
+  if (eventCount === 0) {
+    return { hasEvents: false, modal: null, videoClipTab: null };
+  }
+
+  // Click on the event card to open the modal
+  // EventCard may have nested buttons, so click on the card's main clickable area
+  const eventCards = page.locator('[data-testid^="event-card-"]');
+  const firstCard = eventCards.first();
+  await expect(firstCard).toBeVisible({ timeout: 10000 });
+
+  // Click on the card - EventTimeline handles onClick to open modal
+  await firstCard.click();
+
+  // Wait for modal to be fully visible - use .first() to handle any DOM duplicates from transitions
+  const modal = page.locator('[data-testid="event-detail-modal"]').first();
+  await expect(modal).toBeVisible({ timeout: 10000 });
+
+  // Wait for modal content to be stable (detection data loaded)
+  // The modal fetches detections on open, which can cause re-renders
+  await page.waitForLoadState('networkidle');
+
+  // Wait for any Headless UI transitions to complete
+  await page.waitForTimeout(300);
+
+  // Switch to Video Clip tab - use .first() to handle any DOM duplicates from transitions
+  const videoClipTab = modal.locator('[data-testid="video-clip-tab"]').first();
+  await expect(videoClipTab).toBeVisible({ timeout: 5000 });
+  await videoClipTab.click({ timeout: 10000 });
+
+  return { hasEvents: true, modal, videoClipTab };
+}
+
+// TODO: NEM-XXXX - These tests pass in isolation but fail with parallel execution due to
+// race conditions in mock API setup. Fix by isolating test contexts or running serially.
 test.describe.skip('Video Player - Basic Loading @critical', () => {
   let timelinePage: TimelinePage;
 
@@ -98,44 +144,30 @@ test.describe.skip('Video Player - Basic Loading @critical', () => {
   });
 
   test('video player loads when opening Video Clip tab', async ({ page }) => {
-    // Open event detail modal
-    const eventCount = await timelinePage.getEventCount();
-    if (eventCount > 0) {
-      await timelinePage.clickEvent(0);
+    const { hasEvents } = await openEventAndNavigateToVideoClipTab(page, timelinePage);
+    if (!hasEvents) return;
 
-      // Switch to Video Clip tab
-      const modal = page.locator('[data-testid="event-detail-modal"]');
-      const videoClipTab = modal.locator('[data-testid="video-clip-tab"]');
-      await videoClipTab.click();
+    // Wait for clip info to load
+    await page.waitForSelector('[data-testid="clip-available"]', { timeout: 10000 });
 
-      // Wait for clip info to load
-      await page.waitForSelector('[data-testid="clip-available"]', { timeout: 5000 });
-
-      // Verify video player is visible
-      const videoPlayer = page.locator('[data-testid="video-player"]');
-      await expect(videoPlayer).toBeVisible();
-    }
+    // Verify video player is visible
+    const videoPlayer = page.locator('[data-testid="video-player"]');
+    await expect(videoPlayer).toBeVisible();
   });
 
   test('video element has correct attributes', async ({ page }) => {
-    const eventCount = await timelinePage.getEventCount();
-    if (eventCount > 0) {
-      await timelinePage.clickEvent(0);
+    const { hasEvents } = await openEventAndNavigateToVideoClipTab(page, timelinePage);
+    if (!hasEvents) return;
 
-      const modal = page.locator('[data-testid="event-detail-modal"]');
-      const videoClipTab = modal.locator('[data-testid="video-clip-tab"]');
-      await videoClipTab.click();
+    await page.waitForSelector('[data-testid="video-player"]', { timeout: 10000 });
 
-      await page.waitForSelector('[data-testid="video-player"]', { timeout: 5000 });
+    const video = page.locator('[data-testid="video-player"]');
 
-      const video = page.locator('[data-testid="video-player"]');
+    // Verify video has controls
+    await expect(video).toHaveAttribute('controls', '');
 
-      // Verify video has controls
-      await expect(video).toHaveAttribute('controls', '');
-
-      // Verify video has preload="metadata"
-      await expect(video).toHaveAttribute('preload', 'metadata');
-    }
+    // Verify video has preload="metadata"
+    await expect(video).toHaveAttribute('preload', 'metadata');
   });
 
   test('displays loading state while clip info loads', async ({ page }) => {
@@ -149,21 +181,15 @@ test.describe.skip('Video Player - Basic Loading @critical', () => {
       });
     });
 
-    const eventCount = await timelinePage.getEventCount();
-    if (eventCount > 0) {
-      await timelinePage.clickEvent(0);
+    const { hasEvents } = await openEventAndNavigateToVideoClipTab(page, timelinePage);
+    if (!hasEvents) return;
 
-      const modal = page.locator('[data-testid="event-detail-modal"]');
-      const videoClipTab = modal.locator('[data-testid="video-clip-tab"]');
-      await videoClipTab.click();
+    // Should show loading state
+    const loadingIndicator = page.locator('[data-testid="clip-loading"]');
+    await expect(loadingIndicator).toBeVisible();
 
-      // Should show loading state
-      const loadingIndicator = page.locator('[data-testid="clip-loading"]');
-      await expect(loadingIndicator).toBeVisible();
-
-      // Eventually loads
-      await page.waitForSelector('[data-testid="clip-available"]', { timeout: 5000 });
-    }
+    // Eventually loads
+    await page.waitForSelector('[data-testid="clip-available"]', { timeout: 10000 });
   });
 });
 
@@ -198,45 +224,33 @@ test.describe.skip('Video Player - Play/Pause Controls @critical', () => {
   });
 
   test('video has native browser controls', async ({ page }) => {
-    const eventCount = await timelinePage.getEventCount();
-    if (eventCount > 0) {
-      await timelinePage.clickEvent(0);
+    const { hasEvents } = await openEventAndNavigateToVideoClipTab(page, timelinePage);
+    if (!hasEvents) return;
 
-      const modal = page.locator('[data-testid="event-detail-modal"]');
-      const videoClipTab = modal.locator('[data-testid="video-clip-tab"]');
-      await videoClipTab.click();
+    await page.waitForSelector('[data-testid="video-player"]', { timeout: 10000 });
 
-      await page.waitForSelector('[data-testid="video-player"]', { timeout: 5000 });
+    const video = page.locator('[data-testid="video-player"]');
 
-      const video = page.locator('[data-testid="video-player"]');
-
-      // EventVideoPlayer uses native controls
-      await expect(video).toHaveAttribute('controls', '');
-    }
+    // EventVideoPlayer uses native controls
+    await expect(video).toHaveAttribute('controls', '');
   });
 
   test('video can be clicked to play/pause', async ({ page }) => {
-    const eventCount = await timelinePage.getEventCount();
-    if (eventCount > 0) {
-      await timelinePage.clickEvent(0);
+    const { hasEvents } = await openEventAndNavigateToVideoClipTab(page, timelinePage);
+    if (!hasEvents) return;
 
-      const modal = page.locator('[data-testid="event-detail-modal"]');
-      const videoClipTab = modal.locator('[data-testid="video-clip-tab"]');
-      await videoClipTab.click();
+    await page.waitForSelector('[data-testid="video-player"]', { timeout: 10000 });
 
-      await page.waitForSelector('[data-testid="video-player"]', { timeout: 5000 });
+    const video = page.locator('[data-testid="video-player"]');
 
-      const video = page.locator('[data-testid="video-player"]');
+    // Video should be paused initially
+    const isPaused = await video.evaluate((v: HTMLVideoElement) => v.paused);
+    expect(isPaused).toBe(true);
 
-      // Video should be paused initially
-      const isPaused = await video.evaluate((v: HTMLVideoElement) => v.paused);
-      expect(isPaused).toBe(true);
-
-      // Click to play (using native controls)
-      // Note: Actual playback testing requires a real video file
-      // This test verifies the element is interactive
-      await expect(video).toBeEnabled();
-    }
+    // Click to play (using native controls)
+    // Note: Actual playback testing requires a real video file
+    // This test verifies the element is interactive
+    await expect(video).toBeEnabled();
   });
 });
 
@@ -269,20 +283,14 @@ test.describe.skip('Video Player - Clip Generation @critical', () => {
     await timelinePage.goto();
     await timelinePage.waitForTimelineLoad();
 
-    const eventCount = await timelinePage.getEventCount();
-    if (eventCount > 0) {
-      await timelinePage.clickEvent(0);
+    const { hasEvents } = await openEventAndNavigateToVideoClipTab(page, timelinePage);
+    if (!hasEvents) return;
 
-      const modal = page.locator('[data-testid="event-detail-modal"]');
-      const videoClipTab = modal.locator('[data-testid="video-clip-tab"]');
-      await videoClipTab.click();
-
-      // Should show generate button
-      await page.waitForSelector('[data-testid="clip-unavailable"]', { timeout: 5000 });
-      const generateButton = page.locator('[data-testid="generate-clip-button"]');
-      await expect(generateButton).toBeVisible();
-      await expect(generateButton).toContainText(/Generate Clip/i);
-    }
+    // Should show generate button
+    await page.waitForSelector('[data-testid="clip-unavailable"]', { timeout: 10000 });
+    const generateButton = page.locator('[data-testid="generate-clip-button"]');
+    await expect(generateButton).toBeVisible();
+    await expect(generateButton).toContainText(/Generate Clip/i);
   });
 
   test('generate clip button triggers clip generation', async ({ page }) => {
@@ -316,25 +324,19 @@ test.describe.skip('Video Player - Clip Generation @critical', () => {
     await timelinePage.goto();
     await timelinePage.waitForTimelineLoad();
 
-    const eventCount = await timelinePage.getEventCount();
-    if (eventCount > 0) {
-      await timelinePage.clickEvent(0);
+    const { hasEvents } = await openEventAndNavigateToVideoClipTab(page, timelinePage);
+    if (!hasEvents) return;
 
-      const modal = page.locator('[data-testid="event-detail-modal"]');
-      const videoClipTab = modal.locator('[data-testid="video-clip-tab"]');
-      await videoClipTab.click();
+    await page.waitForSelector('[data-testid="generate-clip-button"]', { timeout: 10000 });
+    const generateButton = page.locator('[data-testid="generate-clip-button"]');
 
-      await page.waitForSelector('[data-testid="generate-clip-button"]', { timeout: 5000 });
-      const generateButton = page.locator('[data-testid="generate-clip-button"]');
+    await generateButton.click();
 
-      await generateButton.click();
+    // Wait a moment for the API call
+    await page.waitForTimeout(500);
 
-      // Wait a moment for the API call
-      await page.waitForTimeout(500);
-
-      // Verify generation was triggered
-      expect(generateClipCalled).toBe(true);
-    }
+    // Verify generation was triggered
+    expect(generateClipCalled).toBe(true);
   });
 
   test('shows loading state during clip generation', async ({ page }) => {
@@ -366,23 +368,17 @@ test.describe.skip('Video Player - Clip Generation @critical', () => {
     await timelinePage.goto();
     await timelinePage.waitForTimelineLoad();
 
-    const eventCount = await timelinePage.getEventCount();
-    if (eventCount > 0) {
-      await timelinePage.clickEvent(0);
+    const { hasEvents } = await openEventAndNavigateToVideoClipTab(page, timelinePage);
+    if (!hasEvents) return;
 
-      const modal = page.locator('[data-testid="event-detail-modal"]');
-      const videoClipTab = modal.locator('[data-testid="video-clip-tab"]');
-      await videoClipTab.click();
+    await page.waitForSelector('[data-testid="generate-clip-button"]', { timeout: 10000 });
+    const generateButton = page.locator('[data-testid="generate-clip-button"]');
 
-      await page.waitForSelector('[data-testid="generate-clip-button"]', { timeout: 5000 });
-      const generateButton = page.locator('[data-testid="generate-clip-button"]');
+    await generateButton.click();
 
-      await generateButton.click();
-
-      // Should show loading state
-      await expect(generateButton).toContainText(/Generating.../i);
-      await expect(generateButton).toBeDisabled();
-    }
+    // Should show loading state
+    await expect(generateButton).toContainText(/Generating.../i);
+    await expect(generateButton).toBeDisabled();
   });
 });
 
@@ -417,37 +413,25 @@ test.describe.skip('Video Player - Download Functionality @critical', () => {
   });
 
   test('displays download button when clip is available', async ({ page }) => {
-    const eventCount = await timelinePage.getEventCount();
-    if (eventCount > 0) {
-      await timelinePage.clickEvent(0);
+    const { hasEvents } = await openEventAndNavigateToVideoClipTab(page, timelinePage);
+    if (!hasEvents) return;
 
-      const modal = page.locator('[data-testid="event-detail-modal"]');
-      const videoClipTab = modal.locator('[data-testid="video-clip-tab"]');
-      await videoClipTab.click();
+    await page.waitForSelector('[data-testid="clip-available"]', { timeout: 10000 });
 
-      await page.waitForSelector('[data-testid="clip-available"]', { timeout: 5000 });
-
-      // Verify download button exists
-      const downloadButton = page.locator('[data-testid="download-clip-button"]');
-      await expect(downloadButton).toBeVisible();
-      await expect(downloadButton).toContainText(/Download/i);
-    }
+    // Verify download button exists
+    const downloadButton = page.locator('[data-testid="download-clip-button"]');
+    await expect(downloadButton).toBeVisible();
+    await expect(downloadButton).toContainText(/Download/i);
   });
 
   test('download button is clickable', async ({ page }) => {
-    const eventCount = await timelinePage.getEventCount();
-    if (eventCount > 0) {
-      await timelinePage.clickEvent(0);
+    const { hasEvents } = await openEventAndNavigateToVideoClipTab(page, timelinePage);
+    if (!hasEvents) return;
 
-      const modal = page.locator('[data-testid="event-detail-modal"]');
-      const videoClipTab = modal.locator('[data-testid="video-clip-tab"]');
-      await videoClipTab.click();
+    await page.waitForSelector('[data-testid="clip-available"]', { timeout: 10000 });
 
-      await page.waitForSelector('[data-testid="clip-available"]', { timeout: 5000 });
-
-      const downloadButton = page.locator('[data-testid="download-clip-button"]');
-      await expect(downloadButton).toBeEnabled();
-    }
+    const downloadButton = page.locator('[data-testid="download-clip-button"]');
+    await expect(downloadButton).toBeEnabled();
   });
 });
 
@@ -482,56 +466,38 @@ test.describe.skip('Video Player - Metadata Display @critical', () => {
   });
 
   test('displays clip duration metadata', async ({ page }) => {
-    const eventCount = await timelinePage.getEventCount();
-    if (eventCount > 0) {
-      await timelinePage.clickEvent(0);
+    const { hasEvents } = await openEventAndNavigateToVideoClipTab(page, timelinePage);
+    if (!hasEvents) return;
 
-      const modal = page.locator('[data-testid="event-detail-modal"]');
-      const videoClipTab = modal.locator('[data-testid="video-clip-tab"]');
-      await videoClipTab.click();
+    await page.waitForSelector('[data-testid="clip-available"]', { timeout: 10000 });
 
-      await page.waitForSelector('[data-testid="clip-available"]', { timeout: 5000 });
-
-      // Verify duration is displayed
-      const clipMetadata = page.locator('[data-testid="clip-available"]');
-      await expect(clipMetadata).toContainText(/Duration:/i);
-      await expect(clipMetadata).toContainText(/30s/i);
-    }
+    // Verify duration is displayed
+    const clipMetadata = page.locator('[data-testid="clip-available"]');
+    await expect(clipMetadata).toContainText(/Duration:/i);
+    await expect(clipMetadata).toContainText(/30s/i);
   });
 
   test('displays clip file size metadata', async ({ page }) => {
-    const eventCount = await timelinePage.getEventCount();
-    if (eventCount > 0) {
-      await timelinePage.clickEvent(0);
+    const { hasEvents } = await openEventAndNavigateToVideoClipTab(page, timelinePage);
+    if (!hasEvents) return;
 
-      const modal = page.locator('[data-testid="event-detail-modal"]');
-      const videoClipTab = modal.locator('[data-testid="video-clip-tab"]');
-      await videoClipTab.click();
+    await page.waitForSelector('[data-testid="clip-available"]', { timeout: 10000 });
 
-      await page.waitForSelector('[data-testid="clip-available"]', { timeout: 5000 });
-
-      // Verify file size is displayed
-      const clipMetadata = page.locator('[data-testid="clip-available"]');
-      await expect(clipMetadata).toContainText(/Size:/i);
-      await expect(clipMetadata).toContainText(/5\.0 MB/i);
-    }
+    // Verify file size is displayed
+    const clipMetadata = page.locator('[data-testid="clip-available"]');
+    await expect(clipMetadata).toContainText(/Size:/i);
+    await expect(clipMetadata).toContainText(/5\.0 MB/i);
   });
 
   test('displays clip generation timestamp', async ({ page }) => {
-    const eventCount = await timelinePage.getEventCount();
-    if (eventCount > 0) {
-      await timelinePage.clickEvent(0);
+    const { hasEvents } = await openEventAndNavigateToVideoClipTab(page, timelinePage);
+    if (!hasEvents) return;
 
-      const modal = page.locator('[data-testid="event-detail-modal"]');
-      const videoClipTab = modal.locator('[data-testid="video-clip-tab"]');
-      await videoClipTab.click();
+    await page.waitForSelector('[data-testid="clip-available"]', { timeout: 10000 });
 
-      await page.waitForSelector('[data-testid="clip-available"]', { timeout: 5000 });
-
-      // Verify generation timestamp is displayed
-      const clipMetadata = page.locator('[data-testid="clip-available"]');
-      await expect(clipMetadata).toContainText(/Generated:/i);
-    }
+    // Verify generation timestamp is displayed
+    const clipMetadata = page.locator('[data-testid="clip-available"]');
+    await expect(clipMetadata).toContainText(/Generated:/i);
   });
 });
 
@@ -557,20 +523,14 @@ test.describe.skip('Video Player - Error Handling', () => {
     await timelinePage.goto();
     await timelinePage.waitForTimelineLoad();
 
-    const eventCount = await timelinePage.getEventCount();
-    if (eventCount > 0) {
-      await timelinePage.clickEvent(0);
+    const { hasEvents } = await openEventAndNavigateToVideoClipTab(page, timelinePage);
+    if (!hasEvents) return;
 
-      const modal = page.locator('[data-testid="event-detail-modal"]');
-      const videoClipTab = modal.locator('[data-testid="video-clip-tab"]');
-      await videoClipTab.click();
-
-      // Should show error state
-      await page.waitForSelector('[data-testid="clip-error"]', { timeout: 5000 });
-      const errorMessage = page.locator('[data-testid="clip-error"]');
-      await expect(errorMessage).toBeVisible();
-      await expect(errorMessage).toContainText(/Failed to load clip info/i);
-    }
+    // Should show error state
+    await page.waitForSelector('[data-testid="clip-error"]', { timeout: 10000 });
+    const errorMessage = page.locator('[data-testid="clip-error"]');
+    await expect(errorMessage).toBeVisible();
+    await expect(errorMessage).toContainText(/Failed to load clip info/i);
   });
 
   test('displays error when clip generation fails', async ({ page }) => {
@@ -604,26 +564,20 @@ test.describe.skip('Video Player - Error Handling', () => {
     await timelinePage.goto();
     await timelinePage.waitForTimelineLoad();
 
-    const eventCount = await timelinePage.getEventCount();
-    if (eventCount > 0) {
-      await timelinePage.clickEvent(0);
+    const { hasEvents } = await openEventAndNavigateToVideoClipTab(page, timelinePage);
+    if (!hasEvents) return;
 
-      const modal = page.locator('[data-testid="event-detail-modal"]');
-      const videoClipTab = modal.locator('[data-testid="video-clip-tab"]');
-      await videoClipTab.click();
+    await page.waitForSelector('[data-testid="generate-clip-button"]', { timeout: 10000 });
+    const generateButton = page.locator('[data-testid="generate-clip-button"]');
 
-      await page.waitForSelector('[data-testid="generate-clip-button"]', { timeout: 5000 });
-      const generateButton = page.locator('[data-testid="generate-clip-button"]');
+    await generateButton.click();
 
-      await generateButton.click();
+    // Wait for error message
+    await page.waitForTimeout(500);
 
-      // Wait for error message
-      await page.waitForTimeout(500);
-
-      // Should show error message
-      const errorContainer = page.locator('[data-testid="clip-unavailable"]');
-      await expect(errorContainer).toContainText(/Insufficient source images/i);
-    }
+    // Should show error message
+    const errorContainer = page.locator('[data-testid="clip-unavailable"]');
+    await expect(errorContainer).toContainText(/Insufficient source images/i);
   });
 
   test('shows error icon in error state', async ({ page }) => {
@@ -638,21 +592,15 @@ test.describe.skip('Video Player - Error Handling', () => {
     await timelinePage.goto();
     await timelinePage.waitForTimelineLoad();
 
-    const eventCount = await timelinePage.getEventCount();
-    if (eventCount > 0) {
-      await timelinePage.clickEvent(0);
+    const { hasEvents } = await openEventAndNavigateToVideoClipTab(page, timelinePage);
+    if (!hasEvents) return;
 
-      const modal = page.locator('[data-testid="event-detail-modal"]');
-      const videoClipTab = modal.locator('[data-testid="video-clip-tab"]');
-      await videoClipTab.click();
+    await page.waitForSelector('[data-testid="clip-error"]', { timeout: 10000 });
 
-      await page.waitForSelector('[data-testid="clip-error"]', { timeout: 5000 });
-
-      // Verify error styling (red theme)
-      const errorContainer = page.locator('[data-testid="clip-error"]');
-      await expect(errorContainer).toHaveClass(/border-red/);
-      await expect(errorContainer).toHaveClass(/bg-red/);
-    }
+    // Verify error styling (red theme)
+    const errorContainer = page.locator('[data-testid="clip-error"]');
+    await expect(errorContainer).toHaveClass(/border-red/);
+    await expect(errorContainer).toHaveClass(/bg-red/);
   });
 });
 
@@ -687,25 +635,19 @@ test.describe.skip('Video Player - Accessibility', () => {
   });
 
   test('video player buttons have aria-labels', async ({ page }) => {
-    const eventCount = await timelinePage.getEventCount();
-    if (eventCount > 0) {
-      await timelinePage.clickEvent(0);
+    const { hasEvents } = await openEventAndNavigateToVideoClipTab(page, timelinePage);
+    if (!hasEvents) return;
 
-      const modal = page.locator('[data-testid="event-detail-modal"]');
-      const videoClipTab = modal.locator('[data-testid="video-clip-tab"]');
-      await videoClipTab.click();
+    await page.waitForSelector('[data-testid="clip-available"]', { timeout: 10000 });
 
-      await page.waitForSelector('[data-testid="clip-available"]', { timeout: 5000 });
-
-      // Verify download button has aria-label
-      const downloadButton = page.locator('[data-testid="download-clip-button"]');
-      await expect(downloadButton).toHaveAttribute('aria-label', 'Download clip');
-    }
+    // Verify download button has aria-label
+    const downloadButton = page.locator('[data-testid="download-clip-button"]');
+    await expect(downloadButton).toHaveAttribute('aria-label', 'Download clip');
   });
 
   test('generate clip button has aria-label', async ({ page }) => {
-    // Need to override the mock for this specific test
-    await page.unroute('**/api/events/*/clip/info');
+    // Override the clip info mock to return no clip available
+    // Route is added on top of existing routes (LIFO order)
     await page.route('**/api/events/*/clip/info', async (route) => {
       await route.fulfill({
         status: 200,
@@ -721,39 +663,24 @@ test.describe.skip('Video Player - Accessibility', () => {
       });
     });
 
-    // Navigate after setting up the new route
-    await page.goto('/timeline');
-    await page.waitForSelector('[data-testid="event-timeline"]', { timeout: 10000 });
+    // Use helper to navigate and open modal
+    const { hasEvents } = await openEventAndNavigateToVideoClipTab(page, timelinePage);
+    if (!hasEvents) return;
 
-    const eventCount = await timelinePage.getEventCount();
-    if (eventCount > 0) {
-      await timelinePage.clickEvent(0);
+    await page.waitForSelector('[data-testid="generate-clip-button"]', { timeout: 10000 });
+    const generateButton = page.locator('[data-testid="generate-clip-button"]');
 
-      const modal = page.locator('[data-testid="event-detail-modal"]');
-      const videoClipTab = modal.locator('[data-testid="video-clip-tab"]');
-      await videoClipTab.click();
-
-      await page.waitForSelector('[data-testid="generate-clip-button"]', { timeout: 5000 });
-      const generateButton = page.locator('[data-testid="generate-clip-button"]');
-
-      await expect(generateButton).toHaveAttribute('aria-label', 'Generate video clip');
-    }
+    await expect(generateButton).toHaveAttribute('aria-label', 'Generate video clip');
   });
 
   test('video element is keyboard accessible', async ({ page }) => {
-    const eventCount = await timelinePage.getEventCount();
-    if (eventCount > 0) {
-      await timelinePage.clickEvent(0);
+    const { hasEvents } = await openEventAndNavigateToVideoClipTab(page, timelinePage);
+    if (!hasEvents) return;
 
-      const modal = page.locator('[data-testid="event-detail-modal"]');
-      const videoClipTab = modal.locator('[data-testid="video-clip-tab"]');
-      await videoClipTab.click();
+    await page.waitForSelector('[data-testid="video-player"]', { timeout: 10000 });
 
-      await page.waitForSelector('[data-testid="video-player"]', { timeout: 5000 });
-
-      // Video with controls attribute should be keyboard accessible
-      const video = page.locator('[data-testid="video-player"]');
-      await expect(video).toHaveAttribute('controls', '');
-    }
+    // Video with controls attribute should be keyboard accessible
+    const video = page.locator('[data-testid="video-player"]');
+    await expect(video).toHaveAttribute('controls', '');
   });
 });
