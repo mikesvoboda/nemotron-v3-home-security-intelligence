@@ -100,7 +100,14 @@ class SceneChangeDetector:
 
         Returns:
             Grayscale image as 2D numpy array.
+
+        Raises:
+            ValueError: If frame is None or has invalid shape.
         """
+        if frame is None:
+            raise ValueError("Frame cannot be None for grayscale conversion")
+        if not hasattr(frame, "ndim") or not hasattr(frame, "shape"):
+            raise ValueError(f"Frame must be a numpy array, got {type(frame).__name__}")
         if frame.ndim == 2:
             # Already grayscale
             return frame
@@ -174,7 +181,17 @@ class SceneChangeDetector:
 
         Returns:
             SceneChangeResult with change detection status and similarity score.
+
+        Raises:
+            ValueError: If current_frame is None or has invalid shape.
         """
+        if current_frame is None:
+            raise ValueError("current_frame cannot be None for scene change detection")
+        if not hasattr(current_frame, "shape"):
+            raise ValueError(
+                f"current_frame must be a numpy array with shape attribute, "
+                f"got {type(current_frame).__name__}"
+            )
         if camera_id not in self._baselines:
             # First frame - set as baseline, no change detected
             prepared = self._prepare_frame(current_frame)

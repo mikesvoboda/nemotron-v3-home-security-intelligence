@@ -158,11 +158,29 @@ async def load_yolo_model(model_path: str) -> Any:
         raise RuntimeError(f"Failed to load YOLO model: {e}") from e
 
 
+def _is_paddleocr_available() -> bool:
+    """Check if PaddleOCR package is available.
+
+    Returns:
+        True if paddleocr is installed, False otherwise
+    """
+    try:
+        import importlib.util
+
+        return importlib.util.find_spec("paddleocr") is not None
+    except (ImportError, ModuleNotFoundError):
+        return False
+
+
 async def load_paddle_ocr(model_path: str) -> Any:
     """Load PaddleOCR model.
 
     This is a placeholder implementation. The actual implementation will use
     PaddlePaddle/PaddleOCR for text recognition.
+
+    Note: PaddleOCR is an optional dependency. If not installed, this function
+    raises RuntimeError with a descriptive message (not ImportError) so that
+    the ModelManager can handle it gracefully without logging a full traceback.
 
     Args:
         model_path: Model path (used for configuration, not direct loading)
@@ -171,9 +189,19 @@ async def load_paddle_ocr(model_path: str) -> Any:
         Loaded PaddleOCR instance
 
     Raises:
-        ImportError: If paddleocr is not installed
-        RuntimeError: If model loading fails
+        RuntimeError: If paddleocr is not installed or model loading fails
     """
+    # Check availability first to provide graceful failure
+    if not _is_paddleocr_available():
+        logger.info(
+            "paddleocr package not installed - OCR features disabled. "
+            "Install with: pip install paddleocr paddlepaddle"
+        )
+        raise RuntimeError(
+            "paddleocr package not installed. OCR features are disabled. "
+            "Install with: pip install paddleocr paddlepaddle"
+        )
+
     try:
         from paddleocr import PaddleOCR
 
@@ -192,11 +220,15 @@ async def load_paddle_ocr(model_path: str) -> Any:
         logger.info("Successfully loaded PaddleOCR model")
         return model
 
-    except ImportError:
-        logger.warning(
-            "paddleocr package not installed. Install with: pip install paddleocr paddlepaddle"
+    except ImportError as e:
+        logger.info(
+            "paddleocr package not installed - OCR features disabled. "
+            "Install with: pip install paddleocr paddlepaddle"
         )
-        raise
+        raise RuntimeError(
+            "paddleocr package not installed. OCR features are disabled. "
+            "Install with: pip install paddleocr paddlepaddle"
+        ) from e
 
     except Exception as e:
         logger.error("Failed to load PaddleOCR", exc_info=True)
@@ -615,6 +647,23 @@ class ModelManager:
 
             logger.info(f"Successfully loaded model {model_name}")
             return model
+
+        except RuntimeError as e:
+            # Check if this is an optional dependency not being installed
+            # (e.g., paddleocr). Log at INFO level for missing optional deps.
+            error_msg = str(e).lower()
+            if "not installed" in error_msg or "optional" in error_msg:
+                logger.info(
+                    f"Model {model_name} unavailable: {e}",
+                    extra={"model_name": model_name},
+                )
+            else:
+                logger.error(
+                    "Failed to load model",
+                    exc_info=True,
+                    extra={"model_name": model_name},
+                )
+            raise
 
         except Exception:
             logger.error("Failed to load model", exc_info=True, extra={"model_name": model_name})

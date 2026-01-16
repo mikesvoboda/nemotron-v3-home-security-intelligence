@@ -1,5 +1,7 @@
-import { Camera, Car, Clock, Eye, User } from 'lucide-react';
+import { AlertTriangle, Camera, Car, Clock, Eye, ShieldCheck, User } from 'lucide-react';
 import { memo } from 'react';
+
+import type { TrustStatus } from '../../services/api';
 
 /**
  * Supported entity types for the EntityCard component.
@@ -16,6 +18,8 @@ export interface EntityCardProps {
   appearance_count: number;
   cameras_seen?: string[];
   thumbnail_url?: string | null;
+  /** Trust status for the entity - 'trusted', 'untrusted', or 'unclassified' (default) */
+  trust_status?: TrustStatus | null;
   onClick?: (entityId: string) => void;
   className?: string;
 }
@@ -32,11 +36,15 @@ const EntityCard = memo(function EntityCard({
   appearance_count,
   cameras_seen = [],
   thumbnail_url = null,
+  trust_status = null,
   onClick,
   className = '',
 }: EntityCardProps) {
   // Normalize entity_type to known type ('person' | 'vehicle')
   const normalizedType: EntityType = entity_type === 'person' ? 'person' : 'vehicle';
+
+  // Trust status is already normalized by the parent component
+  const normalizedTrustStatus = trust_status;
 
   // Format timestamp to relative time
   const formatTimestamp = (isoString: string): string => {
@@ -103,7 +111,7 @@ const EntityCard = memo(function EntityCard({
         'aria-label': `View entity ${entityTypeLabel} ${truncateId(id)}`,
       })}
     >
-      {/* Header: Entity type badge and ID */}
+      {/* Header: Entity type badge, trust badge, and ID */}
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           {/* Entity type badge */}
@@ -115,6 +123,29 @@ const EntityCard = memo(function EntityCard({
             )}
             {entityTypeLabel}
           </span>
+          {/* Trust status badge */}
+          {normalizedTrustStatus === 'trusted' && (
+            <span
+              className="trusted flex items-center gap-1 rounded-full bg-green-500/20 px-2 py-0.5 text-xs font-medium text-green-400"
+              data-testid="trust-badge-trusted"
+              aria-label="Trusted entity"
+            >
+              <ShieldCheck className="h-3 w-3" />
+              <span className="sr-only">Trust status: </span>
+              Trusted
+            </span>
+          )}
+          {normalizedTrustStatus === 'untrusted' && (
+            <span
+              className="suspicious warning flex items-center gap-1 rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-medium text-amber-400"
+              data-testid="trust-badge-suspicious"
+              aria-label="Suspicious entity"
+            >
+              <AlertTriangle className="h-3 w-3" />
+              <span className="sr-only">Trust status: </span>
+              Suspicious
+            </span>
+          )}
         </div>
         {/* Entity ID */}
         <span className="text-xs text-text-muted" title={id}>

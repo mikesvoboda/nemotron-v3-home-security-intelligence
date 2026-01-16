@@ -168,10 +168,10 @@ def test_get_cached_video_miss(transcoding_service, temp_video_file):
 
 def test_get_cached_video_hit(transcoding_service, temp_video_file, temp_cache_dir):
     """Test cache lookup returns path for cached video."""
-    # Create a cached file
+    # Create a cached file (must be at least 1KB to pass corrupted file check)
     file_hash = _compute_file_hash(temp_video_file)
     cached_file = temp_cache_dir / f"{file_hash}_transcoded.{OUTPUT_CONTAINER}"
-    cached_file.write_bytes(b"cached content")
+    cached_file.write_bytes(b"cached content" + b"\x00" * 1024)
 
     result = transcoding_service.get_cached_video(temp_video_file)
 
@@ -234,7 +234,8 @@ async def test_transcode_video_success(transcoding_service, temp_video_file, tem
         # The mock creates the file after process.communicate() is called
         # Simulate ffmpeg creating the file after running
         async def create_output(*args, **kwargs):
-            expected_output.write_bytes(b"transcoded content")
+            # Write at least 1KB to pass the corrupted file check (MIN_VALID_FILE_SIZE = 1024)
+            expected_output.write_bytes(b"transcoded content" + b"\x00" * 1024)
             return (b"", b"")
 
         mock_process.communicate = create_output
@@ -264,20 +265,31 @@ async def test_transcode_video_force_retranscode(
     """Test force=True bypasses cache."""
     file_hash = _compute_file_hash(temp_video_file)
     cached_file = temp_cache_dir / f"{file_hash}_transcoded.{OUTPUT_CONTAINER}"
-    cached_file.write_bytes(b"old cached content")
+    cached_file.write_bytes(b"old cached content" + b"\x00" * 1024)
 
     with patch("asyncio.create_subprocess_exec") as mock_exec:
-        mock_process = AsyncMock()
-        mock_process.returncode = 0
-        mock_process.communicate = AsyncMock(return_value=(b"", b""))
-        mock_exec.return_value = mock_process
+        # First call is remux (should fail), second call is full transcode (should succeed)
+        mock_remux_process = AsyncMock()
+        mock_remux_process.returncode = 1  # Remux fails
+        mock_remux_process.communicate = AsyncMock(return_value=(b"", b"remux failed"))
 
-        # Simulate ffmpeg updating the file
-        cached_file.write_bytes(b"new transcoded content")
+        mock_transcode_process = AsyncMock()
+        mock_transcode_process.returncode = 0
+
+        # Simulate ffmpeg creating the file after full transcode
+        async def create_output(*args, **kwargs):
+            cached_file.write_bytes(b"new transcoded content" + b"\x00" * 1024)
+            return (b"", b"")
+
+        mock_transcode_process.communicate = create_output
+
+        # Return different processes for remux vs transcode calls
+        mock_exec.side_effect = [mock_remux_process, mock_transcode_process]
 
         result = await transcoding_service.transcode_video(temp_video_file, force=True)
 
-        mock_exec.assert_called_once()
+        # Both remux and transcode should be called
+        assert mock_exec.call_count == 2
         assert result == cached_file
 
 
@@ -343,7 +355,8 @@ async def test_get_or_transcode_needs_transcoding(
         mock_process.communicate = AsyncMock(return_value=(b"", b""))
         mock_exec.return_value = mock_process
 
-        expected_output.write_bytes(b"transcoded content")
+        # Write at least 1KB to pass the corrupted file check (MIN_VALID_FILE_SIZE = 1024)
+        expected_output.write_bytes(b"transcoded content" + b"\x00" * 1024)
 
         result = await transcoding_service.get_or_transcode(temp_video_file)
 
@@ -355,7 +368,8 @@ async def test_get_or_transcode_uses_cache(transcoding_service, temp_video_file,
     """Test get_or_transcode returns cached file if available."""
     file_hash = _compute_file_hash(temp_video_file)
     cached_file = temp_cache_dir / f"{file_hash}_transcoded.{OUTPUT_CONTAINER}"
-    cached_file.write_bytes(b"cached content")
+    # Write at least 1KB to pass corrupted file check
+    cached_file.write_bytes(b"cached content" + b"\x00" * 1024)
 
     result = await transcoding_service.get_or_transcode(temp_video_file)
 
@@ -735,23 +749,31 @@ class TestTranscodeVideoWithNVENC:
                 ],
             ) as mock_encoder,
         ):
-            mock_process = AsyncMock()
-            mock_process.returncode = 0
-            mock_exec.return_value = mock_process
+            # First call is remux (should fail), second call is full transcode (should succeed)
+            mock_remux_process = AsyncMock()
+            mock_remux_process.returncode = 1  # Remux fails
+            mock_remux_process.communicate = AsyncMock(return_value=(b"", b"remux failed"))
 
-            # Simulate ffmpeg creating the file after running
+            mock_transcode_process = AsyncMock()
+            mock_transcode_process.returncode = 0
+
+            # Simulate ffmpeg creating the file after full transcode
             async def create_output(*args, **kwargs):
-                expected_output.write_bytes(b"transcoded content")
+                # Write at least 1KB to pass the corrupted file check (MIN_VALID_FILE_SIZE = 1024)
+                expected_output.write_bytes(b"transcoded content" + b"\x00" * 1024)
                 return (b"", b"")
 
-            mock_process.communicate = create_output
+            mock_transcode_process.communicate = create_output
+
+            # Return different processes for remux vs transcode calls
+            mock_exec.side_effect = [mock_remux_process, mock_transcode_process]
 
             await transcoding_service.transcode_video(temp_video_file)
 
             mock_encoder.assert_called_once_with(use_hardware=True)
 
-            # Verify NVENC args are passed to ffmpeg
-            call_args = mock_exec.call_args[0]
+            # Verify NVENC args are passed to ffmpeg (second call is full transcode)
+            call_args = mock_exec.call_args_list[1][0]
             assert "h264_nvenc" in call_args
 
     @pytest.mark.asyncio
@@ -782,19 +804,27 @@ class TestTranscodeVideoWithNVENC:
                 ],
             ),
         ):
-            mock_process = AsyncMock()
-            mock_process.returncode = 0
-            mock_exec.return_value = mock_process
+            # First call is remux (should fail), second call is full transcode (should succeed)
+            mock_remux_process = AsyncMock()
+            mock_remux_process.returncode = 1  # Remux fails
+            mock_remux_process.communicate = AsyncMock(return_value=(b"", b"remux failed"))
 
-            # Simulate ffmpeg creating the file after running
+            mock_transcode_process = AsyncMock()
+            mock_transcode_process.returncode = 0
+
+            # Simulate ffmpeg creating the file after full transcode
             async def create_output(*args, **kwargs):
-                expected_output.write_bytes(b"transcoded content")
+                # Write at least 1KB to pass the corrupted file check (MIN_VALID_FILE_SIZE = 1024)
+                expected_output.write_bytes(b"transcoded content" + b"\x00" * 1024)
                 return (b"", b"")
 
-            mock_process.communicate = create_output
+            mock_transcode_process.communicate = create_output
+
+            # Return different processes for remux vs transcode calls
+            mock_exec.side_effect = [mock_remux_process, mock_transcode_process]
 
             await transcoding_service.transcode_video(temp_video_file)
 
-            # Verify software args are passed to ffmpeg
-            call_args = mock_exec.call_args[0]
+            # Verify software args are passed to ffmpeg (second call is full transcode)
+            call_args = mock_exec.call_args_list[1][0]
             assert "libx264" in call_args

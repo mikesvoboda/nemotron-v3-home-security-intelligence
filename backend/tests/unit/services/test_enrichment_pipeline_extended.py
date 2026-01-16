@@ -527,14 +527,16 @@ class TestCropEdgeCases:
         test_image: Image.Image,
         mock_model_manager: MagicMock,
     ) -> None:
-        """Test _crop_to_bbox handles inverted coordinates (x2 < x1)."""
+        """Test _crop_to_bbox handles inverted coordinates (x2 < x1) by swapping."""
         bbox = BoundingBox(x1=200, y1=200, x2=100, y2=100)  # Inverted
 
         pipeline = EnrichmentPipeline(model_manager=mock_model_manager)
         result = await pipeline._crop_to_bbox(test_image, bbox)
 
-        # Should return None for invalid bbox
-        assert result is None
+        # Should swap coordinates and return valid cropped image
+        # After swapping: x1=100, y1=100, x2=200, y2=200 -> 100x100 crop
+        assert result is not None
+        assert result.size == (100, 100)
 
     async def test_crop_to_bbox_zero_width(
         self,

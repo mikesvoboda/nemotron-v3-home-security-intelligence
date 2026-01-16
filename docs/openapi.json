@@ -25707,7 +25707,7 @@
     },
     "/api/events": {
       "get": {
-        "description": "List events with optional filtering and cursor-based pagination.\n\nSupports both cursor-based pagination (recommended) and offset pagination (deprecated).\nCursor-based pagination offers better performance for large datasets.\n\nSparse Fieldsets (NEM-1434):\nUse the `fields` parameter to request only specific fields in the response,\nreducing payload size. Example: ?fields=id,camera_id,risk_level,summary,reviewed\n\nArgs:\n    camera_id: Optional camera ID to filter by\n    risk_level: Optional risk level to filter by (low, medium, high, critical)\n    start_date: Optional start date for date range filter\n    end_date: Optional end date for date range filter\n    reviewed: Optional filter by reviewed status\n    object_type: Optional object type to filter by (person, vehicle, animal, etc.)\n    limit: Maximum number of results to return (1-100, default 50)\n    offset: Number of results to skip (deprecated, use cursor instead)\n    cursor: Pagination cursor from previous response's next_cursor field\n    fields: Comma-separated list of fields to include (sparse fieldsets)\n    db: Database session\n\nReturns:\n    EventListResponse containing filtered events and pagination info\n\nRaises:\n    HTTPException: 400 if start_date is after end_date\n    HTTPException: 400 if cursor is invalid\n    HTTPException: 400 if invalid fields are requested",
+        "description": "List events with optional filtering and cursor-based pagination.\n\nSupports both cursor-based pagination (recommended) and offset pagination (deprecated).\nCursor-based pagination offers better performance for large datasets.\n\nBy default, soft-deleted events (events with deleted_at set) are excluded from results.\nUse include_deleted=true to include them.\n\nSparse Fieldsets (NEM-1434):\nUse the `fields` parameter to request only specific fields in the response,\nreducing payload size. Example: ?fields=id,camera_id,risk_level,summary,reviewed\n\nArgs:\n    camera_id: Optional camera ID to filter by\n    risk_level: Optional risk level to filter by (low, medium, high, critical)\n    start_date: Optional start date for date range filter\n    end_date: Optional end date for date range filter\n    reviewed: Optional filter by reviewed status\n    object_type: Optional object type to filter by (person, vehicle, animal, etc.)\n    limit: Maximum number of results to return (1-100, default 50)\n    offset: Number of results to skip (deprecated, use cursor instead)\n    cursor: Pagination cursor from previous response's next_cursor field\n    fields: Comma-separated list of fields to include (sparse fieldsets)\n    include_deleted: Include soft-deleted events in results (default False)\n    db: Database session\n\nReturns:\n    EventListResponse containing filtered events and pagination info\n\nRaises:\n    HTTPException: 400 if start_date is after end_date\n    HTTPException: 400 if cursor is invalid\n    HTTPException: 400 if invalid fields are requested",
         "operationId": "list_events_api_events_get",
         "parameters": [
           {
@@ -25881,6 +25881,18 @@
               ],
               "description": "Comma-separated list of fields to include in response (sparse fieldsets). Valid fields: id, camera_id, started_at, ended_at, risk_score, risk_level, summary, reasoning, reviewed, detection_count, detection_ids, thumbnail_url",
               "title": "Fields"
+            }
+          },
+          {
+            "description": "Include soft-deleted events in results. Default is False to hide deleted events.",
+            "in": "query",
+            "name": "include_deleted",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Include soft-deleted events in results. Default is False to hide deleted events.",
+              "title": "Include Deleted",
+              "type": "boolean"
             }
           }
         ],

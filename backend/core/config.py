@@ -752,6 +752,10 @@ class Settings(BaseSettings):
         default="http://localhost:8094",
         description="Combined enrichment service URL for vehicle, pet, and clothing classification",
     )
+    use_enrichment_service: bool = Field(
+        default=True,
+        description="Use HTTP enrichment service instead of local models for vehicle/pet/clothing classification",
+    )
 
     # Monitoring URLs
     grafana_url: str = Field(
@@ -1203,9 +1207,9 @@ class Settings(BaseSettings):
         description="Maximum media requests per minute per client IP (stricter tier)",
     )
     rate_limit_websocket_connections_per_minute: int = Field(
-        default=10,
+        default=100,
         ge=1,
-        le=100,
+        le=400,
         description="Maximum WebSocket connection attempts per minute per client IP",
     )
     rate_limit_search_requests_per_minute: int = Field(

@@ -244,12 +244,19 @@ async def list_events(  # noqa: PLR0912
         "Valid fields: id, camera_id, started_at, ended_at, risk_score, risk_level, summary, "
         "reasoning, reviewed, detection_count, detection_ids, thumbnail_url",
     ),
+    include_deleted: bool = Query(
+        False,
+        description="Include soft-deleted events in results. Default is False to hide deleted events.",
+    ),
     db: AsyncSession = Depends(get_db),
 ) -> EventListResponse:
     """List events with optional filtering and cursor-based pagination.
 
     Supports both cursor-based pagination (recommended) and offset pagination (deprecated).
     Cursor-based pagination offers better performance for large datasets.
+
+    By default, soft-deleted events (events with deleted_at set) are excluded from results.
+    Use include_deleted=true to include them.
 
     Sparse Fieldsets (NEM-1434):
     Use the `fields` parameter to request only specific fields in the response,
@@ -266,6 +273,7 @@ async def list_events(  # noqa: PLR0912
         offset: Number of results to skip (deprecated, use cursor instead)
         cursor: Pagination cursor from previous response's next_cursor field
         fields: Comma-separated list of fields to include (sparse fieldsets)
+        include_deleted: Include soft-deleted events in results (default False)
         db: Database session
 
     Returns:
@@ -329,6 +337,11 @@ async def list_events(  # noqa: PLR0912
 
     # Build base query with eager loading for camera relationship (NEM-1619)
     query = select(Event).options(joinedload(Event.camera))
+
+    # Filter out soft-deleted events by default (consistent with get_event_or_404)
+    # Use include_deleted=true to include soft-deleted events in results
+    if not include_deleted:
+        query = query.where(Event.deleted_at.is_(None))
 
     # Apply filters
     if camera_id:

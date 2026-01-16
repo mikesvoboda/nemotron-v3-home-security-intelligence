@@ -647,7 +647,9 @@ test.describe('Zone Editor Error Handling', () => {
     await zonesPage.clickEditZone('Front Door Entry');
     await zonesPage.zoneNameInput.clear();
     await zonesPage.zoneNameInput.fill('Updated Name');
-    await zonesPage.submitZoneForm();
+
+    // Click submit button (don't use submitZoneForm helper as it waits for success)
+    await zonesPage.zoneFormSubmitButton.click();
 
     // Should show error or form should remain visible
     const errorOrForm = page.getByText(/Failed|Error/i).or(zonesPage.zoneFormTitle);
