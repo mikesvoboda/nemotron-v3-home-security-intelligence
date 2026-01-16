@@ -441,8 +441,20 @@ async def extract_pose_from_crop(
     try:
         import torch
 
+        # Get image dimensions for bounding box
+        # Since this is already a person crop, use full frame as the bounding box
+        # Format: [x1, y1, x2, y2] where coordinates are in pixels
+        width, height = person_crop.width, person_crop.height
+        full_frame_box = [[0, 0, width, height]]
+
         # Prepare image for model
-        inputs = processor(images=person_crop, return_tensors="pt")
+        # VitPoseImageProcessor.preprocess() requires 'boxes' argument
+        # to specify person bounding boxes for top-down pose estimation
+        inputs = processor(
+            images=person_crop,
+            boxes=full_frame_box,
+            return_tensors="pt",
+        )
 
         # Move to same device as model
         device = next(model.parameters()).device
@@ -506,8 +518,19 @@ async def extract_poses_batch(
     try:
         import torch
 
+        # Build full-frame bounding boxes for each crop
+        # Since these are already person crops, each box covers the entire image
+        # Format: list of [[x1, y1, x2, y2]] for each image
+        full_frame_boxes = [[[0, 0, img.width, img.height]] for img in person_crops]
+
         # Prepare batch
-        inputs = processor(images=person_crops, return_tensors="pt")
+        # VitPoseImageProcessor.preprocess() requires 'boxes' argument
+        # to specify person bounding boxes for top-down pose estimation
+        inputs = processor(
+            images=person_crops,
+            boxes=full_frame_boxes,
+            return_tensors="pt",
+        )
 
         # Move to same device as model
         device = next(model.parameters()).device

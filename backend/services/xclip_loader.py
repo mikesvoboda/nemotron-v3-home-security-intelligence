@@ -131,6 +131,74 @@ def _is_valid_pil_image(obj: Any) -> bool:
         return False
 
 
+def _convert_to_numpy_safe(pil_image: Image.Image) -> Any | None:
+    """Safely convert a PIL Image to a numpy array.
+
+    PIL images can be lazy-loaded and may fail when attempting to access
+    pixel data (e.g., corrupted or truncated files). This function catches
+    those failures and returns None instead of raising.
+
+    Args:
+        pil_image: PIL Image to convert
+
+    Returns:
+        Numpy array of the image, or None if conversion fails
+    """
+    try:
+        import numpy as np
+
+        # Force load the image data (PIL lazy-loads by default)
+        pil_image.load()
+
+        # Convert to numpy array
+        arr = np.array(pil_image)
+
+        # Validate the result has expected properties
+        if arr is None:
+            return None
+        if not hasattr(arr, "shape"):
+            return None
+        if len(arr.shape) < 2:  # Must be at least 2D (height, width)
+            return None
+        if arr.shape[0] == 0 or arr.shape[1] == 0:  # Must have non-zero dimensions
+            return None
+
+        return arr
+    except Exception:
+        # Any failure during load/conversion returns None
+        return None
+
+
+def _validate_and_convert_frames(frames: list[Image.Image]) -> list[Image.Image]:
+    """Validate frames can be converted to numpy and filter out invalid ones.
+
+    This performs deep validation by actually attempting numpy conversion,
+    which catches corrupted/truncated images that pass basic PIL validation
+    but fail when pixel data is accessed.
+
+    Args:
+        frames: List of PIL Images to validate
+
+    Returns:
+        List of validated PIL Images (invalid frames filtered out)
+    """
+    valid_frames = []
+    for frame in frames:
+        if not _is_valid_pil_image(frame):
+            continue
+
+        # Deep validation: attempt numpy conversion
+        arr = _convert_to_numpy_safe(frame)
+        if arr is not None:
+            valid_frames.append(frame)
+        else:
+            logger.debug(
+                "Frame passed PIL validation but failed numpy conversion - likely corrupted"
+            )
+
+    return valid_frames
+
+
 async def classify_actions(
     model_dict: dict[str, Any],
     frames: list[Image.Image],
@@ -164,20 +232,35 @@ async def classify_actions(
     if not frames:
         raise ValueError("At least one frame is required for action classification")
 
-    # Filter out None and invalid frames (can occur if image loading/cropping fails)
-    valid_frames = [f for f in frames if _is_valid_pil_image(f)]
+    # First pass: filter out None and basic invalid PIL Images
+    pil_valid_frames = [f for f in frames if _is_valid_pil_image(f)]
 
-    if not valid_frames:
+    if not pil_valid_frames:
         raise ValueError(
             "No valid frames provided for action classification "
             "(all frames are None or invalid PIL Images)"
         )
 
+    # Second pass: deep validation - verify numpy conversion works
+    # This catches corrupted/truncated images that pass PIL validation
+    # but fail when pixel data is accessed (the source of .shape errors)
+    valid_frames = _validate_and_convert_frames(pil_valid_frames)
+
+    if not valid_frames:
+        raise ValueError(
+            "No valid frames provided for action classification "
+            "(all frames failed numpy conversion - likely corrupted images)"
+        )
+
     # Log warning if some frames were invalid
-    if len(valid_frames) < len(frames):
+    total_filtered = len(frames) - len(valid_frames)
+    if total_filtered > 0:
+        pil_invalid = len(frames) - len(pil_valid_frames)
+        numpy_invalid = len(pil_valid_frames) - len(valid_frames)
         logger.warning(
-            f"X-CLIP received {len(frames)} frames but {len(frames) - len(valid_frames)} "
-            f"were None or invalid and filtered out. Proceeding with {len(valid_frames)} valid frames."
+            f"X-CLIP received {len(frames)} frames but {total_filtered} were invalid: "
+            f"{pil_invalid} failed PIL validation, {numpy_invalid} failed numpy conversion. "
+            f"Proceeding with {len(valid_frames)} valid frames."
         )
 
     # Use valid frames for classification
@@ -195,6 +278,8 @@ async def classify_actions(
         loop = asyncio.get_event_loop()
 
         def _classify() -> dict[str, Any]:
+            import numpy as np
+
             # X-CLIP expects 8 frames for optimal performance
             # If we have fewer, duplicate frames to reach 8
             # If we have more, sample uniformly to get 8
@@ -209,14 +294,51 @@ async def classify_actions(
             else:
                 padded_frames = frames
 
+            # Final safety check: convert frames to numpy arrays explicitly
+            # This catches any edge cases where PIL images become invalid after validation
+            validated_frames = []
+            for i, frame in enumerate(padded_frames):
+                try:
+                    # Force load and convert to numpy to validate
+                    frame.load()
+                    arr = np.array(frame)
+                    if arr is None or not hasattr(arr, "shape") or len(arr.shape) < 2:
+                        raise ValueError(f"Frame {i} produced invalid numpy array")
+                    # Use the original PIL image since processor expects PIL
+                    validated_frames.append(frame)
+                except Exception as e:
+                    logger.warning(f"Frame {i} failed final validation: {e}")
+                    # Try to use another valid frame as replacement
+                    if validated_frames:
+                        validated_frames.append(validated_frames[-1])
+                    else:
+                        # Skip this frame - will cause fewer frames if at start
+                        pass
+
+            if not validated_frames:
+                raise RuntimeError(
+                    "All frames failed final numpy validation before X-CLIP processing"
+                )
+
+            # Re-pad if we lost frames during validation
+            while len(validated_frames) < num_frames and validated_frames:
+                validated_frames.append(validated_frames[-1])
+
             # Prepare inputs for X-CLIP
             # X-CLIP expects videos as list of frames
-            inputs = processor(
-                text=prompts,
-                videos=padded_frames,  # List of PIL images
-                return_tensors="pt",
-                padding=True,
-            )
+            try:
+                inputs = processor(
+                    text=prompts,
+                    videos=validated_frames,  # List of PIL images
+                    return_tensors="pt",
+                    padding=True,
+                )
+            except AttributeError as e:
+                # This catches the "'NoneType' object has no attribute 'shape'" error
+                # that occurs inside the HuggingFace processor
+                raise RuntimeError(
+                    f"X-CLIP processor failed - likely corrupted frame data: {e}"
+                ) from e
 
             # Move to GPU if model is on GPU
             device = next(model.parameters()).device
