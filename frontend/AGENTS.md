@@ -74,11 +74,12 @@ frontend/
 
 ### Documentation
 
-| File                 | Purpose                                  |
-| -------------------- | ---------------------------------------- |
-| `TESTING.md`         | Comprehensive testing documentation      |
-| `TEST_QUICKSTART.md` | Quick reference for running tests        |
-| `verify-eslint.sh`   | ESLint configuration verification script |
+| File                   | Purpose                                     |
+| ---------------------- | ------------------------------------------- |
+| `TESTING.md`           | Comprehensive testing documentation         |
+| `README-TESTING.md`    | Bun vs Vitest compatibility guide           |
+| `TEST_QUICKSTART.md`   | Quick reference for running tests           |
+| `verify-eslint.sh`     | ESLint configuration verification script    |
 
 ## NPM Scripts
 
