@@ -159,6 +159,64 @@ async def test_add_detection_creates_new_batch(batch_aggregator, mock_redis_inst
 
 
 @pytest.mark.asyncio
+async def test_create_batch_id_uses_camera_batch_key(batch_aggregator, mock_redis_instance):
+    """Test that batch creation uses correct camera-specific batch key format.
+
+    Verifies that the batch_key follows the format 'batch:{camera_id}:current'
+    when creating batch metadata atomically.
+    """
+    camera_id = "backyard_cam"
+    detection_id = 42
+    file_path = "/export/foscam/backyard_cam/image_042.jpg"
+
+    # Mock: No existing batch
+    mock_redis_instance.get.return_value = None
+    # Mock RPUSH to return 1 (list length after push)
+    mock_redis_instance._client.rpush.return_value = 1
+
+    # Create a mock pipeline that tracks operations
+    pipeline_ops = []
+
+    class MockPipeline:
+        def set(self, key, value, ex=None):
+            pipeline_ops.append(("set", key, value, ex))
+            return self
+
+        async def execute(self):
+            return [True] * len(pipeline_ops)
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            return False
+
+    mock_redis_instance._client.pipeline = MagicMock(return_value=MockPipeline())
+
+    # Mock UUID generation
+    with patch("backend.services.batch_aggregator.uuid.uuid4") as mock_uuid:
+        mock_uuid.return_value.hex = "test_batch_456"
+
+        await batch_aggregator.add_detection(camera_id, detection_id, file_path)
+
+    # Verify the batch_key uses the correct format with camera_id
+    expected_batch_key = f"batch:{camera_id}:current"
+    pipeline_keys = [op[1] for op in pipeline_ops if op[0] == "set"]
+
+    assert expected_batch_key in pipeline_keys, (
+        f"Expected batch_key '{expected_batch_key}' not found in pipeline operations. "
+        f"Found keys: {pipeline_keys}"
+    )
+
+    # Also verify the batch_key value points to the generated batch_id
+    batch_key_ops = [op for op in pipeline_ops if op[0] == "set" and op[1] == expected_batch_key]
+    assert len(batch_key_ops) == 1, "Expected exactly one SET operation for batch_key"
+    assert batch_key_ops[0][2] == "test_batch_456", (
+        "batch_key should point to the generated batch_id"
+    )
+
+
+@pytest.mark.asyncio
 async def test_add_detection_to_existing_batch(batch_aggregator, mock_redis_instance):
     """Test that adding a detection to a camera with an active batch adds to that batch."""
     camera_id = "front_door"
