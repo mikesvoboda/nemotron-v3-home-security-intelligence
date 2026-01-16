@@ -11,9 +11,7 @@ import { EntitiesPage } from '../pages';
 import { setupApiMocks, defaultMockConfig } from '../fixtures';
 import { mockEntitiesWithTrust, mockDetectionWithBbox } from '../fixtures/test-data';
 
-// TODO: Re-enable after fixing entity card rendering in E2E mocks
-// Entity cards don't render despite correct mock setup - needs investigation
-test.describe.skip('Entity Trust Classification', () => {
+test.describe('Entity Trust Classification', () => {
   let entitiesPage: EntitiesPage;
 
   test.beforeEach(async ({ page }) => {

@@ -63,9 +63,6 @@ function createMockVideoBlob(): string {
   return URL.createObjectURL(blob);
 }
 
-// TODO: Re-enable after fixing video playback mocks in E2E tests
-// Video player tests fail because event detail modal doesn't render correctly in E2E environment
-test.describe.skip('Video Player Tests', () => {
 test.describe('Video Player - Basic Loading @critical', () => {
   let timelinePage: TimelinePage;
 
@@ -758,4 +755,3 @@ test.describe('Video Player - Accessibility', () => {
     }
   });
 });
-}); // End of Video Player Tests skip wrapper

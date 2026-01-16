@@ -14,9 +14,7 @@
 
 import { test, expect } from '../../fixtures';
 
-// TODO: Re-enable after fixing alert detail modal rendering in E2E tests
-// Tests fail because alert detail view doesn't render correctly in E2E environment
-test.describe.skip('Alert Lifecycle Journey (NEM-1664)', () => {
+test.describe('Alert Lifecycle Journey (NEM-1664)', () => {
   test.beforeEach(async ({ page, browserName }) => {
     // Navigate to dashboard first
     await page.goto('/', { waitUntil: 'domcontentloaded' });
@@ -86,7 +84,7 @@ test.describe.skip('Alert Lifecycle Journey (NEM-1664)', () => {
       await expect(severityFilter.first()).toBeVisible();
 
       // Get initial alert count
-      const allAlerts = page.locator('[data-testid^="alert-card-"]');
+      const allAlerts = page.locator('[data-testid^="event-card-"]');
       const initialCount = await allAlerts.count();
 
       // Select high severity filter
@@ -103,7 +101,7 @@ test.describe.skip('Alert Lifecycle Journey (NEM-1664)', () => {
         await page.waitForTimeout(500);
 
         // Verify alerts are filtered (count may change)
-        const filteredAlerts = page.locator('[data-testid^="alert-card-"]');
+        const filteredAlerts = page.locator('[data-testid^="event-card-"]');
         const filteredCount = await filteredAlerts.count();
 
         // Verify all visible alerts have high severity indicator
@@ -130,7 +128,7 @@ test.describe.skip('Alert Lifecycle Journey (NEM-1664)', () => {
     await expect(page.locator('h1:has-text("Alerts")')).toBeVisible({ timeout: 10000 });
 
     // Find first unacknowledged alert
-    const alerts = page.locator('[data-testid^="alert-card-"]');
+    const alerts = page.locator('[data-testid^="event-card-"]');
 
     if (await alerts.count() > 0) {
       const firstAlert = alerts.first();
@@ -178,7 +176,7 @@ test.describe.skip('Alert Lifecycle Journey (NEM-1664)', () => {
     await expect(page.locator('h1:has-text("Alerts")')).toBeVisible({ timeout: 10000 });
 
     // When: Click on first alert
-    const firstAlert = page.locator('[data-testid^="alert-card-"]').first();
+    const firstAlert = page.locator('[data-testid^="event-card-"]').first();
 
     if (await firstAlert.count() > 0) {
       await firstAlert.click();
@@ -263,7 +261,7 @@ test.describe.skip('Alert Lifecycle Journey (NEM-1664)', () => {
       await expect(batchActionButton.first()).toBeVisible();
 
       // Get initial alert count
-      const alerts = page.locator('[data-testid^="alert-card-"]');
+      const alerts = page.locator('[data-testid^="event-card-"]');
       const initialCount = await alerts.count();
 
       // When: Click batch acknowledge
@@ -273,7 +271,7 @@ test.describe.skip('Alert Lifecycle Journey (NEM-1664)', () => {
       await page.waitForTimeout(1000);
 
       // Verify alerts are acknowledged or removed
-      const remainingAlerts = page.locator('[data-testid^="alert-card-"]');
+      const remainingAlerts = page.locator('[data-testid^="event-card-"]');
       const remainingCount = await remainingAlerts.count();
 
       // Count should decrease or all should show acknowledged status
@@ -303,7 +301,7 @@ test.describe.skip('Alert Lifecycle Journey (NEM-1664)', () => {
     await expect(page.locator('h1:has-text("Alerts")')).toBeVisible({ timeout: 10000 });
 
     // When: Locate alerts with severity indicators
-    const alerts = page.locator('[data-testid^="alert-card-"]');
+    const alerts = page.locator('[data-testid^="event-card-"]');
 
     if (await alerts.count() > 0) {
       const firstAlert = alerts.first();
