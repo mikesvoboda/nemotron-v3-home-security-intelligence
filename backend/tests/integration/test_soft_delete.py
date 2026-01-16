@@ -1,13 +1,13 @@
 """Integration tests for soft-delete behavior across Events and Cameras.
 
 This module tests the soft-delete functionality implemented in NEM-1954, NEM-1955, and NEM-1956:
-- Filtering: Soft-deleted items return 404 on direct access (list filtering not yet implemented)
+- Filtering: Soft-deleted items return 404 on direct access and are excluded from list endpoints
 - Trash views: /api/events/deleted and /api/cameras/deleted return deleted items
 - Restore: POST /{id}/restore restores soft-deleted items
 - Cascade: Events cascade soft-delete to related detections (future capability)
 
-Note: List endpoint filtering (GET /api/events, GET /api/cameras) for soft-deleted items
-is NOT currently implemented. These tests document the expected behavior via skipped tests.
+Note: GET /api/events filters out soft-deleted events by default (use include_deleted=true to include).
+GET /api/cameras filtering for soft-deleted items is not yet implemented.
 
 Test organization follows the pattern established in test_cameras_api.py and test_events_api.py.
 """
@@ -147,14 +147,8 @@ async def create_test_detection(
 class TestEventSoftDeleteFiltering:
     """Test that soft-deleted events are properly filtered from normal endpoints."""
 
-    @pytest.mark.skip(reason="List endpoint soft-delete filtering not yet implemented")
     async def test_soft_deleted_event_excluded_from_list(self, client: AsyncClient) -> None:
-        """Verify soft-deleted events are excluded from GET /api/events.
-
-        NOTE: This test is skipped because list endpoint filtering for soft-deleted
-        items is not yet implemented. The list endpoints currently return ALL items
-        regardless of deleted_at status. This is tracked as a future enhancement.
-        """
+        """Verify soft-deleted events are excluded from GET /api/events by default."""
         async with get_session() as db:
             # Create a camera first
             camera = await create_test_camera(db, camera_id="filter_test_cam")
@@ -178,6 +172,34 @@ class TestEventSoftDeleteFiltering:
             # Active event should be present, deleted event should not
             assert active_event.id in event_ids
             assert deleted_event.id not in event_ids
+
+    async def test_soft_deleted_event_included_with_include_deleted_flag(
+        self, client: AsyncClient
+    ) -> None:
+        """Verify soft-deleted events are included when include_deleted=true."""
+        async with get_session() as db:
+            # Create a camera first
+            camera = await create_test_camera(db, camera_id="include_deleted_test_cam")
+
+            # Create one active event and one deleted event
+            active_event = await create_test_event(
+                db, camera.id, deleted=False, summary="Active event"
+            )
+            deleted_event = await create_test_event(
+                db, camera.id, deleted=True, summary="Deleted event"
+            )
+            await db.commit()
+
+            # Fetch events list with include_deleted=true
+            response = await client.get("/api/events?include_deleted=true")
+            assert response.status_code == 200
+
+            data = response.json()
+            event_ids = [e["id"] for e in data["items"]]
+
+            # Both events should be present when include_deleted=true
+            assert active_event.id in event_ids
+            assert deleted_event.id in event_ids
 
     async def test_soft_deleted_event_returns_404_on_direct_access(
         self, client: AsyncClient
@@ -351,14 +373,8 @@ class TestEventRestore:
         response = await client.post("/api/events/999999999/restore")
         assert response.status_code == 404
 
-    @pytest.mark.skip(reason="List endpoint soft-delete filtering not yet implemented")
     async def test_restored_event_appears_in_list(self, client: AsyncClient) -> None:
-        """Verify restored event appears in GET /api/events list.
-
-        NOTE: This test is skipped because list endpoint filtering for soft-deleted
-        items is not yet implemented. The test cannot verify that a deleted event
-        is excluded from the list initially.
-        """
+        """Verify restored event appears in GET /api/events list."""
         async with get_session() as db:
             camera = await create_test_camera(db, camera_id="restore_list_cam")
             deleted_event = await create_test_event(
@@ -367,7 +383,7 @@ class TestEventRestore:
             event_id = deleted_event.id
             await db.commit()
 
-            # Verify not in list initially
+            # Verify not in list initially (soft-deleted events are excluded by default)
             list_response = await client.get("/api/events")
             assert event_id not in [e["id"] for e in list_response.json()["items"]]
 
