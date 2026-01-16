@@ -118,6 +118,10 @@ class EventResponse(BaseModel):
         None,
         description="Enrichment pipeline status (NEM-1672) - shows which models succeeded/failed",
     )
+    deleted_at: datetime | None = Field(
+        None,
+        description="Timestamp when the event was soft-deleted (null if not deleted)",
+    )
 
 
 class EventUpdate(BaseModel):

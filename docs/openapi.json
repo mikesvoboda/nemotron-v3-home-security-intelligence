@@ -7827,6 +7827,19 @@
             "title": "Camera Id",
             "type": "string"
           },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Timestamp when the event was soft-deleted (null if not deleted)",
+            "title": "Deleted At"
+          },
           "detection_count": {
             "default": 0,
             "description": "Number of detections in this event",
