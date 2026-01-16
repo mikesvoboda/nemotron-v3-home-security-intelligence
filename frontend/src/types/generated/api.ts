@@ -10977,6 +10977,16 @@ export interface components {
              * @description URL to the most recent thumbnail image
              */
             thumbnail_url?: string | null;
+            /**
+             * Trust Status
+             * @description Trust classification: 'trusted', 'untrusted', or 'unclassified'
+             */
+            trust_status?: string | null;
+            /**
+             * Trust Updated At
+             * @description When the trust status was last updated
+             */
+            trust_updated_at?: string | null;
         };
         /**
          * EntityDetectionsResponse
@@ -11310,7 +11320,9 @@ export interface components {
          *       "first_seen": "2025-12-23T10:00:00Z",
          *       "id": "entity_abc123",
          *       "last_seen": "2025-12-23T14:30:00Z",
-         *       "thumbnail_url": "/api/detections/123/image"
+         *       "thumbnail_url": "/api/detections/123/image",
+         *       "trust_status": "trusted",
+         *       "trust_updated_at": "2025-12-23T14:30:00Z"
          *     }
          */
         EntitySummary: {
@@ -11351,6 +11363,16 @@ export interface components {
              * @description URL to the most recent thumbnail image
              */
             thumbnail_url?: string | null;
+            /**
+             * Trust Status
+             * @description Trust classification: 'trusted', 'untrusted', or 'unclassified'
+             */
+            trust_status?: string | null;
+            /**
+             * Trust Updated At
+             * @description When the trust status was last updated
+             */
+            trust_updated_at?: string | null;
         };
         /**
          * EntityTrustResponse
