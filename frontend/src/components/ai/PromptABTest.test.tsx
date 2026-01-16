@@ -27,8 +27,7 @@ import type { ABTestResult } from '../../services/api';
 
 describe('PromptABTest', () => {
   const mockOriginalPrompt = 'You are a security analyst. Analyze the scene.';
-  const mockModifiedPrompt =
-    'You are a security analyst. Analyze the scene with extra context.';
+  const mockModifiedPrompt = 'You are a security analyst. Analyze the scene with extra context.';
 
   const mockResults: ABTestResult[] = [
     {

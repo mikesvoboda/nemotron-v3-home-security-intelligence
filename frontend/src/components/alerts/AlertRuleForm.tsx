@@ -11,14 +11,7 @@
 import { Switch } from '@headlessui/react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { clsx } from 'clsx';
-import {
-  AlertCircle,
-  AlertTriangle,
-  Bell,
-  Calendar,
-  Loader2,
-  X,
-} from 'lucide-react';
+import { AlertCircle, AlertTriangle, Bell, Calendar, Loader2, X } from 'lucide-react';
 import { useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
@@ -286,7 +279,10 @@ export default function AlertRuleForm({
 
         {/* Description Input */}
         <div>
-          <label htmlFor="alert-rule-description" className="block text-sm font-medium text-text-primary">
+          <label
+            htmlFor="alert-rule-description"
+            className="block text-sm font-medium text-text-primary"
+          >
             Description
           </label>
           <textarea
@@ -337,7 +333,10 @@ export default function AlertRuleForm({
 
           {/* Severity Select */}
           <div>
-            <label htmlFor="alert-rule-severity" className="block text-sm font-medium text-text-primary">
+            <label
+              htmlFor="alert-rule-severity"
+              className="block text-sm font-medium text-text-primary"
+            >
               Severity
             </label>
             <select
@@ -368,7 +367,10 @@ export default function AlertRuleForm({
         <div className="grid grid-cols-2 gap-4">
           {/* Risk Threshold */}
           <div>
-            <label htmlFor="alert-rule-risk-threshold" className="block text-sm font-medium text-text-primary">
+            <label
+              htmlFor="alert-rule-risk-threshold"
+              className="block text-sm font-medium text-text-primary"
+            >
               Risk Threshold ({RISK_THRESHOLD_CONSTRAINTS.min}-{RISK_THRESHOLD_CONSTRAINTS.max})
             </label>
             <input
@@ -394,7 +396,10 @@ export default function AlertRuleForm({
 
           {/* Min Confidence */}
           <div>
-            <label htmlFor="alert-rule-min-confidence" className="block text-sm font-medium text-text-primary">
+            <label
+              htmlFor="alert-rule-min-confidence"
+              className="block text-sm font-medium text-text-primary"
+            >
               Min Confidence ({MIN_CONFIDENCE_CONSTRAINTS.min}-{MIN_CONFIDENCE_CONSTRAINTS.max})
             </label>
             <input
@@ -455,9 +460,7 @@ export default function AlertRuleForm({
               );
             }}
           />
-          <p className="mt-1 text-xs text-text-secondary">
-            Leave empty to match all object types
-          </p>
+          <p className="mt-1 text-xs text-text-secondary">Leave empty to match all object types</p>
         </div>
 
         {/* Cameras */}
@@ -526,9 +529,7 @@ export default function AlertRuleForm({
               }}
             />
           )}
-          <p className="mt-1 text-xs text-text-secondary">
-            Leave empty to match all cameras
-          </p>
+          <p className="mt-1 text-xs text-text-secondary">Leave empty to match all cameras</p>
         </div>
       </div>
 
@@ -610,7 +611,10 @@ export default function AlertRuleForm({
             {/* Time Range */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label htmlFor="alert-rule-start-time" className="block text-sm font-medium text-text-primary">
+                <label
+                  htmlFor="alert-rule-start-time"
+                  className="block text-sm font-medium text-text-primary"
+                >
                   Start Time
                 </label>
                 <input
@@ -626,7 +630,10 @@ export default function AlertRuleForm({
                 )}
               </div>
               <div>
-                <label htmlFor="alert-rule-end-time" className="block text-sm font-medium text-text-primary">
+                <label
+                  htmlFor="alert-rule-end-time"
+                  className="block text-sm font-medium text-text-primary"
+                >
                   End Time
                 </label>
                 <input
@@ -645,7 +652,10 @@ export default function AlertRuleForm({
 
             {/* Timezone */}
             <div>
-              <label htmlFor="alert-rule-timezone" className="block text-sm font-medium text-text-primary">
+              <label
+                htmlFor="alert-rule-timezone"
+                className="block text-sm font-medium text-text-primary"
+              >
                 Timezone
               </label>
               <select
@@ -712,7 +722,10 @@ export default function AlertRuleForm({
 
         {/* Cooldown */}
         <div>
-          <label htmlFor="alert-rule-cooldown" className="block text-sm font-medium text-text-primary">
+          <label
+            htmlFor="alert-rule-cooldown"
+            className="block text-sm font-medium text-text-primary"
+          >
             Cooldown (seconds)
           </label>
           <input

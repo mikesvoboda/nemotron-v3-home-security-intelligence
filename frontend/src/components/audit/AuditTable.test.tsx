@@ -248,14 +248,7 @@ describe('AuditTable', () => {
 
   describe('Pagination', () => {
     it('displays pagination controls when there are entries', () => {
-      render(
-        <AuditTable
-          {...defaultProps}
-          totalCount={100}
-          limit={50}
-          offset={0}
-        />
-      );
+      render(<AuditTable {...defaultProps} totalCount={100} limit={50} offset={0} />);
 
       expect(screen.getByLabelText('Previous page')).toBeInTheDocument();
       expect(screen.getByLabelText('Next page')).toBeInTheDocument();
@@ -263,28 +256,14 @@ describe('AuditTable', () => {
     });
 
     it('previous button is disabled on first page', () => {
-      render(
-        <AuditTable
-          {...defaultProps}
-          totalCount={100}
-          limit={50}
-          offset={0}
-        />
-      );
+      render(<AuditTable {...defaultProps} totalCount={100} limit={50} offset={0} />);
 
       const prevButton = screen.getByLabelText('Previous page');
       expect(prevButton).toBeDisabled();
     });
 
     it('next button is disabled on last page', () => {
-      render(
-        <AuditTable
-          {...defaultProps}
-          totalCount={100}
-          limit={50}
-          offset={50}
-        />
-      );
+      render(<AuditTable {...defaultProps} totalCount={100} limit={50} offset={50} />);
 
       const nextButton = screen.getByLabelText('Next page');
       expect(nextButton).toBeDisabled();
@@ -340,13 +319,7 @@ describe('AuditTable', () => {
 
     it('hides pagination when loading', () => {
       render(
-        <AuditTable
-          {...defaultProps}
-          totalCount={100}
-          limit={50}
-          offset={0}
-          loading={true}
-        />
+        <AuditTable {...defaultProps} totalCount={100} limit={50} offset={0} loading={true} />
       );
 
       expect(screen.queryByLabelText('Previous page')).not.toBeInTheDocument();
@@ -354,30 +327,14 @@ describe('AuditTable', () => {
     });
 
     it('hides pagination when error', () => {
-      render(
-        <AuditTable
-          {...defaultProps}
-          totalCount={100}
-          limit={50}
-          offset={0}
-          error="Error"
-        />
-      );
+      render(<AuditTable {...defaultProps} totalCount={100} limit={50} offset={0} error="Error" />);
 
       expect(screen.queryByLabelText('Previous page')).not.toBeInTheDocument();
       expect(screen.queryByLabelText('Next page')).not.toBeInTheDocument();
     });
 
     it('hides pagination when no entries', () => {
-      render(
-        <AuditTable
-          {...defaultProps}
-          logs={[]}
-          totalCount={0}
-          limit={50}
-          offset={0}
-        />
-      );
+      render(<AuditTable {...defaultProps} logs={[]} totalCount={0} limit={50} offset={0} />);
 
       expect(screen.queryByLabelText('Previous page')).not.toBeInTheDocument();
     });
@@ -497,14 +454,7 @@ describe('AuditTable', () => {
     });
 
     it('has properly labeled pagination buttons', () => {
-      render(
-        <AuditTable
-          {...defaultProps}
-          totalCount={100}
-          limit={50}
-          offset={0}
-        />
-      );
+      render(<AuditTable {...defaultProps} totalCount={100} limit={50} offset={0} />);
 
       expect(screen.getByLabelText('Previous page')).toBeInTheDocument();
       expect(screen.getByLabelText('Next page')).toBeInTheDocument();

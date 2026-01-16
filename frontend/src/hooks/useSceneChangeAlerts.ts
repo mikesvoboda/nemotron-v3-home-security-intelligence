@@ -198,22 +198,24 @@ export function useSceneChangeAlerts(
 
   // Computed flags for blocked/tampered cameras (only unacknowledged alerts)
   const blockedCameraIds = useMemo(
-    () =>
-      [...new Set(
+    () => [
+      ...new Set(
         alerts
           .filter((alert) => !alert.dismissed && alert.changeType === 'view_blocked')
           .map((alert) => alert.cameraId)
-      )],
+      ),
+    ],
     [alerts]
   );
 
   const tamperedCameraIds = useMemo(
-    () =>
-      [...new Set(
+    () => [
+      ...new Set(
         alerts
           .filter((alert) => !alert.dismissed && alert.changeType === 'view_tampered')
           .map((alert) => alert.cameraId)
-      )],
+      ),
+    ],
     [alerts]
   );
 

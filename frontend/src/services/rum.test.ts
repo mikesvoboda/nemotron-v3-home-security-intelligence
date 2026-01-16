@@ -7,13 +7,7 @@
 
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
-import {
-  RUM,
-  initRUM,
-  type RUMConfig,
-  type WebVitalMetric,
-  type WebVitalName,
-} from './rum';
+import { RUM, initRUM, type RUMConfig, type WebVitalMetric, type WebVitalName } from './rum';
 
 describe('RUM Service', () => {
   let fetchMock: ReturnType<typeof vi.fn>;

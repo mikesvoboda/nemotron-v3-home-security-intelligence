@@ -383,8 +383,7 @@ export function useZoneMutation(): UseZoneMutationReturn {
               updates.coordinates = data.coordinates;
             if (data.shape !== undefined && data.shape !== null) updates.shape = data.shape;
             if (data.color !== undefined && data.color !== null) updates.color = data.color;
-            if (data.enabled !== undefined && data.enabled !== null)
-              updates.enabled = data.enabled;
+            if (data.enabled !== undefined && data.enabled !== null) updates.enabled = data.enabled;
             if (data.priority !== undefined && data.priority !== null)
               updates.priority = data.priority;
             return { ...zone, ...updates };

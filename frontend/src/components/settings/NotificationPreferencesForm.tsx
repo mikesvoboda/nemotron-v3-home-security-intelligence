@@ -10,17 +10,7 @@
  * Uses validateQuietHoursLabel() from utils/validation.ts for label validation.
  */
 import { Card, Title, Text, Badge, Select, SelectItem, TextInput, Button } from '@tremor/react';
-import {
-  AlertCircle,
-  Bell,
-  Clock,
-  Loader2,
-  Moon,
-  Plus,
-  Trash2,
-  Volume2,
-  X,
-} from 'lucide-react';
+import { AlertCircle, Bell, Clock, Loader2, Moon, Plus, Trash2, Volume2, X } from 'lucide-react';
 import { useState, useCallback, useMemo, type FormEvent } from 'react';
 
 import {
@@ -126,12 +116,7 @@ function QuietPeriodRow({ period, onDelete, isDeleting }: QuietPeriodRowProps) {
             >
               Cancel
             </Button>
-            <Button
-              size="xs"
-              color="red"
-              onClick={() => void handleDelete()}
-              disabled={isDeleting}
-            >
+            <Button size="xs" color="red" onClick={() => void handleDelete()} disabled={isDeleting}>
               {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Delete'}
             </Button>
           </>
@@ -161,7 +146,12 @@ interface CreatePeriodFormProps {
 /**
  * Form for creating a new quiet hours period with validation
  */
-function CreatePeriodForm({ onSubmit, onCancel, isSubmitting, mutationError }: CreatePeriodFormProps) {
+function CreatePeriodForm({
+  onSubmit,
+  onCancel,
+  isSubmitting,
+  mutationError,
+}: CreatePeriodFormProps) {
   const [label, setLabel] = useState('');
   const [startTime, setStartTime] = useState('22:00');
   const [endTime, setEndTime] = useState('06:00');
@@ -323,9 +313,7 @@ function CreatePeriodForm({ onSubmit, onCancel, isSubmitting, mutationError }: C
                   : 'border-gray-700 bg-gray-800 focus:border-[#76B900]'
               }`}
             />
-            {errors.endTime && (
-              <Text className="mt-1 text-sm text-red-400">{errors.endTime}</Text>
-            )}
+            {errors.endTime && <Text className="mt-1 text-sm text-red-400">{errors.endTime}</Text>}
           </div>
         </div>
 
@@ -371,9 +359,7 @@ function CreatePeriodForm({ onSubmit, onCancel, isSubmitting, mutationError }: C
             </button>
             <button
               type="button"
-              onClick={() =>
-                setDays(['monday', 'tuesday', 'wednesday', 'thursday', 'friday'])
-              }
+              onClick={() => setDays(['monday', 'tuesday', 'wednesday', 'thursday', 'friday'])}
               className="text-xs text-gray-500 hover:text-gray-400"
             >
               Weekdays
@@ -393,9 +379,7 @@ function CreatePeriodForm({ onSubmit, onCancel, isSubmitting, mutationError }: C
               None
             </button>
           </div>
-          {errors.days && (
-            <Text className="mt-2 text-sm text-red-400">{errors.days}</Text>
-          )}
+          {errors.days && <Text className="mt-2 text-sm text-red-400">{errors.days}</Text>}
         </div>
 
         {/* Actions */}
@@ -444,11 +428,8 @@ export default function NotificationPreferencesForm({
     error: periodsError,
     refetch: refetchPeriods,
   } = useQuietHoursPeriodsQuery();
-  const {
-    updateGlobalMutation,
-    createQuietHoursMutation,
-    deleteQuietHoursMutation,
-  } = useNotificationPreferencesMutation();
+  const { updateGlobalMutation, createQuietHoursMutation, deleteQuietHoursMutation } =
+    useNotificationPreferencesMutation();
 
   const [showCreateForm, setShowCreateForm] = useState(false);
 
@@ -624,9 +605,7 @@ export default function NotificationPreferencesForm({
               <Volume2 className="h-5 w-5 text-gray-400" />
               <div>
                 <Text className="font-medium text-gray-300">Notification Sound</Text>
-                <Text className="text-xs text-gray-500">
-                  Choose the sound for notifications
-                </Text>
+                <Text className="text-xs text-gray-500">Choose the sound for notifications</Text>
               </div>
             </div>
             <Select

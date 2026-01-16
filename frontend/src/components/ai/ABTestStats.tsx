@@ -169,7 +169,7 @@ interface StatBarProps {
   /** Test ID for the bar */
   testId: string;
   /** Icon component */
-  Icon: typeof ArrowDown    ;
+  Icon: typeof ArrowDown;
 }
 
 /**
@@ -222,7 +222,8 @@ export default function ABTestStats({ results, className }: ABTestStatsProps): R
         : 'text-gray-400';
 
   // Determine recommendation styling
-  const isPositiveRecommendation = recommendation.includes('recommended') && !recommendation.includes('not recommended');
+  const isPositiveRecommendation =
+    recommendation.includes('recommended') && !recommendation.includes('not recommended');
   const isNegativeRecommendation = recommendation.includes('not recommended');
 
   return (
@@ -252,9 +253,7 @@ export default function ABTestStats({ results, className }: ABTestStatsProps): R
             )}
             <div>
               <div className="text-sm text-gray-400">Average Score Change</div>
-              <div className={clsx('text-2xl font-bold', deltaColorClass)}>
-                {formattedDelta}
-              </div>
+              <div className={clsx('text-2xl font-bold', deltaColorClass)}>{formattedDelta}</div>
             </div>
           </div>
         </div>

@@ -178,9 +178,7 @@ export default function GlobalNotificationPreferences({
               <Volume2 className="h-5 w-5 text-gray-400" />
               <div>
                 <Text className="font-medium text-gray-300">Notification Sound</Text>
-                <Text className="text-xs text-gray-500">
-                  Choose the sound for notifications
-                </Text>
+                <Text className="text-xs text-gray-500">Choose the sound for notifications</Text>
               </div>
             </div>
             <Select

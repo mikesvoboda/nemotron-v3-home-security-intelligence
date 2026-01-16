@@ -132,9 +132,7 @@ describe('FaviconBadge', () => {
 
   describe('cleanup', () => {
     it('restores base title on unmount', () => {
-      const { unmount } = render(
-        <FaviconBadge alertCount={5} baseTitle="Security Dashboard" />
-      );
+      const { unmount } = render(<FaviconBadge alertCount={5} baseTitle="Security Dashboard" />);
       expect(document.title).toBe('(5) Security Dashboard');
 
       unmount();
@@ -143,9 +141,7 @@ describe('FaviconBadge', () => {
     });
 
     it('restores base title when count goes to 0', () => {
-      const { rerender } = render(
-        <FaviconBadge alertCount={5} baseTitle="Security Dashboard" />
-      );
+      const { rerender } = render(<FaviconBadge alertCount={5} baseTitle="Security Dashboard" />);
       expect(document.title).toBe('(5) Security Dashboard');
 
       rerender(<FaviconBadge alertCount={0} baseTitle="Security Dashboard" />);

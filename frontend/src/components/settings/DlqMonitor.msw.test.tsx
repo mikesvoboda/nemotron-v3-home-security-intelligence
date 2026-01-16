@@ -16,7 +16,12 @@ import DlqMonitor from './DlqMonitor';
 import { server } from '../../mocks/server';
 import { clearInFlightRequests } from '../../services/api';
 
-import type { DLQStatsResponse, DLQJobsResponse, DLQRequeueResponse, DLQClearResponse } from '../../services/api';
+import type {
+  DLQStatsResponse,
+  DLQJobsResponse,
+  DLQRequeueResponse,
+  DLQClearResponse,
+} from '../../services/api';
 
 // ============================================================================
 // Test Data
@@ -163,10 +168,7 @@ describe('DlqMonitor (MSW)', () => {
     // Use 400 to avoid retry backoff
     server.use(
       http.get('/api/dlq/stats', () => {
-        return HttpResponse.json(
-          { detail: 'Network error' },
-          { status: 400 }
-        );
+        return HttpResponse.json({ detail: 'Network error' }, { status: 400 });
       })
     );
 
@@ -343,10 +345,7 @@ describe('DlqMonitor (MSW)', () => {
           return HttpResponse.json(mockDetectionJobs);
         }),
         http.post('/api/dlq/requeue-all/:queueName', () => {
-          return HttpResponse.json(
-            { detail: 'Requeue failed' },
-            { status: 400 }
-          );
+          return HttpResponse.json({ detail: 'Requeue failed' }, { status: 400 });
         })
       );
 

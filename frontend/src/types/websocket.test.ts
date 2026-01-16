@@ -141,9 +141,7 @@ describe('WebSocket Type Guards', () => {
 
     it('returns false for missing required fields', () => {
       expect(isEventMessage({ type: 'event', data: {} })).toBe(false);
-      expect(
-        isEventMessage({ type: 'event', data: { id: 1, camera_id: 'cam' } })
-      ).toBe(false);
+      expect(isEventMessage({ type: 'event', data: { id: 1, camera_id: 'cam' } })).toBe(false);
     });
 
     it('returns false for null or undefined', () => {
@@ -427,9 +425,7 @@ describe('Type Inference', () => {
       }
     }
 
-    expect(handleMessage(validEventMessage)).toBe(
-      'Event: Person detected at front door'
-    );
+    expect(handleMessage(validEventMessage)).toBe('Event: Person detected at front door');
     expect(handleMessage(validSystemStatusMessage)).toBe('Health: healthy');
     expect(handleMessage(validServiceStatusMessage)).toBe('Service: rtdetr');
     expect(handleMessage(validHeartbeatMessage)).toBe('Heartbeat');
@@ -465,9 +461,7 @@ describe('assertNever', () => {
     // We need to cast to never to test the function
     const unexpectedValue = { type: 'unexpected' } as never;
 
-    expect(() => assertNever(unexpectedValue)).toThrow(
-      'Unexpected value: {"type":"unexpected"}'
-    );
+    expect(() => assertNever(unexpectedValue)).toThrow('Unexpected value: {"type":"unexpected"}');
   });
 
   it('provides type safety for exhaustive switch statements', () => {
@@ -521,9 +515,7 @@ describe('assertNeverSoft', () => {
     // Should not throw
     expect(() => assertNeverSoft(unexpectedValue)).not.toThrow();
 
-    expect(warnSpy).toHaveBeenCalledWith(
-      'Unhandled value: {"type":"unexpected"}'
-    );
+    expect(warnSpy).toHaveBeenCalledWith('Unhandled value: {"type":"unexpected"}');
 
     warnSpy.mockRestore();
   });
@@ -534,9 +526,7 @@ describe('assertNeverSoft', () => {
     const unexpectedValue = { type: 'custom_type' } as never;
     assertNeverSoft(unexpectedValue, 'WebSocket message');
 
-    expect(warnSpy).toHaveBeenCalledWith(
-      'Unhandled WebSocket message: {"type":"custom_type"}'
-    );
+    expect(warnSpy).toHaveBeenCalledWith('Unhandled WebSocket message: {"type":"custom_type"}');
 
     warnSpy.mockRestore();
   });

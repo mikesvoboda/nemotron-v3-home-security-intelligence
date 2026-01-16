@@ -39,13 +39,11 @@ vi.mock('framer-motion', () => ({
       </div>
     ),
   },
-  AnimatePresence: ({
-    children,
-    mode,
-  }: {
-    children?: React.ReactNode;
-    mode?: string;
-  }) => <div data-testid="animate-presence" data-mode={mode}>{children}</div>,
+  AnimatePresence: ({ children, mode }: { children?: React.ReactNode; mode?: string }) => (
+    <div data-testid="animate-presence" data-mode={mode}>
+      {children}
+    </div>
+  ),
   useReducedMotion: vi.fn(() => false),
 }));
 

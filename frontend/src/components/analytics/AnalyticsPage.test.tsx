@@ -25,8 +25,20 @@ vi.mock('../../services/api', async () => {
 
 describe('AnalyticsPage', () => {
   const mockCameras = [
-    { id: 'cam1', name: 'Front Door', folder_path: '/export/foscam/front_door', status: 'online' as const, created_at: '2024-01-01T00:00:00Z' },
-    { id: 'cam2', name: 'Back Yard', folder_path: '/export/foscam/back_yard', status: 'online' as const, created_at: '2024-01-01T00:00:00Z' },
+    {
+      id: 'cam1',
+      name: 'Front Door',
+      folder_path: '/export/foscam/front_door',
+      status: 'online' as const,
+      created_at: '2024-01-01T00:00:00Z',
+    },
+    {
+      id: 'cam2',
+      name: 'Back Yard',
+      folder_path: '/export/foscam/back_yard',
+      status: 'online' as const,
+      created_at: '2024-01-01T00:00:00Z',
+    },
   ];
 
   const mockActivityBaseline = {
@@ -44,9 +56,7 @@ describe('AnalyticsPage', () => {
 
   const mockClassBaseline = {
     camera_id: 'cam1',
-    entries: [
-      { object_class: 'person', hour: 17, frequency: 3.5, sample_count: 45 },
-    ],
+    entries: [{ object_class: 'person', hour: 17, frequency: 3.5, sample_count: 45 }],
     unique_classes: ['person'],
     total_samples: 45,
     most_common_class: 'person',
@@ -166,9 +176,11 @@ describe('AnalyticsPage', () => {
     await waitFor(() => {
       // Should fetch global stats without camera_id filter
       expect(api.fetchAnomalyConfig).toHaveBeenCalled();
-      expect(api.fetchEventStats).toHaveBeenCalledWith(expect.objectContaining({
-        camera_id: undefined,
-      }));
+      expect(api.fetchEventStats).toHaveBeenCalledWith(
+        expect.objectContaining({
+          camera_id: undefined,
+        })
+      );
       expect(api.fetchDetectionStats).toHaveBeenCalledWith({ camera_id: undefined });
       // Should NOT fetch camera-specific baselines for "All Cameras" view
       expect(api.fetchCameraActivityBaseline).not.toHaveBeenCalled();
@@ -192,9 +204,11 @@ describe('AnalyticsPage', () => {
       expect(api.fetchCameraActivityBaseline).toHaveBeenCalledWith('cam1');
       expect(api.fetchCameraClassBaseline).toHaveBeenCalledWith('cam1');
       expect(api.fetchAnomalyConfig).toHaveBeenCalled();
-      expect(api.fetchEventStats).toHaveBeenCalledWith(expect.objectContaining({
-        camera_id: 'cam1',
-      }));
+      expect(api.fetchEventStats).toHaveBeenCalledWith(
+        expect.objectContaining({
+          camera_id: 'cam1',
+        })
+      );
       expect(api.fetchDetectionStats).toHaveBeenCalledWith({ camera_id: 'cam1' });
     });
   });
@@ -371,8 +385,12 @@ describe('AnalyticsPage', () => {
     await user.click(screen.getByTestId('analytics-tab-camera-performance'));
 
     await waitFor(() => {
-      expect(screen.getByText('Select a specific camera to view activity heatmap')).toBeInTheDocument();
-      expect(screen.getByText('Select a specific camera to view scene changes')).toBeInTheDocument();
+      expect(
+        screen.getByText('Select a specific camera to view activity heatmap')
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText('Select a specific camera to view scene changes')
+      ).toBeInTheDocument();
     });
   });
 

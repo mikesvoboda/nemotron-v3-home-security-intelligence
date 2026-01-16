@@ -19,16 +19,12 @@ describe('useThrottledValue', () => {
     });
 
     it('returns initial value immediately with leading=true explicitly', () => {
-      const { result } = renderHook(() =>
-        useThrottledValue(10, { leading: true })
-      );
+      const { result } = renderHook(() => useThrottledValue(10, { leading: true }));
       expect(result.current).toBe(10);
     });
 
     it('returns initial value with leading=false', () => {
-      const { result } = renderHook(() =>
-        useThrottledValue(10, { leading: false })
-      );
+      const { result } = renderHook(() => useThrottledValue(10, { leading: false }));
       expect(result.current).toBe(10);
     });
 
@@ -83,10 +79,9 @@ describe('useThrottledValue', () => {
 
   describe('Default Interval', () => {
     it('uses 500ms as default interval', () => {
-      const { result, rerender } = renderHook(
-        ({ value }) => useThrottledValue(value),
-        { initialProps: { value: 1 } }
-      );
+      const { result, rerender } = renderHook(({ value }) => useThrottledValue(value), {
+        initialProps: { value: 1 },
+      });
 
       expect(result.current).toBe(1);
 
@@ -185,8 +180,7 @@ describe('useThrottledValue', () => {
       }
 
       const { result, rerender } = renderHook(
-        ({ value }: { value: TestObject }) =>
-          useThrottledValue(value, { interval: 500 }),
+        ({ value }: { value: TestObject }) => useThrottledValue(value, { interval: 500 }),
         { initialProps: { value: { count: 1, data: ['a'] } } }
       );
 
@@ -205,8 +199,7 @@ describe('useThrottledValue', () => {
   describe('Array Values', () => {
     it('works with array values', () => {
       const { result, rerender } = renderHook(
-        ({ value }: { value: number[] }) =>
-          useThrottledValue(value, { interval: 500 }),
+        ({ value }: { value: number[] }) => useThrottledValue(value, { interval: 500 }),
         { initialProps: { value: [1, 2, 3] } }
       );
 
@@ -223,8 +216,7 @@ describe('useThrottledValue', () => {
 
     it('handles empty array to populated array', () => {
       const { result, rerender } = renderHook(
-        ({ value }: { value: number[] }) =>
-          useThrottledValue(value, { interval: 500 }),
+        ({ value }: { value: number[] }) => useThrottledValue(value, { interval: 500 }),
         { initialProps: { value: [] as number[] } }
       );
 
@@ -243,8 +235,7 @@ describe('useThrottledValue', () => {
   describe('Null and Undefined Values', () => {
     it('handles null values', () => {
       const { result, rerender } = renderHook(
-        ({ value }: { value: number | null }) =>
-          useThrottledValue(value, { interval: 500 }),
+        ({ value }: { value: number | null }) => useThrottledValue(value, { interval: 500 }),
         { initialProps: { value: null as number | null } }
       );
 
@@ -261,8 +252,7 @@ describe('useThrottledValue', () => {
 
     it('handles undefined values', () => {
       const { result, rerender } = renderHook(
-        ({ value }: { value: number | undefined }) =>
-          useThrottledValue(value, { interval: 500 }),
+        ({ value }: { value: number | undefined }) => useThrottledValue(value, { interval: 500 }),
         { initialProps: { value: undefined as number | undefined } }
       );
 
@@ -279,8 +269,7 @@ describe('useThrottledValue', () => {
 
     it('handles transitions from value to null', () => {
       const { result, rerender } = renderHook(
-        ({ value }: { value: number | null }) =>
-          useThrottledValue(value, { interval: 500 }),
+        ({ value }: { value: number | null }) => useThrottledValue(value, { interval: 500 }),
         { initialProps: { value: 5 as number | null } }
       );
 

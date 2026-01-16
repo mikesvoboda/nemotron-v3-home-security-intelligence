@@ -63,7 +63,8 @@ export const DEFAULT_WIDGETS: WidgetConfig[] = [
   {
     id: 'stats-row',
     name: 'Stats Row',
-    description: 'Key metrics including active cameras, events today, risk level, and system status',
+    description:
+      'Key metrics including active cameras, events today, risk level, and system status',
     visible: true,
   },
   {

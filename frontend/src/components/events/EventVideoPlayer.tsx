@@ -188,7 +188,7 @@ export default function EventVideoPlayer({ eventId, className = '' }: EventVideo
     <div className={`space-y-3 ${className}`} data-testid="clip-available">
       {/* Video player */}
       <div className="overflow-hidden rounded-lg bg-black">
-{/* eslint-disable-next-line jsx-a11y/media-has-caption -- Security camera clips don't have captions */}
+        {/* eslint-disable-next-line jsx-a11y/media-has-caption -- Security camera clips don't have captions */}
         <video
           src={clipUrl}
           controls
@@ -205,7 +205,8 @@ export default function EventVideoPlayer({ eventId, className = '' }: EventVideo
         <div className="flex items-center gap-4 text-xs text-gray-400">
           {clipInfo.duration_seconds && (
             <span>
-              Duration: <span className="font-medium text-gray-300">{clipInfo.duration_seconds}s</span>
+              Duration:{' '}
+              <span className="font-medium text-gray-300">{clipInfo.duration_seconds}s</span>
             </span>
           )}
           {clipInfo.file_size_bytes && (

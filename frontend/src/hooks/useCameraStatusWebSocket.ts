@@ -147,7 +147,8 @@ export function useCameraStatusWebSocket(
   // Compute WebSocket URL
   const wsUrl = useMemo(() => {
     if (url) return url;
-    const protocol = typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const protocol =
+      typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = typeof window !== 'undefined' ? window.location.host : 'localhost:8000';
     return `${protocol}//${host}/ws/events`;
   }, [url]);

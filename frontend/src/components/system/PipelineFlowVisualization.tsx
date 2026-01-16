@@ -262,10 +262,7 @@ function StageCard({ stage, baselineLatencies }: StageCardProps) {
  */
 function StageArrow({ index }: { index: number }) {
   return (
-    <div
-      className="flex items-center px-2 text-gray-500"
-      data-testid={`arrow-${index}`}
-    >
+    <div className="flex items-center px-2 text-gray-500" data-testid={`arrow-${index}`}>
       <ChevronRight className="h-6 w-6" />
     </div>
   );
@@ -357,10 +354,7 @@ export default function PipelineFlowVisualization({
       </div>
 
       {/* Background Workers Section */}
-      <div
-        className="border-t border-gray-700 pt-4"
-        data-testid="workers-grid"
-      >
+      <div className="border-t border-gray-700 pt-4" data-testid="workers-grid">
         <div className="mb-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-gray-300">Background Workers</span>
@@ -397,10 +391,7 @@ export default function PipelineFlowVisualization({
             data-testid="workers-expanded-list"
           >
             {workers.map((worker) => (
-              <div
-                key={worker.id}
-                className="flex items-center justify-between text-sm"
-              >
+              <div key={worker.id} className="flex items-center justify-between text-sm">
                 <span className="text-gray-300">{worker.id}</span>
                 <span
                   className={clsx(

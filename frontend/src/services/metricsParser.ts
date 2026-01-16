@@ -118,7 +118,8 @@ export function parseMetricLine(line: string): ParsedMetric | null {
   // Match metric name, optional labels, and value
   // Format: metric_name{label1="value1",label2="value2"} 123.45
   // Or: metric_name 123.45
-  // eslint-disable-next-line security/detect-unsafe-regex -- SAFE: Parses Prometheus text format from trusted backend /api/metrics; regex is non-exploitable with bounded input
+  // SAFE: Parses Prometheus text format from trusted backend /api/metrics; regex is non-exploitable with bounded input
+  // eslint-disable-next-line security/detect-unsafe-regex
   const regex = /^([a-zA-Z_:][a-zA-Z0-9_:]*)\s*(?:\{([^}]*)\})?\s+(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|[+-]?Inf|NaN)$/;
   const match = trimmedLine.match(regex);
 
@@ -271,7 +272,9 @@ export function calculatePercentile(histogram: ParsedHistogram, percentile: numb
  * @param histogram - Parsed histogram data
  * @returns AILatencyMetrics with percentiles in milliseconds
  */
-export function histogramToLatencyMetrics(histogram: ParsedHistogram | null): AILatencyMetrics | null {
+export function histogramToLatencyMetrics(
+  histogram: ParsedHistogram | null
+): AILatencyMetrics | null {
   if (!histogram || histogram.count === 0) {
     return null;
   }
@@ -355,7 +358,8 @@ export function parseAIMetrics(text: string): AIMetrics {
     detection_latency:
       histogramToLatencyMetrics(detectHistogram) || histogramToLatencyMetrics(detectStageHistogram),
     analysis_latency:
-      histogramToLatencyMetrics(analyzeHistogram) || histogramToLatencyMetrics(analyzeStageHistogram),
+      histogramToLatencyMetrics(analyzeHistogram) ||
+      histogramToLatencyMetrics(analyzeStageHistogram),
     total_detections: getGaugeValue(metrics, 'hsi_detections_processed_total'),
     total_events: getGaugeValue(metrics, 'hsi_events_created_total'),
     detection_queue_depth: getGaugeValue(metrics, 'hsi_detection_queue_depth'),

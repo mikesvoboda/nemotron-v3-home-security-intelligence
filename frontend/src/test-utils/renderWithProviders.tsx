@@ -104,7 +104,9 @@ export interface RenderWithProvidersResult extends RenderResult {
 /**
  * Creates a wrapper component with all the providers based on options.
  */
-function createWrapper(options: RenderWithProvidersOptions): React.ComponentType<{ children: ReactNode }> {
+function createWrapper(
+  options: RenderWithProvidersOptions
+): React.ComponentType<{ children: ReactNode }> {
   const {
     route = '/',
     useMemoryRouter = true,
@@ -131,20 +133,14 @@ function createWrapper(options: RenderWithProvidersOptions): React.ComponentType
     // Wrap with SidebarContext if needed
     if (withSidebarContext) {
       wrapped = (
-        <SidebarContext.Provider value={mergedSidebarContext}>
-          {wrapped}
-        </SidebarContext.Provider>
+        <SidebarContext.Provider value={mergedSidebarContext}>{wrapped}</SidebarContext.Provider>
       );
     }
 
     // Wrap with Router if needed
     if (withRouter) {
       if (useMemoryRouter) {
-        wrapped = (
-          <MemoryRouter initialEntries={[route]}>
-            {wrapped}
-          </MemoryRouter>
-        );
+        wrapped = <MemoryRouter initialEntries={[route]}>{wrapped}</MemoryRouter>;
       } else {
         wrapped = <BrowserRouter>{wrapped}</BrowserRouter>;
       }
@@ -152,11 +148,7 @@ function createWrapper(options: RenderWithProvidersOptions): React.ComponentType
 
     // Wrap with QueryClientProvider if needed (outermost provider)
     if (withQueryClient) {
-      wrapped = (
-        <QueryClientProvider client={testQueryClient}>
-          {wrapped}
-        </QueryClientProvider>
-      );
+      wrapped = <QueryClientProvider client={testQueryClient}>{wrapped}</QueryClientProvider>;
     }
 
     return wrapped;
@@ -197,7 +189,16 @@ export function renderWithProviders(
   ui: ReactElement,
   options: RenderWithProvidersOptions = {}
 ): RenderWithProvidersResult {
-  const { route: _route, useMemoryRouter: _useMemoryRouter, sidebarContext: _sidebarContext, withSidebarContext: _withSidebarContext, withRouter: _withRouter, withQueryClient: _withQueryClient, queryClient: _queryClient, ...restOptions } = options;
+  const {
+    route: _route,
+    useMemoryRouter: _useMemoryRouter,
+    sidebarContext: _sidebarContext,
+    withSidebarContext: _withSidebarContext,
+    withRouter: _withRouter,
+    withQueryClient: _withQueryClient,
+    queryClient: _queryClient,
+    ...restOptions
+  } = options;
 
   // Create userEvent instance for this test
   const user = userEvent.setup();
@@ -232,11 +233,7 @@ export function renderWithProviders(
 export function createQueryWrapper(queryClient?: QueryClient) {
   const testQueryClient = queryClient ?? createQueryClient();
   return function QueryWrapper({ children }: { children: ReactNode }) {
-    return (
-      <QueryClientProvider client={testQueryClient}>
-        {children}
-      </QueryClientProvider>
-    );
+    return <QueryClientProvider client={testQueryClient}>{children}</QueryClientProvider>;
   };
 }
 

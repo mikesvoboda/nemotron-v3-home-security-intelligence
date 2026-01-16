@@ -99,7 +99,12 @@ function generateInsertionLine(suggestion: EnrichedSuggestion): string {
 function computeLineDiff(
   originalLines: string[],
   modifiedLines: string[]
-): Array<{ type: 'unchanged' | 'added' | 'removed'; line: string; origIdx?: number; modIdx?: number }> {
+): Array<{
+  type: 'unchanged' | 'added' | 'removed';
+  line: string;
+  origIdx?: number;
+  modIdx?: number;
+}> {
   const result: Array<{
     type: 'unchanged' | 'added' | 'removed';
     line: string;
@@ -207,7 +212,10 @@ export function applySuggestion(
     // Insert right after the header
     const insertionIndex = headerEndIdx + 1;
     const modifiedPrompt =
-      originalPrompt.slice(0, insertionIndex) + insertionLine + '\n' + originalPrompt.slice(insertionIndex);
+      originalPrompt.slice(0, insertionIndex) +
+      insertionLine +
+      '\n' +
+      originalPrompt.slice(insertionIndex);
 
     return {
       modifiedPrompt,
@@ -238,7 +246,11 @@ export function applySuggestion(
     const suffix = '\n';
 
     const modifiedPrompt =
-      originalPrompt.slice(0, insertionIndex) + prefix + insertionLine + suffix + originalPrompt.slice(insertionIndex);
+      originalPrompt.slice(0, insertionIndex) +
+      prefix +
+      insertionLine +
+      suffix +
+      originalPrompt.slice(insertionIndex);
 
     return {
       modifiedPrompt,
@@ -257,7 +269,11 @@ export function applySuggestion(
  * @param contextLines - Number of context lines to show around changes (default: 3)
  * @returns Array of DiffLine objects for rendering
  */
-export function generateDiff(originalPrompt: string, modifiedPrompt: string, contextLines: number = 3): DiffLine[] {
+export function generateDiff(
+  originalPrompt: string,
+  modifiedPrompt: string,
+  contextLines: number = 3
+): DiffLine[] {
   const originalLines = originalPrompt.split('\n');
   const modifiedLines = modifiedPrompt.split('\n');
 
@@ -285,7 +301,11 @@ export function generateDiff(originalPrompt: string, modifiedPrompt: string, con
   // Determine which lines to include based on context
   const includedIndices = new Set<number>();
   changedIndices.forEach((idx) => {
-    for (let i = Math.max(0, idx - contextLines); i <= Math.min(rawDiff.length - 1, idx + contextLines); i++) {
+    for (
+      let i = Math.max(0, idx - contextLines);
+      i <= Math.min(rawDiff.length - 1, idx + contextLines);
+      i++
+    ) {
       includedIndices.add(i);
     }
   });

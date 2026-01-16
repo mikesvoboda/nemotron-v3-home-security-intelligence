@@ -407,9 +407,7 @@ describe('DetectionThumbnail', () => {
     });
 
     it('renders with onClick handler (clickable state)', async () => {
-      const { container } = render(
-        <DetectionThumbnail {...defaultProps} onClick={() => {}} />
-      );
+      const { container } = render(<DetectionThumbnail {...defaultProps} onClick={() => {}} />);
       const hiddenImg = container.querySelector('img[aria-hidden="true"]') as HTMLImageElement;
       fireEvent.load(hiddenImg);
 

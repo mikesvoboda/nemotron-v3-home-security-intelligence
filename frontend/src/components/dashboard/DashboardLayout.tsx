@@ -248,9 +248,7 @@ export default function DashboardLayout({
   if (isLoading && renderLoadingSkeleton) {
     return (
       <div className={`min-h-screen bg-[#121212] p-4 md:p-8 ${className}`}>
-        <div className="mx-auto max-w-[1920px]">
-          {renderLoadingSkeleton()}
-        </div>
+        <div className="mx-auto max-w-[1920px]">{renderLoadingSkeleton()}</div>
       </div>
     );
   }
@@ -283,7 +281,10 @@ export default function DashboardLayout({
 
           {/* Top Widgets (full width) */}
           {topWidgets
-            .filter((w) => w.id !== 'gpu-stats' && w.id !== 'pipeline-telemetry' && w.id !== 'pipeline-queues')
+            .filter(
+              (w) =>
+                w.id !== 'gpu-stats' && w.id !== 'pipeline-telemetry' && w.id !== 'pipeline-queues'
+            )
             .map((widget) => renderWidget(widget.id))}
 
           {/* Main Content Area */}
@@ -306,7 +307,8 @@ export default function DashboardLayout({
 
           {/* System Widgets (GPU Stats, Pipeline Telemetry, etc.) */}
           {topWidgets.some(
-            (w) => w.id === 'gpu-stats' || w.id === 'pipeline-telemetry' || w.id === 'pipeline-queues'
+            (w) =>
+              w.id === 'gpu-stats' || w.id === 'pipeline-telemetry' || w.id === 'pipeline-queues'
           ) && (
             <div
               className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3"
@@ -315,7 +317,9 @@ export default function DashboardLayout({
               {topWidgets
                 .filter(
                   (w) =>
-                    w.id === 'gpu-stats' || w.id === 'pipeline-telemetry' || w.id === 'pipeline-queues'
+                    w.id === 'gpu-stats' ||
+                    w.id === 'pipeline-telemetry' ||
+                    w.id === 'pipeline-queues'
                 )
                 .map((widget) => renderWidget(widget.id))}
             </div>
@@ -328,9 +332,7 @@ export default function DashboardLayout({
               data-testid="empty-dashboard"
             >
               <Settings2 className="mb-4 h-12 w-12 text-gray-600" />
-              <h3 className="mb-2 text-lg font-medium text-gray-400">
-                No Widgets Visible
-              </h3>
+              <h3 className="mb-2 text-lg font-medium text-gray-400">No Widgets Visible</h3>
               <p className="mb-4 text-sm text-gray-500">
                 Click the Configure button to add widgets to your dashboard.
               </p>

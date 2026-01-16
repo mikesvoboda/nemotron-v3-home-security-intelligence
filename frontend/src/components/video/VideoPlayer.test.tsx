@@ -363,7 +363,10 @@ describe('VideoPlayer', () => {
       fireEvent.loadedData(video);
 
       // Simulate entering fullscreen
-      Object.defineProperty(document, 'fullscreenElement', { value: document.body, configurable: true });
+      Object.defineProperty(document, 'fullscreenElement', {
+        value: document.body,
+        configurable: true,
+      });
       fireEvent(document, new Event('fullscreenchange'));
 
       await waitFor(() => {
@@ -397,7 +400,11 @@ describe('VideoPlayer', () => {
       fireEvent.loadedData(video);
 
       // Set initial time
-      Object.defineProperty(video, 'currentTime', { value: 30, writable: true, configurable: true });
+      Object.defineProperty(video, 'currentTime', {
+        value: 30,
+        writable: true,
+        configurable: true,
+      });
       Object.defineProperty(video, 'duration', { value: 120, configurable: true });
       fireEvent.timeUpdate(video);
       fireEvent.durationChange(video);
@@ -416,7 +423,11 @@ describe('VideoPlayer', () => {
       fireEvent.loadedData(video);
 
       // Set initial time
-      Object.defineProperty(video, 'currentTime', { value: 30, writable: true, configurable: true });
+      Object.defineProperty(video, 'currentTime', {
+        value: 30,
+        writable: true,
+        configurable: true,
+      });
       Object.defineProperty(video, 'duration', { value: 120, configurable: true });
       fireEvent.timeUpdate(video);
       fireEvent.durationChange(video);

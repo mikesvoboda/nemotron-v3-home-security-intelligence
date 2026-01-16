@@ -176,9 +176,7 @@ describe('Result Type Guards', () => {
     });
 
     it('narrows type correctly', () => {
-      const result: Result<User, ValidationError> = Err(
-        new ValidationError('Invalid', 'email')
-      );
+      const result: Result<User, ValidationError> = Err(new ValidationError('Invalid', 'email'));
       if (isErr(result)) {
         // TypeScript should know result.error is ValidationError
         expect(result.error.field).toBe('email');
@@ -254,9 +252,7 @@ describe('Result Unwrap Functions', () => {
 
     it('throws for Ok result', () => {
       const result = Ok(42);
-      expect(() => unwrapErr(result)).toThrow(
-        'Called unwrapErr on an Ok result'
-      );
+      expect(() => unwrapErr(result)).toThrow('Called unwrapErr on an Ok result');
     });
 
     it('returns custom error type', () => {
@@ -388,9 +384,7 @@ describe('Result Chaining Functions', () => {
 
     it('can return Err from function', () => {
       const result = Ok(5);
-      const chained = andThen(result, (x) =>
-        x > 10 ? Ok(x) : Err(new Error('Too small'))
-      );
+      const chained = andThen(result, (x) => (x > 10 ? Ok(x) : Err(new Error('Too small'))));
       expect(isErr(chained)).toBe(true);
       if (isErr(chained)) {
         expect(chained.error.message).toBe('Too small');
@@ -434,9 +428,7 @@ describe('Result Chaining Functions', () => {
 
     it('can return different error', () => {
       const result: Result<number, string> = Err('First error');
-      const recovered = orElse(result, (e) =>
-        Err(new Error(`Wrapped: ${e}`))
-      );
+      const recovered = orElse(result, (e) => Err(new Error(`Wrapped: ${e}`)));
       expect(isErr(recovered)).toBe(true);
       if (isErr(recovered)) {
         expect(recovered.error.message).toBe('Wrapped: First error');
@@ -506,7 +498,10 @@ describe('Result Pattern Matching', () => {
       const result: Result<User, ValidationError> = Ok({ id: 1, name: 'John' });
       const response: ApiResponse = match(result, {
         ok: (user: User): ApiResponse => ({ status: 'success' as const, data: user }),
-        err: (e: ValidationError): ApiResponse => ({ status: 'error' as const, message: e.message }),
+        err: (e: ValidationError): ApiResponse => ({
+          status: 'error' as const,
+          message: e.message,
+        }),
       });
 
       expect(response.status).toBe('success');

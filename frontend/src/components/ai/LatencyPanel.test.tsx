@@ -418,14 +418,47 @@ describe('LatencyPanel', () => {
       snapshots: [
         { timestamp: '2025-01-03T12:00:00Z', stages: { total_pipeline: null } },
         { timestamp: '2025-01-03T12:01:00Z', stages: { total_pipeline: null } },
-        { timestamp: '2025-01-03T12:02:00Z', stages: { total_pipeline: { avg_ms: 150000, p50_ms: 140000, p95_ms: 200000, p99_ms: 250000, sample_count: 5 } } },
+        {
+          timestamp: '2025-01-03T12:02:00Z',
+          stages: {
+            total_pipeline: {
+              avg_ms: 150000,
+              p50_ms: 140000,
+              p95_ms: 200000,
+              p99_ms: 250000,
+              sample_count: 5,
+            },
+          },
+        },
         { timestamp: '2025-01-03T12:03:00Z', stages: { total_pipeline: null } },
         { timestamp: '2025-01-03T12:04:00Z', stages: { total_pipeline: null } },
-        { timestamp: '2025-01-03T12:05:00Z', stages: { total_pipeline: { avg_ms: 180000, p50_ms: 170000, p95_ms: 220000, p99_ms: 280000, sample_count: 3 } } },
+        {
+          timestamp: '2025-01-03T12:05:00Z',
+          stages: {
+            total_pipeline: {
+              avg_ms: 180000,
+              p50_ms: 170000,
+              p95_ms: 220000,
+              p99_ms: 280000,
+              sample_count: 3,
+            },
+          },
+        },
         { timestamp: '2025-01-03T12:06:00Z', stages: { total_pipeline: null } },
         { timestamp: '2025-01-03T12:07:00Z', stages: { total_pipeline: null } },
         { timestamp: '2025-01-03T12:08:00Z', stages: { total_pipeline: null } },
-        { timestamp: '2025-01-03T12:09:00Z', stages: { total_pipeline: { avg_ms: 160000, p50_ms: 150000, p95_ms: 190000, p99_ms: 240000, sample_count: 4 } } },
+        {
+          timestamp: '2025-01-03T12:09:00Z',
+          stages: {
+            total_pipeline: {
+              avg_ms: 160000,
+              p50_ms: 150000,
+              p95_ms: 190000,
+              p99_ms: 240000,
+              sample_count: 4,
+            },
+          },
+        },
       ],
       window_minutes: 60,
       bucket_seconds: 60,

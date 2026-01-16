@@ -10,16 +10,7 @@
 
 import { Card, Title, Text, Switch, Badge, Button } from '@tremor/react';
 import { clsx } from 'clsx';
-import {
-  Bell,
-  BellOff,
-  Eye,
-  EyeOff,
-  Monitor,
-  MonitorOff,
-  Volume2,
-  VolumeX,
-} from 'lucide-react';
+import { Bell, BellOff, Eye, EyeOff, Monitor, MonitorOff, Volume2, VolumeX } from 'lucide-react';
 import { useCallback } from 'react';
 
 import { useDesktopNotifications } from '../../hooks/useDesktopNotifications';
@@ -50,12 +41,7 @@ export default function AmbientStatusSettings({ className }: AmbientStatusSettin
     disableAllAmbientStatus,
   } = useSettings();
 
-  const {
-    hasPermission,
-    isDenied,
-    isSupported,
-    requestPermission,
-  } = useDesktopNotifications();
+  const { hasPermission, isDenied, isSupported, requestPermission } = useDesktopNotifications();
 
   const handleRequestPermission = useCallback(async () => {
     await requestPermission();
@@ -165,9 +151,7 @@ export default function AmbientStatusSettings({ className }: AmbientStatusSettin
                   className="h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-gray-700 accent-[#76B900]"
                   aria-label="Audio volume"
                 />
-                <Text className="w-10 text-sm text-gray-400">
-                  {Math.round(audioVolume * 100)}%
-                </Text>
+                <Text className="w-10 text-sm text-gray-400">{Math.round(audioVolume * 100)}%</Text>
               </div>
             </div>
           )}
@@ -184,18 +168,13 @@ export default function AmbientStatusSettings({ className }: AmbientStatusSettin
               )}
               <div>
                 <Text className="font-medium text-gray-200">Desktop Notifications</Text>
-                <Text className="mt-1 text-xs text-gray-500">
-                  Browser notifications for alerts
-                </Text>
+                <Text className="mt-1 text-xs text-gray-500">Browser notifications for alerts</Text>
               </div>
             </div>
             <div className="flex items-center gap-3">
               {/* Permission Status Badge */}
               {isSupported && (
-                <Badge
-                  size="sm"
-                  color={hasPermission ? 'green' : isDenied ? 'red' : 'gray'}
-                >
+                <Badge size="sm" color={hasPermission ? 'green' : isDenied ? 'red' : 'gray'}>
                   {hasPermission ? 'Granted' : isDenied ? 'Blocked' : 'Not Set'}
                 </Badge>
               )}
@@ -239,7 +218,7 @@ export default function AmbientStatusSettings({ className }: AmbientStatusSettin
 
           {/* Suppress When Focused Option */}
           {desktopNotificationsEnabled && hasPermission && (
-            <div className="mt-4 border-t border-gray-800 pt-4 pl-8">
+            <div className="mt-4 border-t border-gray-800 pl-8 pt-4">
               <div className="flex items-center justify-between">
                 <div>
                   <Text className="text-sm text-gray-300">Suppress when focused</Text>

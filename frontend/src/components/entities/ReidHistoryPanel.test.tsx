@@ -572,9 +572,7 @@ describe('ReidHistoryPanel', () => {
     it('refetches when entityId prop changes', async () => {
       (api.fetchEntityHistory as Mock).mockResolvedValue(mockHistory);
 
-      const { rerender } = render(
-        <ReidHistoryPanel entityId="entity-1" entityType="person" />
-      );
+      const { rerender } = render(<ReidHistoryPanel entityId="entity-1" entityType="person" />);
 
       await waitFor(() => {
         expect(api.fetchEntityHistory).toHaveBeenCalledWith('entity-1');
@@ -635,11 +633,7 @@ describe('ReidHistoryPanel', () => {
       const customClass = 'my-custom-class';
 
       const { container } = render(
-        <ReidHistoryPanel
-          entityId={mockEntityId}
-          entityType="person"
-          className={customClass}
-        />
+        <ReidHistoryPanel entityId={mockEntityId} entityType="person" className={customClass} />
       );
 
       await waitFor(() => {

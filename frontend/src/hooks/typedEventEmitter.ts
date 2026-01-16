@@ -136,10 +136,7 @@ export class TypedWebSocketEmitter {
    * unsubscribe();
    * ```
    */
-  on<K extends WebSocketEventKey>(
-    event: K,
-    handler: WebSocketEventHandler<K>
-  ): () => void {
+  on<K extends WebSocketEventKey>(event: K, handler: WebSocketEventHandler<K>): () => void {
     let eventHandlers = this.handlers.get(event);
 
     if (!eventHandlers) {
@@ -166,10 +163,7 @@ export class TypedWebSocketEmitter {
    * emitter.off('event', handler);
    * ```
    */
-  off<K extends WebSocketEventKey>(
-    event: K,
-    handler: WebSocketEventHandler<K>
-  ): void {
+  off<K extends WebSocketEventKey>(event: K, handler: WebSocketEventHandler<K>): void {
     const eventHandlers = this.handlers.get(event);
 
     if (eventHandlers) {
@@ -241,10 +235,7 @@ export class TypedWebSocketEmitter {
    * });
    * ```
    */
-  once<K extends WebSocketEventKey>(
-    event: K,
-    handler: WebSocketEventHandler<K>
-  ): () => void {
+  once<K extends WebSocketEventKey>(event: K, handler: WebSocketEventHandler<K>): () => void {
     const wrappedHandler: WebSocketEventHandler<K> = (data) => {
       this.off(event, wrappedHandler);
       handler(data);
@@ -349,11 +340,7 @@ export class TypedWebSocketEmitter {
  * }
  * ```
  */
-export function safeEmit(
-  emitter: TypedWebSocketEmitter,
-  event: unknown,
-  data: unknown
-): boolean {
+export function safeEmit(emitter: TypedWebSocketEmitter, event: unknown, data: unknown): boolean {
   if (!isWebSocketEventKey(event)) {
     return false;
   }
@@ -368,8 +355,6 @@ export function safeEmit(
  *
  * @param options - Configuration options for error handling
  */
-export function createTypedEmitter(
-  options?: TypedWebSocketEmitterOptions
-): TypedWebSocketEmitter {
+export function createTypedEmitter(options?: TypedWebSocketEmitterOptions): TypedWebSocketEmitter {
   return new TypedWebSocketEmitter(options);
 }

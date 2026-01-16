@@ -124,12 +124,7 @@ export default function DeletedEventCard({
               removed.
             </p>
             <div className="flex gap-2">
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={handleCancelDelete}
-                className="flex-1"
-              >
+              <Button variant="secondary" size="sm" onClick={handleCancelDelete} className="flex-1">
                 Cancel
               </Button>
               <Button

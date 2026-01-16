@@ -100,9 +100,7 @@ describe('TrashPage', () => {
       expect(screen.getByText('Trash is empty')).toBeInTheDocument();
     });
 
-    expect(
-      screen.getByText(/deleted events will appear here/i)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/deleted events will appear here/i)).toBeInTheDocument();
   });
 
   it('displays deleted events when available', async () => {
@@ -187,9 +185,12 @@ describe('TrashPage', () => {
     );
 
     // Wait for error state - may take time due to retry
-    await waitFor(() => {
-      expect(screen.getByText(/failed to load deleted events/i)).toBeInTheDocument();
-    }, { timeout: 5000 });
+    await waitFor(
+      () => {
+        expect(screen.getByText(/failed to load deleted events/i)).toBeInTheDocument();
+      },
+      { timeout: 5000 }
+    );
 
     expect(screen.getByText('Network error')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
@@ -216,18 +217,24 @@ describe('TrashPage', () => {
     );
 
     // Wait for error state
-    await waitFor(() => {
-      expect(screen.getByText(/failed to load deleted events/i)).toBeInTheDocument();
-    }, { timeout: 5000 });
+    await waitFor(
+      () => {
+        expect(screen.getByText(/failed to load deleted events/i)).toBeInTheDocument();
+      },
+      { timeout: 5000 }
+    );
 
     // Click retry
     const retryButton = screen.getByRole('button', { name: /try again/i });
     await user.click(retryButton);
 
     // Should load events
-    await waitFor(() => {
-      expect(screen.getByText('front_door')).toBeInTheDocument();
-    }, { timeout: 5000 });
+    await waitFor(
+      () => {
+        expect(screen.getByText('front_door')).toBeInTheDocument();
+      },
+      { timeout: 5000 }
+    );
   });
 
   it('restores an event when restore is clicked', async () => {

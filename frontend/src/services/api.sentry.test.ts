@@ -97,10 +97,7 @@ describe('API Sentry Breadcrumbs', () => {
     it('adds a breadcrumb for failed requests with 4xx status', async () => {
       server.use(
         http.get('*/api/cameras', () => {
-          return HttpResponse.json(
-            { detail: 'Not found' },
-            { status: 404 }
-          );
+          return HttpResponse.json({ detail: 'Not found' }, { status: 404 });
         })
       );
 
@@ -117,10 +114,7 @@ describe('API Sentry Breadcrumbs', () => {
     it('adds a breadcrumb for failed requests with 5xx status', async () => {
       server.use(
         http.get('*/api/system/health', () => {
-          return HttpResponse.json(
-            { detail: 'Internal server error' },
-            { status: 500 }
-          );
+          return HttpResponse.json({ detail: 'Internal server error' }, { status: 500 });
         })
       );
 

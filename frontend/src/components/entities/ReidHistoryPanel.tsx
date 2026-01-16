@@ -250,10 +250,14 @@ export default function ReidHistoryPanel({
                 <div className="space-y-1 text-sm">
                   <div className="flex items-center gap-1 text-gray-300">
                     <Camera className="h-3.5 w-3.5" />
-                    <span className="truncate">{appearance.camera_name || appearance.camera_id}</span>
+                    <span className="truncate">
+                      {appearance.camera_name || appearance.camera_id}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-gray-400">{formatTimestamp(appearance.timestamp)}</span>
+                    <span className="text-xs text-gray-400">
+                      {formatTimestamp(appearance.timestamp)}
+                    </span>
                     <span
                       className={`rounded px-1.5 py-0.5 text-xs font-medium ${getSimilarityColor(appearance.similarity_score)}`}
                     >
@@ -283,7 +287,9 @@ export default function ReidHistoryPanel({
                 <button
                   onClick={() => handleAppearanceClick(appearance)}
                   className={`w-full text-left transition-all ${
-                    isSelected ? 'rounded-lg bg-[#76B900]/10 ring-2 ring-[#76B900]/50' : 'hover:bg-gray-800/50'
+                    isSelected
+                      ? 'rounded-lg bg-[#76B900]/10 ring-2 ring-[#76B900]/50'
+                      : 'hover:bg-gray-800/50'
                   } p-2`}
                   aria-pressed={isSelected}
                 >
@@ -319,13 +325,14 @@ export default function ReidHistoryPanel({
                             {appearance.camera_name || appearance.camera_id}
                           </span>
                         </div>
-                        {appearance.similarity_score !== null && appearance.similarity_score !== undefined && (
-                          <span
-                            className={`flex-shrink-0 rounded px-1.5 py-0.5 text-xs font-medium ${getSimilarityColor(appearance.similarity_score)}`}
-                          >
-                            {formatSimilarity(appearance.similarity_score)}
-                          </span>
-                        )}
+                        {appearance.similarity_score !== null &&
+                          appearance.similarity_score !== undefined && (
+                            <span
+                              className={`flex-shrink-0 rounded px-1.5 py-0.5 text-xs font-medium ${getSimilarityColor(appearance.similarity_score)}`}
+                            >
+                              {formatSimilarity(appearance.similarity_score)}
+                            </span>
+                          )}
                       </div>
 
                       {/* Timestamp */}

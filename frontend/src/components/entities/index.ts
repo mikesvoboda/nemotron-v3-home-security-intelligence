@@ -10,7 +10,7 @@ export { default as ReidHistoryPanel } from './ReidHistoryPanel';
 
 // Re-export types
 export type { EntityCardProps } from './EntityCard';
-export type { EntityDetailModalProps } from './EntityDetailModal';
+export type { EntityDetailModalProps, TrustStatus } from './EntityDetailModal';
 export type { EntityTimelineProps, EntityAppearance } from './EntityTimeline';
 export type { EntityStatsCardProps } from './EntityStatsCard';
 export type { ReidHistoryPanelProps } from './ReidHistoryPanel';

@@ -12,7 +12,11 @@ import {
   useQuietHoursPeriodsQuery,
   useNotificationPreferencesMutation,
 } from '../../hooks/useNotificationPreferencesQuery';
-import { DAYS_OF_WEEK, type DayOfWeek, type QuietHoursPeriod } from '../../types/notificationPreferences';
+import {
+  DAYS_OF_WEEK,
+  type DayOfWeek,
+  type QuietHoursPeriod,
+} from '../../types/notificationPreferences';
 
 export interface QuietHoursSchedulerProps {
   className?: string;
@@ -85,12 +89,7 @@ function QuietPeriodRow({ period, onDelete, isDeleting }: QuietPeriodRowProps) {
             >
               Cancel
             </Button>
-            <Button
-              size="xs"
-              color="red"
-              onClick={() => void handleDelete()}
-              disabled={isDeleting}
-            >
+            <Button size="xs" color="red" onClick={() => void handleDelete()} disabled={isDeleting}>
               {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Delete'}
             </Button>
           </>
@@ -174,11 +173,7 @@ function CreatePeriodForm({ onSubmit, onCancel, isSubmitting }: CreatePeriodForm
     >
       <div className="mb-4 flex items-center justify-between">
         <Text className="font-medium text-gray-300">New Quiet Hours Period</Text>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="text-gray-400 hover:text-gray-300"
-        >
+        <button type="button" onClick={onCancel} className="text-gray-400 hover:text-gray-300">
           <X className="h-5 w-5" />
         </button>
       </div>
@@ -193,7 +188,9 @@ function CreatePeriodForm({ onSubmit, onCancel, isSubmitting }: CreatePeriodForm
       <div className="space-y-4">
         {/* Label */}
         <div>
-          <label htmlFor="quiet-hours-label" className="mb-1 block text-sm text-gray-400">Label</label>
+          <label htmlFor="quiet-hours-label" className="mb-1 block text-sm text-gray-400">
+            Label
+          </label>
           <TextInput
             id="quiet-hours-label"
             value={label}
@@ -206,7 +203,9 @@ function CreatePeriodForm({ onSubmit, onCancel, isSubmitting }: CreatePeriodForm
         {/* Time Range */}
         <div className="flex gap-4">
           <div className="flex-1">
-            <label htmlFor="quiet-hours-start" className="mb-1 block text-sm text-gray-400">Start Time</label>
+            <label htmlFor="quiet-hours-start" className="mb-1 block text-sm text-gray-400">
+              Start Time
+            </label>
             <input
               id="quiet-hours-start"
               type="time"
@@ -216,7 +215,9 @@ function CreatePeriodForm({ onSubmit, onCancel, isSubmitting }: CreatePeriodForm
             />
           </div>
           <div className="flex-1">
-            <label htmlFor="quiet-hours-end" className="mb-1 block text-sm text-gray-400">End Time</label>
+            <label htmlFor="quiet-hours-end" className="mb-1 block text-sm text-gray-400">
+              End Time
+            </label>
             <input
               id="quiet-hours-end"
               type="time"
@@ -269,9 +270,7 @@ function CreatePeriodForm({ onSubmit, onCancel, isSubmitting }: CreatePeriodForm
             </button>
             <button
               type="button"
-              onClick={() =>
-                setDays(['monday', 'tuesday', 'wednesday', 'thursday', 'friday'])
-              }
+              onClick={() => setDays(['monday', 'tuesday', 'wednesday', 'thursday', 'friday'])}
               className="text-xs text-gray-500 hover:text-gray-400"
             >
               Weekdays
@@ -378,8 +377,8 @@ export default function QuietHoursScheduler({ className }: QuietHoursSchedulerPr
       </div>
 
       <Text className="mb-4 text-sm text-gray-400">
-        Configure time periods when notifications should be silenced. Useful for sleep hours
-        or work hours when you do not want to be disturbed.
+        Configure time periods when notifications should be silenced. Useful for sleep hours or work
+        hours when you do not want to be disturbed.
       </Text>
 
       {isLoading && (

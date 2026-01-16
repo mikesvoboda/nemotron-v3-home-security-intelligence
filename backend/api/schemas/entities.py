@@ -66,6 +66,22 @@ class SourceFilter(str, Enum):
     both = "both"
 
 
+class TrustStatusEnum(str, Enum):
+    """Trust status for tracked entities.
+
+    Matches the TrustStatus enum in backend/models/enums.py and
+    the CHECK constraint on the entities table.
+
+    - TRUSTED: Known/recognized entity (alerts may be skipped or reduced)
+    - UNTRUSTED: Explicitly flagged as suspicious (alerts may be increased)
+    - UNKNOWN: Not yet classified (normal alert processing)
+    """
+
+    TRUSTED = "trusted"
+    UNTRUSTED = "untrusted"
+    UNKNOWN = "unknown"
+
+
 # =============================================================================
 # Database-Aligned Entity Schemas (match SQLAlchemy Entity model)
 # =============================================================================
@@ -110,6 +126,10 @@ class EntityBase(BaseModel):
     entity_type: EntityTypeEnum = Field(
         default=EntityTypeEnum.PERSON,
         description="Type of entity: person, vehicle, animal, package, or other",
+    )
+    trust_status: TrustStatusEnum = Field(
+        default=TrustStatusEnum.UNKNOWN,
+        description="Trust level: trusted (known/safe), untrusted (suspicious), or unknown (default)",
     )
     entity_metadata: dict[str, Any] | None = Field(
         default=None,
@@ -167,6 +187,10 @@ class EntityUpdate(BaseModel):
     entity_type: EntityTypeEnum | None = Field(
         default=None,
         description="Updated entity type",
+    )
+    trust_status: TrustStatusEnum | None = Field(
+        default=None,
+        description="Updated trust status (trusted, untrusted, or unknown)",
     )
     embedding_vector: EmbeddingVectorData | None = Field(
         default=None,
@@ -683,3 +707,119 @@ class EntityStatsResponse(BaseModel):
     time_range: dict[str, datetime | None] | None = Field(
         None, description="Time range for the statistics query"
     )
+
+
+# =============================================================================
+# Entity Trust Classification Schemas (NEM-2671)
+# =============================================================================
+
+
+class TrustStatus(str, Enum):
+    """Trust classification status for entities.
+
+    Entities can be classified as trusted (known/safe), untrusted (unknown/suspicious),
+    or unclassified (no classification assigned yet).
+    """
+
+    TRUSTED = "trusted"
+    UNTRUSTED = "untrusted"
+    UNCLASSIFIED = "unclassified"
+
+
+class EntityTrustUpdate(BaseModel):
+    """Schema for updating an entity's trust status.
+
+    Request body for PATCH /api/entities/{entity_id}/trust endpoint.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "trust_status": "trusted",
+                "notes": "Regular mail carrier, verified by homeowner",
+            }
+        }
+    )
+
+    trust_status: TrustStatus = Field(
+        ...,
+        description="The trust classification to assign to the entity",
+    )
+    notes: str | None = Field(
+        default=None,
+        max_length=500,
+        description="Optional notes explaining the trust classification decision",
+    )
+
+
+class EntityTrustResponse(BaseModel):
+    """Schema for entity trust status response.
+
+    Response from PATCH /api/entities/{entity_id}/trust endpoint and list endpoints.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "id": "550e8400-e29b-41d4-a716-446655440000",
+                "entity_type": "person",
+                "trust_status": "trusted",
+                "trust_notes": "Regular mail carrier, verified by homeowner",
+                "trust_updated_at": "2025-12-23T14:30:00Z",
+                "first_seen": "2025-12-23T10:00:00Z",
+                "last_seen": "2025-12-23T14:30:00Z",
+                "appearance_count": 5,
+                "thumbnail_url": "/api/detections/123/image",
+            }
+        }
+    )
+
+    id: str = Field(..., description="Unique entity identifier (UUID)")
+    entity_type: str = Field(..., description="Type of entity: person, vehicle, etc.")
+    trust_status: TrustStatus = Field(..., description="Current trust classification status")
+    trust_notes: str | None = Field(None, description="Notes about the trust classification")
+    trust_updated_at: datetime | None = Field(
+        None, description="When the trust status was last updated"
+    )
+    first_seen: datetime | None = Field(None, description="Timestamp of first appearance")
+    last_seen: datetime | None = Field(None, description="Timestamp of most recent appearance")
+    appearance_count: int | None = Field(None, ge=0, description="Total number of appearances")
+    thumbnail_url: str | None = Field(None, description="URL to thumbnail image")
+
+
+class TrustedEntityListResponse(BaseModel):
+    """Schema for paginated list of trusted or untrusted entities.
+
+    Response from GET /api/entities/trusted and GET /api/entities/untrusted endpoints.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "items": [
+                    {
+                        "id": "550e8400-e29b-41d4-a716-446655440000",
+                        "entity_type": "person",
+                        "trust_status": "trusted",
+                        "trust_notes": "Mail carrier",
+                        "trust_updated_at": "2025-12-23T14:30:00Z",
+                        "first_seen": "2025-12-23T10:00:00Z",
+                        "last_seen": "2025-12-23T14:30:00Z",
+                        "appearance_count": 5,
+                        "thumbnail_url": "/api/detections/123/image",
+                    }
+                ],
+                "pagination": {
+                    "total": 1,
+                    "limit": 50,
+                    "offset": 0,
+                    "has_more": False,
+                },
+            }
+        }
+    )
+
+    items: list[EntityTrustResponse] = Field(
+        ..., description="List of entities with their trust status"
+    )
+    pagination: PaginationInfo = Field(..., description="Pagination metadata")

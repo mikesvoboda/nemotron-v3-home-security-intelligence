@@ -129,7 +129,9 @@ const AlertCard = memo(function AlertCard({
       className={`relative rounded-lg border-2 ${getSeverityBorderClass()} p-4 transition-all hover:shadow-lg`}
     >
       {/* Severity accent bar */}
-      <div className={`absolute left-0 top-0 h-full w-1 rounded-l-md ${getSeverityAccentClass()}`} />
+      <div
+        className={`absolute left-0 top-0 h-full w-1 rounded-l-md ${getSeverityAccentClass()}`}
+      />
 
       {/* Checkbox (if selection enabled) */}
       {selected !== undefined && onSelectChange && (

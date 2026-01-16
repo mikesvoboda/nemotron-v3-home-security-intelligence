@@ -73,7 +73,10 @@ describe('useToast', () => {
         result.current.warning('Please check your input');
       });
 
-      expect(sonnerToast.warning).toHaveBeenCalledWith('Please check your input', expect.any(Object));
+      expect(sonnerToast.warning).toHaveBeenCalledWith(
+        'Please check your input',
+        expect.any(Object)
+      );
     });
 
     it('should call sonner toast.info with message', () => {

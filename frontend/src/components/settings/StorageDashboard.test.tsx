@@ -147,9 +147,12 @@ describe('StorageDashboard', () => {
 
     renderWithProviders(<StorageDashboard />);
 
-    await waitFor(() => {
-      expect(screen.getByText('Network error')).toBeInTheDocument();
-    }, { timeout: 10000 });
+    await waitFor(
+      () => {
+        expect(screen.getByText('Network error')).toBeInTheDocument();
+      },
+      { timeout: 10000 }
+    );
 
     // Should show retry button
     expect(screen.getByText('Retry')).toBeInTheDocument();
@@ -167,9 +170,12 @@ describe('StorageDashboard', () => {
 
     renderWithProviders(<StorageDashboard />);
 
-    await waitFor(() => {
-      expect(screen.getByText('Network error')).toBeInTheDocument();
-    }, { timeout: 10000 });
+    await waitFor(
+      () => {
+        expect(screen.getByText('Network error')).toBeInTheDocument();
+      },
+      { timeout: 10000 }
+    );
 
     const retryButton = screen.getByText('Retry');
     fireEvent.click(retryButton);
@@ -194,8 +200,8 @@ describe('StorageDashboard', () => {
     // Find and click refresh button (it's the button with the RefreshCw icon)
     const refreshButtons = screen.getAllByRole('button');
     // The first button after loading should be the refresh button
-    const refreshButton = refreshButtons.find(btn =>
-      btn.querySelector('svg.lucide-refresh-cw') !== null
+    const refreshButton = refreshButtons.find(
+      (btn) => btn.querySelector('svg.lucide-refresh-cw') !== null
     );
 
     if (refreshButton) {

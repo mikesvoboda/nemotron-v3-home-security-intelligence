@@ -1,5 +1,13 @@
 import { clsx } from 'clsx';
-import { ChevronLeft, ChevronRight, AlertOctagon, AlertTriangle, Info, Bug, FileText } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  AlertOctagon,
+  AlertTriangle,
+  Info,
+  Bug,
+  FileText,
+} from 'lucide-react';
 
 import { EmptyState, SafeErrorMessage, TableRowSkeleton } from '../common';
 

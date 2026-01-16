@@ -1,23 +1,6 @@
-import {
-  Card,
-  Title,
-  Text,
-  Badge,
-  AreaChart,
-  TabGroup,
-  TabList,
-  Tab,
-} from '@tremor/react';
+import { Card, Title, Text, Badge, AreaChart, TabGroup, TabList, Tab } from '@tremor/react';
 import { clsx } from 'clsx';
-import {
-  Activity,
-  TrendingUp,
-  Clock,
-  AlertTriangle,
-  Layers,
-  Zap,
-  BarChart3,
-} from 'lucide-react';
+import { Activity, TrendingUp, Clock, AlertTriangle, Layers, Zap, BarChart3 } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 
 import { fetchTelemetry, type TelemetryResponse, type StageLatency } from '../../services/api';
@@ -82,10 +65,7 @@ function getLatencyColor(
 /**
  * Gets badge color based on queue depth
  */
-function getQueueBadgeColor(
-  depth: number,
-  threshold: number
-): 'gray' | 'green' | 'yellow' | 'red' {
+function getQueueBadgeColor(depth: number, threshold: number): 'gray' | 'green' | 'yellow' | 'red' {
   if (depth === 0) return 'gray';
   if (depth <= threshold / 2) return 'green';
   if (depth <= threshold) return 'yellow';
@@ -176,7 +156,8 @@ export default function PipelineTelemetry({
           // In a real implementation, this would come from the backend
           const detectionsPerMin = Math.max(
             0,
-            ((prevTelemetry.queues.detection_queue - data.queues.detection_queue) / timeDiffMin) * 60
+            ((prevTelemetry.queues.detection_queue - data.queues.detection_queue) / timeDiffMin) *
+              60
           );
           const analysesPerMin = Math.max(
             0,
@@ -307,9 +288,7 @@ export default function PipelineTelemetry({
     >
       <div className="flex flex-col">
         <Text className="text-sm font-medium text-gray-300">{label}</Text>
-        <Text className="text-xs text-gray-500">
-          {stage?.sample_count ?? 0} samples
-        </Text>
+        <Text className="text-xs text-gray-500">{stage?.sample_count ?? 0} samples</Text>
       </div>
       <div className="flex items-center gap-3">
         <div className="text-right">
@@ -400,9 +379,7 @@ export default function PipelineTelemetry({
             <div
               className={clsx(
                 'flex flex-col items-center rounded-lg p-4',
-                detectionBackingUp
-                  ? 'border border-red-500/30 bg-red-500/10'
-                  : 'bg-gray-800/50'
+                detectionBackingUp ? 'border border-red-500/30 bg-red-500/10' : 'bg-gray-800/50'
               )}
               data-testid="detection-queue-card"
             >
@@ -424,9 +401,7 @@ export default function PipelineTelemetry({
             <div
               className={clsx(
                 'flex flex-col items-center rounded-lg p-4',
-                analysisBackingUp
-                  ? 'border border-red-500/30 bg-red-500/10'
-                  : 'bg-gray-800/50'
+                analysisBackingUp ? 'border border-red-500/30 bg-red-500/10' : 'bg-gray-800/50'
               )}
               data-testid="analysis-queue-card"
             >
@@ -482,10 +457,7 @@ export default function PipelineTelemetry({
               </div>
               <div className="flex items-center justify-between">
                 <Text className="text-xs text-gray-400">Analyses</Text>
-                <Text
-                  className="text-sm font-medium text-white"
-                  data-testid="analyses-throughput"
-                >
+                <Text className="text-sm font-medium text-white" data-testid="analyses-throughput">
                   {throughputHistory.length > 0
                     ? `${throughputHistory[throughputHistory.length - 1].analyses}/min`
                     : 'N/A'}
@@ -499,11 +471,7 @@ export default function PipelineTelemetry({
               <Text className="text-xs text-gray-500">Error Rate</Text>
             </div>
             <div className="flex items-center justify-center">
-              <Badge
-                color={getErrorRateColor(errorRate)}
-                size="lg"
-                data-testid="error-rate-badge"
-              >
+              <Badge color={getErrorRateColor(errorRate)} size="lg" data-testid="error-rate-badge">
                 {errorRate.toFixed(1)}%
               </Badge>
             </div>

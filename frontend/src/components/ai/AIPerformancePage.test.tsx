@@ -59,8 +59,18 @@ vi.mock('../../services/api', () => ({
   fetchModelLeaderboard: vi.fn(() =>
     Promise.resolve({
       entries: [
-        { model_name: 'rtdetr', contribution_rate: 1.0, quality_correlation: null, event_count: 1000 },
-        { model_name: 'florence', contribution_rate: 0.85, quality_correlation: null, event_count: 850 },
+        {
+          model_name: 'rtdetr',
+          contribution_rate: 1.0,
+          quality_correlation: null,
+          event_count: 1000,
+        },
+        {
+          model_name: 'florence',
+          contribution_rate: 0.85,
+          quality_correlation: null,
+          event_count: 850,
+        },
       ],
       period_days: 7,
     })
@@ -765,9 +775,27 @@ describe('AIPerformancePage', () => {
           ...defaultMockData,
           pipelineLatency: {
             watch_to_detect: { avg_ms: 50, p50_ms: 45, p95_ms: 80, p99_ms: 100, sample_count: 100 },
-            detect_to_batch: { avg_ms: 150, p50_ms: 140, p95_ms: 200, p99_ms: 250, sample_count: 100 },
-            batch_to_analyze: { avg_ms: 75, p50_ms: 70, p95_ms: 90, p99_ms: 120, sample_count: 100 },
-            total_pipeline: { avg_ms: 275, p50_ms: 255, p95_ms: 370, p99_ms: 470, sample_count: 100 },
+            detect_to_batch: {
+              avg_ms: 150,
+              p50_ms: 140,
+              p95_ms: 200,
+              p99_ms: 250,
+              sample_count: 100,
+            },
+            batch_to_analyze: {
+              avg_ms: 75,
+              p50_ms: 70,
+              p95_ms: 90,
+              p99_ms: 120,
+              sample_count: 100,
+            },
+            total_pipeline: {
+              avg_ms: 275,
+              p50_ms: 255,
+              p95_ms: 370,
+              p99_ms: 470,
+              sample_count: 100,
+            },
             window_minutes: 60,
             timestamp: new Date().toISOString(),
           },
@@ -798,9 +826,27 @@ describe('AIPerformancePage', () => {
           ...defaultMockData,
           pipelineLatency: {
             watch_to_detect: { avg_ms: 50, p50_ms: 45, p95_ms: 80, p99_ms: 100, sample_count: 100 },
-            detect_to_batch: { avg_ms: 150, p50_ms: 140, p95_ms: 200, p99_ms: 250, sample_count: 100 },
-            batch_to_analyze: { avg_ms: 75, p50_ms: 70, p95_ms: 90, p99_ms: 120, sample_count: 100 },
-            total_pipeline: { avg_ms: 275, p50_ms: 255, p95_ms: 370, p99_ms: 470, sample_count: 100 },
+            detect_to_batch: {
+              avg_ms: 150,
+              p50_ms: 140,
+              p95_ms: 200,
+              p99_ms: 250,
+              sample_count: 100,
+            },
+            batch_to_analyze: {
+              avg_ms: 75,
+              p50_ms: 70,
+              p95_ms: 90,
+              p99_ms: 120,
+              sample_count: 100,
+            },
+            total_pipeline: {
+              avg_ms: 275,
+              p50_ms: 255,
+              p95_ms: 370,
+              p99_ms: 470,
+              sample_count: 100,
+            },
             window_minutes: 60,
             timestamp: new Date().toISOString(),
           },
@@ -1140,7 +1186,13 @@ describe('AIPerformancePage', () => {
       mockUseAIMetrics.mockReturnValue({
         data: {
           ...defaultMockData,
-          detectionLatency: { avg_ms: 0.5, p50_ms: 0.3, p95_ms: 0.8, p99_ms: 0.9, sample_count: 100 },
+          detectionLatency: {
+            avg_ms: 0.5,
+            p50_ms: 0.3,
+            p95_ms: 0.8,
+            p99_ms: 0.9,
+            sample_count: 100,
+          },
         },
         isLoading: false,
         error: null,
@@ -1159,7 +1211,13 @@ describe('AIPerformancePage', () => {
       mockUseAIMetrics.mockReturnValue({
         data: {
           ...defaultMockData,
-          analysisLatency: { avg_ms: 5000, p50_ms: 4500, p95_ms: 8000, p99_ms: 12000, sample_count: 100 },
+          analysisLatency: {
+            avg_ms: 5000,
+            p50_ms: 4500,
+            p95_ms: 8000,
+            p99_ms: 12000,
+            sample_count: 100,
+          },
         },
         isLoading: false,
         error: null,
@@ -1186,7 +1244,13 @@ describe('AIPerformancePage', () => {
       mockUseAIMetrics.mockReturnValue({
         data: {
           ...defaultMockData,
-          analysisLatency: { avg_ms: 120000, p50_ms: 100000, p95_ms: 150000, p99_ms: 180000, sample_count: 100 },
+          analysisLatency: {
+            avg_ms: 120000,
+            p50_ms: 100000,
+            p95_ms: 150000,
+            p99_ms: 180000,
+            sample_count: 100,
+          },
         },
         isLoading: false,
         error: null,

@@ -154,7 +154,9 @@ export interface UseOffsetPaginationStateReturn {
 /**
  * Return type union for the hook.
  */
-export type UsePaginationStateReturn = UseCursorPaginationStateReturn | UseOffsetPaginationStateReturn;
+export type UsePaginationStateReturn =
+  | UseCursorPaginationStateReturn
+  | UseOffsetPaginationStateReturn;
 
 /**
  * Default parameter names for URL query parameters.
@@ -478,10 +480,16 @@ function useOffsetPaginationInternal(
  * }
  * ```
  */
-export function usePaginationState(options: UsePaginationStateOptions & { type: 'cursor' }): UseCursorPaginationStateReturn;
-export function usePaginationState(options: UsePaginationStateOptions & { type: 'offset' }): UseOffsetPaginationStateReturn;
+export function usePaginationState(
+  options: UsePaginationStateOptions & { type: 'cursor' }
+): UseCursorPaginationStateReturn;
+export function usePaginationState(
+  options: UsePaginationStateOptions & { type: 'offset' }
+): UseOffsetPaginationStateReturn;
 export function usePaginationState(options?: UsePaginationStateOptions): UsePaginationStateReturn;
-export function usePaginationState(options: UsePaginationStateOptions = {}): UsePaginationStateReturn {
+export function usePaginationState(
+  options: UsePaginationStateOptions = {}
+): UsePaginationStateReturn {
   const {
     type = 'cursor',
     defaultLimit = DEFAULT_LIMIT,

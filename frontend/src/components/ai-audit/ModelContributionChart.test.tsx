@@ -90,7 +90,9 @@ describe('ModelContributionChart', () => {
 
     render(<ModelContributionChart contributions={unsortedContributions} />);
 
-    const modelNames = screen.getAllByRole('progressbar').map((el) => el.getAttribute('aria-label'));
+    const modelNames = screen
+      .getAllByRole('progressbar')
+      .map((el) => el.getAttribute('aria-label'));
     expect(modelNames[0]).toContain('RT-DETRv2');
     expect(modelNames[1]).toContain('YOLO-World');
     expect(modelNames[2]).toContain('Florence-2');

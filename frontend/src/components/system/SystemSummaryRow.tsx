@@ -176,9 +176,9 @@ function SummaryIndicator({ data, onClick }: SummaryIndicatorProps) {
       aria-label={`${data.label}: ${data.state}. ${data.primaryMetric}. Click to scroll to ${data.label} section.`}
     >
       {/* Header with type icon and label */}
-      <div className="flex items-center gap-1.5 mb-1">
+      <div className="mb-1 flex items-center gap-1.5">
         {typeIcon}
-        <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">
+        <span className="text-xs font-medium uppercase tracking-wide text-gray-400">
           {data.label}
         </span>
       </div>
@@ -189,7 +189,10 @@ function SummaryIndicator({ data, onClick }: SummaryIndicatorProps) {
       </div>
 
       {/* Primary metric */}
-      <div className={clsx('text-sm font-semibold', colors.text)} data-testid={`indicator-primary-${data.type}`}>
+      <div
+        className={clsx('text-sm font-semibold', colors.text)}
+        data-testid={`indicator-primary-${data.type}`}
+      >
         {data.primaryMetric}
       </div>
 
@@ -203,16 +206,16 @@ function SummaryIndicator({ data, onClick }: SummaryIndicatorProps) {
       {/* Tooltip */}
       <div
         className={clsx(
-          'absolute bottom-full left-1/2 -translate-x-1/2 mb-2',
+          'absolute bottom-full left-1/2 mb-2 -translate-x-1/2',
           'invisible opacity-0 group-hover:visible group-hover:opacity-100',
-          'transition-all duration-200 z-10',
+          'z-10 transition-all duration-200',
           'min-w-[180px] max-w-[250px]'
         )}
         role="tooltip"
         data-testid={`indicator-tooltip-${data.type}`}
       >
-        <div className="bg-gray-900 border border-gray-700 rounded-lg shadow-xl p-3">
-          <div className="text-xs font-medium text-gray-300 mb-2 border-b border-gray-700 pb-1">
+        <div className="rounded-lg border border-gray-700 bg-gray-900 p-3 shadow-xl">
+          <div className="mb-2 border-b border-gray-700 pb-1 text-xs font-medium text-gray-300">
             {data.label} Details
           </div>
           <ul className="space-y-1">
@@ -223,7 +226,7 @@ function SummaryIndicator({ data, onClick }: SummaryIndicatorProps) {
             ))}
           </ul>
           {/* Tooltip arrow */}
-          <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-px">
+          <div className="absolute left-1/2 top-full -mt-px -translate-x-1/2">
             <div className="border-8 border-transparent border-t-gray-700" />
           </div>
         </div>
@@ -285,10 +288,7 @@ function formatCount(count: number): string {
  * Click any indicator to smooth scroll to that section.
  * Hover shows tooltip with component breakdown.
  */
-export default function SystemSummaryRow({
-  className,
-  onIndicatorClick,
-}: SystemSummaryRowProps) {
+export default function SystemSummaryRow({ className, onIndicatorClick }: SystemSummaryRowProps) {
   // Hooks for real-time data
   const { current, isConnected } = usePerformanceMetrics();
   const { services, overallStatus } = useHealthStatusQuery({ refetchInterval: 10000 });
@@ -436,22 +436,23 @@ export default function SystemSummaryRow({
     const totalInferences = rtdetrInf + nemotronInf;
 
     // Build tooltip with core model status
-    const tooltipContent = [
-      `RT-DETR: ${rtdetrStatus}`,
-      `Nemotron: ${nemotronStatus}`,
-    ];
+    const tooltipContent = [`RT-DETR: ${rtdetrStatus}`, `Nemotron: ${nemotronStatus}`];
 
     // Add Model Zoo enrichment count if available
     if (models.length > 0) {
       const loadedEnrichmentModels = models.filter(
         (m) => m.status === 'loaded' || m.status === 'loading'
       );
-      tooltipContent.push(`Enrichment models: ${loadedEnrichmentModels.length}/${models.length} loaded`);
+      tooltipContent.push(
+        `Enrichment models: ${loadedEnrichmentModels.length}/${models.length} loaded`
+      );
     }
 
     // Add VRAM info if available
     if (vramStats) {
-      tooltipContent.push(`VRAM: ${formatGB(vramStats.usedMb / 1024)} / ${formatGB(vramStats.budgetMb / 1024)}`);
+      tooltipContent.push(
+        `VRAM: ${formatGB(vramStats.usedMb / 1024)} / ${formatGB(vramStats.budgetMb / 1024)}`
+      );
     }
 
     return {

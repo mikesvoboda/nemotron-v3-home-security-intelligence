@@ -111,28 +111,19 @@ describe('ConfidenceBadge', () => {
     it('has descriptive aria-label for low confidence', () => {
       render(<ConfidenceBadge confidence={0.5} />);
       const badge = screen.getByRole('status');
-      expect(badge).toHaveAttribute(
-        'aria-label',
-        'Detection confidence: 50% (Low Confidence)'
-      );
+      expect(badge).toHaveAttribute('aria-label', 'Detection confidence: 50% (Low Confidence)');
     });
 
     it('has descriptive aria-label for medium confidence', () => {
       render(<ConfidenceBadge confidence={0.75} />);
       const badge = screen.getByRole('status');
-      expect(badge).toHaveAttribute(
-        'aria-label',
-        'Detection confidence: 75% (Medium Confidence)'
-      );
+      expect(badge).toHaveAttribute('aria-label', 'Detection confidence: 75% (Medium Confidence)');
     });
 
     it('has descriptive aria-label for high confidence', () => {
       render(<ConfidenceBadge confidence={0.95} />);
       const badge = screen.getByRole('status');
-      expect(badge).toHaveAttribute(
-        'aria-label',
-        'Detection confidence: 95% (High Confidence)'
-      );
+      expect(badge).toHaveAttribute('aria-label', 'Detection confidence: 95% (High Confidence)');
     });
 
     it('has title attribute with confidence label', () => {

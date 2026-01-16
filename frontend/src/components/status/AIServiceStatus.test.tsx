@@ -34,7 +34,9 @@ const createMockServiceState = (
   last_check: '2024-01-15T12:00:00Z',
 });
 
-const createDefaultMockReturn = (overrides: Partial<ReturnType<typeof mockUseAIServiceStatus>> = {}) => ({
+const createDefaultMockReturn = (
+  overrides: Partial<ReturnType<typeof mockUseAIServiceStatus>> = {}
+) => ({
   degradationMode: 'normal' as DegradationLevel,
   services: {
     rtdetr: createMockServiceState('rtdetr'),

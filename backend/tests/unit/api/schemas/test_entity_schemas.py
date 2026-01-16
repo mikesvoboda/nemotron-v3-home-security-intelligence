@@ -99,6 +99,7 @@ class TestEntityRead:
         entity = Entity(
             id=uuid4(),
             entity_type="person",
+            trust_status="unknown",
             first_seen_at=datetime(2025, 12, 23, 10, 0, 0, tzinfo=UTC),
             last_seen_at=datetime(2025, 12, 23, 14, 30, 0, tzinfo=UTC),
             detection_count=5,
@@ -110,6 +111,7 @@ class TestEntityRead:
 
         assert entity_read.id == entity.id
         assert entity_read.entity_type == entity.entity_type
+        assert entity_read.trust_status.value == entity.trust_status
         assert entity_read.first_seen_at == entity.first_seen_at
         assert entity_read.last_seen_at == entity.last_seen_at
         assert entity_read.detection_count == 5
@@ -120,6 +122,7 @@ class TestEntityRead:
         entity = Entity(
             id=uuid4(),
             entity_type="person",
+            trust_status="unknown",
             first_seen_at=datetime.now(UTC),
             last_seen_at=datetime.now(UTC),
             detection_count=1,
@@ -302,6 +305,7 @@ class TestEntitySchemaConversions:
         entity = Entity(
             id=uuid4(),
             entity_type="person",
+            trust_status="trusted",
             first_seen_at=datetime.now(UTC),
             last_seen_at=datetime.now(UTC),
             detection_count=3,
@@ -312,6 +316,7 @@ class TestEntitySchemaConversions:
 
         assert entity_read.id == entity.id
         assert entity_read.entity_type == entity.entity_type
+        assert entity_read.trust_status.value == "trusted"
         assert entity_read.detection_count == 3
 
     def test_entity_read_serialization(self) -> None:
@@ -319,6 +324,7 @@ class TestEntitySchemaConversions:
         entity = Entity(
             id=uuid4(),
             entity_type="person",
+            trust_status="untrusted",
             first_seen_at=datetime(2025, 12, 23, 10, 0, 0, tzinfo=UTC),
             last_seen_at=datetime(2025, 12, 23, 14, 30, 0, tzinfo=UTC),
             detection_count=1,
@@ -329,6 +335,7 @@ class TestEntitySchemaConversions:
 
         assert json_data["id"] == str(entity.id)
         assert json_data["entity_type"] == "person"
+        assert json_data["trust_status"] == "untrusted"
         assert json_data["detection_count"] == 1
 
     def test_entity_create_to_model(self) -> None:
@@ -363,6 +370,7 @@ class TestNullMetadataHandling:
         entity = Entity(
             id=uuid4(),
             entity_type="person",
+            trust_status="unknown",
             first_seen_at=datetime.now(UTC),
             last_seen_at=datetime.now(UTC),
             detection_count=1,
@@ -371,6 +379,7 @@ class TestNullMetadataHandling:
 
         entity_read = EntityRead.model_validate(entity)
         assert entity_read.entity_metadata is None
+        assert entity_read.trust_status.value == "unknown"
 
     def test_entity_create_with_null_metadata(self) -> None:
         """Test EntityCreate with None entity_metadata."""

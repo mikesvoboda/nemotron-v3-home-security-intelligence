@@ -1,11 +1,7 @@
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import {
-  useCamerasQuery,
-  useCameraQuery,
-  useCameraMutation,
-} from './useCamerasQuery';
+import { useCamerasQuery, useCameraQuery, useCameraMutation } from './useCamerasQuery';
 import * as api from '../services/api';
 import { createQueryClient, queryKeys } from '../services/queryClient';
 import { createQueryWrapper } from '../test-utils/renderWithProviders';
@@ -101,9 +97,7 @@ describe('useCamerasQuery', () => {
 
     it('sets error on fetch failure', async () => {
       const errorMessage = 'Failed to fetch cameras';
-      (api.fetchCameras as ReturnType<typeof vi.fn>).mockRejectedValue(
-        new Error(errorMessage)
-      );
+      (api.fetchCameras as ReturnType<typeof vi.fn>).mockRejectedValue(new Error(errorMessage));
 
       const { result } = renderHook(() => useCamerasQuery(), {
         wrapper: createQueryWrapper(),

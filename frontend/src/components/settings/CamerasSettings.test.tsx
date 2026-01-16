@@ -41,9 +41,21 @@ function createMockMutation<TData, _TError, TVariables>(overrides?: {
 
 // Default mock values - uses type assertion for TanStack Query mock compatibility
 const createDefaultMutationReturn = (): UseCameraMutationReturn => ({
-  createMutation: createMockMutation<Camera, Error, { name: string; folder_path: string; status: string }>() as UseCameraMutationReturn['createMutation'],
-  updateMutation: createMockMutation<Camera, Error, { id: string; data: { name?: string; folder_path?: string; status?: string } }>() as UseCameraMutationReturn['updateMutation'],
-  deleteMutation: createMockMutation<void, Error, string>() as UseCameraMutationReturn['deleteMutation'],
+  createMutation: createMockMutation<
+    Camera,
+    Error,
+    { name: string; folder_path: string; status: string }
+  >() as UseCameraMutationReturn['createMutation'],
+  updateMutation: createMockMutation<
+    Camera,
+    Error,
+    { id: string; data: { name?: string; folder_path?: string; status?: string } }
+  >() as UseCameraMutationReturn['updateMutation'],
+  deleteMutation: createMockMutation<
+    void,
+    Error,
+    string
+  >() as UseCameraMutationReturn['deleteMutation'],
 });
 
 describe('CamerasSettings', () => {
@@ -310,9 +322,7 @@ describe('CamerasSettings', () => {
       await user.click(submitButton);
 
       await waitFor(() => {
-        expect(mockCreateMutateAsync).toHaveBeenCalledWith(
-          expect.objectContaining({ name: 'A' })
-        );
+        expect(mockCreateMutateAsync).toHaveBeenCalledWith(expect.objectContaining({ name: 'A' }));
       });
     });
 
@@ -343,7 +353,9 @@ describe('CamerasSettings', () => {
 
       await waitFor(() => {
         // Updated to match backend security validation
-        expect(screen.getByText('Path traversal (..) is not allowed in folder path')).toBeInTheDocument();
+        expect(
+          screen.getByText('Path traversal (..) is not allowed in folder path')
+        ).toBeInTheDocument();
       });
     });
 

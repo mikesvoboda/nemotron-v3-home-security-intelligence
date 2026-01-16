@@ -11,7 +11,6 @@ import ABTestStats, { calculateStats } from './ABTestStats';
 
 import type { ABTestResult } from '../../services/api';
 
-
 // ============================================================================
 // Test Data Factories
 // ============================================================================
@@ -132,10 +131,7 @@ describe('ABTestStats', () => {
   });
 
   it('shows average score change', () => {
-    const results = [
-      createMockResult({ scoreDelta: -10 }),
-      createMockResult({ scoreDelta: -20 }),
-    ];
+    const results = [createMockResult({ scoreDelta: -10 }), createMockResult({ scoreDelta: -20 })];
 
     render(<ABTestStats results={results} />);
 
@@ -156,7 +152,9 @@ describe('ABTestStats', () => {
     render(<ABTestStats results={results} />);
 
     // 100% improvement rate with high consistency should show positive recommendation
-    expect(screen.getByText(/modified prompt.*reduces false alarms.*recommended/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/modified prompt.*reduces false alarms.*recommended/i)
+    ).toBeInTheDocument();
   });
 
   it('handles single result gracefully', () => {

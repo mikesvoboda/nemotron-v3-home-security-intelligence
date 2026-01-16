@@ -118,11 +118,7 @@ describe('Cross-Tab State Synchronization', () => {
 
       // Simulate storage event for a different key
       act(() => {
-        localStorageMock._triggerStorageEvent(
-          'some_other_key',
-          'some value',
-          null
-        );
+        localStorageMock._triggerStorageEvent('some_other_key', 'some value', null);
       });
 
       // State should remain unchanged
@@ -307,12 +303,8 @@ describe('Cross-Tab State Synchronization', () => {
       const key = 'test-shared-key';
       const initialValue = { count: 0 };
 
-      const { result: hook1 } = renderHook(() =>
-        useLocalStorage(key, initialValue)
-      );
-      const { result: hook2 } = renderHook(() =>
-        useLocalStorage(key, initialValue)
-      );
+      const { result: hook1 } = renderHook(() => useLocalStorage(key, initialValue));
+      const { result: hook2 } = renderHook(() => useLocalStorage(key, initialValue));
 
       // Both hooks start with the same initial value
       expect(hook1.current[0]).toEqual({ count: 0 });
@@ -375,10 +367,7 @@ describe('Cross-Tab State Synchronization', () => {
       expect(result.current[0]).toEqual(complexValue);
 
       // Verify it was stringified correctly
-      expect(localStorageMock.setItem).toHaveBeenCalledWith(
-        key,
-        JSON.stringify(complexValue)
-      );
+      expect(localStorageMock.setItem).toHaveBeenCalledWith(key, JSON.stringify(complexValue));
     });
   });
 
@@ -390,19 +379,13 @@ describe('Cross-Tab State Synchronization', () => {
       const { unmount } = renderHook(() => useSavedSearches());
 
       // Listener should be added
-      expect(addEventListenerSpy).toHaveBeenCalledWith(
-        'storage',
-        expect.any(Function)
-      );
+      expect(addEventListenerSpy).toHaveBeenCalledWith('storage', expect.any(Function));
 
       // Unmount the hook
       unmount();
 
       // Listener should be removed
-      expect(removeEventListenerSpy).toHaveBeenCalledWith(
-        'storage',
-        expect.any(Function)
-      );
+      expect(removeEventListenerSpy).toHaveBeenCalledWith('storage', expect.any(Function));
 
       addEventListenerSpy.mockRestore();
       removeEventListenerSpy.mockRestore();
@@ -419,9 +402,7 @@ describe('Cross-Tab State Synchronization', () => {
       }
 
       // Each cycle should add and remove exactly one listener
-      const addCalls = addEventListenerSpy.mock.calls.filter(
-        ([event]) => event === 'storage'
-      );
+      const addCalls = addEventListenerSpy.mock.calls.filter(([event]) => event === 'storage');
       const removeCalls = removeEventListenerSpy.mock.calls.filter(
         ([event]) => event === 'storage'
       );

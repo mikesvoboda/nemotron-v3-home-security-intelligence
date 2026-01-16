@@ -79,12 +79,7 @@ describe('PipelineMetricsPanel', () => {
     });
 
     it('displays timestamp when provided', () => {
-      render(
-        <PipelineMetricsPanel
-          queues={mockQueues}
-          timestamp="2025-01-01T12:30:00Z"
-        />
-      );
+      render(<PipelineMetricsPanel queues={mockQueues} timestamp="2025-01-01T12:30:00Z" />);
 
       // The timestamp shows as a localized time string
       const timestampElement = screen.getByTestId('pipeline-timestamp');
@@ -138,21 +133,15 @@ describe('PipelineMetricsPanel', () => {
       expect(screen.getByTestId('detection-queue-badge')).toHaveTextContent('0');
 
       // Healthy queue - green (1-5)
-      rerender(
-        <PipelineMetricsPanel queues={{ detection_queue: 3, analysis_queue: 0 }} />
-      );
+      rerender(<PipelineMetricsPanel queues={{ detection_queue: 3, analysis_queue: 0 }} />);
       expect(screen.getByTestId('detection-queue-badge')).toHaveTextContent('3');
 
       // Moderate queue - yellow (6-10)
-      rerender(
-        <PipelineMetricsPanel queues={{ detection_queue: 8, analysis_queue: 0 }} />
-      );
+      rerender(<PipelineMetricsPanel queues={{ detection_queue: 8, analysis_queue: 0 }} />);
       expect(screen.getByTestId('detection-queue-badge')).toHaveTextContent('8');
 
       // Backing up - red (>10)
-      rerender(
-        <PipelineMetricsPanel queues={{ detection_queue: 15, analysis_queue: 0 }} />
-      );
+      rerender(<PipelineMetricsPanel queues={{ detection_queue: 15, analysis_queue: 0 }} />);
       expect(screen.getByTestId('detection-queue-badge')).toHaveTextContent('15');
     });
   });

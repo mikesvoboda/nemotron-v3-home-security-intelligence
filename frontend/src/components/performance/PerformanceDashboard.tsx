@@ -122,7 +122,10 @@ function getStatusColor(status: string): 'green' | 'yellow' | 'red' | 'gray' {
 /**
  * Get progress bar color based on percentage thresholds
  */
-function getUsageColor(percent: number, thresholds = { warning: 80, critical: 95 }): 'green' | 'yellow' | 'red' {
+function getUsageColor(
+  percent: number,
+  thresholds = { warning: 80, critical: 95 }
+): 'green' | 'yellow' | 'red' {
   if (percent >= thresholds.critical) return 'red';
   if (percent >= thresholds.warning) return 'yellow';
   return 'green';
@@ -424,11 +427,7 @@ function DatabaseCard({ databases }: DatabaseCardProps) {
           {/* Status */}
           <div className="flex items-center justify-between">
             <Text className="text-sm text-gray-400">Status</Text>
-            <Badge
-              color={getStatusColor(postgresqlData.status)}
-              size="sm"
-              data-testid="db-status"
-            >
+            <Badge color={getStatusColor(postgresqlData.status)} size="sm" data-testid="db-status">
               {capitalize(postgresqlData.status)}
             </Badge>
           </div>
@@ -817,10 +816,7 @@ export function PerformanceDashboard({ className }: PerformanceDashboardProps) {
         <GpuCard gpu={current?.gpu ?? null} />
 
         {/* AI Models */}
-        <AiModelsCard
-          aiModels={current?.ai_models ?? {}}
-          nemotron={current?.nemotron ?? null}
-        />
+        <AiModelsCard aiModels={current?.ai_models ?? {}} nemotron={current?.nemotron ?? null} />
 
         {/* Database */}
         <DatabaseCard databases={current?.databases ?? {}} />

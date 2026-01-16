@@ -89,9 +89,7 @@ describe('Optimistic Updates Integration', () => {
 
           // Optimistically update the cache
           queryClient.setQueryData<Camera[]>(queryKeys.cameras.list(), (old) =>
-            old?.map((camera) =>
-              camera.id === id ? { ...camera, ...data } : camera
-            )
+            old?.map((camera) => (camera.id === id ? { ...camera, ...data } : camera))
           );
 
           // Return context with snapshot for rollback
@@ -428,9 +426,7 @@ describe('Optimistic Updates Integration', () => {
           // Note: We use the queryClient from the outer scope, not useQueryClient()
           // as this callback is not a React component/hook
           queryClient.setQueryData<Camera[]>(queryKeys.cameras.list(), (old) =>
-            old?.map((camera) =>
-              camera.id === context?.optimisticId ? newCamera : camera
-            )
+            old?.map((camera) => (camera.id === context?.optimisticId ? newCamera : camera))
           );
         },
 
@@ -484,9 +480,7 @@ describe('Optimistic Updates Integration', () => {
   describe('Error State Handling', () => {
     it('should expose error details after failed mutation', async () => {
       const errorMessage = 'Camera is currently recording, cannot modify';
-      (api.updateCamera as ReturnType<typeof vi.fn>).mockRejectedValue(
-        new Error(errorMessage)
-      );
+      (api.updateCamera as ReturnType<typeof vi.fn>).mockRejectedValue(new Error(errorMessage));
 
       const queryClient = createQueryClient();
 

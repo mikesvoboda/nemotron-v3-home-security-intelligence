@@ -244,8 +244,13 @@ export function useCameraNotificationSettingMutation(): UseCameraNotificationSet
   const queryClient = useQueryClient();
 
   const updateMutation = useMutation({
-    mutationFn: ({ cameraId, update }: { cameraId: string; update: CameraNotificationSettingUpdate }) =>
-      updateCameraNotificationSetting(cameraId, update),
+    mutationFn: ({
+      cameraId,
+      update,
+    }: {
+      cameraId: string;
+      update: CameraNotificationSettingUpdate;
+    }) => updateCameraNotificationSetting(cameraId, update),
     onSuccess: (_data, variables) => {
       // Invalidate the list of all camera settings
       void queryClient.invalidateQueries({
@@ -354,7 +359,9 @@ export function useQuietHoursPeriods(
  */
 export interface UseQuietHoursPeriodMutationsReturn {
   /** Mutation for creating a new quiet hours period */
-  createMutation: ReturnType<typeof useMutation<QuietHoursPeriodResponse, Error, QuietHoursPeriodCreate>>;
+  createMutation: ReturnType<
+    typeof useMutation<QuietHoursPeriodResponse, Error, QuietHoursPeriodCreate>
+  >;
   /** Mutation for deleting a quiet hours period */
   deleteMutation: ReturnType<typeof useMutation<void, Error, string>>;
 }

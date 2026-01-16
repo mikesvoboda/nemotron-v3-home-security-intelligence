@@ -80,10 +80,7 @@ export default function ModelStatusCards({
   return (
     <div className={clsx('grid gap-4 md:grid-cols-2', className)} data-testid="model-status-cards">
       {/* RT-DETRv2 Card */}
-      <Card
-        className="border-gray-800 bg-[#1A1A1A] shadow-lg"
-        data-testid="rtdetr-status-card"
-      >
+      <Card className="border-gray-800 bg-[#1A1A1A] shadow-lg" data-testid="rtdetr-status-card">
         <div className="mb-4 flex items-center justify-between">
           <Title className="flex items-center gap-2 text-white">
             <Cpu className="h-5 w-5 text-[#76B900]" />
@@ -100,9 +97,7 @@ export default function ModelStatusCards({
             <StatusIcon status={rtdetr.status} />
             <div className="flex-1">
               <Text className="text-sm font-medium text-gray-300">Object Detection</Text>
-              {rtdetr.message && (
-                <Text className="text-xs text-gray-500">{rtdetr.message}</Text>
-              )}
+              {rtdetr.message && <Text className="text-xs text-gray-500">{rtdetr.message}</Text>}
             </div>
           </div>
 
@@ -147,10 +142,7 @@ export default function ModelStatusCards({
       </Card>
 
       {/* Nemotron Card */}
-      <Card
-        className="border-gray-800 bg-[#1A1A1A] shadow-lg"
-        data-testid="nemotron-status-card"
-      >
+      <Card className="border-gray-800 bg-[#1A1A1A] shadow-lg" data-testid="nemotron-status-card">
         <div className="mb-4 flex items-center justify-between">
           <Title className="flex items-center gap-2 text-white">
             <Brain className="h-5 w-5 text-[#76B900]" />

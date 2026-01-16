@@ -59,8 +59,18 @@ const mockStats: AiAuditStatsResponse = {
 const mockLeaderboard: AiAuditLeaderboardResponse = {
   entries: [
     { model_name: 'rtdetr', contribution_rate: 1.0, quality_correlation: 0.85, event_count: 1000 },
-    { model_name: 'florence', contribution_rate: 0.85, quality_correlation: 0.72, event_count: 850 },
-    { model_name: 'image_quality', contribution_rate: 0.7, quality_correlation: 0.68, event_count: 700 },
+    {
+      model_name: 'florence',
+      contribution_rate: 0.85,
+      quality_correlation: 0.72,
+      event_count: 850,
+    },
+    {
+      model_name: 'image_quality',
+      contribution_rate: 0.7,
+      quality_correlation: 0.68,
+      event_count: 700,
+    },
     { model_name: 'zones', contribution_rate: 0.65, quality_correlation: 0.61, event_count: 650 },
     { model_name: 'clip', contribution_rate: 0.6, quality_correlation: 0.55, event_count: 600 },
   ],

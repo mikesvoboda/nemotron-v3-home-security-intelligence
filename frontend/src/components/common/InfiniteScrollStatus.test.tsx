@@ -10,13 +10,7 @@ describe('InfiniteScrollStatus', () => {
     it('renders loading indicator when isLoading is true', () => {
       const sentinelRef = createMockSentinelRef();
 
-      render(
-        <InfiniteScrollStatus
-          sentinelRef={sentinelRef}
-          isLoading={true}
-          hasMore={true}
-        />
-      );
+      render(<InfiniteScrollStatus sentinelRef={sentinelRef} isLoading={true} hasMore={true} />);
 
       expect(screen.getByTestId('infinite-scroll-loading')).toBeInTheDocument();
       expect(screen.getByText('Loading more...')).toBeInTheDocument();
@@ -132,13 +126,7 @@ describe('InfiniteScrollStatus', () => {
     it('renders end message when hasMore is false', () => {
       const sentinelRef = createMockSentinelRef();
 
-      render(
-        <InfiniteScrollStatus
-          sentinelRef={sentinelRef}
-          isLoading={false}
-          hasMore={false}
-        />
-      );
+      render(<InfiniteScrollStatus sentinelRef={sentinelRef} isLoading={false} hasMore={false} />);
 
       expect(screen.getByTestId('infinite-scroll-end')).toBeInTheDocument();
       expect(screen.getByText("You've reached the end")).toBeInTheDocument();
@@ -195,13 +183,7 @@ describe('InfiniteScrollStatus', () => {
     it('renders sentinel when hasMore is true and not loading', () => {
       const sentinelRef = createMockSentinelRef();
 
-      render(
-        <InfiniteScrollStatus
-          sentinelRef={sentinelRef}
-          isLoading={false}
-          hasMore={true}
-        />
-      );
+      render(<InfiniteScrollStatus sentinelRef={sentinelRef} isLoading={false} hasMore={true} />);
 
       expect(screen.getByTestId('infinite-scroll-sentinel')).toBeInTheDocument();
     });
@@ -209,18 +191,9 @@ describe('InfiniteScrollStatus', () => {
     it('sentinel is aria-hidden', () => {
       const sentinelRef = createMockSentinelRef();
 
-      render(
-        <InfiniteScrollStatus
-          sentinelRef={sentinelRef}
-          isLoading={false}
-          hasMore={true}
-        />
-      );
+      render(<InfiniteScrollStatus sentinelRef={sentinelRef} isLoading={false} hasMore={true} />);
 
-      expect(screen.getByTestId('infinite-scroll-sentinel')).toHaveAttribute(
-        'aria-hidden',
-        'true'
-      );
+      expect(screen.getByTestId('infinite-scroll-sentinel')).toHaveAttribute('aria-hidden', 'true');
     });
   });
 
@@ -228,13 +201,7 @@ describe('InfiniteScrollStatus', () => {
     it('calls sentinelRef with the element in loading state', () => {
       const sentinelRef = createMockSentinelRef();
 
-      render(
-        <InfiniteScrollStatus
-          sentinelRef={sentinelRef}
-          isLoading={true}
-          hasMore={true}
-        />
-      );
+      render(<InfiniteScrollStatus sentinelRef={sentinelRef} isLoading={true} hasMore={true} />);
 
       expect(sentinelRef).toHaveBeenCalled();
     });
@@ -258,13 +225,7 @@ describe('InfiniteScrollStatus', () => {
     it('calls sentinelRef with the element in end state', () => {
       const sentinelRef = createMockSentinelRef();
 
-      render(
-        <InfiniteScrollStatus
-          sentinelRef={sentinelRef}
-          isLoading={false}
-          hasMore={false}
-        />
-      );
+      render(<InfiniteScrollStatus sentinelRef={sentinelRef} isLoading={false} hasMore={false} />);
 
       expect(sentinelRef).toHaveBeenCalled();
     });
@@ -272,13 +233,7 @@ describe('InfiniteScrollStatus', () => {
     it('calls sentinelRef with the element in sentinel state', () => {
       const sentinelRef = createMockSentinelRef();
 
-      render(
-        <InfiniteScrollStatus
-          sentinelRef={sentinelRef}
-          isLoading={false}
-          hasMore={true}
-        />
-      );
+      render(<InfiniteScrollStatus sentinelRef={sentinelRef} isLoading={false} hasMore={true} />);
 
       expect(sentinelRef).toHaveBeenCalled();
     });
@@ -369,13 +324,7 @@ describe('InfiniteScrollStatus', () => {
     it('loading takes priority over sentinel', () => {
       const sentinelRef = createMockSentinelRef();
 
-      render(
-        <InfiniteScrollStatus
-          sentinelRef={sentinelRef}
-          isLoading={true}
-          hasMore={true}
-        />
-      );
+      render(<InfiniteScrollStatus sentinelRef={sentinelRef} isLoading={true} hasMore={true} />);
 
       expect(screen.getByTestId('infinite-scroll-loading')).toBeInTheDocument();
       expect(screen.queryByTestId('infinite-scroll-sentinel')).not.toBeInTheDocument();

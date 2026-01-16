@@ -84,7 +84,7 @@ export function useStorageStats(options: UseStorageStatsOptions = {}): UseStorag
   });
 
   // Convert Error to string for backward compatibility
-  const error = previewError ?? (pollingError?.message ?? null);
+  const error = previewError ?? pollingError?.message ?? null;
 
   /**
    * Manually trigger a refresh of storage stats.

@@ -307,9 +307,7 @@ describe('useEntitiesQuery', () => {
         expect(mockFetchEntities).toHaveBeenCalled();
       });
 
-      expect(mockFetchEntities).toHaveBeenCalledWith(
-        expect.objectContaining({ limit: 100 })
-      );
+      expect(mockFetchEntities).toHaveBeenCalledWith(expect.objectContaining({ limit: 100 }));
     });
 
     it('uses default limit of 50', async () => {
@@ -320,9 +318,7 @@ describe('useEntitiesQuery', () => {
         expect(mockFetchEntities).toHaveBeenCalled();
       });
 
-      expect(mockFetchEntities).toHaveBeenCalledWith(
-        expect.objectContaining({ limit: 50 })
-      );
+      expect(mockFetchEntities).toHaveBeenCalledWith(expect.objectContaining({ limit: 50 }));
     });
   });
 

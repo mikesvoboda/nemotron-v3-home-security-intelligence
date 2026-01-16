@@ -117,10 +117,7 @@ describe('useModelZooStatus (MSW)', () => {
       // Use 400 to avoid retry backoff
       server.use(
         http.get('/api/system/models', () => {
-          return HttpResponse.json(
-            { detail: 'Network error' },
-            { status: 400 }
-          );
+          return HttpResponse.json({ detail: 'Network error' }, { status: 400 });
         })
       );
 
@@ -165,7 +162,7 @@ describe('useModelZooStatus (MSW)', () => {
       });
 
       // Users can compute loaded count from models array
-      const loadedCount = result.current.models.filter(m => m.status === 'loaded').length;
+      const loadedCount = result.current.models.filter((m) => m.status === 'loaded').length;
       expect(loadedCount).toBe(1); // Only clip_embedder is loaded
     });
 
@@ -200,10 +197,10 @@ describe('useModelZooStatus (MSW)', () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      const embeddingModels = result.current.models.filter(m => m.category === 'embedding');
+      const embeddingModels = result.current.models.filter((m) => m.category === 'embedding');
       expect(embeddingModels).toHaveLength(2);
-      expect(embeddingModels.map(m => m.name)).toContain('clip_embedder');
-      expect(embeddingModels.map(m => m.name)).toContain('fashion-clip');
+      expect(embeddingModels.map((m) => m.name)).toContain('clip_embedder');
+      expect(embeddingModels.map((m) => m.name)).toContain('fashion-clip');
     });
 
     it('provides method to filter models by status', async () => {
@@ -219,7 +216,7 @@ describe('useModelZooStatus (MSW)', () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      const loadedModels = result.current.models.filter(m => m.status === 'loaded');
+      const loadedModels = result.current.models.filter((m) => m.status === 'loaded');
       expect(loadedModels).toHaveLength(1);
       expect(loadedModels[0].name).toBe('clip_embedder');
     });

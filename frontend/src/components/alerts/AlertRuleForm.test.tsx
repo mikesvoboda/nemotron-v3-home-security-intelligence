@@ -12,8 +12,20 @@ import type { Camera } from '../../services/api';
 
 // Mock cameras for testing
 const mockCameras: Camera[] = [
-  { id: 'cam1', name: 'Front Door', folder_path: '/cameras/front', status: 'online', created_at: '2025-01-01T00:00:00Z' },
-  { id: 'cam2', name: 'Backyard', folder_path: '/cameras/back', status: 'online', created_at: '2025-01-01T00:00:00Z' },
+  {
+    id: 'cam1',
+    name: 'Front Door',
+    folder_path: '/cameras/front',
+    status: 'online',
+    created_at: '2025-01-01T00:00:00Z',
+  },
+  {
+    id: 'cam2',
+    name: 'Backyard',
+    folder_path: '/cameras/back',
+    status: 'online',
+    created_at: '2025-01-01T00:00:00Z',
+  },
 ];
 
 describe('AlertRuleForm', () => {
@@ -145,9 +157,7 @@ describe('AlertRuleForm', () => {
       await userEvent.click(submitButton);
 
       await waitFor(() => {
-        expect(onSubmit).toHaveBeenCalledWith(
-          expect.objectContaining({ name: 'Test Rule' })
-        );
+        expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ name: 'Test Rule' }));
       });
     });
   });
@@ -178,9 +188,7 @@ describe('AlertRuleForm', () => {
       await userEvent.click(submitButton);
 
       await waitFor(() => {
-        expect(onSubmit).toHaveBeenCalledWith(
-          expect.objectContaining({ severity: 'critical' })
-        );
+        expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ severity: 'critical' }));
       });
     });
   });
@@ -298,9 +306,7 @@ describe('AlertRuleForm', () => {
       await userEvent.click(submitButton);
 
       await waitFor(() => {
-        expect(onSubmit).toHaveBeenCalledWith(
-          expect.objectContaining({ camera_ids: ['cam1'] })
-        );
+        expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ camera_ids: ['cam1'] }));
       });
     });
   });
@@ -574,9 +580,7 @@ describe('AlertRuleForm', () => {
       await userEvent.click(submitButton);
 
       await waitFor(() => {
-        expect(onSubmit).toHaveBeenCalledWith(
-          expect.objectContaining({ enabled: false })
-        );
+        expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ enabled: false }));
       });
     });
   });

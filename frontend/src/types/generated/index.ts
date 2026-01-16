@@ -103,8 +103,7 @@ export type PetEnrichment = components['schemas']['PetEnrichment'];
 export type HealthResponse = components['schemas']['HealthResponse'];
 // ServiceStatus is an object type with {status, message?, details?} for HealthResponse.services
 // (Backend renamed from ServiceStatus to HealthCheckServiceStatus to avoid collision)
-export type ServiceStatus =
-  components['schemas']['HealthCheckServiceStatus'];
+export type ServiceStatus = components['schemas']['HealthCheckServiceStatus'];
 // ContainerServiceStatus is the enum used by the orchestrator: running, starting, unhealthy, etc.
 export type ContainerServiceStatus = components['schemas']['ContainerServiceStatus'];
 export type GPUStats = components['schemas']['GPUStatsResponse'];
@@ -127,7 +126,8 @@ export type StageLatency = components['schemas']['StageLatency'];
 
 // Pipeline Latency types
 export type PipelineLatencyResponse = components['schemas']['PipelineLatencyResponse'];
-export type PipelineLatencyHistoryResponse = components['schemas']['PipelineLatencyHistoryResponse'];
+export type PipelineLatencyHistoryResponse =
+  components['schemas']['PipelineLatencyHistoryResponse'];
 export type PipelineStageLatency = components['schemas']['PipelineStageLatency'];
 export type LatencyHistorySnapshot = components['schemas']['LatencyHistorySnapshot'];
 export type LatencyHistoryStageStats = components['schemas']['LatencyHistoryStageStats'];
@@ -254,7 +254,8 @@ export type SeverityMetadataResponse = components['schemas']['SeverityMetadataRe
 // Scene Change types
 export type SceneChangeResponse = components['schemas']['SceneChangeResponse'];
 export type SceneChangeListResponse = components['schemas']['SceneChangeListResponse'];
-export type SceneChangeAcknowledgeResponse = components['schemas']['SceneChangeAcknowledgeResponse'];
+export type SceneChangeAcknowledgeResponse =
+  components['schemas']['SceneChangeAcknowledgeResponse'];
 
 // Zone types
 export type Zone = components['schemas']['ZoneResponse'];
@@ -366,20 +367,16 @@ export interface AiAuditRecommendationsResponse {
 // Notification Preferences types
 export type NotificationPreferencesResponse =
   components['schemas']['NotificationPreferencesResponse'];
-export type NotificationPreferencesUpdate =
-  components['schemas']['NotificationPreferencesUpdate'];
+export type NotificationPreferencesUpdate = components['schemas']['NotificationPreferencesUpdate'];
 export type CameraNotificationSettingResponse =
   components['schemas']['CameraNotificationSettingResponse'];
 export type CameraNotificationSettingUpdate =
   components['schemas']['CameraNotificationSettingUpdate'];
 export type CameraNotificationSettingsListResponse =
   components['schemas']['CameraNotificationSettingsListResponse'];
-export type QuietHoursPeriodCreate =
-  components['schemas']['QuietHoursPeriodCreate'];
-export type QuietHoursPeriodResponse =
-  components['schemas']['QuietHoursPeriodResponse'];
-export type QuietHoursPeriodsListResponse =
-  components['schemas']['QuietHoursPeriodsListResponse'];
+export type QuietHoursPeriodCreate = components['schemas']['QuietHoursPeriodCreate'];
+export type QuietHoursPeriodResponse = components['schemas']['QuietHoursPeriodResponse'];
+export type QuietHoursPeriodsListResponse = components['schemas']['QuietHoursPeriodsListResponse'];
 
 // Entity Re-Identification types
 export type EntityAppearance = components['schemas']['EntityAppearance'];

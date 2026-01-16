@@ -40,11 +40,7 @@ function renderWithQueryClient(component: React.ReactElement) {
       },
     },
   });
-  return render(
-    <QueryClientProvider client={queryClient}>
-      {component}
-    </QueryClientProvider>
-  );
+  return render(<QueryClientProvider client={queryClient}>{component}</QueryClientProvider>);
 }
 
 describe('FeedbackPanel', () => {
@@ -121,9 +117,7 @@ describe('FeedbackPanel', () => {
   describe('loading state', () => {
     it('shows loading indicator while fetching feedback', () => {
       // Set up a promise that never resolves to simulate loading
-      vi.mocked(api.getEventFeedback).mockImplementation(
-        () => new Promise(() => {})
-      );
+      vi.mocked(api.getEventFeedback).mockImplementation(() => new Promise(() => {}));
 
       renderWithQueryClient(<FeedbackPanel {...defaultProps} />);
 

@@ -102,19 +102,20 @@ export default function Skeleton({
   }
 
   // Apply defaults if no dimensions provided
-  const widthStyle = finalWidth !== undefined
-    ? (typeof finalWidth === 'number' ? `${finalWidth}px` : finalWidth)
-    : defaults.width;
-  const heightStyle = finalHeight !== undefined
-    ? (typeof finalHeight === 'number' ? `${finalHeight}px` : finalHeight)
-    : defaults.height;
+  const widthStyle =
+    finalWidth !== undefined
+      ? typeof finalWidth === 'number'
+        ? `${finalWidth}px`
+        : finalWidth
+      : defaults.width;
+  const heightStyle =
+    finalHeight !== undefined
+      ? typeof finalHeight === 'number'
+        ? `${finalHeight}px`
+        : finalHeight
+      : defaults.height;
 
-  const baseClasses = clsx(
-    'bg-gray-800',
-    'animate-pulse',
-    variantClasses[variant],
-    className
-  );
+  const baseClasses = clsx('bg-gray-800', 'animate-pulse', variantClasses[variant], className);
 
   // Render multiple lines if lines > 1
   if (lines > 1) {

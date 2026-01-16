@@ -371,7 +371,9 @@ export const queryKeys = {
     gpu: ['system', 'gpu'] as const,
     /** GPU history */
     gpuHistory: (limit?: number) =>
-      limit ? (['system', 'gpu', 'history', limit] as const) : (['system', 'gpu', 'history'] as const),
+      limit
+        ? (['system', 'gpu', 'history', limit] as const)
+        : (['system', 'gpu', 'history'] as const),
     /** System configuration */
     config: ['system', 'config'] as const,
     /** System statistics */
@@ -397,15 +399,12 @@ export const queryKeys = {
     /** Model Zoo status */
     modelZoo: ['ai', 'modelZoo'] as const,
     /** Model Zoo latency history */
-    modelLatency: (model: string, since?: number) =>
-      (['ai', 'modelLatency', model, since] as const),
+    modelLatency: (model: string, since?: number) => ['ai', 'modelLatency', model, since] as const,
     /** AI audit queries */
     audit: {
       /** Audit statistics */
       stats: (params?: { days?: number; camera_id?: string }) =>
-        params
-          ? (['ai', 'audit', 'stats', params] as const)
-          : (['ai', 'audit', 'stats'] as const),
+        params ? (['ai', 'audit', 'stats', params] as const) : (['ai', 'audit', 'stats'] as const),
       /** Model leaderboard */
       leaderboard: (params?: { days?: number }) =>
         params
@@ -417,14 +416,14 @@ export const queryKeys = {
           ? (['ai', 'audit', 'recommendations', params] as const)
           : (['ai', 'audit', 'recommendations'] as const),
       /** Event audit */
-      event: (eventId: number) => (['ai', 'audit', 'event', eventId] as const),
+      event: (eventId: number) => ['ai', 'audit', 'event', eventId] as const,
     },
     /** Prompt management */
     prompts: {
       /** All prompts */
       all: ['ai', 'prompts'] as const,
       /** Single model prompt */
-      model: (model: string) => (['ai', 'prompts', model] as const),
+      model: (model: string) => ['ai', 'prompts', model] as const,
       /** Prompt history */
       history: (model?: string) =>
         model
@@ -555,7 +554,7 @@ export const queryKeys = {
     stats: ['dlq', 'stats'] as const,
     /** Jobs in a specific queue */
     jobs: (queueName: string, start?: number, limit?: number) =>
-      (['dlq', 'jobs', queueName, { start, limit }] as const),
+      ['dlq', 'jobs', queueName, { start, limit }] as const,
   },
 
   /**
@@ -575,23 +574,17 @@ export const queryKeys = {
         /** All camera settings */
         all: ['notifications', 'preferences', 'cameras'] as const,
         /** List of all camera settings */
-        list: () =>
-          [...queryKeys.notifications.preferences.cameras.all, 'list'] as const,
+        list: () => [...queryKeys.notifications.preferences.cameras.all, 'list'] as const,
         /** Single camera setting */
         detail: (cameraId: string) =>
-          [
-            ...queryKeys.notifications.preferences.cameras.all,
-            'detail',
-            cameraId,
-          ] as const,
+          [...queryKeys.notifications.preferences.cameras.all, 'detail', cameraId] as const,
       },
       /** Quiet hours periods */
       quietHours: {
         /** All quiet hours queries */
         all: ['notifications', 'preferences', 'quietHours'] as const,
         /** List of quiet hours periods */
-        list: () =>
-          [...queryKeys.notifications.preferences.quietHours.all, 'list'] as const,
+        list: () => [...queryKeys.notifications.preferences.quietHours.all, 'list'] as const,
       },
     },
   },

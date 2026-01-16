@@ -114,9 +114,7 @@ export default function SuggestionDiffView({
         <div className="flex items-start gap-2">
           <GitBranch className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#76B900]" />
           <div>
-            <span className="text-sm font-medium text-white">
-              {suggestion.suggestion}
-            </span>
+            <span className="text-sm font-medium text-white">{suggestion.suggestion}</span>
             <div className="mt-1 flex items-center gap-2 text-xs text-gray-400">
               <span>Target: {suggestion.targetSection}</span>
               <span className="text-gray-600">|</span>
@@ -133,10 +131,7 @@ export default function SuggestionDiffView({
           aria-label="Code diff showing proposed changes"
           className="overflow-hidden rounded-lg border border-gray-700"
         >
-          <div
-            className="overflow-x-auto font-mono text-sm"
-            data-testid="diff-code-block"
-          >
+          <div className="overflow-x-auto font-mono text-sm" data-testid="diff-code-block">
             {diff.map((line, index) => {
               const styles = getLineStyles(line.type);
               const testIdType = line.type === 'unchanged' ? 'unchanged' : line.type;
@@ -168,12 +163,7 @@ export default function SuggestionDiffView({
                   </div>
 
                   {/* Line content */}
-                  <div
-                    className={clsx(
-                      'flex-1 whitespace-pre px-2 py-1',
-                      styles.textClass
-                    )}
-                  >
+                  <div className={clsx('flex-1 whitespace-pre px-2 py-1', styles.textClass)}>
                     {line.content}
                   </div>
                 </div>

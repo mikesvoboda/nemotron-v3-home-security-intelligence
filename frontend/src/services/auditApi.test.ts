@@ -81,12 +81,12 @@ const mockAuditStats: AuditStats = {
     florence: 0.85,
     clip: 0.65,
     violence: 0.45,
-    clothing: 0.30,
+    clothing: 0.3,
     vehicle: 0.55,
-    pet: 0.20,
-    weather: 0.90,
+    pet: 0.2,
+    weather: 0.9,
     image_quality: 0.95,
-    zones: 0.40,
+    zones: 0.4,
     baseline: 0.75,
     cross_camera: 0.25,
   },
@@ -107,8 +107,18 @@ const mockLeaderboardResponse: LeaderboardResponse = {
       event_count: 142,
     },
     { model_name: 'weather', contribution_rate: 0.9, quality_correlation: null, event_count: 135 },
-    { model_name: 'florence', contribution_rate: 0.85, quality_correlation: 0.65, event_count: 127 },
-    { model_name: 'baseline', contribution_rate: 0.75, quality_correlation: 0.58, event_count: 112 },
+    {
+      model_name: 'florence',
+      contribution_rate: 0.85,
+      quality_correlation: 0.65,
+      event_count: 127,
+    },
+    {
+      model_name: 'baseline',
+      contribution_rate: 0.75,
+      quality_correlation: 0.58,
+      event_count: 112,
+    },
   ],
   period_days: 7,
 };
@@ -873,9 +883,7 @@ describe('Error Handling', () => {
   });
 
   it('handles 403 forbidden', async () => {
-    vi.mocked(fetch).mockResolvedValue(
-      createMockErrorResponse(403, 'Forbidden', 'Access denied')
-    );
+    vi.mocked(fetch).mockResolvedValue(createMockErrorResponse(403, 'Forbidden', 'Access denied'));
 
     await expect(fetchLeaderboard()).rejects.toThrow(AuditApiError);
     await expect(fetchLeaderboard()).rejects.toMatchObject({

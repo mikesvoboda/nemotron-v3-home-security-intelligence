@@ -543,8 +543,22 @@ describe('arePropsEqual - React.memo custom comparator', () => {
   });
 
   it('handles multiple boxes correctly', () => {
-    const box1: BoundingBox = { x: 10, y: 10, width: 50, height: 50, label: 'person', confidence: 0.9 };
-    const box2: BoundingBox = { x: 100, y: 100, width: 80, height: 80, label: 'car', confidence: 0.85 };
+    const box1: BoundingBox = {
+      x: 10,
+      y: 10,
+      width: 50,
+      height: 50,
+      label: 'person',
+      confidence: 0.9,
+    };
+    const box2: BoundingBox = {
+      x: 100,
+      y: 100,
+      width: 80,
+      height: 80,
+      label: 'car',
+      confidence: 0.85,
+    };
 
     const prevProps = { ...baseProps, boxes: [box1, box2] };
     const nextProps = { ...baseProps, boxes: [{ ...box1 }, { ...box2 }] };
@@ -552,8 +566,22 @@ describe('arePropsEqual - React.memo custom comparator', () => {
   });
 
   it('detects change in second box of multiple boxes', () => {
-    const box1: BoundingBox = { x: 10, y: 10, width: 50, height: 50, label: 'person', confidence: 0.9 };
-    const box2: BoundingBox = { x: 100, y: 100, width: 80, height: 80, label: 'car', confidence: 0.85 };
+    const box1: BoundingBox = {
+      x: 10,
+      y: 10,
+      width: 50,
+      height: 50,
+      label: 'person',
+      confidence: 0.9,
+    };
+    const box2: BoundingBox = {
+      x: 100,
+      y: 100,
+      width: 80,
+      height: 80,
+      label: 'car',
+      confidence: 0.85,
+    };
 
     const prevProps = { ...baseProps, boxes: [box1, box2] };
     const nextProps = { ...baseProps, boxes: [{ ...box1 }, { ...box2, x: 150 }] };
@@ -617,12 +645,7 @@ describe('BoundingBoxOverlay snapshots', () => {
 
   it('renders with labels hidden', () => {
     const { container } = render(
-      <BoundingBoxOverlay
-        boxes={mockBoxes}
-        imageWidth={800}
-        imageHeight={600}
-        showLabels={false}
-      />
+      <BoundingBoxOverlay boxes={mockBoxes} imageWidth={800} imageHeight={600} showLabels={false} />
     );
     expect(container.firstChild).toMatchSnapshot();
   });

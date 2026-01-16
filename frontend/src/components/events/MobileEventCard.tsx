@@ -102,7 +102,9 @@ const MobileEventCard = memo(function MobileEventCard({
   });
 
   // Handle card click
-  const handleClick = (e?: React.MouseEvent<HTMLDivElement> | React.KeyboardEvent<HTMLDivElement>) => {
+  const handleClick = (
+    e?: React.MouseEvent<HTMLDivElement> | React.KeyboardEvent<HTMLDivElement>
+  ) => {
     // Don't trigger if clicking on action buttons
     if (e) {
       const target = e.target as HTMLElement;

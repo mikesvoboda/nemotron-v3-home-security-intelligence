@@ -36,8 +36,16 @@ describe('SequenceValidator', () => {
     });
 
     it('should track multiple channels independently', () => {
-      validator.handleMessage('events', { type: 'event', sequence: 1, data: {} } as SequencedMessage);
-      validator.handleMessage('system', { type: 'system_status', sequence: 1, data: {} } as SequencedMessage);
+      validator.handleMessage('events', {
+        type: 'event',
+        sequence: 1,
+        data: {},
+      } as SequencedMessage);
+      validator.handleMessage('system', {
+        type: 'system_status',
+        sequence: 1,
+        data: {},
+      } as SequencedMessage);
 
       expect(validator.getState('events').lastSequence).toBe(1);
       expect(validator.getState('system').lastSequence).toBe(1);
@@ -79,7 +87,11 @@ describe('SequenceValidator', () => {
 
     it('should update lastSequence correctly for each processed message', () => {
       for (let i = 1; i <= 10; i++) {
-        validator.handleMessage('events', { type: 'event', sequence: i, data: {} } as SequencedMessage);
+        validator.handleMessage('events', {
+          type: 'event',
+          sequence: i,
+          data: {},
+        } as SequencedMessage);
         expect(validator.getState('events').lastSequence).toBe(i);
       }
     });
@@ -136,9 +148,21 @@ describe('SequenceValidator', () => {
       validator.handleMessage('events', msg1);
 
       // Add out-of-order to buffer
-      validator.handleMessage('events', { type: 'event', sequence: 5, data: {} } as SequencedMessage);
-      validator.handleMessage('events', { type: 'event', sequence: 3, data: {} } as SequencedMessage);
-      validator.handleMessage('events', { type: 'event', sequence: 4, data: {} } as SequencedMessage);
+      validator.handleMessage('events', {
+        type: 'event',
+        sequence: 5,
+        data: {},
+      } as SequencedMessage);
+      validator.handleMessage('events', {
+        type: 'event',
+        sequence: 3,
+        data: {},
+      } as SequencedMessage);
+      validator.handleMessage('events', {
+        type: 'event',
+        sequence: 4,
+        data: {},
+      } as SequencedMessage);
 
       const buffer = validator.getState('events').buffer;
       const sequences = Array.from(buffer.keys()).sort((a, b) => a - b);
@@ -149,7 +173,11 @@ describe('SequenceValidator', () => {
   describe('duplicate event filtering', () => {
     it('should ignore duplicate sequence numbers', () => {
       const msg1: SequencedMessage = { type: 'event', sequence: 1, data: { id: 1 } };
-      const msg1Dup: SequencedMessage = { type: 'event', sequence: 1, data: { id: 1, extra: 'dup' } };
+      const msg1Dup: SequencedMessage = {
+        type: 'event',
+        sequence: 1,
+        data: { id: 1, extra: 'dup' },
+      };
 
       validator.handleMessage('events', msg1);
       const result = validator.handleMessage('events', msg1Dup);
@@ -176,7 +204,11 @@ describe('SequenceValidator', () => {
     it('should not add duplicate to buffer', () => {
       const msg1: SequencedMessage = { type: 'event', sequence: 1, data: { id: 1 } };
       const msg3: SequencedMessage = { type: 'event', sequence: 3, data: { id: 3 } };
-      const msg3Dup: SequencedMessage = { type: 'event', sequence: 3, data: { id: 3, extra: 'dup' } };
+      const msg3Dup: SequencedMessage = {
+        type: 'event',
+        sequence: 3,
+        data: { id: 3, extra: 'dup' },
+      };
 
       validator.handleMessage('events', msg1);
       validator.handleMessage('events', msg3);
@@ -245,10 +277,26 @@ describe('SequenceValidator', () => {
       customValidator.handleMessage('events', msg1);
 
       // Add more than maxBufferSize to buffer
-      customValidator.handleMessage('events', { type: 'event', sequence: 3, data: {} } as SequencedMessage);
-      customValidator.handleMessage('events', { type: 'event', sequence: 4, data: {} } as SequencedMessage);
-      customValidator.handleMessage('events', { type: 'event', sequence: 5, data: {} } as SequencedMessage);
-      customValidator.handleMessage('events', { type: 'event', sequence: 6, data: {} } as SequencedMessage);
+      customValidator.handleMessage('events', {
+        type: 'event',
+        sequence: 3,
+        data: {},
+      } as SequencedMessage);
+      customValidator.handleMessage('events', {
+        type: 'event',
+        sequence: 4,
+        data: {},
+      } as SequencedMessage);
+      customValidator.handleMessage('events', {
+        type: 'event',
+        sequence: 5,
+        data: {},
+      } as SequencedMessage);
+      customValidator.handleMessage('events', {
+        type: 'event',
+        sequence: 6,
+        data: {},
+      } as SequencedMessage);
 
       const buffer = customValidator.getState('events').buffer;
       expect(buffer.size).toBeLessThanOrEqual(3);
@@ -272,8 +320,16 @@ describe('SequenceValidator', () => {
     });
 
     it('should clear all channels on resetAll', () => {
-      validator.handleMessage('events', { type: 'event', sequence: 1, data: {} } as SequencedMessage);
-      validator.handleMessage('system', { type: 'system_status', sequence: 1, data: {} } as SequencedMessage);
+      validator.handleMessage('events', {
+        type: 'event',
+        sequence: 1,
+        data: {},
+      } as SequencedMessage);
+      validator.handleMessage('system', {
+        type: 'system_status',
+        sequence: 1,
+        data: {},
+      } as SequencedMessage);
 
       validator.resetAll();
 
@@ -298,7 +354,12 @@ describe('SequenceValidator', () => {
     it('should process replay messages that fill gaps', () => {
       const msg1: SequencedMessage = { type: 'event', sequence: 1, data: { id: 1 } };
       const msg3: SequencedMessage = { type: 'event', sequence: 3, data: { id: 3 } };
-      const msg2Replay: SequencedMessage = { type: 'event', sequence: 2, data: { id: 2 }, replay: true };
+      const msg2Replay: SequencedMessage = {
+        type: 'event',
+        sequence: 2,
+        data: { id: 2 },
+        replay: true,
+      };
 
       validator.handleMessage('events', msg1);
       validator.handleMessage('events', msg3);
@@ -310,7 +371,12 @@ describe('SequenceValidator', () => {
 
     it('should ignore replay messages for already processed sequences', () => {
       const msg1: SequencedMessage = { type: 'event', sequence: 1, data: { id: 1 } };
-      const msg1Replay: SequencedMessage = { type: 'event', sequence: 1, data: { id: 1 }, replay: true };
+      const msg1Replay: SequencedMessage = {
+        type: 'event',
+        sequence: 1,
+        data: { id: 1 },
+        replay: true,
+      };
 
       validator.handleMessage('events', msg1);
       const result = validator.handleMessage('events', msg1Replay);
@@ -354,7 +420,11 @@ describe('SequenceValidator', () => {
   describe('statistics', () => {
     it('should track processed message count', () => {
       for (let i = 1; i <= 5; i++) {
-        validator.handleMessage('events', { type: 'event', sequence: i, data: {} } as SequencedMessage);
+        validator.handleMessage('events', {
+          type: 'event',
+          sequence: i,
+          data: {},
+        } as SequencedMessage);
       }
 
       const stats = validator.getStatistics('events');
@@ -362,27 +432,63 @@ describe('SequenceValidator', () => {
     });
 
     it('should track duplicate count', () => {
-      validator.handleMessage('events', { type: 'event', sequence: 1, data: {} } as SequencedMessage);
-      validator.handleMessage('events', { type: 'event', sequence: 1, data: {} } as SequencedMessage);
-      validator.handleMessage('events', { type: 'event', sequence: 1, data: {} } as SequencedMessage);
+      validator.handleMessage('events', {
+        type: 'event',
+        sequence: 1,
+        data: {},
+      } as SequencedMessage);
+      validator.handleMessage('events', {
+        type: 'event',
+        sequence: 1,
+        data: {},
+      } as SequencedMessage);
+      validator.handleMessage('events', {
+        type: 'event',
+        sequence: 1,
+        data: {},
+      } as SequencedMessage);
 
       const stats = validator.getStatistics('events');
       expect(stats.duplicateCount).toBe(2);
     });
 
     it('should track resync count', () => {
-      validator.handleMessage('events', { type: 'event', sequence: 1, data: {} } as SequencedMessage);
-      validator.handleMessage('events', { type: 'event', sequence: 20, data: {} } as SequencedMessage);
-      validator.handleMessage('events', { type: 'event', sequence: 40, data: {} } as SequencedMessage);
+      validator.handleMessage('events', {
+        type: 'event',
+        sequence: 1,
+        data: {},
+      } as SequencedMessage);
+      validator.handleMessage('events', {
+        type: 'event',
+        sequence: 20,
+        data: {},
+      } as SequencedMessage);
+      validator.handleMessage('events', {
+        type: 'event',
+        sequence: 40,
+        data: {},
+      } as SequencedMessage);
 
       const stats = validator.getStatistics('events');
       expect(stats.resyncCount).toBe(2);
     });
 
     it('should track out-of-order count', () => {
-      validator.handleMessage('events', { type: 'event', sequence: 1, data: {} } as SequencedMessage);
-      validator.handleMessage('events', { type: 'event', sequence: 3, data: {} } as SequencedMessage);
-      validator.handleMessage('events', { type: 'event', sequence: 5, data: {} } as SequencedMessage);
+      validator.handleMessage('events', {
+        type: 'event',
+        sequence: 1,
+        data: {},
+      } as SequencedMessage);
+      validator.handleMessage('events', {
+        type: 'event',
+        sequence: 3,
+        data: {},
+      } as SequencedMessage);
+      validator.handleMessage('events', {
+        type: 'event',
+        sequence: 5,
+        data: {},
+      } as SequencedMessage);
 
       const stats = validator.getStatistics('events');
       expect(stats.outOfOrderCount).toBe(2);
@@ -413,7 +519,7 @@ describe('SequenceValidator', () => {
         messages.push({ type: 'event', sequence: i, data: { id: i } });
       }
 
-      messages.forEach(msg => validator.handleMessage('events', msg));
+      messages.forEach((msg) => validator.handleMessage('events', msg));
 
       expect(validator.getState('events').lastSequence).toBe(100);
       expect(validator.getStatistics('events').processedCount).toBe(100);

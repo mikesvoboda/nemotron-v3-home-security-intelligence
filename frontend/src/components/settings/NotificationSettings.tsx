@@ -99,16 +99,11 @@ export default function NotificationSettings({ className }: NotificationSettings
   } = useNotificationPreferences();
 
   const { cameras } = useCamerasQuery();
-  const {
-    settings: cameraSettings,
-    isLoading: cameraSettingsLoading,
-  } = useCameraNotificationSettings();
+  const { settings: cameraSettings, isLoading: cameraSettingsLoading } =
+    useCameraNotificationSettings();
   const { updateMutation: cameraSettingUpdateMutation } = useCameraNotificationSettingMutation();
 
-  const {
-    periods: quietHoursPeriods,
-    isLoading: quietHoursLoading,
-  } = useQuietHoursPeriods();
+  const { periods: quietHoursPeriods, isLoading: quietHoursLoading } = useQuietHoursPeriods();
   const { createMutation: quietHoursCreateMutation, deleteMutation: quietHoursDeleteMutation } =
     useQuietHoursPeriodMutations();
 
@@ -274,9 +269,7 @@ export default function NotificationSettings({ className }: NotificationSettings
   const handleToggleDay = useCallback((day: string) => {
     setNewQuietHours((prev) => ({
       ...prev,
-      days: prev.days.includes(day)
-        ? prev.days.filter((d) => d !== day)
-        : [...prev.days, day],
+      days: prev.days.includes(day) ? prev.days.filter((d) => d !== day) : [...prev.days, day],
     }));
   }, []);
 
@@ -429,7 +422,7 @@ export default function NotificationSettings({ className }: NotificationSettings
             {cameraSettingsLoading ? (
               <div className="skeleton h-24 w-full"></div>
             ) : cameras.length === 0 ? (
-              <Text className="text-gray-500 text-sm">No cameras configured</Text>
+              <Text className="text-sm text-gray-500">No cameras configured</Text>
             ) : (
               <div className="space-y-3">
                 {cameras.map((camera) => {
@@ -597,7 +590,7 @@ export default function NotificationSettings({ className }: NotificationSettings
             {quietHoursLoading ? (
               <div className="skeleton h-16 w-full"></div>
             ) : quietHoursPeriods.length === 0 ? (
-              <Text className="text-gray-500 text-sm">No quiet hours configured</Text>
+              <Text className="text-sm text-gray-500">No quiet hours configured</Text>
             ) : (
               <div className="space-y-2">
                 {quietHoursPeriods.map((period) => (
@@ -613,7 +606,9 @@ export default function NotificationSettings({ className }: NotificationSettings
                           {period.start_time.slice(0, 5)} - {period.end_time.slice(0, 5)}
                           {' | '}
                           {period.days
-                            .map((d: string) => d.slice(0, 3).charAt(0).toUpperCase() + d.slice(1, 3))
+                            .map(
+                              (d: string) => d.slice(0, 3).charAt(0).toUpperCase() + d.slice(1, 3)
+                            )
                             .join(', ')}
                         </Text>
                       </div>

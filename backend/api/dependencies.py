@@ -1156,6 +1156,20 @@ def get_health_event_emitter_dep() -> HealthEventEmitter:
         ) from e
 
 
+def get_transcoding_service_dep() -> TranscodingService:
+    """FastAPI dependency for TranscodingService (NEM-2681).
+
+    Returns the global TranscodingService singleton instance for
+    transcoding videos to browser-compatible formats.
+
+    Returns:
+        TranscodingService singleton instance
+    """
+    from backend.services.transcoding_service import get_transcoding_service
+
+    return get_transcoding_service()
+
+
 # Type-hint-only imports for dependency injection return types
 if TYPE_CHECKING:
     from backend.services.ai_services import (
@@ -1171,3 +1185,4 @@ if TYPE_CHECKING:
     from backend.services.job_search_service import JobSearchService
     from backend.services.job_service import JobService
     from backend.services.job_tracker import JobTracker
+    from backend.services.transcoding_service import TranscodingService

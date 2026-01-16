@@ -1,11 +1,7 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import {
-  useEventsInfiniteQuery,
-  eventsQueryKeys,
-  type EventFilters,
-} from './useEventsQuery';
+import { useEventsInfiniteQuery, eventsQueryKeys, type EventFilters } from './useEventsQuery';
 import * as api from '../services/api';
 import { createQueryWrapper } from '../test-utils/renderWithProviders';
 
@@ -98,10 +94,9 @@ describe('useEventsInfiniteQuery', () => {
     it('starts with isLoading true', () => {
       (api.fetchEvents as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => {}));
 
-      const { result } = renderHook(
-        () => useEventsInfiniteQuery(),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useEventsInfiniteQuery(), {
+        wrapper: createQueryWrapper(),
+      });
 
       expect(result.current.isLoading).toBe(true);
     });
@@ -109,10 +104,9 @@ describe('useEventsInfiniteQuery', () => {
     it('starts with empty events array', () => {
       (api.fetchEvents as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => {}));
 
-      const { result } = renderHook(
-        () => useEventsInfiniteQuery(),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useEventsInfiniteQuery(), {
+        wrapper: createQueryWrapper(),
+      });
 
       expect(result.current.events).toEqual([]);
     });
@@ -120,10 +114,9 @@ describe('useEventsInfiniteQuery', () => {
     it('starts with totalCount of 0', () => {
       (api.fetchEvents as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => {}));
 
-      const { result } = renderHook(
-        () => useEventsInfiniteQuery(),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useEventsInfiniteQuery(), {
+        wrapper: createQueryWrapper(),
+      });
 
       expect(result.current.totalCount).toBe(0);
     });
@@ -131,10 +124,7 @@ describe('useEventsInfiniteQuery', () => {
 
   describe('fetching data', () => {
     it('fetches events on mount', async () => {
-      renderHook(
-        () => useEventsInfiniteQuery(),
-        { wrapper: createQueryWrapper() }
-      );
+      renderHook(() => useEventsInfiniteQuery(), { wrapper: createQueryWrapper() });
 
       await waitFor(() => {
         expect(api.fetchEvents).toHaveBeenCalledTimes(1);
@@ -142,10 +132,9 @@ describe('useEventsInfiniteQuery', () => {
     });
 
     it('updates events after successful fetch', async () => {
-      const { result } = renderHook(
-        () => useEventsInfiniteQuery(),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useEventsInfiniteQuery(), {
+        wrapper: createQueryWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.events).toEqual(mockEvents.items);
@@ -153,10 +142,9 @@ describe('useEventsInfiniteQuery', () => {
     });
 
     it('sets totalCount from pagination', async () => {
-      const { result } = renderHook(
-        () => useEventsInfiniteQuery(),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useEventsInfiniteQuery(), {
+        wrapper: createQueryWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.totalCount).toBe(50);
@@ -164,10 +152,9 @@ describe('useEventsInfiniteQuery', () => {
     });
 
     it('sets isLoading false after fetch', async () => {
-      const { result } = renderHook(
-        () => useEventsInfiniteQuery(),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useEventsInfiniteQuery(), {
+        wrapper: createQueryWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
@@ -175,10 +162,9 @@ describe('useEventsInfiniteQuery', () => {
     });
 
     it('sets hasNextPage from pagination', async () => {
-      const { result } = renderHook(
-        () => useEventsInfiniteQuery(),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useEventsInfiniteQuery(), {
+        wrapper: createQueryWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.hasNextPage).toBe(true);
@@ -190,10 +176,7 @@ describe('useEventsInfiniteQuery', () => {
     it('fetches events with camera filter', async () => {
       const filters: EventFilters = { camera_id: 'front_door' };
 
-      renderHook(
-        () => useEventsInfiniteQuery({ filters }),
-        { wrapper: createQueryWrapper() }
-      );
+      renderHook(() => useEventsInfiniteQuery({ filters }), { wrapper: createQueryWrapper() });
 
       await waitFor(() => {
         expect(api.fetchEvents).toHaveBeenCalledWith(
@@ -205,10 +188,7 @@ describe('useEventsInfiniteQuery', () => {
     it('fetches events with risk level filter', async () => {
       const filters: EventFilters = { risk_level: 'high' };
 
-      renderHook(
-        () => useEventsInfiniteQuery({ filters }),
-        { wrapper: createQueryWrapper() }
-      );
+      renderHook(() => useEventsInfiniteQuery({ filters }), { wrapper: createQueryWrapper() });
 
       await waitFor(() => {
         expect(api.fetchEvents).toHaveBeenCalledWith(
@@ -223,10 +203,7 @@ describe('useEventsInfiniteQuery', () => {
         end_date: '2025-12-31',
       };
 
-      renderHook(
-        () => useEventsInfiniteQuery({ filters }),
-        { wrapper: createQueryWrapper() }
-      );
+      renderHook(() => useEventsInfiniteQuery({ filters }), { wrapper: createQueryWrapper() });
 
       await waitFor(() => {
         expect(api.fetchEvents).toHaveBeenCalledWith(
@@ -241,25 +218,17 @@ describe('useEventsInfiniteQuery', () => {
     it('fetches events with reviewed filter', async () => {
       const filters: EventFilters = { reviewed: true };
 
-      renderHook(
-        () => useEventsInfiniteQuery({ filters }),
-        { wrapper: createQueryWrapper() }
-      );
+      renderHook(() => useEventsInfiniteQuery({ filters }), { wrapper: createQueryWrapper() });
 
       await waitFor(() => {
-        expect(api.fetchEvents).toHaveBeenCalledWith(
-          expect.objectContaining({ reviewed: true })
-        );
+        expect(api.fetchEvents).toHaveBeenCalledWith(expect.objectContaining({ reviewed: true }));
       });
     });
 
     it('fetches events with object type filter', async () => {
       const filters: EventFilters = { object_type: 'person' };
 
-      renderHook(
-        () => useEventsInfiniteQuery({ filters }),
-        { wrapper: createQueryWrapper() }
-      );
+      renderHook(() => useEventsInfiniteQuery({ filters }), { wrapper: createQueryWrapper() });
 
       await waitFor(() => {
         expect(api.fetchEvents).toHaveBeenCalledWith(
@@ -276,10 +245,7 @@ describe('useEventsInfiniteQuery', () => {
         reviewed: false,
       };
 
-      renderHook(
-        () => useEventsInfiniteQuery({ filters }),
-        { wrapper: createQueryWrapper() }
-      );
+      renderHook(() => useEventsInfiniteQuery({ filters }), { wrapper: createQueryWrapper() });
 
       await waitFor(() => {
         expect(api.fetchEvents).toHaveBeenCalledWith(
@@ -300,10 +266,9 @@ describe('useEventsInfiniteQuery', () => {
         .mockResolvedValueOnce(mockEvents)
         .mockResolvedValueOnce(mockEventsPage2);
 
-      const { result } = renderHook(
-        () => useEventsInfiniteQuery(),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useEventsInfiniteQuery(), {
+        wrapper: createQueryWrapper(),
+      });
 
       // Wait for first page to load
       await waitFor(() => {
@@ -328,10 +293,9 @@ describe('useEventsInfiniteQuery', () => {
         .mockResolvedValueOnce(mockEvents)
         .mockResolvedValueOnce(mockEventsPage2);
 
-      const { result } = renderHook(
-        () => useEventsInfiniteQuery(),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useEventsInfiniteQuery(), {
+        wrapper: createQueryWrapper(),
+      });
 
       // Wait for first page to load
       await waitFor(() => {
@@ -353,10 +317,9 @@ describe('useEventsInfiniteQuery', () => {
         .mockResolvedValueOnce(mockEvents)
         .mockResolvedValueOnce(mockEventsPage2);
 
-      const { result } = renderHook(
-        () => useEventsInfiniteQuery(),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useEventsInfiniteQuery(), {
+        wrapper: createQueryWrapper(),
+      });
 
       // Wait for first page
       await waitFor(() => {
@@ -375,14 +338,11 @@ describe('useEventsInfiniteQuery', () => {
   describe('error handling', () => {
     it('sets error on fetch failure', async () => {
       const errorMessage = 'Failed to fetch events';
-      (api.fetchEvents as ReturnType<typeof vi.fn>).mockRejectedValue(
-        new Error(errorMessage)
-      );
+      (api.fetchEvents as ReturnType<typeof vi.fn>).mockRejectedValue(new Error(errorMessage));
 
-      const { result } = renderHook(
-        () => useEventsInfiniteQuery({ retry: 0 }),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useEventsInfiniteQuery({ retry: 0 }), {
+        wrapper: createQueryWrapper(),
+      });
 
       await waitFor(
         () => {
@@ -394,14 +354,11 @@ describe('useEventsInfiniteQuery', () => {
     });
 
     it('sets isError to true on failure', async () => {
-      (api.fetchEvents as ReturnType<typeof vi.fn>).mockRejectedValue(
-        new Error('Network error')
-      );
+      (api.fetchEvents as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Network error'));
 
-      const { result } = renderHook(
-        () => useEventsInfiniteQuery({ retry: 0 }),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useEventsInfiniteQuery({ retry: 0 }), {
+        wrapper: createQueryWrapper(),
+      });
 
       await waitFor(
         () => {
@@ -414,23 +371,17 @@ describe('useEventsInfiniteQuery', () => {
 
   describe('options', () => {
     it('respects custom limit', async () => {
-      renderHook(
-        () => useEventsInfiniteQuery({ limit: 25 }),
-        { wrapper: createQueryWrapper() }
-      );
+      renderHook(() => useEventsInfiniteQuery({ limit: 25 }), { wrapper: createQueryWrapper() });
 
       await waitFor(() => {
-        expect(api.fetchEvents).toHaveBeenCalledWith(
-          expect.objectContaining({ limit: 25 })
-        );
+        expect(api.fetchEvents).toHaveBeenCalledWith(expect.objectContaining({ limit: 25 }));
       });
     });
 
     it('does not fetch when enabled is false', async () => {
-      renderHook(
-        () => useEventsInfiniteQuery({ enabled: false }),
-        { wrapper: createQueryWrapper() }
-      );
+      renderHook(() => useEventsInfiniteQuery({ enabled: false }), {
+        wrapper: createQueryWrapper(),
+      });
 
       await new Promise((r) => setTimeout(r, 100));
       expect(api.fetchEvents).not.toHaveBeenCalled();
@@ -439,10 +390,9 @@ describe('useEventsInfiniteQuery', () => {
     it('uses default retry of 1', async () => {
       // The hook defaults to retry: 1, which is less than the global default of 3
       // This is tested by verifying the hook can be created with default options
-      const { result } = renderHook(
-        () => useEventsInfiniteQuery(),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useEventsInfiniteQuery(), {
+        wrapper: createQueryWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
@@ -450,10 +400,9 @@ describe('useEventsInfiniteQuery', () => {
     });
 
     it('provides refetch function', async () => {
-      const { result } = renderHook(
-        () => useEventsInfiniteQuery(),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useEventsInfiniteQuery(), {
+        wrapper: createQueryWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);

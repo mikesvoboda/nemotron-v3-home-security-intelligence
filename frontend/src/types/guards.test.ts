@@ -266,9 +266,9 @@ describe('Property Type Guards', () => {
 
   describe('hasProperties', () => {
     it('returns true when all properties exist', () => {
-      expect(hasProperties({ id: 1, name: 'test', email: 'a@b.com' }, ['id', 'name', 'email'])).toBe(
-        true
-      );
+      expect(
+        hasProperties({ id: 1, name: 'test', email: 'a@b.com' }, ['id', 'name', 'email'])
+      ).toBe(true);
     });
 
     it('returns false when any property is missing', () => {
@@ -409,9 +409,9 @@ describe('Safe Property Access', () => {
     });
 
     it('uses custom error message when provided', () => {
-      expect(() =>
-        getRequiredProperty({}, 'id', isNumber, 'ID is required')
-      ).toThrow('ID is required');
+      expect(() => getRequiredProperty({}, 'id', isNumber, 'ID is required')).toThrow(
+        'ID is required'
+      );
     });
   });
 });

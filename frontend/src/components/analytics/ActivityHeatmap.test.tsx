@@ -14,11 +14,7 @@ describe('ActivityHeatmap', () => {
 
   it('renders the component header', () => {
     render(
-      <ActivityHeatmap
-        entries={mockEntries}
-        learningComplete={true}
-        minSamplesRequired={10}
-      />
+      <ActivityHeatmap entries={mockEntries} learningComplete={true} minSamplesRequired={10} />
     );
 
     expect(screen.getByText('Weekly Activity Pattern')).toBeInTheDocument();
@@ -26,11 +22,7 @@ describe('ActivityHeatmap', () => {
 
   it('shows learning badge when not complete', () => {
     render(
-      <ActivityHeatmap
-        entries={mockEntries}
-        learningComplete={false}
-        minSamplesRequired={10}
-      />
+      <ActivityHeatmap entries={mockEntries} learningComplete={false} minSamplesRequired={10} />
     );
 
     expect(screen.getByText(/Learning/)).toBeInTheDocument();
@@ -38,35 +30,21 @@ describe('ActivityHeatmap', () => {
 
   it('hides learning badge when complete', () => {
     render(
-      <ActivityHeatmap
-        entries={mockEntries}
-        learningComplete={true}
-        minSamplesRequired={10}
-      />
+      <ActivityHeatmap entries={mockEntries} learningComplete={true} minSamplesRequired={10} />
     );
 
     expect(screen.queryByText(/Learning/)).not.toBeInTheDocument();
   });
 
   it('shows empty state when no entries', () => {
-    render(
-      <ActivityHeatmap
-        entries={[]}
-        learningComplete={false}
-        minSamplesRequired={10}
-      />
-    );
+    render(<ActivityHeatmap entries={[]} learningComplete={false} minSamplesRequired={10} />);
 
     expect(screen.getByText(/No baseline data available/)).toBeInTheDocument();
   });
 
   it('renders day labels', () => {
     render(
-      <ActivityHeatmap
-        entries={mockEntries}
-        learningComplete={true}
-        minSamplesRequired={10}
-      />
+      <ActivityHeatmap entries={mockEntries} learningComplete={true} minSamplesRequired={10} />
     );
 
     expect(screen.getByText('Mon')).toBeInTheDocument();
@@ -80,11 +58,7 @@ describe('ActivityHeatmap', () => {
 
   it('renders heatmap cells', () => {
     render(
-      <ActivityHeatmap
-        entries={mockEntries}
-        learningComplete={true}
-        minSamplesRequired={10}
-      />
+      <ActivityHeatmap entries={mockEntries} learningComplete={true} minSamplesRequired={10} />
     );
 
     // Check for some specific cells
@@ -94,11 +68,7 @@ describe('ActivityHeatmap', () => {
 
   it('renders legend', () => {
     render(
-      <ActivityHeatmap
-        entries={mockEntries}
-        learningComplete={true}
-        minSamplesRequired={10}
-      />
+      <ActivityHeatmap entries={mockEntries} learningComplete={true} minSamplesRequired={10} />
     );
 
     expect(screen.getByText('Low Activity')).toBeInTheDocument();

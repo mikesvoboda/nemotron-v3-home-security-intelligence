@@ -124,16 +124,11 @@ export default class ChunkLoadErrorBoundary extends Component<
           className="flex min-h-[400px] w-full flex-col items-center justify-center p-8 text-center"
         >
           <div className="max-w-md rounded-lg border border-yellow-500/20 bg-yellow-500/5 p-8">
-            <AlertTriangle
-              className="mx-auto mb-4 h-12 w-12 text-yellow-500"
-              aria-hidden="true"
-            />
-            <h2 className="mb-2 text-lg font-semibold text-white">
-              Failed to Load Page
-            </h2>
+            <AlertTriangle className="mx-auto mb-4 h-12 w-12 text-yellow-500" aria-hidden="true" />
+            <h2 className="mb-2 text-lg font-semibold text-white">Failed to Load Page</h2>
             <p className="mb-4 text-sm text-gray-400">
-              The page failed to load. This can happen due to a network issue or an
-              application update. Please reload to try again.
+              The page failed to load. This can happen due to a network issue or an application
+              update. Please reload to try again.
             </p>
             {error && import.meta.env.DEV && (
               <p className="mb-4 rounded bg-gray-800/50 px-3 py-2 font-mono text-xs text-yellow-400">

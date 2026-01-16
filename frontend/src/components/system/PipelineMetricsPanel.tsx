@@ -130,9 +130,8 @@ export default function PipelineMetricsPanel({
   const anyWarning = anyQueueWarning || anyLatencyWarning;
 
   // Get latest throughput values
-  const latestThroughput = throughputHistory.length > 0
-    ? throughputHistory[throughputHistory.length - 1]
-    : null;
+  const latestThroughput =
+    throughputHistory.length > 0 ? throughputHistory[throughputHistory.length - 1] : null;
 
   return (
     <Card
@@ -169,7 +168,10 @@ export default function PipelineMetricsPanel({
                 {detection_queue}
               </Badge>
               {detectionBackingUp && (
-                <AlertTriangle className="h-3 w-3 text-red-500" aria-label="Detection queue backing up" />
+                <AlertTriangle
+                  className="h-3 w-3 text-red-500"
+                  aria-label="Detection queue backing up"
+                />
               )}
             </div>
             <div className="flex items-center gap-1.5" data-testid="analysis-queue-inline">
@@ -182,7 +184,10 @@ export default function PipelineMetricsPanel({
                 {analysis_queue}
               </Badge>
               {analysisBackingUp && (
-                <AlertTriangle className="h-3 w-3 text-red-500" aria-label="Analysis queue backing up" />
+                <AlertTriangle
+                  className="h-3 w-3 text-red-500"
+                  aria-label="Analysis queue backing up"
+                />
               )}
             </div>
           </div>
@@ -199,7 +204,9 @@ export default function PipelineMetricsPanel({
             <div
               className={clsx(
                 'rounded-lg p-2 text-center',
-                detectLatencyWarning ? 'border border-yellow-500/30 bg-yellow-500/10' : 'bg-gray-800/50'
+                detectLatencyWarning
+                  ? 'border border-yellow-500/30 bg-yellow-500/10'
+                  : 'bg-gray-800/50'
               )}
               data-testid="detect-latency-card"
             >
@@ -214,7 +221,8 @@ export default function PipelineMetricsPanel({
                 </Badge>
               </div>
               <Text className="mt-1 text-xs text-gray-500">
-                {formatLatency(latencies?.detect?.p95_ms)} / {formatLatency(latencies?.detect?.p99_ms)}
+                {formatLatency(latencies?.detect?.p95_ms)} /{' '}
+                {formatLatency(latencies?.detect?.p99_ms)}
               </Text>
             </div>
 
@@ -234,7 +242,8 @@ export default function PipelineMetricsPanel({
                 </Badge>
               </div>
               <Text className="mt-1 text-xs text-gray-500">
-                {formatLatency(latencies?.batch?.p95_ms)} / {formatLatency(latencies?.batch?.p99_ms)}
+                {formatLatency(latencies?.batch?.p95_ms)} /{' '}
+                {formatLatency(latencies?.batch?.p99_ms)}
               </Text>
             </div>
 
@@ -242,7 +251,9 @@ export default function PipelineMetricsPanel({
             <div
               className={clsx(
                 'rounded-lg p-2 text-center',
-                analyzeLatencyWarning ? 'border border-yellow-500/30 bg-yellow-500/10' : 'bg-gray-800/50'
+                analyzeLatencyWarning
+                  ? 'border border-yellow-500/30 bg-yellow-500/10'
+                  : 'bg-gray-800/50'
               )}
               data-testid="analyze-latency-card"
             >
@@ -257,7 +268,8 @@ export default function PipelineMetricsPanel({
                 </Badge>
               </div>
               <Text className="mt-1 text-xs text-gray-500">
-                {formatLatency(latencies?.analyze?.p95_ms)} / {formatLatency(latencies?.analyze?.p99_ms)}
+                {formatLatency(latencies?.analyze?.p95_ms)} /{' '}
+                {formatLatency(latencies?.analyze?.p99_ms)}
               </Text>
             </div>
           </div>
@@ -304,7 +316,10 @@ export default function PipelineMetricsPanel({
               />
             </div>
           ) : (
-            <div className="flex h-16 items-center justify-center" data-testid="throughput-chart-empty">
+            <div
+              className="flex h-16 items-center justify-center"
+              data-testid="throughput-chart-empty"
+            >
               <div className="flex items-center gap-1 text-gray-500">
                 <TrendingUp className="h-4 w-4" />
                 <Text className="text-xs">Collecting data...</Text>

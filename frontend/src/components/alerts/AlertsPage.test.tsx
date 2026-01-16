@@ -35,11 +35,13 @@ function renderWithQueryClient(ui: React.ReactElement) {
 
 // Mock VideoPlayer to avoid video element issues in tests
 vi.mock('../video/VideoPlayer', () => ({
-  default: vi.fn(({ src, poster, className }: { src: string; poster?: string; className?: string }) => (
-    <div data-testid="video-player" data-src={src} data-poster={poster} className={className}>
-      Mocked VideoPlayer
-    </div>
-  )),
+  default: vi.fn(
+    ({ src, poster, className }: { src: string; poster?: string; className?: string }) => (
+      <div data-testid="video-player" data-src={src} data-poster={poster} className={className}>
+        Mocked VideoPlayer
+      </div>
+    )
+  ),
 }));
 
 describe('AlertsPage', () => {
@@ -126,7 +128,10 @@ describe('AlertsPage', () => {
     vi.clearAllMocks();
     vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
     // Mock detection fetching for modal
-    vi.mocked(api.fetchEventDetections).mockResolvedValue({ items: [], pagination: { total: 0, limit: 100, offset: 0, has_more: false } });
+    vi.mocked(api.fetchEventDetections).mockResolvedValue({
+      items: [],
+      pagination: { total: 0, limit: 100, offset: 0, has_more: false },
+    });
     // Mock update event for mark as reviewed
     vi.mocked(api.updateEvent).mockResolvedValue({
       id: 1,

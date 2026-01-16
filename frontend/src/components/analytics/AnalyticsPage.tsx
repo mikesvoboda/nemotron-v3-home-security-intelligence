@@ -20,7 +20,15 @@ import {
   TableBody,
   TableCell,
 } from '@tremor/react';
-import { BarChart3, AlertCircle, Camera, RefreshCw, TrendingUp, Shield, Activity } from 'lucide-react';
+import {
+  BarChart3,
+  AlertCircle,
+  Camera,
+  RefreshCw,
+  TrendingUp,
+  Shield,
+  Activity,
+} from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 
 import ActivityHeatmap from './ActivityHeatmap';
@@ -134,10 +142,7 @@ export default function AnalyticsPage() {
 
       // Camera-specific baselines only when a specific camera is selected
       if (!isAllCameras) {
-        apiCalls.push(
-          fetchCameraActivityBaseline(cameraId),
-          fetchCameraClassBaseline(cameraId)
-        );
+        apiCalls.push(fetchCameraActivityBaseline(cameraId), fetchCameraClassBaseline(cameraId));
       }
 
       const results = await Promise.all(apiCalls);
@@ -200,7 +205,9 @@ export default function AnalyticsPage() {
   };
 
   // Get selected camera (null when "All Cameras" is selected)
-  const selectedCamera = isAllCamerasSelected ? null : cameras.find((c) => c.id === selectedCameraId);
+  const selectedCamera = isAllCamerasSelected
+    ? null
+    : cameras.find((c) => c.id === selectedCameraId);
 
   // Empty state component
   const EmptyState = ({ message }: { message: string }) => (
@@ -208,7 +215,9 @@ export default function AnalyticsPage() {
       <div className="text-center">
         <AlertCircle className="mx-auto mb-4 h-12 w-12 text-gray-600" />
         <p className="text-gray-400">{message}</p>
-        <p className="mt-2 text-sm text-gray-500">Try selecting a different time period or camera</p>
+        <p className="mt-2 text-sm text-gray-500">
+          Try selecting a different time period or camera
+        </p>
       </div>
     </div>
   );
@@ -316,9 +325,7 @@ export default function AnalyticsPage() {
 
         {/* Show indicator when viewing all cameras */}
         {isAllCamerasSelected && (
-          <span className="text-sm text-gray-400">
-            Showing aggregate stats across all cameras
-          </span>
+          <span className="text-sm text-gray-400">Showing aggregate stats across all cameras</span>
         )}
       </div>
 
@@ -371,7 +378,7 @@ export default function AnalyticsPage() {
         <TabGroup index={selectedTab} onIndexChange={setSelectedTab}>
           <TabList className="mb-6">
             <Tab
-              className="data-[selected]:bg-[#76B900] data-[selected]:text-white bg-transparent text-gray-400"
+              className="bg-transparent text-gray-400 data-[selected]:bg-[#76B900] data-[selected]:text-white"
               data-testid="analytics-tab-overview"
             >
               <div className="flex items-center gap-2">
@@ -380,7 +387,7 @@ export default function AnalyticsPage() {
               </div>
             </Tab>
             <Tab
-              className="data-[selected]:bg-[#76B900] data-[selected]:text-white bg-transparent text-gray-400"
+              className="bg-transparent text-gray-400 data-[selected]:bg-[#76B900] data-[selected]:text-white"
               data-testid="analytics-tab-detections"
             >
               <div className="flex items-center gap-2">
@@ -389,7 +396,7 @@ export default function AnalyticsPage() {
               </div>
             </Tab>
             <Tab
-              className="data-[selected]:bg-[#76B900] data-[selected]:text-white bg-transparent text-gray-400"
+              className="bg-transparent text-gray-400 data-[selected]:bg-[#76B900] data-[selected]:text-white"
               data-testid="analytics-tab-risk"
             >
               <div className="flex items-center gap-2">
@@ -398,7 +405,7 @@ export default function AnalyticsPage() {
               </div>
             </Tab>
             <Tab
-              className="data-[selected]:bg-[#76B900] data-[selected]:text-white bg-transparent text-gray-400"
+              className="bg-transparent text-gray-400 data-[selected]:bg-[#76B900] data-[selected]:text-white"
               data-testid="analytics-tab-camera-performance"
             >
               <div className="flex items-center gap-2">
@@ -489,7 +496,14 @@ export default function AnalyticsPage() {
                         </div>
                         <BarList
                           data={prepareObjectDistributionData().map((item, index) => {
-                            const colors = ['cyan', 'violet', 'amber', 'rose', 'emerald', 'fuchsia'];
+                            const colors = [
+                              'cyan',
+                              'violet',
+                              'amber',
+                              'rose',
+                              'emerald',
+                              'fuchsia',
+                            ];
                             return {
                               name: item.name,
                               value: item.value,
@@ -516,9 +530,10 @@ export default function AnalyticsPage() {
                     ) : (
                       <Card>
                         <EmptyState
-                          message={isAllCamerasSelected
-                            ? "Select a specific camera to view class frequency baseline"
-                            : "No class baseline data available"
+                          message={
+                            isAllCamerasSelected
+                              ? 'Select a specific camera to view class frequency baseline'
+                              : 'No class baseline data available'
                           }
                         />
                       </Card>
@@ -641,9 +656,7 @@ export default function AnalyticsPage() {
                       <TableBody>
                         {highRiskEvents.map((event) => (
                           <TableRow key={event.id}>
-                            <TableCell>
-                              {new Date(event.started_at).toLocaleString()}
-                            </TableCell>
+                            <TableCell>{new Date(event.started_at).toLocaleString()}</TableCell>
                             <TableCell>{event.camera_id}</TableCell>
                             <TableCell>
                               <Badge color="red">{event.risk_score || 'N/A'}</Badge>
@@ -690,7 +703,8 @@ export default function AnalyticsPage() {
                       <div className="mb-4 flex items-center justify-between">
                         <Text className="text-gray-400">Events per camera</Text>
                         <Text className="font-semibold text-white">
-                          {prepareCameraActivityData().reduce((sum, item) => sum + item.events, 0)} total
+                          {prepareCameraActivityData().reduce((sum, item) => sum + item.events, 0)}{' '}
+                          total
                         </Text>
                       </div>
                       <BarList
@@ -719,9 +733,10 @@ export default function AnalyticsPage() {
                   ) : (
                     <Card>
                       <EmptyState
-                        message={isAllCamerasSelected
-                          ? "Select a specific camera to view activity heatmap"
-                          : "No activity baseline data available"
+                        message={
+                          isAllCamerasSelected
+                            ? 'Select a specific camera to view activity heatmap'
+                            : 'No activity baseline data available'
                         }
                       />
                     </Card>
@@ -733,10 +748,7 @@ export default function AnalyticsPage() {
 
                 {/* Scene Change Detection Panel - Camera-specific */}
                 {selectedCamera ? (
-                  <SceneChangePanel
-                    cameraId={selectedCameraId}
-                    cameraName={selectedCamera.name}
-                  />
+                  <SceneChangePanel cameraId={selectedCameraId} cameraName={selectedCamera.name} />
                 ) : isAllCamerasSelected ? (
                   <Card>
                     <Title>Scene Changes</Title>
@@ -748,7 +760,6 @@ export default function AnalyticsPage() {
           </TabPanels>
         </TabGroup>
       )}
-
     </div>
   );
 }

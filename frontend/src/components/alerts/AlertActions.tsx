@@ -54,9 +54,7 @@ const AlertActions = memo(function AlertActions({
         {someSelected && (
           <>
             <div className="h-5 w-px bg-gray-700" />
-            <span className="text-sm font-medium text-gray-300">
-              {selectedCount} selected
-            </span>
+            <span className="text-sm font-medium text-gray-300">{selectedCount} selected</span>
           </>
         )}
       </div>

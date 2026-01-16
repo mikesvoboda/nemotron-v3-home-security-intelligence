@@ -76,7 +76,8 @@ export default function EntityTimeline({
           Appearance Timeline
         </h3>
         <span className="text-sm text-gray-400">
-          {appearances.length} {entityTypeLabel} {appearances.length === 1 ? 'appearance' : 'appearances'}
+          {appearances.length} {entityTypeLabel}{' '}
+          {appearances.length === 1 ? 'appearance' : 'appearances'}
         </span>
       </div>
 
@@ -131,11 +132,12 @@ export default function EntityTimeline({
                     <span className="font-medium text-white">
                       {appearance.camera_name || appearance.camera_id}
                     </span>
-                    {appearance.similarity_score !== null && appearance.similarity_score !== undefined && (
-                      <span className="rounded bg-[#76B900]/20 px-1.5 py-0.5 text-xs font-medium text-[#76B900]">
-                        {formatSimilarity(appearance.similarity_score)}
-                      </span>
-                    )}
+                    {appearance.similarity_score !== null &&
+                      appearance.similarity_score !== undefined && (
+                        <span className="rounded bg-[#76B900]/20 px-1.5 py-0.5 text-xs font-medium text-[#76B900]">
+                          {formatSimilarity(appearance.similarity_score)}
+                        </span>
+                      )}
                   </div>
 
                   {/* Timestamp */}

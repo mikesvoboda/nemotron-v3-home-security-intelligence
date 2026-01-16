@@ -172,14 +172,16 @@ describe('ActivityFeed', () => {
     });
 
     it('shows placeholder when thumbnail fails to load', async () => {
-      const singleEvent: ActivityEvent[] = [{
-        id: '1',
-        timestamp: new Date(BASE_TIME - 2 * 60 * 1000).toISOString(),
-        camera_name: 'Front Door',
-        risk_score: 15,
-        summary: 'Person detected approaching the front entrance',
-        thumbnail_url: 'https://example.com/invalid-image.jpg',
-      }];
+      const singleEvent: ActivityEvent[] = [
+        {
+          id: '1',
+          timestamp: new Date(BASE_TIME - 2 * 60 * 1000).toISOString(),
+          camera_name: 'Front Door',
+          risk_score: 15,
+          summary: 'Person detected approaching the front entrance',
+          thumbnail_url: 'https://example.com/invalid-image.jpg',
+        },
+      ];
 
       const { container } = render(<ActivityFeed events={singleEvent} />);
 
@@ -207,14 +209,16 @@ describe('ActivityFeed', () => {
     });
 
     it('maintains layout when thumbnail fails to load', async () => {
-      const singleEvent: ActivityEvent[] = [{
-        id: '1',
-        timestamp: new Date(BASE_TIME - 2 * 60 * 1000).toISOString(),
-        camera_name: 'Front Door',
-        risk_score: 15,
-        summary: 'Person detected approaching the front entrance',
-        thumbnail_url: 'https://example.com/broken-url.jpg',
-      }];
+      const singleEvent: ActivityEvent[] = [
+        {
+          id: '1',
+          timestamp: new Date(BASE_TIME - 2 * 60 * 1000).toISOString(),
+          camera_name: 'Front Door',
+          risk_score: 15,
+          summary: 'Person detected approaching the front entrance',
+          thumbnail_url: 'https://example.com/broken-url.jpg',
+        },
+      ];
 
       render(<ActivityFeed events={singleEvent} />);
 
@@ -228,7 +232,9 @@ describe('ActivityFeed', () => {
 
       // Verify camera name and summary are still visible
       expect(screen.getByText('Front Door')).toBeInTheDocument();
-      expect(screen.getByText('Person detected approaching the front entrance')).toBeInTheDocument();
+      expect(
+        screen.getByText('Person detected approaching the front entrance')
+      ).toBeInTheDocument();
     });
   });
 

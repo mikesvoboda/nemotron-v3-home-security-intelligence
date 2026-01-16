@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { logger } from '../services/logger';
 
@@ -59,9 +59,7 @@ function calculateBackoffDelay(
   return Math.floor(cappedDelay + jitter);
 }
 
-export function useWebSocketStatus(
-  options: WebSocketStatusOptions
-): UseWebSocketStatusReturn {
+export function useWebSocketStatus(options: WebSocketStatusOptions): UseWebSocketStatusReturn {
   const {
     url,
     protocols,
@@ -90,6 +88,10 @@ export function useWebSocketStatus(
   const connectionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const shouldConnectRef = useRef(true);
   const reconnectCountRef = useRef(0);
+
+  // Extract protocols to a stable string for dependency comparison
+  // This avoids complex expression in dependency array
+  const protocolsKey = useMemo(() => protocols?.join(','), [protocols]);
 
   const clearAllTimeouts = useCallback(() => {
     if (reconnectTimeoutRef.current) {
@@ -174,7 +176,11 @@ export function useWebSocketStatus(
         onClose?.();
 
         // Attempt reconnection if enabled and within retry limits
-        if (shouldConnectRef.current && reconnect && reconnectCountRef.current < reconnectAttempts) {
+        if (
+          shouldConnectRef.current &&
+          reconnect &&
+          reconnectCountRef.current < reconnectAttempts
+        ) {
           setConnectionState('reconnecting');
 
           const currentAttempt = reconnectCountRef.current;
@@ -187,7 +193,11 @@ export function useWebSocketStatus(
           reconnectTimeoutRef.current = setTimeout(() => {
             connect();
           }, delay);
-        } else if (shouldConnectRef.current && reconnect && reconnectCountRef.current >= reconnectAttempts) {
+        } else if (
+          shouldConnectRef.current &&
+          reconnect &&
+          reconnectCountRef.current >= reconnectAttempts
+        ) {
           // Max retries exhausted
           setConnectionState('failed');
           setHasExhaustedRetries(true);
@@ -221,8 +231,21 @@ export function useWebSocketStatus(
       });
       setConnectionState('disconnected');
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- protocols array joined for stable comparison (array contents vs reference equality)
-  }, [url, protocols?.join(','), channelName, onMessage, onOpen, onClose, onError, onMaxRetriesExhausted, reconnect, reconnectInterval, reconnectAttempts, connectionTimeout]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- using protocolsKey (memoized) instead of protocols for stable comparison
+  }, [
+    url,
+    protocolsKey,
+    channelName,
+    onMessage,
+    onOpen,
+    onClose,
+    onError,
+    onMaxRetriesExhausted,
+    reconnect,
+    reconnectInterval,
+    reconnectAttempts,
+    connectionTimeout,
+  ]);
 
   const send = useCallback((data: unknown) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {

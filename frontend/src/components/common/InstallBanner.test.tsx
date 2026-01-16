@@ -191,11 +191,7 @@ describe('InstallBanner', () => {
 
     // With 1 day timeout, banner should show (2 days > 1 day)
     render(
-      <InstallBanner
-        deferredPrompt={mockPrompt}
-        onDismiss={vi.fn()}
-        dismissalTimeoutDays={1}
-      />
+      <InstallBanner deferredPrompt={mockPrompt} onDismiss={vi.fn()} dismissalTimeoutDays={1} />
     );
 
     expect(screen.getByTestId('install-banner')).toBeInTheDocument();

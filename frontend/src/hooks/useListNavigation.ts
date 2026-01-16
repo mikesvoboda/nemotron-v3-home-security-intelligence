@@ -74,16 +74,8 @@ function clamp(value: number, min: number, max: number): number {
  * @param options - Configuration options
  * @returns Object containing navigation state and controls
  */
-export function useListNavigation(
-  options: UseListNavigationOptions
-): UseListNavigationReturn {
-  const {
-    itemCount,
-    initialIndex = 0,
-    wrap = false,
-    onSelect,
-    enabled = true,
-  } = options;
+export function useListNavigation(options: UseListNavigationOptions): UseListNavigationReturn {
+  const { itemCount, initialIndex = 0, wrap = false, onSelect, enabled = true } = options;
 
   // Calculate the initial index based on itemCount
   const getValidIndex = useCallback(
@@ -94,9 +86,7 @@ export function useListNavigation(
     [itemCount]
   );
 
-  const [selectedIndex, setSelectedIndexState] = useState(() =>
-    getValidIndex(initialIndex)
-  );
+  const [selectedIndex, setSelectedIndexState] = useState(() => getValidIndex(initialIndex));
 
   // Store initial index for reset
   const initialIndexRef = useRef(initialIndex);

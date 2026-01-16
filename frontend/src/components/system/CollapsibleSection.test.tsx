@@ -107,7 +107,11 @@ describe('CollapsibleSection', () => {
 
   it('renders summary badge when provided', () => {
     render(
-      <CollapsibleSection title="Test Section" summary={<span>6/7 Healthy</span>} defaultOpen={true}>
+      <CollapsibleSection
+        title="Test Section"
+        summary={<span>6/7 Healthy</span>}
+        defaultOpen={true}
+      >
         <div>Test Content</div>
       </CollapsibleSection>
     );

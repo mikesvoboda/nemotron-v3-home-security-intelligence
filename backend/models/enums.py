@@ -45,6 +45,24 @@ class EntityType(str, Enum):
         return self.value
 
 
+class TrustStatus(str, Enum):
+    """Trust status for tracked entities.
+
+    Indicates the trust level of a tracked entity:
+    - TRUSTED: Known/recognized entity (e.g., household member, family vehicle)
+    - UNTRUSTED: Explicitly flagged as suspicious/unwanted entity
+    - UNKNOWN: Entity has not been classified (default)
+    """
+
+    TRUSTED = "trusted"
+    UNTRUSTED = "untrusted"
+    UNKNOWN = "unknown"
+
+    def __str__(self) -> str:
+        """Return string representation of trust status."""
+        return self.value
+
+
 class Severity(str, Enum):
     """Severity levels for security events.
 

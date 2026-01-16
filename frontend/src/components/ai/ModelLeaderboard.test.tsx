@@ -12,8 +12,18 @@ import type { AiAuditModelLeaderboardEntry } from '../../services/api';
 describe('ModelLeaderboard', () => {
   const mockEntries: AiAuditModelLeaderboardEntry[] = [
     { model_name: 'rtdetr', contribution_rate: 1.0, quality_correlation: null, event_count: 1000 },
-    { model_name: 'florence', contribution_rate: 0.85, quality_correlation: 0.75, event_count: 850 },
-    { model_name: 'image_quality', contribution_rate: 0.7, quality_correlation: 0.65, event_count: 700 },
+    {
+      model_name: 'florence',
+      contribution_rate: 0.85,
+      quality_correlation: 0.75,
+      event_count: 850,
+    },
+    {
+      model_name: 'image_quality',
+      contribution_rate: 0.7,
+      quality_correlation: 0.65,
+      event_count: 700,
+    },
     { model_name: 'zones', contribution_rate: 0.65, quality_correlation: null, event_count: 650 },
     { model_name: 'clip', contribution_rate: 0.6, quality_correlation: 0.5, event_count: 600 },
   ];
@@ -99,7 +109,12 @@ describe('ModelLeaderboard', () => {
 
 describe('ModelLeaderboard sorting', () => {
   const mockEntries: AiAuditModelLeaderboardEntry[] = [
-    { model_name: 'florence', contribution_rate: 0.85, quality_correlation: null, event_count: 850 },
+    {
+      model_name: 'florence',
+      contribution_rate: 0.85,
+      quality_correlation: null,
+      event_count: 850,
+    },
     { model_name: 'rtdetr', contribution_rate: 1.0, quality_correlation: null, event_count: 1000 },
     { model_name: 'clip', contribution_rate: 0.6, quality_correlation: null, event_count: 600 },
   ];

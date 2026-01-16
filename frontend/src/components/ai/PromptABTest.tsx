@@ -64,7 +64,13 @@ interface ResultPanelProps {
 /**
  * ResultPanel - Shows risk score with color coding, risk level badge, expandable reasoning
  */
-function ResultPanel({ label, riskScore, riskLevel, reasoning, processingTimeMs }: ResultPanelProps) {
+function ResultPanel({
+  label,
+  riskScore,
+  riskLevel,
+  reasoning,
+  processingTimeMs,
+}: ResultPanelProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   // Get color based on risk level
@@ -93,12 +99,7 @@ function ResultPanel({ label, riskScore, riskLevel, reasoning, processingTimeMs 
       {/* Risk Level Badge */}
       <div className="flex items-center justify-between">
         <span className="text-sm text-gray-400">Level:</span>
-        <span
-          className={clsx(
-            'rounded-full border px-3 py-1 text-sm font-medium',
-            getRiskColor()
-          )}
-        >
+        <span className={clsx('rounded-full border px-3 py-1 text-sm font-medium', getRiskColor())}>
           {riskLevel}
         </span>
       </div>
@@ -118,15 +119,9 @@ function ResultPanel({ label, riskScore, riskLevel, reasoning, processingTimeMs 
           aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${label} reasoning`}
         >
           <span>Reasoning</span>
-          {isExpanded ? (
-            <ChevronUp className="h-4 w-4" />
-          ) : (
-            <ChevronDown className="h-4 w-4" />
-          )}
+          {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </button>
-        {isExpanded && (
-          <p className="mt-2 text-sm text-gray-300">{reasoning}</p>
-        )}
+        {isExpanded && <p className="mt-2 text-sm text-gray-300">{reasoning}</p>}
       </div>
     </div>
   );
@@ -178,10 +173,7 @@ function DeltaIndicator({ delta }: DeltaIndicatorProps) {
 
   return (
     <div
-      className={clsx(
-        'flex items-center justify-between rounded-lg border p-3',
-        style.bgClass
-      )}
+      className={clsx('flex items-center justify-between rounded-lg border p-3', style.bgClass)}
       data-testid="delta-indicator"
     >
       <div className="flex items-center gap-2">
@@ -260,9 +252,7 @@ export default function PromptABTest({
           {results.length > 0 ? (
             results.map((result) => (
               <div key={result.eventId} className="mb-4 last:mb-0">
-                <div className="mb-2 text-xs text-gray-500">
-                  Event #{result.eventId}
-                </div>
+                <div className="mb-2 text-xs text-gray-500">Event #{result.eventId}</div>
                 <ResultPanel
                   label="A"
                   riskScore={result.originalResult.riskScore}
@@ -295,9 +285,7 @@ export default function PromptABTest({
           {results.length > 0 ? (
             results.map((result) => (
               <div key={result.eventId} className="mb-4 last:mb-0">
-                <div className="mb-2 text-xs text-gray-500">
-                  Event #{result.eventId}
-                </div>
+                <div className="mb-2 text-xs text-gray-500">Event #{result.eventId}</div>
                 <ResultPanel
                   label="B"
                   riskScore={result.modifiedResult.riskScore}

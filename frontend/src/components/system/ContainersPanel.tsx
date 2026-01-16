@@ -107,7 +107,9 @@ function HealthIcon({ health }: { health: string }) {
 /**
  * Transform history data to Tracker format
  */
-function transformToTrackerData(historyPoints: ContainerHealthPoint[] | undefined): TrackerDataPoint[] {
+function transformToTrackerData(
+  historyPoints: ContainerHealthPoint[] | undefined
+): TrackerDataPoint[] {
   if (!historyPoints || historyPoints.length === 0) {
     // Return empty tracker data (will show empty state)
     return [];
@@ -139,7 +141,10 @@ export default function ContainersPanel({
   const totalCount = containers.length;
 
   return (
-    <Card className={clsx('border-gray-800 bg-[#1A1A1A] shadow-lg', className)} data-testid={testId}>
+    <Card
+      className={clsx('border-gray-800 bg-[#1A1A1A] shadow-lg', className)}
+      data-testid={testId}
+    >
       <div className="mb-4 flex items-center justify-between">
         <Title className="flex items-center gap-2 text-white">
           <Box className="h-5 w-5 text-[#76B900]" />
@@ -169,18 +174,14 @@ export default function ContainersPanel({
                 key={container.name}
                 className={clsx(
                   'rounded-lg border p-3',
-                  isHealthy
-                    ? 'border-gray-700 bg-gray-800/50'
-                    : 'border-red-500/30 bg-red-500/10'
+                  isHealthy ? 'border-gray-700 bg-gray-800/50' : 'border-red-500/30 bg-red-500/10'
                 )}
                 data-testid={`container-${container.name}`}
               >
                 <div className="mb-2 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <HealthIcon health={container.health} />
-                    <Text className="text-sm font-medium text-gray-200">
-                      {container.name}
-                    </Text>
+                    <Text className="text-sm font-medium text-gray-200">{container.name}</Text>
                   </div>
                   <Badge
                     color={getHealthColor(container.health)}
@@ -194,10 +195,7 @@ export default function ContainersPanel({
                 {/* Health Timeline Tracker */}
                 <div data-testid={`tracker-${container.name}`}>
                   {trackerData.length > 0 ? (
-                    <Tracker
-                      data={trackerData}
-                      className="h-4"
-                    />
+                    <Tracker data={trackerData} className="h-4" />
                   ) : (
                     <div className="flex h-4 items-center justify-center rounded bg-gray-700/50">
                       <Text className="text-xs text-gray-500">No history</Text>

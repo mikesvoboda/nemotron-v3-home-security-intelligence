@@ -323,7 +323,8 @@ describe('useRetry', () => {
       let promiseError: Error | undefined;
 
       act(() => {
-        result.current.queueRetry(mockExecute, '/api/test', 2000)
+        result.current
+          .queueRetry(mockExecute, '/api/test', 2000)
           .then((res) => {
             promiseResult = res;
           })

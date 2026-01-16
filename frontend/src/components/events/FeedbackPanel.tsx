@@ -146,41 +146,50 @@ export default function FeedbackPanel({
   });
 
   // Handle quick feedback submission (for "Correct" button)
-  const handleQuickFeedback = useCallback((type: FeedbackType) => {
-    if (isNaN(eventId) || eventId <= 0) return;
-    feedbackMutation.mutate({
-      event_id: eventId,
-      feedback_type: type,
-    });
-  }, [eventId, feedbackMutation]);
+  const handleQuickFeedback = useCallback(
+    (type: FeedbackType) => {
+      if (isNaN(eventId) || eventId <= 0) return;
+      feedbackMutation.mutate({
+        event_id: eventId,
+        feedback_type: type,
+      });
+    },
+    [eventId, feedbackMutation]
+  );
 
   // Handle button click - either submit directly or open form
-  const handleButtonClick = useCallback((button: FeedbackButton) => {
-    if (button.requiresForm) {
-      setFeedbackFormType(button.type);
-    } else {
-      handleQuickFeedback(button.type);
-    }
-  }, [handleQuickFeedback]);
+  const handleButtonClick = useCallback(
+    (button: FeedbackButton) => {
+      if (button.requiresForm) {
+        setFeedbackFormType(button.type);
+      } else {
+        handleQuickFeedback(button.type);
+      }
+    },
+    [handleQuickFeedback]
+  );
 
   // Handle feedback form submission
-  const handleFeedbackSubmit = useCallback((notes: string, expectedSeverity?: number) => {
-    if (isNaN(eventId) || eventId <= 0 || !feedbackFormType) return;
+  const handleFeedbackSubmit = useCallback(
+    (notes: string, expectedSeverity?: number) => {
+      if (isNaN(eventId) || eventId <= 0 || !feedbackFormType) return;
 
-    let finalNotes = notes;
-    // Include expected severity in notes for severity_wrong feedback
-    if (feedbackFormType === 'severity_wrong' && expectedSeverity !== undefined) {
-      finalNotes = notes
-        ? `Expected severity: ${expectedSeverity}. ${notes}`
-        : `Expected severity: ${expectedSeverity}`;
-    }
+      let finalNotes = notes;
+      // Include expected severity in notes for severity_wrong feedback
+      if (feedbackFormType === 'severity_wrong' && expectedSeverity !== undefined) {
+        finalNotes = notes
+          ? `Expected severity: ${expectedSeverity}. ${notes}`
+          : `Expected severity: ${expectedSeverity}`;
+      }
 
-    feedbackMutation.mutate({
-      event_id: eventId,
-      feedback_type: feedbackFormType,
-      notes: finalNotes || undefined,
-    });
-  }, [eventId, feedbackFormType, feedbackMutation]);
+      feedbackMutation.mutate({
+        event_id: eventId,
+        feedback_type: feedbackFormType,
+        notes: finalNotes || undefined,
+      });
+    },
+    [eventId, feedbackFormType, feedbackMutation]
+  );
 
   // Handle form cancel
   const handleFormCancel = useCallback(() => {
@@ -195,7 +204,10 @@ export default function FeedbackPanel({
   // Loading state
   if (isLoadingFeedback) {
     return (
-      <div className={`rounded-lg border border-gray-800 bg-black/20 p-4 ${className}`} data-testid="feedback-panel">
+      <div
+        className={`rounded-lg border border-gray-800 bg-black/20 p-4 ${className}`}
+        data-testid="feedback-panel"
+      >
         <div className="flex items-center gap-2 text-sm text-gray-400">
           <Loader2 className="h-4 w-4 animate-spin" />
           Loading feedback...
@@ -205,14 +217,18 @@ export default function FeedbackPanel({
   }
 
   // Error state (non-404)
-  const is404Error = feedbackError &&
+  const is404Error =
+    feedbackError &&
     typeof feedbackError === 'object' &&
     feedbackError !== null &&
     'status' in feedbackError &&
     (feedbackError as unknown as { status: number }).status === 404;
   if (feedbackError && !is404Error) {
     return (
-      <div className={`rounded-lg border border-red-800 bg-red-900/20 p-4 ${className}`} data-testid="feedback-panel">
+      <div
+        className={`rounded-lg border border-red-800 bg-red-900/20 p-4 ${className}`}
+        data-testid="feedback-panel"
+      >
         <div className="flex items-center gap-2 text-sm text-red-400">
           <X className="h-4 w-4" />
           Failed to load feedback. Please try again.
@@ -270,7 +286,10 @@ export default function FeedbackPanel({
 
   // Main feedback buttons view
   return (
-    <div className={`rounded-lg border border-gray-800 bg-black/20 ${className}`} data-testid="feedback-panel">
+    <div
+      className={`rounded-lg border border-gray-800 bg-black/20 ${className}`}
+      data-testid="feedback-panel"
+    >
       {/* Header */}
       <button
         onClick={toggleCollapsed}
@@ -282,9 +301,7 @@ export default function FeedbackPanel({
         <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-400">
           Detection Feedback
         </h3>
-        <span className="text-xs text-gray-500">
-          {isCollapsed ? 'Show' : 'Hide'}
-        </span>
+        <span className="text-xs text-gray-500">{isCollapsed ? 'Show' : 'Hide'}</span>
       </button>
 
       {/* Content */}

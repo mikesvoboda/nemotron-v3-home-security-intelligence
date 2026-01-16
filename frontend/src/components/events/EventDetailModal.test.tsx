@@ -50,9 +50,32 @@ vi.mock('../../services/api', async () => {
   const actual = await vi.importActual<typeof api>('../../services/api');
   return {
     ...actual,
-    fetchEventDetections: vi.fn().mockResolvedValue({ items: [], pagination: { total: 0, limit: 100, offset: 0, has_more: false } }),
-    fetchEventEntityMatches: vi.fn().mockResolvedValue({ event_id: 123, person_matches: [], vehicle_matches: [], total_matches: 0 }),
-    fetchEntity: vi.fn().mockResolvedValue({ id: 'entity-1', entity_type: 'person', first_seen: '2024-01-15T10:00:00Z', last_seen: '2024-01-15T10:30:00Z', appearance_count: 1, cameras_seen: [], thumbnail_url: null, appearances: [] }),
+    fetchEventDetections: vi
+      .fn()
+      .mockResolvedValue({
+        items: [],
+        pagination: { total: 0, limit: 100, offset: 0, has_more: false },
+      }),
+    fetchEventEntityMatches: vi
+      .fn()
+      .mockResolvedValue({
+        event_id: 123,
+        person_matches: [],
+        vehicle_matches: [],
+        total_matches: 0,
+      }),
+    fetchEntity: vi
+      .fn()
+      .mockResolvedValue({
+        id: 'entity-1',
+        entity_type: 'person',
+        first_seen: '2024-01-15T10:00:00Z',
+        last_seen: '2024-01-15T10:30:00Z',
+        appearance_count: 1,
+        cameras_seen: [],
+        thumbnail_url: null,
+        appearances: [],
+      }),
     getDetectionImageUrl: vi.fn((id: number) => `/api/detections/${id}/image`),
     getDetectionVideoUrl: vi.fn((id: number) => `/api/detections/${id}/video`),
     getDetectionVideoThumbnailUrl: vi.fn((id: number) => `/api/detections/${id}/video/thumbnail`),
@@ -79,24 +102,29 @@ vi.mock('../../hooks/useToast', () => ({
 
 // Mock the VideoPlayer component to avoid complex video element testing
 vi.mock('../video/VideoPlayer', () => ({
-  default: vi.fn(({ src, poster, className }: { src: string; poster?: string; className?: string }) => (
-    <div data-testid="video-player" data-src={src} data-poster={poster} className={className}>
-      Mocked VideoPlayer
-    </div>
-  )),
+  default: vi.fn(
+    ({ src, poster, className }: { src: string; poster?: string; className?: string }) => (
+      <div data-testid="video-player" data-src={src} data-poster={poster} className={className}>
+        Mocked VideoPlayer
+      </div>
+    )
+  ),
 }));
 
 // Mock the EntityDetailModal component
 vi.mock('../entities/EntityDetailModal', () => ({
-  default: vi.fn(({ entity, isOpen, onClose }: { entity: unknown; isOpen: boolean; onClose: () => void }) => (
-    isOpen ? (
-      <div data-testid="entity-detail-modal">
-        Mocked EntityDetailModal
-        {entity ? <span data-testid="entity-loaded">Entity Loaded</span> : null}
-        <button onClick={onClose} data-testid="close-entity-modal">Close</button>
-      </div>
-    ) : null
-  )),
+  default: vi.fn(
+    ({ entity, isOpen, onClose }: { entity: unknown; isOpen: boolean; onClose: () => void }) =>
+      isOpen ? (
+        <div data-testid="entity-detail-modal">
+          Mocked EntityDetailModal
+          {entity ? <span data-testid="entity-loaded">Entity Loaded</span> : null}
+          <button onClick={onClose} data-testid="close-entity-modal">
+            Close
+          </button>
+        </div>
+      ) : null
+  ),
 }));
 
 describe('EventDetailModal', () => {
@@ -483,7 +511,9 @@ describe('EventDetailModal', () => {
           started_at: new Date(baseTime).toISOString(),
           ended_at: new Date(baseTime + duration).toISOString(),
         };
-        const { unmount } = renderWithQueryClient(<EventDetailModal {...mockProps} event={eventWithDuration} />);
+        const { unmount } = renderWithQueryClient(
+          <EventDetailModal {...mockProps} event={eventWithDuration} />
+        );
         await waitFor(() => {
           // Duration appears in both header and metadata, so use getAllByText
           const matches = screen.getAllByText(expected);
@@ -661,7 +691,9 @@ describe('EventDetailModal', () => {
     it('does not call onNavigate on arrow keys when modal is closed', async () => {
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       const onNavigate = vi.fn();
-      renderWithQueryClient(<EventDetailModal {...mockProps} isOpen={false} onNavigate={onNavigate} />);
+      renderWithQueryClient(
+        <EventDetailModal {...mockProps} isOpen={false} onNavigate={onNavigate} />
+      );
 
       await user.keyboard('{ArrowLeft}');
       await user.keyboard('{ArrowRight}');
@@ -912,7 +944,9 @@ describe('EventDetailModal', () => {
 
       for (const score of boundaryScores) {
         const eventBoundary = { ...mockEvent, risk_score: score };
-        const { unmount } = renderWithQueryClient(<EventDetailModal {...mockProps} event={eventBoundary} />);
+        const { unmount } = renderWithQueryClient(
+          <EventDetailModal {...mockProps} event={eventBoundary} />
+        );
         await waitFor(() => {
           expect(screen.getByText(`${score} / 100`)).toBeInTheDocument();
         });
@@ -1184,7 +1218,9 @@ describe('EventDetailModal', () => {
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       const onSaveNotes = vi.fn().mockResolvedValue(undefined);
 
-      const { rerender, queryClient } = renderWithQueryClient(<EventDetailModal {...mockProps} onSaveNotes={onSaveNotes} />);
+      const { rerender, queryClient } = renderWithQueryClient(
+        <EventDetailModal {...mockProps} onSaveNotes={onSaveNotes} />
+      );
 
       // Wait for the modal to open and button to be available
       const saveButton = await screen.findByRole('button', { name: 'Save notes' });
@@ -1213,7 +1249,9 @@ describe('EventDetailModal', () => {
       const eventWithNotes = { ...mockEvent, notes: 'Some existing notes' };
       const onSaveNotes = vi.fn().mockResolvedValue(undefined);
 
-      renderWithQueryClient(<EventDetailModal {...mockProps} event={eventWithNotes} onSaveNotes={onSaveNotes} />);
+      renderWithQueryClient(
+        <EventDetailModal {...mockProps} event={eventWithNotes} onSaveNotes={onSaveNotes} />
+      );
 
       // Wait for the modal to open
       const textarea = await screen.findByPlaceholderText<HTMLTextAreaElement>(
@@ -1258,7 +1296,9 @@ describe('EventDetailModal', () => {
     it('shows "Flag Event" when event is not flagged', async () => {
       const eventNotFlagged = { ...mockEvent, flagged: false };
       const onFlagEvent = vi.fn();
-      renderWithQueryClient(<EventDetailModal {...mockProps} event={eventNotFlagged} onFlagEvent={onFlagEvent} />);
+      renderWithQueryClient(
+        <EventDetailModal {...mockProps} event={eventNotFlagged} onFlagEvent={onFlagEvent} />
+      );
 
       await waitFor(() => {
         expect(screen.getByRole('button', { name: 'Flag event' })).toHaveTextContent('Flag Event');
@@ -1268,7 +1308,9 @@ describe('EventDetailModal', () => {
     it('shows "Unflag Event" when event is flagged', async () => {
       const eventFlagged = { ...mockEvent, flagged: true };
       const onFlagEvent = vi.fn();
-      renderWithQueryClient(<EventDetailModal {...mockProps} event={eventFlagged} onFlagEvent={onFlagEvent} />);
+      renderWithQueryClient(
+        <EventDetailModal {...mockProps} event={eventFlagged} onFlagEvent={onFlagEvent} />
+      );
 
       await waitFor(() => {
         expect(screen.getByRole('button', { name: 'Unflag event' })).toHaveTextContent(
@@ -1281,7 +1323,9 @@ describe('EventDetailModal', () => {
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       const eventNotFlagged = { ...mockEvent, flagged: false };
       const onFlagEvent = vi.fn().mockResolvedValue(undefined);
-      renderWithQueryClient(<EventDetailModal {...mockProps} event={eventNotFlagged} onFlagEvent={onFlagEvent} />);
+      renderWithQueryClient(
+        <EventDetailModal {...mockProps} event={eventNotFlagged} onFlagEvent={onFlagEvent} />
+      );
 
       // Wait for the modal to open and button to be available
       const flagButton = await screen.findByRole('button', { name: 'Flag event' });
@@ -1296,7 +1340,9 @@ describe('EventDetailModal', () => {
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       const eventFlagged = { ...mockEvent, flagged: true };
       const onFlagEvent = vi.fn().mockResolvedValue(undefined);
-      renderWithQueryClient(<EventDetailModal {...mockProps} event={eventFlagged} onFlagEvent={onFlagEvent} />);
+      renderWithQueryClient(
+        <EventDetailModal {...mockProps} event={eventFlagged} onFlagEvent={onFlagEvent} />
+      );
 
       // Wait for the modal to open and button to be available
       const unflagButton = await screen.findByRole('button', { name: 'Unflag event' });
@@ -1379,7 +1425,9 @@ describe('EventDetailModal', () => {
     it('has correct aria-label for flagged state', async () => {
       const eventFlagged = { ...mockEvent, flagged: true };
       const onFlagEvent = vi.fn();
-      renderWithQueryClient(<EventDetailModal {...mockProps} event={eventFlagged} onFlagEvent={onFlagEvent} />);
+      renderWithQueryClient(
+        <EventDetailModal {...mockProps} event={eventFlagged} onFlagEvent={onFlagEvent} />
+      );
 
       await waitFor(() => {
         const button = screen.getByRole('button', { name: 'Unflag event' });
@@ -1390,7 +1438,9 @@ describe('EventDetailModal', () => {
     it('has correct aria-label for unflagged state', async () => {
       const eventNotFlagged = { ...mockEvent, flagged: false };
       const onFlagEvent = vi.fn();
-      renderWithQueryClient(<EventDetailModal {...mockProps} event={eventNotFlagged} onFlagEvent={onFlagEvent} />);
+      renderWithQueryClient(
+        <EventDetailModal {...mockProps} event={eventNotFlagged} onFlagEvent={onFlagEvent} />
+      );
 
       await waitFor(() => {
         const button = screen.getByRole('button', { name: 'Flag event' });
@@ -1886,8 +1936,9 @@ describe('EventDetailModal', () => {
       const thumbnails = await screen.findAllByRole('button');
       // Find the thumbnail button (not navigation/action buttons)
       const thumbnailButton = thumbnails.find(
-        (btn) => btn.getAttribute('aria-label')?.includes('detection') ||
-                 btn.closest('[data-testid="thumbnail-strip"]')
+        (btn) =>
+          btn.getAttribute('aria-label')?.includes('detection') ||
+          btn.closest('[data-testid="thumbnail-strip"]')
       );
 
       if (thumbnailButton) {
@@ -2176,7 +2227,9 @@ describe('EventDetailModal', () => {
         new auditApi.AuditApiError(500, 'Server error')
       );
 
-      const { rerender, queryClient } = renderWithQueryClient(<EventDetailModal {...mockReEvalProps} />);
+      const { rerender, queryClient } = renderWithQueryClient(
+        <EventDetailModal {...mockReEvalProps} />
+      );
 
       await waitFor(() => {
         expect(screen.getByTestId('re-evaluate-button')).toBeInTheDocument();
@@ -2402,7 +2455,9 @@ describe('EventDetailModal', () => {
 
     it('resets feedback form when event changes', async () => {
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-      const { rerender, queryClient } = renderWithQueryClient(<EventDetailModal {...mockFeedbackProps} />);
+      const { rerender, queryClient } = renderWithQueryClient(
+        <EventDetailModal {...mockFeedbackProps} />
+      );
 
       await waitFor(() => {
         expect(screen.getByTestId('feedback-false-positive-button')).toBeInTheDocument();

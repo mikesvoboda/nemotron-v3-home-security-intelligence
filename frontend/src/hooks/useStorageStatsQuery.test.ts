@@ -1,8 +1,11 @@
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-
-import { useStorageStatsQuery, useCleanupPreviewMutation, useCleanupMutation } from './useStorageStatsQuery';
+import {
+  useStorageStatsQuery,
+  useCleanupPreviewMutation,
+  useCleanupMutation,
+} from './useStorageStatsQuery';
 import * as api from '../services/api';
 import { createQueryClient, queryKeys } from '../services/queryClient';
 import { createQueryWrapper } from '../test-utils/renderWithProviders';
@@ -302,9 +305,7 @@ describe('useCleanupPreviewMutation', () => {
 
     it('sets error on failure', async () => {
       const errorMessage = 'Failed to preview cleanup';
-      (api.previewCleanup as ReturnType<typeof vi.fn>).mockRejectedValue(
-        new Error(errorMessage)
-      );
+      (api.previewCleanup as ReturnType<typeof vi.fn>).mockRejectedValue(new Error(errorMessage));
 
       const { result } = renderHook(() => useCleanupPreviewMutation(), {
         wrapper: createQueryWrapper(queryClient),
@@ -490,9 +491,7 @@ describe('useCleanupMutation', () => {
 
     it('sets error on failure', async () => {
       const errorMessage = 'Failed to run cleanup';
-      (api.triggerCleanup as ReturnType<typeof vi.fn>).mockRejectedValue(
-        new Error(errorMessage)
-      );
+      (api.triggerCleanup as ReturnType<typeof vi.fn>).mockRejectedValue(new Error(errorMessage));
 
       const { result } = renderHook(() => useCleanupMutation(), {
         wrapper: createQueryWrapper(queryClient),

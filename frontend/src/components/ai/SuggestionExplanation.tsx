@@ -35,8 +35,7 @@ export interface SuggestionExplanationProps {
 const CATEGORY_TIPS: Record<EnrichedSuggestion['category'], string> = {
   missing_context:
     'Temporal context variables work best near other time-related fields like timestamp and day_of_week.',
-  unused_data:
-    'Consider removing unused fields to reduce token count and improve inference speed.',
+  unused_data: 'Consider removing unused fields to reduce token count and improve inference speed.',
   model_gaps:
     'Adding model-specific sections improves accuracy by giving each model the context it needs.',
   format_suggestions:
@@ -89,10 +88,7 @@ export default function SuggestionExplanation({
   return (
     <div
       data-testid="suggestion-explanation"
-      className={clsx(
-        'rounded-lg border border-gray-700 bg-[#1A1A1A]',
-        className
-      )}
+      className={clsx('rounded-lg border border-gray-700 bg-[#1A1A1A]', className)}
     >
       {/* Collapsible Header */}
       <button
@@ -129,9 +125,7 @@ export default function SuggestionExplanation({
                 <span className="text-xs font-semibold uppercase tracking-wide text-[#76B900]">
                   Impact
                 </span>
-                <p className="mt-1 text-sm text-gray-300">
-                  {suggestion.impactExplanation}
-                </p>
+                <p className="mt-1 text-sm text-gray-300">{suggestion.impactExplanation}</p>
               </div>
             </div>
           </div>
@@ -152,9 +146,7 @@ export default function SuggestionExplanation({
                     <ul className="mt-2 space-y-1">
                       {suggestion.sourceEventIds.map((eventId) => (
                         <li key={eventId} className="flex items-center gap-2">
-                          <span className="text-sm text-gray-400">
-                            Event #{eventId}
-                          </span>
+                          <span className="text-sm text-gray-400">Event #{eventId}</span>
                           {onEventClick && (
                             <button
                               type="button"
@@ -171,7 +163,9 @@ export default function SuggestionExplanation({
                     </ul>
                   </>
                 ) : (
-                  <p className="mt-1 text-sm text-gray-500">No events associated with this suggestion.</p>
+                  <p className="mt-1 text-sm text-gray-500">
+                    No events associated with this suggestion.
+                  </p>
                 )}
               </div>
             </div>

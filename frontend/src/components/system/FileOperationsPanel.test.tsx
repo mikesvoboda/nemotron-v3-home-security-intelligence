@@ -140,7 +140,11 @@ describe('FileOperationsPanel', () => {
 
     // Set default mock values for optional endpoints that may fail gracefully
     mockFetchCleanupStatus.mockResolvedValue(mockCleanupStatus);
-    mockPreviewOrphanedFiles.mockResolvedValue({ ...mockOrphanedPreview, orphaned_count: 0, orphaned_files: [] });
+    mockPreviewOrphanedFiles.mockResolvedValue({
+      ...mockOrphanedPreview,
+      orphaned_count: 0,
+      orphaned_files: [],
+    });
   });
 
   afterEach(() => {

@@ -1,4 +1,18 @@
-import { Home, Clock, BarChart3, Users, Bell, Settings, ScrollText, Server, Shield, X, Brain, ClipboardCheck, Trash2 } from 'lucide-react';
+import {
+  Home,
+  Clock,
+  BarChart3,
+  Users,
+  Bell,
+  Settings,
+  ScrollText,
+  Server,
+  Shield,
+  X,
+  Brain,
+  ClipboardCheck,
+  Trash2,
+} from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 
 import { useSidebarContext } from '../../hooks/useSidebarContext';
@@ -25,7 +39,13 @@ const navItems: NavItem[] = [
   { id: 'ai-audit', label: 'AI Audit', icon: ClipboardCheck, path: '/ai-audit' },
   { id: 'system', label: 'System', icon: Server, path: '/system' },
   { id: 'trash', label: 'Trash', icon: Trash2, path: '/trash' },
-  { id: 'settings', label: 'Settings', icon: Settings, path: '/settings', dataTour: 'settings-link' },
+  {
+    id: 'settings',
+    label: 'Settings',
+    icon: Settings,
+    path: '/settings',
+    dataTour: 'settings-link',
+  },
 ];
 
 export default function Sidebar() {
@@ -38,12 +58,7 @@ export default function Sidebar() {
 
   return (
     <aside
-      className={`
-        fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-gray-800 bg-[#1A1A1A]
-        transform transition-transform duration-300 ease-in-out
-        md:relative md:translate-x-0
-        ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
-      `}
+      className={`fixed inset-y-0 left-0 z-40 flex w-64 transform flex-col border-r border-gray-800 bg-[#1A1A1A] transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} `}
       data-testid="sidebar"
     >
       {/* Mobile close button */}
@@ -71,15 +86,13 @@ export default function Sidebar() {
               end={item.path === '/'}
               onClick={handleNavClick}
               data-tour={item.dataTour}
-              className={({ isActive }: { isActive: boolean }) => `
-                flex w-full items-center gap-3 rounded-lg px-4 py-3
-                transition-colors duration-200
-                ${
+              className={({ isActive }: { isActive: boolean }) =>
+                `flex w-full items-center gap-3 rounded-lg px-4 py-3 transition-colors duration-200 ${
                   isActive
                     ? 'bg-[#76B900] font-semibold text-black'
                     : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-                }
-              `}
+                } `
+              }
             >
               <Icon className="h-5 w-5" />
               <span className="flex-1 text-left">{item.label}</span>

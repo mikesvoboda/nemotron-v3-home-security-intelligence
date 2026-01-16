@@ -43,8 +43,12 @@ beforeEach(() => {
     disconnect() {}
   };
   // Reset to default mocks for each test
-  vi.mocked(useGpuStatsQueryModule.useGpuStatsQuery).mockReturnValue({ ...defaultStatsQueryReturn });
-  vi.mocked(useGpuStatsQueryModule.useGpuHistoryQuery).mockReturnValue({ ...defaultHistoryQueryReturn });
+  vi.mocked(useGpuStatsQueryModule.useGpuStatsQuery).mockReturnValue({
+    ...defaultStatsQueryReturn,
+  });
+  vi.mocked(useGpuStatsQueryModule.useGpuHistoryQuery).mockReturnValue({
+    ...defaultHistoryQueryReturn,
+  });
 });
 
 afterEach(() => {

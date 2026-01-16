@@ -80,18 +80,13 @@ export default function Layout({ children }: LayoutProps) {
             className={`flex-1 overflow-auto focus:outline-none ${isMobile ? 'pb-14' : ''}`}
             data-testid="main-content"
           >
-            {!isDismissed && (
-              <ServiceStatusAlert services={services} onDismiss={handleDismiss} />
-            )}
+            {!isDismissed && <ServiceStatusAlert services={services} onDismiss={handleDismiss} />}
             {children}
           </main>
         </div>
 
         {/* Command Palette */}
-        <CommandPalette
-          open={isCommandPaletteOpen}
-          onOpenChange={setCommandPaletteOpen}
-        />
+        <CommandPalette open={isCommandPaletteOpen} onOpenChange={setCommandPaletteOpen} />
 
         {/* Keyboard Shortcuts Help Modal */}
         <ShortcutsHelpModal

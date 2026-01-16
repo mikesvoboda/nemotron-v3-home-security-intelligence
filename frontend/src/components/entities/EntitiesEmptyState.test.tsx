@@ -37,9 +37,7 @@ describe('EntitiesEmptyState', () => {
       expect(screen.getByText(/Camera detects a person or vehicle/i)).toBeInTheDocument();
       expect(screen.getByText(/AI extracts visual features/i)).toBeInTheDocument();
       expect(screen.getByText(/System matches across all camera feeds/i)).toBeInTheDocument();
-      expect(
-        screen.getByText(/Entity profile created with movement history/i)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Entity profile created with movement history/i)).toBeInTheDocument();
     });
 
     it('renders the CTA button', () => {
@@ -73,8 +71,8 @@ describe('EntitiesEmptyState', () => {
       const { container } = renderWithRouter(<EntitiesEmptyState />);
 
       const floatingElements = container.querySelectorAll('[class*="animate-float"]');
-      const delays = Array.from(floatingElements).map((el) =>
-        (el as HTMLElement).style.animationDelay
+      const delays = Array.from(floatingElements).map(
+        (el) => (el as HTMLElement).style.animationDelay
       );
 
       // Check that delays are different

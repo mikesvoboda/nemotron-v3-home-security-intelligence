@@ -427,7 +427,11 @@ export type EventsChannelMessage = EventMessage | HeartbeatMessage | ErrorMessag
  * All possible message types from the /ws/detections channel.
  * Use this type when handling messages from the detections WebSocket.
  */
-export type DetectionsChannelMessage = DetectionNewMessage | DetectionBatchMessage | HeartbeatMessage | ErrorMessage;
+export type DetectionsChannelMessage =
+  | DetectionNewMessage
+  | DetectionBatchMessage
+  | HeartbeatMessage
+  | ErrorMessage;
 
 // ============================================================================
 // Discriminated Union - System Channel
@@ -904,7 +908,5 @@ export function assertNever(value: never): never {
  * ```
  */
 export function assertNeverSoft(value: never, context?: string): void {
-  console.warn(
-    `Unhandled ${context ?? 'value'}: ${JSON.stringify(value)}`
-  );
+  console.warn(`Unhandled ${context ?? 'value'}: ${JSON.stringify(value)}`);
 }

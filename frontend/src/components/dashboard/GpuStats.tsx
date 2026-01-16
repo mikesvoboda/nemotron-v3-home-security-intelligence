@@ -188,8 +188,8 @@ export default function GpuStats({
 
   // Use external history data when provided, otherwise use internal hook data
   const history = useExternalData ? historyData : internalHistory;
-  const isLoading = useExternalData ? false : (statsLoading || historyLoading);
-  const error = useExternalData ? null : (statsError?.message || historyError?.message || null);
+  const isLoading = useExternalData ? false : statsLoading || historyLoading;
+  const error = useExternalData ? null : statsError?.message || historyError?.message || null;
 
   // Track selected history tab
   const [selectedTab, setSelectedTab] = useState<HistoryTab>(0);
@@ -344,7 +344,11 @@ export default function GpuStats({
             </span>
           </div>
           <ProgressBar
-            value={powerUsage !== null && powerUsage !== undefined ? Math.min((powerUsage / 350) * 100, 100) : 0}
+            value={
+              powerUsage !== null && powerUsage !== undefined
+                ? Math.min((powerUsage / 350) * 100, 100)
+                : 0
+            }
             color={powerColor}
             className="mt-1"
           />
@@ -376,9 +380,15 @@ export default function GpuStats({
             className="mb-3"
           >
             <TabList variant="solid" className="bg-gray-800/50">
-              <Tab className="text-xs" data-testid="tab-utilization">Utilization</Tab>
-              <Tab className="text-xs" data-testid="tab-temperature">Temperature</Tab>
-              <Tab className="text-xs" data-testid="tab-memory">Memory</Tab>
+              <Tab className="text-xs" data-testid="tab-utilization">
+                Utilization
+              </Tab>
+              <Tab className="text-xs" data-testid="tab-temperature">
+                Temperature
+              </Tab>
+              <Tab className="text-xs" data-testid="tab-memory">
+                Memory
+              </Tab>
             </TabList>
           </TabGroup>
 

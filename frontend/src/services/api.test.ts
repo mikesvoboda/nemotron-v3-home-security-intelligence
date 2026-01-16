@@ -3579,13 +3579,19 @@ describe('Rate Limit Header Extraction', () => {
     });
 
     it('returns null when X-RateLimit-Limit header is missing', () => {
-      const headers = new Headers({ 'X-RateLimit-Remaining': '95', 'X-RateLimit-Reset': '1704067200' });
+      const headers = new Headers({
+        'X-RateLimit-Remaining': '95',
+        'X-RateLimit-Reset': '1704067200',
+      });
       const response = { headers } as Response;
       expect(extractRateLimitInfo(response)).toBeNull();
     });
 
     it('returns null when X-RateLimit-Remaining header is missing', () => {
-      const headers = new Headers({ 'X-RateLimit-Limit': '100', 'X-RateLimit-Reset': '1704067200' });
+      const headers = new Headers({
+        'X-RateLimit-Limit': '100',
+        'X-RateLimit-Reset': '1704067200',
+      });
       const response = { headers } as Response;
       expect(extractRateLimitInfo(response)).toBeNull();
     });
@@ -3787,10 +3793,7 @@ describe('fetchEventEnrichments', () => {
     const params: EventEnrichmentsQueryParams = { limit: 25 };
     await fetchEventEnrichments(456, params);
 
-    expect(fetch).toHaveBeenCalledWith(
-      '/api/events/456/enrichments?limit=25',
-      expect.any(Object)
-    );
+    expect(fetch).toHaveBeenCalledWith('/api/events/456/enrichments?limit=25', expect.any(Object));
   });
 
   it('fetches event enrichments with only offset param', async () => {
@@ -3799,10 +3802,7 @@ describe('fetchEventEnrichments', () => {
     const params: EventEnrichmentsQueryParams = { offset: 50 };
     await fetchEventEnrichments(789, params);
 
-    expect(fetch).toHaveBeenCalledWith(
-      '/api/events/789/enrichments?offset=50',
-      expect.any(Object)
-    );
+    expect(fetch).toHaveBeenCalledWith('/api/events/789/enrichments?offset=50', expect.any(Object));
   });
 
   it('throws ApiError on 404 for non-existent event', async () => {
@@ -3992,7 +3992,25 @@ describe('validateCursorFormat', () => {
     });
 
     it('rejects cursor with special characters', () => {
-      const invalidChars = [';', '&', '?', '/', '+', '!', '"', "'", '<', '>', '{', '}', '[', ']', '|', '\\', '`'];
+      const invalidChars = [
+        ';',
+        '&',
+        '?',
+        '/',
+        '+',
+        '!',
+        '"',
+        "'",
+        '<',
+        '>',
+        '{',
+        '}',
+        '[',
+        ']',
+        '|',
+        '\\',
+        '`',
+      ];
       for (const char of invalidChars) {
         expect(() => validateCursorFormat(`abc${char}def`)).toThrow(CursorValidationError);
       }

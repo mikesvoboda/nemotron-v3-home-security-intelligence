@@ -69,7 +69,10 @@ export interface AIPerformanceSummaryRowProps {
  * Yellow: Running, 50-200ms
  * Red: Down or >200ms
  */
-function getRtdetrStatus(model: AIModelStatus, latency: AILatencyMetrics | null | undefined): StatusColor {
+function getRtdetrStatus(
+  model: AIModelStatus,
+  latency: AILatencyMetrics | null | undefined
+): StatusColor {
   // Red if model is down
   if (model.status === 'unhealthy') return 'red';
 
@@ -89,7 +92,10 @@ function getRtdetrStatus(model: AIModelStatus, latency: AILatencyMetrics | null 
  * Yellow: Running, 5-15s
  * Red: Down or >15s
  */
-function getNemotronStatus(model: AIModelStatus, latency: AILatencyMetrics | null | undefined): StatusColor {
+function getNemotronStatus(
+  model: AIModelStatus,
+  latency: AILatencyMetrics | null | undefined
+): StatusColor {
   // Red if model is down
   if (model.status === 'unhealthy') return 'red';
 
@@ -221,7 +227,7 @@ function IndicatorCard({
         aria-label={ariaLabel}
         className={clsx(
           'flex w-full flex-col items-center gap-1 rounded-lg border p-3 transition-all duration-200',
-          'focus:outline-none focus:ring-2 focus:ring-[#76B900]/50 cursor-pointer',
+          'cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#76B900]/50',
           getStatusClasses(status)
         )}
       >
@@ -282,7 +288,8 @@ export default function AIPerformanceSummaryRow({
 
   // Calculate throughput if not provided (events per minute)
   // Default to a reasonable value based on total events
-  const calculatedThroughput = throughputPerMinute ?? (totalEvents > 0 ? Math.max(0.1, totalEvents / 60) : 0);
+  const calculatedThroughput =
+    throughputPerMinute ?? (totalEvents > 0 ? Math.max(0.1, totalEvents / 60) : 0);
 
   // Status colors
   const rtdetrStatus = getRtdetrStatus(rtdetr, detectionLatency);
@@ -309,10 +316,7 @@ export default function AIPerformanceSummaryRow({
   return (
     <div
       data-testid="ai-summary-row"
-      className={clsx(
-        'grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5',
-        className
-      )}
+      className={clsx('grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5', className)}
     >
       {/* RT-DETRv2 Indicator */}
       <IndicatorCard

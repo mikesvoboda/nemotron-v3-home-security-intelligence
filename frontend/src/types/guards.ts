@@ -120,10 +120,7 @@ export function isArray(value: unknown): value is unknown[] {
  * }
  * ```
  */
-export function isArrayOf<T>(
-  value: unknown,
-  guard: (item: unknown) => item is T
-): value is T[] {
+export function isArrayOf<T>(value: unknown, guard: (item: unknown) => item is T): value is T[] {
   return Array.isArray(value) && value.every(guard);
 }
 
@@ -332,10 +329,7 @@ export type GuardedType<T> = T extends TypeGuard<infer U> ? U : never;
  * }
  * ```
  */
-export function getProperty<K extends string>(
-  value: unknown,
-  key: K
-): unknown {
+export function getProperty<K extends string>(value: unknown, key: K): unknown {
   if (!isPlainObject(value)) return undefined;
   return value[key];
 }

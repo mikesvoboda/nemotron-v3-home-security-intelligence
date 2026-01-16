@@ -1,11 +1,7 @@
 import { renderHook, act } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
-import {
-  useSceneChangeAlerts,
-  formatChangeType,
-  getChangeSeverity,
-} from './useSceneChangeAlerts';
+import { useSceneChangeAlerts, formatChangeType, getChangeSeverity } from './useSceneChangeAlerts';
 import * as useWebSocketModule from './useWebSocket';
 
 import type { UseWebSocketReturn } from './useWebSocket';
@@ -362,7 +358,7 @@ describe('useSceneChangeAlerts', () => {
             camera_id: 'front_door',
             detected_at: '2026-01-10T10:01:00Z',
             change_type: 'view_blocked',
-            similarity_score: 0.20,
+            similarity_score: 0.2,
           },
         });
       });
@@ -473,7 +469,7 @@ describe('useSceneChangeAlerts', () => {
             camera_id: 'back_yard',
             detected_at: '2026-01-10T10:01:00Z',
             change_type: 'view_tampered',
-            similarity_score: 0.20,
+            similarity_score: 0.2,
           },
         });
       });

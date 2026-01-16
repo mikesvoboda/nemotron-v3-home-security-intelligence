@@ -299,9 +299,7 @@ export default function ZoneEditor({ camera, isOpen, onClose }: ZoneEditorProps)
                           ) : (
                             <PenTool className="h-4 w-4 text-primary" />
                           )}
-                          <span className="text-sm text-primary">
-                            Drawing {drawShape}...
-                          </span>
+                          <span className="text-sm text-primary">Drawing {drawShape}...</span>
                         </div>
                         <button
                           onClick={handleDrawCancel}
@@ -390,27 +388,22 @@ export default function ZoneEditor({ camera, isOpen, onClose }: ZoneEditorProps)
                             Zone Color
                           </legend>
                           <div className="mt-2 flex flex-wrap gap-2">
-                            {[
-                              '#3B82F6',
-                              '#10B981',
-                              '#F59E0B',
-                              '#EF4444',
-                              '#8B5CF6',
-                              '#EC4899',
-                            ].map((color) => (
-                              <button
-                                key={color}
-                                type="button"
-                                onClick={() => setDrawColor(color)}
-                                className={clsx(
-                                  'h-6 w-6 rounded-full border-2 transition-all',
-                                  drawColor === color
-                                    ? 'border-white ring-2 ring-primary ring-offset-2 ring-offset-gray-800'
-                                    : 'border-transparent hover:border-gray-400'
-                                )}
-                                style={{ backgroundColor: color }}
-                              />
-                            ))}
+                            {['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'].map(
+                              (color) => (
+                                <button
+                                  key={color}
+                                  type="button"
+                                  onClick={() => setDrawColor(color)}
+                                  className={clsx(
+                                    'h-6 w-6 rounded-full border-2 transition-all',
+                                    drawColor === color
+                                      ? 'border-white ring-2 ring-primary ring-offset-2 ring-offset-gray-800'
+                                      : 'border-transparent hover:border-gray-400'
+                                  )}
+                                  style={{ backgroundColor: color }}
+                                />
+                              )
+                            )}
                           </div>
                         </fieldset>
                       </div>

@@ -12,25 +12,14 @@
  */
 
 import { Button, Select, SelectItem, Card, Title, Text } from '@tremor/react';
-import {
-  AlertCircle,
-  Download,
-  FileSpreadsheet,
-  FileText,
-  Loader2,
-  X,
-} from 'lucide-react';
+import { AlertCircle, Download, FileSpreadsheet, FileText, Loader2, X } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 import ExportProgress from './ExportProgress';
 import { startExportJob, fetchCameras } from '../../services/api';
 
 import type { Camera } from '../../services/api';
-import type {
-  ExportJobCreateParams,
-  ExportType,
-  ExportFormat,
-} from '../../types/export';
+import type { ExportJobCreateParams, ExportType, ExportFormat } from '../../types/export';
 
 export interface ExportModalProps {
   /** Whether the modal is open */
@@ -156,14 +145,14 @@ export default function ExportModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <Card className="w-full max-w-lg mx-4">
+      <Card className="mx-4 w-full max-w-lg">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="mb-6 flex items-center justify-between">
           <Title>Export Data</Title>
           {!jobId && (
             <button
               onClick={handleClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
+              className="text-gray-400 transition-colors hover:text-gray-600"
               aria-label="Close"
             >
               <X className="h-5 w-5" />
@@ -235,11 +224,7 @@ export default function ExportModal({
               {exportType === 'events' && (
                 <div>
                   <Text className="mb-1">Camera (optional)</Text>
-                  <Select
-                    value={cameraId}
-                    onValueChange={setCameraId}
-                    placeholder="All cameras"
-                  >
+                  <Select value={cameraId} onValueChange={setCameraId} placeholder="All cameras">
                     <SelectItem value="">All cameras</SelectItem>
                     {cameras.map((camera) => (
                       <SelectItem key={camera.id} value={camera.id}>
@@ -254,11 +239,7 @@ export default function ExportModal({
               {exportType === 'events' && (
                 <div>
                   <Text className="mb-1">Risk Level (optional)</Text>
-                  <Select
-                    value={riskLevel}
-                    onValueChange={setRiskLevel}
-                    placeholder="All levels"
-                  >
+                  <Select value={riskLevel} onValueChange={setRiskLevel} placeholder="All levels">
                     <SelectItem value="">All levels</SelectItem>
                     <SelectItem value="low">Low</SelectItem>
                     <SelectItem value="medium">Medium</SelectItem>
@@ -300,11 +281,7 @@ export default function ExportModal({
               {exportType === 'events' && (
                 <div>
                   <Text className="mb-1">Review Status (optional)</Text>
-                  <Select
-                    value={reviewed}
-                    onValueChange={setReviewed}
-                    placeholder="All events"
-                  >
+                  <Select value={reviewed} onValueChange={setReviewed} placeholder="All events">
                     <SelectItem value="">All events</SelectItem>
                     <SelectItem value="true">Reviewed only</SelectItem>
                     <SelectItem value="false">Unreviewed only</SelectItem>
@@ -315,7 +292,7 @@ export default function ExportModal({
 
             {/* Error display */}
             {error && (
-              <div className="mt-4 flex items-center gap-2 text-red-500 text-sm">
+              <div className="mt-4 flex items-center gap-2 text-sm text-red-500">
                 <AlertCircle className="h-4 w-4" />
                 <span>{error}</span>
               </div>

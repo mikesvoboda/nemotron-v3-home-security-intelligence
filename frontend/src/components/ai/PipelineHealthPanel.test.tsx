@@ -182,9 +182,7 @@ describe('PipelineHealthPanel', () => {
 
     it('displays healthy message', () => {
       render(<PipelineHealthPanel {...healthyProps} />);
-      expect(
-        screen.getByText('No errors, overflows, or DLQ items detected')
-      ).toBeInTheDocument();
+      expect(screen.getByText('No errors, overflows, or DLQ items detected')).toBeInTheDocument();
     });
 
     it('does not display all-clear when there are errors', () => {

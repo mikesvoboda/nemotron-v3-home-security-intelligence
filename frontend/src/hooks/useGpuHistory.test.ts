@@ -354,9 +354,7 @@ describe('useGpuHistory', () => {
     });
 
     it('uses maxDataPoints option', () => {
-      const { result } = renderHook(() =>
-        useGpuHistory({ maxDataPoints: 10, autoStart: false })
-      );
+      const { result } = renderHook(() => useGpuHistory({ maxDataPoints: 10, autoStart: false }));
 
       // Hook should work with maxDataPoints option
       expect(result.current).toBeDefined();

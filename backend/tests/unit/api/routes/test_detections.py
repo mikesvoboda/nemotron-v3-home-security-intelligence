@@ -60,6 +60,19 @@ def mock_video_processor():
 
 
 @pytest.fixture
+def mock_transcoding_service():
+    """Create a mock TranscodingService for video streaming tests.
+
+    The mock returns the original path from get_or_transcode() to simulate
+    either a browser-compatible video or a successful cache hit.
+    """
+    mock_service = AsyncMock()
+    # By default, return the original path (no transcoding needed)
+    mock_service.get_or_transcode = AsyncMock(side_effect=lambda path: Path(path))
+    return mock_service
+
+
+@pytest.fixture
 def mock_response() -> MagicMock:
     """Create a mock Response object for deprecation header tests."""
     return MagicMock(spec=Response)
@@ -1621,7 +1634,7 @@ class TestStreamDetectionVideo:
     """Tests for stream_detection_video endpoint."""
 
     @pytest.mark.asyncio
-    async def test_stream_video_full_content(self, mock_db_session):
+    async def test_stream_video_full_content(self, mock_db_session, mock_transcoding_service):
         """Test streaming full video content."""
         detection = DetectionFactory(
             id=1,
@@ -1645,13 +1658,14 @@ class TestStreamDetectionVideo:
                         detection_id=1,
                         range_header=None,
                         db=mock_db_session,
+                        transcoding_service=mock_transcoding_service,
                     )
 
         assert response.status_code == 200
         assert response.media_type == "video/mp4"
 
     @pytest.mark.asyncio
-    async def test_stream_video_not_video_type(self, mock_db_session):
+    async def test_stream_video_not_video_type(self, mock_db_session, mock_transcoding_service):
         """Test streaming video when detection is not a video."""
         detection = DetectionFactory(
             id=1,
@@ -1665,13 +1679,17 @@ class TestStreamDetectionVideo:
             ),
             pytest.raises(HTTPException) as exc_info,
         ):
-            await stream_detection_video(detection_id=1, db=mock_db_session)
+            await stream_detection_video(
+                detection_id=1,
+                db=mock_db_session,
+                transcoding_service=mock_transcoding_service,
+            )
 
         assert exc_info.value.status_code == 400
         assert "not a video" in str(exc_info.value.detail).lower()
 
     @pytest.mark.asyncio
-    async def test_stream_video_file_not_found(self, mock_db_session):
+    async def test_stream_video_file_not_found(self, mock_db_session, mock_transcoding_service):
         """Test streaming video when file doesn't exist."""
         detection = DetectionFactory(
             id=1,
@@ -1687,12 +1705,16 @@ class TestStreamDetectionVideo:
             patch("os.path.exists", return_value=False),
             pytest.raises(HTTPException) as exc_info,
         ):
-            await stream_detection_video(detection_id=1, db=mock_db_session)
+            await stream_detection_video(
+                detection_id=1,
+                db=mock_db_session,
+                transcoding_service=mock_transcoding_service,
+            )
 
         assert exc_info.value.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_stream_video_with_range_request(self, mock_db_session):
+    async def test_stream_video_with_range_request(self, mock_db_session, mock_transcoding_service):
         """Test streaming video with range request."""
         detection = DetectionFactory(
             id=1,
@@ -1716,13 +1738,14 @@ class TestStreamDetectionVideo:
                     detection_id=1,
                     range_header="bytes=0-1023",
                     db=mock_db_session,
+                    transcoding_service=mock_transcoding_service,
                 )
 
         assert response.status_code == 206
         assert "Content-Range" in response.headers
 
     @pytest.mark.asyncio
-    async def test_stream_video_invalid_range(self, mock_db_session):
+    async def test_stream_video_invalid_range(self, mock_db_session, mock_transcoding_service):
         """Test streaming video with invalid range request."""
         detection = DetectionFactory(
             id=1,
@@ -1744,6 +1767,7 @@ class TestStreamDetectionVideo:
                     detection_id=1,
                     range_header="bytes=20000-30000",
                     db=mock_db_session,
+                    transcoding_service=mock_transcoding_service,
                 )
 
         assert exc_info.value.status_code == 416

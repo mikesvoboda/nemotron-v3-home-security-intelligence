@@ -203,7 +203,10 @@ function JobRow({ job, expanded, onToggle }: JobRowProps) {
 
       {/* Expanded Content */}
       {expanded && (
-        <div className="border-t border-gray-700 px-3 pb-3 pt-2" data-testid={`job-details-${job.id}`}>
+        <div
+          className="border-t border-gray-700 px-3 pb-3 pt-2"
+          data-testid={`job-details-${job.id}`}
+        >
           <div className="grid grid-cols-2 gap-2 text-xs">
             <div>
               <Text className="text-gray-500">Job ID:</Text>
@@ -295,7 +298,10 @@ export default function BackgroundJobsPanel({
       const now = new Date().toISOString();
 
       // Add detection queue jobs
-      if (telemetry?.queues?.detection_queue !== undefined && telemetry.queues.detection_queue > 0) {
+      if (
+        telemetry?.queues?.detection_queue !== undefined &&
+        telemetry.queues.detection_queue > 0
+      ) {
         newJobs.push({
           id: 'detection-queue',
           name: 'Detection Processing',
@@ -369,7 +375,14 @@ export default function BackgroundJobsPanel({
       if (readiness?.workers) {
         readiness.workers.forEach((worker: WorkerStatus) => {
           // Only show relevant workers as "jobs"
-          if (['detection_worker', 'analysis_worker', 'batch_timeout_worker', 'cleanup_service'].includes(worker.name)) {
+          if (
+            [
+              'detection_worker',
+              'analysis_worker',
+              'batch_timeout_worker',
+              'cleanup_service',
+            ].includes(worker.name)
+          ) {
             const workerType = worker.name.includes('detection')
               ? 'detection'
               : worker.name.includes('analysis')
@@ -471,7 +484,10 @@ export default function BackgroundJobsPanel({
   // Loading state
   if (loading) {
     return (
-      <Card className={clsx('border-gray-800 bg-[#1A1A1A] shadow-lg', className)} data-testid="background-jobs-panel-loading">
+      <Card
+        className={clsx('border-gray-800 bg-[#1A1A1A] shadow-lg', className)}
+        data-testid="background-jobs-panel-loading"
+      >
         <Title className="mb-4 flex items-center gap-2 text-white">
           <Layers className="h-5 w-5 text-[#76B900]" />
           Background Jobs
@@ -488,7 +504,10 @@ export default function BackgroundJobsPanel({
   // Error state
   if (error && jobs.length === 0) {
     return (
-      <Card className={clsx('border-gray-800 bg-[#1A1A1A] shadow-lg', className)} data-testid="background-jobs-panel-error">
+      <Card
+        className={clsx('border-gray-800 bg-[#1A1A1A] shadow-lg', className)}
+        data-testid="background-jobs-panel-error"
+      >
         <Title className="mb-4 flex items-center gap-2 text-white">
           <Layers className="h-5 w-5 text-[#76B900]" />
           Background Jobs

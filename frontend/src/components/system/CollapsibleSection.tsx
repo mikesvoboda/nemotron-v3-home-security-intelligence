@@ -105,7 +105,10 @@ export default function CollapsibleSection({
               leaveFrom="transform opacity-100 translate-y-0"
               leaveTo="transform opacity-0 -translate-y-2"
             >
-              <Disclosure.Panel static className="bg-[#1A1A1A] p-4 rounded-b-lg border-t border-gray-800">
+              <Disclosure.Panel
+                static
+                className="rounded-b-lg border-t border-gray-800 bg-[#1A1A1A] p-4"
+              >
                 {children}
               </Disclosure.Panel>
             </Transition>

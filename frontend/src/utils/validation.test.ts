@@ -719,13 +719,16 @@ describe('Event ID Validation', () => {
     });
 
     it('should reject SQL injection attempts', () => {
-      expect(parseEventId("1; DROP TABLE events;")).toEqual({ eventId: null, isValid: false });
+      expect(parseEventId('1; DROP TABLE events;')).toEqual({ eventId: null, isValid: false });
       expect(parseEventId("1' OR '1'='1")).toEqual({ eventId: null, isValid: false });
     });
 
     it('should reject XSS attempts', () => {
       expect(parseEventId('<script>alert(1)</script>')).toEqual({ eventId: null, isValid: false });
-      expect(parseEventId('1<img src=x onerror=alert(1)>')).toEqual({ eventId: null, isValid: false });
+      expect(parseEventId('1<img src=x onerror=alert(1)>')).toEqual({
+        eventId: null,
+        isValid: false,
+      });
     });
 
     it('should reject path traversal attempts', () => {

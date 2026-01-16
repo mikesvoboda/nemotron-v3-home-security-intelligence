@@ -166,7 +166,9 @@ export function compose<A, B, C, D, E, F, G>(
   fn2: UnaryFunction<B, C>,
   fn1: UnaryFunction<A, B>
 ): UnaryFunction<A, G>;
-export function compose(...fns: UnaryFunction<unknown, unknown>[]): UnaryFunction<unknown, unknown> {
+export function compose(
+  ...fns: UnaryFunction<unknown, unknown>[]
+): UnaryFunction<unknown, unknown> {
   return (arg: unknown) => fns.reduceRight((acc, fn) => fn(acc), arg);
 }
 
@@ -202,7 +204,9 @@ export function compose(...fns: UnaryFunction<unknown, unknown>[]): UnaryFunctio
  * numbers.map(multiply(2)); // [2, 4, 6]
  * ```
  */
-export function curry<A, B, R>(fn: (a: A, b: B) => R): {
+export function curry<A, B, R>(
+  fn: (a: A, b: B) => R
+): {
   (a: A): (b: B) => R;
   (a: A, b: B): R;
 } {
@@ -247,7 +251,9 @@ export function curry<A, B, R>(fn: (a: A, b: B) => R): {
  * sanitize('script>'); // 'script>'
  * ```
  */
-export function curry3<A, B, C, R>(fn: (a: A, b: B, c: C) => R): {
+export function curry3<A, B, C, R>(
+  fn: (a: A, b: B, c: C) => R
+): {
   (a: A): {
     (b: B): (c: C) => R;
     (b: B, c: C): R;

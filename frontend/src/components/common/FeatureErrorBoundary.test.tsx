@@ -102,10 +102,7 @@ describe('FeatureErrorBoundary', () => {
   describe('custom fallback', () => {
     it('displays custom fallback when provided', () => {
       render(
-        <FeatureErrorBoundary
-          feature="Test Feature"
-          fallback={<div>Custom fallback UI</div>}
-        >
+        <FeatureErrorBoundary feature="Test Feature" fallback={<div>Custom fallback UI</div>}>
           <ThrowingComponent />
         </FeatureErrorBoundary>
       );

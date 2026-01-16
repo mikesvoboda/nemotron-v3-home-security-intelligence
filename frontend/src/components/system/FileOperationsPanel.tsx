@@ -185,9 +185,7 @@ function ExportJobRow({ job }: ExportJobRowProps) {
           </Badge>
         </div>
       </div>
-      {job.message && (
-        <Text className="mt-2 text-xs text-gray-400">{job.message}</Text>
-      )}
+      {job.message && <Text className="mt-2 text-xs text-gray-400">{job.message}</Text>}
       {job.error && (
         <div className="mt-2 rounded border border-red-500/30 bg-red-500/10 p-2">
           <Text className="text-xs text-red-400">{job.error}</Text>
@@ -224,7 +222,12 @@ function CleanupSummary({ cleanupStatus }: CleanupSummaryProps) {
             )}
             <Text className="text-gray-400">Status:</Text>
           </div>
-          <Text className={clsx('font-medium', cleanupStatus.running ? 'text-green-400' : 'text-gray-400')}>
+          <Text
+            className={clsx(
+              'font-medium',
+              cleanupStatus.running ? 'text-green-400' : 'text-gray-400'
+            )}
+          >
             {cleanupStatus.running ? 'Running' : 'Stopped'}
           </Text>
         </div>
@@ -264,7 +267,11 @@ interface OrphanedFilesWarningProps {
   isLoading: boolean;
 }
 
-function OrphanedFilesWarning({ orphanedPreview, onCleanOrphaned, isLoading }: OrphanedFilesWarningProps) {
+function OrphanedFilesWarning({
+  orphanedPreview,
+  onCleanOrphaned,
+  isLoading,
+}: OrphanedFilesWarningProps) {
   if (!orphanedPreview || orphanedPreview.orphaned_count === 0) {
     return null;
   }
@@ -282,7 +289,8 @@ function OrphanedFilesWarning({ orphanedPreview, onCleanOrphaned, isLoading }: O
               {formatNumber(orphanedPreview.orphaned_count)} Orphaned Files Found
             </Text>
             <Text className="text-xs text-amber-300/70">
-              {orphanedPreview.total_size_formatted ?? formatBytes(orphanedPreview.total_size)} can be reclaimed
+              {orphanedPreview.total_size_formatted ?? formatBytes(orphanedPreview.total_size)} can
+              be reclaimed
             </Text>
             <Text className="mt-1 text-xs text-gray-400">
               These files exist on disk but are not referenced in the database.
@@ -314,7 +322,12 @@ interface CleanupPreviewModalProps {
   isExecuting: boolean;
 }
 
-function CleanupPreviewModal({ preview, onConfirm, onCancel, isExecuting }: CleanupPreviewModalProps) {
+function CleanupPreviewModal({
+  preview,
+  onConfirm,
+  onCancel,
+  isExecuting,
+}: CleanupPreviewModalProps) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
@@ -333,43 +346,51 @@ function CleanupPreviewModal({ preview, onConfirm, onCancel, isExecuting }: Clea
         <div className="mb-4 space-y-2">
           <div className="flex justify-between">
             <Text className="text-sm text-gray-300">Events:</Text>
-            <Text className="text-sm font-medium text-white">{formatNumber(preview.events_deleted)} events</Text>
+            <Text className="text-sm font-medium text-white">
+              {formatNumber(preview.events_deleted)} events
+            </Text>
           </div>
           <div className="flex justify-between">
             <Text className="text-sm text-gray-300">Detections:</Text>
-            <Text className="text-sm font-medium text-white">{formatNumber(preview.detections_deleted)} detections</Text>
+            <Text className="text-sm font-medium text-white">
+              {formatNumber(preview.detections_deleted)} detections
+            </Text>
           </div>
           <div className="flex justify-between">
             <Text className="text-sm text-gray-300">GPU Stats:</Text>
-            <Text className="text-sm font-medium text-white">{formatNumber(preview.gpu_stats_deleted)}</Text>
+            <Text className="text-sm font-medium text-white">
+              {formatNumber(preview.gpu_stats_deleted)}
+            </Text>
           </div>
           <div className="flex justify-between">
             <Text className="text-sm text-gray-300">Logs:</Text>
-            <Text className="text-sm font-medium text-white">{formatNumber(preview.logs_deleted)}</Text>
+            <Text className="text-sm font-medium text-white">
+              {formatNumber(preview.logs_deleted)}
+            </Text>
           </div>
           <div className="flex justify-between">
             <Text className="text-sm text-gray-300">Thumbnails:</Text>
-            <Text className="text-sm font-medium text-white">{formatNumber(preview.thumbnails_deleted)} files</Text>
+            <Text className="text-sm font-medium text-white">
+              {formatNumber(preview.thumbnails_deleted)} files
+            </Text>
           </div>
           {preview.space_reclaimed > 0 && (
             <div className="mt-2 flex justify-between border-t border-gray-700 pt-2">
               <Text className="text-sm font-medium text-gray-300">Space to reclaim:</Text>
-              <Text className="text-sm font-medium text-[#76B900]">{formatBytes(preview.space_reclaimed)}</Text>
+              <Text className="text-sm font-medium text-[#76B900]">
+                {formatBytes(preview.space_reclaimed)}
+              </Text>
             </div>
           )}
         </div>
 
         <Text className="mb-4 text-xs text-amber-500">
-          This action cannot be undone. Data older than {preview.retention_days} days will be deleted.
+          This action cannot be undone. Data older than {preview.retention_days} days will be
+          deleted.
         </Text>
 
         <div className="flex gap-3">
-          <Button
-            variant="secondary"
-            onClick={onCancel}
-            disabled={isExecuting}
-            className="flex-1"
-          >
+          <Button variant="secondary" onClick={onCancel} disabled={isExecuting} className="flex-1">
             Cancel
           </Button>
           <Button
@@ -433,7 +454,10 @@ export default function FileOperationsPanel({
     try {
       const [storageData, jobsData, cleanupStatusData, orphanedData] = await Promise.all([
         fetchStorageStats(),
-        fetchJobs().catch(() => ({ items: [], pagination: { total: 0, offset: 0, limit: 50, has_more: false } })),
+        fetchJobs().catch(() => ({
+          items: [],
+          pagination: { total: 0, offset: 0, limit: 50, has_more: false },
+        })),
         fetchCleanupStatus().catch(() => null),
         previewOrphanedFiles().catch(() => null),
       ]);
@@ -527,13 +551,18 @@ export default function FileOperationsPanel({
 
   // Filter export jobs
   const exportJobs = jobs?.items.filter((job) => job.job_type === 'export') || [];
-  const activeExports = exportJobs.filter((job) => job.status === 'running' || job.status === 'pending');
+  const activeExports = exportJobs.filter(
+    (job) => job.status === 'running' || job.status === 'pending'
+  );
   const hasActiveExports = activeExports.length > 0;
 
   // Loading state
   if (loading) {
     return (
-      <Card className={clsx('border-gray-800 bg-[#1A1A1A] shadow-lg', className)} data-testid="file-operations-panel-loading">
+      <Card
+        className={clsx('border-gray-800 bg-[#1A1A1A] shadow-lg', className)}
+        data-testid="file-operations-panel-loading"
+      >
         <Title className="mb-4 flex items-center gap-2 text-white">
           <HardDrive className="h-5 w-5 text-[#76B900]" />
           File Operations
@@ -550,7 +579,10 @@ export default function FileOperationsPanel({
   // Error state
   if (error && !storageStats) {
     return (
-      <Card className={clsx('border-gray-800 bg-[#1A1A1A] shadow-lg', className)} data-testid="file-operations-panel-error">
+      <Card
+        className={clsx('border-gray-800 bg-[#1A1A1A] shadow-lg', className)}
+        data-testid="file-operations-panel-error"
+      >
         <Title className="mb-4 flex items-center gap-2 text-white">
           <HardDrive className="h-5 w-5 text-[#76B900]" />
           File Operations
@@ -590,18 +622,13 @@ export default function FileOperationsPanel({
           <Title className="flex items-center gap-2 text-white">
             <HardDrive className="h-5 w-5 text-[#76B900]" />
             File Operations
-            {isHighDiskUsage && (
-              <AlertTriangle className="h-4 w-4 text-amber-500" />
-            )}
+            {isHighDiskUsage && <AlertTriangle className="h-4 w-4 text-amber-500" />}
           </Title>
 
           <div className="flex items-center gap-2">
             {/* Summary Badge */}
             {storageStats && (
-              <Badge
-                color={isHighDiskUsage ? 'yellow' : 'emerald'}
-                size="sm"
-              >
+              <Badge color={isHighDiskUsage ? 'yellow' : 'emerald'} size="sm">
                 {storageStats.disk_usage_percent.toFixed(1)}% Used
               </Badge>
             )}
@@ -634,7 +661,8 @@ export default function FileOperationsPanel({
                 <div className="mb-2 flex items-center justify-between">
                   <Text className="text-sm text-gray-400">Disk Usage</Text>
                   <Text className="text-sm font-medium text-white">
-                    {formatBytes(storageStats.disk_used_bytes)} / {formatBytes(storageStats.disk_total_bytes)}
+                    {formatBytes(storageStats.disk_used_bytes)} /{' '}
+                    {formatBytes(storageStats.disk_total_bytes)}
                   </Text>
                 </div>
                 <ProgressBar
@@ -646,7 +674,12 @@ export default function FileOperationsPanel({
                   <Text className="text-xs text-gray-500">
                     {formatBytes(storageStats.disk_free_bytes)} free
                   </Text>
-                  <Text className={clsx('text-xs', isHighDiskUsage ? 'text-amber-500' : 'text-gray-500')}>
+                  <Text
+                    className={clsx(
+                      'text-xs',
+                      isHighDiskUsage ? 'text-amber-500' : 'text-gray-500'
+                    )}
+                  >
                     {storageStats.disk_usage_percent.toFixed(1)}%
                   </Text>
                 </div>
@@ -701,19 +734,27 @@ export default function FileOperationsPanel({
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <div className="flex justify-between">
                     <Text className="text-gray-400">Events:</Text>
-                    <Text className="font-medium text-white">{formatNumber(storageStats.events_count)}</Text>
+                    <Text className="font-medium text-white">
+                      {formatNumber(storageStats.events_count)}
+                    </Text>
                   </div>
                   <div className="flex justify-between">
                     <Text className="text-gray-400">Detections:</Text>
-                    <Text className="font-medium text-white">{formatNumber(storageStats.detections_count)}</Text>
+                    <Text className="font-medium text-white">
+                      {formatNumber(storageStats.detections_count)}
+                    </Text>
                   </div>
                   <div className="flex justify-between">
                     <Text className="text-gray-400">GPU Stats:</Text>
-                    <Text className="font-medium text-white">{formatNumber(storageStats.gpu_stats_count)}</Text>
+                    <Text className="font-medium text-white">
+                      {formatNumber(storageStats.gpu_stats_count)}
+                    </Text>
                   </div>
                   <div className="flex justify-between">
                     <Text className="text-gray-400">Logs:</Text>
-                    <Text className="font-medium text-white">{formatNumber(storageStats.logs_count)}</Text>
+                    <Text className="font-medium text-white">
+                      {formatNumber(storageStats.logs_count)}
+                    </Text>
                   </div>
                 </div>
               </div>
@@ -776,12 +817,7 @@ export default function FileOperationsPanel({
               >
                 {isLoadingCleanup ? 'Loading...' : 'Run Cleanup'}
               </Button>
-              <Button
-                size="xs"
-                variant="secondary"
-                icon={Download}
-                disabled={hasActiveExports}
-              >
+              <Button size="xs" variant="secondary" icon={Download} disabled={hasActiveExports}>
                 Export Data
               </Button>
             </div>

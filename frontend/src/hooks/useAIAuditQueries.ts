@@ -634,7 +634,14 @@ export interface UseAIAuditPromptHistoryQueryReturn {
 export function useAIAuditPromptHistoryQuery(
   options: UseAIAuditPromptHistoryQueryOptions = {}
 ): UseAIAuditPromptHistoryQueryReturn {
-  const { model, limit = 50, offset, cursor, enabled = true, staleTime = STATIC_STALE_TIME } = options;
+  const {
+    model,
+    limit = 50,
+    offset,
+    cursor,
+    enabled = true,
+    staleTime = STATIC_STALE_TIME,
+  } = options;
 
   const query = useQuery({
     queryKey: queryKeys.ai.prompts.history(model),

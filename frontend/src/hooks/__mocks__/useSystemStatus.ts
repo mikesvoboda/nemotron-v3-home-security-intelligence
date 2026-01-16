@@ -117,7 +117,9 @@ export function createMockSystemStatus(options: MockSystemStatusOptions = {}): S
  * @param options - Additional options to override
  * @returns A mock SystemStatus in healthy state
  */
-export function createHealthySystemStatus(options: Partial<MockSystemStatusOptions> = {}): SystemStatus {
+export function createHealthySystemStatus(
+  options: Partial<MockSystemStatusOptions> = {}
+): SystemStatus {
   return createMockSystemStatus({
     health: 'healthy',
     gpu_utilization: 45,
@@ -133,7 +135,9 @@ export function createHealthySystemStatus(options: Partial<MockSystemStatusOptio
  * @param options - Additional options to override
  * @returns A mock SystemStatus in degraded state
  */
-export function createDegradedSystemStatus(options: Partial<MockSystemStatusOptions> = {}): SystemStatus {
+export function createDegradedSystemStatus(
+  options: Partial<MockSystemStatusOptions> = {}
+): SystemStatus {
   return createMockSystemStatus({
     health: 'degraded',
     gpu_utilization: 85,
@@ -149,7 +153,9 @@ export function createDegradedSystemStatus(options: Partial<MockSystemStatusOpti
  * @param options - Additional options to override
  * @returns A mock SystemStatus in unhealthy state
  */
-export function createUnhealthySystemStatus(options: Partial<MockSystemStatusOptions> = {}): SystemStatus {
+export function createUnhealthySystemStatus(
+  options: Partial<MockSystemStatusOptions> = {}
+): SystemStatus {
   return createMockSystemStatus({
     health: 'unhealthy',
     gpu_utilization: 98,
@@ -166,7 +172,9 @@ export function createUnhealthySystemStatus(options: Partial<MockSystemStatusOpt
  * @param options - Additional options to override
  * @returns A mock SystemStatus with high GPU temperature
  */
-export function createOverheatingSystemStatus(options: Partial<MockSystemStatusOptions> = {}): SystemStatus {
+export function createOverheatingSystemStatus(
+  options: Partial<MockSystemStatusOptions> = {}
+): SystemStatus {
   return createMockSystemStatus({
     health: 'degraded',
     gpu_temperature: 90,
@@ -182,7 +190,9 @@ export function createOverheatingSystemStatus(options: Partial<MockSystemStatusO
  * @param options - Additional options to override
  * @returns A mock SystemStatus with low GPU memory
  */
-export function createLowMemorySystemStatus(options: Partial<MockSystemStatusOptions> = {}): SystemStatus {
+export function createLowMemorySystemStatus(
+  options: Partial<MockSystemStatusOptions> = {}
+): SystemStatus {
   return createMockSystemStatus({
     health: 'degraded',
     gpu_memory_used: 23622320128, // ~22GB
@@ -198,7 +208,9 @@ export function createLowMemorySystemStatus(options: Partial<MockSystemStatusOpt
  * @param options - Additional options to override
  * @returns A mock SystemStatus with null GPU metrics
  */
-export function createNoGpuSystemStatus(options: Partial<MockSystemStatusOptions> = {}): SystemStatus {
+export function createNoGpuSystemStatus(
+  options: Partial<MockSystemStatusOptions> = {}
+): SystemStatus {
   return createMockSystemStatus({
     health: 'degraded',
     gpu_utilization: null,
@@ -303,8 +315,8 @@ export function createDisconnectedSystemStatus(): UseSystemStatusReturn {
  * });
  * ```
  */
-export const mockUseSystemStatus = vi.fn((): UseSystemStatusReturn =>
-  createMockSystemStatusReturn()
+export const mockUseSystemStatus = vi.fn(
+  (): UseSystemStatusReturn => createMockSystemStatusReturn()
 );
 
 // =============================================================================

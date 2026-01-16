@@ -1,12 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useMemo,
-  useState,
-  type ReactNode,
-} from 'react';
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 
 export interface EndpointRateLimitInfo {
   limit: number;
@@ -45,20 +38,14 @@ export interface RateLimitProviderProps {
 export function RateLimitProvider({ children }: RateLimitProviderProps) {
   const [rateLimits, setRateLimits] = useState<RateLimitState>({});
 
-  const updateRateLimit = useCallback(
-    (endpoint: string, info: RateLimitUpdateInput) => {
-      setRateLimits((prev) => ({
-        ...prev,
-        [endpoint]: { ...info, isLimited: info.remaining === 0 },
-      }));
-    },
-    []
-  );
+  const updateRateLimit = useCallback((endpoint: string, info: RateLimitUpdateInput) => {
+    setRateLimits((prev) => ({
+      ...prev,
+      [endpoint]: { ...info, isLimited: info.remaining === 0 },
+    }));
+  }, []);
 
-  const getRateLimit = useCallback(
-    (endpoint: string) => rateLimits[endpoint],
-    [rateLimits]
-  );
+  const getRateLimit = useCallback((endpoint: string) => rateLimits[endpoint], [rateLimits]);
 
   const clearRateLimit = useCallback((endpoint: string) => {
     setRateLimits((prev) => {
@@ -112,19 +99,13 @@ export function RateLimitProvider({ children }: RateLimitProviderProps) {
     ]
   );
 
-  return (
-    <RateLimitContext.Provider value={contextValue}>
-      {children}
-    </RateLimitContext.Provider>
-  );
+  return <RateLimitContext.Provider value={contextValue}>{children}</RateLimitContext.Provider>;
 }
 
 export function useRateLimitContext(): RateLimitContextType {
   const context = useContext(RateLimitContext);
   if (!context) {
-    throw new Error(
-      'useRateLimitContext must be used within a RateLimitProvider'
-    );
+    throw new Error('useRateLimitContext must be used within a RateLimitProvider');
   }
   return context;
 }

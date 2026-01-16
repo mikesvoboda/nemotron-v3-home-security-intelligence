@@ -32,8 +32,12 @@ from backend.api.schemas.entities import (
     EntityMatchResponse,
     EntityStatsResponse,
     EntitySummary,
+    EntityTrustResponse,
+    EntityTrustUpdate,
     EntityTypeFilter,
     SourceFilter,
+    TrustedEntityListResponse,
+    TrustStatus,
 )
 from backend.api.schemas.logs import PaginationInfo
 from backend.core.dependencies import get_entity_repository, get_hybrid_entity_storage
@@ -244,6 +248,218 @@ async def get_entity_stats(
         repeat_visitors=repeat_visitors,
         time_range=time_range,
     )
+
+
+# =============================================================================
+# Entity Trust Classification API (NEM-2671)
+# =============================================================================
+
+
+def _entity_to_trust_response(entity: Entity) -> EntityTrustResponse:
+    """Convert an Entity model to EntityTrustResponse.
+
+    Args:
+        entity: Entity model instance from PostgreSQL
+
+    Returns:
+        EntityTrustResponse with trust information
+    """
+    from datetime import datetime as dt
+
+    # Extract trust fields from entity_metadata
+    trust_status_str = "unclassified"
+    trust_notes = None
+    trust_updated_at = None
+
+    if entity.entity_metadata:
+        trust_status_str = entity.entity_metadata.get("trust_status", "unclassified")
+        trust_notes = entity.entity_metadata.get("trust_notes")
+        trust_updated_at_str = entity.entity_metadata.get("trust_updated_at")
+        if trust_updated_at_str:
+            try:
+                trust_updated_at = dt.fromisoformat(trust_updated_at_str)
+            except (ValueError, TypeError):
+                pass
+
+    # Convert trust status string to enum
+    try:
+        trust_status = TrustStatus(trust_status_str)
+    except ValueError:
+        trust_status = TrustStatus.UNCLASSIFIED
+
+    thumbnail_url = None
+    if entity.primary_detection_id:
+        thumbnail_url = _get_thumbnail_url(str(entity.primary_detection_id))
+
+    return EntityTrustResponse(
+        id=str(entity.id),
+        entity_type=entity.entity_type,
+        trust_status=trust_status,
+        trust_notes=trust_notes,
+        trust_updated_at=trust_updated_at,
+        first_seen=entity.first_seen_at,
+        last_seen=entity.last_seen_at,
+        appearance_count=entity.detection_count,
+        thumbnail_url=thumbnail_url,
+    )
+
+
+@router.get(
+    "/trusted",
+    response_model=TrustedEntityListResponse,
+    responses={
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def list_trusted_entities(
+    entity_type: EntityTypeFilter | None = Query(
+        None, description="Filter by entity type: 'person' or 'vehicle'"
+    ),
+    limit: int = Query(50, ge=1, le=1000, description="Maximum number of results"),
+    offset: int = Query(0, ge=0, description="Number of results to skip"),
+    entity_repo: EntityRepository = Depends(get_entity_repository),
+) -> TrustedEntityListResponse:
+    """List all trusted entities.
+
+    Returns a paginated list of entities that have been marked as trusted.
+    Trusted entities are those that have been classified as known/safe,
+    such as family members, regular visitors, or delivery personnel.
+
+    Args:
+        entity_type: Filter by entity type ('person' or 'vehicle')
+        limit: Maximum number of results (1-1000, default 50)
+        offset: Number of results to skip for pagination (default 0)
+        entity_repo: Entity repository dependency for PostgreSQL queries
+
+    Returns:
+        TrustedEntityListResponse with filtered trusted entities and pagination info
+    """
+    entity_type_str = entity_type.value if entity_type else None
+
+    entities, total_count = await entity_repo.list_by_trust_status(
+        trust_status="trusted",
+        entity_type=entity_type_str,
+        limit=limit,
+        offset=offset,
+    )
+
+    # Convert Entity models to EntityTrustResponse
+    items = [_entity_to_trust_response(entity) for entity in entities]
+
+    has_more = (offset + limit) < total_count
+
+    return TrustedEntityListResponse(
+        items=items,
+        pagination=PaginationInfo(
+            total=total_count,
+            limit=limit,
+            offset=offset,
+            has_more=has_more,
+        ),
+    )
+
+
+@router.get(
+    "/untrusted",
+    response_model=TrustedEntityListResponse,
+    responses={
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def list_untrusted_entities(
+    entity_type: EntityTypeFilter | None = Query(
+        None, description="Filter by entity type: 'person' or 'vehicle'"
+    ),
+    limit: int = Query(50, ge=1, le=1000, description="Maximum number of results"),
+    offset: int = Query(0, ge=0, description="Number of results to skip"),
+    entity_repo: EntityRepository = Depends(get_entity_repository),
+) -> TrustedEntityListResponse:
+    """List all untrusted entities.
+
+    Returns a paginated list of entities that have been marked as untrusted.
+    Untrusted entities are those that have been classified as unknown or suspicious,
+    requiring additional monitoring.
+
+    Args:
+        entity_type: Filter by entity type ('person' or 'vehicle')
+        limit: Maximum number of results (1-1000, default 50)
+        offset: Number of results to skip for pagination (default 0)
+        entity_repo: Entity repository dependency for PostgreSQL queries
+
+    Returns:
+        TrustedEntityListResponse with filtered untrusted entities and pagination info
+    """
+    entity_type_str = entity_type.value if entity_type else None
+
+    entities, total_count = await entity_repo.list_by_trust_status(
+        trust_status="untrusted",
+        entity_type=entity_type_str,
+        limit=limit,
+        offset=offset,
+    )
+
+    # Convert Entity models to EntityTrustResponse
+    items = [_entity_to_trust_response(entity) for entity in entities]
+
+    has_more = (offset + limit) < total_count
+
+    return TrustedEntityListResponse(
+        items=items,
+        pagination=PaginationInfo(
+            total=total_count,
+            limit=limit,
+            offset=offset,
+            has_more=has_more,
+        ),
+    )
+
+
+@router.patch(
+    "/{entity_id}/trust",
+    response_model=EntityTrustResponse,
+    responses={
+        404: {"description": "Entity not found"},
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def update_entity_trust(
+    entity_id: UUID,
+    trust_update: EntityTrustUpdate,
+    entity_repo: EntityRepository = Depends(get_entity_repository),
+) -> EntityTrustResponse:
+    """Update an entity's trust classification status.
+
+    Allows marking entities as trusted (known/safe), untrusted (suspicious),
+    or unclassified (default). Includes optional notes for documenting
+    the classification decision.
+
+    Args:
+        entity_id: UUID of the entity to update
+        trust_update: Trust status update request containing trust_status and optional notes
+        entity_repo: Entity repository dependency for PostgreSQL queries
+
+    Returns:
+        EntityTrustResponse with updated trust information
+
+    Raises:
+        HTTPException: 404 if entity not found
+    """
+    entity = await entity_repo.update_trust_status(
+        entity_id=entity_id,
+        trust_status=trust_update.trust_status.value,
+        trust_notes=trust_update.notes,
+    )
+
+    if entity is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Entity with id '{entity_id}' not found",
+        )
+
+    return _entity_to_trust_response(entity)
 
 
 @router.get(
@@ -510,10 +726,15 @@ def _entity_model_to_summary(entity: Entity) -> EntitySummary:
     Returns:
         EntitySummary with entity information
     """
-    # Extract camera_id from entity_metadata if available
+    # Extract cameras from entity_metadata if available
     cameras_seen = []
-    if entity.entity_metadata and "camera_id" in entity.entity_metadata:
-        cameras_seen = [entity.entity_metadata["camera_id"]]
+    if entity.entity_metadata:
+        if "cameras_seen" in entity.entity_metadata:
+            # Use cameras_seen list if available (preferred)
+            cameras_seen = entity.entity_metadata["cameras_seen"]
+        elif "camera_id" in entity.entity_metadata:
+            # Fall back to single camera_id for backward compatibility
+            cameras_seen = [entity.entity_metadata["camera_id"]]
 
     thumbnail_url = None
     if entity.primary_detection_id:
@@ -776,8 +997,13 @@ async def get_entity_by_uuid(
 
     # Extract cameras from metadata
     cameras_seen = []
-    if entity.entity_metadata and "camera_id" in entity.entity_metadata:
-        cameras_seen = [entity.entity_metadata["camera_id"]]
+    if entity.entity_metadata:
+        if "cameras_seen" in entity.entity_metadata:
+            # Use cameras_seen list if available (preferred)
+            cameras_seen = entity.entity_metadata["cameras_seen"]
+        elif "camera_id" in entity.entity_metadata:
+            # Fall back to single camera_id for backward compatibility
+            cameras_seen = [entity.entity_metadata["camera_id"]]
 
     thumbnail_url = None
     if entity.primary_detection_id:

@@ -298,7 +298,9 @@ function PostgreSQLDetails({ data }: { data: PostgreSQLDetails }) {
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <Text className="text-sm text-gray-400">Pool usage:</Text>
-        <Text className="text-sm text-gray-200">{data.pool_active}/{data.pool_max} active</Text>
+        <Text className="text-sm text-gray-200">
+          {data.pool_active}/{data.pool_max} active
+        </Text>
       </div>
       <ProgressBar value={poolPercent} color={getProgressColor(poolPercent)} className="h-1.5" />
 
@@ -380,7 +382,9 @@ function ContainersDetailsPanel({ data }: { data: ContainerDetails }) {
             <span className="text-right">{container.cpu_percent}%</span>
             <span className="text-right">{container.memory_mb}MB</span>
             <span className="text-right">
-              {container.restart_count > 0 ? `${container.restart_count} restart${container.restart_count > 1 ? 's' : ''}` : '0'}
+              {container.restart_count > 0
+                ? `${container.restart_count} restart${container.restart_count > 1 ? 's' : ''}`
+                : '0'}
             </span>
           </div>
         );
@@ -622,10 +626,7 @@ export default function InfrastructureStatusGrid({
   };
 
   return (
-    <div
-      className={clsx('space-y-0', className)}
-      data-testid="infrastructure-status-grid"
-    >
+    <div className={clsx('space-y-0', className)} data-testid="infrastructure-status-grid">
       {/* Status Cards Grid */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {cards.map((card) => (

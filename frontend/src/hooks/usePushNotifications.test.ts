@@ -19,19 +19,22 @@ describe('usePushNotifications', () => {
     mockPermission = 'default';
 
     // Mock Notification constructor
-    vi.stubGlobal('Notification', class MockNotification {
-      static permission = mockPermission;
-      static requestPermission = vi.fn().mockImplementation(() => {
-        mockPermission = 'granted';
-        MockNotification.permission = 'granted';
-        return Promise.resolve('granted');
-      });
-      constructor(title: string, options?: NotificationOptions) {
-        mockNotification(title, options);
+    vi.stubGlobal(
+      'Notification',
+      class MockNotification {
+        static permission = mockPermission;
+        static requestPermission = vi.fn().mockImplementation(() => {
+          mockPermission = 'granted';
+          MockNotification.permission = 'granted';
+          return Promise.resolve('granted');
+        });
+        constructor(title: string, options?: NotificationOptions) {
+          mockNotification(title, options);
+        }
+        onclick: (() => void) | null = null;
+        close = vi.fn();
       }
-      onclick: (() => void) | null = null;
-      close = vi.fn();
-    });
+    );
 
     // Mock service worker
     vi.stubGlobal('navigator', {
@@ -88,14 +91,19 @@ describe('usePushNotifications', () => {
 
   it('handles denied permission', async () => {
     // Mock denied permission
-    vi.stubGlobal('Notification', class MockNotification {
-      static permission = 'default' as NotificationPermission;
-      static requestPermission = vi.fn().mockImplementation(() => {
-        MockNotification.permission = 'denied';
-        return Promise.resolve('denied');
-      });
-      constructor() { /* empty */ }
-    });
+    vi.stubGlobal(
+      'Notification',
+      class MockNotification {
+        static permission = 'default' as NotificationPermission;
+        static requestPermission = vi.fn().mockImplementation(() => {
+          MockNotification.permission = 'denied';
+          return Promise.resolve('denied');
+        });
+        constructor() {
+          /* empty */
+        }
+      }
+    );
 
     const { result } = renderHook(() => usePushNotifications());
 
@@ -110,15 +118,18 @@ describe('usePushNotifications', () => {
 
   it('shows a notification when permission is granted', async () => {
     // Set permission to granted
-    vi.stubGlobal('Notification', class MockNotification {
-      static permission = 'granted' as NotificationPermission;
-      static requestPermission = vi.fn().mockResolvedValue('granted');
-      constructor(title: string, options?: NotificationOptions) {
-        mockNotification(title, options);
+    vi.stubGlobal(
+      'Notification',
+      class MockNotification {
+        static permission = 'granted' as NotificationPermission;
+        static requestPermission = vi.fn().mockResolvedValue('granted');
+        constructor(title: string, options?: NotificationOptions) {
+          mockNotification(title, options);
+        }
+        onclick: (() => void) | null = null;
+        close = vi.fn();
       }
-      onclick: (() => void) | null = null;
-      close = vi.fn();
-    });
+    );
 
     const { result } = renderHook(() => usePushNotifications());
 
@@ -137,15 +148,18 @@ describe('usePushNotifications', () => {
 
   it('does not show notification when permission is denied', async () => {
     // Set permission to denied
-    vi.stubGlobal('Notification', class MockNotification {
-      static permission = 'denied' as NotificationPermission;
-      static requestPermission = vi.fn().mockResolvedValue('denied');
-      constructor(title: string, options?: NotificationOptions) {
-        mockNotification(title, options);
+    vi.stubGlobal(
+      'Notification',
+      class MockNotification {
+        static permission = 'denied' as NotificationPermission;
+        static requestPermission = vi.fn().mockResolvedValue('denied');
+        constructor(title: string, options?: NotificationOptions) {
+          mockNotification(title, options);
+        }
+        onclick: (() => void) | null = null;
+        close = vi.fn();
       }
-      onclick: (() => void) | null = null;
-      close = vi.fn();
-    });
+    );
 
     const { result } = renderHook(() => usePushNotifications());
 
@@ -165,11 +179,16 @@ describe('usePushNotifications', () => {
     expect(result.current.hasPermission).toBe(false);
 
     // Mock granted permission
-    vi.stubGlobal('Notification', class MockNotification {
-      static permission = 'granted' as NotificationPermission;
-      static requestPermission = vi.fn().mockResolvedValue('granted');
-      constructor() { /* empty */ }
-    });
+    vi.stubGlobal(
+      'Notification',
+      class MockNotification {
+        static permission = 'granted' as NotificationPermission;
+        static requestPermission = vi.fn().mockResolvedValue('granted');
+        constructor() {
+          /* empty */
+        }
+      }
+    );
 
     // Re-render with new permission
     const { result: newResult } = renderHook(() => usePushNotifications());
@@ -184,21 +203,31 @@ describe('usePushNotifications', () => {
     expect(result.current.hasInteracted).toBe(false);
 
     // Mock granted permission (user has interacted)
-    vi.stubGlobal('Notification', class MockNotification {
-      static permission = 'granted' as NotificationPermission;
-      static requestPermission = vi.fn().mockResolvedValue('granted');
-      constructor() { /* empty */ }
-    });
+    vi.stubGlobal(
+      'Notification',
+      class MockNotification {
+        static permission = 'granted' as NotificationPermission;
+        static requestPermission = vi.fn().mockResolvedValue('granted');
+        constructor() {
+          /* empty */
+        }
+      }
+    );
 
     const { result: grantedResult } = renderHook(() => usePushNotifications());
     expect(grantedResult.current.hasInteracted).toBe(true);
 
     // Mock denied permission (user has interacted)
-    vi.stubGlobal('Notification', class MockNotification {
-      static permission = 'denied' as NotificationPermission;
-      static requestPermission = vi.fn().mockResolvedValue('denied');
-      constructor() { /* empty */ }
-    });
+    vi.stubGlobal(
+      'Notification',
+      class MockNotification {
+        static permission = 'denied' as NotificationPermission;
+        static requestPermission = vi.fn().mockResolvedValue('denied');
+        constructor() {
+          /* empty */
+        }
+      }
+    );
 
     const { result: deniedResult } = renderHook(() => usePushNotifications());
     expect(deniedResult.current.hasInteracted).toBe(true);
@@ -206,15 +235,18 @@ describe('usePushNotifications', () => {
 
   it('provides showSecurityAlert convenience method', async () => {
     // Set permission to granted
-    vi.stubGlobal('Notification', class MockNotification {
-      static permission = 'granted' as NotificationPermission;
-      static requestPermission = vi.fn().mockResolvedValue('granted');
-      constructor(title: string, options?: NotificationOptions) {
-        mockNotification(title, options);
+    vi.stubGlobal(
+      'Notification',
+      class MockNotification {
+        static permission = 'granted' as NotificationPermission;
+        static requestPermission = vi.fn().mockResolvedValue('granted');
+        constructor(title: string, options?: NotificationOptions) {
+          mockNotification(title, options);
+        }
+        onclick: (() => void) | null = null;
+        close = vi.fn();
       }
-      onclick: (() => void) | null = null;
-      close = vi.fn();
-    });
+    );
 
     const { result } = renderHook(() => usePushNotifications());
 

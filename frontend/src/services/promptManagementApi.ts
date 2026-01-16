@@ -222,7 +222,13 @@ export async function fetchPromptHistory(
   const endpoint = `/history?${queryString}`;
 
   // API returns object keyed by model name, transform to expected format
-  const response = await fetchPromptApi<Record<string, { model_name: string; versions: PromptHistoryResponse['versions']; total_versions: number }>>(endpoint);
+  const response =
+    await fetchPromptApi<
+      Record<
+        string,
+        { model_name: string; versions: PromptHistoryResponse['versions']; total_versions: number }
+      >
+    >(endpoint);
 
   // If model specified, extract that model's data
   if (model && response[model]) {

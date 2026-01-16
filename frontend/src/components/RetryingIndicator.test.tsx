@@ -6,7 +6,12 @@
  * - AND there are queries or mutations in flight
  */
 
-import { QueryClient, QueryClientProvider, useIsFetching, useIsMutating } from '@tanstack/react-query';
+import {
+  QueryClient,
+  QueryClientProvider,
+  useIsFetching,
+  useIsMutating,
+} from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 

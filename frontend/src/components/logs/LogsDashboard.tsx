@@ -130,10 +130,7 @@ export default function LogsDashboard({ className = '' }: LogsDashboardProps) {
 
       {/* Statistics Cards */}
       <div className="mb-6">
-        <LogStatsCards
-          onLevelFilter={handleLevelFilter}
-          activeLevel={levelFilter}
-        />
+        <LogStatsCards onLevelFilter={handleLevelFilter} activeLevel={levelFilter} />
       </div>
 
       {/* Filter Panel */}

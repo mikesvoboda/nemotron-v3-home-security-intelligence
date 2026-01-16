@@ -10,7 +10,6 @@ import {
 
 import type { ReactNode } from 'react';
 
-
 export interface AnimatedListProps<T> {
   /** Array of items to render */
   items: T[];
@@ -63,16 +62,11 @@ export default function AnimatedList<T>({
 }: AnimatedListProps<T>) {
   const prefersReducedMotion = useReducedMotion();
 
-  const containerVariants = createListContainerVariants(
-    prefersReducedMotion ? 0 : staggerDelay
-  );
+  const containerVariants = createListContainerVariants(prefersReducedMotion ? 0 : staggerDelay);
   const itemVariant = listItemVariants[variant];
   const transition = prefersReducedMotion ? reducedMotionTransition : defaultTransition;
 
-  const classes = [
-    className,
-    prefersReducedMotion ? 'motion-reduce' : '',
-  ]
+  const classes = [className, prefersReducedMotion ? 'motion-reduce' : '']
     .filter(Boolean)
     .join(' ');
 

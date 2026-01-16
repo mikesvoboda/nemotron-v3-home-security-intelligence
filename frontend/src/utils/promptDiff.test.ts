@@ -146,7 +146,9 @@ Time: {timestamp}`;
       const diff = generateDiff(original, modified, 2);
 
       // Should have context lines around the change
-      const contextLines = diff.filter((line) => line.type === 'context' || line.type === 'unchanged');
+      const contextLines = diff.filter(
+        (line) => line.type === 'context' || line.type === 'unchanged'
+      );
       expect(contextLines.length).toBeGreaterThan(0);
     });
 
@@ -192,7 +194,10 @@ Time: {timestamp}`;
 
     it('processes typical prompts in under 10ms', () => {
       // Create a realistic prompt with multiple sections
-      const originalPrompt = Array.from({ length: 100 }, (_, i) => `Line ${i}: Some content here`).join('\n');
+      const originalPrompt = Array.from(
+        { length: 100 },
+        (_, i) => `Line ${i}: Some content here`
+      ).join('\n');
       const modifiedPrompt =
         originalPrompt.slice(0, originalPrompt.length / 2) +
         '\nNew line inserted here\n' +

@@ -139,9 +139,7 @@ export default function CircuitBreakerPanel({
   }
 
   // Get circuit breakers as array
-  const breakers = data?.circuit_breakers
-    ? Object.values(data.circuit_breakers)
-    : [];
+  const breakers = data?.circuit_breakers ? Object.values(data.circuit_breakers) : [];
 
   // Calculate summary stats
   const healthyCount = breakers.filter((b) => isHealthy(b.state)).length;
@@ -173,11 +171,7 @@ export default function CircuitBreakerPanel({
       ) : (
         <div className="space-y-3">
           {breakers.map((breaker) => (
-            <CircuitBreakerRow
-              key={breaker.name}
-              breaker={breaker}
-              onReset={onReset}
-            />
+            <CircuitBreakerRow key={breaker.name} breaker={breaker} onReset={onReset} />
           ))}
         </div>
       )}

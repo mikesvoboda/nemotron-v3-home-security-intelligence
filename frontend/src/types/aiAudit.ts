@@ -14,23 +14,13 @@
  * Supported AI models for prompt configuration.
  * Uses underscore naming to match backend conventions.
  */
-export type AiModelName =
-  | 'nemotron'
-  | 'florence2'
-  | 'yolo_world'
-  | 'xclip'
-  | 'fashion_clip';
+export type AiModelName = 'nemotron' | 'florence2' | 'yolo_world' | 'xclip' | 'fashion_clip';
 
 /**
  * Supported AI models for database-backed prompt config.
  * Uses hyphen naming as specified in the API spec.
  */
-export type DbModelName =
-  | 'nemotron'
-  | 'florence-2'
-  | 'yolo-world'
-  | 'x-clip'
-  | 'fashion-clip';
+export type DbModelName = 'nemotron' | 'florence-2' | 'yolo-world' | 'x-clip' | 'fashion-clip';
 
 /**
  * Priority level for recommendations.

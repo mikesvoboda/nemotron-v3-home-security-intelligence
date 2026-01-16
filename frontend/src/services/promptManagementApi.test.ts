@@ -115,7 +115,10 @@ const mockTestResult: PromptTestResult = {
   before_score: 72,
   after_score: 85,
   before_response: { risk_score: 72, reasoning: 'Person detected at night' },
-  after_response: { risk_score: 85, reasoning: 'Suspicious person detected at night near entry point' },
+  after_response: {
+    risk_score: 85,
+    reasoning: 'Suspicious person detected at night near entry point',
+  },
   improved: true,
   test_duration_ms: 1250,
 };
@@ -202,7 +205,9 @@ function mockFetchError(status: number, message: string): void {
 }
 
 function mockFetchNetworkError(): void {
-  ((globalThis as any).fetch as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('Network error'));
+  ((globalThis as any).fetch as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+    new Error('Network error')
+  );
 }
 
 // ============================================================================
@@ -313,7 +318,9 @@ describe('updatePromptForModel', () => {
 
     mockFetchError(422, 'Configuration cannot be empty');
 
-    await expect(updatePromptForModel(AIModelEnum.NEMOTRON, updateRequest)).rejects.toThrow(PromptApiError);
+    await expect(updatePromptForModel(AIModelEnum.NEMOTRON, updateRequest)).rejects.toThrow(
+      PromptApiError
+    );
   });
 });
 

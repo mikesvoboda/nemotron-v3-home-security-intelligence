@@ -13,9 +13,28 @@
  */
 
 import { Tab } from '@headlessui/react';
-import { Text, Callout, Title, Badge, Accordion, AccordionHeader, AccordionBody } from '@tremor/react';
+import {
+  Text,
+  Callout,
+  Title,
+  Badge,
+  Accordion,
+  AccordionHeader,
+  AccordionBody,
+} from '@tremor/react';
 import { clsx } from 'clsx';
-import { Brain, RefreshCw, AlertCircle, ExternalLink, BarChart2, Layers, Activity, Zap, Database, TrendingUp } from 'lucide-react';
+import {
+  Brain,
+  RefreshCw,
+  AlertCircle,
+  ExternalLink,
+  BarChart2,
+  Layers,
+  Activity,
+  Zap,
+  Database,
+  TrendingUp,
+} from 'lucide-react';
 import { useEffect, useState, useCallback, Fragment } from 'react';
 
 import InsightsCharts from './InsightsCharts';
@@ -26,17 +45,10 @@ import ModelStatusCards from './ModelStatusCards';
 import ModelZooSection from './ModelZooSection';
 import PipelineHealthPanel from './PipelineHealthPanel';
 import { useAIMetrics } from '../../hooks/useAIMetrics';
-import {
-  fetchConfig,
-  fetchAiAuditStats,
-  fetchModelLeaderboard,
-} from '../../services/api';
+import { fetchConfig, fetchAiAuditStats, fetchModelLeaderboard } from '../../services/api';
 import AIPerformanceSummaryRow from '../ai-performance/AIPerformanceSummaryRow';
 
-import type {
-  AiAuditStatsResponse,
-  AiAuditLeaderboardResponse,
-} from '../../services/api';
+import type { AiAuditStatsResponse, AiAuditLeaderboardResponse } from '../../services/api';
 
 /**
  * AIPerformancePage - Main AI performance dashboard
@@ -220,7 +232,10 @@ export default function AIPerformancePage() {
           <div className="space-y-6">
             {/* Calculate total errors for badge */}
             {(() => {
-              const totalErrors = Object.values(data.pipelineErrors).reduce((sum, count) => sum + count, 0);
+              const totalErrors = Object.values(data.pipelineErrors).reduce(
+                (sum, count) => sum + count,
+                0
+              );
               const hasErrors = totalErrors > 0;
 
               // Define tabs
@@ -381,7 +396,9 @@ export default function AIPerformancePage() {
                         <div className="grid gap-6 lg:grid-cols-2">
                           {/* Model Contribution Chart */}
                           {auditStats && (
-                            <ModelContributionChart contributionRates={auditStats.model_contribution_rates} />
+                            <ModelContributionChart
+                              contributionRates={auditStats.model_contribution_rates}
+                            />
                           )}
 
                           {/* Model Leaderboard */}

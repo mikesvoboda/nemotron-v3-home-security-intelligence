@@ -119,7 +119,10 @@ export default function HostSystemPanel({
   const diskPercent = host ? Math.round((host.disk_used_gb / host.disk_total_gb) * 100) : 0;
 
   return (
-    <Card className={clsx('border-gray-800 bg-[#1A1A1A] shadow-lg', className)} data-testid={testId}>
+    <Card
+      className={clsx('border-gray-800 bg-[#1A1A1A] shadow-lg', className)}
+      data-testid={testId}
+    >
       <Title className="mb-4 flex items-center gap-2 text-white">
         <Monitor className="h-5 w-5 text-[#76B900]" />
         Host System
@@ -138,14 +141,18 @@ export default function HostSystemPanel({
             <div className="flex items-center gap-2">
               <MemoryStick className="h-4 w-4 text-purple-400" />
               <span className="text-gray-400">RAM:</span>
-              <span className="font-medium text-white">{formatSize(host.ram_used_gb)}/{formatSize(host.ram_total_gb)} GB</span>
+              <span className="font-medium text-white">
+                {formatSize(host.ram_used_gb)}/{formatSize(host.ram_total_gb)} GB
+              </span>
               <span className="text-gray-500">({ramPercent}%)</span>
             </div>
             <span className="text-gray-600">|</span>
             <div className="flex items-center gap-2">
               <HardDrive className="h-4 w-4 text-orange-400" />
               <span className="text-gray-400">Disk:</span>
-              <span className="font-medium text-white">{formatSize(host.disk_used_gb)}/{formatSize(host.disk_total_gb)} GB</span>
+              <span className="font-medium text-white">
+                {formatSize(host.disk_used_gb)}/{formatSize(host.disk_total_gb)} GB
+              </span>
               <span className="text-gray-500">({diskPercent}%)</span>
             </div>
           </div>

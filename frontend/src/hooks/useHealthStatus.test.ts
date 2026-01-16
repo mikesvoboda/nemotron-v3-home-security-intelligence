@@ -364,7 +364,9 @@ describe('useHealthStatus', () => {
 
   describe('polling interval execution', () => {
     it('accepts pollingInterval option', () => {
-      const { result } = renderHook(() => useHealthStatus({ pollingInterval: 5000, enabled: false }));
+      const { result } = renderHook(() =>
+        useHealthStatus({ pollingInterval: 5000, enabled: false })
+      );
 
       // Hook should work with pollingInterval option
       expect(result.current).toBeDefined();

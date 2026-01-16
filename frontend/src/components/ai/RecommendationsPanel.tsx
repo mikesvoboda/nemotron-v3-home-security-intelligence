@@ -5,7 +5,16 @@
  * with frequency counts and priority indicators.
  */
 
-import { Card, Title, Badge, Text, Accordion, AccordionHeader, AccordionBody, AccordionList } from '@tremor/react';
+import {
+  Card,
+  Title,
+  Badge,
+  Text,
+  Accordion,
+  AccordionHeader,
+  AccordionBody,
+  AccordionList,
+} from '@tremor/react';
 import { clsx } from 'clsx';
 import { Lightbulb, AlertTriangle, Info, ArrowRight } from 'lucide-react';
 
@@ -25,7 +34,10 @@ export interface RecommendationsPanelProps {
 /**
  * Category labels and descriptions
  */
-const CATEGORY_INFO: Record<string, { label: string; description: string; icon: typeof Lightbulb }> = {
+const CATEGORY_INFO: Record<
+  string,
+  { label: string; description: string; icon: typeof Lightbulb }
+> = {
   missing_context: {
     label: 'Missing Context',
     description: 'Information that would help the AI make better assessments',
@@ -70,7 +82,9 @@ function getPriorityColor(priority: string): 'red' | 'yellow' | 'gray' {
 /**
  * Group recommendations by category
  */
-function groupByCategory(recommendations: AiAuditRecommendationItem[]): Map<string, AiAuditRecommendationItem[]> {
+function groupByCategory(
+  recommendations: AiAuditRecommendationItem[]
+): Map<string, AiAuditRecommendationItem[]> {
   const grouped = new Map<string, AiAuditRecommendationItem[]>();
 
   for (const rec of recommendations) {
@@ -158,7 +172,11 @@ export default function RecommendationsPanel({
                     {items
                       .sort((a, b) => {
                         // Sort by priority (high first), then by frequency
-                        const priorityOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
+                        const priorityOrder: Record<string, number> = {
+                          high: 0,
+                          medium: 1,
+                          low: 2,
+                        };
                         const aPriority = priorityOrder[a.priority] ?? 3;
                         const bPriority = priorityOrder[b.priority] ?? 3;
                         if (aPriority !== bPriority) return aPriority - bPriority;
@@ -178,9 +196,7 @@ export default function RecommendationsPanel({
                             <Badge color={getPriorityColor(item.priority)} size="xs">
                               {item.priority}
                             </Badge>
-                            <Text className="text-xs text-gray-500">
-                              {item.frequency}x
-                            </Text>
+                            <Text className="text-xs text-gray-500">{item.frequency}x</Text>
                             {onExploreRecommendation && (
                               <button
                                 onClick={() => onExploreRecommendation(item)}

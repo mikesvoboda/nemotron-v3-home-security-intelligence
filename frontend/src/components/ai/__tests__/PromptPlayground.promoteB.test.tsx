@@ -182,19 +182,28 @@ describe('PromptPlayground - Promote B Functionality', () => {
 
     // Run 3 tests
     await user.click(screen.getByTestId('run-ab-tests-button'));
-    await waitFor(() => {
-      expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/1 test completed/);
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/1 test completed/);
+      },
+      { timeout: 3000 }
+    );
 
     await user.click(screen.getByTestId('run-ab-tests-button'));
-    await waitFor(() => {
-      expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/2 tests completed/);
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/2 tests completed/);
+      },
+      { timeout: 3000 }
+    );
 
     await user.click(screen.getByTestId('run-ab-tests-button'));
-    await waitFor(() => {
-      expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/3 tests completed/);
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/3 tests completed/);
+      },
+      { timeout: 3000 }
+    );
 
     // Click promote button should show confirmation dialog (now that we have 3 tests)
     await user.click(screen.getByTestId('promote-b-button'));
@@ -268,19 +277,28 @@ describe('PromptPlayground - Promote B Functionality', () => {
 
     // Simulate running 3 tests with wait for completion
     await user.click(screen.getByTestId('run-ab-tests-button'));
-    await waitFor(() => {
-      expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/1 test completed/);
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/1 test completed/);
+      },
+      { timeout: 3000 }
+    );
 
     await user.click(screen.getByTestId('run-ab-tests-button'));
-    await waitFor(() => {
-      expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/2 tests completed/);
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/2 tests completed/);
+      },
+      { timeout: 3000 }
+    );
 
     await user.click(screen.getByTestId('run-ab-tests-button'));
-    await waitFor(() => {
-      expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/3 tests completed/);
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/3 tests completed/);
+      },
+      { timeout: 3000 }
+    );
 
     // Click promote
     await user.click(screen.getByTestId('promote-b-button'));
@@ -330,19 +348,28 @@ describe('PromptPlayground - Promote B Functionality', () => {
     });
 
     await user.click(screen.getByTestId('run-ab-tests-button'));
-    await waitFor(() => {
-      expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/1 test completed/);
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/1 test completed/);
+      },
+      { timeout: 3000 }
+    );
 
     await user.click(screen.getByTestId('run-ab-tests-button'));
-    await waitFor(() => {
-      expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/2 tests completed/);
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/2 tests completed/);
+      },
+      { timeout: 3000 }
+    );
 
     await user.click(screen.getByTestId('run-ab-tests-button'));
-    await waitFor(() => {
-      expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/3 tests completed/);
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/3 tests completed/);
+      },
+      { timeout: 3000 }
+    );
 
     await user.click(screen.getByTestId('promote-b-button'));
 
@@ -392,19 +419,28 @@ describe('PromptPlayground - Promote B Functionality', () => {
     });
 
     await user.click(screen.getByTestId('run-ab-tests-button'));
-    await waitFor(() => {
-      expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/1 test completed/);
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/1 test completed/);
+      },
+      { timeout: 3000 }
+    );
 
     await user.click(screen.getByTestId('run-ab-tests-button'));
-    await waitFor(() => {
-      expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/2 tests completed/);
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/2 tests completed/);
+      },
+      { timeout: 3000 }
+    );
 
     await user.click(screen.getByTestId('run-ab-tests-button'));
-    await waitFor(() => {
-      expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/3 tests completed/);
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/3 tests completed/);
+      },
+      { timeout: 3000 }
+    );
 
     await user.click(screen.getByTestId('promote-b-button'));
 
@@ -449,19 +485,28 @@ describe('PromptPlayground - Promote B Functionality', () => {
     });
 
     await user.click(screen.getByTestId('run-ab-tests-button'));
-    await waitFor(() => {
-      expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/1 test completed/);
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/1 test completed/);
+      },
+      { timeout: 3000 }
+    );
 
     await user.click(screen.getByTestId('run-ab-tests-button'));
-    await waitFor(() => {
-      expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/2 tests completed/);
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/2 tests completed/);
+      },
+      { timeout: 3000 }
+    );
 
     await user.click(screen.getByTestId('run-ab-tests-button'));
-    await waitFor(() => {
-      expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/3 tests completed/);
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/3 tests completed/);
+      },
+      { timeout: 3000 }
+    );
 
     await user.click(screen.getByTestId('promote-b-button'));
 
@@ -508,19 +553,28 @@ describe('PromptPlayground - Promote B Functionality', () => {
     });
 
     await user.click(screen.getByTestId('run-ab-tests-button'));
-    await waitFor(() => {
-      expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/1 test completed/);
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/1 test completed/);
+      },
+      { timeout: 3000 }
+    );
 
     await user.click(screen.getByTestId('run-ab-tests-button'));
-    await waitFor(() => {
-      expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/2 tests completed/);
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/2 tests completed/);
+      },
+      { timeout: 3000 }
+    );
 
     await user.click(screen.getByTestId('run-ab-tests-button'));
-    await waitFor(() => {
-      expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/3 tests completed/);
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/3 tests completed/);
+      },
+      { timeout: 3000 }
+    );
 
     await user.click(screen.getByTestId('promote-b-button'));
 

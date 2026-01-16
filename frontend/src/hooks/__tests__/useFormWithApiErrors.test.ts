@@ -165,10 +165,9 @@ describe('applyApiValidationErrors', () => {
   };
 
   it('should set field errors from validation_errors array', async () => {
-    const { result } = renderHook(
-      () => useTestForm(defaultTestFormData),
-      { wrapper: createQueryWrapper() }
-    );
+    const { result } = renderHook(() => useTestForm(defaultTestFormData), {
+      wrapper: createQueryWrapper(),
+    });
 
     const error: ApiValidationException = {
       status: 422,
@@ -185,22 +184,21 @@ describe('applyApiValidationErrors', () => {
 
     await waitFor(() => {
       expect(result.current.formState.errors.email?.message).toBe('Invalid email format');
-      expect(result.current.formState.errors.password?.message).toBe('Password must be at least 8 characters');
+      expect(result.current.formState.errors.password?.message).toBe(
+        'Password must be at least 8 characters'
+      );
     });
   });
 
   it('should handle nested field paths', async () => {
-    const { result } = renderHook(
-      () => useTestForm(defaultTestFormData),
-      { wrapper: createQueryWrapper() }
-    );
+    const { result } = renderHook(() => useTestForm(defaultTestFormData), {
+      wrapper: createQueryWrapper(),
+    });
 
     const error: ApiValidationException = {
       status: 422,
       message: 'Validation failed',
-      validation_errors: [
-        { field: 'profile.firstName', message: 'First name is required' },
-      ],
+      validation_errors: [{ field: 'profile.firstName', message: 'First name is required' }],
     };
 
     act(() => {
@@ -208,15 +206,16 @@ describe('applyApiValidationErrors', () => {
     });
 
     await waitFor(() => {
-      expect(result.current.formState.errors.profile?.firstName?.message).toBe('First name is required');
+      expect(result.current.formState.errors.profile?.firstName?.message).toBe(
+        'First name is required'
+      );
     });
   });
 
   it('should handle FastAPI HTTPValidationError format with loc array', async () => {
-    const { result } = renderHook(
-      () => useTestForm(defaultTestFormData),
-      { wrapper: createQueryWrapper() }
-    );
+    const { result } = renderHook(() => useTestForm(defaultTestFormData), {
+      wrapper: createQueryWrapper(),
+    });
 
     // Simulate FastAPI's HTTPValidationError via ApiError.data
     const apiError = new ApiError(422, 'Validation failed', {
@@ -232,15 +231,16 @@ describe('applyApiValidationErrors', () => {
 
     await waitFor(() => {
       expect(result.current.formState.errors.email?.message).toBe('Invalid email format');
-      expect(result.current.formState.errors.profile?.firstName?.message).toBe('First name required');
+      expect(result.current.formState.errors.profile?.firstName?.message).toBe(
+        'First name required'
+      );
     });
   });
 
   it('should set multiple field errors simultaneously', async () => {
-    const { result } = renderHook(
-      () => useTestForm(defaultTestFormData),
-      { wrapper: createQueryWrapper() }
-    );
+    const { result } = renderHook(() => useTestForm(defaultTestFormData), {
+      wrapper: createQueryWrapper(),
+    });
 
     const error: ApiValidationException = {
       status: 422,
@@ -265,17 +265,14 @@ describe('applyApiValidationErrors', () => {
   });
 
   it('should not throw for unknown field names', () => {
-    const { result } = renderHook(
-      () => useTestForm(defaultTestFormData),
-      { wrapper: createQueryWrapper() }
-    );
+    const { result } = renderHook(() => useTestForm(defaultTestFormData), {
+      wrapper: createQueryWrapper(),
+    });
 
     const error: ApiValidationException = {
       status: 422,
       message: 'Validation failed',
-      validation_errors: [
-        { field: 'unknownField', message: 'Some error' },
-      ],
+      validation_errors: [{ field: 'unknownField', message: 'Some error' }],
     };
 
     expect(() => {
@@ -286,10 +283,9 @@ describe('applyApiValidationErrors', () => {
   });
 
   it('should handle empty validation_errors array', () => {
-    const { result } = renderHook(
-      () => useTestForm(defaultTestFormData),
-      { wrapper: createQueryWrapper() }
-    );
+    const { result } = renderHook(() => useTestForm(defaultTestFormData), {
+      wrapper: createQueryWrapper(),
+    });
 
     const error: ApiValidationException = {
       status: 422,
@@ -307,10 +303,9 @@ describe('applyApiValidationErrors', () => {
   });
 
   it('should return count of applied errors', () => {
-    const { result } = renderHook(
-      () => useTestForm(defaultTestFormData),
-      { wrapper: createQueryWrapper() }
-    );
+    const { result } = renderHook(() => useTestForm(defaultTestFormData), {
+      wrapper: createQueryWrapper(),
+    });
 
     const error: ApiValidationException = {
       status: 422,
@@ -365,9 +360,7 @@ describe('useApiMutation', () => {
 
   it('should apply field errors on validation failure', async () => {
     const validationError = new ApiError(422, 'Validation failed', {
-      validation_errors: [
-        { field: 'email', message: 'Email already exists' },
-      ],
+      validation_errors: [{ field: 'email', message: 'Email already exists' }],
     });
 
     mockMutationFn.mockRejectedValue(validationError);

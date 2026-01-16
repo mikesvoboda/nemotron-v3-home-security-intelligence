@@ -210,9 +210,7 @@ describe('SceneChangePanel', () => {
 
     await waitFor(() => {
       expect(screen.getByText('2', { selector: '[class*="text-white"]' })).toBeInTheDocument(); // Total
-      expect(
-        screen.getByText('1', { selector: '[class*="text-yellow"]' })
-      ).toBeInTheDocument(); // Unacknowledged
+      expect(screen.getByText('1', { selector: '[class*="text-yellow"]' })).toBeInTheDocument(); // Unacknowledged
     });
   });
 
@@ -275,9 +273,7 @@ describe('SceneChangePanel', () => {
   it('handles acknowledge failure gracefully', async () => {
     const user = userEvent.setup();
     vi.mocked(api.fetchSceneChanges).mockResolvedValue(mockSceneChanges);
-    vi.mocked(api.acknowledgeSceneChange).mockRejectedValue(
-      new Error('Failed to acknowledge')
-    );
+    vi.mocked(api.acknowledgeSceneChange).mockRejectedValue(new Error('Failed to acknowledge'));
 
     render(<SceneChangePanel cameraId={mockCameraId} cameraName={mockCameraName} />);
 

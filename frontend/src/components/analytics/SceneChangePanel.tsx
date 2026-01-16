@@ -230,9 +230,7 @@ export default function SceneChangePanel({ cameraId, cameraName }: SceneChangePa
                             <span className="text-gray-300">
                               {formatSimilarity(sceneChange.similarity_score)}
                             </span>
-                            <span className="text-xs text-gray-500">
-                              (lower = more different)
-                            </span>
+                            <span className="text-xs text-gray-500">(lower = more different)</span>
                           </div>
                           {sceneChange.acknowledged_at && (
                             <div className="flex items-center gap-2">
@@ -272,8 +270,8 @@ export default function SceneChangePanel({ cameraId, cameraName }: SceneChangePa
 
       {/* Info Footer */}
       <div className="mt-4 border-t border-gray-800 pt-4 text-xs text-gray-500">
-        Scene changes are detected when the camera view significantly differs from the baseline.
-        Low similarity scores indicate potential tampering or view changes.
+        Scene changes are detected when the camera view significantly differs from the baseline. Low
+        similarity scores indicate potential tampering or view changes.
       </div>
     </div>
   );

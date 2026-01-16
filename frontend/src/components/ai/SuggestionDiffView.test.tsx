@@ -23,7 +23,8 @@ describe('SuggestionDiffView', () => {
     insertionPoint: 'append',
     proposedVariable: '{time_since_last_event}',
     proposedLabel: 'Time Since Last Event:',
-    impactExplanation: 'Adding time-since-last-event helps the AI distinguish between routine activity and unusual timing patterns.',
+    impactExplanation:
+      'Adding time-since-last-event helps the AI distinguish between routine activity and unusual timing patterns.',
     sourceEventIds: [142, 156, 189],
   };
 
@@ -148,11 +149,7 @@ Lighting: {time_of_day}`;
 
   it('handles empty diff gracefully', () => {
     render(
-      <SuggestionDiffView
-        originalPrompt={originalPrompt}
-        suggestion={mockSuggestion}
-        diff={[]}
-      />
+      <SuggestionDiffView originalPrompt={originalPrompt} suggestion={mockSuggestion} diff={[]} />
     );
 
     // Should show empty state message
@@ -188,17 +185,11 @@ describe('SuggestionDiffView accessibility', () => {
     sourceEventIds: [1],
   };
 
-  const mockDiff: DiffLine[] = [
-    { type: 'added', content: 'Time: {time}', lineNumber: 1 },
-  ];
+  const mockDiff: DiffLine[] = [{ type: 'added', content: 'Time: {time}', lineNumber: 1 }];
 
   it('has proper ARIA labels for the diff region', () => {
     render(
-      <SuggestionDiffView
-        originalPrompt="original"
-        suggestion={mockSuggestion}
-        diff={mockDiff}
-      />
+      <SuggestionDiffView originalPrompt="original" suggestion={mockSuggestion} diff={mockDiff} />
     );
 
     // Check that the diff region has an accessible label
@@ -251,11 +242,7 @@ describe('SuggestionDiffView section indicator', () => {
     ];
 
     render(
-      <SuggestionDiffView
-        originalPrompt="original"
-        suggestion={mockSuggestion}
-        diff={mockDiff}
-      />
+      <SuggestionDiffView originalPrompt="original" suggestion={mockSuggestion} diff={mockDiff} />
     );
 
     // Should display the target section name in the header
