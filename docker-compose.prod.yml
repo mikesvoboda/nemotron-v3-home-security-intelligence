@@ -250,6 +250,7 @@ services:
       - FLORENCE_URL=http://ai-florence:8092
       - CLIP_URL=http://ai-clip:8093
       - ENRICHMENT_URL=http://ai-enrichment:8094
+      - USE_ENRICHMENT_SERVICE=true
       - FRONTEND_URL=http://frontend:${FRONTEND_INTERNAL_PORT:-8080}
       # Always use /cameras (container mount point) regardless of host env var
       - FOSCAM_BASE_PATH=/cameras

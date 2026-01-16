@@ -1057,6 +1057,51 @@ export async function setupApiMocks(
     }
   });
 
+  // Individual Entity Detail endpoint (BEFORE /api/entities*)
+  // Matches /api/entities/{entityId} but NOT /api/entities/stats or /api/entities/{id}/trust
+  await page.route(/\/api\/entities\/[^/]+$/, async (route) => {
+    const url = route.request().url();
+
+    // Skip if this is the stats endpoint
+    if (url.includes('/stats')) {
+      await route.continue();
+      return;
+    }
+
+    if (mergedConfig.entitiesError) {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Failed to fetch entity details' }),
+      });
+    } else {
+      // Extract entity ID from URL
+      const match = url.match(/\/api\/entities\/([^/]+)$/);
+      const entityId = match?.[1] || '';
+      const entities = mergedConfig.entities || [];
+      const entity = entities.find((e) => e.id === entityId);
+
+      if (entity) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            ...entity,
+            // Include any additional fields the detail view expects
+            recent_appearances: [],
+            detection_history: [],
+          }),
+        });
+      } else {
+        await route.fulfill({
+          status: 404,
+          contentType: 'application/json',
+          body: JSON.stringify({ detail: 'Entity not found' }),
+        });
+      }
+    }
+  });
+
   // Entities endpoint (NEM-2075: uses pagination envelope format)
   await page.route('**/api/entities*', async (route) => {
     if (mergedConfig.entitiesError) {
