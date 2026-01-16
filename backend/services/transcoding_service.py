@@ -337,6 +337,13 @@ class TranscodingService:
         cache_path = self._get_cache_path(validated_path)
 
         if cache_path.exists():
+            # Sanity check: reject corrupted cache files (< 1KB is too small for valid video)
+            file_size = cache_path.stat().st_size
+            if file_size < 1000:
+                logger.warning(f"Removing corrupted cache file ({file_size} bytes): {cache_path}")
+                cache_path.unlink(missing_ok=True)
+                return None
+
             logger.debug(f"Cache hit for video: {video_path} -> {cache_path}")
             return cache_path
 
@@ -367,6 +374,78 @@ class TranscodingService:
         suffix = validated_path.suffix.lower()
         return suffix not in (".mp4",)
 
+    async def _remux_video(
+        self,
+        video_path: Path,
+        cache_path: Path,
+    ) -> Path | None:
+        """Try to remux video to MP4 without re-encoding (fast path).
+
+        Remuxing copies the video/audio streams directly to a new container
+        without re-encoding. This is nearly instant and uses minimal resources.
+        Only works if the source video codec is browser-compatible (H.264/H.265).
+
+        Args:
+            video_path: Validated path to source video
+            cache_path: Path for output file
+
+        Returns:
+            Path to remuxed file if successful, None if remux failed
+        """
+        cmd = [
+            "ffmpeg",
+            "-y",
+            "-i",
+            str(video_path),
+            "-c:v",
+            "copy",  # Copy video stream without re-encoding
+            "-c:a",
+            "copy",  # Copy audio stream without re-encoding
+            "-movflags",
+            "+faststart",
+            str(cache_path),
+        ]
+
+        logger.info(f"Attempting fast remux: {video_path} -> {cache_path}")
+        logger.debug(f"FFmpeg remux command: {' '.join(cmd)}")
+
+        try:
+            process = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            _stdout, _stderr = await asyncio.wait_for(
+                process.communicate(),
+                timeout=30.0,  # Remux should be fast, 30s timeout
+            )
+
+            if process.returncode == 0 and cache_path.exists():
+                file_size = cache_path.stat().st_size
+                if file_size > 1000:  # Sanity check - file should be > 1KB
+                    logger.info(f"Fast remux successful: {cache_path} ({file_size} bytes)")
+                    return cache_path
+                else:
+                    logger.warning(
+                        f"Remux produced suspiciously small file ({file_size} bytes), falling back to transcode"
+                    )
+                    cache_path.unlink(missing_ok=True)
+                    return None
+
+            # Remux failed - this is expected for some codecs
+            logger.debug(f"Remux failed (returncode={process.returncode}), will try full transcode")
+            cache_path.unlink(missing_ok=True)
+            return None
+
+        except TimeoutError:
+            logger.warning("Remux timed out, falling back to transcode")
+            cache_path.unlink(missing_ok=True)
+            return None
+        except Exception as e:
+            logger.debug(f"Remux failed with exception: {e}, will try full transcode")
+            cache_path.unlink(missing_ok=True)
+            return None
+
     async def transcode_video(
         self,
         video_path: str | Path,
@@ -374,9 +453,9 @@ class TranscodingService:
     ) -> Path:
         """Transcode a video to browser-compatible format.
 
-        This method transcodes the source video to H.264/MP4 format for
-        browser playback. If a cached version exists, it returns that
-        instead of re-transcoding (unless force=True).
+        This method first attempts a fast remux (stream copy) if the source
+        video is already H.264. If remux fails, it falls back to full
+        transcoding with H.264/MP4 format for browser playback.
 
         Args:
             video_path: Path to the source video file
@@ -397,7 +476,12 @@ class TranscodingService:
             logger.info(f"Using cached transcoded video: {cache_path}")
             return cache_path
 
-        # Build ffmpeg command for transcoding
+        # Try fast remux first (copies streams without re-encoding)
+        remux_result = await self._remux_video(validated_path, cache_path)
+        if remux_result is not None:
+            return remux_result
+
+        # Fall back to full transcoding
         # Uses get_video_encoder_args() for adaptive NVENC/software encoding (NEM-2682)
         # -c:a aac: AAC audio codec
         # -movflags +faststart: Enable progressive download/streaming
@@ -416,7 +500,7 @@ class TranscodingService:
             str(cache_path),
         ]
 
-        logger.info(f"Transcoding video: {video_path} -> {cache_path}")
+        logger.info(f"Full transcoding video: {video_path} -> {cache_path}")
         logger.debug(f"FFmpeg command: {' '.join(cmd)}")
 
         try:
