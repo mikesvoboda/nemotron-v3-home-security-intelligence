@@ -337,6 +337,13 @@ class TranscodingService:
         cache_path = self._get_cache_path(validated_path)
 
         if cache_path.exists():
+            # Sanity check: reject corrupted cache files (< 1KB is too small for valid video)
+            file_size = cache_path.stat().st_size
+            if file_size < 1000:
+                logger.warning(f"Removing corrupted cache file ({file_size} bytes): {cache_path}")
+                cache_path.unlink(missing_ok=True)
+                return None
+
             logger.debug(f"Cache hit for video: {video_path} -> {cache_path}")
             return cache_path
 
