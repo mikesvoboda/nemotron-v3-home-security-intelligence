@@ -72,11 +72,33 @@ export class EntitiesPage extends BasePage {
 
   /**
    * Wait for the entities page to fully load
+   * This includes waiting for the API call to complete and entity cards to render
    */
   async waitForEntitiesLoad(): Promise<void> {
     await expect(this.pageTitle).toBeVisible({ timeout: this.pageLoadTimeout });
-    // Wait for filter buttons to be visible (indicates page has loaded)
+    // Wait for filter buttons to be visible (indicates page shell has loaded)
     await expect(this.allFilterButton).toBeVisible({ timeout: this.pageLoadTimeout });
+
+    // Wait for either entity cards to appear OR empty state to appear
+    // This ensures the API call has completed and data has been processed
+    await this.page.waitForFunction(
+      () => {
+        const hasEntityCards =
+          document.querySelectorAll('[data-testid="entity-card"]').length > 0;
+        const hasEmptyState =
+          document.querySelector('[data-testid="entities-empty-state"]') !== null ||
+          document.querySelector('h2')?.textContent?.includes('No Entities') ||
+          document.querySelector('h2')?.textContent?.includes('No Persons') ||
+          document.querySelector('h2')?.textContent?.includes('No Vehicles');
+        const hasLoadingIndicator =
+          document.querySelector('[data-testid="entity-card-skeleton"]') !== null ||
+          document.querySelector('.animate-pulse') !== null;
+
+        // Wait until we have entity cards or empty state, and loading is complete
+        return (hasEntityCards || hasEmptyState) && !hasLoadingIndicator;
+      },
+      { timeout: this.pageLoadTimeout }
+    );
   }
 
   /**

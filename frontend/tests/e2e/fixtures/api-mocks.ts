@@ -625,13 +625,19 @@ export async function setupApiMocks(
 
     // Transform detections to API format with required fields
     const apiDetections = detections.map((d, idx) => ({
-      id: idx + 1,
+      id: (d as { id?: number }).id || idx + 1,
       event_id: eventId,
       label: d.label,
       confidence: d.confidence,
       bbox: d.bbox || null,
       image_path: null,
-      created_at: new Date().toISOString(),
+      created_at: (d as { created_at?: string }).created_at || new Date().toISOString(),
+      detected_at:
+        (d as { detected_at?: string }).detected_at ||
+        event?.timestamp ||
+        new Date().toISOString(),
+      media_type: (d as { media_type?: string }).media_type || 'image',
+      object_type: (d as { object_type?: string }).object_type || d.label,
     }));
 
     await route.fulfill({
@@ -648,6 +654,61 @@ export async function setupApiMocks(
           has_more: false,
         },
       }),
+    });
+  });
+
+  // Event Clip Info endpoint (BEFORE /api/events)
+  await page.route('**/api/events/*/clip/info', async (route) => {
+    // Extract event ID from URL
+    const url = new URL(route.request().url());
+    const pathParts = url.pathname.split('/');
+    const eventIdIndex = pathParts.indexOf('events') + 1;
+    const eventId = parseInt(pathParts[eventIdIndex], 10);
+
+    // Return mock clip info - clip available by default
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        event_id: eventId,
+        clip_available: true,
+        clip_url: `/api/media/clips/event_${eventId}_clip.mp4`,
+        duration_seconds: 30,
+        generated_at: new Date().toISOString(),
+        file_size_bytes: 5242880, // 5 MB
+      }),
+    });
+  });
+
+  // Event Clip Generate endpoint (BEFORE /api/events)
+  await page.route('**/api/events/*/clip/generate', async (route) => {
+    const url = new URL(route.request().url());
+    const pathParts = url.pathname.split('/');
+    const eventIdIndex = pathParts.indexOf('events') + 1;
+    const eventId = parseInt(pathParts[eventIdIndex], 10);
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        status: 'completed',
+        clip_url: `/api/media/clips/event_${eventId}_clip.mp4`,
+        generated_at: new Date().toISOString(),
+        message: 'Clip generated successfully',
+      }),
+    });
+  });
+
+  // Video file endpoint (serves actual video binary)
+  await page.route('**/api/media/clips/**', async (route) => {
+    // Minimal valid MP4 header for testing
+    await route.fulfill({
+      status: 200,
+      contentType: 'video/mp4',
+      body: Buffer.from([
+        0x00, 0x00, 0x00, 0x20, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6f, 0x6d, 0x00, 0x00, 0x02,
+        0x00,
+      ]),
     });
   });
 

@@ -21,9 +21,7 @@ import { TimelinePage } from '../../pages';
 import { mockEvents, mockUserCalibration } from '../../fixtures/test-data';
 import type { Page } from '@playwright/test';
 
-// TODO: Re-enable after fixing event detail modal rendering in E2E tests
-// Tests fail because timeline/event views don't render correctly in E2E environment
-test.describe.skip('Full Feedback-Calibration Loop @critical', () => {
+test.describe('Full Feedback-Calibration Loop @critical', () => {
   test('should complete full workflow: feedback → calibration → reclassification', async ({
     page,
   }) => {
