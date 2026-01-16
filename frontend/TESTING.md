@@ -46,6 +46,29 @@ npx playwright install chromium
 
 ## Running Tests
 
+### Important: Bun Compatibility
+
+This project uses **Vitest** as the test runner, not Bun's native test runner.
+
+**✅ Correct Commands:**
+```bash
+npm test              # Run Vitest (recommended)
+bun run test          # Also runs Vitest via package.json script
+```
+
+**❌ Do NOT Use:**
+```bash
+bun test              # This invokes Bun's native test runner (incompatible!)
+```
+
+**Why not `bun test`?**
+- Tests use Vitest-specific APIs (`vi.mock`, `vi.spyOn`, etc.)
+- jsdom environment is configured in `vite.config.ts` (Vitest-specific)
+- Tests use Vitest's `setupFiles` and custom matchers
+- Bun's native test runner has different APIs and cannot run these tests
+
+A `bunfig.toml` file exists to document this limitation.
+
 ### Unit Tests (Vitest)
 
 ```bash
@@ -60,6 +83,10 @@ npm test -- --coverage
 
 # Run a specific test file
 npm test -- Layout.test.tsx
+
+# Using bun (calls Vitest via npm script)
+bun run test
+bun run test:coverage
 ```
 
 ### E2E Tests (Playwright)

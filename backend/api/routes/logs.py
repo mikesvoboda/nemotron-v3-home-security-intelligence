@@ -26,6 +26,9 @@ from backend.api.validators import normalize_end_date_to_end_of_day, validate_da
 from backend.core.database import escape_ilike_pattern, get_db
 from backend.models.log import Log
 
+# Maximum message length for LogEntry schema (must match schema constraint)
+_MAX_MESSAGE_LENGTH = 5000
+
 router = APIRouter(prefix="/api/logs", tags=["logs"])
 
 
@@ -182,8 +185,29 @@ async def list_logs(  # noqa: PLR0912
     # Set HTTP Deprecation headers per IETF standard (NEM-2603)
     set_deprecation_headers(response, cursor, offset)
 
+    # Truncate messages that exceed schema limit to prevent validation errors
+    log_entries = [
+        LogEntry(
+            id=log.id,
+            timestamp=log.timestamp,
+            level=log.level,
+            component=log.component,
+            message=log.message[:_MAX_MESSAGE_LENGTH]
+            if len(log.message) > _MAX_MESSAGE_LENGTH
+            else log.message,
+            camera_id=log.camera_id,
+            event_id=log.event_id,
+            request_id=log.request_id,
+            detection_id=log.detection_id,
+            duration_ms=log.duration_ms,
+            extra=log.extra,
+            source=log.source,
+        )
+        for log in logs
+    ]
+
     return LogsResponse(
-        items=logs,
+        items=log_entries,
         pagination=PaginationInfo(
             total=total_count,
             limit=limit,

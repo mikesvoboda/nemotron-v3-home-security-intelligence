@@ -39,6 +39,7 @@ frontend/
 | `postcss.config.js`    | PostCSS plugins (Tailwind, Autoprefixer)    |
 | `tailwind.config.js`   | Tailwind CSS theme with NVIDIA colors       |
 | `playwright.config.ts` | Playwright E2E test configuration           |
+| `bunfig.toml`          | Bun configuration (documents Vitest usage)  |
 
 ### Code Quality
 
@@ -105,6 +106,10 @@ npm run test:e2e:headed  # Run E2E tests with browser visible
 npm run test:e2e:debug   # Debug E2E tests
 npm run test:e2e:report  # Show Playwright test report
 npm run test:mutation    # Run Stryker mutation testing
+
+# IMPORTANT: Use 'npm test' or 'bun run test', NOT 'bun test'
+# This project uses Vitest, not Bun's native test runner
+# See bunfig.toml and TESTING.md for details
 
 # Type Generation
 npm run generate-types        # Regenerate TypeScript types from backend OpenAPI
