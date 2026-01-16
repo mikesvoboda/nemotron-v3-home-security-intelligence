@@ -33,6 +33,7 @@ from backend.services.bbox_validation import (
     is_valid_bbox,
     normalize_bbox_to_float,
     normalize_bbox_to_pixels,
+    prepare_bbox_for_crop,
     validate_and_clamp_bbox,
     validate_bbox,
 )
@@ -496,6 +497,134 @@ class TestExceptionClasses:
         # Both should be catchable as BoundingBoxValidationError
         with pytest.raises(BoundingBoxValidationError):
             raise InvalidBoundingBoxError("test")
+
+
+# =============================================================================
+# Test prepare_bbox_for_crop
+# =============================================================================
+
+
+class TestPrepareBboxForCrop:
+    """Tests for prepare_bbox_for_crop function.
+
+    This function is used for safe PIL Image.crop() operations, handling
+    edge cases that would otherwise cause ValueError.
+    """
+
+    def test_valid_bbox_returns_tuple(self) -> None:
+        """Test that valid bbox returns proper tuple."""
+        result = prepare_bbox_for_crop((10, 10, 90, 90), 100, 100)
+        assert result is not None
+        assert isinstance(result, tuple)
+        assert len(result) == 4
+
+    def test_inverted_x_coordinates_swapped(self) -> None:
+        """Test that inverted X coordinates are swapped."""
+        # x2 < x1 should be swapped
+        result = prepare_bbox_for_crop((90, 10, 10, 90), 100, 100)
+        assert result is not None
+        x1, _y1, x2, _y2 = result
+        assert x1 < x2, f"Expected x1 < x2, got x1={x1}, x2={x2}"
+
+    def test_inverted_y_coordinates_swapped(self) -> None:
+        """Test that inverted Y coordinates are swapped."""
+        # y2 < y1 should be swapped
+        result = prepare_bbox_for_crop((10, 90, 90, 10), 100, 100)
+        assert result is not None
+        _x1, y1, _x2, y2 = result
+        assert y1 < y2, f"Expected y1 < y2, got y1={y1}, y2={y2}"
+
+    def test_fully_inverted_coordinates_swapped(self) -> None:
+        """Test that fully inverted coordinates (both X and Y) are swapped."""
+        result = prepare_bbox_for_crop((90, 80, 10, 20), 100, 100)
+        assert result is not None
+        x1, y1, x2, y2 = result
+        assert x1 < x2, f"Expected x1 < x2, got x1={x1}, x2={x2}"
+        assert y1 < y2, f"Expected y1 < y2, got y1={y1}, y2={y2}"
+
+    def test_out_of_bounds_coordinates_clamped(self) -> None:
+        """Test that out-of-bounds coordinates are clamped."""
+        result = prepare_bbox_for_crop((-50, -50, 150, 150), 100, 100)
+        assert result is not None
+        x1, y1, x2, y2 = result
+        assert x1 >= 0
+        assert y1 >= 0
+        assert x2 <= 100
+        assert y2 <= 100
+
+    def test_padding_applied_correctly(self) -> None:
+        """Test that padding expands the box."""
+        # Without padding
+        result_no_pad = prepare_bbox_for_crop((20, 20, 80, 80), 100, 100, padding=0)
+        # With padding
+        result_with_pad = prepare_bbox_for_crop((20, 20, 80, 80), 100, 100, padding=10)
+
+        assert result_no_pad is not None
+        assert result_with_pad is not None
+
+        # Padding should expand the box (or clamp to bounds)
+        x1_no_pad, y1_no_pad, x2_no_pad, y2_no_pad = result_no_pad
+        x1_pad, y1_pad, x2_pad, y2_pad = result_with_pad
+
+        assert x1_pad <= x1_no_pad
+        assert y1_pad <= y1_no_pad
+        assert x2_pad >= x2_no_pad
+        assert y2_pad >= y2_no_pad
+
+    def test_zero_dimension_box_returns_none(self) -> None:
+        """Test that zero-width or zero-height boxes return None."""
+        # Zero width (after int conversion)
+        result = prepare_bbox_for_crop((50, 10, 50, 90), 100, 100)
+        assert result is None
+
+        # Zero height
+        result = prepare_bbox_for_crop((10, 50, 90, 50), 100, 100)
+        assert result is None
+
+    def test_completely_outside_image_returns_none(self) -> None:
+        """Test that bbox completely outside image returns None."""
+        result = prepare_bbox_for_crop((200, 200, 300, 300), 100, 100)
+        assert result is None
+
+    def test_min_size_filter(self) -> None:
+        """Test that boxes smaller than min_size return None."""
+        # Very small box
+        result = prepare_bbox_for_crop((50, 50, 51, 51), 100, 100, min_size=5)
+        assert result is None
+
+    def test_result_integers(self) -> None:
+        """Test that result contains integers suitable for PIL crop."""
+        result = prepare_bbox_for_crop((10.5, 20.7, 80.3, 90.1), 100, 100)
+        assert result is not None
+        for val in result:
+            assert isinstance(val, int), f"Expected int, got {type(val)}"
+
+    def test_pil_crop_compatible(self) -> None:
+        """Test that result can be used with PIL Image.crop()."""
+        from PIL import Image
+
+        # Create a test image
+        img = Image.new("RGB", (100, 100), color="red")
+
+        # Test with various edge cases that previously caused errors
+        test_cases = [
+            (10, 10, 90, 90),  # Normal
+            (90, 10, 10, 90),  # Inverted X
+            (10, 90, 90, 10),  # Inverted Y
+            (90, 90, 10, 10),  # Fully inverted
+            (-10, -10, 50, 50),  # Negative start
+            (80, 80, 120, 120),  # Out of bounds end
+        ]
+
+        for bbox in test_cases:
+            safe_bbox = prepare_bbox_for_crop(bbox, 100, 100)
+            if safe_bbox is not None:
+                # Should not raise
+                cropped = img.crop(safe_bbox)
+                assert cropped is not None
+                # Verify cropped image has positive dimensions
+                assert cropped.width > 0
+                assert cropped.height > 0
 
 
 # =============================================================================

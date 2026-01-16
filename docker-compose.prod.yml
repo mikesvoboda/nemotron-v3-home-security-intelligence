@@ -264,6 +264,8 @@ services:
       - OTEL_SERVICE_NAME=${OTEL_SERVICE_NAME:-nemotron-backend}
       - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://jaeger:4317}
       - OTEL_TRACE_SAMPLE_RATE=${OTEL_TRACE_SAMPLE_RATE:-1.0}
+      # Rate limiting configuration
+      - RATE_LIMIT_WEBSOCKET_CONNECTIONS_PER_MINUTE=${RATE_LIMIT_WEBSOCKET_CONNECTIONS_PER_MINUTE:-100}
       # Container orchestrator: connect to Podman API via TCP for self-healing
       # Requires: podman system service --time=0 tcp:0.0.0.0:2375 &
       - ORCHESTRATOR_DOCKER_HOST=${ORCHESTRATOR_DOCKER_HOST:-tcp://host.containers.internal:2375}

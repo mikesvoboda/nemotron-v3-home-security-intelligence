@@ -2836,12 +2836,35 @@ class EnrichmentPipeline:
         try:
             # Ensure coordinates are within image bounds
             width, height = pil_image.size
-            x1 = max(0, int(bbox.x1))
-            y1 = max(0, int(bbox.y1))
-            x2 = min(width, int(bbox.x2))
-            y2 = min(height, int(bbox.y2))
+            x1 = int(bbox.x1)
+            y1 = int(bbox.y1)
+            x2 = int(bbox.x2)
+            y2 = int(bbox.y2)
+
+            # Validate and fix inverted coordinates
+            if x2 < x1:
+                logger.warning(
+                    f"Invalid bounding box: x2 ({x2}) < x1 ({x1}). Swapping coordinates."
+                )
+                x1, x2 = x2, x1
+
+            if y2 < y1:
+                logger.warning(
+                    f"Invalid bounding box: y2 ({y2}) < y1 ({y1}). Swapping coordinates."
+                )
+                y1, y2 = y2, y1
+
+            # Clamp to image bounds after fixing inverted coordinates
+            x1 = max(0, x1)
+            y1 = max(0, y1)
+            x2 = min(width, x2)
+            y2 = min(height, y2)
 
             if x2 <= x1 or y2 <= y1:
+                logger.warning(
+                    f"Bounding box has zero or negative dimensions after clamping: "
+                    f"({x1}, {y1}, {x2}, {y2}). Skipping crop."
+                )
                 return None
 
             loop = asyncio.get_event_loop()

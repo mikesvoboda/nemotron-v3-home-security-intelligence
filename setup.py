@@ -53,6 +53,7 @@ class ServiceInfo(TypedDict):
 SERVICES: dict[str, ServiceInfo] = {
     "backend": {"port": 8000, "category": "Core", "desc": "Backend API"},
     "frontend": {"port": 5173, "category": "Core", "desc": "Frontend web UI"},
+    "frontend_https": {"port": 8443, "category": "Core", "desc": "Frontend HTTPS"},
     "postgres": {"port": 5432, "category": "Core", "desc": "PostgreSQL database"},
     "redis": {"port": 6379, "category": "Core", "desc": "Redis cache/queue"},
     "rtdetr": {"port": 8090, "category": "AI", "desc": "RT-DETRv2 object detection"},
@@ -194,6 +195,10 @@ def generate_env_content(config: dict) -> str:
         f"ENRICHMENT_URL=http://ai-enrichment:{ports.get('enrichment', 8094)}",
         f"REDIS_URL=redis://redis:{ports.get('redis', 6379)}",
         "",
+        "# -- Host Ports " + "-" * 45,
+        f"FRONTEND_PORT={ports.get('frontend', 5173)}",
+        f"FRONTEND_HTTPS_PORT={ports.get('frontend_https', 8443)}",
+        "",
         "# -- Frontend Runtime Config " + "-" * 32,
         f"GRAFANA_URL=http://localhost:{ports.get('grafana', 3002)}",
         "",
@@ -234,7 +239,11 @@ def generate_docker_override_content(config: dict) -> str:
         "ai-florence": {"port": ports.get("florence", 8092), "internal": 8092},
         "ai-clip": {"port": ports.get("clip", 8093), "internal": 8093},
         "ai-enrichment": {"port": ports.get("enrichment", 8094), "internal": 8094},
-        "frontend": {"port": ports.get("frontend", 5173), "internal": 80},
+        "frontend": {
+            "port": ports.get("frontend", 5173),
+            "internal": 80,
+            "extra_ports": [(ports.get("frontend_https", 8443), 8443)],
+        },
         "grafana": {"port": ports.get("grafana", 3002), "internal": 3000},
         "prometheus": {"port": ports.get("prometheus", 9090), "internal": 9090},
         "alertmanager": {"port": ports.get("alertmanager", 3000), "internal": 9093},
@@ -246,6 +255,9 @@ def generate_docker_override_content(config: dict) -> str:
         lines.append(f"  {service}:")
         lines.append("    ports:")
         lines.append(f'      - "{cfg["port"]}:{cfg["internal"]}"')
+        if "extra_ports" in cfg:
+            for host_port, container_port in cfg["extra_ports"]:
+                lines.append(f'      - "{host_port}:{container_port}"')
         if "volumes" in cfg:
             lines.append("    volumes:")
             for vol in cfg["volumes"]:
@@ -270,14 +282,16 @@ def run_quick_mode() -> dict:
     print("Checking for port conflicts...")
     conflicts = []
     ports = {}
+    assigned_ports: set[int] = set()
     for service, info in SERVICES.items():
         default_port = info["port"]
-        if check_port_available(default_port):
+        if check_port_available(default_port) and default_port not in assigned_ports:
             ports[service] = default_port
         else:
-            available = find_available_port(default_port)
+            available = find_available_port(default_port, exclude=assigned_ports)
             ports[service] = available
             conflicts.append(f"  {service}: {default_port} -> {available}")
+        assigned_ports.add(ports[service])
 
     if conflicts:
         print("! Port conflicts detected, using alternatives:")
@@ -421,15 +435,17 @@ def run_guided_mode() -> dict:
     print()
     print("Checking for port conflicts...")
 
+    assigned_ports: set[int] = set()
     for service, info in SERVICES.items():
         default_port = info["port"]
-        if not check_port_available(default_port):
-            available = find_available_port(default_port)
+        if not check_port_available(default_port) or default_port in assigned_ports:
+            available = find_available_port(default_port, exclude=assigned_ports)
             print(f"! {info['desc']} ({service}): port {default_port} in use")
             ports[service] = int(prompt_with_default("  Alternative port", str(available)))
         else:
             print(f"+ {info['desc']}: {default_port}")
             ports[service] = default_port
+        assigned_ports.add(ports[service])
     print()
 
     # Step 5: Summary
