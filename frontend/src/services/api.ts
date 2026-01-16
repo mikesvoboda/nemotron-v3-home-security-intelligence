@@ -200,6 +200,10 @@ import type {
   EntityHistoryResponse,
   EntityAppearance,
   EntitySummary,
+  TrustStatus,
+  EntityTrustUpdate,
+  EntityTrustResponse,
+  TrustedEntityListResponse,
   JobResponse,
   JobListResponse,
   JobStatusEnum,
@@ -222,6 +226,10 @@ export type {
   EntityDetail,
   EntityListResponse,
   EntityHistoryResponse,
+  TrustStatus,
+  EntityTrustUpdate,
+  EntityTrustResponse,
+  TrustedEntityListResponse,
 };
 
 // Re-export job types for consumers of this module
@@ -5092,4 +5100,139 @@ export async function fetchEntityStats(params?: {
   const endpoint = queryString ? `/api/entities/stats?${queryString}` : '/api/entities/stats';
 
   return fetchApi<EntityStatsResponse>(endpoint);
+}
+
+// ============================================================================
+// Entity Trust Classification API
+// ============================================================================
+
+/**
+ * Update an entity's trust classification status.
+ *
+ * Allows marking entities as trusted (known/safe), untrusted (suspicious),
+ * or unclassified (default). Includes optional notes for documenting
+ * the classification decision.
+ *
+ * @param entityId - UUID of the entity to update
+ * @param trustStatus - The trust classification to assign
+ * @param notes - Optional notes explaining the classification decision
+ * @returns EntityTrustResponse with updated trust information
+ * @throws ApiError with status 404 if entity not found
+ *
+ * @example
+ * ```typescript
+ * // Mark entity as trusted
+ * const result = await updateEntityTrust(
+ *   '550e8400-e29b-41d4-a716-446655440000',
+ *   'trusted',
+ *   'Regular mail carrier, verified by homeowner'
+ * );
+ * console.log(`Entity marked as: ${result.trust_status}`);
+ *
+ * // Mark entity as untrusted (suspicious)
+ * await updateEntityTrust(entityId, 'untrusted', 'Unknown person at night');
+ *
+ * // Reset to unclassified
+ * await updateEntityTrust(entityId, 'unclassified');
+ * ```
+ */
+export async function updateEntityTrust(
+  entityId: string,
+  trustStatus: TrustStatus,
+  notes?: string
+): Promise<EntityTrustResponse> {
+  const body: EntityTrustUpdate = {
+    trust_status: trustStatus,
+    notes: notes ?? null,
+  };
+
+  return fetchApi<EntityTrustResponse>(
+    `/api/entities/${encodeURIComponent(entityId)}/trust`,
+    {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    }
+  );
+}
+
+/**
+ * Fetch list of trusted entities.
+ *
+ * Returns a paginated list of entities that have been marked as trusted.
+ *
+ * @param params - Optional filter and pagination parameters
+ * @returns TrustedEntityListResponse with trusted entities and pagination info
+ *
+ * @example
+ * ```typescript
+ * // Get all trusted entities
+ * const trusted = await fetchTrustedEntities();
+ * console.log(`Found ${trusted.items.length} trusted entities`);
+ *
+ * // Get trusted persons only
+ * const trustedPersons = await fetchTrustedEntities({ entity_type: 'person' });
+ * ```
+ */
+export async function fetchTrustedEntities(params?: {
+  entity_type?: 'person' | 'vehicle';
+  limit?: number;
+  offset?: number;
+}): Promise<TrustedEntityListResponse> {
+  const searchParams = new URLSearchParams();
+
+  if (params?.entity_type) {
+    searchParams.append('entity_type', params.entity_type);
+  }
+  if (params?.limit) {
+    searchParams.append('limit', params.limit.toString());
+  }
+  if (params?.offset) {
+    searchParams.append('offset', params.offset.toString());
+  }
+
+  const queryString = searchParams.toString();
+  const endpoint = queryString ? `/api/entities/trusted?${queryString}` : '/api/entities/trusted';
+
+  return fetchApi<TrustedEntityListResponse>(endpoint);
+}
+
+/**
+ * Fetch list of untrusted (suspicious) entities.
+ *
+ * Returns a paginated list of entities that have been marked as untrusted.
+ *
+ * @param params - Optional filter and pagination parameters
+ * @returns TrustedEntityListResponse with untrusted entities and pagination info
+ *
+ * @example
+ * ```typescript
+ * // Get all untrusted entities
+ * const suspicious = await fetchUntrustedEntities();
+ * console.log(`Found ${suspicious.items.length} suspicious entities`);
+ * ```
+ */
+export async function fetchUntrustedEntities(params?: {
+  entity_type?: 'person' | 'vehicle';
+  limit?: number;
+  offset?: number;
+}): Promise<TrustedEntityListResponse> {
+  const searchParams = new URLSearchParams();
+
+  if (params?.entity_type) {
+    searchParams.append('entity_type', params.entity_type);
+  }
+  if (params?.limit) {
+    searchParams.append('limit', params.limit.toString());
+  }
+  if (params?.offset) {
+    searchParams.append('offset', params.offset.toString());
+  }
+
+  const queryString = searchParams.toString();
+  const endpoint = queryString ? `/api/entities/untrusted?${queryString}` : '/api/entities/untrusted';
+
+  return fetchApi<TrustedEntityListResponse>(endpoint);
 }

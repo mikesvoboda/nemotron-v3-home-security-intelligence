@@ -166,8 +166,7 @@ test.describe('Accessibility Smoke Tests @smoke @critical', () => {
     await setupApiMocks(page, defaultMockConfig);
   });
 
-  // TODO: Fix color contrast violations in dashboard (timestamp text)
-  test.skip('dashboard page has no critical accessibility violations', async ({ page }) => {
+  test('dashboard page has no critical accessibility violations', async ({ page }) => {
     const dashboardPage = new DashboardPage(page);
     await dashboardPage.goto();
     await dashboardPage.waitForDashboardLoad();

@@ -386,6 +386,12 @@ export type EntityListResponse = components['schemas']['EntityListResponse'];
 export type EntityHistoryResponse = components['schemas']['EntityHistoryResponse'];
 export type PaginationInfo = components['schemas']['PaginationInfo'];
 
+// Entity Trust Classification types
+export type TrustStatus = components['schemas']['TrustStatus'];
+export type EntityTrustUpdate = components['schemas']['EntityTrustUpdate'];
+export type EntityTrustResponse = components['schemas']['EntityTrustResponse'];
+export type TrustedEntityListResponse = components['schemas']['TrustedEntityListResponse'];
+
 // Calibration types (manually defined - pending OpenAPI type generation)
 // These match backend/api/schemas/calibration.py
 

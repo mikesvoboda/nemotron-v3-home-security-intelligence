@@ -139,8 +139,7 @@ test.describe('Dashboard Page Accessibility', () => {
     expect(results.violations, formatViolations(results.violations)).toEqual([]);
   });
 
-  // TODO: Fix color contrast violations in dashboard camera grid
-  test.skip('dashboard camera grid is accessible', async ({ page }) => {
+  test('dashboard camera grid is accessible', async ({ page }) => {
     await dashboardPage.goto();
     await dashboardPage.waitForDashboardLoad();
 
@@ -167,8 +166,7 @@ test.describe('Event Timeline Page Accessibility', () => {
     timelinePage = new TimelinePage(page);
   });
 
-  // TODO: Fix color contrast violations in timeline page
-  test.skip('timeline page has no accessibility violations', async ({ page }) => {
+  test('timeline page has no accessibility violations', async ({ page }) => {
     await timelinePage.goto();
     await timelinePage.waitForTimelineLoad();
 
@@ -245,8 +243,7 @@ test.describe('Settings Page Accessibility', () => {
     expect(results.violations, formatViolations(results.violations)).toEqual([]);
   });
 
-  // TODO: Fix color contrast violations in processing tab
-  test.skip('settings processing tab content is accessible', async ({ page }) => {
+  test('settings processing tab content is accessible', async ({ page }) => {
     await settingsPage.goto();
     await settingsPage.waitForSettingsLoad();
     // Navigate to Processing tab (now the 4th tab: Cameras, Analytics, Rules, Processing, Notifications)
@@ -279,8 +276,7 @@ test.describe('Alert Rules Page Accessibility', () => {
     alertRulesPage = new AlertRulesPage(page);
   });
 
-  // TODO: Fix color contrast violations in alert rules page
-  test.skip('alert rules page has no accessibility violations', async ({ page }) => {
+  test('alert rules page has no accessibility violations', async ({ page }) => {
     await alertRulesPage.goto();
 
     const results = await runA11yCheck(page);
@@ -301,8 +297,7 @@ test.describe('Alert Rules Page Accessibility', () => {
     expect(headerCount).toBeGreaterThan(0);
   });
 
-  // TODO: Fix color contrast violations in add rule modal
-  test.skip('add rule modal is accessible', async ({ page }) => {
+  test('add rule modal is accessible', async ({ page }) => {
     await alertRulesPage.goto();
     await alertRulesPage.openAddRuleModal();
 
@@ -440,8 +435,7 @@ test.describe('Logs Page Accessibility', () => {
     await setupApiMocks(page, defaultMockConfig);
   });
 
-  // TODO: Fix color contrast violations in logs page
-  test.skip('logs page has no accessibility violations', async ({ page }) => {
+  test('logs page has no accessibility violations', async ({ page }) => {
     await page.goto('/logs');
     // Wait for page content to load
     await page.waitForLoadState('networkidle');
