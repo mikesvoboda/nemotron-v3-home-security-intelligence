@@ -438,8 +438,8 @@ export async function setupApiMocks(
     }
   });
 
-  // Cameras endpoint
-  await page.route('**/api/cameras', async (route) => {
+  // Cameras endpoint - use regex pattern for reliable matching
+  await page.route(/\/api\/cameras$/, async (route) => {
     if (mergedConfig.camerasError) {
       await route.fulfill({
         status: 500,
@@ -972,124 +972,54 @@ export async function setupApiMocks(
     }
   });
 
-  // Entity Trust endpoint (BEFORE /api/entities/stats and /api/entities*)
-  await page.route('**/api/entities/*/trust', async (route) => {
-    if (route.request().method() !== 'PATCH') {
-      await route.continue();
-      return;
-    }
-
-    if (mergedConfig.entitiesError) {
-      await route.fulfill({
-        status: 500,
-        contentType: 'application/json',
-        body: JSON.stringify({ detail: 'Failed to update entity trust status' }),
-      });
-    } else {
-      // Extract entity ID from URL
-      const url = route.request().url();
-      const match = url.match(/\/api\/entities\/([^/]+)\/trust/);
-      const entityId = match?.[1] || 'unknown';
-
-      // Get the requested trust status from body
-      const body = route.request().postDataJSON() as { trust_status?: string } | null;
-      const trustStatus = body?.trust_status || 'unknown';
-
-      // Find the entity in mock data
-      const entities = mergedConfig.entities || [];
-      const entity = entities.find((e) => e.id === entityId);
-
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          id: entityId,
-          entity_type: entity?.entity_type || 'person',
-          trust_status: trustStatus,
-          trust_updated_at: new Date().toISOString(),
-          first_seen: entity?.first_seen || new Date().toISOString(),
-          last_seen: entity?.last_seen || new Date().toISOString(),
-          appearance_count: entity?.appearance_count || 1,
-          cameras_seen: entity?.cameras_seen || [],
-        }),
-      });
-    }
-  });
-
-  // Entity Stats endpoint (BEFORE /api/entities*)
-  await page.route('**/api/entities/stats*', async (route) => {
-    if (mergedConfig.entitiesError) {
-      await route.fulfill({
-        status: 500,
-        contentType: 'application/json',
-        body: JSON.stringify({ detail: 'Failed to fetch entity stats' }),
-      });
-    } else {
-      // Calculate stats from entities if provided, otherwise use defaults
-      const entities = mergedConfig.entities || [];
-      const personCount = entities.filter((e) => e.entity_type === 'person').length;
-      const vehicleCount = entities.filter((e) => e.entity_type === 'vehicle').length;
-      const totalAppearances = entities.reduce((sum, e) => sum + e.appearance_count, 0);
-      const repeatVisitors = entities.filter((e) => e.appearance_count > 1).length;
-
-      // Build by_camera counts
-      const byCamera: Record<string, number> = {};
-      entities.forEach((e) => {
-        e.cameras_seen?.forEach((cam) => {
-          byCamera[cam] = (byCamera[cam] || 0) + 1;
-        });
-      });
-
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          total_entities: entities.length,
-          total_appearances: totalAppearances,
-          by_type: {
-            person: personCount,
-            vehicle: vehicleCount,
-          },
-          by_camera: byCamera,
-          repeat_visitors: repeatVisitors,
-        }),
-      });
-    }
-  });
-
-  // Individual Entity Detail endpoint (BEFORE /api/entities*)
-  // Matches /api/entities/{entityId} but NOT /api/entities/stats or /api/entities/{id}/trust
-  await page.route(/\/api\/entities\/[^/]+$/, async (route) => {
+  // Unified Entity endpoint handler - handles ALL /api/entities/* routes
+  // NOTE: In Playwright, routes are matched in LIFO order and route.continue() goes to network,
+  // so ALL entity logic must be in a single handler
+  // Using regex pattern for reliable matching (glob patterns can fail in some Playwright versions)
+  await page.route(/\/api\/entities/, async (route) => {
     const url = route.request().url();
+    const method = route.request().method();
 
-    // Skip if this is the stats endpoint
-    if (url.includes('/stats')) {
-      await route.continue();
-      return;
-    }
-
-    if (mergedConfig.entitiesError) {
-      await route.fulfill({
-        status: 500,
-        contentType: 'application/json',
-        body: JSON.stringify({ detail: 'Failed to fetch entity details' }),
-      });
-    } else {
-      // Extract entity ID from URL
-      const match = url.match(/\/api\/entities\/([^/]+)$/);
-      const entityId = match?.[1] || '';
+    // Handle v2 detections endpoint: GET /api/entities/v2/{entityId}/detections
+    if (url.includes('/v2') && url.includes('/detections')) {
+      const detectionsMatch = url.match(/\/api\/entities\/v2\/([^/]+)\/detections/);
+      const entityId = detectionsMatch?.[1] || 'unknown';
       const entities = mergedConfig.entities || [];
-      const entity = entities.find((e) => e.id === entityId);
+      const entity = entities.find((e) => e.id === decodeURIComponent(entityId));
 
       if (entity) {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
           body: JSON.stringify({
-            ...entity,
-            // Include any additional fields the detail view expects
-            recent_appearances: [],
-            detection_history: [],
+            entity_id: entityId,
+            entity_type: entity.entity_type,
+            detections: [
+              {
+                detection_id: 1001,
+                camera_id: entity.cameras_seen?.[0] || 'cam-1',
+                camera_name: 'Test Camera 1',
+                timestamp: entity.last_seen || new Date().toISOString(),
+                confidence: 0.95,
+                thumbnail_url: entity.thumbnail_url || null,
+                object_type: entity.entity_type,
+              },
+              {
+                detection_id: 1002,
+                camera_id: entity.cameras_seen?.[1] || entity.cameras_seen?.[0] || 'cam-1',
+                camera_name: 'Test Camera 2',
+                timestamp: entity.first_seen || new Date().toISOString(),
+                confidence: 0.92,
+                thumbnail_url: entity.thumbnail_url || null,
+                object_type: entity.entity_type,
+              },
+            ],
+            pagination: {
+              total: 2,
+              limit: 50,
+              offset: 0,
+              has_more: false,
+            },
           }),
         });
       } else {
@@ -1099,11 +1029,188 @@ export async function setupApiMocks(
           body: JSON.stringify({ detail: 'Entity not found' }),
         });
       }
+      return;
     }
-  });
 
-  // Entities endpoint (NEM-2075: uses pagination envelope format)
-  await page.route('**/api/entities*', async (route) => {
+    // Skip other v2 and matches endpoints
+    if (url.includes('/v2') || url.includes('/matches')) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ items: [], pagination: { total: 0, limit: 50, offset: 0, has_more: false } }),
+      });
+      return;
+    }
+
+    // Handle entity history: GET /api/entities/{entityId}/history
+    // Returns detection history for the entity
+    if (url.includes('/history')) {
+      // Extract entity ID from URL
+      const historyMatch = url.match(/\/api\/entities\/([^/]+)\/history/);
+      const entityId = historyMatch?.[1] || 'unknown';
+      const entities = mergedConfig.entities || [];
+      const entity = entities.find((e) => e.id === entityId);
+
+      if (entity) {
+        // Return mock detection history
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            entity_id: entityId,
+            entity_type: entity.entity_type,
+            detections: [
+              {
+                detection_id: 1001,
+                camera_id: entity.cameras_seen?.[0] || 'cam-1',
+                camera_name: 'Test Camera 1',
+                timestamp: entity.last_seen || new Date().toISOString(),
+                confidence: 0.95,
+                thumbnail_url: entity.thumbnail_url || null,
+                object_type: entity.entity_type,
+              },
+              {
+                detection_id: 1002,
+                camera_id: entity.cameras_seen?.[1] || entity.cameras_seen?.[0] || 'cam-1',
+                camera_name: 'Test Camera 2',
+                timestamp: entity.first_seen || new Date().toISOString(),
+                confidence: 0.92,
+                thumbnail_url: entity.thumbnail_url || null,
+                object_type: entity.entity_type,
+              },
+            ],
+            pagination: {
+              total: 2,
+              limit: 50,
+              offset: 0,
+              has_more: false,
+            },
+          }),
+        });
+      } else {
+        await route.fulfill({
+          status: 404,
+          contentType: 'application/json',
+          body: JSON.stringify({ detail: 'Entity not found' }),
+        });
+      }
+      return;
+    }
+
+    // Handle trust update: PATCH /api/entities/{entityId}/trust
+    if (url.includes('/trust') && method === 'PATCH') {
+      if (mergedConfig.entitiesError) {
+        await route.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          body: JSON.stringify({ detail: 'Failed to update entity trust status' }),
+        });
+      } else {
+        const match = url.match(/\/api\/entities\/([^/]+)\/trust/);
+        const entityId = match?.[1] || 'unknown';
+        const body = route.request().postDataJSON() as { trust_status?: string } | null;
+        const trustStatus = body?.trust_status || 'unknown';
+        const entities = mergedConfig.entities || [];
+        const entity = entities.find((e) => e.id === entityId);
+
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            id: entityId,
+            entity_type: entity?.entity_type || 'person',
+            trust_status: trustStatus,
+            trust_updated_at: new Date().toISOString(),
+            first_seen: entity?.first_seen || new Date().toISOString(),
+            last_seen: entity?.last_seen || new Date().toISOString(),
+            appearance_count: entity?.appearance_count || 1,
+            cameras_seen: entity?.cameras_seen || [],
+          }),
+        });
+      }
+      return;
+    }
+
+    // Handle stats: GET /api/entities/stats*
+    if (url.includes('/stats')) {
+      if (mergedConfig.entitiesError) {
+        await route.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          body: JSON.stringify({ detail: 'Failed to fetch entity stats' }),
+        });
+      } else {
+        const entities = mergedConfig.entities || [];
+        const personCount = entities.filter((e) => e.entity_type === 'person').length;
+        const vehicleCount = entities.filter((e) => e.entity_type === 'vehicle').length;
+        const totalAppearances = entities.reduce((sum, e) => sum + e.appearance_count, 0);
+        const repeatVisitors = entities.filter((e) => e.appearance_count > 1).length;
+
+        const byCamera: Record<string, number> = {};
+        entities.forEach((e) => {
+          e.cameras_seen?.forEach((cam) => {
+            byCamera[cam] = (byCamera[cam] || 0) + 1;
+          });
+        });
+
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            total_entities: entities.length,
+            total_appearances: totalAppearances,
+            by_type: { person: personCount, vehicle: vehicleCount },
+            by_camera: byCamera,
+            repeat_visitors: repeatVisitors,
+          }),
+        });
+      }
+      return;
+    }
+
+    // Handle entity detail: GET /api/entities/{entityId}
+    // Check if URL has an entity ID after /api/entities/
+    // Pattern: ends with /api/entities/{something} where {something} has no slashes
+    const entityMatch = url.match(/\/api\/entities\/([^/?]+)(?:\?|$)/);
+    const hasEntityId = entityMatch && entityMatch[1];
+    // Make sure it's not a list request with query params only
+    const isListWithParams = url.match(/\/api\/entities\?/) && !hasEntityId;
+
+    if (hasEntityId && !isListWithParams && method === 'GET') {
+      const entityId = decodeURIComponent(entityMatch[1]);
+
+      if (mergedConfig.entitiesError) {
+        await route.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          body: JSON.stringify({ detail: 'Failed to fetch entity details' }),
+        });
+      } else {
+        const entities = mergedConfig.entities || [];
+        const entity = entities.find((e) => e.id === entityId);
+
+        if (entity) {
+          await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+              ...entity,
+              recent_appearances: [],
+              detection_history: [],
+            }),
+          });
+        } else {
+          await route.fulfill({
+            status: 404,
+            contentType: 'application/json',
+            body: JSON.stringify({ detail: 'Entity not found' }),
+          });
+        }
+      }
+      return;
+    }
+
+    // Handle entity list: GET /api/entities or /api/entities?...
     if (mergedConfig.entitiesError) {
       await route.fulfill({
         status: 500,
