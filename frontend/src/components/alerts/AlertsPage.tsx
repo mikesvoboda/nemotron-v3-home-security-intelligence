@@ -105,6 +105,7 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
       detections,
       started_at: event.started_at,
       ended_at: event.ended_at,
+      thumbnail_url: event.thumbnail_url ?? undefined,
       onViewDetails: onViewEventDetails ? () => onViewEventDetails(event.id) : undefined,
       onClick: (eventId: string) => setSelectedEventForModal(parseInt(eventId, 10)),
       onSnooze: handleSnooze,
