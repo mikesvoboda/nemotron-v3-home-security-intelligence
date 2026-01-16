@@ -89,9 +89,12 @@ LABEL org.opencontainers.image.source="https://github.com/mikesvoboda/nemotron-v
 # Switch to root temporarily to install wget and configure files
 USER root
 
-# Install wget for healthcheck
+# Install wget for healthcheck and openssl for self-signed cert generation
+# Create certs directory for auto-generated SSL certificates
 # hadolint ignore=DL3018
-RUN apk add --no-cache wget
+RUN apk add --no-cache wget openssl && \
+    mkdir -p /etc/nginx/certs && \
+    chown nginx:nginx /etc/nginx/certs
 
 # Copy built assets from builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
@@ -101,10 +104,10 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy entrypoint script (injects DNS resolver at runtime for Docker/Podman portability)
 COPY docker-entrypoint.sh /docker-entrypoint.sh
-RUN chmod +x /docker-entrypoint.sh
 
-# Ensure nginx user owns the necessary directories
-RUN chown -R nginx:nginx /usr/share/nginx/html /var/cache/nginx /var/log/nginx /etc/nginx/conf.d
+# Make entrypoint executable and ensure nginx user owns necessary directories
+RUN chmod +x /docker-entrypoint.sh && \
+    chown -R nginx:nginx /usr/share/nginx/html /var/cache/nginx /var/log/nginx /etc/nginx/conf.d
 
 # Switch back to non-root nginx user
 USER nginx

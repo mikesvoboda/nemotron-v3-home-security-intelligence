@@ -366,14 +366,14 @@ services:
       # HTTPS port mapping (only used when SSL_ENABLED=true)
       # Default 8443 to avoid privileged port issues with rootless containers
       - '${FRONTEND_HTTPS_PORT:-8443}:8443'
-    volumes:
-      # SSL certificates volume mount (optional - only needed when SSL_ENABLED=true)
-      # Create certificates:
-      #   For development (self-signed): ./scripts/generate-ssl-cert.sh
-      #   For production: use Let's Encrypt, Cloudflare, or your CA
-      # Mount directory containing cert.pem and key.pem (or custom paths via SSL_CERT_PATH/SSL_KEY_PATH)
-      - ${SSL_CERT_DIR:-./certs}:/etc/nginx/certs:ro
+    # Optional: Mount pre-existing certificates from host
+    # If not mounted, container auto-generates self-signed certs when SSL_ENABLED=true
+    # volumes:
+    #   - ${SSL_CERT_DIR:-./certs}:/etc/nginx/certs:ro
     environment:
+      # Extra SANs for the auto-generated certificate (e.g., your server's IP)
+      # Format: IP:192.168.1.100,DNS:myhost.local
+      - SSL_SAN_EXTRA=${SSL_SAN_EXTRA:-}
       # SSL/TLS Configuration
       # Set SSL_ENABLED=true to enable HTTPS (requires valid certificates)
       - SSL_ENABLED=${SSL_ENABLED:-false}
