@@ -418,9 +418,7 @@ describe('AlertForm', () => {
       await user.click(submitButton);
 
       await waitFor(() => {
-        expect(onSubmit).toHaveBeenCalledWith(
-          expect.objectContaining({ camera_ids: ['cam-1'] })
-        );
+        expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ camera_ids: ['cam-1'] }));
       });
     });
   });
@@ -644,13 +642,7 @@ describe('AlertForm', () => {
     });
 
     it('should show dismiss button when onClearApiError is provided', () => {
-      render(
-        <AlertForm
-          {...defaultProps}
-          apiError="Failed to save"
-          onClearApiError={vi.fn()}
-        />
-      );
+      render(<AlertForm {...defaultProps} apiError="Failed to save" onClearApiError={vi.fn()} />);
 
       expect(screen.getByRole('button', { name: 'Dismiss error' })).toBeInTheDocument();
     });
@@ -659,11 +651,7 @@ describe('AlertForm', () => {
       const user = userEvent.setup();
       const onClearApiError = vi.fn();
       render(
-        <AlertForm
-          {...defaultProps}
-          apiError="Failed to save"
-          onClearApiError={onClearApiError}
-        />
+        <AlertForm {...defaultProps} apiError="Failed to save" onClearApiError={onClearApiError} />
       );
 
       await user.click(screen.getByRole('button', { name: 'Dismiss error' }));
@@ -727,9 +715,7 @@ describe('AlertForm', () => {
       const nameInput = screen.getByLabelText<HTMLInputElement>(/Rule Name/);
       expect(nameInput.value).toBe('');
 
-      rerender(
-        <AlertForm {...defaultProps} initialData={{ name: 'Updated Alert' }} />
-      );
+      rerender(<AlertForm {...defaultProps} initialData={{ name: 'Updated Alert' }} />);
 
       await waitFor(() => {
         expect(nameInput.value).toBe('Updated Alert');

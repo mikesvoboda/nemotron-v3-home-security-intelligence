@@ -105,7 +105,11 @@ function getActionBadgeClasses(action: string): string {
   if (upperAction.includes('CREATE') || upperAction.includes('ADD')) {
     return 'bg-green-500/10 text-green-400 border-green-500/20';
   }
-  if (upperAction.includes('UPDATE') || upperAction.includes('EDIT') || upperAction.includes('MODIFY')) {
+  if (
+    upperAction.includes('UPDATE') ||
+    upperAction.includes('EDIT') ||
+    upperAction.includes('MODIFY')
+  ) {
     return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
   }
   if (upperAction.includes('DELETE') || upperAction.includes('REMOVE')) {
@@ -226,8 +230,8 @@ export default function AuditTable({
               </div>
               <p className="mb-2 text-lg font-semibold text-gray-300">No Audit Entries Found</p>
               <p className="mb-4 text-sm text-gray-500">
-                No audit logs match the current filters. Audit entries are automatically created when
-                you perform system operations.
+                No audit logs match the current filters. Audit entries are automatically created
+                when you perform system operations.
               </p>
               <div className="rounded-lg border border-gray-700 bg-[#1A1A1A] p-4 text-left">
                 <p className="mb-2 text-xs font-medium uppercase tracking-wider text-gray-400">
@@ -317,9 +321,7 @@ export default function AuditTable({
                   <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-300">
                     <span className="font-mono text-xs">
                       {log.resource_type}
-                      {log.resource_id && (
-                        <span className="text-gray-500">/{log.resource_id}</span>
-                      )}
+                      {log.resource_id && <span className="text-gray-500">/{log.resource_id}</span>}
                     </span>
                   </td>
 

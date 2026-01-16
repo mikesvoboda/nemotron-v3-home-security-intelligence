@@ -119,7 +119,8 @@ export function getWebCodecsStatus(): WebCodecsStatus {
       'Access the application via HTTPS, localhost, or 127.0.0.1 to enable advanced video processing features';
   } else {
     message = 'WebCodecs APIs are not supported by this browser';
-    recommendation = 'Use a modern browser that supports WebCodecs (Chrome 94+, Edge 94+, Opera 80+)';
+    recommendation =
+      'Use a modern browser that supports WebCodecs (Chrome 94+, Edge 94+, Opera 80+)';
   }
 
   return {

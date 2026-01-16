@@ -245,6 +245,10 @@ class TestListDeletedEvents:
         data = response.json()
         assert len(data["items"]) == 3
         assert data["pagination"]["total"] == 3
+        # Verify that deleted_at is included in the response (NEM-2664)
+        for item in data["items"]:
+            assert "deleted_at" in item
+            assert item["deleted_at"] is not None
 
     def test_list_deleted_events_ordered_by_deleted_at_desc(
         self,

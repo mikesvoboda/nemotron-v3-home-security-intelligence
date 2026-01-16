@@ -77,9 +77,7 @@ describe('useAlertsInfiniteQuery', () => {
     });
 
     it('starts with empty alerts array', () => {
-      (api.fetchEvents as ReturnType<typeof vi.fn>).mockReturnValue(
-        new Promise(() => {})
-      );
+      (api.fetchEvents as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => {}));
 
       const { result } = renderHook(() => useAlertsInfiniteQuery(), {
         wrapper: createQueryWrapper(),
@@ -121,9 +119,7 @@ describe('useAlertsInfiniteQuery', () => {
       });
 
       // Both queries should have been called
-      expect(api.fetchEvents).toHaveBeenCalledWith(
-        expect.objectContaining({ risk_level: 'high' })
-      );
+      expect(api.fetchEvents).toHaveBeenCalledWith(expect.objectContaining({ risk_level: 'high' }));
       expect(api.fetchEvents).toHaveBeenCalledWith(
         expect.objectContaining({ risk_level: 'critical' })
       );
@@ -134,9 +130,7 @@ describe('useAlertsInfiniteQuery', () => {
     });
 
     it('fetches only high alerts when riskFilter is "high"', async () => {
-      const highAlerts = [
-        createMockEvent({ id: 1, risk_level: 'high' }),
-      ];
+      const highAlerts = [createMockEvent({ id: 1, risk_level: 'high' })];
 
       (api.fetchEvents as ReturnType<typeof vi.fn>).mockResolvedValue(
         createMockResponse(highAlerts, { total: 1 })
@@ -151,9 +145,7 @@ describe('useAlertsInfiniteQuery', () => {
       });
 
       // Only high query should have been called
-      expect(api.fetchEvents).toHaveBeenCalledWith(
-        expect.objectContaining({ risk_level: 'high' })
-      );
+      expect(api.fetchEvents).toHaveBeenCalledWith(expect.objectContaining({ risk_level: 'high' }));
       expect(api.fetchEvents).not.toHaveBeenCalledWith(
         expect.objectContaining({ risk_level: 'critical' })
       );
@@ -162,9 +154,7 @@ describe('useAlertsInfiniteQuery', () => {
     });
 
     it('fetches only critical alerts when riskFilter is "critical"', async () => {
-      const criticalAlerts = [
-        createMockEvent({ id: 1, risk_level: 'critical' }),
-      ];
+      const criticalAlerts = [createMockEvent({ id: 1, risk_level: 'critical' })];
 
       (api.fetchEvents as ReturnType<typeof vi.fn>).mockResolvedValue(
         createMockResponse(criticalAlerts, { total: 1 })
@@ -208,7 +198,9 @@ describe('useAlertsInfiniteQuery', () => {
           }
           if (params?.risk_level === 'critical') {
             // Same ID returned from critical query (unlikely but possible)
-            return Promise.resolve(createMockResponse([{ ...duplicateAlert, risk_level: 'critical' }], { total: 1 }));
+            return Promise.resolve(
+              createMockResponse([{ ...duplicateAlert, risk_level: 'critical' }], { total: 1 })
+            );
           }
           return Promise.resolve(createMockResponse([]));
         }
@@ -328,16 +320,16 @@ describe('useAlertsInfiniteQuery', () => {
     it('hasNextPage is true when either query has more pages', async () => {
       (api.fetchEvents as ReturnType<typeof vi.fn>).mockImplementation((params) => {
         if (params?.risk_level === 'high') {
-          return createMockResponse(
-            [createMockEvent({ id: 1, risk_level: 'high' })],
-            { has_more: true, next_cursor: 'high-cursor' }
-          );
+          return createMockResponse([createMockEvent({ id: 1, risk_level: 'high' })], {
+            has_more: true,
+            next_cursor: 'high-cursor',
+          });
         }
         if (params?.risk_level === 'critical') {
-          return createMockResponse(
-            [createMockEvent({ id: 2, risk_level: 'critical' })],
-            { has_more: false, next_cursor: null }
-          );
+          return createMockResponse([createMockEvent({ id: 2, risk_level: 'critical' })], {
+            has_more: false,
+            next_cursor: null,
+          });
         }
         return createMockResponse([]);
       });
@@ -357,16 +349,16 @@ describe('useAlertsInfiniteQuery', () => {
     it('hasNextPage is false when neither query has more pages', async () => {
       (api.fetchEvents as ReturnType<typeof vi.fn>).mockImplementation((params) => {
         if (params?.risk_level === 'high') {
-          return createMockResponse(
-            [createMockEvent({ id: 1, risk_level: 'high' })],
-            { has_more: false, next_cursor: null }
-          );
+          return createMockResponse([createMockEvent({ id: 1, risk_level: 'high' })], {
+            has_more: false,
+            next_cursor: null,
+          });
         }
         if (params?.risk_level === 'critical') {
-          return createMockResponse(
-            [createMockEvent({ id: 2, risk_level: 'critical' })],
-            { has_more: false, next_cursor: null }
-          );
+          return createMockResponse([createMockEvent({ id: 2, risk_level: 'critical' })], {
+            has_more: false,
+            next_cursor: null,
+          });
         }
         return createMockResponse([]);
       });
@@ -492,16 +484,20 @@ describe('useAlertsInfiniteQuery', () => {
         resolveNextPage = resolve;
       });
 
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      (api.fetchEvents as ReturnType<typeof vi.fn>).mockImplementation((params): api.EventListResponse | Promise<api.EventListResponse> => {
-        if (params?.cursor === 'next-cursor') {
-          return nextPagePromise;
+      (api.fetchEvents as ReturnType<typeof vi.fn>).mockImplementation(
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises -- test mock intentionally returns Promise
+        (params): Promise<api.EventListResponse> => {
+          if (params?.cursor === 'next-cursor') {
+            return nextPagePromise;
+          }
+          return Promise.resolve(
+            createMockResponse([createMockEvent({ id: 1 })], {
+              has_more: true,
+              next_cursor: 'next-cursor',
+            })
+          );
         }
-        return createMockResponse(
-          [createMockEvent({ id: 1 })],
-          { has_more: true, next_cursor: 'next-cursor' }
-        );
-      });
+      );
 
       const { result } = renderHook(() => useAlertsInfiniteQuery({ riskFilter: 'high' }), {
         wrapper: createQueryWrapper(),
@@ -607,10 +603,9 @@ describe('useAlertsInfiniteQuery', () => {
     it('does not fetch when enabled is false', async () => {
       (api.fetchEvents as ReturnType<typeof vi.fn>).mockResolvedValue(createMockResponse([]));
 
-      const { result } = renderHook(
-        () => useAlertsInfiniteQuery({ enabled: false }),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useAlertsInfiniteQuery({ enabled: false }), {
+        wrapper: createQueryWrapper(),
+      });
 
       await new Promise((r) => setTimeout(r, 100));
 
@@ -652,9 +647,7 @@ describe('useAlertsInfiniteQuery', () => {
       });
 
       await waitFor(() => {
-        expect(api.fetchEvents).toHaveBeenCalledWith(
-          expect.objectContaining({ limit: 50 })
-        );
+        expect(api.fetchEvents).toHaveBeenCalledWith(expect.objectContaining({ limit: 50 }));
       });
     });
 
@@ -666,9 +659,7 @@ describe('useAlertsInfiniteQuery', () => {
       });
 
       await waitFor(() => {
-        expect(api.fetchEvents).toHaveBeenCalledWith(
-          expect.objectContaining({ limit: 25 })
-        );
+        expect(api.fetchEvents).toHaveBeenCalledWith(expect.objectContaining({ limit: 25 }));
       });
     });
   });
@@ -695,9 +686,7 @@ describe('useAlertsInfiniteQuery', () => {
       });
 
       // Both queries should have been refetched
-      expect(api.fetchEvents).toHaveBeenCalledWith(
-        expect.objectContaining({ risk_level: 'high' })
-      );
+      expect(api.fetchEvents).toHaveBeenCalledWith(expect.objectContaining({ risk_level: 'high' }));
       expect(api.fetchEvents).toHaveBeenCalledWith(
         expect.objectContaining({ risk_level: 'critical' })
       );

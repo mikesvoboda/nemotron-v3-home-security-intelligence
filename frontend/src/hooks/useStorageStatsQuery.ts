@@ -113,11 +113,7 @@ export interface UseStorageStatsQueryReturn {
 export function useStorageStatsQuery(
   options: UseStorageStatsQueryOptions = {}
 ): UseStorageStatsQueryReturn {
-  const {
-    enabled = true,
-    refetchInterval = 60000,
-    staleTime = STATIC_STALE_TIME,
-  } = options;
+  const { enabled = true, refetchInterval = 60000, staleTime = STATIC_STALE_TIME } = options;
 
   const query = useQuery({
     queryKey: queryKeys.system.storage,

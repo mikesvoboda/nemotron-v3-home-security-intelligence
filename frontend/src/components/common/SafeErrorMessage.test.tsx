@@ -47,8 +47,7 @@ describe('SafeErrorMessage', () => {
     });
 
     it('should neutralize SVG with embedded scripts', () => {
-      const xssPayload =
-        '<svg onload="alert(\'XSS\')"><circle r="10"/></svg>SVG attack';
+      const xssPayload = '<svg onload="alert(\'XSS\')"><circle r="10"/></svg>SVG attack';
       render(<SafeErrorMessage message={xssPayload} />);
 
       const element = screen.getByTestId('safe-error-message');
@@ -138,9 +137,7 @@ describe('SafeErrorMessage', () => {
     });
 
     it('should handle complex nested tags', () => {
-      expect(
-        sanitizeErrorMessage('<div><span onclick="alert()">Text</span></div>')
-      ).toBe('Text');
+      expect(sanitizeErrorMessage('<div><span onclick="alert()">Text</span></div>')).toBe('Text');
     });
   });
 
@@ -148,18 +145,14 @@ describe('SafeErrorMessage', () => {
     it('should render a string message', () => {
       render(<SafeErrorMessage message="Test error message" />);
 
-      expect(screen.getByTestId('safe-error-message')).toHaveTextContent(
-        'Test error message'
-      );
+      expect(screen.getByTestId('safe-error-message')).toHaveTextContent('Test error message');
     });
 
     it('should render an Error object message', () => {
       const error = new Error('Error object message');
       render(<SafeErrorMessage message={error} />);
 
-      expect(screen.getByTestId('safe-error-message')).toHaveTextContent(
-        'Error object message'
-      );
+      expect(screen.getByTestId('safe-error-message')).toHaveTextContent('Error object message');
     });
 
     it('should render nothing for null message', () => {
@@ -234,7 +227,7 @@ describe('SafeErrorMessage', () => {
     });
 
     it('should apply custom className', () => {
-      render(<SafeErrorMessage message="Error" className="mt-2 custom-class" />);
+      render(<SafeErrorMessage message="Error" className="custom-class mt-2" />);
       const element = screen.getByTestId('safe-error-message');
       expect(element).toHaveClass('mt-2', 'custom-class');
     });

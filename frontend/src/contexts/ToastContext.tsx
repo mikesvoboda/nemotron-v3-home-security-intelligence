@@ -19,14 +19,7 @@
  * showToast('Something went wrong', 'error');
  * showToast('Processing...', 'info', 10000); // Custom 10s duration
  */
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useMemo,
-  useState,
-  type ReactNode,
-} from 'react';
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 
 /**
  * Toast notification types.
@@ -180,9 +173,7 @@ export function ToastProvider({
     [toasts, showToast, dismissToast]
   );
 
-  return (
-    <ToastContext.Provider value={contextValue}>{children}</ToastContext.Provider>
-  );
+  return <ToastContext.Provider value={contextValue}>{children}</ToastContext.Provider>;
 }
 
 /**

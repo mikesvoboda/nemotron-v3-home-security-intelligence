@@ -302,9 +302,7 @@ export function useRetry(config: Partial<RetryConfig> = {}): UseRetryReturn {
   const pendingRetries = useRef<Map<string, PendingRetry<any>>>(new Map());
 
   // Track countdown intervals
-  const countdownIntervals = useRef<Map<string, ReturnType<typeof setInterval>>>(
-    new Map()
-  );
+  const countdownIntervals = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map());
 
   // Get store actions
   const { setRetry, removeRetry, cancelRetry: storeCancelRetry } = useRetryStore();
@@ -316,37 +314,34 @@ export function useRetry(config: Partial<RetryConfig> = {}): UseRetryReturn {
   /**
    * Start a countdown timer for a retry operation.
    */
-  const startCountdown = useCallback(
-    (id: string, _delayMs: number, retryAt: number) => {
-      // Clear existing interval if any
-      const existingInterval = countdownIntervals.current.get(id);
-      if (existingInterval) {
-        clearInterval(existingInterval);
-      }
+  const startCountdown = useCallback((id: string, _delayMs: number, retryAt: number) => {
+    // Clear existing interval if any
+    const existingInterval = countdownIntervals.current.get(id);
+    if (existingInterval) {
+      clearInterval(existingInterval);
+    }
 
-      const updateCountdown = () => {
-        const remaining = Math.max(0, retryAt - Date.now());
-        const seconds = Math.ceil(remaining / 1000);
-        useRetryStore.getState().updateCountdown(id, seconds);
+    const updateCountdown = () => {
+      const remaining = Math.max(0, retryAt - Date.now());
+      const seconds = Math.ceil(remaining / 1000);
+      useRetryStore.getState().updateCountdown(id, seconds);
 
-        if (remaining <= 0) {
-          const interval = countdownIntervals.current.get(id);
-          if (interval) {
-            clearInterval(interval);
-            countdownIntervals.current.delete(id);
-          }
+      if (remaining <= 0) {
+        const interval = countdownIntervals.current.get(id);
+        if (interval) {
+          clearInterval(interval);
+          countdownIntervals.current.delete(id);
         }
-      };
+      }
+    };
 
-      // Initial update
-      updateCountdown();
+    // Initial update
+    updateCountdown();
 
-      // Update every second
-      const intervalId = setInterval(updateCountdown, 1000);
-      countdownIntervals.current.set(id, intervalId);
-    },
-    []
-  );
+    // Update every second
+    const intervalId = setInterval(updateCountdown, 1000);
+    countdownIntervals.current.set(id, intervalId);
+  }, []);
 
   /**
    * Clean up a retry operation (timer, countdown, store).
@@ -374,11 +369,7 @@ export function useRetry(config: Partial<RetryConfig> = {}): UseRetryReturn {
    * Queue a request for retry with exponential backoff.
    */
   const queueRetry = useCallback(
-    <T,>(
-      execute: () => Promise<T>,
-      url: string,
-      retryAfterMs?: number | null
-    ): Promise<T> => {
+    <T>(execute: () => Promise<T>, url: string, retryAfterMs?: number | null): Promise<T> => {
       return new Promise((resolve, reject) => {
         const id = generateRetryId();
         const attempt = 1;
@@ -461,9 +452,7 @@ export function useRetry(config: Partial<RetryConfig> = {}): UseRetryReturn {
                 // Max retries reached
                 cleanupRetry(pendingRetry.id);
                 pendingRetry.reject(
-                  error instanceof Error
-                    ? error
-                    : new Error('Max retries exceeded')
+                  error instanceof Error ? error : new Error('Max retries exceeded')
                 );
               }
             }

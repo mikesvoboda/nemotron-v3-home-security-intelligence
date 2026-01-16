@@ -164,7 +164,10 @@ export default function DatabasesPanel({
   const redisChartData = transformToChartData(history.redis.memory);
 
   return (
-    <Card className={clsx('border-gray-800 bg-[#1A1A1A] shadow-lg', className)} data-testid={testId}>
+    <Card
+      className={clsx('border-gray-800 bg-[#1A1A1A] shadow-lg', className)}
+      data-testid={testId}
+    >
       <Title className="mb-4 flex items-center gap-2 text-white">
         <Database className="h-5 w-5 text-[#76B900]" />
         Databases
@@ -214,7 +217,10 @@ export default function DatabasesPanel({
                 </div>
                 <ProgressBar
                   value={(postgresql.connections_active / postgresql.connections_max) * 100}
-                  color={getConnectionColor(postgresql.connections_active, postgresql.connections_max)}
+                  color={getConnectionColor(
+                    postgresql.connections_active,
+                    postgresql.connections_max
+                  )}
                   className="h-1.5"
                   data-testid="postgresql-connections-bar"
                 />
@@ -231,7 +237,8 @@ export default function DatabasesPanel({
                     className={clsx(
                       'text-xs font-medium',
                       getCacheHitColor(postgresql.cache_hit_ratio) === 'green' && 'text-green-400',
-                      getCacheHitColor(postgresql.cache_hit_ratio) === 'yellow' && 'text-yellow-400',
+                      getCacheHitColor(postgresql.cache_hit_ratio) === 'yellow' &&
+                        'text-yellow-400',
                       getCacheHitColor(postgresql.cache_hit_ratio) === 'red' && 'text-red-400'
                     )}
                     data-testid="postgresql-cache-hit"
@@ -296,11 +303,7 @@ export default function DatabasesPanel({
               <Text className="font-medium text-gray-200">Redis</Text>
             </div>
             {redis ? (
-              <Badge
-                color={getStatusColor(redis.status)}
-                size="sm"
-                data-testid="redis-status"
-              >
+              <Badge color={getStatusColor(redis.status)} size="sm" data-testid="redis-status">
                 {formatStatus(redis.status)}
               </Badge>
             ) : (

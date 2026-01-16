@@ -420,11 +420,7 @@ describe('ThumbnailStrip', () => {
       const user = userEvent.setup();
       const manyDetections = createManyDetections(30);
       render(
-        <ThumbnailStrip
-          detections={manyDetections}
-          initialDisplayCount={10}
-          loadMoreCount={10}
-        />
+        <ThumbnailStrip detections={manyDetections} initialDisplayCount={10} loadMoreCount={10} />
       );
 
       expect(screen.getAllByRole('img')).toHaveLength(10);
@@ -439,11 +435,7 @@ describe('ThumbnailStrip', () => {
       const user = userEvent.setup();
       const manyDetections = createManyDetections(35);
       render(
-        <ThumbnailStrip
-          detections={manyDetections}
-          initialDisplayCount={10}
-          loadMoreCount={10}
-        />
+        <ThumbnailStrip detections={manyDetections} initialDisplayCount={10} loadMoreCount={10} />
       );
 
       expect(screen.getByText('+25')).toBeInTheDocument();
@@ -458,11 +450,7 @@ describe('ThumbnailStrip', () => {
       const user = userEvent.setup();
       const manyDetections = createManyDetections(15);
       render(
-        <ThumbnailStrip
-          detections={manyDetections}
-          initialDisplayCount={10}
-          loadMoreCount={10}
-        />
+        <ThumbnailStrip detections={manyDetections} initialDisplayCount={10} loadMoreCount={10} />
       );
 
       expect(screen.getByTestId('show-more-thumbnails')).toBeInTheDocument();
@@ -478,11 +466,7 @@ describe('ThumbnailStrip', () => {
       const user = userEvent.setup();
       const manyDetections = createManyDetections(23);
       render(
-        <ThumbnailStrip
-          detections={manyDetections}
-          initialDisplayCount={10}
-          loadMoreCount={20}
-        />
+        <ThumbnailStrip detections={manyDetections} initialDisplayCount={10} loadMoreCount={20} />
       );
 
       expect(screen.getAllByRole('img')).toHaveLength(10);
@@ -506,11 +490,7 @@ describe('ThumbnailStrip', () => {
     it('show more button has correct aria-label', () => {
       const manyDetections = createManyDetections(30);
       render(
-        <ThumbnailStrip
-          detections={manyDetections}
-          initialDisplayCount={10}
-          loadMoreCount={15}
-        />
+        <ThumbnailStrip detections={manyDetections} initialDisplayCount={10} loadMoreCount={15} />
       );
 
       const showMoreButton = screen.getByTestId('show-more-thumbnails');
@@ -520,11 +500,7 @@ describe('ThumbnailStrip', () => {
     it('show more button has correct aria-label when remaining is less than loadMoreCount', () => {
       const manyDetections = createManyDetections(15);
       render(
-        <ThumbnailStrip
-          detections={manyDetections}
-          initialDisplayCount={10}
-          loadMoreCount={20}
-        />
+        <ThumbnailStrip detections={manyDetections} initialDisplayCount={10} loadMoreCount={20} />
       );
 
       const showMoreButton = screen.getByTestId('show-more-thumbnails');
@@ -543,11 +519,7 @@ describe('ThumbnailStrip', () => {
       const user = userEvent.setup();
       const manyDetections = createManyDetections(55);
       render(
-        <ThumbnailStrip
-          detections={manyDetections}
-          initialDisplayCount={10}
-          loadMoreCount={20}
-        />
+        <ThumbnailStrip detections={manyDetections} initialDisplayCount={10} loadMoreCount={20} />
       );
 
       expect(screen.getAllByRole('img')).toHaveLength(10);

@@ -30,9 +30,7 @@ describe('useListNavigation', () => {
 
   describe('j/k navigation', () => {
     it('moves down (increases index) when j is pressed', () => {
-      const { result } = renderHook(() =>
-        useListNavigation({ itemCount: 5 })
-      );
+      const { result } = renderHook(() => useListNavigation({ itemCount: 5 }));
 
       expect(result.current.selectedIndex).toBe(0);
 
@@ -44,9 +42,7 @@ describe('useListNavigation', () => {
     });
 
     it('moves up (decreases index) when k is pressed', () => {
-      const { result } = renderHook(() =>
-        useListNavigation({ itemCount: 5, initialIndex: 2 })
-      );
+      const { result } = renderHook(() => useListNavigation({ itemCount: 5, initialIndex: 2 }));
 
       expect(result.current.selectedIndex).toBe(2);
 
@@ -58,9 +54,7 @@ describe('useListNavigation', () => {
     });
 
     it('does not go below 0 when k is pressed at the beginning', () => {
-      const { result } = renderHook(() =>
-        useListNavigation({ itemCount: 5 })
-      );
+      const { result } = renderHook(() => useListNavigation({ itemCount: 5 }));
 
       expect(result.current.selectedIndex).toBe(0);
 
@@ -72,9 +66,7 @@ describe('useListNavigation', () => {
     });
 
     it('does not go above itemCount - 1 when j is pressed at the end', () => {
-      const { result } = renderHook(() =>
-        useListNavigation({ itemCount: 5, initialIndex: 4 })
-      );
+      const { result } = renderHook(() => useListNavigation({ itemCount: 5, initialIndex: 4 }));
 
       expect(result.current.selectedIndex).toBe(4);
 
@@ -86,9 +78,7 @@ describe('useListNavigation', () => {
     });
 
     it('supports wrapping when wrap option is true', () => {
-      const { result } = renderHook(() =>
-        useListNavigation({ itemCount: 3, wrap: true })
-      );
+      const { result } = renderHook(() => useListNavigation({ itemCount: 3, wrap: true }));
 
       // At beginning, go up wraps to end
       act(() => {
@@ -108,9 +98,7 @@ describe('useListNavigation', () => {
 
   describe('Arrow key navigation', () => {
     it('moves down when ArrowDown is pressed', () => {
-      const { result } = renderHook(() =>
-        useListNavigation({ itemCount: 5 })
-      );
+      const { result } = renderHook(() => useListNavigation({ itemCount: 5 }));
 
       act(() => {
         simulateKeyPress('ArrowDown');
@@ -120,9 +108,7 @@ describe('useListNavigation', () => {
     });
 
     it('moves up when ArrowUp is pressed', () => {
-      const { result } = renderHook(() =>
-        useListNavigation({ itemCount: 5, initialIndex: 2 })
-      );
+      const { result } = renderHook(() => useListNavigation({ itemCount: 5, initialIndex: 2 }));
 
       act(() => {
         simulateKeyPress('ArrowUp');
@@ -134,9 +120,7 @@ describe('useListNavigation', () => {
 
   describe('Home/End navigation', () => {
     it('jumps to first item when Home is pressed', () => {
-      const { result } = renderHook(() =>
-        useListNavigation({ itemCount: 10, initialIndex: 5 })
-      );
+      const { result } = renderHook(() => useListNavigation({ itemCount: 10, initialIndex: 5 }));
 
       act(() => {
         simulateKeyPress('Home');
@@ -146,9 +130,7 @@ describe('useListNavigation', () => {
     });
 
     it('jumps to last item when End is pressed', () => {
-      const { result } = renderHook(() =>
-        useListNavigation({ itemCount: 10, initialIndex: 0 })
-      );
+      const { result } = renderHook(() => useListNavigation({ itemCount: 10, initialIndex: 0 }));
 
       act(() => {
         simulateKeyPress('End');
@@ -186,9 +168,7 @@ describe('useListNavigation', () => {
 
   describe('input field handling', () => {
     it('does not navigate when typing in an input field', () => {
-      const { result } = renderHook(() =>
-        useListNavigation({ itemCount: 5 })
-      );
+      const { result } = renderHook(() => useListNavigation({ itemCount: 5 }));
 
       const input = document.createElement('input');
       document.body.appendChild(input);
@@ -209,9 +189,7 @@ describe('useListNavigation', () => {
 
   describe('enabled option', () => {
     it('does not respond to keys when disabled', () => {
-      const { result } = renderHook(() =>
-        useListNavigation({ itemCount: 5, enabled: false })
-      );
+      const { result } = renderHook(() => useListNavigation({ itemCount: 5, enabled: false }));
 
       act(() => {
         simulateKeyPress('j');
@@ -242,9 +220,7 @@ describe('useListNavigation', () => {
 
   describe('programmatic control', () => {
     it('provides setSelectedIndex for programmatic control', () => {
-      const { result } = renderHook(() =>
-        useListNavigation({ itemCount: 10 })
-      );
+      const { result } = renderHook(() => useListNavigation({ itemCount: 10 }));
 
       act(() => {
         result.current.setSelectedIndex(5);
@@ -254,9 +230,7 @@ describe('useListNavigation', () => {
     });
 
     it('clamps programmatic index to valid range', () => {
-      const { result } = renderHook(() =>
-        useListNavigation({ itemCount: 5 })
-      );
+      const { result } = renderHook(() => useListNavigation({ itemCount: 5 }));
 
       act(() => {
         result.current.setSelectedIndex(100);
@@ -288,9 +262,7 @@ describe('useListNavigation', () => {
     });
 
     it('handles empty list (itemCount = 0)', () => {
-      const { result } = renderHook(() =>
-        useListNavigation({ itemCount: 0 })
-      );
+      const { result } = renderHook(() => useListNavigation({ itemCount: 0 }));
 
       expect(result.current.selectedIndex).toBe(-1);
 
@@ -307,9 +279,7 @@ describe('useListNavigation', () => {
     it('removes event listener on unmount', () => {
       const removeEventListenerSpy = vi.spyOn(document, 'removeEventListener');
 
-      const { unmount } = renderHook(() =>
-        useListNavigation({ itemCount: 5 })
-      );
+      const { unmount } = renderHook(() => useListNavigation({ itemCount: 5 }));
       unmount();
 
       expect(removeEventListenerSpy).toHaveBeenCalledWith('keydown', expect.any(Function));
@@ -318,9 +288,7 @@ describe('useListNavigation', () => {
 
   describe('resetSelection', () => {
     it('provides resetSelection to return to initialIndex', () => {
-      const { result } = renderHook(() =>
-        useListNavigation({ itemCount: 10, initialIndex: 3 })
-      );
+      const { result } = renderHook(() => useListNavigation({ itemCount: 10, initialIndex: 3 }));
 
       act(() => {
         result.current.setSelectedIndex(7);

@@ -92,48 +92,38 @@ export default function OfflineFallback({
     <div
       data-testid="offline-fallback"
       role="alert"
-      className={`
-        ${isFullPage ? 'min-h-screen flex items-center justify-center' : ''}
-        bg-gray-900 px-4 py-8
-        ${className}
-      `}
+      className={` ${isFullPage ? 'flex min-h-screen items-center justify-center' : ''} bg-gray-900 px-4 py-8 ${className} `}
     >
-      <div className="max-w-md w-full text-center">
+      <div className="w-full max-w-md text-center">
         {/* Offline icon */}
         <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-gray-800">
-          <WifiOff
-            className="h-8 w-8 text-gray-400"
-            aria-hidden="true"
-          />
+          <WifiOff className="h-8 w-8 text-gray-400" aria-hidden="true" />
         </div>
 
         {/* Main message */}
-        <h2 className="text-xl font-semibold text-white mb-2">
-          You&apos;re Offline
-        </h2>
-        <p className="text-gray-400 mb-6">
+        <h2 className="mb-2 text-xl font-semibold text-white">You&apos;re Offline</h2>
+        <p className="mb-6 text-gray-400">
           Your network connection is unavailable. Check your WiFi or mobile data settings.
         </p>
 
         {/* Last online time */}
         {lastOnlineAt && (
-          <p className="text-sm text-gray-500 mb-4">
+          <p className="mb-4 text-sm text-gray-500">
             Last online: {formatRelativeTime(lastOnlineAt)}
           </p>
         )}
 
         {/* Cached events info */}
         {cachedEventsCount > 0 && (
-          <div className="mb-6 p-4 rounded-lg bg-gray-800/50 border border-gray-700">
+          <div className="mb-6 rounded-lg border border-gray-700 bg-gray-800/50 p-4">
             <div className="flex items-center justify-center gap-2 text-gray-300">
               <Database className="h-5 w-5 text-[#76B900]" aria-hidden="true" />
               <span>
-                <strong className="text-white">{cachedEventsCount}</strong> cached event{cachedEventsCount !== 1 ? 's' : ''} available
+                <strong className="text-white">{cachedEventsCount}</strong> cached event
+                {cachedEventsCount !== 1 ? 's' : ''} available
               </span>
             </div>
-            <p className="text-xs text-gray-500 mt-2">
-              View recent security events while offline
-            </p>
+            <p className="mt-2 text-xs text-gray-500">View recent security events while offline</p>
           </div>
         )}
 
@@ -142,13 +132,7 @@ export default function OfflineFallback({
           <button
             type="button"
             onClick={onRetry}
-            className="
-              inline-flex items-center gap-2
-              rounded-lg bg-[#76B900] px-4 py-2
-              text-sm font-medium text-black
-              hover:bg-[#8BC34A] focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:ring-offset-2 focus:ring-offset-gray-900
-              transition-colors
-            "
+            className="inline-flex items-center gap-2 rounded-lg bg-[#76B900] px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-[#8BC34A] focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:ring-offset-2 focus:ring-offset-gray-900"
           >
             <RefreshCw className="h-4 w-4" aria-hidden="true" />
             Try Again
@@ -157,10 +141,8 @@ export default function OfflineFallback({
 
         {/* Helpful tips */}
         <div className="mt-8 text-left">
-          <h3 className="text-sm font-medium text-gray-300 mb-3">
-            Troubleshooting Tips:
-          </h3>
-          <ul className="text-sm text-gray-500 space-y-2">
+          <h3 className="mb-3 text-sm font-medium text-gray-300">Troubleshooting Tips:</h3>
+          <ul className="space-y-2 text-sm text-gray-500">
             <li className="flex items-start gap-2">
               <span className="text-[#76B900]">1.</span>
               Check your WiFi or mobile data is enabled

@@ -113,11 +113,7 @@ const RISK_SOUND_MAP: Record<RiskLevel, SoundType> = {
 export function useAudioNotifications(
   options: UseAudioNotificationsOptions = {}
 ): UseAudioNotificationsReturn {
-  const {
-    initialVolume = 0.5,
-    enabled: initialEnabled = true,
-    soundsPath = '/sounds',
-  } = options;
+  const { initialVolume = 0.5, enabled: initialEnabled = true, soundsPath = '/sounds' } = options;
 
   const [volume, setVolumeState] = useState(initialVolume);
   const [isEnabled, setIsEnabled] = useState(initialEnabled);
@@ -135,7 +131,9 @@ export function useAudioNotifications(
     if (typeof window === 'undefined') return;
 
     // Create AudioContext (with vendor prefix for older browsers)
-    const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    const AudioContextClass =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!AudioContextClass) {
       console.warn('Web Audio API is not supported in this browser');
       return;

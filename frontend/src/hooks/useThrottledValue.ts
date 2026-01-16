@@ -36,10 +36,7 @@ export interface UseThrottledValueOptions {
  * // throttledEvents updates at most every 500ms
  * ```
  */
-export function useThrottledValue<T>(
-  value: T,
-  options: UseThrottledValueOptions = {}
-): T {
+export function useThrottledValue<T>(value: T, options: UseThrottledValueOptions = {}): T {
   const { interval = 500 } = options;
   // Note: `leading` option is reserved for future use but not currently implemented
   // since leading=true is the default behavior (initial value is returned immediately)

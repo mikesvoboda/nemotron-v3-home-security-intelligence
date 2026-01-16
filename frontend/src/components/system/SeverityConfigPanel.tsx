@@ -2,10 +2,7 @@ import { Card, Title, Text, Badge } from '@tremor/react';
 import { clsx } from 'clsx';
 import { Gauge, AlertCircle, Lock } from 'lucide-react';
 
-import type {
-  SeverityDefinitionResponse,
-  SeverityMetadataResponse,
-} from '../../types/generated';
+import type { SeverityDefinitionResponse, SeverityMetadataResponse } from '../../types/generated';
 
 /**
  * Props for SeverityConfigPanel component
@@ -107,10 +104,7 @@ export default function SeverityConfigPanel({
           {/* Severity Levels */}
           <div className="space-y-2">
             {sortedDefinitions.map((definition) => (
-              <SeverityLevelRow
-                key={definition.severity}
-                definition={definition}
-              />
+              <SeverityLevelRow key={definition.severity} definition={definition} />
             ))}
           </div>
 
@@ -126,28 +120,19 @@ export default function SeverityConfigPanel({
               <div className="grid grid-cols-3 gap-3 text-center text-xs">
                 <div>
                   <Text className="text-gray-500">Low Max</Text>
-                  <p
-                    className="font-mono text-gray-200"
-                    data-testid="threshold-low-max"
-                  >
+                  <p className="font-mono text-gray-200" data-testid="threshold-low-max">
                     {data.thresholds.low_max}
                   </p>
                 </div>
                 <div>
                   <Text className="text-gray-500">Medium Max</Text>
-                  <p
-                    className="font-mono text-gray-200"
-                    data-testid="threshold-medium-max"
-                  >
+                  <p className="font-mono text-gray-200" data-testid="threshold-medium-max">
                     {data.thresholds.medium_max}
                   </p>
                 </div>
                 <div>
                   <Text className="text-gray-500">High Max</Text>
-                  <p
-                    className="font-mono text-gray-200"
-                    data-testid="threshold-high-max"
-                  >
+                  <p className="font-mono text-gray-200" data-testid="threshold-high-max">
                     {data.thresholds.high_max}
                   </p>
                 </div>
@@ -193,7 +178,7 @@ function SeverityLevelRow({ definition }: SeverityLevelRowProps) {
       />
 
       {/* Label and Description */}
-      <div className="flex-1 min-w-0">
+      <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <Text className="font-medium text-gray-200">{definition.label}</Text>
           <Badge
@@ -207,9 +192,7 @@ function SeverityLevelRow({ definition }: SeverityLevelRowProps) {
             {definition.severity.toUpperCase()}
           </Badge>
         </div>
-        <Text className="text-xs text-gray-400 truncate">
-          {definition.description}
-        </Text>
+        <Text className="truncate text-xs text-gray-400">{definition.description}</Text>
       </div>
 
       {/* Score Range */}

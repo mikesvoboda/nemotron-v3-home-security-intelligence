@@ -69,12 +69,15 @@ describe('useWebSocketStatus', () => {
     mockWsInstances = [];
 
     // Mock WebSocket constructor
-    vi.stubGlobal('WebSocket', class extends MockWebSocket {
-      constructor(url: string) {
-        super(url);
-        mockWsInstances.push(this);
+    vi.stubGlobal(
+      'WebSocket',
+      class extends MockWebSocket {
+        constructor(url: string) {
+          super(url);
+          mockWsInstances.push(this);
+        }
       }
-    });
+    );
   });
 
   afterEach(() => {
@@ -506,9 +509,7 @@ describe('useWebSocketStatus', () => {
     // Simulate raw string message (non-JSON)
     act(() => {
       if (mockWsInstances[0].onmessage) {
-        mockWsInstances[0].onmessage(
-          new MessageEvent('message', { data: 'raw string data' })
-        );
+        mockWsInstances[0].onmessage(new MessageEvent('message', { data: 'raw string data' }));
       }
     });
 
@@ -631,5 +632,4 @@ describe('useWebSocketStatus', () => {
     // Default should be 15 to handle backend restarts (up to ~8 minutes with exponential backoff)
     expect(result.current.channelStatus.maxReconnectAttempts).toBe(15);
   });
-
 });

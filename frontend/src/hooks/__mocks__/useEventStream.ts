@@ -177,7 +177,9 @@ export function createLowRiskEvent(options: Partial<MockSecurityEventOptions> = 
  * @param options - Additional options to override
  * @returns A mock SecurityEvent with medium risk
  */
-export function createMediumRiskEvent(options: Partial<MockSecurityEventOptions> = {}): SecurityEvent {
+export function createMediumRiskEvent(
+  options: Partial<MockSecurityEventOptions> = {}
+): SecurityEvent {
   return createMockSecurityEvent({
     risk_score: 50,
     risk_level: 'medium',
@@ -193,7 +195,9 @@ export function createMediumRiskEvent(options: Partial<MockSecurityEventOptions>
  * @param options - Additional options to override
  * @returns A mock SecurityEvent with high risk
  */
-export function createHighRiskEvent(options: Partial<MockSecurityEventOptions> = {}): SecurityEvent {
+export function createHighRiskEvent(
+  options: Partial<MockSecurityEventOptions> = {}
+): SecurityEvent {
   return createMockSecurityEvent({
     risk_score: 80,
     risk_level: 'high',
@@ -209,7 +213,9 @@ export function createHighRiskEvent(options: Partial<MockSecurityEventOptions> =
  * @param options - Additional options to override
  * @returns A mock SecurityEvent with critical risk
  */
-export function createCriticalRiskEvent(options: Partial<MockSecurityEventOptions> = {}): SecurityEvent {
+export function createCriticalRiskEvent(
+  options: Partial<MockSecurityEventOptions> = {}
+): SecurityEvent {
   return createMockSecurityEvent({
     risk_score: 95,
     risk_level: 'critical',

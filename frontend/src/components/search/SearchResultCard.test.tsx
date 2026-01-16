@@ -171,9 +171,7 @@ describe('SearchResultCard', () => {
   });
 
   it('applies custom className', () => {
-    const { container } = render(
-      <SearchResultCard result={mockResult} className="custom-class" />
-    );
+    const { container } = render(<SearchResultCard result={mockResult} className="custom-class" />);
 
     expect(container.firstChild).toHaveClass('custom-class');
   });

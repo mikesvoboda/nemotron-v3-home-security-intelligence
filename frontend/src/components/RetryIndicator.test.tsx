@@ -54,9 +54,7 @@ describe('RetryIndicator', () => {
     vi.clearAllMocks();
   });
 
-  const createRetryState = (
-    overrides: Partial<RetryState> = {}
-  ): RetryState => ({
+  const createRetryState = (overrides: Partial<RetryState> = {}): RetryState => ({
     id: 'test-retry-1',
     attempt: 1,
     maxAttempts: 3,
@@ -114,9 +112,7 @@ describe('RetryIndicator', () => {
     it('displays attempt information', () => {
       render(<RetryIndicator />);
 
-      expect(screen.getByTestId('retry-attempt')).toHaveTextContent(
-        'Attempt 1 of 3'
-      );
+      expect(screen.getByTestId('retry-attempt')).toHaveTextContent('Attempt 1 of 3');
     });
 
     it('shows spinner element', () => {
@@ -189,9 +185,7 @@ describe('RetryIndicator', () => {
 
       render(<RetryIndicator />);
 
-      expect(screen.getByTestId('retry-multiple')).toHaveTextContent(
-        '+2 more requests queued'
-      );
+      expect(screen.getByTestId('retry-multiple')).toHaveTextContent('+2 more requests queued');
     });
 
     it('shows singular form for 2 retries', () => {
@@ -202,9 +196,7 @@ describe('RetryIndicator', () => {
 
       render(<RetryIndicator />);
 
-      expect(screen.getByTestId('retry-multiple')).toHaveTextContent(
-        '+1 more request queued'
-      );
+      expect(screen.getByTestId('retry-multiple')).toHaveTextContent('+1 more request queued');
     });
 
     it('shows "Cancel all retries" button for multiple retries', () => {
@@ -299,9 +291,7 @@ describe('RetryIndicator', () => {
 
       render(<RetryIndicator />);
 
-      expect(screen.getByTestId('retry-attempt')).toHaveTextContent(
-        'Attempt 2 of 3'
-      );
+      expect(screen.getByTestId('retry-attempt')).toHaveTextContent('Attempt 2 of 3');
     });
 
     it('shows attempt 3 of 3', () => {
@@ -311,9 +301,7 @@ describe('RetryIndicator', () => {
 
       render(<RetryIndicator />);
 
-      expect(screen.getByTestId('retry-attempt')).toHaveTextContent(
-        'Attempt 3 of 3'
-      );
+      expect(screen.getByTestId('retry-attempt')).toHaveTextContent('Attempt 3 of 3');
     });
   });
 });
@@ -327,9 +315,7 @@ describe('RetryIndicatorCompact', () => {
     vi.clearAllMocks();
   });
 
-  const createRetryState = (
-    overrides: Partial<RetryState> = {}
-  ): RetryState => ({
+  const createRetryState = (overrides: Partial<RetryState> = {}): RetryState => ({
     id: 'test-retry-1',
     attempt: 1,
     maxAttempts: 3,
@@ -345,9 +331,7 @@ describe('RetryIndicatorCompact', () => {
 
     render(<RetryIndicatorCompact />);
 
-    expect(
-      screen.queryByTestId('retry-indicator-compact')
-    ).not.toBeInTheDocument();
+    expect(screen.queryByTestId('retry-indicator-compact')).not.toBeInTheDocument();
   });
 
   it('renders when there are active retries', () => {
@@ -359,9 +343,7 @@ describe('RetryIndicatorCompact', () => {
   });
 
   it('displays countdown message', () => {
-    vi.mocked(useActiveRetries).mockReturnValue([
-      createRetryState({ secondsRemaining: 5 }),
-    ]);
+    vi.mocked(useActiveRetries).mockReturnValue([createRetryState({ secondsRemaining: 5 })]);
 
     render(<RetryIndicatorCompact />);
 

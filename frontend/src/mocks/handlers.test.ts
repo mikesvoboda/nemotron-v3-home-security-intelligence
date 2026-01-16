@@ -42,7 +42,9 @@ async function makeRequest(url: string, options?: RequestInit): Promise<Response
  */
 function expectPaginationFields(data: unknown, expectedTotal: number) {
   expect(data).toHaveProperty('pagination');
-  const pagination = (data as { pagination: { total: number; limit: number; offset: number; has_more: boolean } }).pagination;
+  const pagination = (
+    data as { pagination: { total: number; limit: number; offset: number; has_more: boolean } }
+  ).pagination;
   expect(pagination.total).toBe(expectedTotal);
   expect(pagination).toHaveProperty('limit');
   expect(pagination).toHaveProperty('offset');
@@ -102,7 +104,7 @@ describe('Mock Data Factories', () => {
       const event = createMockEvent({
         risk_score: 95,
         risk_level: 'critical',
-        reviewed: true
+        reviewed: true,
       });
 
       expect(event.risk_score).toBe(95);
@@ -179,9 +181,7 @@ describe('Default Mock Data', () => {
     // Validate ranges (with nullish coalescing for optional fields)
     expect(mockGpuStats.utilization ?? 0).toBeGreaterThanOrEqual(0);
     expect(mockGpuStats.utilization ?? 0).toBeLessThanOrEqual(100);
-    expect(mockGpuStats.memory_used ?? 0).toBeLessThanOrEqual(
-      mockGpuStats.memory_total ?? 0
-    );
+    expect(mockGpuStats.memory_used ?? 0).toBeLessThanOrEqual(mockGpuStats.memory_total ?? 0);
   });
 
   it('provides health response', () => {
@@ -577,12 +577,12 @@ describe('System Endpoints', () => {
       expect(data.services).toHaveProperty('redis');
       expect(data.services).toHaveProperty('ai');
 
-      Object.values(
-        data.services as Record<string, { status: string; message: string }>
-      ).forEach((service) => {
-        expect(service).toHaveProperty('status');
-        expect(service).toHaveProperty('message');
-      });
+      Object.values(data.services as Record<string, { status: string; message: string }>).forEach(
+        (service) => {
+          expect(service).toHaveProperty('status');
+          expect(service).toHaveProperty('message');
+        }
+      );
     });
   });
 
@@ -1063,11 +1063,11 @@ describe('Circuit Breaker Endpoints', () => {
       };
 
       const validStates = ['closed', 'open', 'half_open'];
-      Object.values(
-        data.circuit_breakers as Record<string, { state: string }>
-      ).forEach((breaker) => {
-        expect(validStates).toContain(breaker.state);
-      });
+      Object.values(data.circuit_breakers as Record<string, { state: string }>).forEach(
+        (breaker) => {
+          expect(validStates).toContain(breaker.state);
+        }
+      );
     });
   });
 });

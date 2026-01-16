@@ -90,14 +90,8 @@ export const defaultRequestInterceptor: RequestInterceptor = (url, options) => {
  * Default response interceptor that logs responses with timing.
  * Handles different log levels based on status code.
  */
-export const defaultResponseInterceptor: ResponseInterceptor = (
-  response,
-  url,
-  options
-) => {
-  const duration = options?._requestStartTime
-    ? Date.now() - options._requestStartTime
-    : null;
+export const defaultResponseInterceptor: ResponseInterceptor = (response, url, options) => {
+  const duration = options?._requestStartTime ? Date.now() - options._requestStartTime : null;
 
   const durationStr = duration !== null ? ` (${duration}ms)` : '';
   const method = options?.method || 'GET';
@@ -161,9 +155,7 @@ export function createRetryInterceptor(config: RetryConfig = {}): AsyncResponseI
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       // Calculate delay with optional exponential backoff
-      const delay = useExponentialBackoff
-        ? retryDelay * Math.pow(2, attempt)
-        : retryDelay;
+      const delay = useExponentialBackoff ? retryDelay * Math.pow(2, attempt) : retryDelay;
 
       await sleep(delay);
 
@@ -209,19 +201,14 @@ function sleep(ms: number): Promise<void> {
  * @param config - Interceptor configuration
  * @returns A fetch-compatible function with interceptors
  */
-export function createInterceptedFetch(
-  config: InterceptorConfig
-): typeof fetch {
+export function createInterceptedFetch(config: InterceptorConfig): typeof fetch {
   const {
     requestInterceptors = [],
     responseInterceptors = [],
     asyncResponseInterceptors = [],
   } = config;
 
-  return async (
-    input: RequestInfo | URL,
-    init?: RequestInit
-  ): Promise<Response> => {
+  return async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     // Get URL string from input
     let url: string;
     if (typeof input === 'string') {

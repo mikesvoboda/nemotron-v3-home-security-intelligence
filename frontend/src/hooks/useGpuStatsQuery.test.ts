@@ -126,9 +126,7 @@ describe('useGpuStatsQuery', () => {
 
     it('sets error on fetch failure', async () => {
       const errorMessage = 'Failed to fetch GPU stats';
-      (api.fetchGPUStats as ReturnType<typeof vi.fn>).mockRejectedValue(
-        new Error(errorMessage)
-      );
+      (api.fetchGPUStats as ReturnType<typeof vi.fn>).mockRejectedValue(new Error(errorMessage));
 
       const { result } = renderHook(() => useGpuStatsQuery(), {
         wrapper: createQueryWrapper(),

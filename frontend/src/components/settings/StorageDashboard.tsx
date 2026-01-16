@@ -89,15 +89,12 @@ export default function StorageDashboard({ className }: StorageDashboardProps) {
   // Error state (only show if we have no data to display)
   if (statsError && !stats) {
     return (
-      <div className={`flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-4 ${className || ''}`}>
+      <div
+        className={`flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-4 ${className || ''}`}
+      >
         <AlertCircle className="h-5 w-5 flex-shrink-0 text-red-400" />
         <Text className="text-red-400">{statsError.message}</Text>
-        <Button
-          size="xs"
-          variant="secondary"
-          onClick={() => void refetch()}
-          className="ml-auto"
-        >
+        <Button size="xs" variant="secondary" onClick={() => void refetch()} className="ml-auto">
           <RefreshCw className="mr-1 h-3 w-3" />
           Retry
         </Button>
@@ -150,7 +147,7 @@ export default function StorageDashboard({ className }: StorageDashboardProps) {
           decoration="top"
           decorationColor="cyan"
         >
-          <div className="flex items-center gap-2 mb-2">
+          <div className="mb-2 flex items-center gap-2">
             <Image className="h-4 w-4 text-cyan-500" />
             <Text className="text-xs text-gray-300">Thumbnails</Text>
           </div>
@@ -168,13 +165,11 @@ export default function StorageDashboard({ className }: StorageDashboardProps) {
           decoration="top"
           decorationColor="violet"
         >
-          <div className="flex items-center gap-2 mb-2">
+          <div className="mb-2 flex items-center gap-2">
             <Image className="h-4 w-4 text-violet-500" />
             <Text className="text-xs text-gray-300">Images</Text>
           </div>
-          <Text className="font-semibold text-white">
-            {formatBytes(stats.images.size_bytes)}
-          </Text>
+          <Text className="font-semibold text-white">{formatBytes(stats.images.size_bytes)}</Text>
           <Text className="text-xs text-gray-300">
             {formatNumber(stats.images.file_count)} files
           </Text>
@@ -186,13 +181,11 @@ export default function StorageDashboard({ className }: StorageDashboardProps) {
           decoration="top"
           decorationColor="amber"
         >
-          <div className="flex items-center gap-2 mb-2">
+          <div className="mb-2 flex items-center gap-2">
             <FileVideo className="h-4 w-4 text-amber-500" />
             <Text className="text-xs text-gray-300">Clips</Text>
           </div>
-          <Text className="font-semibold text-white">
-            {formatBytes(stats.clips.size_bytes)}
-          </Text>
+          <Text className="font-semibold text-white">{formatBytes(stats.clips.size_bytes)}</Text>
           <Text className="text-xs text-gray-300">
             {formatNumber(stats.clips.file_count)} files
           </Text>
@@ -201,7 +194,7 @@ export default function StorageDashboard({ className }: StorageDashboardProps) {
 
       {/* Database Records */}
       <div className="rounded-lg border border-gray-800 bg-[#1A1A1A]/50 p-3">
-        <div className="flex items-center gap-2 mb-2">
+        <div className="mb-2 flex items-center gap-2">
           <Database className="h-4 w-4 text-gray-300" />
           <Text className="text-xs text-gray-300">Database Records</Text>
         </div>
@@ -227,7 +220,7 @@ export default function StorageDashboard({ className }: StorageDashboardProps) {
 
       {/* Cleanup Preview */}
       <div className="rounded-lg border border-gray-800 bg-[#1A1A1A]/50 p-3">
-        <div className="flex items-center justify-between mb-2">
+        <div className="mb-2 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Trash2 className="h-4 w-4 text-gray-300" />
             <Text className="text-xs text-gray-300">Cleanup Preview</Text>

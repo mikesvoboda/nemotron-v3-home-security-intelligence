@@ -57,9 +57,7 @@ describe('AuditStatsCards', () => {
     });
 
     it('applies custom className', () => {
-      const { container } = render(
-        <AuditStatsCards stats={mockStats} className="custom-class" />
-      );
+      const { container } = render(<AuditStatsCards stats={mockStats} className="custom-class" />);
 
       const wrapper = container.querySelector('.custom-class');
       expect(wrapper).toBeInTheDocument();
@@ -296,13 +294,7 @@ describe('AuditStatsCards', () => {
 
   describe('Active States', () => {
     it('shows active ring on stats card when activeFilter matches', () => {
-      render(
-        <AuditStatsCards
-          stats={mockStats}
-          activeFilter="success"
-          onFilterClick={vi.fn()}
-        />
-      );
+      render(<AuditStatsCards stats={mockStats} activeFilter="success" onFilterClick={vi.fn()} />);
 
       const successCard = screen.getByText('Successful Operations').closest('[role="button"]');
       expect(successCard).toHaveClass('ring-2');
@@ -322,13 +314,7 @@ describe('AuditStatsCards', () => {
     });
 
     it('sets aria-pressed on stats card when active', () => {
-      render(
-        <AuditStatsCards
-          stats={mockStats}
-          activeFilter="total"
-          onFilterClick={vi.fn()}
-        />
-      );
+      render(<AuditStatsCards stats={mockStats} activeFilter="total" onFilterClick={vi.fn()} />);
 
       const totalCard = screen.getByText('Total Audit Entries').closest('[role="button"]');
       expect(totalCard).toHaveAttribute('aria-pressed', 'true');
@@ -355,7 +341,9 @@ describe('AuditStatsCards', () => {
 
       render(<AuditStatsCards stats={mockStats} onFilterClick={mockOnFilterClick} />);
 
-      const totalCard = screen.getByText('Total Audit Entries').closest('[role="button"]') as HTMLElement;
+      const totalCard = screen
+        .getByText('Total Audit Entries')
+        .closest('[role="button"]') as HTMLElement;
       totalCard.focus();
       await user.keyboard('{Enter}');
 
@@ -368,7 +356,9 @@ describe('AuditStatsCards', () => {
 
       render(<AuditStatsCards stats={mockStats} onFilterClick={mockOnFilterClick} />);
 
-      const successCard = screen.getByText('Successful Operations').closest('[role="button"]') as HTMLElement;
+      const successCard = screen
+        .getByText('Successful Operations')
+        .closest('[role="button"]') as HTMLElement;
       successCard.focus();
       await user.keyboard(' ');
 

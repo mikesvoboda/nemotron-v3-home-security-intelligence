@@ -356,7 +356,11 @@ describe('WorkerStatusPanel', () => {
   describe('error messages display', () => {
     it('displays error message for stopped workers with messages', async () => {
       const workersWithMessages: api.WorkerStatus[] = [
-        { name: 'detection_worker', running: false, message: 'State: stopped - initialization failed' },
+        {
+          name: 'detection_worker',
+          running: false,
+          message: 'State: stopped - initialization failed',
+        },
         { name: 'analysis_worker', running: true, message: null },
       ];
 

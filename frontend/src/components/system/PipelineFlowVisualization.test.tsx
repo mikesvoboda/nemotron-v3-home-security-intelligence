@@ -475,9 +475,7 @@ describe('PipelineFlowVisualization', () => {
 
   describe('error state', () => {
     it('shows error message when error is provided', () => {
-      render(
-        <PipelineFlowVisualization {...defaultProps} error="Failed to load pipeline data" />
-      );
+      render(<PipelineFlowVisualization {...defaultProps} error="Failed to load pipeline data" />);
 
       expect(screen.getByTestId('pipeline-flow-error')).toBeInTheDocument();
       expect(screen.getByText('Failed to load pipeline data')).toBeInTheDocument();

@@ -4,7 +4,6 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { useDesktopNotifications } from './useDesktopNotifications';
 
 describe('useDesktopNotifications', () => {
-
   let notificationSpyMock: any;
 
   let notificationCloseMock: any;
@@ -218,9 +217,7 @@ describe('useDesktopNotifications', () => {
       setPermission('granted');
       vi.spyOn(document, 'hasFocus').mockReturnValue(true);
 
-      const { result } = renderHook(() =>
-        useDesktopNotifications({ suppressWhenFocused: true })
-      );
+      const { result } = renderHook(() => useDesktopNotifications({ suppressWhenFocused: true }));
 
       act(() => {
         result.current.showNotification({

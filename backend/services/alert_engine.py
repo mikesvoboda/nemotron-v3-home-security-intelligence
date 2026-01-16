@@ -34,7 +34,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.logging import get_logger
 from backend.core.time_utils import utc_now_naive
-from backend.models import Alert, AlertRule, AlertSeverity, AlertStatus, Detection, Event
+from backend.models import Alert, AlertRule, AlertSeverity, AlertStatus, Detection, Entity, Event
+from backend.models.enums import TrustStatus
 from backend.services.batch_fetch import batch_fetch_detections
 
 if TYPE_CHECKING:
@@ -54,6 +55,23 @@ SEVERITY_PRIORITY = {
 # Day name mapping for schedule evaluation
 DAY_NAMES = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
 
+# Severity escalation mapping for untrusted entities
+# Untrusted entities escalate severity by one level
+SEVERITY_ESCALATION = {
+    AlertSeverity.LOW: AlertSeverity.MEDIUM,
+    AlertSeverity.MEDIUM: AlertSeverity.HIGH,
+    AlertSeverity.HIGH: AlertSeverity.CRITICAL,
+    AlertSeverity.CRITICAL: AlertSeverity.CRITICAL,  # Already at max
+}
+
+# Severity reduction mapping for trusted entities (optional - could also just skip)
+SEVERITY_REDUCTION = {
+    AlertSeverity.CRITICAL: AlertSeverity.HIGH,
+    AlertSeverity.HIGH: AlertSeverity.MEDIUM,
+    AlertSeverity.MEDIUM: AlertSeverity.LOW,
+    AlertSeverity.LOW: AlertSeverity.LOW,  # Already at min
+}
+
 
 @dataclass(slots=True)
 class TriggeredRule:
@@ -63,6 +81,8 @@ class TriggeredRule:
     severity: AlertSeverity
     matched_conditions: list[str] = field(default_factory=list)
     dedup_key: str = ""
+    original_severity: AlertSeverity | None = None  # Severity before trust adjustment
+    trust_adjusted: bool = False  # Whether severity was adjusted based on trust
 
 
 @dataclass(slots=True)
@@ -72,6 +92,8 @@ class EvaluationResult:
     triggered_rules: list[TriggeredRule] = field(default_factory=list)
     skipped_rules: list[tuple[AlertRule, str]] = field(default_factory=list)  # (rule, reason)
     highest_severity: AlertSeverity | None = None
+    entity_trust_status: TrustStatus | None = None  # Aggregate trust status from detections
+    trusted_entity_skipped: bool = False  # Whether alerts were skipped due to trusted entity
 
     @property
     def has_triggers(self) -> bool:
@@ -89,6 +111,10 @@ class AlertRuleEngine:
     - Supports multiple rules triggering for the same event
     - Tracks which rule has highest severity for precedence
     - Respects cooldown periods using dedup_key
+    - Considers entity trust status when generating alerts:
+      * Trusted entities: Skip alerts entirely (return empty result)
+      * Untrusted entities: Escalate severity by one level
+      * Unknown entities: Normal processing
     """
 
     def __init__(self, session: AsyncSession, redis_client: RedisClient | None = None):
@@ -109,6 +135,11 @@ class AlertRuleEngine:
     ) -> EvaluationResult:
         """Evaluate all enabled rules against an event.
 
+        Considers entity trust status when generating alerts:
+        - Trusted entities: Skip all alerts (return empty result)
+        - Untrusted entities: Escalate severity by one level
+        - Unknown entities: Normal processing
+
         Args:
             event: The event to evaluate rules against
             detections: Optional list of detections associated with the event.
@@ -125,10 +156,25 @@ class AlertRuleEngine:
         if detections is None:
             detections = await self._load_event_detections(event)
 
+        # Check entity trust status for detections
+        entity_trust_status = await self._get_aggregate_entity_trust_status(detections)
+
+        # If any detection is linked to a trusted entity, skip all alerts
+        if entity_trust_status == TrustStatus.TRUSTED:
+            result = EvaluationResult()
+            result.entity_trust_status = TrustStatus.TRUSTED
+            result.trusted_entity_skipped = True
+            logger.debug(
+                f"Skipping alert generation for event {event.id} - "
+                f"trusted entity detected in detections"
+            )
+            return result
+
         # Load all enabled rules
         rules = await self._get_enabled_rules()
 
         result = EvaluationResult()
+        result.entity_trust_status = entity_trust_status
 
         for rule in rules:
             try:
@@ -145,19 +191,36 @@ class AlertRuleEngine:
                         result.skipped_rules.append((rule, "in_cooldown"))
                         continue
 
+                    # Determine severity - escalate for untrusted entities
+                    effective_severity = rule.severity
+                    trust_adjusted = False
+                    original_severity = None
+
+                    if entity_trust_status == TrustStatus.UNTRUSTED:
+                        original_severity = rule.severity
+                        effective_severity = SEVERITY_ESCALATION.get(rule.severity, rule.severity)
+                        trust_adjusted = effective_severity != original_severity
+                        if trust_adjusted:
+                            conditions.append(
+                                f"severity_escalated_untrusted_entity "
+                                f"({original_severity.value} -> {effective_severity.value})"
+                            )
+
                     triggered = TriggeredRule(
                         rule=rule,
-                        severity=rule.severity,
+                        severity=effective_severity,
                         matched_conditions=conditions,
                         dedup_key=dedup_key,
+                        original_severity=original_severity,
+                        trust_adjusted=trust_adjusted,
                     )
                     result.triggered_rules.append(triggered)
 
-                    # Track highest severity
+                    # Track highest severity (using effective/adjusted severity)
                     if result.highest_severity is None or SEVERITY_PRIORITY.get(
-                        rule.severity, 0
+                        effective_severity, 0
                     ) > SEVERITY_PRIORITY.get(result.highest_severity, 0):
-                        result.highest_severity = rule.severity
+                        result.highest_severity = effective_severity
 
             except (ValueError, TypeError, KeyError, AttributeError) as e:
                 # ValueError/TypeError: Invalid condition values or type mismatches
@@ -178,6 +241,58 @@ class AlertRuleEngine:
         stmt = select(AlertRule).where(AlertRule.enabled.is_(True))
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
+
+    async def _get_aggregate_entity_trust_status(
+        self, detections: list[Detection]
+    ) -> TrustStatus | None:
+        """Get aggregate trust status for entities linked to detections.
+
+        Looks up entities linked to the given detections (via primary_detection_id)
+        and returns the aggregate trust status:
+        - TRUSTED: If ANY detection is linked to a trusted entity (most permissive)
+        - UNTRUSTED: If ANY detection is linked to an untrusted entity (and none trusted)
+        - UNKNOWN: If all linked entities are unknown, or no entities are linked
+
+        Priority: TRUSTED > UNTRUSTED > UNKNOWN
+
+        This means that if a person you trust is detected, even alongside unknown
+        entities, the entire event is considered trusted (no alert).
+
+        Args:
+            detections: List of detections to check for linked entities
+
+        Returns:
+            TrustStatus value or None if no detections
+        """
+        if not detections:
+            return None
+
+        # Get detection IDs to look up entities
+        detection_ids = [d.id for d in detections if d.id is not None]
+        if not detection_ids:
+            return None
+
+        # Query entities that have any of these detections as their primary detection
+        stmt = (
+            select(Entity.trust_status)
+            .where(Entity.primary_detection_id.in_(detection_ids))
+            .distinct()
+        )
+        result = await self.session.execute(stmt)
+        trust_statuses = list(result.scalars().all())
+
+        if not trust_statuses:
+            # No entities linked to these detections
+            return None
+
+        # Apply priority: TRUSTED > UNTRUSTED > UNKNOWN
+        if TrustStatus.TRUSTED.value in trust_statuses:
+            return TrustStatus.TRUSTED
+        if TrustStatus.UNTRUSTED.value in trust_statuses:
+            return TrustStatus.UNTRUSTED
+
+        # Default to UNKNOWN (or None if no recognized status)
+        return TrustStatus.UNKNOWN
 
     async def _load_event_detections(self, event: Event) -> list[Detection]:
         """Load detections for an event using the event_detections junction table.

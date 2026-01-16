@@ -15,11 +15,7 @@ import {
   isJobFailedMessage,
 } from '../types/websocket';
 
-import type {
-  JobProgressData,
-  JobCompletedData,
-  JobFailedData,
-} from '../types/websocket';
+import type { JobProgressData, JobCompletedData, JobFailedData } from '../types/websocket';
 
 export interface UseJobWebSocketOptions {
   baseUrl?: string;

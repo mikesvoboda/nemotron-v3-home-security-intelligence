@@ -61,10 +61,7 @@ export default function ThumbnailImage({
   const showPlaceholder = !src || hasError;
 
   return (
-    <div
-      className={clsx('flex-shrink-0', className)}
-      data-testid={testId}
-    >
+    <div className={clsx('flex-shrink-0', className)} data-testid={testId}>
       {showPlaceholder ? (
         <div
           className={clsx(

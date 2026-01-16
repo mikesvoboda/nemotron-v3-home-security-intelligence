@@ -18,7 +18,8 @@ export interface PerformanceAlertsProps {
  */
 function formatValue(value: number, metric: string): string {
   // Check if it appears to be a percentage-based metric
-  const isPercentage = metric.toLowerCase().includes('percent') ||
+  const isPercentage =
+    metric.toLowerCase().includes('percent') ||
     metric.toLowerCase().includes('usage') ||
     metric.toLowerCase().includes('utilization') ||
     metric.toLowerCase().includes('ratio');
@@ -47,10 +48,12 @@ function getMetricUnit(metric: string): string {
   if (lowerMetric.includes('vram') || lowerMetric.includes('_gb')) {
     return 'GB';
   }
-  if (lowerMetric.includes('percent') ||
-      lowerMetric.includes('usage') ||
-      lowerMetric.includes('utilization') ||
-      lowerMetric.includes('ratio')) {
+  if (
+    lowerMetric.includes('percent') ||
+    lowerMetric.includes('usage') ||
+    lowerMetric.includes('utilization') ||
+    lowerMetric.includes('ratio')
+  ) {
     return '%';
   }
 
@@ -63,7 +66,7 @@ function getMetricUnit(metric: string): string {
 function formatMetricName(metric: string): string {
   return metric
     .split('_')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
 }
 
@@ -113,10 +116,7 @@ export function PerformanceAlerts({ className }: PerformanceAlertsProps) {
   }
 
   return (
-    <div
-      className={clsx('space-y-3', className)}
-      data-testid="performance-alerts"
-    >
+    <div className={clsx('space-y-3', className)} data-testid="performance-alerts">
       <Title className="text-lg font-semibold text-white">Active Alerts</Title>
       <div className="space-y-2">
         {sortedAlerts.map((alert) => {
@@ -134,17 +134,20 @@ export function PerformanceAlerts({ className }: PerformanceAlertsProps) {
               data-testid={`alert-${alert.severity}-${alert.metric}`}
             >
               <span className="mt-2 flex flex-wrap items-center gap-2">
-                <Badge
-                  color={alert.severity === 'critical' ? 'red' : 'yellow'}
-                  size="sm"
-                >
+                <Badge color={alert.severity === 'critical' ? 'red' : 'yellow'} size="sm">
                   {alert.severity.toUpperCase()}
                 </Badge>
-                <span className="text-sm text-tremor-content dark:text-dark-tremor-content">
+                <span className="text-tremor-content dark:text-dark-tremor-content text-sm">
                   <span className="font-medium">{formatMetricName(alert.metric)}:</span>{' '}
-                  <span className="text-red-400">{formattedValue}{unit}</span>
+                  <span className="text-red-400">
+                    {formattedValue}
+                    {unit}
+                  </span>
                   {' > '}
-                  <span className="text-gray-400">{formattedThreshold}{unit}</span>
+                  <span className="text-gray-400">
+                    {formattedThreshold}
+                    {unit}
+                  </span>
                 </span>
               </span>
             </Callout>

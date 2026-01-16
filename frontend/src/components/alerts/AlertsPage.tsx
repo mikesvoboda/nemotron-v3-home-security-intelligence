@@ -1,7 +1,12 @@
 import { AlertTriangle, Bell, Loader2, RefreshCw } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
-import { useAlertsInfiniteQuery, useInfiniteScroll, useCamerasQuery, useSnoozeEvent } from '../../hooks';
+import {
+  useAlertsInfiniteQuery,
+  useInfiniteScroll,
+  useCamerasQuery,
+  useSnoozeEvent,
+} from '../../hooks';
 import { updateEvent } from '../../services/api';
 import { getRiskLevel } from '../../utils/risk';
 import RiskBadge from '../common/RiskBadge';
@@ -217,9 +222,7 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
       {/* Results Summary */}
       <div className="mb-4 flex flex-col gap-2">
         <p className="text-sm text-gray-400">
-          {isLoading
-            ? 'Loading...'
-            : `${totalCount} alert${totalCount !== 1 ? 's' : ''} found`}
+          {isLoading ? 'Loading...' : `${totalCount} alert${totalCount !== 1 ? 's' : ''} found`}
           {alerts.length < totalCount && ` (showing ${alerts.length})`}
         </p>
         {/* Risk Summary Badges */}
@@ -253,7 +256,11 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
         <div className="flex min-h-[400px] items-center justify-center rounded-lg border border-red-900/50 bg-red-950/20">
           <div className="text-center">
             <p className="mb-2 text-lg font-semibold text-red-400">Error Loading Alerts</p>
-            <SafeErrorMessage message={error?.message || 'An error occurred'} size="sm" color="gray" />
+            <SafeErrorMessage
+              message={error?.message || 'An error occurred'}
+              size="sm"
+              color="gray"
+            />
           </div>
         </div>
       ) : alerts.length === 0 ? (

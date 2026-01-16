@@ -92,7 +92,11 @@ export default function SearchResultCard({
   };
 
   // Parse object types
-  const objectTypes = result.object_types?.split(',').map((t) => t.trim()).filter(Boolean) || [];
+  const objectTypes =
+    result.object_types
+      ?.split(',')
+      .map((t) => t.trim())
+      .filter(Boolean) || [];
 
   return (
     <div
@@ -101,9 +105,7 @@ export default function SearchResultCard({
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       className={`group cursor-pointer rounded-lg border bg-[#1F1F1F] p-4 transition-all hover:border-[#76B900]/50 hover:shadow-lg ${
-        isSelected
-          ? 'border-[#76B900] ring-1 ring-[#76B900]'
-          : 'border-gray-800'
+        isSelected ? 'border-[#76B900] ring-1 ring-[#76B900]' : 'border-gray-800'
       } ${className}`}
       aria-pressed={isSelected}
     >
@@ -115,21 +117,17 @@ export default function SearchResultCard({
             {formatRelevanceScore(result.relevance_score)} match
           </span>
         </div>
-        <RiskBadge
-          level={(result.risk_level as RiskLevel) || 'low'}
-          size="sm"
-          animated={false}
-        />
+        <RiskBadge level={(result.risk_level as RiskLevel) || 'low'} size="sm" animated={false} />
       </div>
 
       {/* Summary */}
-      <h3 className="mb-2 text-base font-medium text-white line-clamp-2">
+      <h3 className="mb-2 line-clamp-2 text-base font-medium text-white">
         {result.summary || 'No summary available'}
       </h3>
 
       {/* Reasoning (if available) */}
       {result.reasoning && (
-        <p className="mb-3 text-sm text-gray-400 line-clamp-2">{result.reasoning}</p>
+        <p className="mb-3 line-clamp-2 text-sm text-gray-400">{result.reasoning}</p>
       )}
 
       {/* Meta Information */}
@@ -151,7 +149,9 @@ export default function SearchResultCard({
         {/* Detection Count */}
         <div className="flex items-center gap-1.5">
           <Eye className="h-3.5 w-3.5" />
-          <span>{result.detection_count} detection{result.detection_count !== 1 ? 's' : ''}</span>
+          <span>
+            {result.detection_count} detection{result.detection_count !== 1 ? 's' : ''}
+          </span>
         </div>
       </div>
 

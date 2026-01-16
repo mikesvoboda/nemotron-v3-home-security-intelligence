@@ -132,17 +132,11 @@ export function createTestQueryClient(
  * const { result } = renderHook(() => useCamerasQuery(), { wrapper });
  * ```
  */
-export function createWrapper(
-  queryClientOptions?: ConstructorParameters<typeof QueryClient>[0]
-) {
+export function createWrapper(queryClientOptions?: ConstructorParameters<typeof QueryClient>[0]) {
   const queryClient = createTestQueryClient(queryClientOptions);
 
   return function Wrapper({ children }: { children: ReactNode }) {
-    return (
-      <QueryClientProvider client={queryClient}>
-        {children}
-      </QueryClientProvider>
-    );
+    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
   };
 }
 
@@ -176,10 +170,7 @@ export function createWrapper(
  * });
  * ```
  */
-export function renderWithProviders(
-  ui: ReactElement,
-  options?: RenderWithProvidersOptions
-) {
+export function renderWithProviders(ui: ReactElement, options?: RenderWithProvidersOptions) {
   const { queryClientOptions, ...renderOptions } = options || {};
 
   const Wrapper = createWrapper(queryClientOptions);

@@ -27,7 +27,6 @@ import { AlertTriangle, Check, Loader2 } from 'lucide-react';
 
 import type { ReactElement } from 'react';
 
-
 export interface InfiniteScrollStatusProps {
   /**
    * Ref callback from useInfiniteScroll hook.

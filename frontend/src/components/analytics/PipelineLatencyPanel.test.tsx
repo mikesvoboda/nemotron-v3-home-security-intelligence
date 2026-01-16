@@ -5,10 +5,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import PipelineLatencyPanel from './PipelineLatencyPanel';
 import * as api from '../../services/api';
 
-import type {
-  PipelineLatencyResponse,
-  PipelineLatencyHistoryResponse,
-} from '../../services/api';
+import type { PipelineLatencyResponse, PipelineLatencyHistoryResponse } from '../../services/api';
 
 // Mock API
 vi.mock('../../services/api', async () => {
@@ -398,7 +395,9 @@ describe('PipelineLatencyPanel', () => {
   });
 
   it('displays no data message when latency data is null', async () => {
-    vi.mocked(api.fetchPipelineLatency).mockResolvedValue(null as unknown as api.PipelineLatencyResponse);
+    vi.mocked(api.fetchPipelineLatency).mockResolvedValue(
+      null as unknown as api.PipelineLatencyResponse
+    );
 
     render(<PipelineLatencyPanel />);
 

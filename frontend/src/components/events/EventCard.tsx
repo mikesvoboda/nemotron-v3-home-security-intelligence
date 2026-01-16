@@ -204,20 +204,27 @@ const EventCard = memo(function EventCard({
         {/* Content Column */}
         <div className="min-w-0 flex-1">
           {/* Header: Camera name, timestamp, risk badge */}
-          <div className={`mb-3 flex items-start justify-between ${hasCheckboxOverlay ? 'ml-8' : ''}`}>
+          <div
+            className={`mb-3 flex items-start justify-between ${hasCheckboxOverlay ? 'ml-8' : ''}`}
+          >
             <div className="min-w-0 flex-1">
               <h3 className="truncate text-base font-semibold text-white" title={camera_name}>
                 {camera_name}
               </h3>
               <div className="mt-1 flex flex-col gap-1">
-                <div className="flex items-center gap-1.5 text-sm text-text-secondary" data-testid="event-timestamp">
+                <div
+                  className="flex items-center gap-1.5 text-sm text-text-secondary"
+                  data-testid="event-timestamp"
+                >
                   <Clock className="h-3.5 w-3.5" />
                   <span>{formatTimestamp(timestamp)}</span>
                 </div>
                 {(started_at || ended_at !== undefined) && (
                   <div className="flex items-center gap-1.5 text-sm text-text-secondary">
                     <Timer className="h-3.5 w-3.5" />
-                    <span>Duration: {formatDuration(started_at || timestamp, ended_at ?? null)}</span>
+                    <span>
+                      Duration: {formatDuration(started_at || timestamp, ended_at ?? null)}
+                    </span>
                   </div>
                 )}
               </div>
@@ -225,14 +232,14 @@ const EventCard = memo(function EventCard({
             <RiskBadge level={riskLevel} score={risk_score} showScore={true} size="md" />
           </div>
 
-      {/* Object Type Badges */}
-      {uniqueObjectTypes.length > 0 && (
-        <div className="mb-3 flex flex-wrap gap-1.5">
-          {uniqueObjectTypes.map((type) => (
-            <ObjectTypeBadge key={type} type={type} size="sm" />
-          ))}
-        </div>
-      )}
+          {/* Object Type Badges */}
+          {uniqueObjectTypes.length > 0 && (
+            <div className="mb-3 flex flex-wrap gap-1.5">
+              {uniqueObjectTypes.map((type) => (
+                <ObjectTypeBadge key={type} type={type} size="sm" />
+              ))}
+            </div>
+          )}
 
           {/* Risk Score Progress Bar */}
           <div className="mb-3">
@@ -361,7 +368,9 @@ const EventCard = memo(function EventCard({
                 >
                   <Moon className="h-4 w-4" />
                   Snooze
-                  <ChevronDown className={`h-3 w-3 transition-transform ${showSnoozeMenu ? 'rotate-180' : ''}`} />
+                  <ChevronDown
+                    className={`h-3 w-3 transition-transform ${showSnoozeMenu ? 'rotate-180' : ''}`}
+                  />
                 </button>
                 {showSnoozeMenu && (
                   <div className="absolute right-0 z-10 mt-1 w-40 rounded-md border border-gray-700 bg-gray-800 py-1 shadow-lg">

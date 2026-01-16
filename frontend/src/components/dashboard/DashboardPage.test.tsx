@@ -516,11 +516,11 @@ describe('DashboardPage', () => {
         const backYardButtons = screen.getAllByRole('button', { name: 'Back Yard' });
 
         // At least one should have the thumbnail URL attribute (from camera grid)
-        const frontDoorWithThumbnail = frontDoorButtons.find(btn =>
-          btn.getAttribute('data-thumbnail-url') === '/api/cameras/cam1/snapshot'
+        const frontDoorWithThumbnail = frontDoorButtons.find(
+          (btn) => btn.getAttribute('data-thumbnail-url') === '/api/cameras/cam1/snapshot'
         );
-        const backYardWithThumbnail = backYardButtons.find(btn =>
-          btn.getAttribute('data-thumbnail-url') === '/api/cameras/cam2/snapshot'
+        const backYardWithThumbnail = backYardButtons.find(
+          (btn) => btn.getAttribute('data-thumbnail-url') === '/api/cameras/cam2/snapshot'
         );
 
         expect(frontDoorWithThumbnail).toBeDefined();
@@ -555,8 +555,8 @@ describe('DashboardPage', () => {
 
       // Get all Front Door buttons and find the one in the camera grid (has thumbnail URL)
       const frontDoorButtons = screen.getAllByRole('button', { name: 'Front Door' });
-      const cameraGridButton = frontDoorButtons.find(btn =>
-        btn.getAttribute('data-thumbnail-url') === '/api/cameras/cam1/snapshot'
+      const cameraGridButton = frontDoorButtons.find(
+        (btn) => btn.getAttribute('data-thumbnail-url') === '/api/cameras/cam1/snapshot'
       );
 
       expect(cameraGridButton).toBeDefined();
@@ -575,8 +575,8 @@ describe('DashboardPage', () => {
 
       // Get all Back Yard buttons and find the one in the camera grid (has thumbnail URL)
       const backYardButtons = screen.getAllByRole('button', { name: 'Back Yard' });
-      const cameraGridButton = backYardButtons.find(btn =>
-        btn.getAttribute('data-thumbnail-url') === '/api/cameras/cam2/snapshot'
+      const cameraGridButton = backYardButtons.find(
+        (btn) => btn.getAttribute('data-thumbnail-url') === '/api/cameras/cam2/snapshot'
       );
 
       expect(cameraGridButton).toBeDefined();

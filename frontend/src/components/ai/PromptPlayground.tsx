@@ -38,8 +38,6 @@ import {
 } from 'lucide-react';
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-
-
 import { calculateStats } from './ABTestStats';
 import SuggestionDiffView, { type DiffLine } from './SuggestionDiffView';
 import SuggestionExplanation from './SuggestionExplanation';
@@ -139,19 +137,22 @@ function ToastNotification({ toast, onDismiss }: { toast: Toast; onDismiss: () =
     return () => clearTimeout(timer);
   }, [onDismiss]);
 
-  const bgColor = toast.type === 'success'
-    ? 'bg-green-900/90 border-green-700'
-    : toast.type === 'error'
-    ? 'bg-red-900/90 border-red-700'
-    : 'bg-blue-900/90 border-blue-700';
+  const bgColor =
+    toast.type === 'success'
+      ? 'bg-green-900/90 border-green-700'
+      : toast.type === 'error'
+        ? 'bg-red-900/90 border-red-700'
+        : 'bg-blue-900/90 border-blue-700';
 
-  const textColor = toast.type === 'success'
-    ? 'text-green-300'
-    : toast.type === 'error'
-    ? 'text-red-300'
-    : 'text-blue-300';
+  const textColor =
+    toast.type === 'success'
+      ? 'text-green-300'
+      : toast.type === 'error'
+        ? 'text-red-300'
+        : 'text-blue-300';
 
-  const Icon = toast.type === 'success' ? CheckCircle : toast.type === 'error' ? AlertCircle : AlertCircle;
+  const Icon =
+    toast.type === 'success' ? CheckCircle : toast.type === 'error' ? AlertCircle : AlertCircle;
 
   return (
     <div
@@ -238,10 +239,7 @@ function highlightVariables(text: string): React.ReactNode[] {
       // Reset the regex lastIndex after test
       VARIABLE_PATTERN.lastIndex = 0;
       return (
-        <span
-          key={i}
-          className="rounded bg-[#76B900]/20 px-0.5 text-[#76B900]"
-        >
+        <span key={i} className="rounded bg-[#76B900]/20 px-0.5 text-[#76B900]">
           {part}
         </span>
       );
@@ -289,7 +287,12 @@ function HighlightedEditor({
   }, [value]);
 
   return (
-    <div className={clsx('relative flex overflow-hidden rounded-lg border border-gray-700 bg-black/30', height)}>
+    <div
+      className={clsx(
+        'relative flex overflow-hidden rounded-lg border border-gray-700 bg-black/30',
+        height
+      )}
+    >
       {/* Line numbers gutter */}
       <div
         ref={lineNumbersRef}
@@ -299,7 +302,9 @@ function HighlightedEditor({
         data-testid={`${testId}-line-numbers`}
       >
         {lineNumbers.map((num) => (
-          <div key={num} className="leading-[1.5rem]">{num}</div>
+          <div key={num} className="leading-[1.5rem]">
+            {num}
+          </div>
         ))}
       </div>
 
@@ -322,7 +327,7 @@ function HighlightedEditor({
           onChange={(e) => onChange(e.target.value)}
           onScroll={handleScroll}
           placeholder={placeholder}
-          className="absolute inset-0 h-full w-full resize-none bg-transparent p-3 font-mono text-sm leading-[1.5rem] text-white caret-white placeholder-gray-500 focus:outline-none"
+          className="absolute inset-0 h-full w-full resize-none bg-transparent p-3 font-mono text-sm leading-[1.5rem] text-white placeholder-gray-500 caret-white focus:outline-none"
           style={{ caretColor: 'white' }}
           spellCheck={false}
           data-testid={testId}
@@ -347,7 +352,11 @@ const CATEGORY_COLORS: Record<string, { bg: string; border: string; text: string
   unused_data: { bg: 'bg-blue-900/30', border: 'border-blue-700', text: 'text-blue-300' },
   model_gaps: { bg: 'bg-purple-900/30', border: 'border-purple-700', text: 'text-purple-300' },
   format_suggestions: { bg: 'bg-cyan-900/30', border: 'border-cyan-700', text: 'text-cyan-300' },
-  confusing_sections: { bg: 'bg-yellow-900/30', border: 'border-yellow-700', text: 'text-yellow-300' },
+  confusing_sections: {
+    bg: 'bg-yellow-900/30',
+    border: 'border-yellow-700',
+    text: 'text-yellow-300',
+  },
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -396,9 +405,7 @@ function CategoryBadge({ category, priority, frequency }: CategoryBadgeProps) {
 
       {/* Frequency count */}
       {frequency !== undefined && frequency > 0 && (
-        <span className="text-xs text-gray-400">
-          {frequency}x
-        </span>
+        <span className="text-xs text-gray-400">{frequency}x</span>
       )}
     </div>
   );
@@ -569,9 +576,10 @@ export default function PromptPlayground({
 
     // Get the current system prompt (edited or original)
     const currentPrompt = editedConfigs.nemotron?.system_prompt;
-    const originalPrompt = typeof currentPrompt === 'string'
-      ? currentPrompt
-      : (prompts?.prompts?.nemotron?.config?.system_prompt as string) ?? '';
+    const originalPrompt =
+      typeof currentPrompt === 'string'
+        ? currentPrompt
+        : ((prompts?.prompts?.nemotron?.config?.system_prompt as string) ?? '');
 
     const result = applySuggestion(originalPrompt, activeSuggestion);
 
@@ -725,7 +733,10 @@ export default function PromptPlayground({
       // Reload prompts to get updated version
       await loadPrompts();
       setSaveSuccess(modelName);
-      addToast('success', `${MODEL_CONFIGS.find((m) => m.name === modelName)?.displayName || modelName} configuration saved successfully`);
+      addToast(
+        'success',
+        `${MODEL_CONFIGS.find((m) => m.name === modelName)?.displayName || modelName} configuration saved successfully`
+      );
 
       // Clear success message after 3 seconds
       setTimeout(() => setSaveSuccess(null), 3000);
@@ -750,7 +761,10 @@ export default function PromptPlayground({
       [modelName]: { ...prompts.prompts[modelName].config },
     }));
     setSaveSuccess(null);
-    addToast('info', `${MODEL_CONFIGS.find((m) => m.name === modelName)?.displayName || modelName} configuration reset to original`);
+    addToast(
+      'info',
+      `${MODEL_CONFIGS.find((m) => m.name === modelName)?.displayName || modelName} configuration reset to original`
+    );
   };
 
   // Test config
@@ -860,7 +874,10 @@ export default function PromptPlayground({
                 <p className="text-xs text-gray-400">
                   <span className="font-medium text-gray-300">Available variables:</span>{' '}
                   {model.variables.map((v, i) => (
-                    <code key={i} className="mx-1 rounded bg-[#76B900]/20 px-1.5 py-0.5 text-[#76B900]">
+                    <code
+                      key={i}
+                      className="mx-1 rounded bg-[#76B900]/20 px-1.5 py-0.5 text-[#76B900]"
+                    >
                       {v}
                     </code>
                   ))}
@@ -873,7 +890,10 @@ export default function PromptPlayground({
 
             {/* System prompt with syntax highlighting and line numbers */}
             <div>
-              <label htmlFor={`${modelName}-system-prompt-input`} className="mb-2 block text-sm font-medium text-gray-300">
+              <label
+                htmlFor={`${modelName}-system-prompt-input`}
+                className="mb-2 block text-sm font-medium text-gray-300"
+              >
                 System Prompt
               </label>
               <HighlightedEditor
@@ -888,7 +908,10 @@ export default function PromptPlayground({
 
             {/* Temperature slider */}
             <div>
-              <label htmlFor={`${modelName}-temperature-input`} className="mb-2 block text-sm font-medium text-gray-300">
+              <label
+                htmlFor={`${modelName}-temperature-input`}
+                className="mb-2 block text-sm font-medium text-gray-300"
+              >
                 Temperature: {Number(config.temperature || 0.7).toFixed(2)}
               </label>
               <input
@@ -908,7 +931,12 @@ export default function PromptPlayground({
 
             {/* Max tokens */}
             <div>
-              <label htmlFor={`${modelName}-max-tokens-input`} className="mb-2 block text-sm font-medium text-gray-300">Max Tokens</label>
+              <label
+                htmlFor={`${modelName}-max-tokens-input`}
+                className="mb-2 block text-sm font-medium text-gray-300"
+              >
+                Max Tokens
+              </label>
               <input
                 id={`${modelName}-max-tokens-input`}
                 type="number"
@@ -928,7 +956,12 @@ export default function PromptPlayground({
       case 'florence2':
         return (
           <div className="space-y-4">
-            <label htmlFor={`${modelName}-vqa-queries-input`} className="mb-2 block text-sm font-medium text-gray-300">VQA Queries</label>
+            <label
+              htmlFor={`${modelName}-vqa-queries-input`}
+              className="mb-2 block text-sm font-medium text-gray-300"
+            >
+              VQA Queries
+            </label>
             <p className="text-xs text-gray-500">
               Enter one query per line. These are the visual questions asked about each image.
             </p>
@@ -953,15 +986,18 @@ export default function PromptPlayground({
         return (
           <div className="space-y-4">
             <div>
-              <label htmlFor={`${modelName}-object-classes-input`} className="mb-2 block text-sm font-medium text-gray-300">Object Classes</label>
+              <label
+                htmlFor={`${modelName}-object-classes-input`}
+                className="mb-2 block text-sm font-medium text-gray-300"
+              >
+                Object Classes
+              </label>
               <p className="text-xs text-gray-500">
                 Enter one class per line. These are the objects to detect.
               </p>
               <textarea
                 id={`${modelName}-object-classes-input`}
-                value={
-                  Array.isArray(config.object_classes) ? config.object_classes.join('\n') : ''
-                }
+                value={Array.isArray(config.object_classes) ? config.object_classes.join('\n') : ''}
                 onChange={(e) =>
                   updateConfigValue(
                     modelName,
@@ -976,7 +1012,10 @@ export default function PromptPlayground({
             </div>
 
             <div>
-              <label htmlFor={`${modelName}-confidence-input`} className="mb-2 block text-sm font-medium text-gray-300">
+              <label
+                htmlFor={`${modelName}-confidence-input`}
+                className="mb-2 block text-sm font-medium text-gray-300"
+              >
                 Confidence Threshold: {Number(config.confidence_threshold || 0.5).toFixed(2)}
               </label>
               <input
@@ -999,7 +1038,12 @@ export default function PromptPlayground({
       case 'xclip':
         return (
           <div className="space-y-4">
-            <label htmlFor={`${modelName}-action-classes-input`} className="mb-2 block text-sm font-medium text-gray-300">Action Classes</label>
+            <label
+              htmlFor={`${modelName}-action-classes-input`}
+              className="mb-2 block text-sm font-medium text-gray-300"
+            >
+              Action Classes
+            </label>
             <p className="text-xs text-gray-500">
               Enter one action per line. These are the actions to recognize in video clips.
             </p>
@@ -1024,7 +1068,10 @@ export default function PromptPlayground({
         return (
           <div className="space-y-4">
             <div>
-              <label htmlFor={`${modelName}-clothing-categories-input`} className="mb-2 block text-sm font-medium text-gray-300">
+              <label
+                htmlFor={`${modelName}-clothing-categories-input`}
+                className="mb-2 block text-sm font-medium text-gray-300"
+              >
                 Clothing Categories
               </label>
               <p className="text-xs text-gray-500">Enter one category per line.</p>
@@ -1049,7 +1096,10 @@ export default function PromptPlayground({
             </div>
 
             <div>
-              <label htmlFor={`${modelName}-suspicious-indicators-input`} className="mb-2 block text-sm font-medium text-gray-300">
+              <label
+                htmlFor={`${modelName}-suspicious-indicators-input`}
+                className="mb-2 block text-sm font-medium text-gray-300"
+              >
                 Suspicious Indicators
               </label>
               <p className="text-xs text-gray-500">
@@ -1132,7 +1182,10 @@ export default function PromptPlayground({
 
                         {/* Recommendation context with styled badges */}
                         {recommendation && (
-                          <div className="mt-3 space-y-3 rounded-lg border border-[#76B900]/30 bg-[#76B900]/10 p-4" data-testid="recommendation-banner">
+                          <div
+                            className="mt-3 space-y-3 rounded-lg border border-[#76B900]/30 bg-[#76B900]/10 p-4"
+                            data-testid="recommendation-banner"
+                          >
                             {/* Category and priority badges */}
                             <CategoryBadge
                               category={recommendation.category}
@@ -1141,9 +1194,7 @@ export default function PromptPlayground({
                             />
 
                             {/* Suggestion text */}
-                            <p className="text-sm text-white">
-                              {recommendation.suggestion}
-                            </p>
+                            <p className="text-sm text-white">{recommendation.suggestion}</p>
 
                             {/* Source event link */}
                             {sourceEventId && (
@@ -1190,7 +1241,8 @@ export default function PromptPlayground({
                             originalPrompt={
                               typeof editedConfigs.nemotron?.system_prompt === 'string'
                                 ? editedConfigs.nemotron.system_prompt
-                                : (prompts?.prompts?.nemotron?.config?.system_prompt as string) ?? ''
+                                : ((prompts?.prompts?.nemotron?.config?.system_prompt as string) ??
+                                  '')
                             }
                             suggestion={activeSuggestion}
                             diff={previewDiff}
@@ -1229,28 +1281,38 @@ export default function PromptPlayground({
 
                       {/* Suggestion Applied Banner */}
                       {suggestionApplied && hasUnsavedChanges && (
-                        <div className="mb-6 rounded-lg border border-green-800 bg-green-900/20 p-4" data-testid="suggestion-applied-banner">
+                        <div
+                          className="mb-6 rounded-lg border border-green-800 bg-green-900/20 p-4"
+                          data-testid="suggestion-applied-banner"
+                        >
                           <div className="flex items-center gap-2 text-green-400">
                             <CheckCircle className="h-5 w-5 flex-shrink-0" />
-                            <span className="text-sm">Suggestion applied. Test it or save to keep your changes.</span>
+                            <span className="text-sm">
+                              Suggestion applied. Test it or save to keep your changes.
+                            </span>
                           </div>
                         </div>
                       )}
 
                       {/* A/B Test Section */}
                       {showABTest && hasUnsavedChanges && (
-                        <div className="mb-6 rounded-lg border border-gray-800 bg-[#121212] p-4" data-testid="ab-test-section">
+                        <div
+                          className="mb-6 rounded-lg border border-gray-800 bg-[#121212] p-4"
+                          data-testid="ab-test-section"
+                        >
                           <h3 className="mb-4 text-lg font-semibold text-white">
                             A/B Test Your Changes
                           </h3>
                           <p className="mb-4 text-sm text-gray-400">
-                            Test your modified prompt against real events before promoting it as the default.
+                            Test your modified prompt against real events before promoting it as the
+                            default.
                           </p>
 
                           {/* Test Results Count */}
                           {abTestResults.length > 0 && (
                             <div className="mb-4 text-sm text-gray-400" data-testid="ab-test-count">
-                              <span className="font-medium text-white">{abTestResults.length}</span> test{abTestResults.length !== 1 ? 's' : ''} completed
+                              <span className="font-medium text-white">{abTestResults.length}</span>{' '}
+                              test{abTestResults.length !== 1 ? 's' : ''} completed
                             </div>
                           )}
 
@@ -1349,26 +1411,32 @@ export default function PromptPlayground({
                                       {/* Action buttons */}
                                       <div className="mt-4 flex items-center gap-3 border-t border-gray-800 pt-4">
                                         {/* Enriched suggestion - show diff preview flow */}
-                                        {enrichedSuggestion && model.name === 'nemotron' && !showDiffPreview && (
-                                          <button
-                                            onClick={() => {
-                                              setActiveSuggestion(enrichedSuggestion);
-                                              setShowDiffPreview(true);
-                                            }}
-                                            className="rounded-lg border border-[#76B900] px-3 py-1.5 text-sm font-medium text-[#76B900] transition-colors hover:bg-[#76B900]/10"
-                                            data-testid={`${model.name}-preview-changes`}
-                                          >
-                                            Preview Changes
-                                          </button>
-                                        )}
+                                        {enrichedSuggestion &&
+                                          model.name === 'nemotron' &&
+                                          !showDiffPreview && (
+                                            <button
+                                              onClick={() => {
+                                                setActiveSuggestion(enrichedSuggestion);
+                                                setShowDiffPreview(true);
+                                              }}
+                                              className="rounded-lg border border-[#76B900] px-3 py-1.5 text-sm font-medium text-[#76B900] transition-colors hover:bg-[#76B900]/10"
+                                              data-testid={`${model.name}-preview-changes`}
+                                            >
+                                              Preview Changes
+                                            </button>
+                                          )}
                                         {/* Non-enriched recommendation - legacy append behavior */}
                                         {recommendation && !enrichedSuggestion && (
                                           <button
                                             onClick={() => {
                                               // Apply suggestion to the appropriate field
                                               if (model.name === 'nemotron') {
-                                                const systemPrompt = editedConfigs[model.name]?.system_prompt;
-                                                const current = typeof systemPrompt === 'string' ? systemPrompt : '';
+                                                const systemPrompt =
+                                                  editedConfigs[model.name]?.system_prompt;
+                                                const current =
+                                                  typeof systemPrompt === 'string'
+                                                    ? systemPrompt
+                                                    : '';
                                                 updateConfigValue(
                                                   model.name,
                                                   'system_prompt',
@@ -1428,7 +1496,10 @@ export default function PromptPlayground({
 
                             <div className="flex items-end gap-4">
                               <div className="flex-1">
-                                <label htmlFor="test-event-id-input" className="mb-2 block text-sm font-medium text-gray-300">
+                                <label
+                                  htmlFor="test-event-id-input"
+                                  className="mb-2 block text-sm font-medium text-gray-300"
+                                >
                                   Event ID
                                 </label>
                                 <input
@@ -1615,11 +1686,7 @@ export default function PromptPlayground({
 
       {/* Promote B Confirmation Dialog */}
       <Transition appear show={showPromoteConfirm} as={Fragment}>
-        <Dialog
-          as="div"
-          className="relative z-[60]"
-          onClose={() => setShowPromoteConfirm(false)}
-        >
+        <Dialog as="div" className="relative z-[60]" onClose={() => setShowPromoteConfirm(false)}>
           <Transition.Child
             as={Fragment}
             enter="ease-out duration-300"
@@ -1657,28 +1724,43 @@ export default function PromptPlayground({
                     </p>
 
                     {/* Test Statistics */}
-                    {abTestResults.length > 0 && (() => {
-                      const stats = calculateStats(abTestResults);
-                      return (
-                        <div className="mt-4 rounded-lg border border-gray-700 bg-black/30 p-4">
-                          <p className="text-sm text-gray-400">
-                            Based on <span className="font-medium text-white">{stats.totalTests} tests:</span>
-                          </p>
-                          <ul className="mt-2 space-y-1 text-sm text-gray-400">
-                            <li>
-                              Average score change:{' '}
-                              <span className={stats.avgScoreDelta < -5 ? 'text-green-400' : stats.avgScoreDelta > 5 ? 'text-red-400' : 'text-gray-300'}>
-                                {stats.avgScoreDelta >= 0 ? '+' : ''}{stats.avgScoreDelta.toFixed(1)}
+                    {abTestResults.length > 0 &&
+                      (() => {
+                        const stats = calculateStats(abTestResults);
+                        return (
+                          <div className="mt-4 rounded-lg border border-gray-700 bg-black/30 p-4">
+                            <p className="text-sm text-gray-400">
+                              Based on{' '}
+                              <span className="font-medium text-white">
+                                {stats.totalTests} tests:
                               </span>
-                            </li>
-                            <li>
-                              Improvement rate:{' '}
-                              <span className="text-white">{stats.improvementRate.toFixed(0)}%</span>
-                            </li>
-                          </ul>
-                        </div>
-                      );
-                    })()}
+                            </p>
+                            <ul className="mt-2 space-y-1 text-sm text-gray-400">
+                              <li>
+                                Average score change:{' '}
+                                <span
+                                  className={
+                                    stats.avgScoreDelta < -5
+                                      ? 'text-green-400'
+                                      : stats.avgScoreDelta > 5
+                                        ? 'text-red-400'
+                                        : 'text-gray-300'
+                                  }
+                                >
+                                  {stats.avgScoreDelta >= 0 ? '+' : ''}
+                                  {stats.avgScoreDelta.toFixed(1)}
+                                </span>
+                              </li>
+                              <li>
+                                Improvement rate:{' '}
+                                <span className="text-white">
+                                  {stats.improvementRate.toFixed(0)}%
+                                </span>
+                              </li>
+                            </ul>
+                          </div>
+                        );
+                      })()}
                   </div>
 
                   <div className="mt-6 flex justify-end gap-3">

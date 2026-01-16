@@ -112,7 +112,10 @@ function formatTimeSince(lastMessageTime: Date | null): string {
 /**
  * Get overall connection state from multiple channels
  */
-function getOverallState(eventsChannel: ChannelStatus, systemChannel: ChannelStatus): ConnectionState {
+function getOverallState(
+  eventsChannel: ChannelStatus,
+  systemChannel: ChannelStatus
+): ConnectionState {
   if (eventsChannel.state === 'connected' && systemChannel.state === 'connected') {
     return 'connected';
   }
@@ -160,7 +163,10 @@ function ChannelIndicator({ channel }: ChannelIndicatorProps) {
   }, [channel.lastMessageTime]);
 
   return (
-    <div className="flex items-center justify-between py-1.5" data-testid={`channel-${channel.name.toLowerCase()}`}>
+    <div
+      className="flex items-center justify-between py-1.5"
+      data-testid={`channel-${channel.name.toLowerCase()}`}
+    >
       <div className="flex items-center gap-2">
         {/* Status Icon (accessibility improvement - not color-only) */}
         <ChannelStatusIcon state={channel.state} />
@@ -174,16 +180,25 @@ function ChannelIndicator({ channel }: ChannelIndicatorProps) {
       </div>
       <div className="flex items-center gap-2">
         {channel.state === 'reconnecting' && (
-          <span className="text-xs text-yellow-400" data-testid={`reconnect-counter-${channel.name.toLowerCase()}`}>
+          <span
+            className="text-xs text-yellow-400"
+            data-testid={`reconnect-counter-${channel.name.toLowerCase()}`}
+          >
             Attempt {channel.reconnectAttempts}/{channel.maxReconnectAttempts}
           </span>
         )}
         {channel.state === 'failed' && (
-          <span className="text-xs text-orange-400" data-testid={`failed-indicator-${channel.name.toLowerCase()}`}>
+          <span
+            className="text-xs text-orange-400"
+            data-testid={`failed-indicator-${channel.name.toLowerCase()}`}
+          >
             Retries exhausted
           </span>
         )}
-        <span className="text-xs text-gray-500" data-testid={`last-message-${channel.name.toLowerCase()}`}>
+        <span
+          className="text-xs text-gray-500"
+          data-testid={`last-message-${channel.name.toLowerCase()}`}
+        >
           {timeSince}
         </span>
       </div>
@@ -198,7 +213,12 @@ interface WebSocketTooltipProps {
   isPollingFallback?: boolean;
 }
 
-function WebSocketTooltip({ eventsChannel, systemChannel, isVisible, isPollingFallback }: WebSocketTooltipProps) {
+function WebSocketTooltip({
+  eventsChannel,
+  systemChannel,
+  isVisible,
+  isPollingFallback,
+}: WebSocketTooltipProps) {
   if (!isVisible) {
     return null;
   }

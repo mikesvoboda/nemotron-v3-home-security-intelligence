@@ -216,7 +216,9 @@ export default function AuditDetailModal({ log, isOpen, onClose }: AuditDetailMo
                         User Agent
                       </h3>
                       <div className="rounded-lg bg-black/30 p-4">
-                        <p className="break-all font-mono text-xs text-gray-300">{log.user_agent}</p>
+                        <p className="break-all font-mono text-xs text-gray-300">
+                          {log.user_agent}
+                        </p>
                       </div>
                     </div>
                   )}

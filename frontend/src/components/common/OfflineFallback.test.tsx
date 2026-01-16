@@ -143,7 +143,7 @@ describe('OfflineFallback', () => {
     window.dispatchEvent(new Event('online'));
 
     // Wait a bit to ensure the callback is not called
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, 100));
     expect(onRetry).not.toHaveBeenCalled();
   });
 

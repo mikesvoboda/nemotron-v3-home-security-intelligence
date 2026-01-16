@@ -137,10 +137,7 @@ function ImprovementList({ label, items }: ImprovementListProps) {
       </h4>
       <ul className="space-y-2">
         {items.map((item, index) => (
-          <li
-            key={index}
-            className="flex items-start gap-2 text-sm text-gray-300"
-          >
+          <li key={index} className="flex items-start gap-2 text-sm text-gray-300">
             <span className="mt-1 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[#76B900]" />
             <span>{item}</span>
           </li>
@@ -293,10 +290,17 @@ export default function EventAuditDetail({ eventId }: EventAuditDetailProps) {
           </p>
           <div className="mt-2 flex items-center gap-4 text-sm text-gray-400">
             <span>
-              Prompt: <span className="font-mono text-gray-300">{audit.prompt_length.toLocaleString()}</span> chars
+              Prompt:{' '}
+              <span className="font-mono text-gray-300">
+                {audit.prompt_length.toLocaleString()}
+              </span>{' '}
+              chars
             </span>
             <span>
-              Tokens: <span className="font-mono text-gray-300">~{audit.prompt_token_estimate.toLocaleString()}</span>
+              Tokens:{' '}
+              <span className="font-mono text-gray-300">
+                ~{audit.prompt_token_estimate.toLocaleString()}
+              </span>
             </span>
             <span>
               Utilization:{' '}
@@ -335,11 +339,7 @@ export default function EventAuditDetail({ eventId }: EventAuditDetailProps) {
             <ScoreBar label="Reasoning Coherence" score={audit.scores.reasoning_coherence} />
             <ScoreBar label="Risk Justification" score={audit.scores.risk_justification} />
             <ScoreBar label="Consistency" score={audit.scores.consistency} />
-            <ScoreBar
-              label="Overall"
-              score={audit.scores.overall}
-              highlight
-            />
+            <ScoreBar label="Overall" score={audit.scores.overall} highlight />
             {audit.consistency_diff !== null && (
               <div className="rounded-lg bg-black/20 p-3">
                 <div className="mb-2 flex items-center justify-between">
@@ -389,9 +389,7 @@ export default function EventAuditDetail({ eventId }: EventAuditDetailProps) {
                 ) : (
                   <XCircle className="h-4 w-4 text-gray-600" />
                 )}
-                <span
-                  className={`text-sm ${contributed ? 'text-white' : 'text-gray-500'}`}
-                >
+                <span className={`text-sm ${contributed ? 'text-white' : 'text-gray-500'}`}>
                   {model.name}
                 </span>
               </div>
@@ -431,26 +429,17 @@ export default function EventAuditDetail({ eventId }: EventAuditDetailProps) {
             </p>
           ) : (
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <ImprovementList
-                label="Missing Context"
-                items={audit.improvements.missing_context}
-              />
+              <ImprovementList label="Missing Context" items={audit.improvements.missing_context} />
               <ImprovementList
                 label="Confusing Sections"
                 items={audit.improvements.confusing_sections}
               />
-              <ImprovementList
-                label="Unused Data"
-                items={audit.improvements.unused_data}
-              />
+              <ImprovementList label="Unused Data" items={audit.improvements.unused_data} />
               <ImprovementList
                 label="Format Suggestions"
                 items={audit.improvements.format_suggestions}
               />
-              <ImprovementList
-                label="Model Gaps"
-                items={audit.improvements.model_gaps}
-              />
+              <ImprovementList label="Model Gaps" items={audit.improvements.model_gaps} />
             </div>
           )}
         </div>

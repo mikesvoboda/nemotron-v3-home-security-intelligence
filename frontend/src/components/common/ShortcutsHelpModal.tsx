@@ -163,9 +163,7 @@ export default function ShortcutsHelpModal({ open, onClose }: ShortcutsHelpModal
                     <div className="flex items-center gap-1">
                       {item.keys.map((key, keyIndex) => (
                         <span key={keyIndex} className="flex items-center">
-                          {keyIndex > 0 && (
-                            <span className="mx-1 text-xs text-[#666]">+</span>
-                          )}
+                          {keyIndex > 0 && <span className="mx-1 text-xs text-[#666]">+</span>}
                           <KeyBadge>{key}</KeyBadge>
                         </span>
                       ))}

@@ -407,9 +407,7 @@ export function useEntityHistory(
  * });
  * ```
  */
-export function useEntityStats(
-  options: UseEntityStatsOptions = {}
-): UseEntityStatsReturn {
+export function useEntityStats(options: UseEntityStatsOptions = {}): UseEntityStatsReturn {
   const {
     since,
     until,

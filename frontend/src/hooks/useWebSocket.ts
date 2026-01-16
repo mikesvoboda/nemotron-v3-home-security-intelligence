@@ -145,7 +145,14 @@ export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
         autoRespondToHeartbeat,
       }
     );
-  }, [url, reconnect, reconnectInterval, reconnectAttempts, connectionTimeout, autoRespondToHeartbeat]);
+  }, [
+    url,
+    reconnect,
+    reconnectInterval,
+    reconnectAttempts,
+    connectionTimeout,
+    autoRespondToHeartbeat,
+  ]);
 
   const disconnect = useCallback(() => {
     if (unsubscribeRef.current) {

@@ -104,14 +104,42 @@ export function createMockEvent(overrides: Partial<Event> = {}): Event {
 
 export const mockCameras: Camera[] = [
   createMockCamera({ id: 'camera-1', name: 'Front Door', status: 'online' }),
-  createMockCamera({ id: 'camera-2', name: 'Back Yard', status: 'online', folder_path: '/export/foscam/back_yard' }),
-  createMockCamera({ id: 'camera-3', name: 'Garage', status: 'offline', folder_path: '/export/foscam/garage' }),
+  createMockCamera({
+    id: 'camera-2',
+    name: 'Back Yard',
+    status: 'online',
+    folder_path: '/export/foscam/back_yard',
+  }),
+  createMockCamera({
+    id: 'camera-3',
+    name: 'Garage',
+    status: 'offline',
+    folder_path: '/export/foscam/garage',
+  }),
 ];
 
 export const mockEvents: Event[] = [
-  createMockEvent({ id: 1, camera_id: 'camera-1', risk_score: 75, risk_level: 'high', summary: 'Person detected at front door' }),
-  createMockEvent({ id: 2, camera_id: 'camera-2', risk_score: 30, risk_level: 'low', summary: 'Animal detected in yard' }),
-  createMockEvent({ id: 3, camera_id: 'camera-1', risk_score: 90, risk_level: 'critical', summary: 'Unknown person at entrance' }),
+  createMockEvent({
+    id: 1,
+    camera_id: 'camera-1',
+    risk_score: 75,
+    risk_level: 'high',
+    summary: 'Person detected at front door',
+  }),
+  createMockEvent({
+    id: 2,
+    camera_id: 'camera-2',
+    risk_score: 30,
+    risk_level: 'low',
+    summary: 'Animal detected in yard',
+  }),
+  createMockEvent({
+    id: 3,
+    camera_id: 'camera-1',
+    risk_score: 90,
+    risk_level: 'critical',
+    summary: 'Unknown person at entrance',
+  }),
 ];
 
 export const mockEventStats: EventStatsResponse = {
@@ -160,8 +188,24 @@ export const mockTelemetry: TelemetryResponse = {
     analysis_queue: 2,
   },
   latencies: {
-    watch: { avg_ms: 10, min_ms: 5, max_ms: 50, p50_ms: 8, p95_ms: 40, p99_ms: 48, sample_count: 500 },
-    detect: { avg_ms: 45.5, min_ms: 20, max_ms: 200, p50_ms: 40, p95_ms: 120, p99_ms: 180, sample_count: 500 },
+    watch: {
+      avg_ms: 10,
+      min_ms: 5,
+      max_ms: 50,
+      p50_ms: 8,
+      p95_ms: 40,
+      p99_ms: 48,
+      sample_count: 500,
+    },
+    detect: {
+      avg_ms: 45.5,
+      min_ms: 20,
+      max_ms: 200,
+      p50_ms: 40,
+      p95_ms: 120,
+      p99_ms: 180,
+      sample_count: 500,
+    },
   },
   timestamp: '2024-01-01T12:00:00Z',
 };
@@ -230,11 +274,10 @@ export const handlers = [
   http.get('/api/cameras/:id/snapshot', () => {
     // Return a minimal valid PNG (1x1 transparent pixel)
     const pngData = new Uint8Array([
-      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d,
-      0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
-      0x08, 0x06, 0x00, 0x00, 0x00, 0x1f, 0x15, 0xc4, 0x89, 0x00, 0x00, 0x00,
-      0x0a, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9c, 0x63, 0x00, 0x01, 0x00, 0x00,
-      0x05, 0x00, 0x01, 0x0d, 0x0a, 0x2d, 0xb4, 0x00, 0x00, 0x00, 0x00, 0x49,
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44,
+      0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x06, 0x00, 0x00, 0x00, 0x1f,
+      0x15, 0xc4, 0x89, 0x00, 0x00, 0x00, 0x0a, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9c, 0x63, 0x00,
+      0x01, 0x00, 0x00, 0x05, 0x00, 0x01, 0x0d, 0x0a, 0x2d, 0xb4, 0x00, 0x00, 0x00, 0x00, 0x49,
       0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
     ]);
     return new HttpResponse(pngData, {
@@ -305,37 +348,43 @@ export const handlers = [
   /**
    * PATCH /api/events/:id - Update an event
    */
-  http.patch<IdParams>('/api/events/:id', async ({ params, request }: { params: IdParams; request: StrictRequest<DefaultBodyType> }) => {
-    const eventId = parseInt(params.id, 10);
-    const event = mockEvents.find((e) => e.id === eventId);
-    if (!event) {
-      return HttpResponse.json({ detail: 'Event not found' }, { status: 404 });
+  http.patch<IdParams>(
+    '/api/events/:id',
+    async ({ params, request }: { params: IdParams; request: StrictRequest<DefaultBodyType> }) => {
+      const eventId = parseInt(params.id, 10);
+      const event = mockEvents.find((e) => e.id === eventId);
+      if (!event) {
+        return HttpResponse.json({ detail: 'Event not found' }, { status: 404 });
+      }
+      const updates = (await request.json()) as Partial<Event>;
+      const updatedEvent = { ...event, ...updates };
+      return HttpResponse.json(updatedEvent);
     }
-    const updates = await request.json() as Partial<Event>;
-    const updatedEvent = { ...event, ...updates };
-    return HttpResponse.json(updatedEvent);
-  }),
+  ),
 
   /**
    * GET /api/events/:id/detections - Get detections for an event
    */
-  http.get<IdParams>('/api/events/:id/detections', ({ request }: { request: StrictRequest<DefaultBodyType> }) => {
-    const url = new URL(request.url);
-    const limit = parseInt(url.searchParams.get('limit') || '100', 10);
-    const offset = parseInt(url.searchParams.get('offset') || '0', 10);
+  http.get<IdParams>(
+    '/api/events/:id/detections',
+    ({ request }: { request: StrictRequest<DefaultBodyType> }) => {
+      const url = new URL(request.url);
+      const limit = parseInt(url.searchParams.get('limit') || '100', 10);
+      const offset = parseInt(url.searchParams.get('offset') || '0', 10);
 
-    const response: DetectionListResponse = {
-      items: [],
-      pagination: {
-        total: 0,
-        limit,
-        offset,
-        has_more: false,
-      },
-    };
+      const response: DetectionListResponse = {
+        items: [],
+        pagination: {
+          total: 0,
+          limit,
+          offset,
+          has_more: false,
+        },
+      };
 
-    return HttpResponse.json(response);
-  }),
+      return HttpResponse.json(response);
+    }
+  ),
 
   // -------------------------------------------------------------------------
   // System Endpoints
@@ -475,8 +524,24 @@ export const handlers = [
   http.get('/api/system/models', () => {
     return HttpResponse.json({
       models: [
-        { name: 'rtdetr', display_name: 'RT-DETR', vram_mb: 1024, status: 'loaded', category: 'detection', enabled: true, available: true },
-        { name: 'nemotron', display_name: 'Nemotron', vram_mb: 4096, status: 'loaded', category: 'reasoning', enabled: true, available: true },
+        {
+          name: 'rtdetr',
+          display_name: 'RT-DETR',
+          vram_mb: 1024,
+          status: 'loaded',
+          category: 'detection',
+          enabled: true,
+          available: true,
+        },
+        {
+          name: 'nemotron',
+          display_name: 'Nemotron',
+          vram_mb: 4096,
+          status: 'loaded',
+          category: 'reasoning',
+          enabled: true,
+          available: true,
+        },
       ],
       vram_budget_mb: 20480,
       vram_used_mb: 5120,
@@ -490,8 +555,24 @@ export const handlers = [
   http.get('/api/system/model-zoo/status', () => {
     return HttpResponse.json({
       models: [
-        { name: 'rtdetr', display_name: 'RT-DETR', category: 'detection', status: 'loaded', vram_mb: 1024, last_used_at: '2024-01-01T12:00:00Z', enabled: true },
-        { name: 'nemotron', display_name: 'Nemotron', category: 'reasoning', status: 'loaded', vram_mb: 4096, last_used_at: '2024-01-01T12:00:00Z', enabled: true },
+        {
+          name: 'rtdetr',
+          display_name: 'RT-DETR',
+          category: 'detection',
+          status: 'loaded',
+          vram_mb: 1024,
+          last_used_at: '2024-01-01T12:00:00Z',
+          enabled: true,
+        },
+        {
+          name: 'nemotron',
+          display_name: 'Nemotron',
+          category: 'reasoning',
+          status: 'loaded',
+          vram_mb: 4096,
+          last_used_at: '2024-01-01T12:00:00Z',
+          enabled: true,
+        },
       ],
       total_models: 2,
       loaded_count: 2,

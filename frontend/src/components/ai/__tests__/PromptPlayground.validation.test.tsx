@@ -89,9 +89,7 @@ vi.mock('../../../services/api', () => ({
   ),
   fetchEvents: vi.fn(() =>
     Promise.resolve({
-      items: [
-        { id: 101, camera_id: 'cam1', risk_score: 45, started_at: '2024-01-01T00:00:00Z' },
-      ],
+      items: [{ id: 101, camera_id: 'cam1', risk_score: 45, started_at: '2024-01-01T00:00:00Z' }],
       pagination: {
         total: 1,
         limit: 5,

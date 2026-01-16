@@ -10,7 +10,7 @@
  * Source schemas:
  *   backend/api/schemas/websocket.py
  *
- * Generated at: 2026-01-15T22:06:37Z
+ * Generated at: 2026-01-16T05:10:15Z
  *
  * Note: WebSocket messages are not covered by OpenAPI, so we generate these
  * types separately to ensure frontend/backend type synchronization.

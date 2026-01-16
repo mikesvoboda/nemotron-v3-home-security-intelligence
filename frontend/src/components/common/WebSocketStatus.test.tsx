@@ -6,9 +6,7 @@ import WebSocketStatus from './WebSocketStatus';
 import type { ChannelStatus } from '../../hooks/useWebSocketStatus';
 
 describe('WebSocketStatus', () => {
-  const createMockChannel = (
-    overrides: Partial<ChannelStatus> = {}
-  ): ChannelStatus => ({
+  const createMockChannel = (overrides: Partial<ChannelStatus> = {}): ChannelStatus => ({
     name: 'Events',
     state: 'connected',
     reconnectAttempts: 0,
@@ -52,7 +50,11 @@ describe('WebSocketStatus', () => {
   it('shows yellow indicator when either channel is reconnecting', () => {
     render(
       <WebSocketStatus
-        eventsChannel={createMockChannel({ name: 'Events', state: 'reconnecting', reconnectAttempts: 2 })}
+        eventsChannel={createMockChannel({
+          name: 'Events',
+          state: 'reconnecting',
+          reconnectAttempts: 2,
+        })}
         systemChannel={createMockChannel({ name: 'System', state: 'connected' })}
       />
     );
@@ -77,8 +79,16 @@ describe('WebSocketStatus', () => {
   it('shows reconnection label with attempt count when reconnecting', () => {
     render(
       <WebSocketStatus
-        eventsChannel={createMockChannel({ name: 'Events', state: 'reconnecting', reconnectAttempts: 3 })}
-        systemChannel={createMockChannel({ name: 'System', state: 'reconnecting', reconnectAttempts: 2 })}
+        eventsChannel={createMockChannel({
+          name: 'Events',
+          state: 'reconnecting',
+          reconnectAttempts: 3,
+        })}
+        systemChannel={createMockChannel({
+          name: 'System',
+          state: 'reconnecting',
+          reconnectAttempts: 2,
+        })}
       />
     );
 
@@ -418,7 +428,11 @@ describe('WebSocketStatus', () => {
     it('shows orange indicator when connection has failed', () => {
       render(
         <WebSocketStatus
-          eventsChannel={createMockChannel({ name: 'Events', state: 'failed', hasExhaustedRetries: true })}
+          eventsChannel={createMockChannel({
+            name: 'Events',
+            state: 'failed',
+            hasExhaustedRetries: true,
+          })}
           systemChannel={createMockChannel({ name: 'System', state: 'connected' })}
         />
       );
@@ -430,8 +444,16 @@ describe('WebSocketStatus', () => {
     it('shows Connection Failed label when in failed state', () => {
       render(
         <WebSocketStatus
-          eventsChannel={createMockChannel({ name: 'Events', state: 'failed', hasExhaustedRetries: true })}
-          systemChannel={createMockChannel({ name: 'System', state: 'failed', hasExhaustedRetries: true })}
+          eventsChannel={createMockChannel({
+            name: 'Events',
+            state: 'failed',
+            hasExhaustedRetries: true,
+          })}
+          systemChannel={createMockChannel({
+            name: 'System',
+            state: 'failed',
+            hasExhaustedRetries: true,
+          })}
         />
       );
 
@@ -463,7 +485,11 @@ describe('WebSocketStatus', () => {
     it('includes click to retry hint in aria-label when failed', () => {
       render(
         <WebSocketStatus
-          eventsChannel={createMockChannel({ name: 'Events', state: 'failed', hasExhaustedRetries: true })}
+          eventsChannel={createMockChannel({
+            name: 'Events',
+            state: 'failed',
+            hasExhaustedRetries: true,
+          })}
           systemChannel={createMockChannel({ name: 'System', state: 'connected' })}
           onRetry={() => {}}
         />
@@ -477,8 +503,16 @@ describe('WebSocketStatus', () => {
       const onRetry = vi.fn();
       render(
         <WebSocketStatus
-          eventsChannel={createMockChannel({ name: 'Events', state: 'failed', hasExhaustedRetries: true })}
-          systemChannel={createMockChannel({ name: 'System', state: 'failed', hasExhaustedRetries: true })}
+          eventsChannel={createMockChannel({
+            name: 'Events',
+            state: 'failed',
+            hasExhaustedRetries: true,
+          })}
+          systemChannel={createMockChannel({
+            name: 'System',
+            state: 'failed',
+            hasExhaustedRetries: true,
+          })}
           onRetry={onRetry}
         />
       );
@@ -505,8 +539,16 @@ describe('WebSocketStatus', () => {
       const onRetry = vi.fn();
       render(
         <WebSocketStatus
-          eventsChannel={createMockChannel({ name: 'Events', state: 'failed', hasExhaustedRetries: true })}
-          systemChannel={createMockChannel({ name: 'System', state: 'failed', hasExhaustedRetries: true })}
+          eventsChannel={createMockChannel({
+            name: 'Events',
+            state: 'failed',
+            hasExhaustedRetries: true,
+          })}
+          systemChannel={createMockChannel({
+            name: 'System',
+            state: 'failed',
+            hasExhaustedRetries: true,
+          })}
           onRetry={onRetry}
         />
       );
@@ -520,8 +562,16 @@ describe('WebSocketStatus', () => {
       const onRetry = vi.fn();
       render(
         <WebSocketStatus
-          eventsChannel={createMockChannel({ name: 'Events', state: 'failed', hasExhaustedRetries: true })}
-          systemChannel={createMockChannel({ name: 'System', state: 'failed', hasExhaustedRetries: true })}
+          eventsChannel={createMockChannel({
+            name: 'Events',
+            state: 'failed',
+            hasExhaustedRetries: true,
+          })}
+          systemChannel={createMockChannel({
+            name: 'System',
+            state: 'failed',
+            hasExhaustedRetries: true,
+          })}
           onRetry={onRetry}
         />
       );
@@ -550,8 +600,16 @@ describe('WebSocketStatus', () => {
       const onRetry = vi.fn();
       render(
         <WebSocketStatus
-          eventsChannel={createMockChannel({ name: 'Events', state: 'failed', hasExhaustedRetries: true })}
-          systemChannel={createMockChannel({ name: 'System', state: 'failed', hasExhaustedRetries: true })}
+          eventsChannel={createMockChannel({
+            name: 'Events',
+            state: 'failed',
+            hasExhaustedRetries: true,
+          })}
+          systemChannel={createMockChannel({
+            name: 'System',
+            state: 'failed',
+            hasExhaustedRetries: true,
+          })}
           onRetry={onRetry}
         />
       );
@@ -567,8 +625,16 @@ describe('WebSocketStatus', () => {
     it('shows polling indicator when isPollingFallback is true', () => {
       render(
         <WebSocketStatus
-          eventsChannel={createMockChannel({ name: 'Events', state: 'failed', hasExhaustedRetries: true })}
-          systemChannel={createMockChannel({ name: 'System', state: 'failed', hasExhaustedRetries: true })}
+          eventsChannel={createMockChannel({
+            name: 'Events',
+            state: 'failed',
+            hasExhaustedRetries: true,
+          })}
+          systemChannel={createMockChannel({
+            name: 'System',
+            state: 'failed',
+            hasExhaustedRetries: true,
+          })}
           isPollingFallback={true}
         />
       );
@@ -593,8 +659,16 @@ describe('WebSocketStatus', () => {
     it('shows polling indicator when isPollingFallback is true even without explicit prop', () => {
       render(
         <WebSocketStatus
-          eventsChannel={createMockChannel({ name: 'Events', state: 'failed', hasExhaustedRetries: true })}
-          systemChannel={createMockChannel({ name: 'System', state: 'failed', hasExhaustedRetries: true })}
+          eventsChannel={createMockChannel({
+            name: 'Events',
+            state: 'failed',
+            hasExhaustedRetries: true,
+          })}
+          systemChannel={createMockChannel({
+            name: 'System',
+            state: 'failed',
+            hasExhaustedRetries: true,
+          })}
           isPollingFallback={true}
         />
       );
@@ -607,8 +681,16 @@ describe('WebSocketStatus', () => {
     it('includes polling info in tooltip when in polling fallback mode', () => {
       render(
         <WebSocketStatus
-          eventsChannel={createMockChannel({ name: 'Events', state: 'failed', hasExhaustedRetries: true })}
-          systemChannel={createMockChannel({ name: 'System', state: 'failed', hasExhaustedRetries: true })}
+          eventsChannel={createMockChannel({
+            name: 'Events',
+            state: 'failed',
+            hasExhaustedRetries: true,
+          })}
+          systemChannel={createMockChannel({
+            name: 'System',
+            state: 'failed',
+            hasExhaustedRetries: true,
+          })}
           isPollingFallback={true}
         />
       );

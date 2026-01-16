@@ -50,10 +50,7 @@ describe('ModelContributionChart', () => {
 
   it('applies custom className', () => {
     render(
-      <ModelContributionChart
-        contributionRates={mockContributionRates}
-        className="custom-class"
-      />
+      <ModelContributionChart contributionRates={mockContributionRates} className="custom-class" />
     );
     const container = screen.getByTestId('model-contribution-chart');
     expect(container).toHaveClass('custom-class');

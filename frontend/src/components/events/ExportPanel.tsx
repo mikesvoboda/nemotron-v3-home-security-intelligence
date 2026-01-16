@@ -109,7 +109,10 @@ export default function ExportPanel({
   }, [filters.start_date, filters.end_date]);
 
   // Handle filter changes
-  const handleFilterChange = (key: keyof ExportQueryParams, value: string | boolean | undefined) => {
+  const handleFilterChange = (
+    key: keyof ExportQueryParams,
+    value: string | boolean | undefined
+  ) => {
     setFilters((prev) => ({
       ...prev,
       [key]: value === '' ? undefined : value,

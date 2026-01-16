@@ -1,19 +1,6 @@
 import { clsx } from 'clsx';
-import {
-  Loader2,
-  Maximize,
-  Minimize,
-  Pause,
-  Play,
-  Volume2,
-  VolumeX,
-} from 'lucide-react';
-import React, {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
+import { Loader2, Maximize, Minimize, Pause, Play, Volume2, VolumeX } from 'lucide-react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 export interface VideoPlayerProps {
   /** Video source URL */
@@ -136,20 +123,26 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   }, []);
 
   // Seek to position
-  const seekTo = useCallback((time: number) => {
-    const video = videoRef.current;
-    if (!video) return;
+  const seekTo = useCallback(
+    (time: number) => {
+      const video = videoRef.current;
+      if (!video) return;
 
-    const clampedTime = Math.max(0, Math.min(time, duration));
-    video.currentTime = clampedTime;
-    setCurrentTime(clampedTime);
-  }, [duration]);
+      const clampedTime = Math.max(0, Math.min(time, duration));
+      video.currentTime = clampedTime;
+      setCurrentTime(clampedTime);
+    },
+    [duration]
+  );
 
   // Handle seek bar change
-  const handleSeekChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const newTime = parseFloat(e.target.value);
-    seekTo(newTime);
-  }, [seekTo]);
+  const handleSeekChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const newTime = parseFloat(e.target.value);
+      seekTo(newTime);
+    },
+    [seekTo]
+  );
 
   // Handle seek bar mouse/touch events
   const handleSeekStart = useCallback(() => {
@@ -162,19 +155,22 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   }, [resetControlsTimer]);
 
   // Volume control
-  const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const newVolume = parseFloat(e.target.value);
-    setVolume(newVolume);
-    if (videoRef.current) {
-      videoRef.current.volume = newVolume;
-    }
-    if (newVolume > 0 && isMuted) {
-      setIsMuted(false);
+  const handleVolumeChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const newVolume = parseFloat(e.target.value);
+      setVolume(newVolume);
       if (videoRef.current) {
-        videoRef.current.muted = false;
+        videoRef.current.volume = newVolume;
       }
-    }
-  }, [isMuted]);
+      if (newVolume > 0 && isMuted) {
+        setIsMuted(false);
+        if (videoRef.current) {
+          videoRef.current.muted = false;
+        }
+      }
+    },
+    [isMuted]
+  );
 
   // Toggle mute
   const toggleMute = useCallback(() => {
@@ -204,7 +200,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   // Change playback speed
   const cyclePlaybackSpeed = useCallback(() => {
-    const currentIndex = PLAYBACK_SPEEDS.indexOf(playbackSpeed as typeof PLAYBACK_SPEEDS[number]);
+    const currentIndex = PLAYBACK_SPEEDS.indexOf(playbackSpeed as (typeof PLAYBACK_SPEEDS)[number]);
     const nextIndex = (currentIndex + 1) % PLAYBACK_SPEEDS.length;
     const newSpeed = PLAYBACK_SPEEDS[nextIndex];
     setPlaybackSpeed(newSpeed);
@@ -214,35 +210,38 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   }, [playbackSpeed]);
 
   // Keyboard event handler
-  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
-    // Prevent default for handled keys
-    const handledKeys = [' ', 'ArrowLeft', 'ArrowRight', 'f', 'F', 'm', 'M'];
-    if (handledKeys.includes(e.key)) {
-      e.preventDefault();
-    }
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      // Prevent default for handled keys
+      const handledKeys = [' ', 'ArrowLeft', 'ArrowRight', 'f', 'F', 'm', 'M'];
+      if (handledKeys.includes(e.key)) {
+        e.preventDefault();
+      }
 
-    switch (e.key) {
-      case ' ':
-        togglePlay();
-        break;
-      case 'ArrowLeft':
-        seekTo(currentTime - SEEK_STEP);
-        break;
-      case 'ArrowRight':
-        seekTo(currentTime + SEEK_STEP);
-        break;
-      case 'f':
-      case 'F':
-        toggleFullscreen();
-        break;
-      case 'm':
-      case 'M':
-        toggleMute();
-        break;
-    }
+      switch (e.key) {
+        case ' ':
+          togglePlay();
+          break;
+        case 'ArrowLeft':
+          seekTo(currentTime - SEEK_STEP);
+          break;
+        case 'ArrowRight':
+          seekTo(currentTime + SEEK_STEP);
+          break;
+        case 'f':
+        case 'F':
+          toggleFullscreen();
+          break;
+        case 'm':
+        case 'M':
+          toggleMute();
+          break;
+      }
 
-    resetControlsTimer();
-  }, [togglePlay, seekTo, currentTime, toggleFullscreen, toggleMute, resetControlsTimer]);
+      resetControlsTimer();
+    },
+    [togglePlay, seekTo, currentTime, toggleFullscreen, toggleMute, resetControlsTimer]
+  );
 
   // Video event handlers
   useEffect(() => {
@@ -491,9 +490,9 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           />
 
           {/* Hover handle (visible track) */}
-          <div className="absolute inset-0 h-1 rounded-full bg-gray-700 group-hover:h-2 group-hover:-translate-y-0.5 transition-all" />
+          <div className="absolute inset-0 h-1 rounded-full bg-gray-700 transition-all group-hover:h-2 group-hover:-translate-y-0.5" />
           <div
-            className="absolute left-0 top-0 h-1 rounded-full bg-primary group-hover:h-2 group-hover:-translate-y-0.5 transition-all"
+            className="absolute left-0 top-0 h-1 rounded-full bg-primary transition-all group-hover:h-2 group-hover:-translate-y-0.5"
             style={{ width: `${progressPercent}%` }}
           />
         </div>
@@ -507,17 +506,13 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
               onClick={togglePlay}
               className={clsx(
                 'flex h-11 w-11 items-center justify-center rounded-lg',
-                'text-white hover:bg-white/10 transition-colors',
+                'text-white transition-colors hover:bg-white/10',
                 'focus:outline-none focus:ring-2 focus:ring-primary'
               )}
               aria-label={isPlaying ? 'Pause' : 'Play'}
               data-testid="play-button"
             >
-              {isPlaying ? (
-                <Pause className="h-6 w-6" />
-              ) : (
-                <Play className="h-6 w-6" />
-              )}
+              {isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}
             </button>
 
             {/* Volume Control */}
@@ -539,7 +534,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 onClick={toggleMute}
                 className={clsx(
                   'flex h-11 w-11 items-center justify-center rounded-lg',
-                  'text-white hover:bg-white/10 transition-colors',
+                  'text-white transition-colors hover:bg-white/10',
                   'focus:outline-none focus:ring-2 focus:ring-primary'
                 )}
                 aria-label={isMuted ? 'Unmute' : 'Mute'}
@@ -601,7 +596,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
               onClick={cyclePlaybackSpeed}
               className={clsx(
                 'flex h-11 min-w-[44px] items-center justify-center rounded-lg px-2',
-                'text-sm font-medium text-white hover:bg-white/10 transition-colors',
+                'text-sm font-medium text-white transition-colors hover:bg-white/10',
                 'focus:outline-none focus:ring-2 focus:ring-primary'
               )}
               aria-label={`Playback speed: ${playbackSpeed}x`}
@@ -615,17 +610,13 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
               onClick={toggleFullscreen}
               className={clsx(
                 'flex h-11 w-11 items-center justify-center rounded-lg',
-                'text-white hover:bg-white/10 transition-colors',
+                'text-white transition-colors hover:bg-white/10',
                 'focus:outline-none focus:ring-2 focus:ring-primary'
               )}
               aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
               data-testid="fullscreen-button"
             >
-              {isFullscreen ? (
-                <Minimize className="h-5 w-5" />
-              ) : (
-                <Maximize className="h-5 w-5" />
-              )}
+              {isFullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
             </button>
           </div>
         </div>
@@ -638,7 +629,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           className={clsx(
             'absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform',
             'flex h-16 w-16 items-center justify-center rounded-full',
-            'bg-primary/80 text-white hover:bg-primary transition-colors',
+            'bg-primary/80 text-white transition-colors hover:bg-primary',
             'focus:outline-none focus:ring-4 focus:ring-primary/50'
           )}
           aria-label="Play"

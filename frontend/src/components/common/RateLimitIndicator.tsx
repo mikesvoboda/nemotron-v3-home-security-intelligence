@@ -65,9 +65,7 @@ function calculateRemainingPercentage(remaining: number, limit: number): number 
  * - Auto-hides when quota replenishes above 50%
  * - Accessible with ARIA attributes
  */
-export default function RateLimitIndicator({
-  className,
-}: RateLimitIndicatorProps) {
+export default function RateLimitIndicator({ className }: RateLimitIndicatorProps) {
   const { isLimited, formattedCountdown, current } = useRateLimitCountdown();
 
   // Track if we've already shown a toast for the current low quota state
@@ -127,9 +125,7 @@ export default function RateLimitIndicator({
     <div
       className={clsx(
         'fixed bottom-4 right-4 z-50 min-w-[200px] rounded-lg border p-4 shadow-lg',
-        isRateLimited
-          ? 'border-red-300 bg-red-100'
-          : 'border-yellow-300 bg-yellow-100',
+        isRateLimited ? 'border-red-300 bg-red-100' : 'border-yellow-300 bg-yellow-100',
         className
       )}
       data-testid="rate-limit-indicator"

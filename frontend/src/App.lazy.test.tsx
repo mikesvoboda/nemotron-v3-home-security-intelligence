@@ -170,10 +170,7 @@ describe('App lazy loading', () => {
         hasError: boolean;
         error: Error | null;
       }
-      class TestErrorBoundary extends React.Component<
-        { children: ReactNode },
-        ErrorBoundaryState
-      > {
+      class TestErrorBoundary extends React.Component<{ children: ReactNode }, ErrorBoundaryState> {
         state: ErrorBoundaryState = { hasError: false, error: null };
         static getDerivedStateFromError(error: Error): ErrorBoundaryState {
           return { hasError: true, error };
@@ -181,7 +178,11 @@ describe('App lazy loading', () => {
         render() {
           if (this.state.hasError) {
             const errorMessage = this.state.error?.message ?? 'Unknown error';
-            return <div role="alert" data-testid="error-boundary">Error caught: {errorMessage}</div>;
+            return (
+              <div role="alert" data-testid="error-boundary">
+                Error caught: {errorMessage}
+              </div>
+            );
           }
           return this.props.children;
         }

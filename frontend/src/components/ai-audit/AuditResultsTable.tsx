@@ -94,9 +94,7 @@ export default function AuditResultsTable({ results }: AuditResultsTableProps) {
         data-testid="audit-results-table"
       >
         <p className="text-gray-400">No audit results available yet.</p>
-        <p className="mt-2 text-sm text-gray-500">
-          Trigger a batch audit to see results here.
-        </p>
+        <p className="mt-2 text-sm text-gray-500">Trigger a batch audit to see results here.</p>
       </div>
     );
   }
@@ -160,9 +158,7 @@ export default function AuditResultsTable({ results }: AuditResultsTableProps) {
                   </td>
 
                   {/* Quality Score */}
-                  <td className="py-3 pr-4 text-gray-300">
-                    {result.qualityScore.toFixed(1)} / 5
-                  </td>
+                  <td className="py-3 pr-4 text-gray-300">{result.qualityScore.toFixed(1)} / 5</td>
 
                   {/* Status Badge */}
                   <td className="py-3">

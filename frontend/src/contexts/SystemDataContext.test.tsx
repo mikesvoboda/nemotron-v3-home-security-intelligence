@@ -8,7 +8,13 @@ import { act } from 'react';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
 // eslint-disable-next-line import/order
-import { SystemDataProvider, useSystemData, useSystemDataOptional, DEFAULT_HEALTH, DEFAULT_GPU_STATS } from './SystemDataContext';
+import {
+  SystemDataProvider,
+  useSystemData,
+  useSystemDataOptional,
+  DEFAULT_HEALTH,
+  DEFAULT_GPU_STATS,
+} from './SystemDataContext';
 
 // ============================================================================
 // Test Utilities
@@ -196,17 +202,20 @@ describe('SystemDataContext', () => {
       });
 
       // Wrap without SystemDataProvider
-      const { result } = renderHook(() => {
-        try {
-          return useSystemData();
-        } catch (e) {
-          return e;
+      const { result } = renderHook(
+        () => {
+          try {
+            return useSystemData();
+          } catch (e) {
+            return e;
+          }
+        },
+        {
+          wrapper: ({ children }) => (
+            <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+          ),
         }
-      }, {
-        wrapper: ({ children }) => (
-          <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-        ),
-      });
+      );
 
       expect(result.current).toBeInstanceOf(Error);
       expect((result.current as Error).message).toBe(
@@ -580,15 +589,11 @@ describe('SystemDataContext', () => {
         wrapper: DisabledWrapper,
       });
 
-      expect(useCamerasQuery).toHaveBeenCalledWith(
-        expect.objectContaining({ enabled: false })
-      );
+      expect(useCamerasQuery).toHaveBeenCalledWith(expect.objectContaining({ enabled: false }));
       expect(useHealthStatusQuery).toHaveBeenCalledWith(
         expect.objectContaining({ enabled: false })
       );
-      expect(useGpuStatsQuery).toHaveBeenCalledWith(
-        expect.objectContaining({ enabled: false })
-      );
+      expect(useGpuStatsQuery).toHaveBeenCalledWith(expect.objectContaining({ enabled: false }));
     });
   });
 

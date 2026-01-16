@@ -107,10 +107,7 @@ export default function AmbientBackground({
   }
 
   // Base styles for the ambient container
-  const containerClasses = clsx(
-    'relative min-h-screen w-full',
-    className
-  );
+  const containerClasses = clsx('relative min-h-screen w-full', className);
 
   // Ambient overlay styles based on threat category
   const overlayClasses = clsx(

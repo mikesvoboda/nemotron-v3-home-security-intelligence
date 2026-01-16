@@ -92,10 +92,7 @@ describe('useStorageStats (MSW)', () => {
     // Use 400 to avoid retry backoff
     server.use(
       http.get('/api/system/storage', () => {
-        return HttpResponse.json(
-          { detail: 'Network error' },
-          { status: 400 }
-        );
+        return HttpResponse.json({ detail: 'Network error' }, { status: 400 });
       })
     );
 
@@ -184,10 +181,7 @@ describe('useStorageStats (MSW)', () => {
         }),
         // Use 400 to avoid retry backoff
         http.post('/api/system/cleanup', () => {
-          return HttpResponse.json(
-            { detail: 'Cleanup error' },
-            { status: 400 }
-          );
+          return HttpResponse.json({ detail: 'Cleanup error' }, { status: 400 });
         })
       );
 

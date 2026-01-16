@@ -29,7 +29,9 @@ describe('EnrichmentPanel', () => {
     });
 
     it('renders nothing when enrichment_data is null', () => {
-      const { container } = render(<EnrichmentPanel enrichment_data={null as unknown as EnrichmentData} />);
+      const { container } = render(
+        <EnrichmentPanel enrichment_data={null as unknown as EnrichmentData} />
+      );
       expect(container.firstChild).toBeNull();
     });
 
@@ -105,7 +107,7 @@ describe('EnrichmentPanel', () => {
           type: 'sedan',
           color: 'black',
           commercial: false,
-          confidence: 0.90,
+          confidence: 0.9,
         },
       };
       render(<EnrichmentPanel enrichment_data={personalVehicle} />);
@@ -258,7 +260,9 @@ describe('EnrichmentPanel', () => {
       };
       render(<EnrichmentPanel enrichment_data={personWithCaption} />);
       await expandAccordion('Person');
-      expect(screen.getByText('A person in casual attire approaching the front door')).toBeInTheDocument();
+      expect(
+        screen.getByText('A person in casual attire approaching the front door')
+      ).toBeInTheDocument();
     });
 
     it('does not display caption section when caption is not present', async () => {
@@ -481,7 +485,7 @@ describe('EnrichmentPanel', () => {
       vehicle: {
         type: 'sedan',
         color: 'red',
-        confidence: 0.90,
+        confidence: 0.9,
       },
     };
 
@@ -526,7 +530,8 @@ describe('EnrichmentPanel', () => {
     it('handles very long text values gracefully', async () => {
       const longText: EnrichmentData = {
         person: {
-          clothing: 'Very long description of clothing items including dark blue jacket with multiple pockets, light gray hoodie underneath, faded blue jeans',
+          clothing:
+            'Very long description of clothing items including dark blue jacket with multiple pockets, light gray hoodie underneath, faded blue jeans',
           confidence: 0.85,
         },
       };
@@ -669,7 +674,7 @@ describe('EnrichmentPanel', () => {
             posture: 'crouching',
             alerts: [],
             security_alerts: [],
-            confidence: 0.80,
+            confidence: 0.8,
           },
         };
         render(<EnrichmentPanel enrichment_data={crouching} />);
@@ -751,7 +756,7 @@ describe('EnrichmentPanel', () => {
             posture: 'standing',
             alerts: ['hands_raised'],
             security_alerts: ['hands_raised'],
-            confidence: 0.90,
+            confidence: 0.9,
           },
         };
         render(<EnrichmentPanel enrichment_data={withAlerts} />);
@@ -866,7 +871,7 @@ describe('EnrichmentPanel', () => {
       it('handles keypoints with zero confidence', async () => {
         // Create keypoints where some have 0 confidence
         const zeroConfidenceKeypoints: [number, number, number][] = mockKeypoints.map(
-          (kp, index) => index < 5 ? [kp[0], kp[1], 0] as [number, number, number] : kp
+          (kp, index) => (index < 5 ? ([kp[0], kp[1], 0] as [number, number, number]) : kp)
         );
         const zeroPose: EnrichmentData = {
           pose: {
@@ -874,7 +879,7 @@ describe('EnrichmentPanel', () => {
             posture: 'standing',
             alerts: [],
             security_alerts: [],
-            confidence: 0.60,
+            confidence: 0.6,
           },
         };
         render(<EnrichmentPanel enrichment_data={zeroPose} />);

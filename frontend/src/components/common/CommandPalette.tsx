@@ -218,7 +218,10 @@ export default function CommandPalette({ open, onOpenChange }: CommandPalettePro
             No results found.
           </Command.Empty>
 
-          <Command.Group heading="Navigation" className="px-2 [&_[cmdk-group-heading]]:mb-2 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wide [&_[cmdk-group-heading]]:text-[#666]">
+          <Command.Group
+            heading="Navigation"
+            className="px-2 [&_[cmdk-group-heading]]:mb-2 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wide [&_[cmdk-group-heading]]:text-[#666]"
+          >
             {NAVIGATION_ITEMS.map((item) => (
               <Command.Item
                 key={item.path}

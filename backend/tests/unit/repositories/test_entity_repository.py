@@ -877,3 +877,219 @@ class TestEntityRepositoryGetOrCreateForDetection:
 
         assert is_new is False
         assert entity.detection_count == original_count + 1
+
+
+# =============================================================================
+# Entity Trust Classification Repository Tests (NEM-2671)
+# =============================================================================
+
+
+class TestUpdateTrustStatus:
+    """Test update_trust_status method (NEM-2671)."""
+
+    @pytest.mark.asyncio
+    async def test_update_trust_status_not_found(self, mock_db_session: AsyncMock):
+        """Test update_trust_status returns None for non-existent entity."""
+        from backend.repositories.entity_repository import EntityRepository
+
+        repo = EntityRepository(mock_db_session)
+        mock_db_session.get.return_value = None
+
+        result = await repo.update_trust_status(
+            entity_id=uuid.uuid4(),
+            trust_status="trusted",
+            trust_notes="Test notes",
+        )
+
+        assert result is None
+        mock_db_session.flush.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_update_trust_status_success(self, mock_db_session: AsyncMock):
+        """Test update_trust_status updates entity metadata correctly."""
+        from backend.repositories.entity_repository import EntityRepository
+
+        repo = EntityRepository(mock_db_session)
+
+        entity_id = uuid.uuid4()
+        entity = Entity(
+            id=entity_id,
+            entity_type=EntityType.PERSON.value,
+            entity_metadata={"camera_id": "front_door"},
+        )
+
+        mock_db_session.get.return_value = entity
+
+        result = await repo.update_trust_status(
+            entity_id=entity_id,
+            trust_status="trusted",
+            trust_notes="Regular mail carrier",
+        )
+
+        assert result is not None
+        assert result.entity_metadata["trust_status"] == "trusted"
+        assert result.entity_metadata["trust_notes"] == "Regular mail carrier"
+        assert "trust_updated_at" in result.entity_metadata
+        # Original metadata preserved
+        assert result.entity_metadata["camera_id"] == "front_door"
+        mock_db_session.flush.assert_called_once()
+        mock_db_session.refresh.assert_called_once_with(entity)
+
+    @pytest.mark.asyncio
+    async def test_update_trust_status_initializes_metadata(self, mock_db_session: AsyncMock):
+        """Test update_trust_status initializes metadata if None."""
+        from backend.repositories.entity_repository import EntityRepository
+
+        repo = EntityRepository(mock_db_session)
+
+        entity_id = uuid.uuid4()
+        entity = Entity(
+            id=entity_id,
+            entity_type=EntityType.PERSON.value,
+            entity_metadata=None,
+        )
+
+        mock_db_session.get.return_value = entity
+
+        result = await repo.update_trust_status(
+            entity_id=entity_id,
+            trust_status="untrusted",
+        )
+
+        assert result is not None
+        assert result.entity_metadata["trust_status"] == "untrusted"
+        assert result.entity_metadata.get("trust_notes") is None
+
+    @pytest.mark.asyncio
+    async def test_update_trust_status_clears_notes(self, mock_db_session: AsyncMock):
+        """Test update_trust_status can clear trust notes."""
+        from backend.repositories.entity_repository import EntityRepository
+
+        repo = EntityRepository(mock_db_session)
+
+        entity_id = uuid.uuid4()
+        entity = Entity(
+            id=entity_id,
+            entity_type=EntityType.PERSON.value,
+            entity_metadata={
+                "trust_status": "trusted",
+                "trust_notes": "Old notes",
+            },
+        )
+
+        mock_db_session.get.return_value = entity
+
+        result = await repo.update_trust_status(
+            entity_id=entity_id,
+            trust_status="unclassified",
+            trust_notes=None,
+        )
+
+        assert result is not None
+        assert result.entity_metadata["trust_status"] == "unclassified"
+        assert result.entity_metadata["trust_notes"] is None
+
+
+class TestListByTrustStatus:
+    """Test list_by_trust_status method (NEM-2671)."""
+
+    @pytest.mark.asyncio
+    async def test_list_by_trust_status_returns_tuple(self, mock_db_session: AsyncMock):
+        """Test list_by_trust_status returns (entities, total_count) tuple."""
+        from backend.repositories.entity_repository import EntityRepository
+
+        repo = EntityRepository(mock_db_session)
+
+        trusted_entity = Entity(
+            id=uuid.uuid4(),
+            entity_type=EntityType.PERSON.value,
+            entity_metadata={"trust_status": "trusted"},
+        )
+
+        mock_entity_result = MagicMock()
+        mock_entity_result.scalars.return_value.all.return_value = [trusted_entity]
+        mock_count_result = MagicMock()
+        mock_count_result.scalar_one.return_value = 1
+        mock_db_session.execute.side_effect = [mock_entity_result, mock_count_result]
+
+        result, total = await repo.list_by_trust_status(trust_status="trusted")
+
+        assert len(result) == 1
+        assert total == 1
+        assert mock_db_session.execute.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_list_by_trust_status_empty(self, mock_db_session: AsyncMock):
+        """Test list_by_trust_status with no matching entities."""
+        from backend.repositories.entity_repository import EntityRepository
+
+        repo = EntityRepository(mock_db_session)
+
+        mock_entity_result = MagicMock()
+        mock_entity_result.scalars.return_value.all.return_value = []
+        mock_count_result = MagicMock()
+        mock_count_result.scalar_one.return_value = 0
+        mock_db_session.execute.side_effect = [mock_entity_result, mock_count_result]
+
+        result, total = await repo.list_by_trust_status(trust_status="trusted")
+
+        assert len(result) == 0
+        assert total == 0
+
+    @pytest.mark.asyncio
+    async def test_list_by_trust_status_filters_by_entity_type(self, mock_db_session: AsyncMock):
+        """Test list_by_trust_status filters by entity_type when provided."""
+        from backend.repositories.entity_repository import EntityRepository
+
+        repo = EntityRepository(mock_db_session)
+
+        person_entity = Entity(
+            id=uuid.uuid4(),
+            entity_type=EntityType.PERSON.value,
+            entity_metadata={"trust_status": "trusted"},
+        )
+
+        mock_entity_result = MagicMock()
+        mock_entity_result.scalars.return_value.all.return_value = [person_entity]
+        mock_count_result = MagicMock()
+        mock_count_result.scalar_one.return_value = 1
+        mock_db_session.execute.side_effect = [mock_entity_result, mock_count_result]
+
+        result, total = await repo.list_by_trust_status(
+            trust_status="trusted",
+            entity_type="person",
+        )
+
+        assert len(result) == 1
+        assert total == 1
+
+    @pytest.mark.asyncio
+    async def test_list_by_trust_status_pagination(self, mock_db_session: AsyncMock):
+        """Test list_by_trust_status respects limit and offset."""
+        from backend.repositories.entity_repository import EntityRepository
+
+        repo = EntityRepository(mock_db_session)
+
+        entities = [
+            Entity(
+                id=uuid.uuid4(),
+                entity_type=EntityType.PERSON.value,
+                entity_metadata={"trust_status": "untrusted"},
+            )
+            for _ in range(3)
+        ]
+
+        mock_entity_result = MagicMock()
+        mock_entity_result.scalars.return_value.all.return_value = entities
+        mock_count_result = MagicMock()
+        mock_count_result.scalar_one.return_value = 10  # Total more than returned
+        mock_db_session.execute.side_effect = [mock_entity_result, mock_count_result]
+
+        result, total = await repo.list_by_trust_status(
+            trust_status="untrusted",
+            limit=3,
+            offset=5,
+        )
+
+        assert len(result) == 3
+        assert total == 10

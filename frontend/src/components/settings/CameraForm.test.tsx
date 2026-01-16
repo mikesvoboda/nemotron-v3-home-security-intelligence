@@ -115,9 +115,7 @@ describe('CameraForm', () => {
       await userEvent.click(submitButton);
 
       await waitFor(() => {
-        expect(onSubmit).toHaveBeenCalledWith(
-          expect.objectContaining({ name: 'A' })
-        );
+        expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ name: 'A' }));
       });
     });
 
@@ -135,9 +133,7 @@ describe('CameraForm', () => {
       await userEvent.click(submitButton);
 
       await waitFor(() => {
-        expect(onSubmit).toHaveBeenCalledWith(
-          expect.objectContaining({ name: 'Front Door' })
-        );
+        expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ name: 'Front Door' }));
       });
     });
 
@@ -165,9 +161,7 @@ describe('CameraForm', () => {
       await userEvent.click(submitButton);
 
       await waitFor(() => {
-        expect(onSubmit).toHaveBeenCalledWith(
-          expect.objectContaining({ name: maxLengthName })
-        );
+        expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ name: maxLengthName }));
       });
     });
   });
@@ -241,7 +235,9 @@ describe('CameraForm', () => {
       await userEvent.click(submitButton);
 
       await waitFor(() => {
-        expect(screen.getByText('Path traversal (..) is not allowed in folder path')).toBeInTheDocument();
+        expect(
+          screen.getByText('Path traversal (..) is not allowed in folder path')
+        ).toBeInTheDocument();
       });
       expect(defaultProps.onSubmit).not.toHaveBeenCalled();
     });
@@ -262,7 +258,9 @@ describe('CameraForm', () => {
 
         await waitFor(() => {
           expect(
-            screen.getByText('Folder path contains forbidden characters (< > : " | ? * or control characters)')
+            screen.getByText(
+              'Folder path contains forbidden characters (< > : " | ? * or control characters)'
+            )
           ).toBeInTheDocument();
         });
         expect(defaultProps.onSubmit).not.toHaveBeenCalled();
@@ -336,9 +334,7 @@ describe('CameraForm', () => {
       await userEvent.click(submitButton);
 
       await waitFor(() => {
-        expect(onSubmit).toHaveBeenCalledWith(
-          expect.objectContaining({ status: 'offline' })
-        );
+        expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ status: 'offline' }));
       });
     });
 
@@ -359,9 +355,7 @@ describe('CameraForm', () => {
       await userEvent.click(submitButton);
 
       await waitFor(() => {
-        expect(onSubmit).toHaveBeenCalledWith(
-          expect.objectContaining({ status: 'unknown' })
-        );
+        expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ status: 'unknown' }));
       });
     });
   });
@@ -444,11 +438,7 @@ describe('CameraForm', () => {
     it('should show dismiss button when onClearApiError is provided', () => {
       const onClearApiError = vi.fn();
       render(
-        <CameraForm
-          {...defaultProps}
-          apiError="Some error"
-          onClearApiError={onClearApiError}
-        />
+        <CameraForm {...defaultProps} apiError="Some error" onClearApiError={onClearApiError} />
       );
 
       expect(screen.getByLabelText('Dismiss error')).toBeInTheDocument();
@@ -457,11 +447,7 @@ describe('CameraForm', () => {
     it('should call onClearApiError when dismiss button is clicked', async () => {
       const onClearApiError = vi.fn();
       render(
-        <CameraForm
-          {...defaultProps}
-          apiError="Some error"
-          onClearApiError={onClearApiError}
-        />
+        <CameraForm {...defaultProps} apiError="Some error" onClearApiError={onClearApiError} />
       );
 
       const dismissButton = screen.getByLabelText('Dismiss error');

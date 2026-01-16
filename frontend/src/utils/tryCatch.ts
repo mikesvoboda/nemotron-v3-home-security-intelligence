@@ -103,9 +103,7 @@ function toError(err: unknown): Error {
  * });
  * ```
  */
-export async function tryCatch<T>(
-  fn: () => Promise<T>
-): Promise<Result<T, Error>> {
+export async function tryCatch<T>(fn: () => Promise<T>): Promise<Result<T, Error>> {
   try {
     const value = await fn();
     return Ok(value);

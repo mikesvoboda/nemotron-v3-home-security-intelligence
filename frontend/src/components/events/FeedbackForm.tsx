@@ -160,12 +160,12 @@ export default function FeedbackForm({
               data-testid="severity-slider"
             />
             {/* Track fill indicator */}
-            <div
-              className="relative -mt-2 h-2 rounded-lg"
-              style={{ pointerEvents: 'none' }}
-            >
+            <div className="relative -mt-2 h-2 rounded-lg" style={{ pointerEvents: 'none' }}>
               <div
-                className={clsx('absolute left-0 top-0 h-full rounded-l-lg', getSeverityTrackColor(expectedSeverity))}
+                className={clsx(
+                  'absolute left-0 top-0 h-full rounded-l-lg',
+                  getSeverityTrackColor(expectedSeverity)
+                )}
                 style={{ width: `${expectedSeverity}%` }}
               />
             </div>
@@ -183,10 +183,7 @@ export default function FeedbackForm({
 
       {/* Notes field */}
       <div className="mb-4">
-        <label
-          htmlFor="feedback-notes"
-          className="mb-2 block text-sm font-medium text-gray-300"
-        >
+        <label htmlFor="feedback-notes" className="mb-2 block text-sm font-medium text-gray-300">
           {isWrongSeverity ? 'Additional Notes (optional)' : 'Notes (optional)'}
         </label>
         <textarea

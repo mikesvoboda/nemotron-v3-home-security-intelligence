@@ -70,8 +70,8 @@ const mockAuditStats: AuditStats = {
   avg_enrichment_utilization: 0.75,
   model_contribution_rates: {
     rtdetr: 0.95,
-    florence: 0.80,
-    clip: 0.70,
+    florence: 0.8,
+    clip: 0.7,
   },
   audits_by_day: [
     { date: '2025-01-10', count: 10 },
@@ -89,7 +89,7 @@ const mockLeaderboard: LeaderboardResponse = {
     },
     {
       model_name: 'florence',
-      contribution_rate: 0.80,
+      contribution_rate: 0.8,
       quality_correlation: 0.72,
       event_count: 80,
     },

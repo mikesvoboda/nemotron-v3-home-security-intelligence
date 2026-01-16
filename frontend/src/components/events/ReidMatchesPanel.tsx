@@ -184,9 +184,7 @@ export default function ReidMatchesPanel({
       >
         <div className="flex items-center gap-2 text-gray-500">
           <Users className="h-5 w-5" />
-          <span className="text-sm">
-            No re-ID matches found for this {entityType}
-          </span>
+          <span className="text-sm">No re-ID matches found for this {entityType}</span>
         </div>
       </div>
     );
@@ -254,9 +252,7 @@ export default function ReidMatchesPanel({
                       <Clock className="h-3 w-3" />
                       {formatTimestamp(match.timestamp)}
                     </span>
-                    <span className="text-gray-500">
-                      ({formatTimeGap(match.time_gap_seconds)})
-                    </span>
+                    <span className="text-gray-500">({formatTimeGap(match.time_gap_seconds)})</span>
                   </div>
                 </div>
               </button>
@@ -268,7 +264,8 @@ export default function ReidMatchesPanel({
       {/* Footer with threshold info */}
       <div className="border-t border-gray-800 bg-black/20 px-4 py-2">
         <p className="text-xs text-gray-500">
-          Showing matches with {'\u2265'}{Math.round(data.threshold * 100)}% similarity
+          Showing matches with {'\u2265'}
+          {Math.round(data.threshold * 100)}% similarity
         </p>
       </div>
     </div>

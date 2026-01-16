@@ -116,7 +116,12 @@ const mockAuditStats: AuditStatsResponse = {
 const mockLeaderboardResponse: LeaderboardResponse = {
   entries: [
     { model_name: 'rtdetr', contribution_rate: 1.0, quality_correlation: 0.85, event_count: 150 },
-    { model_name: 'image_quality', contribution_rate: 0.95, quality_correlation: 0.72, event_count: 142 },
+    {
+      model_name: 'image_quality',
+      contribution_rate: 0.95,
+      quality_correlation: 0.72,
+      event_count: 142,
+    },
     { model_name: 'weather', contribution_rate: 0.9, quality_correlation: null, event_count: 135 },
   ],
   period_days: 7,
@@ -756,9 +761,7 @@ describe('importPrompts', () => {
       createMockErrorResponse(400, 'Bad Request', 'No prompts provided for import')
     );
 
-    await expect(
-      importPrompts({ prompts: {} })
-    ).rejects.toMatchObject({
+    await expect(importPrompts({ prompts: {} })).rejects.toMatchObject({
       status: 400,
       message: 'No prompts provided for import',
     });
@@ -865,9 +868,7 @@ describe('updateModelPrompt', () => {
       createMockErrorResponse(400, 'Bad Request', 'Invalid configuration')
     );
 
-    await expect(
-      updateModelPrompt('nemotron', { config: {} })
-    ).rejects.toMatchObject({
+    await expect(updateModelPrompt('nemotron', { config: {} })).rejects.toMatchObject({
       status: 400,
     });
   });

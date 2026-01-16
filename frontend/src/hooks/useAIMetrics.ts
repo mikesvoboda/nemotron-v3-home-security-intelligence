@@ -15,7 +15,16 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 
-import { fetchTelemetry, fetchHealth, fetchDlqStats, fetchDetectionStats, type TelemetryResponse, type HealthResponse, type DLQStatsResponse, type DetectionStatsResponse } from '../services/api';
+import {
+  fetchTelemetry,
+  fetchHealth,
+  fetchDlqStats,
+  fetchDetectionStats,
+  type TelemetryResponse,
+  type HealthResponse,
+  type DLQStatsResponse,
+  type DetectionStatsResponse,
+} from '../services/api';
 import { fetchAIMetrics, type AIMetrics, type AILatencyMetrics } from '../services/metricsParser';
 
 /**
@@ -169,13 +178,24 @@ function extractAIStatuses(health: HealthResponse | null): {
   return {
     rtdetr: {
       name: 'RT-DETRv2',
-      status: rtdetrStatus === 'healthy' ? 'healthy' : rtdetrStatus === 'unknown' ? 'unknown' : 'unhealthy',
+      status:
+        rtdetrStatus === 'healthy'
+          ? 'healthy'
+          : rtdetrStatus === 'unknown'
+            ? 'unknown'
+            : 'unhealthy',
       message: rtdetrStatus !== 'healthy' && rtdetrStatus !== 'unknown' ? rtdetrStatus : undefined,
     },
     nemotron: {
       name: 'Nemotron',
-      status: nemotronStatus === 'healthy' ? 'healthy' : nemotronStatus === 'unknown' ? 'unknown' : 'unhealthy',
-      message: nemotronStatus !== 'healthy' && nemotronStatus !== 'unknown' ? nemotronStatus : undefined,
+      status:
+        nemotronStatus === 'healthy'
+          ? 'healthy'
+          : nemotronStatus === 'unknown'
+            ? 'unknown'
+            : 'unhealthy',
+      message:
+        nemotronStatus !== 'healthy' && nemotronStatus !== 'unknown' ? nemotronStatus : undefined,
     },
   };
 }
@@ -220,7 +240,14 @@ export function useAIMetrics(options: UseAIMetricsOptions = {}): UseAIMetricsRes
   const fetchAllMetrics = useCallback(async () => {
     try {
       // Fetch all data sources in parallel
-      const [metricsResult, telemetryResult, healthResult, pipelineResult, dlqResult, detectionStatsResult] = await Promise.allSettled([
+      const [
+        metricsResult,
+        telemetryResult,
+        healthResult,
+        pipelineResult,
+        dlqResult,
+        detectionStatsResult,
+      ] = await Promise.allSettled([
         fetchAIMetrics(),
         fetchTelemetry(),
         fetchHealth(),
@@ -273,7 +300,8 @@ export function useAIMetrics(options: UseAIMetricsOptions = {}): UseAIMetricsRes
         pipelineLatency,
         totalDetections: detectionStats?.total_detections ?? metrics?.total_detections ?? 0,
         totalEvents: metrics?.total_events ?? 0,
-        detectionQueueDepth: telemetry?.queues?.detection_queue ?? metrics?.detection_queue_depth ?? 0,
+        detectionQueueDepth:
+          telemetry?.queues?.detection_queue ?? metrics?.detection_queue_depth ?? 0,
         analysisQueueDepth: telemetry?.queues?.analysis_queue ?? metrics?.analysis_queue_depth ?? 0,
         pipelineErrors: metrics?.pipeline_errors ?? {},
         queueOverflows: metrics?.queue_overflows ?? {},

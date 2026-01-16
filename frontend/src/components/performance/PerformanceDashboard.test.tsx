@@ -18,7 +18,6 @@ import {
   type TimeRange,
 } from '../../hooks/usePerformanceMetrics';
 
-
 // Mock the usePerformanceMetrics hook
 vi.mock('../../hooks/usePerformanceMetrics', () => ({
   usePerformanceMetrics: vi.fn(),
@@ -207,7 +206,9 @@ describe('PerformanceDashboard', () => {
 
     it('shows no data message when GPU data is null', () => {
       const updateWithoutGpu = { ...mockPerformanceUpdate, gpu: null };
-      (usePerformanceMetrics as Mock).mockReturnValue(createMockHook({ current: updateWithoutGpu }));
+      (usePerformanceMetrics as Mock).mockReturnValue(
+        createMockHook({ current: updateWithoutGpu })
+      );
       render(<PerformanceDashboard />);
       expect(screen.getByTestId('gpu-card')).toHaveTextContent('No GPU data available');
     });
@@ -328,7 +329,9 @@ describe('PerformanceDashboard', () => {
         ...mockPerformanceUpdate,
         databases: { postgresql: mockPerformanceUpdate.databases.postgresql },
       };
-      (usePerformanceMetrics as Mock).mockReturnValue(createMockHook({ current: updateWithoutRedis }));
+      (usePerformanceMetrics as Mock).mockReturnValue(
+        createMockHook({ current: updateWithoutRedis })
+      );
       render(<PerformanceDashboard />);
       expect(screen.getByTestId('redis-card')).toHaveTextContent('No Redis data available');
     });
@@ -357,7 +360,9 @@ describe('PerformanceDashboard', () => {
 
     it('shows no data message when host data is null', () => {
       const updateWithoutHost = { ...mockPerformanceUpdate, host: null };
-      (usePerformanceMetrics as Mock).mockReturnValue(createMockHook({ current: updateWithoutHost }));
+      (usePerformanceMetrics as Mock).mockReturnValue(
+        createMockHook({ current: updateWithoutHost })
+      );
       render(<PerformanceDashboard />);
       expect(screen.getByTestId('host-card')).toHaveTextContent('No host data available');
     });
@@ -390,7 +395,9 @@ describe('PerformanceDashboard', () => {
         createMockHook({ current: updateWithoutContainers })
       );
       render(<PerformanceDashboard />);
-      expect(screen.getByTestId('containers-card')).toHaveTextContent('No container data available');
+      expect(screen.getByTestId('containers-card')).toHaveTextContent(
+        'No container data available'
+      );
     });
   });
 

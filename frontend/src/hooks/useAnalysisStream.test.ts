@@ -50,9 +50,7 @@ describe('useAnalysisStream', () => {
     };
 
     // Mock createAnalysisStream to return our mock EventSource
-    vi.mocked(api.createAnalysisStream).mockReturnValue(
-      mockEventSource as unknown as EventSource
-    );
+    vi.mocked(api.createAnalysisStream).mockReturnValue(mockEventSource as unknown as EventSource);
   });
 
   afterEach(() => {
@@ -191,9 +189,7 @@ describe('useAnalysisStream', () => {
       });
 
       await waitFor(() => {
-        expect(result.current.accumulatedText).toBe(
-          'Analyzing... Person detected near entrance.'
-        );
+        expect(result.current.accumulatedText).toBe('Analyzing... Person detected near entrance.');
       });
     });
   });

@@ -21,13 +21,7 @@ describe('EmptyState', () => {
     });
 
     it('renders icon correctly', () => {
-      render(
-        <EmptyState
-          icon={Camera}
-          title="No Cameras"
-          description="No cameras found."
-        />
-      );
+      render(<EmptyState icon={Camera} title="No Cameras" description="No cameras found." />);
 
       // Icon should be present and hidden from accessibility
       const icon = screen.getByTestId('empty-state').querySelector('svg');
@@ -67,11 +61,7 @@ describe('EmptyState', () => {
 
     it('renders children content', () => {
       render(
-        <EmptyState
-          icon={Camera}
-          title="Test"
-          description="Description"
-        >
+        <EmptyState icon={Camera} title="Test" description="Description">
           <div data-testid="child-content">Additional content</div>
         </EmptyState>
       );
@@ -83,14 +73,7 @@ describe('EmptyState', () => {
 
   describe('variants', () => {
     it('renders default variant with NVIDIA green accent', () => {
-      render(
-        <EmptyState
-          icon={Camera}
-          title="Test"
-          description="Description"
-          variant="default"
-        />
-      );
+      render(<EmptyState icon={Camera} title="Test" description="Description" variant="default" />);
 
       const container = screen.getByTestId('empty-state');
       // Check for NVIDIA green color class on icon container
@@ -99,14 +82,7 @@ describe('EmptyState', () => {
     });
 
     it('renders muted variant with gray accent', () => {
-      render(
-        <EmptyState
-          icon={Clock}
-          title="Test"
-          description="Description"
-          variant="muted"
-        />
-      );
+      render(<EmptyState icon={Clock} title="Test" description="Description" variant="muted" />);
 
       const container = screen.getByTestId('empty-state');
       const iconContainer = container.querySelector('.bg-gray-800');
@@ -115,12 +91,7 @@ describe('EmptyState', () => {
 
     it('renders warning variant with yellow accent', () => {
       render(
-        <EmptyState
-          icon={FileText}
-          title="Test"
-          description="Description"
-          variant="warning"
-        />
+        <EmptyState icon={FileText} title="Test" description="Description" variant="warning" />
       );
 
       const container = screen.getByTestId('empty-state');
@@ -131,42 +102,21 @@ describe('EmptyState', () => {
 
   describe('sizes', () => {
     it('renders small size', () => {
-      render(
-        <EmptyState
-          icon={Camera}
-          title="Test"
-          description="Description"
-          size="sm"
-        />
-      );
+      render(<EmptyState icon={Camera} title="Test" description="Description" size="sm" />);
 
       const container = screen.getByTestId('empty-state');
       expect(container).toHaveClass('min-h-[200px]');
     });
 
     it('renders medium size (default)', () => {
-      render(
-        <EmptyState
-          icon={Camera}
-          title="Test"
-          description="Description"
-          size="md"
-        />
-      );
+      render(<EmptyState icon={Camera} title="Test" description="Description" size="md" />);
 
       const container = screen.getByTestId('empty-state');
       expect(container).toHaveClass('min-h-[300px]');
     });
 
     it('renders large size', () => {
-      render(
-        <EmptyState
-          icon={Camera}
-          title="Test"
-          description="Description"
-          size="lg"
-        />
-      );
+      render(<EmptyState icon={Camera} title="Test" description="Description" size="lg" />);
 
       const container = screen.getByTestId('empty-state');
       expect(container).toHaveClass('min-h-[400px]');
@@ -242,13 +192,7 @@ describe('EmptyState', () => {
     });
 
     it('does not render actions section when no actions provided', () => {
-      render(
-        <EmptyState
-          icon={Camera}
-          title="Test"
-          description="Description"
-        />
-      );
+      render(<EmptyState icon={Camera} title="Test" description="Description" />);
 
       expect(screen.queryByRole('button')).not.toBeInTheDocument();
     });
@@ -257,12 +201,7 @@ describe('EmptyState', () => {
   describe('className', () => {
     it('applies additional className', () => {
       render(
-        <EmptyState
-          icon={Camera}
-          title="Test"
-          description="Description"
-          className="custom-class"
-        />
+        <EmptyState icon={Camera} title="Test" description="Description" className="custom-class" />
       );
 
       expect(screen.getByTestId('empty-state')).toHaveClass('custom-class');
@@ -284,13 +223,7 @@ describe('EmptyState', () => {
     });
 
     it('icon is hidden from screen readers', () => {
-      render(
-        <EmptyState
-          icon={Camera}
-          title="Test"
-          description="Description"
-        />
-      );
+      render(<EmptyState icon={Camera} title="Test" description="Description" />);
 
       const icon = screen.getByTestId('empty-state').querySelector('svg');
       expect(icon).toHaveAttribute('aria-hidden', 'true');
@@ -299,13 +232,7 @@ describe('EmptyState', () => {
 
   describe('dark theme compatibility', () => {
     it('uses dark theme colors for text', () => {
-      render(
-        <EmptyState
-          icon={Camera}
-          title="Test Title"
-          description="Test description"
-        />
-      );
+      render(<EmptyState icon={Camera} title="Test Title" description="Test description" />);
 
       const title = screen.getByText('Test Title');
       expect(title).toHaveClass('text-white');

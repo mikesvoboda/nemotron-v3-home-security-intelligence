@@ -6,7 +6,12 @@ import * as useEventsQueryHook from '../../hooks/useEventsQuery';
 import * as useEventStreamHook from '../../hooks/useEventStream';
 import * as useInfiniteScrollHook from '../../hooks/useInfiniteScroll';
 import * as api from '../../services/api';
-import { renderWithProviders, screen, waitFor, userEvent } from '../../test-utils/renderWithProviders';
+import {
+  renderWithProviders,
+  screen,
+  waitFor,
+  userEvent,
+} from '../../test-utils/renderWithProviders';
 
 import type { Camera, Event } from '../../services/api';
 
@@ -46,7 +51,12 @@ vi.mock('../exports/ExportModal', () => ({
   }: {
     isOpen: boolean;
     onClose: () => void;
-    initialFilters?: { camera_id?: string; risk_level?: string; start_date?: string; end_date?: string };
+    initialFilters?: {
+      camera_id?: string;
+      risk_level?: string;
+      start_date?: string;
+      end_date?: string;
+    };
     onExportComplete?: (success: boolean) => void;
   }) => {
     if (!isOpen) return null;
@@ -54,16 +64,17 @@ vi.mock('../exports/ExportModal', () => ({
       <div data-testid="export-modal" role="dialog" aria-label="Export modal">
         <h2>Export Data</h2>
         <div data-testid="export-modal-filters">
-          {initialFilters?.camera_id && <span data-testid="filter-camera">{initialFilters.camera_id}</span>}
-          {initialFilters?.risk_level && <span data-testid="filter-risk">{initialFilters.risk_level}</span>}
+          {initialFilters?.camera_id && (
+            <span data-testid="filter-camera">{initialFilters.camera_id}</span>
+          )}
+          {initialFilters?.risk_level && (
+            <span data-testid="filter-risk">{initialFilters.risk_level}</span>
+          )}
         </div>
         <button onClick={onClose} data-testid="export-modal-close">
           Close
         </button>
-        <button
-          onClick={() => onExportComplete?.(true)}
-          data-testid="export-modal-complete"
-        >
+        <button onClick={() => onExportComplete?.(true)} data-testid="export-modal-complete">
           Complete Export
         </button>
       </div>
@@ -175,7 +186,9 @@ describe('EventTimeline', () => {
   ];
 
   // Default mock return values for useEventsInfiniteQuery
-  const createMockEventsQueryReturn = (overrides: Partial<useEventsQueryHook.UseEventsInfiniteQueryReturn> = {}) => ({
+  const createMockEventsQueryReturn = (
+    overrides: Partial<useEventsQueryHook.UseEventsInfiniteQueryReturn> = {}
+  ) => ({
     events: mockEvents,
     pages: undefined,
     totalCount: 3,
@@ -191,7 +204,9 @@ describe('EventTimeline', () => {
   });
 
   // Default mock return values for useInfiniteScroll
-  const createMockInfiniteScrollReturn = (overrides: Partial<useInfiniteScrollHook.UseInfiniteScrollReturn> = {}) => ({
+  const createMockInfiniteScrollReturn = (
+    overrides: Partial<useInfiniteScrollHook.UseInfiniteScrollReturn> = {}
+  ) => ({
     sentinelRef: vi.fn(),
     isLoadingMore: false,
     error: null,
@@ -206,10 +221,14 @@ describe('EventTimeline', () => {
     vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
 
     // Mock useEventsInfiniteQuery
-    vi.mocked(useEventsQueryHook.useEventsInfiniteQuery).mockReturnValue(createMockEventsQueryReturn());
+    vi.mocked(useEventsQueryHook.useEventsInfiniteQuery).mockReturnValue(
+      createMockEventsQueryReturn()
+    );
 
     // Mock useInfiniteScroll
-    vi.mocked(useInfiniteScrollHook.useInfiniteScroll).mockReturnValue(createMockInfiniteScrollReturn());
+    vi.mocked(useInfiniteScrollHook.useInfiniteScroll).mockReturnValue(
+      createMockInfiniteScrollReturn()
+    );
 
     // Mock useEventStream hook
     vi.mocked(useEventStreamHook.useEventStream).mockReturnValue({
@@ -1495,7 +1514,9 @@ describe('EventTimeline', () => {
 
     it('does not expose internal state in error messages for invalid event parameter', async () => {
       // This test ensures no error messages or internal state leaks when given invalid input
-      renderWithProviders(<EventTimeline />, { route: '/timeline?event=<script>alert(1)</script>' });
+      renderWithProviders(<EventTimeline />, {
+        route: '/timeline?event=<script>alert(1)</script>',
+      });
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();

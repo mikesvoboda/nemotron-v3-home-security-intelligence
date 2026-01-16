@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import DashboardConfigModal from './DashboardConfigModal';
-import { DEFAULT_CONFIG, DEFAULT_WIDGETS, type DashboardConfig } from '../../stores/dashboardConfig';
+import {
+  DEFAULT_CONFIG,
+  DEFAULT_WIDGETS,
+  type DashboardConfig,
+} from '../../stores/dashboardConfig';
 import { renderWithProviders, screen, waitFor } from '../../test-utils/renderWithProviders';
 
 // Mock framer-motion to avoid animation timing issues in tests
@@ -52,7 +56,9 @@ const mockStorage: Record<string, string> = {};
 
 beforeEach(() => {
   Object.keys(mockStorage).forEach((key) => delete mockStorage[key]);
-  vi.spyOn(Storage.prototype, 'getItem').mockImplementation((key: string) => mockStorage[key] ?? null);
+  vi.spyOn(Storage.prototype, 'getItem').mockImplementation(
+    (key: string) => mockStorage[key] ?? null
+  );
   vi.spyOn(Storage.prototype, 'setItem').mockImplementation((key: string, value: string) => {
     mockStorage[key] = value;
   });
@@ -123,9 +129,7 @@ describe('DashboardConfigModal', () => {
     });
 
     it('renders nothing when isOpen is false', () => {
-      renderWithProviders(
-        <DashboardConfigModal {...defaultProps} isOpen={false} />
-      );
+      renderWithProviders(<DashboardConfigModal {...defaultProps} isOpen={false} />);
 
       expect(screen.queryByText('Customize Dashboard')).not.toBeInTheDocument();
     });
@@ -285,9 +289,7 @@ describe('DashboardConfigModal', () => {
     });
 
     it('reverts changes when modal is cancelled and reopened', async () => {
-      const { user, rerender } = renderWithProviders(
-        <DashboardConfigModal {...defaultProps} />
-      );
+      const { user, rerender } = renderWithProviders(<DashboardConfigModal {...defaultProps} />);
 
       // Make a change
       await user.click(screen.getByTestId('widget-toggle-stats-row'));

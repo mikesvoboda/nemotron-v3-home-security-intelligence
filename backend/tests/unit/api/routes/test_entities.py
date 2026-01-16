@@ -586,3 +586,355 @@ class TestGetRedisClient:
             result = await _get_redis_client()
 
         assert result is None
+
+
+# =============================================================================
+# Entity Trust Classification Tests (NEM-2671)
+# =============================================================================
+
+
+class TestListTrustedEntities:
+    """Tests for GET /api/entities/trusted endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_list_trusted_entities_empty(self) -> None:
+        """Test listing trusted entities when none exist."""
+        from backend.api.routes.entities import list_trusted_entities
+
+        mock_repo = MagicMock()
+        mock_repo.list_by_trust_status = AsyncMock(return_value=([], 0))
+
+        result = await list_trusted_entities(
+            entity_type=None,
+            limit=50,
+            offset=0,
+            entity_repo=mock_repo,
+        )
+
+        assert result.items == []
+        assert result.pagination.total == 0
+        mock_repo.list_by_trust_status.assert_called_once_with(
+            trust_status="trusted",
+            entity_type=None,
+            limit=50,
+            offset=0,
+        )
+
+    @pytest.mark.asyncio
+    async def test_list_trusted_entities_with_data(self) -> None:
+        """Test listing trusted entities when data exists."""
+        from backend.api.routes.entities import list_trusted_entities
+
+        mock_repo = MagicMock()
+
+        # Create test entity with trust metadata
+        entity = _create_test_entity(
+            entity_type="person",
+            entity_metadata={
+                "trust_status": "trusted",
+                "trust_notes": "Mail carrier",
+                "trust_updated_at": "2025-12-23T14:30:00+00:00",
+            },
+        )
+
+        mock_repo.list_by_trust_status = AsyncMock(return_value=([entity], 1))
+
+        result = await list_trusted_entities(
+            entity_type=None,
+            limit=50,
+            offset=0,
+            entity_repo=mock_repo,
+        )
+
+        assert result.pagination.total == 1
+        assert len(result.items) == 1
+        assert result.items[0].entity_type == "person"
+        assert result.items[0].trust_status.value == "trusted"
+        assert result.items[0].trust_notes == "Mail carrier"
+
+    @pytest.mark.asyncio
+    async def test_list_trusted_entities_filter_by_type(self) -> None:
+        """Test filtering trusted entities by entity type."""
+        from backend.api.routes.entities import list_trusted_entities
+
+        mock_repo = MagicMock()
+        mock_repo.list_by_trust_status = AsyncMock(return_value=([], 0))
+
+        await list_trusted_entities(
+            entity_type=EntityTypeFilter.person,
+            limit=50,
+            offset=0,
+            entity_repo=mock_repo,
+        )
+
+        mock_repo.list_by_trust_status.assert_called_once_with(
+            trust_status="trusted",
+            entity_type="person",
+            limit=50,
+            offset=0,
+        )
+
+
+class TestListUntrustedEntities:
+    """Tests for GET /api/entities/untrusted endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_list_untrusted_entities_empty(self) -> None:
+        """Test listing untrusted entities when none exist."""
+        from backend.api.routes.entities import list_untrusted_entities
+
+        mock_repo = MagicMock()
+        mock_repo.list_by_trust_status = AsyncMock(return_value=([], 0))
+
+        result = await list_untrusted_entities(
+            entity_type=None,
+            limit=50,
+            offset=0,
+            entity_repo=mock_repo,
+        )
+
+        assert result.items == []
+        assert result.pagination.total == 0
+        mock_repo.list_by_trust_status.assert_called_once_with(
+            trust_status="untrusted",
+            entity_type=None,
+            limit=50,
+            offset=0,
+        )
+
+    @pytest.mark.asyncio
+    async def test_list_untrusted_entities_with_data(self) -> None:
+        """Test listing untrusted entities when data exists."""
+        from backend.api.routes.entities import list_untrusted_entities
+
+        mock_repo = MagicMock()
+
+        # Create test entity with untrusted status
+        entity = _create_test_entity(
+            entity_type="person",
+            entity_metadata={
+                "trust_status": "untrusted",
+                "trust_notes": "Unknown visitor",
+                "trust_updated_at": "2025-12-23T14:30:00+00:00",
+            },
+        )
+
+        mock_repo.list_by_trust_status = AsyncMock(return_value=([entity], 1))
+
+        result = await list_untrusted_entities(
+            entity_type=None,
+            limit=50,
+            offset=0,
+            entity_repo=mock_repo,
+        )
+
+        assert result.pagination.total == 1
+        assert len(result.items) == 1
+        assert result.items[0].trust_status.value == "untrusted"
+        assert result.items[0].trust_notes == "Unknown visitor"
+
+
+class TestUpdateEntityTrust:
+    """Tests for PATCH /api/entities/{entity_id}/trust endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_update_entity_trust_not_found(self) -> None:
+        """Test updating trust status for non-existent entity returns 404."""
+        from backend.api.routes.entities import update_entity_trust
+        from backend.api.schemas.entities import EntityTrustUpdate, TrustStatus
+
+        mock_repo = MagicMock()
+        mock_repo.update_trust_status = AsyncMock(return_value=None)
+
+        trust_update = EntityTrustUpdate(
+            trust_status=TrustStatus.TRUSTED,
+            notes="Test notes",
+        )
+
+        with pytest.raises(Exception) as exc_info:
+            await update_entity_trust(
+                entity_id=uuid4(),
+                trust_update=trust_update,
+                entity_repo=mock_repo,
+            )
+
+        assert exc_info.value.status_code == 404
+        assert "not found" in str(exc_info.value.detail).lower()
+
+    @pytest.mark.asyncio
+    async def test_update_entity_trust_success(self) -> None:
+        """Test successfully updating entity trust status."""
+        from backend.api.routes.entities import update_entity_trust
+        from backend.api.schemas.entities import EntityTrustUpdate, TrustStatus
+
+        mock_repo = MagicMock()
+
+        entity_id = uuid4()
+        entity = _create_test_entity(
+            entity_id=str(entity_id),
+            entity_type="person",
+            entity_metadata={
+                "trust_status": "trusted",
+                "trust_notes": "Regular mail carrier",
+                "trust_updated_at": "2025-12-23T14:30:00+00:00",
+            },
+        )
+
+        mock_repo.update_trust_status = AsyncMock(return_value=entity)
+
+        trust_update = EntityTrustUpdate(
+            trust_status=TrustStatus.TRUSTED,
+            notes="Regular mail carrier",
+        )
+
+        result = await update_entity_trust(
+            entity_id=entity_id,
+            trust_update=trust_update,
+            entity_repo=mock_repo,
+        )
+
+        assert result.id == str(entity_id)
+        assert result.trust_status.value == "trusted"
+        assert result.trust_notes == "Regular mail carrier"
+        mock_repo.update_trust_status.assert_called_once_with(
+            entity_id=entity_id,
+            trust_status="trusted",
+            trust_notes="Regular mail carrier",
+        )
+
+    @pytest.mark.asyncio
+    async def test_update_entity_trust_to_untrusted(self) -> None:
+        """Test updating entity trust status to untrusted."""
+        from backend.api.routes.entities import update_entity_trust
+        from backend.api.schemas.entities import EntityTrustUpdate, TrustStatus
+
+        mock_repo = MagicMock()
+
+        entity_id = uuid4()
+        entity = _create_test_entity(
+            entity_id=str(entity_id),
+            entity_type="person",
+            entity_metadata={
+                "trust_status": "untrusted",
+                "trust_notes": "Suspicious behavior observed",
+                "trust_updated_at": "2025-12-23T14:30:00+00:00",
+            },
+        )
+
+        mock_repo.update_trust_status = AsyncMock(return_value=entity)
+
+        trust_update = EntityTrustUpdate(
+            trust_status=TrustStatus.UNTRUSTED,
+            notes="Suspicious behavior observed",
+        )
+
+        result = await update_entity_trust(
+            entity_id=entity_id,
+            trust_update=trust_update,
+            entity_repo=mock_repo,
+        )
+
+        assert result.trust_status.value == "untrusted"
+
+    @pytest.mark.asyncio
+    async def test_update_entity_trust_unclassified(self) -> None:
+        """Test updating entity trust status to unclassified (reset)."""
+        from backend.api.routes.entities import update_entity_trust
+        from backend.api.schemas.entities import EntityTrustUpdate, TrustStatus
+
+        mock_repo = MagicMock()
+
+        entity_id = uuid4()
+        entity = _create_test_entity(
+            entity_id=str(entity_id),
+            entity_type="person",
+            entity_metadata={
+                "trust_status": "unclassified",
+                "trust_notes": None,
+                "trust_updated_at": "2025-12-23T14:30:00+00:00",
+            },
+        )
+
+        mock_repo.update_trust_status = AsyncMock(return_value=entity)
+
+        trust_update = EntityTrustUpdate(
+            trust_status=TrustStatus.UNCLASSIFIED,
+            notes=None,
+        )
+
+        result = await update_entity_trust(
+            entity_id=entity_id,
+            trust_update=trust_update,
+            entity_repo=mock_repo,
+        )
+
+        assert result.trust_status.value == "unclassified"
+
+
+class TestEntityToTrustResponse:
+    """Tests for _entity_to_trust_response helper function."""
+
+    def test_entity_with_trust_metadata(self) -> None:
+        """Test conversion with all trust metadata fields populated."""
+        from backend.api.routes.entities import _entity_to_trust_response
+
+        entity = _create_test_entity(
+            entity_type="person",
+            entity_metadata={
+                "trust_status": "trusted",
+                "trust_notes": "Regular visitor",
+                "trust_updated_at": "2025-12-23T14:30:00+00:00",
+            },
+            primary_detection_id=123,
+        )
+
+        result = _entity_to_trust_response(entity)
+
+        assert result.entity_type == "person"
+        assert result.trust_status.value == "trusted"
+        assert result.trust_notes == "Regular visitor"
+        assert result.trust_updated_at is not None
+        assert result.thumbnail_url == "/api/detections/123/image"
+
+    def test_entity_without_trust_metadata(self) -> None:
+        """Test conversion when trust metadata is not set."""
+        from backend.api.routes.entities import _entity_to_trust_response
+
+        entity = _create_test_entity(
+            entity_type="vehicle",
+            entity_metadata={"camera_id": "front_door"},  # No trust fields
+        )
+
+        result = _entity_to_trust_response(entity)
+
+        assert result.entity_type == "vehicle"
+        assert result.trust_status.value == "unclassified"
+        assert result.trust_notes is None
+        assert result.trust_updated_at is None
+
+    def test_entity_with_invalid_trust_status(self) -> None:
+        """Test conversion when trust_status has an invalid value."""
+        from backend.api.routes.entities import _entity_to_trust_response
+
+        entity = _create_test_entity(
+            entity_type="person",
+            entity_metadata={"trust_status": "invalid_status"},
+        )
+
+        result = _entity_to_trust_response(entity)
+
+        # Should default to unclassified for invalid values
+        assert result.trust_status.value == "unclassified"
+
+    def test_entity_with_null_metadata(self) -> None:
+        """Test conversion when entity_metadata is None."""
+        from backend.api.routes.entities import _entity_to_trust_response
+
+        entity = _create_test_entity(entity_type="person", entity_metadata=None)
+        # Manually set to None to test the None case
+        entity.entity_metadata = None
+
+        result = _entity_to_trust_response(entity)
+
+        assert result.trust_status.value == "unclassified"
+        assert result.trust_notes is None

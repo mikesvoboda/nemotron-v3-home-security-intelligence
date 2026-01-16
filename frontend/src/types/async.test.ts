@@ -348,10 +348,19 @@ describe('Async State Utility Functions', () => {
       const retry = vi.fn();
       const state = failure<User>('Test error', retry);
       const result = matchState(state, {
-        idle: () => ({ error: null as string | null, retry: undefined as (() => void) | undefined }),
-        loading: () => ({ error: null as string | null, retry: undefined as (() => void) | undefined }),
+        idle: () => ({
+          error: null as string | null,
+          retry: undefined as (() => void) | undefined,
+        }),
+        loading: () => ({
+          error: null as string | null,
+          retry: undefined as (() => void) | undefined,
+        }),
         error: (err, r) => ({ error: err.message, retry: r }),
-        success: () => ({ error: null as string | null, retry: undefined as (() => void) | undefined }),
+        success: () => ({
+          error: null as string | null,
+          retry: undefined as (() => void) | undefined,
+        }),
       });
       expect(result.error).toBe('Test error');
       expect(result.retry).toBe(retry);

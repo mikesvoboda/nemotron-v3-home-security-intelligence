@@ -326,14 +326,24 @@ describe('DetectionImage', () => {
 
     it('does not show lightbox controls when enableLightbox is false', () => {
       const { container } = render(
-        <DetectionImage src={mockImageSrc} alt="Test image" boxes={mockBoxes} enableLightbox={false} />
+        <DetectionImage
+          src={mockImageSrc}
+          alt="Test image"
+          boxes={mockBoxes}
+          enableLightbox={false}
+        />
       );
       expect(container.querySelector('[role="button"]')).not.toBeInTheDocument();
     });
 
     it('adds cursor-pointer class when enableLightbox is true', () => {
       render(
-        <DetectionImage src={mockImageSrc} alt="Test image" boxes={mockBoxes} enableLightbox={true} />
+        <DetectionImage
+          src={mockImageSrc}
+          alt="Test image"
+          boxes={mockBoxes}
+          enableLightbox={true}
+        />
       );
       const container = screen.getByTestId('detection-image-container');
       expect(container).toHaveClass('cursor-pointer');
@@ -341,7 +351,12 @@ describe('DetectionImage', () => {
 
     it('adds button role and aria-label when enableLightbox is true', () => {
       render(
-        <DetectionImage src={mockImageSrc} alt="Test image" boxes={mockBoxes} enableLightbox={true} />
+        <DetectionImage
+          src={mockImageSrc}
+          alt="Test image"
+          boxes={mockBoxes}
+          enableLightbox={true}
+        />
       );
       const container = screen.getByTestId('detection-image-container');
       expect(container).toHaveAttribute('role', 'button');
@@ -351,7 +366,12 @@ describe('DetectionImage', () => {
     it('opens lightbox when clicking on image with enableLightbox', async () => {
       const user = userEvent.setup();
       render(
-        <DetectionImage src={mockImageSrc} alt="Test image" boxes={mockBoxes} enableLightbox={true} />
+        <DetectionImage
+          src={mockImageSrc}
+          alt="Test image"
+          boxes={mockBoxes}
+          enableLightbox={true}
+        />
       );
 
       const container = screen.getByTestId('detection-image-container');
@@ -364,7 +384,12 @@ describe('DetectionImage', () => {
     it('closes lightbox when clicking close button', async () => {
       const user = userEvent.setup();
       render(
-        <DetectionImage src={mockImageSrc} alt="Test image" boxes={mockBoxes} enableLightbox={true} />
+        <DetectionImage
+          src={mockImageSrc}
+          alt="Test image"
+          boxes={mockBoxes}
+          enableLightbox={true}
+        />
       );
 
       // Open lightbox
@@ -382,7 +407,12 @@ describe('DetectionImage', () => {
 
     it('opens lightbox on Enter key when enableLightbox is true', async () => {
       render(
-        <DetectionImage src={mockImageSrc} alt="Test image" boxes={mockBoxes} enableLightbox={true} />
+        <DetectionImage
+          src={mockImageSrc}
+          alt="Test image"
+          boxes={mockBoxes}
+          enableLightbox={true}
+        />
       );
 
       const container = screen.getByTestId('detection-image-container');
@@ -396,7 +426,12 @@ describe('DetectionImage', () => {
 
     it('opens lightbox on Space key when enableLightbox is true', async () => {
       render(
-        <DetectionImage src={mockImageSrc} alt="Test image" boxes={mockBoxes} enableLightbox={true} />
+        <DetectionImage
+          src={mockImageSrc}
+          alt="Test image"
+          boxes={mockBoxes}
+          enableLightbox={true}
+        />
       );
 
       const container = screen.getByTestId('detection-image-container');
@@ -410,7 +445,12 @@ describe('DetectionImage', () => {
 
     it('shows "Click to enlarge" hint on hover when enableLightbox is true', () => {
       render(
-        <DetectionImage src={mockImageSrc} alt="Test image" boxes={mockBoxes} enableLightbox={true} />
+        <DetectionImage
+          src={mockImageSrc}
+          alt="Test image"
+          boxes={mockBoxes}
+          enableLightbox={true}
+        />
       );
       expect(screen.getByText('Click to enlarge')).toBeInTheDocument();
     });
@@ -511,7 +551,9 @@ describe('DetectionImage', () => {
       fireEvent.load(img);
 
       await waitFor(() => {
-        expect(container.querySelector('[data-testid="pose-skeleton-overlay"]')).toBeInTheDocument();
+        expect(
+          container.querySelector('[data-testid="pose-skeleton-overlay"]')
+        ).toBeInTheDocument();
       });
     });
 
@@ -646,7 +688,12 @@ describe('DetectionImage', () => {
 
     it('does not render pose skeleton when poseKeypoints is null', async () => {
       const { container } = render(
-        <DetectionImage src={mockImageSrc} alt="Test image" boxes={mockBoxes} poseKeypoints={null} />
+        <DetectionImage
+          src={mockImageSrc}
+          alt="Test image"
+          boxes={mockBoxes}
+          poseKeypoints={null}
+        />
       );
 
       const img = container.querySelector('img') as HTMLImageElement;
@@ -680,7 +727,9 @@ describe('DetectionImage', () => {
         // Both overlays should be present
         const svgs = container.querySelectorAll('svg');
         expect(svgs.length).toBe(2);
-        expect(container.querySelector('[data-testid="pose-skeleton-overlay"]')).toBeInTheDocument();
+        expect(
+          container.querySelector('[data-testid="pose-skeleton-overlay"]')
+        ).toBeInTheDocument();
         expect(container.querySelector('rect[fill="none"]')).toBeInTheDocument();
       });
     });

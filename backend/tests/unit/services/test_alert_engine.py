@@ -1051,11 +1051,19 @@ class TestEvaluateEvent:
         mock_junction_result = MagicMock()
         mock_junction_result.scalars.return_value.all.return_value = [1, 2, 3]
 
-        # Second call: _get_enabled_rules
+        # Second call: trust status query (no entities linked)
+        mock_trust_result = MagicMock()
+        mock_trust_result.scalars.return_value.all.return_value = []
+
+        # Third call: _get_enabled_rules
         mock_rules_result = MagicMock()
         mock_rules_result.scalars.return_value.all.return_value = []
 
-        mock_session.execute.side_effect = [mock_junction_result, mock_rules_result]
+        mock_session.execute.side_effect = [
+            mock_junction_result,
+            mock_trust_result,
+            mock_rules_result,
+        ]
 
         with patch(
             "backend.services.alert_engine.batch_fetch_detections",
@@ -1065,8 +1073,8 @@ class TestEvaluateEvent:
             engine = AlertRuleEngine(mock_session)
             await engine.evaluate_event(sample_event, detections=None)
 
-        # Verify two queries were made (junction table + rules)
-        assert mock_session.execute.call_count == 2
+        # Verify three queries were made (junction table + trust status + rules)
+        assert mock_session.execute.call_count == 3
 
     @pytest.mark.asyncio
     async def test_triggered_rules_sorted_by_severity(
@@ -1098,6 +1106,10 @@ class TestEvaluateEvent:
             cooldown_seconds=300,
         )
 
+        # Trust status query (no entities linked = normal processing)
+        mock_trust_result = MagicMock()
+        mock_trust_result.scalars.return_value.all.return_value = []
+
         # Return rules in non-sorted order
         mock_rules_result = MagicMock()
         mock_rules_result.scalars.return_value.all.return_value = [
@@ -1111,6 +1123,7 @@ class TestEvaluateEvent:
         mock_cooldown_result.scalar_one_or_none.return_value = None
 
         mock_session.execute.side_effect = [
+            mock_trust_result,
             mock_rules_result,
             mock_cooldown_result,
             mock_cooldown_result,
@@ -1137,6 +1150,10 @@ class TestEvaluateEvent:
         """Test skips rules that are in cooldown."""
         sample_rule.risk_threshold = None  # Always matches
 
+        # Trust status query (no entities linked)
+        mock_trust_result = MagicMock()
+        mock_trust_result.scalars.return_value.all.return_value = []
+
         mock_rules_result = MagicMock()
         mock_rules_result.scalars.return_value.all.return_value = [sample_rule]
 
@@ -1144,7 +1161,11 @@ class TestEvaluateEvent:
         mock_cooldown_result = MagicMock()
         mock_cooldown_result.scalar_one_or_none.return_value = sample_alert
 
-        mock_session.execute.side_effect = [mock_rules_result, mock_cooldown_result]
+        mock_session.execute.side_effect = [
+            mock_trust_result,
+            mock_rules_result,
+            mock_cooldown_result,
+        ]
 
         engine = AlertRuleEngine(mock_session)
         result = await engine.evaluate_event(sample_event, sample_detections)
@@ -1176,6 +1197,10 @@ class TestEvaluateEvent:
             cooldown_seconds=300,
         )
 
+        # Trust status query (no entities linked)
+        mock_trust_result = MagicMock()
+        mock_trust_result.scalars.return_value.all.return_value = []
+
         mock_rules_result = MagicMock()
         mock_rules_result.scalars.return_value.all.return_value = [critical_rule, low_rule]
 
@@ -1183,6 +1208,7 @@ class TestEvaluateEvent:
         mock_cooldown_result.scalar_one_or_none.return_value = None
 
         mock_session.execute.side_effect = [
+            mock_trust_result,
             mock_rules_result,
             mock_cooldown_result,
             mock_cooldown_result,
@@ -1726,13 +1752,21 @@ class TestEdgeCases:
         )
         sample_event.risk_score = 85
 
+        # Trust status query (no entities linked)
+        mock_trust_result = MagicMock()
+        mock_trust_result.scalars.return_value.all.return_value = []
+
         mock_rules_result = MagicMock()
         mock_rules_result.scalars.return_value.all.return_value = [rule]
 
         mock_cooldown_result = MagicMock()
         mock_cooldown_result.scalar_one_or_none.return_value = None
 
-        mock_session.execute.side_effect = [mock_rules_result, mock_cooldown_result]
+        mock_session.execute.side_effect = [
+            mock_trust_result,
+            mock_rules_result,
+            mock_cooldown_result,
+        ]
 
         engine = AlertRuleEngine(mock_session)
         result = await engine.evaluate_event(sample_event, sample_detections)
@@ -2306,3 +2340,376 @@ class TestAlertEngineProperties:
         # All results should be identical
         for i, r in enumerate(results[1:], 1):
             assert r == results[0], f"Evaluation {i} differs from first evaluation"
+
+
+# =============================================================================
+# Entity Trust Status Tests (NEM-2675)
+# =============================================================================
+
+
+class TestEntityTrustStatus:
+    """Tests for entity trust status consideration in alert generation."""
+
+    @pytest.mark.asyncio
+    async def test_trusted_entity_skips_all_alerts(
+        self, mock_session: AsyncMock, sample_rule: AlertRule, sample_detections: list[Detection]
+    ) -> None:
+        """Test that alerts are skipped entirely for trusted entities."""
+        from backend.models.enums import TrustStatus
+
+        # Mock returning a trusted entity status
+        # First call is for trust status lookup, which returns TRUSTED
+        # When trusted, we skip loading rules and return early
+        trust_result = MagicMock()
+        trust_result.scalars.return_value.all.return_value = [TrustStatus.TRUSTED.value]
+
+        mock_session.execute = AsyncMock(return_value=trust_result)
+
+        engine = AlertRuleEngine(mock_session)
+
+        event = MagicMock()
+        event.id = 1
+        event.camera_id = "front_door"
+        event.risk_score = 85
+
+        result = await engine.evaluate_event(event, sample_detections)
+
+        # Should skip all alerts for trusted entity
+        assert result.trusted_entity_skipped is True
+        assert result.entity_trust_status == TrustStatus.TRUSTED
+        assert len(result.triggered_rules) == 0
+        assert not result.has_triggers
+
+    @pytest.mark.asyncio
+    async def test_untrusted_entity_escalates_severity(
+        self, mock_session: AsyncMock, sample_detections: list[Detection]
+    ) -> None:
+        """Test that severity is escalated for untrusted entities."""
+        from backend.models.enums import TrustStatus
+        from backend.services.alert_engine import SEVERITY_ESCALATION
+
+        # Create a rule with LOW severity to test escalation
+        rule = AlertRule(
+            id=str(uuid.uuid4()),
+            name="Low Severity Rule",
+            enabled=True,
+            severity=AlertSeverity.LOW,
+            cooldown_seconds=300,
+            dedup_key_template="{camera_id}:{rule_id}",
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
+        )
+
+        # Mock: First call for trust status, second for rules, third for cooldown
+        trust_result = MagicMock()
+        trust_result.scalars.return_value.all.return_value = [TrustStatus.UNTRUSTED.value]
+
+        rule_result = MagicMock()
+        rule_result.scalars.return_value.all.return_value = [rule]
+
+        cooldown_result = MagicMock()
+        cooldown_result.scalar_one_or_none.return_value = None  # Not in cooldown
+
+        mock_session.execute = AsyncMock(side_effect=[trust_result, rule_result, cooldown_result])
+
+        engine = AlertRuleEngine(mock_session)
+
+        event = MagicMock()
+        event.id = 1
+        event.camera_id = "front_door"
+        event.risk_score = 85
+
+        result = await engine.evaluate_event(event, sample_detections)
+
+        # Should have escalated severity
+        assert result.entity_trust_status == TrustStatus.UNTRUSTED
+        assert len(result.triggered_rules) == 1
+        triggered = result.triggered_rules[0]
+        assert triggered.original_severity == AlertSeverity.LOW
+        assert triggered.severity == SEVERITY_ESCALATION[AlertSeverity.LOW]
+        assert triggered.severity == AlertSeverity.MEDIUM
+        assert triggered.trust_adjusted is True
+        assert "severity_escalated_untrusted_entity" in " ".join(triggered.matched_conditions)
+
+    @pytest.mark.asyncio
+    async def test_unknown_entity_normal_processing(
+        self, mock_session: AsyncMock, sample_rule: AlertRule, sample_detections: list[Detection]
+    ) -> None:
+        """Test that unknown entities are processed normally without severity changes."""
+        from backend.models.enums import TrustStatus
+
+        # Mock returning unknown entity status
+        trust_result = MagicMock()
+        trust_result.scalars.return_value.all.return_value = [TrustStatus.UNKNOWN.value]
+
+        rule_result = MagicMock()
+        rule_result.scalars.return_value.all.return_value = [sample_rule]
+
+        cooldown_result = MagicMock()
+        cooldown_result.scalar_one_or_none.return_value = None
+
+        mock_session.execute = AsyncMock(side_effect=[trust_result, rule_result, cooldown_result])
+
+        engine = AlertRuleEngine(mock_session)
+
+        event = MagicMock()
+        event.id = 1
+        event.camera_id = "front_door"
+        event.risk_score = 85
+
+        result = await engine.evaluate_event(event, sample_detections)
+
+        # Should process normally without adjustment
+        assert result.entity_trust_status == TrustStatus.UNKNOWN
+        assert len(result.triggered_rules) == 1
+        triggered = result.triggered_rules[0]
+        assert triggered.severity == sample_rule.severity
+        assert triggered.trust_adjusted is False
+        assert triggered.original_severity is None
+
+    @pytest.mark.asyncio
+    async def test_no_entity_linked_normal_processing(
+        self, mock_session: AsyncMock, sample_rule: AlertRule, sample_detections: list[Detection]
+    ) -> None:
+        """Test that detections with no linked entities are processed normally."""
+        # Mock returning empty entity status (no entities linked)
+        trust_result = MagicMock()
+        trust_result.scalars.return_value.all.return_value = []
+
+        rule_result = MagicMock()
+        rule_result.scalars.return_value.all.return_value = [sample_rule]
+
+        cooldown_result = MagicMock()
+        cooldown_result.scalar_one_or_none.return_value = None
+
+        mock_session.execute = AsyncMock(side_effect=[trust_result, rule_result, cooldown_result])
+
+        engine = AlertRuleEngine(mock_session)
+
+        event = MagicMock()
+        event.id = 1
+        event.camera_id = "front_door"
+        event.risk_score = 85
+
+        result = await engine.evaluate_event(event, sample_detections)
+
+        # Should process normally (entity_trust_status is None)
+        assert result.entity_trust_status is None
+        assert len(result.triggered_rules) == 1
+        assert result.triggered_rules[0].severity == sample_rule.severity
+        assert result.triggered_rules[0].trust_adjusted is False
+
+    @pytest.mark.asyncio
+    async def test_trusted_takes_priority_over_untrusted(
+        self, mock_session: AsyncMock, sample_rule: AlertRule, sample_detections: list[Detection]
+    ) -> None:
+        """Test that trusted status takes priority when mixed entities detected."""
+        from backend.models.enums import TrustStatus
+
+        # Mock returning both trusted and untrusted statuses
+        trust_result = MagicMock()
+        trust_result.scalars.return_value.all.return_value = [
+            TrustStatus.TRUSTED.value,
+            TrustStatus.UNTRUSTED.value,
+        ]
+
+        mock_session.execute = AsyncMock(return_value=trust_result)
+
+        engine = AlertRuleEngine(mock_session)
+
+        event = MagicMock()
+        event.id = 1
+        event.camera_id = "front_door"
+        event.risk_score = 85
+
+        result = await engine.evaluate_event(event, sample_detections)
+
+        # Trusted takes priority - should skip alerts
+        assert result.entity_trust_status == TrustStatus.TRUSTED
+        assert result.trusted_entity_skipped is True
+        assert len(result.triggered_rules) == 0
+
+    @pytest.mark.asyncio
+    async def test_critical_severity_not_escalated_further(
+        self, mock_session: AsyncMock, sample_detections: list[Detection]
+    ) -> None:
+        """Test that CRITICAL severity stays at CRITICAL for untrusted entities."""
+        from backend.models.enums import TrustStatus
+
+        rule = AlertRule(
+            id=str(uuid.uuid4()),
+            name="Critical Rule",
+            enabled=True,
+            severity=AlertSeverity.CRITICAL,
+            cooldown_seconds=300,
+            dedup_key_template="{camera_id}:{rule_id}",
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
+        )
+
+        trust_result = MagicMock()
+        trust_result.scalars.return_value.all.return_value = [TrustStatus.UNTRUSTED.value]
+
+        rule_result = MagicMock()
+        rule_result.scalars.return_value.all.return_value = [rule]
+
+        cooldown_result = MagicMock()
+        cooldown_result.scalar_one_or_none.return_value = None
+
+        mock_session.execute = AsyncMock(side_effect=[trust_result, rule_result, cooldown_result])
+
+        engine = AlertRuleEngine(mock_session)
+
+        event = MagicMock()
+        event.id = 1
+        event.camera_id = "front_door"
+        event.risk_score = 85
+
+        result = await engine.evaluate_event(event, sample_detections)
+
+        # CRITICAL should stay CRITICAL (no escalation possible)
+        assert len(result.triggered_rules) == 1
+        triggered = result.triggered_rules[0]
+        assert triggered.severity == AlertSeverity.CRITICAL
+        # No adjustment since severity didn't change
+        assert triggered.trust_adjusted is False
+
+    @pytest.mark.asyncio
+    async def test_empty_detections_returns_normal_result(
+        self, mock_session: AsyncMock, sample_rule: AlertRule
+    ) -> None:
+        """Test that empty detections list doesn't cause errors."""
+        rule_result = MagicMock()
+        rule_result.scalars.return_value.all.return_value = [sample_rule]
+
+        cooldown_result = MagicMock()
+        cooldown_result.scalar_one_or_none.return_value = None
+
+        mock_session.execute = AsyncMock(side_effect=[rule_result, cooldown_result])
+
+        engine = AlertRuleEngine(mock_session)
+
+        event = MagicMock()
+        event.id = 1
+        event.camera_id = "front_door"
+        event.risk_score = 85
+
+        # Empty detections list
+        result = await engine.evaluate_event(event, [])
+
+        # Should process normally with entity_trust_status as None
+        assert result.entity_trust_status is None
+        assert result.trusted_entity_skipped is False
+
+
+class TestGetAggregateEntityTrustStatus:
+    """Tests for _get_aggregate_entity_trust_status helper method."""
+
+    @pytest.mark.asyncio
+    async def test_returns_none_for_empty_detections(self, mock_session: AsyncMock) -> None:
+        """Test that empty detections list returns None."""
+        engine = AlertRuleEngine(mock_session)
+        result = await engine._get_aggregate_entity_trust_status([])
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_returns_none_for_detections_without_ids(self, mock_session: AsyncMock) -> None:
+        """Test that detections without IDs return None."""
+        detections = [Detection(id=None, camera_id="cam1", file_path="/path", object_type="person")]
+        engine = AlertRuleEngine(mock_session)
+        result = await engine._get_aggregate_entity_trust_status(detections)
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_returns_none_for_no_linked_entities(
+        self, mock_session: AsyncMock, sample_detections: list[Detection]
+    ) -> None:
+        """Test that no linked entities returns None."""
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = []
+        mock_session.execute = AsyncMock(return_value=mock_result)
+
+        engine = AlertRuleEngine(mock_session)
+        result = await engine._get_aggregate_entity_trust_status(sample_detections)
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_returns_trusted_when_trusted_present(
+        self, mock_session: AsyncMock, sample_detections: list[Detection]
+    ) -> None:
+        """Test that TRUSTED is returned when any trusted entity is present."""
+        from backend.models.enums import TrustStatus
+
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = [
+            TrustStatus.TRUSTED.value,
+            TrustStatus.UNKNOWN.value,
+        ]
+        mock_session.execute = AsyncMock(return_value=mock_result)
+
+        engine = AlertRuleEngine(mock_session)
+        result = await engine._get_aggregate_entity_trust_status(sample_detections)
+        assert result == TrustStatus.TRUSTED
+
+    @pytest.mark.asyncio
+    async def test_returns_untrusted_when_no_trusted(
+        self, mock_session: AsyncMock, sample_detections: list[Detection]
+    ) -> None:
+        """Test that UNTRUSTED is returned when untrusted present but no trusted."""
+        from backend.models.enums import TrustStatus
+
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = [
+            TrustStatus.UNTRUSTED.value,
+            TrustStatus.UNKNOWN.value,
+        ]
+        mock_session.execute = AsyncMock(return_value=mock_result)
+
+        engine = AlertRuleEngine(mock_session)
+        result = await engine._get_aggregate_entity_trust_status(sample_detections)
+        assert result == TrustStatus.UNTRUSTED
+
+    @pytest.mark.asyncio
+    async def test_returns_unknown_when_only_unknown(
+        self, mock_session: AsyncMock, sample_detections: list[Detection]
+    ) -> None:
+        """Test that UNKNOWN is returned when only unknown entities present."""
+        from backend.models.enums import TrustStatus
+
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = [TrustStatus.UNKNOWN.value]
+        mock_session.execute = AsyncMock(return_value=mock_result)
+
+        engine = AlertRuleEngine(mock_session)
+        result = await engine._get_aggregate_entity_trust_status(sample_detections)
+        assert result == TrustStatus.UNKNOWN
+
+
+class TestSeverityEscalation:
+    """Tests for severity escalation and reduction mappings."""
+
+    def test_severity_escalation_values(self) -> None:
+        """Test that severity escalation mappings are correct."""
+        from backend.services.alert_engine import SEVERITY_ESCALATION
+
+        assert SEVERITY_ESCALATION[AlertSeverity.LOW] == AlertSeverity.MEDIUM
+        assert SEVERITY_ESCALATION[AlertSeverity.MEDIUM] == AlertSeverity.HIGH
+        assert SEVERITY_ESCALATION[AlertSeverity.HIGH] == AlertSeverity.CRITICAL
+        assert SEVERITY_ESCALATION[AlertSeverity.CRITICAL] == AlertSeverity.CRITICAL
+
+    def test_severity_reduction_values(self) -> None:
+        """Test that severity reduction mappings are correct."""
+        from backend.services.alert_engine import SEVERITY_REDUCTION
+
+        assert SEVERITY_REDUCTION[AlertSeverity.CRITICAL] == AlertSeverity.HIGH
+        assert SEVERITY_REDUCTION[AlertSeverity.HIGH] == AlertSeverity.MEDIUM
+        assert SEVERITY_REDUCTION[AlertSeverity.MEDIUM] == AlertSeverity.LOW
+        assert SEVERITY_REDUCTION[AlertSeverity.LOW] == AlertSeverity.LOW
+
+    def test_all_severities_have_mappings(self) -> None:
+        """Test that all severity levels have escalation and reduction mappings."""
+        from backend.services.alert_engine import SEVERITY_ESCALATION, SEVERITY_REDUCTION
+
+        for severity in AlertSeverity:
+            assert severity in SEVERITY_ESCALATION
+            assert severity in SEVERITY_REDUCTION

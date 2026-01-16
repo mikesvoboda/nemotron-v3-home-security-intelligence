@@ -174,9 +174,7 @@ describe('ZoneList', () => {
       render(<ZoneList zones={[]} />);
 
       expect(screen.getByText('No zones defined')).toBeInTheDocument();
-      expect(
-        screen.getByText('Draw a zone on the camera view to get started')
-      ).toBeInTheDocument();
+      expect(screen.getByText('Draw a zone on the camera view to get started')).toBeInTheDocument();
     });
 
     it('should not display zone list when empty', () => {
@@ -201,9 +199,7 @@ describe('ZoneList', () => {
     });
 
     it('should highlight selected zone', () => {
-      const { container } = render(
-        <ZoneList zones={mockZones} selectedZoneId="zone-1" />
-      );
+      const { container } = render(<ZoneList zones={mockZones} selectedZoneId="zone-1" />);
 
       const zoneItems = container.querySelectorAll('[role="button"]');
       const selectedZone = Array.from(zoneItems).find((item) =>
@@ -290,9 +286,7 @@ describe('ZoneList', () => {
     it('should not propagate click to zone selection', async () => {
       const onSelect = vi.fn();
       const onToggleEnabled = vi.fn();
-      render(
-        <ZoneList zones={mockZones} onSelect={onSelect} onToggleEnabled={onToggleEnabled} />
-      );
+      render(<ZoneList zones={mockZones} onSelect={onSelect} onToggleEnabled={onToggleEnabled} />);
 
       const toggleButtons = screen.getAllByTitle(/able zone/i);
       await userEvent.click(toggleButtons[0]);

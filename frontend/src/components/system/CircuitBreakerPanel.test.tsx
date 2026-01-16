@@ -36,7 +36,7 @@ function createMockCircuitBreaker(
 function createMockCircuitBreakersResponse(
   breakers: Record<string, CircuitBreakerStatusResponse>
 ): CircuitBreakersResponse {
-  const openCount = Object.values(breakers).filter(b => b.state === 'open').length;
+  const openCount = Object.values(breakers).filter((b) => b.state === 'open').length;
   return {
     circuit_breakers: breakers,
     total_count: Object.keys(breakers).length,
@@ -372,27 +372,13 @@ describe('CircuitBreakerPanel', () => {
 
   describe('loading state', () => {
     it('displays loading skeleton when loading is true', () => {
-      render(
-        <CircuitBreakerPanel
-          data={null}
-          loading={true}
-          error={null}
-          onReset={mockOnReset}
-        />
-      );
+      render(<CircuitBreakerPanel data={null} loading={true} error={null} onReset={mockOnReset} />);
 
       expect(screen.getByTestId('circuit-breaker-panel-loading')).toBeInTheDocument();
     });
 
     it('does not display breakers when loading', () => {
-      render(
-        <CircuitBreakerPanel
-          data={null}
-          loading={true}
-          error={null}
-          onReset={mockOnReset}
-        />
-      );
+      render(<CircuitBreakerPanel data={null} loading={true} error={null} onReset={mockOnReset} />);
 
       expect(screen.queryByTestId('circuit-breaker-rtdetr_detection')).not.toBeInTheDocument();
     });
@@ -419,12 +405,7 @@ describe('CircuitBreakerPanel', () => {
       const emptyData = createMockCircuitBreakersResponse({});
 
       render(
-        <CircuitBreakerPanel
-          data={emptyData}
-          loading={false}
-          error={null}
-          onReset={mockOnReset}
-        />
+        <CircuitBreakerPanel data={emptyData} loading={false} error={null} onReset={mockOnReset} />
       );
 
       expect(screen.getByText(/No circuit breakers/i)).toBeInTheDocument();

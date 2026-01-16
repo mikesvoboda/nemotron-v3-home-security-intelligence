@@ -106,7 +106,7 @@ export const tourSteps: Step[] = [
   {
     target: 'body',
     content:
-      'Welcome to the Nemotron Security Dashboard! This interactive tour will guide you through the main features. Let\'s get started.',
+      "Welcome to the Nemotron Security Dashboard! This interactive tour will guide you through the main features. Let's get started.",
     placement: 'center',
     disableBeacon: true,
     title: 'Welcome to Nemotron Security',

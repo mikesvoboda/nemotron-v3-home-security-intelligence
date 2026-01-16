@@ -428,13 +428,10 @@ describe('Race Conditions Integration', () => {
 
       const queryClient = createQueryClient();
 
-      const { result, rerender } = renderHook(
-        ({ enabled }) => useCamerasQuery({ enabled }),
-        {
-          wrapper: createQueryWrapper(queryClient),
-          initialProps: { enabled: true },
-        }
-      );
+      const { result, rerender } = renderHook(({ enabled }) => useCamerasQuery({ enabled }), {
+        wrapper: createQueryWrapper(queryClient),
+        initialProps: { enabled: true },
+      });
 
       // First request starts
       expect(result.current.isLoading).toBe(true);
@@ -460,14 +457,12 @@ describe('Race Conditions Integration', () => {
       const eventOrder: string[] = [];
       let resolveRefetch: (value: Camera[]) => void;
 
-      (api.fetchCameras as Mock)
-        .mockResolvedValueOnce(mockCameras)
-        .mockImplementationOnce(
-          () =>
-            new Promise((resolve) => {
-              resolveRefetch = resolve;
-            })
-        );
+      (api.fetchCameras as Mock).mockResolvedValueOnce(mockCameras).mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveRefetch = resolve;
+          })
+      );
 
       const queryClient = createQueryClient();
 
@@ -530,13 +525,11 @@ describe('Race Conditions Integration', () => {
 
     it('should handle rapid sequential mutations without data corruption', async () => {
       let updateCount = 0;
-      (api.updateCamera as Mock).mockImplementation(
-        async (_id: string, data: { name: string }) => {
-          updateCount++;
-          await new Promise((r) => setTimeout(r, 10)); // Small delay
-          return { ...mockCameras[0], name: data.name };
-        }
-      );
+      (api.updateCamera as Mock).mockImplementation(async (_id: string, data: { name: string }) => {
+        updateCount++;
+        await new Promise((r) => setTimeout(r, 10)); // Small delay
+        return { ...mockCameras[0], name: data.name };
+      });
       (api.fetchCameras as Mock).mockResolvedValue(mockCameras);
 
       const queryClient = createQueryClient();
@@ -568,19 +561,21 @@ describe('Race Conditions Integration', () => {
     it('should handle interleaved create and delete operations', async () => {
       const operationOrder: string[] = [];
 
-      (api.createCamera as Mock).mockImplementation(async (data: { name: string; folder_path: string; status: string }) => {
-        operationOrder.push(`create-start`);
-        await new Promise((r) => setTimeout(r, 50));
-        operationOrder.push(`create-end`);
-        return {
-          id: `cam-new`,
-          name: data.name,
-          folder_path: data.folder_path,
-          status: data.status as Camera['status'],
-          last_seen_at: null,
-          created_at: new Date().toISOString(),
-        };
-      });
+      (api.createCamera as Mock).mockImplementation(
+        async (data: { name: string; folder_path: string; status: string }) => {
+          operationOrder.push(`create-start`);
+          await new Promise((r) => setTimeout(r, 50));
+          operationOrder.push(`create-end`);
+          return {
+            id: `cam-new`,
+            name: data.name,
+            folder_path: data.folder_path,
+            status: data.status as Camera['status'],
+            last_seen_at: null,
+            created_at: new Date().toISOString(),
+          };
+        }
+      );
 
       (api.deleteCamera as Mock).mockImplementation(async (id: string) => {
         operationOrder.push(`delete-start-${id}`);

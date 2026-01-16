@@ -51,9 +51,7 @@ export interface UseNetworkStatusReturn {
  * }
  * ```
  */
-export function useNetworkStatus(
-  options: UseNetworkStatusOptions = {}
-): UseNetworkStatusReturn {
+export function useNetworkStatus(options: UseNetworkStatusOptions = {}): UseNetworkStatusReturn {
   const { onOnline, onOffline } = options;
 
   // Initialize with current browser status

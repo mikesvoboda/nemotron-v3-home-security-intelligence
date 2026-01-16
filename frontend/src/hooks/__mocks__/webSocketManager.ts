@@ -27,12 +27,14 @@ export const resetMockState = () => {
 };
 
 // Create mock subscription factory
-const createMockSubscription = (options: {
-  onOpen?: () => void;
-  onClose?: () => void;
-  onError?: () => void;
-  onMaxRetriesExhausted?: () => void;
-} = {}) => {
+const createMockSubscription = (
+  options: {
+    onOpen?: () => void;
+    onClose?: () => void;
+    onError?: () => void;
+    onMaxRetriesExhausted?: () => void;
+  } = {}
+) => {
   mockState.capturedLifecycleHandlers = options;
 
   return {
@@ -41,7 +43,8 @@ const createMockSubscription = (options: {
     },
     on: vi.fn().mockImplementation((eventType: string, handler: unknown) => {
       if (eventType === 'camera_status') {
-        mockState.capturedCameraStatusHandler = handler as typeof mockState.capturedCameraStatusHandler;
+        mockState.capturedCameraStatusHandler =
+          handler as typeof mockState.capturedCameraStatusHandler;
       }
       return vi.fn();
     }),
@@ -65,9 +68,8 @@ const createMockSubscription = (options: {
 };
 
 // Mock createTypedSubscription function
-export const createTypedSubscription = vi.fn(
-  (_url: string, _config: unknown, options: unknown) =>
-    createMockSubscription(options as Record<string, () => void>)
+export const createTypedSubscription = vi.fn((_url: string, _config: unknown, options: unknown) =>
+  createMockSubscription(options as Record<string, () => void>)
 );
 
 // Mock generateSubscriberId function

@@ -270,7 +270,14 @@ export default function FaviconBadge({
 
     // Update favicon
     drawFaviconWithBadge(count);
-  }, [alertCount, enabled, drawFaviconWithBadge, updateTitle, restoreOriginalFavicon, restoreOriginalTitle]);
+  }, [
+    alertCount,
+    enabled,
+    drawFaviconWithBadge,
+    updateTitle,
+    restoreOriginalFavicon,
+    restoreOriginalTitle,
+  ]);
 
   // This component renders nothing visible
   return null;

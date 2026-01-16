@@ -105,14 +105,8 @@ export interface UseGpuStatsQueryReturn {
  * );
  * ```
  */
-export function useGpuStatsQuery(
-  options: UseGpuStatsQueryOptions = {}
-): UseGpuStatsQueryReturn {
-  const {
-    enabled = true,
-    refetchInterval = 5000,
-    staleTime = REALTIME_STALE_TIME,
-  } = options;
+export function useGpuStatsQuery(options: UseGpuStatsQueryOptions = {}): UseGpuStatsQueryReturn {
+  const { enabled = true, refetchInterval = 5000, staleTime = REALTIME_STALE_TIME } = options;
 
   const query = useQuery({
     queryKey: queryKeys.system.gpu,
@@ -125,20 +119,11 @@ export function useGpuStatsQuery(
   });
 
   // Derive common metrics
-  const utilization = useMemo(
-    () => query.data?.utilization ?? null,
-    [query.data?.utilization]
-  );
+  const utilization = useMemo(() => query.data?.utilization ?? null, [query.data?.utilization]);
 
-  const memoryUsed = useMemo(
-    () => query.data?.memory_used ?? null,
-    [query.data?.memory_used]
-  );
+  const memoryUsed = useMemo(() => query.data?.memory_used ?? null, [query.data?.memory_used]);
 
-  const temperature = useMemo(
-    () => query.data?.temperature ?? null,
-    [query.data?.temperature]
-  );
+  const temperature = useMemo(() => query.data?.temperature ?? null, [query.data?.temperature]);
 
   return {
     data: query.data,

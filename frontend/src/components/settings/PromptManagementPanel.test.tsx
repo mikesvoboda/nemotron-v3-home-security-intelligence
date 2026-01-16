@@ -111,7 +111,7 @@ beforeEach(() => {
   vi.spyOn(promptApi, 'exportPrompts').mockResolvedValue(mockExportResponse);
 
   // Mock window).confirm
-  ((globalThis as any)).confirm = vi.fn(() => true);
+  (globalThis as any).confirm = vi.fn(() => true);
 });
 
 // ============================================================================
@@ -124,7 +124,9 @@ describe('PromptManagementPanel - Rendering', () => {
 
     expect(screen.getByText('Prompt Management')).toBeInTheDocument();
     expect(
-      screen.getByText(/Manage AI model prompt templates, view version history, and rollback changes/i)
+      screen.getByText(
+        /Manage AI model prompt templates, view version history, and rollback changes/i
+      )
     ).toBeInTheDocument();
   });
 
@@ -236,10 +238,10 @@ describe('PromptManagementPanel - Model Selection', () => {
     await user.click(historyTab);
 
     await waitFor(() => {
-      expect(promptApi.fetchPromptHistory).toHaveBeenCalledWith(
-        AIModelEnum.NEMOTRON,
-        { limit: 20, offset: 0 }
-      );
+      expect(promptApi.fetchPromptHistory).toHaveBeenCalledWith(AIModelEnum.NEMOTRON, {
+        limit: 20,
+        offset: 0,
+      });
     });
 
     // Change model
@@ -250,10 +252,10 @@ describe('PromptManagementPanel - Model Selection', () => {
 
     // Verify history is fetched for new model starting at page 0
     await waitFor(() => {
-      expect(promptApi.fetchPromptHistory).toHaveBeenCalledWith(
-        AIModelEnum.YOLO_WORLD,
-        { limit: 20, offset: 0 }
-      );
+      expect(promptApi.fetchPromptHistory).toHaveBeenCalledWith(AIModelEnum.YOLO_WORLD, {
+        limit: 20,
+        offset: 0,
+      });
     });
   });
 });
@@ -359,7 +361,7 @@ describe('PromptManagementPanel - Restore Version', () => {
     await user.click(restoreButtons[0]);
 
     // Verify confirmation dialog
-    expect(((globalThis as any)).confirm).toHaveBeenCalledWith(
+    expect((globalThis as any).confirm).toHaveBeenCalledWith(
       expect.stringContaining('Restore version 4')
     );
 
@@ -390,7 +392,7 @@ describe('PromptManagementPanel - Restore Version', () => {
   });
 
   it('should not restore if user cancels confirmation', async () => {
-    ((globalThis as any)).confirm = vi.fn(() => false);
+    (globalThis as any).confirm = vi.fn(() => false);
 
     const user = userEvent.setup();
     render(<PromptManagementPanel />);

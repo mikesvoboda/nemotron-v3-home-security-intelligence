@@ -118,7 +118,12 @@ export default function EntitiesPage() {
   });
 
   // Infinite scroll hook
-  const { sentinelRef, isLoadingMore, error: scrollError, retry } = useInfiniteScroll({
+  const {
+    sentinelRef,
+    isLoadingMore,
+    error: scrollError,
+    retry,
+  } = useInfiniteScroll({
     onLoadMore: fetchNextPage,
     hasMore: hasNextPage,
     isLoading: isFetchingNextPage,
@@ -448,7 +453,10 @@ export default function EntitiesPage() {
         </div>
       ) : sortedEntities.length === 0 ? (
         /* Empty state */
-        entityTypeFilter === 'all' && timeRangeFilter === 'all' && !cameraFilter && !useCustomDateRange ? (
+        entityTypeFilter === 'all' &&
+        timeRangeFilter === 'all' &&
+        !cameraFilter &&
+        !useCustomDateRange ? (
           <EntitiesEmptyState />
         ) : (
           /* Filtered empty state - simpler message */
@@ -478,7 +486,8 @@ export default function EntitiesPage() {
                     : 'No entities have been tracked'}
                 {useCustomDateRange
                   ? ' in the selected date range'
-                  : timeRangeFilter !== 'all' && ` in the last ${getTimeRangeLabel(timeRangeFilter)}`}
+                  : timeRangeFilter !== 'all' &&
+                    ` in the last ${getTimeRangeLabel(timeRangeFilter)}`}
                 {cameraFilter && ` on this camera`}.
               </p>
               <button

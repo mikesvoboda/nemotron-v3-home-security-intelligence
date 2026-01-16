@@ -154,8 +154,12 @@ describe('risk utilities', () => {
     });
 
     it('throws error for out of range scores', () => {
-      expect(() => getRiskLevelWithThresholds(-1, customThresholds)).toThrow('Risk score must be between 0 and 100');
-      expect(() => getRiskLevelWithThresholds(101, customThresholds)).toThrow('Risk score must be between 0 and 100');
+      expect(() => getRiskLevelWithThresholds(-1, customThresholds)).toThrow(
+        'Risk score must be between 0 and 100'
+      );
+      expect(() => getRiskLevelWithThresholds(101, customThresholds)).toThrow(
+        'Risk score must be between 0 and 100'
+      );
     });
   });
 });

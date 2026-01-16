@@ -51,7 +51,11 @@ import {
 import GpuStats from '../dashboard/GpuStats';
 
 import type { InfrastructureCardId, InfrastructureData } from './InfrastructureStatusGrid';
-import type { PipelineStageData, BackgroundWorkerStatus, TotalLatency } from './PipelineFlowVisualization';
+import type {
+  PipelineStageData,
+  BackgroundWorkerStatus,
+  TotalLatency,
+} from './PipelineFlowVisualization';
 import type { ThroughputPoint } from './PipelineMetricsPanel';
 
 /**
@@ -173,9 +177,12 @@ export default function SystemMonitoringPage() {
     // Add AI services from aiServices array
     for (const svc of aiServices) {
       // Map service names to match legacy format (e.g., 'rtdetr' -> 'rtdetr_server')
-      const serviceName = svc.name === 'rtdetr' ? 'rtdetr_server' :
-                          svc.name === 'nemotron' ? 'nemotron_server' :
-                          svc.name;
+      const serviceName =
+        svc.name === 'rtdetr'
+          ? 'rtdetr_server'
+          : svc.name === 'nemotron'
+            ? 'nemotron_server'
+            : svc.name;
       result[serviceName] = {
         status: svc.status,
         message: svc.error ?? (svc.response_time_ms ? `${svc.response_time_ms}ms` : null),
@@ -201,9 +208,9 @@ export default function SystemMonitoringPage() {
       for (const worker of health.workers) {
         // Map worker names to legacy service names
         const workerServiceMap: Record<string, string> = {
-          'file_watcher': 'file_watcher',
-          'batch_aggregator': 'batch_aggregator',
-          'cleanup_service': 'cleanup_service',
+          file_watcher: 'file_watcher',
+          batch_aggregator: 'batch_aggregator',
+          cleanup_service: 'cleanup_service',
         };
         const serviceName = workerServiceMap[worker.name] ?? worker.name;
         if (!result[serviceName]) {
@@ -294,8 +301,7 @@ export default function SystemMonitoringPage() {
     redis: {
       memory: (performanceHistory[timeRange] || []).map((update) => ({
         timestamp: update.timestamp,
-        value:
-          (update.databases?.redis as { memory_mb?: number } | undefined)?.memory_mb ?? 0,
+        value: (update.databases?.redis as { memory_mb?: number } | undefined)?.memory_mb ?? 0,
       })),
       clients: (performanceHistory[timeRange] || []).map((update) => ({
         timestamp: update.timestamp,
@@ -359,17 +365,26 @@ export default function SystemMonitoringPage() {
       if (timeDiffMin > 0) {
         const detectionsPerMin = Math.max(
           0,
-          Math.round(((prevTelemetryRef.current.queues.detection_queue - telemetry.queues.detection_queue) / timeDiffMin) * 60)
+          Math.round(
+            ((prevTelemetryRef.current.queues.detection_queue - telemetry.queues.detection_queue) /
+              timeDiffMin) *
+              60
+          )
         );
         const analysesPerMin = Math.max(
           0,
-          Math.round(((prevTelemetryRef.current.queues.analysis_queue - telemetry.queues.analysis_queue) / timeDiffMin) * 60)
+          Math.round(
+            ((prevTelemetryRef.current.queues.analysis_queue - telemetry.queues.analysis_queue) /
+              timeDiffMin) *
+              60
+          )
         );
 
         setThroughputHistory((prev) => {
           const newPoint: ThroughputPoint = {
             time: timeStr,
-            detections: detectionsPerMin || (prev.length > 0 ? prev[prev.length - 1].detections : 0),
+            detections:
+              detectionsPerMin || (prev.length > 0 ? prev[prev.length - 1].detections : 0),
             analyses: analysesPerMin || (prev.length > 0 ? prev[prev.length - 1].analyses : 0),
           };
           return [...prev.slice(-29), newPoint];
@@ -400,8 +415,14 @@ export default function SystemMonitoringPage() {
       icon: 'search',
       metrics: {
         queueDepth: telemetry?.queues?.detection_queue ?? 0,
-        avgLatency: telemetry?.latencies?.detect?.avg_ms ?? performanceData?.inference?.rtdetr_latency_ms?.avg ?? null,
-        p95Latency: telemetry?.latencies?.detect?.p95_ms ?? performanceData?.inference?.rtdetr_latency_ms?.p95 ?? null,
+        avgLatency:
+          telemetry?.latencies?.detect?.avg_ms ??
+          performanceData?.inference?.rtdetr_latency_ms?.avg ??
+          null,
+        p95Latency:
+          telemetry?.latencies?.detect?.p95_ms ??
+          performanceData?.inference?.rtdetr_latency_ms?.p95 ??
+          null,
       },
     },
     {
@@ -409,9 +430,10 @@ export default function SystemMonitoringPage() {
       name: 'Batch',
       icon: 'package',
       metrics: {
-        throughput: throughputHistory.length > 0
-          ? `${throughputHistory[throughputHistory.length - 1].detections}/min`
-          : undefined,
+        throughput:
+          throughputHistory.length > 0
+            ? `${throughputHistory[throughputHistory.length - 1].detections}/min`
+            : undefined,
         pending: telemetry?.queues?.analysis_queue ?? 0,
       },
     },
@@ -421,8 +443,14 @@ export default function SystemMonitoringPage() {
       icon: 'brain',
       metrics: {
         queueDepth: telemetry?.queues?.analysis_queue ?? 0,
-        avgLatency: telemetry?.latencies?.analyze?.avg_ms ?? performanceData?.inference?.nemotron_latency_ms?.avg ?? null,
-        p95Latency: telemetry?.latencies?.analyze?.p95_ms ?? performanceData?.inference?.nemotron_latency_ms?.p95 ?? null,
+        avgLatency:
+          telemetry?.latencies?.analyze?.avg_ms ??
+          performanceData?.inference?.nemotron_latency_ms?.avg ??
+          null,
+        p95Latency:
+          telemetry?.latencies?.analyze?.p95_ms ??
+          performanceData?.inference?.nemotron_latency_ms?.p95 ??
+          null,
       },
     },
   ];
@@ -432,32 +460,52 @@ export default function SystemMonitoringPage() {
     {
       id: 'file-watcher',
       name: 'Watcher',
-      status: services?.file_watcher?.status === 'healthy' ? 'running' :
-              services?.file_watcher?.status === 'degraded' ? 'degraded' : 'stopped',
+      status:
+        services?.file_watcher?.status === 'healthy'
+          ? 'running'
+          : services?.file_watcher?.status === 'degraded'
+            ? 'degraded'
+            : 'stopped',
     },
     {
       id: 'detector',
       name: 'Detector',
-      status: services?.rtdetr_server?.status === 'healthy' ? 'running' :
-              services?.rtdetr_server?.status === 'degraded' ? 'degraded' : 'stopped',
+      status:
+        services?.rtdetr_server?.status === 'healthy'
+          ? 'running'
+          : services?.rtdetr_server?.status === 'degraded'
+            ? 'degraded'
+            : 'stopped',
     },
     {
       id: 'aggregator',
       name: 'Aggregator',
-      status: services?.batch_aggregator?.status === 'healthy' ? 'running' :
-              services?.batch_aggregator?.status === 'degraded' ? 'degraded' : 'stopped',
+      status:
+        services?.batch_aggregator?.status === 'healthy'
+          ? 'running'
+          : services?.batch_aggregator?.status === 'degraded'
+            ? 'degraded'
+            : 'stopped',
     },
     {
       id: 'analyzer',
       name: 'Analyzer',
-      status: services?.nemotron_server?.status === 'healthy' ? 'running' :
-              services?.nemotron_server?.status === 'degraded' ? 'degraded' : 'stopped',
+      status:
+        services?.nemotron_server?.status === 'healthy'
+          ? 'running'
+          : services?.nemotron_server?.status === 'degraded'
+            ? 'degraded'
+            : 'stopped',
     },
     {
       id: 'cleanup',
       name: 'Cleanup',
-      status: services?.cleanup_service?.status === 'healthy' ? 'running' :
-              services?.cleanup_service?.status === 'degraded' ? 'degraded' : 'stopped',
+      status:
+        services?.cleanup_service?.status === 'healthy'
+          ? 'running'
+          : services?.cleanup_service?.status === 'degraded'
+            ? 'degraded'
+            : 'stopped',
     },
   ];
 
@@ -470,56 +518,94 @@ export default function SystemMonitoringPage() {
 
   // Infrastructure data for InfrastructureStatusGrid
   const infrastructureData: InfrastructureData = {
-    postgresql: postgresMetrics ? {
-      status: postgresMetrics.status === 'healthy' ? 'healthy' :
-              postgresMetrics.status === 'degraded' ? 'degraded' : 'unhealthy',
-      latency_ms: performanceData?.inference?.pipeline_latency_ms?.db_query ?? 0,
-      pool_active: postgresMetrics.connections_active,
-      pool_max: postgresMetrics.connections_max,
-      active_queries: postgresMetrics.transactions_per_min ?? 0,
-      db_size_gb: 0, // Not available from current metrics
-    } : null,
-    redis: redisMetrics ? {
-      status: redisMetrics.status === 'healthy' ? 'healthy' :
-              redisMetrics.status === 'degraded' ? 'degraded' : 'unhealthy',
-      ops_per_sec: 0, // Not directly available
-      memory_mb: redisMetrics.memory_mb,
-      connected_clients: redisMetrics.connected_clients,
-      hit_rate: redisMetrics.hit_ratio,
-    } : null,
-    containers: containerMetrics.length > 0 ? {
-      status: containerMetrics.every(c => c.status === 'running' && (c.health === 'healthy' || c.health === 'none')) ? 'healthy' :
-              containerMetrics.some(c => c.status !== 'running') ? 'unhealthy' : 'degraded',
-      running: containerMetrics.filter(c => c.status === 'running').length,
-      total: containerMetrics.length,
-      containers: containerMetrics.map(c => ({
-        name: c.name,
-        status: c.status === 'running' ? 'running' : c.status === 'restarting' ? 'restarting' : 'stopped',
-        cpu_percent: 0, // Not available from current metrics
-        memory_mb: 0, // Not available from current metrics
-        restart_count: 0, // Not available from current metrics
-      })),
-    } : null,
-    host: hostMetrics ? {
-      status: hostMetrics.cpu_percent < 80 && (hostMetrics.ram_used_gb / hostMetrics.ram_total_gb) < 0.9 ? 'healthy' :
-              hostMetrics.cpu_percent < 95 && (hostMetrics.ram_used_gb / hostMetrics.ram_total_gb) < 0.95 ? 'degraded' : 'unhealthy',
-      cpu_percent: hostMetrics.cpu_percent,
-      memory_used_gb: hostMetrics.ram_used_gb,
-      memory_total_gb: hostMetrics.ram_total_gb,
-      disk_used_gb: hostMetrics.disk_used_gb,
-      disk_total_gb: hostMetrics.disk_total_gb,
-    } : null,
-    circuits: circuitBreakers ? {
-      status: circuitBreakers.open_count === 0 ? 'healthy' :
-              circuitBreakers.open_count < circuitBreakers.total_count / 2 ? 'degraded' : 'unhealthy',
-      healthy: circuitBreakers.total_count - circuitBreakers.open_count,
-      total: circuitBreakers.total_count,
-      breakers: Object.values(circuitBreakers.circuit_breakers).map(cb => ({
-        name: cb.name,
-        state: cb.state,
-        failure_count: cb.failure_count,
-      })),
-    } : null,
+    postgresql: postgresMetrics
+      ? {
+          status:
+            postgresMetrics.status === 'healthy'
+              ? 'healthy'
+              : postgresMetrics.status === 'degraded'
+                ? 'degraded'
+                : 'unhealthy',
+          latency_ms: performanceData?.inference?.pipeline_latency_ms?.db_query ?? 0,
+          pool_active: postgresMetrics.connections_active,
+          pool_max: postgresMetrics.connections_max,
+          active_queries: postgresMetrics.transactions_per_min ?? 0,
+          db_size_gb: 0, // Not available from current metrics
+        }
+      : null,
+    redis: redisMetrics
+      ? {
+          status:
+            redisMetrics.status === 'healthy'
+              ? 'healthy'
+              : redisMetrics.status === 'degraded'
+                ? 'degraded'
+                : 'unhealthy',
+          ops_per_sec: 0, // Not directly available
+          memory_mb: redisMetrics.memory_mb,
+          connected_clients: redisMetrics.connected_clients,
+          hit_rate: redisMetrics.hit_ratio,
+        }
+      : null,
+    containers:
+      containerMetrics.length > 0
+        ? {
+            status: containerMetrics.every(
+              (c) => c.status === 'running' && (c.health === 'healthy' || c.health === 'none')
+            )
+              ? 'healthy'
+              : containerMetrics.some((c) => c.status !== 'running')
+                ? 'unhealthy'
+                : 'degraded',
+            running: containerMetrics.filter((c) => c.status === 'running').length,
+            total: containerMetrics.length,
+            containers: containerMetrics.map((c) => ({
+              name: c.name,
+              status:
+                c.status === 'running'
+                  ? 'running'
+                  : c.status === 'restarting'
+                    ? 'restarting'
+                    : 'stopped',
+              cpu_percent: 0, // Not available from current metrics
+              memory_mb: 0, // Not available from current metrics
+              restart_count: 0, // Not available from current metrics
+            })),
+          }
+        : null,
+    host: hostMetrics
+      ? {
+          status:
+            hostMetrics.cpu_percent < 80 && hostMetrics.ram_used_gb / hostMetrics.ram_total_gb < 0.9
+              ? 'healthy'
+              : hostMetrics.cpu_percent < 95 &&
+                  hostMetrics.ram_used_gb / hostMetrics.ram_total_gb < 0.95
+                ? 'degraded'
+                : 'unhealthy',
+          cpu_percent: hostMetrics.cpu_percent,
+          memory_used_gb: hostMetrics.ram_used_gb,
+          memory_total_gb: hostMetrics.ram_total_gb,
+          disk_used_gb: hostMetrics.disk_used_gb,
+          disk_total_gb: hostMetrics.disk_total_gb,
+        }
+      : null,
+    circuits: circuitBreakers
+      ? {
+          status:
+            circuitBreakers.open_count === 0
+              ? 'healthy'
+              : circuitBreakers.open_count < circuitBreakers.total_count / 2
+                ? 'degraded'
+                : 'unhealthy',
+          healthy: circuitBreakers.total_count - circuitBreakers.open_count,
+          total: circuitBreakers.total_count,
+          breakers: Object.values(circuitBreakers.circuit_breakers).map((cb) => ({
+            name: cb.name,
+            state: cb.state,
+            failure_count: cb.failure_count,
+          })),
+        }
+      : null,
   };
 
   // Fetch Grafana URL from config API
@@ -579,7 +665,9 @@ export default function SystemMonitoringPage() {
         setCircuitBreakers(data);
       } catch (err) {
         console.error('Failed to load circuit breakers:', err);
-        setCircuitBreakersError(err instanceof Error ? err.message : 'Failed to load circuit breakers');
+        setCircuitBreakersError(
+          err instanceof Error ? err.message : 'Failed to load circuit breakers'
+        );
       } finally {
         setCircuitBreakersLoading(false);
       }
@@ -729,8 +817,8 @@ export default function SystemMonitoringPage() {
         >
           <span className="inline-flex flex-wrap items-center gap-2">
             <span>
-              View detailed metrics and historical data in Grafana.
-              No login required (anonymous access enabled).
+              View detailed metrics and historical data in Grafana. No login required (anonymous
+              access enabled).
             </span>
             <a
               href={grafanaUrl}
@@ -755,10 +843,7 @@ export default function SystemMonitoringPage() {
         )}
 
         {/* Summary Row - Five clickable indicators for quick system health overview */}
-        <SystemSummaryRow
-          className="mb-6"
-          data-testid="system-summary-row"
-        />
+        <SystemSummaryRow className="mb-6" data-testid="system-summary-row" />
 
         {/* Pipeline Flow Visualization - Visual diagram of the pipeline flow */}
         <PipelineFlowVisualization
@@ -875,12 +960,12 @@ export default function SystemMonitoringPage() {
             memoryUsed={
               performanceData?.gpu?.vram_used_gb
                 ? performanceData.gpu.vram_used_gb * 1024
-                : gpuStats?.memory_used ?? null
+                : (gpuStats?.memory_used ?? null)
             }
             memoryTotal={
               performanceData?.gpu?.vram_total_gb
                 ? performanceData.gpu.vram_total_gb * 1024
-                : gpuStats?.memory_total ?? null
+                : (gpuStats?.memory_total ?? null)
             }
             temperature={performanceData?.gpu?.temperature ?? gpuStats?.temperature ?? null}
             powerUsage={performanceData?.gpu?.power_watts ?? gpuStats?.power_usage ?? null}
@@ -891,10 +976,7 @@ export default function SystemMonitoringPage() {
 
           {/* Row 1: AI Models (core inference engines) */}
           <div className="xl:col-span-2">
-            <AiModelsPanel
-              aiModels={aiModelsData}
-              data-testid="ai-models-panel-section"
-            />
+            <AiModelsPanel aiModels={aiModelsData} data-testid="ai-models-panel-section" />
           </div>
 
           {/* Row 2: Model Zoo (enrichment models with VRAM tracking) */}
@@ -907,10 +989,15 @@ export default function SystemMonitoringPage() {
               summary={
                 modelZooModels.length > 0 ? (
                   <Badge
-                    color={modelZooModels.filter((m) => m.status === 'loaded').length > 0 ? 'emerald' : 'gray'}
+                    color={
+                      modelZooModels.filter((m) => m.status === 'loaded').length > 0
+                        ? 'emerald'
+                        : 'gray'
+                    }
                     size="sm"
                   >
-                    {modelZooModels.filter((m) => m.status === 'loaded').length} Loaded | {modelZooModels.length} Available
+                    {modelZooModels.filter((m) => m.status === 'loaded').length} Loaded |{' '}
+                    {modelZooModels.length} Available
                   </Badge>
                 ) : undefined
               }
@@ -1001,11 +1088,7 @@ export default function SystemMonitoringPage() {
               }
               data-testid="workers-section"
             >
-              <WorkerStatusPanel
-                pollingInterval={10000}
-                defaultExpanded={false}
-                compact={false}
-              />
+              <WorkerStatusPanel pollingInterval={10000} defaultExpanded={false} compact={false} />
             </CollapsibleSection>
           </div>
 
@@ -1037,11 +1120,9 @@ export default function SystemMonitoringPage() {
               onToggle={() => toggleSection('circuit-breakers')}
               summary={
                 circuitBreakers ? (
-                  <Badge
-                    color={circuitBreakers.open_count === 0 ? 'emerald' : 'red'}
-                    size="sm"
-                  >
-                    {circuitBreakers.total_count - circuitBreakers.open_count}/{circuitBreakers.total_count} Healthy
+                  <Badge color={circuitBreakers.open_count === 0 ? 'emerald' : 'red'} size="sm">
+                    {circuitBreakers.total_count - circuitBreakers.open_count}/
+                    {circuitBreakers.total_count} Healthy
                   </Badge>
                 ) : undefined
               }
@@ -1094,21 +1175,19 @@ export default function SystemMonitoringPage() {
                       Object.values(services).every((s) => s.status === 'healthy')
                         ? 'emerald'
                         : Object.values(services).some((s) => s.status === 'unhealthy')
-                        ? 'red'
-                        : 'yellow'
+                          ? 'red'
+                          : 'yellow'
                     }
                     size="sm"
                   >
-                    {Object.values(services).filter((s) => s.status === 'healthy').length}/{Object.values(services).length} Healthy
+                    {Object.values(services).filter((s) => s.status === 'healthy').length}/
+                    {Object.values(services).length} Healthy
                   </Badge>
                 ) : undefined
               }
               data-testid="services-section"
             >
-              <ServicesPanel
-                pollingInterval={30000}
-                data-testid="services-panel-section"
-              />
+              <ServicesPanel pollingInterval={30000} data-testid="services-panel-section" />
             </CollapsibleSection>
           </div>
         </div>

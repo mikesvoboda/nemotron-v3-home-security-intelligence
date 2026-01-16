@@ -1,4 +1,13 @@
-import { Activity, AlertTriangle, Calendar, Camera, CheckCircle, HelpCircle, Shield, XCircle } from 'lucide-react';
+import {
+  Activity,
+  AlertTriangle,
+  Calendar,
+  Camera,
+  CheckCircle,
+  HelpCircle,
+  Shield,
+  XCircle,
+} from 'lucide-react';
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -165,7 +174,7 @@ export default function StatsRow({
         onClick={() => {
           void navigate('/settings');
         }}
-        className="flex items-center gap-4 rounded-lg border border-gray-800 bg-[#1A1A1A] p-4 shadow-sm transition-all duration-200 hover:border-[#76B900]/50 hover:bg-[#1A1A1A]/90 focus:outline-none focus:ring-2 focus:ring-[#76B900]/50 cursor-pointer text-left"
+        className="flex cursor-pointer items-center gap-4 rounded-lg border border-gray-800 bg-[#1A1A1A] p-4 text-left shadow-sm transition-all duration-200 hover:border-[#76B900]/50 hover:bg-[#1A1A1A]/90 focus:outline-none focus:ring-2 focus:ring-[#76B900]/50"
         data-testid="cameras-card"
         aria-label={`Active cameras: ${activeCameras}. Click to view camera settings.`}
       >
@@ -186,7 +195,7 @@ export default function StatsRow({
         onClick={() => {
           void navigate('/timeline');
         }}
-        className="flex items-center gap-4 rounded-lg border border-gray-800 bg-[#1A1A1A] p-4 shadow-sm transition-all duration-200 hover:border-blue-500/50 hover:bg-[#1A1A1A]/90 focus:outline-none focus:ring-2 focus:ring-blue-500/50 cursor-pointer text-left"
+        className="flex cursor-pointer items-center gap-4 rounded-lg border border-gray-800 bg-[#1A1A1A] p-4 text-left shadow-sm transition-all duration-200 hover:border-blue-500/50 hover:bg-[#1A1A1A]/90 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
         data-testid="events-card"
         aria-label={`Events today: ${eventsToday}. Click to view event timeline.`}
       >
@@ -207,7 +216,7 @@ export default function StatsRow({
         onClick={() => {
           void navigate('/alerts');
         }}
-        className="flex items-center gap-4 rounded-lg border border-gray-800 bg-[#1A1A1A] p-4 shadow-sm transition-all duration-200 hover:border-gray-600 hover:bg-[#1A1A1A]/90 focus:outline-none focus:ring-2 focus:ring-gray-500/50 cursor-pointer text-left"
+        className="flex cursor-pointer items-center gap-4 rounded-lg border border-gray-800 bg-[#1A1A1A] p-4 text-left shadow-sm transition-all duration-200 hover:border-gray-600 hover:bg-[#1A1A1A]/90 focus:outline-none focus:ring-2 focus:ring-gray-500/50"
         data-testid="risk-card"
         aria-label={`Current risk: ${riskLabel} (${currentRiskScore}). Click to view alerts.`}
       >
@@ -217,7 +226,7 @@ export default function StatsRow({
         >
           <Shield className="h-6 w-6" style={{ color: riskColor }} aria-hidden="true" />
         </div>
-        <div className="flex flex-col flex-1 min-w-0">
+        <div className="flex min-w-0 flex-1 flex-col">
           <div className="flex items-center gap-2">
             <div className="text-2xl font-bold text-white" data-testid="risk-score">
               {currentRiskScore}
@@ -263,7 +272,7 @@ export default function StatsRow({
         onClick={() => {
           void navigate('/system');
         }}
-        className="flex items-center gap-4 rounded-lg border border-gray-800 bg-[#1A1A1A] p-4 shadow-sm transition-all duration-200 hover:border-gray-600 hover:bg-[#1A1A1A]/90 focus:outline-none focus:ring-2 focus:ring-gray-500/50 cursor-pointer text-left"
+        className="flex cursor-pointer items-center gap-4 rounded-lg border border-gray-800 bg-[#1A1A1A] p-4 text-left shadow-sm transition-all duration-200 hover:border-gray-600 hover:bg-[#1A1A1A]/90 focus:outline-none focus:ring-2 focus:ring-gray-500/50"
         data-testid="system-card"
         aria-label={`System status: ${statusLabel}. Click to view system monitoring.`}
       >

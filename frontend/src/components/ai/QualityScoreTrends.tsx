@@ -86,7 +86,10 @@ export default function QualityScoreTrends({
   const evaluationRate = totalEvents > 0 ? (fullyEvaluatedEvents / totalEvents) * 100 : 0;
 
   return (
-    <div className={clsx('grid gap-4 md:grid-cols-2 lg:grid-cols-4', className)} data-testid="quality-score-trends">
+    <div
+      className={clsx('grid gap-4 md:grid-cols-2 lg:grid-cols-4', className)}
+      data-testid="quality-score-trends"
+    >
       {/* Average Quality Score */}
       <Card className="border-gray-800 bg-[#1A1A1A] shadow-lg" data-testid="quality-score-card">
         <div className="flex items-center gap-2">
@@ -116,13 +119,14 @@ export default function QualityScoreTrends({
           color={getScoreColor(avgConsistencyRate)}
           className="mt-3"
         />
-        <Text className="mt-2 text-xs text-gray-500">
-          Risk score consistency on re-evaluation
-        </Text>
+        <Text className="mt-2 text-xs text-gray-500">Risk score consistency on re-evaluation</Text>
       </Card>
 
       {/* Enrichment Utilization */}
-      <Card className="border-gray-800 bg-[#1A1A1A] shadow-lg" data-testid="enrichment-utilization-card">
+      <Card
+        className="border-gray-800 bg-[#1A1A1A] shadow-lg"
+        data-testid="enrichment-utilization-card"
+      >
         <div className="flex items-center gap-2">
           <Gauge className="h-5 w-5 text-[#76B900]" />
           <Text className="text-gray-400">Enrichment Utilization</Text>
@@ -137,13 +141,14 @@ export default function QualityScoreTrends({
           color={getEnrichmentColor(avgEnrichmentUtilization)}
           className="mt-3"
         />
-        <Text className="mt-2 text-xs text-gray-500">
-          Percentage of AI models contributing
-        </Text>
+        <Text className="mt-2 text-xs text-gray-500">Percentage of AI models contributing</Text>
       </Card>
 
       {/* Evaluation Coverage */}
-      <Card className="border-gray-800 bg-[#1A1A1A] shadow-lg" data-testid="evaluation-coverage-card">
+      <Card
+        className="border-gray-800 bg-[#1A1A1A] shadow-lg"
+        data-testid="evaluation-coverage-card"
+      >
         <div className="flex items-center gap-2">
           <Title className="text-gray-400">Evaluation Coverage</Title>
         </div>

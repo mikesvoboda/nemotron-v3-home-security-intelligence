@@ -1,4 +1,4 @@
-import { screen, waitFor, act , fireEvent } from '@testing-library/react';
+import { screen, waitFor, act, fireEvent } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import ProcessingSettings from './ProcessingSettings';

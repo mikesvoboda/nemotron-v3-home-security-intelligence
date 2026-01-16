@@ -1,6 +1,14 @@
 import { Card, Title, Text, Badge } from '@tremor/react';
 import { clsx } from 'clsx';
-import { CheckCircle, XCircle, Cpu, AlertTriangle, Star, ChevronDown, ChevronUp } from 'lucide-react';
+import {
+  CheckCircle,
+  XCircle,
+  Cpu,
+  AlertTriangle,
+  Star,
+  ChevronDown,
+  ChevronUp,
+} from 'lucide-react';
 import { useEffect, useState, useCallback } from 'react';
 
 import { fetchReadiness, type WorkerStatus } from '../../services/api';
@@ -59,7 +67,9 @@ const WORKER_DESCRIPTIONS: Record<string, string> = {
  * Gets display name for a worker
  */
 function getWorkerDisplayName(name: string): string {
-  return WORKER_DISPLAY_NAMES[name] || name.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  return (
+    WORKER_DISPLAY_NAMES[name] || name.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+  );
 }
 
 /**
@@ -108,7 +118,10 @@ function WorkerStatusRow({ worker }: WorkerStatusRowProps) {
             data-testid={`worker-icon-running-${worker.name}`}
           />
         ) : (
-          <XCircle className="h-5 w-5 text-red-500" data-testid={`worker-icon-stopped-${worker.name}`} />
+          <XCircle
+            className="h-5 w-5 text-red-500"
+            data-testid={`worker-icon-stopped-${worker.name}`}
+          />
         )}
 
         {/* Worker Info */}
@@ -133,7 +146,11 @@ function WorkerStatusRow({ worker }: WorkerStatusRowProps) {
       </div>
 
       {/* Status Badge */}
-      <Badge color={worker.running ? 'green' : 'red'} size="sm" data-testid={`worker-status-badge-${worker.name}`}>
+      <Badge
+        color={worker.running ? 'green' : 'red'}
+        size="sm"
+        data-testid={`worker-status-badge-${worker.name}`}
+      >
         {worker.running ? 'Running' : 'Stopped'}
       </Badge>
     </div>
@@ -209,15 +226,16 @@ export default function WorkerStatusPanel({
   });
 
   // Check for any stopped essential workers
-  const essentialStopped = workers.filter(
-    (w) => !w.running && isEssentialWorker(w.name)
-  );
+  const essentialStopped = workers.filter((w) => !w.running && isEssentialWorker(w.name));
   const hasEssentialStopped = essentialStopped.length > 0;
 
   // Loading state
   if (loading) {
     return (
-      <Card className="border-gray-800 bg-[#1A1A1A] shadow-lg" data-testid="worker-status-panel-loading">
+      <Card
+        className="border-gray-800 bg-[#1A1A1A] shadow-lg"
+        data-testid="worker-status-panel-loading"
+      >
         <Title className="mb-4 flex items-center gap-2 text-white">
           <Cpu className="h-5 w-5 text-[#76B900]" />
           Background Workers
@@ -234,7 +252,10 @@ export default function WorkerStatusPanel({
   // Error state
   if (error) {
     return (
-      <Card className="border-gray-800 bg-[#1A1A1A] shadow-lg" data-testid="worker-status-panel-error">
+      <Card
+        className="border-gray-800 bg-[#1A1A1A] shadow-lg"
+        data-testid="worker-status-panel-error"
+      >
         <Title className="mb-4 flex items-center gap-2 text-white">
           <Cpu className="h-5 w-5 text-[#76B900]" />
           Background Workers
@@ -334,9 +355,7 @@ export default function WorkerStatusPanel({
         {/* Workers List */}
         <div className={clsx('space-y-2', compact && 'space-y-1')} data-testid="workers-list">
           {sortedWorkers.length > 0 ? (
-            sortedWorkers.map((worker) => (
-              <WorkerStatusRow key={worker.name} worker={worker} />
-            ))
+            sortedWorkers.map((worker) => <WorkerStatusRow key={worker.name} worker={worker} />)
           ) : (
             <Text className="py-4 text-center text-gray-500">No worker status available</Text>
           )}

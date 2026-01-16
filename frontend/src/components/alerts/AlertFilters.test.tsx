@@ -31,9 +31,13 @@ describe('AlertFilters', () => {
 
       // Buttons use aria-label for accessible names
       expect(screen.getByRole('button', { name: /filter by all alerts/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /filter by critical severity/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: /filter by critical severity/i })
+      ).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /filter by high severity/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /filter by medium severity/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: /filter by medium severity/i })
+      ).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /filter by unread alerts/i })).toBeInTheDocument();
     });
 

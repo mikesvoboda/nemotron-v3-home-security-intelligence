@@ -3,11 +3,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { type ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import {
-  useEntitiesV2Query,
-  useEntityHistory,
-  useEntityStats,
-} from '../useEntityHistory';
+import { useEntitiesV2Query, useEntityHistory, useEntityStats } from '../useEntityHistory';
 
 // Mock the API functions
 const mockFetchEntitiesV2 = vi.fn();
@@ -38,11 +34,7 @@ function createTestWrapper() {
   });
 
   return function Wrapper({ children }: { children: ReactNode }) {
-    return (
-      <QueryClientProvider client={queryClient}>
-        {children}
-      </QueryClientProvider>
-    );
+    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
   };
 }
 
@@ -124,10 +116,9 @@ describe('useEntitiesV2Query', () => {
     const since = new Date('2024-01-01');
     const until = new Date('2024-01-31');
 
-    const { result } = renderHook(
-      () => useEntitiesV2Query({ since, until }),
-      { wrapper: createTestWrapper() }
-    );
+    const { result } = renderHook(() => useEntitiesV2Query({ since, until }), {
+      wrapper: createTestWrapper(),
+    });
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -248,10 +239,9 @@ describe('useEntityHistory', () => {
   });
 
   it('respects enabled option', async () => {
-    renderHook(
-      () => useEntityHistory('entity-123', { enabled: false }),
-      { wrapper: createTestWrapper() }
-    );
+    renderHook(() => useEntityHistory('entity-123', { enabled: false }), {
+      wrapper: createTestWrapper(),
+    });
 
     // Give time for potential fetch
     await new Promise((resolve) => setTimeout(resolve, 100));

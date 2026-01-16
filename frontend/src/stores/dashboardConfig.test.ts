@@ -24,7 +24,9 @@ describe('dashboardConfig store', () => {
     Object.keys(mockStorage).forEach((key) => delete mockStorage[key]);
 
     // Mock localStorage
-    vi.spyOn(Storage.prototype, 'getItem').mockImplementation((key: string) => mockStorage[key] ?? null);
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(
+      (key: string) => mockStorage[key] ?? null
+    );
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation((key: string, value: string) => {
       mockStorage[key] = value;
     });

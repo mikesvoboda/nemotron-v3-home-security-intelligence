@@ -32,7 +32,6 @@ import {
   User,
 } from 'lucide-react';
 
-
 import {
   formatConfidencePercent,
   getConfidenceBgColorClass,
@@ -79,7 +78,7 @@ function DetailRow({ label, value }: { label: string; value: React.ReactNode }) 
   return (
     <div className="flex items-start justify-between gap-2 py-1">
       <span className="text-sm text-gray-400">{label}</span>
-      <span className="text-sm text-gray-200 text-right">{value}</span>
+      <span className="text-right text-sm text-gray-200">{value}</span>
     </div>
   );
 }
@@ -87,7 +86,13 @@ function DetailRow({ label, value }: { label: string; value: React.ReactNode }) 
 /**
  * Badge indicator for boolean flags
  */
-function FlagBadge({ label, variant = 'default' }: { label: string; variant?: 'alert' | 'warning' | 'info' | 'default' }) {
+function FlagBadge({
+  label,
+  variant = 'default',
+}: {
+  label: string;
+  variant?: 'alert' | 'warning' | 'info' | 'default';
+}) {
   const variantClasses = {
     alert: 'bg-red-500/20 border-red-500/40 text-red-400',
     warning: 'bg-yellow-500/20 border-yellow-500/40 text-yellow-400',
@@ -96,7 +101,12 @@ function FlagBadge({ label, variant = 'default' }: { label: string; variant?: 'a
   };
 
   return (
-    <span className={clsx('inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-medium', variantClasses[variant])}>
+    <span
+      className={clsx(
+        'inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-medium',
+        variantClasses[variant]
+      )}
+    >
       {(variant === 'alert' || variant === 'warning') && <AlertTriangle className="h-3 w-3" />}
       {variant === 'info' && <Briefcase className="h-3 w-3" />}
       {label}
@@ -127,7 +137,10 @@ function getPostureBadgeClass(posture: PostureType): string {
 /**
  * Security alert labels with emoji indicators
  */
-const SECURITY_ALERT_LABELS: Record<SecurityAlertType, { emoji: string; label: string; description: string }> = {
+const SECURITY_ALERT_LABELS: Record<
+  SecurityAlertType,
+  { emoji: string; label: string; description: string }
+> = {
   crouching: {
     emoji: '\u26A0\uFE0F',
     label: 'Crouching Detected',
@@ -254,7 +267,11 @@ function getPostureBadgeStyle(posture: string): { bg: string; border: string; te
 /**
  * Get alert icon and styling for security alerts
  */
-function getAlertDisplay(alert: string): { icon: React.ReactNode; label: string; description: string } {
+function getAlertDisplay(alert: string): {
+  icon: React.ReactNode;
+  label: string;
+  description: string;
+} {
   switch (alert) {
     case 'crouching':
       return {
@@ -292,10 +309,7 @@ function getAlertDisplay(alert: string): { icon: React.ReactNode; label: string;
 /**
  * EnrichmentPanel - Main component
  */
-export default function EnrichmentPanel({
-  enrichment_data,
-  className,
-}: EnrichmentPanelProps) {
+export default function EnrichmentPanel({ enrichment_data, className }: EnrichmentPanelProps) {
   // Don't render anything if there's no enrichment data
   if (!hasEnrichmentContent(enrichment_data)) {
     return null;
@@ -325,7 +339,7 @@ export default function EnrichmentPanel({
               <DetailRow
                 label="Damage"
                 value={
-                  <div className="flex flex-wrap gap-1 justify-end">
+                  <div className="flex flex-wrap justify-end gap-1">
                     {enrichment_data.vehicle.damage?.map((d, i) => (
                       <span
                         key={i}
@@ -344,10 +358,12 @@ export default function EnrichmentPanel({
               </div>
             )}
             {enrichment_data.vehicle.caption && (
-              <div className="pt-2 border-t border-gray-700">
+              <div className="border-t border-gray-700 pt-2">
                 <div className="flex items-start gap-2 pt-2">
-                  <FileText className="h-3 w-3 text-gray-400 mt-0.5 flex-shrink-0" />
-                  <span className="text-xs text-gray-400 italic">{enrichment_data.vehicle.caption}</span>
+                  <FileText className="mt-0.5 h-3 w-3 flex-shrink-0 text-gray-400" />
+                  <span className="text-xs italic text-gray-400">
+                    {enrichment_data.vehicle.caption}
+                  </span>
                 </div>
               </div>
             )}
@@ -423,10 +439,12 @@ export default function EnrichmentPanel({
               )}
             </div>
             {enrichment_data.person.caption && (
-              <div className="pt-2 border-t border-gray-700">
+              <div className="border-t border-gray-700 pt-2">
                 <div className="flex items-start gap-2 pt-2">
-                  <FileText className="h-3 w-3 text-gray-400 mt-0.5 flex-shrink-0" />
-                  <span className="text-xs text-gray-400 italic">{enrichment_data.person.caption}</span>
+                  <FileText className="mt-0.5 h-3 w-3 flex-shrink-0 text-gray-400" />
+                  <span className="text-xs italic text-gray-400">
+                    {enrichment_data.person.caption}
+                  </span>
                 </div>
               </div>
             )}
@@ -446,7 +464,9 @@ export default function EnrichmentPanel({
         <AccordionHeader className="px-4 py-3 text-white hover:bg-gray-800/50">
           <div className="flex w-full items-center justify-between pr-2">
             <div className="flex items-center gap-2">
-              <Activity className={clsx('h-4 w-4', hasAlerts ? 'text-red-500' : 'text-[#76B900]')} />
+              <Activity
+                className={clsx('h-4 w-4', hasAlerts ? 'text-red-500' : 'text-[#76B900]')}
+              />
               <span className="font-medium">Pose Analysis</span>
               {hasAlerts && (
                 <span className="ml-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">
@@ -469,13 +489,21 @@ export default function EnrichmentPanel({
         <AccordionBody className="bg-black/20 px-4 py-3">
           <div className="space-y-3">
             {/* Posture Information */}
-            <DetailRow label="Posture" value={getPostureDisplayName(enrichment_data.pose.posture)} />
-            <DetailRow label="Keypoints Detected" value={`${enrichment_data.pose.keypoint_count}/17`} />
+            <DetailRow
+              label="Posture"
+              value={getPostureDisplayName(enrichment_data.pose.posture)}
+            />
+            <DetailRow
+              label="Keypoints Detected"
+              value={`${enrichment_data.pose.keypoint_count}/17`}
+            />
 
             {/* Security Alerts Section */}
             {hasAlerts && (
               <div className="mt-3 space-y-2">
-                <span className="text-sm font-medium text-red-400 uppercase tracking-wide">Security Alerts</span>
+                <span className="text-sm font-medium uppercase tracking-wide text-red-400">
+                  Security Alerts
+                </span>
                 <div className="space-y-2">
                   {enrichment_data.pose.alerts.map((alert, i) => {
                     const alertInfo = getAlertDisplay(alert);
@@ -527,7 +555,7 @@ export default function EnrichmentPanel({
         </AccordionHeader>
         <AccordionBody className="bg-black/20 px-4 py-3">
           <div className="flex items-center justify-center py-2">
-            <span className="rounded bg-gray-900 px-4 py-2 font-mono text-lg text-white tracking-wider border border-gray-700">
+            <span className="rounded border border-gray-700 bg-gray-900 px-4 py-2 font-mono text-lg tracking-wider text-white">
               {enrichment_data.license_plate.text}
             </span>
           </div>
@@ -581,7 +609,7 @@ export default function EnrichmentPanel({
               <DetailRow
                 label="Issues"
                 value={
-                  <div className="flex flex-wrap gap-1 justify-end">
+                  <div className="flex flex-wrap justify-end gap-1">
                     {enrichment_data.image_quality.issues.map((issue, i) => (
                       <span
                         key={i}
@@ -610,9 +638,10 @@ export default function EnrichmentPanel({
     // Calculate keypoint confidence summary
     const keypoints = pose.keypoints;
     const validKeypoints = keypoints.filter((kp) => kp[2] > 0);
-    const avgConfidence = validKeypoints.length > 0
-      ? validKeypoints.reduce((sum, kp) => sum + kp[2], 0) / validKeypoints.length
-      : 0;
+    const avgConfidence =
+      validKeypoints.length > 0
+        ? validKeypoints.reduce((sum, kp) => sum + kp[2], 0) / validKeypoints.length
+        : 0;
     const highConfidenceCount = keypoints.filter((kp) => kp[2] > 0.5).length;
 
     accordionSections.push(
@@ -625,7 +654,9 @@ export default function EnrichmentPanel({
         >
           <div className="flex w-full items-center justify-between pr-2">
             <div className="flex items-center gap-2">
-              <Activity className={clsx('h-4 w-4', hasSecurityAlerts ? 'text-red-500' : 'text-[#76B900]')} />
+              <Activity
+                className={clsx('h-4 w-4', hasSecurityAlerts ? 'text-red-500' : 'text-[#76B900]')}
+              />
               <span className="font-medium">Pose Analysis</span>
               {hasSecurityAlerts && (
                 <span className="ml-1 inline-flex items-center rounded-full bg-red-500 px-2 py-0.5 text-xs font-semibold text-white">
@@ -639,7 +670,7 @@ export default function EnrichmentPanel({
         <AccordionBody
           className={clsx(
             'px-4 py-3',
-            hasSecurityAlerts ? 'bg-red-50/5 border-l-2 border-red-500' : 'bg-black/20'
+            hasSecurityAlerts ? 'border-l-2 border-red-500 bg-red-50/5' : 'bg-black/20'
           )}
         >
           <div className="space-y-3">
@@ -679,11 +710,7 @@ export default function EnrichmentPanel({
             />
             <DetailRow
               label="High-Confidence Points"
-              value={
-                <span className="text-sm text-gray-200">
-                  {highConfidenceCount} / 17
-                </span>
-              }
+              value={<span className="text-sm text-gray-200">{highConfidenceCount} / 17</span>}
             />
           </div>
         </AccordionBody>
@@ -696,13 +723,11 @@ export default function EnrichmentPanel({
       data-testid="enrichment-panel"
       className={clsx('rounded-lg border border-gray-800 bg-black/20', className)}
     >
-      <h3 className="px-4 py-3 text-sm font-semibold uppercase tracking-wide text-gray-400 border-b border-gray-800">
+      <h3 className="border-b border-gray-800 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-gray-400">
         AI Enrichment Analysis
       </h3>
 
-      <AccordionList className="divide-y divide-gray-800">
-        {accordionSections}
-      </AccordionList>
+      <AccordionList className="divide-y divide-gray-800">{accordionSections}</AccordionList>
     </div>
   );
 }

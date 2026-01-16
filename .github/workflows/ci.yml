@@ -1094,10 +1094,11 @@ jobs:
       - name: Run E2E tests (Chromium shard ${{ matrix.shard }}) with retry
         # Retry loop: 3 attempts with 10s wait between retries for transient failures
         # Browser installation issues are caught by separate installation step
+        # Uses subshell () to ensure cd doesn't affect subsequent retry iterations
         run: |
           for attempt in 1 2 3; do
             echo "Attempt $attempt of 3"
-            if cd frontend && npx playwright test --project=chromium --shard=${{ matrix.shard }}; then
+            if (cd frontend && npx playwright test --project=chromium --shard=${{ matrix.shard }}); then
               exit 0
             fi
             if [ $attempt -lt 3 ]; then
@@ -1217,10 +1218,11 @@ jobs:
       - name: Run E2E tests (${{ matrix.browser }}) with retry
         # Retry loop: 3 attempts with 10s wait between retries for transient test failures
         # Browser installation issues are caught by separate installation step
+        # Uses subshell () to ensure cd doesn't affect subsequent retry iterations
         run: |
           for attempt in 1 2 3; do
             echo "Attempt $attempt of 3"
-            if cd frontend && npx playwright test --project=${{ matrix.browser }}; then
+            if (cd frontend && npx playwright test --project=${{ matrix.browser }}); then
               exit 0
             fi
             if [ $attempt -lt 3 ]; then

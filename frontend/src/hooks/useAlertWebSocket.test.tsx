@@ -361,10 +361,9 @@ describe('useAlertWebSocket', () => {
       const onAlertCreated = vi.fn(() => callOrder.push('created'));
       const alertData = createMockAlertData();
 
-      renderHook(
-        () => useAlertWebSocket({ onAnyAlertEvent, onAlertCreated }),
-        { wrapper: createWrapper() }
-      );
+      renderHook(() => useAlertWebSocket({ onAnyAlertEvent, onAlertCreated }), {
+        wrapper: createWrapper(),
+      });
 
       act(() => {
         capturedOnMessage?.({
@@ -539,13 +538,10 @@ describe('useAlertWebSocket', () => {
 
   describe('enabled option behavior', () => {
     it('calls disconnect when enabled becomes false', () => {
-      const { rerender } = renderHook(
-        ({ enabled }) => useAlertWebSocket({ enabled }),
-        {
-          wrapper: createWrapper(),
-          initialProps: { enabled: true },
-        }
-      );
+      const { rerender } = renderHook(({ enabled }) => useAlertWebSocket({ enabled }), {
+        wrapper: createWrapper(),
+        initialProps: { enabled: true },
+      });
 
       // Disable the hook
       rerender({ enabled: false });

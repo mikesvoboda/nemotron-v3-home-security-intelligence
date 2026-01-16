@@ -115,11 +115,7 @@ export default function ActivityHeatmap({
                   return (
                     <div
                       key={hour}
-                      className={`
-                        m-0.5 h-6 flex-1 rounded-sm transition-colors
-                        ${hasData ? getCellColor(avgCount, isPeak) : 'bg-gray-800/50'}
-                        ${hasData ? 'cursor-pointer hover:ring-2 hover:ring-white/30' : ''}
-                      `}
+                      className={`m-0.5 h-6 flex-1 rounded-sm transition-colors ${hasData ? getCellColor(avgCount, isPeak) : 'bg-gray-800/50'} ${hasData ? 'cursor-pointer hover:ring-2 hover:ring-white/30' : ''} `}
                       style={{ minWidth: '24px' }}
                       title={
                         hasData

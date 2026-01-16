@@ -158,9 +158,10 @@ export function useConnectionStatus(): UseConnectionStatusReturn {
 
       // Convert health response to BackendSystemStatus format
       // Map the health status to valid values
-      const healthValue = health.status === 'healthy' || health.status === 'degraded' || health.status === 'unhealthy'
-        ? health.status
-        : 'unhealthy';
+      const healthValue =
+        health.status === 'healthy' || health.status === 'degraded' || health.status === 'unhealthy'
+          ? health.status
+          : 'unhealthy';
 
       const healthStatus: BackendSystemStatus = {
         type: 'system_status',
@@ -219,8 +220,7 @@ export function useConnectionStatus(): UseConnectionStatusReturn {
             const combined = [...securityEvents, ...prevEvents];
             // Deduplicate by id
             const unique = combined.filter(
-              (event, index, self) =>
-                index === self.findIndex((ev) => ev.id === event.id)
+              (event, index, self) => index === self.findIndex((ev) => ev.id === event.id)
             );
             return unique.slice(0, MAX_EVENTS);
           });
@@ -275,10 +275,7 @@ export function useConnectionStatus(): UseConnectionStatusReturn {
   const eventsWsOptions = buildWebSocketOptions('/ws/events');
   const systemWsOptions = buildWebSocketOptions('/ws/system');
 
-  const {
-    channelStatus: eventsChannel,
-    connect: connectEvents,
-  } = useWebSocketStatus({
+  const { channelStatus: eventsChannel, connect: connectEvents } = useWebSocketStatus({
     url: eventsWsOptions.url,
     protocols: eventsWsOptions.protocols,
     channelName: 'Events',
@@ -286,10 +283,7 @@ export function useConnectionStatus(): UseConnectionStatusReturn {
     onMaxRetriesExhausted: startPolling,
   });
 
-  const {
-    channelStatus: systemChannel,
-    connect: connectSystem,
-  } = useWebSocketStatus({
+  const { channelStatus: systemChannel, connect: connectSystem } = useWebSocketStatus({
     url: systemWsOptions.url,
     protocols: systemWsOptions.protocols,
     channelName: 'System',
@@ -331,14 +325,11 @@ export function useConnectionStatus(): UseConnectionStatusReturn {
   const summary = useMemo((): ConnectionStatusSummary => {
     const anyReconnecting =
       eventsChannel.state === 'reconnecting' || systemChannel.state === 'reconnecting';
-    const allConnected =
-      eventsChannel.state === 'connected' && systemChannel.state === 'connected';
+    const allConnected = eventsChannel.state === 'connected' && systemChannel.state === 'connected';
     const hasExhaustedRetries =
       eventsChannel.hasExhaustedRetries || systemChannel.hasExhaustedRetries;
-    const allFailed =
-      eventsChannel.state === 'failed' && systemChannel.state === 'failed';
-    const anyFailed =
-      eventsChannel.state === 'failed' || systemChannel.state === 'failed';
+    const allFailed = eventsChannel.state === 'failed' && systemChannel.state === 'failed';
+    const anyFailed = eventsChannel.state === 'failed' || systemChannel.state === 'failed';
 
     let overallState: ConnectionState;
     if (allConnected) {
@@ -357,8 +348,7 @@ export function useConnectionStatus(): UseConnectionStatusReturn {
       overallState,
       anyReconnecting,
       allConnected,
-      totalReconnectAttempts:
-        eventsChannel.reconnectAttempts + systemChannel.reconnectAttempts,
+      totalReconnectAttempts: eventsChannel.reconnectAttempts + systemChannel.reconnectAttempts,
       hasExhaustedRetries,
       allFailed,
     };

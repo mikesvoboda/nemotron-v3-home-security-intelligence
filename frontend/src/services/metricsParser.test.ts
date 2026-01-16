@@ -29,7 +29,9 @@ describe('metricsParser', () => {
     });
 
     it('parses a metric with labels', () => {
-      const result = parseMetricLine('hsi_stage_duration_seconds_bucket{stage="detect",le="0.1"} 45.0');
+      const result = parseMetricLine(
+        'hsi_stage_duration_seconds_bucket{stage="detect",le="0.1"} 45.0'
+      );
       expect(result).toEqual({
         name: 'hsi_stage_duration_seconds_bucket',
         labels: { stage: 'detect', le: '0.1' },
@@ -38,7 +40,9 @@ describe('metricsParser', () => {
     });
 
     it('parses +Inf as Infinity', () => {
-      const result = parseMetricLine('hsi_stage_duration_seconds_bucket{stage="detect",le="+Inf"} 100');
+      const result = parseMetricLine(
+        'hsi_stage_duration_seconds_bucket{stage="detect",le="+Inf"} 100'
+      );
       expect(result?.value).toBe(100);
       expect(result?.labels['le']).toBe('+Inf');
     });
@@ -109,7 +113,9 @@ hsi_stage_duration_seconds_count{stage="analyze"} 50
 
     it('extracts histogram for a specific label', () => {
       const metrics = parseMetrics(sampleHistogramText);
-      const histogram = extractHistogram(metrics, 'hsi_stage_duration_seconds', { stage: 'detect' });
+      const histogram = extractHistogram(metrics, 'hsi_stage_duration_seconds', {
+        stage: 'detect',
+      });
 
       expect(histogram).not.toBeNull();
       expect(histogram!.count).toBe(100);
@@ -126,8 +132,12 @@ hsi_stage_duration_seconds_count{stage="analyze"} 50
 
     it('filters by label correctly', () => {
       const metrics = parseMetrics(sampleHistogramText);
-      const detectHistogram = extractHistogram(metrics, 'hsi_stage_duration_seconds', { stage: 'detect' });
-      const analyzeHistogram = extractHistogram(metrics, 'hsi_stage_duration_seconds', { stage: 'analyze' });
+      const detectHistogram = extractHistogram(metrics, 'hsi_stage_duration_seconds', {
+        stage: 'detect',
+      });
+      const analyzeHistogram = extractHistogram(metrics, 'hsi_stage_duration_seconds', {
+        stage: 'analyze',
+      });
 
       expect(detectHistogram!.count).toBe(100);
       expect(analyzeHistogram!.count).toBe(50);

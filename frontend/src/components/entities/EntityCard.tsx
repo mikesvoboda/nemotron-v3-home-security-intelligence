@@ -161,10 +161,7 @@ const EntityCard = memo(function EntityCard({
         <div className="h-8 w-px bg-gray-700" />
 
         {/* Cameras */}
-        <div
-          className="flex flex-col items-center"
-          title={cameras_seen.join(', ')}
-        >
+        <div className="flex flex-col items-center" title={cameras_seen.join(', ')}>
           <div className="flex items-center gap-1 text-lg font-bold text-white">
             <Camera className="h-4 w-4 text-text-secondary" />
             <span>{cameras_seen.length}</span>

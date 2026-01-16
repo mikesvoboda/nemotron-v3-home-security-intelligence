@@ -279,10 +279,9 @@ describe('useEntitiesInfiniteQuery', () => {
   describe('filtering', () => {
     it('passes entity_type filter to API', async () => {
       const wrapper = createWrapper();
-      renderHook(
-        () => useEntitiesInfiniteQuery({ filters: { entity_type: 'person' } }),
-        { wrapper }
-      );
+      renderHook(() => useEntitiesInfiniteQuery({ filters: { entity_type: 'person' } }), {
+        wrapper,
+      });
 
       await waitFor(() => {
         expect(mockFetchEntities).toHaveBeenCalled();
@@ -295,10 +294,9 @@ describe('useEntitiesInfiniteQuery', () => {
 
     it('passes camera_id filter to API', async () => {
       const wrapper = createWrapper();
-      renderHook(
-        () => useEntitiesInfiniteQuery({ filters: { camera_id: 'front_door' } }),
-        { wrapper }
-      );
+      renderHook(() => useEntitiesInfiniteQuery({ filters: { camera_id: 'front_door' } }), {
+        wrapper,
+      });
 
       await waitFor(() => {
         expect(mockFetchEntities).toHaveBeenCalled();
@@ -312,18 +310,13 @@ describe('useEntitiesInfiniteQuery', () => {
     it('passes since filter to API', async () => {
       const sinceDate = '2024-01-15T00:00:00Z';
       const wrapper = createWrapper();
-      renderHook(
-        () => useEntitiesInfiniteQuery({ filters: { since: sinceDate } }),
-        { wrapper }
-      );
+      renderHook(() => useEntitiesInfiniteQuery({ filters: { since: sinceDate } }), { wrapper });
 
       await waitFor(() => {
         expect(mockFetchEntities).toHaveBeenCalled();
       });
 
-      expect(mockFetchEntities).toHaveBeenCalledWith(
-        expect.objectContaining({ since: sinceDate })
-      );
+      expect(mockFetchEntities).toHaveBeenCalledWith(expect.objectContaining({ since: sinceDate }));
     });
 
     it('combines multiple filters', async () => {
@@ -357,10 +350,9 @@ describe('useEntitiesInfiniteQuery', () => {
   describe('options', () => {
     it('respects enabled option', async () => {
       const wrapper = createWrapper();
-      const { result } = renderHook(
-        () => useEntitiesInfiniteQuery({ enabled: false }),
-        { wrapper }
-      );
+      const { result } = renderHook(() => useEntitiesInfiniteQuery({ enabled: false }), {
+        wrapper,
+      });
 
       // Wait a bit to ensure no fetch happens
       await new Promise((resolve) => setTimeout(resolve, 50));
@@ -377,9 +369,7 @@ describe('useEntitiesInfiniteQuery', () => {
         expect(mockFetchEntities).toHaveBeenCalled();
       });
 
-      expect(mockFetchEntities).toHaveBeenCalledWith(
-        expect.objectContaining({ limit: 25 })
-      );
+      expect(mockFetchEntities).toHaveBeenCalledWith(expect.objectContaining({ limit: 25 }));
     });
 
     it('uses default limit of 50', async () => {
@@ -390,9 +380,7 @@ describe('useEntitiesInfiniteQuery', () => {
         expect(mockFetchEntities).toHaveBeenCalled();
       });
 
-      expect(mockFetchEntities).toHaveBeenCalledWith(
-        expect.objectContaining({ limit: 50 })
-      );
+      expect(mockFetchEntities).toHaveBeenCalledWith(expect.objectContaining({ limit: 50 }));
     });
   });
 
@@ -458,9 +446,11 @@ describe('entitiesInfiniteQueryKeys', () => {
       'infinite',
       { filters: undefined, limit: undefined },
     ]);
-    expect(
-      entitiesInfiniteQueryKeys.infinite({ entity_type: 'person' }, 25)
-    ).toEqual(['entities', 'infinite', { filters: { entity_type: 'person' }, limit: 25 }]);
+    expect(entitiesInfiniteQueryKeys.infinite({ entity_type: 'person' }, 25)).toEqual([
+      'entities',
+      'infinite',
+      { filters: { entity_type: 'person' }, limit: 25 },
+    ]);
     expect(entitiesInfiniteQueryKeys.detail('entity-001')).toEqual([
       'entities',
       'detail',

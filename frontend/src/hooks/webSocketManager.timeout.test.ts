@@ -196,10 +196,7 @@ class WebSocketManager {
       return; // Max attempts reached
     }
 
-    const delay = Math.min(
-      this.reconnectInterval * Math.pow(2, this.reconnectAttempts),
-      30000
-    );
+    const delay = Math.min(this.reconnectInterval * Math.pow(2, this.reconnectAttempts), 30000);
 
     this.reconnectTimeoutId = setTimeout(() => {
       this.reconnectAttempts++;
@@ -209,10 +206,7 @@ class WebSocketManager {
 
   private startHeartbeatMonitoring(): void {
     this.heartbeatCheckInterval = setInterval(() => {
-      if (
-        this.lastHeartbeat &&
-        Date.now() - this.lastHeartbeat.getTime() > this.heartbeatTimeout
-      ) {
+      if (this.lastHeartbeat && Date.now() - this.lastHeartbeat.getTime() > this.heartbeatTimeout) {
         // Heartbeat timeout - close and reconnect
         if (this.ws) {
           this.ws.close(1000, 'Heartbeat timeout');
@@ -411,9 +405,7 @@ describe('WebSocketManager timeout and reconnection', () => {
       manager.socket?.simulateMessage({ type: 'ping' });
 
       expect(manager.lastHeartbeatTime).not.toBe(initialHeartbeat);
-      expect(manager.lastHeartbeatTime!.getTime()).toBeGreaterThan(
-        initialHeartbeat!.getTime()
-      );
+      expect(manager.lastHeartbeatTime!.getTime()).toBeGreaterThan(initialHeartbeat!.getTime());
     });
 
     it('should update lastHeartbeat on pong message', () => {
@@ -430,9 +422,7 @@ describe('WebSocketManager timeout and reconnection', () => {
       manager.socket?.simulateMessage({ type: 'pong' });
 
       expect(manager.lastHeartbeatTime).not.toBe(initialHeartbeat);
-      expect(manager.lastHeartbeatTime!.getTime()).toBeGreaterThan(
-        initialHeartbeat!.getTime()
-      );
+      expect(manager.lastHeartbeatTime!.getTime()).toBeGreaterThan(initialHeartbeat!.getTime());
     });
 
     it('should close connection on heartbeat timeout', () => {

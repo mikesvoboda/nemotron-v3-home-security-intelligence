@@ -147,40 +147,25 @@ function buildSonnerOptions(options: ToastOptions = {}, defaultDuration: number)
  * @returns Object with methods to show and dismiss toasts
  */
 export function useToast(): UseToastReturn {
-  const success = useCallback(
-    (message: string, options?: ToastOptions): string | number => {
-      return toast.success(message, buildSonnerOptions(options, DEFAULT_DURATION));
-    },
-    []
-  );
+  const success = useCallback((message: string, options?: ToastOptions): string | number => {
+    return toast.success(message, buildSonnerOptions(options, DEFAULT_DURATION));
+  }, []);
 
-  const error = useCallback(
-    (message: string, options?: ToastOptions): string | number => {
-      return toast.error(message, buildSonnerOptions(options, ERROR_DURATION));
-    },
-    []
-  );
+  const error = useCallback((message: string, options?: ToastOptions): string | number => {
+    return toast.error(message, buildSonnerOptions(options, ERROR_DURATION));
+  }, []);
 
-  const warning = useCallback(
-    (message: string, options?: ToastOptions): string | number => {
-      return toast.warning(message, buildSonnerOptions(options, DEFAULT_DURATION));
-    },
-    []
-  );
+  const warning = useCallback((message: string, options?: ToastOptions): string | number => {
+    return toast.warning(message, buildSonnerOptions(options, DEFAULT_DURATION));
+  }, []);
 
-  const info = useCallback(
-    (message: string, options?: ToastOptions): string | number => {
-      return toast.info(message, buildSonnerOptions(options, DEFAULT_DURATION));
-    },
-    []
-  );
+  const info = useCallback((message: string, options?: ToastOptions): string | number => {
+    return toast.info(message, buildSonnerOptions(options, DEFAULT_DURATION));
+  }, []);
 
-  const loading = useCallback(
-    (message: string, options?: ToastOptions): string | number => {
-      return toast.loading(message, buildSonnerOptions(options, DEFAULT_DURATION));
-    },
-    []
-  );
+  const loading = useCallback((message: string, options?: ToastOptions): string | number => {
+    return toast.loading(message, buildSonnerOptions(options, DEFAULT_DURATION));
+  }, []);
 
   const dismiss = useCallback((toastId?: string | number): void => {
     toast.dismiss(toastId);

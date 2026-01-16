@@ -20,7 +20,9 @@ vi.mock('../../hooks/usePerformanceMetrics', () => ({
 /**
  * Create a mock PerformanceUpdate with default values
  */
-function createMockPerformanceUpdate(overrides: Partial<PerformanceUpdate> = {}): PerformanceUpdate {
+function createMockPerformanceUpdate(
+  overrides: Partial<PerformanceUpdate> = {}
+): PerformanceUpdate {
   return {
     timestamp: new Date().toISOString(),
     gpu: {

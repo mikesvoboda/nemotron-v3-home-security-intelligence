@@ -38,7 +38,9 @@ describe('FeedbackForm', () => {
       render(<FeedbackForm {...defaultProps} />);
 
       expect(screen.getByTestId('feedback-notes')).toBeInTheDocument();
-      expect(screen.getByPlaceholderText(/explain why this is a false positive/i)).toBeInTheDocument();
+      expect(
+        screen.getByPlaceholderText(/explain why this is a false positive/i)
+      ).toBeInTheDocument();
     });
 
     it('renders cancel and submit buttons', () => {
@@ -168,7 +170,9 @@ describe('FeedbackForm', () => {
     it('shows appropriate placeholder for false_positive', () => {
       render(<FeedbackForm {...defaultProps} feedbackType="false_positive" />);
 
-      expect(screen.getByPlaceholderText(/explain why this is a false positive/i)).toBeInTheDocument();
+      expect(
+        screen.getByPlaceholderText(/explain why this is a false positive/i)
+      ).toBeInTheDocument();
     });
 
     it('shows generic placeholder for severity_wrong', () => {
@@ -187,11 +191,7 @@ describe('FeedbackForm', () => {
       { score: 10, label: 'Minimal' },
     ])('displays $label for severity score $score', ({ score, label }) => {
       render(
-        <FeedbackForm
-          {...defaultProps}
-          feedbackType="severity_wrong"
-          currentSeverity={score}
-        />
+        <FeedbackForm {...defaultProps} feedbackType="severity_wrong" currentSeverity={score} />
       );
 
       // Verify severity label is displayed

@@ -52,7 +52,9 @@ const mockStorage: Record<string, string> = {};
 
 beforeEach(() => {
   Object.keys(mockStorage).forEach((key) => delete mockStorage[key]);
-  vi.spyOn(Storage.prototype, 'getItem').mockImplementation((key: string) => mockStorage[key] ?? null);
+  vi.spyOn(Storage.prototype, 'getItem').mockImplementation(
+    (key: string) => mockStorage[key] ?? null
+  );
   vi.spyOn(Storage.prototype, 'setItem').mockImplementation((key: string, value: string) => {
     mockStorage[key] = value;
   });
@@ -156,7 +158,9 @@ describe('DashboardLayout', () => {
     it('renders dashboard subtitle', () => {
       renderWithProviders(<DashboardLayout {...defaultProps} />);
 
-      expect(screen.getByText(/real-time ai-powered home security monitoring/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/real-time ai-powered home security monitoring/i)
+      ).toBeInTheDocument();
     });
 
     it('renders configure button', () => {

@@ -70,7 +70,8 @@ export default function CleanupPreviewPanel({ className }: CleanupPreviewPanelPr
   };
 
   const formatBytes = (bytes: number | null | undefined): string => {
-    if (bytes === null || bytes === undefined || bytes === 0 || !Number.isFinite(bytes)) return '0 B';
+    if (bytes === null || bytes === undefined || bytes === 0 || !Number.isFinite(bytes))
+      return '0 B';
     const k = 1024;
     const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
@@ -98,8 +99,8 @@ export default function CleanupPreviewPanel({ className }: CleanupPreviewPanelPr
       </Title>
 
       <Text className="mb-4 text-gray-300">
-        Preview what will be deleted by the retention policy before running cleanup. This performs
-        a dry-run calculation without actually deleting any data.
+        Preview what will be deleted by the retention policy before running cleanup. This performs a
+        dry-run calculation without actually deleting any data.
       </Text>
 
       {errorMessage && (
@@ -115,7 +116,11 @@ export default function CleanupPreviewPanel({ className }: CleanupPreviewPanelPr
 
       {previewData && (
         <div className="mb-4 space-y-4">
-          <PreviewResultsSection preview={previewData} hasDeletableData={hasDeletableData ?? null} formatBytes={formatBytes} />
+          <PreviewResultsSection
+            preview={previewData}
+            hasDeletableData={hasDeletableData ?? null}
+            formatBytes={formatBytes}
+          />
 
           {hasDeletableData && !showConfirm && (
             <Button
@@ -150,11 +155,7 @@ export default function CleanupPreviewPanel({ className }: CleanupPreviewPanelPr
       )}
 
       {previewData && !showConfirm && (
-        <Button
-          onClick={handleClearPreview}
-          variant="secondary"
-          className="w-full"
-        >
+        <Button onClick={handleClearPreview} variant="secondary" className="w-full">
           Clear Preview
         </Button>
       )}
@@ -176,7 +177,9 @@ function CleanupCompleteSection({ cleanupResult, formatBytes }: CleanupCompleteS
       <div className="space-y-2">
         <div className="flex items-center justify-between border-b border-green-500/20 pb-2">
           <Text className="font-medium text-green-300">Summary</Text>
-          <Text className="text-sm text-gray-300">Retention: {cleanupResult.retention_days} days</Text>
+          <Text className="text-sm text-gray-300">
+            Retention: {cleanupResult.retention_days} days
+          </Text>
         </div>
         <div className="grid grid-cols-2 gap-2 text-sm">
           <Text className="text-gray-300">Events deleted:</Text>
@@ -192,7 +195,9 @@ function CleanupCompleteSection({ cleanupResult, formatBytes }: CleanupCompleteS
           <Text className="text-gray-300">Images deleted:</Text>
           <Text className="text-white">{cleanupResult.images_deleted.toLocaleString()}</Text>
           <Text className="text-gray-300">Space reclaimed:</Text>
-          <Text className="font-medium text-green-400">{formatBytes(cleanupResult.space_reclaimed)}</Text>
+          <Text className="font-medium text-green-400">
+            {formatBytes(cleanupResult.space_reclaimed)}
+          </Text>
         </div>
       </div>
     </div>
@@ -205,7 +210,11 @@ interface PreviewResultsSectionProps {
   formatBytes: (bytes: number) => string;
 }
 
-function PreviewResultsSection({ preview, hasDeletableData, formatBytes }: PreviewResultsSectionProps) {
+function PreviewResultsSection({
+  preview,
+  hasDeletableData,
+  formatBytes,
+}: PreviewResultsSectionProps) {
   return (
     <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-4">
       <div className="mb-3 flex items-center justify-between border-b border-blue-500/20 pb-2">
@@ -260,7 +269,9 @@ function PreviewResultsSection({ preview, hasDeletableData, formatBytes }: Previ
                 {preview.thumbnails_deleted > 0 && (
                   <>
                     <Text className="text-gray-300">Thumbnails:</Text>
-                    <Text className="text-white">{preview.thumbnails_deleted.toLocaleString()}</Text>
+                    <Text className="text-white">
+                      {preview.thumbnails_deleted.toLocaleString()}
+                    </Text>
                   </>
                 )}
                 {preview.images_deleted > 0 && (
@@ -289,7 +300,9 @@ function PreviewResultsSection({ preview, hasDeletableData, formatBytes }: Previ
           )}
         </>
       ) : (
-        <Text className="text-center text-gray-400">No data to clean up based on current retention settings</Text>
+        <Text className="text-center text-gray-400">
+          No data to clean up based on current retention settings
+        </Text>
       )}
     </div>
   );
@@ -302,7 +315,12 @@ interface ConfirmCleanupDialogProps {
   onCancel: () => void;
 }
 
-function ConfirmCleanupDialog({ preview, cleaning, onConfirm, onCancel }: ConfirmCleanupDialogProps) {
+function ConfirmCleanupDialog({
+  preview,
+  cleaning,
+  onConfirm,
+  onCancel,
+}: ConfirmCleanupDialogProps) {
   return (
     <div className="rounded-lg border border-red-500/50 bg-red-500/10 p-4">
       <div className="mb-3 flex items-center gap-2">
@@ -317,19 +335,27 @@ function ConfirmCleanupDialog({ preview, cleaning, onConfirm, onCancel }: Confir
           <Text className="text-gray-300">• {preview.events_deleted.toLocaleString()} events</Text>
         )}
         {preview.detections_deleted > 0 && (
-          <Text className="text-gray-300">• {preview.detections_deleted.toLocaleString()} detections</Text>
+          <Text className="text-gray-300">
+            • {preview.detections_deleted.toLocaleString()} detections
+          </Text>
         )}
         {preview.gpu_stats_deleted > 0 && (
-          <Text className="text-gray-300">• {preview.gpu_stats_deleted.toLocaleString()} GPU stats</Text>
+          <Text className="text-gray-300">
+            • {preview.gpu_stats_deleted.toLocaleString()} GPU stats
+          </Text>
         )}
         {preview.logs_deleted > 0 && (
           <Text className="text-gray-300">• {preview.logs_deleted.toLocaleString()} logs</Text>
         )}
         {preview.thumbnails_deleted > 0 && (
-          <Text className="text-gray-300">• {preview.thumbnails_deleted.toLocaleString()} thumbnail files</Text>
+          <Text className="text-gray-300">
+            • {preview.thumbnails_deleted.toLocaleString()} thumbnail files
+          </Text>
         )}
         {preview.images_deleted > 0 && (
-          <Text className="text-gray-300">• {preview.images_deleted.toLocaleString()} image files</Text>
+          <Text className="text-gray-300">
+            • {preview.images_deleted.toLocaleString()} image files
+          </Text>
         )}
       </div>
       <div className="flex gap-3">

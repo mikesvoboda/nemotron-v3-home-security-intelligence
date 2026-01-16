@@ -4,10 +4,7 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import {
-  useAIServiceStatus,
-  type AIServiceStatusMessage,
-} from './useAIServiceStatus';
+import { useAIServiceStatus, type AIServiceStatusMessage } from './useAIServiceStatus';
 
 // Mock the useWebSocket hook
 const mockUseWebSocket = vi.fn();

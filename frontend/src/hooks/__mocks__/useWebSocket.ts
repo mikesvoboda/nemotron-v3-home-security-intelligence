@@ -47,7 +47,10 @@ export interface MockWebSocketOptions {
  * Mock return type for useWebSocket hook.
  * Extends UseWebSocketReturn with vi.Mock types for function properties.
  */
-export interface MockWebSocketReturn extends Omit<UseWebSocketReturn, 'send' | 'connect' | 'disconnect'> {
+export interface MockWebSocketReturn extends Omit<
+  UseWebSocketReturn,
+  'send' | 'connect' | 'disconnect'
+> {
   /** Mock send function */
   send: ReturnType<typeof vi.fn>;
   /** Mock connect function */
@@ -234,8 +237,8 @@ export function createMockWebSocketWithMessage(
  * });
  * ```
  */
-export const mockUseWebSocket = vi.fn((_options?: WebSocketOptions): MockWebSocketReturn =>
-  createMockWebSocket()
+export const mockUseWebSocket = vi.fn(
+  (_options?: WebSocketOptions): MockWebSocketReturn => createMockWebSocket()
 );
 
 // =============================================================================

@@ -5,7 +5,18 @@
  * with event counts and quality correlation data.
  */
 
-import { Card, Title, Table, TableHead, TableRow, TableHeaderCell, TableBody, TableCell, Badge, Text } from '@tremor/react';
+import {
+  Card,
+  Title,
+  Table,
+  TableHead,
+  TableRow,
+  TableHeaderCell,
+  TableBody,
+  TableCell,
+  Badge,
+  Text,
+} from '@tremor/react';
 import { clsx } from 'clsx';
 import { Trophy, ArrowUpDown } from 'lucide-react';
 import React, { useState, useMemo } from 'react';
@@ -55,9 +66,24 @@ function getContributionBadgeColor(rate: number): 'emerald' | 'yellow' | 'gray' 
  * Get rank badge for top 3 models
  */
 function getRankBadge(rank: number): React.ReactNode {
-  if (rank === 1) return <Badge color="amber" size="xs">1st</Badge>;
-  if (rank === 2) return <Badge color="gray" size="xs">2nd</Badge>;
-  if (rank === 3) return <Badge color="orange" size="xs">3rd</Badge>;
+  if (rank === 1)
+    return (
+      <Badge color="amber" size="xs">
+        1st
+      </Badge>
+    );
+  if (rank === 2)
+    return (
+      <Badge color="gray" size="xs">
+        2nd
+      </Badge>
+    );
+  if (rank === 3)
+    return (
+      <Badge color="orange" size="xs">
+        3rd
+      </Badge>
+    );
   return null;
 }
 
@@ -85,9 +111,7 @@ export default function ModelLeaderboard({
       }
 
       if (typeof aVal === 'string' && typeof bVal === 'string') {
-        return sortDirection === 'asc'
-          ? aVal.localeCompare(bVal)
-          : bVal.localeCompare(aVal);
+        return sortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
       }
 
       return sortDirection === 'asc'
@@ -175,7 +199,10 @@ export default function ModelLeaderboard({
             {sortedEntries.map((entry) => {
               const rank = getRank(entry.model_name);
               return (
-                <TableRow key={entry.model_name} data-testid={`leaderboard-row-${entry.model_name}`}>
+                <TableRow
+                  key={entry.model_name}
+                  data-testid={`leaderboard-row-${entry.model_name}`}
+                >
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-gray-400">{rank}</span>

@@ -198,7 +198,10 @@ interface QualityMetricsCardsProps {
 function QualityMetricsCards({ stats, isLoading }: QualityMetricsCardsProps) {
   if (isLoading) {
     return (
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4" data-testid="quality-metrics-loading">
+      <div
+        className="grid gap-4 md:grid-cols-2 lg:grid-cols-4"
+        data-testid="quality-metrics-loading"
+      >
         {[1, 2, 3, 4].map((i) => (
           <StatsCardSkeleton key={i} />
         ))}
@@ -207,15 +210,10 @@ function QualityMetricsCards({ stats, isLoading }: QualityMetricsCardsProps) {
   }
 
   const evaluationRate =
-    stats && stats.total_events > 0
-      ? (stats.fully_evaluated_events / stats.total_events) * 100
-      : 0;
+    stats && stats.total_events > 0 ? (stats.fully_evaluated_events / stats.total_events) * 100 : 0;
 
   return (
-    <div
-      className="grid gap-4 md:grid-cols-2 lg:grid-cols-4"
-      data-testid="quality-metrics-cards"
-    >
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4" data-testid="quality-metrics-cards">
       {/* Total Evaluations */}
       <Card className="border-gray-800 bg-[#1A1A1A] shadow-lg" data-testid="total-evaluations-card">
         <div className="flex items-center gap-2">
@@ -258,9 +256,7 @@ function QualityMetricsCards({ stats, isLoading }: QualityMetricsCardsProps) {
         <ProgressBar
           value={stats?.avg_enrichment_utilization ? stats.avg_enrichment_utilization * 100 : 0}
           color={getQualityBadgeColor(
-            stats?.avg_enrichment_utilization
-              ? stats.avg_enrichment_utilization * 5
-              : null
+            stats?.avg_enrichment_utilization ? stats.avg_enrichment_utilization * 5 : null
           )}
           className="mt-3"
         />
@@ -314,10 +310,7 @@ function ModelLeaderboardSection({ leaderboard, isLoading }: ModelLeaderboardSec
   const hasData = entries.length > 0;
 
   return (
-    <Card
-      className="border-gray-800 bg-[#1A1A1A] shadow-lg"
-      data-testid="model-leaderboard"
-    >
+    <Card className="border-gray-800 bg-[#1A1A1A] shadow-lg" data-testid="model-leaderboard">
       <div className="flex items-center justify-between">
         <Title className="flex items-center gap-2 text-white">
           <Award className="h-5 w-5 text-[#76B900]" />
@@ -343,7 +336,10 @@ function ModelLeaderboardSection({ leaderboard, isLoading }: ModelLeaderboardSec
             {entries
               .sort((a, b) => b.contribution_rate - a.contribution_rate)
               .map((entry: AiAuditModelLeaderboardEntry, index: number) => (
-                <TableRow key={entry.model_name} data-testid={`leaderboard-row-${entry.model_name}`}>
+                <TableRow
+                  key={entry.model_name}
+                  data-testid={`leaderboard-row-${entry.model_name}`}
+                >
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-gray-400">{index + 1}</span>
@@ -439,10 +435,7 @@ function RecommendationsPanelSection({
   const highPriorityCount = items.filter((r) => r.priority === 'high').length;
 
   return (
-    <Card
-      className="border-gray-800 bg-[#1A1A1A] shadow-lg"
-      data-testid="recommendations-panel"
-    >
+    <Card className="border-gray-800 bg-[#1A1A1A] shadow-lg" data-testid="recommendations-panel">
       <div className="flex items-center justify-between">
         <Title className="flex items-center gap-2 text-white">
           <Lightbulb className="h-5 w-5 text-[#76B900]" />
@@ -563,10 +556,7 @@ function RecentEvaluationsTable({ stats, isLoading }: RecentEvaluationsTableProp
   const hasData = recentEvaluations.length > 0;
 
   return (
-    <Card
-      className="border-gray-800 bg-[#1A1A1A] shadow-lg"
-      data-testid="recent-evaluations"
-    >
+    <Card className="border-gray-800 bg-[#1A1A1A] shadow-lg" data-testid="recent-evaluations">
       <div className="flex items-center justify-between">
         <Title className="flex items-center gap-2 text-white">
           <Clock className="h-5 w-5 text-[#76B900]" />
@@ -591,7 +581,10 @@ function RecentEvaluationsTable({ stats, isLoading }: RecentEvaluationsTableProp
               const StatusIcon = statusBadge.icon;
 
               return (
-                <TableRow key={evaluation.eventId} data-testid={`evaluation-row-${evaluation.eventId}`}>
+                <TableRow
+                  key={evaluation.eventId}
+                  data-testid={`evaluation-row-${evaluation.eventId}`}
+                >
                   <TableCell className="font-medium text-[#76B900]">
                     #{evaluation.eventId}
                   </TableCell>
@@ -664,15 +657,13 @@ function RecentEvaluationsTable({ stats, isLoading }: RecentEvaluationsTableProp
  * - Recommendations panel for prompt improvements
  * - Recent evaluations table
  */
-export default function AIAuditDashboard({
-  periodDays = 7,
-  className,
-}: AIAuditDashboardProps) {
+export default function AIAuditDashboard({ periodDays = 7, className }: AIAuditDashboardProps) {
   // Data state
   const [stats, setStats] = useState<AiAuditStatsResponse | null>(null);
   const [leaderboard, setLeaderboard] = useState<AiAuditLeaderboardResponse | null>(null);
-  const [recommendations, setRecommendations] =
-    useState<AiAuditRecommendationsResponse | null>(null);
+  const [recommendations, setRecommendations] = useState<AiAuditRecommendationsResponse | null>(
+    null
+  );
 
   // UI state
   const [isLoading, setIsLoading] = useState(true);
@@ -729,10 +720,7 @@ export default function AIAuditDashboard({
   // Error state
   if (error && !stats) {
     return (
-      <div
-        className={clsx('min-h-[400px]', className)}
-        data-testid="ai-audit-dashboard-error"
-      >
+      <div className={clsx('min-h-[400px]', className)} data-testid="ai-audit-dashboard-error">
         <div className="flex h-full flex-col items-center justify-center rounded-lg border border-red-500/20 bg-red-500/10 p-12">
           <AlertCircle className="mb-4 h-12 w-12 text-red-500" />
           <h2 className="mb-2 text-xl font-bold text-red-500">Failed to Load Dashboard</h2>
@@ -783,8 +771,8 @@ export default function AIAuditDashboard({
           <Activity className="mb-4 h-16 w-16 text-gray-600" />
           <h3 className="mb-2 text-xl font-bold text-white">No Audit Data Available</h3>
           <p className="max-w-md text-sm text-gray-400">
-            AI audit data will appear here once events are processed and evaluated.
-            Trigger a batch audit to start analyzing model performance.
+            AI audit data will appear here once events are processed and evaluated. Trigger a batch
+            audit to start analyzing model performance.
           </p>
         </div>
       )}

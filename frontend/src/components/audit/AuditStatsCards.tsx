@@ -41,9 +41,7 @@ function StatCard({
   const interactiveClasses = onClick
     ? 'cursor-pointer hover:bg-[#2A2A2A] hover:border-gray-700'
     : '';
-  const activeClasses = isActive
-    ? 'ring-2 ring-[#76B900] border-[#76B900]'
-    : 'border-gray-800';
+  const activeClasses = isActive ? 'ring-2 ring-[#76B900] border-[#76B900]' : 'border-gray-800';
 
   const handleKeyDown = onClick
     ? (e: React.KeyboardEvent) => {

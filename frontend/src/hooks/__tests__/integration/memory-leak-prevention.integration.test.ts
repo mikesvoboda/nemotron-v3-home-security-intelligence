@@ -208,9 +208,7 @@ describe('Memory Leak Prevention', () => {
       unmount();
 
       // Should have added and removed online/offline listeners
-      const onlineAddCalls = addEventListenerSpy.mock.calls.filter(
-        ([event]) => event === 'online'
-      );
+      const onlineAddCalls = addEventListenerSpy.mock.calls.filter(([event]) => event === 'online');
       const offlineAddCalls = addEventListenerSpy.mock.calls.filter(
         ([event]) => event === 'offline'
       );

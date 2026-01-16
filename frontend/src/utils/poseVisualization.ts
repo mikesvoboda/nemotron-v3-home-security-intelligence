@@ -119,24 +119,24 @@ export const COCO_KEYPOINT_COUNT = 17;
  */
 export const COCO_SKELETON_CONNECTIONS: readonly SkeletonConnection[] = [
   // Head connections
-  { from: 0, to: 1 },   // nose -> left_eye
-  { from: 0, to: 2 },   // nose -> right_eye
-  { from: 1, to: 3 },   // left_eye -> left_ear
-  { from: 2, to: 4 },   // right_eye -> right_ear
+  { from: 0, to: 1 }, // nose -> left_eye
+  { from: 0, to: 2 }, // nose -> right_eye
+  { from: 1, to: 3 }, // left_eye -> left_ear
+  { from: 2, to: 4 }, // right_eye -> right_ear
 
   // Upper body - torso
-  { from: 5, to: 6 },   // left_shoulder -> right_shoulder
-  { from: 5, to: 11 },  // left_shoulder -> left_hip
-  { from: 6, to: 12 },  // right_shoulder -> right_hip
+  { from: 5, to: 6 }, // left_shoulder -> right_shoulder
+  { from: 5, to: 11 }, // left_shoulder -> left_hip
+  { from: 6, to: 12 }, // right_shoulder -> right_hip
   { from: 11, to: 12 }, // left_hip -> right_hip
 
   // Left arm
-  { from: 5, to: 7 },   // left_shoulder -> left_elbow
-  { from: 7, to: 9 },   // left_elbow -> left_wrist
+  { from: 5, to: 7 }, // left_shoulder -> left_elbow
+  { from: 7, to: 9 }, // left_elbow -> left_wrist
 
   // Right arm
-  { from: 6, to: 8 },   // right_shoulder -> right_elbow
-  { from: 8, to: 10 },  // right_elbow -> right_wrist
+  { from: 6, to: 8 }, // right_shoulder -> right_elbow
+  { from: 8, to: 10 }, // right_elbow -> right_wrist
 
   // Left leg
   { from: 11, to: 13 }, // left_hip -> left_knee
@@ -151,11 +151,11 @@ export const COCO_SKELETON_CONNECTIONS: readonly SkeletonConnection[] = [
  * Default color scheme for pose visualization.
  */
 export const DEFAULT_POSE_COLORS: PoseColorScheme = {
-  normal: '#60A5FA',        // light blue (tailwind blue-400)
+  normal: '#60A5FA', // light blue (tailwind blue-400)
   highConfidence: '#3B82F6', // bright blue (tailwind blue-500)
-  alert: '#EF4444',          // red (tailwind red-500)
-  skeleton: '#60A5FA',       // light blue for skeleton lines
-  skeletonAlert: '#EF4444',  // red for alert skeleton lines
+  alert: '#EF4444', // red (tailwind red-500)
+  skeleton: '#60A5FA', // light blue for skeleton lines
+  skeletonAlert: '#EF4444', // red for alert skeleton lines
 };
 
 /**

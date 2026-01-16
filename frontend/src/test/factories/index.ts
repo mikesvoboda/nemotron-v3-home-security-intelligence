@@ -270,9 +270,7 @@ export function gpuStatsFactoryList(
  * @param overrides - Partial HealthResponse object to override defaults
  * @returns Complete HealthResponse object
  */
-export function healthResponseFactory(
-  overrides: Partial<HealthResponse> = {}
-): HealthResponse {
+export function healthResponseFactory(overrides: Partial<HealthResponse> = {}): HealthResponse {
   return {
     status: 'healthy',
     services: {
@@ -295,9 +293,7 @@ export function healthResponseFactory(
  * @param overrides - Partial SystemStats object to override defaults
  * @returns Complete SystemStats object
  */
-export function systemStatsFactory(
-  overrides: Partial<SystemStats> = {}
-): SystemStats {
+export function systemStatsFactory(overrides: Partial<SystemStats> = {}): SystemStats {
   return {
     total_cameras: 4,
     total_events: 150,

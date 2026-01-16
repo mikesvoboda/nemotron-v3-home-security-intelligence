@@ -1,9 +1,7 @@
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import ServicesPanel, {
-  type ServicesPanelProps,
-} from './ServicesPanel';
+import ServicesPanel, { type ServicesPanelProps } from './ServicesPanel';
 
 // Mock the useServiceStatus hook
 vi.mock('../../hooks/useServiceStatus', () => ({
@@ -257,9 +255,17 @@ describe('ServicesPanel', () => {
   describe('restart functionality', () => {
     beforeEach(() => {
       // Mock window.confirm
-      vi.stubGlobal('confirm', vi.fn(() => true));
+      vi.stubGlobal(
+        'confirm',
+        vi.fn(() => true)
+      );
       vi.stubGlobal('alert', vi.fn());
-      mockRestartService.mockResolvedValue({ service: 'postgres', status: 'restarting', message: 'Service restarting', timestamp: '2025-01-01T12:00:00Z' });
+      mockRestartService.mockResolvedValue({
+        service: 'postgres',
+        status: 'restarting',
+        message: 'Service restarting',
+        timestamp: '2025-01-01T12:00:00Z',
+      });
     });
 
     afterEach(() => {
@@ -516,8 +522,12 @@ describe('ServicesPanel', () => {
 
       // Redis status comes from REST API (WebSocket mock has null for redis)
       expect(screen.getByTestId('service-status-badge-redis')).toHaveTextContent('Unhealthy');
-      expect(screen.getByTestId('service-status-badge-file_watcher')).toHaveTextContent('Unhealthy');
-      expect(screen.getByTestId('service-status-badge-batch_aggregator')).toHaveTextContent('Degraded');
+      expect(screen.getByTestId('service-status-badge-file_watcher')).toHaveTextContent(
+        'Unhealthy'
+      );
+      expect(screen.getByTestId('service-status-badge-batch_aggregator')).toHaveTextContent(
+        'Degraded'
+      );
 
       // Infrastructure should show 1/2 (postgres healthy, redis unhealthy)
       expect(screen.getByTestId('category-badge-infrastructure')).toHaveTextContent('1/2');
@@ -574,10 +584,14 @@ describe('ServicesPanel', () => {
       render(<ServicesPanel {...defaultProps} />);
 
       await waitFor(() => {
-        expect(screen.getByText('Primary database for events, detections, and system data')).toBeInTheDocument();
+        expect(
+          screen.getByText('Primary database for events, detections, and system data')
+        ).toBeInTheDocument();
       });
 
-      expect(screen.getByText('Cache and message queue for pipeline coordination')).toBeInTheDocument();
+      expect(
+        screen.getByText('Cache and message queue for pipeline coordination')
+      ).toBeInTheDocument();
       expect(screen.getByText('Real-time object detection model')).toBeInTheDocument();
     });
   });
@@ -606,7 +620,10 @@ describe('ServicesPanel', () => {
         expect(screen.getByTestId('service-restart-btn-postgres')).toBeInTheDocument();
       });
 
-      expect(screen.getByTestId('service-restart-btn-postgres')).toHaveAttribute('title', 'Restart service');
+      expect(screen.getByTestId('service-restart-btn-postgres')).toHaveAttribute(
+        'title',
+        'Restart service'
+      );
     });
   });
 

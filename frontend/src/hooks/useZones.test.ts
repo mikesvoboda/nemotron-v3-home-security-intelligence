@@ -9,11 +9,7 @@
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import {
-  useZonesQuery,
-  useZoneQuery,
-  useZoneMutation,
-} from './useZones';
+import { useZonesQuery, useZoneQuery, useZoneMutation } from './useZones';
 import * as api from '../services/api';
 import { createQueryClient, queryKeys } from '../services/queryClient';
 import { createQueryWrapper } from '../test-utils/renderWithProviders';
@@ -92,9 +88,7 @@ describe('useZonesQuery', () => {
     });
 
     it('starts with empty zones array', () => {
-      (api.fetchZones as ReturnType<typeof vi.fn>).mockReturnValue(
-        new Promise(() => {})
-      );
+      (api.fetchZones as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => {}));
 
       const { result } = renderHook(() => useZonesQuery('cam-123'), {
         wrapper: createQueryWrapper(),
@@ -157,9 +151,7 @@ describe('useZonesQuery', () => {
 
     it('sets error on fetch failure', async () => {
       const errorMessage = 'Failed to fetch zones';
-      (api.fetchZones as ReturnType<typeof vi.fn>).mockRejectedValue(
-        new Error(errorMessage)
-      );
+      (api.fetchZones as ReturnType<typeof vi.fn>).mockRejectedValue(new Error(errorMessage));
 
       const { result } = renderHook(() => useZonesQuery('cam-123'), {
         wrapper: createQueryWrapper(),
@@ -235,7 +227,11 @@ describe('useZoneQuery', () => {
     camera_id: 'cam-123',
     name: 'Test Zone',
     zone_type: 'entry_point',
-    coordinates: [[0, 0], [100, 100], [100, 0]],
+    coordinates: [
+      [0, 0],
+      [100, 100],
+      [100, 0],
+    ],
     shape: 'polygon',
     color: '#FF0000',
     enabled: true,
@@ -347,7 +343,11 @@ describe('useZoneMutation', () => {
       const zoneData: ZoneCreate = {
         name: 'New Zone',
         zone_type: 'entry_point',
-        coordinates: [[0, 0], [100, 100], [100, 0]],
+        coordinates: [
+          [0, 0],
+          [100, 100],
+          [100, 0],
+        ],
         color: '#3B82F6',
         enabled: true,
         priority: 0,
@@ -387,7 +387,11 @@ describe('useZoneMutation', () => {
       const zoneData: ZoneCreate = {
         name: 'New Zone',
         zone_type: 'entry_point',
-        coordinates: [[0, 0], [100, 100], [100, 0]],
+        coordinates: [
+          [0, 0],
+          [100, 100],
+          [100, 0],
+        ],
         color: '#3B82F6',
         enabled: true,
         priority: 0,
@@ -442,7 +446,11 @@ describe('useZoneMutation', () => {
           data: {
             name: 'Test',
             zone_type: 'entry_point',
-            coordinates: [[0, 0], [100, 0], [100, 100]],
+            coordinates: [
+              [0, 0],
+              [100, 0],
+              [100, 100],
+            ],
             color: '#3B82F6',
             enabled: true,
             priority: 0,
@@ -478,7 +486,11 @@ describe('useZoneMutation', () => {
             data: {
               name: 'New Zone',
               zone_type: 'entry_point',
-              coordinates: [[0, 0], [100, 0], [100, 100]],
+              coordinates: [
+                [0, 0],
+                [100, 0],
+                [100, 100],
+              ],
               color: '#3B82F6',
               enabled: true,
               priority: 0,
@@ -593,7 +605,11 @@ describe('useZoneMutation', () => {
       const queryClient = createQueryClient();
       const existingZone = createMockZone({
         id: 'zone-123',
-        coordinates: [[0, 0], [100, 100], [100, 0]],
+        coordinates: [
+          [0, 0],
+          [100, 100],
+          [100, 0],
+        ],
       });
       queryClient.setQueryData(
         queryKeys.cameras.zones('cam-123'),
@@ -807,9 +823,7 @@ describe('useZoneMutation', () => {
 
   describe('mutation lifecycle callbacks', () => {
     it('onMutate cancels outgoing queries', async () => {
-      (api.createZone as ReturnType<typeof vi.fn>).mockResolvedValue(
-        createMockZone()
-      );
+      (api.createZone as ReturnType<typeof vi.fn>).mockResolvedValue(createMockZone());
 
       const queryClient = createQueryClient();
       const cancelSpy = vi.spyOn(queryClient, 'cancelQueries');
@@ -824,7 +838,11 @@ describe('useZoneMutation', () => {
           data: {
             name: 'Test',
             zone_type: 'entry_point',
-            coordinates: [[0, 0], [100, 0], [100, 100]],
+            coordinates: [
+              [0, 0],
+              [100, 0],
+              [100, 100],
+            ],
             color: '#3B82F6',
             enabled: true,
             priority: 0,
@@ -856,7 +874,11 @@ describe('useZoneMutation', () => {
             data: {
               name: 'Test',
               zone_type: 'entry_point',
-              coordinates: [[0, 0], [100, 0], [100, 100]],
+              coordinates: [
+                [0, 0],
+                [100, 0],
+                [100, 100],
+              ],
               color: '#3B82F6',
               enabled: true,
               priority: 0,

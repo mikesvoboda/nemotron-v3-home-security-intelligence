@@ -11,11 +11,7 @@ import {
 } from '../../stores/dashboardConfig';
 import AnimatedModal from '../common/AnimatedModal';
 
-import type {
-  DashboardConfig,
-  WidgetConfig,
-  WidgetId,
-} from '../../stores/dashboardConfig';
+import type { DashboardConfig, WidgetConfig, WidgetId } from '../../stores/dashboardConfig';
 
 // ============================================================================
 // Types
@@ -112,16 +108,10 @@ export default function DashboardConfigModal({
             <Settings2 className="h-5 w-5 text-[#76B900]" aria-hidden="true" />
           </div>
           <div>
-            <h2
-              id="config-modal-title"
-              className="text-lg font-semibold text-white"
-            >
+            <h2 id="config-modal-title" className="text-lg font-semibold text-white">
               Customize Dashboard
             </h2>
-            <p
-              id="config-modal-description"
-              className="text-sm text-gray-400"
-            >
+            <p id="config-modal-description" className="text-sm text-gray-400">
               Toggle widgets and change display order
             </p>
           </div>
@@ -137,10 +127,7 @@ export default function DashboardConfigModal({
       </div>
 
       {/* Widget List */}
-      <div
-        className="max-h-[60vh] overflow-y-auto p-6"
-        data-testid="widget-list"
-      >
+      <div className="max-h-[60vh] overflow-y-auto p-6" data-testid="widget-list">
         <div className="space-y-3">
           {editConfig.widgets.map((widget, index) => (
             <WidgetConfigRow
@@ -238,10 +225,7 @@ function WidgetConfigRow({
       {/* Widget Info */}
       <div className="min-w-0 flex-1">
         <h3
-          className={clsx(
-            'text-sm font-medium',
-            widget.visible ? 'text-white' : 'text-gray-400'
-          )}
+          className={clsx('text-sm font-medium', widget.visible ? 'text-white' : 'text-gray-400')}
         >
           {widget.name}
         </h3>

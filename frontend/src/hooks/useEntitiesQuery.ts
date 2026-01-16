@@ -168,9 +168,7 @@ function timeRangeToSince(timeRange: TimeRangeFilter): string | undefined {
  * });
  * ```
  */
-export function useEntitiesQuery(
-  options: UseEntitiesQueryOptions = {}
-): UseEntitiesQueryReturn {
+export function useEntitiesQuery(options: UseEntitiesQueryOptions = {}): UseEntitiesQueryReturn {
   const {
     entityType = 'all',
     cameraId,

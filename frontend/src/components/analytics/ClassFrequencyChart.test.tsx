@@ -41,13 +41,7 @@ describe('ClassFrequencyChart', () => {
   });
 
   it('shows empty state when no entries', () => {
-    render(
-      <ClassFrequencyChart
-        entries={[]}
-        uniqueClasses={[]}
-        mostCommonClass={null}
-      />
-    );
+    render(<ClassFrequencyChart entries={[]} uniqueClasses={[]} mostCommonClass={null} />);
 
     expect(screen.getByText(/No object class data available/)).toBeInTheDocument();
   });

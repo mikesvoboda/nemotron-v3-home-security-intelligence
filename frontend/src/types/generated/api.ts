@@ -2689,12 +2689,17 @@ export interface paths {
         };
         /**
          * Stream Detection Video
-         * @description Stream detection video with HTTP Range request support.
+         * @description Stream detection video with HTTP Range request support and transcoding.
          *
          *     This endpoint is exempt from API key authentication because:
          *     1. It serves video content accessed directly by browsers via <video> tags
          *     2. Detection IDs are not predictable (integer IDs require prior knowledge)
          *     3. It has rate limiting to prevent abuse
+         *
+         *     NEM-2681: Videos are automatically transcoded to browser-compatible H.264/MP4
+         *     format. Transcoded videos are cached to avoid re-transcoding on subsequent
+         *     requests. Videos that are already browser-compatible (H.264 MP4) are served
+         *     directly without transcoding.
          *
          *     Supports partial content requests for video seeking and efficient playback.
          *     Returns 206 Partial Content for range requests, 200 OK for full content.
@@ -2703,13 +2708,16 @@ export interface paths {
          *         detection_id: Detection ID
          *         range_header: HTTP Range header for partial content requests
          *         db: Database session
+         *         transcoding_service: Service for transcoding videos to browser-compatible format
          *
          *     Returns:
-         *         StreamingResponse with video content
+         *         StreamingResponse with browser-compatible video content
          *
          *     Raises:
-         *         HTTPException: 404 if detection not found or not a video
+         *         HTTPException: 400 if detection is not a video
+         *         HTTPException: 404 if detection not found or video file not found
          *         HTTPException: 416 if range is not satisfiable
+         *         HTTPException: 500 if transcoding fails
          */
         get: operations["stream_detection_video_api_detections__detection_id__video_get"];
         put?: never;
@@ -3018,6 +3026,72 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/entities/trusted": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Trusted Entities
+         * @description List all trusted entities.
+         *
+         *     Returns a paginated list of entities that have been marked as trusted.
+         *     Trusted entities are those that have been classified as known/safe,
+         *     such as family members, regular visitors, or delivery personnel.
+         *
+         *     Args:
+         *         entity_type: Filter by entity type ('person' or 'vehicle')
+         *         limit: Maximum number of results (1-1000, default 50)
+         *         offset: Number of results to skip for pagination (default 0)
+         *         entity_repo: Entity repository dependency for PostgreSQL queries
+         *
+         *     Returns:
+         *         TrustedEntityListResponse with filtered trusted entities and pagination info
+         */
+        get: operations["list_trusted_entities_api_entities_trusted_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/entities/untrusted": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Untrusted Entities
+         * @description List all untrusted entities.
+         *
+         *     Returns a paginated list of entities that have been marked as untrusted.
+         *     Untrusted entities are those that have been classified as unknown or suspicious,
+         *     requiring additional monitoring.
+         *
+         *     Args:
+         *         entity_type: Filter by entity type ('person' or 'vehicle')
+         *         limit: Maximum number of results (1-1000, default 50)
+         *         offset: Number of results to skip for pagination (default 0)
+         *         entity_repo: Entity repository dependency for PostgreSQL queries
+         *
+         *     Returns:
+         *         TrustedEntityListResponse with filtered untrusted entities and pagination info
+         */
+        get: operations["list_untrusted_entities_api_entities_untrusted_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/entities/v2": {
         parameters: {
             query?: never;
@@ -3187,6 +3261,41 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/entities/{entity_id}/trust": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Entity Trust
+         * @description Update an entity's trust classification status.
+         *
+         *     Allows marking entities as trusted (known/safe), untrusted (suspicious),
+         *     or unclassified (default). Includes optional notes for documenting
+         *     the classification decision.
+         *
+         *     Args:
+         *         entity_id: UUID of the entity to update
+         *         trust_update: Trust status update request containing trust_status and optional notes
+         *         entity_repo: Entity repository dependency for PostgreSQL queries
+         *
+         *     Returns:
+         *         EntityTrustResponse with updated trust information
+         *
+         *     Raises:
+         *         HTTPException: 404 if entity not found
+         */
+        patch: operations["update_entity_trust_api_entities__entity_id__trust_patch"];
         trace?: never;
     };
     "/api/events": {
@@ -10868,6 +10977,16 @@ export interface components {
              * @description URL to the most recent thumbnail image
              */
             thumbnail_url?: string | null;
+            /**
+             * Trust Status
+             * @description Trust classification: 'trusted', 'untrusted', or 'unclassified'
+             */
+            trust_status?: string | null;
+            /**
+             * Trust Updated At
+             * @description When the trust status was last updated
+             */
+            trust_updated_at?: string | null;
         };
         /**
          * EntityDetectionsResponse
@@ -11201,7 +11320,9 @@ export interface components {
          *       "first_seen": "2025-12-23T10:00:00Z",
          *       "id": "entity_abc123",
          *       "last_seen": "2025-12-23T14:30:00Z",
-         *       "thumbnail_url": "/api/detections/123/image"
+         *       "thumbnail_url": "/api/detections/123/image",
+         *       "trust_status": "trusted",
+         *       "trust_updated_at": "2025-12-23T14:30:00Z"
          *     }
          */
         EntitySummary: {
@@ -11242,6 +11363,96 @@ export interface components {
              * @description URL to the most recent thumbnail image
              */
             thumbnail_url?: string | null;
+            /**
+             * Trust Status
+             * @description Trust classification: 'trusted', 'untrusted', or 'unclassified'
+             */
+            trust_status?: string | null;
+            /**
+             * Trust Updated At
+             * @description When the trust status was last updated
+             */
+            trust_updated_at?: string | null;
+        };
+        /**
+         * EntityTrustResponse
+         * @description Schema for entity trust status response.
+         *
+         *     Response from PATCH /api/entities/{entity_id}/trust endpoint and list endpoints.
+         * @example {
+         *       "appearance_count": 5,
+         *       "entity_type": "person",
+         *       "first_seen": "2025-12-23T10:00:00Z",
+         *       "id": "550e8400-e29b-41d4-a716-446655440000",
+         *       "last_seen": "2025-12-23T14:30:00Z",
+         *       "thumbnail_url": "/api/detections/123/image",
+         *       "trust_notes": "Regular mail carrier, verified by homeowner",
+         *       "trust_status": "trusted",
+         *       "trust_updated_at": "2025-12-23T14:30:00Z"
+         *     }
+         */
+        EntityTrustResponse: {
+            /**
+             * Appearance Count
+             * @description Total number of appearances
+             */
+            appearance_count?: number | null;
+            /**
+             * Entity Type
+             * @description Type of entity: person, vehicle, etc.
+             */
+            entity_type: string;
+            /**
+             * First Seen
+             * @description Timestamp of first appearance
+             */
+            first_seen?: string | null;
+            /**
+             * Id
+             * @description Unique entity identifier (UUID)
+             */
+            id: string;
+            /**
+             * Last Seen
+             * @description Timestamp of most recent appearance
+             */
+            last_seen?: string | null;
+            /**
+             * Thumbnail Url
+             * @description URL to thumbnail image
+             */
+            thumbnail_url?: string | null;
+            /**
+             * Trust Notes
+             * @description Notes about the trust classification
+             */
+            trust_notes?: string | null;
+            /** @description Current trust classification status */
+            trust_status: components["schemas"]["TrustStatus"];
+            /**
+             * Trust Updated At
+             * @description When the trust status was last updated
+             */
+            trust_updated_at?: string | null;
+        };
+        /**
+         * EntityTrustUpdate
+         * @description Schema for updating an entity's trust status.
+         *
+         *     Request body for PATCH /api/entities/{entity_id}/trust endpoint.
+         * @example {
+         *       "notes": "Regular mail carrier, verified by homeowner",
+         *       "trust_status": "trusted"
+         *     }
+         */
+        EntityTrustUpdate: {
+            /**
+             * Notes
+             * @description Optional notes explaining the trust classification decision
+             */
+            notes?: string | null;
+            /** @description The trust classification to assign to the entity */
+            trust_status: components["schemas"]["TrustStatus"];
         };
         /**
          * EntityTypeFilter
@@ -11781,6 +11992,11 @@ export interface components {
              * @description Normalized camera ID (e.g., 'front_door')
              */
             camera_id: string;
+            /**
+             * Deleted At
+             * @description Timestamp when the event was soft-deleted (null if not deleted)
+             */
+            deleted_at?: string | null;
             /**
              * Detection Count
              * @description Number of detections in this event
@@ -19207,6 +19423,51 @@ export interface components {
          */
         TimeRange: "5m" | "15m" | "60m";
         /**
+         * TrustStatus
+         * @description Trust classification status for entities.
+         *
+         *     Entities can be classified as trusted (known/safe), untrusted (unknown/suspicious),
+         *     or unclassified (no classification assigned yet).
+         * @enum {string}
+         */
+        TrustStatus: "trusted" | "untrusted" | "unclassified";
+        /**
+         * TrustedEntityListResponse
+         * @description Schema for paginated list of trusted or untrusted entities.
+         *
+         *     Response from GET /api/entities/trusted and GET /api/entities/untrusted endpoints.
+         * @example {
+         *       "items": [
+         *         {
+         *           "appearance_count": 5,
+         *           "entity_type": "person",
+         *           "first_seen": "2025-12-23T10:00:00Z",
+         *           "id": "550e8400-e29b-41d4-a716-446655440000",
+         *           "last_seen": "2025-12-23T14:30:00Z",
+         *           "thumbnail_url": "/api/detections/123/image",
+         *           "trust_notes": "Mail carrier",
+         *           "trust_status": "trusted",
+         *           "trust_updated_at": "2025-12-23T14:30:00Z"
+         *         }
+         *       ],
+         *       "pagination": {
+         *         "has_more": false,
+         *         "limit": 50,
+         *         "offset": 0,
+         *         "total": 1
+         *       }
+         *     }
+         */
+        TrustedEntityListResponse: {
+            /**
+             * Items
+             * @description List of entities with their trust status
+             */
+            items: components["schemas"]["EntityTrustResponse"][];
+            /** @description Pagination metadata */
+            pagination: components["schemas"]["PaginationInfo"];
+        };
+        /**
          * UserCalibrationResponse
          * @description Schema for user calibration response.
          *
@@ -23634,6 +23895,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Transcoding failed */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     get_video_thumbnail_api_detections__detection_id__video_thumbnail_get: {
@@ -24045,6 +24313,88 @@ export interface operations {
             };
         };
     };
+    list_trusted_entities_api_entities_trusted_get: {
+        parameters: {
+            query?: {
+                /** @description Filter by entity type: 'person' or 'vehicle' */
+                entity_type?: components["schemas"]["EntityTypeFilter"] | null;
+                /** @description Maximum number of results */
+                limit?: number;
+                /** @description Number of results to skip */
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustedEntityListResponse"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    list_untrusted_entities_api_entities_untrusted_get: {
+        parameters: {
+            query?: {
+                /** @description Filter by entity type: 'person' or 'vehicle' */
+                entity_type?: components["schemas"]["EntityTypeFilter"] | null;
+                /** @description Maximum number of results */
+                limit?: number;
+                /** @description Number of results to skip */
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustedEntityListResponse"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     list_entities_v2_api_entities_v2_get: {
         parameters: {
             query?: {
@@ -24269,6 +24619,53 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    update_entity_trust_api_entities__entity_id__trust_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                entity_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EntityTrustUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EntityTrustResponse"];
+                };
+            };
+            /** @description Entity not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Internal server error */
             500: {

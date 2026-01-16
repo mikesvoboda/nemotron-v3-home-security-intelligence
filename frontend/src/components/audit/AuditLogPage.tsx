@@ -142,59 +142,65 @@ export default function AuditLogPage({ className = '' }: AuditLogPageProps) {
   };
 
   // Handle stats card filter click
-  const handleStatsFilterClick = useCallback((filterType: StatsFilterType) => {
-    // Toggle behavior: click active filter to clear it
-    if (activeStatsFilter === filterType) {
-      // Clear the filter
-      setActiveStatsFilter(null);
-      setActiveActionFilter(null);
-      setControlledFilters({});
-      return;
-    }
-
-    // Clear any action filter when clicking a stats card
-    setActiveActionFilter(null);
-    setActiveStatsFilter(filterType);
-
-    // Apply the appropriate filter based on card type
-    switch (filterType) {
-      case 'total':
-        // Clear all filters
+  const handleStatsFilterClick = useCallback(
+    (filterType: StatsFilterType) => {
+      // Toggle behavior: click active filter to clear it
+      if (activeStatsFilter === filterType) {
+        // Clear the filter
+        setActiveStatsFilter(null);
+        setActiveActionFilter(null);
         setControlledFilters({});
-        break;
-      case 'today':
-        // Filter to today's date
-        setControlledFilters({
-          startDate: getTodayDateString(),
-          endDate: getTodayDateString(),
-        });
-        break;
-      case 'success':
-        // Filter by status=success
-        setControlledFilters({ status: 'success' });
-        break;
-      case 'failure':
-        // Filter by status=failure
-        setControlledFilters({ status: 'failure' });
-        break;
-    }
-  }, [activeStatsFilter]);
+        return;
+      }
+
+      // Clear any action filter when clicking a stats card
+      setActiveActionFilter(null);
+      setActiveStatsFilter(filterType);
+
+      // Apply the appropriate filter based on card type
+      switch (filterType) {
+        case 'total':
+          // Clear all filters
+          setControlledFilters({});
+          break;
+        case 'today':
+          // Filter to today's date
+          setControlledFilters({
+            startDate: getTodayDateString(),
+            endDate: getTodayDateString(),
+          });
+          break;
+        case 'success':
+          // Filter by status=success
+          setControlledFilters({ status: 'success' });
+          break;
+        case 'failure':
+          // Filter by status=failure
+          setControlledFilters({ status: 'failure' });
+          break;
+      }
+    },
+    [activeStatsFilter]
+  );
 
   // Handle action badge click
-  const handleActionClick = useCallback((action: string) => {
-    // Toggle behavior: click active filter to clear it
-    if (activeActionFilter === action) {
-      setActiveActionFilter(null);
-      setControlledFilters({});
-      setActiveStatsFilter(null);
-      return;
-    }
+  const handleActionClick = useCallback(
+    (action: string) => {
+      // Toggle behavior: click active filter to clear it
+      if (activeActionFilter === action) {
+        setActiveActionFilter(null);
+        setControlledFilters({});
+        setActiveStatsFilter(null);
+        return;
+      }
 
-    // Clear any stats filter when clicking an action badge
-    setActiveStatsFilter(null);
-    setActiveActionFilter(action);
-    setControlledFilters({ action });
-  }, [activeActionFilter]);
+      // Clear any stats filter when clicking an action badge
+      setActiveStatsFilter(null);
+      setActiveActionFilter(action);
+      setControlledFilters({ action });
+    },
+    [activeActionFilter]
+  );
 
   return (
     <div className={`flex flex-col ${className}`}>
@@ -225,8 +231,8 @@ export default function AuditLogPage({ className = '' }: AuditLogPageProps) {
           <div>
             <h3 className="font-medium text-blue-300">What gets logged</h3>
             <p className="mt-1 text-sm text-gray-300">
-              The audit log automatically records system operations for security and
-              compliance purposes. Actions that create audit entries include:
+              The audit log automatically records system operations for security and compliance
+              purposes. Actions that create audit entries include:
             </p>
             <ul className="mt-2 grid grid-cols-1 gap-x-6 gap-y-1 text-sm text-gray-400 sm:grid-cols-2">
               <li className="flex items-center gap-2">
@@ -275,7 +281,9 @@ export default function AuditLogPage({ className = '' }: AuditLogPageProps) {
         <AuditFilters
           onFilterChange={handleFilterChange}
           availableActions={stats?.by_action ? Object.keys(stats.by_action) : []}
-          availableResourceTypes={stats?.by_resource_type ? Object.keys(stats.by_resource_type) : []}
+          availableResourceTypes={
+            stats?.by_resource_type ? Object.keys(stats.by_resource_type) : []
+          }
           availableActors={stats?.recent_actors || []}
           controlledFilters={controlledFilters}
         />

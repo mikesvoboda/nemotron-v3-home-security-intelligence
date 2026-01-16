@@ -4,11 +4,7 @@
 
 import { describe, it, expect } from 'vitest';
 
-import {
-  cameraFactory,
-  eventFactory,
-  detectionFactory,
-} from './factories';
+import { cameraFactory, eventFactory, detectionFactory } from './factories';
 import {
   expectRiskLevel,
   expectValidCamera,
@@ -211,58 +207,34 @@ describe('expectTimestampBefore', () => {
 
 describe('expectSortedBy', () => {
   it('validates ascending sort', () => {
-    const items = [
-      { value: 1 },
-      { value: 2 },
-      { value: 3 },
-    ];
+    const items = [{ value: 1 }, { value: 2 }, { value: 3 }];
     expect(() => expectSortedBy(items, 'value', 'asc')).not.toThrow();
   });
 
   it('validates descending sort', () => {
-    const items = [
-      { value: 3 },
-      { value: 2 },
-      { value: 1 },
-    ];
+    const items = [{ value: 3 }, { value: 2 }, { value: 1 }];
     expect(() => expectSortedBy(items, 'value', 'desc')).not.toThrow();
   });
 
   it('throws for unsorted array', () => {
-    const items = [
-      { value: 1 },
-      { value: 3 },
-      { value: 2 },
-    ];
+    const items = [{ value: 1 }, { value: 3 }, { value: 2 }];
     expect(() => expectSortedBy(items, 'value', 'asc')).toThrow();
   });
 
   it('handles equal values', () => {
-    const items = [
-      { value: 1 },
-      { value: 1 },
-      { value: 2 },
-    ];
+    const items = [{ value: 1 }, { value: 1 }, { value: 2 }];
     expect(() => expectSortedBy(items, 'value', 'asc')).not.toThrow();
   });
 });
 
 describe('expectUniqueBy', () => {
   it('validates unique values', () => {
-    const items = [
-      { id: 1 },
-      { id: 2 },
-      { id: 3 },
-    ];
+    const items = [{ id: 1 }, { id: 2 }, { id: 3 }];
     expect(() => expectUniqueBy(items, 'id')).not.toThrow();
   });
 
   it('throws for duplicate values', () => {
-    const items = [
-      { id: 1 },
-      { id: 2 },
-      { id: 1 },
-    ];
+    const items = [{ id: 1 }, { id: 2 }, { id: 1 }];
     expect(() => expectUniqueBy(items, 'id')).toThrow();
   });
 });

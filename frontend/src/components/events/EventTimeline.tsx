@@ -1,12 +1,4 @@
-import {
-  ArrowDownUp,
-  Calendar,
-  CheckSquare,
-  Clock,
-  Download,
-  Filter,
-  Square,
-} from 'lucide-react';
+import { ArrowDownUp, Calendar, CheckSquare, Clock, Download, Filter, Square } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
@@ -125,7 +117,12 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
   const error = queryError?.message ?? bulkActionError;
 
   // Use infinite scroll hook
-  const { sentinelRef, isLoadingMore, error: scrollError, retry } = useInfiniteScroll({
+  const {
+    sentinelRef,
+    isLoadingMore,
+    error: scrollError,
+    retry,
+  } = useInfiniteScroll({
     onLoadMore: fetchNextPage,
     hasMore: hasNextPage,
     isLoading: isFetchingNextPage,
@@ -215,50 +212,53 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
   };
 
   // Handle full-text search
-  const handleFullTextSearch = useCallback(async (query: string, filters: SearchFilters) => {
-    if (!query.trim()) return;
+  const handleFullTextSearch = useCallback(
+    async (query: string, filters: SearchFilters) => {
+      if (!query.trim()) return;
 
-    // Increment request ID to track this request
-    const requestId = ++searchRequestIdRef.current;
+      // Increment request ID to track this request
+      const requestId = ++searchRequestIdRef.current;
 
-    setIsSearchMode(true);
-    setIsSearching(true);
-    setSearchError(null);
-    setFullTextQuery(query);
-    setSearchFilters(filters);
-    searchPagination.goToFirstPage(); // Reset to page 1 on new search
+      setIsSearchMode(true);
+      setIsSearching(true);
+      setSearchError(null);
+      setFullTextQuery(query);
+      setSearchFilters(filters);
+      searchPagination.goToFirstPage(); // Reset to page 1 on new search
 
-    try {
-      const response = await searchEvents({
-        q: query,
-        camera_id: filters.camera_id,
-        start_date: filters.start_date,
-        end_date: filters.end_date,
-        severity: filters.severity,
-        object_type: filters.object_type,
-        reviewed: filters.reviewed,
-        limit: searchPagination.limit,
-        offset: 0,
-      });
-      // Only update state if this is still the latest request
-      if (requestId === searchRequestIdRef.current) {
-        setSearchResults(response.results);
-        setSearchTotalCount(response.total_count);
+      try {
+        const response = await searchEvents({
+          q: query,
+          camera_id: filters.camera_id,
+          start_date: filters.start_date,
+          end_date: filters.end_date,
+          severity: filters.severity,
+          object_type: filters.object_type,
+          reviewed: filters.reviewed,
+          limit: searchPagination.limit,
+          offset: 0,
+        });
+        // Only update state if this is still the latest request
+        if (requestId === searchRequestIdRef.current) {
+          setSearchResults(response.results);
+          setSearchTotalCount(response.total_count);
+        }
+      } catch (err) {
+        // Only update error state if this is still the latest request
+        if (requestId === searchRequestIdRef.current) {
+          setSearchError(err instanceof Error ? err.message : 'Search failed');
+          setSearchResults([]);
+          setSearchTotalCount(0);
+        }
+      } finally {
+        // Only update loading state if this is still the latest request
+        if (requestId === searchRequestIdRef.current) {
+          setIsSearching(false);
+        }
       }
-    } catch (err) {
-      // Only update error state if this is still the latest request
-      if (requestId === searchRequestIdRef.current) {
-        setSearchError(err instanceof Error ? err.message : 'Search failed');
-        setSearchResults([]);
-        setSearchTotalCount(0);
-      }
-    } finally {
-      // Only update loading state if this is still the latest request
-      if (requestId === searchRequestIdRef.current) {
-        setIsSearching(false);
-      }
-    }
-  }, [searchPagination]);
+    },
+    [searchPagination]
+  );
 
   // Handle search pagination - converts offset to page number
   const handleSearchPageChange = useCallback(
@@ -355,7 +355,9 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
 
       if (result.failed.length > 0) {
         console.error('Some events failed to update:', result.failed);
-        setBulkActionError(`Updated ${result.successful.length} events, but ${result.failed.length} failed`);
+        setBulkActionError(
+          `Updated ${result.successful.length} events, but ${result.failed.length} failed`
+        );
       }
 
       // Refetch events to reflect changes
@@ -381,7 +383,9 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
 
       if (result.failed.length > 0) {
         console.error('Some events failed to update:', result.failed);
-        setBulkActionError(`Updated ${result.successful.length} events, but ${result.failed.length} failed`);
+        setBulkActionError(
+          `Updated ${result.successful.length} events, but ${result.failed.length} failed`
+        );
       }
 
       // Refetch events to reflect changes
@@ -716,7 +720,11 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
                   <select
                     id="reviewed-filter"
                     value={
-                      eventFilters.reviewed === undefined ? '' : eventFilters.reviewed ? 'true' : 'false'
+                      eventFilters.reviewed === undefined
+                        ? ''
+                        : eventFilters.reviewed
+                          ? 'true'
+                          : 'false'
                     }
                     onChange={(e) =>
                       handleFilterChange(

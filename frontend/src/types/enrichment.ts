@@ -20,7 +20,16 @@
 /**
  * Known vehicle types from the classification model.
  */
-export const VEHICLE_TYPES = ['sedan', 'SUV', 'pickup', 'van', 'truck', 'motorcycle', 'bus', 'other'] as const;
+export const VEHICLE_TYPES = [
+  'sedan',
+  'SUV',
+  'pickup',
+  'van',
+  'truck',
+  'motorcycle',
+  'bus',
+  'other',
+] as const;
 
 /**
  * Vehicle type literal union.
@@ -30,7 +39,14 @@ export type VehicleType = (typeof VEHICLE_TYPES)[number];
 /**
  * Known vehicle damage types.
  */
-export const VEHICLE_DAMAGE_TYPES = ['cracks', 'dents', 'glass_shatter', 'lamp_broken', 'scratches', 'tire_flat'] as const;
+export const VEHICLE_DAMAGE_TYPES = [
+  'cracks',
+  'dents',
+  'glass_shatter',
+  'lamp_broken',
+  'scratches',
+  'tire_flat',
+] as const;
 
 /**
  * Vehicle damage type literal union.
@@ -95,7 +111,14 @@ export interface PetEnrichment {
 /**
  * Known person actions/poses.
  */
-export const PERSON_ACTIONS = ['walking', 'standing', 'crouching', 'running', 'sitting', 'lying_down'] as const;
+export const PERSON_ACTIONS = [
+  'walking',
+  'standing',
+  'crouching',
+  'running',
+  'sitting',
+  'lying_down',
+] as const;
 
 /**
  * Person action literal union.
@@ -105,7 +128,14 @@ export type PersonAction = (typeof PERSON_ACTIONS)[number];
 /**
  * Known items a person might be carrying.
  */
-export const CARRYING_ITEMS = ['backpack', 'package', 'bag', 'briefcase', 'suitcase', 'none'] as const;
+export const CARRYING_ITEMS = [
+  'backpack',
+  'package',
+  'bag',
+  'briefcase',
+  'suitcase',
+  'none',
+] as const;
 
 /**
  * Carrying item literal union.
@@ -197,7 +227,17 @@ export interface LicensePlateEnrichment {
 /**
  * Known weather conditions.
  */
-export const WEATHER_CONDITIONS = ['clear', 'cloudy', 'rain', 'snow', 'fog', 'haze', 'night', 'dusk', 'dawn'] as const;
+export const WEATHER_CONDITIONS = [
+  'clear',
+  'cloudy',
+  'rain',
+  'snow',
+  'fog',
+  'haze',
+  'night',
+  'dusk',
+  'dawn',
+] as const;
 
 /**
  * Weather condition literal union.
@@ -224,7 +264,15 @@ export interface WeatherEnrichment {
 /**
  * Known posture classifications from ViTPose.
  */
-export const POSTURE_TYPES = ['standing', 'walking', 'running', 'sitting', 'crouching', 'lying_down', 'unknown'] as const;
+export const POSTURE_TYPES = [
+  'standing',
+  'walking',
+  'running',
+  'sitting',
+  'crouching',
+  'lying_down',
+  'unknown',
+] as const;
 
 /**
  * Posture type literal union.
@@ -288,7 +336,15 @@ export interface PoseEnrichment {
 /**
  * Known image quality issues.
  */
-export const IMAGE_QUALITY_ISSUES = ['blur', 'low_light', 'overexposed', 'underexposed', 'noise', 'motion_blur', 'compression_artifacts'] as const;
+export const IMAGE_QUALITY_ISSUES = [
+  'blur',
+  'low_light',
+  'overexposed',
+  'underexposed',
+  'noise',
+  'motion_blur',
+  'compression_artifacts',
+] as const;
 
 /**
  * Image quality issue literal union.
@@ -419,9 +475,7 @@ export function isPoseEnrichment(value: unknown): value is PoseEnrichment {
   if (typeof value !== 'object' || value === null) return false;
   const obj = value as Record<string, unknown>;
   return (
-    typeof obj.posture === 'string' &&
-    Array.isArray(obj.alerts) &&
-    Array.isArray(obj.keypoints)
+    typeof obj.posture === 'string' && Array.isArray(obj.alerts) && Array.isArray(obj.keypoints)
   );
 }
 
@@ -433,13 +487,27 @@ export function isEnrichmentData(value: unknown): value is EnrichmentData {
   const obj = value as Record<string, unknown>;
 
   // All fields are optional, so we just check that present fields are valid
-  if (obj.vehicle !== undefined && obj.vehicle !== null && !isVehicleEnrichment(obj.vehicle)) return false;
+  if (obj.vehicle !== undefined && obj.vehicle !== null && !isVehicleEnrichment(obj.vehicle))
+    return false;
   if (obj.pet !== undefined && obj.pet !== null && !isPetEnrichment(obj.pet)) return false;
-  if (obj.person !== undefined && obj.person !== null && !isPersonEnrichment(obj.person)) return false;
-  if (obj.posture !== undefined && obj.posture !== null && !isPostureEnrichment(obj.posture)) return false;
-  if (obj.license_plate !== undefined && obj.license_plate !== null && !isLicensePlateEnrichment(obj.license_plate)) return false;
-  if (obj.weather !== undefined && obj.weather !== null && !isWeatherEnrichment(obj.weather)) return false;
-  if (obj.image_quality !== undefined && obj.image_quality !== null && !isImageQualityEnrichment(obj.image_quality)) return false;
+  if (obj.person !== undefined && obj.person !== null && !isPersonEnrichment(obj.person))
+    return false;
+  if (obj.posture !== undefined && obj.posture !== null && !isPostureEnrichment(obj.posture))
+    return false;
+  if (
+    obj.license_plate !== undefined &&
+    obj.license_plate !== null &&
+    !isLicensePlateEnrichment(obj.license_plate)
+  )
+    return false;
+  if (obj.weather !== undefined && obj.weather !== null && !isWeatherEnrichment(obj.weather))
+    return false;
+  if (
+    obj.image_quality !== undefined &&
+    obj.image_quality !== null &&
+    !isImageQualityEnrichment(obj.image_quality)
+  )
+    return false;
   if (obj.pose !== undefined && obj.pose !== null && !isPoseEnrichment(obj.pose)) return false;
 
   return true;
@@ -599,10 +667,7 @@ export function getEnrichmentNumber(
  * const damageTypes = getEnrichmentArray(enrichment?.vehicle?.damage, []);
  * ```
  */
-export function getEnrichmentArray<T>(
-  value: T[] | null | undefined,
-  defaultValue: T[] = []
-): T[] {
+export function getEnrichmentArray<T>(value: T[] | null | undefined, defaultValue: T[] = []): T[] {
   return value ?? defaultValue;
 }
 

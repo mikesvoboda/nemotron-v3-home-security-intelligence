@@ -87,10 +87,7 @@ export interface MockHandlerOptions {
  * );
  * ```
  */
-export function createMockHandler(
-  endpoint: string,
-  options: MockHandlerOptions = {}
-) {
+export function createMockHandler(endpoint: string, options: MockHandlerOptions = {}) {
   const { status = 200, delay: delayMs, data, error } = options;
 
   return http.get(endpoint, async () => {
@@ -99,10 +96,7 @@ export function createMockHandler(
     }
 
     if (status >= 400) {
-      return HttpResponse.json(
-        { detail: error || 'Request failed' },
-        { status }
-      );
+      return HttpResponse.json({ detail: error || 'Request failed' }, { status });
     }
 
     return HttpResponse.json(data || {}, { status });
@@ -117,11 +111,7 @@ export function createMockHandler(
  * @param delayMs - Optional delay in milliseconds
  * @returns MSW request handler
  */
-export function mockApiSuccess(
-  endpoint: string,
-  data: unknown,
-  delayMs?: number
-) {
+export function mockApiSuccess(endpoint: string, data: unknown, delayMs?: number) {
   return createMockHandler(endpoint, { status: 200, data, delay: delayMs });
 }
 
@@ -133,11 +123,7 @@ export function mockApiSuccess(
  * @param status - HTTP status code (default: 500)
  * @returns MSW request handler
  */
-export function mockApiError(
-  endpoint: string,
-  error = 'Server error',
-  status = 500
-) {
+export function mockApiError(endpoint: string, error = 'Server error', status = 500) {
   return createMockHandler(endpoint, { status, error });
 }
 
@@ -179,11 +165,7 @@ export function mockApiNotFound(endpoint: string) {
  * @param status - HTTP status code (default: 201)
  * @returns MSW request handler
  */
-export function mockApiPost<T>(
-  endpoint: string,
-  responseData: T,
-  status = 201
-) {
+export function mockApiPost<T>(endpoint: string, responseData: T, status = 201) {
   return http.post(endpoint, () => {
     return HttpResponse.json(responseData as object, { status });
   });

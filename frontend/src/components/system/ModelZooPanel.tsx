@@ -1,6 +1,27 @@
-import { Text, Badge, ProgressBar, Table, TableHead, TableHeaderCell, TableBody, TableRow, TableCell, TextInput } from '@tremor/react';
+import {
+  Text,
+  Badge,
+  ProgressBar,
+  Table,
+  TableHead,
+  TableHeaderCell,
+  TableBody,
+  TableRow,
+  TableCell,
+  TextInput,
+} from '@tremor/react';
 import { clsx } from 'clsx';
-import { Cpu, RefreshCw, AlertCircle, CheckCircle, XCircle, Loader2, MinusCircle, Search, Filter } from 'lucide-react';
+import {
+  Cpu,
+  RefreshCw,
+  AlertCircle,
+  CheckCircle,
+  XCircle,
+  Loader2,
+  MinusCircle,
+  Search,
+  Filter,
+} from 'lucide-react';
 import { useState, useMemo } from 'react';
 
 import type { VRAMStats } from '../../hooks/useModelZooStatusQuery';
@@ -82,15 +103,39 @@ function getVramProgressColor(usagePercent: number): 'emerald' | 'yellow' | 'ora
 function ModelStatusIcon({ status }: { status: string }) {
   switch (status) {
     case 'loaded':
-      return <CheckCircle className="h-4 w-4 text-green-500" aria-hidden="true" data-testid="model-status-icon-loaded" />;
+      return (
+        <CheckCircle
+          className="h-4 w-4 text-green-500"
+          aria-hidden="true"
+          data-testid="model-status-icon-loaded"
+        />
+      );
     case 'loading':
-      return <Loader2 className="h-4 w-4 animate-spin text-yellow-500" aria-hidden="true" data-testid="model-status-icon-loading" />;
+      return (
+        <Loader2
+          className="h-4 w-4 animate-spin text-yellow-500"
+          aria-hidden="true"
+          data-testid="model-status-icon-loading"
+        />
+      );
     case 'error':
-      return <XCircle className="h-4 w-4 text-red-500" aria-hidden="true" data-testid="model-status-icon-error" />;
+      return (
+        <XCircle
+          className="h-4 w-4 text-red-500"
+          aria-hidden="true"
+          data-testid="model-status-icon-error"
+        />
+      );
     case 'unloaded':
     case 'disabled':
     default:
-      return <MinusCircle className="h-4 w-4 text-gray-500" aria-hidden="true" data-testid="model-status-icon-inactive" />;
+      return (
+        <MinusCircle
+          className="h-4 w-4 text-gray-500"
+          aria-hidden="true"
+          data-testid="model-status-icon-inactive"
+        />
+      );
   }
 }
 
@@ -157,7 +202,8 @@ export default function ModelZooPanel({
       {/* Header with summary and refresh button */}
       <div className="mb-4 flex items-center justify-between">
         <Text className="text-sm text-gray-400">
-          {loadedCount} Loaded | {availableCount} Available | {usedVramMB} MB / {budgetVramMB} MB VRAM
+          {loadedCount} Loaded | {availableCount} Available | {usedVramMB} MB / {budgetVramMB} MB
+          VRAM
         </Text>
         <button
           onClick={onRefresh}
@@ -170,9 +216,7 @@ export default function ModelZooPanel({
           )}
           data-testid="model-zoo-refresh-btn"
         >
-          <RefreshCw
-            className={clsx('h-4 w-4', isLoading && 'animate-spin')}
-          />
+          <RefreshCw className={clsx('h-4 w-4', isLoading && 'animate-spin')} />
           Refresh
         </button>
       </div>
@@ -214,10 +258,7 @@ export default function ModelZooPanel({
 
       {/* Loading state */}
       {isLoading && models.length === 0 && (
-        <div
-          className="flex h-32 items-center justify-center"
-          data-testid="model-zoo-loading"
-        >
+        <div className="flex h-32 items-center justify-center" data-testid="model-zoo-loading">
           <div className="flex items-center gap-2 text-gray-400">
             <RefreshCw className="h-5 w-5 animate-spin" />
             <Text>Loading model status...</Text>
@@ -259,10 +300,7 @@ export default function ModelZooPanel({
 
           {/* Empty state */}
           {models.length === 0 && (
-            <div
-              className="flex h-32 items-center justify-center"
-              data-testid="model-zoo-empty"
-            >
+            <div className="flex h-32 items-center justify-center" data-testid="model-zoo-empty">
               <div className="text-center">
                 <Cpu className="mx-auto mb-2 h-8 w-8 text-gray-600" />
                 <Text className="text-gray-500">No models registered</Text>
@@ -280,9 +318,7 @@ export default function ModelZooPanel({
                 >
                   <div className="text-center">
                     <Search className="mx-auto mb-2 h-8 w-8 text-gray-600" />
-                    <Text className="text-gray-500">
-                      No models match your search or filter
-                    </Text>
+                    <Text className="text-gray-500">No models match your search or filter</Text>
                   </div>
                 </div>
               ) : (
@@ -298,47 +334,42 @@ export default function ModelZooPanel({
                     </TableHead>
                     <TableBody>
                       {filteredModels.map((model) => (
-                    <TableRow
-                      key={model.name}
-                      className="border-gray-800 hover:bg-gray-800/30"
-                    >
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {/* Status icon for accessibility (not color-only) */}
-                          <ModelStatusIcon status={model.status} />
-                          <div
-                            className={clsx(
-                              'h-2 w-2 rounded-full',
-                              model.status === 'loaded' ? 'bg-green-500' : 'bg-gray-500'
-                            )}
-                            aria-hidden="true"
-                          />
-                          <Text className="font-medium text-white">
-                            {model.display_name}
-                          </Text>
-                          <span className="sr-only">Status: {getStatusText(model.status)}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          color={getStatusColor(model.status)}
-                          size="sm"
-                          data-testid={`status-badge-${model.name}`}
-                        >
-                          {getStatusText(model.status)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Text className="text-gray-300">{model.vram_mb} MB</Text>
-                      </TableCell>
-                      <TableCell>
-                        <Text className="text-gray-300">
-                          {model.status === 'loaded' && (model.load_count ?? 0) > 0
-                            ? (model.load_count ?? 0).toLocaleString()
-                            : '-'}
-                        </Text>
-                      </TableCell>
-                    </TableRow>
+                        <TableRow key={model.name} className="border-gray-800 hover:bg-gray-800/30">
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              {/* Status icon for accessibility (not color-only) */}
+                              <ModelStatusIcon status={model.status} />
+                              <div
+                                className={clsx(
+                                  'h-2 w-2 rounded-full',
+                                  model.status === 'loaded' ? 'bg-green-500' : 'bg-gray-500'
+                                )}
+                                aria-hidden="true"
+                              />
+                              <Text className="font-medium text-white">{model.display_name}</Text>
+                              <span className="sr-only">Status: {getStatusText(model.status)}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              color={getStatusColor(model.status)}
+                              size="sm"
+                              data-testid={`status-badge-${model.name}`}
+                            >
+                              {getStatusText(model.status)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Text className="text-gray-300">{model.vram_mb} MB</Text>
+                          </TableCell>
+                          <TableCell>
+                            <Text className="text-gray-300">
+                              {model.status === 'loaded' && (model.load_count ?? 0) > 0
+                                ? (model.load_count ?? 0).toLocaleString()
+                                : '-'}
+                            </Text>
+                          </TableCell>
+                        </TableRow>
                       ))}
                     </TableBody>
                   </Table>

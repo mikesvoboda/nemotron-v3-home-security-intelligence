@@ -730,8 +730,8 @@ describe('InsightsCharts', () => {
 
     it('handles special characters in class names', async () => {
       const detectionsByClass = {
-        'traffic_light': 100,
-        'stop_sign': 50,
+        traffic_light: 100,
+        stop_sign: 50,
       };
 
       render(<InsightsCharts detectionsByClass={detectionsByClass} />);
@@ -870,10 +870,7 @@ describe('InsightsCharts', () => {
 
       await waitFor(() => {
         const lowBar = screen.getByTestId('risk-bar-low');
-        expect(lowBar).toHaveAttribute(
-          'aria-label',
-          expect.stringContaining('Low: 50 events')
-        );
+        expect(lowBar).toHaveAttribute('aria-label', expect.stringContaining('Low: 50 events'));
       });
     });
 

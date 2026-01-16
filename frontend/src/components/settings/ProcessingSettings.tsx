@@ -207,9 +207,7 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
                 value={editedConfig.batch_idle_timeout_seconds}
                 onChange={(e) =>
                   setEditedConfig((prev) =>
-                    prev
-                      ? { ...prev, batch_idle_timeout_seconds: parseInt(e.target.value) }
-                      : prev
+                    prev ? { ...prev, batch_idle_timeout_seconds: parseInt(e.target.value) } : prev
                   )
                 }
                 className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-700 accent-[#76B900]"

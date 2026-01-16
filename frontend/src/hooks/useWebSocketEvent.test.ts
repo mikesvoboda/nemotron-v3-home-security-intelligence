@@ -12,7 +12,11 @@ import * as webSocketManagerModule from './webSocketManager';
 import { WSEventType } from '../types/websocket-events';
 
 import type { ConnectionConfig, TypedSubscriberOptions } from './webSocketManager';
-import type { AlertCreatedPayload, JobCompletedPayload, WebSocketEventKey } from '../types/websocket-events';
+import type {
+  AlertCreatedPayload,
+  JobCompletedPayload,
+  WebSocketEventKey,
+} from '../types/websocket-events';
 
 // Mock the webSocketManager module
 vi.mock('./webSocketManager', async () => {
@@ -101,15 +105,10 @@ describe('useWebSocketEvent', () => {
     it('should subscribe to specified event type', async () => {
       const handler = vi.fn();
 
-      renderHook(() =>
-        useWebSocketEvent(WSEventType.ALERT_CREATED, handler)
-      );
+      renderHook(() => useWebSocketEvent(WSEventType.ALERT_CREATED, handler));
 
       await waitFor(() => {
-        expect(mockSubscription.on).toHaveBeenCalledWith(
-          'alert.created',
-          expect.any(Function)
-        );
+        expect(mockSubscription.on).toHaveBeenCalledWith('alert.created', expect.any(Function));
       });
     });
 
@@ -123,9 +122,7 @@ describe('useWebSocketEvent', () => {
         created_at: '2026-01-12T00:00:00Z',
       };
 
-      renderHook(() =>
-        useWebSocketEvent(WSEventType.ALERT_CREATED, handler)
-      );
+      renderHook(() => useWebSocketEvent(WSEventType.ALERT_CREATED, handler));
 
       // Wait for subscription to be set up
       await waitFor(() => {
@@ -144,9 +141,7 @@ describe('useWebSocketEvent', () => {
     it('should return connection state', () => {
       const handler = vi.fn();
 
-      const { result } = renderHook(() =>
-        useWebSocketEvent(WSEventType.JOB_COMPLETED, handler)
-      );
+      const { result } = renderHook(() => useWebSocketEvent(WSEventType.JOB_COMPLETED, handler));
 
       // Initially not connected
       expect(result.current.isConnected).toBe(false);
@@ -164,9 +159,7 @@ describe('useWebSocketEvent', () => {
     it('should handle disconnection', async () => {
       const handler = vi.fn();
 
-      const { result } = renderHook(() =>
-        useWebSocketEvent(WSEventType.CAMERA_ONLINE, handler)
-      );
+      const { result } = renderHook(() => useWebSocketEvent(WSEventType.CAMERA_ONLINE, handler));
 
       // Connect
       act(() => {
@@ -225,9 +218,7 @@ describe('useWebSocketEvent', () => {
     it('should unsubscribe on unmount', async () => {
       const handler = vi.fn();
 
-      const { unmount } = renderHook(() =>
-        useWebSocketEvent(WSEventType.ALERT_CREATED, handler)
-      );
+      const { unmount } = renderHook(() => useWebSocketEvent(WSEventType.ALERT_CREATED, handler));
 
       await waitFor(() => {
         expect(mockSubscription.on).toHaveBeenCalled();
@@ -275,9 +266,7 @@ describe('useWebSocketEvent', () => {
     it('should provide reconnect function', async () => {
       const handler = vi.fn();
 
-      const { result } = renderHook(() =>
-        useWebSocketEvent(WSEventType.ALERT_CREATED, handler)
-      );
+      const { result } = renderHook(() => useWebSocketEvent(WSEventType.ALERT_CREATED, handler));
 
       await waitFor(() => {
         expect(mockSubscription.on).toHaveBeenCalled();
@@ -305,14 +294,8 @@ describe('useWebSocketEvent', () => {
       );
 
       await waitFor(() => {
-        expect(mockSubscription.on).toHaveBeenCalledWith(
-          'alert.created',
-          expect.any(Function)
-        );
-        expect(mockSubscription.on).toHaveBeenCalledWith(
-          'job.completed',
-          expect.any(Function)
-        );
+        expect(mockSubscription.on).toHaveBeenCalledWith('alert.created', expect.any(Function));
+        expect(mockSubscription.on).toHaveBeenCalledWith('job.completed', expect.any(Function));
       });
     });
 
@@ -433,9 +416,7 @@ describe('useWebSocketEvent', () => {
     it('should compute default URL from window.location', async () => {
       const handler = vi.fn();
 
-      renderHook(() =>
-        useWebSocketEvent(WSEventType.CAMERA_ONLINE, handler)
-      );
+      renderHook(() => useWebSocketEvent(WSEventType.CAMERA_ONLINE, handler));
 
       await waitFor(() => {
         // Should use computed URL based on window.location

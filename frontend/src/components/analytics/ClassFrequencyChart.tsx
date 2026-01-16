@@ -80,14 +80,16 @@ export default function ClassFrequencyChart({
         <h3 className="text-lg font-semibold text-white">Object Class Distribution</h3>
         {mostCommonClass && (
           <span className="text-sm text-gray-400">
-            Most common: <span className="font-medium text-white">{formatClassName(mostCommonClass)}</span>
+            Most common:{' '}
+            <span className="font-medium text-white">{formatClassName(mostCommonClass)}</span>
           </span>
         )}
       </div>
 
       {uniqueClasses.length === 0 ? (
         <div className="flex h-48 items-center justify-center text-gray-400">
-          No object class data available yet. Detection patterns will appear as objects are detected.
+          No object class data available yet. Detection patterns will appear as objects are
+          detected.
         </div>
       ) : (
         <div className="space-y-3">
@@ -96,7 +98,11 @@ export default function ClassFrequencyChart({
             const color = getClassColor(stat.objectClass);
 
             return (
-              <div key={stat.objectClass} className="group" data-testid={`class-bar-${stat.objectClass}`}>
+              <div
+                key={stat.objectClass}
+                className="group"
+                data-testid={`class-bar-${stat.objectClass}`}
+              >
                 <div className="mb-1 flex items-center justify-between text-sm">
                   <span className="text-gray-300">{formatClassName(stat.objectClass)}</span>
                   <span className="text-gray-500">

@@ -13,10 +13,7 @@ import { memo, useCallback, useEffect, useState } from 'react';
 
 import { useCameraStatusWebSocket } from '../../hooks/useCameraStatusWebSocket';
 
-import type {
-  CameraStatusEventPayload,
-  CameraStatusValue,
-} from '../../types/websocket-events';
+import type { CameraStatusEventPayload, CameraStatusValue } from '../../types/websocket-events';
 
 /**
  * Camera status information for the grid
@@ -344,9 +341,7 @@ export default function CameraGrid({
   const [recentlyChangedCameras, setRecentlyChangedCameras] = useState<Set<string>>(new Set());
 
   // Track status overrides from WebSocket updates
-  const [statusOverrides, setStatusOverrides] = useState<
-    Record<string, CameraStatusValue>
-  >({});
+  const [statusOverrides, setStatusOverrides] = useState<Record<string, CameraStatusValue>>({});
 
   // Handle status changes from WebSocket
   const handleCameraStatusChange = useCallback(

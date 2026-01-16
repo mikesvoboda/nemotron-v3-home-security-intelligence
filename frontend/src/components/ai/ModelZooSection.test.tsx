@@ -295,9 +295,7 @@ describe('ModelZooSection', () => {
   describe('loading state', () => {
     it('shows loading message initially', () => {
       // Make the fetch take time
-      (api.fetchModelZooCompactStatus as Mock).mockImplementation(
-        () => new Promise(() => {})
-      );
+      (api.fetchModelZooCompactStatus as Mock).mockImplementation(() => new Promise(() => {}));
 
       render(<ModelZooSection />);
 
@@ -307,9 +305,7 @@ describe('ModelZooSection', () => {
 
   describe('error state', () => {
     it('displays error message when fetch fails', async () => {
-      (api.fetchModelZooCompactStatus as Mock).mockRejectedValue(
-        new Error('Network error')
-      );
+      (api.fetchModelZooCompactStatus as Mock).mockRejectedValue(new Error('Network error'));
 
       render(<ModelZooSection />);
 

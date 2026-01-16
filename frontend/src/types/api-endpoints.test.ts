@@ -225,9 +225,7 @@ describe('API Endpoint Template Literal Types', () => {
     });
 
     it('infers Detection[] wrapped response for /api/events/:id/detections', () => {
-      expectTypeOf<EndpointResponseType<'/api/events/123/detections'>>().toHaveProperty(
-        'items'
-      );
+      expectTypeOf<EndpointResponseType<'/api/events/123/detections'>>().toHaveProperty('items');
     });
 
     it('infers AlertRule[] wrapped response for /api/alerts/rules', () => {

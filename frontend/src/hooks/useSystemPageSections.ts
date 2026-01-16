@@ -35,14 +35,14 @@ const DEFAULT_SECTION_STATES: Record<SystemSectionId, boolean> = {
   'ai-models': true,
   'model-zoo': false,
   'pipeline-metrics': true,
-  'databases': false,
-  'workers': false,
+  databases: false,
+  workers: false,
   'background-jobs': true,
-  'containers': true,
+  containers: true,
   'host-system': true,
   'circuit-breakers': false,
   'file-operations': false,
-  'services': false,
+  services: false,
 };
 
 const STORAGE_KEY = 'system-page-sections';

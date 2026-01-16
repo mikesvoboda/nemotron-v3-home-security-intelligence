@@ -945,6 +945,7 @@ async def list_deleted_events(
                 detection_ids=detection_ids,
                 thumbnail_url=thumbnail_url,
                 enrichment_status=None,
+                deleted_at=event.deleted_at,
             )
         )
 

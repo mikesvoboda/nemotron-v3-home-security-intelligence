@@ -90,10 +90,7 @@ describe('WebSocketManager', () => {
     createdWebSockets = [];
 
     // Create mock WebSocket constructor
-    const MockWebSocketConstructor = vi.fn(function (
-      this: MockWebSocket,
-      url: string
-    ) {
+    const MockWebSocketConstructor = vi.fn(function (this: MockWebSocket, url: string) {
       mockWebSocket = new MockWebSocket(url);
       createdWebSockets.push(mockWebSocket);
       Object.assign(this, mockWebSocket);
