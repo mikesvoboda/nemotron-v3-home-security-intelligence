@@ -29,13 +29,12 @@ import {
 test.describe('Dashboard Error Handling', () => {
   // API client has MAX_RETRIES=3 with exponential backoff (1s+2s+4s=7s)
   // React Query also retries once, so total time for events API to fail is ~14-21s
-  // Use 25s timeout to account for network latency and CI variability
+  // Use 35s timeout to account for network latency and CI variability
   const ERROR_TIMEOUT = 35000;
 
-  // Increase test timeout to allow for API retry exhaustion
-  test.setTimeout(45000);
-
-  test('shows error state when cameras API fails', async ({ page }) => {
+  test('shows error state when cameras API fails', async ({ page }, testInfo) => {
+    // Extend test timeout to account for API retry delays
+    testInfo.setTimeout(ERROR_TIMEOUT + 10000);
     await setupApiMocks(page, errorMockConfig);
     const dashboardPage = new DashboardPage(page);
     await dashboardPage.goto();
@@ -43,7 +42,9 @@ test.describe('Dashboard Error Handling', () => {
     await expect(dashboardPage.errorHeading).toBeVisible({ timeout: ERROR_TIMEOUT });
   });
 
-  test('shows reload button on error', async ({ page }) => {
+  test('shows reload button on error', async ({ page }, testInfo) => {
+    // Extend test timeout to account for API retry delays
+    testInfo.setTimeout(ERROR_TIMEOUT + 10000);
     await setupApiMocks(page, errorMockConfig);
     const dashboardPage = new DashboardPage(page);
     await dashboardPage.goto();
@@ -51,7 +52,9 @@ test.describe('Dashboard Error Handling', () => {
     await expect(dashboardPage.reloadButton).toBeVisible({ timeout: ERROR_TIMEOUT });
   });
 
-  test('error message is descriptive', async ({ page }) => {
+  test('error message is descriptive', async ({ page }, testInfo) => {
+    // Extend test timeout to account for API retry delays
+    testInfo.setTimeout(ERROR_TIMEOUT + 10000);
     await setupApiMocks(page, errorMockConfig);
     const dashboardPage = new DashboardPage(page);
     await dashboardPage.goto();
@@ -67,10 +70,9 @@ test.describe('Timeline Error Handling', () => {
   // Use 25s timeout to account for timing variability
   const ERROR_TIMEOUT = 25000;
 
-  // Increase test timeout to allow for API retry exhaustion
-  test.setTimeout(35000);
-
-  test('shows error state when events API fails', async ({ page }) => {
+  test('shows error state when events API fails', async ({ page }, testInfo) => {
+    // Extend test timeout to account for API retry delays
+    testInfo.setTimeout(ERROR_TIMEOUT + 10000);
     await setupApiMocks(page, errorMockConfig);
     const timelinePage = new TimelinePage(page);
     await timelinePage.goto();
@@ -82,7 +84,9 @@ test.describe('Timeline Error Handling', () => {
     await expect(timelinePage.errorMessage).toBeVisible({ timeout: ERROR_TIMEOUT });
   });
 
-  test('error message mentions events', async ({ page }) => {
+  test('error message mentions events', async ({ page }, testInfo) => {
+    // Extend test timeout to account for API retry delays
+    testInfo.setTimeout(ERROR_TIMEOUT + 10000);
     await setupApiMocks(page, errorMockConfig);
     const timelinePage = new TimelinePage(page);
     await timelinePage.goto();
@@ -98,10 +102,9 @@ test.describe('Alerts Error Handling', () => {
   // React Query also retries once, so total time for events API to fail is ~14-21s
   const ERROR_TIMEOUT = 35000;
 
-  // Increase test timeout to allow for API retry exhaustion
-  test.setTimeout(45000);
-
-  test('shows error state when events API fails', async ({ page }) => {
+  test('shows error state when events API fails', async ({ page }, testInfo) => {
+    // Extend test timeout to account for API retry delays
+    testInfo.setTimeout(ERROR_TIMEOUT + 10000);
     await setupApiMocks(page, errorMockConfig);
     const alertsPage = new AlertsPage(page);
     await alertsPage.goto();
@@ -140,10 +143,9 @@ test.describe('System Page Error Handling', () => {
   // React Query also retries, so use longer timeout for network idle
   const ERROR_TIMEOUT = 35000;
 
-  // Increase test timeout to allow for API retry exhaustion
-  test.setTimeout(45000);
-
-  test('page loads even when system APIs fail', async ({ page }) => {
+  test('page loads even when system APIs fail', async ({ page }, testInfo) => {
+    // Extend test timeout to account for API retry delays
+    testInfo.setTimeout(ERROR_TIMEOUT + 10000);
     await setupApiMocks(page, errorMockConfig);
     const systemPage = new SystemPage(page);
     await systemPage.goto();
@@ -219,10 +221,9 @@ test.describe('Network Error Messages', () => {
   // React Query also retries once, so total time for events API to fail is ~14-21s
   const ERROR_TIMEOUT = 35000;
 
-  // Increase test timeout to allow for API retry exhaustion
-  test.setTimeout(45000);
-
-  test('error messages are user-friendly', async ({ page }) => {
+  test('error messages are user-friendly', async ({ page }, testInfo) => {
+    // Extend test timeout to account for API retry delays
+    testInfo.setTimeout(ERROR_TIMEOUT + 10000);
     await setupApiMocks(page, errorMockConfig);
     const dashboardPage = new DashboardPage(page);
     await dashboardPage.goto();
