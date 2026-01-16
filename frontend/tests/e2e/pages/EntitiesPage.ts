@@ -85,14 +85,29 @@ export class EntitiesPage extends BasePage {
       () => {
         const hasEntityCards =
           document.querySelectorAll('[data-testid="entity-card"]').length > 0;
-        const hasEmptyState =
-          document.querySelector('[data-testid="entities-empty-state"]') !== null ||
-          document.querySelector('h2')?.textContent?.includes('No Entities') ||
-          document.querySelector('h2')?.textContent?.includes('No Persons') ||
-          document.querySelector('h2')?.textContent?.includes('No Vehicles');
+
+        // Check for empty state - look for the specific heading text
+        // EntitiesEmptyState renders <h2>No Entities Tracked Yet</h2>
+        // Filtered empty state renders <h2>No Persons Found/No Vehicles Found/No Entities Found</h2>
+        const h2Elements = document.querySelectorAll('h2');
+        let hasEmptyState = false;
+        for (const h2 of h2Elements) {
+          const text = h2.textContent ?? '';
+          if (
+            text.includes('No Entities Tracked Yet') ||
+            text.includes('No Persons Found') ||
+            text.includes('No Vehicles Found') ||
+            text.includes('No Entities Found')
+          ) {
+            hasEmptyState = true;
+            break;
+          }
+        }
+
+        // Only check for skeleton elements as loading indicator
+        // Note: The empty state has animate-pulse on the Scan icon, so we can't use that
         const hasLoadingIndicator =
-          document.querySelector('[data-testid="entity-card-skeleton"]') !== null ||
-          document.querySelector('.animate-pulse') !== null;
+          document.querySelectorAll('[data-testid="entity-card-skeleton"]').length > 0;
 
         // Wait until we have entity cards or empty state, and loading is complete
         return (hasEntityCards || hasEmptyState) && !hasLoadingIndicator;
