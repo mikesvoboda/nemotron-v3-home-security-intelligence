@@ -6608,6 +6608,31 @@
             ],
             "description": "URL to the most recent thumbnail image",
             "title": "Thumbnail Url"
+          },
+          "trust_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Trust classification: 'trusted', 'untrusted', or 'unclassified'",
+            "title": "Trust Status"
+          },
+          "trust_updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the trust status was last updated",
+            "title": "Trust Updated At"
           }
         },
         "required": [
@@ -7029,7 +7054,9 @@
           "first_seen": "2025-12-23T10:00:00Z",
           "id": "entity_abc123",
           "last_seen": "2025-12-23T14:30:00Z",
-          "thumbnail_url": "/api/detections/123/image"
+          "thumbnail_url": "/api/detections/123/image",
+          "trust_status": "trusted",
+          "trust_updated_at": "2025-12-23T14:30:00Z"
         },
         "properties": {
           "appearance_count": {
@@ -7079,6 +7106,31 @@
             ],
             "description": "URL to the most recent thumbnail image",
             "title": "Thumbnail Url"
+          },
+          "trust_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Trust classification: 'trusted', 'untrusted', or 'unclassified'",
+            "title": "Trust Status"
+          },
+          "trust_updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the trust status was last updated",
+            "title": "Trust Updated At"
           }
         },
         "required": [

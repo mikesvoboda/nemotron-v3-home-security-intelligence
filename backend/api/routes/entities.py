@@ -530,6 +530,20 @@ async def get_entity(
     if entity.primary_detection_id:
         thumbnail_url = _get_thumbnail_url(str(entity.primary_detection_id))
 
+    # Extract trust fields from entity_metadata
+    trust_status = None
+    trust_updated_at = None
+    if entity.entity_metadata:
+        trust_status = entity.entity_metadata.get("trust_status")
+        trust_updated_at_str = entity.entity_metadata.get("trust_updated_at")
+        if trust_updated_at_str:
+            from datetime import datetime as dt
+
+            try:
+                trust_updated_at = dt.fromisoformat(trust_updated_at_str)
+            except (ValueError, TypeError):
+                pass
+
     return EntityDetail(
         id=str(entity.id),
         entity_type=entity.entity_type,
@@ -539,6 +553,8 @@ async def get_entity(
         cameras_seen=cameras_seen,
         thumbnail_url=thumbnail_url,
         appearances=appearances,
+        trust_status=trust_status,
+        trust_updated_at=trust_updated_at,
     )
 
 
@@ -726,8 +742,13 @@ def _entity_model_to_summary(entity: Entity) -> EntitySummary:
     Returns:
         EntitySummary with entity information
     """
+    from datetime import datetime as dt
+
     # Extract cameras from entity_metadata if available
     cameras_seen = []
+    trust_status = None
+    trust_updated_at = None
+
     if entity.entity_metadata:
         if "cameras_seen" in entity.entity_metadata:
             # Use cameras_seen list if available (preferred)
@@ -735,6 +756,15 @@ def _entity_model_to_summary(entity: Entity) -> EntitySummary:
         elif "camera_id" in entity.entity_metadata:
             # Fall back to single camera_id for backward compatibility
             cameras_seen = [entity.entity_metadata["camera_id"]]
+
+        # Extract trust fields
+        trust_status = entity.entity_metadata.get("trust_status")
+        trust_updated_at_str = entity.entity_metadata.get("trust_updated_at")
+        if trust_updated_at_str:
+            try:
+                trust_updated_at = dt.fromisoformat(trust_updated_at_str)
+            except (ValueError, TypeError):
+                pass
 
     thumbnail_url = None
     if entity.primary_detection_id:
@@ -748,6 +778,8 @@ def _entity_model_to_summary(entity: Entity) -> EntitySummary:
         appearance_count=entity.detection_count,
         cameras_seen=cameras_seen,
         thumbnail_url=thumbnail_url,
+        trust_status=trust_status,
+        trust_updated_at=trust_updated_at,
     )
 
 
@@ -987,6 +1019,8 @@ async def get_entity_by_uuid(
     Raises:
         HTTPException: 404 if entity not found
     """
+    from datetime import datetime as dt
+
     entity = await hybrid_storage.get_entity_full_history(entity_id)
 
     if entity is None:
@@ -995,8 +1029,11 @@ async def get_entity_by_uuid(
             detail=f"Entity with id '{entity_id}' not found",
         )
 
-    # Extract cameras from metadata
+    # Extract cameras and trust fields from metadata
     cameras_seen = []
+    trust_status = None
+    trust_updated_at = None
+
     if entity.entity_metadata:
         if "cameras_seen" in entity.entity_metadata:
             # Use cameras_seen list if available (preferred)
@@ -1004,6 +1041,15 @@ async def get_entity_by_uuid(
         elif "camera_id" in entity.entity_metadata:
             # Fall back to single camera_id for backward compatibility
             cameras_seen = [entity.entity_metadata["camera_id"]]
+
+        # Extract trust fields
+        trust_status = entity.entity_metadata.get("trust_status")
+        trust_updated_at_str = entity.entity_metadata.get("trust_updated_at")
+        if trust_updated_at_str:
+            try:
+                trust_updated_at = dt.fromisoformat(trust_updated_at_str)
+            except (ValueError, TypeError):
+                pass
 
     thumbnail_url = None
     if entity.primary_detection_id:
@@ -1018,6 +1064,8 @@ async def get_entity_by_uuid(
         cameras_seen=cameras_seen,
         thumbnail_url=thumbnail_url,
         appearances=[],  # Would require joining with detections table
+        trust_status=trust_status,
+        trust_updated_at=trust_updated_at,
     )
 
 

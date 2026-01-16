@@ -342,6 +342,8 @@ class EntitySummary(BaseModel):
                 "appearance_count": 5,
                 "cameras_seen": ["front_door", "backyard", "driveway"],
                 "thumbnail_url": "/api/detections/123/image",
+                "trust_status": "trusted",
+                "trust_updated_at": "2025-12-23T14:30:00Z",
             }
         }
     )
@@ -355,6 +357,12 @@ class EntitySummary(BaseModel):
         default_factory=list, description="List of camera IDs where entity was detected"
     )
     thumbnail_url: str | None = Field(None, description="URL to the most recent thumbnail image")
+    trust_status: str | None = Field(
+        None, description="Trust classification: 'trusted', 'untrusted', or 'unclassified'"
+    )
+    trust_updated_at: datetime | None = Field(
+        None, description="When the trust status was last updated"
+    )
 
 
 class EntityDetail(EntitySummary):
