@@ -807,8 +807,9 @@ class TestServeMediaCompat:
 
     @pytest.mark.asyncio
     async def test_compat_clips_path_routes_to_serve_clip(self) -> None:
-        """Test clips/* path routes to serve_clip."""
+        """Test clips/* path routes to serve_clip with clip_generator dependency."""
         from backend.api.routes.media import serve_media_compat
+        from backend.services.clip_generator import ClipGenerator
 
         with patch("backend.api.routes.media.serve_clip") as mock_serve:
             mock_serve.return_value = MagicMock()
@@ -818,7 +819,11 @@ class TestServeMediaCompat:
                 _rate_limit=None,
             )
 
-        mock_serve.assert_called_once_with(filename="123_clip.mp4")
+        # Verify serve_clip was called with filename and clip_generator
+        mock_serve.assert_called_once()
+        call_kwargs = mock_serve.call_args.kwargs
+        assert call_kwargs["filename"] == "123_clip.mp4"
+        assert isinstance(call_kwargs["clip_generator"], ClipGenerator)
 
     @pytest.mark.asyncio
     async def test_compat_unsupported_path_returns_404(self) -> None:
