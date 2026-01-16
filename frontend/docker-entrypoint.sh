@@ -100,13 +100,95 @@ HTTPS_REDIRECT='
 # =============================================================================
 # SSL is enabled when:
 #   1. SSL_ENABLED environment variable is set to "true"
-#   2. Certificate files exist at the expected paths
+#   2. Certificate files exist at the expected paths (or are auto-generated)
 
 SSL_CERT="${SSL_CERT_PATH:-/etc/nginx/certs/cert.pem}"
 SSL_KEY="${SSL_KEY_PATH:-/etc/nginx/certs/key.pem}"
+SSL_CERT_DIR="$(dirname "$SSL_CERT")"
+
+# Function to generate self-signed certificate
+generate_self_signed_cert() {
+    echo "Generating self-signed SSL certificate..."
+
+    # Get hostname/IP for SAN (Subject Alternative Name)
+    # Include common local addresses and any custom SSL_SAN_EXTRA entries
+    HOSTNAME=$(hostname 2>/dev/null || echo "localhost")
+    SSL_SANS="DNS:localhost,DNS:*.localhost,DNS:${HOSTNAME},IP:127.0.0.1,IP:::1"
+
+    # Add extra SANs if provided (e.g., SSL_SAN_EXTRA="IP:192.168.1.145,DNS:myhost.local")
+    if [ -n "${SSL_SAN_EXTRA:-}" ]; then
+        SSL_SANS="${SSL_SANS},${SSL_SAN_EXTRA}"
+    fi
+
+    # Create OpenSSL config for SANs
+    cat > /tmp/openssl.cnf << EOF
+[req]
+default_bits = 2048
+prompt = no
+default_md = sha256
+distinguished_name = dn
+x509_extensions = v3_ca
+req_extensions = v3_ca
+
+[dn]
+C = US
+ST = Local
+L = Development
+O = Home Security Intelligence
+CN = localhost
+
+[v3_ca]
+subjectAltName = ${SSL_SANS}
+basicConstraints = critical,CA:TRUE
+keyUsage = critical, digitalSignature, keyEncipherment, keyCertSign
+extendedKeyUsage = serverAuth, clientAuth
+EOF
+
+    # Generate private key and certificate
+    if ! openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+        -keyout "$SSL_KEY" \
+        -out "$SSL_CERT" \
+        -config /tmp/openssl.cnf; then
+        echo "ERROR: openssl command failed"
+        cat /tmp/openssl.cnf
+    fi
+
+    rm -f /tmp/openssl.cnf
+
+    if [ -f "$SSL_CERT" ] && [ -f "$SSL_KEY" ]; then
+        echo "Self-signed certificate generated successfully"
+        echo "  Certificate: $SSL_CERT"
+        echo "  Private key: $SSL_KEY"
+        echo "  SANs: $SSL_SANS"
+        echo "  Valid for: 365 days"
+        echo ""
+        echo "NOTE: This is a self-signed certificate for development."
+        echo "      Browsers will show a security warning."
+        return 0
+    else
+        echo "ERROR: Failed to generate certificate"
+        return 1
+    fi
+}
 
 if [ "${SSL_ENABLED:-false}" = "true" ]; then
-    # Check if certificate files exist
+    # Auto-generate certificate if it doesn't exist
+    if [ ! -f "$SSL_CERT" ] || [ ! -f "$SSL_KEY" ]; then
+        echo "SSL_ENABLED=true but certificate files not found"
+        echo "  Expected: $SSL_CERT and $SSL_KEY"
+        echo ""
+
+        # Check if we can write to the certs directory
+        if [ -w "$SSL_CERT_DIR" ]; then
+            generate_self_signed_cert
+        else
+            echo "WARNING: Cannot write to $SSL_CERT_DIR - falling back to HTTP only"
+            echo "  To fix: mount a writable volume to $SSL_CERT_DIR"
+            echo "  Or: provide pre-generated certificates"
+        fi
+    fi
+
+    # Check if certificate files exist (either pre-existing or just generated)
     if [ -f "$SSL_CERT" ] && [ -f "$SSL_KEY" ]; then
         echo "SSL enabled: Configuring HTTPS server with HTTP-to-HTTPS redirect"
 
