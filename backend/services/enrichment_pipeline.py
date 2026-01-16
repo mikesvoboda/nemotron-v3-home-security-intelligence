@@ -3946,10 +3946,15 @@ def get_enrichment_pipeline() -> EnrichmentPipeline:
     """
     global _enrichment_pipeline  # noqa: PLW0603
     if _enrichment_pipeline is None:
+        from backend.core.config import get_settings
         from backend.core.redis import get_redis_client_sync
 
+        settings = get_settings()
         redis_client = get_redis_client_sync()
-        _enrichment_pipeline = EnrichmentPipeline(redis_client=redis_client)
+        _enrichment_pipeline = EnrichmentPipeline(
+            redis_client=redis_client,
+            use_enrichment_service=settings.use_enrichment_service,
+        )
     return _enrichment_pipeline
 
 

@@ -752,6 +752,10 @@ class Settings(BaseSettings):
         default="http://localhost:8094",
         description="Combined enrichment service URL for vehicle, pet, and clothing classification",
     )
+    use_enrichment_service: bool = Field(
+        default=True,
+        description="Use HTTP enrichment service instead of local models for vehicle/pet/clothing classification",
+    )
 
     # Monitoring URLs
     grafana_url: str = Field(
