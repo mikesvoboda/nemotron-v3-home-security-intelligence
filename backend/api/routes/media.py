@@ -245,7 +245,9 @@ async def serve_media_compat(
 
     if rel.startswith("clips/"):
         filename = rel.removeprefix("clips/")
-        return await serve_clip(filename=filename)
+        # Manually resolve the clip_generator dependency since we're calling directly
+        clip_generator = get_clip_generator_dep()
+        return await serve_clip(filename=filename, clip_generator=clip_generator)
 
     raise HTTPException(
         status_code=status.HTTP_404_NOT_FOUND,
