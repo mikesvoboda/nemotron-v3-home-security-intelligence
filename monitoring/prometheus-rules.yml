@@ -1,104 +1,102 @@
 # SLI/SLO Recording Rules for Home Security Intelligence
 # These rules pre-compute Service Level Indicators for efficient dashboard queries
+# Updated to use actual metric names from backend/core/metrics.py
 
 groups:
   # API Availability SLI
+  # Uses blackbox probe success as availability indicator since backend doesn't expose http_requests_total
   - name: api_availability_sli
     interval: 30s
     rules:
-      # Request success rate (non-5xx responses)
+      # Request success rate based on blackbox probe
       - record: hsi:api_requests:success_rate_5m
         expr: |
-          sum(rate(http_requests_total{status!~"5.."}[5m]))
-          /
-          sum(rate(http_requests_total[5m]))
+          avg_over_time(probe_success{job="blackbox-http-ready"}[5m])
 
-      # API availability over different windows
+      # API availability over different windows using blackbox probes
       - record: hsi:api_availability:ratio_rate1h
         expr: |
-          sum(rate(http_requests_total{status!~"5.."}[1h]))
-          /
-          sum(rate(http_requests_total[1h]))
+          avg_over_time(probe_success{job="blackbox-http-ready"}[1h])
 
       - record: hsi:api_availability:ratio_rate6h
         expr: |
-          sum(rate(http_requests_total{status!~"5.."}[6h]))
-          /
-          sum(rate(http_requests_total[6h]))
+          avg_over_time(probe_success{job="blackbox-http-ready"}[6h])
 
       - record: hsi:api_availability:ratio_rate1d
         expr: |
-          sum(rate(http_requests_total{status!~"5.."}[1d]))
-          /
-          sum(rate(http_requests_total[1d]))
+          avg_over_time(probe_success{job="blackbox-http-ready"}[1d])
 
       - record: hsi:api_availability:ratio_rate30d
         expr: |
-          sum(rate(http_requests_total{status!~"5.."}[30d]))
-          /
-          sum(rate(http_requests_total[30d]))
+          avg_over_time(probe_success{job="blackbox-http-ready"}[30d])
 
   # Detection Latency SLI
+  # Uses hsi_stage_duration_seconds_bucket with stage="detect"
   - name: detection_latency_sli
     interval: 30s
     rules:
-      # P95 detection latency
+      # P95 detection latency using stage duration histogram
       - record: hsi:detection_latency:p95_5m
         expr: |
           histogram_quantile(0.95,
-            sum(rate(hsi_detection_duration_seconds_bucket[5m])) by (le)
+            sum(rate(hsi_stage_duration_seconds_bucket{stage="detect"}[5m])) by (le)
           )
 
       - record: hsi:detection_latency:p99_5m
         expr: |
           histogram_quantile(0.99,
-            sum(rate(hsi_detection_duration_seconds_bucket[5m])) by (le)
+            sum(rate(hsi_stage_duration_seconds_bucket{stage="detect"}[5m])) by (le)
           )
 
-      # Detection success rate
+      # Detection success rate based on processed vs errors
       - record: hsi:detection:success_rate_5m
         expr: |
-          sum(rate(hsi_detection_success_total[5m]))
-          /
-          sum(rate(hsi_detection_total[5m]))
+          1 - (
+            sum(rate(hsi_pipeline_errors_total{stage="detect"}[5m]))
+            /
+            (sum(rate(hsi_detections_processed_total[5m])) + 0.001)
+          )
 
       # Detection within SLO (< 2s)
       - record: hsi:detection_latency:within_slo_rate5m
         expr: |
-          sum(rate(hsi_detection_duration_seconds_bucket{le="2"}[5m]))
+          sum(rate(hsi_stage_duration_seconds_bucket{stage="detect",le="2"}[5m]))
           /
-          sum(rate(hsi_detection_duration_seconds_count[5m]))
+          (sum(rate(hsi_stage_duration_seconds_count{stage="detect"}[5m])) + 0.001)
 
   # Analysis Latency SLI
+  # Uses hsi_stage_duration_seconds_bucket with stage="analyze"
   - name: analysis_latency_sli
     interval: 30s
     rules:
-      # P95 analysis latency
+      # P95 analysis latency using stage duration histogram
       - record: hsi:analysis_latency:p95_5m
         expr: |
           histogram_quantile(0.95,
-            sum(rate(hsi_analysis_duration_seconds_bucket[5m])) by (le)
+            sum(rate(hsi_stage_duration_seconds_bucket{stage="analyze"}[5m])) by (le)
           )
 
       - record: hsi:analysis_latency:p99_5m
         expr: |
           histogram_quantile(0.99,
-            sum(rate(hsi_analysis_duration_seconds_bucket[5m])) by (le)
+            sum(rate(hsi_stage_duration_seconds_bucket{stage="analyze"}[5m])) by (le)
           )
 
-      # Analysis success rate
+      # Analysis success rate based on events created vs errors
       - record: hsi:analysis:success_rate_5m
         expr: |
-          sum(rate(hsi_analysis_success_total[5m]))
-          /
-          sum(rate(hsi_analysis_total[5m]))
+          1 - (
+            sum(rate(hsi_pipeline_errors_total{stage="analyze"}[5m]))
+            /
+            (sum(rate(hsi_events_created_total[5m])) + 0.001)
+          )
 
       # Analysis within SLO (< 30s)
       - record: hsi:analysis_latency:within_slo_rate5m
         expr: |
-          sum(rate(hsi_analysis_duration_seconds_bucket{le="30"}[5m]))
+          sum(rate(hsi_stage_duration_seconds_bucket{stage="analyze",le="30"}[5m]))
           /
-          sum(rate(hsi_analysis_duration_seconds_count[5m]))
+          (sum(rate(hsi_stage_duration_seconds_count{stage="analyze"}[5m])) + 0.001)
 
   # Event Processing SLI
   - name: event_processing_sli
@@ -145,16 +143,16 @@ groups:
       - record: hsi:redis:healthy
         expr: up{job="redis"}
 
-      # GPU memory utilization
+      # GPU memory utilization (actual metrics use MB not bytes)
       - record: hsi:gpu:memory_utilization
         expr: |
-          hsi_gpu_memory_used_bytes
+          hsi_gpu_memory_used_mb
           /
-          hsi_gpu_memory_total_bytes
+          hsi_gpu_memory_total_mb
 
-      # GPU utilization
+      # GPU utilization (actual metric name, already 0-100)
       - record: hsi:gpu:utilization
-        expr: hsi_gpu_utilization_percent
+        expr: hsi_gpu_utilization
 
   # Error Budget Calculations
   - name: error_budget
