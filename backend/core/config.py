@@ -1177,7 +1177,7 @@ class Settings(BaseSettings):
 
     # Video processing settings
     video_frame_interval_seconds: float = Field(
-        default=2.0,
+        default=4.0,  # Optimized: was 2.0, now 4.0 for ~50% reduction in frames
         ge=0.1,
         le=60.0,
         description="Interval between extracted video frames in seconds",
@@ -1479,7 +1479,7 @@ class Settings(BaseSettings):
         description="Directory for storing video thumbnails and extracted frames",
     )
     video_max_frames: int = Field(
-        default=30,
+        default=20,  # Optimized: was 30, reduced for faster processing
         ge=1,
         le=300,
         description="Maximum number of frames to extract from a video",
