@@ -10,11 +10,12 @@
  * Source schemas:
  *   backend/api/schemas/websocket.py
  *
- * Generated at: 2026-01-15T22:06:37Z
+ * Generated at: 2026-01-16T05:10:15Z
  *
  * Note: WebSocket messages are not covered by OpenAPI, so we generate these
  * types separately to ensure frontend/backend type synchronization.
  */
+
 
 // ============================================================================
 // Enums and Constants
@@ -55,12 +56,7 @@ export type WebSocketServiceStatus = 'healthy' | 'unhealthy' | 'running' | 'stop
  * - ALERT_RESOLVED: Alert resolved (long-running issues cleared)
  * - ALERT_DISMISSED: Alert dismissed by user
  */
-export type WebSocketAlertEventType =
-  | 'alert_created'
-  | 'alert_updated'
-  | 'alert_acknowledged'
-  | 'alert_resolved'
-  | 'alert_dismissed';
+export type WebSocketAlertEventType = 'alert_created' | 'alert_updated' | 'alert_acknowledged' | 'alert_resolved' | 'alert_dismissed';
 
 /**
  * Alert severity levels for WebSocket messages.
@@ -86,7 +82,7 @@ export const WebSocketErrorCode = {
   VALIDATION_ERROR: 'validation_error',
 } as const;
 
-export type WebSocketErrorCodeType = (typeof WebSocketErrorCode)[keyof typeof WebSocketErrorCode];
+export type WebSocketErrorCodeType = typeof WebSocketErrorCode[keyof typeof WebSocketErrorCode];
 
 // ============================================================================
 // Data Payload Interfaces
@@ -506,6 +502,7 @@ export interface WebSocketMessage {
   data?: Record<string, unknown> | null;
 }
 
+
 // ============================================================================
 // Discriminated Union Types
 // ============================================================================
@@ -531,7 +528,7 @@ export type WebSocketServerMessage =
   | WebSocketAlertMessage
   | WebSocketPongResponse
   | WebSocketErrorResponse
-  | { type: 'ping' }; // Server heartbeat
+  | { type: 'ping' };  // Server heartbeat
 
 /**
  * All client-to-server WebSocket message types.
@@ -540,7 +537,7 @@ export type WebSocketClientMessage =
   | WebSocketPingMessage
   | WebSocketSubscribeMessage
   | WebSocketUnsubscribeMessage
-  | { type: 'pong' }; // Client heartbeat response
+  | { type: 'pong' };  // Client heartbeat response
 
 /**
  * All WebSocket message types (both directions).
@@ -600,6 +597,8 @@ export function createMessageDispatcher(handlers: MessageHandlerMap) {
 export function assertNever(value: never): never {
   throw new Error(`Unexpected value: ${JSON.stringify(value)}`);
 }
+
+
 
 // ============================================================================
 // Type Guards
@@ -693,13 +692,7 @@ export function isErrorMessage(value: unknown): value is WebSocketErrorResponse 
  */
 export function isAlertMessage(value: unknown): value is WebSocketAlertMessage {
   if (!hasTypeProperty(value)) return false;
-  const alertTypes = [
-    'alert_created',
-    'alert_updated',
-    'alert_acknowledged',
-    'alert_dismissed',
-    'alert_resolved',
-  ];
+  const alertTypes = ['alert_created', 'alert_updated', 'alert_acknowledged', 'alert_dismissed', 'alert_resolved'];
   if (!alertTypes.includes(value.type as string)) return false;
 
   const msg = value as { type: string; data?: unknown };
@@ -728,9 +721,7 @@ export function isAlertUpdatedMessage(value: unknown): value is WebSocketAlertUp
 /**
  * Type guard for WebSocketAlertAcknowledgedMessage.
  */
-export function isAlertAcknowledgedMessage(
-  value: unknown
-): value is WebSocketAlertAcknowledgedMessage {
+export function isAlertAcknowledgedMessage(value: unknown): value is WebSocketAlertAcknowledgedMessage {
   if (!hasTypeProperty(value)) return false;
   return value.type === 'alert_acknowledged' && isAlertMessage(value);
 }
