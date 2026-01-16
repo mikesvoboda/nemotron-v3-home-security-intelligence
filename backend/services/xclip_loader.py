@@ -136,11 +136,27 @@ async def classify_actions(
             - all_scores: Dictionary mapping all prompts to their scores
 
     Raises:
-        ValueError: If frames list is empty
+        ValueError: If frames list is empty or contains only None values
         RuntimeError: If classification fails
     """
     if not frames:
         raise ValueError("At least one frame is required for action classification")
+
+    # Filter out None frames (can occur if image loading/cropping fails)
+    valid_frames = [f for f in frames if f is not None]
+
+    if not valid_frames:
+        raise ValueError("No valid frames provided for action classification (all frames are None)")
+
+    # Log warning if some frames were None
+    if len(valid_frames) < len(frames):
+        logger.warning(
+            f"X-CLIP received {len(frames)} frames but {len(frames) - len(valid_frames)} "
+            f"were None and filtered out. Proceeding with {len(valid_frames)} valid frames."
+        )
+
+    # Use valid frames for classification
+    frames = valid_frames
 
     if prompts is None:
         prompts = SECURITY_ACTION_PROMPTS

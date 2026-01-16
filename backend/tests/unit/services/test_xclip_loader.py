@@ -266,6 +266,58 @@ class TestClassifyActions:
         assert "At least one frame" in str(exc_info.value)
 
     @pytest.mark.asyncio
+    async def test_classify_with_none_frames_raises(self, mock_model_dict: dict[str, Any]) -> None:
+        """Test that classify_actions raises ValueError for all None frames."""
+        # Test with all None frames
+        with pytest.raises(ValueError) as exc_info:
+            await classify_actions(mock_model_dict, [None, None, None])  # type: ignore
+
+        assert "all frames are None" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_classify_filters_none_frames(self) -> None:
+        """Test that classify_actions filters out None frames and proceeds with valid ones."""
+        # Create mix of valid and None frames
+        valid_frame = Image.new("RGB", (224, 224), color="blue")
+        frames = [None, valid_frame, None, valid_frame, None]  # type: ignore
+
+        mock_model = MagicMock()
+        mock_processor = MagicMock()
+
+        mock_param = MagicMock()
+        mock_param.device = "cpu"
+        mock_param.dtype = MagicMock()
+        mock_model.parameters.return_value = iter([mock_param, mock_param])
+
+        mock_inputs = {"pixel_values": MagicMock()}
+        for v in mock_inputs.values():
+            v.to.return_value = v
+        mock_processor.return_value = mock_inputs
+
+        mock_outputs = MagicMock()
+        mock_probs = MagicMock()
+        mock_probs.squeeze.return_value.cpu.return_value.numpy.return_value = np.array(
+            [0.75, 0.15, 0.10]
+        )
+        mock_outputs.logits_per_video = MagicMock()
+        mock_model.return_value = mock_outputs
+
+        model_dict = {"model": mock_model, "processor": mock_processor}
+
+        mock_torch = MagicMock()
+        mock_torch.no_grad.return_value.__enter__ = MagicMock(return_value=None)
+        mock_torch.no_grad.return_value.__exit__ = MagicMock(return_value=None)
+        mock_torch.softmax.return_value = mock_probs
+        mock_torch.float16 = "float16"
+
+        with patch.dict(sys.modules, {"torch": mock_torch}):
+            result = await classify_actions(model_dict, frames, prompts=["walk", "run", "stand"])
+
+        # Should succeed with only the valid frames
+        assert "detected_action" in result
+        assert result["confidence"] == 0.75
+
+    @pytest.mark.asyncio
     async def test_classify_with_default_prompts(self, sample_frames: list[Image.Image]) -> None:
         """Test classification with default security prompts."""
         # Create mock model and processor

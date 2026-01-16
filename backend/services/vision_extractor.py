@@ -327,6 +327,25 @@ class VisionExtractor:
             Cropped PIL Image with 10% padding
         """
         x1, y1, x2, y2 = bbox
+
+        # Validate and fix inverted coordinates
+        # Florence-2 sometimes returns invalid bounding boxes where coordinates are swapped
+        if x2 < x1:
+            logger.warning(f"Invalid bounding box: x2 ({x2}) < x1 ({x1}). Swapping coordinates.")
+            x1, x2 = x2, x1
+
+        if y2 < y1:
+            logger.warning(f"Invalid bounding box: y2 ({y2}) < y1 ({y1}). Swapping coordinates.")
+            y1, y2 = y2, y1
+
+        # Check for zero-width or zero-height boxes
+        if x2 <= x1 or y2 <= y1:
+            logger.warning(
+                f"Bounding box has zero or negative dimensions: ({x1}, {y1}, {x2}, {y2}). "
+                f"Using full image instead."
+            )
+            return image
+
         width = x2 - x1
         height = y2 - y1
 

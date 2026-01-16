@@ -268,6 +268,9 @@ def clamp_bbox_to_image(
     image bounds, adjusting coordinates as needed while preserving as
     much of the original box as possible.
 
+    If coordinates are inverted (x2 < x1 or y2 < y1), they are automatically
+    swapped to fix the bounding box before clamping.
+
     Args:
         bbox: Bounding box as (x1, y1, x2, y2)
         image_width: Image width in pixels
@@ -288,8 +291,20 @@ def clamp_bbox_to_image(
 
         >>> clamp_bbox_to_image((200, 200, 300, 300), 100, 100)
         None  # Completely outside image
+
+        >>> clamp_bbox_to_image((50, 50, 10, 10), 100, 100)  # Inverted
+        (10, 10, 50, 50)  # Fixed by swapping
     """
     x1, y1, x2, y2 = bbox
+
+    # Fix inverted coordinates before clamping
+    if x2 < x1:
+        logger.debug(f"Swapping inverted X coordinates: x1={x1}, x2={x2}")
+        x1, x2 = x2, x1
+
+    if y2 < y1:
+        logger.debug(f"Swapping inverted Y coordinates: y1={y1}, y2={y2}")
+        y1, y2 = y2, y1
 
     # Clamp coordinates to image boundaries
     x1_clamped = max(0, min(x1, image_width))
