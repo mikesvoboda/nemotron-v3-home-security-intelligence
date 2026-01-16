@@ -310,14 +310,15 @@ describe('EventVideoPlayer', () => {
         file_size_bytes: null,
       });
 
-      const { container } = render(<EventVideoPlayer eventId={123} className="custom-class" />);
+      render(<EventVideoPlayer eventId={123} className="custom-class" />);
 
       await waitFor(() => {
         expect(screen.getByTestId('clip-unavailable')).toBeInTheDocument();
       });
 
-      const rootElement = container.firstChild as HTMLElement;
-      expect(rootElement.className).toContain('custom-class');
+      // The className is now applied to the stable container wrapper
+      const containerElement = screen.getByTestId('event-video-player-container');
+      expect(containerElement.className).toContain('custom-class');
     });
   });
 
