@@ -116,4 +116,22 @@ export class EntitiesPage extends BasePage {
         break;
     }
   }
+
+  /**
+   * Click on an entity card by index to open detail modal
+   * @param index - Zero-based index of the entity card to click
+   */
+  async clickEntityCard(index: number): Promise<void> {
+    const card = this.entityCards.nth(index);
+    await expect(card).toBeVisible({ timeout: this.pageLoadTimeout });
+    await card.click();
+  }
+
+  /**
+   * Get entity card by index
+   * @param index - Zero-based index of the entity card
+   */
+  getEntityCard(index: number): Locator {
+    return this.entityCards.nth(index);
+  }
 }
