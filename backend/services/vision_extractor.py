@@ -19,6 +19,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from backend.core.logging import get_logger
+from backend.services.bbox_validation import prepare_bbox_for_crop
 from backend.services.florence_client import FlorenceUnavailableError, get_florence_client
 
 if TYPE_CHECKING:
@@ -319,48 +320,46 @@ class VisionExtractor:
     def _crop_image(self, image: Image.Image, bbox: tuple[int, int, int, int]) -> Image.Image:
         """Crop image to bounding box with padding.
 
+        Handles edge cases such as:
+        - Inverted coordinates (x2 < x1 or y2 < y1)
+        - Out-of-bounds coordinates
+        - Zero-dimension boxes
+
         Args:
             image: Full PIL Image
             bbox: Bounding box as (x1, y1, x2, y2)
 
         Returns:
-            Cropped PIL Image with 10% padding
+            Cropped PIL Image with 10% padding, or original image if bbox is invalid
         """
+        img_width, img_height = image.size
+
+        # Calculate 10% padding based on box dimensions
+        # Handle inverted coords by using abs()
         x1, y1, x2, y2 = bbox
+        width = abs(x2 - x1)
+        height = abs(y2 - y1)
+        pad_x = int(width * 0.1) if width > 0 else 0
+        pad_y = int(height * 0.1) if height > 0 else 0
+        padding = max(pad_x, pad_y)
 
-        # Validate and fix inverted coordinates
-        # Florence-2 sometimes returns invalid bounding boxes where coordinates are swapped
-        if x2 < x1:
-            logger.warning(f"Invalid bounding box: x2 ({x2}) < x1 ({x1}). Swapping coordinates.")
-            x1, x2 = x2, x1
+        # Use safe crop preparation that handles all edge cases
+        safe_bbox = prepare_bbox_for_crop(
+            bbox,
+            image_width=img_width,
+            image_height=img_height,
+            padding=padding,
+            min_size=1,
+        )
 
-        if y2 < y1:
-            logger.warning(f"Invalid bounding box: y2 ({y2}) < y1 ({y1}). Swapping coordinates.")
-            y1, y2 = y2, y1
-
-        # Check for zero-width or zero-height boxes
-        if x2 <= x1 or y2 <= y1:
+        if safe_bbox is None:
             logger.warning(
-                f"Bounding box has zero or negative dimensions: ({x1}, {y1}, {x2}, {y2}). "
+                f"Invalid bounding box {bbox} for image size {img_width}x{img_height}. "
                 f"Using full image instead."
             )
             return image
 
-        width = x2 - x1
-        height = y2 - y1
-
-        # Add 10% padding
-        pad_x = int(width * 0.1)
-        pad_y = int(height * 0.1)
-
-        # Clamp to image bounds
-        img_width, img_height = image.size
-        x1 = max(0, x1 - pad_x)
-        y1 = max(0, y1 - pad_y)
-        x2 = min(img_width, x2 + pad_x)
-        y2 = min(img_height, y2 + pad_y)
-
-        return image.crop((x1, y1, x2, y2))
+        return image.crop(safe_bbox)
 
     def _parse_yes_no(self, response: str) -> bool:
         """Parse a yes/no response from Florence-2.

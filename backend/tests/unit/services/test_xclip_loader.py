@@ -1070,6 +1070,20 @@ class TestXclipLoaderIntegration:
 class TestXclipLoaderEdgeCases:
     """Edge case tests for X-CLIP loader."""
 
+    @pytest.fixture
+    def mock_model_dict(self) -> dict[str, Any]:
+        """Create mock model dictionary with proper torch mocking."""
+        mock_model = MagicMock()
+        mock_processor = MagicMock()
+
+        # Set up model parameters for device detection
+        mock_param = MagicMock()
+        mock_param.device = "cpu"
+        mock_param.dtype = MagicMock()
+        mock_model.parameters.return_value = iter([mock_param])
+
+        return {"model": mock_model, "processor": mock_processor}
+
     @pytest.mark.asyncio
     async def test_classify_single_frame(self) -> None:
         """Test classification with single frame (should pad to 8)."""
@@ -1132,3 +1146,123 @@ class TestXclipLoaderEdgeCases:
         """Test that all security prompts describe a person's action."""
         for prompt in SECURITY_ACTION_PROMPTS:
             assert "person" in prompt.lower()
+
+    @pytest.mark.asyncio
+    async def test_classify_with_invalid_objects_raises(
+        self, mock_model_dict: dict[str, Any]
+    ) -> None:
+        """Test that classify_actions raises ValueError for invalid objects (not PIL Images)."""
+        # Mix of valid and invalid objects - all invalid should result in ValueError
+        invalid_frames = ["string", 123, {"dict": "value"}]  # type: ignore
+
+        with pytest.raises(ValueError) as exc_info:
+            await classify_actions(mock_model_dict, invalid_frames, prompts=["a", "b"])
+
+        assert "invalid PIL Images" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_classify_filters_invalid_objects_keeps_valid(self) -> None:
+        """Test that classify_actions filters invalid objects but keeps valid PIL Images."""
+        valid_frame = Image.new("RGB", (224, 224), color="blue")
+        # Mix valid and invalid objects
+        frames = ["invalid", valid_frame, 12345, valid_frame]  # type: ignore
+
+        mock_model = MagicMock()
+        mock_processor = MagicMock()
+
+        mock_param = MagicMock()
+        mock_param.device = "cpu"
+        mock_param.dtype = MagicMock()
+        mock_model.parameters.return_value = iter([mock_param, mock_param])
+
+        mock_inputs = {"pixel_values": MagicMock()}
+        for v in mock_inputs.values():
+            v.to.return_value = v
+        mock_processor.return_value = mock_inputs
+
+        mock_outputs = MagicMock()
+        mock_probs = MagicMock()
+        mock_probs.squeeze.return_value.cpu.return_value.numpy.return_value = np.array(
+            [0.75, 0.15, 0.10]
+        )
+        mock_outputs.logits_per_video = MagicMock()
+        mock_model.return_value = mock_outputs
+
+        model_dict = {"model": mock_model, "processor": mock_processor}
+
+        mock_torch = MagicMock()
+        mock_torch.no_grad.return_value.__enter__ = MagicMock(return_value=None)
+        mock_torch.no_grad.return_value.__exit__ = MagicMock(return_value=None)
+        mock_torch.softmax.return_value = mock_probs
+        mock_torch.float16 = "float16"
+
+        with patch.dict(sys.modules, {"torch": mock_torch}):
+            result = await classify_actions(model_dict, frames, prompts=["walk", "run", "stand"])
+
+        # Should succeed with only the valid frames
+        assert "detected_action" in result
+        assert result["confidence"] == 0.75
+
+
+# =============================================================================
+# PIL Image Validation Tests
+# =============================================================================
+
+
+class TestPilImageValidation:
+    """Tests for _is_valid_pil_image helper function."""
+
+    def test_valid_pil_image_returns_true(self) -> None:
+        """Test that valid PIL Images return True."""
+        from backend.services.xclip_loader import _is_valid_pil_image
+
+        img = Image.new("RGB", (100, 100))
+        assert _is_valid_pil_image(img) is True
+
+    def test_none_returns_false(self) -> None:
+        """Test that None returns False."""
+        from backend.services.xclip_loader import _is_valid_pil_image
+
+        assert _is_valid_pil_image(None) is False
+
+    def test_string_returns_false(self) -> None:
+        """Test that string returns False."""
+        from backend.services.xclip_loader import _is_valid_pil_image
+
+        assert _is_valid_pil_image("not an image") is False
+
+    def test_numpy_array_returns_false(self) -> None:
+        """Test that numpy array returns False (not a PIL Image)."""
+        from backend.services.xclip_loader import _is_valid_pil_image
+
+        arr = np.zeros((100, 100, 3), dtype=np.uint8)
+        assert _is_valid_pil_image(arr) is False
+
+    def test_dict_returns_false(self) -> None:
+        """Test that dict returns False."""
+        from backend.services.xclip_loader import _is_valid_pil_image
+
+        assert _is_valid_pil_image({"image": "data"}) is False
+
+    def test_integer_returns_false(self) -> None:
+        """Test that integer returns False."""
+        from backend.services.xclip_loader import _is_valid_pil_image
+
+        assert _is_valid_pil_image(42) is False
+
+    def test_different_pil_modes_return_true(self) -> None:
+        """Test that different PIL modes are valid."""
+        from backend.services.xclip_loader import _is_valid_pil_image
+
+        # Test various PIL modes
+        rgb_img = Image.new("RGB", (100, 100))
+        assert _is_valid_pil_image(rgb_img) is True
+
+        rgba_img = Image.new("RGBA", (100, 100))
+        assert _is_valid_pil_image(rgba_img) is True
+
+        l_img = Image.new("L", (100, 100))
+        assert _is_valid_pil_image(l_img) is True
+
+        p_img = Image.new("P", (100, 100))
+        assert _is_valid_pil_image(p_img) is True

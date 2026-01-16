@@ -27,6 +27,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from backend.core.logging import get_logger
+from backend.services.bbox_validation import prepare_bbox_for_crop
 
 if TYPE_CHECKING:
     from PIL import Image
@@ -351,24 +352,38 @@ class FlorenceExtractor:
     ) -> Image.Image:
         """Crop image to bounding box with optional padding.
 
+        Handles edge cases such as:
+        - Inverted coordinates (x2 < x1 or y2 < y1)
+        - Out-of-bounds coordinates
+        - Zero-dimension boxes
+
         Args:
             image: Source PIL Image
             bbox: Bounding box as (x1, y1, x2, y2)
             padding: Pixels to add around bbox
 
         Returns:
-            Cropped PIL Image
+            Cropped PIL Image, or original image if bbox is invalid
         """
-        x1, y1, x2, y2 = bbox
         width, height = image.size
 
-        # Add padding and clamp to image bounds
-        x1 = max(0, x1 - padding)
-        y1 = max(0, y1 - padding)
-        x2 = min(width, x2 + padding)
-        y2 = min(height, y2 + padding)
+        # Use safe crop preparation that handles all edge cases
+        safe_bbox = prepare_bbox_for_crop(
+            bbox,
+            image_width=width,
+            image_height=height,
+            padding=padding,
+            min_size=1,
+        )
 
-        return image.crop((x1, y1, x2, y2))
+        if safe_bbox is None:
+            logger.warning(
+                f"Invalid bounding box {bbox} for image size {width}x{height}. "
+                f"Returning original image."
+            )
+            return image
+
+        return image.crop(safe_bbox)
 
     def _parse_yes_no(self, response: str) -> bool:
         """Parse a yes/no response from Florence-2.

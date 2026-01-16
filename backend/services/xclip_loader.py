@@ -109,6 +109,28 @@ async def load_xclip_model(model_path: str) -> Any:
         raise RuntimeError(f"Failed to load X-CLIP model: {e}") from e
 
 
+def _is_valid_pil_image(obj: Any) -> bool:
+    """Check if an object is a valid PIL Image.
+
+    Args:
+        obj: Object to validate
+
+    Returns:
+        True if obj is a valid PIL Image with accessible size/mode
+    """
+    if obj is None:
+        return False
+    if not isinstance(obj, Image.Image):
+        return False
+    try:
+        # Verify image is accessible (not closed/corrupted)
+        _ = obj.size
+        _ = obj.mode
+        return True
+    except Exception:
+        return False
+
+
 async def classify_actions(
     model_dict: dict[str, Any],
     frames: list[Image.Image],
@@ -136,23 +158,26 @@ async def classify_actions(
             - all_scores: Dictionary mapping all prompts to their scores
 
     Raises:
-        ValueError: If frames list is empty or contains only None values
+        ValueError: If frames list is empty or contains only invalid/None values
         RuntimeError: If classification fails
     """
     if not frames:
         raise ValueError("At least one frame is required for action classification")
 
-    # Filter out None frames (can occur if image loading/cropping fails)
-    valid_frames = [f for f in frames if f is not None]
+    # Filter out None and invalid frames (can occur if image loading/cropping fails)
+    valid_frames = [f for f in frames if _is_valid_pil_image(f)]
 
     if not valid_frames:
-        raise ValueError("No valid frames provided for action classification (all frames are None)")
+        raise ValueError(
+            "No valid frames provided for action classification "
+            "(all frames are None or invalid PIL Images)"
+        )
 
-    # Log warning if some frames were None
+    # Log warning if some frames were invalid
     if len(valid_frames) < len(frames):
         logger.warning(
             f"X-CLIP received {len(frames)} frames but {len(frames) - len(valid_frames)} "
-            f"were None and filtered out. Proceeding with {len(valid_frames)} valid frames."
+            f"were None or invalid and filtered out. Proceeding with {len(valid_frames)} valid frames."
         )
 
     # Use valid frames for classification

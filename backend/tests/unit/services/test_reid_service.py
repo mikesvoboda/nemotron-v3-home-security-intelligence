@@ -1300,6 +1300,218 @@ class TestGetEntityHistory:
 
         assert history == []
 
+    @pytest.mark.asyncio
+    async def test_get_entity_history_handles_malformed_string_entity_data(
+        self,
+    ) -> None:
+        """Test that malformed entity data (string instead of dict) is skipped.
+
+        Regression test for: 'str' object has no attribute 'get' error.
+        When Redis returns entity data where an entity is a string instead of a dict,
+        the service should skip that entry and continue processing.
+        """
+        now = datetime.now(UTC)
+        # Malformed data where one entity is a string instead of a dict
+        stored_data = {
+            "persons": [
+                "malformed_string_entry",  # This is the problematic case
+                EntityEmbedding(
+                    entity_type="person",
+                    embedding=[0.1] * 10,
+                    camera_id="camera_1",
+                    timestamp=now - timedelta(minutes=5),
+                    detection_id="det_1",
+                ).to_dict(),
+            ],
+            "vehicles": [],
+        }
+
+        mock_redis = AsyncMock()
+        call_count = [0]
+
+        def get_side_effect(key: str) -> str | None:
+            call_count[0] += 1
+            if call_count[0] == 1:
+                return json.dumps(stored_data)
+            return None
+
+        mock_redis.get.side_effect = get_side_effect
+
+        service = ReIdentificationService()
+
+        # Should not raise AttributeError: 'str' object has no attribute 'get'
+        history = await service.get_entity_history(mock_redis, "person")
+
+        # Should have only the valid entry
+        assert len(history) == 1
+        assert history[0].detection_id == "det_1"
+
+    @pytest.mark.asyncio
+    async def test_get_entity_history_handles_dict_from_redis_client_wrapper(
+        self,
+    ) -> None:
+        """Test that pre-decoded dict from RedisClient wrapper is handled correctly.
+
+        The RedisClient wrapper may return already-decoded JSON as a dict,
+        which should not be passed through json.loads() again.
+        """
+        now = datetime.now(UTC)
+        stored_data = {
+            "persons": [
+                EntityEmbedding(
+                    entity_type="person",
+                    embedding=[0.1] * 10,
+                    camera_id="camera_1",
+                    timestamp=now - timedelta(minutes=5),
+                    detection_id="det_1",
+                ).to_dict(),
+            ],
+            "vehicles": [],
+        }
+
+        mock_redis = AsyncMock()
+        call_count = [0]
+
+        def get_side_effect(key: str) -> dict | None:
+            call_count[0] += 1
+            if call_count[0] == 1:
+                # Return dict directly (as RedisClient wrapper might)
+                return stored_data
+            return None
+
+        mock_redis.get.side_effect = get_side_effect
+
+        service = ReIdentificationService()
+
+        history = await service.get_entity_history(mock_redis, "person")
+
+        assert len(history) == 1
+        assert history[0].detection_id == "det_1"
+
+
+# =============================================================================
+# Malformed Redis Data Edge Cases Tests
+# =============================================================================
+
+
+class TestMalformedRedisDataHandling:
+    """Tests for handling malformed Redis data in find_matching_entities."""
+
+    @pytest.mark.asyncio
+    async def test_find_matching_entities_handles_malformed_string_entity(
+        self,
+    ) -> None:
+        """Test that malformed entity data (string instead of dict) is skipped in matching.
+
+        Regression test for: 'str' object has no attribute 'get' error.
+        """
+        now = datetime.now(UTC)
+        # Malformed data where one entity is a string instead of a dict
+        stored_data = {
+            "persons": [
+                "malformed_string_entry",  # This is the problematic case
+                EntityEmbedding(
+                    entity_type="person",
+                    embedding=[0.9] * 10,  # Similar embedding
+                    camera_id="camera_1",
+                    timestamp=now - timedelta(minutes=5),
+                    detection_id="det_1",
+                ).to_dict(),
+            ],
+            "vehicles": [],
+        }
+
+        mock_redis = AsyncMock()
+        call_count = [0]
+
+        def get_side_effect(key: str) -> str | None:
+            call_count[0] += 1
+            if call_count[0] == 1:
+                return json.dumps(stored_data)
+            return None
+
+        mock_redis.get.side_effect = get_side_effect
+
+        service = ReIdentificationService()
+        query_embedding = [0.9] * 10
+
+        # Should not raise AttributeError
+        matches = await service.find_matching_entities(
+            mock_redis, query_embedding, "person", threshold=0.5
+        )
+
+        # Should find the valid entity
+        assert len(matches) == 1
+        assert matches[0].entity.detection_id == "det_1"
+
+    @pytest.mark.asyncio
+    async def test_find_matching_entities_handles_dict_from_redis_wrapper(
+        self,
+    ) -> None:
+        """Test that pre-decoded dict from RedisClient wrapper is handled correctly."""
+        now = datetime.now(UTC)
+        stored_data = {
+            "persons": [
+                EntityEmbedding(
+                    entity_type="person",
+                    embedding=[0.9] * 10,
+                    camera_id="camera_1",
+                    timestamp=now - timedelta(minutes=5),
+                    detection_id="det_1",
+                ).to_dict(),
+            ],
+            "vehicles": [],
+        }
+
+        mock_redis = AsyncMock()
+        call_count = [0]
+
+        def get_side_effect(key: str) -> dict | None:
+            call_count[0] += 1
+            if call_count[0] == 1:
+                # Return dict directly (as RedisClient wrapper might)
+                return stored_data
+            return None
+
+        mock_redis.get.side_effect = get_side_effect
+
+        service = ReIdentificationService()
+        query_embedding = [0.9] * 10
+
+        matches = await service.find_matching_entities(
+            mock_redis, query_embedding, "person", threshold=0.5
+        )
+
+        assert len(matches) == 1
+        assert matches[0].entity.detection_id == "det_1"
+
+    @pytest.mark.asyncio
+    async def test_find_matching_entities_handles_non_dict_top_level_data(
+        self,
+    ) -> None:
+        """Test that non-dict top-level data results in empty entity list."""
+        mock_redis = AsyncMock()
+        call_count = [0]
+
+        def get_side_effect(key: str) -> str | None:
+            call_count[0] += 1
+            if call_count[0] == 1:
+                # Return a string instead of dict structure
+                return json.dumps("invalid_top_level_string")
+            return None
+
+        mock_redis.get.side_effect = get_side_effect
+
+        service = ReIdentificationService()
+        query_embedding = [0.9] * 10
+
+        # Should return empty list, not crash
+        matches = await service.find_matching_entities(
+            mock_redis, query_embedding, "person", threshold=0.5
+        )
+
+        assert matches == []
+
 
 # =============================================================================
 # Singleton Function Tests

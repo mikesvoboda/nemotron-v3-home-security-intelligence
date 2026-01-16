@@ -137,12 +137,32 @@ remove_all_containers() {
         return 0
     fi
 
+    # Try to remove all containers
     podman rm -f -a 2>&1 || true
 
-    # Verify removal
+    # Give podman a moment to clean up
+    sleep 1
+
+    # Verify removal - retry if needed
+    local retries=3
+    while [[ $retries -gt 0 ]]; do
+        containers=$(podman ps -aq 2>/dev/null || true)
+        if [[ -z "$containers" ]]; then
+            log_info "All containers removed"
+            return 0
+        fi
+
+        log_warn "Retrying container removal ($retries attempts left)..."
+        podman rm -f -a 2>&1 || true
+        sleep 2
+        retries=$((retries - 1))
+    done
+
+    # Final check
     containers=$(podman ps -aq 2>/dev/null || true)
     if [[ -n "$containers" ]]; then
-        log_error "Failed to remove all containers!"
+        log_error "Failed to remove all containers after retries!"
+        podman ps -a
         return 1
     fi
 
@@ -154,8 +174,8 @@ remove_all_containers() {
 destroy_all_volumes() {
     log_step "Destroying all volumes..."
 
-    # First, use compose to remove project volumes
-    podman-compose -f "$COMPOSE_FILE" down -v --timeout 5 2>&1 || true
+    # First, use compose to remove project volumes (suppress "no container" errors)
+    podman-compose -f "$COMPOSE_FILE" down -v --timeout 5 2>&1 | grep -v "no such container" || true
 
     # Prune any remaining volumes
     podman volume prune -f 2>&1 || true
@@ -184,12 +204,25 @@ build_images() {
         build_cmd="$build_cmd ${services[*]}"
     fi
 
-    if ! run_with_timeout "$BUILD_TIMEOUT" bash -c "$build_cmd"; then
-        log_error "Build timed out or failed after ${BUILD_TIMEOUT}s"
+    local build_exit_code=0
+    timeout --signal=TERM "$BUILD_TIMEOUT" bash -c "$build_cmd" || build_exit_code=$?
+
+    # timeout returns 124 on timeout, 137 on KILL
+    if [[ $build_exit_code -eq 124 || $build_exit_code -eq 137 ]]; then
+        log_error "Build timed out after ${BUILD_TIMEOUT}s"
         return 1
     fi
 
-    log_info "Build completed successfully"
+    # Verify images were created by checking if we can list them
+    local image_count
+    image_count=$(podman images --format "{{.Repository}}" 2>/dev/null | grep -c "$(basename "$PROJECT_DIR")" || true)
+
+    if [[ $image_count -eq 0 ]]; then
+        log_error "Build failed - no images were created"
+        return 1
+    fi
+
+    log_info "Build completed successfully ($image_count images)"
     return 0
 }
 
