@@ -43,16 +43,7 @@ export type WebSocketMessageType = 'ping' | 'pong' | 'subscribe' | 'unsubscribe'
  * Includes both health states and worker lifecycle states for comprehensive
  * status reporting across services and workers.
  */
-export type WebSocketServiceStatus =
-  | 'healthy'
-  | 'unhealthy'
-  | 'running'
-  | 'stopped'
-  | 'crashed'
-  | 'disabled'
-  | 'restarting'
-  | 'restart_failed'
-  | 'failed';
+export type WebSocketServiceStatus = 'healthy' | 'unhealthy' | 'running' | 'stopped' | 'crashed' | 'disabled' | 'restarting' | 'restart_failed' | 'failed';
 
 /**
  * WebSocket event types for alert state changes.
@@ -154,16 +145,7 @@ export interface WebSocketServiceStatusData {
   /** Name of the service (redis, rtdetr, nemotron) */
   service: string;
   /** Current service status */
-  status:
-    | 'healthy'
-    | 'unhealthy'
-    | 'running'
-    | 'stopped'
-    | 'crashed'
-    | 'disabled'
-    | 'restarting'
-    | 'restart_failed'
-    | 'failed';
+  status: 'healthy' | 'unhealthy' | 'running' | 'stopped' | 'crashed' | 'disabled' | 'restarting' | 'restart_failed' | 'failed';
   /** Optional descriptive message */
   message?: string | null;
 }

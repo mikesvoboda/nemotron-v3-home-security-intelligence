@@ -496,14 +496,7 @@ export default function AnalyticsPage() {
                         </div>
                         <BarList
                           data={prepareObjectDistributionData().map((item, index) => {
-                            const colors = [
-                              'cyan',
-                              'violet',
-                              'amber',
-                              'rose',
-                              'emerald',
-                              'fuchsia',
-                            ];
+                            const colors = ['cyan', 'violet', 'amber', 'rose', 'emerald', 'fuchsia'];
                             return {
                               name: item.name,
                               value: item.value,
@@ -703,8 +696,7 @@ export default function AnalyticsPage() {
                       <div className="mb-4 flex items-center justify-between">
                         <Text className="text-gray-400">Events per camera</Text>
                         <Text className="font-semibold text-white">
-                          {prepareCameraActivityData().reduce((sum, item) => sum + item.events, 0)}{' '}
-                          total
+                          {prepareCameraActivityData().reduce((sum, item) => sum + item.events, 0)} total
                         </Text>
                       </div>
                       <BarList
