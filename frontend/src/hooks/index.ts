@@ -397,3 +397,62 @@ export type {
   UseUpdatePromptConfigReturn,
   UseRestorePromptVersionReturn,
 } from './usePromptQueries';
+
+// System config hook (NEM-2719)
+export { useSystemConfigQuery } from './useSystemConfigQuery';
+export type {
+  UseSystemConfigQueryOptions,
+  UseSystemConfigQueryReturn,
+} from './useSystemConfigQuery';
+
+// Developer tools section state hook (NEM-2719)
+export { useDevToolsSections } from './useDevToolsSections';
+export type { DevToolsSectionId } from './useDevToolsSections';
+
+// Debug configuration and log level hooks (NEM-2722)
+export { useDebugConfigQuery } from './useDebugConfigQuery';
+export type {
+  ConfigEntry,
+  UseDebugConfigQueryOptions,
+  UseDebugConfigQueryReturn,
+} from './useDebugConfigQuery';
+
+export { useLogLevelQuery } from './useLogLevelQuery';
+export type { UseLogLevelQueryOptions, UseLogLevelQueryReturn } from './useLogLevelQuery';
+
+export { useSetLogLevelMutation } from './useSetLogLevelMutation';
+export type { LogLevel, UseSetLogLevelMutationReturn } from './useSetLogLevelMutation';
+
+// Performance profiling hooks (NEM-2720)
+export { useProfileQuery } from './useProfileQuery';
+export type { UseProfileQueryOptions, UseProfileQueryReturn } from './useProfileQuery';
+
+export {
+  useStartProfilingMutation,
+  useStopProfilingMutation,
+  useDownloadProfileMutation,
+} from './useProfilingMutations';
+export type {
+  UseStartProfilingMutationReturn,
+  UseStopProfilingMutationReturn,
+  UseDownloadProfileMutationReturn,
+} from './useProfilingMutations';
+
+// Admin seed/cleanup mutations (NEM-2723)
+export {
+  useAdminMutations,
+  useSeedCamerasMutation,
+  useSeedEventsMutation,
+  useSeedPipelineLatencyMutation,
+  useClearSeededDataMutation,
+} from './useAdminMutations';
+export type {
+  SeedCamerasRequest,
+  SeedCamerasResponse,
+  SeedEventsRequest,
+  SeedEventsResponse,
+  SeedPipelineLatencyRequest,
+  SeedPipelineLatencyResponse,
+  ClearSeededDataRequest,
+  ClearSeededDataResponse,
+} from './useAdminMutations';

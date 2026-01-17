@@ -610,6 +610,27 @@ export const queryKeys = {
   },
 
   /**
+   * Debug/Developer tools query keys
+   */
+  debug: {
+    /** Performance profiling status */
+    profile: ['debug', 'profile'] as const,
+    /** Request recordings */
+    recordings: {
+      /** All recordings */
+      all: ['debug', 'recordings'] as const,
+      /** List of recordings */
+      list: () => [...queryKeys.debug.recordings.all, 'list'] as const,
+      /** Single recording detail */
+      detail: (id: string) => [...queryKeys.debug.recordings.all, 'detail', id] as const,
+    },
+    /** Application configuration */
+    config: ['debug', 'config'] as const,
+    /** Log level */
+    logLevel: ['debug', 'logLevel'] as const,
+  },
+
+  /**
    * Background job query keys
    */
   jobs: {
