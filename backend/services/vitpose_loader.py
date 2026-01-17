@@ -441,10 +441,33 @@ async def extract_pose_from_crop(
     try:
         import torch
 
+        # Validate input
+        if person_crop is None:
+            logger.warning("Received None person_crop, returning empty pose result")
+            return PoseResult(
+                keypoints={},
+                pose_class="unknown",
+                pose_confidence=0.0,
+                bbox=bbox,
+            )
+
         # Get image dimensions for bounding box
         # Since this is already a person crop, use full frame as the bounding box
         # Format: [x1, y1, x2, y2] where coordinates are in pixels
         width, height = person_crop.width, person_crop.height
+
+        # Validate image dimensions
+        if width <= 0 or height <= 0:
+            logger.warning(
+                f"Invalid image dimensions: {width}x{height}, returning empty pose result"
+            )
+            return PoseResult(
+                keypoints={},
+                pose_class="unknown",
+                pose_confidence=0.0,
+                bbox=bbox,
+            )
+
         full_frame_box = [[0, 0, width, height]]
 
         # Prepare image for model
@@ -460,9 +483,14 @@ async def extract_pose_from_crop(
         device = next(model.parameters()).device
         inputs = {k: v.to(device) for k, v in inputs.items()}
 
+        # ViTPose+ uses mixture-of-experts architecture with 6 experts:
+        # 0: COCO, 1: AiC, 2: MPII, 3: AP-10K, 4: APT-36K, 5: COCO-WholeBody
+        # We use COCO dataset format (17 keypoints), so dataset_index=0
+        dataset_index = torch.tensor([0], device=device)
+
         # Run inference
         with torch.no_grad():
-            outputs = model(**inputs)
+            outputs = model(**inputs, dataset_index=dataset_index)
 
         # Extract keypoints
         image_size = (person_crop.height, person_crop.width)
@@ -518,16 +546,45 @@ async def extract_poses_batch(
     try:
         import torch
 
-        # Build full-frame bounding boxes for each crop
+        # Filter out None images and track indices for valid images
+        valid_indices: list[int] = []
+        valid_crops: list[Image.Image] = []
+
+        for i, crop in enumerate(person_crops):
+            if crop is None:
+                logger.warning(f"Received None person_crop at index {i}, skipping")
+                continue
+            if crop.width <= 0 or crop.height <= 0:
+                logger.warning(
+                    f"Invalid image dimensions at index {i}: {crop.width}x{crop.height}, skipping"
+                )
+                continue
+            valid_indices.append(i)
+            valid_crops.append(crop)
+
+        # If no valid crops, return empty results for all inputs
+        if not valid_crops:
+            logger.warning("No valid person crops in batch, returning empty results")
+            return [
+                PoseResult(
+                    keypoints={},
+                    pose_class="unknown",
+                    pose_confidence=0.0,
+                    bbox=bboxes[i] if i < len(bboxes) else None,
+                )
+                for i in range(len(person_crops))
+            ]
+
+        # Build full-frame bounding boxes for each valid crop
         # Since these are already person crops, each box covers the entire image
         # Format: list of [[x1, y1, x2, y2]] for each image
-        full_frame_boxes = [[[0, 0, img.width, img.height]] for img in person_crops]
+        full_frame_boxes = [[[0, 0, img.width, img.height]] for img in valid_crops]
 
         # Prepare batch
         # VitPoseImageProcessor.preprocess() requires 'boxes' argument
         # to specify person bounding boxes for top-down pose estimation
         inputs = processor(
-            images=person_crops,
+            images=valid_crops,
             boxes=full_frame_boxes,
             return_tensors="pt",
         )
@@ -536,34 +593,59 @@ async def extract_poses_batch(
         device = next(model.parameters()).device
         inputs = {k: v.to(device) for k, v in inputs.items()}
 
+        # ViTPose+ uses mixture-of-experts architecture with 6 experts:
+        # 0: COCO, 1: AiC, 2: MPII, 3: AP-10K, 4: APT-36K, 5: COCO-WholeBody
+        # We use COCO dataset format (17 keypoints), so dataset_index=0
+        # Create a tensor with dataset_index=0 for each image in the batch
+        batch_size = len(valid_crops)
+        dataset_index = torch.zeros(batch_size, dtype=torch.long, device=device)
+
         # Run inference
         with torch.no_grad():
-            outputs = model(**inputs)
+            outputs = model(**inputs, dataset_index=dataset_index)
 
-        # Extract keypoints for all images
-        image_sizes = [(img.height, img.width) for img in person_crops]
+        # Extract keypoints for all valid images
+        image_sizes = [(img.height, img.width) for img in valid_crops]
         keypoints_list = extract_keypoints_from_output(
             outputs, processor, image_sizes, min_confidence=0.3
         )
 
-        # Build results
-        results: list[PoseResult] = []
-        for i, keypoints in enumerate(keypoints_list):
-            pose_class, pose_confidence = classify_pose(keypoints)
-            results.append(
-                PoseResult(
+        # Build results for all original inputs (including invalid ones)
+        # Initialize with empty results for all inputs
+        results: list[PoseResult] = [
+            PoseResult(
+                keypoints={},
+                pose_class="unknown",
+                pose_confidence=0.0,
+                bbox=bboxes[i] if i < len(bboxes) else None,
+            )
+            for i in range(len(person_crops))
+        ]
+
+        # Fill in results for valid indices
+        for result_idx, original_idx in enumerate(valid_indices):
+            if result_idx < len(keypoints_list):
+                keypoints = keypoints_list[result_idx]
+                pose_class, pose_confidence = classify_pose(keypoints)
+                results[original_idx] = PoseResult(
                     keypoints=keypoints,
                     pose_class=pose_class,
                     pose_confidence=pose_confidence,
-                    bbox=bboxes[i] if i < len(bboxes) else None,
+                    bbox=bboxes[original_idx] if original_idx < len(bboxes) else None,
                 )
-            )
 
+        logger.debug(
+            f"Successfully extracted poses for {len(valid_crops)}/{len(person_crops)} crops"
+        )
         return results
 
-    except Exception:
-        logger.error("Failed to extract poses from batch", exc_info=True)
-        # Return empty results for each crop
+    except Exception as e:
+        logger.error(
+            f"Failed to extract poses from batch: {e!r}",
+            exc_info=True,
+            extra={"batch_size": len(person_crops)},
+        )
+        # Return empty results for each crop (graceful fallback)
         return [
             PoseResult(
                 keypoints={},

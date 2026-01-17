@@ -904,6 +904,11 @@ async def test_file_watcher_queues_detection(
     with patch("backend.services.file_watcher.get_settings") as mock_settings:
         settings_mock = MagicMock()
         settings_mock.foscam_base_path = str(temp_camera_dir)
+        # Set rate limiting settings to avoid MagicMock comparison errors
+        settings_mock.file_watcher_max_concurrent_queue = 10
+        settings_mock.file_watcher_queue_delay_ms = 0
+        settings_mock.file_watcher_polling = False
+        settings_mock.file_watcher_polling_interval = 1.0
         mock_settings.return_value = settings_mock
 
         watcher = FileWatcher(

@@ -29894,7 +29894,7 @@
     },
     "/api/system/health": {
       "get": {
-        "description": "Get detailed system health check.\n\nChecks the health of all system components:\n- Database connectivity\n- Redis connectivity\n- AI services status\n\nHealth checks have a timeout of HEALTH_CHECK_TIMEOUT_SECONDS (default 5 seconds).\nIf a health check times out, the service is marked as unhealthy.\n\nReturns:\n    HealthResponse with overall status and individual service statuses.\n    HTTP 200 if healthy, 503 if degraded or unhealthy.",
+        "description": "Get detailed system health check.\n\nChecks the health of all system components:\n- Database connectivity\n- Redis connectivity\n- AI services status\n\nHealth checks have a timeout of HEALTH_CHECK_TIMEOUT_SECONDS (default 5 seconds).\nIf a health check times out, the service is marked as unhealthy.\n\nResults are cached for HEALTH_CACHE_TTL_SECONDS (default 5 seconds) to reduce\nload from frequent health probes. Cached responses are returned immediately\nwithout re-checking services.\n\nReturns:\n    HealthResponse with overall status and individual service statuses.\n    HTTP 200 if healthy, 503 if degraded or unhealthy.",
         "operationId": "get_health_api_system_health_get",
         "responses": {
           "200": {
