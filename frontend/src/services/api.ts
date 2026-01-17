@@ -6197,7 +6197,6 @@ export async function downloadProfile(): Promise<Blob> {
   return response.blob();
 }
 
-
 // ============================================================================
 // Debug Panel Enhancement API (NEM-2717)
 // ============================================================================
