@@ -33,10 +33,16 @@ backend/models/
 ├── prompt_version.py  # AI prompt configuration version tracking (historical)
 ├── scene_change.py    # Scene change detection for camera tampering alerts
 ├── event_detection.py # Junction table for Event-Detection many-to-many relationship
-├── enums.py           # Shared enumerations (Severity)
+├── enums.py           # Shared enumerations (Severity, EntityType, TrustStatus)
 ├── event_feedback.py  # User feedback on security events (NEM-1794)
 ├── notification_preferences.py  # Notification settings models
 ├── user_calibration.py  # Personalized risk threshold calibration
+├── entity.py          # Entity model for re-identification tracking (NEM-1880, NEM-2210)
+├── export_job.py      # Export job persistence model
+├── job.py             # Background job model for job tracking
+├── job_attempt.py     # Job execution attempt model (NEM-2396)
+├── job_log.py         # Job log entry model (NEM-2396)
+├── job_transition.py  # Job state transition model (NEM-2396)
 └── README.md          # Detailed model documentation
 ```
 
@@ -66,6 +72,12 @@ backend/models/
 - `PromptVersion`, `AIModel` - Prompt version tracking model and enum (not re-exported via `__init__.py` - import directly from `backend.models.prompt_version`)
 - `SceneChange`, `SceneChangeType` - Scene change detection model and enum
 - `Severity`, `CameraStatus` - Shared enumerations
+- `Entity`, `EntityType`, `TrustStatus` - Entity re-identification model and enums (NEM-1880, NEM-2210)
+- `ExportJob`, `ExportJobStatus`, `ExportType` - Export job persistence model and enums
+- `Job`, `JobStatus` - Background job model and status enum
+- `JobAttempt`, `JobAttemptStatus` - Job attempt tracking model and enum (NEM-2396)
+- `JobLog`, `LogLevel` - Job log model and log level enum (NEM-2396)
+- `JobTransition`, `JobTransitionTrigger` - Job transition audit model and enum (NEM-2396)
 
 ## `camera.py` - Camera Model
 
@@ -350,6 +362,292 @@ The migration (`add_event_detections_junction_table.py`) handles both data forma
 - Legacy CSV: `"1,2,3"`
 
 The legacy `detection_ids` column is retained for backward compatibility during transition.
+
+## `entity.py` - Entity Model (NEM-1880, NEM-2210, NEM-2431, NEM-2670)
+
+**Model:** `Entity`
+**Table:** `entities`
+**Purpose:** Tracks unique individuals and objects across cameras using embedding vectors for re-identification.
+
+**Enums in `enums.py`:**
+
+| Enum          | Values                                  | Description            |
+| ------------- | --------------------------------------- | ---------------------- |
+| `EntityType`  | person, vehicle, animal, package, other | Type of tracked entity |
+| `TrustStatus` | trusted, untrusted, unknown             | Trust classification   |
+
+**Fields:**
+
+| Field                  | Type             | Description                                  |
+| ---------------------- | ---------------- | -------------------------------------------- |
+| `id`                   | UUID (PK)        | Unique entity identifier                     |
+| `entity_type`          | str (20 chars)   | Type of entity (person, vehicle, etc.)       |
+| `trust_status`         | str (20 chars)   | Trust classification (default: unknown)      |
+| `embedding_vector`     | JSONB (nullable) | Feature vector for re-identification         |
+| `first_seen_at`        | datetime         | Timestamp of first detection                 |
+| `last_seen_at`         | datetime         | Timestamp of most recent detection           |
+| `detection_count`      | int              | Total detections linked to this entity       |
+| `entity_metadata`      | JSONB (nullable) | Flexible attributes (clothing, vehicle make) |
+| `primary_detection_id` | int (nullable)   | Reference to primary/best detection (no FK)  |
+
+**Relationships:**
+
+- `primary_detection` - Optional link to primary Detection (viewonly, no FK constraint)
+
+**Important:** No FK constraint on `primary_detection_id` because `detections` is a partitioned table with composite PK. Application-level validation via `validate_primary_detection_async()`.
+
+**Indexes:**
+
+- `idx_entities_entity_type` - Filter by entity type
+- `idx_entities_trust_status` - Filter by trust status
+- `idx_entities_first_seen_at` - First seen time queries
+- `idx_entities_last_seen_at` - Recent activity queries
+- `idx_entities_type_last_seen` - Composite for type + time filtering
+- `ix_entities_entity_metadata_gin` - GIN index for JSONB attribute queries
+
+**Constraints:**
+
+- `ck_entities_entity_type` - Valid entity types
+- `ck_entities_trust_status` - Valid trust status values
+- `ck_entities_detection_count` - Non-negative detection count
+
+**Methods:**
+
+| Method                                         | Purpose                                        |
+| ---------------------------------------------- | ---------------------------------------------- |
+| `get_trust_status()`                           | Return TrustStatus enum value                  |
+| `is_trusted()` / `is_untrusted()`              | Check trust status                             |
+| `update_seen(timestamp)`                       | Update last_seen_at, increment detection_count |
+| `set_embedding(vector, model)`                 | Set embedding vector with metadata             |
+| `get_embedding_vector()`                       | Get raw embedding vector                       |
+| `from_detection(...)` (classmethod)            | Factory method to create entity from detection |
+| `validate_primary_detection_async(session)`    | Validate detection exists (async)              |
+| `set_primary_detection_validated(session, id)` | Set detection with validation                  |
+
+## `export_job.py` - Export Job Model
+
+**Model:** `ExportJob`
+**Table:** `export_jobs`
+**Purpose:** Tracks background export jobs with progress updates, timing, and results.
+
+**Enums:**
+
+| Enum              | Values                              | Description          |
+| ----------------- | ----------------------------------- | -------------------- |
+| `ExportJobStatus` | pending, running, completed, failed | Job lifecycle states |
+| `ExportType`      | events, alerts, full_backup         | Types of exports     |
+
+**Fields:**
+
+| Field                  | Type                 | Description                      |
+| ---------------------- | -------------------- | -------------------------------- |
+| `id`                   | UUID (PK)            | Unique job identifier            |
+| `status`               | ExportJobStatus enum | Current job status               |
+| `export_type`          | str (50 chars)       | Type of export                   |
+| `export_format`        | str (20 chars)       | Format (csv, json, zip, excel)   |
+| `total_items`          | int (nullable)       | Total items to process           |
+| `processed_items`      | int                  | Items processed so far           |
+| `progress_percent`     | int                  | Progress percentage (0-100)      |
+| `current_step`         | str (nullable)       | Description of current step      |
+| `created_at`           | datetime             | Job creation timestamp           |
+| `started_at`           | datetime (nullable)  | Job start timestamp              |
+| `completed_at`         | datetime (nullable)  | Job completion timestamp         |
+| `estimated_completion` | datetime (nullable)  | Estimated completion time        |
+| `output_path`          | str (nullable)       | Path to output file              |
+| `output_size_bytes`    | int (nullable)       | Output file size                 |
+| `error_message`        | text (nullable)      | Error message for failed exports |
+| `filter_params`        | text (nullable)      | Filter parameters (JSON string)  |
+
+**Indexes:**
+
+- `idx_export_jobs_status` - Filter by status
+- `idx_export_jobs_export_type` - Filter by type
+- `idx_export_jobs_created_at` - Time-based queries
+- `idx_export_jobs_status_created_at` - Composite for status + time
+
+**Properties:**
+
+| Property           | Description                 |
+| ------------------ | --------------------------- |
+| `is_complete`      | True if completed or failed |
+| `is_running`       | True if currently running   |
+| `duration_seconds` | Job duration in seconds     |
+
+## `job.py` - Background Job Model
+
+**Model:** `Job`
+**Table:** `jobs`
+**Purpose:** Persistent storage for background jobs with tracking, filtering, and retry support.
+
+**Enum:** `JobStatus`
+
+| Value       | Description               |
+| ----------- | ------------------------- |
+| `queued`    | Waiting to be processed   |
+| `running`   | Currently executing       |
+| `completed` | Finished successfully     |
+| `failed`    | Encountered an error      |
+| `cancelled` | Cancelled by user request |
+
+**Fields:**
+
+| Field              | Type                | Description                         |
+| ------------------ | ------------------- | ----------------------------------- |
+| `id`               | str (36, PK)        | Unique job identifier (UUID)        |
+| `job_type`         | str (50 chars)      | Type (export, cleanup, backup, etc) |
+| `status`           | str (20 chars)      | Current status                      |
+| `queue_name`       | str (nullable)      | Assigned queue name                 |
+| `priority`         | int                 | Priority 0-4 (0=highest)            |
+| `created_at`       | datetime            | Creation timestamp                  |
+| `started_at`       | datetime (nullable) | Start timestamp                     |
+| `completed_at`     | datetime (nullable) | Completion timestamp                |
+| `progress_percent` | int                 | Progress percentage (0-100)         |
+| `current_step`     | str (nullable)      | Current processing step             |
+| `result`           | JSONB (nullable)    | Result data for completed jobs      |
+| `error_message`    | text (nullable)     | Error message for failed jobs       |
+| `error_traceback`  | text (nullable)     | Full traceback for debugging        |
+| `attempt_number`   | int                 | Current attempt number (default: 1) |
+| `max_attempts`     | int                 | Maximum retry attempts (default: 3) |
+| `next_retry_at`    | datetime (nullable) | Next retry timestamp                |
+
+**Indexes:**
+
+- `idx_jobs_status` - Filter by status
+- `idx_jobs_job_type` - Filter by job type
+- `idx_jobs_created_at` - Time-based queries
+- `idx_jobs_queue_name` - Filter by queue
+- `idx_jobs_priority` - Priority ordering
+- `idx_jobs_status_created_at` - Composite for status + time
+- `idx_jobs_job_type_status` - Composite for type + status
+- `ix_jobs_created_at_brin` - BRIN index for time-series
+
+**Properties:**
+
+| Property           | Description                               |
+| ------------------ | ----------------------------------------- |
+| `is_active`        | True if queued or running                 |
+| `is_finished`      | True if completed, failed, or cancelled   |
+| `can_retry`        | True if failed and has remaining attempts |
+| `duration_seconds` | Job duration in seconds                   |
+
+**Methods:**
+
+| Method                           | Purpose                 |
+| -------------------------------- | ----------------------- |
+| `start()`                        | Mark job as running     |
+| `complete(result)`               | Mark job as completed   |
+| `fail(error_message, tb)`        | Mark job as failed      |
+| `cancel()`                       | Mark job as cancelled   |
+| `update_progress(percent, step)` | Update progress         |
+| `prepare_retry()`                | Reset for retry attempt |
+
+## `job_attempt.py` - Job Attempt Model (NEM-2396)
+
+**Model:** `JobAttempt`
+**Table:** `job_attempts`
+**Purpose:** Tracks individual job execution attempts for retry history and debugging.
+
+**Enum:** `JobAttemptStatus`
+
+| Value       | Description       |
+| ----------- | ----------------- |
+| `started`   | Attempt started   |
+| `succeeded` | Attempt succeeded |
+| `failed`    | Attempt failed    |
+| `cancelled` | Attempt cancelled |
+
+**Fields:**
+
+| Field             | Type                | Description                   |
+| ----------------- | ------------------- | ----------------------------- |
+| `id`              | UUID (PK)           | Unique attempt identifier     |
+| `job_id`          | UUID                | Reference to parent job       |
+| `attempt_number`  | int                 | Sequential attempt number     |
+| `started_at`      | datetime            | Attempt start timestamp       |
+| `ended_at`        | datetime (nullable) | Attempt end timestamp         |
+| `status`          | str (20 chars)      | Attempt status                |
+| `worker_id`       | str (nullable)      | Worker that processed attempt |
+| `error_message`   | text (nullable)     | Error message if failed       |
+| `error_traceback` | text (nullable)     | Full traceback if failed      |
+| `result`          | JSONB (nullable)    | Result data if successful     |
+
+**Indexes:**
+
+- `idx_job_attempts_job_attempt` - Composite for job_id + attempt_number
+- `idx_job_attempts_status` - Filter by status
+- `ix_job_attempts_started_at_brin` - BRIN index for time-series
+
+**Properties:**
+
+- `duration_seconds` - Attempt duration in seconds
+
+## `job_log.py` - Job Log Model (NEM-2396)
+
+**Model:** `JobLog`
+**Table:** `job_logs`
+**Purpose:** Stores log entries generated during job execution for debugging and audit trails.
+
+**Enum:** `LogLevel`
+
+| Value     | Description   |
+| --------- | ------------- |
+| `debug`   | Debug level   |
+| `info`    | Info level    |
+| `warning` | Warning level |
+| `error`   | Error level   |
+
+**Fields:**
+
+| Field            | Type             | Description                     |
+| ---------------- | ---------------- | ------------------------------- |
+| `id`             | UUID (PK)        | Unique log entry identifier     |
+| `job_id`         | UUID             | Reference to parent job         |
+| `attempt_number` | int              | Which attempt generated the log |
+| `timestamp`      | datetime         | Log entry timestamp             |
+| `level`          | str (10 chars)   | Log level                       |
+| `message`        | text             | Log message                     |
+| `context`        | JSONB (nullable) | Optional structured context     |
+
+**Indexes:**
+
+- `idx_job_logs_job_attempt` - Composite for job_id + attempt_number
+- `idx_job_logs_level` - Filter by level
+- `idx_job_logs_job_timestamp` - Composite for time range queries
+- `ix_job_logs_timestamp_brin` - BRIN index for time-series
+
+## `job_transition.py` - Job Transition Model (NEM-2396)
+
+**Model:** `JobTransition`
+**Table:** `job_transitions`
+**Purpose:** Records all job state transitions for audit trails and debugging.
+
+**Enum:** `JobTransitionTrigger`
+
+| Value     | Description                          |
+| --------- | ------------------------------------ |
+| `worker`  | Background worker initiated          |
+| `user`    | User action (cancel, retry)          |
+| `timeout` | Timeout-based transition             |
+| `retry`   | Retry mechanism initiated            |
+| `system`  | System-initiated (cleanup, recovery) |
+
+**Fields:**
+
+| Field             | Type            | Description                   |
+| ----------------- | --------------- | ----------------------------- |
+| `id`              | UUID (PK)       | Unique transition identifier  |
+| `job_id`          | str (36 chars)  | Reference to parent job       |
+| `from_status`     | str (50 chars)  | Previous status               |
+| `to_status`       | str (50 chars)  | New status                    |
+| `transitioned_at` | datetime        | Transition timestamp          |
+| `triggered_by`    | str (50 chars)  | What triggered the transition |
+| `metadata_json`   | text (nullable) | Optional metadata JSON        |
+
+**Indexes:**
+
+- `idx_job_transitions_job_id` - Filter by job
+- `idx_job_transitions_transitioned_at` - Time-based queries
+- `idx_job_transitions_job_id_transitioned_at` - Composite for job + time
 
 ## `event_audit.py` - Event Audit Model
 
@@ -1026,6 +1324,12 @@ NotificationPreferences (standalone singleton - global notification settings)
 CameraNotificationSetting (one-to-one with Camera for per-camera notification settings)
 QuietHoursPeriod (standalone - quiet hours configuration)
 UserCalibration (standalone - personalized risk thresholds)
+Entity (standalone - re-identification tracking with optional Detection link)
+ExportJob (standalone - export job tracking)
+Job (standalone - background job tracking)
+JobAttempt (references Job by UUID - job execution attempts)
+JobLog (references Job by UUID - job execution logs)
+JobTransition (references Job by id - job state transitions)
 ```
 
 **Cascade Behavior:**

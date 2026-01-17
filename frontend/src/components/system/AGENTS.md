@@ -8,36 +8,43 @@ Contains React components for comprehensive system observability and monitoring 
 
 | File                                     | Purpose                                            |
 | ---------------------------------------- | -------------------------------------------------- |
-| `SystemMonitoringPage.tsx`               | Main system monitoring page (redesigned)           |
-| `SystemMonitoringPage.test.tsx`          | Test suite for SystemMonitoringPage                |
-| `SystemSummaryRow.tsx`                   | Clickable summary indicators for system health     |
-| `SystemSummaryRow.test.tsx`              | Test suite for SystemSummaryRow                    |
-| `PipelineFlowVisualization.tsx`          | Visual pipeline stages with worker status          |
-| `PipelineFlowVisualization.test.tsx`     | Test suite for PipelineFlowVisualization           |
-| `InfrastructureStatusGrid.tsx`           | Grid of infrastructure cards                       |
-| `InfrastructureStatusGrid.test.tsx`      | Test suite for InfrastructureStatusGrid            |
-| `WorkerStatusPanel.tsx`                  | Background workers status display                  |
-| `WorkerStatusPanel.test.tsx`             | Test suite for WorkerStatusPanel                   |
-| `HostSystemPanel.tsx`                    | Host OS and hardware metrics                       |
-| `HostSystemPanel.test.tsx`               | Test suite for HostSystemPanel                     |
+| `AiModelsPanel.tsx`                      | AI model status and metrics                        |
+| `AiModelsPanel.test.tsx`                 | Test suite for AiModelsPanel                       |
+| `BackgroundJobsPanel.tsx`                | Background job queue status display                |
+| `BackgroundJobsPanel.test.tsx`           | Test suite for BackgroundJobsPanel                 |
+| `CircuitBreakerPanel.tsx`                | Circuit breaker states for resilience              |
+| `CircuitBreakerPanel.test.tsx`           | Test suite for CircuitBreakerPanel                 |
+| `CollapsibleSection.tsx`                 | Collapsible section wrapper component              |
+| `CollapsibleSection.test.tsx`            | Test suite for CollapsibleSection                  |
 | `ContainersPanel.tsx`                    | Container status and metrics                       |
 | `ContainersPanel.test.tsx`               | Test suite for ContainersPanel                     |
 | `DatabasesPanel.tsx`                     | PostgreSQL and Redis metrics                       |
 | `DatabasesPanel.test.tsx`                | Test suite for DatabasesPanel                      |
-| `AiModelsPanel.tsx`                      | AI model status and metrics                        |
-| `AiModelsPanel.test.tsx`                 | Test suite for AiModelsPanel                       |
+| `FileOperationsPanel.tsx`                | File operations status panel                       |
+| `FileOperationsPanel.test.tsx`           | Test suite for FileOperationsPanel                 |
+| `HostSystemPanel.tsx`                    | Host OS and hardware metrics                       |
+| `HostSystemPanel.test.tsx`               | Test suite for HostSystemPanel                     |
+| `InfrastructureStatusGrid.tsx`           | Grid of infrastructure cards                       |
+| `InfrastructureStatusGrid.test.tsx`      | Test suite for InfrastructureStatusGrid            |
 | `ModelZooPanel.tsx`                      | AI Model Zoo status table with VRAM usage          |
 | `ModelZooPanel.test.tsx`                 | Test suite for ModelZooPanel                       |
-| `PipelineMetricsPanel.tsx`               | Queue depths and latency percentiles               |
-| `PipelineMetricsPanel.test.tsx`          | Test suite for PipelineMetricsPanel                |
-| `CircuitBreakerPanel.tsx`                | Circuit breaker states for resilience              |
-| `CircuitBreakerPanel.test.tsx`           | Test suite for CircuitBreakerPanel                 |
-| `SeverityConfigPanel.tsx`                | Severity threshold configuration                   |
-| `SeverityConfigPanel.test.tsx`           | Test suite for SeverityConfigPanel                 |
 | `PerformanceAlerts.tsx`                  | Performance threshold alerts                       |
 | `PerformanceAlerts.test.tsx`             | Test suite for PerformanceAlerts                   |
+| `PipelineFlowVisualization.tsx`          | Visual pipeline stages with worker status          |
+| `PipelineFlowVisualization.test.tsx`     | Test suite for PipelineFlowVisualization           |
+| `PipelineMetricsPanel.tsx`               | Queue depths and latency percentiles               |
+| `PipelineMetricsPanel.test.tsx`          | Test suite for PipelineMetricsPanel                |
+| `ServicesPanel.tsx`                      | Services status panel                              |
+| `ServicesPanel.test.tsx`                 | Test suite for ServicesPanel                       |
+| `SeverityConfigPanel.tsx`                | Severity threshold configuration                   |
+| `SeverityConfigPanel.test.tsx`           | Test suite for SeverityConfigPanel                 |
+| `SystemMonitoringPage.tsx`               | Main system monitoring page (redesigned)           |
+| `SystemSummaryRow.tsx`                   | Clickable summary indicators for system health     |
+| `SystemSummaryRow.test.tsx`              | Test suite for SystemSummaryRow                    |
 | `TimeRangeSelector.tsx`                  | Time range selection for metrics                   |
 | `TimeRangeSelector.test.tsx`             | Test suite for TimeRangeSelector                   |
+| `WorkerStatusPanel.tsx`                  | Background workers status display                  |
+| `WorkerStatusPanel.test.tsx`             | Test suite for WorkerStatusPanel                   |
 | `index.ts`                               | Barrel exports                                     |
 
 ## Key Components

@@ -11,8 +11,11 @@ backend/tests/unit/api/
 ├── AGENTS.md                      # This file
 ├── __init__.py                    # Package initialization
 ├── test_date_filter_validation.py # Date filter validation tests
-├── routes/                        # Route handler tests (17 files)
-└── schemas/                       # Pydantic schema tests (5 files)
+├── helpers/                       # API helper tests
+├── middleware/                    # Middleware tests
+├── routes/                        # Route handler tests (56 files)
+├── schemas/                       # Pydantic schema tests (23 files)
+└── utils/                         # API utility tests (1 file)
 ```
 
 ## Test Files
@@ -25,8 +28,11 @@ backend/tests/unit/api/
 
 ### Subdirectories
 
-- **`routes/`**: API endpoint handler tests (17 files)
-- **`schemas/`**: Pydantic schema validation tests (5 files)
+- **`helpers/`**: API helper function tests
+- **`middleware/`**: Middleware tests
+- **`routes/`**: API endpoint handler tests (56 files)
+- **`schemas/`**: Pydantic schema validation tests (23 files)
+- **`utils/`**: API utility tests (1 file)
 
 ## Running Tests
 

@@ -13,15 +13,24 @@ backend/tests/unit/
 ├── __init__.py                # Package initialization
 ├── .gitkeep                   # Directory placeholder
 ├── test_websocket_README.md   # WebSocket testing documentation
-├── api/                       # API layer tests (17 route tests + 5 schema tests)
+├── alembic/                   # Alembic migration helper tests (1 file)
+├── api/                       # API layer tests (56 route tests + 23 schema tests)
+│   ├── helpers/               # API helper tests
+│   ├── middleware/            # Middleware tests
 │   ├── routes/                # Route handler tests
-│   └── schemas/               # Pydantic schema tests
-├── core/                      # Core infrastructure tests (28 files)
-├── models/                    # ORM model tests (16 files)
-├── routes/                    # Additional route tests (13 files)
-├── services/                  # Service layer tests (71 files)
-├── scripts/                   # Migration script tests (1 file)
-└── test_*.py                  # Root-level test files (5 files)
+│   ├── schemas/               # Pydantic schema tests
+│   └── utils/                 # API utility tests (1 file)
+├── core/                      # Core infrastructure tests (49 files)
+├── integration/               # Integration helper tests
+├── jobs/                      # Background job tests (2 files)
+├── middleware/                # Middleware tests
+├── models/                    # ORM model tests (24 files)
+├── repositories/              # Repository tests (3 files)
+├── routes/                    # Additional route tests (21 files)
+├── scripts/                   # Migration script tests (2 files)
+├── services/                  # Service layer tests (144 files)
+│   └── orchestrator/          # Orchestrator service tests (3 files)
+└── test_*.py                  # Root-level test files (18 files)
 ```
 
 ## Running Tests
@@ -46,9 +55,9 @@ pytest backend/tests/unit/ -v --cov=backend --cov-report=html
 pytest backend/tests/unit/ -v --no-cov
 ```
 
-## Test Files (150 total)
+## Test Files (300+ total)
 
-### Root Level Tests (5 files)
+### Root Level Tests (18 files)
 
 | File                              | Tests For                       |
 | --------------------------------- | ------------------------------- |
@@ -58,7 +67,7 @@ pytest backend/tests/unit/ -v --no-cov
 | `test_main.py`                    | Application entrypoint testing  |
 | `test_migrate_sqlite_postgres.py` | SQLite to PostgreSQL migration  |
 
-### API Routes (`api/routes/`) - 17 files
+### API Routes (`api/routes/`) - 56 files
 
 | File                         | Tests For                        |
 | ---------------------------- | -------------------------------- |
@@ -79,7 +88,7 @@ pytest backend/tests/unit/ -v --no-cov
 | `test_system_models.py`      | System model endpoints           |
 | `test_telemetry_api.py`      | Telemetry endpoints              |
 
-### API Schemas (`api/schemas/`) - 5 files
+### API Schemas (`api/schemas/`) - 23 files
 
 | File                                 | Tests For                      |
 | ------------------------------------ | ------------------------------ |
@@ -89,7 +98,7 @@ pytest backend/tests/unit/ -v --no-cov
 | `test_performance_schemas.py`        | Performance schema models      |
 | `test_system.py`                     | System schema validation       |
 
-### Core Components (`core/`) - 28 files
+### Core Components (`core/`) - 49 files
 
 | File                                | Tests For                           |
 | ----------------------------------- | ----------------------------------- |
@@ -120,7 +129,7 @@ pytest backend/tests/unit/ -v --no-cov
 | `test_websocket_timeout.py`         | WebSocket timeout handling          |
 | `test_websocket_validation.py`      | WebSocket message validation        |
 
-### Database Models (`models/`) - 15 files
+### Database Models (`models/`) - 24 files
 
 | File                         | Tests For                  |
 | ---------------------------- | -------------------------- |
@@ -139,7 +148,7 @@ pytest backend/tests/unit/ -v --no-cov
 | `test_prompt_version.py`     | PromptVersion model        |
 | `test_zone.py`               | Zone model                 |
 
-### Routes (`routes/`) - 13 files
+### Routes (`routes/`) - 21 files
 
 | File                          | Tests For                  |
 | ----------------------------- | -------------------------- |
@@ -157,7 +166,7 @@ pytest backend/tests/unit/ -v --no-cov
 | `test_websocket_routes.py`    | WebSocket handlers         |
 | `test_zones_routes.py`        | Zone CRUD endpoints        |
 
-### Services (`services/`) - 71 files
+### Services (`services/`) - 144 files
 
 **AI Pipeline Services:**
 
@@ -257,10 +266,11 @@ pytest backend/tests/unit/ -v --no-cov
 | `test_websocket_circuit_breaker.py`   | WS circuit breaker            |
 | `test_zone_service.py`                | Zone management               |
 
-### Scripts (`scripts/`) - 1 file
+### Scripts (`scripts/`) - 2 files
 
 | File                              | Tests For                 |
 | --------------------------------- | ------------------------- |
+| `test_generate_openapi.py`        | OpenAPI schema generation |
 | `test_migrate_beads_to_linear.py` | Beads to Linear migration |
 
 ## Common Fixtures

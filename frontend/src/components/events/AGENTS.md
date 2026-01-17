@@ -6,23 +6,40 @@ Contains components for displaying, filtering, and interacting with security eve
 
 ## Files
 
-| File                            | Purpose                                        |
-| ------------------------------- | ---------------------------------------------- |
-| `EventCard.tsx`                 | Compact event display card                     |
-| `EventCard.test.tsx`            | Test suite for EventCard                       |
-| `EventTimeline.tsx`             | Full-page timeline view with filtering         |
-| `EventTimeline.test.tsx`        | Test suite for EventTimeline                   |
-| `EventDetailModal.tsx`          | Full event detail modal                        |
-| `EventDetailModal.test.tsx`     | Test suite for EventDetailModal                |
-| `LiveActivitySection.tsx`       | Real-time activity section with enhanced UI    |
-| `LiveActivitySection.test.tsx`  | Test suite for LiveActivitySection             |
-| `EnrichmentPanel.tsx`           | AI enrichment data accordion display           |
-| `EnrichmentPanel.test.tsx`      | Test suite for EnrichmentPanel                 |
-| `ThumbnailStrip.tsx`            | Detection thumbnail strip                      |
-| `ThumbnailStrip.test.tsx`       | Test suite for ThumbnailStrip                  |
-| `ExportPanel.tsx`               | Event export with filters and format select    |
-| `ExportPanel.test.tsx`          | Test suite for ExportPanel                     |
-| `index.ts`                      | Barrel exports                                 |
+| File                             | Purpose                                        |
+| -------------------------------- | ---------------------------------------------- |
+| `DeletedEventCard.tsx`           | Card display for soft-deleted events           |
+| `DeletedEventCard.test.tsx`      | Test suite for DeletedEventCard                |
+| `EnrichmentPanel.tsx`            | AI enrichment data accordion display           |
+| `EnrichmentPanel.test.tsx`       | Test suite for EnrichmentPanel                 |
+| `EntityTrackingPanel.tsx`        | Panel for entity tracking within events        |
+| `EntityTrackingPanel.test.tsx`   | Test suite for EntityTrackingPanel             |
+| `EventCard.tsx`                  | Compact event display card                     |
+| `EventCard.test.tsx`             | Test suite for EventCard                       |
+| `EventDetailModal.tsx`           | Full event detail modal                        |
+| `EventDetailModal.test.tsx`      | Test suite for EventDetailModal                |
+| `EventFeedbackSection.tsx`       | User feedback section for events               |
+| `EventFeedbackSection.test.tsx`  | Test suite for EventFeedbackSection            |
+| `EventTimeline.tsx`              | Full-page timeline view with filtering         |
+| `EventTimeline.test.tsx`         | Test suite for EventTimeline                   |
+| `EventVideoPlayer.tsx`           | Video player component for event clips         |
+| `EventVideoPlayer.test.tsx`      | Test suite for EventVideoPlayer                |
+| `ExportPanel.tsx`                | Event export with filters and format select    |
+| `ExportPanel.test.tsx`           | Test suite for ExportPanel                     |
+| `FeedbackForm.tsx`               | Form for submitting event feedback             |
+| `FeedbackForm.test.tsx`          | Test suite for FeedbackForm                    |
+| `FeedbackPanel.tsx`              | Panel displaying event feedback history        |
+| `FeedbackPanel.test.tsx`         | Test suite for FeedbackPanel                   |
+| `LiveActivitySection.tsx`        | Real-time activity section with enhanced UI    |
+| `LiveActivitySection.test.tsx`   | Test suite for LiveActivitySection             |
+| `MatchedEntitiesSection.tsx`     | Section showing matched entities for event     |
+| `MatchedEntitiesSection.test.tsx`| Test suite for MatchedEntitiesSection          |
+| `MobileEventCard.tsx`            | Mobile-optimized event card                    |
+| `MobileEventCard.test.tsx`       | Test suite for MobileEventCard                 |
+| `ReidMatchesPanel.tsx`           | Panel for re-identification matches            |
+| `ReidMatchesPanel.test.tsx`      | Test suite for ReidMatchesPanel                |
+| `ThumbnailStrip.tsx`             | Detection thumbnail strip                      |
+| `ThumbnailStrip.test.tsx`        | Test suite for ThumbnailStrip                  |
 
 ## Key Components
 

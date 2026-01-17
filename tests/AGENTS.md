@@ -17,6 +17,24 @@ tests/
   AGENTS.md            # This file
   test_setup.py        # Tests for setup.py script
   test_setup_core.py   # Tests for setup_lib.core module
+  load/                # K6 load testing scripts
+    AGENTS.md          # Load testing guide
+    config.js          # K6 test configuration
+    all.js             # Combined load test suite
+    cameras.js         # Camera API load tests
+    events.js          # Events API load tests
+    mutations.js       # GraphQL mutation load tests
+    redis.js           # Redis performance tests
+    websocket.js       # WebSocket load tests
+    websocket-scale.js # WebSocket scalability tests
+    README.md          # Load testing documentation
+  smoke/               # Smoke test suite for deployment verification
+    conftest.py        # Pytest fixtures for smoke tests
+    __init__.py        # Package marker
+    test_deployment_health.py  # Deployment health checks
+    test_monitoring_smoke.py   # Monitoring stack smoke tests
+    test_websocket_smoke.py    # WebSocket connectivity smoke tests
+    README.md          # Smoke testing documentation
 ```
 
 ## Key Files

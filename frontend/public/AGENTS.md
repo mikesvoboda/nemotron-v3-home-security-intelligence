@@ -6,12 +6,13 @@ This directory contains static assets that are served directly at the root URL p
 
 ## Current Contents
 
-| File          | Purpose                                                   |
-| ------------- | --------------------------------------------------------- |
-| `.gitkeep`    | Empty placeholder to ensure directory exists in git       |
-| `favicon.svg` | Application favicon (security shield icon with checkmark) |
-| `images/`     | Subdirectory containing brand images                      |
-| `AGENTS.md`   | This documentation file                                   |
+| File            | Purpose                                                   |
+| --------------- | --------------------------------------------------------- |
+| `.gitkeep`      | Empty placeholder to ensure directory exists in git       |
+| `favicon.svg`   | Application favicon (security shield icon with checkmark) |
+| `manifest.json` | PWA manifest with app metadata and icons                  |
+| `images/`       | Subdirectory containing brand images                      |
+| `AGENTS.md`     | This documentation file                                   |
 
 ### images/ Subdirectory
 
@@ -120,28 +121,9 @@ All files in this directory are publicly accessible:
 Based on project needs, consider adding:
 
 - **`apple-touch-icon.png`** - iOS home screen icon (180x180)
-- **`site.webmanifest`** - PWA manifest with app metadata
 - **`robots.txt`** - SEO crawler configuration
 
-Example `site.webmanifest`:
-
-```json
-{
-  "name": "Home Security Intelligence Dashboard",
-  "short_name": "Security Dashboard",
-  "description": "AI-powered home security monitoring",
-  "theme_color": "#76B900",
-  "background_color": "#0E0E0E",
-  "display": "standalone",
-  "icons": [
-    {
-      "src": "/favicon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml"
-    }
-  ]
-}
-```
+**Note:** The `manifest.json` file is already present with PWA configuration.
 
 ## Notes for AI Agents
 

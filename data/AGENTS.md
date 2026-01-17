@@ -8,7 +8,11 @@ This directory stores runtime data for the Home Security Intelligence applicatio
 
 ```
 data/
-  AGENTS.md           # This file (only file in version control)
+  AGENTS.md           # This file
+  certs/              # SSL certificates storage
+    .gitkeep          # Keeps directory in git
+  profiles/           # Python profiling data (runtime)
+    profile_*.prof    # cProfile output files for performance analysis
 ```
 
 ### Runtime Directories (created on first use)
@@ -24,7 +28,7 @@ The following directories are created at runtime when the application runs:
   thumbnails/         # Cached image thumbnails (runtime, created as needed)
 ```
 
-**Note:** Only `AGENTS.md` is tracked in version control. All other files and directories are created at runtime and excluded via `.gitignore`.
+**Note:** Most content in this directory is runtime-generated and excluded via `.gitignore`. The `certs/` and `profiles/` directories contain actual files.
 
 **DATABASE MIGRATION NOTE**
 

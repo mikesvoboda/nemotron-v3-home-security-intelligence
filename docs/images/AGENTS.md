@@ -2,143 +2,132 @@
 
 ## Purpose
 
-This directory contains visual assets for documentation, including UI mockups, architecture diagrams, and screenshots.
+This directory contains visual assets for documentation, including UI mockups, architecture diagrams, screenshots, and SVG diagrams organized by topic.
 
-## Directory Contents
+## Directory Structure
 
 ```
 images/
   AGENTS.md                    # This file
   SCREENSHOT_GUIDE.md          # Screenshot capture guidelines
+  style-guide.md               # SVG diagram style guide
   .gitkeep                     # Ensures directory is tracked in git
 
-  # UI Screenshots
-  dashboard-mockup.svg         # Main dashboard UI mockup (vector, 10KB)
-  dashboard.png                # Dashboard screenshot (84KB)
-  dashboard-full.png           # Full dashboard screenshot (213KB)
-  timeline.png                 # Event timeline page screenshot (139KB)
-  alerts.png                   # Alerts page screenshot (67KB)
-
-  # Architecture Diagrams (generated AI visualizations, ~5MB each)
+  # Root-level Images
+  alerts.png                   # Alerts page screenshot
   arch-model-zoo.png           # Model Zoo architecture diagram
   arch-system-overview.png     # System overview architecture diagram
   arch-websocket-flow.png      # WebSocket communication flow diagram
+  dashboard-full.png           # Full dashboard screenshot
+  dashboard-mockup.svg         # Main dashboard UI mockup (vector)
+  dashboard.png                # Dashboard screenshot
   deploy-docker-topology.png   # Docker deployment topology diagram
   erd-data-model.png           # Entity-Relationship data model diagram
+  first-run-devmode.png        # First run dev mode screenshot
   flow-ai-pipeline.png         # AI pipeline flow diagram
   flow-batch-aggregator.png    # Batch aggregator flow diagram
-
-  # Informational Diagrams
+  ftp-ingestion-flow.png       # FTP camera ingestion flow
+  gpu-compatibility-matrix.png # GPU compatibility matrix
   info-camera-to-event.png     # Camera to event flow infographic
   info-detection-types.png     # Detection types infographic
   info-risk-scoring.png        # Risk scoring infographic
+  installation-workflow.png    # Installation workflow diagram
+  local-ai-concept.png         # Local AI concept diagram
+  quickstart-decision-tree.png # Quickstart decision tree
+  service-dependencies-mermaid.png # Service dependencies (Mermaid)
+  timeline.png                 # Event timeline page screenshot
+  troubleshooting-decision-tree.png # Troubleshooting decision tree
+
+  # Subdirectories
+  admin/                       # Admin guide diagrams
+  ai-pipeline/                 # AI pipeline SVG diagrams
+  architecture/                # Architecture diagrams (PNG and SVG)
+  data-model/                  # Data model SVG diagrams
+  real-time/                   # Real-time/WebSocket SVG diagrams
+  resilience/                  # Resilience pattern SVG diagrams
+  user-guide/                  # User guide images
 ```
 
-## Current Assets
+## Subdirectory Contents
 
-### dashboard-mockup.svg
+### admin/
 
-**Type:** SVG vector graphic
-**Dimensions:** 1200 x 700 pixels
-**Purpose:** Visual mockup of the main dashboard UI design
+Admin guide diagrams:
 
-**Sections Shown:**
+- `alert-delivery-pipeline.png` - Alert delivery pipeline
+- `authentication-flow.png` - Authentication flow
+- `cleanup-sequence.png` - Cleanup sequence diagram
+- `configuration-hierarchy.png` - Configuration hierarchy
+- `monitoring-stack.png` - Monitoring stack
+- `network-isolation.png` - Network isolation
+- `retention-policies.png` - Retention policies
+- `security-architecture.png` - Security architecture
 
-| Section         | Location     | Description                                                                             |
-| --------------- | ------------ | --------------------------------------------------------------------------------------- |
-| Header Bar      | Top          | "Home Security Intelligence" title, system status indicator                             |
-| Risk Gauge      | Left column  | Current risk level (0-100), risk breakdown (24h events)                                 |
-| GPU Status      | Left column  | Utilization bar, memory usage, temperature, FPS                                         |
-| Camera Grid     | Center       | 2x2 grid of camera feeds with status indicators                                         |
-| Live Activity   | Right column | Event cards with risk scores and timestamps                                             |
-| System Overview | Bottom       | RT-DETRv2 status, Nemotron status, active cameras, events today, inference rate, uptime |
+### ai-pipeline/
 
-**Usage:** Reference when implementing dashboard components, design reviews.
+AI pipeline SVG diagrams:
 
-### dashboard.png / dashboard-full.png
+- `ai-service-interaction.svg` - AI service interaction diagram
+- `batch-lifecycle-state.svg` - Batch lifecycle state machine
+- `detection-errors.svg` - Detection error handling
+- `detection-event-transform.svg` - Detection to event transformation
+- `fast-path-decision.svg` - Fast path decision tree
+- `pipeline-sequence.svg` - Pipeline sequence diagram
 
-**Type:** PNG raster image
-**Purpose:** Actual screenshot of the running dashboard
+### architecture/
 
-**Usage:** Documentation, README, demonstrations.
+Architecture diagrams (PNG and SVG):
 
-### timeline.png
+- `overview-*.svg` - System overview diagrams
+- `ai-pipeline-*.png` - AI pipeline diagrams
+- `circuit-breaker-*.png` - Circuit breaker diagrams
+- `deployment-*.png` - Deployment diagrams
+- `database-*.png` - Database diagrams
+- `frontend-*.png` - Frontend architecture
+- `resilience-*.png` - Resilience patterns
+- Many more architecture visualizations
 
-**Type:** PNG raster image
-**Purpose:** Screenshot of the event timeline page with filtering capabilities
+### data-model/
 
-**Usage:** User guide documentation, feature demonstrations.
+Data model SVG diagrams:
 
-### alerts.png
+- `cleanup-service-sequence.svg` - Cleanup service sequence
+- `data-lifecycle-state.svg` - Data lifecycle states
+- `entity-relationship.svg` - Entity-relationship diagram
+- `storage-architecture.svg` - Storage architecture
 
-**Type:** PNG raster image
-**Purpose:** Screenshot of the alerts page showing security events
+### real-time/
 
-**Usage:** User guide documentation, alert interpretation guides.
+Real-time/WebSocket SVG diagrams:
 
-### Architecture Diagrams
+- `events-channel-sequence.svg` - Events channel sequence
+- `redis-pubsub-flow.svg` - Redis pub/sub flow
+- `system-channel-sequence.svg` - System channel sequence
+- `websocket-architecture.svg` - WebSocket architecture
 
-**arch-model-zoo.png**
+### resilience/
 
-- **Type:** PNG raster image (~5.6MB)
-- **Purpose:** Visual representation of the Model Zoo architecture
-- **Usage:** Architecture documentation, model selection guides
+Resilience pattern SVG diagrams:
 
-**arch-system-overview.png**
+- `circuit-breaker-registry.svg` - Circuit breaker registry
+- `circuit-breaker-states.svg` - Circuit breaker state machine
+- `dlq-architecture.svg` - Dead letter queue architecture
+- `frontend-state-machine.svg` - Frontend state machine
+- `graceful-degradation.svg` - Graceful degradation flow
+- `health-check-flow.svg` - Health check flow
+- `recovery-flow.svg` - Recovery flow diagram
+- `resilience-overview.svg` - Resilience overview
+- `retry-handler-flow.svg` - Retry handler flow
+- `websocket-circuit-breaker.svg` - WebSocket circuit breaker
+- `websocket-manager.svg` - WebSocket manager
 
-- **Type:** PNG raster image (~5.0MB)
-- **Purpose:** High-level system architecture overview
-- **Usage:** Architecture documentation, onboarding materials
+### user-guide/
 
-**arch-websocket-flow.png**
+User guide images:
 
-- **Type:** PNG raster image (~5.7MB)
-- **Purpose:** WebSocket communication flow between services
-- **Usage:** Real-time architecture documentation
-
-**deploy-docker-topology.png**
-
-- **Type:** PNG raster image (~4.9MB)
-- **Purpose:** Docker deployment topology showing container relationships
-- **Usage:** Deployment documentation, operator guides
-
-**erd-data-model.png**
-
-- **Type:** PNG raster image (~4.6MB)
-- **Purpose:** Entity-Relationship diagram for database schema
-- **Usage:** Data model documentation, developer reference
-
-**flow-ai-pipeline.png**
-
-- **Type:** PNG raster image (~4.3MB)
-- **Purpose:** AI processing pipeline flow diagram
-- **Usage:** AI pipeline documentation, debugging guides
-
-**flow-batch-aggregator.png**
-
-- **Type:** PNG raster image (~5.2MB)
-- **Purpose:** Batch aggregator timing and flow visualization
-- **Usage:** Pipeline documentation, performance tuning
-
-### Informational Diagrams
-
-**info-camera-to-event.png**
-
-- **Type:** PNG raster image (~5.3MB)
-- **Purpose:** Illustrates the journey from camera capture to security event
-- **Usage:** User documentation, overview materials
-
-**info-detection-types.png**
-
-- **Type:** PNG raster image (~6.1MB)
-- **Purpose:** Visual guide to supported detection types
-- **Usage:** User documentation, feature guides
-
-**info-risk-scoring.png**
-
-- **Type:** PNG raster image (~5.2MB)
-- **Purpose:** Explains risk scoring methodology
-- **Usage:** User documentation, alert interpretation
+- `decision-flowchart.png` - User decision flowchart
+- `entity-reid-flow.png` - Entity re-identification flow
+- `risk-scale.png` - Risk scale visualization
 
 ## Color Scheme
 
@@ -168,6 +157,18 @@ Dashboard uses NVIDIA-themed dark design:
 - Include type suffix: `-mockup`, `-diagram`, `-screenshot`
 - Be descriptive: `event-detail-modal-mockup.svg`
 
+### Subdirectory Organization
+
+Place images in the appropriate subdirectory:
+
+- `admin/` - Admin guide diagrams
+- `ai-pipeline/` - AI pipeline diagrams
+- `architecture/` - System architecture diagrams
+- `data-model/` - Database/data model diagrams
+- `real-time/` - WebSocket/real-time diagrams
+- `resilience/` - Circuit breaker, retry, DLQ diagrams
+- `user-guide/` - End-user documentation images
+
 ### Image Guidelines
 
 1. **Vector preferred:** Use SVG for mockups and diagrams when possible
@@ -184,6 +185,7 @@ Dashboard uses NVIDIA-themed dark design:
 
 ## Related Documentation
 
-- **docs/plans/2024-12-21-dashboard-mvp-design.md:** UI mockups (ASCII) and design spec
-- **frontend/src/components/:** React component implementations
 - **docs/AGENTS.md:** Documentation directory guide
+- **frontend/src/components/:** React component implementations
+- **docs/images/style-guide.md:** Detailed SVG style guidelines
+- **docs/images/SCREENSHOT_GUIDE.md:** Screenshot capture instructions

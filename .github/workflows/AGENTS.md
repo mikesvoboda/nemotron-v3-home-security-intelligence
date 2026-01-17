@@ -8,24 +8,48 @@ This directory contains GitHub Actions workflow definitions for the Home Securit
 
 ```
 workflows/
-  AGENTS.md              # This file
-  ci.yml                 # Main CI pipeline
-  deploy.yml             # Docker image build and push to GHCR
-  docs.yml               # Documentation generation and GitHub Pages deployment
-  preview-deploy.yml     # PR preview container builds
-  ai-code-review.yml     # GPT-powered automated code review
-  linear-ci-status.yml   # Linear issue status sync from CI/CD events
-  linear-github-sync.yml # Linear to GitHub issue sync
-  nightly.yml            # Nightly benchmarks and analysis
-  gpu-tests.yml          # GPU integration tests
-  sast.yml               # Static Application Security Testing
-  codeql.yml             # CodeQL security analysis
-  gitleaks.yml           # Secret detection scanning
-  trivy.yml              # Container vulnerability scanning
-  weekly-audit.yml       # Weekly security and code quality audits
-  test-coverage-gate.yml # PR gate: enforce test coverage requirements (NEM-2102)
-  pr-review-bot.yml      # PR review bot: comment on missing tests (NEM-2102)
-  weekly-test-report.yml # Weekly test coverage and quality report (NEM-2102)
+  AGENTS.md                   # This file
+  # Core CI/CD
+  ci.yml                      # Main CI pipeline
+  deploy.yml                  # Docker image build and push to GHCR
+  preview-deploy.yml          # PR preview container builds
+  release.yml                 # Release workflow
+  rollback.yml                # Deployment rollback
+  semantic-release.yml        # Semantic versioning releases
+  release-drafter.yml         # Draft release notes
+  # API
+  api-compatibility.yml       # API backward compatibility checks
+  api-contract.yml            # API contract testing
+  # Testing
+  gpu-tests.yml               # GPU integration tests
+  load-tests.yml              # Load and performance testing
+  mutation-testing.yml        # Mutation testing for test quality
+  benchmarks.yml              # Performance benchmarks
+  test-coverage-gate.yml      # PR gate for test coverage requirements
+  pr-review-bot.yml           # PR review bot for missing tests
+  weekly-test-report.yml      # Weekly test coverage and quality report
+  # Security
+  sast.yml                    # Static Application Security Testing
+  codeql.yml                  # CodeQL security analysis
+  gitleaks.yml                # Secret detection scanning
+  trivy.yml                   # Container vulnerability scanning
+  zap-security.yml            # OWASP ZAP security scanning
+  dependency-audit.yml        # Dependency vulnerability audit
+  vulnerability-management.yml # CVE tracking and management
+  weekly-audit.yml            # Weekly security and code quality audits
+  # Quality & Analysis
+  ai-code-review.yml          # GPT-powered code review
+  bundle-size.yml             # Frontend bundle size tracking
+  ci-analytics.yml            # CI metrics and analytics
+  docs.yml                    # Documentation generation
+  nightly.yml                 # Nightly benchmarks and analysis
+  # Frontend Quality
+  accessibility-tests.yml     # Accessibility (a11y) testing
+  lighthouse.yml              # Lighthouse performance audits
+  visual-tests.yml            # Visual regression testing
+  # Integrations
+  linear-ci-status.yml        # Linear issue status sync from CI/CD events
+  linear-github-sync.yml      # Linear to GitHub issue sync
 ```
 
 ## Workflow Files

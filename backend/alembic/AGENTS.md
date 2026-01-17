@@ -10,64 +10,77 @@ The `backend/alembic/` directory contains Alembic database migration infrastruct
 backend/alembic/
 ├── AGENTS.md            # This file
 ├── env.py               # Migration environment configuration
+├── helpers.py           # Migration helper utilities
 ├── README               # Alembic-generated readme
 ├── script.py.mako       # Template for new migrations
-└── versions/            # Migration scripts (see versions/AGENTS.md)
-    ├── 968b0dff6a9b_initial_schema.py
-    ├── 20251228_add_fts_search_vector.py
-    ├── add_alerts_and_alert_rules.py
-    ├── add_zones_table.py
-    ├── audit_logs_table.py
-    ├── add_baseline_tables.py
-    ├── add_clip_path_column.py
-    ├── fix_datetime_timezone.py
-    ├── fix_search_vector_backfill.py
-    ├── add_llm_prompt_column.py
-    ├── add_event_audits_table.py
-    ├── add_camera_unique_constraints.py
-    ├── add_enrichment_data_column.py
-    ├── add_object_types_gin_trgm_index.py
-    ├── add_prompt_versions_table.py
-    └── d4cdaa821492_merge_heads.py
+└── versions/            # 52 migration scripts (see versions/AGENTS.md)
 ```
 
 ## Current Migration Chain
 
-```
-968b0dff6a9b (initial_schema)
-       |
-20251228_fts (add_fts_search_vector)
-       |
-add_alerts_rules (add_alerts_and_alert_rules)
-       |
-add_zones_001 (add_zones_table)
-       |
-add_audit_logs (audit_logs_table)
-       |
-add_baselines (add_baseline_tables)
-       |
-add_clip_path (add_clip_path_column)
-       |
-fix_datetime_tz (fix_datetime_timezone)
-       |
-fix_search_vector_backfill
-       |
-add_llm_prompt (add_llm_prompt_column)
-       |
-add_event_audits (add_event_audits_table)
-       |
-add_camera_unique_constraints
-       |
-add_enrichment_data (add_enrichment_data_column)
-       |
-       +-----> add_object_types_gin_trgm (add_object_types_gin_trgm_index)
-       |                    |
-       +-----> add_prompt_versions (add_prompt_versions_table)
-                            |
-                            +-----> d4cdaa821492 (merge_heads)
-```
+The migration chain has grown to 52 migrations with multiple merge points. Key migration categories:
 
-Note: The migration chain includes a merge point where `add_object_types_gin_trgm` and `add_prompt_versions` were merged into `d4cdaa821492`.
+**Foundation (initial_schema through enrichment_data):**
+
+- `968b0dff6a9b` - Initial schema (cameras, detections, events, logs, gpu_stats)
+- `20251228_fts` - Full-text search vectors
+- Alert rules, zones, audit logs, baselines, clip paths
+- Datetime timezone fixes, search vector backfill
+- LLM prompt storage, event audits, camera constraints
+- Enrichment data column for vision model results
+
+**Database Optimization:**
+
+- `add_object_types_gin_trgm_index` - GIN trigram index for LIKE queries
+- `add_composite_indexes_for_filters` - Multi-column indexes
+- `add_covering_indexes_for_pagination` - Include columns for index-only scans
+- `add_deleted_at_indexes` - Soft delete query optimization
+- `add_partial_indexes_boolean_columns` - Partial indexes for boolean filters
+- `add_gin_brin_specialized_indexes` - GIN and BRIN specialized indexes
+- `add_gpu_stats_recorded_at_brin_index` - BRIN index for time-series data
+- `add_time_series_partitioning` - Table partitioning for large tables
+- `add_search_indexes` - Additional search optimization
+- `add_alerts_deduplication_indexes` - Alert dedup performance
+- `add_events_backlog_improvement_indexes` - Event backlog queries
+- `add_detections_camera_object_index` - Detection lookup optimization
+- `add_detections_object_type_detected_at_index` - Detection type queries
+- `add_detection_search_vector` - Full-text search on detections
+
+**Feature Additions:**
+
+- `add_prompt_versions_table` - AI prompt version management
+- `add_prompt_configs_table` - Prompt configuration storage
+- `add_notification_preferences_tables` - User notification settings
+- `add_user_feedback_and_calibration` - User feedback and calibration
+- `add_entity_model` - Entity tracking (people, vehicles)
+- `add_trust_status_to_entities` - Entity trust classification
+- `add_job_transitions_table` - Background job state tracking
+- `add_event_detections_junction_table` - M2M events/detections
+- `add_4_feedback_types` - Extended feedback categorization
+- `create_scene_changes_table` - Scene change detection
+
+**Fixes and Maintenance:**
+
+- `fix_camera_timezone_idempotent` - Timezone handling
+- `add_check_constraints` - Data integrity constraints
+- `add_deleted_at_soft_delete` - Soft delete support
+- `drop_detection_ids_column` - Schema cleanup
+- `add_snooze_until_column` - Alert snoozing
+- `add_alert_version_id_column` - Alert versioning
+- `add_row_version_to_prompt_versions` - Optimistic locking
+- `add_prompt_version_unique_constraint` - Uniqueness enforcement
+
+**Merge Migrations:**
+
+- `d4cdaa821492_merge_heads` - Primary merge point
+- `d896ab921049_merge_user_feedback_and_notification_` - Feature merge
+- `eb2e0919ec02_merge_heads_add_notification_` - Notification merge
+- `b80664ed1373_merge_migration_branches` - Branch consolidation
+- `00c8a000b44f_merge_database_optimization_heads` - Optimization merge
+- `071128727b6c_merge_deleted_at_indexes` - Index merge
+- `6b206d6591cb_merge_add_4_feedback_types_and_job_` - Feedback/job merge
+
+See `versions/AGENTS.md` for detailed documentation of individual migrations.
 
 ## Key Files
 
@@ -93,6 +106,15 @@ Configures Alembic to use the application's SQLAlchemy models and database conne
 - Only PostgreSQL is supported (no SQLite)
 - Uses `NullPool` to avoid connection issues
 - Imports `backend.models.camera.Base` for metadata
+
+### `helpers.py` - Migration Helpers
+
+Utility functions for common migration operations:
+
+- Index creation/dropping helpers
+- Constraint management utilities
+- Data migration helpers
+- Idempotent operation wrappers
 
 ### `script.py.mako` - Migration Template
 

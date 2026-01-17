@@ -25,13 +25,13 @@ The backend is a FastAPI-based REST API server for an AI-powered home security m
 
 | Component           | Count | Description                                     |
 | ------------------- | ----- | ----------------------------------------------- |
-| API Routes          | 22    | REST endpoints organized by domain              |
+| API Routes          | 28    | REST endpoints organized by domain              |
 | Services            | 89    | Business logic, AI pipeline, background workers |
-| Models              | 19    | SQLAlchemy ORM models                           |
-| Schemas             | 37    | Pydantic request/response schemas               |
-| Middleware          | 14    | Request processing pipeline                     |
-| Repositories        | 4     | Data access abstraction layer                   |
-| Core Infrastructure | 27    | Database, Redis, config, logging, etc.          |
+| Models              | 25    | SQLAlchemy ORM models                           |
+| Schemas             | 43    | Pydantic request/response schemas               |
+| Middleware          | 20    | Request processing pipeline                     |
+| Repositories        | 5     | Data access abstraction layer                   |
+| Core Infrastructure | 28    | Database, Redis, config, logging, etc.          |
 
 ## Running the Backend
 
@@ -58,12 +58,15 @@ backend/
 ├── alembic.ini             # Alembic configuration
 ├── alembic/                # Database migrations (Alembic)
 ├── api/                    # REST API layer
-│   ├── routes/             # 22 API route modules
-│   ├── schemas/            # 37 Pydantic schema modules
-│   └── middleware/         # 14 middleware components
-├── core/                   # Infrastructure (27 modules)
-├── models/                 # SQLAlchemy ORM models (19 models)
-├── repositories/           # Data access layer (4 repositories)
+│   ├── routes/             # 28 API route modules
+│   ├── schemas/            # 43 Pydantic schema modules
+│   ├── middleware/         # 20 middleware components
+│   └── utils/              # API utility modules
+├── core/                   # Infrastructure (28 modules)
+│   └── websocket/          # WebSocket event infrastructure
+├── models/                 # SQLAlchemy ORM models (25 models)
+├── repositories/           # Data access layer (5 repositories)
+├── jobs/                   # Background job modules
 ├── services/               # Business logic and AI pipeline (89 modules)
 │   └── orchestrator/       # Service orchestration subsystem
 ├── tests/                  # Unit and integration tests
@@ -85,23 +88,28 @@ backend/
 - Authentication middleware (optional API key validation via `AuthMiddleware`)
 - Request ID middleware for log correlation (`RequestIDMiddleware`)
 - Health check endpoints (`/`, `/health`)
-- Router registration for 21 API modules:
+- Router registration for 27 API modules:
   - `admin` - Admin operations and cache management
   - `ai_audit` - AI pipeline audit and prompt management
   - `alerts` - Alert rule CRUD and evaluation
   - `analytics` - Detection and event analytics
   - `audit` - Security audit logging
+  - `calibration` - Detection calibration settings
   - `cameras` - Camera CRUD and status
   - `debug` - Debug endpoints for development
   - `detections` - Detection queries with filtering
   - `dlq` - Dead-letter queue management
   - `entities` - Entity tracking (people, vehicles)
   - `events` - Event management and review workflow
+  - `exports` - Data export management
+  - `feedback` - User feedback on events
+  - `jobs` - Background job management
   - `logs` - Log querying and frontend log ingestion
   - `media` - Secure file serving for images/videos
   - `metrics` - Prometheus metrics endpoint
   - `notification` - Notification channel management
   - `notification_preferences` - User notification preferences
+  - `queues` - Queue status and management
   - `rum` - Real User Monitoring data collection
   - `services` - Service management and control
   - `system` - Health checks, GPU stats, pipeline status
@@ -124,7 +132,7 @@ backend/
 
 ## Core Infrastructure (`core/`)
 
-See `core/AGENTS.md` for detailed documentation. The core layer contains 27 modules providing foundational infrastructure.
+See `core/AGENTS.md` for detailed documentation. The core layer contains 28 modules providing foundational infrastructure.
 
 ### Configuration and Settings
 
@@ -248,7 +256,7 @@ See `core/AGENTS.md` for detailed documentation. The core layer contains 27 modu
 
 ## Database Models (`models/`)
 
-See `models/AGENTS.md` for detailed documentation. The data layer contains 19 SQLAlchemy models using 2.0 `Mapped` type hints.
+See `models/AGENTS.md` for detailed documentation. The data layer contains 25 SQLAlchemy models using 2.0 `Mapped` type hints.
 
 ### Core Domain Models
 
@@ -256,6 +264,7 @@ See `models/AGENTS.md` for detailed documentation. The data layer contains 19 SQ
 - **`Detection`** - Object detection results with bounding boxes and video metadata
 - **`Event`** - Security events with LLM risk analysis
 - **`Zone`** - Camera monitoring zones/areas
+- **`Entity`** - Tracked entities (people, vehicles) across cameras
 
 ### Event and Detection Extensions
 
@@ -285,13 +294,21 @@ See `models/AGENTS.md` for detailed documentation. The data layer contains 19 SQ
 - **`Log`** - Structured application logs
 - **`Audit`** - Security audit records
 
+### Background Jobs
+
+- **`Job`** - Background job definitions and state
+- **`JobAttempt`** - Individual job execution attempts
+- **`JobLog`** - Job execution logs
+- **`JobTransition`** - Job state transition history
+- **`ExportJob`** - Data export job tracking
+
 ### Supporting
 
 - **`enums.py`** - Shared enum definitions (severity levels, statuses, etc.)
 
 ## API Routes (`api/routes/`)
 
-See `api/routes/AGENTS.md` for detailed documentation. The API layer contains 22 route modules (21 registered in main.py).
+See `api/routes/AGENTS.md` for detailed documentation. The API layer contains 28 route modules.
 
 ### Core Domain Routes
 
@@ -310,6 +327,7 @@ See `api/routes/AGENTS.md` for detailed documentation. The API layer contains 22
 | `ai_audit.py`          | `/api/ai-audit`         | AI pipeline audit and performance metrics |
 | `prompt_management.py` | `/api/ai-audit/prompts` | LLM prompt version management             |
 | `analytics.py`         | `/api/analytics`        | Detection and event analytics             |
+| `calibration.py`       | `/api/calibration`      | Detection calibration settings            |
 
 ### System and Infrastructure Routes
 
@@ -321,14 +339,17 @@ See `api/routes/AGENTS.md` for detailed documentation. The API layer contains 22
 | `dlq.py`      | `/api/dlq`             | Dead-letter queue management              |
 | `admin.py`    | `/api/admin`           | Admin operations and cache management     |
 | `debug.py`    | `/api/debug`           | Debug endpoints for development           |
+| `jobs.py`     | `/api/jobs`            | Background job management                 |
+| `queues.py`   | `/api/queues`          | Queue status and management               |
 
 ### Media and Logging Routes
 
-| Route      | Prefix       | Description                            |
-| ---------- | ------------ | -------------------------------------- |
-| `media.py` | `/api/media` | Secure file serving for images/videos  |
-| `logs.py`  | `/api/logs`  | Log queries and frontend log ingestion |
-| `rum.py`   | `/api/rum`   | Real User Monitoring data collection   |
+| Route        | Prefix         | Description                            |
+| ------------ | -------------- | -------------------------------------- |
+| `media.py`   | `/api/media`   | Secure file serving for images/videos  |
+| `logs.py`    | `/api/logs`    | Log queries and frontend log ingestion |
+| `rum.py`     | `/api/rum`     | Real User Monitoring data collection   |
+| `exports.py` | `/api/exports` | Data export management                 |
 
 ### Notification and Alerting Routes
 
@@ -340,9 +361,10 @@ See `api/routes/AGENTS.md` for detailed documentation. The API layer contains 22
 
 ### Security and Compliance Routes
 
-| Route      | Prefix       | Description            |
-| ---------- | ------------ | ---------------------- |
-| `audit.py` | `/api/audit` | Security audit logging |
+| Route         | Prefix          | Description             |
+| ------------- | --------------- | ----------------------- |
+| `audit.py`    | `/api/audit`    | Security audit logging  |
+| `feedback.py` | `/api/feedback` | User feedback on events |
 
 ### Real-time Routes
 
@@ -352,35 +374,44 @@ See `api/routes/AGENTS.md` for detailed documentation. The API layer contains 22
 
 ## API Middleware (`api/middleware/`)
 
-The middleware layer contains 14 components for request processing:
+The middleware layer contains 20 components for request processing:
 
 | Middleware                  | Purpose                                 |
 | --------------------------- | --------------------------------------- |
+| `accept_header.py`          | Accept header parsing and validation    |
 | `auth.py`                   | API key authentication                  |
-| `websocket_auth.py`         | WebSocket authentication                |
+| `body_limit.py`             | Request body size limiting              |
+| `content_negotiation.py`    | Content negotiation handling            |
+| `content_type_validator.py` | Content-Type validation                 |
+| `correlation.py`            | Correlation ID for distributed tracing  |
+| `deprecation.py`            | API deprecation handling                |
+| `deprecation_logger.py`     | Deprecated endpoint logging             |
+| `error_handler.py`          | Error response formatting               |
+| `exception_handler.py`      | Global exception handling with RFC 7807 |
+| `file_validator.py`         | File upload validation                  |
+| `idempotency.py`            | Idempotency key handling                |
 | `rate_limit.py`             | Request rate limiting                   |
 | `request_id.py`             | Request ID generation and propagation   |
-| `correlation.py`            | Correlation ID for distributed tracing  |
 | `request_logging.py`        | Request/response logging                |
-| `request_timing.py`         | Request duration metrics                |
 | `request_recorder.py`       | Request recording for debugging         |
+| `request_timing.py`         | Request duration metrics                |
 | `security_headers.py`       | Security headers (CSP, HSTS, etc.)      |
-| `body_limit.py`             | Request body size limiting              |
-| `content_type_validator.py` | Content-Type validation                 |
-| `file_validator.py`         | File upload validation                  |
-| `exception_handler.py`      | Global exception handling with RFC 7807 |
+| `websocket_auth.py`         | WebSocket authentication                |
 
 ## API Schemas (`api/schemas/`)
 
-The schema layer contains 37 Pydantic models for request/response validation:
+The schema layer contains 43 Pydantic models for request/response validation:
 
 - **Domain schemas:** `camera.py`, `detections.py`, `events.py`, `zone.py`, `entities.py`
 - **AI schemas:** `ai_audit.py`, `llm.py`, `llm_response.py`, `enrichment.py`, `enrichment_data.py`
-- **System schemas:** `system.py`, `health.py`, `services.py`, `queue.py`, `performance.py`
+- **System schemas:** `system.py`, `health.py`, `services.py`, `queue.py`, `queue_status.py`, `performance.py`
 - **Notification schemas:** `notification.py`, `notification_preferences.py`, `alerts.py`
 - **Media schemas:** `media.py`, `clips.py`, `streaming.py`
 - **Error handling:** `errors.py`, `problem_details.py` (RFC 7807)
-- **Utilities:** `bulk.py`, `hateoas.py`, `search.py`, `baseline.py`, `calibration.py`
+- **Background jobs:** `jobs.py`, `export.py`
+- **Feedback:** `feedback.py`
+- **Documentation:** `openapi_docs.py`
+- **Utilities:** `bulk.py`, `hateoas.py`, `search.py`, `baseline.py`, `calibration.py`, `pagination.py`
 
 ## Repositories (`repositories/`)
 
@@ -398,6 +429,7 @@ The repository layer provides data access abstraction with a generic base class:
 
 - **`camera_repository.py`** - Camera-specific queries
 - **`detection_repository.py`** - Detection-specific queries
+- **`entity_repository.py`** - Entity tracking queries
 - **`event_repository.py`** - Event-specific queries
 
 ## Services (`services/`)
@@ -835,13 +867,16 @@ The backend provides three health endpoints for different use cases:
 | Path                                | Purpose                            |
 | ----------------------------------- | ---------------------------------- |
 | `/backend/alembic/AGENTS.md`        | Database migration documentation   |
-| `/backend/core/AGENTS.md`           | Core infrastructure (27 modules)   |
-| `/backend/models/AGENTS.md`         | Database models (19 models)        |
+| `/backend/api/routes/AGENTS.md`     | API endpoints (28 routes)          |
+| `/backend/api/schemas/AGENTS.md`    | Pydantic schemas (43 schemas)      |
+| `/backend/api/middleware/AGENTS.md` | Middleware components (20 modules) |
+| `/backend/api/utils/AGENTS.md`      | API utility modules                |
+| `/backend/core/AGENTS.md`           | Core infrastructure (28 modules)   |
+| `/backend/core/websocket/AGENTS.md` | WebSocket event infrastructure     |
+| `/backend/jobs/AGENTS.md`           | Background job modules             |
+| `/backend/models/AGENTS.md`         | Database models (25 models)        |
+| `/backend/repositories/AGENTS.md`   | Repository pattern (5 repos)       |
 | `/backend/services/AGENTS.md`       | Service layer (89 modules)         |
-| `/backend/api/routes/AGENTS.md`     | API endpoints (22 routes)          |
-| `/backend/api/schemas/AGENTS.md`    | Pydantic schemas (37 schemas)      |
-| `/backend/api/middleware/AGENTS.md` | Middleware components (14 modules) |
-| `/backend/repositories/AGENTS.md`   | Repository pattern                 |
 | `/backend/tests/AGENTS.md`          | Test infrastructure                |
 | `/backend/data/AGENTS.md`           | Runtime data directory             |
 

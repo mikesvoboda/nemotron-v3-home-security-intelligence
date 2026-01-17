@@ -32,6 +32,7 @@ backend/repositories/
 |-- camera_repository.py      # Camera entity repository
 |-- event_repository.py       # Event entity repository
 |-- detection_repository.py   # Detection entity repository
+|-- entity_repository.py      # Entity re-identification repository (NEM-2450, NEM-2494)
 ```
 
 ## `base.py` - Generic Repository Base Class
@@ -97,6 +98,42 @@ Extends base with detection-specific methods:
 | `get_high_confidence(threshold)`  | Get detections above confidence level |
 | `get_for_event(event_id)`         | Get detections linked to an event     |
 | `get_recent(limit)`               | Get most recent detections            |
+
+## `entity_repository.py` - Entity Repository (NEM-2450, NEM-2494, NEM-2671)
+
+Extends base with entity-specific methods for re-identification tracking:
+
+| Method                                     | Description                                      |
+| ------------------------------------------ | ------------------------------------------------ |
+| `get_by_type(entity_type)`                 | Get entities by type (person, vehicle, etc.)     |
+| `get_recent(limit)`                        | Get most recently seen entities                  |
+| `get_in_date_range(start, end)`            | Get entities seen within date range              |
+| `update_last_seen(id, timestamp)`          | Update last_seen_at and increment count          |
+| `get_by_primary_detection_id(id)`          | Find entity by primary detection                 |
+| `get_type_counts()`                        | Get entity counts grouped by type                |
+| `get_total_detection_count()`              | Sum of detection_count across all entities       |
+| `list_by_type_paginated(...)`              | Paginated list by entity type                    |
+| `search_by_metadata(key, value)`           | Search entities by JSONB metadata field          |
+| `get_with_high_detection_count(min_count)` | Get frequently detected entities                 |
+| `get_first_seen_in_range(start, end)`      | Get entities first seen in date range            |
+| `get_by_embedding_model(model)`            | Get entities with specific embedding model       |
+| `list(...)`                                | Filter by type, camera_id, since with pagination |
+| `find_by_embedding(...)`                   | Find similar entities by cosine similarity       |
+| `increment_detection_count(id)`            | Increment count and update timestamp             |
+| `get_or_create_for_detection(...)`         | Match or create entity for detection             |
+| `get_detections_for_entity(id)`            | Get detections linked to entity                  |
+| `get_camera_counts()`                      | Entity counts grouped by camera                  |
+| `get_repeat_visitor_count()`               | Count entities seen more than once               |
+| `count()`                                  | Total entity count                               |
+| `get_repeat_visitors(...)`                 | Get entities with min detection count            |
+| `get_stats(entity_type)`                   | Comprehensive statistics by type                 |
+| `list_filtered(...)`                       | List with since/until time range filtering       |
+| `update_trust_status(id, status, notes)`   | Update trust classification (NEM-2671)           |
+| `list_by_trust_status(status, ...)`        | List entities by trust classification            |
+
+**Embedding Similarity:**
+
+The repository includes application-level cosine similarity for matching entities by embedding vectors stored in JSONB. For high-performance vector search at scale, consider using the pgvector extension.
 
 ## Usage Patterns
 

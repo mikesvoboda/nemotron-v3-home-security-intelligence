@@ -41,14 +41,15 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 
 ### Documentation
 
-| File                          | Purpose                                             |
-| ----------------------------- | --------------------------------------------------- |
-| `README.md`                   | Project overview and quick start guide              |
-| `LICENSE`                     | Mozilla Public License 2.0                          |
-| `CHANGELOG.md`                | Release history and notable changes                 |
-| `llms.txt`                    | LLM-readable project documentation index            |
-| `CI_FAILURE_INVESTIGATION.md` | CI failure analysis and debugging documentation     |
-| `requirements-audit.txt`      | Python dependency audit results and security review |
+| File                                  | Purpose                                                |
+| ------------------------------------- | ------------------------------------------------------ |
+| `README.md`                           | Project overview and quick start guide                 |
+| `LICENSE`                             | Mozilla Public License 2.0                             |
+| `CHANGELOG.md`                        | Release history and notable changes                    |
+| `llms.txt`                            | LLM-readable project documentation index               |
+| `CI_FAILURE_INVESTIGATION.md`         | CI failure analysis and debugging documentation        |
+| `E2E_COVERAGE_GAPS_IMPLEMENTATION.md` | E2E test coverage gap analysis and implementation plan |
+| `requirements-audit.txt`              | Python dependency audit results and security review    |
 
 > **Note:** Detailed Docker deployment documentation is in `docs/DOCKER_DEPLOYMENT.md`.
 

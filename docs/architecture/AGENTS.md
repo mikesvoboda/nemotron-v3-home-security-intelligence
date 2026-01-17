@@ -15,14 +15,9 @@ architecture/
   decisions.md      # Architectural decisions and rationale
   frontend-hooks.md # Frontend React hooks architecture
   real-time.md      # WebSocket channels, Redis pub/sub, event broadcasting
-  resilience.md     # Circuit breakers, retries, DLQ (placeholder - empty)
-  system-page-pipeline-visualization.md  # System page pipeline viz (placeholder - empty)
+  resilience.md     # Circuit breakers, retries, DLQ, health monitoring
+  system-page-pipeline-visualization.md  # System page pipeline visualization components
 ```
-
-**Note:** The following files are placeholders (0 bytes) awaiting content:
-
-- `resilience.md` - Planned documentation for circuit breakers, retries, DLQ, health monitoring
-- `system-page-pipeline-visualization.md` - Planned documentation for System page pipeline visualization
 
 ## Key Files
 

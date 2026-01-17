@@ -33,6 +33,7 @@ This directory contains focused documentation for operators (sysadmins, DevOps e
 ```
 operator/
   AGENTS.md               # This file
+  README.md               # Operator documentation hub
   ai-configuration.md     # AI service environment variables
   ai-ghcr-deployment.md   # GHCR deployment for AI services
   ai-installation.md      # AI prerequisites and model downloads
@@ -44,8 +45,17 @@ operator/
   backup.md               # Backup and recovery procedures
   database.md             # PostgreSQL configuration
   deployment-modes.md     # Deployment mode decision table
+  dlq-management.md       # Dead letter queue management
   gpu-setup.md            # NVIDIA driver and container toolkit setup
+  monitoring.md           # Comprehensive monitoring guide
+  prometheus-alerting.md  # Prometheus alerting configuration
   redis.md                # Redis configuration and authentication
+  scene-change-detection.md # Scene change detection configuration
+  secrets-management.md   # Secrets management guide
+  service-control.md      # Service control and lifecycle management
+  admin/                  # Administration subdirectory
+  deployment/             # Deployment guides subdirectory
+  monitoring/             # Monitoring guides subdirectory
 ```
 
 ## Migration Status

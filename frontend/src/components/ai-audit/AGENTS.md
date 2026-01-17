@@ -6,21 +6,29 @@ This directory contains AI Audit-specific components and re-exports key componen
 
 ## Files
 
-| File                        | Purpose                                         |
-| --------------------------- | ----------------------------------------------- |
-| `index.ts`                  | Barrel exports for all AI Audit components      |
-| `AGENTS.md`                 | This documentation file                         |
-| `AuditProgressBar.tsx`      | Real-time batch audit progress indicator        |
-| `AuditResultsTable.tsx`     | Table displaying audit results                  |
-| `ModelContributionChart.tsx`| Chart showing model contribution breakdown      |
+| File                            | Purpose                                         |
+| ------------------------------- | ----------------------------------------------- |
+| `index.ts`                      | Barrel exports for all AI Audit components      |
+| `AGENTS.md`                     | This documentation file                         |
+| `AIAuditDashboard.tsx`          | Main AI audit dashboard component               |
+| `AIAuditDashboard.test.tsx`     | Test suite for AIAuditDashboard                 |
+| `AuditProgressBar.tsx`          | Real-time batch audit progress indicator        |
+| `AuditProgressBar.test.tsx`     | Test suite for AuditProgressBar                 |
+| `AuditResultsTable.tsx`         | Table displaying audit results                  |
+| `AuditResultsTable.test.tsx`    | Test suite for AuditResultsTable                |
+| `ModelContributionChart.tsx`    | Chart showing model contribution breakdown      |
+| `ModelContributionChart.test.tsx`| Test suite for ModelContributionChart          |
+| `PromptVersionHistory.tsx`      | Prompt version history display component        |
 
 ## Exported Components
 
 ### Direct Exports (defined in this directory)
 
+- `AIAuditDashboard` - Main AI audit dashboard component
 - `AuditProgressBar` - Real-time progress indicator for batch audit operations
 - `AuditResultsTable` - Table displaying individual audit results
 - `ModelContributionChart` - Bar chart showing model contributions
+- `PromptVersionHistory` - Prompt version history display component
 
 ### Re-exported Components (from `../ai/` directory)
 

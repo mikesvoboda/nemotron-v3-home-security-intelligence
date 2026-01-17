@@ -18,7 +18,6 @@ developer/architecture/
   AGENTS.md                    # This file
   README.md                    # Directory overview with system diagram
   model-loader-migration.md    # Model loader migration to abstract base class
-  decisions/                   # Architecture decisions (currently empty)
 ```
 
 ## Key Files
@@ -56,12 +55,6 @@ developer/architecture/
 - `backend/tests/unit/services/test_clip_loader.py` - Reference tests
 
 **When to use:** Adding new model loaders or migrating existing ones to the standard interface.
-
-### decisions/ (Empty)
-
-**Purpose:** Placeholder for developer-specific architecture decisions.
-
-**Note:** General architecture decisions are documented in `docs/architecture/decisions.md` and `docs/decisions/`.
 
 ## Related Resources
 

@@ -6,30 +6,44 @@ Contains components for application configuration and system settings. Includes 
 
 ## Files
 
-| File                              | Purpose                                       |
-| --------------------------------- | --------------------------------------------- |
-| `SettingsPage.tsx`                | Main settings page with tabbed interface      |
-| `SettingsPage.test.tsx`           | Test suite for SettingsPage                   |
-| `CamerasSettings.tsx`             | Camera management CRUD interface              |
-| `CamerasSettings.test.tsx`        | Test suite for CamerasSettings                |
-| `AIModelsSettings.tsx`            | AI model status and metrics display           |
-| `AIModelsSettings.test.tsx`       | Test suite for AIModelsSettings               |
-| `AIModelsSettings.example.tsx`    | Example usage of AIModelsSettings             |
-| `ProcessingSettings.tsx`          | Event processing configuration                |
-| `ProcessingSettings.test.tsx`     | Test suite for ProcessingSettings             |
-| `ProcessingSettings.example.tsx`  | Example usage of ProcessingSettings           |
-| `AlertRulesSettings.tsx`          | Alert rule configuration management           |
-| `AlertRulesSettings.test.tsx`     | Test suite for AlertRulesSettings             |
-| `NotificationSettings.tsx`        | Email and webhook notification config         |
-| `NotificationSettings.test.tsx`   | Test suite for NotificationSettings           |
-| `StorageDashboard.tsx`            | Disk usage and storage breakdown dashboard    |
-| `StorageDashboard.test.tsx`       | Test suite for StorageDashboard               |
-| `SeverityThresholds.tsx`          | Risk score threshold configuration            |
-| `SeverityThresholds.test.tsx`     | Test suite for SeverityThresholds             |
-| `DlqMonitor.tsx`                  | Dead letter queue monitoring and management   |
-| `DlqMonitor.test.tsx`             | Test suite for DlqMonitor                     |
-| `README.md`                       | Component documentation                       |
-| `index.ts`                        | Barrel exports                                |
+| File                                    | Purpose                                            |
+| --------------------------------------- | -------------------------------------------------- |
+| `AIModelsSettings.tsx`                  | AI model status and metrics display                |
+| `AIModelsSettings.test.tsx`             | Test suite for AIModelsSettings                    |
+| `AlertRulesSettings.tsx`                | Alert rule configuration management                |
+| `AlertRulesSettings.test.tsx`           | Test suite for AlertRulesSettings                  |
+| `AmbientStatusSettings.tsx`             | Ambient status display settings                    |
+| `AmbientStatusSettings.test.tsx`        | Test suite for AmbientStatusSettings               |
+| `CalibrationPanel.tsx`                  | Camera calibration panel                           |
+| `CalibrationPanel.test.tsx`             | Test suite for CalibrationPanel                    |
+| `CameraForm.tsx`                        | Form for adding/editing cameras                    |
+| `CameraForm.test.tsx`                   | Test suite for CameraForm                          |
+| `CamerasSettings.tsx`                   | Camera management CRUD interface                   |
+| `CamerasSettings.test.tsx`              | Test suite for CamerasSettings                     |
+| `CleanupPreviewPanel.tsx`               | Preview panel for data cleanup operations          |
+| `CleanupPreviewPanel.test.tsx`          | Test suite for CleanupPreviewPanel                 |
+| `DlqMonitor.tsx`                        | Dead letter queue monitoring and management        |
+| `DlqMonitor.test.tsx`                   | Test suite for DlqMonitor                          |
+| `DlqMonitor.msw.test.tsx`               | MSW-based integration tests for DlqMonitor         |
+| `GlobalNotificationPreferences.tsx`     | Global notification preferences settings           |
+| `NotificationPreferencesForm.tsx`       | Form for notification preferences                  |
+| `NotificationPreferencesForm.test.tsx`  | Test suite for NotificationPreferencesForm         |
+| `NotificationSettings.tsx`              | Email and webhook notification config              |
+| `NotificationSettings.test.tsx`         | Test suite for NotificationSettings                |
+| `ProcessingSettings.tsx`                | Event processing configuration                     |
+| `ProcessingSettings.test.tsx`           | Test suite for ProcessingSettings                  |
+| `PromptManagementPanel.tsx`             | AI prompt management interface                     |
+| `PromptManagementPanel.test.tsx`        | Test suite for PromptManagementPanel               |
+| `QuietHoursScheduler.tsx`               | Quiet hours scheduling configuration               |
+| `RiskSensitivitySettings.tsx`           | Risk sensitivity configuration settings            |
+| `RiskSensitivitySettings.test.tsx`      | Test suite for RiskSensitivitySettings             |
+| `SettingsPage.tsx`                      | Main settings page with tabbed interface           |
+| `SettingsPage.test.tsx`                 | Test suite for SettingsPage                        |
+| `SeverityThresholds.tsx`                | Risk score threshold configuration                 |
+| `SeverityThresholds.test.tsx`           | Test suite for SeverityThresholds                  |
+| `StorageDashboard.tsx`                  | Disk usage and storage breakdown dashboard         |
+| `StorageDashboard.test.tsx`             | Test suite for StorageDashboard                    |
+| `StorageDashboard.msw.test.tsx`         | MSW-based integration tests for StorageDashboard   |
 
 ## Key Components
 

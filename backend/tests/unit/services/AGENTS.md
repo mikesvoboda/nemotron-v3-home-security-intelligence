@@ -92,7 +92,7 @@ backend/tests/unit/services/
 └── test_zone_service.py               # Zone management
 ```
 
-## Test Files (71 files)
+## Test Files (144 files)
 
 ### AI Pipeline Services (6 files)
 
