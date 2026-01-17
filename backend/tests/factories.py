@@ -161,7 +161,6 @@ class EventFactory(factory.Factory):
     summary: str = LazyAttribute(lambda o: f"Event detected on {o.camera_id}")
     reasoning: str = "Standard detection analysis"
     llm_prompt: str | None = None
-    detection_ids: str = "1,2,3"
     reviewed: bool = False
     notes: str | None = None
     is_fast_path: bool = False

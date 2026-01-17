@@ -46,7 +46,6 @@ class Event(Base):
     reasoning: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Full prompt sent to Nemotron LLM for analysis (for debugging/improvement)
     llm_prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
-    detection_ids: Mapped[str | None] = mapped_column(Text, nullable=True)
     reviewed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_fast_path: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
