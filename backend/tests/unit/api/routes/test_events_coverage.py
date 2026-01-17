@@ -74,7 +74,7 @@ def client(mock_db_session: AsyncMock, mock_cache_service: AsyncMock) -> TestCli
         mock_event.reviewed = False
         mock_event.notes = None
         mock_event.snooze_until = None
-        mock_event.detection_ids = "[1, 2, 3]"
+        mock_event.detection_id_list = [1, 2, 3]
         mock_event.detections = []
         mock_event.deleted_at = None
         mock_event.clip_path = None
@@ -576,7 +576,7 @@ class TestUpdateEvent:
         mock_event.reviewed = False
         mock_event.notes = None
         mock_event.snooze_until = None
-        mock_event.detection_ids = "[1, 2]"
+        mock_event.detection_id_list = [1, 2]
         mock_event.detections = []
         # Add all required fields
         mock_event.camera_id = "cam1"
@@ -606,7 +606,7 @@ class TestUpdateEvent:
         mock_event.reviewed = False
         mock_event.notes = None
         mock_event.snooze_until = None
-        mock_event.detection_ids = "[1, 2]"
+        mock_event.detection_id_list = [1, 2]
         mock_event.detections = []
         mock_event.camera_id = "cam1"
         mock_event.started_at = datetime(2025, 1, 1, 12, 0, 0, tzinfo=UTC)
@@ -675,7 +675,7 @@ class TestGetEventEnrichments:
         mock_event.id = 1
         mock_event.detections = []
         mock_event.detection_id_list = []
-        mock_event.detection_ids = None  # Legacy fallback returns empty
+        mock_event.detection_id_list = []
 
         mock_get_event.return_value = mock_event
 
@@ -778,7 +778,7 @@ class TestGenerateEventClip:
         mock_event = Mock(spec=Event)
         mock_event.id = 1
         mock_event.clip_path = "/path/to/clip.mp4"
-        mock_event.detection_ids = "[1, 2]"
+        mock_event.detection_id_list = [1, 2]
         mock_event.detections = []
 
         mock_get_event.return_value = mock_event
@@ -833,7 +833,7 @@ class TestGenerateEventClip:
         mock_event.clip_path = None
         mock_event.detections = []
         mock_event.detection_id_list = []
-        mock_event.detection_ids = None  # Legacy fallback returns empty
+        mock_event.detection_id_list = []
 
         mock_get_event.return_value = mock_event
 
@@ -987,7 +987,7 @@ class TestRestoreEvent:
         mock_event.llm_prompt = "Test prompt"
         mock_event.reviewed = False
         mock_event.notes = None
-        mock_event.detection_ids = "[1, 2]"
+        mock_event.detection_id_list = [1, 2]
         mock_event.detections = []
 
         mock_service = Mock()
@@ -1318,7 +1318,7 @@ class TestUpdateEventBranches:
         mock_event.reviewed = True
         mock_event.notes = None
         mock_event.snooze_until = None
-        mock_event.detection_ids = "[1, 2]"
+        mock_event.detection_id_list = [1, 2]
         mock_event.detections = []
         mock_event.camera_id = "cam1"
         mock_event.started_at = datetime(2025, 1, 1, 12, 0, 0, tzinfo=UTC)
@@ -1346,7 +1346,7 @@ class TestUpdateEventBranches:
         mock_event.reviewed = False
         mock_event.notes = None
         mock_event.snooze_until = None
-        mock_event.detection_ids = "[1, 2]"
+        mock_event.detection_id_list = [1, 2]
         mock_event.detections = []
         mock_event.camera_id = "cam1"
         mock_event.started_at = datetime(2025, 1, 1, 12, 0, 0, tzinfo=UTC)
@@ -1378,7 +1378,7 @@ class TestUpdateEventBranches:
         mock_event.reviewed = False
         mock_event.notes = None
         mock_event.snooze_until = None
-        mock_event.detection_ids = "[1, 2]"
+        mock_event.detection_id_list = [1, 2]
         mock_event.detections = []
         mock_event.camera_id = "cam1"
         mock_event.started_at = datetime(2025, 1, 1, 12, 0, 0, tzinfo=UTC)
@@ -1476,7 +1476,7 @@ class TestDeleteRestoreCacheFailures:
         mock_event.llm_prompt = "Test prompt"
         mock_event.reviewed = False
         mock_event.notes = None
-        mock_event.detection_ids = "[1, 2]"
+        mock_event.detection_id_list = [1, 2]
         mock_event.detections = []
 
         mock_service = Mock()
