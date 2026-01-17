@@ -221,7 +221,6 @@ class TestGenerateEventClip:
         mock_event.clip_path = None
         mock_event.started_at = now
         mock_event.ended_at = now
-        mock_event.detection_ids = "[1, 2, 3]"
         mock_event.detection_id_list = [1, 2, 3]  # Property used by the route
         mock_event_result = MagicMock()
         mock_event_result.scalar_one_or_none.return_value = mock_event
@@ -281,7 +280,6 @@ class TestGenerateEventClip:
         mock_event.clip_path = "/data/clips/789_clip.mp4"
         mock_event.started_at = now
         mock_event.ended_at = now
-        mock_event.detection_ids = "[1, 2]"
         mock_event.detection_id_list = [1, 2]  # Property used by the route
         mock_event_result = MagicMock()
         mock_event_result.scalar_one_or_none.return_value = mock_event
@@ -335,7 +333,7 @@ class TestGenerateEventClip:
         mock_event.clip_path = None
         mock_event.started_at = datetime.now(UTC)
         mock_event.ended_at = datetime.now(UTC)
-        mock_event.detection_ids = None
+        mock_event.detection_id_list = []
         mock_event_result = MagicMock()
         mock_event_result.scalar_one_or_none.return_value = mock_event
         mock_db.execute.return_value = mock_event_result
