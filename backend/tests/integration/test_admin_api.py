@@ -461,10 +461,9 @@ async def test_seed_events_creates_detections(debug_client, clean_seed_data):
         detections = detections_result.scalars().all()
         assert len(detections) == detections_created
 
-        # Verify events have detection_ids
+        # Verify events have linked detections via junction table
         for event in events:
-            assert event.detection_ids is not None
-            assert len(event.detection_ids) > 0
+            assert len(event.detection_id_list) > 0
 
 
 @pytest.mark.asyncio

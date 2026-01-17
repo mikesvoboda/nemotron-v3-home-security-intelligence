@@ -12,6 +12,7 @@ from datetime import datetime
 
 import pytest
 
+from backend.models.event_detection import EventDetection
 from backend.tests.integration.test_helpers import get_error_message
 
 
@@ -93,7 +94,6 @@ async def sample_event(integration_db, sample_camera):
             risk_level="medium",
             summary="Person detected near front entrance",
             reasoning="A person was detected approaching the front door during daylight hours",
-            detection_ids="1,2,3",
             reviewed=False,
             notes=None,
         )
@@ -165,7 +165,6 @@ async def multiple_events(integration_db, sample_camera):
                 risk_level="low",
                 summary="Package delivery detected",
                 reviewed=True,
-                detection_ids="1,2",
             ),
             # Medium risk, not reviewed
             Event(
@@ -177,7 +176,6 @@ async def multiple_events(integration_db, sample_camera):
                 risk_level="medium",
                 summary="Multiple people detected",
                 reviewed=False,
-                detection_ids="3,4,5,6",
             ),
             # High risk, not reviewed, different camera
             Event(
@@ -189,7 +187,6 @@ async def multiple_events(integration_db, sample_camera):
                 risk_level="high",
                 summary="Suspicious activity at night",
                 reviewed=False,
-                detection_ids="7,8,9,10,11",
             ),
             # Event without end time or risk analysis
             Event(
@@ -201,7 +198,6 @@ async def multiple_events(integration_db, sample_camera):
                 risk_level=None,
                 summary=None,
                 reviewed=False,
-                detection_ids="12",
             ),
         ]
 
@@ -562,20 +558,12 @@ class TestGetEventDetections:
 
     async def test_get_event_detections_success(self, async_client, sample_event, sample_detection):
         """Test getting detections for an event."""
-        import json
-
-        # Update event to reference the detection
+        # Link event to detection via junction table
         from backend.core.database import get_session
 
         async with get_session() as db:
-            from sqlalchemy import select
-
-            from backend.models.event import Event
-
-            result = await db.execute(select(Event).where(Event.id == sample_event.id))
-            event = result.scalar_one()
-            # detection_ids must be a JSON array, not a plain string
-            event.detection_ids = json.dumps([sample_detection.id])
+            junction = EventDetection(event_id=sample_event.id, detection_id=sample_detection.id)
+            db.add(junction)
             await db.commit()
 
         response = await async_client.get(f"/api/events/{sample_event.id}/detections")
@@ -589,19 +577,7 @@ class TestGetEventDetections:
 
     async def test_get_event_detections_empty(self, async_client, sample_event):
         """Test getting detections for an event with no detections."""
-        # Ensure event has no detection_ids
-        from backend.core.database import get_session
-
-        async with get_session() as db:
-            from sqlalchemy import select
-
-            from backend.models.event import Event
-
-            result = await db.execute(select(Event).where(Event.id == sample_event.id))
-            event = result.scalar_one()
-            event.detection_ids = None
-            await db.commit()
-
+        # Event has no detections linked via junction table by default
         response = await async_client.get(f"/api/events/{sample_event.id}/detections")
         assert response.status_code == 200
         data = response.json()
@@ -617,8 +593,6 @@ class TestGetEventDetections:
 
     async def test_get_event_detections_multiple(self, async_client, sample_event, sample_camera):
         """Test getting multiple detections for an event."""
-        import json
-
         from backend.core.database import get_session
         from backend.models.detection import Detection
 
@@ -654,15 +628,10 @@ class TestGetEventDetections:
             await db.refresh(detection1)
             await db.refresh(detection2)
 
-            # Update event to reference both detections
-            from sqlalchemy import select
-
-            from backend.models.event import Event
-
-            result = await db.execute(select(Event).where(Event.id == sample_event.id))
-            event = result.scalar_one()
-            # detection_ids must be a JSON array
-            event.detection_ids = json.dumps([detection1.id, detection2.id])
+            # Link event to detections via junction table
+            for det_id in [detection1.id, detection2.id]:
+                junction = EventDetection(event_id=sample_event.id, detection_id=det_id)
+                db.add(junction)
             await db.commit()
 
         response = await async_client.get(f"/api/events/{sample_event.id}/detections")
@@ -846,11 +815,8 @@ class TestEnrichmentDataInEventDetections:
         self, async_client, sample_event, sample_camera
     ):
         """Test that GET /api/events/{id}/detections includes enrichment_data."""
-        import json
-
         from backend.core.database import get_session
         from backend.models.detection import Detection
-        from backend.models.event import Event
 
         # Sample enrichment data structure
         enrichment_data = {
@@ -885,12 +851,9 @@ class TestEnrichmentDataInEventDetections:
             await db.commit()
             await db.refresh(detection)
 
-            # Update event to reference this detection
-            from sqlalchemy import select
-
-            result = await db.execute(select(Event).where(Event.id == sample_event.id))
-            event = result.scalar_one()
-            event.detection_ids = json.dumps([detection.id])
+            # Link event to detection via junction table
+            junction = EventDetection(event_id=sample_event.id, detection_id=detection.id)
+            db.add(junction)
             await db.commit()
 
         # Test API response
@@ -907,18 +870,12 @@ class TestEnrichmentDataInEventDetections:
         self, async_client, sample_event, sample_detection
     ):
         """Test that detections without enrichment data return null."""
-        import json
-
         from backend.core.database import get_session
-        from backend.models.event import Event
 
-        # Update event to reference the detection (which has no enrichment_data)
+        # Link event to the detection (which has no enrichment_data) via junction table
         async with get_session() as db:
-            from sqlalchemy import select
-
-            result = await db.execute(select(Event).where(Event.id == sample_event.id))
-            event = result.scalar_one()
-            event.detection_ids = json.dumps([sample_detection.id])
+            junction = EventDetection(event_id=sample_event.id, detection_id=sample_detection.id)
+            db.add(junction)
             await db.commit()
 
         response = await async_client.get(f"/api/events/{sample_event.id}/detections")
@@ -935,11 +892,8 @@ class TestEnrichmentDataInEventDetections:
         self, async_client, sample_event, sample_camera
     ):
         """Test detections with and without enrichment data."""
-        import json
-
         from backend.core.database import get_session
         from backend.models.detection import Detection
-        from backend.models.event import Event
 
         enrichment_data = {
             "person": {
@@ -985,12 +939,10 @@ class TestEnrichmentDataInEventDetections:
             await db.refresh(detection1)
             await db.refresh(detection2)
 
-            # Update event
-            from sqlalchemy import select
-
-            result = await db.execute(select(Event).where(Event.id == sample_event.id))
-            event = result.scalar_one()
-            event.detection_ids = json.dumps([detection1.id, detection2.id])
+            # Link event to detections via junction table
+            for det_id in [detection1.id, detection2.id]:
+                junction = EventDetection(event_id=sample_event.id, detection_id=det_id)
+                db.add(junction)
             await db.commit()
 
         response = await async_client.get(f"/api/events/{sample_event.id}/detections")
@@ -1157,11 +1109,8 @@ class TestGetEventEnrichments:
         self, async_client, sample_event, sample_camera, integration_db
     ):
         """Test getting enrichments for an event with enriched detections."""
-        import json
-
         from backend.core.database import get_session
         from backend.models.detection import Detection
-        from backend.models.event import Event
 
         enrichment_data = {
             "license_plates": [
@@ -1193,12 +1142,9 @@ class TestGetEventEnrichments:
             await db.commit()
             await db.refresh(detection)
 
-            # Update event to reference this detection
-            from sqlalchemy import select
-
-            result = await db.execute(select(Event).where(Event.id == sample_event.id))
-            event = result.scalar_one()
-            event.detection_ids = json.dumps([detection.id])
+            # Link event to detection via junction table
+            junction = EventDetection(event_id=sample_event.id, detection_id=detection.id)
+            db.add(junction)
             await db.commit()
 
         response = await async_client.get(f"/api/events/{sample_event.id}/enrichments")
@@ -1223,18 +1169,7 @@ class TestGetEventEnrichments:
 
     async def test_get_event_enrichments_empty(self, async_client, sample_event, integration_db):
         """Test getting enrichments for event with no detections."""
-        from backend.core.database import get_session
-        from backend.models.event import Event
-
-        # Ensure event has no detections
-        async with get_session() as db:
-            from sqlalchemy import select
-
-            result = await db.execute(select(Event).where(Event.id == sample_event.id))
-            event = result.scalar_one()
-            event.detection_ids = None
-            await db.commit()
-
+        # Event has no detections linked via junction table by default
         response = await async_client.get(f"/api/events/{sample_event.id}/enrichments")
         assert response.status_code == 200
         data = response.json()
@@ -1261,11 +1196,8 @@ class TestGetEventEnrichments:
         self, async_client, sample_event, sample_camera, integration_db
     ):
         """Test getting enrichments for event with multiple detections."""
-        import json
-
         from backend.core.database import get_session
         from backend.models.detection import Detection
-        from backend.models.event import Event
 
         async with get_session() as db:
             # Create two detections with different enrichment data
@@ -1307,12 +1239,10 @@ class TestGetEventEnrichments:
             await db.refresh(detection1)
             await db.refresh(detection2)
 
-            # Update event
-            from sqlalchemy import select
-
-            result = await db.execute(select(Event).where(Event.id == sample_event.id))
-            event = result.scalar_one()
-            event.detection_ids = json.dumps([detection1.id, detection2.id])
+            # Link event to detections via junction table
+            for det_id in [detection1.id, detection2.id]:
+                junction = EventDetection(event_id=sample_event.id, detection_id=det_id)
+                db.add(junction)
             await db.commit()
 
         response = await async_client.get(f"/api/events/{sample_event.id}/enrichments")
@@ -1333,11 +1263,8 @@ class TestGetEventEnrichments:
         self, async_client, sample_event, sample_camera, integration_db
     ):
         """Test pagination parameters for enrichments endpoint."""
-        import json
-
         from backend.core.database import get_session
         from backend.models.detection import Detection
-        from backend.models.event import Event
 
         async with get_session() as db:
             # Create 5 detections for pagination testing
@@ -1366,12 +1293,10 @@ class TestGetEventEnrichments:
             for det in detections:
                 await db.refresh(det)
 
-            # Update event with all detections
-            from sqlalchemy import select
-
-            result = await db.execute(select(Event).where(Event.id == sample_event.id))
-            event = result.scalar_one()
-            event.detection_ids = json.dumps([d.id for d in detections])
+            # Link event to all detections via junction table
+            for det in detections:
+                junction = EventDetection(event_id=sample_event.id, detection_id=det.id)
+                db.add(junction)
             await db.commit()
 
         # Test with custom limit
@@ -1394,11 +1319,8 @@ class TestGetEventEnrichments:
         self, async_client, sample_event, sample_camera, integration_db
     ):
         """Test pagination with offset."""
-        import json
-
         from backend.core.database import get_session
         from backend.models.detection import Detection
-        from backend.models.event import Event
 
         async with get_session() as db:
             # Create 5 detections for pagination testing
@@ -1427,12 +1349,10 @@ class TestGetEventEnrichments:
             for det in detections:
                 await db.refresh(det)
 
-            # Update event with all detections
-            from sqlalchemy import select
-
-            result = await db.execute(select(Event).where(Event.id == sample_event.id))
-            event = result.scalar_one()
-            event.detection_ids = json.dumps([d.id for d in detections])
+            # Link event to all detections via junction table
+            for det in detections:
+                junction = EventDetection(event_id=sample_event.id, detection_id=det.id)
+                db.add(junction)
             await db.commit()
 
         # Test with offset
@@ -1454,11 +1374,8 @@ class TestGetEventEnrichments:
         self, async_client, sample_event, sample_camera, integration_db
     ):
         """Test pagination with offset beyond total items."""
-        import json
-
         from backend.core.database import get_session
         from backend.models.detection import Detection
-        from backend.models.event import Event
 
         async with get_session() as db:
             # Create 3 detections
@@ -1486,12 +1403,10 @@ class TestGetEventEnrichments:
             for det in detections:
                 await db.refresh(det)
 
-            # Update event
-            from sqlalchemy import select
-
-            result = await db.execute(select(Event).where(Event.id == sample_event.id))
-            event = result.scalar_one()
-            event.detection_ids = json.dumps([d.id for d in detections])
+            # Link event to all detections via junction table
+            for det in detections:
+                junction = EventDetection(event_id=sample_event.id, detection_id=det.id)
+                db.add(junction)
             await db.commit()
 
         # Test with offset beyond available items
@@ -1619,18 +1534,7 @@ class TestGenerateEventClip:
 
     async def test_generate_clip_no_detections(self, async_client, sample_event, integration_db):
         """Test generating clip for event with no detections returns 400."""
-        from backend.core.database import get_session
-        from backend.models.event import Event
-
-        # Ensure event has no detections
-        async with get_session() as db:
-            from sqlalchemy import select
-
-            result = await db.execute(select(Event).where(Event.id == sample_event.id))
-            event = result.scalar_one()
-            event.detection_ids = None
-            await db.commit()
-
+        # Event has no detections linked via junction table by default
         response = await async_client.post(
             f"/api/events/{sample_event.id}/clip/generate",
             json={"force": False},
@@ -1644,8 +1548,6 @@ class TestGenerateEventClip:
         self, async_client, sample_event, sample_detection, integration_db, tmp_path
     ):
         """Test generating clip when clip exists and force=False returns existing clip."""
-        import json
-
         from backend.core.database import get_session
         from backend.models.event import Event
 
@@ -1653,13 +1555,16 @@ class TestGenerateEventClip:
         clip_file = tmp_path / f"{sample_event.id}_existing_clip.mp4"
         clip_file.write_bytes(b"existing clip content" * 100)
 
-        # Update event with detection and clip path
+        # Link event to detection via junction table and set clip path
         async with get_session() as db:
             from sqlalchemy import select
 
+            # Link detection to event via junction table
+            junction = EventDetection(event_id=sample_event.id, detection_id=sample_detection.id)
+            db.add(junction)
+
             result = await db.execute(select(Event).where(Event.id == sample_event.id))
             event = result.scalar_one()
-            event.detection_ids = json.dumps([sample_detection.id])
             event.clip_path = str(clip_file)
             await db.commit()
 
@@ -1679,11 +1584,8 @@ class TestGenerateEventClip:
         self, async_client, sample_event, sample_camera, integration_db
     ):
         """Test generating clip when detections have no file paths returns 400."""
-        import json
-
         from backend.core.database import get_session
         from backend.models.detection import Detection
-        from backend.models.event import Event
 
         # Create detection with empty file path
         async with get_session() as db:
@@ -1703,11 +1605,9 @@ class TestGenerateEventClip:
             await db.commit()
             await db.refresh(detection)
 
-            from sqlalchemy import select
-
-            result = await db.execute(select(Event).where(Event.id == sample_event.id))
-            event = result.scalar_one()
-            event.detection_ids = json.dumps([detection.id])
+            # Link detection to event via junction table
+            junction = EventDetection(event_id=sample_event.id, detection_id=detection.id)
+            db.add(junction)
             await db.commit()
 
         response = await async_client.post(

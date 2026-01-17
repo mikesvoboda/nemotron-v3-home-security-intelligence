@@ -660,7 +660,7 @@ async def test_full_pipeline_multiple_images_same_camera(
         assert event.risk_level == "medium"
 
         # Verify detection_ids in event
-        stored_detection_ids = json.loads(event.detection_ids)
+        stored_detection_ids = event.detection_id_list
         assert len(stored_detection_ids) == 3
         for det_id in detection_ids:
             assert det_id in stored_detection_ids
@@ -1207,9 +1207,9 @@ async def test_batch_close_to_analyze_handoff_without_redis_rehydration(
         assert stored_event.risk_score == 55
 
         # Verify detection_ids in event
-        stored_detection_ids = json.loads(stored_event.detection_ids)
+        stored_detection_ids = stored_event.detection_id_list
         assert len(stored_detection_ids) == 1
-        assert str(detection_id) in [str(d) for d in stored_detection_ids]
+        assert detection_id in stored_detection_ids
 
 
 # =============================================================================

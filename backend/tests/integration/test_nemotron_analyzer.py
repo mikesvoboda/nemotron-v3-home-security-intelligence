@@ -94,7 +94,7 @@ async def test_analyze_batch_success(
     batch_id = unique_id("batch")
     camera_id = unique_id("camera")
     # Use high detection IDs to avoid conflicts with other tests
-    base_det_id = random.randint(100000, 999999)  # noqa: S311
+    base_det_id = random.randint(100000, 999999)  # noqa: S311  # nosemgrep: insecure-random
     detection_ids = [base_det_id, base_det_id + 1, base_det_id + 2]
 
     # Create detections with matching IDs and camera
@@ -176,7 +176,7 @@ async def test_analyze_batch_llm_failure_uses_fallback(
     # Use unique IDs for test isolation in parallel execution
     batch_id = unique_id("batch")
     camera_id = unique_id("camera")
-    base_det_id = random.randint(100000, 999999)  # noqa: S311
+    base_det_id = random.randint(100000, 999999)  # noqa: S311  # nosemgrep: insecure-random
     detection_ids = [base_det_id, base_det_id + 1, base_det_id + 2]
 
     # Create detections with matching IDs and camera
@@ -232,7 +232,7 @@ async def test_analyze_batch_camera_not_found(
     # Use unique IDs for test isolation in parallel execution
     batch_id = unique_id("batch")
     real_camera_id = unique_id("real_camera")
-    base_det_id = random.randint(100000, 999999)  # noqa: S311
+    base_det_id = random.randint(100000, 999999)  # noqa: S311  # nosemgrep: insecure-random
     detection_ids = [base_det_id, base_det_id + 1, base_det_id + 2]
 
     # Create detections with matching IDs and camera
@@ -303,7 +303,7 @@ async def test_analyze_batch_detections_not_in_database(analyzer, mock_redis_cli
     batch_id = unique_id("batch")
     camera_id = unique_id("camera")
     # Use random high IDs that won't exist
-    base_det_id = random.randint(900000, 999999)  # noqa: S311
+    base_det_id = random.randint(900000, 999999)  # noqa: S311  # nosemgrep: insecure-random
     detection_ids = [base_det_id, base_det_id + 1, base_det_id + 2]
 
     # Setup Redis mocks
@@ -356,7 +356,7 @@ async def test_analyze_detection_fast_path_success(
     """Test successful fast path analysis creates Event with is_fast_path=True."""
     # Use unique IDs for test isolation in parallel execution
     camera_id = unique_id("camera")
-    det_id = random.randint(100000, 999999)  # noqa: S311
+    det_id = random.randint(100000, 999999)  # noqa: S311  # nosemgrep: insecure-random
     detection_id = str(det_id)
 
     # Create detection with matching ID and camera
@@ -429,7 +429,7 @@ async def test_analyze_detection_fast_path_llm_failure(
     """Test fast path analysis uses fallback when LLM fails."""
     # Use unique IDs for test isolation in parallel execution
     camera_id = unique_id("camera")
-    det_id = random.randint(100000, 999999)  # noqa: S311
+    det_id = random.randint(100000, 999999)  # noqa: S311  # nosemgrep: insecure-random
     detection_id = str(det_id)
 
     # Create detection with matching ID and camera
@@ -470,7 +470,7 @@ async def test_analyze_detection_fast_path_single_detection_time(
     """Test fast path uses same timestamp for started_at and ended_at."""
     # Use unique IDs for test isolation in parallel execution
     camera_id = unique_id("camera")
-    det_id = random.randint(100000, 999999)  # noqa: S311
+    det_id = random.randint(100000, 999999)  # noqa: S311  # nosemgrep: insecure-random
     detection_id = str(det_id)
 
     # Create detection with matching ID and camera
@@ -520,10 +520,10 @@ async def test_analyze_detection_fast_path_single_detection_time(
 async def test_analyze_detection_fast_path_detection_ids_format(
     analyzer, mock_redis_client, isolated_db, sample_detections_factory
 ):
-    """Test fast path stores detection_ids as JSON array with single integer."""
+    """Test fast path links detection via junction table with single detection."""
     # Use unique IDs for test isolation in parallel execution
     camera_id = unique_id("camera")
-    det_id = random.randint(100000, 999999)  # noqa: S311
+    det_id = random.randint(100000, 999999)  # noqa: S311  # nosemgrep: insecure-random
     detection_id = str(det_id)
 
     # Create detection with matching ID and camera
@@ -563,12 +563,11 @@ async def test_analyze_detection_fast_path_detection_ids_format(
 
         event = await analyzer.analyze_detection_fast_path(camera_id, detection_id)
 
-    # Verify detection_ids is a JSON array with single integer
-    assert event.detection_ids is not None
-    detection_ids_list = json.loads(event.detection_ids)
-    assert isinstance(detection_ids_list, list)
-    assert len(detection_ids_list) == 1
-    assert detection_ids_list[0] == det_id
+    # Verify detection_id_list contains single integer from junction table
+    stored_detection_ids = event.detection_id_list
+    assert isinstance(stored_detection_ids, list)
+    assert len(stored_detection_ids) == 1
+    assert stored_detection_ids[0] == det_id
 
 
 @pytest.mark.asyncio
@@ -578,7 +577,7 @@ async def test_analyze_detection_fast_path_broadcast_called(
     """Test fast path broadcasts event after creation via EventBroadcaster."""
     # Use unique IDs for test isolation in parallel execution
     camera_id = unique_id("camera")
-    det_id = random.randint(100000, 999999)  # noqa: S311
+    det_id = random.randint(100000, 999999)  # noqa: S311  # nosemgrep: insecure-random
     detection_id = str(det_id)
 
     # Create detection with matching ID and camera
@@ -658,7 +657,7 @@ async def test_analyze_batch_string_detection_ids_converted_to_int(
     # Use unique IDs for test isolation
     batch_id = unique_id("batch")
     camera_id = unique_id("camera")
-    base_det_id = random.randint(100000, 999999)  # noqa: S311
+    base_det_id = random.randint(100000, 999999)  # noqa: S311  # nosemgrep: insecure-random
 
     # Simulate detection IDs stored as STRINGS in Redis (as they are in actual pipeline)
     string_detection_ids = [str(base_det_id), str(base_det_id + 1), str(base_det_id + 2)]
@@ -720,9 +719,9 @@ async def test_analyze_batch_string_detection_ids_converted_to_int(
     assert event.batch_id == batch_id
     assert event.risk_score == 65
 
-    # Verify detection_ids are stored as integers in the event
-    stored_ids = json.loads(event.detection_ids)
-    assert stored_ids == [base_det_id, base_det_id + 1, base_det_id + 2]
+    # Verify detection_ids are stored as integers via junction table
+    stored_ids = event.detection_id_list
+    assert sorted(stored_ids) == [base_det_id, base_det_id + 1, base_det_id + 2]
     assert all(isinstance(d, int) for d in stored_ids)
 
 
@@ -780,7 +779,7 @@ async def test_analyze_batch_mixed_int_and_string_detection_ids(
     """
     batch_id = unique_id("batch")
     camera_id = unique_id("camera")
-    base_det_id = random.randint(100000, 999999)  # noqa: S311
+    base_det_id = random.randint(100000, 999999)  # noqa: S311  # nosemgrep: insecure-random
 
     # Mixed int and string IDs (both should work)
     mixed_detection_ids = [base_det_id, str(base_det_id + 1), base_det_id + 2]
@@ -839,9 +838,9 @@ async def test_analyze_batch_mixed_int_and_string_detection_ids(
     assert event is not None
     assert event.risk_score == 55
 
-    # Verify all detection_ids are stored as integers
-    stored_ids = json.loads(event.detection_ids)
-    assert stored_ids == [base_det_id, base_det_id + 1, base_det_id + 2]
+    # Verify all detection_ids are stored as integers via junction table
+    stored_ids = event.detection_id_list
+    assert sorted(stored_ids) == [base_det_id, base_det_id + 1, base_det_id + 2]
     assert all(isinstance(d, int) for d in stored_ids)
 
 
@@ -856,7 +855,7 @@ async def test_analyze_batch_with_direct_detection_ids_parameter(
     """
     batch_id = unique_id("batch")
     camera_id = unique_id("camera")
-    base_det_id = random.randint(100000, 999999)  # noqa: S311
+    base_det_id = random.randint(100000, 999999)  # noqa: S311  # nosemgrep: insecure-random
 
     # String IDs passed directly (simulating queue payload)
     direct_string_ids = [str(base_det_id), str(base_det_id + 1)]
@@ -909,6 +908,6 @@ async def test_analyze_batch_with_direct_detection_ids_parameter(
     assert event.camera_id == camera_id
     assert event.risk_score == 70
 
-    # Verify stored IDs are integers
-    stored_ids = json.loads(event.detection_ids)
-    assert stored_ids == [base_det_id, base_det_id + 1]
+    # Verify stored IDs are integers via junction table
+    stored_ids = event.detection_id_list
+    assert sorted(stored_ids) == [base_det_id, base_det_id + 1]
