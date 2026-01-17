@@ -4005,6 +4005,7 @@
           "app_name": "Home Security Intelligence",
           "batch_idle_timeout_seconds": 30,
           "batch_window_seconds": 90,
+          "debug": false,
           "detection_confidence_threshold": 0.5,
           "grafana_url": "http://localhost:3002",
           "retention_days": 30,
@@ -4027,6 +4028,11 @@
             "minimum": 1.0,
             "title": "Batch Window Seconds",
             "type": "integer"
+          },
+          "debug": {
+            "description": "Whether debug mode is enabled (enables developer tools)",
+            "title": "Debug",
+            "type": "boolean"
           },
           "detection_confidence_threshold": {
             "description": "Minimum confidence threshold for detections (0.0-1.0)",
@@ -4060,7 +4066,8 @@
           "batch_window_seconds",
           "batch_idle_timeout_seconds",
           "detection_confidence_threshold",
-          "grafana_url"
+          "grafana_url",
+          "debug"
         ],
         "title": "ConfigResponse",
         "type": "object"

@@ -1981,6 +1981,7 @@ async def get_config() -> ConfigResponse:
         batch_idle_timeout_seconds=settings.batch_idle_timeout_seconds,
         detection_confidence_threshold=settings.detection_confidence_threshold,
         grafana_url=settings.grafana_url,
+        debug=settings.debug,
     )
 
 
@@ -2147,6 +2148,7 @@ async def patch_config(
         batch_idle_timeout_seconds=settings.batch_idle_timeout_seconds,
         detection_confidence_threshold=settings.detection_confidence_threshold,
         grafana_url=settings.grafana_url,
+        debug=settings.debug,
     )
 
 

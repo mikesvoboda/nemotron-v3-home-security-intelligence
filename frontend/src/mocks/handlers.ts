@@ -430,11 +430,14 @@ export const handlers = [
    */
   http.get('/api/system/config', () => {
     return HttpResponse.json({
+      app_name: 'Home Security Intelligence',
+      version: '0.1.0',
       retention_days: 30,
-      batch_timeout_seconds: 90,
-      idle_timeout_seconds: 30,
-      risk_threshold_high: 70,
-      risk_threshold_critical: 90,
+      batch_window_seconds: 90,
+      batch_idle_timeout_seconds: 30,
+      detection_confidence_threshold: 0.5,
+      grafana_url: 'http://localhost:3002',
+      debug: false,
     });
   }),
 

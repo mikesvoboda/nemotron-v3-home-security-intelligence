@@ -233,7 +233,10 @@ import type {
   CalibrationUpdate,
   CalibrationDefaultsResponse,
   CalibrationResetResponse,
-} from '../types/generated';
+
+  RecordingResponse,
+  RecordingsListResponse,
+  ReplayResponse} from '../types/generated';
 
 // Re-export entity types for consumers of this module
 export type {
@@ -5536,4 +5539,387 @@ export async function fetchCameraUptime(
   searchParams.append('end_date', params.end_date);
 
   return fetchApi<CameraUptimeResponse>(`/api/analytics/camera-uptime?${searchParams.toString()}`);
+}
+
+// ============================================================================
+// Request Recording API (NEM-2721)
+// ============================================================================
+
+
+export type { RecordingResponse, RecordingsListResponse, ReplayResponse };
+
+/**
+ * Recording detail response includes headers, body, and response data.
+ * This extends the RecordingResponse with additional fields returned by GET /api/debug/recordings/{id}
+ */
+export interface RecordingDetailResponse extends RecordingResponse {
+  /** Request headers */
+  headers?: Record<string, string>;
+  /** Request query parameters */
+  query_params?: Record<string, string>;
+  /** Request body (if any) */
+  body?: unknown;
+  /** Original response body */
+  response_body?: unknown;
+  /** Original response headers */
+  response_headers?: Record<string, string>;
+  /** When the recording was retrieved */
+  retrieved_at?: string;
+}
+
+/**
+ * Fetch list of recorded requests.
+ *
+ * Returns all recorded API requests sorted by timestamp (newest first).
+ * Only available when debug mode is enabled.
+ *
+ * @param limit - Maximum number of recordings to return (default: 100)
+ * @returns RecordingsListResponse with recording metadata
+ *
+ * @example
+ * ```typescript
+ * const { recordings, total } = await fetchRecordings();
+ * console.log(`Found ${total} recordings`);
+ * ```
+ */
+export async function fetchRecordings(limit: number = 100): Promise<RecordingsListResponse> {
+  const endpoint = limit !== 100 ? `/api/debug/recordings?limit=${limit}` : '/api/debug/recordings';
+  return fetchApi<RecordingsListResponse>(endpoint);
+}
+
+/**
+ * Fetch details of a specific recording.
+ *
+ * Returns the full recording data including headers, body, and response.
+ * Only available when debug mode is enabled.
+ *
+ * @param recordingId - ID of the recording to retrieve
+ * @returns RecordingDetailResponse with full request/response data
+ *
+ * @example
+ * ```typescript
+ * const recording = await fetchRecordingDetail('abc-123');
+ * console.log(`Request: ${recording.method} ${recording.path}`);
+ * ```
+ */
+export async function fetchRecordingDetail(
+  recordingId: string
+): Promise<RecordingDetailResponse> {
+  return fetchApi<RecordingDetailResponse>(`/api/debug/recordings/${encodeURIComponent(recordingId)}`);
+}
+
+/**
+ * Replay a recorded request.
+ *
+ * Reconstructs and executes the original request against the current server.
+ * Returns both the original and replay responses for comparison.
+ * Only available when debug mode is enabled.
+ *
+ * @param recordingId - ID of the recording to replay
+ * @returns ReplayResponse with original vs replay comparison
+ *
+ * @example
+ * ```typescript
+ * const result = await replayRecording('abc-123');
+ * if (result.original_status_code !== result.replay_status_code) {
+ *   console.log('Status code changed!');
+ * }
+ * ```
+ */
+export async function replayRecording(recordingId: string): Promise<ReplayResponse> {
+  return fetchApi<ReplayResponse>(`/api/debug/replay/${encodeURIComponent(recordingId)}`, {
+    method: 'POST',
+  });
+}
+
+/**
+ * Delete a specific recording.
+ *
+ * Removes the recording file from the server.
+ * Only available when debug mode is enabled.
+ *
+ * @param recordingId - ID of the recording to delete
+ * @returns Confirmation message
+ *
+ * @example
+ * ```typescript
+ * await deleteRecording('abc-123');
+ * console.log('Recording deleted');
+ * ```
+ */
+export async function deleteRecording(recordingId: string): Promise<{ message: string }> {
+  return fetchApi<{ message: string }>(`/api/debug/recordings/${encodeURIComponent(recordingId)}`, {
+    method: 'DELETE',
+  });
+}
+
+/**
+ * Delete all recordings.
+ *
+ * Clears all recorded requests from the server.
+ * Only available when debug mode is enabled.
+ *
+ * @returns Confirmation message with count of deleted recordings
+ *
+ * @example
+ * ```typescript
+ * const result = await clearAllRecordings();
+ * console.log(result.message); // "Deleted 15 recordings"
+ * ```
+ */
+export async function clearAllRecordings(): Promise<{ message: string; deleted_count: number }> {
+  return fetchApi<{ message: string; deleted_count: number }>('/api/debug/recordings', {
+    method: 'DELETE',
+  });
+}
+
+// ============================================================================
+// Debug Configuration and Log Level API (NEM-2722)
+// ============================================================================
+
+/**
+ * Debug configuration response containing all config key-value pairs.
+ * Sensitive values are shown as '[REDACTED]'.
+ */
+export type DebugConfigResponse = Record<string, unknown>;
+
+/**
+ * Current log level response.
+ */
+export interface LogLevelResponse {
+  /** Current log level */
+  level: string;
+}
+
+/**
+ * Response after setting the log level.
+ */
+export interface SetLogLevelResponse {
+  /** New log level */
+  level: string;
+  /** Previous log level */
+  previous_level: string;
+  /** Success message */
+  message: string;
+}
+
+/**
+ * Fetch the current application configuration.
+ *
+ * Returns all configuration key-value pairs with sensitive values
+ * shown as '[REDACTED]'. This is a read-only endpoint.
+ *
+ * @returns DebugConfigResponse with all config values
+ *
+ * @example
+ * ```typescript
+ * const config = await fetchDebugConfig();
+ * console.log(config.log_level); // "INFO"
+ * console.log(config.database_url); // "[REDACTED]"
+ * ```
+ */
+export async function fetchDebugConfig(): Promise<DebugConfigResponse> {
+  return fetchApi<DebugConfigResponse>('/api/debug/config');
+}
+
+/**
+ * Fetch the current log level.
+ *
+ * @returns LogLevelResponse with current level
+ *
+ * @example
+ * ```typescript
+ * const { level } = await fetchLogLevel();
+ * console.log(level); // "INFO"
+ * ```
+ */
+export async function fetchLogLevel(): Promise<LogLevelResponse> {
+  return fetchApi<LogLevelResponse>('/api/debug/log-level');
+}
+
+/**
+ * Set the application log level.
+ *
+ * Note: Changes do not persist on server restart.
+ *
+ * @param level - The new log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+ * @returns SetLogLevelResponse with new level and confirmation
+ *
+ * @example
+ * ```typescript
+ * const result = await setLogLevel('DEBUG');
+ * console.log(result.message); // "Log level changed from INFO to DEBUG"
+ * ```
+ */
+export async function setLogLevel(level: string): Promise<SetLogLevelResponse> {
+  return fetchApi<SetLogLevelResponse>('/api/debug/log-level', {
+    method: 'POST',
+    body: JSON.stringify({ level }),
+  });
+}
+
+// ============================================================================
+// Performance Profiling API (NEM-2720)
+// ============================================================================
+
+/**
+ * Individual function statistics from profiling results.
+ */
+export interface ProfileFunctionStats {
+  /** Name of the function */
+  function_name: string;
+  /** Number of times the function was called */
+  call_count: number;
+  /** Total time spent in this function (excluding calls to subfunctions) */
+  total_time: number;
+  /** Cumulative time (including calls to subfunctions) */
+  cumulative_time: number;
+  /** Percentage of total profiling time */
+  percentage: number;
+}
+
+/**
+ * Profiling results with top functions by CPU time.
+ */
+export interface ProfileResults {
+  /** Total time profiled in seconds */
+  total_time: number;
+  /** Top functions sorted by CPU time */
+  top_functions: ProfileFunctionStats[];
+}
+
+/**
+ * Current profiling status response.
+ */
+export interface ProfileStatusResponse {
+  /** Current status: 'idle', 'profiling', or 'completed' */
+  status: 'idle' | 'profiling' | 'completed';
+  /** Whether profiling is currently active */
+  is_profiling: boolean;
+  /** Timestamp when profiling started (ISO 8601) */
+  started_at: string | null;
+  /** Elapsed time in seconds since profiling started */
+  elapsed_seconds: number | null;
+  /** Profiling results (only present when status is 'completed') */
+  results: ProfileResults | null;
+}
+
+/**
+ * Response from starting profiling.
+ */
+export interface StartProfilingResponse {
+  /** Status after starting */
+  status: 'profiling';
+  /** Whether profiling is active */
+  is_profiling: true;
+  /** Timestamp when profiling started */
+  started_at: string;
+  /** Confirmation message */
+  message: string;
+}
+
+/**
+ * Response from stopping profiling.
+ */
+export interface StopProfilingResponse {
+  /** Status after stopping */
+  status: 'completed';
+  /** Whether profiling is active */
+  is_profiling: false;
+  /** Timestamp when profiling started */
+  started_at: string;
+  /** Total elapsed time in seconds */
+  elapsed_seconds: number;
+  /** Confirmation message */
+  message: string;
+  /** Profiling results */
+  results: ProfileResults;
+}
+
+/**
+ * Fetch current profiling status.
+ *
+ * Returns the current state of the profiler, including whether it's active,
+ * elapsed time, and results if profiling has been stopped.
+ *
+ * @returns ProfileStatusResponse with current status
+ *
+ * @example
+ * ```typescript
+ * const status = await fetchProfileStatus();
+ * if (status.is_profiling) {
+ *   console.log(`Profiling for ${status.elapsed_seconds}s`);
+ * }
+ * ```
+ */
+export async function fetchProfileStatus(): Promise<ProfileStatusResponse> {
+  return fetchApi<ProfileStatusResponse>('/api/debug/profile');
+}
+
+/**
+ * Start performance profiling.
+ *
+ * Begins profiling CPU usage across all API requests until stopped.
+ * Only available when debug mode is enabled.
+ *
+ * @returns StartProfilingResponse with confirmation
+ *
+ * @example
+ * ```typescript
+ * const result = await startProfiling();
+ * console.log(result.message); // "Profiling started"
+ * ```
+ */
+export async function startProfiling(): Promise<StartProfilingResponse> {
+  return fetchApi<StartProfilingResponse>('/api/debug/profile/start', {
+    method: 'POST',
+  });
+}
+
+/**
+ * Stop performance profiling and get results.
+ *
+ * Stops profiling and returns the collected performance data,
+ * including top functions by CPU time.
+ *
+ * @returns StopProfilingResponse with profiling results
+ *
+ * @example
+ * ```typescript
+ * const result = await stopProfiling();
+ * result.results.top_functions.forEach(fn => {
+ *   console.log(`${fn.function_name}: ${fn.percentage.toFixed(1)}%`);
+ * });
+ * ```
+ */
+export async function stopProfiling(): Promise<StopProfilingResponse> {
+  return fetchApi<StopProfilingResponse>('/api/debug/profile/stop', {
+    method: 'POST',
+  });
+}
+
+/**
+ * Download the profile data as a .prof file.
+ *
+ * Returns the raw profiling data in Python's pstats format,
+ * which can be analyzed with tools like snakeviz.
+ *
+ * @returns Blob containing the .prof file
+ *
+ * @example
+ * ```typescript
+ * const blob = await downloadProfile();
+ * const url = URL.createObjectURL(blob);
+ * const a = document.createElement('a');
+ * a.href = url;
+ * a.download = 'profile.prof';
+ * a.click();
+ * ```
+ */
+export async function downloadProfile(): Promise<Blob> {
+  const response = await fetch(`${BASE_URL}/api/debug/profile/download`);
+  if (!response.ok) {
+    throw new ApiError(response.status, `Failed to download profile: ${response.statusText}`);
+  }
+  return response.blob();
 }
