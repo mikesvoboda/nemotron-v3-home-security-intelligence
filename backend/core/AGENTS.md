@@ -28,7 +28,9 @@ backend/core/
 ├── config.py                     # Pydantic Settings configuration
 ├── config_validation.py          # Configuration validation and startup summary (NEM-2026)
 ├── constants.py                  # Application-wide constants (queue names, DLQ names)
+├── container.py                  # Dependency injection container (NEM-1636)
 ├── database.py                   # SQLAlchemy async database layer
+├── dependencies.py               # FastAPI dependencies using DI container (NEM-1636)
 ├── docker_client.py              # Async Docker/Podman client wrapper
 ├── error_context.py              # Structured error context for enhanced logging
 ├── exceptions.py                 # Custom exception hierarchy
@@ -36,14 +38,22 @@ backend/core/
 ├── logging.py                    # Centralized logging configuration
 ├── metrics.py                    # Prometheus metrics definitions
 ├── mime_types.py                 # MIME type utilities for media files
+├── profiling.py                  # cProfile performance profiling utilities (NEM-1644)
+├── protocols.py                  # Protocol definitions for service interfaces
 ├── query_explain.py              # EXPLAIN ANALYZE logging for slow queries
 ├── redis.py                      # Redis async client with backpressure
 ├── retry.py                      # Retry decorators with exponential backoff
 ├── sanitization.py               # Input sanitization (command injection, SSRF)
+├── telemetry.py                  # OpenTelemetry distributed tracing (NEM-1629)
 ├── time_utils.py                 # UTC datetime utilities
 ├── tls.py                        # TLS/SSL certificate management
 ├── url_validation.py             # SSRF-safe URL validation for webhooks
 ├── websocket_circuit_breaker.py  # Circuit breaker for WebSocket connections
+├── websocket/                    # WebSocket event types and subscription management
+│   ├── __init__.py               # Package exports
+│   ├── event_schemas.py          # WebSocket event payload schemas
+│   ├── event_types.py            # WebSocket event type enums
+│   └── subscription_manager.py   # Channel subscription management
 ├── middleware/                   # Reserved for core middleware (currently empty)
 ├── README.md                     # General documentation
 └── README_REDIS.md               # Detailed Redis documentation
@@ -514,6 +524,367 @@ async with RetryContext(max_retries=3) as retry:
 - Jitter prevents thundering herd problem
 - Integrates with Prometheus for retry metrics
 - Used throughout AI service clients
+
+## `container.py` - Dependency Injection Container (NEM-1636)
+
+### Purpose
+
+Provides a lightweight DI container that replaces global singleton patterns with centralized dependency management. Supports singleton and factory patterns with async initialization.
+
+### Key Classes
+
+| Class                           | Purpose                                  |
+| ------------------------------- | ---------------------------------------- |
+| `Container`                     | Main DI container with service lifecycle |
+| `ServiceRegistration`           | Holds registration info for a service    |
+| `ServiceNotFoundError`          | Raised when requested service not found  |
+| `ServiceAlreadyRegisteredError` | Raised when registering duplicate name   |
+| `CircularDependencyError`       | Raised when circular dependency detected |
+
+### Container Methods
+
+| Method                     | Purpose                                     |
+| -------------------------- | ------------------------------------------- |
+| `register_singleton`       | Register a singleton service                |
+| `register_factory`         | Register a factory (new instance each time) |
+| `register_async_singleton` | Register an async singleton service         |
+| `get`                      | Get a synchronous service by name           |
+| `get_async`                | Get an async service by name                |
+| `get_dependency`           | Get FastAPI-compatible dependency factory   |
+| `override`                 | Override a service for testing              |
+| `clear_override`           | Clear a specific override                   |
+| `clear_all_overrides`      | Clear all service overrides                 |
+| `shutdown`                 | Gracefully shutdown all services            |
+
+### Key Functions
+
+| Function          | Purpose                          |
+| ----------------- | -------------------------------- |
+| `get_container`   | Get global container singleton   |
+| `reset_container` | Reset container for testing      |
+| `wire_services`   | Wire up all application services |
+
+### Services Wired by `wire_services()`
+
+- `redis_client` - RedisClient (async singleton)
+- `context_enricher` - ContextEnricher (singleton)
+- `enrichment_pipeline` - EnrichmentPipeline (async singleton)
+- `nemotron_analyzer` - NemotronAnalyzer (async singleton)
+- `detector_client` - DetectorClient (singleton)
+- `face_detector_service` - FaceDetectorService (singleton)
+- `plate_detector_service` - PlateDetectorService (singleton)
+- `ocr_service` - OCRService (singleton)
+- `yolo_world_service` - YOLOWorldService (singleton)
+- `health_service_registry` - HealthServiceRegistry (singleton, NEM-2611)
+- `health_event_emitter` - HealthEventEmitter (singleton, NEM-2611)
+
+### Usage
+
+```python
+from backend.core.container import get_container, wire_services
+
+# Get the global container
+container = get_container()
+
+# Wire up services at startup
+await wire_services(container)
+
+# Get services
+detector = container.get("detector_client")
+redis = await container.get_async("redis_client")
+
+# FastAPI integration
+@app.get("/")
+async def endpoint(service: MyService = Depends(container.get_dependency("my_service"))):
+    ...
+
+# Testing with overrides
+container.override("redis_client", mock_redis)
+# ... run tests ...
+container.clear_override("redis_client")
+
+# Shutdown all services
+await container.shutdown()
+```
+
+## `dependencies.py` - FastAPI Dependencies (NEM-1636)
+
+### Purpose
+
+Provides FastAPI-compatible dependency functions that inject services from the DI container into route handlers using `Depends()`.
+
+### Key Functions
+
+| Function                                | Service Type            | Purpose                           |
+| --------------------------------------- | ----------------------- | --------------------------------- |
+| `get_redis_dependency`                  | RedisClient             | Redis client for caching/queues   |
+| `get_context_enricher_dependency`       | ContextEnricher         | Detection context enrichment      |
+| `get_enrichment_pipeline_dependency`    | EnrichmentPipeline      | Full enrichment pipeline          |
+| `get_nemotron_analyzer_dependency`      | NemotronAnalyzer        | LLM risk analysis                 |
+| `get_detector_dependency`               | DetectorClient          | RT-DETR object detection          |
+| `get_face_detector_service_dependency`  | FaceDetectorService     | Face detection in person regions  |
+| `get_plate_detector_service_dependency` | PlateDetectorService    | License plate detection           |
+| `get_ocr_service_dependency`            | OCRService              | Plate text recognition            |
+| `get_yolo_world_service_dependency`     | YOLOWorldService        | Open-vocabulary detection         |
+| `get_entity_repository`                 | EntityRepository        | Entity CRUD with managed session  |
+| `get_entity_clustering_service`         | EntityClusteringService | Entity assignment with clustering |
+| `get_hybrid_entity_storage`             | HybridEntityStorage     | Redis + PostgreSQL entity storage |
+| `get_reid_service_dependency`           | ReIdentificationService | Re-ID with hybrid storage         |
+| `get_pagination_limits`                 | PaginationLimits        | Pagination config from settings   |
+
+### PaginationLimits Class (NEM-2591)
+
+Container for pagination limit configuration:
+
+```python
+class PaginationLimits:
+    max_limit: int       # Maximum allowed limit for paginated requests
+    default_limit: int   # Default limit when not specified in request
+```
+
+### Usage
+
+```python
+from fastapi import Depends
+from backend.core.dependencies import (
+    get_redis_dependency,
+    get_detector_dependency,
+    get_pagination_limits,
+    PaginationLimits,
+)
+
+@router.get("/detections")
+async def get_detections(
+    redis: RedisClient = Depends(get_redis_dependency),
+    detector: DetectorClient = Depends(get_detector_dependency),
+    limits: PaginationLimits = Depends(get_pagination_limits),
+    limit: int = Query(default=None),
+):
+    validated_limit = limits.default_limit if limit is None else limit
+    if validated_limit > limits.max_limit:
+        raise HTTPException(status_code=400, detail="Limit too large")
+    ...
+```
+
+## `profiling.py` - Performance Profiling (NEM-1644)
+
+### Purpose
+
+Provides cProfile-based profiling infrastructure for performance analysis and debugging.
+
+### Key Components
+
+| Component                 | Purpose                                |
+| ------------------------- | -------------------------------------- |
+| `ProfilingManager`        | Manages cProfile state and statistics  |
+| `profile_if_enabled`      | Decorator for function profiling       |
+| `get_profiling_manager`   | Get global profiling manager singleton |
+| `reset_profiling_manager` | Reset manager for testing              |
+
+### ProfilingManager Methods
+
+| Method              | Purpose                                 |
+| ------------------- | --------------------------------------- |
+| `start()`           | Start profiling session                 |
+| `stop()`            | Stop profiling and save results         |
+| `get_stats_text()`  | Get human-readable statistics           |
+| `is_profiling`      | Property: whether profiling is active   |
+| `last_profile_path` | Property: path to last saved .prof file |
+
+### Usage
+
+```python
+from backend.core.profiling import (
+    profile_if_enabled,
+    get_profiling_manager,
+)
+
+# Decorator for automatic profiling when PROFILING_ENABLED=true
+@profile_if_enabled
+async def my_endpoint_handler():
+    ...
+
+# Manual profiling control
+manager = get_profiling_manager()
+manager.start()
+# ... do work ...
+manager.stop()
+print(manager.get_stats_text())
+```
+
+### Profile Analysis
+
+Profile files (.prof) can be analyzed with:
+
+- snakeviz: `snakeviz data/profiles/my_function.prof`
+- py-spy: `py-spy top --pid <PID>`
+
+### Configuration
+
+| Setting           | Env Variable           | Default         |
+| ----------------- | ---------------------- | --------------- |
+| Profiling enabled | `PROFILING_ENABLED`    | False           |
+| Output directory  | `PROFILING_OUTPUT_DIR` | `data/profiles` |
+
+## `protocols.py` - Service Interface Protocols
+
+### Purpose
+
+Defines Protocol classes for structural subtyping, enabling type-safe interface definitions without requiring explicit inheritance. Services implement these protocols structurally (duck typing with static type checking).
+
+### Protocol Definitions
+
+| Protocol                  | Purpose                                |
+| ------------------------- | -------------------------------------- |
+| `HealthCheckableProtocol` | Services with `health_check()` method  |
+| `AIServiceProtocol`       | AI clients (detector, nemotron, etc.)  |
+| `QueueProcessorProtocol`  | Queue-based processors (batch, eval)   |
+| `BroadcasterProtocol`     | WebSocket message broadcasters         |
+| `ModelLoaderProtocol`     | ML model loaders (CLIP, ViTPose, etc.) |
+| `SubscribableProtocol`    | Services supporting pub/sub            |
+| `CacheProtocol`           | Cache services (get/set/delete/exists) |
+| `MetricsProviderProtocol` | Services exposing metrics              |
+| `LifecycleProtocol`       | Services with start/stop lifecycle     |
+
+### Type Aliases
+
+| Alias                    | Combination          |
+| ------------------------ | -------------------- | ------------------------ |
+| `AIServiceWithLifecycle` | `AIServiceProtocol   | LifecycleProtocol`       |
+| `BroadcasterWithMetrics` | `BroadcasterProtocol | MetricsProviderProtocol` |
+
+### Usage
+
+```python
+from backend.core.protocols import AIServiceProtocol, HealthCheckableProtocol
+
+# Type hinting with protocols
+async def process_with_service(service: AIServiceProtocol) -> dict[str, Any]:
+    if await service.health_check():
+        return await service.process(input_data)
+
+# Works with any class that has matching methods (structural subtyping)
+detector = DetectorClient()  # Implements AIServiceProtocol structurally
+await process_with_service(detector)
+
+# Runtime type checking with @runtime_checkable
+if isinstance(service, HealthCheckableProtocol):
+    is_healthy = await service.health_check()
+```
+
+### Protocol Method Signatures
+
+**AIServiceProtocol:**
+
+- `health_check() -> bool` - Check service availability
+- `process(input_data: Any) -> Any` - Process input through AI
+- `get_metrics() -> dict[str, Any]` - Get monitoring metrics
+
+**QueueProcessorProtocol:**
+
+- `enqueue(item: Any) -> bool` - Add item to queue
+- `dequeue() -> Any | None` - Remove next item
+- `process_item(item: Any) -> None` - Process single item
+
+**ModelLoaderProtocol:**
+
+- `load() -> None` - Load model into memory
+- `unload() -> None` - Free model memory
+- `is_loaded() -> bool` - Check if loaded
+- `predict(input_data: Any) -> Any` - Run inference
+
+**LifecycleProtocol:**
+
+- `start() -> None` - Start the service
+- `stop() -> None` - Stop gracefully
+- `is_running() -> bool` - Check running state
+
+## `telemetry.py` - OpenTelemetry Distributed Tracing (NEM-1629)
+
+### Purpose
+
+Provides OpenTelemetry instrumentation for distributed tracing across the home security system, enabling:
+
+- Automatic trace propagation across services
+- Log correlation with trace IDs
+- Performance monitoring via span timings
+- Integration with Jaeger, Tempo, or OTLP backends
+
+### Configuration
+
+| Setting             | Env Variable                  | Default               |
+| ------------------- | ----------------------------- | --------------------- |
+| Enabled             | `OTEL_ENABLED`                | False                 |
+| Service name        | `OTEL_SERVICE_NAME`           | nemotron-backend      |
+| OTLP endpoint       | `OTEL_EXPORTER_OTLP_ENDPOINT` | http://localhost:4317 |
+| Insecure connection | `OTEL_EXPORTER_OTLP_INSECURE` | True                  |
+| Sample rate         | `OTEL_TRACE_SAMPLE_RATE`      | 1.0 (100%)            |
+
+### Key Functions
+
+| Function               | Purpose                            |
+| ---------------------- | ---------------------------------- |
+| `setup_telemetry`      | Initialize OTEL with FastAPI app   |
+| `shutdown_telemetry`   | Shutdown and flush pending traces  |
+| `get_tracer`           | Get tracer for custom spans        |
+| `get_current_span`     | Get active span from context       |
+| `add_span_attributes`  | Add attributes to current span     |
+| `record_exception`     | Record exception on current span   |
+| `is_telemetry_enabled` | Check if telemetry is initialized  |
+| `get_trace_id`         | Get current trace ID (32-char hex) |
+| `get_span_id`          | Get current span ID (16-char hex)  |
+| `get_trace_context`    | Get dict with trace_id and span_id |
+
+### Context Manager and Decorator (NEM-1503)
+
+**`trace_span` Context Manager:**
+
+```python
+from backend.core.telemetry import trace_span
+
+with trace_span("detect_objects", camera_id="front_door") as span:
+    results = await detector.detect(image_path)
+    span.set_attribute("detection_count", len(results))
+```
+
+**`trace_function` Decorator:**
+
+```python
+from backend.core.telemetry import trace_function
+
+@trace_function("rtdetr_detection")
+async def detect_objects(image_path: str) -> list[Detection]:
+    return await client.detect(image_path)
+
+@trace_function(service="nemotron")
+async def analyze_batch(batch: Batch) -> AnalysisResult:
+    return await analyzer.analyze(batch)
+```
+
+### Log Correlation
+
+```python
+from backend.core.telemetry import get_trace_id, get_trace_context
+
+# Include trace ID in logs
+logger.info("Processing", extra={"trace_id": get_trace_id()})
+
+# Or use get_trace_context for both IDs
+logger.info("Operation complete", extra={**get_trace_context(), "result": "success"})
+```
+
+### Auto-Instrumentation
+
+`setup_telemetry` automatically instruments:
+
+- FastAPI (HTTP request/response tracing)
+- HTTPX (outgoing AI service calls)
+- SQLAlchemy (database queries)
+- Redis (cache operations)
+
+### No-Op Mode
+
+When OTEL is disabled or not installed, all functions return no-op implementations that have minimal overhead.
 
 ## `constants.py` - Application Constants
 

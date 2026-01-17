@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The `backend/api/middleware/` directory contains HTTP middleware components that handle cross-cutting concerns for the FastAPI application. Middleware processes requests before they reach route handlers and responses before they are sent to clients.
+The `backend/api/middleware/` directory contains 20 HTTP middleware components that handle cross-cutting concerns for the FastAPI application. Middleware processes requests before they reach route handlers and responses before they are sent to clients.
 
 ## Files
 
@@ -303,6 +303,169 @@ Validates uploaded files by checking their magic numbers (file signatures) to en
 
 - Images: JPEG, PNG, GIF, WebP, BMP
 - Videos: MP4, AVI, WebM, MKV, MOV
+
+### `accept_header.py`
+
+Accept header content negotiation middleware for HTTP API responses.
+
+**Purpose:**
+
+Validates incoming requests have an Accept header compatible with the API's supported response formats. Implements HTTP content negotiation per RFC 7231.
+
+**Classes:**
+
+| Class                    | Purpose                                    |
+| ------------------------ | ------------------------------------------ |
+| `AcceptHeaderMiddleware` | Validates Accept header for JSON responses |
+
+**Functions:**
+
+| Function                 | Purpose                                               |
+| ------------------------ | ----------------------------------------------------- |
+| `parse_accept_header`    | Parse Accept header into (media_type, quality) tuples |
+| `select_best_media_type` | Select best matching media type from accepted types   |
+
+**Supported Media Types:**
+
+- `application/json` - Standard JSON responses
+- `application/problem+json` - RFC 7807 Problem Details for errors
+
+**Features:**
+
+- RFC 7231 compliant Accept header parsing
+- Quality value (q=) support
+- Wildcard (_/_) and type wildcard (application/\*) support
+- Configurable exempt paths for health checks, WebSocket upgrades
+- Returns 406 Not Acceptable for unsupported formats
+
+### `content_negotiation.py`
+
+Content negotiation middleware for HTTP response headers.
+
+**Purpose:**
+
+Handles content negotiation concerns beyond Accept header validation by adding charset declarations and Vary headers for proper caching.
+
+**Classes:**
+
+| Class                          | Purpose                                           |
+| ------------------------------ | ------------------------------------------------- |
+| `ContentNegotiationMiddleware` | Enhances response headers for content negotiation |
+
+**Features:**
+
+- Adds `charset=utf-8` to Content-Type headers for JSON responses
+- Adds `Vary: Accept-Encoding` header for proper caching with compression
+- RFC 7231 Section 3.1.1.5 compliant charset handling
+- RFC 7231 Section 7.1.4 compliant Vary header handling
+
+### `deprecation.py`
+
+RFC 8594 Deprecation and Sunset headers middleware.
+
+**Purpose:**
+
+Implements HTTP middleware for API endpoint deprecation signaling per RFC 8594. Adds Deprecation and Sunset headers to responses for deprecated endpoints.
+
+**Classes:**
+
+| Class                   | Purpose                                         |
+| ----------------------- | ----------------------------------------------- |
+| `DeprecatedEndpoint`    | Configuration dataclass for deprecated endpoint |
+| `DeprecationConfig`     | Registry for deprecated endpoints with matching |
+| `DeprecationMiddleware` | Adds RFC 8594 headers to deprecated responses   |
+
+**Functions:**
+
+| Function                | Purpose                                                  |
+| ----------------------- | -------------------------------------------------------- |
+| `format_http_date`      | Format datetime as HTTP-date per RFC 7231                |
+| `format_unix_timestamp` | Format datetime as Unix timestamp for Deprecation header |
+
+**Headers Added:**
+
+- `Deprecation: true` or `@<unix-timestamp>` - Indicates endpoint is deprecated
+- `Sunset: <HTTP-date>` - When endpoint will be removed
+- `Link: <url>; rel="deprecation"` - Optional documentation link
+
+**Usage:**
+
+```python
+config = DeprecationConfig()
+config.register(DeprecatedEndpoint(
+    path="/api/v1/old-endpoint",
+    sunset_date=datetime(2025, 6, 1, tzinfo=UTC),
+    replacement="/api/v2/new-endpoint",
+))
+app.add_middleware(DeprecationMiddleware, config=config)
+```
+
+### `deprecation_logger.py`
+
+Deprecation logging middleware for tracking deprecated endpoint usage (NEM-2090).
+
+**Purpose:**
+
+Logs calls to deprecated API endpoints and tracks deprecation metrics via Prometheus for migration tracking.
+
+**Classes:**
+
+| Class                         | Purpose                                   |
+| ----------------------------- | ----------------------------------------- |
+| `DeprecationLoggerMiddleware` | Logs and tracks deprecated endpoint calls |
+
+**Functions:**
+
+| Function                 | Purpose                                    |
+| ------------------------ | ------------------------------------------ |
+| `record_deprecated_call` | Manually record a deprecated endpoint call |
+
+**Prometheus Metrics:**
+
+- `hsi_api_deprecated_calls_total` - Counter for deprecated endpoint calls (labels: endpoint, client_id)
+
+**Features:**
+
+- Logs warning with client identification (X-Client-ID header)
+- Increments Prometheus counter for deprecation tracking
+- Adds RFC 7234 Warning header (code 299) to responses
+- Supports sunset date display in warning message
+
+### `error_handler.py`
+
+Centralized error handler middleware for consistent API error responses (NEM-2571).
+
+**Purpose:**
+
+Provides AppException base class and common exception types for standardized API error responses. Re-exports exception hierarchy for convenient imports.
+
+**Classes:**
+
+| Class                     | Status Code | Purpose                             |
+| ------------------------- | ----------- | ----------------------------------- |
+| `AppException`            | 500         | Base exception for API errors       |
+| `ErrorResponse`           | -           | Pydantic schema for error responses |
+| `ValidationError`         | 422         | Request validation failures         |
+| `UnauthorizedError`       | 401         | Authentication failures             |
+| `ForbiddenError`          | 403         | Authorization failures              |
+| `ServiceUnavailableError` | 503         | External service failures           |
+| `RateLimitExceededError`  | 429         | Rate limit exceeded errors          |
+
+**Re-exported from `backend.core.exceptions`:**
+
+- `NotFoundError`, `ConflictError`, `DatabaseError`
+- `CameraNotFoundError`, `EventNotFoundError`, `DetectionNotFoundError`
+- `AuthenticationError`, `AuthorizationError`
+- `ExternalServiceError`, `CircuitBreakerOpenError`
+- `DuplicateResourceError`, `RateLimitError`
+
+**Functions:**
+
+| Function                      | Purpose                             |
+| ----------------------------- | ----------------------------------- |
+| `build_error_response`        | Build ErrorResponse from exception  |
+| `get_request_id`              | Get request ID from current context |
+| `register_exception_handlers` | Register global exception handlers  |
 
 ### `request_logging.py`
 

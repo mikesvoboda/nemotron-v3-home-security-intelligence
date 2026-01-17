@@ -49,6 +49,7 @@ frontend/
 | `.prettierrc`       | Prettier formatting (single quotes, 100 char width) |
 | `.prettierignore`   | Files excluded from Prettier                        |
 | `stryker.config.mjs`| Stryker mutation testing configuration              |
+| `.size-limit.json`  | Bundle size monitoring configuration                |
 
 ### Docker and Deployment
 
@@ -72,14 +73,15 @@ frontend/
 | `.npmrc` | npm configuration (engine strict mode)           |
 | `.nvmrc` | Node.js version specification (22 for this repo) |
 
-### Documentation
+### Documentation and Scripts
 
-| File                   | Purpose                                     |
-| ---------------------- | ------------------------------------------- |
-| `TESTING.md`           | Comprehensive testing documentation         |
-| `README-TESTING.md`    | Bun vs Vitest compatibility guide           |
-| `TEST_QUICKSTART.md`   | Quick reference for running tests           |
-| `verify-eslint.sh`     | ESLint configuration verification script    |
+| File                            | Purpose                                     |
+| ------------------------------- | ------------------------------------------- |
+| `TESTING.md`                    | Comprehensive testing documentation         |
+| `README-TESTING.md`             | Bun vs Vitest compatibility guide           |
+| `TEST_QUICKSTART.md`            | Quick reference for running tests           |
+| `verify-eslint.sh`              | ESLint configuration verification script    |
+| `validate-storage-event-fix.js` | Storage event fix validation script         |
 
 ## NPM Scripts
 

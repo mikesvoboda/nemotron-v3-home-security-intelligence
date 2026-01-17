@@ -6,15 +6,18 @@ Contains the core application layout components that provide consistent structur
 
 ## Files
 
-| File               | Purpose                                        |
-| ------------------ | ---------------------------------------------- |
-| `Layout.tsx`       | Main layout wrapper composing Header + Sidebar |
-| `Layout.test.tsx`  | Test suite for Layout                          |
-| `Header.tsx`       | Top navigation with branding and status        |
-| `Header.test.tsx`  | Test suite for Header                          |
-| `Sidebar.tsx`      | Left navigation menu with route links          |
-| `Sidebar.test.tsx` | Test suite for Sidebar                         |
-| `.gitkeep`         | Placeholder file                               |
+| File                          | Purpose                                        |
+| ----------------------------- | ---------------------------------------------- |
+| `Header.tsx`                  | Top navigation with branding and status        |
+| `Header.test.tsx`             | Test suite for Header                          |
+| `Layout.tsx`                  | Main layout wrapper composing Header + Sidebar |
+| `Layout.test.tsx`             | Test suite for Layout                          |
+| `MobileBottomNav.tsx`         | Bottom navigation bar for mobile devices       |
+| `MobileBottomNav.test.tsx`    | Test suite for MobileBottomNav                 |
+| `MobileChartContainer.tsx`    | Responsive chart container for mobile views    |
+| `MobileChartContainer.test.tsx`| Test suite for MobileChartContainer           |
+| `Sidebar.tsx`                 | Left navigation menu with route links          |
+| `Sidebar.test.tsx`            | Test suite for Sidebar                         |
 
 ## Key Components
 

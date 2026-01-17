@@ -600,6 +600,179 @@ Camera calibration endpoints (placeholder for future implementation).
 
 **Note:** This module is currently a placeholder for future camera calibration functionality.
 
+### `exports.py`
+
+Export job management with database persistence for event data exports.
+
+**Router prefix:** `/api/exports`
+
+**Endpoints:**
+
+| Method | Path                                  | Purpose                        |
+| ------ | ------------------------------------- | ------------------------------ |
+| POST   | `/api/exports`                        | Start new export job           |
+| GET    | `/api/exports`                        | List recent export jobs        |
+| GET    | `/api/exports/{job_id}`               | Get export job status          |
+| DELETE | `/api/exports/{job_id}`               | Cancel export job              |
+| GET    | `/api/exports/{job_id}/download`      | Download completed export file |
+| GET    | `/api/exports/{job_id}/download/info` | Get download metadata          |
+
+**Query Parameters (List):**
+
+- `status` - Filter by job status (pending, running, completed, failed)
+- `limit` / `offset` - Pagination (default: 50, max: 1000)
+
+**Export Formats:**
+
+- `csv` - Comma-separated values
+- `json` - JSON format
+- `zip` - ZIP archive with multiple files
+- `excel` - Excel spreadsheet
+
+**Key Features:**
+
+- Database persistence via ExportJob model
+- Background task processing with progress tracking
+- WebSocket progress broadcasts via JobTracker
+- Cancellation support for pending/running jobs
+- File download with proper content types
+- Filter by camera, risk level, date range, reviewed status
+
+### `feedback.py`
+
+Event feedback management for model calibration and false positive tracking (NEM-1908).
+
+**Router prefix:** `/api/feedback`
+
+**Endpoints:**
+
+| Method | Path                             | Purpose                           |
+| ------ | -------------------------------- | --------------------------------- |
+| POST   | `/api/feedback`                  | Submit feedback for an event      |
+| GET    | `/api/feedback/event/{event_id}` | Get feedback for an event         |
+| GET    | `/api/feedback/stats`            | Get aggregate feedback statistics |
+
+**Feedback Types:**
+
+- `false_positive` - Event incorrectly flagged as a threat
+- `missed_detection` - Real threat not detected
+- `wrong_severity` - Incorrect risk level assigned
+- `correct` - Classification was correct
+
+**Key Features:**
+
+- One feedback per event (enforced by unique constraint)
+- Statistics aggregation by feedback type and camera
+- Used for calibrating personalized risk thresholds
+- Helps improve AI model accuracy over time
+
+### `jobs.py`
+
+Background job tracking API with comprehensive management features.
+
+**Router prefix:** `/api`
+
+**Core Job Endpoints:**
+
+| Method | Path                        | Purpose                          |
+| ------ | --------------------------- | -------------------------------- |
+| GET    | `/api/jobs`                 | List all jobs with filtering     |
+| GET    | `/api/jobs/types`           | List available job types         |
+| GET    | `/api/jobs/stats`           | Get aggregate job statistics     |
+| GET    | `/api/jobs/search`          | Advanced job search (NEM-2392)   |
+| GET    | `/api/jobs/{job_id}`        | Get job status                   |
+| GET    | `/api/jobs/{job_id}/detail` | Get detailed job info (NEM-2390) |
+| POST   | `/api/jobs/{job_id}/cancel` | Cancel a queued job              |
+| POST   | `/api/jobs/{job_id}/abort`  | Abort a running job              |
+| DELETE | `/api/jobs/{job_id}`        | Cancel or abort based on state   |
+| POST   | `/api/jobs/bulk-cancel`     | Bulk cancel multiple jobs        |
+
+**Job History Endpoints (NEM-2396):**
+
+| Method | Path                         | Purpose                   |
+| ------ | ---------------------------- | ------------------------- |
+| GET    | `/api/jobs/{job_id}/history` | Get job execution history |
+| GET    | `/api/jobs/{job_id}/logs`    | Get job execution logs    |
+
+**Export Endpoint:**
+
+| Method | Path                 | Purpose                |
+| ------ | -------------------- | ---------------------- |
+| POST   | `/api/events/export` | Start event export job |
+
+**Available Job Types:**
+
+- `export` - Export events to CSV, JSON, or ZIP
+- `cleanup` - Clean up old data and temp files
+- `backup` - Create system data backup
+- `import` - Import events from external files
+- `batch_audit` - Batch AI pipeline audit processing
+
+**Query Parameters (List):**
+
+- `job_type` - Filter by type
+- `status` - Filter by status (pending, running, completed, failed)
+- `limit` / `offset` - Pagination
+
+**Search Parameters:**
+
+- `q` - Free text search across job type, error, metadata
+- `status` - Comma-separated status values
+- `job_type` - Comma-separated job types
+- `created_after` / `created_before` - Creation time range
+- `completed_after` / `completed_before` - Completion time range
+- `has_error` - Filter by error presence
+- `min_duration` / `max_duration` - Duration range (seconds)
+- `sort` / `order` - Sort field and direction
+
+**Key Features:**
+
+- In-memory job tracking with Redis persistence
+- WebSocket progress broadcasts
+- Job history with state transitions
+- Retry attempt tracking with error details
+- Bulk cancellation support
+- Advanced search with aggregations
+
+### `queues.py`
+
+Queue status monitoring for job processing pipeline health.
+
+**Router prefix:** `/api/queues`
+
+**Endpoints:**
+
+| Method | Path                 | Purpose                |
+| ------ | -------------------- | ---------------------- |
+| GET    | `/api/queues/status` | Get all queue statuses |
+
+**Queues Monitored:**
+
+- `detection` - Object detection jobs from camera uploads
+- `ai_analysis` - LLM risk analysis for batched detections
+- `dlq` - Dead-letter queue for failed jobs
+
+**Health Status Levels:**
+
+- `healthy` - Queue depth below warning threshold
+- `warning` - Queue depth approaching limits
+- `critical` - Queue depth exceeds limits or wait times too long
+
+**Response Includes:**
+
+- Queue depth and running job count
+- Worker count per queue
+- Throughput (jobs/minute, avg processing time)
+- Oldest job details with wait time
+- Summary with aggregated stats
+
+**Key Features:**
+
+- Configurable warning/critical thresholds
+- Maximum wait time monitoring
+- Throughput calculation
+- Overall health status aggregation
+
 ### `notification_preferences.py`
 
 User notification preferences including global settings, per-camera settings, and quiet hours.

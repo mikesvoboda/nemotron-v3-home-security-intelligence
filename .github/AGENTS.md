@@ -20,7 +20,7 @@ This directory contains GitHub-specific configuration files for the Home Securit
   prompts/                    # AI prompt templates
     AGENTS.md                 # Prompts directory guide
     code-review.prompt.md     # System prompt for AI code review
-  workflows/                  # GitHub Actions workflow definitions (30 workflows)
+  workflows/                  # GitHub Actions workflow definitions (35 workflows)
     AGENTS.md                 # Workflows directory guide
     # Core CI/CD
     ci.yml                    # Main CI pipeline
@@ -30,6 +30,8 @@ This directory contains GitHub-specific configuration files for the Home Securit
     rollback.yml              # Deployment rollback
     semantic-release.yml      # Semantic versioning releases
     release-drafter.yml       # Draft release notes
+    # API
+    api-contract.yml          # API contract testing
     # Testing
     gpu-tests.yml             # GPU integration tests
     load-tests.yml            # Load and performance testing
@@ -55,6 +57,10 @@ This directory contains GitHub-specific configuration files for the Home Securit
     accessibility-tests.yml   # Accessibility (a11y) testing
     lighthouse.yml            # Lighthouse performance audits
     visual-tests.yml          # Visual regression testing
+    # Test Enforcement
+    test-coverage-gate.yml    # PR gate for test coverage requirements
+    pr-review-bot.yml         # PR review bot for missing tests
+    weekly-test-report.yml    # Weekly test coverage and quality report
     # Integrations
     linear-ci-status.yml      # Linear issue status sync from CI/CD events
     linear-github-sync.yml    # Linear to GitHub issue sync

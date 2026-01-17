@@ -2,7 +2,20 @@
 
 ## Purpose
 
-Contains components for visualizing AI object detection results on images. Provides bounding box overlays with labels, confidence scores, and interactive features.
+Contains components for visualizing AI object detection results on images. Provides bounding box overlays with labels, confidence scores, pose skeleton visualization, and interactive features.
+
+## Files
+
+| File                          | Purpose                                              |
+| ----------------------------- | ---------------------------------------------------- |
+| `BoundingBoxOverlay.tsx`      | SVG overlay rendering colored bounding boxes         |
+| `BoundingBoxOverlay.test.tsx` | Test suite for BoundingBoxOverlay                    |
+| `DetectionImage.tsx`          | Image wrapper with bounding box overlays             |
+| `DetectionImage.test.tsx`     | Test suite for DetectionImage                        |
+| `DetectionThumbnail.tsx`      | Thumbnail with server-rendered bounding boxes        |
+| `DetectionThumbnail.test.tsx` | Test suite for DetectionThumbnail                    |
+| `PoseSkeletonOverlay.tsx`     | SVG overlay for human pose skeleton visualization    |
+| `PoseSkeletonOverlay.test.tsx`| Test suite for PoseSkeletonOverlay                   |
 
 ## Key Components
 

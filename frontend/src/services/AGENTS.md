@@ -6,33 +6,35 @@ REST API client and logging service for interacting with the FastAPI backend. Pr
 
 ## Key Files
 
-| File                          | Purpose                                                       |
-| ----------------------------- | ------------------------------------------------------------- |
-| `api.ts`                      | Complete API client with typed methods for all REST endpoints |
-| `api.test.ts`                 | Comprehensive test coverage for API client                    |
-| `api.abort.test.ts`           | Tests for request cancellation and AbortController usage      |
-| `api.missing-coverage.test.ts`| Tests for missing coverage scenarios                          |
-| `api.sentry.test.ts`          | Tests for API Sentry integration and error tracking           |
-| `api.timeout.test.ts`         | Tests for API timeout handling and configuration              |
-| `auditApi.ts`                 | AI pipeline audit API client (model contributions, stats)     |
-| `auditApi.test.ts`            | Tests for audit API client                                    |
-| `abTestService.ts`            | A/B testing service for prompt playground                     |
-| `abTestService.test.ts`       | Tests for A/B testing service                                 |
-| `promptManagementApi.ts`      | Prompt management API client (CRUD, history, import/export)   |
-| `promptManagementApi.test.ts` | Tests for prompt management API                               |
-| `logger.ts`                   | Frontend logging service with batched backend sync            |
-| `logger.test.ts`              | Tests for logger functionality                                |
-| `metricsParser.ts`            | Prometheus text format parser for AI performance metrics      |
-| `metricsParser.test.ts`       | Tests for Prometheus metrics parsing                          |
-| `interceptors.ts`             | HTTP request/response interceptors for api client             |
-| `interceptors.test.ts`        | Tests for interceptors                                        |
-| `queryClient.ts`              | TanStack Query configuration and query key factories          |
-| `queryClient.test.ts`         | Tests for QueryClient configuration                           |
-| `sentry.ts`                   | Sentry error tracking, performance monitoring, session replay |
-| `sentry.test.ts`              | Tests for Sentry service                                      |
-| `rum.ts`                      | Real User Monitoring (RUM) for Core Web Vitals collection     |
-| `rum.test.ts`                 | Tests for RUM service                                         |
-| `.gitkeep`                    | Placeholder file                                              |
+| File                           | Purpose                                                       |
+| ------------------------------ | ------------------------------------------------------------- |
+| `abTestService.ts`             | A/B testing service for prompt playground                     |
+| `abTestService.test.ts`        | Tests for A/B testing service                                 |
+| `aiAuditApi.ts`                | AI audit trail API client (decision logs, audit data)         |
+| `aiAuditApi.test.ts`           | Tests for AI audit API client                                 |
+| `api.ts`                       | Complete API client with typed methods for all REST endpoints |
+| `api.test.ts`                  | Comprehensive test coverage for API client                    |
+| `api.abort.test.ts`            | Tests for request cancellation and AbortController usage      |
+| `api.missing-coverage.test.ts` | Tests for missing coverage scenarios                          |
+| `api.sentry.test.ts`           | Tests for API Sentry integration and error tracking           |
+| `api.timeout.test.ts`          | Tests for API timeout handling and configuration              |
+| `auditApi.ts`                  | AI pipeline audit API client (model contributions, stats)     |
+| `auditApi.test.ts`             | Tests for audit API client                                    |
+| `interceptors.ts`              | HTTP request/response interceptors for api client             |
+| `interceptors.test.ts`         | Tests for interceptors                                        |
+| `logger.ts`                    | Frontend logging service with batched backend sync            |
+| `logger.test.ts`               | Tests for logger functionality                                |
+| `metricsParser.ts`             | Prometheus text format parser for AI performance metrics      |
+| `metricsParser.test.ts`        | Tests for Prometheus metrics parsing                          |
+| `promptManagementApi.ts`       | Prompt management API client (CRUD, history, import/export)   |
+| `promptManagementApi.test.ts`  | Tests for prompt management API                               |
+| `queryClient.ts`               | TanStack Query configuration and query key factories          |
+| `queryClient.test.ts`          | Tests for QueryClient configuration                           |
+| `queryClient.retry.test.ts`    | Tests for QueryClient retry logic                             |
+| `rum.ts`                       | Real User Monitoring (RUM) for Core Web Vitals collection     |
+| `rum.test.ts`                  | Tests for RUM service                                         |
+| `sentry.ts`                    | Sentry error tracking, performance monitoring, session replay |
+| `sentry.test.ts`               | Tests for Sentry service                                      |
 
 ## API Client Structure (`api.ts`)
 

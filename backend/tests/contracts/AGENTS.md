@@ -78,12 +78,24 @@ Schema validation tests for WebSocket message formats:
 ## File Structure
 
 ```
-contracts/
-  __init__.py              # Package marker
-  conftest.py              # Shared fixtures (mock clients, sessions)
-  test_api_contracts.py    # All contract tests (32+ tests)
-  AGENTS.md                # This documentation
+backend/tests/contracts/
+├── AGENTS.md                        # This documentation
+├── __init__.py                      # Package marker
+├── conftest.py                      # Shared fixtures (mock clients, sessions)
+├── test_api_contracts.py            # Core API contract tests (32+ tests)
+├── test_openapi_schema_validation.py # OpenAPI schema validation tests
+├── test_schemathesis_contracts.py   # Property-based schema testing with Schemathesis
+└── test_websocket_contracts.py      # WebSocket message contract tests
 ```
+
+## Test Files (4 total)
+
+| File                                | Focus                           | Key Coverage                    |
+| ----------------------------------- | ------------------------------- | ------------------------------- |
+| `test_api_contracts.py`             | Core REST API contracts         | Events, cameras, system, etc.   |
+| `test_openapi_schema_validation.py` | OpenAPI spec validation         | Schema conformance              |
+| `test_schemathesis_contracts.py`    | Property-based contract testing | Fuzzing with schema constraints |
+| `test_websocket_contracts.py`       | WebSocket message contracts     | Event, status, scene messages   |
 
 ## Running Contract Tests
 

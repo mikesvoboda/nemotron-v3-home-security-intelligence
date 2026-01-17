@@ -17,13 +17,13 @@ backend/tests/
 ├── mock_utils.py            # Mock object creation utilities
 ├── matchers.py              # Custom test matchers (empty placeholder)
 ├── __init__.py              # Package initialization
-├── unit/                    # Unit tests for isolated components (283 test files)
-├── integration/             # Integration tests for API and multi-component workflows (70 test files)
+├── unit/                    # Unit tests for isolated components (300+ test files)
+├── integration/             # Integration tests for API and multi-component workflows (109+ test files)
 ├── e2e/                     # End-to-end pipeline integration tests (2 test files)
 ├── gpu/                     # GPU-specific AI service tests (1 test file)
-├── benchmarks/              # Performance and complexity benchmarks (4 test files)
-├── chaos/                   # Chaos engineering failure tests (5 test files)
-├── contracts/               # API contract tests (1 test file)
+├── benchmarks/              # Performance and complexity benchmarks (6 test files)
+├── chaos/                   # Chaos engineering failure tests (11 test files)
+├── contracts/               # API contract tests (4 test files)
 ├── security/                # Security vulnerability tests (3 test files)
 ├── fixtures/                # Test fixtures including sample images
 ├── check_syntax.py          # Syntax validation script
@@ -509,7 +509,7 @@ def test_timing_sensitive_operation():
 
 ## Test Categories
 
-### Unit Tests (`unit/`) - 283 test files
+### Unit Tests (`unit/`) - 300+ test files
 
 Tests for individual components in isolation with all external dependencies mocked.
 Includes property-based tests using **Hypothesis** for model invariants.
@@ -534,7 +534,7 @@ Subdirectories:
 - **scripts/**: Migration script tests (1 file)
 - **Root level**: Utility tests (10 files) - async_utils, mock_utils, benchmarks, main, etc.
 
-### Integration Tests (`integration/`) - 70 test files
+### Integration Tests (`integration/`) - 109+ test files
 
 Tests for multi-component workflows with real database and mocked Redis.
 **Now support parallel execution** with pytest-xdist (5x speedup with 8 workers).
@@ -568,30 +568,40 @@ Tests for RT-DETRv2 and Nemotron service integration.
 
 - `test_detector_integration.py`: GPU service health, inference, performance
 
-### Benchmarks (`benchmarks/`) - 4 test files
+### Benchmarks (`benchmarks/`) - 6 test files
 
 Performance and complexity regression detection.
 
 - `test_api_benchmarks.py`: Response time measurements
 - `test_bigo.py`: O(n) complexity verification
+- `test_connection_pool.py`: Connection pool performance tests
 - `test_memory.py`: Memory usage limits (Linux only)
 - `test_performance.py`: Core performance regression benchmarks
+- `test_slow_query_detection.py`: Slow query detection tests
 
-### Chaos Tests (`chaos/`) - 5 test files
+### Chaos Tests (`chaos/`) - 11 test files
 
 Chaos engineering tests that inject faults into services to ensure graceful degradation.
 
-- `test_rtdetr_failures.py`: RT-DETR object detection service failures
-- `test_redis_failures.py`: Redis cache/queue service failures
 - `test_database_failures.py`: PostgreSQL database failures
+- `test_database_pool_exhaustion.py`: Connection pool exhaustion
+- `test_ftp_failures.py`: FTP upload and file system failures
+- `test_gpu_runtime_failures.py`: GPU runtime and CUDA errors
 - `test_nemotron_failures.py`: Nemotron LLM service failures
 - `test_network_conditions.py`: Network latency and reliability issues
+- `test_pubsub_failures.py`: Redis pub/sub failures
+- `test_redis_failures.py`: Redis cache/queue service failures
+- `test_rtdetr_failures.py`: RT-DETR object detection service failures
+- `test_timeout_cascade.py`: Cascading timeout scenarios
 
-### Contract Tests (`contracts/`) - 1 test file
+### Contract Tests (`contracts/`) - 4 test files
 
 API contract tests for response schema validation.
 
-- `test_api_contracts.py`: API response schema validation (21+ tests)
+- `test_api_contracts.py`: Core API response schema validation (32+ tests)
+- `test_openapi_schema_validation.py`: OpenAPI spec validation
+- `test_schemathesis_contracts.py`: Property-based schema testing
+- `test_websocket_contracts.py`: WebSocket message contracts
 
 ### Security Tests (`security/`) - 3 test files
 

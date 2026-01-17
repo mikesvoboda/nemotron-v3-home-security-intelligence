@@ -25,6 +25,8 @@ scripts/
   dev.sh                             # Development server management
   restart-all.sh                     # Full stack restart (all containers)
   redeploy.sh                        # Stop, destroy volumes, redeploy fresh
+  recycle-containers.sh              # Recycle containers with graceful restart
+  setup-container-api.sh             # Setup container API access
 
   # Validation & Testing
   validate.sh                        # Full validation (lint, type, test)
@@ -48,7 +50,13 @@ scripts/
 
   # Code Generation & Certs
   generate-types.sh                  # TypeScript API type generation
-  generate_certs.py                  # SSL certificate generation
+  generate_certs.py                  # SSL certificate generation (Python)
+  generate-certs.sh                  # SSL certificate generation (Shell)
+  generate-ssl-cert.sh               # Alternative SSL cert generation
+  generate-openapi.py                # Generate OpenAPI specification from FastAPI
+  generate_zod_schemas.py            # Generate Zod validation schemas for frontend
+  generate-ws-types.py               # Generate WebSocket TypeScript types
+  extract_pydantic_constraints.py    # Extract Pydantic model constraints
 
   # AI Pipeline Scripts
   benchmark_model_zoo.py             # Model Zoo performance benchmarks
@@ -66,7 +74,9 @@ scripts/
   check-api-compatibility.sh         # API backward compatibility check
   check-api-contracts.sh             # API contract validation
   check-branch-name.sh               # Git branch naming convention check
+  check-validation-drift.py          # Detect validation rule drift between schemas
   pre-push-rebase.sh                 # Auto-rebase before push
+  pre-push-tests.sh                  # Run tests before push
 
   # Test Automation & Enforcement (NEM-2102)
   check-test-coverage-gate.py        # PR gate: detect files without tests

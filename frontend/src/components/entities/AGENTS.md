@@ -6,19 +6,25 @@ Components for tracking and displaying re-identified entities (persons and vehic
 
 ## Files
 
-| File                        | Purpose                                |
-| --------------------------- | -------------------------------------- |
-| `EntitiesPage.tsx`          | Main page for listing tracked entities |
-| `EntitiesPage.test.tsx`     | Test suite for EntitiesPage            |
-| `EntityCard.tsx`            | Card display for individual entity     |
-| `EntityCard.test.tsx`       | Test suite for EntityCard              |
-| `EntityTimeline.tsx`        | Timeline of entity appearances         |
-| `EntityTimeline.test.tsx`   | Test suite for EntityTimeline          |
-| `EntityDetailModal.tsx`     | Modal for entity details               |
-| `EntityDetailModal.test.tsx`| Test suite for EntityDetailModal       |
-| `ReidHistoryPanel.tsx`      | Re-identification history panel        |
-| `ReidHistoryPanel.test.tsx` | Test suite for ReidHistoryPanel        |
-| `index.ts`                  | Barrel exports                         |
+| File                                  | Purpose                                        |
+| ------------------------------------- | ---------------------------------------------- |
+| `EntitiesEmptyState.tsx`              | Empty state component for no entities          |
+| `EntitiesEmptyState.test.tsx`         | Test suite for EntitiesEmptyState              |
+| `EntitiesPage.tsx`                    | Main page for listing tracked entities         |
+| `EntitiesPage.test.tsx`               | Test suite for EntitiesPage                    |
+| `EntityCard.tsx`                      | Card display for individual entity             |
+| `EntityCard.test.tsx`                 | Test suite for EntityCard                      |
+| `EntityDetailModal.tsx`               | Modal for entity details                       |
+| `EntityDetailModal.test.tsx`          | Test suite for EntityDetailModal               |
+| `EntityStatsCard.tsx`                 | Statistics card for entity metrics             |
+| `EntityStatsCard.test.tsx`            | Test suite for EntityStatsCard                 |
+| `EntityTimeline.tsx`                  | Timeline of entity appearances                 |
+| `EntityTimeline.test.tsx`             | Test suite for EntityTimeline                  |
+| `ReidHistoryPanel.tsx`                | Re-identification history panel                |
+| `ReidHistoryPanel.test.tsx`           | Test suite for ReidHistoryPanel                |
+| `TrustClassificationControls.tsx`     | Controls for entity trust classification       |
+| `TrustClassificationControls.test.tsx`| Test suite for TrustClassificationControls     |
+| `index.ts`                            | Barrel exports                                 |
 
 ## Architecture
 

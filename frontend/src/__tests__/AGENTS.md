@@ -8,13 +8,24 @@ Specialized test directory for configuration file validation and infrastructure 
 
 ```
 frontend/src/__tests__/
-├── AGENTS.md              # This documentation file
-├── lighthouserc.test.ts   # Lighthouse CI configuration validation tests
-├── matchers.ts            # Custom Vitest matchers for domain objects
-└── matchers.test.ts       # Tests for custom matchers
+├── AGENTS.md               # This documentation file
+├── api-contracts.test.ts   # API contract validation tests
+├── lighthouserc.test.ts    # Lighthouse CI configuration validation tests
+├── matchers.ts             # Custom Vitest matchers for domain objects
+└── matchers.test.ts        # Tests for custom matchers
 ```
 
 ## Key Files
+
+### api-contracts.test.ts
+
+Validates API contract compliance between frontend types and backend responses. Tests ensure that TypeScript types match actual API response structures.
+
+**Test Coverage:**
+
+- Validates generated TypeScript types match OpenAPI spec
+- Tests response shape conformance for key endpoints
+- Ensures type safety for API integrations
 
 ### matchers.ts
 

@@ -25,19 +25,30 @@ File Upload -> Detection -> Batching -> Enrichment -> Analysis -> Event Creation
 
 1. **Core AI Pipeline** - File watching, detection, batching, analysis, streaming
 2. **AI Clients** - HTTP clients for external AI services (Florence, CLIP)
-3. **Context Enrichment** - Zone detection, baseline tracking, re-identification
-4. **Model Zoo** - On-demand model loading for attribute extraction
-5. **Model Loaders** - Individual model loading functions for Model Zoo
-6. **Model Loader Base** - Abstract base class for model loaders
-7. **Pipeline Workers** - Background queue consumers and managers
-8. **Background Services** - GPU monitoring, cleanup, health checks, evaluation
-9. **Container Orchestrator** - Container discovery, lifecycle management
-10. **Infrastructure** - Circuit breakers, retry handlers, degradation, fallback
-11. **Alerting** - Alert rules, deduplication, notifications, filtering
-12. **Audit** - Security audit logging, AI pipeline auditing
-13. **Prompt Management** - LLM prompt templates, storage, versioning, type-safety
-14. **Utility** - Search, severity mapping, token counting, batch fetching, cost tracking
-15. **Data Management** - Partition management for time-series tables
+3. **AI Services** - DI wrappers for face/plate detection services
+4. **Context Enrichment** - Zone detection, baseline tracking, re-identification
+5. **Entity Re-identification** - Embedding clustering, hybrid storage bridge
+6. **Model Zoo** - On-demand model loading for attribute extraction
+7. **Model Loaders** - Individual model loading functions for Model Zoo
+8. **Model Loader Base** - Abstract base class for model loaders
+9. **Pipeline Workers** - Background queue consumers and managers
+10. **Background Services** - GPU monitoring, cleanup, health checks, worker supervision
+11. **Container Orchestrator** - Container discovery, lifecycle management
+12. **Infrastructure** - Circuit breakers, retry handlers, degradation, fallback
+13. **Alerting** - Alert rules, deduplication, notifications, filtering, CRUD
+14. **Audit** - Security audit logging, AI pipeline auditing
+15. **Prompt Management** - LLM prompt templates, storage, versioning, type-safety
+16. **Utility** - Search, severity mapping, token counting, batch fetching, cost tracking
+17. **Data Management** - Partition management for time-series tables
+18. **Camera Services** - Camera status updates with concurrency control
+19. **Event Services** - Event CRUD, cascade soft delete, export generation
+20. **File Services** - Scheduled deletion, cleanup, orphan scanning
+21. **Job Services** - Job lifecycle, status tracking, timeout handling, history
+22. **Calibration Services** - Adaptive threshold adjustment from feedback
+23. **Queue Status** - Queue depth and health monitoring
+24. **Transcoding** - Video transcoding with caching and NVENC support
+25. **WebSocket** - Centralized event emission service
+26. **Monitoring** - Prometheus/Grafana stack validation
 
 ## Service Files Overview
 
@@ -131,9 +142,12 @@ File Upload -> Detection -> Batching -> Enrichment -> Analysis -> Event Creation
 | `cleanup_service.py`             | Enforce data retention policies               | Yes                        |
 | `health_monitor.py`              | Monitor service health with auto-recovery     | No (import directly)       |
 | `health_monitor_orchestrator.py` | Container orchestrator health monitoring loop | No (import directly)       |
+| `health_event_emitter.py`        | WebSocket health status event emission        | No (import directly)       |
+| `health_service_registry.py`     | DI registry for health monitoring (NEM-2611)  | No (import directly)       |
 | `system_broadcaster.py`          | Broadcast system health status                | No (import directly)       |
 | `performance_collector.py`       | Collect system performance metrics            | No (import directly)       |
 | `background_evaluator.py`        | Run AI audit evaluations when GPU is idle     | Yes                        |
+| `worker_supervisor.py`           | Auto-recovery for crashed worker tasks        | No (import directly)       |
 
 ### Container Orchestrator Services
 
@@ -163,6 +177,7 @@ File Upload -> Detection -> Batching -> Enrichment -> Analysis -> Event Creation
 | ------------------------ | ---------------------------------------- | -------------------------- |
 | `alert_engine.py`        | Evaluate alert rules against events      | Yes                        |
 | `alert_dedup.py`         | Alert deduplication logic                | Yes                        |
+| `alert_service.py`       | Alert CRUD with WebSocket events         | No (import directly)       |
 | `notification.py`        | Multi-channel notification delivery      | Yes                        |
 | `notification_filter.py` | Filter notifications by user preferences | No (import directly)       |
 
@@ -208,6 +223,87 @@ File Upload -> Detection -> Batching -> Enrichment -> Analysis -> Event Creation
 | Service               | Purpose                                 | Exported via `__init__.py` |
 | --------------------- | --------------------------------------- | -------------------------- |
 | `evaluation_queue.py` | Priority queue for AI audit evaluations | Yes                        |
+
+### Camera Services
+
+| Service                    | Purpose                                              | Exported via `__init__.py` |
+| -------------------------- | ---------------------------------------------------- | -------------------------- |
+| `camera_service.py`        | Camera status with optimistic concurrency (NEM-2030) | No (import directly)       |
+| `camera_status_service.py` | Camera status changes with WebSocket broadcasting    | No (import directly)       |
+
+### Entity Re-identification Services
+
+| Service                        | Purpose                                             | Exported via `__init__.py` |
+| ------------------------------ | --------------------------------------------------- | -------------------------- |
+| `entity_clustering_service.py` | Embedding similarity for entity matching (NEM-2497) | No (import directly)       |
+| `hybrid_entity_storage.py`     | Redis/PostgreSQL hybrid storage bridge (NEM-2498)   | No (import directly)       |
+
+### Event Services
+
+| Service             | Purpose                                        | Exported via `__init__.py` |
+| ------------------- | ---------------------------------------------- | -------------------------- |
+| `event_service.py`  | Event CRUD with cascade soft delete (NEM-1956) | No (import directly)       |
+| `export_service.py` | CSV/Excel/JSON export generation (NEM-1989)    | No (import directly)       |
+
+### File Services
+
+| Service                     | Purpose                                              | Exported via `__init__.py` |
+| --------------------------- | ---------------------------------------------------- | -------------------------- |
+| `file_service.py`           | Scheduled file deletion with Redis queue (NEM-1988)  | No (import directly)       |
+| `file_cleanup_service.py`   | Cascade file deletion for events (NEM-2384)          | No (import directly)       |
+| `orphan_cleanup_service.py` | Cleanup orphaned files without DB records (NEM-2260) | No (import directly)       |
+| `orphan_scanner_service.py` | Scan for orphaned files on disk (NEM-2387)           | No (import directly)       |
+
+### Job Services
+
+| Service                    | Purpose                                        | Exported via `__init__.py` |
+| -------------------------- | ---------------------------------------------- | -------------------------- |
+| `job_tracker.py`           | Job lifecycle management with WebSocket events | No (import directly)       |
+| `job_service.py`           | Job CRUD service layer (NEM-2389, NEM-2390)    | No (import directly)       |
+| `job_status.py`            | Redis-backed job status tracking               | No (import directly)       |
+| `job_state_service.py`     | Job state machine transitions                  | No (import directly)       |
+| `job_timeout_service.py`   | Job timeout detection and handling             | No (import directly)       |
+| `job_history_service.py`   | Job execution history retrieval                | No (import directly)       |
+| `job_search_service.py`    | Job search and filtering                       | No (import directly)       |
+| `job_progress_reporter.py` | WebSocket job progress emission (NEM-2380)     | No (import directly)       |
+
+### Calibration Services
+
+| Service                  | Purpose                                     | Exported via `__init__.py` |
+| ------------------------ | ------------------------------------------- | -------------------------- |
+| `calibration_service.py` | Adaptive threshold adjustment from feedback | No (import directly)       |
+
+### Queue Status Services
+
+| Service                   | Purpose                           | Exported via `__init__.py` |
+| ------------------------- | --------------------------------- | -------------------------- |
+| `queue_status_service.py` | Queue depth and health monitoring | No (import directly)       |
+
+### Transcoding Services
+
+| Service                  | Purpose                                   | Exported via `__init__.py` |
+| ------------------------ | ----------------------------------------- | -------------------------- |
+| `transcoding.py`         | Video transcoding to H.264/MP4 (NEM-2681) | No (import directly)       |
+| `transcoding_service.py` | Transcoding with caching (NEM-2682)       | No (import directly)       |
+| `transcode_cache.py`     | Disk cache for transcoded videos with LRU | No (import directly)       |
+
+### WebSocket Services
+
+| Service                | Purpose                              | Exported via `__init__.py` |
+| ---------------------- | ------------------------------------ | -------------------------- |
+| `websocket_emitter.py` | Centralized WebSocket event emission | No (import directly)       |
+
+### AI Services
+
+| Service          | Purpose                               | Exported via `__init__.py` |
+| ---------------- | ------------------------------------- | -------------------------- |
+| `ai_services.py` | AI service wrappers for DI (NEM-2030) | No (import directly)       |
+
+### Monitoring Services
+
+| Service                         | Purpose                                    | Exported via `__init__.py` |
+| ------------------------------- | ------------------------------------------ | -------------------------- |
+| `monitoring_stack_validator.py` | Prometheus/Grafana stack health validation | No (import directly)       |
 
 ## Detailed Service Documentation
 

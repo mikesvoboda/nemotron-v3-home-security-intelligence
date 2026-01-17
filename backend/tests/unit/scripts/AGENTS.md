@@ -8,13 +8,16 @@ The `backend/tests/unit/scripts/` directory contains unit tests for migration an
 
 ```
 backend/tests/unit/scripts/
-└── test_migrate_beads_to_linear.py  # Beads to Linear migration tests
+├── AGENTS.md                       # This file
+├── test_generate_openapi.py        # OpenAPI schema generation tests (25KB)
+└── test_migrate_beads_to_linear.py # Beads to Linear migration tests (11KB)
 ```
 
-## Test Files (1 file)
+## Test Files (2 files)
 
 | File                              | Tests For                                     |
 | --------------------------------- | --------------------------------------------- |
+| `test_generate_openapi.py`        | OpenAPI schema generation and validation      |
 | `test_migrate_beads_to_linear.py` | Migration from Beads to Linear issue tracking |
 
 ## Running Tests
@@ -28,6 +31,16 @@ uv run pytest backend/tests/unit/scripts/ -v --cov=scripts
 ```
 
 ## Test Coverage
+
+### `test_generate_openapi.py`
+
+Tests for OpenAPI schema generation:
+
+- Schema generation from FastAPI app
+- Schema validation against OpenAPI spec
+- Endpoint documentation completeness
+- Response model serialization
+- Parameter validation in generated schema
 
 ### `test_migrate_beads_to_linear.py`
 

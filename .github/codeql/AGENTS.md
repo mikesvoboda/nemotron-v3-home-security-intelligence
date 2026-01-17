@@ -8,8 +8,22 @@ This directory contains configuration files for GitHub CodeQL, a semantic code a
 
 ```
 codeql/
-  AGENTS.md           # This file
-  codeql-config.yml   # CodeQL analysis configuration
+  AGENTS.md             # This file
+  codeql-config.yml     # CodeQL analysis configuration
+  custom-queries/       # Custom CodeQL security queries
+    AGENTS.md           # Custom queries overview
+    javascript/         # JavaScript/TypeScript queries
+      AGENTS.md         # JavaScript queries guide
+      qlpack.yml        # CodeQL package definition
+      localstorage-sensitive-data.ql  # Storage security query
+      react-dangerous-html.ql         # XSS prevention query
+      unsafe-redirect.ql              # Open redirect query
+    python/             # Python/FastAPI queries
+      AGENTS.md         # Python queries guide
+      qlpack.yml        # CodeQL package definition
+      fastapi-missing-auth.ql         # Auth check query
+      fastapi-sql-injection.ql        # SQL injection query
+      unsafe-file-operations.ql       # Path traversal query
 ```
 
 ## Key Files
