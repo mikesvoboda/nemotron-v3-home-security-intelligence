@@ -368,319 +368,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/ai-audit/prompt-config/{model}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Prompt Config
-         * @description Get current prompt configuration for a model (database-backed).
-         *
-         *     Retrieves the prompt configuration from the database for the specified model.
-         *     Returns 404 if no configuration exists for the model.
-         *
-         *     Args:
-         *         model: Model name (nemotron, florence-2, yolo-world, x-clip, fashion-clip)
-         *         db: Database session
-         *
-         *     Returns:
-         *         PromptConfigResponse with current configuration
-         *
-         *     Raises:
-         *         HTTPException: 404 if model not found or no configuration exists
-         */
-        get: operations["get_prompt_config_api_ai_audit_prompt_config__model__get"];
-        /**
-         * Update Prompt Config
-         * @description Update prompt configuration for a model (database-backed).
-         *
-         *     Creates or updates the prompt configuration in the database.
-         *     If updating an existing config, increments the version number.
-         *
-         *     Args:
-         *         model: Model name (nemotron, florence-2, yolo-world, x-clip, fashion-clip)
-         *         request: New configuration with system_prompt, temperature, max_tokens
-         *         db: Database session
-         *
-         *     Returns:
-         *         PromptConfigResponse with updated configuration
-         *
-         *     Raises:
-         *         HTTPException: 404 if model not found, 400 if configuration invalid
-         */
-        put: operations["update_prompt_config_api_ai_audit_prompt_config__model__put"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/ai-audit/prompts": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get All Prompts
-         * @description Get current prompt configurations for all AI models.
-         *
-         *     Returns configurations for nemotron, florence2, yolo_world, xclip,
-         *     and fashion_clip models with their current versions.
-         *
-         *     Returns:
-         *         AllPromptsResponse containing all model configurations
-         */
-        get: operations["get_all_prompts_api_ai_audit_prompts_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/ai-audit/prompts/export": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Export Prompts
-         * @description Export all AI model configurations as JSON.
-         *
-         *     Returns all current configurations in a format suitable for
-         *     backup or transfer to another instance.
-         *
-         *     Returns:
-         *         PromptExportResponse with all configurations
-         */
-        get: operations["export_prompts_api_ai_audit_prompts_export_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/ai-audit/prompts/history": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get All Prompts History
-         * @description Get version history for all AI models.
-         *
-         *     Returns the most recent versions for each supported model.
-         *
-         *     Args:
-         *         limit: Maximum number of versions to return per model (1-100, default 10)
-         *
-         *     Returns:
-         *         Dict mapping model names to their version histories
-         */
-        get: operations["get_all_prompts_history_api_ai_audit_prompts_history_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/ai-audit/prompts/history/{model}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Model History
-         * @description Get version history for a specific AI model.
-         *
-         *     Returns all versions of the model's configuration, newest first,
-         *     with pagination support.
-         *
-         *     Args:
-         *         model: Model name to get history for
-         *         limit: Maximum versions to return (1-100, default 50)
-         *         offset: Number of versions to skip (default 0)
-         *
-         *     Returns:
-         *         PromptHistoryResponse with version list
-         *
-         *     Raises:
-         *         HTTPException: 404 if model not found
-         */
-        get: operations["get_model_history_api_ai_audit_prompts_history__model__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/ai-audit/prompts/history/{version}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Restore Prompt Version
-         * @description Restore a specific version of a model's prompt configuration.
-         *
-         *     Creates a new version with the configuration from the specified version.
-         *     The restore action is recorded in the version history.
-         *
-         *     Args:
-         *         version: Version number to restore
-         *         model: Model name to restore version for
-         *         request: Optional restore request with description
-         *
-         *     Returns:
-         *         PromptRestoreResponse with restore details
-         *
-         *     Raises:
-         *         HTTPException: 404 if model or version not found
-         */
-        post: operations["restore_prompt_version_api_ai_audit_prompts_history__version__post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/ai-audit/prompts/import": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Import Prompts
-         * @description Import AI model configurations from JSON.
-         *
-         *     Imports configurations for multiple models at once. By default,
-         *     existing configurations are not overwritten unless overwrite=true.
-         *
-         *     Args:
-         *         request: Import request with configurations and overwrite flag
-         *
-         *     Returns:
-         *         PromptImportResponse with import results
-         *
-         *     Raises:
-         *         HTTPException: 400 if no prompts provided for import
-         */
-        post: operations["import_prompts_api_ai_audit_prompts_import_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/ai-audit/prompts/test": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Test Prompt
-         * @description Test a modified prompt configuration against a specific event.
-         *
-         *     Runs inference with both the current and modified configurations,
-         *     returning a comparison of the results to help evaluate changes.
-         *
-         *     Note: This currently returns mock results. In production, it would
-         *     call the actual AI services with the modified configuration.
-         *
-         *     Args:
-         *         request: Test request with model name, config, and event ID
-         *         db: Database session
-         *
-         *     Returns:
-         *         PromptTestResponse with before/after comparison
-         *
-         *     Raises:
-         *         HTTPException: 404 if model or event not found, 400 if config invalid
-         */
-        post: operations["test_prompt_api_ai_audit_prompts_test_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/ai-audit/prompts/{model}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Model Prompt
-         * @description Get current prompt configuration for a specific AI model.
-         *
-         *     Args:
-         *         model: Model name (nemotron, florence2, yolo_world, xclip, fashion_clip)
-         *
-         *     Returns:
-         *         ModelPromptResponse with current configuration
-         *
-         *     Raises:
-         *         HTTPException: 404 if model not found
-         */
-        get: operations["get_model_prompt_api_ai_audit_prompts__model__get"];
-        /**
-         * Update Model Prompt
-         * @description Update prompt configuration for a specific AI model.
-         *
-         *     Creates a new version of the configuration with the provided changes.
-         *     The previous version is preserved in history.
-         *
-         *     Args:
-         *         model: Model name to update
-         *         request: New configuration and optional description
-         *
-         *     Returns:
-         *         PromptUpdateResponse with new version info
-         *
-         *     Raises:
-         *         HTTPException: 404 if model not found, 400 if configuration invalid
-         */
-        put: operations["update_model_prompt_api_ai_audit_prompts__model__put"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/ai-audit/recommendations": {
         parameters: {
             query?: never;
@@ -736,50 +423,6 @@ export interface paths {
         get: operations["get_audit_stats_api_ai_audit_stats_get"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/ai-audit/test-prompt": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Test Custom Prompt
-         * @description Test a custom prompt against an existing event for A/B testing.
-         *
-         *     This endpoint allows testing a custom prompt without persisting results.
-         *     It's designed for the Prompt Playground A/B testing feature where users
-         *     can experiment with different prompts and compare results.
-         *
-         *     The endpoint:
-         *     1. Fetches the event with its detections
-         *     2. Builds context from the event data
-         *     3. Calls the AI model with the custom prompt (or mocks if service unavailable)
-         *     4. Returns results WITHOUT saving to database
-         *
-         *     Args:
-         *         request: Test request containing event_id, custom_prompt, and optional
-         *                  parameters (temperature, max_tokens, model)
-         *         db: Database session
-         *
-         *     Returns:
-         *         CustomTestPromptResponse with risk analysis results
-         *
-         *     Raises:
-         *         HTTPException: 404 if event not found
-         *         HTTPException: 400 if prompt is invalid (empty or too long)
-         *         HTTPException: 503 if AI service is unavailable
-         *         HTTPException: 408 if request times out (>60s)
-         */
-        post: operations["test_custom_prompt_api_ai_audit_test_prompt_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4820,6 +4463,257 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/prompts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get All Prompts
+         * @description Fetch current prompt configurations for all AI models.
+         *
+         *     Returns the active prompt/configuration for each supported model:
+         *     - nemotron: System prompt for risk analysis
+         *     - florence2: Scene analysis queries
+         *     - yolo_world: Custom object classes and confidence threshold
+         *     - xclip: Action recognition classes
+         *     - fashion_clip: Clothing categories
+         */
+        get: operations["get_all_prompts_api_prompts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/prompts/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export Prompts
+         * @description Export all prompt configurations as JSON.
+         *
+         *     Returns a complete export of all model configurations suitable for
+         *     backup, sharing, or importing into another instance.
+         */
+        get: operations["export_prompts_api_prompts_export_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/prompts/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Prompt History
+         * @description Get version history for prompt configurations.
+         *
+         *     Returns a list of all prompt versions, optionally filtered by model.
+         */
+        get: operations["get_prompt_history_api_prompts_history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/prompts/history/{version_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restore Prompt Version
+         * @description Restore a specific prompt version.
+         *
+         *     Creates a new version with the configuration from the specified version,
+         *     making it the active configuration.
+         */
+        post: operations["restore_prompt_version_api_prompts_history__version_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/prompts/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import Prompts
+         * @description Import prompt configurations from JSON.
+         *
+         *     Validates and imports configurations for each model, creating new
+         *     versions for each imported configuration.
+         */
+        post: operations["import_prompts_api_prompts_import_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/prompts/import/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Import Prompts
+         * @description Preview import changes without applying them.
+         *
+         *     Validates the import data and computes diffs against current configurations.
+         */
+        post: operations["preview_import_prompts_api_prompts_import_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/prompts/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test Prompt
+         * @description Test a modified prompt configuration against an event or image.
+         *
+         *     Runs inference with the modified configuration and compares results
+         *     with the original configuration.
+         *
+         *     Rate Limited:
+         *         This endpoint is rate limited to 10 requests per minute per client
+         *         with a burst allowance of 3. This protects the AI services from abuse
+         *         since prompt testing runs LLM inference which is computationally expensive.
+         *
+         *     Returns 429 Too Many Requests if rate limit is exceeded.
+         */
+        post: operations["test_prompt_api_prompts_test_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/prompts/test-prompt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test Custom Prompt
+         * @description Test a custom prompt against an existing event for A/B testing.
+         *
+         *     This endpoint allows testing a custom prompt without persisting results.
+         *     It's designed for the Prompt Playground A/B testing feature where users
+         *     can experiment with different prompts and compare results.
+         *
+         *     The endpoint:
+         *     1. Fetches the event with its detections
+         *     2. Builds context from the event data
+         *     3. Calls the AI model with the custom prompt (or mocks if service unavailable)
+         *     4. Returns results WITHOUT saving to database
+         *
+         *     Rate Limited:
+         *         This endpoint is rate limited to 10 requests per minute per client
+         *         with a burst allowance of 3. This protects the AI services from abuse
+         *         since prompt testing runs LLM inference which is computationally expensive.
+         *
+         *     Args:
+         *         request: Test request containing event_id, custom_prompt, and optional
+         *                  parameters (temperature, max_tokens, model)
+         *         db: Database session
+         *
+         *     Returns:
+         *         CustomTestPromptResponse with risk analysis results
+         *
+         *     Raises:
+         *         HTTPException: 404 if event not found
+         *         HTTPException: 400 if prompt is invalid (empty or too long)
+         *         HTTPException: 429 if rate limit is exceeded
+         *         HTTPException: 503 if AI service is unavailable
+         *         HTTPException: 408 if request times out (>60s)
+         */
+        post: operations["test_custom_prompt_api_prompts_test_prompt_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/prompts/{model}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Prompt For Model
+         * @description Fetch prompt configuration for a specific AI model.
+         */
+        get: operations["get_prompt_for_model_api_prompts__model__get"];
+        /**
+         * Update Prompt For Model
+         * @description Update prompt configuration for a specific AI model.
+         *
+         *     Creates a new version of the configuration while preserving history.
+         *     Validates the configuration structure before saving.
+         *
+         *     Supports optimistic locking via expected_version in the request body.
+         *     If expected_version is provided and doesn't match the current version,
+         *     returns 409 Conflict to indicate concurrent modification.
+         */
+        put: operations["update_prompt_for_model_api_prompts__model__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/queues/status": {
         parameters: {
             query?: never;
@@ -6425,6 +6319,12 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /**
+         * AIModelEnum
+         * @description Supported AI models for prompt configuration.
+         * @enum {string}
+         */
+        AIModelEnum: "nemotron" | "florence2" | "yolo_world" | "xclip" | "fashion_clip";
+        /**
          * AIServiceHealthStatus
          * @description Health status for an AI service.
          *
@@ -7147,39 +7047,47 @@ export interface components {
         AlertStatus: "pending" | "delivered" | "acknowledged" | "dismissed";
         /**
          * AllPromptsResponse
-         * @description Response containing prompts for all models.
+         * @description Response containing prompts for all configurable models.
          * @example {
+         *       "exported_at": "2026-01-03T10:30:00Z",
          *       "prompts": {
          *         "florence2": {
-         *           "config": {
-         *             "vqa_queries": [
-         *               "What is this?"
-         *             ]
-         *           },
-         *           "model_name": "florence2",
-         *           "updated_at": "2026-01-01T08:00:00Z",
-         *           "version": 1
+         *           "vqa_queries": [
+         *             "What is this person wearing?",
+         *             "Is this person carrying anything?"
+         *           ]
          *         },
          *         "nemotron": {
-         *           "config": {
-         *             "system_prompt": "...",
-         *             "temperature": 0.7
-         *           },
-         *           "model_name": "nemotron",
-         *           "updated_at": "2026-01-03T10:30:00Z",
-         *           "version": 3
+         *           "max_tokens": 2048,
+         *           "system_prompt": "You are a home security AI assistant...",
+         *           "temperature": 0.7
          *         }
-         *       }
+         *       },
+         *       "version": "1.0"
          *     }
          */
         AllPromptsResponse: {
             /**
+             * Exported At
+             * Format: date-time
+             * @description Export timestamp
+             */
+            exported_at: string;
+            /**
              * Prompts
-             * @description Dictionary mapping model names to their configurations
+             * @description Configuration for each model
              */
             prompts: {
-                [key: string]: components["schemas"]["ModelPromptResponse"];
+                [key: string]: {
+                    [key: string]: unknown;
+                };
             };
+            /**
+             * Version
+             * @description Export format version
+             * @default 1.0
+             */
+            version: string;
         };
         /**
          * AnomalyConfig
@@ -9323,19 +9231,19 @@ export interface components {
             event_id: number;
             /**
              * Max Tokens
-             * @description Maximum tokens in response
+             * @description Maximum tokens for LLM response (100-8192)
              * @default 2048
              */
             max_tokens: number;
             /**
              * Model
-             * @description Model name to use for testing
+             * @description Model to use for testing (default: nemotron)
              * @default nemotron
              */
             model: string;
             /**
              * Temperature
-             * @description LLM temperature setting
+             * @description Temperature for LLM generation (0-2)
              * @default 0.7
              */
             temperature: number;
@@ -9365,32 +9273,29 @@ export interface components {
         CustomTestPromptResponse: {
             /**
              * Entities
-             * @description Detected entities in the analysis
+             * @description Entities detected in the analysis
              */
             entities?: {
                 [key: string]: unknown;
             }[];
             /**
              * Flags
-             * @description Risk flags identified in the analysis
+             * @description Any flags raised during analysis
              */
-            flags?: {
-                [key: string]: unknown;
-            }[];
+            flags?: string[];
             /**
              * Processing Time Ms
-             * @description Time taken for inference in milliseconds
+             * @description Processing time in milliseconds
              */
             processing_time_ms: number;
             /**
              * Reasoning
-             * @description LLM reasoning for the risk assessment
+             * @description Detailed reasoning for the risk assessment
              */
             reasoning: string;
             /**
              * Recommended Action
-             * @description Recommended action based on risk analysis
-             * @default
+             * @description Recommended action based on risk level
              */
             recommended_action: string;
             /**
@@ -9400,17 +9305,17 @@ export interface components {
             risk_level: string;
             /**
              * Risk Score
-             * @description Computed risk score (0-100)
+             * @description Risk score from 0 (no risk) to 100 (critical)
              */
             risk_score: number;
             /**
              * Summary
-             * @description Brief summary of the event analysis
+             * @description Brief summary of the analysis
              */
             summary: string;
             /**
              * Tokens Used
-             * @description Number of tokens used in inference
+             * @description Estimated tokens used for the analysis
              */
             tokens_used: number;
         };
@@ -15076,41 +14981,48 @@ export interface components {
             quality_correlation: number | null;
         };
         /**
-         * ModelPromptResponse
-         * @description Response for a single model's prompt configuration.
+         * ModelPromptConfig
+         * @description Configuration for a specific AI model.
          * @example {
+         *       "change_description": "Added weather context to prompt",
          *       "config": {
          *         "max_tokens": 2048,
-         *         "system_prompt": "You are a home security AI...",
+         *         "system_prompt": "You are a home security AI assistant...",
          *         "temperature": 0.7
          *       },
-         *       "model_name": "nemotron",
-         *       "updated_at": "2026-01-03T10:30:00Z",
+         *       "created_at": "2026-01-03T10:30:00Z",
+         *       "created_by": "admin",
+         *       "model": "nemotron",
          *       "version": 3
          *     }
          */
-        ModelPromptResponse: {
+        ModelPromptConfig: {
+            /**
+             * Change Description
+             * @description Description of changes
+             */
+            change_description?: string | null;
             /**
              * Config
-             * @description Current configuration for this model
+             * @description Model-specific configuration
              */
             config: {
                 [key: string]: unknown;
             };
             /**
-             * Model Name
-             * @description Name of the AI model
+             * Created At
+             * @description When this version was created
              */
-            model_name: string;
+            created_at?: string | null;
             /**
-             * Updated At
-             * Format: date-time
-             * @description When last updated
+             * Created By
+             * @description Who created this version
              */
-            updated_at: string;
+            created_by?: string | null;
+            model: components["schemas"]["AIModelEnum"];
             /**
              * Version
-             * @description Current version number
+             * @description Version number of this configuration
              */
             version: number;
         };
@@ -16676,269 +16588,96 @@ export interface components {
             stopped_at: string;
         };
         /**
-         * PromptConfigRequest
-         * @description Request to update a model's prompt configuration (database-backed).
-         *
-         *     Used by the Prompt Playground "Save" functionality to persist
-         *     prompt configurations to the database.
+         * PromptDiffEntry
+         * @description Diff entry for a single model's configuration.
          * @example {
-         *       "maxTokens": 2048,
-         *       "systemPrompt": "You are a home security AI assistant...",
-         *       "temperature": 0.7
+         *       "changes": [
+         *         "temperature: 0.7 -> 0.8",
+         *         "system_prompt: modified (length: 40 -> 55 chars)"
+         *       ],
+         *       "current_config": {
+         *         "max_tokens": 2048,
+         *         "system_prompt": "You are a home security AI...",
+         *         "temperature": 0.7
+         *       },
+         *       "current_version": 3,
+         *       "has_changes": true,
+         *       "imported_config": {
+         *         "max_tokens": 2048,
+         *         "system_prompt": "You are a home security AI with enhanced context...",
+         *         "temperature": 0.8
+         *       },
+         *       "model": "nemotron"
          *     }
          */
-        PromptConfigRequest: {
+        PromptDiffEntry: {
             /**
-             * Maxtokens
-             * @description Maximum tokens in response (100-8192)
-             * @default 2048
+             * Changes
+             * @description List of human-readable change descriptions
              */
-            maxTokens: number;
+            changes?: string[];
             /**
-             * Systemprompt
-             * @description Full system prompt text for the model
+             * Current Config
+             * @description Current configuration
              */
-            systemPrompt: string;
+            current_config?: {
+                [key: string]: unknown;
+            } | null;
             /**
-             * Temperature
-             * @description LLM temperature setting (0-2)
-             * @default 0.7
+             * Current Version
+             * @description Current version number
              */
-            temperature: number;
-        };
-        /**
-         * PromptConfigResponse
-         * @description Response containing a model's prompt configuration (database-backed).
-         *
-         *     Returned when retrieving or updating prompt configurations.
-         * @example {
-         *       "maxTokens": 2048,
-         *       "model": "nemotron",
-         *       "systemPrompt": "You are a home security AI assistant...",
-         *       "temperature": 0.7,
-         *       "updatedAt": "2026-01-03T10:30:00Z",
-         *       "version": 3
-         *     }
-         */
-        PromptConfigResponse: {
+            current_version?: number | null;
             /**
-             * Maxtokens
-             * @description Maximum tokens in response (100-8192)
+             * Has Changes
+             * @description Whether there are changes
              */
-            maxTokens: number;
+            has_changes: boolean;
+            /**
+             * Imported Config
+             * @description Configuration to import
+             */
+            imported_config: {
+                [key: string]: unknown;
+            };
             /**
              * Model
              * @description Model name
              */
             model: string;
-            /**
-             * Systemprompt
-             * @description Full system prompt text for the model
-             */
-            systemPrompt: string;
-            /**
-             * Temperature
-             * @description LLM temperature setting (0-2)
-             */
-            temperature: number;
-            /**
-             * Updatedat
-             * Format: date-time
-             * @description When the configuration was last updated
-             */
-            updatedAt: string;
-            /**
-             * Version
-             * @description Configuration version number
-             */
-            version: number;
-        };
-        /**
-         * PromptExportResponse
-         * @description Response containing all prompt configurations for export.
-         * @example {
-         *       "exported_at": "2026-01-03T10:30:00Z",
-         *       "prompts": {
-         *         "florence2": {
-         *           "vqa_queries": [
-         *             "What is this person wearing?"
-         *           ]
-         *         },
-         *         "nemotron": {
-         *           "max_tokens": 2048,
-         *           "system_prompt": "You are a home security AI...",
-         *           "temperature": 0.7
-         *         }
-         *       },
-         *       "version": "1.0"
-         *     }
-         */
-        PromptExportResponse: {
-            /**
-             * Exported At
-             * Format: date-time
-             * @description When the export was created
-             */
-            exported_at: string;
-            /**
-             * Prompts
-             * @description All model configurations keyed by model name
-             */
-            prompts: {
-                [key: string]: {
-                    [key: string]: unknown;
-                };
-            };
-            /**
-             * Version
-             * @description Export format version
-             * @default 1.0
-             */
-            version: string;
-        };
-        /**
-         * PromptHistoryEntry
-         * @description A single entry in prompt version history.
-         * @example {
-         *       "config": {
-         *         "max_tokens": 2048,
-         *         "system_prompt": "Previous version of prompt...",
-         *         "temperature": 0.7
-         *       },
-         *       "created_at": "2026-01-02T14:00:00Z",
-         *       "created_by": "admin",
-         *       "description": "Initial prompt configuration",
-         *       "version": 2
-         *     }
-         */
-        PromptHistoryEntry: {
-            /**
-             * Config
-             * @description Configuration at this version
-             */
-            config: {
-                [key: string]: unknown;
-            };
-            /**
-             * Created At
-             * Format: date-time
-             * @description When this version was created
-             */
-            created_at: string;
-            /**
-             * Created By
-             * @description Who created this version
-             * @default system
-             */
-            created_by: string;
-            /**
-             * Description
-             * @description Description of changes
-             */
-            description?: string | null;
-            /**
-             * Version
-             * @description Version number
-             */
-            version: number;
         };
         /**
          * PromptHistoryResponse
-         * @description Response containing version history for a model's prompts.
+         * @description Response containing version history for prompts.
          * @example {
-         *       "model_name": "nemotron",
-         *       "total_versions": 3,
+         *       "total_count": 3,
          *       "versions": [
          *         {
-         *           "config": {
-         *             "system_prompt": "...",
-         *             "temperature": 0.8
-         *           },
+         *           "change_description": "Added weather context to prompt",
          *           "created_at": "2026-01-03T10:30:00Z",
          *           "created_by": "admin",
-         *           "description": "Added weather context",
+         *           "id": 15,
+         *           "is_active": true,
+         *           "model": "nemotron",
          *           "version": 3
          *         },
          *         {
-         *           "config": {
-         *             "system_prompt": "...",
-         *             "temperature": 0.7
-         *           },
+         *           "change_description": "Initial configuration",
          *           "created_at": "2026-01-02T14:00:00Z",
          *           "created_by": "system",
-         *           "description": "Initial configuration",
+         *           "id": 12,
+         *           "is_active": false,
+         *           "model": "nemotron",
          *           "version": 2
          *         }
          *       ]
          *     }
          */
         PromptHistoryResponse: {
-            /** Model Name */
-            model_name: string;
-            /** Total Versions */
-            total_versions: number;
+            /** Total Count */
+            total_count: number;
             /** Versions */
-            versions: components["schemas"]["PromptHistoryEntry"][];
-        };
-        /**
-         * PromptImportRequest
-         * @description Request to import prompt configurations.
-         * @example {
-         *       "overwrite": true,
-         *       "prompts": {
-         *         "nemotron": {
-         *           "max_tokens": 2048,
-         *           "system_prompt": "Imported system prompt...",
-         *           "temperature": 0.7
-         *         }
-         *       }
-         *     }
-         */
-        PromptImportRequest: {
-            /**
-             * Overwrite
-             * @description Whether to overwrite existing configurations
-             * @default false
-             */
-            overwrite: boolean;
-            /**
-             * Prompts
-             * @description Model configurations to import, keyed by model name
-             */
-            prompts: {
-                [key: string]: {
-                    [key: string]: unknown;
-                };
-            };
-        };
-        /**
-         * PromptImportResponse
-         * @description Response after importing prompt configurations.
-         * @example {
-         *       "errors": [],
-         *       "imported_count": 3,
-         *       "message": "Successfully imported 3 prompt configurations",
-         *       "skipped_count": 1
-         *     }
-         */
-        PromptImportResponse: {
-            /**
-             * Errors
-             * @description Any errors encountered
-             */
-            errors?: string[];
-            /**
-             * Imported Count
-             * @description Number of models imported
-             */
-            imported_count: number;
-            /** Message */
-            message: string;
-            /**
-             * Skipped Count
-             * @description Number of models skipped
-             */
-            skipped_count: number;
+            versions: components["schemas"]["PromptVersionInfo"][];
         };
         /**
          * PromptImprovements
@@ -16975,25 +16714,11 @@ export interface components {
             unused_data?: string[];
         };
         /**
-         * PromptRestoreRequest
-         * @description Request to restore a specific version of a prompt.
-         * @example {
-         *       "description": "Restoring to version 2 due to regression in analysis quality"
-         *     }
-         */
-        PromptRestoreRequest: {
-            /**
-             * Description
-             * @description Optional description for the restore action
-             */
-            description?: string | null;
-        };
-        /**
          * PromptRestoreResponse
          * @description Response after restoring a prompt version.
          * @example {
          *       "message": "Successfully restored version 2 as new version 4",
-         *       "model_name": "nemotron",
+         *       "model": "nemotron",
          *       "new_version": 4,
          *       "restored_version": 2
          *     }
@@ -17001,20 +16726,22 @@ export interface components {
         PromptRestoreResponse: {
             /** Message */
             message: string;
-            /** Model Name */
-            model_name: string;
-            /** New Version */
+            model: components["schemas"]["AIModelEnum"];
+            /**
+             * New Version
+             * @description The new active version number
+             */
             new_version: number;
             /** Restored Version */
             restored_version: number;
         };
         /**
          * PromptTestRequest
-         * @description Request to test a modified prompt against an event.
+         * @description Request to test a prompt with modified configuration.
          * @example {
          *       "config": {
          *         "max_tokens": 2048,
-         *         "system_prompt": "Modified prompt for testing...",
+         *         "system_prompt": "You are a home security AI assistant...",
          *         "temperature": 0.7
          *       },
          *       "event_id": 12345,
@@ -17024,121 +16751,109 @@ export interface components {
         PromptTestRequest: {
             /**
              * Config
-             * @description Modified configuration to test
+             * @description Configuration to test
              */
             config: {
                 [key: string]: unknown;
             };
             /**
              * Event Id
-             * @description Event ID to test against
+             * @description Optional event ID to test against
              */
-            event_id: number;
+            event_id?: number | null;
             /**
-             * Model
-             * @description Model name to test (nemotron, florence2, etc.)
+             * Image Path
+             * @description Optional image path to test with
              */
-            model: string;
+            image_path?: string | null;
+            /** @description Model to test */
+            model: components["schemas"]["AIModelEnum"];
         };
         /**
-         * PromptTestResponse
-         * @description Response from testing a modified prompt.
+         * PromptTestResult
+         * @description Result of a prompt test.
          * @example {
-         *       "after": {
+         *       "after_response": {
          *         "risk_level": "low",
-         *         "score": 45,
+         *         "risk_score": 45,
          *         "summary": "Regular visitor detected - matches known delivery pattern"
          *       },
-         *       "before": {
+         *       "after_score": 45,
+         *       "before_response": {
          *         "risk_level": "medium",
-         *         "score": 65,
+         *         "risk_score": 65,
          *         "summary": "Person detected at front door during evening hours"
          *       },
+         *       "before_score": 65,
          *       "improved": true,
-         *       "inference_time_ms": 1250
+         *       "model": "nemotron",
+         *       "test_duration_ms": 1250
          *     }
          */
-        PromptTestResponse: {
-            /** @description Results from modified prompt */
-            after: components["schemas"]["PromptTestResultAfter"];
-            /** @description Results from original prompt */
-            before: components["schemas"]["PromptTestResultBefore"];
+        PromptTestResult: {
+            /**
+             * After Response
+             * @description Full response after changes
+             */
+            after_response?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * After Score
+             * @description Risk score after changes
+             */
+            after_score?: number | null;
+            /**
+             * Before Response
+             * @description Full response before changes
+             */
+            before_response?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Before Score
+             * @description Risk score before changes
+             */
+            before_score?: number | null;
+            /**
+             * Error
+             * @description Error message if test failed
+             */
+            error?: string | null;
             /**
              * Improved
-             * @description Whether the modification improved results
+             * @description Whether the change improved results
              */
-            improved: boolean;
+            improved?: boolean | null;
+            model: components["schemas"]["AIModelEnum"];
             /**
-             * Inference Time Ms
-             * @description Time taken for inference in ms
+             * Test Duration Ms
+             * @description Test duration in milliseconds
              */
-            inference_time_ms: number;
-        };
-        /**
-         * PromptTestResultAfter
-         * @description Result from the modified prompt.
-         * @example {
-         *       "risk_level": "low",
-         *       "score": 45,
-         *       "summary": "Regular visitor detected - matches known delivery pattern"
-         *     }
-         */
-        PromptTestResultAfter: {
-            /**
-             * Risk Level
-             * @description Risk level (low, medium, high, critical)
-             */
-            risk_level: string;
-            /**
-             * Score
-             * @description Risk score from modified prompt
-             */
-            score: number;
-            /**
-             * Summary
-             * @description Summary from modified analysis
-             */
-            summary: string;
-        };
-        /**
-         * PromptTestResultBefore
-         * @description Result from the original (current) prompt.
-         * @example {
-         *       "risk_level": "medium",
-         *       "score": 65,
-         *       "summary": "Person detected at front door during evening hours"
-         *     }
-         */
-        PromptTestResultBefore: {
-            /**
-             * Risk Level
-             * @description Risk level (low, medium, high, critical)
-             */
-            risk_level: string;
-            /**
-             * Score
-             * @description Risk score from original prompt
-             */
-            score: number;
-            /**
-             * Summary
-             * @description Summary from original analysis
-             */
-            summary: string;
+            test_duration_ms: number;
         };
         /**
          * PromptUpdateRequest
          * @description Request to update a model's prompt configuration.
+         *
+         *     Supports optimistic locking via expected_version field to prevent
+         *     race conditions when multiple clients update simultaneously.
          * @example {
+         *       "change_description": "Increased temperature for more creative responses",
          *       "config": {
          *         "max_tokens": 2048,
-         *         "system_prompt": "Updated system prompt with new context...",
+         *         "system_prompt": "You are a home security AI assistant with enhanced context awareness...",
          *         "temperature": 0.8
          *       },
-         *       "description": "Added weather context to improve analysis"
+         *       "expected_version": 3
          *     }
          */
         PromptUpdateRequest: {
+            /**
+             * Change Description
+             * @description Optional description of what changed
+             */
+            change_description?: string | null;
             /**
              * Config
              * @description New configuration for the model
@@ -17147,36 +16862,253 @@ export interface components {
                 [key: string]: unknown;
             };
             /**
-             * Description
-             * @description Description of the changes
+             * Expected Version
+             * @description Expected current version for optimistic locking. If provided, the update will fail with 409 Conflict if the current version doesn't match, indicating someone else updated the config concurrently.
              */
-            description?: string | null;
+            expected_version?: number | null;
         };
         /**
-         * PromptUpdateResponse
-         * @description Response after updating a model's prompt.
+         * PromptVersionInfo
+         * @description Information about a single prompt version.
          * @example {
-         *       "config": {
-         *         "max_tokens": 2048,
-         *         "system_prompt": "Updated system prompt...",
-         *         "temperature": 0.8
-         *       },
-         *       "message": "Prompt configuration updated successfully",
-         *       "model_name": "nemotron",
-         *       "version": 4
+         *       "change_description": "Added weather context to prompt",
+         *       "created_at": "2026-01-03T10:30:00Z",
+         *       "created_by": "admin",
+         *       "id": 15,
+         *       "is_active": true,
+         *       "model": "nemotron",
+         *       "version": 3
          *     }
          */
-        PromptUpdateResponse: {
-            /** Config */
-            config: {
-                [key: string]: unknown;
-            };
-            /** Message */
-            message: string;
-            /** Model Name */
-            model_name: string;
+        PromptVersionInfo: {
+            /** Change Description */
+            change_description: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Created By */
+            created_by: string | null;
+            /** Id */
+            id: number;
+            /** Is Active */
+            is_active: boolean;
+            model: components["schemas"]["AIModelEnum"];
             /** Version */
             version: number;
+        };
+        /**
+         * PromptsExportResponse
+         * @description Export of all prompt configurations.
+         * @example {
+         *       "exported_at": "2026-01-03T10:30:00Z",
+         *       "prompts": {
+         *         "florence2": {
+         *           "vqa_queries": [
+         *             "What is this person wearing?"
+         *           ]
+         *         },
+         *         "nemotron": {
+         *           "max_tokens": 2048,
+         *           "system_prompt": "You are a home security AI assistant...",
+         *           "temperature": 0.7
+         *         },
+         *         "yolo_world": {
+         *           "confidence_threshold": 0.35,
+         *           "object_classes": [
+         *             "person",
+         *             "car",
+         *             "truck"
+         *           ]
+         *         }
+         *       },
+         *       "version": "1.0"
+         *     }
+         */
+        PromptsExportResponse: {
+            /**
+             * Exported At
+             * Format: date-time
+             */
+            exported_at: string;
+            /**
+             * Prompts
+             * @description All model configurations
+             */
+            prompts: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            };
+            /**
+             * Version
+             * @description Export format version
+             * @default 1.0
+             */
+            version: string;
+        };
+        /**
+         * PromptsImportPreviewRequest
+         * @description Request to preview prompt configuration import without applying.
+         * @example {
+         *       "prompts": {
+         *         "nemotron": {
+         *           "max_tokens": 2048,
+         *           "system_prompt": "You are a home security AI assistant...",
+         *           "temperature": 0.8
+         *         }
+         *       },
+         *       "version": "1.0"
+         *     }
+         */
+        PromptsImportPreviewRequest: {
+            /**
+             * Prompts
+             * @description Model configurations to preview
+             */
+            prompts: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            };
+            /**
+             * Version
+             * @description Import format version
+             * @default 1.0
+             */
+            version: string;
+        };
+        /**
+         * PromptsImportPreviewResponse
+         * @description Response with preview of import changes.
+         * @example {
+         *       "diffs": [
+         *         {
+         *           "changes": [
+         *             "temperature: 0.7 -> 0.8"
+         *           ],
+         *           "current_config": {
+         *             "system_prompt": "You are a home security AI...",
+         *             "temperature": 0.7
+         *           },
+         *           "current_version": 3,
+         *           "has_changes": true,
+         *           "imported_config": {
+         *             "system_prompt": "You are a home security AI...",
+         *             "temperature": 0.8
+         *           },
+         *           "model": "nemotron"
+         *         }
+         *       ],
+         *       "total_changes": 1,
+         *       "unknown_models": [],
+         *       "valid": true,
+         *       "validation_errors": [],
+         *       "version": "1.0"
+         *     }
+         */
+        PromptsImportPreviewResponse: {
+            /**
+             * Diffs
+             * @description Diff entries for each model
+             */
+            diffs?: components["schemas"]["PromptDiffEntry"][];
+            /**
+             * Total Changes
+             * @description Total number of models with changes
+             * @default 0
+             */
+            total_changes: number;
+            /**
+             * Unknown Models
+             * @description Models not recognized
+             */
+            unknown_models?: string[];
+            /**
+             * Valid
+             * @description Whether the import data is valid
+             */
+            valid: boolean;
+            /**
+             * Validation Errors
+             * @description List of validation errors
+             */
+            validation_errors?: string[];
+            /**
+             * Version
+             * @description Import format version
+             */
+            version: string;
+        };
+        /**
+         * PromptsImportRequest
+         * @description Request to import prompt configurations.
+         * @example {
+         *       "prompts": {
+         *         "florence2": {
+         *           "vqa_queries": [
+         *             "What is this person wearing?"
+         *           ]
+         *         },
+         *         "nemotron": {
+         *           "max_tokens": 2048,
+         *           "system_prompt": "You are a home security AI assistant...",
+         *           "temperature": 0.7
+         *         }
+         *       },
+         *       "version": "1.0"
+         *     }
+         */
+        PromptsImportRequest: {
+            /**
+             * Prompts
+             * @description Model configurations to import
+             */
+            prompts: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            };
+            /**
+             * Version
+             * @description Import format version
+             * @default 1.0
+             */
+            version: string;
+        };
+        /**
+         * PromptsImportResponse
+         * @description Response after importing prompt configurations.
+         * @example {
+         *       "imported_models": [
+         *         "nemotron",
+         *         "florence2"
+         *       ],
+         *       "message": "Successfully imported 2 prompt configurations, skipped 1",
+         *       "new_versions": {
+         *         "florence2": 2,
+         *         "nemotron": 4
+         *       },
+         *       "skipped_models": [
+         *         "yolo_world"
+         *       ]
+         *     }
+         */
+        PromptsImportResponse: {
+            /** Imported Models */
+            imported_models: string[];
+            /** Message */
+            message: string;
+            /**
+             * New Versions
+             * @description New version numbers for each imported model
+             */
+            new_versions: {
+                [key: string]: number;
+            };
+            /** Skipped Models */
+            skipped_models?: string[];
         };
         /**
          * QualityScores
@@ -20762,457 +20694,6 @@ export interface operations {
             };
         };
     };
-    get_prompt_config_api_ai_audit_prompt_config__model__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                model: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PromptConfigResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_prompt_config_api_ai_audit_prompt_config__model__put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                model: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PromptConfigRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PromptConfigResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_all_prompts_api_ai_audit_prompts_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AllPromptsResponse"];
-                };
-            };
-            /** @description Internal server error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    export_prompts_api_ai_audit_prompts_export_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PromptExportResponse"];
-                };
-            };
-            /** @description Internal server error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    get_all_prompts_history_api_ai_audit_prompts_history_get: {
-        parameters: {
-            query?: {
-                /** @description Max versions per model */
-                limit?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: components["schemas"]["PromptHistoryResponse"];
-                    };
-                };
-            };
-            /** @description Validation error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Internal server error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    get_model_history_api_ai_audit_prompts_history__model__get: {
-        parameters: {
-            query?: {
-                /** @description Max versions to return */
-                limit?: number;
-                /** @description Number of versions to skip */
-                offset?: number;
-            };
-            header?: never;
-            path: {
-                model: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PromptHistoryResponse"];
-                };
-            };
-            /** @description Model not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Internal server error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    restore_prompt_version_api_ai_audit_prompts_history__version__post: {
-        parameters: {
-            query: {
-                /** @description Model name to restore version for */
-                model: string;
-            };
-            header?: never;
-            path: {
-                version: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["PromptRestoreRequest"] | null;
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PromptRestoreResponse"];
-                };
-            };
-            /** @description Model or version not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Internal server error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    import_prompts_api_ai_audit_prompts_import_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PromptImportRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PromptImportResponse"];
-                };
-            };
-            /** @description Bad request - No prompts provided */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Internal server error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    test_prompt_api_ai_audit_prompts_test_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PromptTestRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PromptTestResponse"];
-                };
-            };
-            /** @description Bad request - Invalid configuration */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Model or event not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Internal server error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    get_model_prompt_api_ai_audit_prompts__model__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                model: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ModelPromptResponse"];
-                };
-            };
-            /** @description Model not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Internal server error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    update_model_prompt_api_ai_audit_prompts__model__put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                model: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PromptUpdateRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PromptUpdateResponse"];
-                };
-            };
-            /** @description Bad request - Invalid configuration */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Model not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Internal server error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
     get_recommendations_api_ai_audit_recommendations_get: {
         parameters: {
             query?: {
@@ -21282,72 +20763,6 @@ export interface operations {
             };
             /** @description Internal server error */
             500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    test_custom_prompt_api_ai_audit_test_prompt_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CustomTestPromptRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CustomTestPromptResponse"];
-                };
-            };
-            /** @description Bad request - Invalid or too long prompt */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Event not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Request timeout */
-            408: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Internal server error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description AI service unavailable */
-            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -27042,6 +26457,435 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    get_all_prompts_api_prompts_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AllPromptsResponse"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    export_prompts_api_prompts_export_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromptsExportResponse"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_prompt_history_api_prompts_history_get: {
+        parameters: {
+            query?: {
+                /** @description Filter by specific model */
+                model?: components["schemas"]["AIModelEnum"] | null;
+                /** @description Maximum results to return */
+                limit?: number;
+                /** @description Offset for pagination */
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromptHistoryResponse"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    restore_prompt_version_api_prompts_history__version_id__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                version_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromptRestoreResponse"];
+                };
+            };
+            /** @description Version not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    import_prompts_api_prompts_import_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PromptsImportRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromptsImportResponse"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    preview_import_prompts_api_prompts_import_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PromptsImportPreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromptsImportPreviewResponse"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    test_prompt_api_prompts_test_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PromptTestRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromptTestResult"];
+                };
+            };
+            /** @description Validation error - Invalid configuration */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Too many requests - Rate limit exceeded */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    test_custom_prompt_api_prompts_test_prompt_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomTestPromptRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomTestPromptResponse"];
+                };
+            };
+            /** @description Bad request - Invalid or too long prompt */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Event not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Request timeout */
+            408: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Too many requests - Rate limit exceeded */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description AI service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_prompt_for_model_api_prompts__model__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                model: components["schemas"]["AIModelEnum"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelPromptConfig"];
+                };
+            };
+            /** @description Model configuration not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    update_prompt_for_model_api_prompts__model__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                model: components["schemas"]["AIModelEnum"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PromptUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelPromptConfig"];
+                };
+            };
+            /** @description Model not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Conflict - Concurrent modification detected */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error - Invalid configuration */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

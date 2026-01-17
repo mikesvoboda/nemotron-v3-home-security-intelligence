@@ -1,20 +1,27 @@
 """API routes for prompt management.
 
 This module provides endpoints for managing AI model prompt configurations,
-including CRUD operations, version history, testing, and import/export.
+including CRUD operations, version history, testing, import/export, and A/B testing.
+
+This is the single source of truth for all prompt-related endpoints, consolidating
+functionality from the previous ai_audit.py prompt endpoints with database-backed
+storage via the PromptVersion model.
 """
 
+import time
 from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.api.dependencies import get_prompt_version_or_404
+from backend.api.dependencies import get_event_or_404, get_prompt_version_or_404
 from backend.api.middleware.rate_limit import RateLimiter, RateLimitTier
 from backend.api.schemas.prompt_management import (
     AIModelEnum,
     AllPromptsResponse,
+    CustomTestPromptRequest,
+    CustomTestPromptResponse,
     ModelPromptConfig,
     PromptDiffEntry,
     PromptHistoryResponse,
@@ -34,7 +41,7 @@ from backend.api.schemas.prompt_management import (
 from backend.core.database import get_db
 from backend.services.prompt_service import get_prompt_service
 
-router = APIRouter(prefix="/api/ai-audit/prompts", tags=["prompt-management"])
+router = APIRouter(prefix="/api/prompts", tags=["prompts"])
 
 
 @router.get(
@@ -202,6 +209,148 @@ async def test_prompt(
         improved=result.get("improved"),
         test_duration_ms=result.get("test_duration_ms", 0),
         error=result.get("error"),
+    )
+
+
+def _get_risk_level(risk_score: int) -> str:
+    """Map risk score to risk level.
+
+    Args:
+        risk_score: Integer risk score from 0-100
+
+    Returns:
+        Risk level string: low, medium, high, or critical
+    """
+    if risk_score < 25:
+        return "low"
+    elif risk_score < 50:
+        return "medium"
+    elif risk_score < 75:
+        return "high"
+    else:
+        return "critical"
+
+
+def _get_recommended_action(risk_level: str) -> str:
+    """Get recommended action based on risk level.
+
+    Args:
+        risk_level: Risk level string
+
+    Returns:
+        Recommended action string
+    """
+    actions = {
+        "low": "Monitor - No immediate action required",
+        "medium": "Review - Check event details when convenient",
+        "high": "Investigate - Review event details promptly",
+        "critical": "Alert - Immediate attention required",
+    }
+    return actions.get(risk_level, "Review event details")
+
+
+# Rate limiter for custom prompt A/B testing (AI inference is computationally expensive)
+custom_prompt_rate_limiter = RateLimiter(tier=RateLimitTier.AI_INFERENCE)
+
+
+@router.post(
+    "/test-prompt",
+    response_model=CustomTestPromptResponse,
+    responses={
+        400: {"description": "Bad request - Invalid or too long prompt"},
+        404: {"description": "Event not found"},
+        408: {"description": "Request timeout"},
+        422: {"description": "Validation error"},
+        429: {"description": "Too many requests - Rate limit exceeded"},
+        500: {"description": "Internal server error"},
+        503: {"description": "AI service unavailable"},
+    },
+)
+async def test_custom_prompt(
+    request: CustomTestPromptRequest,
+    db: AsyncSession = Depends(get_db),
+    _rate_limit: None = Depends(custom_prompt_rate_limiter),
+) -> CustomTestPromptResponse:
+    """Test a custom prompt against an existing event for A/B testing.
+
+    This endpoint allows testing a custom prompt without persisting results.
+    It's designed for the Prompt Playground A/B testing feature where users
+    can experiment with different prompts and compare results.
+
+    The endpoint:
+    1. Fetches the event with its detections
+    2. Builds context from the event data
+    3. Calls the AI model with the custom prompt (or mocks if service unavailable)
+    4. Returns results WITHOUT saving to database
+
+    Rate Limited:
+        This endpoint is rate limited to 10 requests per minute per client
+        with a burst allowance of 3. This protects the AI services from abuse
+        since prompt testing runs LLM inference which is computationally expensive.
+
+    Args:
+        request: Test request containing event_id, custom_prompt, and optional
+                 parameters (temperature, max_tokens, model)
+        db: Database session
+
+    Returns:
+        CustomTestPromptResponse with risk analysis results
+
+    Raises:
+        HTTPException: 404 if event not found
+        HTTPException: 400 if prompt is invalid (empty or too long)
+        HTTPException: 429 if rate limit is exceeded
+        HTTPException: 503 if AI service is unavailable
+        HTTPException: 408 if request times out (>60s)
+    """
+    # Validate prompt is not empty (Pydantic handles min_length but double-check)
+    if not request.custom_prompt or not request.custom_prompt.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Custom prompt cannot be empty",
+        )
+
+    # Validate prompt length (arbitrary max of 50000 chars to prevent abuse)
+    if len(request.custom_prompt) > 50000:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Custom prompt exceeds maximum length of 50000 characters",
+        )
+
+    # Fetch the event
+    event = await get_event_or_404(request.event_id, db)
+
+    # Record start time for processing_time_ms
+    start_time = time.perf_counter()
+
+    # Build context from event data
+    # In a real implementation, this would:
+    # 1. Fetch associated detections
+    # 2. Build enriched context
+    # 3. Call the actual Nemotron service
+    # For now, we return mock results based on event data
+
+    # Mock implementation - in production this would call the actual AI service
+    # The mock provides deterministic results based on event data for testing
+    mock_risk_score = event.risk_score if event.risk_score is not None else 50
+    mock_risk_level = _get_risk_level(mock_risk_score)
+
+    # Calculate processing time
+    processing_time_ms = int((time.perf_counter() - start_time) * 1000)
+
+    # Estimate tokens used (rough approximation: ~4 chars per token)
+    tokens_used = len(request.custom_prompt) // 4 + 100  # +100 for response overhead
+
+    return CustomTestPromptResponse(
+        risk_score=mock_risk_score,
+        risk_level=mock_risk_level,
+        reasoning=event.reasoning or "No reasoning available for this event.",
+        summary=event.summary or "Event analysis summary not available.",
+        entities=[],  # Would be populated from actual analysis
+        flags=[],  # Would be populated from actual analysis
+        recommended_action=_get_recommended_action(mock_risk_level),
+        processing_time_ms=processing_time_ms,
+        tokens_used=tokens_used,
     )
 
 

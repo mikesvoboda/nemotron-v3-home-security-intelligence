@@ -722,3 +722,111 @@ class PromptsImportPreviewResponse(BaseModel):
     )
     total_changes: int = Field(0, description="Total number of models with changes")
     unknown_models: list[str] = Field(default_factory=list, description="Models not recognized")
+
+
+# =============================================================================
+# Custom Prompt A/B Testing Schemas (migrated from ai_audit.py)
+# =============================================================================
+
+
+class CustomTestPromptRequest(BaseModel):
+    """Request to test a custom prompt against an existing event.
+
+    This is used for A/B testing in the Prompt Playground - testing a
+    modified prompt without persisting results to the database.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "event_id": 12345,
+                "custom_prompt": "You are a home security AI with enhanced context...",
+                "temperature": 0.7,
+                "max_tokens": 2048,
+                "model": "nemotron",
+            }
+        }
+    )
+
+    event_id: int = Field(..., ge=1, description="Event ID to test the prompt against")
+    custom_prompt: str = Field(..., min_length=1, description="Custom prompt text to test")
+    temperature: float = Field(
+        default=0.7,
+        ge=0.0,
+        le=2.0,
+        description="Temperature for LLM generation (0-2)",
+    )
+    max_tokens: int = Field(
+        default=2048,
+        ge=100,
+        le=8192,
+        description="Maximum tokens for LLM response (100-8192)",
+    )
+    model: str = Field(
+        default="nemotron",
+        description="Model to use for testing (default: nemotron)",
+    )
+
+
+class CustomTestPromptResponse(BaseModel):
+    """Response from testing a custom prompt against an event.
+
+    Results are NOT persisted - this is for A/B testing only.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "risk_score": 45,
+                "risk_level": "low",
+                "reasoning": "The detected person matches the expected delivery pattern based on time and approach direction.",
+                "summary": "Delivery person detected at front door during expected hours",
+                "entities": [{"type": "person", "confidence": 0.95}],
+                "flags": [],
+                "recommended_action": "No action required",
+                "processing_time_ms": 1250,
+                "tokens_used": 512,
+            }
+        }
+    )
+
+    risk_score: int = Field(
+        ...,
+        ge=0,
+        le=100,
+        description="Risk score from 0 (no risk) to 100 (critical)",
+    )
+    risk_level: str = Field(
+        ...,
+        description="Risk level: low, medium, high, or critical",
+    )
+    reasoning: str = Field(
+        ...,
+        description="Detailed reasoning for the risk assessment",
+    )
+    summary: str = Field(
+        ...,
+        description="Brief summary of the analysis",
+    )
+    entities: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="Entities detected in the analysis",
+    )
+    flags: list[str] = Field(
+        default_factory=list,
+        description="Any flags raised during analysis",
+    )
+    recommended_action: str = Field(
+        ...,
+        description="Recommended action based on risk level",
+    )
+    processing_time_ms: int = Field(
+        ...,
+        ge=0,
+        description="Processing time in milliseconds",
+    )
+    tokens_used: int = Field(
+        ...,
+        ge=0,
+        description="Estimated tokens used for the analysis",
+    )
