@@ -335,7 +335,6 @@ class TestEventModel:
             risk_level="high",
             summary="Multiple persons detected near entrance",
             reasoning="Detected 3 persons approaching the door at night",
-            detection_ids="1,2,3,4",
         )
         session.add(event)
         await session.flush()
@@ -344,7 +343,6 @@ class TestEventModel:
         assert event.risk_level == "high"
         assert event.summary == "Multiple persons detected near entrance"
         assert "3 persons" in event.reasoning
-        assert event.detection_ids == "1,2,3,4"
 
     @pytest.mark.asyncio
     async def test_event_camera_relationship(self, session):
@@ -618,7 +616,6 @@ class TestModelIntegration:
             risk_score=65,
             risk_level="medium",
             summary="Mixed activity detected",
-            detection_ids=",".join(detection_ids),
         )
         session.add(event)
         await session.flush()
