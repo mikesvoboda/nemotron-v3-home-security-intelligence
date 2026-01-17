@@ -627,6 +627,31 @@ export async function setupApiMocks(
     });
   });
 
+  // Detection Stats endpoint (used by Analytics page)
+  await page.route('**/api/detections/stats*', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        total_detections: 1234,
+        average_confidence: 0.85,
+        detection_counts_by_label: {
+          person: 500,
+          car: 300,
+          dog: 200,
+          cat: 150,
+          bird: 84,
+        },
+        detection_counts_by_camera: {
+          'cam-1': 400,
+          'cam-2': 350,
+          'cam-4': 300,
+          'cam-3': 184,
+        },
+      }),
+    });
+  });
+
   // Event Detections endpoint (BEFORE /api/events)
   // Returns detections for a specific event - used by EventDetailModal
   await page.route('**/api/events/*/detections*', async (route) => {
