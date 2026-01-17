@@ -105,7 +105,6 @@ async def sample_event_for_audit(integration_db: str, sample_camera_for_audit: C
             risk_level="medium",
             summary="Person detected near front entrance",
             reasoning="A person was detected approaching the front door during daylight hours.",
-            detection_ids=json.dumps([1, 2, 3]),
             reviewed=False,
         )
         db.add(event)

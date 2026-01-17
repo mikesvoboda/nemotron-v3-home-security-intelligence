@@ -366,7 +366,6 @@ async def sample_event(integration_db, sample_camera):
             risk_level="high",
             summary="Person detected at front door",
             reasoning="A person was detected approaching the front door at night.",
-            detection_ids=json.dumps([1, 2, 3]),
         )
         db.add(event)
         await db.commit()

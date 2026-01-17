@@ -29,7 +29,6 @@ NOTE: Integration tests run serially via -n0 flag (see pyproject.toml and CI con
 
 from __future__ import annotations
 
-import json
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -176,7 +175,6 @@ async def test_event_with_detections(isolated_db_session, test_camera, test_dete
         started_at=_utcnow(),
         risk_score=75,
         risk_level="high",
-        detection_ids=json.dumps(detection_ids),  # Legacy column for compatibility
     )
     isolated_db_session.add(event)
     await isolated_db_session.flush()
@@ -1372,14 +1370,12 @@ class TestBatchLoadDetections:
             camera_id=test_camera.id,
             started_at=_utcnow(),
             risk_score=50,
-            detection_ids=json.dumps(event1_detections),
         )
         event2 = Event(
             batch_id=unique_id("batch"),
             camera_id=test_camera.id,
             started_at=_utcnow(),
             risk_score=60,
-            detection_ids=json.dumps(event2_detections),
         )
         isolated_db_session.add(event1)
         isolated_db_session.add(event2)

@@ -34,6 +34,38 @@ from backend.models.detection import Detection
 from backend.models.event import Event
 
 
+def create_mock_db_with_id_assignment() -> AsyncMock:
+    """Create a mock database session that properly assigns IDs on flush.
+
+    The seed_events endpoint relies on flush() to populate IDs for Detection
+    and Event objects before linking them via the junction table. This helper
+    creates a mock that simulates this behavior by assigning auto-incrementing
+    IDs to objects that were added via add().
+    """
+    mock_db = AsyncMock()
+
+    # Track added objects for ID assignment on flush
+    added_objects: list = []
+    id_counter = {"value": 1}
+
+    def mock_add(obj):
+        added_objects.append(obj)
+
+    async def mock_flush():
+        # Assign IDs to objects that don't have them yet
+        for obj in added_objects:
+            if hasattr(obj, "id") and obj.id is None:
+                obj.id = id_counter["value"]
+                id_counter["value"] += 1
+
+    mock_db.add = MagicMock(side_effect=mock_add)
+    mock_db.commit = AsyncMock()
+    mock_db.flush = AsyncMock(side_effect=mock_flush)
+    mock_db.execute = AsyncMock()
+
+    return mock_db
+
+
 class TestAdminSecurityControls:
     """Tests for admin endpoint security controls.
 
@@ -445,10 +477,7 @@ class TestSeedEventsEndpoint:
         """Verify seed events creates the specified number of events."""
         from backend.api.routes.admin import seed_events
 
-        mock_db = AsyncMock()
-        mock_db.add = MagicMock()
-        mock_db.commit = AsyncMock()
-        mock_db.flush = AsyncMock()
+        mock_db = create_mock_db_with_id_assignment()
 
         request = SeedEventsRequest(count=5, clear_existing=False)
 
@@ -503,10 +532,7 @@ class TestSeedEventsEndpoint:
         """Verify seed events clears existing events and detections when clear_existing=True."""
         from backend.api.routes.admin import seed_events
 
-        mock_db = AsyncMock()
-        mock_db.add = MagicMock()
-        mock_db.commit = AsyncMock()
-        mock_db.flush = AsyncMock()
+        mock_db = create_mock_db_with_id_assignment()
 
         request = SeedEventsRequest(count=2, clear_existing=True)
 
@@ -565,10 +591,7 @@ class TestSeedEventsEndpoint:
         """Verify seed events generates events with proper risk distribution (50% low, 35% medium, 15% high)."""
         from backend.api.routes.admin import seed_events
 
-        mock_db = AsyncMock()
-        mock_db.add = MagicMock()
-        mock_db.commit = AsyncMock()
-        mock_db.flush = AsyncMock()
+        mock_db = create_mock_db_with_id_assignment()
 
         request = SeedEventsRequest(count=10, clear_existing=False)
 
@@ -584,12 +607,22 @@ class TestSeedEventsEndpoint:
         mock_db.execute.return_value = mock_camera_result
 
         risk_levels = []
+        added_objects: list = []
+        id_counter = {"value": 1}
 
         def mock_add(obj):
+            added_objects.append(obj)
             if isinstance(obj, Event):
                 risk_levels.append(obj.risk_level)
 
+        async def mock_flush():
+            for obj in added_objects:
+                if hasattr(obj, "id") and obj.id is None:
+                    obj.id = id_counter["value"]
+                    id_counter["value"] += 1
+
         mock_db.add.side_effect = mock_add
+        mock_db.flush = AsyncMock(side_effect=mock_flush)
 
         with patch("backend.api.routes.admin.random") as mock_random:
             mock_random.choice.return_value = mock_camera
@@ -621,10 +654,7 @@ class TestSeedEventsEndpoint:
         """Verify seed events creates 1-5 detections for each event."""
         from backend.api.routes.admin import seed_events
 
-        mock_db = AsyncMock()
-        mock_db.add = MagicMock()
-        mock_db.commit = AsyncMock()
-        mock_db.flush = AsyncMock()
+        mock_db = create_mock_db_with_id_assignment()
 
         request = SeedEventsRequest(count=3, clear_existing=False)
 
@@ -641,12 +671,22 @@ class TestSeedEventsEndpoint:
 
         # Mock detection to track created detections
         created_detections = []
+        added_objects: list = []
+        id_counter = {"value": 1}
 
         def mock_add(obj):
+            added_objects.append(obj)
             if isinstance(obj, Detection):
                 created_detections.append(obj)
 
+        async def mock_flush():
+            for obj in added_objects:
+                if hasattr(obj, "id") and obj.id is None:
+                    obj.id = id_counter["value"]
+                    id_counter["value"] += 1
+
         mock_db.add.side_effect = mock_add
+        mock_db.flush = AsyncMock(side_effect=mock_flush)
 
         # Track randint calls to return 3 for first 3 event counts, then various for detection generation
         randint_calls = []

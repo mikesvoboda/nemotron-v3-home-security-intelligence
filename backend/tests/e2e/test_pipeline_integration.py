@@ -782,6 +782,8 @@ async def test_pipeline_event_relationships(
 
     # Create event manually
     async with get_session() as session:
+        from backend.models.event_detection import EventDetection
+
         event = Event(
             batch_id="test_batch_rel",
             camera_id=camera_id,
@@ -790,10 +792,16 @@ async def test_pipeline_event_relationships(
             risk_score=60,
             risk_level="medium",
             summary="Test event for relationship validation",
-            detection_ids=json.dumps([d.id for d in detections]),
             reviewed=False,
         )
         session.add(event)
+        await session.flush()
+
+        # Link detections via junction table (NEM-1592)
+        for detection in detections:
+            junction = EventDetection(event_id=event.id, detection_id=detection.id)
+            session.add(junction)
+
         await session.commit()
         await session.refresh(event)
 
@@ -808,8 +816,9 @@ async def test_pipeline_event_relationships(
         test_event = next(e for e in camera.events if e.batch_id == "test_batch_rel")
         assert test_event.camera_id == camera_id
 
-        # Verify detection IDs
-        stored_ids = json.loads(test_event.detection_ids)
+        # Verify detection IDs via junction table relationship
+        await session.refresh(test_event, ["detections"])
+        stored_ids = [d.id for d in test_event.detections]
         assert len(stored_ids) == 3
         assert all(d.id in stored_ids for d in detections)
 

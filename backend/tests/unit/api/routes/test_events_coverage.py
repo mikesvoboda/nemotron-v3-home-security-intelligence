@@ -218,7 +218,7 @@ class TestListEventsFilters:
                 summary=f"Event {i}",
                 reasoning=f"Reasoning {i}",
                 reviewed=False,
-                detection_ids=f"[{i}]",
+                detection_id_list=[i],
                 detections=[],
             )
             for i in range(51)  # One more than default limit of 50
@@ -253,7 +253,7 @@ class TestListEventsFilters:
                 summary=f"Event {i}",
                 reasoning=f"Reasoning {i}",
                 reviewed=False,
-                detection_ids=f"[{i}]",
+                detection_id_list=[i],
                 detections=[],
             )
             for i in range(51)
@@ -299,7 +299,7 @@ class TestListDeletedEvents:
                 llm_prompt="Test prompt",
                 reviewed=False,
                 notes=None,
-                detection_ids="[1, 2]",
+                detection_id_list=[1, 2],
                 detections=[],
                 deleted_at=deleted_time,
             )
