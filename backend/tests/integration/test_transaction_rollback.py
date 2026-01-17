@@ -497,6 +497,8 @@ class TestBatchTransactionBoundaries:
             result = await session.execute(select(Event).where(Event.batch_id == batch_id))
             saved_event = result.scalar_one()
             assert saved_event is not None
+            # Refresh detections relationship to avoid lazy load issues in async context
+            await session.refresh(saved_event, ["detections"])
             saved_detection_ids = saved_event.detection_id_list
             assert len(saved_detection_ids) == 5
 

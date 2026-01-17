@@ -28,6 +28,7 @@ from sqlalchemy import select
 from backend.core.database import get_session
 from backend.core.redis import QueueAddResult, QueueOverflowPolicy
 from backend.models import Camera, Detection, Event
+from backend.models.event_detection import EventDetection
 from backend.services.batch_aggregator import BatchAggregator
 from backend.services.detector_client import DetectorClient, DetectorUnavailableError
 from backend.services.file_watcher import FileWatcher
@@ -659,8 +660,13 @@ async def test_full_pipeline_multiple_images_same_camera(
         assert event.risk_score == 65
         assert event.risk_level == "medium"
 
-        # Verify detection_ids in event
-        stored_detection_ids = event.detection_id_list
+        # Verify detection IDs via junction table (query within session to avoid DetachedInstanceError)
+        async with get_session() as session:
+            result = await session.execute(
+                select(EventDetection.detection_id).where(EventDetection.event_id == event.id)
+            )
+            stored_detection_ids = [row[0] for row in result.fetchall()]
+
         assert len(stored_detection_ids) == 3
         for det_id in detection_ids:
             assert det_id in stored_detection_ids

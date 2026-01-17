@@ -17,6 +17,7 @@ from sqlalchemy import select
 from backend.models.camera import Camera
 from backend.models.detection import Detection
 from backend.models.event import Event
+from backend.models.event_detection import EventDetection
 from backend.services.nemotron_analyzer import NemotronAnalyzer
 from backend.tests.conftest import unique_id
 
@@ -563,8 +564,15 @@ async def test_analyze_detection_fast_path_detection_ids_format(
 
         event = await analyzer.analyze_detection_fast_path(camera_id, detection_id)
 
-    # Verify detection_id_list contains single integer from junction table
-    stored_detection_ids = event.detection_id_list
+    # Verify detection IDs via junction table (query within session to avoid DetachedInstanceError)
+    from backend.core.database import get_session
+
+    async with get_session() as session:
+        result = await session.execute(
+            select(EventDetection.detection_id).where(EventDetection.event_id == event.id)
+        )
+        stored_detection_ids = [row[0] for row in result.fetchall()]
+
     assert isinstance(stored_detection_ids, list)
     assert len(stored_detection_ids) == 1
     assert stored_detection_ids[0] == det_id
@@ -719,8 +727,13 @@ async def test_analyze_batch_string_detection_ids_converted_to_int(
     assert event.batch_id == batch_id
     assert event.risk_score == 65
 
-    # Verify detection_ids are stored as integers via junction table
-    stored_ids = event.detection_id_list
+    # Verify detection IDs via junction table (query within session to avoid DetachedInstanceError)
+    async with get_session() as session:
+        result = await session.execute(
+            select(EventDetection.detection_id).where(EventDetection.event_id == event.id)
+        )
+        stored_ids = [row[0] for row in result.fetchall()]
+
     assert sorted(stored_ids) == [base_det_id, base_det_id + 1, base_det_id + 2]
     assert all(isinstance(d, int) for d in stored_ids)
 
@@ -838,8 +851,13 @@ async def test_analyze_batch_mixed_int_and_string_detection_ids(
     assert event is not None
     assert event.risk_score == 55
 
-    # Verify all detection_ids are stored as integers via junction table
-    stored_ids = event.detection_id_list
+    # Verify detection IDs via junction table (query within session to avoid DetachedInstanceError)
+    async with get_session() as session:
+        result = await session.execute(
+            select(EventDetection.detection_id).where(EventDetection.event_id == event.id)
+        )
+        stored_ids = [row[0] for row in result.fetchall()]
+
     assert sorted(stored_ids) == [base_det_id, base_det_id + 1, base_det_id + 2]
     assert all(isinstance(d, int) for d in stored_ids)
 
@@ -908,6 +926,11 @@ async def test_analyze_batch_with_direct_detection_ids_parameter(
     assert event.camera_id == camera_id
     assert event.risk_score == 70
 
-    # Verify stored IDs are integers via junction table
-    stored_ids = event.detection_id_list
+    # Verify detection IDs via junction table (query within session to avoid DetachedInstanceError)
+    async with get_session() as session:
+        result = await session.execute(
+            select(EventDetection.detection_id).where(EventDetection.event_id == event.id)
+        )
+        stored_ids = [row[0] for row in result.fetchall()]
+
     assert sorted(stored_ids) == [base_det_id, base_det_id + 1]

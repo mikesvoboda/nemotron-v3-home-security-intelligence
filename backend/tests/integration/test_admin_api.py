@@ -463,6 +463,7 @@ async def test_seed_events_creates_detections(debug_client, clean_seed_data):
 
         # Verify events have linked detections via junction table
         for event in events:
+            await session.refresh(event, ["detections"])
             assert len(event.detection_id_list) > 0
 
 
