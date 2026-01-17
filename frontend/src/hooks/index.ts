@@ -380,3 +380,20 @@ export type {
   UseJobsSearchQueryOptions,
   UseJobsSearchQueryReturn,
 } from './useJobsSearchQuery';
+
+// Prompt management hooks (NEM-2697)
+export {
+  usePromptConfig,
+  usePromptHistory,
+  useUpdatePromptConfig,
+  useRestorePromptVersion,
+} from './usePromptQueries';
+export type {
+  UsePromptConfigOptions,
+  UsePromptConfigReturn,
+  UsePromptHistoryOptions,
+  UsePromptHistoryReturn,
+  UpdatePromptConfigVariables,
+  UseUpdatePromptConfigReturn,
+  UseRestorePromptVersionReturn,
+} from './usePromptQueries';

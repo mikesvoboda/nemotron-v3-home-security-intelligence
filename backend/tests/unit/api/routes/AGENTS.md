@@ -30,24 +30,25 @@ backend/tests/unit/api/routes/
 
 ## Test Files (17 files)
 
-| File                         | Tests For                             | Endpoints                   |
-| ---------------------------- | ------------------------------------- | --------------------------- |
-| `test_ai_audit_prompts.py`   | AI audit prompt management            | `/api/ai-audit/prompts/*`   |
-| `test_ai_audit.py`           | AI audit operations                   | `/api/ai-audit/*`           |
-| `test_cameras_baseline.py`   | Camera baseline calculations          | `/api/cameras/*/baseline`   |
-| `test_detections_api.py`     | Detection listing and filtering       | `/api/detections/*`         |
-| `test_dlq_api.py`            | Dead letter queue management          | `/api/dlq/*`                |
-| `test_enrichment.py`         | Enrichment data retrieval             | `/api/enrichment/*`         |
-| `test_enrichment_storage.py` | Enrichment data storage               | `/api/enrichment/storage/*` |
-| `test_entities.py`           | Entity management                     | `/api/entities/*`           |
-| `test_event_clips.py`        | Event video clip generation           | `/api/events/*/clips`       |
-| `test_events_api.py`         | Event CRUD and filtering              | `/api/events/*`             |
-| `test_events_export.py`      | Event export (CSV, JSON)              | `/api/events/export`        |
-| `test_metrics.py`            | Metrics endpoints                     | `/api/metrics/*`            |
-| `test_prompt_management.py`  | Prompt management (empty/placeholder) | `/api/prompts/*`            |
-| `test_scene_changes.py`      | Scene change detection                | `/api/scene-changes/*`      |
-| `test_system_models.py`      | System model information              | `/api/system/models/*`      |
-| `test_telemetry_api.py`      | Telemetry data collection             | `/api/telemetry/*`          |
+| File                         | Tests For                        | Endpoints                   |
+| ---------------------------- | -------------------------------- | --------------------------- |
+| `test_ai_audit_prompts.py`   | Prompt management schemas        | Schema tests only           |
+| `test_ai_audit.py`           | AI audit operations              | `/api/ai-audit/*`           |
+| `test_cameras_baseline.py`   | Camera baseline calculations     | `/api/cameras/*/baseline`   |
+| `test_detections_api.py`     | Detection listing and filtering  | `/api/detections/*`         |
+| `test_dlq_api.py`            | Dead letter queue management     | `/api/dlq/*`                |
+| `test_enrichment.py`         | Enrichment data retrieval        | `/api/enrichment/*`         |
+| `test_enrichment_storage.py` | Enrichment data storage          | `/api/enrichment/storage/*` |
+| `test_entities.py`           | Entity management                | `/api/entities/*`           |
+| `test_event_clips.py`        | Event video clip generation      | `/api/events/*/clips`       |
+| `test_events_api.py`         | Event CRUD and filtering         | `/api/events/*`             |
+| `test_events_export.py`      | Event export (CSV, JSON)         | `/api/events/export`        |
+| `test_metrics.py`            | Metrics endpoints                | `/api/metrics/*`            |
+| `test_prompt_management.py`  | Prompt management (consolidated) | `/api/prompts/*`            |
+| `test_prompt_concurrency.py` | Prompt update concurrency        | `/api/prompts/*`            |
+| `test_scene_changes.py`      | Scene change detection           | `/api/scene-changes/*`      |
+| `test_system_models.py`      | System model information         | `/api/system/models/*`      |
+| `test_telemetry_api.py`      | Telemetry data collection        | `/api/telemetry/*`          |
 
 ## Running Tests
 

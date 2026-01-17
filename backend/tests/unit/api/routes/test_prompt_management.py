@@ -1,15 +1,15 @@
 """Unit tests for prompt_management API routes.
 
 Tests cover:
-- GET /api/ai-audit/prompts - Get all prompts
-- GET /api/ai-audit/prompts/export - Export all prompts
-- GET /api/ai-audit/prompts/history - Get version history
-- GET /api/ai-audit/prompts/{model} - Get prompt for specific model
-- PUT /api/ai-audit/prompts/{model} - Update prompt for model
-- POST /api/ai-audit/prompts/test - Test a prompt configuration (with rate limiting)
-- POST /api/ai-audit/prompts/import - Import prompt configurations
-- POST /api/ai-audit/prompts/import/preview - Preview import changes
-- POST /api/ai-audit/prompts/history/{version_id} - Restore a version
+- GET /api/prompts - Get all prompts
+- GET /api/prompts/export - Export all prompts
+- GET /api/prompts/history - Get version history
+- GET /api/prompts/{model} - Get prompt for specific model
+- PUT /api/prompts/{model} - Update prompt for model
+- POST /api/prompts/test - Test a prompt configuration (with rate limiting)
+- POST /api/prompts/import - Import prompt configurations
+- POST /api/prompts/import/preview - Preview import changes
+- POST /api/prompts/history/{version_id} - Restore a version
 """
 
 import json
@@ -131,7 +131,7 @@ def client(mock_db_session: MagicMock, mock_prompt_service: MagicMock) -> TestCl
 
 
 class TestGetAllPromptsEndpoint:
-    """Tests for GET /api/ai-audit/prompts endpoint."""
+    """Tests for GET /api/prompts endpoint."""
 
     def test_get_all_prompts_success(
         self,
@@ -147,7 +147,7 @@ class TestGetAllPromptsEndpoint:
             "fashion_clip": {"clothing_categories": ["hoodie"]},
         }
 
-        response = client.get("/api/ai-audit/prompts")
+        response = client.get("/api/prompts")
 
         assert response.status_code == 200
         data = response.json()
@@ -166,7 +166,7 @@ class TestGetAllPromptsEndpoint:
         """Test retrieval when no prompts are configured."""
         mock_prompt_service.get_all_prompts.return_value = {}
 
-        response = client.get("/api/ai-audit/prompts")
+        response = client.get("/api/prompts")
 
         assert response.status_code == 200
         data = response.json()
@@ -174,7 +174,7 @@ class TestGetAllPromptsEndpoint:
 
 
 class TestExportPromptsEndpoint:
-    """Tests for GET /api/ai-audit/prompts/export endpoint."""
+    """Tests for GET /api/prompts/export endpoint."""
 
     def test_export_prompts_success(
         self,
@@ -191,7 +191,7 @@ class TestExportPromptsEndpoint:
             },
         }
 
-        response = client.get("/api/ai-audit/prompts/export")
+        response = client.get("/api/prompts/export")
 
         assert response.status_code == 200
         data = response.json()
@@ -213,13 +213,13 @@ class TestExportPromptsEndpoint:
             "prompts": {"nemotron": {"system_prompt": "test"}},
         }
 
-        response = client.get("/api/ai-audit/prompts/export")
+        response = client.get("/api/prompts/export")
 
         assert response.status_code == 200
 
 
 class TestGetPromptHistoryEndpoint:
-    """Tests for GET /api/ai-audit/prompts/history endpoint."""
+    """Tests for GET /api/prompts/history endpoint."""
 
     def test_get_history_success(
         self,
@@ -233,7 +233,7 @@ class TestGetPromptHistoryEndpoint:
         ]
         mock_prompt_service.get_version_history.return_value = (mock_versions, 2)
 
-        response = client.get("/api/ai-audit/prompts/history")
+        response = client.get("/api/prompts/history")
 
         assert response.status_code == 200
         data = response.json()
@@ -252,7 +252,7 @@ class TestGetPromptHistoryEndpoint:
         mock_versions = [create_mock_prompt_version(model="florence2")]
         mock_prompt_service.get_version_history.return_value = (mock_versions, 1)
 
-        response = client.get("/api/ai-audit/prompts/history?model=florence2")
+        response = client.get("/api/prompts/history?model=florence2")
 
         assert response.status_code == 200
         data = response.json()
@@ -269,7 +269,7 @@ class TestGetPromptHistoryEndpoint:
         """Test history with pagination parameters."""
         mock_prompt_service.get_version_history.return_value = ([], 100)
 
-        response = client.get("/api/ai-audit/prompts/history?limit=10&offset=20")
+        response = client.get("/api/prompts/history?limit=10&offset=20")
 
         assert response.status_code == 200
         call_args = mock_prompt_service.get_version_history.call_args
@@ -284,7 +284,7 @@ class TestGetPromptHistoryEndpoint:
         """Test history when no versions exist."""
         mock_prompt_service.get_version_history.return_value = ([], 0)
 
-        response = client.get("/api/ai-audit/prompts/history")
+        response = client.get("/api/prompts/history")
 
         assert response.status_code == 200
         data = response.json()
@@ -296,10 +296,10 @@ class TestGetPromptHistoryEndpoint:
         client: TestClient,
     ) -> None:
         """Test validation error for invalid limit parameter."""
-        response = client.get("/api/ai-audit/prompts/history?limit=0")
+        response = client.get("/api/prompts/history?limit=0")
         assert response.status_code == 422
 
-        response = client.get("/api/ai-audit/prompts/history?limit=101")
+        response = client.get("/api/prompts/history?limit=101")
         assert response.status_code == 422
 
     def test_get_history_invalid_offset(
@@ -307,7 +307,7 @@ class TestGetPromptHistoryEndpoint:
         client: TestClient,
     ) -> None:
         """Test validation error for invalid offset parameter."""
-        response = client.get("/api/ai-audit/prompts/history?offset=-1")
+        response = client.get("/api/prompts/history?offset=-1")
         assert response.status_code == 422
 
     def test_get_history_invalid_model(
@@ -315,7 +315,7 @@ class TestGetPromptHistoryEndpoint:
         client: TestClient,
     ) -> None:
         """Test validation error for invalid model parameter."""
-        response = client.get("/api/ai-audit/prompts/history?model=invalid_model")
+        response = client.get("/api/prompts/history?model=invalid_model")
         assert response.status_code == 422
 
     def test_get_history_returns_versions_in_descending_order(
@@ -338,7 +338,7 @@ class TestGetPromptHistoryEndpoint:
 
         mock_prompt_service.get_version_history.return_value = (mock_versions, 5)
 
-        response = client.get("/api/ai-audit/prompts/history")
+        response = client.get("/api/prompts/history")
 
         assert response.status_code == 200
         data = response.json()
@@ -371,7 +371,7 @@ class TestGetPromptHistoryEndpoint:
 
         mock_prompt_service.get_version_history.return_value = (first_page_versions, 10)
 
-        response1 = client.get("/api/ai-audit/prompts/history?limit=3&offset=0")
+        response1 = client.get("/api/prompts/history?limit=3&offset=0")
         assert response1.status_code == 200
         data1 = response1.json()
 
@@ -393,7 +393,7 @@ class TestGetPromptHistoryEndpoint:
 
         mock_prompt_service.get_version_history.return_value = (second_page_versions, 10)
 
-        response2 = client.get("/api/ai-audit/prompts/history?limit=3&offset=3")
+        response2 = client.get("/api/prompts/history?limit=3&offset=3")
         assert response2.status_code == 200
         data2 = response2.json()
 
@@ -432,7 +432,7 @@ class TestGetPromptHistoryEndpoint:
 
         mock_prompt_service.get_version_history.return_value = (mock_versions, 3)
 
-        response = client.get("/api/ai-audit/prompts/history")
+        response = client.get("/api/prompts/history")
 
         assert response.status_code == 200
         data = response.json()
@@ -465,7 +465,7 @@ class TestGetPromptHistoryEndpoint:
 
         mock_prompt_service.get_version_history.return_value = (mock_versions, 3)
 
-        response = client.get("/api/ai-audit/prompts/history?model=florence2")
+        response = client.get("/api/prompts/history?model=florence2")
 
         assert response.status_code == 200
         data = response.json()
@@ -484,7 +484,7 @@ class TestGetPromptHistoryEndpoint:
 
 
 class TestGetPromptForModelEndpoint:
-    """Tests for GET /api/ai-audit/prompts/{model} endpoint."""
+    """Tests for GET /api/prompts/{model} endpoint."""
 
     def test_get_prompt_success(
         self,
@@ -497,7 +497,7 @@ class TestGetPromptForModelEndpoint:
             "version": 3,
         }
 
-        response = client.get("/api/ai-audit/prompts/nemotron")
+        response = client.get("/api/prompts/nemotron")
 
         assert response.status_code == 200
         data = response.json()
@@ -516,7 +516,7 @@ class TestGetPromptForModelEndpoint:
             "version": 1,
         }
 
-        response = client.get("/api/ai-audit/prompts/florence2")
+        response = client.get("/api/prompts/florence2")
 
         assert response.status_code == 200
         data = response.json()
@@ -535,7 +535,7 @@ class TestGetPromptForModelEndpoint:
             "version": 2,
         }
 
-        response = client.get("/api/ai-audit/prompts/yolo_world")
+        response = client.get("/api/prompts/yolo_world")
 
         assert response.status_code == 200
         data = response.json()
@@ -550,7 +550,7 @@ class TestGetPromptForModelEndpoint:
         """Test 404 when model has no configuration."""
         mock_prompt_service.get_prompt_for_model.return_value = None
 
-        response = client.get("/api/ai-audit/prompts/nemotron")
+        response = client.get("/api/prompts/nemotron")
 
         assert response.status_code == 404
         assert "No configuration found" in response.json()["detail"]
@@ -560,13 +560,13 @@ class TestGetPromptForModelEndpoint:
         client: TestClient,
     ) -> None:
         """Test validation error for invalid model."""
-        response = client.get("/api/ai-audit/prompts/invalid_model")
+        response = client.get("/api/prompts/invalid_model")
 
         assert response.status_code == 422
 
 
 class TestUpdatePromptForModelEndpoint:
-    """Tests for PUT /api/ai-audit/prompts/{model} endpoint."""
+    """Tests for PUT /api/prompts/{model} endpoint."""
 
     def test_update_prompt_success(
         self,
@@ -583,7 +583,7 @@ class TestUpdatePromptForModelEndpoint:
         mock_prompt_service.update_prompt_for_model.return_value = mock_version
 
         response = client.put(
-            "/api/ai-audit/prompts/nemotron",
+            "/api/prompts/nemotron",
             json={
                 "config": {"system_prompt": "updated prompt"},
                 "change_description": "Updated system prompt",
@@ -606,7 +606,7 @@ class TestUpdatePromptForModelEndpoint:
         mock_prompt_service.update_prompt_for_model.return_value = mock_version
 
         response = client.put(
-            "/api/ai-audit/prompts/nemotron",
+            "/api/prompts/nemotron",
             json={"config": {"system_prompt": "new prompt"}},
         )
 
@@ -618,7 +618,7 @@ class TestUpdatePromptForModelEndpoint:
     ) -> None:
         """Test validation error for empty config."""
         response = client.put(
-            "/api/ai-audit/prompts/nemotron",
+            "/api/prompts/nemotron",
             json={"config": {}},
         )
 
@@ -630,7 +630,7 @@ class TestUpdatePromptForModelEndpoint:
     ) -> None:
         """Test validation error for invalid model."""
         response = client.put(
-            "/api/ai-audit/prompts/invalid_model",
+            "/api/prompts/invalid_model",
             json={"config": {"key": "value"}},
         )
 
@@ -638,7 +638,7 @@ class TestUpdatePromptForModelEndpoint:
 
 
 class TestTestPromptEndpoint:
-    """Tests for POST /api/ai-audit/prompts/test endpoint."""
+    """Tests for POST /api/prompts/test endpoint."""
 
     def test_test_prompt_success(
         self,
@@ -657,7 +657,7 @@ class TestTestPromptEndpoint:
         }
 
         response = client.post(
-            "/api/ai-audit/prompts/test",
+            "/api/prompts/test",
             json={
                 "model": "nemotron",
                 "config": {"system_prompt": "test prompt"},
@@ -690,7 +690,7 @@ class TestTestPromptEndpoint:
         }
 
         response = client.post(
-            "/api/ai-audit/prompts/test",
+            "/api/prompts/test",
             json={
                 "model": "nemotron",
                 "config": {"system_prompt": "test"},
@@ -719,7 +719,7 @@ class TestTestPromptEndpoint:
         }
 
         response = client.post(
-            "/api/ai-audit/prompts/test",
+            "/api/prompts/test",
             json={
                 "model": "nemotron",
                 "config": {"system_prompt": "test"},
@@ -737,7 +737,7 @@ class TestTestPromptEndpoint:
     ) -> None:
         """Test validation error for invalid model."""
         response = client.post(
-            "/api/ai-audit/prompts/test",
+            "/api/prompts/test",
             json={
                 "model": "invalid_model",
                 "config": {"key": "value"},
@@ -748,7 +748,7 @@ class TestTestPromptEndpoint:
 
 
 class TestPromptTestRateLimiting:
-    """Tests for rate limiting on POST /api/ai-audit/prompts/test endpoint."""
+    """Tests for rate limiting on POST /api/prompts/test endpoint."""
 
     @pytest.fixture
     def mock_redis(self) -> MagicMock:
@@ -838,7 +838,7 @@ class TestPromptTestRateLimiting:
         mock_pipe.execute = AsyncMock(return_value=[0, 5, 1, True])
 
         response = client_with_rate_limit.post(
-            "/api/ai-audit/prompts/test",
+            "/api/prompts/test",
             json={
                 "model": "nemotron",
                 "config": {"system_prompt": "test prompt"},
@@ -862,7 +862,7 @@ class TestPromptTestRateLimiting:
         mock_pipe.execute = AsyncMock(return_value=[0, 15, 1, True])
 
         response = client_with_rate_limit.post(
-            "/api/ai-audit/prompts/test",
+            "/api/prompts/test",
             json={
                 "model": "nemotron",
                 "config": {"system_prompt": "test prompt"},
@@ -886,7 +886,7 @@ class TestPromptTestRateLimiting:
         mock_pipe.execute = AsyncMock(return_value=[0, 20, 1, True])
 
         response = client_with_rate_limit.post(
-            "/api/ai-audit/prompts/test",
+            "/api/prompts/test",
             json={
                 "model": "nemotron",
                 "config": {"system_prompt": "test"},
@@ -911,7 +911,7 @@ class TestPromptTestRateLimiting:
         mock_pipe.execute = AsyncMock(return_value=[0, 13, 1, True])
 
         response = client_with_rate_limit.post(
-            "/api/ai-audit/prompts/test",
+            "/api/prompts/test",
             json={
                 "model": "nemotron",
                 "config": {"system_prompt": "test"},
@@ -970,7 +970,7 @@ class TestPromptTestRateLimiting:
             get_settings.cache_clear()
 
             response = test_client.post(
-                "/api/ai-audit/prompts/test",
+                "/api/prompts/test",
                 json={
                     "model": "nemotron",
                     "config": {"system_prompt": "test"},
@@ -984,7 +984,7 @@ class TestPromptTestRateLimiting:
 
 
 class TestImportPromptsEndpoint:
-    """Tests for POST /api/ai-audit/prompts/import endpoint."""
+    """Tests for POST /api/prompts/import endpoint."""
 
     def test_import_prompts_success(
         self,
@@ -1000,7 +1000,7 @@ class TestImportPromptsEndpoint:
         }
 
         response = client.post(
-            "/api/ai-audit/prompts/import",
+            "/api/prompts/import",
             json={
                 "version": "1.0",
                 "prompts": {
@@ -1030,7 +1030,7 @@ class TestImportPromptsEndpoint:
         }
 
         response = client.post(
-            "/api/ai-audit/prompts/import",
+            "/api/prompts/import",
             json={
                 "version": "1.0",
                 "prompts": {
@@ -1050,7 +1050,7 @@ class TestImportPromptsEndpoint:
     ) -> None:
         """Test validation error for empty prompts."""
         response = client.post(
-            "/api/ai-audit/prompts/import",
+            "/api/prompts/import",
             json={"version": "1.0", "prompts": {}},
         )
 
@@ -1058,7 +1058,7 @@ class TestImportPromptsEndpoint:
 
 
 class TestImportPreviewEndpoint:
-    """Tests for POST /api/ai-audit/prompts/import/preview endpoint."""
+    """Tests for POST /api/prompts/import/preview endpoint."""
 
     def test_import_preview_success(
         self,
@@ -1072,7 +1072,7 @@ class TestImportPreviewEndpoint:
         }
 
         response = client.post(
-            "/api/ai-audit/prompts/import/preview",
+            "/api/prompts/import/preview",
             json={
                 "version": "1.0",
                 "prompts": {
@@ -1102,7 +1102,7 @@ class TestImportPreviewEndpoint:
         }
 
         response = client.post(
-            "/api/ai-audit/prompts/import/preview",
+            "/api/prompts/import/preview",
             json={
                 "version": "1.0",
                 "prompts": {
@@ -1126,7 +1126,7 @@ class TestImportPreviewEndpoint:
         mock_prompt_service.get_prompt_for_model.return_value = None
 
         response = client.post(
-            "/api/ai-audit/prompts/import/preview",
+            "/api/prompts/import/preview",
             json={
                 "version": "1.0",
                 "prompts": {
@@ -1149,7 +1149,7 @@ class TestImportPreviewEndpoint:
         mock_prompt_service.get_prompt_for_model.return_value = {}
 
         response = client.post(
-            "/api/ai-audit/prompts/import/preview",
+            "/api/prompts/import/preview",
             json={
                 "version": "1.0",
                 "prompts": {
@@ -1171,7 +1171,7 @@ class TestImportPreviewEndpoint:
         mock_prompt_service.get_prompt_for_model.return_value = {}
 
         response = client.post(
-            "/api/ai-audit/prompts/import/preview",
+            "/api/prompts/import/preview",
             json={
                 "version": "2.0",
                 "prompts": {
@@ -1191,7 +1191,7 @@ class TestImportPreviewEndpoint:
     ) -> None:
         """Test validation error for empty prompts."""
         response = client.post(
-            "/api/ai-audit/prompts/import/preview",
+            "/api/prompts/import/preview",
             json={"version": "1.0", "prompts": {}},
         )
 
@@ -1199,7 +1199,7 @@ class TestImportPreviewEndpoint:
 
 
 class TestRestoreVersionEndpoint:
-    """Tests for POST /api/ai-audit/prompts/history/{version_id} endpoint."""
+    """Tests for POST /api/prompts/history/{version_id} endpoint."""
 
     def test_restore_version_success(
         self,
@@ -1226,7 +1226,7 @@ class TestRestoreVersionEndpoint:
         mock_result.scalar_one_or_none.return_value = mock_original
         mock_db_session.execute.return_value = mock_result
 
-        response = client.post("/api/ai-audit/prompts/history/1")
+        response = client.post("/api/prompts/history/1")
 
         assert response.status_code == 200
         data = response.json()
@@ -1247,7 +1247,7 @@ class TestRestoreVersionEndpoint:
         mock_result.scalar_one_or_none.return_value = None
         mock_db_session.execute.return_value = mock_result
 
-        response = client.post("/api/ai-audit/prompts/history/999")
+        response = client.post("/api/prompts/history/999")
 
         assert response.status_code == 404
         assert "not found" in response.json()["detail"].lower()
@@ -1257,7 +1257,7 @@ class TestRestoreVersionEndpoint:
         client: TestClient,
     ) -> None:
         """Test validation error for invalid version ID."""
-        response = client.post("/api/ai-audit/prompts/history/invalid")
+        response = client.post("/api/prompts/history/invalid")
 
         assert response.status_code == 422
 
@@ -1494,3 +1494,212 @@ class TestPromptManagementSchemas:
         )
         assert response.valid is True
         assert response.total_changes == 0
+
+    def test_custom_test_prompt_request_creation(self) -> None:
+        """Test CustomTestPromptRequest creation with all fields."""
+        from backend.api.schemas.prompt_management import CustomTestPromptRequest
+
+        request = CustomTestPromptRequest(
+            event_id=1,
+            custom_prompt="Test prompt content",
+            temperature=0.5,
+            max_tokens=1024,
+            model="nemotron",
+        )
+        assert request.event_id == 1
+        assert request.custom_prompt == "Test prompt content"
+        assert request.temperature == 0.5
+        assert request.max_tokens == 1024
+        assert request.model == "nemotron"
+
+    def test_custom_test_prompt_request_defaults(self) -> None:
+        """Test CustomTestPromptRequest uses defaults for optional fields."""
+        from backend.api.schemas.prompt_management import CustomTestPromptRequest
+
+        request = CustomTestPromptRequest(
+            event_id=1,
+            custom_prompt="Test prompt",
+        )
+        assert request.temperature == 0.7  # Default
+        assert request.max_tokens == 2048  # Default
+        assert request.model == "nemotron"  # Default
+
+    def test_custom_test_prompt_response_creation(self) -> None:
+        """Test CustomTestPromptResponse creation."""
+        from backend.api.schemas.prompt_management import CustomTestPromptResponse
+
+        response = CustomTestPromptResponse(
+            risk_score=75,
+            risk_level="critical",
+            reasoning="High risk detected",
+            summary="Person detected at night",
+            entities=[{"type": "person", "confidence": 0.95}],
+            flags=["suspicious"],
+            recommended_action="Alert - Immediate attention",
+            processing_time_ms=150,
+            tokens_used=500,
+        )
+        assert response.risk_score == 75
+        assert response.risk_level == "critical"
+        assert len(response.entities) == 1
+        assert len(response.flags) == 1
+        assert response.processing_time_ms == 150
+        assert response.tokens_used == 500
+
+    def test_custom_test_prompt_response_defaults(self) -> None:
+        """Test CustomTestPromptResponse default values."""
+        from backend.api.schemas.prompt_management import CustomTestPromptResponse
+
+        response = CustomTestPromptResponse(
+            risk_score=50,
+            risk_level="high",
+            reasoning="Moderate risk",
+            summary="Activity detected",
+            recommended_action="Review event",
+            processing_time_ms=100,
+            tokens_used=200,
+        )
+        assert response.entities == []  # Default
+        assert response.flags == []  # Default
+
+
+class TestCustomTestPromptEndpoint:
+    """Tests for POST /api/prompts/test-prompt endpoint.
+
+    This endpoint allows testing a custom prompt against an existing event
+    for A/B testing in the Prompt Playground. Results are NOT persisted.
+    """
+
+    def test_test_prompt_returns_results(
+        self,
+        client: TestClient,
+        mock_db_session: MagicMock,
+    ) -> None:
+        """Test successful custom prompt testing returns expected results."""
+        mock_event = MagicMock()
+        mock_event.id = 1
+        mock_event.risk_score = 65
+        mock_event.summary = "Person detected near front door"
+        mock_event.reasoning = "Person approaching property at night is suspicious."
+
+        mock_event_result = MagicMock()
+        mock_event_result.scalar_one_or_none.return_value = mock_event
+        mock_db_session.execute = AsyncMock(return_value=mock_event_result)
+
+        response = client.post(
+            "/api/prompts/test-prompt",
+            json={
+                "event_id": 1,
+                "custom_prompt": "Analyze this event for security risks.",
+                "temperature": 0.7,
+                "max_tokens": 2048,
+                "model": "nemotron",
+            },
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Verify all expected fields are present
+        assert "risk_score" in data
+        assert "risk_level" in data
+        assert "reasoning" in data
+        assert "summary" in data
+        assert "entities" in data
+        assert "flags" in data
+        assert "recommended_action" in data
+        assert "processing_time_ms" in data
+        assert "tokens_used" in data
+
+        # Verify values
+        assert data["risk_score"] == 65
+        assert data["risk_level"] == "high"
+
+    def test_test_prompt_event_not_found_404(
+        self,
+        client: TestClient,
+        mock_db_session: MagicMock,
+    ) -> None:
+        """Test that 404 is returned when event does not exist."""
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_db_session.execute = AsyncMock(return_value=mock_result)
+
+        response = client.post(
+            "/api/prompts/test-prompt",
+            json={
+                "event_id": 999,
+                "custom_prompt": "Test prompt for non-existent event.",
+            },
+        )
+
+        assert response.status_code == 404
+
+    def test_test_prompt_empty_prompt_validation_error(
+        self,
+        client: TestClient,
+    ) -> None:
+        """Test that validation error is returned when prompt is empty."""
+        response = client.post(
+            "/api/prompts/test-prompt",
+            json={
+                "event_id": 1,
+                "custom_prompt": "",
+            },
+        )
+
+        assert response.status_code == 422  # Pydantic validation error
+
+    def test_test_prompt_whitespace_only_prompt_400(
+        self,
+        client: TestClient,
+        mock_db_session: MagicMock,
+    ) -> None:
+        """Test that 400 is returned when prompt contains only whitespace."""
+        response = client.post(
+            "/api/prompts/test-prompt",
+            json={
+                "event_id": 1,
+                "custom_prompt": "   ",  # Only whitespace
+            },
+        )
+
+        assert response.status_code == 400
+        data = response.json()
+        assert "empty" in data["detail"].lower()
+
+    def test_test_prompt_risk_level_mapping(
+        self,
+        client: TestClient,
+        mock_db_session: MagicMock,
+    ) -> None:
+        """Test risk level mapping for various risk scores."""
+        test_cases = [
+            (10, "low"),  # < 25 -> low
+            (25, "medium"),  # >= 25, < 50 -> medium
+            (50, "high"),  # >= 50, < 75 -> high
+            (75, "critical"),  # >= 75 -> critical
+        ]
+
+        for risk_score, expected_level in test_cases:
+            mock_event = MagicMock()
+            mock_event.id = 1
+            mock_event.risk_score = risk_score
+            mock_event.summary = "Test summary"
+            mock_event.reasoning = "Test reasoning"
+
+            mock_event_result = MagicMock()
+            mock_event_result.scalar_one_or_none.return_value = mock_event
+            mock_db_session.execute = AsyncMock(return_value=mock_event_result)
+
+            response = client.post(
+                "/api/prompts/test-prompt",
+                json={
+                    "event_id": 1,
+                    "custom_prompt": f"Test with score {risk_score}.",
+                },
+            )
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["risk_level"] == expected_level

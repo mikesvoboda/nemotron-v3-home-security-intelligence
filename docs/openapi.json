@@ -1,6 +1,18 @@
 {
   "components": {
     "schemas": {
+      "AIModelEnum": {
+        "description": "Supported AI models for prompt configuration.",
+        "enum": [
+          "nemotron",
+          "florence2",
+          "yolo_world",
+          "xclip",
+          "fashion_clip"
+        ],
+        "title": "AIModelEnum",
+        "type": "string"
+      },
       "AIServiceHealthStatus": {
         "description": "Health status for an AI service.\n\nIncludes service identification, health state, circuit breaker state,\nand response time metrics.",
         "example": {
@@ -1203,41 +1215,49 @@
         "type": "string"
       },
       "AllPromptsResponse": {
-        "description": "Response containing prompts for all models.",
+        "description": "Response containing prompts for all configurable models.",
         "example": {
+          "exported_at": "2026-01-03T10:30:00Z",
           "prompts": {
             "florence2": {
-              "config": {
-                "vqa_queries": [
-                  "What is this?"
-                ]
-              },
-              "model_name": "florence2",
-              "updated_at": "2026-01-01T08:00:00Z",
-              "version": 1
+              "vqa_queries": [
+                "What is this person wearing?",
+                "Is this person carrying anything?"
+              ]
             },
             "nemotron": {
-              "config": {
-                "system_prompt": "...",
-                "temperature": 0.7
-              },
-              "model_name": "nemotron",
-              "updated_at": "2026-01-03T10:30:00Z",
-              "version": 3
+              "max_tokens": 2048,
+              "system_prompt": "You are a home security AI assistant...",
+              "temperature": 0.7
             }
-          }
+          },
+          "version": "1.0"
         },
         "properties": {
+          "exported_at": {
+            "description": "Export timestamp",
+            "format": "date-time",
+            "title": "Exported At",
+            "type": "string"
+          },
           "prompts": {
             "additionalProperties": {
-              "$ref": "#/components/schemas/ModelPromptResponse"
+              "additionalProperties": true,
+              "type": "object"
             },
-            "description": "Dictionary mapping model names to their configurations",
+            "description": "Configuration for each model",
             "title": "Prompts",
             "type": "object"
+          },
+          "version": {
+            "default": "1.0",
+            "description": "Export format version",
+            "title": "Version",
+            "type": "string"
           }
         },
         "required": [
+          "exported_at",
           "prompts"
         ],
         "title": "AllPromptsResponse",
@@ -4211,7 +4231,7 @@
           },
           "max_tokens": {
             "default": 2048,
-            "description": "Maximum tokens in response",
+            "description": "Maximum tokens for LLM response (100-8192)",
             "maximum": 8192.0,
             "minimum": 100.0,
             "title": "Max Tokens",
@@ -4219,13 +4239,13 @@
           },
           "model": {
             "default": "nemotron",
-            "description": "Model name to use for testing",
+            "description": "Model to use for testing (default: nemotron)",
             "title": "Model",
             "type": "string"
           },
           "temperature": {
             "default": 0.7,
-            "description": "LLM temperature setting",
+            "description": "Temperature for LLM generation (0-2)",
             "maximum": 2.0,
             "minimum": 0.0,
             "title": "Temperature",
@@ -4259,7 +4279,7 @@
         },
         "properties": {
           "entities": {
-            "description": "Detected entities in the analysis",
+            "description": "Entities detected in the analysis",
             "items": {
               "additionalProperties": true,
               "type": "object"
@@ -4268,28 +4288,26 @@
             "type": "array"
           },
           "flags": {
-            "description": "Risk flags identified in the analysis",
+            "description": "Any flags raised during analysis",
             "items": {
-              "additionalProperties": true,
-              "type": "object"
+              "type": "string"
             },
             "title": "Flags",
             "type": "array"
           },
           "processing_time_ms": {
-            "description": "Time taken for inference in milliseconds",
+            "description": "Processing time in milliseconds",
             "minimum": 0.0,
             "title": "Processing Time Ms",
             "type": "integer"
           },
           "reasoning": {
-            "description": "LLM reasoning for the risk assessment",
+            "description": "Detailed reasoning for the risk assessment",
             "title": "Reasoning",
             "type": "string"
           },
           "recommended_action": {
-            "default": "",
-            "description": "Recommended action based on risk analysis",
+            "description": "Recommended action based on risk level",
             "title": "Recommended Action",
             "type": "string"
           },
@@ -4299,19 +4317,19 @@
             "type": "string"
           },
           "risk_score": {
-            "description": "Computed risk score (0-100)",
+            "description": "Risk score from 0 (no risk) to 100 (critical)",
             "maximum": 100.0,
             "minimum": 0.0,
             "title": "Risk Score",
             "type": "integer"
           },
           "summary": {
-            "description": "Brief summary of the event analysis",
+            "description": "Brief summary of the analysis",
             "title": "Summary",
             "type": "string"
           },
           "tokens_used": {
-            "description": "Number of tokens used in inference",
+            "description": "Estimated tokens used for the analysis",
             "minimum": 0.0,
             "title": "Tokens Used",
             "type": "integer"
@@ -4322,6 +4340,7 @@
           "risk_level",
           "reasoning",
           "summary",
+          "recommended_action",
           "processing_time_ms",
           "tokens_used"
         ],
@@ -12505,50 +12524,79 @@
         "title": "ModelLeaderboardEntry",
         "type": "object"
       },
-      "ModelPromptResponse": {
-        "description": "Response for a single model's prompt configuration.",
+      "ModelPromptConfig": {
+        "description": "Configuration for a specific AI model.",
         "example": {
+          "change_description": "Added weather context to prompt",
           "config": {
             "max_tokens": 2048,
-            "system_prompt": "You are a home security AI...",
+            "system_prompt": "You are a home security AI assistant...",
             "temperature": 0.7
           },
-          "model_name": "nemotron",
-          "updated_at": "2026-01-03T10:30:00Z",
+          "created_at": "2026-01-03T10:30:00Z",
+          "created_by": "admin",
+          "model": "nemotron",
           "version": 3
         },
         "properties": {
+          "change_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Description of changes",
+            "title": "Change Description"
+          },
           "config": {
             "additionalProperties": true,
-            "description": "Current configuration for this model",
+            "description": "Model-specific configuration",
             "title": "Config",
             "type": "object"
           },
-          "model_name": {
-            "description": "Name of the AI model",
-            "title": "Model Name",
-            "type": "string"
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When this version was created",
+            "title": "Created At"
           },
-          "updated_at": {
-            "description": "When last updated",
-            "format": "date-time",
-            "title": "Updated At",
-            "type": "string"
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Who created this version",
+            "title": "Created By"
+          },
+          "model": {
+            "$ref": "#/components/schemas/AIModelEnum"
           },
           "version": {
-            "description": "Current version number",
-            "minimum": 1.0,
+            "description": "Version number of this configuration",
             "title": "Version",
             "type": "integer"
           }
         },
         "required": [
-          "model_name",
+          "model",
           "config",
-          "version",
-          "updated_at"
+          "version"
         ],
-        "title": "ModelPromptResponse",
+        "title": "ModelPromptConfig",
         "type": "object"
       },
       "ModelRegistryResponse": {
@@ -14841,333 +14889,129 @@
         "title": "ProfileStopResponse",
         "type": "object"
       },
-      "PromptConfigRequest": {
-        "description": "Request to update a model's prompt configuration (database-backed).\n\nUsed by the Prompt Playground \"Save\" functionality to persist\nprompt configurations to the database.",
+      "PromptDiffEntry": {
+        "description": "Diff entry for a single model's configuration.",
         "example": {
-          "maxTokens": 2048,
-          "systemPrompt": "You are a home security AI assistant...",
-          "temperature": 0.7
-        },
-        "properties": {
-          "maxTokens": {
-            "default": 2048,
-            "description": "Maximum tokens in response (100-8192)",
-            "maximum": 8192.0,
-            "minimum": 100.0,
-            "title": "Maxtokens",
-            "type": "integer"
-          },
-          "systemPrompt": {
-            "description": "Full system prompt text for the model",
-            "minLength": 1,
-            "title": "Systemprompt",
-            "type": "string"
-          },
-          "temperature": {
-            "default": 0.7,
-            "description": "LLM temperature setting (0-2)",
-            "maximum": 2.0,
-            "minimum": 0.0,
-            "title": "Temperature",
-            "type": "number"
-          }
-        },
-        "required": [
-          "systemPrompt"
-        ],
-        "title": "PromptConfigRequest",
-        "type": "object"
-      },
-      "PromptConfigResponse": {
-        "description": "Response containing a model's prompt configuration (database-backed).\n\nReturned when retrieving or updating prompt configurations.",
-        "example": {
-          "maxTokens": 2048,
-          "model": "nemotron",
-          "systemPrompt": "You are a home security AI assistant...",
-          "temperature": 0.7,
-          "updatedAt": "2026-01-03T10:30:00Z",
-          "version": 3
-        },
-        "properties": {
-          "maxTokens": {
-            "description": "Maximum tokens in response (100-8192)",
-            "title": "Maxtokens",
-            "type": "integer"
-          },
-          "model": {
-            "description": "Model name",
-            "title": "Model",
-            "type": "string"
-          },
-          "systemPrompt": {
-            "description": "Full system prompt text for the model",
-            "title": "Systemprompt",
-            "type": "string"
-          },
-          "temperature": {
-            "description": "LLM temperature setting (0-2)",
-            "title": "Temperature",
-            "type": "number"
-          },
-          "updatedAt": {
-            "description": "When the configuration was last updated",
-            "format": "date-time",
-            "title": "Updatedat",
-            "type": "string"
-          },
-          "version": {
-            "description": "Configuration version number",
-            "minimum": 1.0,
-            "title": "Version",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "model",
-          "systemPrompt",
-          "temperature",
-          "maxTokens",
-          "version",
-          "updatedAt"
-        ],
-        "title": "PromptConfigResponse",
-        "type": "object"
-      },
-      "PromptExportResponse": {
-        "description": "Response containing all prompt configurations for export.",
-        "example": {
-          "exported_at": "2026-01-03T10:30:00Z",
-          "prompts": {
-            "florence2": {
-              "vqa_queries": [
-                "What is this person wearing?"
-              ]
-            },
-            "nemotron": {
-              "max_tokens": 2048,
-              "system_prompt": "You are a home security AI...",
-              "temperature": 0.7
-            }
-          },
-          "version": "1.0"
-        },
-        "properties": {
-          "exported_at": {
-            "description": "When the export was created",
-            "format": "date-time",
-            "title": "Exported At",
-            "type": "string"
-          },
-          "prompts": {
-            "additionalProperties": {
-              "additionalProperties": true,
-              "type": "object"
-            },
-            "description": "All model configurations keyed by model name",
-            "title": "Prompts",
-            "type": "object"
-          },
-          "version": {
-            "default": "1.0",
-            "description": "Export format version",
-            "title": "Version",
-            "type": "string"
-          }
-        },
-        "required": [
-          "exported_at",
-          "prompts"
-        ],
-        "title": "PromptExportResponse",
-        "type": "object"
-      },
-      "PromptHistoryEntry": {
-        "description": "A single entry in prompt version history.",
-        "example": {
-          "config": {
+          "changes": [
+            "temperature: 0.7 -> 0.8",
+            "system_prompt: modified (length: 40 -> 55 chars)"
+          ],
+          "current_config": {
             "max_tokens": 2048,
-            "system_prompt": "Previous version of prompt...",
+            "system_prompt": "You are a home security AI...",
             "temperature": 0.7
           },
-          "created_at": "2026-01-02T14:00:00Z",
-          "created_by": "admin",
-          "description": "Initial prompt configuration",
-          "version": 2
+          "current_version": 3,
+          "has_changes": true,
+          "imported_config": {
+            "max_tokens": 2048,
+            "system_prompt": "You are a home security AI with enhanced context...",
+            "temperature": 0.8
+          },
+          "model": "nemotron"
         },
         "properties": {
-          "config": {
-            "additionalProperties": true,
-            "description": "Configuration at this version",
-            "title": "Config",
-            "type": "object"
+          "changes": {
+            "description": "List of human-readable change descriptions",
+            "items": {
+              "type": "string"
+            },
+            "title": "Changes",
+            "type": "array"
           },
-          "created_at": {
-            "description": "When this version was created",
-            "format": "date-time",
-            "title": "Created At",
-            "type": "string"
-          },
-          "created_by": {
-            "default": "system",
-            "description": "Who created this version",
-            "title": "Created By",
-            "type": "string"
-          },
-          "description": {
+          "current_config": {
             "anyOf": [
               {
-                "type": "string"
+                "additionalProperties": true,
+                "type": "object"
               },
               {
                 "type": "null"
               }
             ],
-            "description": "Description of changes",
-            "title": "Description"
+            "description": "Current configuration",
+            "title": "Current Config"
           },
-          "version": {
-            "description": "Version number",
-            "minimum": 1.0,
-            "title": "Version",
-            "type": "integer"
+          "current_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Current version number",
+            "title": "Current Version"
+          },
+          "has_changes": {
+            "description": "Whether there are changes",
+            "title": "Has Changes",
+            "type": "boolean"
+          },
+          "imported_config": {
+            "additionalProperties": true,
+            "description": "Configuration to import",
+            "title": "Imported Config",
+            "type": "object"
+          },
+          "model": {
+            "description": "Model name",
+            "title": "Model",
+            "type": "string"
           }
         },
         "required": [
-          "version",
-          "config",
-          "created_at"
+          "model",
+          "has_changes",
+          "imported_config"
         ],
-        "title": "PromptHistoryEntry",
+        "title": "PromptDiffEntry",
         "type": "object"
       },
       "PromptHistoryResponse": {
-        "description": "Response containing version history for a model's prompts.",
+        "description": "Response containing version history for prompts.",
         "example": {
-          "model_name": "nemotron",
-          "total_versions": 3,
+          "total_count": 3,
           "versions": [
             {
-              "config": {
-                "system_prompt": "...",
-                "temperature": 0.8
-              },
+              "change_description": "Added weather context to prompt",
               "created_at": "2026-01-03T10:30:00Z",
               "created_by": "admin",
-              "description": "Added weather context",
+              "id": 15,
+              "is_active": true,
+              "model": "nemotron",
               "version": 3
             },
             {
-              "config": {
-                "system_prompt": "...",
-                "temperature": 0.7
-              },
+              "change_description": "Initial configuration",
               "created_at": "2026-01-02T14:00:00Z",
               "created_by": "system",
-              "description": "Initial configuration",
+              "id": 12,
+              "is_active": false,
+              "model": "nemotron",
               "version": 2
             }
           ]
         },
         "properties": {
-          "model_name": {
-            "title": "Model Name",
-            "type": "string"
-          },
-          "total_versions": {
-            "title": "Total Versions",
+          "total_count": {
+            "title": "Total Count",
             "type": "integer"
           },
           "versions": {
             "items": {
-              "$ref": "#/components/schemas/PromptHistoryEntry"
+              "$ref": "#/components/schemas/PromptVersionInfo"
             },
             "title": "Versions",
             "type": "array"
           }
         },
         "required": [
-          "model_name",
           "versions",
-          "total_versions"
+          "total_count"
         ],
         "title": "PromptHistoryResponse",
-        "type": "object"
-      },
-      "PromptImportRequest": {
-        "description": "Request to import prompt configurations.",
-        "example": {
-          "overwrite": true,
-          "prompts": {
-            "nemotron": {
-              "max_tokens": 2048,
-              "system_prompt": "Imported system prompt...",
-              "temperature": 0.7
-            }
-          }
-        },
-        "properties": {
-          "overwrite": {
-            "default": false,
-            "description": "Whether to overwrite existing configurations",
-            "title": "Overwrite",
-            "type": "boolean"
-          },
-          "prompts": {
-            "additionalProperties": {
-              "additionalProperties": true,
-              "type": "object"
-            },
-            "description": "Model configurations to import, keyed by model name",
-            "title": "Prompts",
-            "type": "object"
-          }
-        },
-        "required": [
-          "prompts"
-        ],
-        "title": "PromptImportRequest",
-        "type": "object"
-      },
-      "PromptImportResponse": {
-        "description": "Response after importing prompt configurations.",
-        "example": {
-          "errors": [],
-          "imported_count": 3,
-          "message": "Successfully imported 3 prompt configurations",
-          "skipped_count": 1
-        },
-        "properties": {
-          "errors": {
-            "description": "Any errors encountered",
-            "items": {
-              "type": "string"
-            },
-            "title": "Errors",
-            "type": "array"
-          },
-          "imported_count": {
-            "description": "Number of models imported",
-            "minimum": 0.0,
-            "title": "Imported Count",
-            "type": "integer"
-          },
-          "message": {
-            "title": "Message",
-            "type": "string"
-          },
-          "skipped_count": {
-            "description": "Number of models skipped",
-            "minimum": 0.0,
-            "title": "Skipped Count",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "imported_count",
-          "skipped_count",
-          "message"
-        ],
-        "title": "PromptImportResponse",
         "type": "object"
       },
       "PromptImprovements": {
@@ -15230,33 +15074,11 @@
         "title": "PromptImprovements",
         "type": "object"
       },
-      "PromptRestoreRequest": {
-        "description": "Request to restore a specific version of a prompt.",
-        "example": {
-          "description": "Restoring to version 2 due to regression in analysis quality"
-        },
-        "properties": {
-          "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Optional description for the restore action",
-            "title": "Description"
-          }
-        },
-        "title": "PromptRestoreRequest",
-        "type": "object"
-      },
       "PromptRestoreResponse": {
         "description": "Response after restoring a prompt version.",
         "example": {
           "message": "Successfully restored version 2 as new version 4",
-          "model_name": "nemotron",
+          "model": "nemotron",
           "new_version": 4,
           "restored_version": 2
         },
@@ -15265,11 +15087,11 @@
             "title": "Message",
             "type": "string"
           },
-          "model_name": {
-            "title": "Model Name",
-            "type": "string"
+          "model": {
+            "$ref": "#/components/schemas/AIModelEnum"
           },
           "new_version": {
+            "description": "The new active version number",
             "title": "New Version",
             "type": "integer"
           },
@@ -15279,8 +15101,8 @@
           }
         },
         "required": [
-          "model_name",
           "restored_version",
+          "model",
           "new_version",
           "message"
         ],
@@ -15288,11 +15110,11 @@
         "type": "object"
       },
       "PromptTestRequest": {
-        "description": "Request to test a modified prompt against an event.",
+        "description": "Request to test a prompt with modified configuration.",
         "example": {
           "config": {
             "max_tokens": 2048,
-            "system_prompt": "Modified prompt for testing...",
+            "system_prompt": "You are a home security AI assistant...",
             "temperature": 0.7
           },
           "event_id": 12345,
@@ -15301,162 +15123,23 @@
         "properties": {
           "config": {
             "additionalProperties": true,
-            "description": "Modified configuration to test",
+            "description": "Configuration to test",
             "title": "Config",
             "type": "object"
           },
           "event_id": {
-            "description": "Event ID to test against",
-            "minimum": 1.0,
-            "title": "Event Id",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional event ID to test against",
+            "title": "Event Id"
           },
-          "model": {
-            "description": "Model name to test (nemotron, florence2, etc.)",
-            "title": "Model",
-            "type": "string"
-          }
-        },
-        "required": [
-          "model",
-          "config",
-          "event_id"
-        ],
-        "title": "PromptTestRequest",
-        "type": "object"
-      },
-      "PromptTestResponse": {
-        "description": "Response from testing a modified prompt.",
-        "example": {
-          "after": {
-            "risk_level": "low",
-            "score": 45,
-            "summary": "Regular visitor detected - matches known delivery pattern"
-          },
-          "before": {
-            "risk_level": "medium",
-            "score": 65,
-            "summary": "Person detected at front door during evening hours"
-          },
-          "improved": true,
-          "inference_time_ms": 1250
-        },
-        "properties": {
-          "after": {
-            "$ref": "#/components/schemas/PromptTestResultAfter",
-            "description": "Results from modified prompt"
-          },
-          "before": {
-            "$ref": "#/components/schemas/PromptTestResultBefore",
-            "description": "Results from original prompt"
-          },
-          "improved": {
-            "description": "Whether the modification improved results",
-            "title": "Improved",
-            "type": "boolean"
-          },
-          "inference_time_ms": {
-            "description": "Time taken for inference in ms",
-            "minimum": 0.0,
-            "title": "Inference Time Ms",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "before",
-          "after",
-          "improved",
-          "inference_time_ms"
-        ],
-        "title": "PromptTestResponse",
-        "type": "object"
-      },
-      "PromptTestResultAfter": {
-        "description": "Result from the modified prompt.",
-        "example": {
-          "risk_level": "low",
-          "score": 45,
-          "summary": "Regular visitor detected - matches known delivery pattern"
-        },
-        "properties": {
-          "risk_level": {
-            "description": "Risk level (low, medium, high, critical)",
-            "title": "Risk Level",
-            "type": "string"
-          },
-          "score": {
-            "description": "Risk score from modified prompt",
-            "maximum": 100.0,
-            "minimum": 0.0,
-            "title": "Score",
-            "type": "integer"
-          },
-          "summary": {
-            "description": "Summary from modified analysis",
-            "title": "Summary",
-            "type": "string"
-          }
-        },
-        "required": [
-          "score",
-          "risk_level",
-          "summary"
-        ],
-        "title": "PromptTestResultAfter",
-        "type": "object"
-      },
-      "PromptTestResultBefore": {
-        "description": "Result from the original (current) prompt.",
-        "example": {
-          "risk_level": "medium",
-          "score": 65,
-          "summary": "Person detected at front door during evening hours"
-        },
-        "properties": {
-          "risk_level": {
-            "description": "Risk level (low, medium, high, critical)",
-            "title": "Risk Level",
-            "type": "string"
-          },
-          "score": {
-            "description": "Risk score from original prompt",
-            "maximum": 100.0,
-            "minimum": 0.0,
-            "title": "Score",
-            "type": "integer"
-          },
-          "summary": {
-            "description": "Summary from original analysis",
-            "title": "Summary",
-            "type": "string"
-          }
-        },
-        "required": [
-          "score",
-          "risk_level",
-          "summary"
-        ],
-        "title": "PromptTestResultBefore",
-        "type": "object"
-      },
-      "PromptUpdateRequest": {
-        "description": "Request to update a model's prompt configuration.",
-        "example": {
-          "config": {
-            "max_tokens": 2048,
-            "system_prompt": "Updated system prompt with new context...",
-            "temperature": 0.8
-          },
-          "description": "Added weather context to improve analysis"
-        },
-        "properties": {
-          "config": {
-            "additionalProperties": true,
-            "description": "New configuration for the model",
-            "title": "Config",
-            "type": "object"
-          },
-          "description": {
+          "image_path": {
             "anyOf": [
               {
                 "type": "string"
@@ -15465,8 +15148,173 @@
                 "type": "null"
               }
             ],
-            "description": "Description of the changes",
-            "title": "Description"
+            "description": "Optional image path to test with",
+            "title": "Image Path"
+          },
+          "model": {
+            "$ref": "#/components/schemas/AIModelEnum",
+            "description": "Model to test"
+          }
+        },
+        "required": [
+          "model",
+          "config"
+        ],
+        "title": "PromptTestRequest",
+        "type": "object"
+      },
+      "PromptTestResult": {
+        "description": "Result of a prompt test.",
+        "example": {
+          "after_response": {
+            "risk_level": "low",
+            "risk_score": 45,
+            "summary": "Regular visitor detected - matches known delivery pattern"
+          },
+          "after_score": 45,
+          "before_response": {
+            "risk_level": "medium",
+            "risk_score": 65,
+            "summary": "Person detected at front door during evening hours"
+          },
+          "before_score": 65,
+          "improved": true,
+          "model": "nemotron",
+          "test_duration_ms": 1250
+        },
+        "properties": {
+          "after_response": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Full response after changes",
+            "title": "After Response"
+          },
+          "after_score": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Risk score after changes",
+            "title": "After Score"
+          },
+          "before_response": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Full response before changes",
+            "title": "Before Response"
+          },
+          "before_score": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Risk score before changes",
+            "title": "Before Score"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Error message if test failed",
+            "title": "Error"
+          },
+          "improved": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Whether the change improved results",
+            "title": "Improved"
+          },
+          "model": {
+            "$ref": "#/components/schemas/AIModelEnum"
+          },
+          "test_duration_ms": {
+            "description": "Test duration in milliseconds",
+            "title": "Test Duration Ms",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "model",
+          "test_duration_ms"
+        ],
+        "title": "PromptTestResult",
+        "type": "object"
+      },
+      "PromptUpdateRequest": {
+        "description": "Request to update a model's prompt configuration.\n\nSupports optimistic locking via expected_version field to prevent\nrace conditions when multiple clients update simultaneously.",
+        "example": {
+          "change_description": "Increased temperature for more creative responses",
+          "config": {
+            "max_tokens": 2048,
+            "system_prompt": "You are a home security AI assistant with enhanced context awareness...",
+            "temperature": 0.8
+          },
+          "expected_version": 3
+        },
+        "properties": {
+          "change_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional description of what changed",
+            "title": "Change Description"
+          },
+          "config": {
+            "additionalProperties": true,
+            "description": "New configuration for the model",
+            "title": "Config",
+            "type": "object"
+          },
+          "expected_version": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Expected current version for optimistic locking. If provided, the update will fail with 409 Conflict if the current version doesn't match, indicating someone else updated the config concurrently.",
+            "title": "Expected Version"
           }
         },
         "required": [
@@ -15475,31 +15323,55 @@
         "title": "PromptUpdateRequest",
         "type": "object"
       },
-      "PromptUpdateResponse": {
-        "description": "Response after updating a model's prompt.",
+      "PromptVersionInfo": {
+        "description": "Information about a single prompt version.",
         "example": {
-          "config": {
-            "max_tokens": 2048,
-            "system_prompt": "Updated system prompt...",
-            "temperature": 0.8
-          },
-          "message": "Prompt configuration updated successfully",
-          "model_name": "nemotron",
-          "version": 4
+          "change_description": "Added weather context to prompt",
+          "created_at": "2026-01-03T10:30:00Z",
+          "created_by": "admin",
+          "id": 15,
+          "is_active": true,
+          "model": "nemotron",
+          "version": 3
         },
         "properties": {
-          "config": {
-            "additionalProperties": true,
-            "title": "Config",
-            "type": "object"
+          "change_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Change Description"
           },
-          "message": {
-            "title": "Message",
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
             "type": "string"
           },
-          "model_name": {
-            "title": "Model Name",
-            "type": "string"
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "model": {
+            "$ref": "#/components/schemas/AIModelEnum"
           },
           "version": {
             "title": "Version",
@@ -15507,12 +15379,273 @@
           }
         },
         "required": [
-          "model_name",
+          "id",
+          "model",
           "version",
-          "message",
-          "config"
+          "created_at",
+          "created_by",
+          "change_description",
+          "is_active"
         ],
-        "title": "PromptUpdateResponse",
+        "title": "PromptVersionInfo",
+        "type": "object"
+      },
+      "PromptsExportResponse": {
+        "description": "Export of all prompt configurations.",
+        "example": {
+          "exported_at": "2026-01-03T10:30:00Z",
+          "prompts": {
+            "florence2": {
+              "vqa_queries": [
+                "What is this person wearing?"
+              ]
+            },
+            "nemotron": {
+              "max_tokens": 2048,
+              "system_prompt": "You are a home security AI assistant...",
+              "temperature": 0.7
+            },
+            "yolo_world": {
+              "confidence_threshold": 0.35,
+              "object_classes": [
+                "person",
+                "car",
+                "truck"
+              ]
+            }
+          },
+          "version": "1.0"
+        },
+        "properties": {
+          "exported_at": {
+            "format": "date-time",
+            "title": "Exported At",
+            "type": "string"
+          },
+          "prompts": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "description": "All model configurations",
+            "title": "Prompts",
+            "type": "object"
+          },
+          "version": {
+            "default": "1.0",
+            "description": "Export format version",
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "exported_at",
+          "prompts"
+        ],
+        "title": "PromptsExportResponse",
+        "type": "object"
+      },
+      "PromptsImportPreviewRequest": {
+        "description": "Request to preview prompt configuration import without applying.",
+        "example": {
+          "prompts": {
+            "nemotron": {
+              "max_tokens": 2048,
+              "system_prompt": "You are a home security AI assistant...",
+              "temperature": 0.8
+            }
+          },
+          "version": "1.0"
+        },
+        "properties": {
+          "prompts": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "description": "Model configurations to preview",
+            "title": "Prompts",
+            "type": "object"
+          },
+          "version": {
+            "default": "1.0",
+            "description": "Import format version",
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "prompts"
+        ],
+        "title": "PromptsImportPreviewRequest",
+        "type": "object"
+      },
+      "PromptsImportPreviewResponse": {
+        "description": "Response with preview of import changes.",
+        "example": {
+          "diffs": [
+            {
+              "changes": [
+                "temperature: 0.7 -> 0.8"
+              ],
+              "current_config": {
+                "system_prompt": "You are a home security AI...",
+                "temperature": 0.7
+              },
+              "current_version": 3,
+              "has_changes": true,
+              "imported_config": {
+                "system_prompt": "You are a home security AI...",
+                "temperature": 0.8
+              },
+              "model": "nemotron"
+            }
+          ],
+          "total_changes": 1,
+          "unknown_models": [],
+          "valid": true,
+          "validation_errors": [],
+          "version": "1.0"
+        },
+        "properties": {
+          "diffs": {
+            "description": "Diff entries for each model",
+            "items": {
+              "$ref": "#/components/schemas/PromptDiffEntry"
+            },
+            "title": "Diffs",
+            "type": "array"
+          },
+          "total_changes": {
+            "default": 0,
+            "description": "Total number of models with changes",
+            "title": "Total Changes",
+            "type": "integer"
+          },
+          "unknown_models": {
+            "description": "Models not recognized",
+            "items": {
+              "type": "string"
+            },
+            "title": "Unknown Models",
+            "type": "array"
+          },
+          "valid": {
+            "description": "Whether the import data is valid",
+            "title": "Valid",
+            "type": "boolean"
+          },
+          "validation_errors": {
+            "description": "List of validation errors",
+            "items": {
+              "type": "string"
+            },
+            "title": "Validation Errors",
+            "type": "array"
+          },
+          "version": {
+            "description": "Import format version",
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "valid"
+        ],
+        "title": "PromptsImportPreviewResponse",
+        "type": "object"
+      },
+      "PromptsImportRequest": {
+        "description": "Request to import prompt configurations.",
+        "example": {
+          "prompts": {
+            "florence2": {
+              "vqa_queries": [
+                "What is this person wearing?"
+              ]
+            },
+            "nemotron": {
+              "max_tokens": 2048,
+              "system_prompt": "You are a home security AI assistant...",
+              "temperature": 0.7
+            }
+          },
+          "version": "1.0"
+        },
+        "properties": {
+          "prompts": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "description": "Model configurations to import",
+            "title": "Prompts",
+            "type": "object"
+          },
+          "version": {
+            "default": "1.0",
+            "description": "Import format version",
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "prompts"
+        ],
+        "title": "PromptsImportRequest",
+        "type": "object"
+      },
+      "PromptsImportResponse": {
+        "description": "Response after importing prompt configurations.",
+        "example": {
+          "imported_models": [
+            "nemotron",
+            "florence2"
+          ],
+          "message": "Successfully imported 2 prompt configurations, skipped 1",
+          "new_versions": {
+            "florence2": 2,
+            "nemotron": 4
+          },
+          "skipped_models": [
+            "yolo_world"
+          ]
+        },
+        "properties": {
+          "imported_models": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Imported Models",
+            "type": "array"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "new_versions": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "New version numbers for each imported model",
+            "title": "New Versions",
+            "type": "object"
+          },
+          "skipped_models": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Skipped Models",
+            "type": "array"
+          }
+        },
+        "required": [
+          "imported_models",
+          "new_versions",
+          "message"
+        ],
+        "title": "PromptsImportResponse",
         "type": "object"
       },
       "QualityScores": {
@@ -20401,517 +20534,6 @@
         ]
       }
     },
-    "/api/ai-audit/prompt-config/{model}": {
-      "get": {
-        "description": "Get current prompt configuration for a model (database-backed).\n\nRetrieves the prompt configuration from the database for the specified model.\nReturns 404 if no configuration exists for the model.\n\nArgs:\n    model: Model name (nemotron, florence-2, yolo-world, x-clip, fashion-clip)\n    db: Database session\n\nReturns:\n    PromptConfigResponse with current configuration\n\nRaises:\n    HTTPException: 404 if model not found or no configuration exists",
-        "operationId": "get_prompt_config_api_ai_audit_prompt_config__model__get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "model",
-            "required": true,
-            "schema": {
-              "title": "Model",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PromptConfigResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Get Prompt Config",
-        "tags": [
-          "ai-audit"
-        ]
-      },
-      "put": {
-        "description": "Update prompt configuration for a model (database-backed).\n\nCreates or updates the prompt configuration in the database.\nIf updating an existing config, increments the version number.\n\nArgs:\n    model: Model name (nemotron, florence-2, yolo-world, x-clip, fashion-clip)\n    request: New configuration with system_prompt, temperature, max_tokens\n    db: Database session\n\nReturns:\n    PromptConfigResponse with updated configuration\n\nRaises:\n    HTTPException: 404 if model not found, 400 if configuration invalid",
-        "operationId": "update_prompt_config_api_ai_audit_prompt_config__model__put",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "model",
-            "required": true,
-            "schema": {
-              "title": "Model",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PromptConfigRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PromptConfigResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Update Prompt Config",
-        "tags": [
-          "ai-audit"
-        ]
-      }
-    },
-    "/api/ai-audit/prompts": {
-      "get": {
-        "description": "Get current prompt configurations for all AI models.\n\nReturns configurations for nemotron, florence2, yolo_world, xclip,\nand fashion_clip models with their current versions.\n\nReturns:\n    AllPromptsResponse containing all model configurations",
-        "operationId": "get_all_prompts_api_ai_audit_prompts_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AllPromptsResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        },
-        "summary": "Get All Prompts",
-        "tags": [
-          "ai-audit"
-        ]
-      }
-    },
-    "/api/ai-audit/prompts/export": {
-      "get": {
-        "description": "Export all AI model configurations as JSON.\n\nReturns all current configurations in a format suitable for\nbackup or transfer to another instance.\n\nReturns:\n    PromptExportResponse with all configurations",
-        "operationId": "export_prompts_api_ai_audit_prompts_export_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PromptExportResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        },
-        "summary": "Export Prompts",
-        "tags": [
-          "ai-audit"
-        ]
-      }
-    },
-    "/api/ai-audit/prompts/history": {
-      "get": {
-        "description": "Get version history for all AI models.\n\nReturns the most recent versions for each supported model.\n\nArgs:\n    limit: Maximum number of versions to return per model (1-100, default 10)\n\nReturns:\n    Dict mapping model names to their version histories",
-        "operationId": "get_all_prompts_history_api_ai_audit_prompts_history_get",
-        "parameters": [
-          {
-            "description": "Max versions per model",
-            "in": "query",
-            "name": "limit",
-            "required": false,
-            "schema": {
-              "default": 10,
-              "description": "Max versions per model",
-              "maximum": 100,
-              "minimum": 1,
-              "title": "Limit",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": {
-                    "$ref": "#/components/schemas/PromptHistoryResponse"
-                  },
-                  "title": "Response Get All Prompts History Api Ai Audit Prompts History Get",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "description": "Validation error"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        },
-        "summary": "Get All Prompts History",
-        "tags": [
-          "ai-audit"
-        ]
-      }
-    },
-    "/api/ai-audit/prompts/history/{model}": {
-      "get": {
-        "description": "Get version history for a specific AI model.\n\nReturns all versions of the model's configuration, newest first,\nwith pagination support.\n\nArgs:\n    model: Model name to get history for\n    limit: Maximum versions to return (1-100, default 50)\n    offset: Number of versions to skip (default 0)\n\nReturns:\n    PromptHistoryResponse with version list\n\nRaises:\n    HTTPException: 404 if model not found",
-        "operationId": "get_model_history_api_ai_audit_prompts_history__model__get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "model",
-            "required": true,
-            "schema": {
-              "title": "Model",
-              "type": "string"
-            }
-          },
-          {
-            "description": "Max versions to return",
-            "in": "query",
-            "name": "limit",
-            "required": false,
-            "schema": {
-              "default": 50,
-              "description": "Max versions to return",
-              "maximum": 100,
-              "minimum": 1,
-              "title": "Limit",
-              "type": "integer"
-            }
-          },
-          {
-            "description": "Number of versions to skip",
-            "in": "query",
-            "name": "offset",
-            "required": false,
-            "schema": {
-              "default": 0,
-              "description": "Number of versions to skip",
-              "minimum": 0,
-              "title": "Offset",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PromptHistoryResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "404": {
-            "description": "Model not found"
-          },
-          "422": {
-            "description": "Validation error"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        },
-        "summary": "Get Model History",
-        "tags": [
-          "ai-audit"
-        ]
-      }
-    },
-    "/api/ai-audit/prompts/history/{version}": {
-      "post": {
-        "description": "Restore a specific version of a model's prompt configuration.\n\nCreates a new version with the configuration from the specified version.\nThe restore action is recorded in the version history.\n\nArgs:\n    version: Version number to restore\n    model: Model name to restore version for\n    request: Optional restore request with description\n\nReturns:\n    PromptRestoreResponse with restore details\n\nRaises:\n    HTTPException: 404 if model or version not found",
-        "operationId": "restore_prompt_version_api_ai_audit_prompts_history__version__post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "version",
-            "required": true,
-            "schema": {
-              "title": "Version",
-              "type": "integer"
-            }
-          },
-          {
-            "description": "Model name to restore version for",
-            "in": "query",
-            "name": "model",
-            "required": true,
-            "schema": {
-              "description": "Model name to restore version for",
-              "title": "Model",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "anyOf": [
-                  {
-                    "$ref": "#/components/schemas/PromptRestoreRequest"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Request"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PromptRestoreResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "404": {
-            "description": "Model or version not found"
-          },
-          "422": {
-            "description": "Validation error"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        },
-        "summary": "Restore Prompt Version",
-        "tags": [
-          "ai-audit"
-        ]
-      }
-    },
-    "/api/ai-audit/prompts/import": {
-      "post": {
-        "description": "Import AI model configurations from JSON.\n\nImports configurations for multiple models at once. By default,\nexisting configurations are not overwritten unless overwrite=true.\n\nArgs:\n    request: Import request with configurations and overwrite flag\n\nReturns:\n    PromptImportResponse with import results\n\nRaises:\n    HTTPException: 400 if no prompts provided for import",
-        "operationId": "import_prompts_api_ai_audit_prompts_import_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PromptImportRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PromptImportResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "400": {
-            "description": "Bad request - No prompts provided"
-          },
-          "422": {
-            "description": "Validation error"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        },
-        "summary": "Import Prompts",
-        "tags": [
-          "ai-audit"
-        ]
-      }
-    },
-    "/api/ai-audit/prompts/test": {
-      "post": {
-        "description": "Test a modified prompt configuration against a specific event.\n\nRuns inference with both the current and modified configurations,\nreturning a comparison of the results to help evaluate changes.\n\nNote: This currently returns mock results. In production, it would\ncall the actual AI services with the modified configuration.\n\nArgs:\n    request: Test request with model name, config, and event ID\n    db: Database session\n\nReturns:\n    PromptTestResponse with before/after comparison\n\nRaises:\n    HTTPException: 404 if model or event not found, 400 if config invalid",
-        "operationId": "test_prompt_api_ai_audit_prompts_test_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PromptTestRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PromptTestResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "400": {
-            "description": "Bad request - Invalid configuration"
-          },
-          "404": {
-            "description": "Model or event not found"
-          },
-          "422": {
-            "description": "Validation error"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        },
-        "summary": "Test Prompt",
-        "tags": [
-          "ai-audit"
-        ]
-      }
-    },
-    "/api/ai-audit/prompts/{model}": {
-      "get": {
-        "description": "Get current prompt configuration for a specific AI model.\n\nArgs:\n    model: Model name (nemotron, florence2, yolo_world, xclip, fashion_clip)\n\nReturns:\n    ModelPromptResponse with current configuration\n\nRaises:\n    HTTPException: 404 if model not found",
-        "operationId": "get_model_prompt_api_ai_audit_prompts__model__get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "model",
-            "required": true,
-            "schema": {
-              "title": "Model",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ModelPromptResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "404": {
-            "description": "Model not found"
-          },
-          "422": {
-            "description": "Validation error"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        },
-        "summary": "Get Model Prompt",
-        "tags": [
-          "ai-audit"
-        ]
-      },
-      "put": {
-        "description": "Update prompt configuration for a specific AI model.\n\nCreates a new version of the configuration with the provided changes.\nThe previous version is preserved in history.\n\nArgs:\n    model: Model name to update\n    request: New configuration and optional description\n\nReturns:\n    PromptUpdateResponse with new version info\n\nRaises:\n    HTTPException: 404 if model not found, 400 if configuration invalid",
-        "operationId": "update_model_prompt_api_ai_audit_prompts__model__put",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "model",
-            "required": true,
-            "schema": {
-              "title": "Model",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PromptUpdateRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PromptUpdateResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "400": {
-            "description": "Bad request - Invalid configuration"
-          },
-          "404": {
-            "description": "Model not found"
-          },
-          "422": {
-            "description": "Validation error"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        },
-        "summary": "Update Model Prompt",
-        "tags": [
-          "ai-audit"
-        ]
-      }
-    },
     "/api/ai-audit/recommendations": {
       "get": {
         "description": "Get aggregated prompt improvement recommendations.\n\nAnalyzes all audits to produce actionable recommendations for\nimproving the AI pipeline prompt templates.\n\nArgs:\n    days: Number of days to analyze (1-90, default 7)\n    db: Database session\n\nReturns:\n    RecommendationsResponse with prioritized recommendations",
@@ -21013,56 +20635,6 @@
           }
         },
         "summary": "Get Audit Stats",
-        "tags": [
-          "ai-audit"
-        ]
-      }
-    },
-    "/api/ai-audit/test-prompt": {
-      "post": {
-        "description": "Test a custom prompt against an existing event for A/B testing.\n\nThis endpoint allows testing a custom prompt without persisting results.\nIt's designed for the Prompt Playground A/B testing feature where users\ncan experiment with different prompts and compare results.\n\nThe endpoint:\n1. Fetches the event with its detections\n2. Builds context from the event data\n3. Calls the AI model with the custom prompt (or mocks if service unavailable)\n4. Returns results WITHOUT saving to database\n\nArgs:\n    request: Test request containing event_id, custom_prompt, and optional\n             parameters (temperature, max_tokens, model)\n    db: Database session\n\nReturns:\n    CustomTestPromptResponse with risk analysis results\n\nRaises:\n    HTTPException: 404 if event not found\n    HTTPException: 400 if prompt is invalid (empty or too long)\n    HTTPException: 503 if AI service is unavailable\n    HTTPException: 408 if request times out (>60s)",
-        "operationId": "test_custom_prompt_api_ai_audit_test_prompt_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CustomTestPromptRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CustomTestPromptResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "400": {
-            "description": "Bad request - Invalid or too long prompt"
-          },
-          "404": {
-            "description": "Event not found"
-          },
-          "408": {
-            "description": "Request timeout"
-          },
-          "422": {
-            "description": "Validation error"
-          },
-          "500": {
-            "description": "Internal server error"
-          },
-          "503": {
-            "description": "AI service unavailable"
-          }
-        },
-        "summary": "Test Custom Prompt",
         "tags": [
           "ai-audit"
         ]
@@ -29332,6 +28904,436 @@
         "summary": "Test Notification",
         "tags": [
           "notification"
+        ]
+      }
+    },
+    "/api/prompts": {
+      "get": {
+        "description": "Fetch current prompt configurations for all AI models.\n\nReturns the active prompt/configuration for each supported model:\n- nemotron: System prompt for risk analysis\n- florence2: Scene analysis queries\n- yolo_world: Custom object classes and confidence threshold\n- xclip: Action recognition classes\n- fashion_clip: Clothing categories",
+        "operationId": "get_all_prompts_api_prompts_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AllPromptsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get All Prompts",
+        "tags": [
+          "prompts"
+        ]
+      }
+    },
+    "/api/prompts/export": {
+      "get": {
+        "description": "Export all prompt configurations as JSON.\n\nReturns a complete export of all model configurations suitable for\nbackup, sharing, or importing into another instance.",
+        "operationId": "export_prompts_api_prompts_export_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromptsExportResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Export Prompts",
+        "tags": [
+          "prompts"
+        ]
+      }
+    },
+    "/api/prompts/history": {
+      "get": {
+        "description": "Get version history for prompt configurations.\n\nReturns a list of all prompt versions, optionally filtered by model.",
+        "operationId": "get_prompt_history_api_prompts_history_get",
+        "parameters": [
+          {
+            "description": "Filter by specific model",
+            "in": "query",
+            "name": "model",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/AIModelEnum"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by specific model",
+              "title": "Model"
+            }
+          },
+          {
+            "description": "Maximum results to return",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "description": "Maximum results to return",
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Offset for pagination",
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Offset for pagination",
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromptHistoryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get Prompt History",
+        "tags": [
+          "prompts"
+        ]
+      }
+    },
+    "/api/prompts/history/{version_id}": {
+      "post": {
+        "description": "Restore a specific prompt version.\n\nCreates a new version with the configuration from the specified version,\nmaking it the active configuration.",
+        "operationId": "restore_prompt_version_api_prompts_history__version_id__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "title": "Version Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromptRestoreResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Version not found"
+          },
+          "422": {
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Restore Prompt Version",
+        "tags": [
+          "prompts"
+        ]
+      }
+    },
+    "/api/prompts/import": {
+      "post": {
+        "description": "Import prompt configurations from JSON.\n\nValidates and imports configurations for each model, creating new\nversions for each imported configuration.",
+        "operationId": "import_prompts_api_prompts_import_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PromptsImportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromptsImportResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Import Prompts",
+        "tags": [
+          "prompts"
+        ]
+      }
+    },
+    "/api/prompts/import/preview": {
+      "post": {
+        "description": "Preview import changes without applying them.\n\nValidates the import data and computes diffs against current configurations.",
+        "operationId": "preview_import_prompts_api_prompts_import_preview_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PromptsImportPreviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromptsImportPreviewResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Preview Import Prompts",
+        "tags": [
+          "prompts"
+        ]
+      }
+    },
+    "/api/prompts/test": {
+      "post": {
+        "description": "Test a modified prompt configuration against an event or image.\n\nRuns inference with the modified configuration and compares results\nwith the original configuration.\n\nRate Limited:\n    This endpoint is rate limited to 10 requests per minute per client\n    with a burst allowance of 3. This protects the AI services from abuse\n    since prompt testing runs LLM inference which is computationally expensive.\n\nReturns 429 Too Many Requests if rate limit is exceeded.",
+        "operationId": "test_prompt_api_prompts_test_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PromptTestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromptTestResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation error - Invalid configuration"
+          },
+          "429": {
+            "description": "Too many requests - Rate limit exceeded"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Test Prompt",
+        "tags": [
+          "prompts"
+        ]
+      }
+    },
+    "/api/prompts/test-prompt": {
+      "post": {
+        "description": "Test a custom prompt against an existing event for A/B testing.\n\nThis endpoint allows testing a custom prompt without persisting results.\nIt's designed for the Prompt Playground A/B testing feature where users\ncan experiment with different prompts and compare results.\n\nThe endpoint:\n1. Fetches the event with its detections\n2. Builds context from the event data\n3. Calls the AI model with the custom prompt (or mocks if service unavailable)\n4. Returns results WITHOUT saving to database\n\nRate Limited:\n    This endpoint is rate limited to 10 requests per minute per client\n    with a burst allowance of 3. This protects the AI services from abuse\n    since prompt testing runs LLM inference which is computationally expensive.\n\nArgs:\n    request: Test request containing event_id, custom_prompt, and optional\n             parameters (temperature, max_tokens, model)\n    db: Database session\n\nReturns:\n    CustomTestPromptResponse with risk analysis results\n\nRaises:\n    HTTPException: 404 if event not found\n    HTTPException: 400 if prompt is invalid (empty or too long)\n    HTTPException: 429 if rate limit is exceeded\n    HTTPException: 503 if AI service is unavailable\n    HTTPException: 408 if request times out (>60s)",
+        "operationId": "test_custom_prompt_api_prompts_test_prompt_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomTestPromptRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomTestPromptResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Bad request - Invalid or too long prompt"
+          },
+          "404": {
+            "description": "Event not found"
+          },
+          "408": {
+            "description": "Request timeout"
+          },
+          "422": {
+            "description": "Validation error"
+          },
+          "429": {
+            "description": "Too many requests - Rate limit exceeded"
+          },
+          "500": {
+            "description": "Internal server error"
+          },
+          "503": {
+            "description": "AI service unavailable"
+          }
+        },
+        "summary": "Test Custom Prompt",
+        "tags": [
+          "prompts"
+        ]
+      }
+    },
+    "/api/prompts/{model}": {
+      "get": {
+        "description": "Fetch prompt configuration for a specific AI model.",
+        "operationId": "get_prompt_for_model_api_prompts__model__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "model",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/AIModelEnum"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelPromptConfig"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Model configuration not found"
+          },
+          "422": {
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get Prompt For Model",
+        "tags": [
+          "prompts"
+        ]
+      },
+      "put": {
+        "description": "Update prompt configuration for a specific AI model.\n\nCreates a new version of the configuration while preserving history.\nValidates the configuration structure before saving.\n\nSupports optimistic locking via expected_version in the request body.\nIf expected_version is provided and doesn't match the current version,\nreturns 409 Conflict to indicate concurrent modification.",
+        "operationId": "update_prompt_for_model_api_prompts__model__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "model",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/AIModelEnum"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PromptUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelPromptConfig"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Model not found"
+          },
+          "409": {
+            "description": "Conflict - Concurrent modification detected"
+          },
+          "422": {
+            "description": "Validation error - Invalid configuration"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Update Prompt For Model",
+        "tags": [
+          "prompts"
         ]
       }
     },

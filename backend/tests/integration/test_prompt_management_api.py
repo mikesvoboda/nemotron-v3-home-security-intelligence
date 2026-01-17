@@ -1,15 +1,15 @@
 """Integration tests for prompt management API endpoints.
 
-Tests the /api/ai-audit/prompts routes including:
-- GET /api/ai-audit/prompts - Get all prompt configurations
-- GET /api/ai-audit/prompts/{model} - Get prompt for specific model
-- PUT /api/ai-audit/prompts/{model} - Update prompt configuration
-- GET /api/ai-audit/prompts/history - Get version history
-- GET /api/ai-audit/prompts/export - Export all prompts
-- POST /api/ai-audit/prompts/import - Import prompts
-- POST /api/ai-audit/prompts/import/preview - Preview import changes
-- POST /api/ai-audit/prompts/history/{version_id} - Restore prompt version
-- POST /api/ai-audit/prompts/test - Test prompt configuration (rate limited)
+Tests the /api/prompts routes including:
+- GET /api/prompts - Get all prompt configurations
+- GET /api/prompts/{model} - Get prompt for specific model
+- PUT /api/prompts/{model} - Update prompt configuration
+- GET /api/prompts/history - Get version history
+- GET /api/prompts/export - Export all prompts
+- POST /api/prompts/import - Import prompts
+- POST /api/prompts/import/preview - Preview import changes
+- POST /api/prompts/history/{version_id} - Restore prompt version
+- POST /api/prompts/test - Test prompt configuration (rate limited)
 
 Uses shared fixtures from conftest.py:
 - integration_db: Clean database with initialized schema
@@ -166,7 +166,7 @@ async def multiple_prompt_versions(
 
 
 class TestGetAllPrompts:
-    """Tests for GET /api/ai-audit/prompts endpoint."""
+    """Tests for GET /api/prompts endpoint."""
 
     async def test_get_all_prompts_empty(
         self,
@@ -174,7 +174,7 @@ class TestGetAllPrompts:
         _clean_prompt_tables: None,
     ):
         """Test getting all prompts when none are configured."""
-        response = await client.get("/api/ai-audit/prompts")
+        response = await client.get("/api/prompts")
         assert response.status_code == 200
 
         data = response.json()
@@ -190,7 +190,7 @@ class TestGetAllPrompts:
         sample_nemotron_config: dict[str, object],
     ):
         """Test getting all prompts when configurations exist."""
-        response = await client.get("/api/ai-audit/prompts")
+        response = await client.get("/api/prompts")
         assert response.status_code == 200
 
         data = response.json()
@@ -207,7 +207,7 @@ class TestGetAllPrompts:
 
 
 class TestGetPromptForModel:
-    """Tests for GET /api/ai-audit/prompts/{model} endpoint."""
+    """Tests for GET /api/prompts/{model} endpoint."""
 
     async def test_get_prompt_for_model_success(
         self,
@@ -215,7 +215,7 @@ class TestGetPromptForModel:
         sample_nemotron_config: dict[str, object],
     ):
         """Test getting prompt configuration for a specific model."""
-        response = await client.get("/api/ai-audit/prompts/nemotron")
+        response = await client.get("/api/prompts/nemotron")
         assert response.status_code == 200
 
         data = response.json()
@@ -233,7 +233,7 @@ class TestGetPromptForModel:
         _clean_prompt_tables: None,
     ):
         """Test 404 when model configuration doesn't exist."""
-        response = await client.get("/api/ai-audit/prompts/nemotron")
+        response = await client.get("/api/prompts/nemotron")
         assert response.status_code == 404
 
         data = response.json()
@@ -246,12 +246,12 @@ class TestGetPromptForModel:
         _clean_prompt_tables: None,
     ):
         """Test 422 for invalid model name."""
-        response = await client.get("/api/ai-audit/prompts/invalid_model")
+        response = await client.get("/api/prompts/invalid_model")
         assert response.status_code == 422
 
 
 class TestUpdatePromptForModel:
-    """Tests for PUT /api/ai-audit/prompts/{model} endpoint."""
+    """Tests for PUT /api/prompts/{model} endpoint."""
 
     async def test_update_prompt_success(
         self,
@@ -266,7 +266,7 @@ class TestUpdatePromptForModel:
         }
 
         response = await client.put(
-            "/api/ai-audit/prompts/nemotron",
+            "/api/prompts/nemotron",
             json={
                 "config": new_config,
                 "change_description": "Updated temperature and max_tokens",
@@ -293,7 +293,7 @@ class TestUpdatePromptForModel:
         }
 
         response = await client.put(
-            "/api/ai-audit/prompts/nemotron",
+            "/api/prompts/nemotron",
             json={"config": invalid_config},
         )
         assert response.status_code == 422
@@ -314,7 +314,7 @@ class TestUpdatePromptForModel:
         }
 
         response = await client.put(
-            "/api/ai-audit/prompts/nemotron",
+            "/api/prompts/nemotron",
             json={"config": invalid_config},
         )
         assert response.status_code == 422
@@ -336,7 +336,7 @@ class TestUpdatePromptForModel:
         }
 
         response = await client.put(
-            "/api/ai-audit/prompts/nemotron",
+            "/api/prompts/nemotron",
             json={
                 "config": new_config,
                 "expected_version": 1,  # Current version
@@ -359,7 +359,7 @@ class TestUpdatePromptForModel:
         }
 
         response = await client.put(
-            "/api/ai-audit/prompts/nemotron",
+            "/api/prompts/nemotron",
             json={
                 "config": new_config,
                 "expected_version": 999,  # Wrong version
@@ -374,7 +374,7 @@ class TestUpdatePromptForModel:
 
 
 class TestGetPromptHistory:
-    """Tests for GET /api/ai-audit/prompts/history endpoint."""
+    """Tests for GET /api/prompts/history endpoint."""
 
     async def test_get_history_empty(
         self,
@@ -382,7 +382,7 @@ class TestGetPromptHistory:
         _clean_prompt_tables: None,
     ):
         """Test getting history when no versions exist."""
-        response = await client.get("/api/ai-audit/prompts/history")
+        response = await client.get("/api/prompts/history")
         assert response.status_code == 200
 
         data = response.json()
@@ -397,7 +397,7 @@ class TestGetPromptHistory:
         multiple_prompt_versions: list[PromptVersion],
     ):
         """Test getting version history with data."""
-        response = await client.get("/api/ai-audit/prompts/history")
+        response = await client.get("/api/prompts/history")
         assert response.status_code == 200
 
         data = response.json()
@@ -420,7 +420,7 @@ class TestGetPromptHistory:
         multiple_prompt_versions: list[PromptVersion],
     ):
         """Test filtering history by specific model."""
-        response = await client.get("/api/ai-audit/prompts/history?model=nemotron")
+        response = await client.get("/api/prompts/history?model=nemotron")
         assert response.status_code == 200
 
         data = response.json()
@@ -434,13 +434,13 @@ class TestGetPromptHistory:
     ):
         """Test pagination parameters."""
         # Get first 2
-        response = await client.get("/api/ai-audit/prompts/history?limit=2")
+        response = await client.get("/api/prompts/history?limit=2")
         assert response.status_code == 200
         data = response.json()
         assert len(data["versions"]) == 2
 
         # Get next 2 with offset
-        response = await client.get("/api/ai-audit/prompts/history?limit=2&offset=2")
+        response = await client.get("/api/prompts/history?limit=2&offset=2")
         assert response.status_code == 200
         data = response.json()
         assert len(data["versions"]) == 2
@@ -452,19 +452,19 @@ class TestGetPromptHistory:
     ):
         """Test validation of query parameters."""
         # Invalid limit
-        response = await client.get("/api/ai-audit/prompts/history?limit=0")
+        response = await client.get("/api/prompts/history?limit=0")
         assert response.status_code == 422
 
-        response = await client.get("/api/ai-audit/prompts/history?limit=101")
+        response = await client.get("/api/prompts/history?limit=101")
         assert response.status_code == 422
 
         # Invalid offset
-        response = await client.get("/api/ai-audit/prompts/history?offset=-1")
+        response = await client.get("/api/prompts/history?offset=-1")
         assert response.status_code == 422
 
 
 class TestExportPrompts:
-    """Tests for GET /api/ai-audit/prompts/export endpoint."""
+    """Tests for GET /api/prompts/export endpoint."""
 
     async def test_export_prompts_empty(
         self,
@@ -472,7 +472,7 @@ class TestExportPrompts:
         _clean_prompt_tables: None,
     ):
         """Test exporting when no prompts exist."""
-        response = await client.get("/api/ai-audit/prompts/export")
+        response = await client.get("/api/prompts/export")
         assert response.status_code == 200
 
         data = response.json()
@@ -486,7 +486,7 @@ class TestExportPrompts:
         sample_nemotron_config: dict[str, object],
     ):
         """Test exporting prompt configurations."""
-        response = await client.get("/api/ai-audit/prompts/export")
+        response = await client.get("/api/prompts/export")
         assert response.status_code == 200
 
         data = response.json()
@@ -499,7 +499,7 @@ class TestExportPrompts:
 
 
 class TestImportPrompts:
-    """Tests for POST /api/ai-audit/prompts/import endpoint."""
+    """Tests for POST /api/prompts/import endpoint."""
 
     async def test_import_prompts_success(
         self,
@@ -521,7 +521,7 @@ class TestImportPrompts:
             },
         }
 
-        response = await client.post("/api/ai-audit/prompts/import", json=import_data)
+        response = await client.post("/api/prompts/import", json=import_data)
         assert response.status_code == 200
 
         data = response.json()
@@ -551,7 +551,7 @@ class TestImportPrompts:
             },
         }
 
-        response = await client.post("/api/ai-audit/prompts/import", json=import_data)
+        response = await client.post("/api/prompts/import", json=import_data)
         assert response.status_code == 200
 
         data = response.json()
@@ -572,12 +572,12 @@ class TestImportPrompts:
             "prompts": {},
         }
 
-        response = await client.post("/api/ai-audit/prompts/import", json=import_data)
+        response = await client.post("/api/prompts/import", json=import_data)
         assert response.status_code == 422
 
 
 class TestImportPreview:
-    """Tests for POST /api/ai-audit/prompts/import/preview endpoint."""
+    """Tests for POST /api/prompts/import/preview endpoint."""
 
     async def test_import_preview_new_config(
         self,
@@ -596,7 +596,7 @@ class TestImportPreview:
             },
         }
 
-        response = await client.post("/api/ai-audit/prompts/import/preview", json=import_data)
+        response = await client.post("/api/prompts/import/preview", json=import_data)
         assert response.status_code == 200
 
         data = response.json()
@@ -626,7 +626,7 @@ class TestImportPreview:
             },
         }
 
-        response = await client.post("/api/ai-audit/prompts/import/preview", json=import_data)
+        response = await client.post("/api/prompts/import/preview", json=import_data)
         assert response.status_code == 200
 
         data = response.json()
@@ -655,7 +655,7 @@ class TestImportPreview:
             },
         }
 
-        response = await client.post("/api/ai-audit/prompts/import/preview", json=import_data)
+        response = await client.post("/api/prompts/import/preview", json=import_data)
         assert response.status_code == 200
 
         data = response.json()
@@ -681,7 +681,7 @@ class TestImportPreview:
             },
         }
 
-        response = await client.post("/api/ai-audit/prompts/import/preview", json=import_data)
+        response = await client.post("/api/prompts/import/preview", json=import_data)
         assert response.status_code == 200
 
         data = response.json()
@@ -704,7 +704,7 @@ class TestImportPreview:
             },
         }
 
-        response = await client.post("/api/ai-audit/prompts/import/preview", json=import_data)
+        response = await client.post("/api/prompts/import/preview", json=import_data)
         assert response.status_code == 200
 
         data = response.json()
@@ -713,7 +713,7 @@ class TestImportPreview:
 
 
 class TestRestorePromptVersion:
-    """Tests for POST /api/ai-audit/prompts/history/{version_id} endpoint."""
+    """Tests for POST /api/prompts/history/{version_id} endpoint."""
 
     async def test_restore_version_success(
         self,
@@ -726,7 +726,7 @@ class TestRestorePromptVersion:
             v for v in multiple_prompt_versions if v.model == "nemotron" and v.version == 1
         )
 
-        response = await client.post(f"/api/ai-audit/prompts/history/{version_to_restore.id}")
+        response = await client.post(f"/api/prompts/history/{version_to_restore.id}")
         assert response.status_code == 200
 
         data = response.json()
@@ -741,7 +741,7 @@ class TestRestorePromptVersion:
         _clean_prompt_tables: None,
     ):
         """Test 404 for non-existent version ID."""
-        response = await client.post("/api/ai-audit/prompts/history/999999")
+        response = await client.post("/api/prompts/history/999999")
         assert response.status_code == 404
 
         data = response.json()
@@ -758,11 +758,11 @@ class TestRestorePromptVersion:
             v for v in multiple_prompt_versions if v.model == "nemotron" and v.version == 1
         )
 
-        response = await client.post(f"/api/ai-audit/prompts/history/{version_to_restore.id}")
+        response = await client.post(f"/api/prompts/history/{version_to_restore.id}")
         assert response.status_code == 200
 
         # Verify old version still exists
-        history_response = await client.get("/api/ai-audit/prompts/history?model=nemotron")
+        history_response = await client.get("/api/prompts/history?model=nemotron")
         history_data = history_response.json()
 
         # Should have original 3 versions + new restored version = 4
@@ -770,7 +770,7 @@ class TestRestorePromptVersion:
 
 
 class TestPromptTest:
-    """Tests for POST /api/ai-audit/prompts/test endpoint."""
+    """Tests for POST /api/prompts/test endpoint."""
 
     async def test_prompt_test_validation_error(
         self,
@@ -788,7 +788,7 @@ class TestPromptTest:
             "image_path": None,
         }
 
-        response = await client.post("/api/ai-audit/prompts/test", json=test_request)
+        response = await client.post("/api/prompts/test", json=test_request)
         assert response.status_code == 422
 
         data = response.json()
@@ -809,7 +809,7 @@ class TestPromptTest:
             },
         }
 
-        response = await client.post("/api/ai-audit/prompts/test", json=test_request)
+        response = await client.post("/api/prompts/test", json=test_request)
         assert response.status_code == 422
 
     async def test_prompt_test_rate_limiting(
@@ -830,7 +830,7 @@ class TestPromptTest:
         # Make multiple rapid requests
         responses = []
         for _ in range(15):  # Exceed the rate limit
-            response = await client.post("/api/ai-audit/prompts/test", json=test_request)
+            response = await client.post("/api/prompts/test", json=test_request)
             responses.append(response)
 
         # At least one should be rate limited
@@ -852,7 +852,7 @@ class TestPromptManagementEdgeCases:
         }
 
         response = await client.put(
-            "/api/ai-audit/prompts/florence2",
+            "/api/prompts/florence2",
             json={"config": config},
         )
         # Should succeed even without existing config
@@ -873,7 +873,7 @@ class TestPromptManagementEdgeCases:
         }
 
         response = await client.put(
-            "/api/ai-audit/prompts/yolo_world",
+            "/api/prompts/yolo_world",
             json={"config": config},
         )
         assert response.status_code == 200
@@ -892,7 +892,7 @@ class TestPromptManagementEdgeCases:
         }
 
         response = await client.put(
-            "/api/ai-audit/prompts/xclip",
+            "/api/prompts/xclip",
             json={"config": config},
         )
         assert response.status_code == 200
@@ -911,7 +911,7 @@ class TestPromptManagementEdgeCases:
         }
 
         response = await client.put(
-            "/api/ai-audit/prompts/fashion_clip",
+            "/api/prompts/fashion_clip",
             json={"config": config},
         )
         assert response.status_code == 200
@@ -937,14 +937,14 @@ class TestPromptManagementEdgeCases:
 
         # First update succeeds
         response1 = await client.put(
-            "/api/ai-audit/prompts/nemotron",
+            "/api/prompts/nemotron",
             json={"config": config1, "expected_version": 1},
         )
         assert response1.status_code == 200
 
         # Second update with stale version should fail
         response2 = await client.put(
-            "/api/ai-audit/prompts/nemotron",
+            "/api/prompts/nemotron",
             json={"config": config2, "expected_version": 1},
         )
         assert response2.status_code == 409
@@ -956,7 +956,7 @@ class TestPromptManagementEdgeCases:
     ):
         """Test exporting and then reimporting configurations."""
         # Export
-        export_response = await client.get("/api/ai-audit/prompts/export")
+        export_response = await client.get("/api/prompts/export")
         assert export_response.status_code == 200
         export_data = export_response.json()
 
@@ -965,7 +965,7 @@ class TestPromptManagementEdgeCases:
             "version": export_data["version"],
             "prompts": export_data["prompts"],
         }
-        import_response = await client.post("/api/ai-audit/prompts/import", json=import_request)
+        import_response = await client.post("/api/prompts/import", json=import_request)
         assert import_response.status_code == 200
 
         # Should create new versions
@@ -978,7 +978,7 @@ class TestPromptManagementEdgeCases:
         sample_nemotron_config: dict[str, object],
     ):
         """Test that response structure matches schema."""
-        response = await client.get("/api/ai-audit/prompts")
+        response = await client.get("/api/prompts")
         assert response.status_code == 200
 
         data = response.json()
@@ -996,7 +996,7 @@ class TestPromptManagementEdgeCases:
         multiple_prompt_versions: list[PromptVersion],
     ):
         """Test that version history is ordered correctly (most recent first)."""
-        response = await client.get("/api/ai-audit/prompts/history?model=nemotron")
+        response = await client.get("/api/prompts/history?model=nemotron")
         assert response.status_code == 200
 
         data = response.json()
@@ -1022,7 +1022,7 @@ class TestPromptManagementEdgeCases:
         }
 
         response = await client.put(
-            "/api/ai-audit/prompts/nemotron",
+            "/api/prompts/nemotron",
             json={"config": config},
         )
         assert response.status_code == 422
@@ -1039,7 +1039,7 @@ class TestPromptManagementEdgeCases:
         }
 
         response = await client.put(
-            "/api/ai-audit/prompts/florence2",
+            "/api/prompts/florence2",
             json={"config": config},
         )
         assert response.status_code == 422
