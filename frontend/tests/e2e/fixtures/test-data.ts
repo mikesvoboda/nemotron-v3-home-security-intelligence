@@ -124,6 +124,80 @@ export const mockEvents = {
 
 export const allEvents = Object.values(mockEvents);
 
+// Deleted Event Mock Data (for Trash page)
+export const mockDeletedEvents = {
+  recentlyDeleted: {
+    id: 101,
+    camera_id: 'cam-1',
+    camera_name: 'Front Door',
+    timestamp: new Date(Date.now() - 120000).toISOString(),
+    started_at: new Date(Date.now() - 120000).toISOString(),
+    ended_at: new Date(Date.now() - 90000).toISOString(),
+    risk_score: 15,
+    risk_level: 'low',
+    summary: 'Package delivery - false alarm',
+    reasoning: 'Delivery person dropped off package and left immediately. No suspicious activity.',
+    reviewed: true,
+    notes: 'Marked as false positive',
+    detections: [{ label: 'person', confidence: 0.92 }],
+    deleted_at: new Date(Date.now() - 60000).toISOString(), // Deleted 1 minute ago
+  },
+  deletedHoursAgo: {
+    id: 102,
+    camera_id: 'cam-2',
+    camera_name: 'Back Yard',
+    timestamp: new Date(Date.now() - 7200000).toISOString(),
+    started_at: new Date(Date.now() - 7200000).toISOString(),
+    ended_at: new Date(Date.now() - 7140000).toISOString(),
+    risk_score: 45,
+    risk_level: 'medium',
+    summary: 'Raccoon activity near fence',
+    reasoning: 'Animal detected near property boundary. Medium risk flagged due to unusual nighttime movement.',
+    reviewed: true,
+    notes: 'Just a raccoon',
+    detections: [{ label: 'animal', confidence: 0.87 }],
+    deleted_at: new Date(Date.now() - 3600000).toISOString(), // Deleted 1 hour ago
+  },
+  deletedDaysAgo: {
+    id: 103,
+    camera_id: 'cam-4',
+    camera_name: 'Driveway',
+    timestamp: new Date(Date.now() - 259200000).toISOString(),
+    started_at: new Date(Date.now() - 259200000).toISOString(),
+    ended_at: new Date(Date.now() - 259140000).toISOString(),
+    risk_score: 68,
+    risk_level: 'high',
+    summary: 'Unknown vehicle lingering in driveway',
+    reasoning: 'Unrecognized vehicle remained stationary for extended period. Potential surveillance risk.',
+    reviewed: true,
+    notes: "Neighbor's new car",
+    detections: [{ label: 'car', confidence: 0.94 }],
+    deleted_at: new Date(Date.now() - 172800000).toISOString(), // Deleted 2 days ago
+  },
+  highRiskDeleted: {
+    id: 104,
+    camera_id: 'cam-1',
+    camera_name: 'Front Door',
+    timestamp: new Date(Date.now() - 86400000).toISOString(),
+    started_at: new Date(Date.now() - 86400000).toISOString(),
+    ended_at: new Date(Date.now() - 86340000).toISOString(),
+    risk_score: 85,
+    risk_level: 'high',
+    summary: 'Multiple individuals at door late at night',
+    reasoning: 'Three unidentified persons at entrance during late night hours. High risk due to time and behavior.',
+    reviewed: true,
+    notes: 'False alarm - friends visiting',
+    detections: [
+      { label: 'person', confidence: 0.96 },
+      { label: 'person', confidence: 0.93 },
+      { label: 'person', confidence: 0.90 },
+    ],
+    deleted_at: new Date(Date.now() - 43200000).toISOString(), // Deleted 12 hours ago
+  },
+};
+
+export const allDeletedEvents = Object.values(mockDeletedEvents);
+
 // GPU Stats Mock Data
 export const mockGPUStats = {
   healthy: {
@@ -1192,3 +1266,128 @@ export const mockDetectionWithBbox = {
   camera_name: 'Front Door',
   image_url: '/api/detections/det-trust-1/image',
 };
+
+// Job Mock Data
+export const mockJobs = {
+  completed: {
+    job_id: 'job-1',
+    job_type: 'cleanup',
+    status: 'completed',
+    progress: 100,
+    created_at: new Date(Date.now() - 3600000).toISOString(),
+    started_at: new Date(Date.now() - 3540000).toISOString(),
+    completed_at: new Date(Date.now() - 3000000).toISOString(),
+    error: null,
+    result: { files_deleted: 42, space_freed_mb: 256 },
+  },
+  running: {
+    job_id: 'job-2',
+    job_type: 'export',
+    status: 'running',
+    progress: 45,
+    created_at: new Date(Date.now() - 300000).toISOString(),
+    started_at: new Date(Date.now() - 240000).toISOString(),
+    completed_at: null,
+    error: null,
+    result: null,
+  },
+  pending: {
+    job_id: 'job-3',
+    job_type: 'backup',
+    status: 'pending',
+    progress: 0,
+    created_at: new Date(Date.now() - 60000).toISOString(),
+    started_at: null,
+    completed_at: null,
+    error: null,
+    result: null,
+  },
+  failed: {
+    job_id: 'job-4',
+    job_type: 'import',
+    status: 'failed',
+    progress: 25,
+    created_at: new Date(Date.now() - 7200000).toISOString(),
+    started_at: new Date(Date.now() - 7140000).toISOString(),
+    completed_at: new Date(Date.now() - 6600000).toISOString(),
+    error: 'Database connection timeout',
+    result: null,
+  },
+  cancelled: {
+    job_id: 'job-5',
+    job_type: 'analysis',
+    status: 'cancelled',
+    progress: 67,
+    created_at: new Date(Date.now() - 1800000).toISOString(),
+    started_at: new Date(Date.now() - 1740000).toISOString(),
+    completed_at: new Date(Date.now() - 1200000).toISOString(),
+    error: null,
+    result: null,
+  },
+};
+
+export const allJobs = Object.values(mockJobs);
+
+// Job Detail Mock Data (includes logs and history)
+export const mockJobDetail = {
+  job_id: 'job-2',
+  job_type: 'export',
+  status: 'running',
+  progress: 45,
+  created_at: new Date(Date.now() - 300000).toISOString(),
+  started_at: new Date(Date.now() - 240000).toISOString(),
+  completed_at: null,
+  error: null,
+  result: null,
+  metadata: {
+    total_files: 1000,
+    processed_files: 450,
+    format: 'csv',
+  },
+};
+
+export const mockJobLogs = [
+  {
+    timestamp: new Date(Date.now() - 240000).toISOString(),
+    level: 'info',
+    message: 'Job started',
+  },
+  {
+    timestamp: new Date(Date.now() - 180000).toISOString(),
+    level: 'info',
+    message: 'Processing batch 1 of 10',
+  },
+  {
+    timestamp: new Date(Date.now() - 120000).toISOString(),
+    level: 'info',
+    message: 'Processing batch 2 of 10',
+  },
+  {
+    timestamp: new Date(Date.now() - 60000).toISOString(),
+    level: 'warn',
+    message: 'Slow response from database',
+  },
+];
+
+export const mockJobHistory = [
+  {
+    timestamp: new Date(Date.now() - 240000).toISOString(),
+    status: 'pending',
+    message: 'Job queued',
+  },
+  {
+    timestamp: new Date(Date.now() - 230000).toISOString(),
+    status: 'running',
+    message: 'Job started',
+  },
+  {
+    timestamp: new Date(Date.now() - 180000).toISOString(),
+    status: 'running',
+    message: 'Progress: 25%',
+  },
+  {
+    timestamp: new Date(Date.now() - 120000).toISOString(),
+    status: 'running',
+    message: 'Progress: 45%',
+  },
+];
