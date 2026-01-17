@@ -122,10 +122,32 @@ services:
           memory: 512M
 
   frontend:
+    # Build locally to include SSL-enabled entrypoint
+    # TODO: Remove build section after CI/CD publishes updated image with SSL support
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: prod
     image: ghcr.io/${GHCR_OWNER:-mikesvoboda}/${GHCR_REPO:-nemotron-v3-home-security-intelligence}/frontend:${IMAGE_TAG:-latest}
     ports:
       # Map external port to internal 8080 (nginx-unprivileged runs on 8080)
       - '${FRONTEND_PORT:-5173}:8080'
+      # HTTPS port mapping (only used when SSL_ENABLED=true)
+      # Default 8444 to avoid privileged port issues with rootless containers
+      - '${FRONTEND_HTTPS_PORT:-8444}:8443'
+    volumes:
+      # Persistent storage for auto-generated SSL certificates
+      - frontend_certs:/etc/nginx/certs:U
+    environment:
+      # SSL/TLS Configuration
+      # Set SSL_ENABLED=true to enable HTTPS (auto-generates self-signed certs)
+      - SSL_ENABLED=${SSL_ENABLED:-false}
+      # Extra SANs for the auto-generated certificate (e.g., your server's IP)
+      # Format: IP:192.168.1.100,DNS:myhost.local
+      - SSL_SAN_EXTRA=${SSL_SAN_EXTRA:-}
+      # Custom certificate paths (relative to /etc/nginx/certs mount)
+      - SSL_CERT_PATH=${SSL_CERT_PATH:-/etc/nginx/certs/cert.pem}
+      - SSL_KEY_PATH=${SSL_KEY_PATH:-/etc/nginx/certs/key.pem}
     # NOTE: VITE_* environment variables are NOT used at runtime.
     # Vite bakes these values at build time. The frontend uses relative URLs
     # (empty BASE_URL), and nginx proxies /api and /ws to the backend.
@@ -153,6 +175,8 @@ volumes:
   postgres_data:
     driver: local
   redis_data:
+    driver: local
+  frontend_certs:
     driver: local
 
 networks:

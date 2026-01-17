@@ -390,6 +390,47 @@ class TestHandleValidatedMessage:
         assert "pong" in supported
         assert "subscribe" in supported
         assert "unsubscribe" in supported
+        assert "resync" in supported
+
+    @pytest.mark.asyncio
+    async def test_resync_message_sends_ack(self, mock_websocket, mock_subscription_manager):
+        """Test that resync message receives resync_ack response."""
+        message = WebSocketMessage(type="resync", data={"channel": "events", "last_sequence": 42})
+
+        with patch(
+            "backend.api.routes.websocket.get_subscription_manager",
+            return_value=mock_subscription_manager,
+        ):
+            await handle_validated_message(mock_websocket, message, "conn-123")
+
+        # Verify resync_ack response sent
+        mock_websocket.send_text.assert_awaited_once()
+        call_args = mock_websocket.send_text.call_args[0][0]
+        response = json.loads(call_args)
+        assert response["type"] == "resync_ack"
+        assert response["channel"] == "events"
+        assert response["last_sequence"] == 42
+
+    @pytest.mark.asyncio
+    async def test_resync_message_with_missing_data_uses_defaults(
+        self, mock_websocket, mock_subscription_manager
+    ):
+        """Test that resync message with missing data uses default values."""
+        message = WebSocketMessage(type="resync", data=None)
+
+        with patch(
+            "backend.api.routes.websocket.get_subscription_manager",
+            return_value=mock_subscription_manager,
+        ):
+            await handle_validated_message(mock_websocket, message, "conn-123")
+
+        # Verify resync_ack with defaults
+        mock_websocket.send_text.assert_awaited_once()
+        call_args = mock_websocket.send_text.call_args[0][0]
+        response = json.loads(call_args)
+        assert response["type"] == "resync_ack"
+        assert response["channel"] == "unknown"
+        assert response["last_sequence"] == 0
 
     @pytest.mark.asyncio
     async def test_case_insensitive_message_types(self, mock_websocket, mock_subscription_manager):
@@ -581,7 +622,7 @@ class TestWebSocketMessageTypes:
 
     def test_all_message_types_defined(self):
         """Test that all expected message types are defined."""
-        expected_types = ["ping", "pong", "subscribe", "unsubscribe"]
+        expected_types = ["ping", "pong", "subscribe", "unsubscribe", "resync"]
 
         for msg_type in expected_types:
             # Verify enum has the type

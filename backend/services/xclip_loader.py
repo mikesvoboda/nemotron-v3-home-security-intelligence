@@ -277,7 +277,7 @@ async def classify_actions(
 
         loop = asyncio.get_event_loop()
 
-        def _classify() -> dict[str, Any]:
+        def _classify() -> dict[str, Any]:  # noqa: PLR0912
             import numpy as np
 
             # X-CLIP expects 8 frames for optimal performance
@@ -340,9 +340,39 @@ async def classify_actions(
                     f"X-CLIP processor failed - likely corrupted frame data: {e}"
                 ) from e
 
+            # Validate processor output - pixel_values can be None if frames are invalid
+            # This is the root cause of "'NoneType' object has no attribute 'shape'" errors
+            if inputs is None:
+                raise RuntimeError("X-CLIP processor returned None - input frames may be invalid")
+
+            pixel_values = inputs.get("pixel_values")
+            if pixel_values is None:
+                raise RuntimeError(
+                    "X-CLIP processor returned None for pixel_values - "
+                    "frames may be corrupted or in an unsupported format. "
+                    f"Attempted to process {len(validated_frames)} frames."
+                )
+
+            # Validate tensor shape: expected [batch, num_frames, channels, height, width]
+            if not hasattr(pixel_values, "shape"):
+                raise RuntimeError(
+                    f"X-CLIP pixel_values has no shape attribute - "
+                    f"got type {type(pixel_values).__name__}"
+                )
+
+            if len(pixel_values.shape) != 5:
+                raise RuntimeError(
+                    f"X-CLIP pixel_values has unexpected shape {pixel_values.shape} - "
+                    f"expected 5 dimensions [batch, frames, channels, height, width]"
+                )
+
+            logger.debug(
+                f"X-CLIP processor output validated: pixel_values shape={pixel_values.shape}"
+            )
+
             # Move to GPU if model is on GPU
             device = next(model.parameters()).device
-            inputs = {k: v.to(device) for k, v in inputs.items()}
+            inputs = {k: v.to(device) if v is not None else v for k, v in inputs.items()}
 
             # Handle dtype for float16 models
             if next(model.parameters()).dtype == torch.float16 and "pixel_values" in inputs:

@@ -6,8 +6,10 @@ proper structure and type validation before processing.
 
 Supported message types:
 - ping: Keep-alive heartbeat (responds with pong)
-- subscribe: Subscribe to specific event channels (future)
-- unsubscribe: Unsubscribe from event channels (future)
+- pong: Response to server-initiated ping
+- subscribe: Subscribe to specific event channels
+- unsubscribe: Unsubscribe from event channels
+- resync: Request resync after detecting sequence gap (responds with resync_ack)
 """
 
 from __future__ import annotations
@@ -42,6 +44,7 @@ class WebSocketMessageType(StrEnum):
     PONG = auto()
     SUBSCRIBE = auto()
     UNSUBSCRIBE = auto()
+    RESYNC = auto()
 
 
 class WebSocketPingMessage(BaseModel):

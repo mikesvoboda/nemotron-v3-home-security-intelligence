@@ -41,18 +41,12 @@ scripts/
   audit-summary.sh                   # Local weekly audit runner
 
   # Database & Seeding
-  seed-cameras.py                    # Database seeding script
-  seed-mock-events.py                # Mock events seeding script
+  seed-mock-events.py                # Mock events and cameras seeding script
   db-migrate.sh                      # Database migration script
-  migrate-sqlite-to-postgres.py      # SQLite to PostgreSQL migration
-  migrate-file-types.py              # File type migration utility
-  cleanup_orphaned_test_cameras.py   # Remove orphaned test data
 
   # Code Generation & Certs
   generate-types.sh                  # TypeScript API type generation
-  generate_certs.py                  # SSL certificate generation (Python)
-  generate-certs.sh                  # SSL certificate generation (Shell)
-  generate-ssl-cert.sh               # Alternative SSL cert generation
+  generate-certs.sh                  # SSL certificate generation
   generate-openapi.py                # Generate OpenAPI specification from FastAPI
   generate_zod_schemas.py            # Generate Zod validation schemas for frontend
   generate-ws-types.py               # Generate WebSocket TypeScript types
@@ -105,9 +99,6 @@ scripts/
   mutation-test.sh                   # Mutation testing runner
 
   # Utilities
-  github-models-examples.py          # GitHub Models API examples
-  migrate_beads_to_linear.py         # Migrate beads to Linear (one-time)
-  update_loaders.py                  # Update loader configurations
   validate-api-types.sh              # Validate API type definitions
 
   # Accessibility Testing
@@ -449,32 +440,9 @@ python scripts/audit-test-durations.py <results-dir>
 
 ### Database Seeding
 
-#### seed-cameras.py
-
-**Purpose:** Populate database with test cameras.
-
-**Usage:**
-
-```bash
-./scripts/seed-cameras.py              # Seed 6 cameras (creates folders)
-./scripts/seed-cameras.py --no-folders # Skip folder creation
-./scripts/seed-cameras.py --count 3    # Seed specific number
-./scripts/seed-cameras.py --clear      # Clear before seeding
-./scripts/seed-cameras.py --list       # List current cameras
-```
-
-**Sample Cameras:**
-
-1. Front Door (front-door) - active
-2. Backyard (backyard) - active
-3. Garage (garage) - inactive
-4. Driveway (driveway) - active
-5. Side Gate (side-gate) - active
-6. Living Room (living-room) - inactive
-
 #### seed-mock-events.py
 
-**Purpose:** Populate database with mock security events for testing.
+**Purpose:** Populate database with mock security events and cameras for testing.
 
 ### Database Migration
 
@@ -490,20 +458,6 @@ python scripts/audit-test-durations.py <results-dir>
 ./scripts/db-migrate.sh --downgrade        # Rollback last migration
 ```
 
-#### migrate-sqlite-to-postgres.py
-
-**Purpose:** Migrate data from SQLite to PostgreSQL database.
-
-**Usage:**
-
-```bash
-python scripts/migrate-sqlite-to-postgres.py --source data/security.db --target postgresql://...
-```
-
-#### migrate-file-types.py
-
-**Purpose:** Utility for migrating file type configurations.
-
 ### Code Generation
 
 #### generate-types.sh
@@ -518,20 +472,6 @@ python scripts/migrate-sqlite-to-postgres.py --source data/security.db --target 
 ```
 
 **Output:** `frontend/src/types/api.ts`
-
-#### generate_certs.py
-
-**Purpose:** Generate self-signed SSL certificates for HTTPS development.
-
-**Usage:**
-
-```bash
-python scripts/generate_certs.py                    # Generate certs in ./certs/
-python scripts/generate_certs.py --output /path/    # Custom output directory
-python scripts/generate_certs.py --days 365         # Custom validity period
-```
-
-**Output:** Creates `server.crt` and `server.key` files.
 
 ### Pre-commit Hooks
 
@@ -658,17 +598,6 @@ python scripts/benchmark_model_zoo.py --output results.md    # Custom output
 ```
 
 ### Maintenance Scripts
-
-#### cleanup_orphaned_test_cameras.py
-
-**Purpose:** One-time cleanup of orphaned 'Test Camera' entries from database.
-
-**Usage:**
-
-```bash
-python scripts/cleanup_orphaned_test_cameras.py --dry-run  # Preview
-python scripts/cleanup_orphaned_test_cameras.py            # Delete
-```
 
 #### audit-summary.sh
 
@@ -1163,18 +1092,6 @@ SKIP=check-integration-tests git commit
 
 **Integration:** Runs weekly via `.github/workflows/weekly-test-report.yml` (Mondays 9 AM UTC)
 
-### Utility Scripts
-
-#### update_loaders.py
-
-**Purpose:** Update loader configurations for the project.
-
-**Usage:**
-
-```bash
-python scripts/update_loaders.py
-```
-
 ## Usage Patterns
 
 ### Initial Setup
@@ -1231,13 +1148,13 @@ git add -A && git commit -m "message"
 ### Database Management
 
 ```bash
-# Seed cameras
-./scripts/seed-cameras.py
+# Seed mock events and cameras
+./scripts/seed-mock-events.py
 
 # Reset database
 rm -f data/security.db
 ./scripts/dev.sh restart
-./scripts/seed-cameras.py
+./scripts/seed-mock-events.py
 ```
 
 ## Related Documentation
