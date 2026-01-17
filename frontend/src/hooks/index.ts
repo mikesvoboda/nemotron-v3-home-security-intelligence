@@ -338,3 +338,13 @@ export type {
 // Event snooze hooks (NEM-2360, NEM-2361)
 export { useSnoozeEvent } from './useSnoozeEvent';
 export type { UseSnoozeEventOptions, UseSnoozeEventReturn } from './useSnoozeEvent';
+
+// Date range state with URL persistence (NEM-2701)
+export { useDateRangeState, calculatePresetRange, PRESET_LABELS } from './useDateRangeState';
+export type {
+  DateRangePreset,
+  DateRange,
+  UseDateRangeStateOptions,
+  DateRangeApiParams,
+  UseDateRangeStateReturn,
+} from './useDateRangeState';

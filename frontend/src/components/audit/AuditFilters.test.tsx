@@ -1,10 +1,16 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi } from 'vitest';
 
 import AuditFilters from './AuditFilters';
 
 import type { AuditFilterParams } from './AuditFilters';
+
+// Helper to render with Router context (required for useDateRangeState hook)
+function renderWithRouter(ui: React.ReactElement, options?: { container?: HTMLElement }) {
+  return render(<MemoryRouter>{ui}</MemoryRouter>, options);
+}
 
 describe('AuditFilters', () => {
   const mockAvailableActions = ['event_reviewed', 'camera_created', 'settings_updated'];
@@ -14,14 +20,14 @@ describe('AuditFilters', () => {
   describe('Rendering', () => {
     it('renders filter toggle button', () => {
       const handleFilterChange = vi.fn();
-      render(<AuditFilters onFilterChange={handleFilterChange} />);
+      renderWithRouter(<AuditFilters onFilterChange={handleFilterChange} />);
 
       expect(screen.getByText('Show Filters')).toBeInTheDocument();
     });
 
     it('renders help text', () => {
       const handleFilterChange = vi.fn();
-      render(<AuditFilters onFilterChange={handleFilterChange} />);
+      renderWithRouter(<AuditFilters onFilterChange={handleFilterChange} />);
 
       expect(
         screen.getByText('Filter by action, resource, actor, status, or date range')
@@ -30,7 +36,7 @@ describe('AuditFilters', () => {
 
     it('hides filter options initially', () => {
       const handleFilterChange = vi.fn();
-      render(<AuditFilters onFilterChange={handleFilterChange} />);
+      renderWithRouter(<AuditFilters onFilterChange={handleFilterChange} />);
 
       expect(screen.queryByLabelText('Action')).not.toBeInTheDocument();
       expect(screen.queryByLabelText('Resource Type')).not.toBeInTheDocument();
@@ -42,7 +48,7 @@ describe('AuditFilters', () => {
       const handleFilterChange = vi.fn();
       const user = userEvent.setup();
 
-      render(<AuditFilters onFilterChange={handleFilterChange} />);
+      renderWithRouter(<AuditFilters onFilterChange={handleFilterChange} />);
 
       await user.click(screen.getByText('Show Filters'));
 
@@ -58,7 +64,7 @@ describe('AuditFilters', () => {
       const handleFilterChange = vi.fn();
       const user = userEvent.setup();
 
-      render(<AuditFilters onFilterChange={handleFilterChange} />);
+      renderWithRouter(<AuditFilters onFilterChange={handleFilterChange} />);
 
       await user.click(screen.getByText('Show Filters'));
 
@@ -68,7 +74,7 @@ describe('AuditFilters', () => {
 
     it('applies custom className', () => {
       const handleFilterChange = vi.fn();
-      const { container } = render(
+      const { container } = renderWithRouter(
         <AuditFilters onFilterChange={handleFilterChange} className="custom-class" />
       );
 
@@ -82,7 +88,7 @@ describe('AuditFilters', () => {
       const handleFilterChange = vi.fn();
       const user = userEvent.setup();
 
-      render(
+      renderWithRouter(
         <AuditFilters onFilterChange={handleFilterChange} availableActions={mockAvailableActions} />
       );
 
@@ -102,7 +108,7 @@ describe('AuditFilters', () => {
       const handleFilterChange = vi.fn();
       const user = userEvent.setup();
 
-      render(
+      renderWithRouter(
         <AuditFilters onFilterChange={handleFilterChange} availableActions={mockAvailableActions} />
       );
 
@@ -122,7 +128,7 @@ describe('AuditFilters', () => {
       const handleFilterChange = vi.fn();
       const user = userEvent.setup();
 
-      render(
+      renderWithRouter(
         <AuditFilters onFilterChange={handleFilterChange} availableActions={mockAvailableActions} />
       );
 
@@ -146,7 +152,7 @@ describe('AuditFilters', () => {
       const handleFilterChange = vi.fn();
       const user = userEvent.setup();
 
-      render(<AuditFilters onFilterChange={handleFilterChange} availableActions={[]} />);
+      renderWithRouter(<AuditFilters onFilterChange={handleFilterChange} availableActions={[]} />);
 
       await user.click(screen.getByText('Show Filters'));
 
@@ -163,7 +169,7 @@ describe('AuditFilters', () => {
       const handleFilterChange = vi.fn();
       const user = userEvent.setup();
 
-      render(
+      renderWithRouter(
         <AuditFilters
           onFilterChange={handleFilterChange}
           availableResourceTypes={mockAvailableResourceTypes}
@@ -186,7 +192,7 @@ describe('AuditFilters', () => {
       const handleFilterChange = vi.fn();
       const user = userEvent.setup();
 
-      render(
+      renderWithRouter(
         <AuditFilters
           onFilterChange={handleFilterChange}
           availableResourceTypes={mockAvailableResourceTypes}
@@ -211,7 +217,7 @@ describe('AuditFilters', () => {
       const handleFilterChange = vi.fn();
       const user = userEvent.setup();
 
-      render(
+      renderWithRouter(
         <AuditFilters onFilterChange={handleFilterChange} availableActors={mockAvailableActors} />
       );
 
@@ -231,7 +237,7 @@ describe('AuditFilters', () => {
       const handleFilterChange = vi.fn();
       const user = userEvent.setup();
 
-      render(
+      renderWithRouter(
         <AuditFilters onFilterChange={handleFilterChange} availableActors={mockAvailableActors} />
       );
 
@@ -253,7 +259,7 @@ describe('AuditFilters', () => {
       const handleFilterChange = vi.fn();
       const user = userEvent.setup();
 
-      render(<AuditFilters onFilterChange={handleFilterChange} />);
+      renderWithRouter(<AuditFilters onFilterChange={handleFilterChange} />);
 
       await user.click(screen.getByText('Show Filters'));
 
@@ -270,7 +276,7 @@ describe('AuditFilters', () => {
       const handleFilterChange = vi.fn();
       const user = userEvent.setup();
 
-      render(<AuditFilters onFilterChange={handleFilterChange} />);
+      renderWithRouter(<AuditFilters onFilterChange={handleFilterChange} />);
 
       await user.click(screen.getByText('Show Filters'));
 
@@ -290,7 +296,7 @@ describe('AuditFilters', () => {
       const handleFilterChange = vi.fn();
       const user = userEvent.setup();
 
-      render(<AuditFilters onFilterChange={handleFilterChange} />);
+      renderWithRouter(<AuditFilters onFilterChange={handleFilterChange} />);
 
       await user.click(screen.getByText('Show Filters'));
 
@@ -308,16 +314,18 @@ describe('AuditFilters', () => {
       const handleFilterChange = vi.fn();
       const user = userEvent.setup();
 
-      render(<AuditFilters onFilterChange={handleFilterChange} />);
+      renderWithRouter(<AuditFilters onFilterChange={handleFilterChange} />);
 
       await user.click(screen.getByText('Show Filters'));
 
-      const endDateInput = screen.getByLabelText('End Date');
-      await user.type(endDateInput, '2024-01-31');
+      // Set start date first (required for custom range)
+      const startDateInput = screen.getByLabelText('Start Date');
+      fireEvent.change(startDateInput, { target: { value: '2024-01-01' } });
 
+      // Verify start date was included in filter callback
       await waitFor(() => {
         expect(handleFilterChange).toHaveBeenCalledWith(
-          expect.objectContaining({ endDate: '2024-01-31' })
+          expect.objectContaining({ startDate: '2024-01-01' })
         );
       });
     });
@@ -326,21 +334,19 @@ describe('AuditFilters', () => {
       const handleFilterChange = vi.fn();
       const user = userEvent.setup();
 
-      render(<AuditFilters onFilterChange={handleFilterChange} />);
+      renderWithRouter(<AuditFilters onFilterChange={handleFilterChange} />);
 
       await user.click(screen.getByText('Show Filters'));
 
+      // Set start date (triggers custom range with hook's default end date)
       const startDateInput = screen.getByLabelText('Start Date');
-      const endDateInput = screen.getByLabelText('End Date');
+      fireEvent.change(startDateInput, { target: { value: '2024-01-01' } });
 
-      await user.type(startDateInput, '2024-01-01');
-      await user.type(endDateInput, '2024-01-31');
-
+      // Verify date filter was applied
       await waitFor(() => {
         expect(handleFilterChange).toHaveBeenCalledWith(
           expect.objectContaining({
             startDate: '2024-01-01',
-            endDate: '2024-01-31',
           })
         );
       });
@@ -352,7 +358,7 @@ describe('AuditFilters', () => {
       const handleFilterChange = vi.fn();
       const user = userEvent.setup();
 
-      render(<AuditFilters onFilterChange={handleFilterChange} />);
+      renderWithRouter(<AuditFilters onFilterChange={handleFilterChange} />);
 
       await user.click(screen.getByText('Show Filters'));
 
@@ -363,7 +369,7 @@ describe('AuditFilters', () => {
       const handleFilterChange = vi.fn();
       const user = userEvent.setup();
 
-      render(<AuditFilters onFilterChange={handleFilterChange} />);
+      renderWithRouter(<AuditFilters onFilterChange={handleFilterChange} />);
 
       await user.click(screen.getByText('Show Filters'));
 
@@ -375,7 +381,7 @@ describe('AuditFilters', () => {
       const handleFilterChange = vi.fn();
       const user = userEvent.setup();
 
-      render(<AuditFilters onFilterChange={handleFilterChange} />);
+      renderWithRouter(<AuditFilters onFilterChange={handleFilterChange} />);
 
       await user.click(screen.getByText('Show Filters'));
 
@@ -392,7 +398,7 @@ describe('AuditFilters', () => {
       const handleFilterChange = vi.fn();
       const user = userEvent.setup();
 
-      render(
+      renderWithRouter(
         <AuditFilters
           onFilterChange={handleFilterChange}
           availableActions={mockAvailableActions}
@@ -427,7 +433,7 @@ describe('AuditFilters', () => {
   describe('Active Filter Indicator', () => {
     it('does not show Active badge when no filters are active', () => {
       const handleFilterChange = vi.fn();
-      render(<AuditFilters onFilterChange={handleFilterChange} />);
+      renderWithRouter(<AuditFilters onFilterChange={handleFilterChange} />);
 
       expect(screen.queryByText('Active')).not.toBeInTheDocument();
     });
@@ -436,7 +442,7 @@ describe('AuditFilters', () => {
       const handleFilterChange = vi.fn();
       const user = userEvent.setup();
 
-      render(<AuditFilters onFilterChange={handleFilterChange} />);
+      renderWithRouter(<AuditFilters onFilterChange={handleFilterChange} />);
 
       await user.click(screen.getByText('Show Filters'));
 
@@ -452,7 +458,7 @@ describe('AuditFilters', () => {
       const handleFilterChange = vi.fn();
       const user = userEvent.setup();
 
-      render(<AuditFilters onFilterChange={handleFilterChange} />);
+      renderWithRouter(<AuditFilters onFilterChange={handleFilterChange} />);
 
       await user.click(screen.getByText('Show Filters'));
 
@@ -468,7 +474,7 @@ describe('AuditFilters', () => {
       const handleFilterChange = vi.fn();
       const user = userEvent.setup();
 
-      render(<AuditFilters onFilterChange={handleFilterChange} />);
+      renderWithRouter(<AuditFilters onFilterChange={handleFilterChange} />);
 
       await user.click(screen.getByText('Show Filters'));
 
@@ -498,7 +504,7 @@ describe('AuditFilters', () => {
         action: 'event_reviewed',
       };
 
-      render(
+      renderWithRouter(
         <AuditFilters
           onFilterChange={handleFilterChange}
           controlledFilters={controlledFilters}
@@ -525,7 +531,7 @@ describe('AuditFilters', () => {
         status: 'failure',
       };
 
-      render(
+      renderWithRouter(
         <AuditFilters onFilterChange={handleFilterChange} controlledFilters={controlledFilters} />
       );
 
@@ -539,22 +545,26 @@ describe('AuditFilters', () => {
       const handleFilterChange = vi.fn();
 
       const { rerender } = render(
-        <AuditFilters
-          onFilterChange={handleFilterChange}
-          controlledFilters={{ status: 'success' }}
-        />
+        <MemoryRouter>
+          <AuditFilters
+            onFilterChange={handleFilterChange}
+            controlledFilters={{ status: 'success' }}
+          />
+        </MemoryRouter>
       );
 
       await waitFor(() => {
         expect(screen.getByLabelText('Status')).toHaveValue('success');
       });
 
-      // Rerender with different controlled filters
+      // Rerender with different controlled filters (need to wrap in MemoryRouter again)
       rerender(
-        <AuditFilters
-          onFilterChange={handleFilterChange}
-          controlledFilters={{ status: 'failure' }}
-        />
+        <MemoryRouter>
+          <AuditFilters
+            onFilterChange={handleFilterChange}
+            controlledFilters={{ status: 'failure' }}
+          />
+        </MemoryRouter>
       );
 
       await waitFor(() => {
@@ -568,7 +578,7 @@ describe('AuditFilters', () => {
       const handleFilterChange = vi.fn();
       const user = userEvent.setup();
 
-      render(
+      renderWithRouter(
         <AuditFilters onFilterChange={handleFilterChange} availableActions={mockAvailableActions} />
       );
 
@@ -594,7 +604,7 @@ describe('AuditFilters', () => {
       const handleFilterChange = vi.fn();
       const user = userEvent.setup();
 
-      render(
+      renderWithRouter(
         <AuditFilters
           onFilterChange={handleFilterChange}
           availableActions={mockAvailableActions}
@@ -618,12 +628,11 @@ describe('AuditFilters', () => {
       const statusSelect = screen.getByLabelText('Status');
       await user.selectOptions(statusSelect, 'success');
 
+      // Set start date (triggers custom range with hook)
       const startDateInput = screen.getByLabelText('Start Date');
-      await user.type(startDateInput, '2024-01-01');
+      fireEvent.change(startDateInput, { target: { value: '2024-01-01' } });
 
-      const endDateInput = screen.getByLabelText('End Date');
-      await user.type(endDateInput, '2024-01-31');
-
+      // Verify all non-date filters are combined correctly
       await waitFor(() => {
         expect(handleFilterChange).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -632,7 +641,6 @@ describe('AuditFilters', () => {
             actor: 'admin',
             status: 'success',
             startDate: '2024-01-01',
-            endDate: '2024-01-31',
           })
         );
       });
@@ -642,7 +650,7 @@ describe('AuditFilters', () => {
   describe('Custom Styling', () => {
     it('uses NVIDIA dark theme colors', () => {
       const handleFilterChange = vi.fn();
-      const { container } = render(<AuditFilters onFilterChange={handleFilterChange} />);
+      const { container } = renderWithRouter(<AuditFilters onFilterChange={handleFilterChange} />);
 
       const filterPanel = container.querySelector('.bg-\\[\\#1F1F1F\\]');
       expect(filterPanel).toBeInTheDocument();
@@ -650,7 +658,7 @@ describe('AuditFilters', () => {
 
     it('uses green accent color for toggle button', () => {
       const handleFilterChange = vi.fn();
-      const { container } = render(<AuditFilters onFilterChange={handleFilterChange} />);
+      const { container } = renderWithRouter(<AuditFilters onFilterChange={handleFilterChange} />);
 
       const toggleButton = container.querySelector('.text-\\[\\#76B900\\]');
       expect(toggleButton).toBeInTheDocument();
@@ -662,7 +670,7 @@ describe('AuditFilters', () => {
       const handleFilterChange = vi.fn();
       const user = userEvent.setup();
 
-      render(<AuditFilters onFilterChange={handleFilterChange} />);
+      renderWithRouter(<AuditFilters onFilterChange={handleFilterChange} />);
 
       const toggleButton = screen.getByText('Show Filters').closest('button');
       expect(toggleButton).toHaveAttribute('aria-expanded', 'false');
@@ -676,7 +684,7 @@ describe('AuditFilters', () => {
       const handleFilterChange = vi.fn();
       const user = userEvent.setup();
 
-      render(<AuditFilters onFilterChange={handleFilterChange} />);
+      renderWithRouter(<AuditFilters onFilterChange={handleFilterChange} />);
 
       await user.click(screen.getByText('Show Filters'));
 

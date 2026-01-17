@@ -127,6 +127,13 @@ import { addApiBreadcrumb, isSentryEnabled } from './sentry';
 import { useRateLimitStore, type RateLimitInfo } from '../stores/rate-limit-store';
 
 import type {
+  CameraUptimeResponse,
+  DetectionTrendsParams,
+  DetectionTrendsResponse,
+  RiskHistoryQueryParams,
+  RiskHistoryResponse,
+} from '../types/analytics';
+import type {
   ExportJob,
   ExportJobCreateParams,
   ExportJobStartResponse,
@@ -263,6 +270,20 @@ export type {
   DetectionLabelCount,
   DetectionLabelsResponse,
 } from '../types/generated';
+
+// Re-export analytics types for consumers of this module
+export type {
+  DetectionTrendsResponse,
+  DetectionTrendsParams,
+  DetectionTrendDataPoint,
+  RiskHistoryResponse,
+  RiskHistoryDataPoint,
+  RiskHistoryQueryParams,
+  CameraUptimeResponse,
+  CameraUptimeDataPoint,
+  ObjectDistributionResponse,
+  ObjectDistributionDataPoint,
+} from '../types/analytics';
 
 // ============================================================================
 // Additional types not in OpenAPI (client-side only)
@@ -5235,4 +5256,111 @@ export async function fetchUntrustedEntities(params?: {
   const endpoint = queryString ? `/api/entities/untrusted?${queryString}` : '/api/entities/untrusted';
 
   return fetchApi<TrustedEntityListResponse>(endpoint);
+}
+
+// ============================================================================
+// Analytics API Functions
+// ============================================================================
+
+/**
+ * Fetch detection trends for a date range.
+ *
+ * Returns daily detection counts aggregated by day for the specified date range.
+ * Creates one data point per day even if there are no detections (count=0).
+ *
+ * @param params - Date range parameters
+ * @returns DetectionTrendsResponse with daily detection counts
+ *
+ * @example
+ * ```typescript
+ * // Get detection trends for the last 7 days
+ * const endDate = new Date().toISOString().split('T')[0];
+ * const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+ * const trends = await fetchDetectionTrends({ start_date: startDate, end_date: endDate });
+ * console.log(`Total detections: ${trends.total_detections}`);
+ * trends.data_points.forEach(point => {
+ *   console.log(`${point.date}: ${point.count} detections`);
+ * });
+ * ```
+ */
+export async function fetchDetectionTrends(
+  params: DetectionTrendsParams
+): Promise<DetectionTrendsResponse> {
+  const searchParams = new URLSearchParams();
+  searchParams.append('start_date', params.start_date);
+  searchParams.append('end_date', params.end_date);
+
+  return fetchApi<DetectionTrendsResponse>(`/api/analytics/detection-trends?${searchParams.toString()}`);
+}
+
+/**
+ * Fetch risk history for a date range.
+ *
+ * Returns daily event counts grouped by risk level (low, medium, high, critical)
+ * for the specified date range. Creates one data point per day even if there
+ * are no events (all counts = 0).
+ *
+ * @param params - Date range parameters with start_date and end_date
+ * @returns RiskHistoryResponse with daily risk level counts
+ *
+ * @example
+ * ```typescript
+ * // Get risk history for the last 7 days
+ * const endDate = new Date().toISOString().split('T')[0];
+ * const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+ * const history = await fetchRiskHistory({ start_date: startDate, end_date: endDate });
+ * history.data_points.forEach(point => {
+ *   console.log(`${point.date}: low=${point.low}, medium=${point.medium}, high=${point.high}, critical=${point.critical}`);
+ * });
+ * ```
+ */
+export async function fetchRiskHistory(
+  params: RiskHistoryQueryParams
+): Promise<RiskHistoryResponse> {
+  const searchParams = new URLSearchParams();
+  searchParams.append('start_date', params.start_date);
+  searchParams.append('end_date', params.end_date);
+
+  return fetchApi<RiskHistoryResponse>(`/api/analytics/risk-history?${searchParams.toString()}`);
+}
+
+/**
+ * Query parameters for the camera uptime endpoint.
+ */
+export interface CameraUptimeParams {
+  /** Start date in ISO format (YYYY-MM-DD) */
+  start_date: string;
+  /** End date in ISO format (YYYY-MM-DD) */
+  end_date: string;
+}
+
+/**
+ * Fetch camera uptime data for a date range.
+ *
+ * Returns uptime percentage and detection count for each camera.
+ * Uptime is calculated based on the number of days with at least one detection
+ * divided by the total days in the date range.
+ *
+ * @param params - Date range parameters
+ * @returns CameraUptimeResponse with per-camera uptime data
+ *
+ * @example
+ * ```typescript
+ * // Get camera uptime for the last 30 days
+ * const endDate = new Date().toISOString().split('T')[0];
+ * const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+ * const uptime = await fetchCameraUptime({ start_date: startDate, end_date: endDate });
+ * uptime.cameras.forEach(cam => {
+ *   console.log(`${cam.camera_name}: ${cam.uptime_percentage}% uptime`);
+ * });
+ * ```
+ */
+export async function fetchCameraUptime(
+  params: CameraUptimeParams
+): Promise<CameraUptimeResponse> {
+  const searchParams = new URLSearchParams();
+  searchParams.append('start_date', params.start_date);
+  searchParams.append('end_date', params.end_date);
+
+  return fetchApi<CameraUptimeResponse>(`/api/analytics/camera-uptime?${searchParams.toString()}`);
 }
