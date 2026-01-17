@@ -63,6 +63,9 @@ FRONTEND_PORT="${FRONTEND_PORT:-5173}"
 SEED_FILES_COUNT="${SEED_FILES_COUNT:-0}"
 FOSCAM_PATH="${FOSCAM_PATH:-/export/foscam}"
 
+# Project name for container naming (derived from directory name)
+PROJECT_NAME="$(basename "$PROJECT_ROOT" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/_/g')"
+
 # Compose files
 COMPOSE_FILE_PROD="docker-compose.prod.yml"
 COMPOSE_FILE_GHCR="docker-compose.ghcr.yml"
@@ -462,11 +465,22 @@ check_prerequisites() {
     fi
     print_success "Found compose files"
 
-    # Check .env file exists
+    # Check .env file exists, run setup.sh if missing
     print_step "Checking environment file..."
     if [ ! -f "$PROJECT_ROOT/.env" ]; then
-        print_warn ".env file not found - some services may not start correctly"
-        echo "  Run ./setup.sh to generate .env"
+        print_warn ".env file not found - running setup.sh to generate it"
+        if [ -f "$PROJECT_ROOT/setup.sh" ]; then
+            print_step "Running setup.sh..."
+            if (cd "$PROJECT_ROOT" && ./setup.sh); then
+                print_success "Generated .env via setup.sh"
+            else
+                print_fail "setup.sh failed - please run manually"
+                return 2
+            fi
+        else
+            print_fail "setup.sh not found - cannot generate .env"
+            return 2
+        fi
     else
         print_success "Found .env file"
     fi
@@ -733,6 +747,84 @@ build_images() {
     fi
     # GHCR mode doesn't build anything
 
+    return 0
+}
+
+run_migrations() {
+    print_header "Running Database Migrations"
+
+    cd "$PROJECT_ROOT"
+
+    # Wait for postgres to be ready
+    print_step "Waiting for PostgreSQL to be healthy..."
+    local max_attempts=30
+    local attempt=0
+    while [ $attempt -lt $max_attempts ]; do
+        if $CONTAINER_CMD exec "${PROJECT_NAME}_postgres_1" pg_isready -U "${POSTGRES_USER:-security}" > /dev/null 2>&1; then
+            print_success "PostgreSQL is ready"
+            break
+        fi
+        ((attempt++))
+        sleep 2
+    done
+
+    if [ $attempt -eq $max_attempts ]; then
+        print_fail "PostgreSQL did not become ready in time"
+        return 1
+    fi
+
+    # Check if uv is available
+    if ! command -v uv &> /dev/null; then
+        print_warn "uv not found - skipping migrations"
+        print_warn "Run manually: cd backend && uv run alembic upgrade head"
+        return 0
+    fi
+
+    # Run alembic migrations
+    print_step "Running alembic upgrade head..."
+    export PYTHONPATH="$PROJECT_ROOT"
+    export DATABASE_URL="postgresql+asyncpg://${POSTGRES_USER:-security}:${POSTGRES_PASSWORD}@localhost:5432/${POSTGRES_DB:-security}"
+
+    if (cd "$PROJECT_ROOT/backend" && uv run alembic upgrade head 2>&1 | grep -E "(INFO|ERROR|Running upgrade)"); then
+        print_success "Database migrations completed"
+    else
+        print_warn "Migration output unclear - check database state"
+    fi
+
+    return 0
+}
+
+prepare_directories() {
+    print_header "Preparing Directories"
+
+    cd "$PROJECT_ROOT"
+
+    # Create directories that containers need to write to
+    # This prevents permission issues with rootless Podman
+    local -a dirs=(
+        "backend/data"
+        "backend/data/logs"
+    )
+
+    for dir in "${dirs[@]}"; do
+        if [ ! -d "$dir" ]; then
+            print_step "Creating $dir..."
+            run_cmd mkdir -p "$dir"
+        fi
+    done
+
+    # Fix ownership if directories were created by container with different UID
+    if [ "$CONTAINER_CMD" = "podman" ]; then
+        print_step "Fixing directory ownership for rootless Podman..."
+        for dir in "${dirs[@]}"; do
+            if [ -d "$dir" ]; then
+                # Use podman unshare to set ownership to container user (UID 1000)
+                run_cmd podman unshare chown -R 1000:1000 "$dir" 2>/dev/null || true
+            fi
+        done
+    fi
+
+    print_success "Directories prepared"
     return 0
 }
 
@@ -1109,10 +1201,18 @@ main() {
         fi
     fi
 
+    # Prepare directories for container volume mounts
+    prepare_directories
+
     # Start containers
     if ! start_containers; then
         print_fail "Failed to start containers"
         exit 1
+    fi
+
+    # Run database migrations if volumes were destroyed (fresh database)
+    if [ "$KEEP_VOLUMES" != "true" ]; then
+        run_migrations
     fi
 
     # Verify deployment

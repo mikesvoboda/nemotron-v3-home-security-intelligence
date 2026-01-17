@@ -230,10 +230,11 @@ class TestServiceInitialization:
         service = PromptStorageService(storage_path=temp_storage_dir)
         assert service.storage_path == temp_storage_dir
 
-    def test_init_with_default_storage_path(self):
+    def test_init_with_default_storage_path(self, temp_storage_dir: Path):
         """Test initialization uses default path when none provided."""
-        service = PromptStorageService()
-        assert service.storage_path == DEFAULT_PROMPT_STORAGE_PATH
+        with patch("backend.services.prompt_storage.DEFAULT_PROMPT_STORAGE_PATH", temp_storage_dir):
+            service = PromptStorageService()
+            assert service.storage_path == temp_storage_dir
 
     def test_init_creates_model_directories(self, temp_storage_dir: Path):
         """Test initialization creates directories for all supported models."""
@@ -1070,23 +1071,26 @@ class TestRunMockTest:
 class TestSingletonPattern:
     """Tests for the singleton pattern."""
 
-    def test_get_prompt_storage_returns_instance(self):
+    def test_get_prompt_storage_returns_instance(self, temp_storage_dir: Path):
         """Test get_prompt_storage returns a PromptStorageService instance."""
-        service = get_prompt_storage()
-        assert isinstance(service, PromptStorageService)
+        with patch("backend.services.prompt_storage.DEFAULT_PROMPT_STORAGE_PATH", temp_storage_dir):
+            service = get_prompt_storage()
+            assert isinstance(service, PromptStorageService)
 
-    def test_get_prompt_storage_returns_same_instance(self):
+    def test_get_prompt_storage_returns_same_instance(self, temp_storage_dir: Path):
         """Test get_prompt_storage returns the same instance on repeated calls."""
-        service1 = get_prompt_storage()
-        service2 = get_prompt_storage()
-        assert service1 is service2
+        with patch("backend.services.prompt_storage.DEFAULT_PROMPT_STORAGE_PATH", temp_storage_dir):
+            service1 = get_prompt_storage()
+            service2 = get_prompt_storage()
+            assert service1 is service2
 
-    def test_reset_prompt_storage_clears_singleton(self):
+    def test_reset_prompt_storage_clears_singleton(self, temp_storage_dir: Path):
         """Test reset_prompt_storage clears the singleton."""
-        service1 = get_prompt_storage()
-        reset_prompt_storage()
-        service2 = get_prompt_storage()
-        assert service1 is not service2
+        with patch("backend.services.prompt_storage.DEFAULT_PROMPT_STORAGE_PATH", temp_storage_dir):
+            service1 = get_prompt_storage()
+            reset_prompt_storage()
+            service2 = get_prompt_storage()
+            assert service1 is not service2
 
 
 # =============================================================================
