@@ -375,8 +375,8 @@ services:
       # Format: IP:192.168.1.100,DNS:myhost.local
       - SSL_SAN_EXTRA=${SSL_SAN_EXTRA:-}
       # SSL/TLS Configuration
-      # Set SSL_ENABLED=true to enable HTTPS (requires valid certificates)
-      - SSL_ENABLED=${SSL_ENABLED:-false}
+      # SSL enabled by default - auto-generates self-signed certs if none mounted
+      - SSL_ENABLED=${SSL_ENABLED:-true}
       # Custom certificate paths (relative to /etc/nginx/certs mount)
       - SSL_CERT_PATH=${SSL_CERT_PATH:-/etc/nginx/certs/cert.pem}
       - SSL_KEY_PATH=${SSL_KEY_PATH:-/etc/nginx/certs/key.pem}
@@ -483,9 +483,10 @@ services:
     environment:
       # Anonymous access enabled for local development (no login required)
       # Set GF_AUTH_ANONYMOUS_ENABLED=false in .env to require login
+      # When disabling anonymous, also set GF_AUTH_DISABLE_LOGIN_FORM=false to enable login form
       - GF_AUTH_ANONYMOUS_ENABLED=${GF_AUTH_ANONYMOUS_ENABLED:-true}
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
-      - GF_AUTH_DISABLE_LOGIN_FORM=true
+      - GF_AUTH_DISABLE_LOGIN_FORM=${GF_AUTH_DISABLE_LOGIN_FORM:-true}
       # Admin credentials (anonymous access is enabled by default, so password is optional)
       # For production with login enabled: generate with openssl rand -base64 32
       - GF_SECURITY_ADMIN_USER=${GF_ADMIN_USER:-admin}

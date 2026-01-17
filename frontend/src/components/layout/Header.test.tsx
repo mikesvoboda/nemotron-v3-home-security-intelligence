@@ -105,14 +105,15 @@ describe('Header', () => {
     expect(screen.getByRole('banner')).toBeInTheDocument();
   });
 
-  it('displays the NVIDIA SECURITY title', () => {
+  it('displays the NVIDIA logo with branding text', () => {
     render(<Header />);
-    expect(screen.getByText('NVIDIA SECURITY')).toBeInTheDocument();
+    expect(screen.getByText('Powered by Nemotron v3 Nano')).toBeInTheDocument();
   });
 
-  it('displays the Nemotron v3 Nano Intelligence subtitle', () => {
+  it('displays the Powered by text with NVIDIA green color', () => {
     render(<Header />);
-    expect(screen.getByText('Nemotron v3 Nano Intelligence')).toBeInTheDocument();
+    const text = screen.getByText('Powered by Nemotron v3 Nano');
+    expect(text).toHaveClass('text-[#76B900]');
   });
 
   it('renders the NVIDIA logo', () => {
@@ -221,18 +222,18 @@ describe('Header', () => {
     expect(header).toHaveClass('h-16', 'bg-[#1A1A1A]', 'border-b', 'border-gray-800');
   });
 
-  it('renders title with correct styling', () => {
+  it('renders branding text with correct styling', () => {
     render(<Header />);
-    const title = screen.getByText('NVIDIA SECURITY');
-    expect(title).toHaveClass('font-bold', 'text-white', 'tracking-wide');
+    const brandingText = screen.getByText('Powered by Nemotron v3 Nano');
+    expect(brandingText).toHaveClass('text-[#76B900]', 'font-medium');
     // Has responsive text size classes
-    expect(title).toHaveClass('text-base', 'md:text-lg');
+    expect(brandingText).toHaveClass('text-[9px]', 'md:text-[10px]');
   });
 
-  it('renders subtitle with NVIDIA green color', () => {
+  it('renders logo with responsive sizing', () => {
     render(<Header />);
-    const subtitle = screen.getByText('Nemotron v3 Nano Intelligence');
-    expect(subtitle).toHaveClass('text-xs', 'text-[#76B900]', 'font-medium', 'tracking-wider');
+    const logo = screen.getByAltText('NVIDIA');
+    expect(logo).toHaveClass('h-6', 'w-auto', 'md:h-8');
   });
 
   it('has proper flex layout structure', () => {
@@ -1303,11 +1304,11 @@ describe('Header', () => {
       expect(brandingContainer).toHaveClass('px-4');
     });
 
-    it('branding container includes the NVIDIA logo and title', () => {
+    it('branding container includes the NVIDIA logo and branding text', () => {
       render(<Header />);
       const brandingContainer = screen.getByTestId('header-branding');
       expect(brandingContainer).toContainElement(screen.getByAltText('NVIDIA'));
-      expect(brandingContainer).toContainElement(screen.getByText('NVIDIA SECURITY'));
+      expect(brandingContainer).toContainElement(screen.getByText('Powered by Nemotron v3 Nano'));
     });
   });
 
