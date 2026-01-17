@@ -202,6 +202,9 @@ def generate_env_content(config: dict) -> str:
         "# -- Frontend Runtime Config " + "-" * 32,
         f"GRAFANA_URL=http://localhost:{ports.get('grafana', 3002)}",
         "",
+        "# -- SSL/TLS Configuration " + "-" * 34,
+        "SSL_ENABLED=true",
+        "",
     ]
     return "\n".join(lines)
 

@@ -45,6 +45,10 @@ class TestWebVitalName:
         """Test FCP (First Contentful Paint) enum value."""
         assert WebVitalName.FCP.value == "FCP"
 
+    def test_page_load_time_value(self):
+        """Test PAGE_LOAD_TIME (full page load duration) enum value."""
+        assert WebVitalName.PAGE_LOAD_TIME.value == "PAGE_LOAD_TIME"
+
 
 class TestWebVitalMetric:
     """Tests for WebVitalMetric schema."""
@@ -124,6 +128,18 @@ class TestWebVitalMetric:
         )
         assert metric.name == WebVitalName.FID
         assert metric.value == 50.0
+
+    def test_valid_page_load_time_metric(self):
+        """Test creating a valid PAGE_LOAD_TIME metric."""
+        metric = WebVitalMetric(
+            name=WebVitalName.PAGE_LOAD_TIME,
+            value=2500.0,
+            rating="good",
+            delta=2500.0,
+            id="plt-1234567890123-abc1234",
+        )
+        assert metric.name == WebVitalName.PAGE_LOAD_TIME
+        assert metric.value == 2500.0
 
     def test_rating_poor(self):
         """Test metric with poor rating."""

@@ -19814,10 +19814,11 @@ export interface components {
          * WebVitalName
          * @description Supported Core Web Vitals metric names.
          *
-         *     These correspond to the metrics collected by the web-vitals library.
+         *     These correspond to the metrics collected by the web-vitals library,
+         *     plus custom metrics like PAGE_LOAD_TIME from Navigation Timing API.
          * @enum {string}
          */
-        WebVitalName: "LCP" | "FID" | "INP" | "CLS" | "TTFB" | "FCP";
+        WebVitalName: "LCP" | "FID" | "INP" | "CLS" | "TTFB" | "FCP" | "PAGE_LOAD_TIME";
         /**
          * WebhookTestNotificationRequest
          * @description Schema for testing notification configuration.

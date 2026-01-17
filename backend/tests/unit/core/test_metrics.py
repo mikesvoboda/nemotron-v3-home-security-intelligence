@@ -1085,6 +1085,20 @@ class TestMetricsServiceCostTracking:
         metrics.record_budget_exceeded("daily")
         metrics.record_budget_exceeded("monthly")
 
+    def test_set_cost_per_detection(self) -> None:
+        """MetricsService should set cost per detection gauge."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.set_cost_per_detection(0.00005)
+
+    def test_set_cost_per_event(self) -> None:
+        """MetricsService should set cost per event gauge."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.set_cost_per_event(0.0012)
+
 
 # =============================================================================
 # Legacy Helper Functions Coverage Tests
@@ -1551,3 +1565,111 @@ class TestPipelineLatencyHistoryMethods:
             assert "timestamp" in entry
             assert "stages" in entry
             assert "watch_to_detect" in entry["stages"]
+
+
+# =============================================================================
+# Enrichment Model Duration and Error Metrics Tests
+# =============================================================================
+
+
+class TestEnrichmentModelDurationMetrics:
+    """Test enrichment model duration histogram metrics."""
+
+    def test_enrichment_model_duration_metric_exists(self) -> None:
+        """ENRICHMENT_MODEL_DURATION histogram should be defined with model label."""
+        from backend.core.metrics import ENRICHMENT_MODEL_DURATION
+
+        assert ENRICHMENT_MODEL_DURATION is not None
+        assert ENRICHMENT_MODEL_DURATION._name == "hsi_enrichment_model_duration_seconds"
+        assert "model" in ENRICHMENT_MODEL_DURATION._labelnames
+
+    def test_observe_enrichment_model_duration(self) -> None:
+        """observe_enrichment_model_duration should record histogram observation."""
+        from backend.core.metrics import observe_enrichment_model_duration
+
+        observe_enrichment_model_duration("violence-detection", 0.5)
+        observe_enrichment_model_duration("weather-classification", 1.2)
+        observe_enrichment_model_duration("brisque-quality", 0.1)
+
+    def test_observe_enrichment_model_duration_various_models(self) -> None:
+        """observe_enrichment_model_duration should work with various model names."""
+        from backend.core.metrics import observe_enrichment_model_duration
+
+        observe_enrichment_model_duration("depth-anything-v2", 2.5)
+        observe_enrichment_model_duration("vitpose", 1.8)
+        observe_enrichment_model_duration("xclip", 3.0)
+        observe_enrichment_model_duration("fashion-clip", 0.9)
+
+
+class TestEnrichmentModelErrorMetrics:
+    """Test enrichment model error counter metrics."""
+
+    def test_enrichment_model_errors_metric_exists(self) -> None:
+        """ENRICHMENT_MODEL_ERRORS_TOTAL counter should be defined with model label."""
+        from backend.core.metrics import ENRICHMENT_MODEL_ERRORS_TOTAL
+
+        assert ENRICHMENT_MODEL_ERRORS_TOTAL is not None
+        # Note: prometheus_client strips _total suffix from counter names internally
+        assert ENRICHMENT_MODEL_ERRORS_TOTAL._name == "hsi_enrichment_model_errors"
+        assert "model" in ENRICHMENT_MODEL_ERRORS_TOTAL._labelnames
+
+    def test_record_enrichment_model_error(self) -> None:
+        """record_enrichment_model_error should increment counter with model name."""
+        from backend.core.metrics import record_enrichment_model_error
+
+        record_enrichment_model_error("violence-detection")
+        record_enrichment_model_error("weather-classification")
+        record_enrichment_model_error("brisque-quality")
+
+    def test_record_enrichment_model_error_various_models(self) -> None:
+        """record_enrichment_model_error should work with various model names."""
+        from backend.core.metrics import record_enrichment_model_error
+
+        record_enrichment_model_error("depth-anything-v2")
+        record_enrichment_model_error("vitpose")
+        record_enrichment_model_error("xclip")
+
+
+class TestMetricsServiceEnrichmentDurationMethods:
+    """Test MetricsService enrichment model duration methods."""
+
+    def test_observe_enrichment_model_duration(self) -> None:
+        """MetricsService should observe enrichment model durations."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.observe_enrichment_model_duration("violence-detection", 0.5)
+        metrics.observe_enrichment_model_duration("weather-classification", 1.2)
+        metrics.observe_enrichment_model_duration("brisque-quality", 0.1)
+
+    def test_record_enrichment_model_error(self) -> None:
+        """MetricsService should record enrichment model errors."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.record_enrichment_model_error("violence-detection")
+        metrics.record_enrichment_model_error("weather-classification")
+
+
+class TestEnrichmentMetricsInResponse:
+    """Test enrichment metrics appear in Prometheus response."""
+
+    def test_enrichment_model_duration_in_response(self) -> None:
+        """Enrichment model duration metric should appear in metrics response."""
+        from backend.core.metrics import get_metrics_response, observe_enrichment_model_duration
+
+        # Record a metric to ensure it appears in output
+        observe_enrichment_model_duration("test-model", 1.0)
+
+        response = get_metrics_response().decode("utf-8")
+        assert "hsi_enrichment_model_duration_seconds" in response
+
+    def test_enrichment_model_errors_in_response(self) -> None:
+        """Enrichment model errors metric should appear in metrics response."""
+        from backend.core.metrics import get_metrics_response, record_enrichment_model_error
+
+        # Record a metric to ensure it appears in output
+        record_enrichment_model_error("test-model")
+
+        response = get_metrics_response().decode("utf-8")
+        assert "hsi_enrichment_model_errors_total" in response

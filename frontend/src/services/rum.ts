@@ -11,6 +11,7 @@
  * - CLS (Cumulative Layout Shift): Visual stability
  * - TTFB (Time to First Byte): Server response time
  * - FCP (First Contentful Paint): First content render
+ * - PAGE_LOAD_TIME: Full page load duration from Navigation Timing API
  *
  * NEM-1635: Implements RUM collection for production user monitoring.
  *
@@ -28,9 +29,10 @@
  */
 
 /**
- * Core Web Vital metric names supported by web-vitals library.
+ * Core Web Vital metric names supported by web-vitals library,
+ * plus custom metrics like PAGE_LOAD_TIME from Navigation Timing API.
  */
-export type WebVitalName = 'LCP' | 'FID' | 'INP' | 'CLS' | 'TTFB' | 'FCP';
+export type WebVitalName = 'LCP' | 'FID' | 'INP' | 'CLS' | 'TTFB' | 'FCP' | 'PAGE_LOAD_TIME';
 
 /**
  * Rating values returned by web-vitals library.
@@ -41,7 +43,7 @@ export type WebVitalRating = 'good' | 'needs-improvement' | 'poor';
  * Web Vital metric structure matching web-vitals library output.
  */
 export interface WebVitalMetric {
-  /** Metric name (LCP, FID, INP, CLS, TTFB, FCP) */
+  /** Metric name (LCP, FID, INP, CLS, TTFB, FCP, PAGE_LOAD_TIME) */
   name: WebVitalName;
   /** Metric value (milliseconds for most, dimensionless for CLS) */
   value: number;
@@ -288,6 +290,57 @@ export class RUM {
 }
 
 /**
+ * Get rating for page load time based on thresholds.
+ * Good: < 3s, Needs Improvement: 3-6s, Poor: > 6s
+ */
+function getPageLoadTimeRating(durationMs: number): WebVitalRating {
+  if (durationMs < 3000) return 'good';
+  if (durationMs < 6000) return 'needs-improvement';
+  return 'poor';
+}
+
+/**
+ * Collect page load time using the Navigation Timing API.
+ * Reports the time from navigation start to load event end.
+ */
+function collectPageLoadTime(rum: RUM): void {
+  if (typeof window === 'undefined' || !window.performance) {
+    return;
+  }
+
+  // Wait for the load event to complete
+  const reportPageLoadTime = () => {
+    const navigation = performance.getEntriesByType(
+      'navigation'
+    )[0] as PerformanceNavigationTiming | undefined;
+
+    if (navigation && navigation.loadEventEnd > 0) {
+      const loadTime = navigation.loadEventEnd - navigation.startTime;
+      rum.reportMetric({
+        name: 'PAGE_LOAD_TIME',
+        value: loadTime,
+        rating: getPageLoadTimeRating(loadTime),
+        delta: loadTime,
+        id: `plt-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+        navigationType: navigation.type,
+      });
+    }
+  };
+
+  // If the page is already loaded, report immediately
+  if (document.readyState === 'complete') {
+    // Use setTimeout to ensure loadEventEnd is populated
+    setTimeout(reportPageLoadTime, 0);
+  } else {
+    // Otherwise, wait for the load event
+    window.addEventListener('load', () => {
+      // Use setTimeout to ensure loadEventEnd is populated after the event
+      setTimeout(reportPageLoadTime, 0);
+    });
+  }
+}
+
+/**
  * Initialize RUM collection with optional configuration.
  *
  * This function creates a RUM instance and optionally sets up
@@ -336,6 +389,9 @@ export function initRUM(config: Partial<RUMConfig> = {}): RUM {
         // web-vitals not available, RUM will still work with manual reportMetric calls
         console.warn('web-vitals library not available for RUM:', err);
       });
+
+    // Collect page load time using Navigation Timing API
+    collectPageLoadTime(rum);
   }
 
   return rum;

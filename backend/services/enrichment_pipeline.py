@@ -36,6 +36,7 @@ __all__ = [
 
 import asyncio
 import json
+import time
 from dataclasses import dataclass, field
 from datetime import UTC
 from enum import Enum
@@ -53,7 +54,12 @@ from backend.core.exceptions import (
     FlorenceUnavailableError,
 )
 from backend.core.logging import get_logger, sanitize_error
-from backend.core.metrics import record_enrichment_model_call, record_pipeline_error
+from backend.core.metrics import (
+    observe_enrichment_model_duration,
+    record_enrichment_model_call,
+    record_enrichment_model_error,
+    record_pipeline_error,
+)
 from backend.core.mime_types import VIDEO_MIME_TYPES
 from backend.services.depth_anything_loader import (
     DepthAnalysisResult,
@@ -1798,6 +1804,7 @@ class EnrichmentPipeline:
         if not det_dicts:
             return DepthAnalysisResult()
 
+        start_time = time.perf_counter()
         try:
             async with self.model_manager.load("depth-anything-v2-small") as depth_pipeline:
                 record_enrichment_model_call("depth")
@@ -1807,6 +1814,8 @@ class EnrichmentPipeline:
                     det_dicts,
                     depth_sampling_method="center",
                 )
+                duration = time.perf_counter() - start_time
+                observe_enrichment_model_duration("depth-anything-v2", duration)
                 logger.debug(
                     f"Depth analysis complete: {result.detection_count} detections, "
                     f"closest={result.closest_detection_id}, "
@@ -1814,6 +1823,9 @@ class EnrichmentPipeline:
                 )
                 return result
         except Exception as e:
+            duration = time.perf_counter() - start_time
+            observe_enrichment_model_duration("depth-anything-v2", duration)
+            record_enrichment_model_error("depth-anything-v2")
             logger.error(
                 f"Depth analysis failed: {sanitize_error(e)}",
                 exc_info=True,
@@ -1864,6 +1876,7 @@ class EnrichmentPipeline:
         if not crops:
             return {}
 
+        start_time = time.perf_counter()
         try:
             async with self.model_manager.load("vitpose-small") as (model, processor):
                 record_enrichment_model_call("pose")
@@ -1872,9 +1885,14 @@ class EnrichmentPipeline:
                 for det_id, pose_result in zip(det_ids, pose_results, strict=True):
                     results[det_id] = pose_result
 
+                duration = time.perf_counter() - start_time
+                observe_enrichment_model_duration("vitpose", duration)
                 logger.debug(f"Pose estimation complete: {len(results)} persons analyzed")
                 return results
         except Exception as e:
+            duration = time.perf_counter() - start_time
+            observe_enrichment_model_duration("vitpose", duration)
+            record_enrichment_model_error("vitpose")
             logger.error(
                 f"Pose estimation failed: {sanitize_error(e)}",
                 exc_info=True,
@@ -1902,17 +1920,23 @@ class EnrichmentPipeline:
         if not frames:
             return None
 
+        start_time = time.perf_counter()
         try:
             async with self.model_manager.load("xclip-base") as model_dict:
                 record_enrichment_model_call("action")
                 result = await classify_actions(model_dict, frames)
 
+                duration = time.perf_counter() - start_time
+                observe_enrichment_model_duration("xclip", duration)
                 logger.debug(
                     f"Action recognition complete: {result.get('detected_action')} "
                     f"({result.get('confidence', 0):.0%})"
                 )
                 return result
         except Exception as e:
+            duration = time.perf_counter() - start_time
+            observe_enrichment_model_duration("xclip", duration)
+            record_enrichment_model_error("xclip")
             logger.error(
                 f"Action recognition failed: {sanitize_error(e)}",
                 exc_info=True,
@@ -3027,20 +3051,29 @@ class EnrichmentPipeline:
         Raises:
             RuntimeError: If violence detection fails
         """
+        start_time = time.perf_counter()
         try:
             async with self.model_manager.load("violence-detection") as model_data:
                 record_enrichment_model_call("violence")
                 result = await classify_violence(model_data, image)
                 # Record semantic metric for enrichment model call
                 record_enrichment_model_call("violence-detection")
+                duration = time.perf_counter() - start_time
+                observe_enrichment_model_duration("violence-detection", duration)
                 if result.is_violent:
                     logger.warning(f"Violence detected with {result.confidence:.0%} confidence")
                 return result
 
         except KeyError as e:
+            duration = time.perf_counter() - start_time
+            observe_enrichment_model_duration("violence-detection", duration)
+            record_enrichment_model_error("violence-detection")
             logger.warning("violence-detection model not available in MODEL_ZOO")
             raise RuntimeError("violence-detection model not configured") from e
         except Exception:
+            duration = time.perf_counter() - start_time
+            observe_enrichment_model_duration("violence-detection", duration)
+            record_enrichment_model_error("violence-detection")
             logger.error("Violence detection error", exc_info=True)
             raise
 
@@ -3060,12 +3093,15 @@ class EnrichmentPipeline:
         Raises:
             RuntimeError: If weather classification fails
         """
+        start_time = time.perf_counter()
         try:
             async with self.model_manager.load("weather-classification") as model_data:
                 record_enrichment_model_call("weather")
                 result = await classify_weather(model_data, image)
                 # Record semantic metric for enrichment model call
                 record_enrichment_model_call("weather-classification")
+                duration = time.perf_counter() - start_time
+                observe_enrichment_model_duration("weather-classification", duration)
                 logger.info(
                     f"Weather classified as {result.simple_condition} "
                     f"({result.confidence:.0%} confidence)"
@@ -3073,9 +3109,15 @@ class EnrichmentPipeline:
                 return result
 
         except KeyError as e:
+            duration = time.perf_counter() - start_time
+            observe_enrichment_model_duration("weather-classification", duration)
+            record_enrichment_model_error("weather-classification")
             logger.warning("weather-classification model not available in MODEL_ZOO")
             raise RuntimeError("weather-classification model not configured") from e
         except Exception:
+            duration = time.perf_counter() - start_time
+            observe_enrichment_model_duration("weather-classification", duration)
+            record_enrichment_model_error("weather-classification")
             logger.error("Weather classification error", exc_info=True)
             raise
 
@@ -3542,6 +3584,7 @@ class EnrichmentPipeline:
         Raises:
             RuntimeError: If quality assessment fails
         """
+        start_time = time.perf_counter()
         try:
             async with self.model_manager.load("brisque-quality") as model_data:
                 record_enrichment_model_call("brisque")
@@ -3549,6 +3592,8 @@ class EnrichmentPipeline:
 
                 # Record semantic metric for enrichment model call
                 record_enrichment_model_call("brisque-quality")
+                duration = time.perf_counter() - start_time
+                observe_enrichment_model_duration("brisque-quality", duration)
 
                 if result.is_low_quality:
                     camera_str = f" (camera: {camera_id})" if camera_id else ""
@@ -3561,16 +3606,25 @@ class EnrichmentPipeline:
                 return result
 
         except KeyError as e:
+            duration = time.perf_counter() - start_time
+            observe_enrichment_model_duration("brisque-quality", duration)
+            record_enrichment_model_error("brisque-quality")
             logger.warning("brisque-quality model not available in MODEL_ZOO")
             raise RuntimeError("brisque-quality model not configured") from e
         except RuntimeError as e:
+            duration = time.perf_counter() - start_time
+            observe_enrichment_model_duration("brisque-quality", duration)
             # Model disabled is expected behavior, log at debug level
             if "disabled" in str(e).lower():
                 logger.debug(f"Image quality assessment skipped: {e}")
             else:
+                record_enrichment_model_error("brisque-quality")
                 logger.error("Image quality assessment error (runtime)", exc_info=True)
             raise
         except Exception:
+            duration = time.perf_counter() - start_time
+            observe_enrichment_model_duration("brisque-quality", duration)
+            record_enrichment_model_error("brisque-quality")
             logger.error("Image quality assessment error", exc_info=True)
             raise
 

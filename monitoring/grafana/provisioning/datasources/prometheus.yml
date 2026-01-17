@@ -14,6 +14,17 @@ datasources:
       timeInterval: '15s'
       httpMethod: POST
 
+  # Alertmanager datasource for alert integration
+  - name: Alertmanager
+    type: alertmanager
+    access: proxy
+    url: http://alertmanager:9093
+    isDefault: false
+    editable: false
+    jsonData:
+      implementation: prometheus
+      handleGrafanaManagedAlerts: false
+
   # JSON API datasource for direct backend API access
   - name: Backend-API
     type: marcusolsson-json-datasource

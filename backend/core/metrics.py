@@ -202,6 +202,28 @@ PIPELINE_WORKER_UPTIME_SECONDS = Gauge(
 )
 
 # =============================================================================
+# Worker Pool Metrics
+# =============================================================================
+
+WORKER_ACTIVE_COUNT = Gauge(
+    "hsi_worker_active_count",
+    "Number of workers currently active (registered and capable of processing)",
+    registry=_registry,
+)
+
+WORKER_BUSY_COUNT = Gauge(
+    "hsi_worker_busy_count",
+    "Number of workers currently busy processing tasks",
+    registry=_registry,
+)
+
+WORKER_IDLE_COUNT = Gauge(
+    "hsi_worker_idle_count",
+    "Number of workers currently idle (active but not processing)",
+    registry=_registry,
+)
+
+# =============================================================================
 # Stage Duration Histograms
 # =============================================================================
 
@@ -426,6 +448,25 @@ ENRICHMENT_BATCH_STATUS_TOTAL = Counter(
     registry=_registry,
 )
 
+# Histogram for enrichment model duration (Grafana dashboard compatibility)
+ENRICHMENT_MODEL_DURATION = Histogram(
+    "hsi_enrichment_model_duration_seconds",
+    "Duration of enrichment model inference by model name",
+    labelnames=["model"],
+    buckets=AI_REQUEST_DURATION_BUCKETS,
+    registry=_registry,
+)
+
+# Counter for enrichment model errors (Grafana dashboard compatibility)
+# This is an alias-style metric that mirrors hsi_enrichment_failures_total
+# but uses the naming convention expected by the Grafana dashboard
+ENRICHMENT_MODEL_ERRORS_TOTAL = Counter(
+    "hsi_enrichment_model_errors_total",
+    "Total number of enrichment model errors by model name",
+    labelnames=["model"],
+    registry=_registry,
+)
+
 EVENTS_BY_CAMERA_TOTAL = Counter(
     "hsi_events_by_camera_total",
     "Events per camera",
@@ -576,6 +617,19 @@ BUDGET_EXCEEDED_TOTAL = Counter(
     "hsi_budget_exceeded_total",
     "Total number of times budget threshold was exceeded",
     labelnames=["period"],  # daily, monthly
+    registry=_registry,
+)
+
+# Cost efficiency metrics (average cost per unit)
+COST_PER_DETECTION_USD = Gauge(
+    "hsi_cost_per_detection_usd",
+    "Average cost per detection (image processed) in USD",
+    registry=_registry,
+)
+
+COST_PER_EVENT_USD = Gauge(
+    "hsi_cost_per_event_usd",
+    "Average cost per security event in USD",
     registry=_registry,
 )
 
@@ -827,6 +881,27 @@ class MetricsService:
         """
         ENRICHMENT_BATCH_STATUS_TOTAL.labels(status=status).inc()
 
+    def observe_enrichment_model_duration(self, model: str, duration_seconds: float) -> None:
+        """Record the duration of an enrichment model inference.
+
+        Args:
+            model: Name of the enrichment model (brisque, violence, clothing,
+                vehicle, pet, depth, pose, action, weather, fashion-clip, etc.)
+            duration_seconds: Duration of the model inference in seconds
+        """
+        ENRICHMENT_MODEL_DURATION.labels(model=model).observe(duration_seconds)
+
+    def record_enrichment_model_error(self, model: str) -> None:
+        """Increment the error counter for an enrichment model.
+
+        This metric is used by Grafana dashboards and complements
+        hsi_enrichment_failures_total with a different naming convention.
+
+        Args:
+            model: Name of the enrichment model that errored
+        """
+        ENRICHMENT_MODEL_ERRORS_TOTAL.labels(model=model).inc()
+
     def record_event_by_camera(self, camera_id: str, camera_name: str) -> None:
         """Increment the events per camera counter.
 
@@ -991,6 +1066,75 @@ class MetricsService:
             period: Budget period ('daily' or 'monthly')
         """
         BUDGET_EXCEEDED_TOTAL.labels(period=period).inc()
+
+    def set_cost_per_detection(self, cost_usd: float) -> None:
+        """Set the average cost per detection gauge.
+
+        Args:
+            cost_usd: Average cost per detection (image processed) in USD
+        """
+        COST_PER_DETECTION_USD.set(cost_usd)
+
+    def set_cost_per_event(self, cost_usd: float) -> None:
+        """Set the average cost per event gauge.
+
+        Args:
+            cost_usd: Average cost per security event in USD
+        """
+        COST_PER_EVENT_USD.set(cost_usd)
+
+    # -------------------------------------------------------------------------
+    # Worker Pool Metrics
+    # -------------------------------------------------------------------------
+
+    def set_worker_active_count(self, count: int) -> None:
+        """Set the number of active workers.
+
+        Active workers are those that are registered and capable of processing
+        tasks. This includes both busy and idle workers.
+
+        Args:
+            count: Number of active workers
+        """
+        WORKER_ACTIVE_COUNT.set(count)
+
+    def set_worker_busy_count(self, count: int) -> None:
+        """Set the number of busy workers.
+
+        Busy workers are those currently processing tasks.
+
+        Args:
+            count: Number of busy workers
+        """
+        WORKER_BUSY_COUNT.set(count)
+
+    def set_worker_idle_count(self, count: int) -> None:
+        """Set the number of idle workers.
+
+        Idle workers are active but not currently processing tasks.
+
+        Args:
+            count: Number of idle workers
+        """
+        WORKER_IDLE_COUNT.set(count)
+
+    def update_worker_pool_metrics(self, active: int, busy: int, idle: int | None = None) -> None:
+        """Update all worker pool metrics at once.
+
+        This is a convenience method for updating all worker pool metrics
+        in a single call. If idle is not provided, it is calculated as
+        active - busy.
+
+        Args:
+            active: Number of active workers
+            busy: Number of busy workers
+            idle: Number of idle workers (optional, calculated if not provided)
+        """
+        self.set_worker_active_count(active)
+        self.set_worker_busy_count(busy)
+        if idle is None:
+            idle = max(0, active - busy)
+        self.set_worker_idle_count(idle)
 
 
 # Global singleton instance for MetricsService
@@ -1240,6 +1384,29 @@ def record_enrichment_batch_status(status: str) -> None:
         status: Enrichment status (full, partial, failed, skipped)
     """
     ENRICHMENT_BATCH_STATUS_TOTAL.labels(status=status).inc()
+
+
+def observe_enrichment_model_duration(model: str, duration_seconds: float) -> None:
+    """Record the duration of an enrichment model inference.
+
+    Args:
+        model: Name of the enrichment model (brisque, violence, clothing,
+            vehicle, pet, depth, pose, action, weather, fashion-clip, etc.)
+        duration_seconds: Duration of the model inference in seconds
+    """
+    ENRICHMENT_MODEL_DURATION.labels(model=model).observe(duration_seconds)
+
+
+def record_enrichment_model_error(model: str) -> None:
+    """Increment the error counter for an enrichment model.
+
+    This metric is used by Grafana dashboards and complements
+    hsi_enrichment_failures_total with a different naming convention.
+
+    Args:
+        model: Name of the enrichment model that errored
+    """
+    ENRICHMENT_MODEL_ERRORS_TOTAL.labels(model=model).inc()
 
 
 def record_event_by_camera(camera_id: str, camera_name: str) -> None:
@@ -2120,6 +2287,19 @@ RUM_FCP_SECONDS = Histogram(
     registry=_registry,
 )
 
+# Page Load Time histogram - measures in seconds
+# Uses Navigation Timing API's loadEventEnd - navigationStart
+# Good: < 3s, Needs Improvement: 3-6s, Poor: > 6s
+RUM_PAGE_LOAD_BUCKETS = (1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 8.0, 10.0, 15.0, 20.0)
+
+RUM_PAGE_LOAD_TIME_SECONDS = Histogram(
+    "hsi_rum_page_load_time_seconds",
+    "Page Load Time - measures full page load duration (seconds)",
+    labelnames=["path", "rating"],
+    buckets=RUM_PAGE_LOAD_BUCKETS,
+    registry=_registry,
+)
+
 # Counter for total RUM metrics received
 RUM_METRICS_TOTAL = Counter(
     "hsi_rum_metrics_total",
@@ -2214,6 +2394,23 @@ def observe_rum_fcp(value_ms: float, path: str = "/", rating: str = "unknown") -
     safe_rating = sanitize_metric_label(rating, max_length=20)
     RUM_FCP_SECONDS.labels(path=safe_path, rating=safe_rating).observe(value_ms / 1000.0)
     RUM_METRICS_TOTAL.labels(metric_name="FCP", rating=safe_rating).inc()
+
+
+def observe_rum_page_load_time(value_ms: float, path: str = "/", rating: str = "unknown") -> None:
+    """Record Page Load Time metric.
+
+    This metric represents the full page load duration from Navigation Timing API
+    (loadEventEnd - navigationStart).
+
+    Args:
+        value_ms: Page load time in milliseconds
+        path: Page path where metric was measured
+        rating: Performance rating (good, needs-improvement, poor)
+    """
+    safe_path = sanitize_metric_label(path, max_length=64)
+    safe_rating = sanitize_metric_label(rating, max_length=20)
+    RUM_PAGE_LOAD_TIME_SECONDS.labels(path=safe_path, rating=safe_rating).observe(value_ms / 1000.0)
+    RUM_METRICS_TOTAL.labels(metric_name="PAGE_LOAD_TIME", rating=safe_rating).inc()
 
 
 # =============================================================================
@@ -2396,6 +2593,64 @@ def set_worker_status(worker_name: str, status: str) -> None:
     safe_name = sanitize_metric_label(worker_name, max_length=64)
     status_value = WORKER_STATUS_VALUES.get(status.lower(), 0)
     WORKER_STATUS.labels(worker_name=safe_name).set(status_value)
+
+
+# =============================================================================
+# Worker Pool Metrics Helpers
+# =============================================================================
+
+
+def set_worker_active_count(count: int) -> None:
+    """Set the number of active workers.
+
+    Active workers are those that are registered and capable of processing
+    tasks. This includes both busy and idle workers.
+
+    Args:
+        count: Number of active workers
+    """
+    WORKER_ACTIVE_COUNT.set(count)
+
+
+def set_worker_busy_count(count: int) -> None:
+    """Set the number of busy workers.
+
+    Busy workers are those currently processing tasks.
+
+    Args:
+        count: Number of busy workers
+    """
+    WORKER_BUSY_COUNT.set(count)
+
+
+def set_worker_idle_count(count: int) -> None:
+    """Set the number of idle workers.
+
+    Idle workers are active but not currently processing tasks.
+
+    Args:
+        count: Number of idle workers
+    """
+    WORKER_IDLE_COUNT.set(count)
+
+
+def update_worker_pool_metrics(active: int, busy: int, idle: int | None = None) -> None:
+    """Update all worker pool metrics at once.
+
+    This is a convenience function for updating all worker pool metrics
+    in a single call. If idle is not provided, it is calculated as
+    active - busy.
+
+    Args:
+        active: Number of active workers
+        busy: Number of busy workers
+        idle: Number of idle workers (optional, calculated if not provided)
+    """
+    set_worker_active_count(active)
+    set_worker_busy_count(busy)
+    if idle is None:
+        idle = max(0, active - busy)
+    set_worker_idle_count(idle)
 
 
 # =============================================================================
