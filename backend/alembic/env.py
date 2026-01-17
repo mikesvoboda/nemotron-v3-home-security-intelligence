@@ -296,6 +296,11 @@ def run_migrations_online() -> None:
 
         # Post-migration verification (only reached on success)
         log_migration_state(connection, "after")
+
+        # Explicit commit to ensure changes persist
+        # The context.begin_transaction() should handle this, but we add an
+        # explicit commit to ensure the outer connection commits as well
+        connection.commit()
         logger.info("Migration completed successfully")
 
 
