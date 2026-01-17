@@ -1,5 +1,7 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { type ReactNode } from 'react';
+import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import AuditLogPage from './AuditLogPage';
@@ -9,6 +11,16 @@ import type { AuditLogListResponse, AuditLogStats } from '../../services/api';
 
 // Mock API module
 vi.mock('../../services/api');
+
+// Create a wrapper with Router for testing
+function Wrapper({ children }: { children: ReactNode }) {
+  return <MemoryRouter>{children}</MemoryRouter>;
+}
+
+// Helper function to render with Router
+function renderWithRouter(ui: React.ReactElement) {
+  return render(ui, { wrapper: Wrapper });
+}
 
 describe('AuditLogPage', () => {
   const mockAuditLogs = [
@@ -100,7 +112,7 @@ describe('AuditLogPage', () => {
 
   describe('Rendering', () => {
     it('renders the audit log page header', async () => {
-      render(<AuditLogPage />);
+      renderWithRouter(<AuditLogPage />);
 
       expect(screen.getByText('Audit Log')).toBeInTheDocument();
       expect(
@@ -115,7 +127,7 @@ describe('AuditLogPage', () => {
     });
 
     it('displays info box explaining what creates audit entries', async () => {
-      render(<AuditLogPage />);
+      renderWithRouter(<AuditLogPage />);
 
       await waitFor(() => {
         expect(screen.queryByText('Loading audit logs...')).not.toBeInTheDocument();
@@ -129,7 +141,7 @@ describe('AuditLogPage', () => {
     });
 
     it('displays loading state initially', async () => {
-      render(<AuditLogPage />);
+      renderWithRouter(<AuditLogPage />);
 
       expect(screen.getByText('Loading audit logs...')).toBeInTheDocument();
 
@@ -139,7 +151,7 @@ describe('AuditLogPage', () => {
     });
 
     it('displays audit logs after loading', async () => {
-      render(<AuditLogPage />);
+      renderWithRouter(<AuditLogPage />);
 
       await waitFor(() => {
         expect(screen.getByText('testuser1')).toBeInTheDocument();
@@ -155,7 +167,7 @@ describe('AuditLogPage', () => {
     });
 
     it('displays audit entry count', async () => {
-      render(<AuditLogPage />);
+      renderWithRouter(<AuditLogPage />);
 
       await waitFor(() => {
         expect(screen.getByText(/Showing 1-3 of 3 audit entries/)).toBeInTheDocument();
@@ -163,7 +175,7 @@ describe('AuditLogPage', () => {
     });
 
     it('displays status badges', async () => {
-      render(<AuditLogPage />);
+      renderWithRouter(<AuditLogPage />);
 
       await waitFor(() => {
         expect(screen.getByText('testuser1')).toBeInTheDocument();
@@ -177,7 +189,7 @@ describe('AuditLogPage', () => {
     });
 
     it('displays resource type and ID', async () => {
-      render(<AuditLogPage />);
+      renderWithRouter(<AuditLogPage />);
 
       // Wait for table to load
       await waitFor(() => {
@@ -195,7 +207,7 @@ describe('AuditLogPage', () => {
 
   describe('Statistics Cards', () => {
     it('displays stats cards with data', async () => {
-      render(<AuditLogPage />);
+      renderWithRouter(<AuditLogPage />);
 
       // Wait for stats to load (value appears when loading is complete)
       await waitFor(() => {
@@ -211,7 +223,7 @@ describe('AuditLogPage', () => {
     });
 
     it('displays action breakdown', async () => {
-      render(<AuditLogPage />);
+      renderWithRouter(<AuditLogPage />);
 
       await waitFor(() => {
         expect(screen.getByText('Actions by Type')).toBeInTheDocument();
@@ -222,7 +234,7 @@ describe('AuditLogPage', () => {
 
     it('clicking "Successful Operations" card filters by status=success', async () => {
       const user = userEvent.setup();
-      render(<AuditLogPage />);
+      renderWithRouter(<AuditLogPage />);
 
       // Wait for stats to load
       await waitFor(() => {
@@ -245,7 +257,7 @@ describe('AuditLogPage', () => {
 
     it('clicking "Failed Operations" card filters by status=failure', async () => {
       const user = userEvent.setup();
-      render(<AuditLogPage />);
+      renderWithRouter(<AuditLogPage />);
 
       // Wait for stats to load
       await waitFor(() => {
@@ -268,7 +280,7 @@ describe('AuditLogPage', () => {
 
     it('clicking "Total Audit Entries" card clears all filters', async () => {
       const user = userEvent.setup();
-      render(<AuditLogPage />);
+      renderWithRouter(<AuditLogPage />);
 
       // Wait for stats to load
       await waitFor(() => {
@@ -296,7 +308,7 @@ describe('AuditLogPage', () => {
 
     it('clicking "Entries Today" card filters by today\'s date', async () => {
       const user = userEvent.setup();
-      render(<AuditLogPage />);
+      renderWithRouter(<AuditLogPage />);
 
       // Wait for stats to load
       await waitFor(() => {
@@ -325,7 +337,7 @@ describe('AuditLogPage', () => {
 
     it('clicking an action badge filters by that action', async () => {
       const user = userEvent.setup();
-      render(<AuditLogPage />);
+      renderWithRouter(<AuditLogPage />);
 
       // Wait for action badges to load
       await waitFor(() => {
@@ -347,7 +359,7 @@ describe('AuditLogPage', () => {
 
     it('clicking active stats card toggles off the filter', async () => {
       const user = userEvent.setup();
-      render(<AuditLogPage />);
+      renderWithRouter(<AuditLogPage />);
 
       // Wait for stats to load
       await waitFor(() => {
@@ -380,7 +392,7 @@ describe('AuditLogPage', () => {
 
     it('clicking active action badge toggles off the filter', async () => {
       const user = userEvent.setup();
-      render(<AuditLogPage />);
+      renderWithRouter(<AuditLogPage />);
 
       // Wait for action badges to load
       await waitFor(() => {
@@ -412,7 +424,7 @@ describe('AuditLogPage', () => {
     });
 
     it('stats cards have cursor pointer style', async () => {
-      render(<AuditLogPage />);
+      renderWithRouter(<AuditLogPage />);
 
       // Wait for stats to load
       await waitFor(() => {
@@ -427,7 +439,7 @@ describe('AuditLogPage', () => {
 
     it('active stats card shows visual selection ring', async () => {
       const user = userEvent.setup();
-      render(<AuditLogPage />);
+      renderWithRouter(<AuditLogPage />);
 
       // Wait for stats to load
       await waitFor(() => {
@@ -446,7 +458,7 @@ describe('AuditLogPage', () => {
 
     it('clicking stats card auto-expands filter panel', async () => {
       const user = userEvent.setup();
-      render(<AuditLogPage />);
+      renderWithRouter(<AuditLogPage />);
 
       // Wait for stats to load
       await waitFor(() => {
@@ -471,7 +483,7 @@ describe('AuditLogPage', () => {
     it('shows friendly placeholder when no audit logs exist', async () => {
       vi.mocked(api.fetchAuditLogs).mockResolvedValue(mockEmptyResponse);
 
-      render(<AuditLogPage />);
+      renderWithRouter(<AuditLogPage />);
 
       await waitFor(() => {
         expect(screen.getByText('No Audit Entries Found')).toBeInTheDocument();
@@ -485,7 +497,7 @@ describe('AuditLogPage', () => {
 
   describe('Filtering', () => {
     it('displays filter toggle button', async () => {
-      render(<AuditLogPage />);
+      renderWithRouter(<AuditLogPage />);
 
       await waitFor(() => {
         expect(screen.getByText('testuser1')).toBeInTheDocument();
@@ -496,7 +508,7 @@ describe('AuditLogPage', () => {
 
     it('shows filters when toggle is clicked', async () => {
       const user = userEvent.setup();
-      render(<AuditLogPage />);
+      renderWithRouter(<AuditLogPage />);
 
       await waitFor(() => {
         expect(screen.getByText('testuser1')).toBeInTheDocument();
@@ -513,7 +525,7 @@ describe('AuditLogPage', () => {
 
     it('filters by action type', async () => {
       const user = userEvent.setup();
-      render(<AuditLogPage />);
+      renderWithRouter(<AuditLogPage />);
 
       await waitFor(() => {
         expect(screen.getByText('testuser1')).toBeInTheDocument();
@@ -537,7 +549,7 @@ describe('AuditLogPage', () => {
 
     it('filters by status', async () => {
       const user = userEvent.setup();
-      render(<AuditLogPage />);
+      renderWithRouter(<AuditLogPage />);
 
       await waitFor(() => {
         expect(screen.getByText('testuser1')).toBeInTheDocument();
@@ -561,7 +573,7 @@ describe('AuditLogPage', () => {
 
     it('clears all filters', async () => {
       const user = userEvent.setup();
-      render(<AuditLogPage />);
+      renderWithRouter(<AuditLogPage />);
 
       await waitFor(() => {
         expect(screen.getByText('testuser1')).toBeInTheDocument();
@@ -598,7 +610,7 @@ describe('AuditLogPage', () => {
         },
       });
 
-      render(<AuditLogPage />);
+      renderWithRouter(<AuditLogPage />);
 
       await waitFor(() => {
         expect(screen.getByText('testuser1')).toBeInTheDocument();
@@ -619,7 +631,7 @@ describe('AuditLogPage', () => {
       });
 
       const user = userEvent.setup();
-      render(<AuditLogPage />);
+      renderWithRouter(<AuditLogPage />);
 
       await waitFor(() => {
         expect(screen.getByText('testuser1')).toBeInTheDocument();
@@ -644,7 +656,7 @@ describe('AuditLogPage', () => {
         },
       });
 
-      render(<AuditLogPage />);
+      renderWithRouter(<AuditLogPage />);
 
       await waitFor(() => {
         expect(screen.getByText('testuser1')).toBeInTheDocument();
@@ -658,7 +670,7 @@ describe('AuditLogPage', () => {
   describe('Detail Modal', () => {
     it('opens detail modal when row is clicked', async () => {
       const user = userEvent.setup();
-      render(<AuditLogPage />);
+      renderWithRouter(<AuditLogPage />);
 
       await waitFor(() => {
         expect(screen.getByText('testuser1')).toBeInTheDocument();
@@ -680,7 +692,7 @@ describe('AuditLogPage', () => {
 
     it('closes detail modal when close button is clicked', async () => {
       const user = userEvent.setup();
-      render(<AuditLogPage />);
+      renderWithRouter(<AuditLogPage />);
 
       await waitFor(() => {
         expect(screen.getByText('testuser1')).toBeInTheDocument();
@@ -709,7 +721,7 @@ describe('AuditLogPage', () => {
     it('displays error message when fetching audit logs fails', async () => {
       vi.mocked(api.fetchAuditLogs).mockRejectedValue(new Error('Network error'));
 
-      render(<AuditLogPage />);
+      renderWithRouter(<AuditLogPage />);
 
       await waitFor(() => {
         expect(screen.getByText('Error Loading Audit Logs')).toBeInTheDocument();
@@ -721,7 +733,7 @@ describe('AuditLogPage', () => {
     it('handles stats fetch errors gracefully', async () => {
       vi.mocked(api.fetchAuditStats).mockRejectedValue(new Error('Stats fetch failed'));
 
-      render(<AuditLogPage />);
+      renderWithRouter(<AuditLogPage />);
 
       // Should still load audit logs
       await waitFor(() => {
@@ -732,7 +744,7 @@ describe('AuditLogPage', () => {
 
   describe('API Calls', () => {
     it('fetches audit logs on mount', async () => {
-      render(<AuditLogPage />);
+      renderWithRouter(<AuditLogPage />);
 
       await waitFor(() => {
         expect(api.fetchAuditLogs).toHaveBeenCalledWith(
@@ -746,7 +758,7 @@ describe('AuditLogPage', () => {
     });
 
     it('fetches audit stats on mount', async () => {
-      render(<AuditLogPage />);
+      renderWithRouter(<AuditLogPage />);
 
       await waitFor(() => {
         expect(api.fetchAuditStats).toHaveBeenCalled();
