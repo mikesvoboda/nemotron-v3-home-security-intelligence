@@ -21,8 +21,9 @@ from typing import Any
 
 import torch
 from fastapi import FastAPI, File, HTTPException, UploadFile
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from PIL import Image, UnidentifiedImageError
+from prometheus_client import Counter, Gauge, Histogram, generate_latest
 from pydantic import BaseModel, ConfigDict, Field
 from transformers import AutoImageProcessor, AutoModelForObjectDetection
 
@@ -31,6 +32,55 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+# =============================================================================
+# Prometheus Metrics
+# =============================================================================
+# Total inference requests
+INFERENCE_REQUESTS_TOTAL = Counter(
+    "rtdetr_inference_requests_total",
+    "Total number of inference requests",
+    ["endpoint", "status"],
+)
+
+# Inference latency histogram (buckets tuned for typical inference times)
+INFERENCE_LATENCY_SECONDS = Histogram(
+    "rtdetr_inference_latency_seconds",
+    "Inference latency in seconds",
+    ["endpoint"],
+    buckets=[0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0],
+)
+
+# Number of detections per image
+DETECTIONS_PER_IMAGE = Histogram(
+    "rtdetr_detections_per_image",
+    "Number of detections per image",
+    buckets=[0, 1, 2, 3, 5, 10, 20, 50, 100],
+)
+
+# Model status gauge (1 = loaded, 0 = not loaded)
+MODEL_LOADED = Gauge(
+    "rtdetr_model_loaded",
+    "Whether the model is loaded (1) or not (0)",
+)
+
+# GPU metrics gauges
+GPU_UTILIZATION = Gauge(
+    "rtdetr_gpu_utilization_percent",
+    "GPU utilization percentage",
+)
+GPU_MEMORY_USED_GB = Gauge(
+    "rtdetr_gpu_memory_used_gb",
+    "GPU memory used in GB",
+)
+GPU_TEMPERATURE = Gauge(
+    "rtdetr_gpu_temperature_celsius",
+    "GPU temperature in Celsius",
+)
+GPU_POWER_WATTS = Gauge(
+    "rtdetr_gpu_power_watts",
+    "GPU power usage in Watts",
+)
 
 # Security-relevant classes for home monitoring
 SECURITY_CLASSES = {"person", "car", "truck", "dog", "cat", "bird", "bicycle", "motorcycle", "bus"}
@@ -539,6 +589,33 @@ async def health_check() -> HealthResponse:
     )
 
 
+@app.get("/metrics")
+async def metrics() -> Response:
+    """Prometheus metrics endpoint.
+
+    Returns metrics in Prometheus text format for scraping.
+    Updates GPU metrics gauges before returning.
+    """
+    # Update model status gauge
+    MODEL_LOADED.set(1 if model is not None and model.model is not None else 0)
+
+    # Update GPU metrics gauges
+    if torch.cuda.is_available():
+        vram_used = get_vram_usage()
+        if vram_used is not None:
+            GPU_MEMORY_USED_GB.set(vram_used)
+
+        gpu_metrics = get_gpu_metrics()
+        if gpu_metrics.get("gpu_utilization") is not None:
+            GPU_UTILIZATION.set(gpu_metrics["gpu_utilization"])
+        if gpu_metrics.get("temperature") is not None:
+            GPU_TEMPERATURE.set(gpu_metrics["temperature"])
+        if gpu_metrics.get("power_watts") is not None:
+            GPU_POWER_WATTS.set(gpu_metrics["power_watts"])
+
+    return Response(content=generate_latest(), media_type="text/plain; charset=utf-8")
+
+
 @app.post("/detect", response_model=DetectionResponse)
 async def detect_objects(  # noqa: PLR0912
     file: UploadFile = File(None), image_base64: str | None = None
@@ -645,8 +722,15 @@ async def detect_objects(  # noqa: PLR0912
         # Get original dimensions
         img_width, img_height = image.size
 
-        # Run detection
+        # Run detection with metrics tracking
+        start_time = time.perf_counter()
         detections, inference_time_ms = model.detect(image)
+        latency_seconds = time.perf_counter() - start_time
+
+        # Record metrics
+        INFERENCE_LATENCY_SECONDS.labels(endpoint="detect").observe(latency_seconds)
+        DETECTIONS_PER_IMAGE.observe(len(detections))
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="detect", status="success").inc()
 
         return DetectionResponse(
             detections=[Detection(**d) for d in detections],
@@ -656,9 +740,11 @@ async def detect_objects(  # noqa: PLR0912
         )
 
     except HTTPException:
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="detect", status="error").inc()
         raise
     except UnidentifiedImageError as e:
         # Handle corrupted/invalid image files - return 400 Bad Request
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="detect", status="error").inc()
         logger.warning(
             f"Invalid image file received: {filename}. "
             f"File may be corrupted, truncated, or not a valid image format. Error: {e}",
@@ -673,6 +759,7 @@ async def detect_objects(  # noqa: PLR0912
     except OSError as e:
         # Handle truncated or corrupted images that PIL can partially read
         # This catches "image file is truncated" errors
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="detect", status="error").inc()
         logger.warning(
             f"Corrupted image file received: {filename}. Error: {e}",
             extra={"source_file": filename, "error": str(e)},
@@ -682,6 +769,7 @@ async def detect_objects(  # noqa: PLR0912
             detail=f"Corrupted image file '{filename}': {e!s}",
         ) from e
     except Exception as e:
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="detect", status="error").inc()
         logger.error(f"Detection failed for {filename}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Detection failed: {e!s}") from e
 

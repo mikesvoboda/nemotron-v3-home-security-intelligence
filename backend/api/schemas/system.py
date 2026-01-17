@@ -196,6 +196,85 @@ class GPUStatsResponse(BaseModel):
         ge=0,
         le=15,
     )
+    # High-value metrics for throttling and error detection
+    throttle_reasons: int | None = Field(
+        None,
+        description="Bitfield of current throttle reasons (0=none)",
+        ge=0,
+    )
+    power_limit: float | None = Field(
+        None,
+        description="Power limit in watts",
+        ge=0,
+    )
+    sm_clock_max: int | None = Field(
+        None,
+        description="Maximum SM clock frequency in MHz",
+        ge=0,
+    )
+    compute_processes_count: int | None = Field(
+        None,
+        description="Number of active compute processes",
+        ge=0,
+    )
+    pcie_replay_counter: int | None = Field(
+        None,
+        description="PCIe replay counter (error indicator, should be low)",
+        ge=0,
+    )
+    temp_slowdown_threshold: float | None = Field(
+        None,
+        description="Temperature threshold for slowdown in Celsius",
+    )
+    # Medium-value metrics for hardware monitoring
+    memory_clock: int | None = Field(
+        None,
+        description="Current memory clock frequency in MHz",
+        ge=0,
+    )
+    memory_clock_max: int | None = Field(
+        None,
+        description="Maximum memory clock frequency in MHz",
+        ge=0,
+    )
+    pcie_link_gen: int | None = Field(
+        None,
+        description="PCIe link generation (1-4)",
+        ge=1,
+        le=5,
+    )
+    pcie_link_width: int | None = Field(
+        None,
+        description="PCIe link width (1, 2, 4, 8, 16)",
+        ge=1,
+    )
+    pcie_tx_throughput: int | None = Field(
+        None,
+        description="PCIe TX throughput in KB/s",
+        ge=0,
+    )
+    pcie_rx_throughput: int | None = Field(
+        None,
+        description="PCIe RX throughput in KB/s",
+        ge=0,
+    )
+    encoder_utilization: int | None = Field(
+        None,
+        description="Video encoder utilization percentage (0-100)",
+        ge=0,
+        le=100,
+    )
+    decoder_utilization: int | None = Field(
+        None,
+        description="Video decoder utilization percentage (0-100)",
+        ge=0,
+        le=100,
+    )
+    bar1_used: int | None = Field(
+        None,
+        description="BAR1 memory used in MB",
+        ge=0,
+    )
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -211,6 +290,21 @@ class GPUStatsResponse(BaseModel):
                 "sm_clock": 1800,
                 "memory_bandwidth_utilization": 35.2,
                 "pstate": 0,
+                "throttle_reasons": 0,
+                "power_limit": 230.0,
+                "sm_clock_max": 1980,
+                "compute_processes_count": 2,
+                "pcie_replay_counter": 0,
+                "temp_slowdown_threshold": 83.0,
+                "memory_clock": 8001,
+                "memory_clock_max": 8501,
+                "pcie_link_gen": 4,
+                "pcie_link_width": 16,
+                "pcie_tx_throughput": 120000,
+                "pcie_rx_throughput": 95000,
+                "encoder_utilization": 0,
+                "decoder_utilization": 0,
+                "bar1_used": 256,
             }
         }
     )
@@ -239,6 +333,23 @@ class GPUStatsSample(BaseModel):
         None, description="Memory controller utilization %", ge=0, le=100
     )
     pstate: int | None = Field(None, description="Performance state (P0-P15)", ge=0, le=15)
+    # High-value metrics
+    throttle_reasons: int | None = Field(None, description="Throttle reasons bitfield", ge=0)
+    power_limit: float | None = Field(None, description="Power limit in watts", ge=0)
+    sm_clock_max: int | None = Field(None, description="Max SM clock in MHz", ge=0)
+    compute_processes_count: int | None = Field(None, description="Active compute processes", ge=0)
+    pcie_replay_counter: int | None = Field(None, description="PCIe replay counter", ge=0)
+    temp_slowdown_threshold: float | None = Field(None, description="Slowdown temp threshold")
+    # Medium-value metrics
+    memory_clock: int | None = Field(None, description="Memory clock in MHz", ge=0)
+    memory_clock_max: int | None = Field(None, description="Max memory clock in MHz", ge=0)
+    pcie_link_gen: int | None = Field(None, description="PCIe link generation", ge=1, le=5)
+    pcie_link_width: int | None = Field(None, description="PCIe link width", ge=1)
+    pcie_tx_throughput: int | None = Field(None, description="PCIe TX throughput KB/s", ge=0)
+    pcie_rx_throughput: int | None = Field(None, description="PCIe RX throughput KB/s", ge=0)
+    encoder_utilization: int | None = Field(None, description="Encoder utilization %", ge=0, le=100)
+    decoder_utilization: int | None = Field(None, description="Decoder utilization %", ge=0, le=100)
+    bar1_used: int | None = Field(None, description="BAR1 memory used in MB", ge=0)
 
     model_config = ConfigDict(from_attributes=True)
 

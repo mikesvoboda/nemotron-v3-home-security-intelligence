@@ -19,7 +19,9 @@ from typing import Any
 
 import torch
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import Response
 from PIL import Image
+from prometheus_client import Counter, Gauge, Histogram, generate_latest
 from pydantic import BaseModel, Field
 from transformers import AutoModelForCausalLM, AutoProcessor
 
@@ -28,6 +30,36 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+# =============================================================================
+# Prometheus Metrics
+# =============================================================================
+# Total inference requests
+INFERENCE_REQUESTS_TOTAL = Counter(
+    "florence_inference_requests_total",
+    "Total number of inference requests",
+    ["endpoint", "status"],
+)
+
+# Inference latency histogram (buckets tuned for typical inference times)
+INFERENCE_LATENCY_SECONDS = Histogram(
+    "florence_inference_latency_seconds",
+    "Inference latency in seconds",
+    ["endpoint"],
+    buckets=[0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0],
+)
+
+# Model status gauge (1 = loaded, 0 = not loaded)
+MODEL_LOADED = Gauge(
+    "florence_model_loaded",
+    "Whether the model is loaded (1) or not (0)",
+)
+
+# GPU metrics gauges
+GPU_MEMORY_USED_GB = Gauge(
+    "florence_gpu_memory_used_gb",
+    "GPU memory used in GB",
+)
 
 # Size limits for image uploads (10MB is reasonable for security camera images)
 MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024  # 10MB
@@ -436,6 +468,25 @@ async def health_check() -> HealthResponse:
     )
 
 
+@app.get("/metrics")
+async def metrics() -> Response:
+    """Prometheus metrics endpoint.
+
+    Returns metrics in Prometheus text format for scraping.
+    Updates GPU metrics gauges before returning.
+    """
+    # Update model status gauge
+    MODEL_LOADED.set(1 if model is not None and model.model is not None else 0)
+
+    # Update GPU metrics gauges
+    if torch.cuda.is_available():
+        vram_used = get_vram_usage()
+        if vram_used is not None:
+            GPU_MEMORY_USED_GB.set(vram_used)
+
+    return Response(content=generate_latest(), media_type="text/plain; charset=utf-8")
+
+
 @app.post("/extract", response_model=ExtractResponse)
 async def extract(request: ExtractRequest) -> ExtractResponse:
     """Extract information from an image using Florence-2.
@@ -503,8 +554,14 @@ async def extract(request: ExtractRequest) -> ExtractResponse:
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Invalid image data: {e}") from e
 
-        # Run extraction
+        # Run extraction with metrics tracking
+        start_time = time.perf_counter()
         result, inference_time_ms = model.extract(image, request.prompt)
+        latency_seconds = time.perf_counter() - start_time
+
+        # Record metrics
+        INFERENCE_LATENCY_SECONDS.labels(endpoint="extract").observe(latency_seconds)
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="extract", status="success").inc()
 
         return ExtractResponse(
             result=result,
@@ -513,8 +570,10 @@ async def extract(request: ExtractRequest) -> ExtractResponse:
         )
 
     except HTTPException:
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="extract", status="error").inc()
         raise
     except Exception as e:
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="extract", status="error").inc()
         logger.error(f"Extraction failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Extraction failed: {e!s}") from e
 
