@@ -19,7 +19,7 @@ import CalibrationPanel from './CalibrationPanel';
 import CamerasSettings from './CamerasSettings';
 import NotificationSettings from './NotificationSettings';
 import ProcessingSettings from './ProcessingSettings';
-import PromptManagementPanel from './PromptManagementPanel';
+import { PromptManagementPage } from './prompts';
 import FileOperationsPanel from '../system/FileOperationsPanel';
 
 /**
@@ -89,7 +89,7 @@ export default function SettingsPage() {
       id: 'prompts',
       name: 'PROMPTS',
       icon: FileText,
-      component: PromptManagementPanel,
+      component: PromptManagementPage,
     },
     {
       id: 'storage',
