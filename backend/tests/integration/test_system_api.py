@@ -45,6 +45,11 @@ async def test_health_endpoint_all_services_healthy(client, mock_redis):
 @pytest.mark.asyncio
 async def test_health_endpoint_degraded_services(client, integration_db):
     """Test health check endpoint with degraded services (Redis down)."""
+    from backend.api.routes.system import clear_health_cache
+
+    # Clear health cache to ensure fresh check
+    clear_health_cache()
+
     # Mock Redis to raise an exception (simulating unhealthy Redis)
     mock_redis_client = AsyncMock()
     mock_redis_client.health_check.side_effect = ConnectionError("Redis connection failed")

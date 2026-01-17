@@ -128,7 +128,11 @@ def create_mock_gpu_stats() -> MagicMock:
 def mock_session() -> MagicMock:
     """Create a mock database session."""
     session = AsyncMock()
-    session.execute = AsyncMock()
+    # Configure execute to return a result with scalar_one_or_none() = None
+    mock_result = MagicMock()
+    mock_result.scalar_one_or_none.return_value = None
+    mock_result.scalar.return_value = None
+    session.execute = AsyncMock(return_value=mock_result)
     session.commit = AsyncMock()
     session.refresh = AsyncMock()
     return session
