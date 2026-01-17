@@ -40,7 +40,9 @@ describe('MobileEventCard', () => {
     render(<MobileEventCard {...defaultProps} />);
 
     // RiskBadge displays "High (75)" format
-    expect(screen.getByText(/75/)).toBeInTheDocument();
+    const badge = screen.getByRole('status', { name: /risk level/i });
+    expect(badge).toBeInTheDocument();
+    expect(badge).toHaveTextContent('High (75)');
   });
 
   it('renders in single-line compact layout', () => {

@@ -20,6 +20,7 @@
 #   --no-seed        Skip database seeding after clean deploy
 #   --seed-files N   Touch N random images from /export/foscam to trigger AI pipeline (default: 0)
 #   --qa             QA mode: equivalent to --keep-volumes --seed-files 100
+#   --no-git-pull    Skip fetching latest code from origin/main (default: pulls latest)
 #
 # Modes:
 #   DEFAULT (local):  Build all 9 services locally from source
@@ -58,6 +59,7 @@ DEPLOY_MODE="${DEPLOY_MODE:-local}"
 SKIP_PULL="${SKIP_PULL:-false}"
 SKIP_CI_CHECK="${SKIP_CI_CHECK:-false}"
 SKIP_SEED="${SKIP_SEED:-false}"
+SKIP_GIT_PULL="${SKIP_GIT_PULL:-false}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 FRONTEND_PORT="${FRONTEND_PORT:-5173}"
 SEED_FILES_COUNT="${SEED_FILES_COUNT:-0}"
@@ -173,6 +175,7 @@ OPTIONS:
     --no-seed        Skip database seeding after clean deploy
     --seed-files N   Touch N random images from /export/foscam to trigger AI pipeline
     --qa             QA mode: --keep-volumes + --seed-files 100 (quick QA testing)
+    --no-git-pull    Skip fetching latest code from origin/main
 
 DESCRIPTION:
     This script performs a CLEAN redeploy of all services:
@@ -593,6 +596,75 @@ check_ci_build_status() {
     fi
 
     print_success "CI build passed for commit $run_short_sha"
+    return 0
+}
+
+update_to_latest_main() {
+    print_header "Updating to Latest origin/main"
+
+    cd "$PROJECT_ROOT"
+
+    # Check if we're in a git repository
+    if ! git rev-parse --is-inside-work-tree &> /dev/null; then
+        print_warn "Not a git repository - skipping git pull"
+        return 0
+    fi
+
+    # Save current branch/commit for reference
+    local current_branch
+    current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "detached")
+    local current_commit
+    current_commit=$(git rev-parse --short HEAD 2>/dev/null)
+    print_info "Current: $current_branch ($current_commit)"
+
+    # Fetch latest from origin
+    print_step "Fetching from origin..."
+    if run_cmd git fetch origin main; then
+        print_success "Fetched origin/main"
+    else
+        print_fail "Failed to fetch from origin"
+        return 1
+    fi
+
+    # Get the latest commit on origin/main
+    local origin_main_commit
+    origin_main_commit=$(git rev-parse --short origin/main 2>/dev/null)
+    print_info "origin/main: $origin_main_commit"
+
+    # Check if we're already at origin/main
+    if [ "$current_commit" = "$origin_main_commit" ]; then
+        print_success "Already at latest origin/main ($origin_main_commit)"
+        return 0
+    fi
+
+    # Check for uncommitted changes
+    if ! git diff-index --quiet HEAD -- 2>/dev/null; then
+        print_warn "Uncommitted changes detected"
+        print_step "Stashing changes..."
+        if run_cmd git stash push -m "redeploy-script-$(date +%Y%m%d-%H%M%S)"; then
+            print_success "Changes stashed"
+        else
+            print_fail "Failed to stash changes"
+            return 1
+        fi
+    fi
+
+    # Reset to origin/main
+    print_step "Resetting to origin/main..."
+    if run_cmd git checkout main 2>/dev/null || run_cmd git checkout -b main origin/main 2>/dev/null; then
+        if run_cmd git reset --hard origin/main; then
+            local new_commit
+            new_commit=$(git rev-parse --short HEAD)
+            print_success "Updated to origin/main ($new_commit)"
+        else
+            print_fail "Failed to reset to origin/main"
+            return 1
+        fi
+    else
+        print_fail "Failed to checkout main branch"
+        return 1
+    fi
+
     return 0
 }
 
@@ -1101,6 +1173,10 @@ main() {
                 SKIP_SEED="true"
                 shift
                 ;;
+            --no-git-pull)
+                SKIP_GIT_PULL="true"
+                shift
+                ;;
             --tag)
                 IMAGE_TAG="$2"
                 shift 2
@@ -1156,6 +1232,16 @@ main() {
         echo -e "Image Tag:    ${CYAN}$IMAGE_TAG${NC}"
     fi
     echo -e "Started:      ${CYAN}$(date '+%Y-%m-%d %H:%M:%S')${NC}"
+
+    # Update to latest origin/main (unless --no-git-pull)
+    if [ "$SKIP_GIT_PULL" = "false" ]; then
+        if ! update_to_latest_main; then
+            print_fail "Failed to update to origin/main"
+            exit 1
+        fi
+    else
+        print_info "Skipping git pull (--no-git-pull specified)"
+    fi
 
     # Run prerequisite checks
     if ! check_prerequisites; then

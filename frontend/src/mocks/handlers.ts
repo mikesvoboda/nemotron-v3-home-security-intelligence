@@ -435,7 +435,11 @@ export const handlers = [
       retention_days: 30,
       batch_window_seconds: 90,
       batch_idle_timeout_seconds: 30,
+      batch_timeout_seconds: 90,
+      idle_timeout_seconds: 30,
       detection_confidence_threshold: 0.5,
+      risk_threshold_high: 70,
+      risk_threshold_critical: 90,
       grafana_url: 'http://localhost:3002',
       debug: false,
     });

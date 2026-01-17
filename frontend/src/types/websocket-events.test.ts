@@ -30,8 +30,10 @@ describe('WebSocket Event Types', () => {
       // NEM-2295: Added camera_status event type
       // NEM-2382: Added hierarchical event types (alert.*, camera.*, job.*, system.*)
       // NEM-2504: Added alert.resolved event type
-      // 8 legacy keys + 16 new hierarchical keys = 24 total
-      expect(WEBSOCKET_EVENT_KEYS).toHaveLength(24);
+      // NEM-2505: Added legacy job event types (job_progress, job_completed, job_failed)
+      // NEM-2515: Added event lifecycle events (event.created, event.updated, event.deleted)
+      // 8 legacy keys + 3 legacy job keys + 3 event lifecycle + 6 alert + 4 camera + 4 job + 2 system = 30 total
+      expect(WEBSOCKET_EVENT_KEYS).toHaveLength(30);
     });
 
     it('should include new hierarchical event keys', () => {
