@@ -11,6 +11,7 @@ Core Web Vitals collected:
 - CLS (Cumulative Layout Shift): Visual stability
 - TTFB (Time to First Byte): Server response time
 - FCP (First Contentful Paint): First content render
+- PAGE_LOAD_TIME: Full page load duration from Navigation Timing API
 
 Usage:
     POST /api/rum
@@ -41,6 +42,7 @@ from backend.core.metrics import (
     observe_rum_fid,
     observe_rum_inp,
     observe_rum_lcp,
+    observe_rum_page_load_time,
     observe_rum_ttfb,
 )
 
@@ -93,6 +95,8 @@ async def ingest_rum_metrics(request: RUMBatchRequest) -> RUMIngestResponse:
                 observe_rum_ttfb(metric.value, path=path, rating=rating)
             elif metric.name == WebVitalName.FCP:
                 observe_rum_fcp(metric.value, path=path, rating=rating)
+            elif metric.name == WebVitalName.PAGE_LOAD_TIME:
+                observe_rum_page_load_time(metric.value, path=path, rating=rating)
             else:
                 errors.append(f"Unknown metric name: {metric.name}")
                 continue

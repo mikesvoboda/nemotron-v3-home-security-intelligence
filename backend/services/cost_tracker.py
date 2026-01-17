@@ -429,6 +429,16 @@ class CostTracker:
         )
         self._metrics.set_monthly_cost(monthly_total)
 
+        # Calculate and update cost efficiency metrics (all-time averages)
+        total_cost = sum(u.total_estimated_cost_usd for u in self._daily_usage.values())
+        total_detections = sum(u.total_images_processed for u in self._daily_usage.values())
+        total_events = sum(u.event_count for u in self._daily_usage.values())
+
+        if total_detections > 0:
+            self._metrics.set_cost_per_detection(total_cost / total_detections)
+        if total_events > 0:
+            self._metrics.set_cost_per_event(total_cost / total_events)
+
         # Check budget thresholds
         self._check_budget_thresholds(usage.total_estimated_cost_usd, monthly_total)
 
@@ -704,6 +714,12 @@ class CostTracker:
         if today not in self._daily_usage:
             self._daily_usage[today] = DailyUsage(date=today)
         self._daily_usage[today].event_count += count
+
+        # Update cost per event metric
+        total_cost = sum(u.total_estimated_cost_usd for u in self._daily_usage.values())
+        total_events = sum(u.event_count for u in self._daily_usage.values())
+        if total_events > 0:
+            self._metrics.set_cost_per_event(total_cost / total_events)
 
 
 # Global singleton instance
