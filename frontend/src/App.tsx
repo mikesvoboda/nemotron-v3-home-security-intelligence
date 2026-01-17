@@ -33,6 +33,11 @@ const AnalyticsPage = lazy(() =>
   import('./components/analytics').then((module) => ({ default: module.AnalyticsPage }))
 );
 
+// Jobs page
+const JobsPage = lazy(() =>
+  import('./components/jobs').then((module) => ({ default: module.JobsPage }))
+);
+
 // Alert management
 const AlertsPage = lazy(() => import('./components/alerts/AlertsPage'));
 
@@ -88,6 +93,7 @@ export default function App() {
                           <Route path="/" element={<DashboardPage />} />
                           <Route path="/timeline" element={<EventTimeline />} />
                           <Route path="/analytics" element={<AnalyticsPage />} />
+                          <Route path="/jobs" element={<JobsPage />} />
                           <Route path="/alerts" element={<AlertsPage />} />
                           <Route path="/entities" element={<EntitiesPage />} />
                           <Route path="/logs" element={<LogsDashboard />} />

@@ -34,8 +34,9 @@ describe('Sidebar', () => {
     renderWithRouter();
     expect(screen.getByText('Dashboard')).toBeInTheDocument();
     expect(screen.getByText('Timeline')).toBeInTheDocument();
-    expect(screen.getByText('Entities')).toBeInTheDocument();
     expect(screen.getByText('Analytics')).toBeInTheDocument();
+    expect(screen.getByText('Jobs')).toBeInTheDocument();
+    expect(screen.getByText('Entities')).toBeInTheDocument();
     expect(screen.getByText('Alerts')).toBeInTheDocument();
     expect(screen.getByText('Logs')).toBeInTheDocument();
     expect(screen.getByText('Audit Log')).toBeInTheDocument();
@@ -110,10 +111,15 @@ describe('Sidebar', () => {
     expect(settingsLink).toHaveClass('bg-[#76B900]');
   });
 
-  it('renders all 12 navigation items', () => {
+  it('renders all 13 navigation items', () => {
     renderWithRouter();
     const links = screen.getAllByRole('link');
-    expect(links).toHaveLength(12);
+    expect(links).toHaveLength(13);
+  });
+
+  it('jobs link has correct href', () => {
+    renderWithRouter();
+    expect(screen.getByRole('link', { name: /jobs/i })).toHaveAttribute('href', '/jobs');
   });
 
   it('audit log link has correct href', () => {
