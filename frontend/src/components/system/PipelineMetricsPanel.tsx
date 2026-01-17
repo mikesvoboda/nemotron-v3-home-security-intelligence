@@ -1,8 +1,19 @@
 import { Card, Title, Text, Badge, AreaChart } from '@tremor/react';
 import { clsx } from 'clsx';
-import { Activity, Layers, Clock, AlertTriangle, Zap, TrendingUp } from 'lucide-react';
+import {
+  Activity,
+  Layers,
+  Clock,
+  AlertTriangle,
+  Zap,
+  TrendingUp,
+  Bug,
+  AlertCircle,
+} from 'lucide-react';
 
 import { getQueueStatusColor, getLatencyStatusColor } from '../../theme/colors';
+
+import type { PipelineError } from '../../services/api';
 
 /**
  * Queue depths data
@@ -60,6 +71,14 @@ export interface PipelineMetricsPanelProps {
   className?: string;
   /** Optional data-testid attribute for testing */
   'data-testid'?: string;
+  /** Whether debug mode is enabled - shows additional debug info */
+  debugMode?: boolean;
+  /** Pipeline errors (only shown when debugMode is true) */
+  pipelineErrors?: PipelineError[];
+  /** Whether pipeline errors are loading */
+  errorsLoading?: boolean;
+  /** Error message if pipeline errors failed to load */
+  errorsError?: string | null;
 }
 
 const DEFAULT_QUEUE_THRESHOLD = 10;
@@ -106,6 +125,17 @@ function getLatencyColor(
  *
  * Designed for the dense system monitoring dashboard layout.
  */
+/**
+ * Formats a timestamp to a human-readable time string
+ */
+function formatErrorTime(timestamp: string): string {
+  try {
+    return new Date(timestamp).toLocaleTimeString();
+  } catch {
+    return timestamp;
+  }
+}
+
 export default function PipelineMetricsPanel({
   queues,
   latencies,
@@ -115,6 +145,10 @@ export default function PipelineMetricsPanel({
   latencyWarningThreshold = DEFAULT_LATENCY_THRESHOLD,
   className,
   'data-testid': testId = 'pipeline-metrics-panel',
+  debugMode = false,
+  pipelineErrors = [],
+  errorsLoading = false,
+  errorsError = null,
 }: PipelineMetricsPanelProps) {
   const { detection_queue, analysis_queue } = queues;
 
@@ -339,6 +373,75 @@ export default function PipelineMetricsPanel({
             <Text className="text-xs text-red-400">
               Queue backup detected. Processing may be delayed.
             </Text>
+          </div>
+        )}
+
+        {/* Debug Section - Pipeline Errors */}
+        {debugMode && (
+          <div
+            className="mt-4 rounded-lg border border-orange-500/30 bg-orange-500/5 p-3"
+            data-testid="debug-errors-section"
+          >
+            <div className="mb-3 flex items-center gap-2">
+              <Bug className="h-4 w-4 text-orange-500" />
+              <Text className="text-sm font-medium text-orange-400">
+                Recent Errors ({pipelineErrors.length})
+              </Text>
+              <Badge color="orange" size="xs">
+                DEBUG
+              </Badge>
+            </div>
+
+            {/* Loading state */}
+            {errorsLoading && (
+              <div
+                className="space-y-2"
+                data-testid="errors-loading-skeleton"
+              >
+                <div className="h-12 animate-pulse rounded bg-gray-700/50" />
+                <div className="h-12 animate-pulse rounded bg-gray-700/50" />
+              </div>
+            )}
+
+            {/* Error state */}
+            {errorsError && !errorsLoading && (
+              <div className="flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2">
+                <AlertCircle className="h-4 w-4 text-red-500" />
+                <Text className="text-xs text-red-400">{errorsError}</Text>
+              </div>
+            )}
+
+            {/* Empty state */}
+            {!errorsLoading && !errorsError && pipelineErrors.length === 0 && (
+              <Text className="text-sm text-gray-500">No recent errors</Text>
+            )}
+
+            {/* Errors list */}
+            {!errorsLoading && !errorsError && pipelineErrors.length > 0 && (
+              <div className="max-h-48 space-y-2 overflow-y-auto">
+                {pipelineErrors.map((error, index) => (
+                  <div
+                    key={`${error.timestamp}-${index}`}
+                    className="rounded border border-gray-700 bg-gray-800/50 p-2"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Badge color="red" size="xs">
+                        {error.error_type}
+                      </Badge>
+                      <Badge color="gray" size="xs">
+                        {error.component}
+                      </Badge>
+                      <Text className="ml-auto text-xs text-gray-500">
+                        {formatErrorTime(error.timestamp)}
+                      </Text>
+                    </div>
+                    {error.message && (
+                      <Text className="mt-1 text-xs text-gray-400">{error.message}</Text>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
