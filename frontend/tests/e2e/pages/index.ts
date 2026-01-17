@@ -18,3 +18,5 @@ export { AIPerformancePage } from './AIPerformancePage';
 export { SystemPage } from './SystemPage';
 export { SettingsPage } from './SettingsPage';
 export { ZonesPage } from './ZonesPage';
+export { JobsPage } from './JobsPage';
+export { TrashPage } from './TrashPage';

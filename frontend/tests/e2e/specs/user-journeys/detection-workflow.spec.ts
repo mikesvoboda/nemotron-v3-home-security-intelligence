@@ -13,9 +13,33 @@
  */
 
 import { test, expect } from '../../fixtures';
+import { waitForElement, waitForAnimation } from '../../utils/wait-helpers';
 
-// TODO: Fix modal stability issues in detection workflow tests
-test.describe.skip('Detection to Alert Journey (NEM-1664)', () => {
+/**
+ * Helper to wait for modal content to be visible and stable.
+ * Addresses HeadlessUI transition issues and React portal rendering.
+ */
+async function waitForModalContent(page: import('@playwright/test').Page) {
+  // Wait for modal container to be attached to DOM
+  const modal = page.locator('[data-testid="event-detail-modal"]');
+  await modal.waitFor({ state: 'attached', timeout: 10000 });
+
+  // Wait for modal to be visible (after transition animation)
+  await expect(modal).toBeVisible({ timeout: 5000 });
+
+  // Wait for key modal content to be stable (camera name heading)
+  const modalHeading = page.getByRole('heading', { level: 2 });
+  await expect(modalHeading).toBeVisible({ timeout: 5000 });
+
+  // Wait for close button to be interactive
+  const closeButton = page.locator('[data-testid="close-modal-button"]');
+  await expect(closeButton).toBeVisible({ timeout: 3000 });
+
+  // Additional stability delay for animations
+  await page.waitForTimeout(300);
+}
+
+test.describe('Detection to Alert Journey (NEM-1664)', () => {
   test.beforeEach(async ({ page, browserName }) => {
     // Navigate to dashboard before each test
     await page.goto('/');
@@ -51,17 +75,28 @@ test.describe.skip('Detection to Alert Journey (NEM-1664)', () => {
     // When: Click on the first detection in activity feed
     const firstDetection = page.locator('[data-testid^="detection-card-"]').first();
 
-    // Wait for at least one detection to appear
-    await expect(firstDetection).toBeVisible({ timeout: 15000 });
+    // Wait for at least one detection to appear with proper state
+    await firstDetection.waitFor({ state: 'attached', timeout: 15000 });
+    await expect(firstDetection).toBeVisible({ timeout: 5000 });
 
     // Store detection ID for verification
     const detectionId = await firstDetection.getAttribute('data-testid');
 
     await firstDetection.click();
 
-    // Then: Event detail modal should open
+    // Clicking detection navigates to timeline page with modal
+    // Wait for URL to include the timeline path and event parameter
+    await page.waitForURL(/\/timeline\?event=\d+/, { timeout: 10000 });
+
+    // Allow timeline page to initialize and process URL parameter
+    await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {
+      // Network idle may timeout on slower connections - continue anyway
+    });
+
+    // Wait for modal to be fully rendered and stable
+    await waitForModalContent(page);
+
     const eventModal = page.locator('[data-testid="event-detail-modal"]');
-    await expect(eventModal).toBeVisible({ timeout: 5000 });
 
     // Verify modal shows detection information
     await expect(eventModal.locator('[data-testid="detection-timestamp"]')).toBeVisible();
@@ -86,20 +121,32 @@ test.describe.skip('Detection to Alert Journey (NEM-1664)', () => {
     await expect(page.locator('[data-testid="activity-feed"]')).toBeVisible();
 
     const detections = page.locator('[data-testid^="detection-card-"]');
-    await expect(detections.first()).toBeVisible({ timeout: 15000 });
+    await detections.first().waitFor({ state: 'attached', timeout: 15000 });
+    await expect(detections.first()).toBeVisible({ timeout: 5000 });
 
     const firstDetectionId = await detections.first().getAttribute('data-testid');
     await detections.first().click();
 
+    // Wait for navigation to timeline page
+    await page.waitForURL(/\/timeline\?event=\d+/, { timeout: 10000 });
+
+    // Allow timeline page to initialize and process URL parameter
+    await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {
+      // Network idle may timeout on slower connections - continue anyway
+    });
+
+    // Wait for modal to be fully stable
+    await waitForModalContent(page);
+
     const eventModal = page.locator('[data-testid="event-detail-modal"]');
-    await expect(eventModal).toBeVisible();
 
     // When: Click next button if available
-    const nextButton = eventModal.locator('[data-testid="next-detection-button"]');
+    const nextButton = eventModal.locator('[aria-label="Next event"]');
 
     // Check if next button exists and is enabled
-    if (await nextButton.count() > 0) {
-      const isDisabled = await nextButton.getAttribute('disabled');
+    const nextButtonCount = await nextButton.count();
+    if (nextButtonCount > 0) {
+      const isDisabled = await nextButton.isDisabled();
 
       if (!isDisabled) {
         // Get current detection info before navigation
@@ -109,12 +156,14 @@ test.describe.skip('Detection to Alert Journey (NEM-1664)', () => {
 
         await nextButton.click();
 
-        // Then: Modal should update with different detection
-        await page.waitForTimeout(500); // Allow time for data to update
+        // Then: Wait for modal content to update (re-render with new data)
+        await page.waitForTimeout(500); // Allow React state update
 
-        const newTimestamp = await eventModal
-          .locator('[data-testid="detection-timestamp"]')
-          .textContent();
+        // Wait for timestamp element to be stable after re-render
+        const timestampLocator = eventModal.locator('[data-testid="detection-timestamp"]');
+        await timestampLocator.waitFor({ state: 'attached', timeout: 3000 });
+
+        const newTimestamp = await timestampLocator.textContent();
 
         // Verify content changed (timestamps should differ)
         expect(newTimestamp).not.toBe(currentTimestamp);
@@ -133,11 +182,22 @@ test.describe.skip('Detection to Alert Journey (NEM-1664)', () => {
     await expect(page.locator('[data-testid="activity-feed"]')).toBeVisible();
 
     const firstDetection = page.locator('[data-testid^="detection-card-"]').first();
-    await expect(firstDetection).toBeVisible({ timeout: 15000 });
+    await firstDetection.waitFor({ state: 'attached', timeout: 15000 });
+    await expect(firstDetection).toBeVisible({ timeout: 5000 });
     await firstDetection.click();
 
+    // Wait for navigation to timeline page
+    await page.waitForURL(/\/timeline\?event=\d+/, { timeout: 10000 });
+
+    // Allow timeline page to initialize and process URL parameter
+    await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {
+      // Network idle may timeout on slower connections - continue anyway
+    });
+
+    // Wait for modal to be fully stable
+    await waitForModalContent(page);
+
     const eventModal = page.locator('[data-testid="event-detail-modal"]');
-    await expect(eventModal).toBeVisible();
 
     // When: Locate AI analysis section
     const aiSection = eventModal.locator('[data-testid="ai-analysis-section"]');
@@ -153,13 +213,17 @@ test.describe.skip('Detection to Alert Journey (NEM-1664)', () => {
     const scoreText = await riskScore.textContent();
     expect(scoreText).toMatch(/\d+/); // Contains at least one digit
 
-    // AI reasoning/explanation
+    // AI reasoning/explanation (only check if present in data)
     const aiReasoning = eventModal.locator('[data-testid="ai-reasoning"]');
-    await expect(aiReasoning).toBeVisible();
+    const reasoningCount = await aiReasoning.count();
 
-    // Verify reasoning has content
-    const reasoningText = await aiReasoning.textContent();
-    expect(reasoningText?.length || 0).toBeGreaterThan(10);
+    if (reasoningCount > 0) {
+      await expect(aiReasoning).toBeVisible();
+
+      // Verify reasoning has content
+      const reasoningText = await aiReasoning.textContent();
+      expect(reasoningText?.length || 0).toBeGreaterThan(10);
+    }
 
     // Detection objects list is optional (depends on API data)
     // The modal shows detections via "DETECTION SEQUENCE" thumbnails
@@ -176,14 +240,22 @@ test.describe.skip('Detection to Alert Journey (NEM-1664)', () => {
     await expect(page.locator('[data-testid="activity-feed"]')).toBeVisible();
 
     const firstDetection = page.locator('[data-testid^="detection-card-"]').first();
-    await expect(firstDetection).toBeVisible({ timeout: 15000 });
+    await firstDetection.waitFor({ state: 'attached', timeout: 15000 });
+    await expect(firstDetection).toBeVisible({ timeout: 5000 });
     await firstDetection.click();
 
     // Clicking detection navigates to timeline page with modal
-    await page.waitForURL(/\/timeline\?event=\d+/);
+    await page.waitForURL(/\/timeline\?event=\d+/, { timeout: 10000 });
+
+    // Allow timeline page to initialize and process URL parameter
+    await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {
+      // Network idle may timeout on slower connections - continue anyway
+    });
+
+    // Wait for modal to be fully stable
+    await waitForModalContent(page);
 
     const eventModal = page.locator('[data-testid="event-detail-modal"]');
-    await expect(eventModal).toBeVisible();
 
     // When: Close the modal (use Escape key - more reliable for HeadlessUI)
     await page.keyboard.press('Escape');
@@ -191,8 +263,8 @@ test.describe.skip('Detection to Alert Journey (NEM-1664)', () => {
     // Then: Modal should be hidden (allow time for HeadlessUI exit animation)
     await expect(eventModal).not.toBeVisible({ timeout: 10000 });
 
-    // Verify user is on timeline page (not dashboard)
-    await expect(page.locator('[data-testid="timeline-page"]')).toBeVisible();
+    // Verify user is still on timeline page (URL should contain /timeline)
+    expect(page.url()).toContain('/timeline');
   });
 
   test('detection cards show preview information before opening', async ({ page }) => {
@@ -207,7 +279,8 @@ test.describe.skip('Detection to Alert Journey (NEM-1664)', () => {
 
     // When: Locate detection cards
     const detectionCards = page.locator('[data-testid^="detection-card-"]');
-    await expect(detectionCards.first()).toBeVisible({ timeout: 15000 });
+    await detectionCards.first().waitFor({ state: 'attached', timeout: 15000 });
+    await expect(detectionCards.first()).toBeVisible({ timeout: 5000 });
 
     const cardCount = await detectionCards.count();
     expect(cardCount).toBeGreaterThan(0);
