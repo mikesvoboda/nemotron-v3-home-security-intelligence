@@ -38,7 +38,7 @@ backend/tests/unit/core/
 └── test_websocket_validation.py      # WebSocket message validation
 ```
 
-## Test Files (28 files)
+## Test Files (49 files)
 
 ### Configuration and Settings
 

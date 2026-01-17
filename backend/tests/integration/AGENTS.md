@@ -55,10 +55,15 @@ backend/tests/integration/
 ├── .gitkeep                               # Directory placeholder
 ├── COVERAGE.md                            # Coverage documentation
 ├── README.md                              # Integration test documentation
-└── test_*.py                              # Test files (56 total)
+├── api/                                   # API integration tests (5 files)
+├── database/                              # Database isolation tests
+├── repositories/                          # Repository pattern tests (5 files)
+├── services/                              # Service integration tests (3 files)
+├── websocket/                             # WebSocket integration tests (1 file)
+└── test_*.py                              # Root test files (109 total)
 ```
 
-## Test Files (56 total)
+## Test Files (109+ total at root level)
 
 ### API Endpoint Tests (21 files)
 

@@ -14,13 +14,14 @@ This directory contains end-user documentation for the Home Security Intelligenc
 user-guide/
   AGENTS.md                   # This file
   accessibility.md            # Accessibility features for users (screen readers, keyboard)
-  ai-audit.md                 # AI quality metrics and recommendations (from user/)
-  ai-enrichment.md            # Advanced AI analysis in event details (from user/)
-  ai-performance.md           # AI model performance and Model Zoo (from user/)
+  ai-audit.md                 # AI quality metrics and recommendations
+  ai-enrichment.md            # Advanced AI analysis in event details
+  ai-performance.md           # AI model performance and Model Zoo
   alerts-notifications.md     # Alerts and notifications guide
-  dashboard-basics.md         # Dashboard layout, header, sidebar, quick stats (from user/)
+  dashboard-basics.md         # Dashboard layout, header, sidebar, quick stats
+  dashboard-customization.md  # Dashboard customization and personalization
   dashboard-overview.md       # Dashboard overview
-  dashboard-settings.md       # Configuration and quick reference (from user/)
+  dashboard-settings.md       # Configuration and quick reference
   event-investigation.md      # Video clips, entity tracking, timeline visualization
   event-timeline.md           # Event timeline guide
   getting-started.md          # Quick start guide for new users
@@ -29,12 +30,13 @@ user-guide/
   keyboard-shortcuts.md       # Command palette and keyboard navigation
   logs-dashboard.md           # Logs dashboard guide
   mobile-pwa.md               # PWA installation, push notifications, mobile features
+  prompt-playground.md        # AI prompt testing and playground
   search.md                   # Search functionality guide
   settings.md                 # Settings page guide
-  system-monitoring.md        # System health, circuit breakers, troubleshooting (from user/)
+  system-monitoring.md        # System health, circuit breakers, troubleshooting
   understanding-alerts.md     # Risk levels and alert interpretation
   using-the-dashboard.md      # Comprehensive dashboard guide
-  viewing-events.md           # Activity feed, timeline, event details (from user/)
+  viewing-events.md           # Activity feed, timeline, event details
   zones.md                    # Detection zones configuration guide
 ```
 

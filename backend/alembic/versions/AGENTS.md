@@ -2,46 +2,31 @@
 
 ## Purpose
 
-This directory contains PostgreSQL database migration scripts managed by Alembic. Each migration file represents a schema change that can be applied (upgrade) or reversed (downgrade).
+This directory contains 52 PostgreSQL database migration scripts managed by Alembic. Each migration file represents a schema change that can be applied (upgrade) or reversed (downgrade).
 
-## Migration Chain
+## Migration Categories
 
-Migrations form a chain where each migration's `down_revision` points to its parent. Note that there is one merge point in the chain:
+The migrations are organized into several categories:
 
-```
-968b0dff6a9b (initial_schema)
-       |
-20251228_fts (add_fts_search_vector)
-       |
-add_alerts_rules (add_alerts_and_alert_rules)
-       |
-add_zones_001 (add_zones_table)
-       |
-add_audit_logs (audit_logs_table)
-       |
-add_baselines (add_baseline_tables)
-       |
-add_clip_path (add_clip_path_column)
-       |
-fix_datetime_tz (fix_datetime_timezone)
-       |
-fix_search_vector_backfill
-       |
-add_llm_prompt (add_llm_prompt_column)
-       |
-add_event_audits (add_event_audits_table)
-       |
-add_camera_unique_constraints
-       |
-add_enrichment_data (add_enrichment_data_column)
-       |
-       +-----> add_object_types_gin_trgm
-       |                    |
-       +-----> add_prompt_versions
-                            |
-                            v
-                d4cdaa821492 (merge_heads)
-```
+### Foundation Migrations
+
+Establish core schema and tables.
+
+### Database Optimization Migrations
+
+Add indexes, partitioning, and performance improvements.
+
+### Feature Addition Migrations
+
+Add new tables and columns for new functionality.
+
+### Fix and Maintenance Migrations
+
+Fix issues and maintain data integrity.
+
+### Merge Migrations
+
+Consolidate parallel migration branches (7 merge points).
 
 ## Migration Files
 
@@ -219,12 +204,65 @@ Creates `prompt_versions` table for AI model prompt configuration tracking:
 **Revision ID:** `d4cdaa821492`
 **Parents:** `add_object_types_gin_trgm`, `add_prompt_versions`
 
-Merge migration that combines two parallel branches:
+Merge migration that combines two parallel branches.
 
-- No schema changes (empty upgrade/downgrade functions)
-- Resolves the branching from `add_enrichment_data` that split into:
-  - `add_object_types_gin_trgm` branch
-  - `add_prompt_versions` branch
+## Additional Migration Files (Post-Merge)
+
+### Database Optimization Migrations
+
+| File                                              | Purpose                                 |
+| ------------------------------------------------- | --------------------------------------- |
+| `add_composite_indexes_for_filters.py`            | Multi-column indexes for filter queries |
+| `add_covering_indexes_for_pagination.py`          | Include columns for index-only scans    |
+| `add_deleted_at_indexes.py`                       | Soft delete query optimization          |
+| `add_partial_indexes_boolean_columns.py`          | Partial indexes for boolean filters     |
+| `add_gin_brin_specialized_indexes.py`             | GIN and BRIN specialized indexes        |
+| `add_gpu_stats_recorded_at_brin_index.py`         | BRIN index for time-series data         |
+| `add_time_series_partitioning.py`                 | Table partitioning for large tables     |
+| `1c42824dcb07_add_search_indexes.py`              | Additional search optimization          |
+| `add_alerts_deduplication_indexes.py`             | Alert dedup performance                 |
+| `add_events_backlog_improvement_indexes.py`       | Event backlog query optimization        |
+| `add_detections_camera_object_index.py`           | Detection lookup optimization           |
+| `add_detections_object_type_detected_at_index.py` | Detection type queries                  |
+| `add_detection_search_vector.py`                  | Full-text search on detections          |
+
+### Feature Addition Migrations
+
+| File                                     | Purpose                            |
+| ---------------------------------------- | ---------------------------------- |
+| `add_prompt_configs_table.py`            | Prompt configuration storage       |
+| `add_notification_preferences_tables.py` | User notification settings         |
+| `add_user_feedback_and_calibration.py`   | User feedback and calibration      |
+| `add_entity_model.py`                    | Entity tracking (people, vehicles) |
+| `add_trust_status_to_entities.py`        | Entity trust classification        |
+| `add_job_transitions_table.py`           | Background job state tracking      |
+| `add_event_detections_junction_table.py` | M2M events/detections              |
+| `add_4_feedback_types.py`                | Extended feedback categorization   |
+| `create_scene_changes_table.py`          | Scene change detection             |
+
+### Fixes and Maintenance Migrations
+
+| File                                      | Purpose                    |
+| ----------------------------------------- | -------------------------- |
+| `fix_camera_timezone_idempotent.py`       | Timezone handling          |
+| `add_check_constraints.py`                | Data integrity constraints |
+| `add_deleted_at_soft_delete.py`           | Soft delete support        |
+| `drop_detection_ids_column.py`            | Schema cleanup             |
+| `add_snooze_until_column.py`              | Alert snoozing             |
+| `add_alert_version_id_column.py`          | Alert versioning           |
+| `add_row_version_to_prompt_versions.py`   | Optimistic locking         |
+| `add_prompt_version_unique_constraint.py` | Uniqueness enforcement     |
+
+### Merge Migrations
+
+| File                                                    | Purpose              |
+| ------------------------------------------------------- | -------------------- |
+| `d896ab921049_merge_user_feedback_and_notification_.py` | Feature merge        |
+| `eb2e0919ec02_merge_heads_add_notification_.py`         | Notification merge   |
+| `b80664ed1373_merge_migration_branches.py`              | Branch consolidation |
+| `00c8a000b44f_merge_database_optimization_heads.py`     | Optimization merge   |
+| `071128727b6c_merge_deleted_at_indexes.py`              | Index merge          |
+| `6b206d6591cb_merge_add_4_feedback_types_and_job_.py`   | Feedback/job merge   |
 
 ## Creating New Migrations
 

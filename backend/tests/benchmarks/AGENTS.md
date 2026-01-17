@@ -8,12 +8,14 @@ Performance and complexity benchmarks for detecting regressions in API response 
 
 ```
 backend/tests/benchmarks/
-├── AGENTS.md                # This file
-├── __init__.py              # Package initialization
-├── test_api_benchmarks.py   # API response time benchmarks
-├── test_bigo.py             # Big-O complexity tests
-├── test_memory.py           # Memory profiling tests
-└── test_performance.py      # Core performance regression benchmarks
+├── AGENTS.md                    # This file
+├── __init__.py                  # Package initialization
+├── test_api_benchmarks.py       # API response time benchmarks
+├── test_bigo.py                 # Big-O complexity tests
+├── test_connection_pool.py      # Connection pool performance tests
+├── test_memory.py               # Memory profiling tests
+├── test_performance.py          # Core performance regression benchmarks
+└── test_slow_query_detection.py # Slow query detection tests
 ```
 
 ## Running Tests
@@ -44,7 +46,7 @@ pytest backend/tests/benchmarks/ --benchmark-save=baseline
 pytest backend/tests/benchmarks/ -v -m "not slow"
 ```
 
-## Test Files (4 total)
+## Test Files (6 total)
 
 ### `test_api_benchmarks.py`
 
@@ -137,6 +139,26 @@ pytest backend/tests/benchmarks/test_performance.py --benchmark-only
 pytest backend/tests/benchmarks/test_performance.py --benchmark-compare
 pytest backend/tests/benchmarks/test_performance.py --benchmark-compare-fail=mean:20%
 ```
+
+### `test_connection_pool.py`
+
+Database connection pool performance tests:
+
+| Test                                | Operation Tested                    |
+| ----------------------------------- | ----------------------------------- |
+| `test_connection_pool_under_load`   | Pool behavior under concurrent load |
+| `test_connection_pool_exhaustion`   | Pool exhaustion handling            |
+| `test_connection_reuse_performance` | Connection reuse efficiency         |
+
+### `test_slow_query_detection.py`
+
+Slow query detection and logging tests:
+
+| Test                               | Operation Tested                  |
+| ---------------------------------- | --------------------------------- |
+| `test_slow_query_logging`          | Queries over threshold are logged |
+| `test_slow_query_threshold_config` | Configurable threshold behavior   |
+| `test_query_timing_accuracy`       | Query timing measurement accuracy |
 
 ## Test Markers
 

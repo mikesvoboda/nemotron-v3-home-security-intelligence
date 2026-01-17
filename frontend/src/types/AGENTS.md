@@ -11,34 +11,60 @@ TypeScript type definitions for the frontend application. Contains:
 
 ```
 frontend/src/types/
-├── AGENTS.md           # This documentation file
-├── index.ts            # Centralized exports for all types
-├── branded.ts          # Branded types for entity IDs (type-safe)
-├── websocket.ts        # Discriminated unions for WebSocket messages
-├── async.ts            # Async state management types
-├── constants.ts        # Type-safe constants with const assertions
-├── guards.ts           # Type guards for runtime type checking
-├── enrichment.ts       # Detection enrichment types with guards
-├── performance.ts      # Performance metrics type definitions
-└── generated/          # Auto-generated types from backend OpenAPI
-    ├── AGENTS.md       # Generated types documentation
-    ├── api.ts          # Full OpenAPI-generated types
-    └── index.ts        # Re-exports with convenient type aliases
+├── AGENTS.md               # This documentation file
+├── index.ts                # Centralized exports for all types
+├── aiAudit.ts              # AI audit trail and decision types
+├── api-endpoints.ts        # API endpoint type definitions
+├── api-endpoints.test.ts   # Tests for API endpoint types
+├── async.ts                # Async state management types
+├── async.test.ts           # Tests for async types
+├── branded.ts              # Branded types for entity IDs (type-safe)
+├── branded.test.ts         # Tests for branded types
+├── constants.ts            # Type-safe constants with const assertions
+├── constants.test.ts       # Tests for constants
+├── enrichment.ts           # Detection enrichment types with guards
+├── enrichment.test.ts      # Tests for enrichment types
+├── export.ts               # Export functionality types
+├── guards.ts               # Type guards for runtime type checking
+├── guards.test.ts          # Tests for type guards
+├── notificationPreferences.ts # Notification preference types
+├── performance.ts          # Performance metrics type definitions
+├── promptManagement.ts     # Prompt management types
+├── rate-limit.ts           # Rate limiting types
+├── rate-limit.test.ts      # Tests for rate limit types
+├── result.ts               # Result/Either monad types
+├── result.test.ts          # Tests for result types
+├── websocket.ts            # Discriminated unions for WebSocket messages
+├── websocket.test.ts       # Tests for WebSocket types
+├── websocket-events.ts     # WebSocket event type definitions
+├── websocket-events.test.ts # Tests for WebSocket event types
+└── generated/              # Auto-generated types from backend OpenAPI
+    ├── AGENTS.md           # Generated types documentation
+    ├── api.ts              # Full OpenAPI-generated types
+    └── index.ts            # Re-exports with convenient type aliases
 ```
 
 ## Key Files
 
-| File             | Purpose                                                        |
-| ---------------- | -------------------------------------------------------------- |
-| `index.ts`       | Centralized exports for all types                              |
-| `branded.ts`     | Branded types for CameraId, EventId, DetectionId, etc.         |
-| `websocket.ts`   | Discriminated unions for WebSocket message handling            |
-| `async.ts`       | AsyncState types for loading/error/success state management    |
-| `constants.ts`   | Type-safe constants (risk levels, health status, etc.)         |
-| `guards.ts`      | Type guards for runtime type validation                        |
-| `enrichment.ts`  | Detection enrichment types (vehicle, pet, person, weather)     |
-| `performance.ts` | Performance alert and AI model metrics types                   |
-| `generated/`     | Auto-generated types from backend OpenAPI spec                 |
+| File                       | Purpose                                                    |
+| -------------------------- | ---------------------------------------------------------- |
+| `index.ts`                 | Centralized exports for all types                          |
+| `aiAudit.ts`               | AI audit trail, decision logging types                     |
+| `api-endpoints.ts`         | API endpoint definitions and request/response types        |
+| `async.ts`                 | AsyncState types for loading/error/success state management|
+| `branded.ts`               | Branded types for CameraId, EventId, DetectionId, etc.     |
+| `constants.ts`             | Type-safe constants (risk levels, health status, etc.)     |
+| `enrichment.ts`            | Detection enrichment types (vehicle, pet, person, weather) |
+| `export.ts`                | Event export types (CSV, JSON formats)                     |
+| `guards.ts`                | Type guards for runtime type validation                    |
+| `notificationPreferences.ts`| Notification channel and preference types                 |
+| `performance.ts`           | Performance alert and AI model metrics types               |
+| `promptManagement.ts`      | Prompt template and version types                          |
+| `rate-limit.ts`            | Rate limiting state and response types                     |
+| `result.ts`                | Result/Either monad for error handling                     |
+| `websocket.ts`             | Discriminated unions for WebSocket message handling        |
+| `websocket-events.ts`      | WebSocket event payloads and handlers                      |
+| `generated/`               | Auto-generated types from backend OpenAPI spec             |
 
 ## Type System Patterns
 

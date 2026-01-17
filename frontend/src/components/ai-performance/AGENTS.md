@@ -10,7 +10,6 @@ This directory contains the AI Performance Summary Row component, which provides
 | --------------------------------- | ------------------------------------------ |
 | `AIPerformanceSummaryRow.tsx`     | Summary row with 5 clickable indicators    |
 | `AIPerformanceSummaryRow.test.tsx`| Test suite for AIPerformanceSummaryRow     |
-| `index.ts`                        | Barrel exports                             |
 | `AGENTS.md`                       | This documentation file                    |
 
 ## Component Details
@@ -67,7 +66,9 @@ export interface AIPerformanceSummaryRowProps { ... }
 ## Usage
 
 ```tsx
-import { AIPerformanceSummaryRow } from '../ai-performance';
+import AIPerformanceSummaryRow from './AIPerformanceSummaryRow';
+// Or from parent path:
+import AIPerformanceSummaryRow from '../ai-performance/AIPerformanceSummaryRow';
 
 <AIPerformanceSummaryRow
   rtdetr={rtdetrStatus}

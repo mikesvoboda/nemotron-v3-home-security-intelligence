@@ -8,11 +8,31 @@ This directory contains Architecture Decision Records (ADRs) that document signi
 
 ```
 decisions/
-├── AGENTS.md                # This file
-└── grafana-integration.md   # Grafana integration strategy decision
+├── AGENTS.md                                    # This file
+├── 2026-01-12-docs-reorganization-design.md     # Documentation reorganization design ADR
+├── entity-detection-referential-integrity.md    # Entity-detection relationship constraints
+└── grafana-integration.md                       # Grafana integration strategy decision
 ```
 
 ## Current Decisions
+
+### 2026-01-12-docs-reorganization-design.md
+
+**Date:** 2026-01-12
+**Status:** Decided
+
+**Decision Summary:**
+
+Design specification for reorganizing documentation into a hub-and-spoke architecture with role-based entry points.
+
+### entity-detection-referential-integrity.md
+
+**Date:** TBD
+**Status:** Placeholder
+
+**Decision Summary:**
+
+Documents the referential integrity constraints between entities and detections in the database schema.
 
 ### grafana-integration.md
 

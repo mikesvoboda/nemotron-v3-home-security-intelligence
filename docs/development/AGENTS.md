@@ -15,12 +15,16 @@ development/
   coverage.md            # Coverage reporting and analysis
   git-workflow.md        # Git safety protocols and pre-commit rules
   git-worktree-workflow.md # Git worktree patterns for parallel development
+  health-monitoring-di.md # Health monitoring dependency injection patterns
   hooks.md               # Git hooks configuration
   linear-integration.md  # Linear MCP tools and workflow states
+  migration-rollback.md  # Database migration rollback procedures
   patterns.md            # Code patterns and conventions
   setup.md               # Development environment setup
+  ssl-https.md           # SSL/HTTPS configuration for development
   testing.md             # Testing guide
   testing-workflow.md    # TDD workflow and test patterns by layer
+  validation-alignment.md # Frontend/backend validation alignment guide
 ```
 
 ## Key Files

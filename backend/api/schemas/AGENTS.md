@@ -1452,6 +1452,206 @@ SSE streaming event schemas for LLM analysis responses (NEM-1665).
 
 ---
 
+### Export Schemas (`export.py`)
+
+Pydantic schemas for export API endpoints with background job tracking.
+
+**Enums:**
+
+| Enum                  | Purpose                                          |
+| --------------------- | ------------------------------------------------ |
+| `ExportJobStatusEnum` | Job status (pending, running, completed, failed) |
+| `ExportTypeEnum`      | Export types (events, alerts, full_backup)       |
+| `ExportFormatEnum`    | File formats (csv, json, zip, excel)             |
+
+**Schemas:**
+
+| Schema                    | Purpose                                     |
+| ------------------------- | ------------------------------------------- |
+| `ExportJobCreate`         | Request to create an export job             |
+| `ExportJobStartResponse`  | Response with job ID for tracking           |
+| `ExportJobProgress`       | Progress info (items, percent, step)        |
+| `ExportJobResult`         | Completed export result (path, size, count) |
+| `ExportJobResponse`       | Full job status with progress and timing    |
+| `ExportJobListResponse`   | Paginated list of export jobs               |
+| `ExportJobUpdate`         | Internal schema for updating job progress   |
+| `ExportDownloadResponse`  | Download metadata (readiness, URL, size)    |
+| `ExportJobCancelResponse` | Cancellation response                       |
+
+---
+
+### Feedback Schemas (`feedback.py`)
+
+Pydantic schemas for event feedback API (NEM-1908).
+
+**Enums:**
+
+| Enum           | Purpose                                                                  |
+| -------------- | ------------------------------------------------------------------------ |
+| `FeedbackType` | Feedback types (accurate, false_positive, missed_threat, severity_wrong) |
+
+**Schemas:**
+
+| Schema                  | Purpose                                 |
+| ----------------------- | --------------------------------------- |
+| `EventFeedbackCreate`   | Request to submit feedback for an event |
+| `EventFeedbackResponse` | Feedback record response                |
+| `FeedbackStatsResponse` | Aggregate statistics by type and camera |
+
+---
+
+### Jobs Schemas (`jobs.py`)
+
+Pydantic schemas for background job tracking API (NEM-2390, NEM-2392, NEM-2396).
+
+**Enums:**
+
+| Enum            | Purpose                                          |
+| --------------- | ------------------------------------------------ |
+| `JobStatusEnum` | Job status (pending, running, completed, failed) |
+| `ExportFormat`  | Export formats (csv, json, zip)                  |
+
+**Core Schemas:**
+
+| Schema             | Purpose                                         |
+| ------------------ | ----------------------------------------------- |
+| `JobResponse`      | Basic job status response                       |
+| `JobListResponse`  | Paginated job list                              |
+| `JobTypeInfo`      | Job type name and description                   |
+| `JobTypesResponse` | List of available job types                     |
+| `JobStatsResponse` | Aggregate statistics with counts by status/type |
+| `JobStatusCount`   | Count of jobs by status                         |
+| `JobTypeCount`     | Count of jobs by type                           |
+
+**Detailed Job Schemas (NEM-2390):**
+
+| Schema              | Purpose                                             |
+| ------------------- | --------------------------------------------------- |
+| `JobProgressDetail` | Detailed progress (percent, step, items)            |
+| `JobTiming`         | Timing info (created, started, completed, duration) |
+| `JobRetryInfo`      | Retry info (attempt, max, previous errors)          |
+| `JobMetadata`       | Input params and worker ID                          |
+| `JobDetailResponse` | Comprehensive job detail with nested schemas        |
+
+**Job Action Schemas:**
+
+| Schema               | Purpose                             |
+| -------------------- | ----------------------------------- |
+| `ExportJobRequest`   | Request to start an export job      |
+| `ExportJobResult`    | Result data for completed export    |
+| `JobCancelResponse`  | Cancellation response               |
+| `JobAbortResponse`   | Abort response for running jobs     |
+| `BulkCancelRequest`  | Request to cancel multiple jobs     |
+| `BulkCancelError`    | Error for single job in bulk cancel |
+| `BulkCancelResponse` | Summary of bulk cancellation        |
+
+**Job Search Schemas (NEM-2392):**
+
+| Schema                  | Purpose                                         |
+| ----------------------- | ----------------------------------------------- |
+| `JobSearchAggregations` | Aggregation counts by status and type           |
+| `JobSearchResponse`     | Search results with pagination and aggregations |
+
+**Job History Schemas (NEM-2396):**
+
+| Schema                  | Purpose                                    |
+| ----------------------- | ------------------------------------------ |
+| `JobTransitionResponse` | Single state transition record             |
+| `JobAttemptResponse`    | Single execution attempt record            |
+| `JobHistoryResponse`    | Complete history with transitions/attempts |
+| `JobLogEntryResponse`   | Single log entry                           |
+| `JobLogsResponse`       | Job logs with pagination                   |
+
+---
+
+### OpenAPI Docs Schemas (`openapi_docs.py`)
+
+OpenAPI documentation helpers and response examples (NEM-1434, NEM-2002).
+
+**Constants:**
+
+| Constant                            | Purpose                                    |
+| ----------------------------------- | ------------------------------------------ |
+| `SPARSE_FIELDSETS_DESCRIPTION`      | Documentation for sparse fieldsets feature |
+| `SPARSE_FIELDSETS_QUERY_PARAM_DOCS` | Query parameter documentation              |
+
+**Example Constants:**
+
+| Constant                             | Purpose                   |
+| ------------------------------------ | ------------------------- |
+| `EVENT_LIST_RESPONSE_EXAMPLE`        | Full event list response  |
+| `EVENT_LIST_SPARSE_RESPONSE_EXAMPLE` | Sparse fieldsets response |
+| `CAMERA_LIST_RESPONSE_EXAMPLE`       | Camera list response      |
+| `DETECTION_LIST_RESPONSE_EXAMPLE`    | Detection list response   |
+| `EVENT_STATS_RESPONSE_EXAMPLE`       | Event stats response      |
+| `DETECTION_STATS_RESPONSE_EXAMPLE`   | Detection stats response  |
+| `EVENT_RESPONSE_EXAMPLE`             | Single event response     |
+| `CAMERA_RESPONSE_EXAMPLE`            | Single camera response    |
+| `DETECTION_RESPONSE_EXAMPLE`         | Single detection response |
+
+**Functions:**
+
+| Function                       | Purpose                                    |
+| ------------------------------ | ------------------------------------------ |
+| `get_sparse_fieldsets_example` | Generate OpenAPI example for fields param  |
+| `build_list_responses`         | Build OpenAPI responses for list endpoints |
+| `build_detail_responses`       | Build responses for GET by ID endpoints    |
+| `build_create_responses`       | Build responses for POST endpoints         |
+| `build_update_responses`       | Build responses for PATCH/PUT endpoints    |
+| `build_delete_responses`       | Build responses for DELETE endpoints       |
+| `build_ai_endpoint_responses`  | Build responses including 502/503 for AI   |
+
+---
+
+### Pagination Schemas (`pagination.py`)
+
+Standard pagination schemas for API responses (NEM-2075).
+
+**Schemas:**
+
+| Schema           | Purpose                                            |
+| ---------------- | -------------------------------------------------- |
+| `PaginationMeta` | Pagination metadata with offset and cursor support |
+
+**Fields:**
+
+- `total` - Total items matching the query
+- `limit` - Maximum items per page
+- `offset` - Items skipped (offset pagination)
+- `cursor` - Current cursor position (cursor pagination)
+- `next_cursor` - Cursor for next page
+- `has_more` - Whether more items are available
+
+**Functions:**
+
+| Function                 | Purpose                                      |
+| ------------------------ | -------------------------------------------- |
+| `create_pagination_meta` | Create PaginationMeta with computed has_more |
+
+---
+
+### Queue Status Schemas (`queue_status.py`)
+
+Pydantic schemas for queue status monitoring API.
+
+**Enums:**
+
+| Enum                | Purpose                                    |
+| ------------------- | ------------------------------------------ |
+| `QueueHealthStatus` | Health status (healthy, warning, critical) |
+
+**Schemas:**
+
+| Schema                 | Purpose                                |
+| ---------------------- | -------------------------------------- |
+| `ThroughputMetrics`    | Jobs/minute and avg processing time    |
+| `OldestJobInfo`        | Oldest job ID, queued_at, wait_seconds |
+| `QueueStatus`          | Single queue status with all metrics   |
+| `QueueStatusSummary`   | Aggregated stats across all queues     |
+| `QueuesStatusResponse` | Response for GET /api/queues/status    |
+
+---
+
 ## Common Patterns
 
 ### Field Validation

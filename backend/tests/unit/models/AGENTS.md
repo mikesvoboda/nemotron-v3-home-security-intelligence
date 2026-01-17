@@ -26,7 +26,7 @@ backend/tests/unit/models/
 └── test_zone.py               # Zone model
 ```
 
-## Test Files (15 files)
+## Test Files (24 files)
 
 | File                         | Tests For                    |
 | ---------------------------- | ---------------------------- |

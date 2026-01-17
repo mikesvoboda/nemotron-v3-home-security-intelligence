@@ -13,7 +13,8 @@ frontend/src/components/ai/__tests__/
 ├── PromptPlayground.diffPreview.test.tsx        # 13,425 bytes - Diff preview modal tests
 ├── PromptPlayground.modelEditors.test.tsx       # 5,368 bytes - Model editor tests
 ├── PromptPlayground.promoteB.test.tsx           # 15,710 bytes - Promote-to-primary tests
-└── PromptPlayground.rendering.test.tsx          # 7,013 bytes - Basic rendering tests
+├── PromptPlayground.rendering.test.tsx          # 7,013 bytes - Basic rendering tests
+└── PromptPlayground.validation.test.tsx         # Validation and form error tests
 ```
 
 ## Test Files Overview
@@ -118,6 +119,25 @@ frontend/src/components/ai/__tests__/
 - Error handling displays appropriate messages
 
 **Related:** A/B testing workflow in Phase 8 (NEM-1751)
+
+### `PromptPlayground.validation.test.tsx`
+
+**Purpose:** Tests form validation and error handling in PromptPlayground.
+
+**Coverage:**
+- Input validation for prompt fields
+- Error message display
+- Form submission prevention on invalid input
+- Field-level validation feedback
+- Required field validation
+
+**Key Test Cases:**
+- Empty prompt validation
+- Character limit validation
+- Invalid format detection
+- Error message clearing on valid input
+
+**Related:** Form validation patterns for AI configuration
 
 ## Testing Technology Stack
 

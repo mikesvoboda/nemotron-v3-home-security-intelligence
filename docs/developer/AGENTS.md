@@ -15,6 +15,7 @@ This directory contains developer-focused documentation for the Home Security In
 ```
 developer/
   AGENTS.md               # This file
+  README.md               # Developer documentation hub and index
   accessibility.md        # WCAG compliance, ARIA patterns, a11y testing
   alerts.md               # Alert system for developers
   backend-patterns.md     # Repository pattern, Result type, RFC 7807 errors
@@ -24,41 +25,44 @@ developer/
   data-model.md           # Database schema for developers
   detection-service.md    # Detection service details
   entity-tracking.md      # Re-identification, CLIP embeddings, cross-camera matching
-  hooks.md                # Pre-commit hook configuration
   keyboard-patterns.md    # Keyboard shortcuts and command palette
   local-setup.md          # Quick development environment setup
   pipeline-overview.md    # AI pipeline for developers
+  prompt-management.md    # Prompt template management and versioning
   pwa-implementation.md   # PWA features, push notifications, offline caching
   redis-key-conventions.md # Redis key naming patterns and best practices
   resilience-patterns.md  # Circuit breakers, retries, prompt injection prevention
   risk-analysis.md        # Risk analysis service details
   ux-patterns.md          # Toast notifications, page transitions, skeleton loaders
   video.md                # Video processing details
+  visualization-components.md # Dashboard visualization component patterns
 ```
 
 ## Key Files
 
-| File                       | Purpose                                           |
-| -------------------------- | ------------------------------------------------- |
-| `local-setup.md`           | Quick development environment setup               |
-| `codebase-tour.md`         | Directory structure and key file navigation       |
-| `hooks.md`                 | Pre-commit hook configuration and troubleshooting |
-| `keyboard-patterns.md`     | Keyboard shortcuts and command palette patterns   |
-| `accessibility.md`         | WCAG compliance, ARIA patterns, a11y testing      |
-| `backend-patterns.md`      | Repository pattern, Result types, RFC 7807 errors |
-| `pwa-implementation.md`    | PWA manifest, push notifications, offline caching |
-| `ux-patterns.md`           | Toast notifications, page transitions, skeletons  |
-| `resilience-patterns.md`   | Circuit breakers, retry logic, prompt injection   |
-| `alerts.md`                | Alert system implementation for developers        |
-| `batching-logic.md`        | Batch aggregation timing and logic                |
-| `clip-generation.md`       | Event video clips, FFmpeg integration, API        |
-| `data-model.md`            | Database schema documentation                     |
-| `detection-service.md`     | Detection service implementation                  |
-| `entity-tracking.md`       | Re-ID service, CLIP embeddings, entity APIs       |
-| `pipeline-overview.md`     | AI pipeline overview for developers               |
-| `risk-analysis.md`         | Risk analysis service implementation              |
-| `video.md`                 | Video processing implementation                   |
-| `redis-key-conventions.md` | Redis key naming patterns and best practices      |
+| File                          | Purpose                                           |
+| ----------------------------- | ------------------------------------------------- |
+| `local-setup.md`              | Quick development environment setup               |
+| `codebase-tour.md`            | Directory structure and key file navigation       |
+| `keyboard-patterns.md`        | Keyboard shortcuts and command palette patterns   |
+| `accessibility.md`            | WCAG compliance, ARIA patterns, a11y testing      |
+| `backend-patterns.md`         | Repository pattern, Result types, RFC 7807 errors |
+| `pwa-implementation.md`       | PWA manifest, push notifications, offline caching |
+| `ux-patterns.md`              | Toast notifications, page transitions, skeletons  |
+| `resilience-patterns.md`      | Circuit breakers, retry logic, prompt injection   |
+| `alerts.md`                   | Alert system implementation for developers        |
+| `batching-logic.md`           | Batch aggregation timing and logic                |
+| `clip-generation.md`          | Event video clips, FFmpeg integration, API        |
+| `data-model.md`               | Database schema documentation                     |
+| `detection-service.md`        | Detection service implementation                  |
+| `entity-tracking.md`          | Re-ID service, CLIP embeddings, entity APIs       |
+| `pipeline-overview.md`        | AI pipeline overview for developers               |
+| `risk-analysis.md`            | Risk analysis service implementation              |
+| `video.md`                    | Video processing implementation                   |
+| `redis-key-conventions.md`    | Redis key naming patterns and best practices      |
+| `prompt-management.md`        | Prompt template management and versioning         |
+| `visualization-components.md` | Dashboard visualization component patterns        |
+| `README.md`                   | Developer documentation hub and index             |
 
 ## Related Documentation
 

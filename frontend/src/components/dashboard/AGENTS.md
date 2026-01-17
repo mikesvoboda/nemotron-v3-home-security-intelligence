@@ -6,23 +6,26 @@ Contains all components for the main security dashboard page, including risk vis
 
 ## Files
 
-| File                         | Purpose                                                  |
-| ---------------------------- | -------------------------------------------------------- |
-| `DashboardPage.tsx`          | Main dashboard page orchestrating all widgets            |
-| `DashboardPage.test.tsx`     | Test suite for DashboardPage                             |
-| `CameraGrid.tsx`             | Responsive grid of camera thumbnails                     |
-| `CameraGrid.test.tsx`        | Test suite for CameraGrid                                |
-| `ActivityFeed.tsx`           | Scrolling feed of recent events                          |
-| `ActivityFeed.test.tsx`      | Test suite for ActivityFeed                              |
-| `GpuStats.tsx`               | GPU metrics with utilization history                     |
-| `GpuStats.test.tsx`          | Test suite for GpuStats                                  |
-| `StatsRow.tsx`               | Key metrics summary cards with integrated risk sparkline |
-| `StatsRow.test.tsx`          | Test suite for StatsRow                                  |
-| `PipelineQueues.tsx`         | AI pipeline queue depth display                          |
-| `PipelineQueues.test.tsx`    | Test suite for PipelineQueues                            |
-| `PipelineTelemetry.tsx`      | Pipeline latency and throughput metrics                  |
-| `PipelineTelemetry.test.tsx` | Test suite for PipelineTelemetry                         |
-| `.gitkeep`                   | Placeholder file                                         |
+| File                            | Purpose                                                  |
+| ------------------------------- | -------------------------------------------------------- |
+| `ActivityFeed.tsx`              | Scrolling feed of recent events                          |
+| `ActivityFeed.test.tsx`         | Test suite for ActivityFeed                              |
+| `CameraGrid.tsx`                | Responsive grid of camera thumbnails                     |
+| `CameraGrid.test.tsx`           | Test suite for CameraGrid                                |
+| `DashboardConfigModal.tsx`      | Modal for dashboard configuration settings               |
+| `DashboardConfigModal.test.tsx` | Test suite for DashboardConfigModal                      |
+| `DashboardLayout.tsx`           | Responsive layout wrapper for dashboard widgets          |
+| `DashboardLayout.test.tsx`      | Test suite for DashboardLayout                           |
+| `DashboardPage.tsx`             | Main dashboard page orchestrating all widgets            |
+| `DashboardPage.test.tsx`        | Test suite for DashboardPage                             |
+| `GpuStats.tsx`                  | GPU metrics with utilization history                     |
+| `GpuStats.test.tsx`             | Test suite for GpuStats                                  |
+| `PipelineQueues.tsx`            | AI pipeline queue depth display                          |
+| `PipelineQueues.test.tsx`       | Test suite for PipelineQueues                            |
+| `PipelineTelemetry.tsx`         | Pipeline latency and throughput metrics                  |
+| `PipelineTelemetry.test.tsx`    | Test suite for PipelineTelemetry                         |
+| `StatsRow.tsx`                  | Key metrics summary cards with integrated risk sparkline |
+| `StatsRow.test.tsx`             | Test suite for StatsRow                                  |
 
 ## Key Components
 

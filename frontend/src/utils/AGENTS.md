@@ -6,19 +6,31 @@ Utility functions for common operations across the frontend application, includi
 
 ## Key Files
 
-| File                  | Purpose                                              |
-| --------------------- | ---------------------------------------------------- |
-| `index.ts`            | Barrel export for all utility modules                |
-| `risk.ts`             | Risk scoring utilities for security events           |
-| `risk.test.ts`        | Tests for risk utilities                             |
-| `confidence.ts`       | Detection confidence level utilities                 |
-| `confidence.test.ts`  | Tests for confidence utilities                       |
-| `time.ts`             | Time and duration formatting utilities               |
-| `time.test.ts`        | Tests for time utilities                             |
-| `webcodecs.ts`        | WebCodecs API feature detection and fallback helpers |
-| `webcodecs.test.ts`   | Tests for WebCodecs utilities                        |
-| `promptDiff.ts`       | Prompt diff generation and suggestion application    |
-| `promptDiff.test.ts`  | Tests for prompt diff utilities                      |
+| File                       | Purpose                                                |
+| -------------------------- | ------------------------------------------------------ |
+| `confidence.ts`            | Detection confidence level utilities                   |
+| `confidence.test.ts`       | Tests for confidence utilities                         |
+| `error-handling.ts`        | Error handling and sanitization utilities              |
+| `error-handling.test.ts`   | Tests for error handling utilities                     |
+| `groupBy.ts`               | Array grouping utility function                        |
+| `groupBy.test.ts`          | Tests for groupBy utility                              |
+| `pipeline.ts`              | Function pipeline composition utilities                |
+| `pipeline.test.ts`         | Tests for pipeline utilities                           |
+| `poseVisualization.ts`     | Pose skeleton visualization utilities                  |
+| `poseVisualization.test.ts`| Tests for pose visualization utilities                 |
+| `promptDiff.ts`            | Prompt diff generation and suggestion application      |
+| `promptDiff.test.ts`       | Tests for prompt diff utilities                        |
+| `risk.ts`                  | Risk scoring utilities for security events             |
+| `risk.test.ts`             | Tests for risk utilities                               |
+| `sanitize.ts`              | Input/output sanitization utilities                    |
+| `time.ts`                  | Time and duration formatting utilities                 |
+| `time.test.ts`             | Tests for time utilities                               |
+| `tryCatch.ts`              | Try/catch wrapper utilities for async operations       |
+| `tryCatch.test.ts`         | Tests for tryCatch utilities                           |
+| `validation.ts`            | Input validation utilities                             |
+| `validation.test.ts`       | Tests for validation utilities                         |
+| `webcodecs.ts`             | WebCodecs API feature detection and fallback helpers   |
+| `webcodecs.test.ts`        | Tests for WebCodecs utilities                          |
 
 ## Risk Utilities (`risk.ts`)
 

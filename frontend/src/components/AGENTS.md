@@ -4,6 +4,17 @@
 
 Root directory for all React components in the NVIDIA Security Intelligence home security monitoring dashboard. Components are organized by feature domain and shared functionality.
 
+## Root-Level Components
+
+| File                         | Purpose                                           |
+| ---------------------------- | ------------------------------------------------- |
+| `ExportButton.tsx`           | Generic export button for data download           |
+| `ExportButton.test.tsx`      | Test suite for ExportButton                       |
+| `RetryIndicator.tsx`         | Retry status indicator component                  |
+| `RetryIndicator.test.tsx`    | Test suite for RetryIndicator                     |
+| `RetryingIndicator.tsx`      | Active retry progress indicator                   |
+| `RetryingIndicator.test.tsx` | Test suite for RetryingIndicator                  |
+
 ## Directory Structure
 
 | Directory           | Purpose                                          | Key Components                                                                                                                                                                                                                      |

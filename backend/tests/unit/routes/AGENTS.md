@@ -8,40 +8,52 @@ The `backend/tests/unit/routes/` directory contains unit tests for FastAPI route
 
 ```
 backend/tests/unit/routes/
-├── AGENTS.md                   # This file
-├── __init__.py                 # Package initialization
-├── test_admin_routes.py        # Admin endpoints
-├── test_ai_audit_routes.py     # AI audit routes
-├── test_alerts_routes.py       # Alert rules CRUD
-├── test_audit_routes.py        # Audit log endpoints
-├── test_cameras_routes.py      # Camera CRUD endpoints
-├── test_detections_routes.py   # Detection listing endpoints
-├── test_events_routes.py       # Event management endpoints
-├── test_logs_routes.py         # Log management endpoints
-├── test_media_routes.py        # Media file serving
-├── test_notification_routes.py # Notification endpoints
-├── test_system_routes.py       # System health and config
-├── test_websocket_routes.py    # WebSocket handlers
-└── test_zones_routes.py        # Zone CRUD endpoints
+├── AGENTS.md                          # This file
+├── __init__.py                        # Package initialization
+├── test_admin_routes.py               # Admin endpoints
+├── test_ai_audit_routes.py            # AI audit routes
+├── test_alert_instance_routes.py      # Alert instance endpoints
+├── test_alerts_routes.py              # Alert rules CRUD
+├── test_audit_routes.py               # Audit log endpoints
+├── test_cameras_routes.py             # Camera CRUD endpoints
+├── test_detections_cache_invalidation.py # Detection cache tests
+├── test_detections_routes.py          # Detection listing endpoints
+├── test_events_cache_invalidation.py  # Event cache tests
+├── test_events_routes.py              # Event management endpoints
+├── test_logs_routes.py                # Log management endpoints
+├── test_media_routes.py               # Media file serving
+├── test_notification_routes.py        # Notification endpoints
+├── test_restore_endpoints.py          # Restore endpoint tests
+├── test_system_anomaly_config.py      # Anomaly config endpoints
+├── test_system_performance_history.py # Performance history endpoints
+├── test_system_routes.py              # System health and config
+├── test_websocket_routes.py           # WebSocket handlers
+└── test_zones_routes.py               # Zone CRUD endpoints
 ```
 
-## Test Files (13 files)
+## Test Files (21 files)
 
-| File                          | Tests For                | Endpoints              |
-| ----------------------------- | ------------------------ | ---------------------- |
-| `test_admin_routes.py`        | Admin endpoints          | `/api/admin/*`         |
-| `test_ai_audit_routes.py`     | AI audit routes          | `/api/ai-audit/*`      |
-| `test_alerts_routes.py`       | Alert rules CRUD         | `/api/alerts/*`        |
-| `test_audit_routes.py`        | Audit log endpoints      | `/api/audit/*`         |
-| `test_cameras_routes.py`      | Camera CRUD endpoints    | `/api/cameras/*`       |
-| `test_detections_routes.py`   | Detection listing        | `/api/detections/*`    |
-| `test_events_routes.py`       | Event management         | `/api/events/*`        |
-| `test_logs_routes.py`         | Log management           | `/api/logs/*`          |
-| `test_media_routes.py`        | Media file serving       | `/api/media/*`         |
-| `test_notification_routes.py` | Notification endpoints   | `/api/notifications/*` |
-| `test_system_routes.py`       | System health and config | `/api/system/*`        |
-| `test_websocket_routes.py`    | WebSocket handlers       | `/ws/*`                |
-| `test_zones_routes.py`        | Zone CRUD endpoints      | `/api/zones/*`         |
+| File                                    | Tests For                | Endpoints                |
+| --------------------------------------- | ------------------------ | ------------------------ |
+| `test_admin_routes.py`                  | Admin endpoints          | `/api/admin/*`           |
+| `test_ai_audit_routes.py`               | AI audit routes          | `/api/ai-audit/*`        |
+| `test_alert_instance_routes.py`         | Alert instances          | `/api/alert-instances/*` |
+| `test_alerts_routes.py`                 | Alert rules CRUD         | `/api/alerts/*`          |
+| `test_audit_routes.py`                  | Audit log endpoints      | `/api/audit/*`           |
+| `test_cameras_routes.py`                | Camera CRUD endpoints    | `/api/cameras/*`         |
+| `test_detections_cache_invalidation.py` | Detection cache          | `/api/detections/*`      |
+| `test_detections_routes.py`             | Detection listing        | `/api/detections/*`      |
+| `test_events_cache_invalidation.py`     | Event cache              | `/api/events/*`          |
+| `test_events_routes.py`                 | Event management         | `/api/events/*`          |
+| `test_logs_routes.py`                   | Log management           | `/api/logs/*`            |
+| `test_media_routes.py`                  | Media file serving       | `/api/media/*`           |
+| `test_notification_routes.py`           | Notification endpoints   | `/api/notifications/*`   |
+| `test_restore_endpoints.py`             | Restore operations       | `/api/restore/*`         |
+| `test_system_anomaly_config.py`         | Anomaly configuration    | `/api/system/anomaly/*`  |
+| `test_system_performance_history.py`    | Performance history      | `/api/system/perf/*`     |
+| `test_system_routes.py`                 | System health and config | `/api/system/*`          |
+| `test_websocket_routes.py`              | WebSocket handlers       | `/ws/*`                  |
+| `test_zones_routes.py`                  | Zone CRUD endpoints      | `/api/zones/*`           |
 
 ## Additional Route Tests
 

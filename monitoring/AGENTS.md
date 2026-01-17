@@ -9,16 +9,18 @@ This directory contains observability and monitoring infrastructure configuratio
 ```
 monitoring/
   AGENTS.md                    # This file
-  prometheus.yml               # Prometheus scrape configuration
-  prometheus_rules.yml         # Prometheus alerting rules for AI pipeline
-  json-exporter-config.yml     # JSON Exporter module definitions
+  alerting-rules.yml           # Alert notification rules
+  alertmanager.yml             # Alertmanager configuration
   blackbox-exporter.yml        # Blackbox Exporter synthetic monitoring config (NEM-1637)
+  json-exporter-config.yml     # JSON Exporter module definitions
+  prometheus.yml               # Prometheus scrape configuration
+  prometheus-rules.yml         # Prometheus recording rules
+  prometheus_rules.yml         # Prometheus alerting rules for AI pipeline
   grafana/                     # Grafana configuration
     AGENTS.md                  # Grafana directory guide
     dashboards/                # Dashboard JSON definitions
       AGENTS.md                # Dashboards guide
-      pipeline.json            # Main AI pipeline monitoring dashboard
-      synthetic-monitoring.json # Synthetic monitoring dashboard (NEM-1637)
+      consolidated.json        # Unified monitoring dashboard (consolidates pipeline + synthetic)
     provisioning/              # Auto-provisioning configs
       AGENTS.md                # Provisioning guide
       dashboards/

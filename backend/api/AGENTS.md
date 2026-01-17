@@ -11,12 +11,14 @@ backend/api/
 ├── __init__.py              # Package initialization
 ├── AGENTS.md                # This file
 ├── dependencies.py          # Reusable utility functions for entity existence checks
-├── deps.py                  # FastAPI dependency injection helpers
 ├── exception_handlers.py    # Global exception handlers for standardized error responses
+├── pagination.py            # Pagination utilities for list endpoints
+├── validators.py            # Request validation helpers
 ├── helpers/                 # Helper modules for API transformations
-├── routes/                  # API route handlers (endpoints)
-├── schemas/                 # Pydantic schemas for request/response validation
-└── middleware/              # HTTP middleware components (auth, request ID, rate limit, security headers)
+├── routes/                  # 28 API route handlers (endpoints)
+├── schemas/                 # 43 Pydantic schemas for request/response validation
+├── middleware/              # 20 HTTP middleware components
+└── utils/                   # API utility modules
 ```
 
 ## Key Files
@@ -46,26 +48,21 @@ async def get_camera(camera_id: str, db: AsyncSession = Depends(get_db)) -> Came
     return await get_camera_or_404(camera_id, db)
 ```
 
-### `deps.py`
+### `pagination.py`
 
-FastAPI dependency injection helpers for services. Provides dependency functions that can be
-used with FastAPI's `Depends()` mechanism:
+Pagination utilities for list endpoints:
 
-| Function           | Purpose                                  |
-| ------------------ | ---------------------------------------- |
-| `get_orchestrator` | Get ContainerOrchestrator from app state |
+- Standard pagination parameters (limit, offset)
+- Cursor-based pagination support
+- Page size limits and defaults
 
-Usage pattern:
+### `validators.py`
 
-```python
-from backend.api.deps import get_orchestrator
+Request validation helpers:
 
-@router.get("/services")
-async def list_services(
-    orchestrator: ContainerOrchestrator = Depends(get_orchestrator),
-):
-    return orchestrator.get_all_services()
-```
+- Custom field validators
+- Common validation patterns
+- Request data sanitization
 
 ### `exception_handlers.py`
 
@@ -175,7 +172,7 @@ enrichment_response = transform_enrichment_data(
 
 ### Routes (`routes/`)
 
-Contains FastAPI routers that define HTTP endpoints (24 route files):
+Contains FastAPI routers that define HTTP endpoints (28 route files):
 
 | File                          | Purpose                                                |
 | ----------------------------- | ------------------------------------------------------ |
@@ -184,19 +181,23 @@ Contains FastAPI routers that define HTTP endpoints (24 route files):
 | `alerts.py`                   | Alert rules CRUD and rule testing                      |
 | `analytics.py`                | Detection trends, risk history, camera uptime, objects |
 | `audit.py`                    | Audit log listing and statistics                       |
-| `calibration.py`              | Camera calibration endpoints (placeholder)             |
+| `calibration.py`              | Camera calibration endpoints                           |
 | `cameras.py`                  | Camera CRUD operations and snapshot serving            |
 | `debug.py`                    | Debug endpoints for runtime diagnostics (DEBUG mode)   |
 | `detections.py`               | Object detection listing and thumbnail serving         |
 | `dlq.py`                      | Dead-letter queue inspection and management            |
 | `entities.py`                 | Entity re-identification tracking across cameras       |
 | `events.py`                   | Security event management, queries, and statistics     |
+| `exports.py`                  | Data export management and download                    |
+| `feedback.py`                 | User feedback on events and detections                 |
+| `jobs.py`                     | Background job management and monitoring               |
 | `logs.py`                     | System and frontend log management                     |
 | `media.py`                    | Secure file serving for images/videos                  |
 | `metrics.py`                  | Prometheus metrics endpoint                            |
 | `notification.py`             | Notification configuration and test endpoints          |
 | `notification_preferences.py` | Global notification preferences and quiet hours        |
 | `prompt_management.py`        | Prompt configuration with versioning and testing       |
+| `queues.py`                   | Queue status and management                            |
 | `rum.py`                      | Real User Monitoring - Core Web Vitals ingestion       |
 | `services.py`                 | Container orchestrator service management              |
 | `system.py`                   | System health, GPU stats, configuration, telemetry     |
@@ -205,7 +206,7 @@ Contains FastAPI routers that define HTTP endpoints (24 route files):
 
 ### Schemas (`schemas/`)
 
-Contains Pydantic models for request/response validation (37 schema files):
+Contains Pydantic models for request/response validation (43 schema files):
 
 | File                          | Purpose                                                    |
 | ----------------------------- | ---------------------------------------------------------- |
@@ -215,7 +216,7 @@ Contains Pydantic models for request/response validation (37 schema files):
 | `audit.py`                    | Audit log entry and statistics schemas                     |
 | `baseline.py`                 | Camera baseline activity and anomaly detection schemas     |
 | `bulk.py`                     | Bulk create/update/delete operations with 207 Multi-Status |
-| `calibration.py`              | Camera calibration schemas (placeholder)                   |
+| `calibration.py`              | Camera calibration schemas                                 |
 | `camera.py`                   | Camera data validation schemas                             |
 | `clips.py`                    | Event clip generation schemas                              |
 | `detections.py`               | Detection response and enrichment data schemas             |
@@ -225,18 +226,24 @@ Contains Pydantic models for request/response validation (37 schema files):
 | `entities.py`                 | Entity re-identification schemas                           |
 | `errors.py`                   | Standardized error response schemas (RFC 7807 compatible)  |
 | `events.py`                   | Event request/response and statistics schemas              |
+| `export.py`                   | Data export request/response schemas                       |
+| `feedback.py`                 | User feedback schemas                                      |
 | `hateoas.py`                  | HATEOAS hypermedia links for API discoverability           |
 | `health.py`                   | Health check schemas (liveness, readiness, full health)    |
+| `jobs.py`                     | Background job schemas                                     |
 | `llm.py`                      | LLM response validation with entity/flag schemas           |
 | `llm_response.py`             | Simpler LLM response validation (risk score/level)         |
 | `logs.py`                     | Log entry and statistics schemas                           |
 | `media.py`                    | Media error response schemas                               |
 | `notification.py`             | Notification delivery and configuration schemas            |
 | `notification_preferences.py` | Notification preferences and quiet hours schemas           |
+| `openapi_docs.py`             | OpenAPI documentation customization schemas                |
+| `pagination.py`               | Pagination response schemas                                |
 | `performance.py`              | System performance metrics schemas (GPU, AI, host)         |
 | `problem_details.py`          | RFC 7807 Problem Details for standardized errors           |
 | `prompt_management.py`        | Prompt configuration and versioning schemas                |
 | `queue.py`                    | Queue message payload validation (security-focused)        |
+| `queue_status.py`             | Queue status response schemas                              |
 | `rum.py`                      | Real User Monitoring (Core Web Vitals) schemas             |
 | `scene_change.py`             | Scene change detection schemas                             |
 | `search.py`                   | Event full-text search schemas                             |
@@ -248,16 +255,22 @@ Contains Pydantic models for request/response validation (37 schema files):
 
 ### Middleware (`middleware/`)
 
-HTTP middleware for cross-cutting concerns (14 middleware files):
+HTTP middleware for cross-cutting concerns (20 middleware files):
 
 | File                        | Purpose                                                |
 | --------------------------- | ------------------------------------------------------ |
+| `accept_header.py`          | Accept header parsing and validation                   |
 | `auth.py`                   | API key authentication (HTTP and WebSocket)            |
 | `body_limit.py`             | Request body size limits for DoS protection            |
+| `content_negotiation.py`    | Content negotiation handling                           |
 | `content_type_validator.py` | Content-Type header validation for request bodies      |
 | `correlation.py`            | Correlation ID propagation to outgoing requests        |
+| `deprecation.py`            | API deprecation handling                               |
+| `deprecation_logger.py`     | Deprecated endpoint logging                            |
+| `error_handler.py`          | Error response formatting                              |
 | `exception_handler.py`      | Exception handling utilities with data minimization    |
 | `file_validator.py`         | File magic number validation for upload security       |
+| `idempotency.py`            | Idempotency key handling                               |
 | `rate_limit.py`             | Redis-based sliding window rate limiting               |
 | `request_id.py`             | Request ID generation and propagation for tracing      |
 | `request_logging.py`        | Structured HTTP request/response logging               |

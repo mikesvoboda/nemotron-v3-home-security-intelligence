@@ -11,7 +11,7 @@ docs/api/
   AGENTS.md                    # This file - directory guide
   DEPRECATION_POLICY.md        # API deprecation process and standards
   migrations/                  # Migration guides for deprecated endpoints
-    cameras-v1-to-v2.md        # Example: Cameras API migration guide
+    README.md                  # Migration guide template and index
 ```
 
 ## Key Documents

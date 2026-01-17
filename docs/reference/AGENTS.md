@@ -9,22 +9,16 @@ This directory contains authoritative reference documentation for the Home Secur
 ```
 reference/
   AGENTS.md                  # This file
+  README.md                  # Reference documentation hub
   glossary.md                # Terms and definitions
-  api/                       # API endpoint reference
-    AGENTS.md                # API subdirectory guide
-    overview.md              # API overview and conventions
-    alerts.md                # Alert rules API
-    cameras.md               # Cameras API
-    detections.md            # Detections API
-    events.md                # Events API
-    system.md                # System API
-    websocket.md             # WebSocket API
+  stability.md               # API stability and versioning
   config/                    # Configuration reference
     AGENTS.md                # Config subdirectory guide
     env-reference.md         # Environment variables
     risk-levels.md           # Risk score definitions
   troubleshooting/           # Problem-solving guides
     AGENTS.md                # Troubleshooting subdirectory guide
+    README.md                # Troubleshooting hub
     index.md                 # Symptom-based quick reference
     ai-issues.md             # AI service troubleshooting
     connection-issues.md     # Network and connectivity
@@ -48,6 +42,19 @@ reference/
 **Format:** Alphabetically organized with cross-references between related terms.
 
 **When to use:** Understanding unfamiliar terminology, consistent term definitions.
+
+### stability.md
+
+**Purpose:** API stability levels and versioning policy.
+
+**Topics Covered:**
+
+- Stability tiers (stable, beta, experimental)
+- Breaking change policy
+- Deprecation timelines
+- Version numbering
+
+**When to use:** Understanding API stability guarantees, planning integrations.
 
 ## Subdirectories
 
@@ -105,20 +112,24 @@ Each reference document includes:
 
 ## Target Audiences
 
-| Audience       | Needs                       | Primary Documents         |
-| -------------- | --------------------------- | ------------------------- |
-| **Developers** | API integration, extensions | api/, glossary.md         |
-| **Operators**  | Configuration, deployment   | config/, troubleshooting/ |
-| **Support**    | Problem resolution          | troubleshooting/          |
-| **All Users**  | Term definitions            | glossary.md               |
+| Audience       | Needs                       | Primary Documents                |
+| -------------- | --------------------------- | -------------------------------- |
+| **Developers** | API integration, extensions | glossary.md, docs/developer/api/ |
+| **Operators**  | Configuration, deployment   | config/, troubleshooting/        |
+| **Support**    | Problem resolution          | troubleshooting/                 |
+| **All Users**  | Term definitions            | glossary.md                      |
 
 ## Entry Points
 
 ### Looking Up API Details
 
-1. Start with `api/overview.md` for conventions
-2. Find specific endpoint in relevant API file
-3. Check examples and response formats
+For API documentation, see `docs/developer/api/` which contains:
+
+- `README.md` - API overview and conventions
+- `core-resources.md` - Cameras, events, detections endpoints
+- `ai-pipeline.md` - AI enrichment endpoints
+- `system-ops.md` - System and health endpoints
+- `realtime.md` - WebSocket documentation
 
 ### Configuring the System
 
