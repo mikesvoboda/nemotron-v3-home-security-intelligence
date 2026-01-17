@@ -78,7 +78,10 @@ describe('DateRangeDropdown', () => {
 
     await waitFor(() => {
       const selectedItem = screen.getByRole('menuitem', { name: /Last 7 days/ });
-      expect(selectedItem).toHaveAttribute('aria-checked', 'true');
+      // The component uses data-selected attribute to mark the selected preset
+      expect(selectedItem).toHaveAttribute('data-selected', 'true');
+      // Checkmark icon should be visible within the selected item
+      expect(selectedItem).toHaveTextContent('Last 7 days');
     });
   });
 

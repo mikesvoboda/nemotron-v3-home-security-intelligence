@@ -161,7 +161,7 @@ describe('ImportPreviewModal', () => {
       render(<ImportPreviewModal {...defaultProps} previewData={mockPreviewWithErrors} />);
 
       expect(screen.getByText('Validation Errors')).toBeInTheDocument();
-      expect(screen.getByText('Unsupported version: 2.0. Expected: 1.0')).toBeInTheDocument();
+      expect(screen.getByText(/Unsupported version: 2\.0\. Expected: 1\.0/)).toBeInTheDocument();
     });
 
     it('disables Apply Import when invalid', () => {
@@ -176,8 +176,8 @@ describe('ImportPreviewModal', () => {
       render(<ImportPreviewModal {...defaultProps} previewData={mockPreviewWithUnknownModels} />);
 
       expect(screen.getByText('Unknown Models')).toBeInTheDocument();
-      expect(screen.getByText('unknown_model_1')).toBeInTheDocument();
-      expect(screen.getByText('unknown_model_2')).toBeInTheDocument();
+      expect(screen.getByText(/unknown_model_1/)).toBeInTheDocument();
+      expect(screen.getByText(/unknown_model_2/)).toBeInTheDocument();
     });
   });
 

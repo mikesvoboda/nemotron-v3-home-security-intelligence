@@ -19,7 +19,7 @@ export interface AuditFiltersProps {
   availableActors?: string[];
   className?: string;
   /** Controlled filter state from parent (e.g., stats card clicks) */
-  controlledFilters?: Omit<AuditFilterParams, 'startDate' | 'endDate'>;
+  controlledFilters?: AuditFilterParams;
 }
 
 const STATUS_OPTIONS = ['success', 'failure'];
@@ -61,35 +61,57 @@ export default function AuditFilters({
 
   // State for non-date filters - initialized from controlled filters if provided
   const [filters, setFilters] = useState<Omit<AuditFilterParams, 'startDate' | 'endDate'>>(
-    controlledFilters ?? {}
+    controlledFilters ? {
+      action: controlledFilters.action,
+      resourceType: controlledFilters.resourceType,
+      actor: controlledFilters.actor,
+      status: controlledFilters.status,
+    } : {}
   );
   const [showFilters, setShowFilters] = useState(false);
 
   // Sync internal state when controlled filters change from parent
   useEffect(() => {
     if (controlledFilters !== undefined) {
-      setFilters(controlledFilters);
+      // Update non-date filters
+      setFilters({
+        action: controlledFilters.action,
+        resourceType: controlledFilters.resourceType,
+        actor: controlledFilters.actor,
+        status: controlledFilters.status,
+      });
+
+      // Update date filters if provided
+      if (controlledFilters.startDate || controlledFilters.endDate) {
+        const startDate = controlledFilters.startDate ? new Date(controlledFilters.startDate + 'T00:00:00') : dateRange.startDate;
+        const endDate = controlledFilters.endDate ? new Date(controlledFilters.endDate + 'T23:59:59') : dateRange.endDate;
+        setDateRangeCustom(startDate, endDate);
+      }
+
       // Auto-expand filters when a filter is applied from stats cards
       const hasActiveFilters =
         controlledFilters.action ||
         controlledFilters.resourceType ||
         controlledFilters.actor ||
-        controlledFilters.status;
+        controlledFilters.status ||
+        controlledFilters.startDate ||
+        controlledFilters.endDate;
       if (hasActiveFilters) {
         setShowFilters(true);
       }
     }
-  }, [controlledFilters]);
+  }, [controlledFilters, dateRange.startDate, dateRange.endDate, setDateRangeCustom]);
 
   // Notify parent when filters change (including date range)
   useEffect(() => {
     const fullFilters: AuditFilterParams = {
       ...filters,
-      startDate: dateRangeApiParams.start_date || undefined,
-      endDate: dateRangeApiParams.end_date || undefined,
+      // Use controlled dates if provided, otherwise use internal date range state
+      startDate: controlledFilters?.startDate || dateRangeApiParams.start_date || undefined,
+      endDate: controlledFilters?.endDate || dateRangeApiParams.end_date || undefined,
     };
     onFilterChange(fullFilters);
-  }, [filters, dateRangeApiParams, onFilterChange]);
+  }, [filters, dateRangeApiParams, controlledFilters, onFilterChange]);
 
   // Handle non-date filter changes
   const handleFilterChange = (key: keyof Omit<AuditFilterParams, 'startDate' | 'endDate'>, value: string) => {
