@@ -493,6 +493,31 @@ class TestRUMIngestAllMetricTypes:
         assert response.json()["success"] is True
 
     @pytest.mark.asyncio
+    async def test_ingest_page_load_time_metric(self) -> None:
+        """Test ingesting PAGE_LOAD_TIME metric."""
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+        ) as client:
+            response = await client.post(
+                "/api/rum",
+                json={
+                    "metrics": [
+                        {
+                            "name": "PAGE_LOAD_TIME",
+                            "value": 2500.0,
+                            "rating": "good",
+                            "delta": 2500.0,
+                            "id": "plt-1234567890123-abc1234",
+                        }
+                    ]
+                },
+            )
+
+        assert response.status_code == 200
+        assert response.json()["success"] is True
+
+    @pytest.mark.asyncio
     async def test_ingest_all_core_web_vitals(self) -> None:
         """Test ingesting all Core Web Vitals in one batch."""
         async with AsyncClient(
@@ -545,6 +570,13 @@ class TestRUMIngestAllMetricTypes:
                             "delta": 1800.0,
                             "id": "v1-1234567890123-5",
                         },
+                        {
+                            "name": "PAGE_LOAD_TIME",
+                            "value": 3000.0,
+                            "rating": "good",
+                            "delta": 3000.0,
+                            "id": "plt-1234567890123-abc1234",
+                        },
                     ]
                 },
             )
@@ -552,7 +584,7 @@ class TestRUMIngestAllMetricTypes:
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
-        assert data["metrics_count"] == 6
+        assert data["metrics_count"] == 7
 
 
 class TestRUMRouterConfiguration:

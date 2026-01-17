@@ -19208,14 +19208,15 @@
         "type": "object"
       },
       "WebVitalName": {
-        "description": "Supported Core Web Vitals metric names.\n\nThese correspond to the metrics collected by the web-vitals library.",
+        "description": "Supported Core Web Vitals metric names.\n\nThese correspond to the metrics collected by the web-vitals library,\nplus custom metrics like PAGE_LOAD_TIME from Navigation Timing API.",
         "enum": [
           "LCP",
           "FID",
           "INP",
           "CLS",
           "TTFB",
-          "FCP"
+          "FCP",
+          "PAGE_LOAD_TIME"
         ],
         "title": "WebVitalName",
         "type": "string"

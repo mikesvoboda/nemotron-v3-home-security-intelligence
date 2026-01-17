@@ -66,6 +66,7 @@ T = TypeVar("T")
 # Prometheus Metrics
 # =============================================================================
 
+# Legacy metrics (without hsi_ prefix) - maintained for backward compatibility
 CIRCUIT_BREAKER_STATE = Gauge(
     "circuit_breaker_state",
     "Current state of the circuit breaker (0=closed, 1=open, 2=half_open)",
@@ -93,6 +94,24 @@ CIRCUIT_BREAKER_CALLS_TOTAL = Counter(
 CIRCUIT_BREAKER_REJECTED_TOTAL = Counter(
     "circuit_breaker_rejected_total",
     "Total number of calls rejected by the circuit breaker",
+    labelnames=["service"],
+)
+
+# =============================================================================
+# HSI-prefixed Prometheus Metrics (Grafana dashboard expectations)
+# =============================================================================
+# These metrics mirror the legacy metrics but use the hsi_ prefix expected by
+# the Grafana dashboard. Both sets of metrics are emitted for compatibility.
+
+HSI_CIRCUIT_BREAKER_STATE = Gauge(
+    "hsi_circuit_breaker_state",
+    "Current state of the circuit breaker (0=closed, 1=open, 2=half_open)",
+    labelnames=["service"],
+)
+
+HSI_CIRCUIT_BREAKER_TRIPS_TOTAL = Counter(
+    "hsi_circuit_breaker_trips_total",
+    "Total number of times the circuit breaker has tripped (transitioned to open)",
     labelnames=["service"],
 )
 
@@ -300,8 +319,9 @@ class CircuitBreaker:
         self._last_state_change: datetime | None = None
         self._lock = asyncio.Lock()
 
-        # Initialize Prometheus metrics
+        # Initialize Prometheus metrics (both legacy and HSI-prefixed)
         CIRCUIT_BREAKER_STATE.labels(service=name).set(0)
+        HSI_CIRCUIT_BREAKER_STATE.labels(service=name).set(0)
 
         logger.info(
             f"CircuitBreaker '{name}' initialized: "
@@ -519,13 +539,16 @@ class CircuitBreaker:
         self._half_open_calls = 0
         self._last_state_change = datetime.now(UTC)
 
-        # Update Prometheus metrics
+        # Update Prometheus metrics (both legacy and HSI-prefixed)
         CIRCUIT_BREAKER_STATE.labels(service=self._name).set(1)
+        HSI_CIRCUIT_BREAKER_STATE.labels(service=self._name).set(1)
         CIRCUIT_BREAKER_STATE_CHANGES_TOTAL.labels(
             service=self._name,
             from_state=prev_state.value,
             to_state="open",
         ).inc()
+        # Increment trips counter (circuit has tripped open)
+        HSI_CIRCUIT_BREAKER_TRIPS_TOTAL.labels(service=self._name).inc()
 
         logger.warning(
             f"CircuitBreaker '{self._name}' transitioned {prev_state.value} -> OPEN "
@@ -540,8 +563,9 @@ class CircuitBreaker:
         self._half_open_calls = 0
         self._last_state_change = datetime.now(UTC)
 
-        # Update Prometheus metrics
+        # Update Prometheus metrics (both legacy and HSI-prefixed)
         CIRCUIT_BREAKER_STATE.labels(service=self._name).set(2)
+        HSI_CIRCUIT_BREAKER_STATE.labels(service=self._name).set(2)
         CIRCUIT_BREAKER_STATE_CHANGES_TOTAL.labels(
             service=self._name,
             from_state="open",
@@ -562,8 +586,9 @@ class CircuitBreaker:
         self._half_open_calls = 0
         self._last_state_change = datetime.now(UTC)
 
-        # Update Prometheus metrics
+        # Update Prometheus metrics (both legacy and HSI-prefixed)
         CIRCUIT_BREAKER_STATE.labels(service=self._name).set(0)
+        HSI_CIRCUIT_BREAKER_STATE.labels(service=self._name).set(0)
         CIRCUIT_BREAKER_STATE_CHANGES_TOTAL.labels(
             service=self._name,
             from_state="half_open",
@@ -585,8 +610,9 @@ class CircuitBreaker:
         self._last_failure_time = None
         self._last_state_change = datetime.now(UTC)
 
-        # Update Prometheus metrics
+        # Update Prometheus metrics (both legacy and HSI-prefixed)
         CIRCUIT_BREAKER_STATE.labels(service=self._name).set(0)
+        HSI_CIRCUIT_BREAKER_STATE.labels(service=self._name).set(0)
         if prev_state != CircuitState.CLOSED:
             CIRCUIT_BREAKER_STATE_CHANGES_TOTAL.labels(
                 service=self._name,

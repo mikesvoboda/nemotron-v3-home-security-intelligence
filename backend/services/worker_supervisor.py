@@ -57,6 +57,7 @@ from backend.core.metrics import (
     set_pipeline_worker_state,
     set_pipeline_worker_uptime,
     set_worker_status,
+    update_worker_pool_metrics,
 )
 
 if TYPE_CHECKING:
@@ -345,6 +346,9 @@ class WorkerSupervisor:
         for name in self._workers:
             await self._start_worker(name)
 
+        # Initialize worker pool metrics
+        self._update_worker_pool_metrics()
+
         # Start monitor loop
         self._monitor_task = asyncio.create_task(self._monitor_loop())
 
@@ -383,6 +387,9 @@ class WorkerSupervisor:
             set_worker_status(worker_name, WorkerStatus.STOPPED.value)
             set_pipeline_worker_state(worker_name, "stopped")
             set_pipeline_worker_uptime(worker_name, -1.0)  # Not running
+
+        # Update worker pool metrics to show all workers stopped
+        self._update_worker_pool_metrics()
 
         logger.info("WorkerSupervisor stopped")
 
@@ -456,6 +463,9 @@ class WorkerSupervisor:
 
         while self._running:
             try:
+                # Update worker pool metrics for Grafana dashboard
+                self._update_worker_pool_metrics()
+
                 for name, worker in list(self._workers.items()):
                     if not self._running:
                         break
@@ -678,6 +688,47 @@ class WorkerSupervisor:
     def worker_count(self) -> int:
         """Get the number of registered workers."""
         return len(self._workers)
+
+    def get_worker_pool_counts(self) -> tuple[int, int, int]:
+        """Get counts of active, busy, and idle workers.
+
+        Active workers are those with status RUNNING.
+        Busy workers are RUNNING workers with a currently executing task.
+        Idle workers are RUNNING workers without current task execution.
+
+        Note: In this supervisor model, workers are always "busy" when running
+        because each worker runs a continuous loop. The distinction between
+        busy and idle is made based on whether the task is actively processing
+        vs waiting for work (e.g., waiting on a queue).
+
+        Returns:
+            Tuple of (active_count, busy_count, idle_count)
+        """
+        active = 0
+        busy = 0
+
+        for worker in self._workers.values():
+            if worker.status == WorkerStatus.RUNNING:
+                active += 1
+                # A running worker is considered "busy" if it has an active task
+                # that is not done. In practice, all running workers are busy
+                # since they run continuous loops.
+                if worker.task is not None and not worker.task.done():
+                    busy += 1
+
+        idle = active - busy
+        return active, busy, idle
+
+    def _update_worker_pool_metrics(self) -> None:
+        """Update Prometheus worker pool metrics.
+
+        Called periodically by the monitor loop to update:
+        - hsi_worker_active_count
+        - hsi_worker_busy_count
+        - hsi_worker_idle_count
+        """
+        active, busy, idle = self.get_worker_pool_counts()
+        update_worker_pool_metrics(active, busy, idle)
 
     def get_all_statuses(self) -> dict[str, dict[str, Any]]:
         """Get status dictionaries for all workers (NEM-2492).
