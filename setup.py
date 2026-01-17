@@ -307,6 +307,22 @@ def run_quick_mode() -> dict:
     # Paths
     print("-- Paths " + "-" * 52)
     foscam_base_path = prompt_with_default("Foscam upload path", "/export/foscam")
+
+    # Validate Foscam path exists
+    if Path(foscam_base_path).exists():
+        print("+ Directory exists and is readable")
+    else:
+        print(f"! Warning: Directory does not exist: {foscam_base_path}")
+        print("  The backend container will fail to start without this directory.")
+        create = prompt_with_default("Create it now?", "n")
+        if create.lower() in ("y", "yes"):
+            try:
+                Path(foscam_base_path).mkdir(parents=True, exist_ok=True)
+                print("+ Directory created")
+            except PermissionError:
+                print("! Permission denied - create it manually before starting containers:")
+                print(f"    sudo mkdir -p {foscam_base_path}")
+
     ai_models_path = prompt_with_default("AI models path", "/export/ai_models")
     print()
 
@@ -370,14 +386,18 @@ def run_guided_mode() -> dict:
     if Path(foscam_base_path).exists():
         print("+ Directory exists and is readable")
     else:
-        print(f"! Directory does not exist: {foscam_base_path}")
+        print(f"! WARNING: Directory does not exist: {foscam_base_path}")
+        print("  The backend container will fail to start without this directory.")
+        print("  This path is mounted as /cameras inside the backend container.")
+        print()
         create = prompt_with_default("Create it now?", "n")
         if create.lower() in ("y", "yes"):
             try:
                 Path(foscam_base_path).mkdir(parents=True, exist_ok=True)
                 print("+ Directory created")
             except PermissionError:
-                print("! Permission denied - you may need to create it manually")
+                print("! Permission denied - create it manually before starting containers:")
+                print(f"    sudo mkdir -p {foscam_base_path}")
     print()
 
     # Step 2: AI Models Path
