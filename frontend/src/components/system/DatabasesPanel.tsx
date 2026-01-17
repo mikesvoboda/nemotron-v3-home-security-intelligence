@@ -1,6 +1,18 @@
 import { Card, Title, Text, Badge, ProgressBar, AreaChart } from '@tremor/react';
 import { clsx } from 'clsx';
-import { Database, Server, HardDrive, Activity, Users, Zap } from 'lucide-react';
+import {
+  Database,
+  Server,
+  HardDrive,
+  Activity,
+  Users,
+  Zap,
+  Bug,
+  AlertCircle,
+  Radio,
+} from 'lucide-react';
+
+import type { RedisInfo, RedisPubsubInfo } from '../../services/api';
 
 /**
  * PostgreSQL database metrics
@@ -62,6 +74,16 @@ export interface DatabasesPanelProps {
   className?: string;
   /** Optional data-testid attribute for testing */
   'data-testid'?: string;
+  /** Whether debug mode is enabled - shows additional debug info */
+  debugMode?: boolean;
+  /** Redis debug info from /api/debug/redis/info (only shown when debugMode is true) */
+  redisDebugInfo?: RedisInfo | null;
+  /** Pub/sub channel information (only shown when debugMode is true) */
+  pubsubInfo?: RedisPubsubInfo | null;
+  /** Whether Redis debug info is loading */
+  redisDebugLoading?: boolean;
+  /** Error message if Redis debug info failed to load */
+  redisDebugError?: string | null;
 }
 
 /**
@@ -152,6 +174,19 @@ function formatStatus(status: string): string {
  * - Hit ratio (Redis)
  * - Historical charts for key metrics
  */
+/**
+ * Format uptime in seconds to human-readable format
+ */
+function formatUptime(seconds: number): string {
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+}
+
 export default function DatabasesPanel({
   postgresql,
   redis,
@@ -159,6 +194,11 @@ export default function DatabasesPanel({
   history,
   className,
   'data-testid': testId = 'databases-panel',
+  debugMode = false,
+  redisDebugInfo = null,
+  pubsubInfo = null,
+  redisDebugLoading = false,
+  redisDebugError = null,
 }: DatabasesPanelProps) {
   const postgresChartData = transformToChartData(history.postgresql.connections);
   const redisChartData = transformToChartData(history.redis.memory);
@@ -402,6 +442,121 @@ export default function DatabasesPanel({
           )}
         </div>
       </div>
+
+      {/* Debug Section - Redis Debug Info */}
+      {debugMode && (
+        <div
+          className="mt-4 rounded-lg border border-orange-500/30 bg-orange-500/5 p-3"
+          data-testid="redis-debug-section"
+        >
+          <div className="mb-3 flex items-center gap-2">
+            <Bug className="h-4 w-4 text-orange-500" />
+            <Text className="text-sm font-medium text-orange-400">Redis Debug Info</Text>
+            <Badge color="orange" size="xs">
+              DEBUG
+            </Badge>
+          </div>
+
+          {/* Loading state */}
+          {redisDebugLoading && (
+            <div className="space-y-2" data-testid="redis-debug-loading">
+              <div className="h-8 animate-pulse rounded bg-gray-700/50" />
+              <div className="h-8 animate-pulse rounded bg-gray-700/50" />
+            </div>
+          )}
+
+          {/* Error state */}
+          {redisDebugError && !redisDebugLoading && (
+            <div className="flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2">
+              <AlertCircle className="h-4 w-4 text-red-500" />
+              <Text className="text-xs text-red-400">{redisDebugError}</Text>
+            </div>
+          )}
+
+          {/* Empty state */}
+          {!redisDebugLoading && !redisDebugError && !redisDebugInfo && (
+            <Text className="text-sm text-gray-500">No debug info available</Text>
+          )}
+
+          {/* Debug info content */}
+          {!redisDebugLoading && !redisDebugError && redisDebugInfo && (
+            <div className="space-y-3">
+              {/* Basic Info Grid */}
+              <div className="grid grid-cols-2 gap-2 text-xs md:grid-cols-4">
+                <div className="rounded bg-gray-800/50 p-2">
+                  <Text className="text-gray-500">Version</Text>
+                  <Text className="font-medium text-gray-200">{redisDebugInfo.redis_version}</Text>
+                </div>
+                <div className="rounded bg-gray-800/50 p-2">
+                  <Text className="text-gray-500">Memory</Text>
+                  <Text className="font-medium text-gray-200">
+                    {redisDebugInfo.used_memory_human}
+                  </Text>
+                </div>
+                <div className="rounded bg-gray-800/50 p-2">
+                  <Text className="text-gray-500">Peak Memory</Text>
+                  <Text className="font-medium text-gray-200">
+                    {redisDebugInfo.used_memory_peak_human}
+                  </Text>
+                </div>
+                <div className="rounded bg-gray-800/50 p-2">
+                  <Text className="text-gray-500">Uptime</Text>
+                  <Text className="font-medium text-gray-200">
+                    {formatUptime(redisDebugInfo.uptime_in_seconds)}
+                  </Text>
+                </div>
+              </div>
+
+              {/* Connection Stats */}
+              <div className="grid grid-cols-2 gap-2 text-xs md:grid-cols-3">
+                <div className="rounded bg-gray-800/50 p-2">
+                  <Text className="text-gray-500">Clients</Text>
+                  <Text className="font-medium text-gray-200">
+                    {redisDebugInfo.connected_clients}
+                  </Text>
+                </div>
+                <div className="rounded bg-gray-800/50 p-2">
+                  <Text className="text-gray-500">Total Connections</Text>
+                  <Text className="font-medium text-gray-200">
+                    {redisDebugInfo.total_connections_received.toLocaleString()}
+                  </Text>
+                </div>
+                <div className="rounded bg-gray-800/50 p-2">
+                  <Text className="text-gray-500">Commands Processed</Text>
+                  <Text className="font-medium text-gray-200">
+                    {redisDebugInfo.total_commands_processed.toLocaleString()}
+                  </Text>
+                </div>
+              </div>
+
+              {/* Pub/Sub Channels */}
+              {pubsubInfo && pubsubInfo.channels.length > 0 && (
+                <div className="border-t border-gray-700 pt-3">
+                  <div className="mb-2 flex items-center gap-2">
+                    <Radio className="h-3 w-3 text-orange-400" />
+                    <Text className="text-xs font-medium text-gray-400">
+                      Pub/Sub Channels ({pubsubInfo.channels.length})
+                    </Text>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {pubsubInfo.channels.map((channel) => (
+                      <div
+                        key={channel}
+                        className="flex items-center gap-1 rounded border border-gray-700 bg-gray-800/50 px-2 py-1"
+                      >
+                        <Text className="text-xs text-gray-300">{channel}</Text>
+                        <Badge color="blue" size="xs">
+                          {pubsubInfo.subscriber_counts[channel] || 0}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </Card>
   );
 }

@@ -456,3 +456,17 @@ export type {
   ClearSeededDataRequest,
   ClearSeededDataResponse,
 } from './useAdminMutations';
+
+// Debug panel enhancement queries (NEM-2717)
+export {
+  usePipelineErrorsQuery,
+  useRedisDebugInfoQuery,
+  useWebSocketConnectionsQuery,
+  debugQueryKeys,
+} from './useDebugQueries';
+export type {
+  DebugQueryOptions,
+  UsePipelineErrorsQueryReturn,
+  UseRedisDebugInfoQueryReturn,
+  UseWebSocketConnectionsQueryReturn,
+} from './useDebugQueries';

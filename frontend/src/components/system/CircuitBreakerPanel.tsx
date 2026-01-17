@@ -1,12 +1,31 @@
 import { Card, Title, Text, Badge, Button } from '@tremor/react';
 import { clsx } from 'clsx';
-import { Zap, RefreshCw, CheckCircle, XCircle, AlertTriangle, AlertCircle } from 'lucide-react';
+import {
+  Zap,
+  RefreshCw,
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
+  AlertCircle,
+  Bug,
+  Radio,
+  Wifi,
+} from 'lucide-react';
 
+import type { WebSocketBroadcasterStatus } from '../../services/api';
 import type {
   CircuitBreakerStateEnum,
   CircuitBreakerStatusResponse,
   CircuitBreakersResponse,
 } from '../../types/generated';
+
+/**
+ * WebSocket status for debug mode
+ */
+export interface WebSocketDebugStatus {
+  event_broadcaster: WebSocketBroadcasterStatus;
+  system_broadcaster: WebSocketBroadcasterStatus;
+}
 
 /**
  * Props for CircuitBreakerPanel component
@@ -24,6 +43,14 @@ export interface CircuitBreakerPanelProps {
   className?: string;
   /** Optional data-testid attribute for testing */
   'data-testid'?: string;
+  /** Whether debug mode is enabled - shows additional debug info */
+  debugMode?: boolean;
+  /** WebSocket broadcaster status (only shown when debugMode is true) */
+  webSocketStatus?: WebSocketDebugStatus | null;
+  /** Whether WebSocket status is loading */
+  webSocketLoading?: boolean;
+  /** Error message if WebSocket status failed to load */
+  webSocketError?: string | null;
 }
 
 /**
@@ -88,6 +115,22 @@ function isHealthy(state: CircuitBreakerStateEnum): boolean {
  * - Configuration (threshold, timeout)
  * - Reset button for non-closed breakers
  */
+/**
+ * Get color for circuit state badge
+ */
+function getCircuitStateColor(state: string): 'green' | 'yellow' | 'red' | 'gray' {
+  switch (state.toUpperCase()) {
+    case 'CLOSED':
+      return 'green';
+    case 'HALF_OPEN':
+      return 'yellow';
+    case 'OPEN':
+      return 'red';
+    default:
+      return 'gray';
+  }
+}
+
 export default function CircuitBreakerPanel({
   data,
   loading,
@@ -95,6 +138,10 @@ export default function CircuitBreakerPanel({
   onReset,
   className,
   'data-testid': testId = 'circuit-breaker-panel',
+  debugMode = false,
+  webSocketStatus = null,
+  webSocketLoading = false,
+  webSocketError = null,
 }: CircuitBreakerPanelProps) {
   // Loading state
   if (loading) {
@@ -175,7 +222,129 @@ export default function CircuitBreakerPanel({
           ))}
         </div>
       )}
+
+      {/* Debug Section - WebSocket Status */}
+      {debugMode && (
+        <div
+          className="mt-4 rounded-lg border border-orange-500/30 bg-orange-500/5 p-3"
+          data-testid="websocket-debug-section"
+        >
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Bug className="h-4 w-4 text-orange-500" />
+              <Text className="text-sm font-medium text-orange-400">WebSocket Broadcasters</Text>
+              <Badge color="orange" size="xs">
+                DEBUG
+              </Badge>
+            </div>
+            {webSocketStatus && (
+              <Text className="text-xs text-gray-400">
+                {webSocketStatus.event_broadcaster.connection_count +
+                  webSocketStatus.system_broadcaster.connection_count}{' '}
+                connections
+              </Text>
+            )}
+          </div>
+
+          {/* Loading state */}
+          {webSocketLoading && (
+            <div className="space-y-2" data-testid="websocket-debug-loading">
+              <div className="h-16 animate-pulse rounded bg-gray-700/50" />
+              <div className="h-16 animate-pulse rounded bg-gray-700/50" />
+            </div>
+          )}
+
+          {/* Error state */}
+          {webSocketError && !webSocketLoading && (
+            <div className="flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2">
+              <AlertCircle className="h-4 w-4 text-red-500" />
+              <Text className="text-xs text-red-400">{webSocketError}</Text>
+            </div>
+          )}
+
+          {/* Empty state */}
+          {!webSocketLoading && !webSocketError && !webSocketStatus && (
+            <Text className="text-sm text-gray-500">No WebSocket status available</Text>
+          )}
+
+          {/* WebSocket status content */}
+          {!webSocketLoading && !webSocketError && webSocketStatus && (
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              {/* Event Broadcaster */}
+              <BroadcasterCard
+                name="Event Broadcaster"
+                status={webSocketStatus.event_broadcaster}
+                icon={<Radio className="h-4 w-4 text-blue-400" />}
+              />
+
+              {/* System Broadcaster */}
+              <BroadcasterCard
+                name="System Broadcaster"
+                status={webSocketStatus.system_broadcaster}
+                icon={<Wifi className="h-4 w-4 text-green-400" />}
+              />
+            </div>
+          )}
+        </div>
+      )}
     </Card>
+  );
+}
+
+/**
+ * BroadcasterCard - Displays a single WebSocket broadcaster's status
+ */
+interface BroadcasterCardProps {
+  name: string;
+  status: WebSocketBroadcasterStatus;
+  icon: React.ReactNode;
+}
+
+function BroadcasterCard({ name, status, icon }: BroadcasterCardProps) {
+  return (
+    <div className="rounded border border-gray-700 bg-gray-800/50 p-3">
+      <div className="mb-2 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          {icon}
+          <Text className="text-sm font-medium text-gray-200">{name}</Text>
+        </div>
+        <Badge color={getCircuitStateColor(status.circuit_state)} size="xs">
+          {status.circuit_state}
+        </Badge>
+      </div>
+
+      <div className="space-y-1 text-xs">
+        <div className="flex items-center justify-between">
+          <Text className="text-gray-500">Connections</Text>
+          <Text className="font-medium text-gray-200">{status.connection_count}</Text>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <Text className="text-gray-500">Listening</Text>
+          <Badge color={status.is_listening ? 'green' : 'gray'} size="xs">
+            {status.is_listening ? 'Yes' : 'No'}
+          </Badge>
+        </div>
+
+        {status.is_degraded && (
+          <div className="flex items-center justify-between">
+            <Text className="text-gray-500">Status</Text>
+            <Badge color="yellow" size="xs">
+              Degraded
+            </Badge>
+          </div>
+        )}
+
+        {status.channel_name && (
+          <div className="flex items-center justify-between">
+            <Text className="text-gray-500">Channel</Text>
+            <Badge color="blue" size="xs">
+              {status.channel_name}
+            </Badge>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 

@@ -427,4 +427,118 @@ describe('PipelineMetricsPanel', () => {
       expect(screen.getByTestId('pipeline-metrics-panel')).toBeInTheDocument();
     });
   });
+
+  describe('debug mode', () => {
+    const mockErrors = [
+      {
+        timestamp: '2025-01-01T12:00:00Z',
+        error_type: 'connection_error',
+        component: 'detector',
+        message: 'Failed to connect to model server',
+      },
+      {
+        timestamp: '2025-01-01T11:55:00Z',
+        error_type: 'timeout_error',
+        component: 'analyzer',
+        message: 'Analysis timed out after 30s',
+      },
+    ];
+
+    it('does not render debug section when debugMode is false', () => {
+      render(<PipelineMetricsPanel queues={mockQueues} debugMode={false} />);
+
+      expect(screen.queryByTestId('debug-errors-section')).not.toBeInTheDocument();
+      expect(screen.queryByText('DEBUG')).not.toBeInTheDocument();
+    });
+
+    it('renders debug section when debugMode is true', () => {
+      render(<PipelineMetricsPanel queues={mockQueues} debugMode={true} pipelineErrors={[]} />);
+
+      expect(screen.getByTestId('debug-errors-section')).toBeInTheDocument();
+    });
+
+    it('displays DEBUG badge when debugMode is true', () => {
+      render(<PipelineMetricsPanel queues={mockQueues} debugMode={true} pipelineErrors={[]} />);
+
+      expect(screen.getByText('DEBUG')).toBeInTheDocument();
+    });
+
+    it('renders pipeline errors when provided in debug mode', () => {
+      render(
+        <PipelineMetricsPanel queues={mockQueues} debugMode={true} pipelineErrors={mockErrors} />
+      );
+
+      expect(screen.getByText('Recent Errors (2)')).toBeInTheDocument();
+      expect(screen.getByText('connection_error')).toBeInTheDocument();
+      expect(screen.getByText('timeout_error')).toBeInTheDocument();
+      expect(screen.getByText('detector')).toBeInTheDocument();
+      expect(screen.getByText('analyzer')).toBeInTheDocument();
+    });
+
+    it('shows no errors message when pipelineErrors is empty', () => {
+      render(<PipelineMetricsPanel queues={mockQueues} debugMode={true} pipelineErrors={[]} />);
+
+      expect(screen.getByText('No recent errors')).toBeInTheDocument();
+    });
+
+    it('shows loading state when errorsLoading is true', () => {
+      render(
+        <PipelineMetricsPanel queues={mockQueues} debugMode={true} errorsLoading={true} />
+      );
+
+      expect(screen.getByTestId('errors-loading-skeleton')).toBeInTheDocument();
+    });
+
+    it('shows error alert when errorsError is provided', () => {
+      render(
+        <PipelineMetricsPanel
+          queues={mockQueues}
+          debugMode={true}
+          errorsError="Failed to fetch errors"
+        />
+      );
+
+      expect(screen.getByText('Failed to fetch errors')).toBeInTheDocument();
+    });
+
+    it('displays error message for each error', () => {
+      render(
+        <PipelineMetricsPanel queues={mockQueues} debugMode={true} pipelineErrors={mockErrors} />
+      );
+
+      expect(screen.getByText('Failed to connect to model server')).toBeInTheDocument();
+      expect(screen.getByText('Analysis timed out after 30s')).toBeInTheDocument();
+    });
+
+    it('handles errors with null messages gracefully', () => {
+      const errorsWithNullMessage = [
+        {
+          timestamp: '2025-01-01T12:00:00Z',
+          error_type: 'unknown_error',
+          component: 'detector',
+          message: null,
+        },
+      ];
+
+      render(
+        <PipelineMetricsPanel
+          queues={mockQueues}
+          debugMode={true}
+          pipelineErrors={errorsWithNullMessage}
+        />
+      );
+
+      // Should render without crashing
+      expect(screen.getByText('unknown_error')).toBeInTheDocument();
+    });
+
+    it('applies orange accent styling to debug section', () => {
+      render(
+        <PipelineMetricsPanel queues={mockQueues} debugMode={true} pipelineErrors={mockErrors} />
+      );
+
+      const debugSection = screen.getByTestId('debug-errors-section');
+      expect(debugSection.className).toContain('border-orange-500');
+    });
+  });
 });
