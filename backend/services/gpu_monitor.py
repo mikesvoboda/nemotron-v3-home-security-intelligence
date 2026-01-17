@@ -56,6 +56,11 @@ class GPUStatsDict(TypedDict):
     temperature: float | None
     power_usage: float | None
     recorded_at: datetime
+    # Extended metrics for throttling detection and hardware health
+    fan_speed: int | None
+    sm_clock: int | None
+    memory_bandwidth_utilization: float | None
+    pstate: int | None
 
 
 class MemoryPressureMetrics(TypedDict):
@@ -316,6 +321,11 @@ class GPUMonitor:
                 "temperature": temperature,
                 "power_usage": power_usage,
                 "recorded_at": datetime.now(UTC),
+                # Extended metrics not available via basic nvidia-smi query
+                "fan_speed": None,
+                "sm_clock": None,
+                "memory_bandwidth_utilization": None,
+                "pstate": None,
             }
 
         except subprocess.TimeoutExpired as e:
@@ -404,6 +414,11 @@ class GPUMonitor:
                 "temperature": temperature,
                 "power_usage": power_usage,
                 "recorded_at": datetime.now(UTC),
+                # Extended metrics not available via basic nvidia-smi query
+                "fan_speed": None,
+                "sm_clock": None,
+                "memory_bandwidth_utilization": None,
+                "pstate": None,
             }
 
         except subprocess.TimeoutExpired as e:
@@ -426,10 +441,12 @@ class GPUMonitor:
         try:
             import pynvml
 
-            # Get GPU utilization
+            # Get GPU utilization and memory bandwidth utilization
+            memory_bandwidth_utilization: float | None = None
             try:
                 utilization = pynvml.nvmlDeviceGetUtilizationRates(self._gpu_handle)
                 gpu_utilization = float(utilization.gpu)
+                memory_bandwidth_utilization = float(utilization.memory)
             except pynvml.NVMLError:
                 gpu_utilization = None
 
@@ -458,6 +475,30 @@ class GPUMonitor:
             except pynvml.NVMLError:
                 power_usage = None
 
+            # Get fan speed (percentage)
+            fan_speed: int | None = None
+            try:
+                fan_speed = int(pynvml.nvmlDeviceGetFanSpeed(self._gpu_handle))
+            except pynvml.NVMLError:
+                # Fan speed not available (passive cooling or not supported)
+                pass
+
+            # Get SM clock (MHz)
+            sm_clock: int | None = None
+            try:
+                sm_clock = int(
+                    pynvml.nvmlDeviceGetClockInfo(self._gpu_handle, pynvml.NVML_CLOCK_SM)
+                )
+            except pynvml.NVMLError:
+                pass
+
+            # Get performance state (P0 = max performance, P15 = idle)
+            pstate: int | None = None
+            try:
+                pstate = int(pynvml.nvmlDeviceGetPerformanceState(self._gpu_handle))
+            except pynvml.NVMLError:
+                pass
+
             return {
                 "gpu_name": self._gpu_name,
                 "gpu_utilization": gpu_utilization,
@@ -466,6 +507,11 @@ class GPUMonitor:
                 "temperature": temperature,
                 "power_usage": power_usage,
                 "recorded_at": datetime.now(UTC),
+                # Extended metrics
+                "fan_speed": fan_speed,
+                "sm_clock": sm_clock,
+                "memory_bandwidth_utilization": memory_bandwidth_utilization,
+                "pstate": pstate,
             }
 
         except Exception as e:
@@ -528,6 +574,13 @@ class GPUMonitor:
             "temperature": temperature,
             "power_usage": power_usage,
             "recorded_at": now,
+            # Extended metrics (simulated)
+            "fan_speed": int(30 + 10 * math.sin(time_factor * 2 * math.pi)),
+            "sm_clock": int(1500 + 300 * math.sin(time_factor * 2 * math.pi)),
+            "memory_bandwidth_utilization": round(
+                15.0 + 5.0 * math.sin(time_factor * 2 * math.pi), 1
+            ),
+            "pstate": 8 if gpu_utilization < 30 else 0,  # P8 when idle, P0 when active
         }
 
     def _parse_rtdetr_response(
@@ -640,6 +693,11 @@ class GPUMonitor:
                         "temperature": temperature if temperature is not None else 0,
                         "power_usage": power_watts if power_watts is not None else 0.0,
                         "recorded_at": datetime.now(UTC),
+                        # Extended metrics not available from AI container endpoints
+                        "fan_speed": None,
+                        "sm_clock": None,
+                        "memory_bandwidth_utilization": None,
+                        "pstate": None,
                     }
 
         except Exception as e:
@@ -800,6 +858,11 @@ class GPUMonitor:
                     temperature=stats["temperature"],
                     power_usage=stats["power_usage"],
                     inference_fps=inference_fps,
+                    # Extended metrics
+                    fan_speed=stats.get("fan_speed"),
+                    sm_clock=stats.get("sm_clock"),
+                    memory_bandwidth_utilization=stats.get("memory_bandwidth_utilization"),
+                    pstate=stats.get("pstate"),
                 )
                 session.add(gpu_stats)
                 await session.commit()

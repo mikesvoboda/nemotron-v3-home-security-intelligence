@@ -854,7 +854,7 @@ requires-dist = [
     { name = "jinja2", specifier = ">=3.1.5" },
     { name = "mutmut", marker = "extra == 'dev'", specifier = ">=3.2.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.13.0" },
-    { name = "nvidia-ml-py", specifier = ">=12.560.30" },
+    { name = "nvidia-ml-py", specifier = ">=12.560.30,<14.0.0" },
     { name = "open-clip-torch", specifier = ">=2.29.0" },
     { name = "openpyxl", specifier = ">=3.1.5" },
     { name = "opentelemetry-api", specifier = ">=1.23.0" },

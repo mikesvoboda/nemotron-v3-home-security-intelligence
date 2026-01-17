@@ -38,6 +38,8 @@ from backend.api.schemas.websocket import (
     WebSocketDetectionNewMessage,
     WebSocketEventData,
     WebSocketEventMessage,
+    WebSocketInfrastructureAlertData,
+    WebSocketInfrastructureAlertMessage,
     WebSocketSceneChangeData,
     WebSocketSceneChangeMessage,
     WebSocketServiceStatusData,
@@ -1205,6 +1207,75 @@ class EventBroadcaster:
             raise
         except Exception as e:
             logger.error(f"Failed to broadcast detection batch: {e}")
+            raise
+
+    async def broadcast_infrastructure_alert(self, alert_data: dict[str, Any]) -> int:
+        """Broadcast an infrastructure alert to all connected WebSocket clients via Redis pub/sub.
+
+        Infrastructure alerts originate from Prometheus/Alertmanager webhooks and represent
+        system health issues (GPU memory, database connections, pipeline health, etc.)
+        separate from AI-generated security alerts.
+
+        This method validates the alert data against the WebSocketInfrastructureAlertMessage
+        schema before publishing to Redis.
+
+        Args:
+            alert_data: Alert data dictionary containing infrastructure alert details
+
+        Returns:
+            Number of Redis subscribers that received the message
+
+        Raises:
+            ValueError: If the message fails schema validation
+
+        Example alert_data:
+            {
+                "type": "infrastructure_alert",
+                "data": {
+                    "alertname": "HSIGPUMemoryHigh",
+                    "status": "firing",
+                    "severity": "warning",
+                    "component": "gpu",
+                    "summary": "GPU memory usage is high",
+                    "description": "GPU memory usage is above 90%",
+                    "started_at": "2026-01-17T12:22:56Z",
+                    "fingerprint": "abc123def456",  # pragma: allowlist secret
+                    "receiver": "critical-receiver"
+                }
+            }
+        """
+        try:
+            # Ensure the message has the correct structure
+            if "type" not in alert_data:
+                alert_data = {"type": "infrastructure_alert", "data": alert_data}
+
+            # Validate message format before broadcasting
+            try:
+                # Extract the data portion and validate it
+                data_dict = alert_data.get("data", {})
+                validated_data = WebSocketInfrastructureAlertData.model_validate(data_dict)
+                validated_message = WebSocketInfrastructureAlertMessage(data=validated_data)
+                # Use the validated message for broadcasting
+                broadcast_data = validated_message.model_dump(mode="json")
+            except ValidationError as ve:
+                logger.error(f"Infrastructure alert message validation failed: {ve}")
+                raise ValueError(f"Invalid infrastructure alert message format: {ve}") from ve
+
+            # Publish validated message to Redis channel
+            subscriber_count = await self._redis.publish(self._channel_name, broadcast_data)
+            logger.debug(
+                f"Infrastructure alert broadcast to Redis: {broadcast_data.get('type')} "
+                f"(alertname: {data_dict.get('alertname')}, "
+                f"severity: {data_dict.get('severity')}, "
+                f"status: {data_dict.get('status')}, "
+                f"subscribers: {subscriber_count})"
+            )
+            return subscriber_count
+        except ValueError:
+            # Re-raise validation errors
+            raise
+        except Exception as e:
+            logger.error(f"Failed to broadcast infrastructure alert: {e}")
             raise
 
     def _enter_degraded_mode(self) -> None:

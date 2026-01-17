@@ -599,6 +599,11 @@ async def get_latest_gpu_stats(
         "temperature": gpu_stat.temperature,
         "power_usage": gpu_stat.power_usage,
         "inference_fps": gpu_stat.inference_fps,
+        # Extended metrics
+        "fan_speed": gpu_stat.fan_speed,
+        "sm_clock": gpu_stat.sm_clock,
+        "memory_bandwidth_utilization": gpu_stat.memory_bandwidth_utilization,
+        "pstate": gpu_stat.pstate,
     }
 
 
@@ -1887,6 +1892,10 @@ async def get_gpu_stats(db: AsyncSession = Depends(get_db)) -> GPUStatsResponse:
             temperature=None,
             power_usage=None,
             inference_fps=None,
+            fan_speed=None,
+            sm_clock=None,
+            memory_bandwidth_utilization=None,
+            pstate=None,
         )
 
     return GPUStatsResponse(
@@ -1897,6 +1906,10 @@ async def get_gpu_stats(db: AsyncSession = Depends(get_db)) -> GPUStatsResponse:
         temperature=stats["temperature"],
         power_usage=stats["power_usage"],
         inference_fps=stats["inference_fps"],
+        fan_speed=stats.get("fan_speed"),
+        sm_clock=stats.get("sm_clock"),
+        memory_bandwidth_utilization=stats.get("memory_bandwidth_utilization"),
+        pstate=stats.get("pstate"),
     )
 
 

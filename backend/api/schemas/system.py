@@ -172,6 +172,30 @@ class GPUStatsResponse(BaseModel):
         description="Inference frames per second",
         ge=0,
     )
+    # Extended metrics for throttling detection and hardware health
+    fan_speed: int | None = Field(
+        None,
+        description="GPU fan speed percentage (0-100)",
+        ge=0,
+        le=100,
+    )
+    sm_clock: int | None = Field(
+        None,
+        description="Current SM clock frequency in MHz",
+        ge=0,
+    )
+    memory_bandwidth_utilization: float | None = Field(
+        None,
+        description="Memory controller utilization percentage (0-100)",
+        ge=0,
+        le=100,
+    )
+    pstate: int | None = Field(
+        None,
+        description="Performance state (P0=max performance, P15=idle)",
+        ge=0,
+        le=15,
+    )
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -183,6 +207,10 @@ class GPUStatsResponse(BaseModel):
                 "temperature": 65.0,
                 "power_usage": 150.0,
                 "inference_fps": 30.5,
+                "fan_speed": 45,
+                "sm_clock": 1800,
+                "memory_bandwidth_utilization": 35.2,
+                "pstate": 0,
             }
         }
     )
@@ -204,6 +232,13 @@ class GPUStatsSample(BaseModel):
     temperature: float | None = Field(None, description="GPU temperature in Celsius")
     power_usage: float | None = Field(None, description="GPU power usage in watts", ge=0)
     inference_fps: float | None = Field(None, description="Inference frames per second", ge=0)
+    # Extended metrics
+    fan_speed: int | None = Field(None, description="GPU fan speed percentage", ge=0, le=100)
+    sm_clock: int | None = Field(None, description="Current SM clock in MHz", ge=0)
+    memory_bandwidth_utilization: float | None = Field(
+        None, description="Memory controller utilization %", ge=0, le=100
+    )
+    pstate: int | None = Field(None, description="Performance state (P0-P15)", ge=0, le=15)
 
     model_config = ConfigDict(from_attributes=True)
 

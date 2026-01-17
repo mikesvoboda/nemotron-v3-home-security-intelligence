@@ -569,8 +569,11 @@ export default function AnalyticsPage() {
                       data={prepareCameraActivityData()}
                       index="camera"
                       categories={['events']}
-                      colors={['green']}
+                      colors={['cyan']}
                       valueFormatter={(value) => `${value} events`}
+                      showAnimation={true}
+                      showGridLines={true}
+                      yAxisWidth={140}
                     />
                   ) : (
                     <EmptyState message="No camera activity data available" />

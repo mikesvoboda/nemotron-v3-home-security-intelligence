@@ -156,3 +156,24 @@ modules:
         path: '{ .inference_fps }'
         type: value
         help: 'Inference frames per second'
+
+      # Extended metrics for throttling detection and hardware health
+      - name: hsi_gpu_fan_speed
+        path: '{ .fan_speed }'
+        type: value
+        help: 'GPU fan speed percentage (0-100)'
+
+      - name: hsi_gpu_sm_clock_mhz
+        path: '{ .sm_clock }'
+        type: value
+        help: 'Current SM clock frequency in MHz'
+
+      - name: hsi_gpu_memory_bandwidth_utilization
+        path: '{ .memory_bandwidth_utilization }'
+        type: value
+        help: 'Memory controller utilization percentage (0-100)'
+
+      - name: hsi_gpu_pstate
+        path: '{ .pstate }'
+        type: value
+        help: 'GPU performance state (P0=max, P15=idle)'
