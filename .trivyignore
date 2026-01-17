@@ -166,6 +166,16 @@ CVE-2025-5987
 # PAM modules used for system authentication, not user-exposed in container
 CVE-2025-6020
 
+# CVE-2026-0861 - glibc integer overflow in memalign (REVIEW BY: 2026-04-17)
+# CRITICAL per Trivy, but Debian marks as "Minor issue" with <no-dsa>
+# Affects libc-bin and libc6 (glibc 2.36-9+deb12u13)
+# Fixed only in sid (2.42-8), not available for bookworm stable
+# Exploitation requires attacker control of BOTH size (near PTRDIFF_MAX) and
+# alignment (range [1<<62+1, 1<<63]) arguments to memalign/posix_memalign/aligned_alloc
+# Our application doesn't expose memory allocation controls to untrusted input
+# Reference: https://security-tracker.debian.org/tracker/CVE-2026-0861
+CVE-2026-0861
+
 # =============================================================================
 # Python Package Vulnerabilities - No Fix Available
 # =============================================================================
@@ -203,5 +213,5 @@ AVD-DS-0002
 #
 # Remove entries when fixes become available.
 #
-# Last reviewed: 2026-01-14 (NEM-2634)
-# Next review: 2026-04-14
+# Last reviewed: 2026-01-17 (NEM-2689)
+# Next review: 2026-04-17
