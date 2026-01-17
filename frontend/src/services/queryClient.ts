@@ -588,6 +588,26 @@ export const queryKeys = {
       },
     },
   },
+
+  /**
+   * Analytics-related query keys
+   */
+  analytics: {
+    /** Base key for all analytics queries */
+    all: ['analytics'] as const,
+    /** Camera uptime data */
+    cameraUptime: (params: { startDate: string; endDate: string }) =>
+      [...queryKeys.analytics.all, 'cameraUptime', params] as const,
+    /** Detection trends */
+    detectionTrends: (params: { startDate: string; endDate: string }) =>
+      [...queryKeys.analytics.all, 'detectionTrends', params] as const,
+    /** Risk history */
+    riskHistory: (params: { startDate: string; endDate: string }) =>
+      [...queryKeys.analytics.all, 'riskHistory', params] as const,
+    /** Object distribution */
+    objectDistribution: (params: { startDate: string; endDate: string }) =>
+      [...queryKeys.analytics.all, 'objectDistribution', params] as const,
+  },
 } as const;
 
 // ============================================================================

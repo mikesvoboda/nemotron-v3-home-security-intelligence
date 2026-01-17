@@ -17,12 +17,9 @@ import EntityCard from './EntityCard';
 import EntityDetailModal from './EntityDetailModal';
 import EntityStatsCard from './EntityStatsCard';
 import { useCamerasQuery } from '../../hooks/useCamerasQuery';
-import {
-  useEntitiesInfiniteQuery,
-  type EntityFilters,
-  type EntityTimeRangeFilter,
-} from '../../hooks/useEntitiesInfiniteQuery';
-import { useEntityDetailQuery, type TimeRangeFilter } from '../../hooks/useEntitiesQuery';
+import { useDateRangeState, type DateRangePreset } from '../../hooks/useDateRangeState';
+import { useEntitiesInfiniteQuery, type EntityFilters } from '../../hooks/useEntitiesInfiniteQuery';
+import { useEntityDetailQuery } from '../../hooks/useEntitiesQuery';
 import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
 import { updateEntityTrust } from '../../services/api';
 import { EntityCardSkeleton, InfiniteScrollStatus, SafeErrorMessage } from '../common';
@@ -57,16 +54,27 @@ type TrustFilter = 'all' | TrustStatus;
 export default function EntitiesPage() {
   // State for filters
   const [entityTypeFilter, setEntityTypeFilter] = useState<'all' | 'person' | 'vehicle'>('all');
-  const [timeRangeFilter, setTimeRangeFilter] = useState<TimeRangeFilter>('all');
   const [cameraFilter, setCameraFilter] = useState<string>('');
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>('both');
   const [sortOption, setSortOption] = useState<SortOption>('last_seen');
   const [showStats, setShowStats] = useState<boolean>(true);
   const [trustFilter, setTrustFilter] = useState<TrustFilter>('all');
 
-  // Custom date range state
-  const [customDateRange, setCustomDateRange] = useState<{ since?: Date; until?: Date }>({});
-  const [useCustomDateRange, setUseCustomDateRange] = useState<boolean>(false);
+  // Date range state with URL persistence
+  // Uses useDateRangeState hook for consistent date range management
+  const {
+    preset: timeRangePreset,
+    range: dateRange,
+    setPreset: setTimeRangePreset,
+    setCustomRange,
+    isCustom: useCustomDateRange,
+    presetLabel,
+    reset: resetDateRange,
+  } = useDateRangeState({
+    defaultPreset: 'all',
+    persistToUrl: true,
+    urlParam: 'timeRange',
+  });
 
   // State for entity detail modal
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
@@ -82,18 +90,18 @@ export default function EntitiesPage() {
   // Fetch cameras for the filter dropdown
   const { cameras, isLoading: camerasLoading } = useCamerasQuery();
 
-  // Compute effective date range (custom or preset)
+  // Compute effective date range from useDateRangeState hook
+  // The hook provides startDate/endDate, we convert to since/until for API compatibility
   const effectiveDateRange = useMemo(() => {
-    if (useCustomDateRange && (customDateRange.since || customDateRange.until)) {
-      return {
-        since: customDateRange.since?.toISOString(),
-        until: customDateRange.until?.toISOString(),
-      };
+    // For 'all' preset, return no date filtering
+    if (timeRangePreset === 'all') {
+      return { since: undefined, until: undefined };
     }
-    // Convert time range filter to ISO timestamp
-    const since = timeRangeToSince(timeRangeFilter);
-    return { since, until: undefined };
-  }, [useCustomDateRange, customDateRange, timeRangeFilter]);
+    return {
+      since: dateRange.startDate?.toISOString(),
+      until: dateRange.endDate?.toISOString(),
+    };
+  }, [timeRangePreset, dateRange]);
 
   // Build filters for the infinite query
   const filters: EntityFilters = useMemo(() => {
@@ -259,8 +267,8 @@ export default function EntitiesPage() {
     return counts;
   }, [sortedEntities, getEntityTrustStatus]);
 
-  // Time range options
-  const timeRangeOptions: { value: TimeRangeFilter; label: string }[] = [
+  // Time range options - using DateRangePreset type from useDateRangeState
+  const timeRangeOptions: { value: DateRangePreset; label: string }[] = [
     { value: 'all', label: 'All Time' },
     { value: '1h', label: 'Last 1h' },
     { value: '24h', label: 'Last 24h' },
@@ -358,14 +366,13 @@ export default function EntitiesPage() {
           </label>
           <select
             id="time-range-filter"
-            value={useCustomDateRange ? 'custom' : timeRangeFilter}
+            value={timeRangePreset}
             onChange={(e) => {
-              if (e.target.value === 'custom') {
-                setUseCustomDateRange(true);
-              } else {
-                setUseCustomDateRange(false);
-                setTimeRangeFilter(e.target.value as TimeRangeFilter);
+              const value = e.target.value as DateRangePreset;
+              if (value !== 'custom') {
+                setTimeRangePreset(value);
               }
+              // Note: 'custom' is handled via date picker inputs below
             }}
             className="rounded-lg border border-gray-700 bg-[#1F1F1F] px-3 py-2 text-sm text-white focus:border-[#76B900] focus:outline-none focus:ring-1 focus:ring-[#76B900]"
             aria-label="Filter by time range"
@@ -385,26 +392,22 @@ export default function EntitiesPage() {
             <Calendar className="h-4 w-4 text-gray-400" />
             <input
               type="date"
-              value={customDateRange.since?.toISOString().split('T')[0] ?? ''}
-              onChange={(e) =>
-                setCustomDateRange((prev) => ({
-                  ...prev,
-                  since: e.target.value ? new Date(e.target.value) : undefined,
-                }))
-              }
+              value={dateRange.startDate?.toISOString().split('T')[0] ?? ''}
+              onChange={(e) => {
+                const startDate = e.target.value ? new Date(e.target.value) : new Date();
+                setCustomRange(startDate, dateRange.endDate ?? new Date());
+              }}
               className="rounded-lg border border-gray-700 bg-[#1F1F1F] px-2 py-1.5 text-sm text-white focus:border-[#76B900] focus:outline-none"
               aria-label="Start date"
             />
             <span className="text-gray-400">to</span>
             <input
               type="date"
-              value={customDateRange.until?.toISOString().split('T')[0] ?? ''}
-              onChange={(e) =>
-                setCustomDateRange((prev) => ({
-                  ...prev,
-                  until: e.target.value ? new Date(e.target.value) : undefined,
-                }))
-              }
+              value={dateRange.endDate?.toISOString().split('T')[0] ?? ''}
+              onChange={(e) => {
+                const endDate = e.target.value ? new Date(e.target.value) : new Date();
+                setCustomRange(dateRange.startDate ?? new Date(), endDate);
+              }}
               className="rounded-lg border border-gray-700 bg-[#1F1F1F] px-2 py-1.5 text-sm text-white focus:border-[#76B900] focus:outline-none"
               aria-label="End date"
             />
@@ -553,9 +556,8 @@ export default function EntitiesPage() {
       ) : filteredByTrust.length === 0 ? (
         /* Empty state */
         entityTypeFilter === 'all' &&
-        timeRangeFilter === 'all' &&
+        timeRangePreset === 'all' &&
         !cameraFilter &&
-        !useCustomDateRange &&
         trustFilter === 'all' ? (
           <EntitiesEmptyState />
         ) : (
@@ -594,19 +596,16 @@ export default function EntitiesPage() {
                       : 'No entities have been tracked'}
                 {useCustomDateRange
                   ? ' in the selected date range'
-                  : timeRangeFilter !== 'all' &&
-                    ` in the last ${getTimeRangeLabel(timeRangeFilter)}`}
+                  : timeRangePreset !== 'all' && ` in the ${presetLabel.toLowerCase()}`}
                 {cameraFilter && ` on this camera`}.
               </p>
               <button
                 onClick={() => {
                   setEntityTypeFilter('all');
-                  setTimeRangeFilter('all');
+                  resetDateRange(); // Reset to default 'all' preset
                   setCameraFilter('');
                   setSourceFilter('both');
                   setTrustFilter('all');
-                  setUseCustomDateRange(false);
-                  setCustomDateRange({});
                 }}
                 className="mt-4 rounded-lg bg-gray-800 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"
               >
@@ -678,52 +677,5 @@ export default function EntitiesPage() {
   );
 }
 
-/**
- * Converts a time range filter to an ISO timestamp string.
- * Returns undefined for 'all' (no filtering).
- */
-function timeRangeToSince(timeRange: TimeRangeFilter | EntityTimeRangeFilter): string | undefined {
-  if (timeRange === 'all') {
-    return undefined;
-  }
-
-  const now = new Date();
-  let sinceDate: Date;
-
-  switch (timeRange) {
-    case '1h':
-      sinceDate = new Date(now.getTime() - 60 * 60 * 1000);
-      break;
-    case '24h':
-      sinceDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-      break;
-    case '7d':
-      sinceDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      break;
-    case '30d':
-      sinceDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      break;
-    default:
-      return undefined;
-  }
-
-  return sinceDate.toISOString();
-}
-
-/**
- * Helper to get a human-readable label for time range
- */
-function getTimeRangeLabel(timeRange: TimeRangeFilter): string {
-  switch (timeRange) {
-    case '1h':
-      return 'hour';
-    case '24h':
-      return '24 hours';
-    case '7d':
-      return '7 days';
-    case '30d':
-      return '30 days';
-    default:
-      return '';
-  }
-}
+// Note: The timeRangeToSince and getTimeRangeLabel helper functions have been
+// removed as their functionality is now provided by the useDateRangeState hook.

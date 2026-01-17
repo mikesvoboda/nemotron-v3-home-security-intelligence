@@ -1,5 +1,7 @@
 import { Calendar, Filter, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+
+import { useDateRangeState } from '../../hooks/useDateRangeState';
 
 export interface AuditFilterParams {
   action?: string;
@@ -17,7 +19,7 @@ export interface AuditFiltersProps {
   availableActors?: string[];
   className?: string;
   /** Controlled filter state from parent (e.g., stats card clicks) */
-  controlledFilters?: AuditFilterParams;
+  controlledFilters?: Omit<AuditFilterParams, 'startDate' | 'endDate'>;
 }
 
 const STATUS_OPTIONS = ['success', 'failure'];
@@ -45,8 +47,22 @@ export default function AuditFilters({
   className = '',
   controlledFilters,
 }: AuditFiltersProps) {
-  // State for filters - initialized from controlled filters if provided
-  const [filters, setFilters] = useState<AuditFilterParams>(controlledFilters ?? {});
+  // Date range state with URL persistence
+  const {
+    range: dateRange,
+    apiParams: dateRangeApiParams,
+    setCustomRange: setDateRangeCustom,
+    reset: resetDateRange,
+  } = useDateRangeState({
+    defaultPreset: 'all',
+    persistToUrl: true,
+    urlParam: 'auditDateRange',
+  });
+
+  // State for non-date filters - initialized from controlled filters if provided
+  const [filters, setFilters] = useState<Omit<AuditFilterParams, 'startDate' | 'endDate'>>(
+    controlledFilters ?? {}
+  );
   const [showFilters, setShowFilters] = useState(false);
 
   // Sync internal state when controlled filters change from parent
@@ -58,31 +74,58 @@ export default function AuditFilters({
         controlledFilters.action ||
         controlledFilters.resourceType ||
         controlledFilters.actor ||
-        controlledFilters.status ||
-        controlledFilters.startDate ||
-        controlledFilters.endDate;
+        controlledFilters.status;
       if (hasActiveFilters) {
         setShowFilters(true);
       }
     }
   }, [controlledFilters]);
 
-  // Notify parent when filters change
+  // Notify parent when filters change (including date range)
   useEffect(() => {
-    onFilterChange(filters);
-  }, [filters, onFilterChange]);
+    const fullFilters: AuditFilterParams = {
+      ...filters,
+      startDate: dateRangeApiParams.start_date || undefined,
+      endDate: dateRangeApiParams.end_date || undefined,
+    };
+    onFilterChange(fullFilters);
+  }, [filters, dateRangeApiParams, onFilterChange]);
 
-  // Handle filter changes
-  const handleFilterChange = (key: keyof AuditFilterParams, value: string) => {
+  // Handle non-date filter changes
+  const handleFilterChange = (key: keyof Omit<AuditFilterParams, 'startDate' | 'endDate'>, value: string) => {
     setFilters((prev) => ({
       ...prev,
       [key]: value === '' ? undefined : value,
     }));
   };
 
+  // Handle custom date range change
+  const handleStartDateChange = useCallback(
+    (value: string) => {
+      if (value) {
+        const startDate = new Date(value + 'T00:00:00');
+        const endDate = dateRange.endDate;
+        setDateRangeCustom(startDate, endDate);
+      }
+    },
+    [dateRange.endDate, setDateRangeCustom]
+  );
+
+  const handleEndDateChange = useCallback(
+    (value: string) => {
+      if (value) {
+        const startDate = dateRange.startDate;
+        const endDate = new Date(value + 'T23:59:59');
+        setDateRangeCustom(startDate, endDate);
+      }
+    },
+    [dateRange.startDate, setDateRangeCustom]
+  );
+
   // Clear all filters
   const handleClearFilters = () => {
     setFilters({});
+    resetDateRange();
   };
 
   // Check if any filters are active
@@ -91,8 +134,8 @@ export default function AuditFilters({
     filters.resourceType ||
     filters.actor ||
     filters.status ||
-    filters.startDate ||
-    filters.endDate;
+    dateRangeApiParams.start_date ||
+    dateRangeApiParams.end_date;
 
   return (
     <div className={`rounded-lg border border-gray-800 bg-[#1F1F1F] p-4 ${className}`}>
@@ -217,8 +260,8 @@ export default function AuditFilters({
               <input
                 id="start-date-filter"
                 type="date"
-                value={filters.startDate || ''}
-                onChange={(e) => handleFilterChange('startDate', e.target.value)}
+                value={dateRangeApiParams.start_date || ''}
+                onChange={(e) => handleStartDateChange(e.target.value)}
                 className="w-full rounded-md border border-gray-700 bg-[#1A1A1A] py-2 pl-10 pr-3 text-sm text-white focus:border-[#76B900] focus:outline-none focus:ring-1 focus:ring-[#76B900]"
               />
             </div>
@@ -237,8 +280,8 @@ export default function AuditFilters({
               <input
                 id="end-date-filter"
                 type="date"
-                value={filters.endDate || ''}
-                onChange={(e) => handleFilterChange('endDate', e.target.value)}
+                value={dateRangeApiParams.end_date || ''}
+                onChange={(e) => handleEndDateChange(e.target.value)}
                 className="w-full rounded-md border border-gray-700 bg-[#1A1A1A] py-2 pl-10 pr-3 text-sm text-white focus:border-[#76B900] focus:outline-none focus:ring-1 focus:ring-[#76B900]"
               />
             </div>

@@ -1,9 +1,10 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import AnalyticsPage from './AnalyticsPage';
 import * as api from '../../services/api';
+import { renderWithProviders } from '../../test-utils/renderWithProviders';
 
 // Mock the API module
 vi.mock('../../services/api', async () => {
@@ -20,6 +21,8 @@ vi.mock('../../services/api', async () => {
     updateAnomalyConfig: vi.fn(),
     fetchSceneChanges: vi.fn(),
     acknowledgeSceneChange: vi.fn(),
+    fetchDetectionTrends: vi.fn(),
+    fetchRiskHistory: vi.fn(),
   };
 });
 
@@ -124,6 +127,35 @@ describe('AnalyticsPage', () => {
     },
   };
 
+  const mockDetectionTrends = {
+    data_points: [
+      { date: '2026-01-10', count: 45 },
+      { date: '2026-01-11', count: 67 },
+      { date: '2026-01-12', count: 32 },
+      { date: '2026-01-13', count: 89 },
+      { date: '2026-01-14', count: 54 },
+      { date: '2026-01-15', count: 0 },
+      { date: '2026-01-16', count: 78 },
+    ],
+    total_detections: 365,
+    start_date: '2026-01-10',
+    end_date: '2026-01-16',
+  };
+
+  const mockRiskHistory = {
+    data_points: [
+      { date: '2026-01-10', low: 12, medium: 8, high: 3, critical: 1 },
+      { date: '2026-01-11', low: 15, medium: 10, high: 5, critical: 0 },
+      { date: '2026-01-12', low: 8, medium: 6, high: 2, critical: 2 },
+      { date: '2026-01-13', low: 20, medium: 12, high: 4, critical: 1 },
+      { date: '2026-01-14', low: 10, medium: 9, high: 3, critical: 0 },
+      { date: '2026-01-15', low: 5, medium: 3, high: 1, critical: 0 },
+      { date: '2026-01-16', low: 18, medium: 11, high: 6, critical: 2 },
+    ],
+    start_date: '2026-01-10',
+    end_date: '2026-01-16',
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
@@ -134,24 +166,26 @@ describe('AnalyticsPage', () => {
     vi.mocked(api.fetchDetectionStats).mockResolvedValue(mockDetectionStats);
     vi.mocked(api.fetchEvents).mockResolvedValue(mockEvents);
     vi.mocked(api.fetchSceneChanges).mockResolvedValue(mockSceneChanges);
+    vi.mocked(api.fetchDetectionTrends).mockResolvedValue(mockDetectionTrends);
+    vi.mocked(api.fetchRiskHistory).mockResolvedValue(mockRiskHistory);
   });
 
   it('renders the page header', () => {
-    render(<AnalyticsPage />);
+    renderWithProviders(<AnalyticsPage />);
 
     expect(screen.getByText('Analytics')).toBeInTheDocument();
     expect(screen.getByText(/View activity patterns/)).toBeInTheDocument();
   });
 
   it('shows loading state initially with skeleton loaders', () => {
-    render(<AnalyticsPage />);
+    renderWithProviders(<AnalyticsPage />);
 
     // Skeleton loaders display chart skeletons during loading
     expect(screen.getAllByTestId('chart-skeleton').length).toBeGreaterThan(0);
   });
 
   it('loads and displays camera selector with All Cameras default', async () => {
-    render(<AnalyticsPage />);
+    renderWithProviders(<AnalyticsPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('camera-selector')).toBeInTheDocument();
@@ -163,7 +197,7 @@ describe('AnalyticsPage', () => {
   });
 
   it('shows All Cameras option in dropdown', async () => {
-    render(<AnalyticsPage />);
+    renderWithProviders(<AnalyticsPage />);
 
     await waitFor(() => {
       expect(screen.getByText('All Cameras')).toBeInTheDocument();
@@ -171,7 +205,7 @@ describe('AnalyticsPage', () => {
   });
 
   it('fetches global stats when All Cameras is selected (default)', async () => {
-    render(<AnalyticsPage />);
+    renderWithProviders(<AnalyticsPage />);
 
     await waitFor(() => {
       // Should fetch global stats without camera_id filter
@@ -190,7 +224,7 @@ describe('AnalyticsPage', () => {
 
   it('fetches camera-specific data when a camera is selected', async () => {
     const user = userEvent.setup();
-    render(<AnalyticsPage />);
+    renderWithProviders(<AnalyticsPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('camera-selector')).toBeInTheDocument();
@@ -214,7 +248,7 @@ describe('AnalyticsPage', () => {
   });
 
   it('displays tab navigation after loading', async () => {
-    render(<AnalyticsPage />);
+    renderWithProviders(<AnalyticsPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('analytics-tab-overview')).toBeInTheDocument();
@@ -225,7 +259,7 @@ describe('AnalyticsPage', () => {
   });
 
   it('displays key metrics in overview tab', async () => {
-    render(<AnalyticsPage />);
+    renderWithProviders(<AnalyticsPage />);
 
     await waitFor(() => {
       expect(screen.getByText('Total Events')).toBeInTheDocument();
@@ -239,7 +273,7 @@ describe('AnalyticsPage', () => {
 
   it('displays activity heatmap in camera performance tab when camera is selected', async () => {
     const user = userEvent.setup();
-    render(<AnalyticsPage />);
+    renderWithProviders(<AnalyticsPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('analytics-tab-camera-performance')).toBeInTheDocument();
@@ -264,7 +298,7 @@ describe('AnalyticsPage', () => {
 
   it('shows learning status badge when camera is selected', async () => {
     const user = userEvent.setup();
-    render(<AnalyticsPage />);
+    renderWithProviders(<AnalyticsPage />);
 
     // Select a specific camera to see learning status
     await waitFor(() => {
@@ -280,7 +314,7 @@ describe('AnalyticsPage', () => {
 
   it('shows total samples count when camera is selected', async () => {
     const user = userEvent.setup();
-    render(<AnalyticsPage />);
+    renderWithProviders(<AnalyticsPage />);
 
     // Select a specific camera to see sample count
     await waitFor(() => {
@@ -296,7 +330,7 @@ describe('AnalyticsPage', () => {
 
   it('changes camera when selector changes', async () => {
     const user = userEvent.setup();
-    render(<AnalyticsPage />);
+    renderWithProviders(<AnalyticsPage />);
 
     // Wait for initial load with All Cameras
     await waitFor(() => {
@@ -333,7 +367,7 @@ describe('AnalyticsPage', () => {
     // Error in a required API call (anomaly config is always fetched)
     vi.mocked(api.fetchAnomalyConfig).mockRejectedValue(new Error('Network error'));
 
-    render(<AnalyticsPage />);
+    renderWithProviders(<AnalyticsPage />);
 
     await waitFor(() => {
       expect(screen.getByText('Failed to load analytics data')).toBeInTheDocument();
@@ -341,7 +375,7 @@ describe('AnalyticsPage', () => {
   });
 
   it('shows refresh button', async () => {
-    render(<AnalyticsPage />);
+    renderWithProviders(<AnalyticsPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('analytics-refresh-button')).toBeInTheDocument();
@@ -350,7 +384,7 @@ describe('AnalyticsPage', () => {
 
   it('refreshes data when refresh button is clicked', async () => {
     const user = userEvent.setup();
-    render(<AnalyticsPage />);
+    renderWithProviders(<AnalyticsPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('analytics-refresh-button')).toBeInTheDocument();
@@ -366,7 +400,7 @@ describe('AnalyticsPage', () => {
   });
 
   it('shows aggregate stats indicator when All Cameras is selected', async () => {
-    render(<AnalyticsPage />);
+    renderWithProviders(<AnalyticsPage />);
 
     await waitFor(() => {
       expect(screen.getByText('Showing aggregate stats across all cameras')).toBeInTheDocument();
@@ -375,7 +409,7 @@ describe('AnalyticsPage', () => {
 
   it('shows camera-specific empty state message in Camera Performance tab', async () => {
     const user = userEvent.setup();
-    render(<AnalyticsPage />);
+    renderWithProviders(<AnalyticsPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('analytics-tab-camera-performance')).toBeInTheDocument();
@@ -397,12 +431,343 @@ describe('AnalyticsPage', () => {
   it('still loads and shows stats when no cameras available', async () => {
     vi.mocked(api.fetchCameras).mockResolvedValue([]);
 
-    render(<AnalyticsPage />);
+    renderWithProviders(<AnalyticsPage />);
 
     // Should still show the stats (aggregate across no data)
     await waitFor(() => {
       expect(screen.getByText('Total Events')).toBeInTheDocument();
       expect(screen.getByText('All Cameras')).toBeInTheDocument();
+    });
+  });
+
+  describe('Detection Trends', () => {
+    it('fetches detection trends data on page load', async () => {
+      renderWithProviders(<AnalyticsPage />);
+
+      await waitFor(() => {
+        expect(api.fetchDetectionTrends).toHaveBeenCalled();
+      });
+    });
+
+    it('displays detection trend chart in overview tab', async () => {
+      renderWithProviders(<AnalyticsPage />);
+
+      await waitFor(() => {
+        // The card title should reflect the date range
+        expect(screen.getByText(/Detection Trend/)).toBeInTheDocument();
+      });
+    });
+
+    it('shows loading state for detection trends chart', async () => {
+      // Make fetchDetectionTrends hang to see loading state
+      vi.mocked(api.fetchDetectionTrends).mockReturnValue(new Promise(() => {}));
+
+      renderWithProviders(<AnalyticsPage />);
+
+      // During loading, we expect chart skeleton or loading indicator
+      // The chart will show "Loading trend data..." or similar
+      await waitFor(() => {
+        expect(screen.getByTestId('camera-selector')).toBeInTheDocument();
+      });
+    });
+
+    it('handles detection trends API error gracefully', async () => {
+      vi.mocked(api.fetchDetectionTrends).mockRejectedValue(new Error('Network error'));
+
+      renderWithProviders(<AnalyticsPage />);
+
+      // Page should still load, just without trends data
+      await waitFor(() => {
+        expect(screen.getByText('Total Events')).toBeInTheDocument();
+      });
+    });
+
+    it('shows empty state when no detection trend data available', async () => {
+      vi.mocked(api.fetchDetectionTrends).mockResolvedValue({
+        data_points: [],
+        total_detections: 0,
+        start_date: '2026-01-10',
+        end_date: '2026-01-16',
+      });
+
+      renderWithProviders(<AnalyticsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/No detection data available/)).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('Risk History Chart (NEM-2704)', () => {
+    it('fetches risk history data on page load', async () => {
+      renderWithProviders(<AnalyticsPage />);
+
+      await waitFor(() => {
+        expect(api.fetchRiskHistory).toHaveBeenCalled();
+      });
+    });
+
+    it('displays risk history chart card in risk analysis tab', async () => {
+      const user = userEvent.setup();
+      renderWithProviders(<AnalyticsPage />);
+
+      // Wait for page to load
+      await waitFor(() => {
+        expect(screen.getByTestId('analytics-tab-risk')).toBeInTheDocument();
+      });
+
+      // Click on Risk Analysis tab
+      await user.click(screen.getByTestId('analytics-tab-risk'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('risk-history-chart-card')).toBeInTheDocument();
+      });
+    });
+
+    it('displays risk level breakdown title with date range', async () => {
+      const user = userEvent.setup();
+      renderWithProviders(<AnalyticsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('analytics-tab-risk')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByTestId('analytics-tab-risk'));
+
+      await waitFor(() => {
+        expect(screen.getByText(/Risk Level Breakdown/)).toBeInTheDocument();
+      });
+    });
+
+    it('displays legend with all 4 risk levels', async () => {
+      const user = userEvent.setup();
+      renderWithProviders(<AnalyticsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('analytics-tab-risk')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByTestId('analytics-tab-risk'));
+
+      // Wait for the risk history data to load and legend to appear
+      await waitFor(
+        () => {
+          expect(screen.getByTestId('risk-history-legend')).toBeInTheDocument();
+        },
+        { timeout: 5000 }
+      );
+
+      // Check all labels within the legend element to avoid duplicate text issues
+      const legend = screen.getByTestId('risk-history-legend');
+      expect(within(legend).getByText('Critical (81+)')).toBeInTheDocument();
+      expect(within(legend).getByText('High (61-80)')).toBeInTheDocument();
+      expect(within(legend).getByText('Medium (31-60)')).toBeInTheDocument();
+      expect(within(legend).getByText('Low (0-30)')).toBeInTheDocument();
+    });
+
+    it('shows loading state for risk history chart', async () => {
+      // Make fetchRiskHistory hang to see loading state
+      vi.mocked(api.fetchRiskHistory).mockReturnValue(new Promise(() => {}));
+      const user = userEvent.setup();
+
+      renderWithProviders(<AnalyticsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('analytics-tab-risk')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByTestId('analytics-tab-risk'));
+
+      // Should show chart skeleton during loading
+      await waitFor(() => {
+        expect(screen.getByTestId('risk-history-chart-card')).toBeInTheDocument();
+      });
+    });
+
+    it('shows error state when risk history API fails', async () => {
+      vi.mocked(api.fetchRiskHistory).mockRejectedValue(new Error('Network error'));
+      const user = userEvent.setup();
+
+      renderWithProviders(<AnalyticsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('analytics-tab-risk')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByTestId('analytics-tab-risk'));
+
+      await waitFor(
+        () => {
+          expect(screen.getByText('Failed to load risk history data')).toBeInTheDocument();
+        },
+        { timeout: 5000 }
+      );
+    });
+
+    it('shows empty state when no risk history data available', async () => {
+      vi.mocked(api.fetchRiskHistory).mockResolvedValue({
+        data_points: [],
+        start_date: '2026-01-10',
+        end_date: '2026-01-16',
+      });
+      const user = userEvent.setup();
+
+      renderWithProviders(<AnalyticsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('analytics-tab-risk')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByTestId('analytics-tab-risk'));
+
+      await waitFor(() => {
+        expect(screen.getByText('No risk history data available')).toBeInTheDocument();
+      });
+    });
+
+    it('replaced mock event activity data with real risk history data', async () => {
+      const user = userEvent.setup();
+      renderWithProviders(<AnalyticsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('analytics-tab-risk')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByTestId('analytics-tab-risk'));
+
+      // The old "Event Activity Trend" title should be replaced with new title
+      await waitFor(() => {
+        expect(screen.queryByText('Event Activity Trend')).not.toBeInTheDocument();
+        expect(screen.getByText(/Risk Level Breakdown/)).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('Date Range Dropdown (NEM-2702)', () => {
+    it('renders date range dropdown in the header', async () => {
+      renderWithProviders(<AnalyticsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('date-range-dropdown')).toBeInTheDocument();
+      });
+    });
+
+    it('displays default preset label (Last 7 days)', async () => {
+      renderWithProviders(<AnalyticsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('date-range-dropdown')).toHaveTextContent('Last 7 days');
+      });
+    });
+
+    it('opens dropdown menu when clicked', async () => {
+      const user = userEvent.setup();
+      renderWithProviders(<AnalyticsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('date-range-dropdown')).toBeInTheDocument();
+      });
+
+      const dropdown = screen.getByTestId('date-range-dropdown');
+      await user.click(dropdown);
+
+      await waitFor(() => {
+        expect(screen.getByRole('menu')).toBeInTheDocument();
+      });
+    });
+
+    it('shows preset options in dropdown menu', async () => {
+      const user = userEvent.setup();
+      renderWithProviders(<AnalyticsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('date-range-dropdown')).toBeInTheDocument();
+      });
+
+      const dropdown = screen.getByTestId('date-range-dropdown');
+      await user.click(dropdown);
+
+      await waitFor(() => {
+        expect(screen.getByRole('menuitem', { name: /Last 7 days/ })).toBeInTheDocument();
+        expect(screen.getByRole('menuitem', { name: /Last 30 days/ })).toBeInTheDocument();
+        expect(screen.getByRole('menuitem', { name: /Last 90 days/ })).toBeInTheDocument();
+        expect(screen.getByRole('menuitem', { name: /Custom range/ })).toBeInTheDocument();
+      });
+    });
+
+    it('updates displayed label when preset is changed', async () => {
+      const user = userEvent.setup();
+      renderWithProviders(<AnalyticsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('date-range-dropdown')).toBeInTheDocument();
+      });
+
+      const dropdown = screen.getByTestId('date-range-dropdown');
+      await user.click(dropdown);
+
+      await waitFor(() => {
+        expect(screen.getByRole('menu')).toBeInTheDocument();
+      });
+
+      const thirtyDaysOption = screen.getByRole('menuitem', { name: /Last 30 days/ });
+      await user.click(thirtyDaysOption);
+
+      // Wait for menu to close and label to update
+      await waitFor(() => {
+        expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+      });
+    });
+
+    it('refetches data when date range changes', async () => {
+      const user = userEvent.setup();
+      renderWithProviders(<AnalyticsPage />);
+
+      // Wait for initial load
+      await waitFor(() => {
+        expect(screen.getByTestId('date-range-dropdown')).toBeInTheDocument();
+      });
+
+      // Clear mocks to track new calls
+      vi.clearAllMocks();
+      vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
+      vi.mocked(api.fetchAnomalyConfig).mockResolvedValue(mockAnomalyConfig);
+      vi.mocked(api.fetchEventStats).mockResolvedValue(mockEventStats);
+      vi.mocked(api.fetchDetectionStats).mockResolvedValue(mockDetectionStats);
+      vi.mocked(api.fetchEvents).mockResolvedValue(mockEvents);
+      vi.mocked(api.fetchDetectionTrends).mockResolvedValue(mockDetectionTrends);
+      vi.mocked(api.fetchRiskHistory).mockResolvedValue(mockRiskHistory);
+
+      const dropdown = screen.getByTestId('date-range-dropdown');
+      await user.click(dropdown);
+
+      await waitFor(() => {
+        expect(screen.getByRole('menu')).toBeInTheDocument();
+      });
+
+      const thirtyDaysOption = screen.getByRole('menuitem', { name: /Last 30 days/ });
+      await user.click(thirtyDaysOption);
+
+      // Should refetch with new date range
+      await waitFor(() => {
+        expect(api.fetchEventStats).toHaveBeenCalled();
+      });
+    });
+
+    it('dropdown is positioned next to Analytics title', async () => {
+      renderWithProviders(<AnalyticsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('date-range-dropdown')).toBeInTheDocument();
+      });
+
+      // The dropdown should be in the header (flex container with justify-between)
+      const dropdown = screen.getByTestId('date-range-dropdown');
+      const header = dropdown.closest('.flex.items-center.justify-between');
+      expect(header).toBeInTheDocument();
+
+      // And the Analytics title should be in the same flex container
+      expect(header).toContainElement(screen.getByText('Analytics'));
     });
   });
 });
