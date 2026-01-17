@@ -74,11 +74,30 @@ def mock_settings_with_api_key():
 
 @pytest.fixture
 def mock_db_session() -> AsyncMock:
-    """Create a mock database session."""
+    """Create a mock database session.
+
+    This fixture properly simulates flush() by assigning auto-incrementing IDs
+    to Detection and Event objects that were added via add().
+    """
     session = AsyncMock()
-    session.add = MagicMock()
+
+    # Track added objects for ID assignment on flush
+    added_objects: list = []
+    id_counter = {"value": 1}
+
+    def mock_add(obj):
+        added_objects.append(obj)
+
+    async def mock_flush():
+        # Assign IDs to objects that don't have them yet
+        for obj in added_objects:
+            if hasattr(obj, "id") and obj.id is None:
+                obj.id = id_counter["value"]
+                id_counter["value"] += 1
+
+    session.add = MagicMock(side_effect=mock_add)
     session.commit = AsyncMock()
-    session.flush = AsyncMock()
+    session.flush = AsyncMock(side_effect=mock_flush)
     session.refresh = AsyncMock()
     session.delete = AsyncMock()
     session.execute = AsyncMock()
