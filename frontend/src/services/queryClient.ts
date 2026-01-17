@@ -608,9 +608,34 @@ export const queryKeys = {
     objectDistribution: (params: { startDate: string; endDate: string }) =>
       [...queryKeys.analytics.all, 'objectDistribution', params] as const,
   },
-} as const;
 
-// ============================================================================
+  /**
+   * Background job query keys
+   */
+  jobs: {
+    /** Base key for all job queries - use for bulk invalidation */
+    all: ['jobs'] as const,
+    /** Job list with filters */
+    list: (filters?: { job_type?: string; status?: string }) =>
+      filters
+        ? ([...queryKeys.jobs.all, 'list', filters] as const)
+        : ([...queryKeys.jobs.all, 'list'] as const),
+    /** Single job by ID */
+    detail: (id: string) => [...queryKeys.jobs.all, 'detail', id] as const,
+    /** Job logs */
+    logs: (id: string, params?: { limit?: number; offset?: number; level?: string }) =>
+      params
+        ? ([...queryKeys.jobs.all, 'logs', id, params] as const)
+        : ([...queryKeys.jobs.all, 'logs', id] as const),
+    /** Job history (transitions and attempts) */
+    history: (id: string) => [...queryKeys.jobs.all, 'history', id] as const,
+    /** Job search results */
+    search: (params?: { q?: string; status?: string; type?: string }) =>
+      params
+        ? ([...queryKeys.jobs.all, 'search', params] as const)
+        : ([...queryKeys.jobs.all, 'search'] as const),
+  },
+} as const;
 // QueryClient Factory
 // ============================================================================
 

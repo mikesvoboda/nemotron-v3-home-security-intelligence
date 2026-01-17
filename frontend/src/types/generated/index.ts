@@ -158,6 +158,16 @@ export type OrphanedFileCleanupResponse = components['schemas']['OrphanedFileCle
 export type JobResponse = components['schemas']['JobResponse'];
 export type JobListResponse = components['schemas']['JobListResponse'];
 export type JobStatusEnum = components['schemas']['JobStatusEnum'];
+export type JobLogsResponse = components['schemas']['JobLogsResponse'];
+export type JobLogEntryResponse = components['schemas']['JobLogEntryResponse'];
+export type JobDetailResponse = components['schemas']['JobDetailResponse'];
+export type JobSearchResponse = components['schemas']['JobSearchResponse'];
+export type JobSearchAggregations = components['schemas']['JobSearchAggregations'];
+export type JobHistoryResponse = components['schemas']['JobHistoryResponse'];
+export type JobTransitionResponse = components['schemas']['JobTransitionResponse'];
+export type JobAttemptResponse = components['schemas']['JobAttemptResponse'];
+export type JobCancelResponse = components['schemas']['JobCancelResponse'];
+export type JobAbortResponse = components['schemas']['JobAbortResponse'];
 
 // Validation error type
 export type HTTPValidationError = components['schemas']['HTTPValidationError'];
