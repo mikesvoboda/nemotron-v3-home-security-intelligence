@@ -131,7 +131,6 @@ async def test_event(isolated_db_session, test_camera):
         started_at=_utcnow(),
         risk_score=80,
         risk_level="high",
-        detection_ids=None,
     )
     isolated_db_session.add(event)
     await isolated_db_session.flush()
@@ -1204,7 +1203,7 @@ class TestLoadDetections:
         test_detections,
         engine_test_prefix,
     ):
-        """Test that detections are loaded from event.detection_ids."""
+        """Test that detections are loaded from event via junction table."""
         rule = AlertRule(
             name=f"Auto Load Detections Rule {engine_test_prefix}",
             enabled=True,
@@ -1215,7 +1214,7 @@ class TestLoadDetections:
         await isolated_db_session.flush()
 
         alert_engine.set_test_rules([rule])
-        # Don't pass detections - should load from event.detection_ids
+        # Don't pass detections - should load from event's detections relationship
         result = await alert_engine.evaluate_event(test_event_with_detections)
 
         assert result.has_triggers is True
@@ -1224,8 +1223,8 @@ class TestLoadDetections:
     async def test_load_detections_empty_detection_ids(
         self, isolated_db_session, alert_engine, test_event, engine_test_prefix
     ):
-        """Test handling of empty detection_ids."""
-        # test_event has detection_ids=None
+        """Test handling of event with no linked detections."""
+        # test_event has no detections linked via junction table
         rule = AlertRule(
             name=f"Empty Detections Rule {engine_test_prefix}",
             enabled=True,
@@ -1239,36 +1238,6 @@ class TestLoadDetections:
         result = await alert_engine.evaluate_event(test_event)
 
         # Should not match because no detections
-        assert result.has_triggers is False
-
-    @pytest.mark.asyncio
-    async def test_load_detections_invalid_json(
-        self, isolated_db_session, alert_engine, test_camera, engine_test_prefix
-    ):
-        """Test handling of invalid JSON in detection_ids."""
-        event = Event(
-            batch_id=unique_id("batch"),
-            camera_id=test_camera.id,
-            started_at=_utcnow(),
-            risk_score=50,
-            detection_ids="not valid json",
-        )
-        isolated_db_session.add(event)
-        await isolated_db_session.flush()
-
-        rule = AlertRule(
-            name=f"Invalid JSON Rule {engine_test_prefix}",
-            enabled=True,
-            severity=AlertSeverity.LOW,
-            object_types=["person"],
-        )
-        isolated_db_session.add(rule)
-        await isolated_db_session.flush()
-
-        alert_engine.set_test_rules([rule])
-        result = await alert_engine.evaluate_event(event)
-
-        # Should not crash, just return empty detections
         assert result.has_triggers is False
 
 
