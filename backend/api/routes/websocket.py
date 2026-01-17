@@ -470,7 +470,7 @@ async def websocket_events_endpoint(  # noqa: PLR0912
         # Clear connection_id context (NEM-1640)
         set_connection_id(None)
         logger.info(
-            "WebSocket connection cleaned up",
+            "WebSocket connection cleaned up for /ws/events",
             extra={"connection_id": connection_id},
         )
 
@@ -685,6 +685,261 @@ async def websocket_system_status(  # noqa: PLR0912
         # Clear connection_id context (NEM-1640)
         set_connection_id(None)
         logger.info(
-            "WebSocket connection cleaned up",
+            "WebSocket connection cleaned up for /ws/system",
             extra={"connection_id": connection_id},
+        )
+
+
+@router.websocket("/ws/jobs/{job_id}/logs")
+async def websocket_job_logs(  # noqa: PLR0912
+    websocket: WebSocket,
+    job_id: str,
+    redis: RedisClient = Depends(get_redis),
+    _token_valid: bool = Depends(validate_websocket_token),
+) -> None:
+    """WebSocket endpoint for real-time job log streaming.
+
+    Streams log entries for an active job (processing/pending) in real-time.
+    Implements NEM-2711 requirements.
+
+    Authentication:
+        Two authentication methods are available (both optional, can be used together):
+
+        1. API Key Authentication (when api_key_enabled=true):
+           - Query parameter: ws://host/ws/jobs/{job_id}/logs?api_key=YOUR_KEY
+           - Sec-WebSocket-Protocol header: "api-key.YOUR_KEY"
+
+        2. Token Authentication (when WEBSOCKET_TOKEN is configured):
+           - Query parameter: ws://host/ws/jobs/{job_id}/logs?token=YOUR_TOKEN
+
+    Message format:
+    ```json
+    {
+        "type": "log",
+        "data": {
+            "timestamp": "2026-01-17T10:32:05Z",
+            "level": "INFO",
+            "message": "Processing batch 2/3",
+            "context": {"batch_id": "abc123"}
+        }
+    }
+    ```
+
+    Args:
+        websocket: WebSocket connection
+        job_id: The job ID to stream logs for
+        redis: Redis client for rate limiting and pub/sub
+
+    Notes:
+        - Logs are streamed as they are generated
+        - Connection closes when job completes or fails
+        - Server sends periodic ping messages (heartbeat)
+        - Client should respond with pong to keep connection alive
+
+    Example JavaScript client:
+        ```javascript
+        const ws = new WebSocket(`ws://localhost:8000/ws/jobs/${jobId}/logs`);
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.type === 'log') {
+                console.log(`[${data.data.level}] ${data.data.message}`);
+            }
+        };
+        ```
+    """
+    # Check rate limit before accepting connection
+    if not await check_websocket_rate_limit(websocket, redis):
+        logger.warning(
+            "WebSocket connection rejected: rate limit exceeded for /ws/jobs/logs",
+            extra={"job_id": job_id},
+        )
+        await websocket.close(code=1008)  # Policy Violation
+        return
+
+    # Authenticate WebSocket connection before accepting
+    if not await authenticate_websocket(websocket):
+        logger.warning(
+            "WebSocket connection rejected: authentication failed for /ws/jobs/logs",
+            extra={"job_id": job_id},
+        )
+        return
+
+    settings = get_settings()
+    idle_timeout = settings.websocket_idle_timeout_seconds
+    heartbeat_interval = settings.websocket_ping_interval_seconds
+
+    # Generate a unique connection ID for tracking this WebSocket session
+    connection_id = f"ws-job-logs-{job_id[:8]}-{uuid.uuid4().hex[:8]}"
+    set_connection_id(connection_id)
+
+    # Event to signal heartbeat task to stop
+    heartbeat_stop = asyncio.Event()
+    heartbeat_task: asyncio.Task[None] | None = None
+
+    # Redis pub/sub for job logs channel
+    log_channel = f"job:{job_id}:logs"
+    pubsub = None
+    log_listener_task: asyncio.Task[None] | None = None
+
+    try:
+        # Accept the WebSocket connection
+        await websocket.accept()
+        logger.info(
+            "WebSocket client connected to /ws/jobs/{job_id}/logs",
+            extra={"connection_id": connection_id, "job_id": job_id},
+        )
+
+        # Start server-initiated heartbeat task
+        heartbeat_task = asyncio.create_task(
+            send_heartbeat(websocket, heartbeat_interval, heartbeat_stop)
+        )
+
+        # Subscribe to job logs channel via Redis pub/sub
+        # Use create_pubsub() to get a dedicated connection for this WebSocket
+        pubsub = redis.create_pubsub()
+        await pubsub.subscribe(log_channel)
+        logger.debug(
+            f"Subscribed to job logs channel: {log_channel}",
+            extra={"connection_id": connection_id, "job_id": job_id},
+        )
+
+        async def listen_for_logs() -> None:
+            """Listen for log messages from Redis pub/sub and forward to WebSocket."""
+            try:
+                async for message in pubsub.listen():
+                    if message["type"] == "message":
+                        # Forward log message to WebSocket
+                        log_data = message["data"]
+                        if isinstance(log_data, bytes):
+                            log_data = log_data.decode("utf-8")
+
+                        # Send as a log message
+                        if websocket.client_state == WebSocketState.CONNECTED:
+                            await websocket.send_text(log_data)
+                        else:
+                            break
+            except asyncio.CancelledError:
+                # Task was cancelled, normal cleanup
+                pass
+            except Exception as e:
+                logger.debug(
+                    f"Log listener stopped: {e}",
+                    extra={"connection_id": connection_id, "job_id": job_id},
+                )
+
+        # Start listening for logs in background
+        log_listener_task = asyncio.create_task(listen_for_logs())
+
+        # Keep connection alive and handle messages
+        while True:
+            try:
+                # Wait for any message from the client with idle timeout
+                data = await asyncio.wait_for(
+                    websocket.receive_text(),
+                    timeout=idle_timeout,
+                )
+                logger.debug(f"Received message from WebSocket client: {data}")
+
+                # Support legacy plain "ping" string for backward compatibility
+                if data == "ping":
+                    await websocket.send_text('{"type":"pong"}')
+                    continue
+
+                # Validate and handle JSON messages
+                message = await validate_websocket_message(websocket, data)
+                if message is not None:
+                    await handle_validated_message(websocket, message, connection_id)
+
+            except TimeoutError:
+                logger.info(
+                    f"WebSocket idle timeout ({idle_timeout}s) - closing connection",
+                    extra={"connection_id": connection_id, "timeout_seconds": idle_timeout},
+                )
+                await websocket.close(code=1000, reason="Idle timeout")
+                break
+            except WebSocketDisconnect as e:
+                logger.info(
+                    f"WebSocket client disconnected normally (code={e.code})",
+                    extra={
+                        "connection_id": connection_id,
+                        "job_id": job_id,
+                        "disconnect_code": e.code,
+                        "disconnect_reason": getattr(e, "reason", None),
+                    },
+                )
+                break
+            except Exception:
+                # Check if the connection is still open
+                if websocket.client_state == WebSocketState.DISCONNECTED:
+                    logger.info(
+                        "WebSocket client disconnected unexpectedly",
+                        extra={"connection_id": connection_id, "job_id": job_id},
+                    )
+                    break
+                logger.error(
+                    "Error receiving WebSocket message",
+                    exc_info=True,
+                    extra={"connection_id": connection_id, "job_id": job_id},
+                )
+                # Attempt graceful close before breaking
+                try:
+                    if websocket.client_state == WebSocketState.CONNECTED:
+                        await websocket.close(code=1011, reason="Internal error")
+                except Exception:
+                    logger.debug(
+                        "Failed to close WebSocket gracefully (connection already broken)",
+                        extra={"connection_id": connection_id, "job_id": job_id},
+                    )
+                break
+
+    except WebSocketDisconnect as e:
+        logger.info(
+            f"WebSocket client disconnected during handshake (code={e.code})",
+            extra={
+                "connection_id": connection_id,
+                "job_id": job_id,
+                "disconnect_code": e.code,
+                "disconnect_reason": getattr(e, "reason", None),
+            },
+        )
+    except Exception:
+        logger.error(
+            "WebSocket error",
+            exc_info=True,
+            extra={"connection_id": connection_id, "job_id": job_id},
+        )
+    finally:
+        # Stop heartbeat task
+        heartbeat_stop.set()
+        if heartbeat_task is not None:
+            heartbeat_task.cancel()
+            try:
+                await heartbeat_task
+            except asyncio.CancelledError:
+                pass
+
+        # Stop log listener task
+        if log_listener_task is not None:
+            log_listener_task.cancel()
+            try:
+                await log_listener_task
+            except asyncio.CancelledError:
+                pass
+
+        # Unsubscribe from Redis pub/sub
+        if pubsub is not None:
+            try:
+                await pubsub.unsubscribe(log_channel)
+                await pubsub.close()
+            except Exception:
+                logger.debug(
+                    "Error closing Redis pub/sub",
+                    extra={"connection_id": connection_id, "job_id": job_id},
+                )
+
+        # Clear connection_id context
+        set_connection_id(None)
+        logger.info(
+            "WebSocket job logs connection cleaned up",
+            extra={"connection_id": connection_id, "job_id": job_id},
         )

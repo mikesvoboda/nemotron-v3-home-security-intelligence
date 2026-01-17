@@ -214,6 +214,15 @@ import type {
   JobResponse,
   JobListResponse,
   JobStatusEnum,
+  JobLogsResponse,
+  JobLogEntryResponse,
+  JobDetailResponse,
+  JobHistoryResponse,
+  JobTransitionResponse,
+  JobSearchResponse,
+  JobSearchAggregations,
+  JobCancelResponse,
+  JobAbortResponse,
   CleanupStatusResponse,
   OrphanedFileCleanupResponse,
   EventFeedbackCreate,
@@ -244,6 +253,15 @@ export type {
   JobResponse,
   JobListResponse,
   JobStatusEnum,
+  JobLogsResponse,
+  JobLogEntryResponse,
+  JobDetailResponse,
+  JobHistoryResponse,
+  JobTransitionResponse,
+  JobSearchResponse,
+  JobSearchAggregations,
+  JobCancelResponse,
+  JobAbortResponse,
   CleanupStatusResponse,
   OrphanedFileCleanupResponse,
 };
@@ -2898,6 +2916,161 @@ export async function fetchJobs(params?: JobsQueryParams): Promise<JobListRespon
  */
 export async function fetchJob(jobId: string): Promise<JobResponse> {
   return fetchApi<JobResponse>(`/api/jobs/${jobId}`);
+}
+
+/**
+ * Query parameters for fetching job logs.
+ */
+export interface JobLogsQueryParams {
+  /** Maximum number of logs to return (default 100) */
+  limit?: number;
+  /** Number of logs to skip (default 0) */
+  offset?: number;
+  /** Filter by log level (DEBUG, INFO, WARN, ERROR) */
+  level?: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
+}
+
+/**
+ * Fetch logs for a specific job by ID.
+ *
+ * @param jobId - The job ID to fetch logs for
+ * @param params - Optional query parameters for filtering logs
+ * @returns JobLogsResponse with log entries
+ */
+export async function fetchJobLogs(
+  jobId: string,
+  params?: JobLogsQueryParams
+): Promise<JobLogsResponse> {
+  const queryParams = new URLSearchParams();
+  if (params?.limit !== undefined) queryParams.append('limit', String(params.limit));
+  if (params?.offset !== undefined) queryParams.append('offset', String(params.offset));
+  if (params?.level) queryParams.append('level', params.level);
+
+  const queryString = queryParams.toString();
+  const url = queryString ? `/api/jobs/${jobId}/logs?${queryString}` : `/api/jobs/${jobId}/logs`;
+  return fetchApi<JobLogsResponse>(url);
+}
+
+/**
+ * Fetch detailed job information by ID.
+ *
+ * @param jobId - The job ID to fetch
+ * @returns JobDetailResponse with full job details including retry info and timing
+ */
+export async function fetchJobDetail(jobId: string): Promise<JobDetailResponse> {
+  return fetchApi<JobDetailResponse>(`/api/jobs/${jobId}/detail`);
+}
+
+/**
+ * Fetch job history including state transitions.
+ *
+ * @param jobId - The job ID to fetch history for
+ * @returns JobHistoryResponse with transitions and attempts
+ */
+export async function fetchJobHistory(jobId: string): Promise<JobHistoryResponse> {
+  return fetchApi<JobHistoryResponse>(`/api/jobs/${jobId}/history`);
+}
+
+/**
+ * Query parameters for job search endpoint.
+ */
+export interface JobsSearchQueryParams {
+  /** Search query text */
+  q?: string;
+  /** Filter by job status */
+  status?: JobStatusEnum;
+  /** Filter by job type (e.g., 'export', 'batch_audit', 'cleanup', 're_evaluation') */
+  type?: string;
+  /** Maximum number of jobs to return (default 50) */
+  limit?: number;
+  /** Number of jobs to skip (default 0) */
+  offset?: number;
+}
+
+/**
+ * Search jobs with optional filters.
+ *
+ * This endpoint provides advanced search functionality with aggregations
+ * for faceted filtering. Supports text search across job fields, status
+ * filtering, and type filtering.
+ *
+ * @param params - Search query parameters
+ * @returns JobSearchResponse with jobs, pagination meta, and aggregations
+ */
+export async function searchJobs(params?: JobsSearchQueryParams): Promise<JobSearchResponse> {
+  const queryParams = new URLSearchParams();
+  if (params?.q) queryParams.append('q', params.q);
+  if (params?.status) queryParams.append('status', params.status);
+  if (params?.type) queryParams.append('type', params.type);
+  if (params?.limit !== undefined) queryParams.append('limit', String(params.limit));
+  if (params?.offset !== undefined) queryParams.append('offset', String(params.offset));
+
+  const queryString = queryParams.toString();
+  const url = queryString ? `/api/jobs/search?${queryString}` : '/api/jobs/search';
+  return fetchApi<JobSearchResponse>(url);
+}
+
+/**
+ * Cancel a job (graceful cancellation).
+ *
+ * Requests graceful cancellation of a pending or running job.
+ * Jobs that are already completed or failed cannot be cancelled.
+ *
+ * @param jobId - The job ID to cancel
+ * @returns JobCancelResponse with cancellation status
+ */
+export async function cancelJob(jobId: string): Promise<JobCancelResponse> {
+  return fetchApi<JobCancelResponse>(`/api/jobs/${jobId}/cancel`, {
+    method: 'POST',
+  });
+}
+
+/**
+ * Abort a running job (force stop).
+ *
+ * Forces immediate termination of a running job by sending abort signal
+ * to the worker. Only jobs with status 'running' can be aborted.
+ * For queued jobs, use cancelJob instead.
+ *
+ * WARNING: Force abort may cause data inconsistency. Use with caution.
+ *
+ * @param jobId - The job ID to abort
+ * @returns JobAbortResponse with abort status
+ */
+export async function abortJob(jobId: string): Promise<JobAbortResponse> {
+  return fetchApi<JobAbortResponse>(`/api/jobs/${jobId}/abort`, {
+    method: 'POST',
+  });
+}
+
+/**
+ * Retry a failed or cancelled job.
+ *
+ * Creates a new job with the same parameters as the original failed job.
+ * Only jobs with status 'failed' or 'cancelled' can be retried.
+ *
+ * @param jobId - The job ID to retry
+ * @returns JobResponse with the new job details
+ */
+export async function retryJob(jobId: string): Promise<JobResponse> {
+  return fetchApi<JobResponse>(`/api/jobs/${jobId}/retry`, {
+    method: 'POST',
+  });
+}
+
+/**
+ * Delete a job record.
+ *
+ * Permanently removes a job record from the database.
+ * Jobs that are currently running cannot be deleted - cancel or abort first.
+ *
+ * @param jobId - The job ID to delete
+ * @returns JobCancelResponse with deletion status
+ */
+export async function deleteJob(jobId: string): Promise<JobCancelResponse> {
+  return fetchApi<JobCancelResponse>(`/api/jobs/${jobId}`, {
+    method: 'DELETE',
+  });
 }
 
 // ============================================================================

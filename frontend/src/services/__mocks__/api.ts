@@ -1120,3 +1120,15 @@ export const testAlertRule = vi.fn().mockResolvedValue({ success: true });
 
 // Media URL endpoints
 export const getDetectionVideoThumbnailUrl = vi.fn().mockReturnValue('');
+
+// Job endpoints
+export const fetchJobs = vi.fn().mockResolvedValue({
+  items: [],
+  pagination: { total: 0, limit: 50, offset: 0, has_more: false },
+});
+export const fetchJob = vi.fn().mockResolvedValue({});
+export const searchJobs = vi.fn().mockResolvedValue({
+  data: [],
+  meta: { total: 0, limit: 50, offset: 0, has_more: false },
+  aggregations: { by_status: {}, by_type: {} },
+});

@@ -348,3 +348,35 @@ export type {
   DateRangeApiParams,
   UseDateRangeStateReturn,
 } from './useDateRangeState';
+
+// Job mutation hooks (NEM-2712)
+export { useJobMutations, default as useJobMutationsDefault } from './useJobMutations';
+export type { UseJobMutationsOptions, UseJobMutationsReturn } from './useJobMutations';
+
+// Job logs query hooks (NEM-2710)
+export { useJobLogsQuery, jobLogsQueryKeys } from './useJobLogsQuery';
+export type {
+  UseJobLogsQueryOptions,
+  UseJobLogsQueryReturn,
+} from './useJobLogsQuery';
+
+// Job logs WebSocket hooks (NEM-2711)
+export { useJobLogsWebSocket, default as useJobLogsWebSocketDefault } from './useJobLogsWebSocket';
+export type {
+  UseJobLogsWebSocketOptions,
+  UseJobLogsWebSocketReturn,
+} from './useJobLogsWebSocket';
+
+// Job history query hooks (NEM-2713)
+export { useJobHistoryQuery, jobHistoryQueryKeys } from './useJobHistoryQuery';
+export type {
+  UseJobHistoryQueryOptions,
+  UseJobHistoryQueryReturn,
+} from './useJobHistoryQuery';
+
+// Jobs search query hooks (NEM-2709)
+export { useJobsSearchQuery, jobsSearchQueryKeys } from './useJobsSearchQuery';
+export type {
+  UseJobsSearchQueryOptions,
+  UseJobsSearchQueryReturn,
+} from './useJobsSearchQuery';
