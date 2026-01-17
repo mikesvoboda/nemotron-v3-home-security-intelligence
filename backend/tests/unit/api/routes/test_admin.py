@@ -566,12 +566,18 @@ class TestSeedEventsEndpoint:
         mock_camera_scalars.all.return_value = [mock_camera]
         mock_camera_result.scalars.return_value = mock_camera_scalars
 
+        # Junction table inserts (line 553) - one per detection per event
+        # With count=2 and randint returning min value (1 detection per event), need 2 more
+        mock_junction_insert = MagicMock()
+
         mock_db.execute.side_effect = [
             mock_events_result,
             mock_detections_result,
             mock_delete_event,
             mock_delete_detection,
             mock_camera_result,
+            mock_junction_insert,  # Event 1 detection junction
+            mock_junction_insert,  # Event 2 detection junction
         ]
 
         with patch("backend.api.routes.admin.random") as mock_random:
