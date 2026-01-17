@@ -550,6 +550,112 @@ class TestEventCount:
         usage = cost_tracker.get_daily_usage()
         assert usage.event_count == 6
 
+    def test_increment_event_count_updates_cost_per_event_metric(
+        self, cost_tracker, mock_metrics_service
+    ):
+        """Test incrementing event count updates cost per event metric."""
+        # First track some cost
+        cost_tracker.track_llm_usage(
+            input_tokens=1000,
+            output_tokens=500,
+            model="nemotron",
+            duration_seconds=1.0,
+        )
+
+        # Then increment event count
+        cost_tracker.increment_event_count(2)
+
+        # Verify set_cost_per_event was called
+        mock_metrics_service.set_cost_per_event.assert_called()
+
+
+class TestCostEfficiencyMetrics:
+    """Tests for cost efficiency metrics (cost per detection/event)."""
+
+    def test_track_detection_updates_cost_per_detection(self, cost_tracker, mock_metrics_service):
+        """Test detection tracking updates cost per detection metric."""
+        cost_tracker.track_detection_usage(
+            model="rtdetr",
+            duration_seconds=0.15,
+            images_processed=5,
+        )
+
+        # Verify set_cost_per_detection was called
+        mock_metrics_service.set_cost_per_detection.assert_called()
+
+    def test_track_llm_usage_updates_cost_per_detection(self, cost_tracker, mock_metrics_service):
+        """Test LLM usage tracking updates cost per detection when detections exist."""
+        # First track some detections
+        cost_tracker.track_detection_usage(
+            model="rtdetr",
+            duration_seconds=0.15,
+            images_processed=10,
+        )
+
+        # Then track LLM usage
+        cost_tracker.track_llm_usage(
+            input_tokens=1000,
+            output_tokens=500,
+            model="nemotron",
+            duration_seconds=1.0,
+        )
+
+        # Verify set_cost_per_detection was called at least twice
+        assert mock_metrics_service.set_cost_per_detection.call_count >= 2
+
+    def test_cost_per_event_calculated_correctly(self, mock_metrics_service):
+        """Test cost per event is calculated correctly."""
+        tracker = CostTracker()
+
+        # Track some cost
+        tracker.track_llm_usage(
+            input_tokens=1000,
+            output_tokens=500,
+            model="nemotron",
+            duration_seconds=1.0,
+        )
+
+        # Get the cost
+        usage = tracker.get_daily_usage()
+        total_cost = usage.total_estimated_cost_usd
+
+        # Increment events
+        tracker.increment_event_count(4)
+
+        # Check the last call to set_cost_per_event
+        call_args = mock_metrics_service.set_cost_per_event.call_args
+        if call_args:
+            cost_per_event = call_args[0][0]
+            expected_cost_per_event = total_cost / 4
+            assert abs(cost_per_event - expected_cost_per_event) < 0.0001
+
+    def test_cost_per_detection_not_set_when_no_detections(
+        self, cost_tracker, mock_metrics_service
+    ):
+        """Test cost per detection is not set when no detections exist."""
+        # Only track LLM usage (no detections)
+        cost_tracker.track_llm_usage(
+            input_tokens=1000,
+            output_tokens=500,
+            model="nemotron",
+            duration_seconds=1.0,
+        )
+
+        # set_cost_per_detection should not be called since there are no detections
+        mock_metrics_service.set_cost_per_detection.assert_not_called()
+
+    def test_cost_per_event_not_set_when_no_events(self, cost_tracker, mock_metrics_service):
+        """Test cost per event is not set when no events exist."""
+        # Only track detection usage (no events)
+        cost_tracker.track_detection_usage(
+            model="rtdetr",
+            duration_seconds=0.15,
+            images_processed=5,
+        )
+
+        # set_cost_per_event should not be called since there are no events
+        mock_metrics_service.set_cost_per_event.assert_not_called()
+
 
 # =============================================================================
 # Redis Persistence Tests

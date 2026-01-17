@@ -494,8 +494,8 @@ describe('initRUM', () => {
 
 describe('WebVitalMetric type', () => {
   it('supports all Core Web Vital names', () => {
-    const names: WebVitalName[] = ['LCP', 'FID', 'INP', 'CLS', 'TTFB', 'FCP'];
-    expect(names.length).toBe(6);
+    const names: WebVitalName[] = ['LCP', 'FID', 'INP', 'CLS', 'TTFB', 'FCP', 'PAGE_LOAD_TIME'];
+    expect(names.length).toBe(7);
   });
 
   it('supports all rating values', () => {
@@ -505,6 +505,64 @@ describe('WebVitalMetric type', () => {
       'poor',
     ];
     expect(ratings.length).toBe(3);
+  });
+});
+
+describe('PAGE_LOAD_TIME metric', () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ success: true, metrics_count: 1 }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    // Suppress console output during tests
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it('queues PAGE_LOAD_TIME metric', () => {
+    const rum = new RUM({ enabled: true, batchSize: 100 });
+    rum.reportMetric({
+      name: 'PAGE_LOAD_TIME',
+      value: 2500,
+      rating: 'good',
+      delta: 2500,
+      id: 'plt-123',
+    } as WebVitalMetric);
+    expect(rum.getQueueSize()).toBe(1);
+    rum.destroy();
+  });
+
+  it('PAGE_LOAD_TIME rating thresholds work correctly', async () => {
+    const rum = new RUM({ enabled: true, batchSize: 1 });
+
+    // Good: < 3000ms
+    rum.reportMetric({
+      name: 'PAGE_LOAD_TIME',
+      value: 2500,
+      rating: 'good',
+      delta: 2500,
+      id: 'plt-1',
+    } as WebVitalMetric);
+
+    // Wait for async flush
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    expect(fetchMock).toHaveBeenCalled();
+    const [, options] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(options.body as string) as { metrics: Array<{ name: string }> };
+    expect(body.metrics[0].name).toBe('PAGE_LOAD_TIME');
+
+    rum.destroy();
   });
 });
 

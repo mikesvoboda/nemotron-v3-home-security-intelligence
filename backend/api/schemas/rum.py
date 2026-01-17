@@ -11,6 +11,7 @@ Core Web Vitals metrics:
 - CLS (Cumulative Layout Shift): Visual stability
 - TTFB (Time to First Byte): Server response time
 - FCP (First Contentful Paint): First content render
+- PAGE_LOAD_TIME: Full page load duration from Navigation Timing API
 """
 
 from enum import Enum
@@ -22,7 +23,8 @@ from pydantic import BaseModel, ConfigDict, Field
 class WebVitalName(str, Enum):
     """Supported Core Web Vitals metric names.
 
-    These correspond to the metrics collected by the web-vitals library.
+    These correspond to the metrics collected by the web-vitals library,
+    plus custom metrics like PAGE_LOAD_TIME from Navigation Timing API.
     """
 
     LCP = "LCP"  # Largest Contentful Paint (milliseconds)
@@ -31,6 +33,7 @@ class WebVitalName(str, Enum):
     CLS = "CLS"  # Cumulative Layout Shift (dimensionless)
     TTFB = "TTFB"  # Time to First Byte (milliseconds)
     FCP = "FCP"  # First Contentful Paint (milliseconds)
+    PAGE_LOAD_TIME = "PAGE_LOAD_TIME"  # Full page load duration (milliseconds)
 
 
 # Rating values used by web-vitals library

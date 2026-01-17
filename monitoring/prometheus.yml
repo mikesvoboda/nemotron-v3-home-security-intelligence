@@ -118,6 +118,30 @@ scrape_configs:
       - target_label: __address__
         replacement: json-exporter:7979
 
+  # ==========================================================================
+  # LLM (llama.cpp) Native Prometheus Metrics
+  # ==========================================================================
+  # Scrapes native Prometheus metrics from the Nemotron/llama.cpp server.
+  # llama.cpp exposes metrics at /metrics when started with --metrics flag.
+  # Key metrics for LLM performance monitoring:
+  #   - llama_tokens_predicted_total: Total tokens generated
+  #   - llama_generation_time_seconds_bucket: Token generation latency histogram
+  #   - llama_prompt_eval_time_seconds_bucket: Prompt evaluation latency histogram
+  #   - llama_requests_processing: Currently processing requests
+  #   - llama_kv_cache_usage_ratio: KV cache utilization
+  - job_name: 'llama-cpp-metrics'
+    metrics_path: /metrics
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    static_configs:
+      - targets:
+          - 'ai-llm:8091'
+    relabel_configs:
+      - target_label: service
+        replacement: 'nemotron-llm'
+      - target_label: ai_model
+        replacement: 'nemotron-3-nano-30b'
+
   # Redis metrics via redis_exporter
   - job_name: 'redis'
     scrape_interval: 15s
