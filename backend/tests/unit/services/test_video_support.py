@@ -216,11 +216,18 @@ class TestFileWatcherVideoProcessing:
     @pytest.fixture
     def file_watcher(self, temp_camera_root: Path, mock_redis_client: AsyncMock):
         """Create FileWatcher instance with mocked dependencies."""
+        import asyncio
+
         from backend.services.file_watcher import FileWatcher
 
         # Mock settings to avoid DATABASE_URL validation error
         mock_settings = MagicMock()
         mock_settings.foscam_base_path = str(temp_camera_root)
+        # Mock rate limiting settings to avoid MagicMock comparison errors
+        mock_settings.file_watcher_max_concurrent_queue = 10
+        mock_settings.file_watcher_queue_delay_ms = 0  # No delay in tests
+        mock_settings.file_watcher_polling = False
+        mock_settings.file_watcher_polling_interval = 1.0
 
         # Mock DedupeService to avoid additional settings calls
         mock_dedupe_service = MagicMock()
@@ -233,6 +240,12 @@ class TestFileWatcherVideoProcessing:
                 debounce_delay=0.1,
                 dedupe_service=mock_dedupe_service,
             )
+        # Initialize the semaphore for tests (normally done in start())
+        watcher._queue_semaphore = asyncio.Semaphore(
+            mock_settings.file_watcher_max_concurrent_queue
+        )
+        # Disable stability time for tests
+        watcher.stability_time = 0
         return watcher
 
     @pytest.mark.asyncio

@@ -5236,6 +5236,10 @@ export interface paths {
          *     Health checks have a timeout of HEALTH_CHECK_TIMEOUT_SECONDS (default 5 seconds).
          *     If a health check times out, the service is marked as unhealthy.
          *
+         *     Results are cached for HEALTH_CACHE_TTL_SECONDS (default 5 seconds) to reduce
+         *     load from frequent health probes. Cached responses are returned immediately
+         *     without re-checking services.
+         *
          *     Returns:
          *         HealthResponse with overall status and individual service statuses.
          *         HTTP 200 if healthy, 503 if degraded or unhealthy.

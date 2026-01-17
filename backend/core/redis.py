@@ -468,13 +468,18 @@ class RedisClient:
         for attempt in range(1, self._max_retries + 1):
             try:
                 # Build connection pool kwargs
+                # Pool size is configurable via settings.redis_pool_size (default: 50)
+                # to handle burst loads from bulk file operations
+                from backend.core.config import get_settings
+
+                settings = get_settings()
                 pool_kwargs: dict[str, Any] = {
                     "encoding": "utf-8",
                     "decode_responses": True,
                     "socket_connect_timeout": 5,
                     "socket_keepalive": True,
                     "health_check_interval": 30,
-                    "max_connections": 10,
+                    "max_connections": settings.redis_pool_size,
                 }
 
                 # Add password if configured (non-empty string)

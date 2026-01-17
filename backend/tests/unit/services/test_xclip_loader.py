@@ -29,6 +29,24 @@ from backend.services.xclip_loader import (
     sample_frames_from_batch,
 )
 
+
+def create_mock_pixel_values() -> MagicMock:
+    """Create a properly mocked pixel_values tensor with valid shape.
+
+    X-CLIP expects pixel_values to have shape [batch, num_frames, channels, height, width].
+    The production code validates this shape, so our mocks must provide it correctly.
+
+    Returns:
+        MagicMock with .shape = (1, 8, 3, 224, 224) and proper .to()/.half() methods
+    """
+    mock_pv = MagicMock()
+    # X-CLIP video tensor shape: [batch=1, frames=8, channels=3, height=224, width=224]
+    mock_pv.shape = (1, 8, 3, 224, 224)
+    mock_pv.to.return_value = mock_pv
+    mock_pv.half.return_value = mock_pv
+    return mock_pv
+
+
 # =============================================================================
 # Constants Tests
 # =============================================================================
@@ -289,7 +307,7 @@ class TestClassifyActions:
         mock_param.dtype = MagicMock()
         mock_model.parameters.return_value = iter([mock_param, mock_param])
 
-        mock_inputs = {"pixel_values": MagicMock()}
+        mock_inputs = {"pixel_values": create_mock_pixel_values()}
         for v in mock_inputs.values():
             v.to.return_value = v
         mock_processor.return_value = mock_inputs
@@ -330,10 +348,10 @@ class TestClassifyActions:
         mock_param.dtype = MagicMock()
         mock_model.parameters.return_value = iter([mock_param, mock_param])
 
-        # Set up processor return value
-        mock_inputs = {"pixel_values": MagicMock(), "input_ids": MagicMock()}
-        for v in mock_inputs.values():
-            v.to.return_value = v
+        # Set up processor return value with properly shaped pixel_values
+        mock_input_ids = MagicMock()
+        mock_input_ids.to.return_value = mock_input_ids
+        mock_inputs = {"pixel_values": create_mock_pixel_values(), "input_ids": mock_input_ids}
         mock_processor.return_value = mock_inputs
 
         # Set up model output
@@ -384,9 +402,9 @@ class TestClassifyActions:
         mock_param.dtype = MagicMock()
         mock_model.parameters.return_value = iter([mock_param, mock_param])
 
-        mock_inputs = {"pixel_values": MagicMock(), "input_ids": MagicMock()}
-        for v in mock_inputs.values():
-            v.to.return_value = v
+        mock_input_ids = MagicMock()
+        mock_input_ids.to.return_value = mock_input_ids
+        mock_inputs = {"pixel_values": create_mock_pixel_values(), "input_ids": mock_input_ids}
         mock_processor.return_value = mock_inputs
 
         mock_outputs = MagicMock()
@@ -426,7 +444,7 @@ class TestClassifyActions:
         mock_param.dtype = MagicMock()
         mock_model.parameters.return_value = iter([mock_param, mock_param])
 
-        mock_inputs = {"pixel_values": MagicMock()}
+        mock_inputs = {"pixel_values": create_mock_pixel_values()}
         for v in mock_inputs.values():
             v.to.return_value = v
         mock_processor.return_value = mock_inputs
@@ -466,7 +484,7 @@ class TestClassifyActions:
         mock_param.dtype = MagicMock()
         mock_model.parameters.return_value = iter([mock_param, mock_param])
 
-        mock_inputs = {"pixel_values": MagicMock()}
+        mock_inputs = {"pixel_values": create_mock_pixel_values()}
         for v in mock_inputs.values():
             v.to.return_value = v
         mock_processor.return_value = mock_inputs
@@ -505,7 +523,7 @@ class TestClassifyActions:
         mock_param.dtype = MagicMock()
         mock_model.parameters.return_value = iter([mock_param, mock_param])
 
-        mock_inputs = {"pixel_values": MagicMock()}
+        mock_inputs = {"pixel_values": create_mock_pixel_values()}
         for v in mock_inputs.values():
             v.to.return_value = v
         mock_processor.return_value = mock_inputs
@@ -544,7 +562,7 @@ class TestClassifyActions:
         mock_param.dtype = MagicMock()
         mock_model.parameters.return_value = iter([mock_param, mock_param])
 
-        mock_inputs = {"pixel_values": MagicMock()}
+        mock_inputs = {"pixel_values": create_mock_pixel_values()}
         for v in mock_inputs.values():
             v.to.return_value = v
         mock_processor.return_value = mock_inputs
@@ -649,10 +667,8 @@ class TestClassifyActionsInternal:
 
         mock_model.parameters.return_value = iter([mock_param, mock_param])
 
-        # Set up processor
-        mock_pixel_values = MagicMock()
-        mock_pixel_values.to.return_value = mock_pixel_values
-        mock_pixel_values.half.return_value = mock_pixel_values
+        # Set up processor with properly shaped pixel_values
+        mock_pixel_values = create_mock_pixel_values()
         mock_inputs = {"pixel_values": mock_pixel_values}
         mock_processor.return_value = mock_inputs
 
@@ -677,7 +693,7 @@ class TestClassifyActionsInternal:
 
         assert result is not None
         assert "detected_action" in result
-        # Verify float16 conversion was called
+        # Verify half() was called for float16 model
         mock_pixel_values.half.assert_called()
 
 
@@ -984,7 +1000,7 @@ class TestXclipLoaderIntegration:
         mock_model.parameters.return_value = iter([mock_param, mock_param])
 
         # Set up processor for classification
-        mock_inputs = {"pixel_values": MagicMock()}
+        mock_inputs = {"pixel_values": create_mock_pixel_values()}
         for v in mock_inputs.values():
             v.to.return_value = v
         mock_processor.return_value = mock_inputs
@@ -1095,7 +1111,7 @@ class TestXclipLoaderEdgeCases:
         mock_param.dtype = MagicMock()
         mock_model.parameters.return_value = iter([mock_param, mock_param])
 
-        mock_inputs = {"pixel_values": MagicMock()}
+        mock_inputs = {"pixel_values": create_mock_pixel_values()}
         for v in mock_inputs.values():
             v.to.return_value = v
         mock_processor.return_value = mock_inputs
@@ -1175,7 +1191,7 @@ class TestXclipLoaderEdgeCases:
         mock_param.dtype = MagicMock()
         mock_model.parameters.return_value = iter([mock_param, mock_param])
 
-        mock_inputs = {"pixel_values": MagicMock()}
+        mock_inputs = {"pixel_values": create_mock_pixel_values()}
         for v in mock_inputs.values():
             v.to.return_value = v
         mock_processor.return_value = mock_inputs
@@ -1402,14 +1418,13 @@ class TestNullFrameHandlingIntegration:
         mock_model = MagicMock()
         mock_model.parameters.return_value = iter([MagicMock(device="cpu", dtype=MagicMock())])
 
-        # Create a proper mock processor that returns valid tensors
+        # Create a proper mock processor that returns valid tensors with correct shape
+        mock_input_ids = MagicMock()
+        mock_input_ids.to = MagicMock(return_value=mock_input_ids)
         mock_inputs = {
-            "input_ids": MagicMock(),
-            "pixel_values": MagicMock(),
+            "input_ids": mock_input_ids,
+            "pixel_values": create_mock_pixel_values(),
         }
-        mock_inputs["input_ids"].to = MagicMock(return_value=mock_inputs["input_ids"])
-        mock_inputs["pixel_values"].to = MagicMock(return_value=mock_inputs["pixel_values"])
-        mock_inputs["pixel_values"].half = MagicMock(return_value=mock_inputs["pixel_values"])
 
         mock_processor = MagicMock(return_value=mock_inputs)
 

@@ -296,6 +296,50 @@ _app_start_time = time.time()
 # Timeout for health check operations (in seconds)
 HEALTH_CHECK_TIMEOUT_SECONDS = 5.0
 
+# =============================================================================
+# Health Check Response Cache
+# =============================================================================
+# Cache health check results to reduce load from frequent health probes.
+# Health checks can take 1+ seconds due to database, Redis, and AI service checks.
+# Caching for a short TTL (5-10 seconds) significantly reduces load while
+# still providing timely health status updates.
+
+HEALTH_CACHE_TTL_SECONDS = 5.0  # Cache health results for 5 seconds
+
+
+@dataclass(slots=True)
+class HealthCacheEntry:
+    """Cached health check response with TTL tracking.
+
+    Attributes:
+        response: The cached HealthResponse
+        cached_at: Timestamp when the response was cached
+        http_status: The HTTP status code to return (200 or 503)
+    """
+
+    response: HealthResponse
+    cached_at: float
+    http_status: int
+
+    def is_valid(self) -> bool:
+        """Check if the cached entry is still within TTL."""
+        return (time.time() - self.cached_at) < HEALTH_CACHE_TTL_SECONDS
+
+
+# Global cache for health check responses
+_health_cache: HealthCacheEntry | None = None
+
+
+def clear_health_cache() -> None:
+    """Clear the health check cache.
+
+    This is primarily for testing purposes to ensure tests don't see
+    stale cached results from previous test runs.
+    """
+    global _health_cache  # noqa: PLW0603
+    _health_cache = None
+
+
 # Global references for worker status tracking (set by main.py at startup)
 _gpu_monitor: GPUMonitor | None = None
 _cleanup_service: CleanupService | None = None
@@ -937,10 +981,23 @@ async def get_health(
     Health checks have a timeout of HEALTH_CHECK_TIMEOUT_SECONDS (default 5 seconds).
     If a health check times out, the service is marked as unhealthy.
 
+    Results are cached for HEALTH_CACHE_TTL_SECONDS (default 5 seconds) to reduce
+    load from frequent health probes. Cached responses are returned immediately
+    without re-checking services.
+
     Returns:
         HealthResponse with overall status and individual service statuses.
         HTTP 200 if healthy, 503 if degraded or unhealthy.
     """
+    global _health_cache  # noqa: PLW0603
+
+    # Check if we have a valid cached response
+    if _health_cache is not None and _health_cache.is_valid():
+        # Return cached response with appropriate HTTP status
+        response.status_code = _health_cache.http_status
+        return _health_cache.response
+
+    # Cache miss or expired - perform full health check
     # Check all services with timeout protection
     try:
         db_status = await asyncio.wait_for(
@@ -997,10 +1054,9 @@ async def get_health(
     else:
         overall_status = "degraded"
 
-    # Set appropriate HTTP status code
-    # 200 for healthy, 503 for degraded or unhealthy
-    if overall_status != "healthy":
-        response.status_code = 503
+    # Determine HTTP status code (200 for healthy, 503 for degraded or unhealthy)
+    http_status = 200 if overall_status == "healthy" else 503
+    response.status_code = http_status
 
     # Emit WebSocket events for health status changes
     # This only emits when status actually transitions (not on every check)
@@ -1027,12 +1083,21 @@ async def get_health(
             for event in events
         ]
 
-    return HealthResponse(
+    health_response = HealthResponse(
         status=overall_status,
         services=services,
         timestamp=datetime.now(UTC),
         recent_events=recent_events,
     )
+
+    # Cache the response for future requests
+    _health_cache = HealthCacheEntry(
+        response=health_response,
+        cached_at=time.time(),
+        http_status=http_status,
+    )
+
+    return health_response
 
 
 # NOTE: /api/system/health/live has been removed to consolidate duplicate endpoints.

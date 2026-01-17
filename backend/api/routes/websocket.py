@@ -15,7 +15,7 @@ WebSocket Authentication:
 WebSocket Message Validation:
     All incoming messages are validated for proper JSON structure and schema.
     Invalid messages receive an error response with details about the issue.
-    Supported message types: ping, pong, subscribe, unsubscribe.
+    Supported message types: ping, pong, subscribe, unsubscribe, resync.
 
 WebSocket Event Filtering (NEM-2383):
     Clients can subscribe to specific event patterns to reduce bandwidth:
@@ -197,6 +197,26 @@ async def handle_validated_message(
             # Pong is a standard keepalive response from client to server-initiated ping
             # Just acknowledge silently - no response needed
             logger.debug("Received pong response from WebSocket client")
+
+        case WebSocketMessageType.RESYNC.value:
+            # Resync is sent by the frontend when it detects a gap in sequence numbers.
+            # Currently, we acknowledge the request but don't replay buffered messages
+            # (message buffering/replay is not yet implemented).
+            # The frontend will continue processing new messages after resync.
+            channel = message.data.get("channel", "unknown") if message.data else "unknown"
+            last_sequence = message.data.get("last_sequence", 0) if message.data else 0
+            logger.debug(
+                f"Received resync request from WebSocket client "
+                f"(channel={channel}, last_sequence={last_sequence})",
+                extra={
+                    "connection_id": connection_id,
+                    "channel": channel,
+                    "last_sequence": last_sequence,
+                },
+            )
+            # Send acknowledgment that resync was received
+            resync_ack = {"type": "resync_ack", "channel": channel, "last_sequence": last_sequence}
+            await websocket.send_text(json.dumps(resync_ack))
 
         case _:
             # Unknown message type

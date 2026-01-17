@@ -3,7 +3,7 @@
 # Redeploy Script for Home Security Intelligence
 # =============================================================================
 # Stops all containers, destroys volumes, and redeploys fresh.
-# By default uses HYBRID mode: pulls backend/frontend from GHCR, builds AI locally.
+# By default uses LOCAL mode: builds all 9 services from source.
 #
 # Usage:
 #   ./scripts/redeploy.sh [OPTIONS]
@@ -12,7 +12,7 @@
 #   --help, -h       Show this help message
 #   --dry-run        Show what would be done without executing
 #   --keep-volumes   Preserve volumes (by default, volumes are DESTROYED)
-#   --local          Build all 9 services locally (disable hybrid mode)
+#   --hybrid         Pull backend/frontend from GHCR, build AI locally
 #   --ghcr           Use GHCR images only (4 services, no AI)
 #   --tag TAG        Image tag for GHCR images (default: latest)
 #   --skip-pull      Skip pulling GHCR images
@@ -22,8 +22,8 @@
 #   --qa             QA mode: equivalent to --keep-volumes --seed-files 100
 #
 # Modes:
-#   DEFAULT (hybrid): Pull backend/frontend from GHCR, build AI locally (9 services)
-#   --local:          Build all 9 services locally
+#   DEFAULT (local):  Build all 9 services locally from source
+#   --hybrid:         Pull backend/frontend from GHCR, build AI locally (9 services)
 #   --ghcr:           Pull 4 services from GHCR only (no AI)
 #
 # Services (9 total):
@@ -53,8 +53,8 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 # Default settings
 DRY_RUN="${DRY_RUN:-false}"
 KEEP_VOLUMES="${KEEP_VOLUMES:-false}"
-# Mode: "hybrid" (default), "local", or "ghcr"
-DEPLOY_MODE="${DEPLOY_MODE:-hybrid}"
+# Mode: "local" (default), "hybrid", or "ghcr"
+DEPLOY_MODE="${DEPLOY_MODE:-local}"
 SKIP_PULL="${SKIP_PULL:-false}"
 SKIP_CI_CHECK="${SKIP_CI_CHECK:-false}"
 SKIP_SEED="${SKIP_SEED:-false}"
@@ -165,7 +165,7 @@ OPTIONS:
     --help, -h       Show this help message
     --dry-run        Show what would be done without executing
     --keep-volumes   Preserve volumes (by default, volumes are DESTROYED)
-    --local          Build all 9 services locally (disable hybrid mode)
+    --hybrid         Pull backend/frontend from GHCR, build AI locally
     --ghcr           Use GHCR images only (4 services, no AI)
     --tag TAG        Image tag for GHCR images (default: latest)
     --skip-pull      Skip pulling GHCR images
@@ -184,16 +184,16 @@ DESCRIPTION:
     5. Start all containers
     6. Verify deployment health
 
-    HYBRID MODE (default):
+    LOCAL MODE (default):
+      Builds all 9 services locally from source:
+      - Core: postgres, redis, backend, frontend
+      - AI: ai-detector, ai-llm, ai-florence, ai-clip, ai-enrichment
+
+    HYBRID MODE (--hybrid flag):
       Pulls backend/frontend from GHCR, builds AI services locally.
       All 9 services deployed:
       - Core (GHCR): postgres, redis, backend, frontend
       - AI (local build): ai-detector, ai-llm, ai-florence, ai-clip, ai-enrichment
-
-    LOCAL MODE (--local flag):
-      Builds all 9 services locally:
-      - Core: postgres, redis, backend, frontend
-      - AI: ai-detector, ai-llm, ai-florence, ai-clip, ai-enrichment
 
     GHCR MODE (--ghcr flag):
       Pulls 4 pre-built services from GitHub Container Registry:
@@ -201,7 +201,7 @@ DESCRIPTION:
       (No AI services - use for lightweight deployments)
 
 EXAMPLES:
-    # Hybrid mode (default): GHCR for backend/frontend, build AI locally
+    # Local mode (default): build all services from source
     ./scripts/redeploy.sh
 
     # Redeploy but keep database/redis data
@@ -213,8 +213,8 @@ EXAMPLES:
     # Seed a specific number of files for testing
     ./scripts/redeploy.sh --keep-volumes --seed-files 50
 
-    # Build everything locally
-    ./scripts/redeploy.sh --local
+    # Hybrid mode: GHCR for backend/frontend, build AI locally
+    ./scripts/redeploy.sh --hybrid
 
     # Use GHCR images only (4 services, no AI)
     ./scripts/redeploy.sh --ghcr
@@ -222,8 +222,8 @@ EXAMPLES:
     # Dry run to see what would happen
     ./scripts/redeploy.sh --dry-run
 
-    # Deploy specific GHCR version
-    ./scripts/redeploy.sh --tag abc1234
+    # Deploy specific GHCR version (hybrid or ghcr mode)
+    ./scripts/redeploy.sh --hybrid --tag abc1234
 
 WARNING:
     By default, this script DESTROYS all volumes including:
@@ -834,34 +834,13 @@ start_containers() {
     cd "$PROJECT_ROOT"
 
     if [ "$DEPLOY_MODE" = "local" ]; then
-        # Start all 9 services
-        if [ "$CONTAINER_CMD" = "podman" ]; then
-            # Podman: Start core services with compose, AI services with podman run
-            print_step "Starting core containers from GHCR compose..."
-            if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_GHCR" up -d; then
-                print_success "Core containers started (postgres, redis, backend, frontend)"
-            else
-                print_fail "Failed to start core containers"
-                return 1
-            fi
-            # Start AI containers with podman run (bypasses compose parser bug)
-            if ! start_ai_containers_podman; then
-                return 1
-            fi
-            # Restart backend with internal network URLs (podman-compose uses host.docker.internal
-            # but AI containers are on the same network, so we need internal container names)
-            if ! restart_backend_with_internal_urls; then
-                return 1
-            fi
+        # Start all 9 services from locally built images using prod compose
+        print_step "Starting all containers from prod compose (local build)..."
+        if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" up -d; then
+            print_success "All containers started from local build"
         else
-            # Docker: Use compose normally
-            print_step "Starting all containers from prod compose..."
-            if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" up -d; then
-                print_success "All containers started"
-            else
-                print_fail "Failed to start containers"
-                return 1
-            fi
+            print_fail "Failed to start containers"
+            return 1
         fi
     elif [ "$DEPLOY_MODE" = "ghcr" ]; then
         # Start only 4 services from GHCR compose (works with both docker and podman)
@@ -1098,7 +1077,12 @@ main() {
                 shift
                 ;;
             --local)
+                # Local is now the default, this flag is kept for backwards compatibility
                 DEPLOY_MODE="local"
+                shift
+                ;;
+            --hybrid)
+                DEPLOY_MODE="hybrid"
                 shift
                 ;;
             --ghcr)

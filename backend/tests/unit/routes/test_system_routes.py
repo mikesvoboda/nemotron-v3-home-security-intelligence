@@ -1311,6 +1311,8 @@ async def test_get_gpu_stats_history_empty_result() -> None:
 @pytest.mark.asyncio
 async def test_get_health_all_healthy() -> None:
     """Test health endpoint when all services are healthy."""
+    # Clear health cache to ensure fresh result
+    system_routes.clear_health_cache()
     mock_response = Response()
 
     db = AsyncMock()
@@ -1348,6 +1350,8 @@ async def test_get_health_all_healthy() -> None:
 @pytest.mark.asyncio
 async def test_get_health_degraded_when_redis_unhealthy() -> None:
     """Test health endpoint returns degraded when non-critical service is unhealthy."""
+    # Clear health cache to ensure fresh result
+    system_routes.clear_health_cache()
     mock_response = Response()
 
     db = AsyncMock()
@@ -1385,6 +1389,8 @@ async def test_get_health_degraded_when_redis_unhealthy() -> None:
 @pytest.mark.asyncio
 async def test_get_health_unhealthy_when_database_down() -> None:
     """Test health endpoint returns unhealthy when database is down."""
+    # Clear health cache to ensure fresh result
+    system_routes.clear_health_cache()
     mock_response = Response()
 
     db = AsyncMock()
@@ -1417,6 +1423,8 @@ async def test_get_health_unhealthy_when_database_down() -> None:
 @pytest.mark.asyncio
 async def test_get_health_unhealthy_when_all_services_down() -> None:
     """Test health endpoint returns unhealthy when all services down."""
+    # Clear health cache to ensure fresh result
+    system_routes.clear_health_cache()
     mock_response = Response()
 
     db = AsyncMock()
@@ -1450,6 +1458,8 @@ async def test_get_health_unhealthy_when_all_services_down() -> None:
 @pytest.mark.asyncio
 async def test_get_health_redis_none() -> None:
     """Test health endpoint when Redis client is None (connection failed during DI)."""
+    # Clear health cache to ensure fresh result
+    system_routes.clear_health_cache()
     mock_response = Response()
 
     db = AsyncMock()

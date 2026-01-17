@@ -142,9 +142,38 @@ async def load_yolo_model(model_path: str) -> Any:
 
         logger.info(f"Loading YOLO model from {model_path}")
 
+        def _load_and_fuse() -> Any:
+            """Load YOLO model and pre-fuse for thread-safe concurrent use.
+
+            YOLO models automatically fuse batch normalization into Conv layers
+            on first predict() call. This fusion is NOT thread-safe and causes
+            "'Conv' object has no attribute 'bn'" errors when multiple threads
+            call predict() concurrently on a freshly loaded model.
+
+            By calling fuse() immediately after loading, we ensure the model
+            is ready for concurrent use without race conditions.
+
+            See: https://github.com/ultralytics/yolov5/issues/12071
+            """
+            model = YOLO(model_path)
+            # Pre-fuse to avoid race condition when multiple threads call predict()
+            # The first predict() normally triggers automatic fusion, but this is
+            # not thread-safe. Explicit fuse() before concurrent use prevents the
+            # "'Conv' object has no attribute 'bn'" error.
+            if hasattr(model, "fuse"):
+                # Check if model has inner model with is_fused method
+                inner_model = getattr(model, "model", None)
+                if inner_model is not None and hasattr(inner_model, "is_fused"):
+                    if not inner_model.is_fused():
+                        model.fuse()
+                else:
+                    # Fallback: just call fuse if we can't check fused state
+                    model.fuse()
+            return model
+
         # Run model loading in thread pool to avoid blocking
         loop = asyncio.get_event_loop()
-        model = await loop.run_in_executor(None, lambda: YOLO(model_path))
+        model = await loop.run_in_executor(None, _load_and_fuse)
 
         logger.info(f"Successfully loaded YOLO model from {model_path}")
         return model

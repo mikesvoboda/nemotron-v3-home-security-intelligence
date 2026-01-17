@@ -1767,7 +1767,7 @@ class TestDatabaseErrorLogging:
 
     @pytest.mark.asyncio
     async def test_get_db_logs_operational_error(self) -> None:
-        """Test that get_db logs OperationalError at ERROR level."""
+        """Test that get_db logs OperationalError at ERROR level with proper categorization."""
         from sqlalchemy.exc import OperationalError
 
         import backend.core.database as db_module
@@ -1777,6 +1777,7 @@ class TestDatabaseErrorLogging:
 
         try:
             mock_session = AsyncMock()
+            # Use "connection refused" which triggers the connection_error category
             mock_session.commit = AsyncMock(
                 side_effect=OperationalError("db down", None, Exception("connection refused"))
             )
@@ -1795,7 +1796,10 @@ class TestDatabaseErrorLogging:
                         pass
 
                 mock_logger.assert_called_once()
-                assert mock_logger.call_args[1]["extra"]["error_type"] == "operational_error"
+                # Connection-related errors are now categorized as "connection_error"
+                # for better diagnostics when debugging "unexpected EOF" issues
+                assert mock_logger.call_args[1]["extra"]["error_type"] == "connection_error"
+                assert mock_logger.call_args[1]["extra"]["is_connection_error"] is True
 
             mock_session.close.assert_called_once()
         finally:

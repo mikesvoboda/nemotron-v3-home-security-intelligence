@@ -427,6 +427,12 @@ class FileWatcher:
         # Event loop reference (set during start())
         self._loop: asyncio.AbstractEventLoop | None = None
 
+        # Rate limiting for queue operations to prevent Redis connection exhaustion
+        # during bulk file uploads (e.g., seed scripts or FTP batch uploads)
+        self._max_concurrent_queue = settings.file_watcher_max_concurrent_queue
+        self._queue_delay_ms = settings.file_watcher_queue_delay_ms
+        self._queue_semaphore: asyncio.Semaphore | None = None  # Created on start()
+
         # Create event handler
         self._event_handler = self._create_event_handler()
 
@@ -818,13 +824,21 @@ class FileWatcher:
         if file_hash:
             detection_data["file_hash"] = file_hash
 
-        # Use add_to_queue_safe() with DLQ policy to prevent silent data loss
-        # If the queue is full, items are moved to a dead-letter queue instead of being dropped
-        result = await self.redis_client.add_to_queue_safe(
-            self.queue_name,
-            detection_data,
-            overflow_policy=QueueOverflowPolicy.DLQ,
-        )
+        # Use semaphore to limit concurrent queue operations and prevent Redis connection exhaustion
+        # This is critical during bulk file uploads (seed scripts, FTP batch uploads)
+        semaphore = self._queue_semaphore or asyncio.Semaphore(self._max_concurrent_queue)
+        async with semaphore:
+            # Use add_to_queue_safe() with DLQ policy to prevent silent data loss
+            # If the queue is full, items are moved to a dead-letter queue instead of being dropped
+            result = await self.redis_client.add_to_queue_safe(
+                self.queue_name,
+                detection_data,
+                overflow_policy=QueueOverflowPolicy.DLQ,
+            )
+
+            # Add configurable delay between queue operations to spread load
+            if self._queue_delay_ms > 0:
+                await asyncio.sleep(self._queue_delay_ms / 1000.0)
 
         if not result.success:
             logger.error(
@@ -921,6 +935,14 @@ class FileWatcher:
                 "loop_running": self._loop.is_running(),
                 "loop_closed": self._loop.is_closed(),
             },
+        )
+
+        # Initialize rate limiting semaphore for queue operations
+        # This prevents Redis connection exhaustion during bulk file uploads
+        self._queue_semaphore = asyncio.Semaphore(self._max_concurrent_queue)
+        logger.debug(
+            f"Queue rate limiting initialized: max_concurrent={self._max_concurrent_queue}, "
+            f"delay_ms={self._queue_delay_ms}"
         )
 
         # Schedule observer for each camera directory

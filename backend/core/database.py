@@ -42,6 +42,7 @@ from typing import Any
 from fastapi import HTTPException
 from sqlalchemy import event, text
 from sqlalchemy.exc import (
+    DisconnectionError,
     IntegrityError,
     OperationalError,
     ProgrammingError,
@@ -56,6 +57,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.pool import ConnectionPoolEntry
 
 from backend.core.config import get_settings
 from backend.core.logging import get_logger
@@ -217,6 +219,44 @@ async def init_db() -> None:
     # Previous default: pool_size=10, max_overflow=20 (30 max connections)
     # Increased to handle multiple background workers (detection, analysis, timeout,
     # metrics, GPU monitor, system broadcaster) plus API requests
+    #
+    # Connection Health Settings:
+    # - pool_pre_ping: Verify connections before checkout (detects stale connections)
+    # - pool_recycle: Recycle connections after N seconds to prevent stale connections
+    # - connect_args: asyncpg-specific settings for timeouts and session parameters
+    #
+    # The connect_args configure asyncpg to:
+    # - Set a command timeout to prevent queries from hanging indefinitely
+    # - Configure connection timeout for initial connection establishment
+    # - Set PostgreSQL session parameters to prevent idle transactions
+    #
+    # This addresses "unexpected EOF on client connection" errors by:
+    # 1. Detecting dead connections via pool_pre_ping before use
+    # 2. Recycling connections before they become stale
+    # 3. Terminating idle transactions that hold connections open
+
+    # asyncpg connect_args for connection health
+    connect_args: dict[str, Any] = {
+        # Connection timeout (seconds) - how long to wait for initial connection
+        "timeout": 60,
+        # Command timeout (seconds) - max time for a single command
+        # Set to 300s to match statement_timeout
+        "command_timeout": 300,
+        # Server settings applied to each connection
+        # These configure PostgreSQL session parameters
+        "server_settings": {
+            # Abort any statement that takes more than 5 minutes
+            # Prevents runaway queries from holding connections
+            "statement_timeout": "300000",  # milliseconds
+            # Terminate idle transactions after 60 seconds
+            # Prevents connections from being held open with uncommitted transactions
+            # which can cause "unexpected EOF" when the pool recycles them
+            "idle_in_transaction_session_timeout": "60000",  # milliseconds
+            # Lock timeout - prevent deadlocks from holding connections too long
+            "lock_timeout": "30000",  # milliseconds
+        },
+    }
+
     engine_kwargs: dict[str, Any] = {
         "echo": settings.debug,
         "future": True,
@@ -224,11 +264,15 @@ async def init_db() -> None:
         "max_overflow": settings.database_pool_overflow,
         "pool_timeout": settings.database_pool_timeout,
         "pool_recycle": settings.database_pool_recycle,
-        "pool_pre_ping": True,  # Verify connections before use
+        "pool_pre_ping": True,  # Verify connections before use (critical for health)
+        "connect_args": connect_args,
     }
 
     # Create async engine
     _engine = create_async_engine(db_url, **engine_kwargs)
+
+    # Set up connection pool event handlers for better connection lifecycle management
+    _setup_pool_event_handlers(_engine)
 
     # Store the event loop ID where this engine was created
     _bound_loop_id = current_loop_id
@@ -310,6 +354,175 @@ def _check_loop_mismatch() -> bool:
         return False
 
 
+def _setup_pool_event_handlers(engine: AsyncEngine) -> None:
+    """Set up connection pool event handlers for connection lifecycle management.
+
+    This configures event handlers that:
+    1. Log connection checkout/checkin for debugging
+    2. Handle connection invalidation gracefully
+    3. Detect closed connections during checkout
+
+    These handlers help address "unexpected EOF on client connection" errors
+    by providing visibility into connection lifecycle and ensuring proper cleanup.
+
+    Args:
+        engine: The AsyncEngine to configure event handlers for
+    """
+    try:
+        sync_engine = engine.sync_engine
+    except AttributeError:
+        # Mock engine doesn't have sync_engine properly
+        _logger.debug("Skipping pool event handlers setup (no sync_engine available)")
+        return
+
+    # Check if this is a real engine or a mock (mocks don't support event listeners)
+    try:
+        # Try to access pool to verify this is a real engine
+        _ = sync_engine.pool
+    except AttributeError:
+        _logger.debug("Skipping pool event handlers setup (mock engine detected)")
+        return
+
+    try:
+
+        @event.listens_for(sync_engine, "connect")
+        def on_connect(dbapi_connection: Any, _connection_record: ConnectionPoolEntry) -> None:
+            """Called when a new raw DBAPI connection is created."""
+            _logger.debug(
+                "New database connection established",
+                extra={"connection_id": id(dbapi_connection)},
+            )
+
+        @event.listens_for(sync_engine, "checkout")
+        def on_checkout(
+            dbapi_connection: Any,
+            _connection_record: ConnectionPoolEntry,
+            _connection_proxy: Any,
+        ) -> None:
+            """Called when a connection is retrieved from the pool.
+
+            Validates the connection is still usable. If the connection
+            appears invalid, raises DisconnectionError to force the pool
+            to create a new connection.
+            """
+            # asyncpg connections have an is_closed() method
+            if hasattr(dbapi_connection, "is_closed") and dbapi_connection.is_closed():
+                _logger.warning(
+                    "Detected closed connection during checkout, forcing reconnection",
+                    extra={"connection_id": id(dbapi_connection)},
+                )
+                raise DisconnectionError("Connection was closed")
+
+        @event.listens_for(sync_engine, "checkin")
+        def on_checkin(
+            dbapi_connection: Any,
+            connection_record: ConnectionPoolEntry,
+        ) -> None:
+            """Called when a connection is returned to the pool.
+
+            Checks if the connection is still valid. If not, marks
+            the connection record as invalid so the pool won't reuse it.
+            """
+            if hasattr(dbapi_connection, "is_closed") and dbapi_connection.is_closed():
+                _logger.warning(
+                    "Connection returned to pool in closed state, invalidating",
+                    extra={"connection_id": id(dbapi_connection)},
+                )
+                connection_record.invalidate()
+
+        @event.listens_for(sync_engine, "invalidate")
+        def on_invalidate(
+            dbapi_connection: Any,
+            _connection_record: ConnectionPoolEntry,
+            exception: BaseException | None,
+        ) -> None:
+            """Called when a connection is invalidated."""
+            _logger.info(
+                "Database connection invalidated",
+                extra={
+                    "connection_id": id(dbapi_connection),
+                    "exception": str(exception) if exception else None,
+                },
+            )
+
+        @event.listens_for(sync_engine, "handle_error")
+        def on_handle_error(exception_context: Any) -> None:
+            """Called when an error occurs during database operations."""
+            exc = exception_context.original_exception
+            if exc is not None:
+                exc_str = str(exc).lower()
+                if any(kw in exc_str for kw in ["connection", "eof", "closed", "timeout", "reset"]):
+                    _logger.warning(
+                        "Database connection error occurred",
+                        extra={
+                            "error_type": type(exc).__name__,
+                            "error_message": str(exc)[:200],
+                        },
+                    )
+
+    except Exception as e:
+        # If event listener setup fails (e.g., with mock engines in tests),
+        # log and continue - the database will still work, just without
+        # enhanced connection lifecycle logging
+        _logger.debug(f"Could not set up pool event handlers: {e}")
+
+
+def _is_connection_error(exc: BaseException) -> bool:
+    """Check if an exception represents a transient connection error.
+
+    Connection errors are those that indicate the database connection was
+    lost or is invalid. These are typically transient and can be resolved
+    by retrying with a new connection.
+
+    Args:
+        exc: The exception to check
+
+    Returns:
+        True if this is a connection-related error, False otherwise
+    """
+    exc_str = str(exc).lower()
+    connection_keywords = [
+        "connection",
+        "eof",
+        "closed",
+        "reset by peer",
+        "broken pipe",
+        "connection refused",
+        "connection timed out",
+        "server closed the connection",
+        "terminating connection",
+        "could not connect",
+        "connection pool",
+        "ssl",
+        "network",
+    ]
+    return any(keyword in exc_str for keyword in connection_keywords)
+
+
+def _categorize_operational_error(exc: OperationalError) -> str:
+    """Categorize an OperationalError for logging purposes.
+
+    Args:
+        exc: The OperationalError to categorize
+
+    Returns:
+        A category string describing the type of operational error
+    """
+    exc_str = str(exc.orig if exc.orig else exc).lower()
+
+    if "connection" in exc_str or "eof" in exc_str:
+        return "connection_error"
+    if "timeout" in exc_str:
+        return "timeout_error"
+    if "authentication" in exc_str or "password" in exc_str:
+        return "authentication_error"
+    if "permission" in exc_str or "denied" in exc_str:
+        return "permission_error"
+    if "disk" in exc_str or "storage" in exc_str:
+        return "storage_error"
+    return "operational_error"
+
+
 @asynccontextmanager
 async def get_session() -> AsyncGenerator[AsyncSession]:
     """Get an async database session as a context manager.
@@ -369,13 +582,32 @@ async def get_session() -> AsyncGenerator[AsyncSession]:
             raise
         except OperationalError as e:
             await session.rollback()
+            # Categorize the error for better diagnostics
+            error_category = _categorize_operational_error(e)
+            is_conn_error = _is_connection_error(e)
+
             _logger.error(
                 "Database operational error",
                 extra={
-                    "error_type": "operational_error",
+                    "error_type": error_category,
+                    "is_connection_error": is_conn_error,
                     "detail": str(e.orig) if e.orig else str(e),
                 },
             )
+
+            # For connection errors, log additional pool status for diagnostics
+            if is_conn_error:
+                try:
+                    pool_status = await get_pool_status()
+                    _logger.warning(
+                        "Connection pool status at time of error",
+                        extra=pool_status,
+                    )
+                except Exception as pool_err:
+                    _logger.debug(
+                        f"Failed to get pool status: {pool_err}"
+                    )  # Don't fail on status retrieval
+
             raise
         except SQLAlchemyTimeoutError as e:
             await session.rollback()
@@ -406,11 +638,14 @@ async def get_session() -> AsyncGenerator[AsyncSession]:
         except Exception as e:
             await session.rollback()
             # Catch-all for unexpected database errors
+            # Check if it's a connection-related error for better logging
+            is_conn_error = _is_connection_error(e)
             _logger.exception(
                 "Unexpected database error",
                 extra={
                     "error_type": "unexpected_error",
                     "exception_class": type(e).__name__,
+                    "is_connection_error": is_conn_error,
                 },
             )
             raise
@@ -513,13 +748,32 @@ async def get_db() -> AsyncGenerator[AsyncSession]:
             raise
         except OperationalError as e:
             await session.rollback()
+            # Categorize the error for better diagnostics
+            error_category = _categorize_operational_error(e)
+            is_conn_error = _is_connection_error(e)
+
             _logger.error(
                 "Database operational error",
                 extra={
-                    "error_type": "operational_error",
+                    "error_type": error_category,
+                    "is_connection_error": is_conn_error,
                     "detail": str(e.orig) if e.orig else str(e),
                 },
             )
+
+            # For connection errors, log additional pool status for diagnostics
+            if is_conn_error:
+                try:
+                    pool_status = await get_pool_status()
+                    _logger.warning(
+                        "Connection pool status at time of error",
+                        extra=pool_status,
+                    )
+                except Exception as pool_err:
+                    _logger.debug(
+                        f"Failed to get pool status: {pool_err}"
+                    )  # Don't fail on status retrieval
+
             raise
         except SQLAlchemyTimeoutError as e:
             await session.rollback()
@@ -550,11 +804,14 @@ async def get_db() -> AsyncGenerator[AsyncSession]:
         except Exception as e:
             await session.rollback()
             # Catch-all for unexpected database errors
+            # Check if it's a connection-related error for better logging
+            is_conn_error = _is_connection_error(e)
             _logger.exception(
                 "Unexpected database error",
                 extra={
                     "error_type": "unexpected_error",
                     "exception_class": type(e).__name__,
+                    "is_connection_error": is_conn_error,
                 },
             )
             raise
