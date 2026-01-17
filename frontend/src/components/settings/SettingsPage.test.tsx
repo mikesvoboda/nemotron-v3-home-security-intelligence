@@ -1,8 +1,12 @@
-import { render, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, it, expect, vi } from 'vitest';
+import { http, HttpResponse } from 'msw';
+import { MemoryRouter } from 'react-router-dom';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import SettingsPage from './SettingsPage';
+import { server } from '../../mocks/server';
 
 // Mock the settings components
 vi.mock('./CamerasSettings', () => ({
@@ -37,16 +41,42 @@ vi.mock('../system/FileOperationsPanel', () => ({
   default: () => <div data-testid="file-operations-panel">File Operations Panel</div>,
 }));
 
+// Helper to create a fresh QueryClient for each test
+function createTestQueryClient() {
+  return new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+        gcTime: 0,
+      },
+    },
+  });
+}
+
+// Helper to render with all required providers
+function renderWithProviders(ui: React.ReactElement) {
+  const queryClient = createTestQueryClient();
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>{ui}</MemoryRouter>
+    </QueryClientProvider>
+  );
+}
+
 describe('SettingsPage', () => {
+  beforeEach(() => {
+    server.resetHandlers();
+  });
+
   it('should render the page title and description', () => {
-    render(<SettingsPage />);
+    renderWithProviders(<SettingsPage />);
 
     expect(screen.getByText('Settings')).toBeInTheDocument();
     expect(screen.getByText('Configure your security monitoring system')).toBeInTheDocument();
   });
 
   it('should render all eight tabs', () => {
-    render(<SettingsPage />);
+    renderWithProviders(<SettingsPage />);
 
     expect(screen.getByRole('tab', { name: /cameras/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /rules/i })).toBeInTheDocument();
@@ -59,14 +89,14 @@ describe('SettingsPage', () => {
   });
 
   it('should show cameras settings by default', () => {
-    render(<SettingsPage />);
+    renderWithProviders(<SettingsPage />);
 
     expect(screen.getByTestId('cameras-settings')).toBeInTheDocument();
   });
 
   it('should switch to rules settings when tab is clicked', async () => {
     const user = userEvent.setup();
-    render(<SettingsPage />);
+    renderWithProviders(<SettingsPage />);
 
     const rulesTab = screen.getByRole('tab', { name: /rules/i });
     await user.click(rulesTab);
@@ -77,7 +107,7 @@ describe('SettingsPage', () => {
 
   it('should switch to processing settings when tab is clicked', async () => {
     const user = userEvent.setup();
-    render(<SettingsPage />);
+    renderWithProviders(<SettingsPage />);
 
     const processingTab = screen.getByRole('tab', { name: /processing/i });
     await user.click(processingTab);
@@ -88,7 +118,7 @@ describe('SettingsPage', () => {
 
   it('should highlight the selected tab', async () => {
     const user = userEvent.setup();
-    render(<SettingsPage />);
+    renderWithProviders(<SettingsPage />);
 
     const camerasTab = screen.getByRole('tab', { name: /cameras/i });
     const processingTab = screen.getByRole('tab', { name: /processing/i });
@@ -106,7 +136,7 @@ describe('SettingsPage', () => {
 
   it('should support keyboard navigation between tabs', async () => {
     const user = userEvent.setup();
-    render(<SettingsPage />);
+    renderWithProviders(<SettingsPage />);
 
     const camerasTab = screen.getByRole('tab', { name: /cameras/i });
 
@@ -123,7 +153,7 @@ describe('SettingsPage', () => {
 
   it('should cycle tabs with arrow keys', async () => {
     const user = userEvent.setup();
-    render(<SettingsPage />);
+    renderWithProviders(<SettingsPage />);
 
     const camerasTab = screen.getByRole('tab', { name: /cameras/i });
     const storageTab = screen.getByRole('tab', { name: /storage/i });
@@ -139,7 +169,7 @@ describe('SettingsPage', () => {
 
   it('should switch to notification settings when tab is clicked', async () => {
     const user = userEvent.setup();
-    render(<SettingsPage />);
+    renderWithProviders(<SettingsPage />);
 
     const notificationsTab = screen.getByRole('tab', { name: /notifications/i });
     await user.click(notificationsTab);
@@ -150,7 +180,7 @@ describe('SettingsPage', () => {
 
   it('should switch to calibration panel when tab is clicked', async () => {
     const user = userEvent.setup();
-    render(<SettingsPage />);
+    renderWithProviders(<SettingsPage />);
 
     const calibrationTab = screen.getByRole('tab', { name: /calibration/i });
     await user.click(calibrationTab);
@@ -161,7 +191,7 @@ describe('SettingsPage', () => {
 
   it('should switch to ambient settings when tab is clicked', async () => {
     const user = userEvent.setup();
-    render(<SettingsPage />);
+    renderWithProviders(<SettingsPage />);
 
     const ambientTab = screen.getByRole('tab', { name: /ambient/i });
     await user.click(ambientTab);
@@ -172,12 +202,70 @@ describe('SettingsPage', () => {
 
   it('should switch to storage settings when tab is clicked', async () => {
     const user = userEvent.setup();
-    render(<SettingsPage />);
+    renderWithProviders(<SettingsPage />);
 
     const storageTab = screen.getByRole('tab', { name: /storage/i });
     await user.click(storageTab);
 
     expect(screen.getByTestId('file-operations-panel')).toBeInTheDocument();
     expect(screen.queryByTestId('cameras-settings')).not.toBeInTheDocument();
+  });
+
+  describe('Developer Tools link', () => {
+    it('should show Developer Tools link when debug mode is enabled', async () => {
+      server.use(
+        http.get('/api/system/config', () => {
+          return HttpResponse.json({
+            app_name: 'Home Security Intelligence',
+            version: '0.1.0',
+            retention_days: 30,
+            batch_window_seconds: 90,
+            batch_idle_timeout_seconds: 30,
+            detection_confidence_threshold: 0.5,
+            grafana_url: 'http://localhost:3002',
+            debug: true,
+          });
+        })
+      );
+
+      renderWithProviders(<SettingsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('dev-tools-link')).toBeInTheDocument();
+      });
+
+      const link = screen.getByTestId('dev-tools-link');
+      expect(link).toHaveAttribute('href', '/dev-tools');
+      expect(link).toHaveTextContent('Developer Tools');
+    });
+
+    it('should not show Developer Tools link when debug mode is disabled', async () => {
+      server.use(
+        http.get('/api/system/config', () => {
+          return HttpResponse.json({
+            app_name: 'Home Security Intelligence',
+            version: '0.1.0',
+            retention_days: 30,
+            batch_window_seconds: 90,
+            batch_idle_timeout_seconds: 30,
+            detection_confidence_threshold: 0.5,
+            grafana_url: 'http://localhost:3002',
+            debug: false,
+          });
+        })
+      );
+
+      renderWithProviders(<SettingsPage />);
+
+      // Wait for query to complete
+      await waitFor(() => {
+        expect(screen.getByTestId('settings-page')).toBeInTheDocument();
+      });
+
+      // Give it a moment to render based on config
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      expect(screen.queryByTestId('dev-tools-link')).not.toBeInTheDocument();
+    });
   });
 });

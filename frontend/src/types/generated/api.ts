@@ -9067,6 +9067,7 @@ export interface components {
          *       "app_name": "Home Security Intelligence",
          *       "batch_idle_timeout_seconds": 30,
          *       "batch_window_seconds": 90,
+         *       "debug": false,
          *       "detection_confidence_threshold": 0.5,
          *       "grafana_url": "http://localhost:3002",
          *       "retention_days": 30,
@@ -9089,6 +9090,11 @@ export interface components {
              * @description Time window for batch processing detections
              */
             batch_window_seconds: number;
+            /**
+             * Debug
+             * @description Whether debug mode is enabled (enables developer tools)
+             */
+            debug: boolean;
             /**
              * Detection Confidence Threshold
              * @description Minimum confidence threshold for detections (0.0-1.0)

@@ -287,6 +287,10 @@ class ConfigResponse(BaseModel):
         ...,
         description="Grafana dashboard URL for frontend link",
     )
+    debug: bool = Field(
+        ...,
+        description="Whether debug mode is enabled (enables developer tools)",
+    )
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -298,6 +302,7 @@ class ConfigResponse(BaseModel):
                 "batch_idle_timeout_seconds": 30,
                 "detection_confidence_threshold": 0.5,
                 "grafana_url": "http://localhost:3002",
+                "debug": False,
             }
         }
     )

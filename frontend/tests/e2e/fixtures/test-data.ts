@@ -244,6 +244,7 @@ export const mockSystemConfig = {
     detection_confidence_threshold: 0.5,
     app_name: 'Home Security Dashboard',
     version: '0.1.0',
+    debug: false,
   },
   customized: {
     batch_window_seconds: 120,
@@ -252,6 +253,16 @@ export const mockSystemConfig = {
     detection_confidence_threshold: 0.7,
     app_name: 'Home Security Dashboard',
     version: '0.1.0',
+    debug: false,
+  },
+  withDebug: {
+    batch_window_seconds: 90,
+    batch_idle_timeout_seconds: 30,
+    retention_days: 30,
+    detection_confidence_threshold: 0.5,
+    app_name: 'Home Security Dashboard',
+    version: '0.1.0',
+    debug: true,
   },
 };
 
