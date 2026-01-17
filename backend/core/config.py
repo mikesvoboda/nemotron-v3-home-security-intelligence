@@ -335,6 +335,17 @@ class Settings(BaseSettings):
         "queue names, and other Redis keys will be prefixed with '{prefix}:'.",
     )
 
+    # Redis connection pool settings
+    # Pool size should be tuned based on concurrent operations (file watcher, workers, API)
+    # Default 50 connections handles burst loads from bulk file operations
+    redis_pool_size: int = Field(
+        default=50,
+        ge=10,
+        le=500,
+        description="Maximum number of Redis connections in the pool. "
+        "Increase for high-concurrency workloads with many simultaneous file uploads.",
+    )
+
     # Redis SSL/TLS settings
     redis_ssl_enabled: bool = Field(
         default=False,
@@ -506,6 +517,20 @@ class Settings(BaseSettings):
         description="Polling interval in seconds when using polling observer",
         ge=0.1,
         le=30.0,
+    )
+    file_watcher_max_concurrent_queue: int = Field(
+        default=20,
+        ge=1,
+        le=100,
+        description="Maximum concurrent Redis queue operations from file watcher. "
+        "Limits connection usage during bulk file uploads to prevent pool exhaustion.",
+    )
+    file_watcher_queue_delay_ms: int = Field(
+        default=50,
+        ge=0,
+        le=1000,
+        description="Delay in milliseconds between queue operations during bulk processing. "
+        "Helps spread load when many files are detected simultaneously.",
     )
 
     # Retention settings
