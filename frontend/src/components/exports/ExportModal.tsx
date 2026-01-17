@@ -13,9 +13,10 @@
 
 import { Button, Select, SelectItem, Card, Title, Text } from '@tremor/react';
 import { AlertCircle, Download, FileSpreadsheet, FileText, Loader2, X } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 import ExportProgress from './ExportProgress';
+import { useDateRangeState } from '../../hooks/useDateRangeState';
 import { startExportJob, fetchCameras } from '../../services/api';
 
 import type { Camera } from '../../services/api';
@@ -41,13 +42,22 @@ export default function ExportModal({
   initialFilters,
   onExportComplete,
 }: ExportModalProps) {
+  // Date range state WITHOUT URL persistence (modal shouldn't affect URL)
+  const {
+    range: dateRange,
+    apiParams: dateRangeApiParams,
+    setCustomRange: setDateRangeCustom,
+    reset: resetDateRange,
+  } = useDateRangeState({
+    defaultPreset: 'all',
+    persistToUrl: false,
+  });
+
   // Form state
   const [exportType, setExportType] = useState<ExportType>('events');
   const [exportFormat, setExportFormat] = useState<ExportFormat>('csv');
   const [cameraId, setCameraId] = useState<string>(initialFilters?.camera_id ?? '');
   const [riskLevel, setRiskLevel] = useState<string>(initialFilters?.risk_level ?? '');
-  const [startDate, setStartDate] = useState<string>(initialFilters?.start_date ?? '');
-  const [endDate, setEndDate] = useState<string>(initialFilters?.end_date ?? '');
   const [reviewed, setReviewed] = useState<string>('');
 
   // State
@@ -78,11 +88,42 @@ export default function ExportModal({
       if (initialFilters) {
         setCameraId(initialFilters.camera_id ?? '');
         setRiskLevel(initialFilters.risk_level ?? '');
-        setStartDate(initialFilters.start_date ?? '');
-        setEndDate(initialFilters.end_date ?? '');
+        // Set custom date range if initial filters have dates
+        if (initialFilters.start_date && initialFilters.end_date) {
+          const startDate = new Date(initialFilters.start_date);
+          const endDate = new Date(initialFilters.end_date);
+          setDateRangeCustom(startDate, endDate);
+        } else {
+          resetDateRange();
+        }
+      } else {
+        resetDateRange();
       }
     }
-  }, [isOpen, initialFilters]);
+  }, [isOpen, initialFilters, setDateRangeCustom, resetDateRange]);
+
+  // Handle custom date range change
+  const handleStartDateChange = useCallback(
+    (value: string) => {
+      if (value) {
+        const startDate = new Date(value + 'T00:00:00');
+        const endDate = dateRange.endDate;
+        setDateRangeCustom(startDate, endDate);
+      }
+    },
+    [dateRange.endDate, setDateRangeCustom]
+  );
+
+  const handleEndDateChange = useCallback(
+    (value: string) => {
+      if (value) {
+        const startDate = dateRange.startDate;
+        const endDate = new Date(value + 'T23:59:59');
+        setDateRangeCustom(startDate, endDate);
+      }
+    },
+    [dateRange.startDate, setDateRangeCustom]
+  );
 
   // Handle form submission
   const handleStartExport = async () => {
@@ -95,8 +136,8 @@ export default function ExportModal({
         export_format: exportFormat,
         camera_id: cameraId || null,
         risk_level: riskLevel || null,
-        start_date: startDate || null,
-        end_date: endDate || null,
+        start_date: dateRangeApiParams.start_date || null,
+        end_date: dateRangeApiParams.end_date || null,
         reviewed: reviewed === '' ? null : reviewed === 'true',
       };
 
@@ -256,10 +297,8 @@ export default function ExportModal({
                     <Text className="mb-1">Start Date (optional)</Text>
                     <input
                       type="date"
-                      value={startDate ? startDate.split('T')[0] : ''}
-                      onChange={(e) =>
-                        setStartDate(e.target.value ? `${e.target.value}T00:00:00Z` : '')
-                      }
+                      value={dateRangeApiParams.start_date || ''}
+                      onChange={(e) => handleStartDateChange(e.target.value)}
                       className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                     />
                   </div>
@@ -267,10 +306,8 @@ export default function ExportModal({
                     <Text className="mb-1">End Date (optional)</Text>
                     <input
                       type="date"
-                      value={endDate ? endDate.split('T')[0] : ''}
-                      onChange={(e) =>
-                        setEndDate(e.target.value ? `${e.target.value}T23:59:59Z` : '')
-                      }
+                      value={dateRangeApiParams.end_date || ''}
+                      onChange={(e) => handleEndDateChange(e.target.value)}
                       className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                     />
                   </div>

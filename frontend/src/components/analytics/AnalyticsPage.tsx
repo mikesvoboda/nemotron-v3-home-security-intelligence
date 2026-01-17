@@ -29,14 +29,19 @@ import {
   Shield,
   Activity,
 } from 'lucide-react';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 
 import ActivityHeatmap from './ActivityHeatmap';
+import CameraUptimeCard from './CameraUptimeCard';
+import DateRangeDropdown from './DateRangeDropdown';
 import { ChartSkeleton, Skeleton } from '../common';
 import AnomalyConfigPanel from './AnomalyConfigPanel';
 import ClassFrequencyChart from './ClassFrequencyChart';
 import PipelineLatencyPanel from './PipelineLatencyPanel';
 import SceneChangePanel from './SceneChangePanel';
+import { useDateRangeState } from '../../hooks/useDateRangeState';
+import { useDetectionTrendsQuery } from '../../hooks/useDetectionTrendsQuery';
+import { useRiskHistoryQuery } from '../../hooks/useRiskHistoryQuery';
 import {
   fetchCameras,
   fetchCameraActivityBaseline,
@@ -82,6 +87,54 @@ export default function AnalyticsPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedTab, setSelectedTab] = useState(0);
 
+  // Global date range state with URL persistence
+  const {
+    preset: dateRangePreset,
+    presetLabel: dateRangeLabel,
+    isCustom: isCustomDateRange,
+    range: dateRange,
+    apiParams: dateRangeApiParams,
+    setPreset: setDateRangePreset,
+    setCustomRange: setDateRangeCustom,
+  } = useDateRangeState({
+    defaultPreset: '7d',
+    urlParam: 'range',
+  });
+
+  // Calculate date range for detection trends using the global date range
+  const detectionTrendsDateRange = useMemo(() => {
+    return {
+      start_date: dateRangeApiParams.start_date,
+      end_date: dateRangeApiParams.end_date,
+    };
+  }, [dateRangeApiParams]);
+
+  // Calculate date range for camera uptime (last 30 days)
+  const cameraUptimeDateRange = useMemo(() => {
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 29); // 30 days including today
+
+    return {
+      startDate: startDate.toISOString().split('T')[0],
+      endDate: endDate.toISOString().split('T')[0],
+    };
+  }, []);
+
+  // Fetch detection trends using TanStack Query hook
+  const {
+    dataPoints: detectionTrendDataPoints,
+    isLoading: isDetectionTrendsLoading,
+    isError: isDetectionTrendsError,
+  } = useDetectionTrendsQuery(detectionTrendsDateRange);
+
+  // Fetch risk history using TanStack Query hook
+  const {
+    dataPoints: riskHistoryDataPoints,
+    isLoading: isRiskHistoryLoading,
+    isError: isRiskHistoryError,
+  } = useRiskHistoryQuery(detectionTrendsDateRange);
+
   // Helper to check if "All Cameras" is selected
   const isAllCamerasSelected = selectedCameraId === ALL_CAMERAS_VALUE;
 
@@ -107,38 +160,35 @@ export default function AnalyticsPage() {
     void loadCameras();
   }, []);
 
-  // Load analytics data when camera changes
+  // Load analytics data when camera or date range changes
   // cameraId can be empty string for "All Cameras" or a specific camera ID
-  const loadAnalyticsData = useCallback(async (cameraId: string) => {
-    setIsLoading(true);
-    setError(null);
+  const loadAnalyticsData = useCallback(
+    async (cameraId: string) => {
+      setIsLoading(true);
+      setError(null);
 
-    // Determine if this is "All Cameras" view
-    const isAllCameras = cameraId === ALL_CAMERAS_VALUE;
-    // Only pass camera_id to API when a specific camera is selected
-    const cameraIdParam = isAllCameras ? undefined : cameraId;
+      // Determine if this is "All Cameras" view
+      const isAllCameras = cameraId === ALL_CAMERAS_VALUE;
+      // Only pass camera_id to API when a specific camera is selected
+      const cameraIdParam = isAllCameras ? undefined : cameraId;
 
-    try {
-      // Calculate date range for last 7 days
-      const endDate = new Date();
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - 7);
-
-      // Prepare API calls - camera-specific baselines only when a camera is selected
-      const apiCalls: Promise<unknown>[] = [
-        // Always fetch anomaly config (global setting)
-        fetchAnomalyConfig(),
-        // Always fetch event stats with consistent camera filtering
-        fetchEventStats({
-          start_date: startDate.toISOString().split('T')[0],
-          end_date: endDate.toISOString().split('T')[0],
-          camera_id: cameraIdParam,
-        }),
-        // Always fetch detection stats with consistent camera filtering
-        fetchDetectionStats({ camera_id: cameraIdParam }),
-        // Always fetch high risk events with consistent camera filtering
-        fetchEvents({ risk_level: 'high', limit: 10, camera_id: cameraIdParam }),
-      ];
+      try {
+        // Prepare API calls - camera-specific baselines only when a camera is selected
+        const apiCalls: Promise<unknown>[] = [
+          // Always fetch anomaly config (global setting)
+          fetchAnomalyConfig(),
+          // Always fetch event stats with consistent camera filtering
+          // Use date range from global state
+          fetchEventStats({
+            start_date: dateRangeApiParams.start_date,
+            end_date: dateRangeApiParams.end_date,
+            camera_id: cameraIdParam,
+          }),
+          // Always fetch detection stats with consistent camera filtering
+          fetchDetectionStats({ camera_id: cameraIdParam }),
+          // Always fetch high risk events with consistent camera filtering
+          fetchEvents({ risk_level: 'high', limit: 10, camera_id: cameraIdParam }),
+        ];
 
       // Camera-specific baselines only when a specific camera is selected
       if (!isAllCameras) {
@@ -174,13 +224,15 @@ export default function AnalyticsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  },
+  [dateRangeApiParams.start_date, dateRangeApiParams.end_date]
+);
 
-  // Load data when selected camera changes or on initial mount
+  // Load data when selected camera or date range changes
   useEffect(() => {
     // Always load analytics data - even for "All Cameras" (empty string)
     void loadAnalyticsData(selectedCameraId);
-  }, [selectedCameraId, loadAnalyticsData]);
+  }, [selectedCameraId, loadAnalyticsData, dateRangeApiParams]);
 
   // Handle refresh
   const handleRefresh = useCallback(async () => {
@@ -222,14 +274,22 @@ export default function AnalyticsPage() {
     </div>
   );
 
-  // Prepare chart data
+  // Prepare chart data from real detection trends API
   const prepareDetectionTrendData = () => {
-    // Mock data for last 7 days - in real implementation, this would come from API
-    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    return days.map((day) => ({
-      date: day,
-      detections: Math.floor(Math.random() * 100) + 20,
-    }));
+    // Convert API data points to chart format
+    // API returns: { date: "2026-01-10", count: 45 }
+    // Chart expects: { date: "Jan 10", detections: 45 }
+    return detectionTrendDataPoints.map((point) => {
+      const date = new Date(point.date);
+      const formattedDate = date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+      });
+      return {
+        date: formattedDate,
+        detections: point.count,
+      };
+    });
   };
 
   const prepareObjectDistributionData = () => {
@@ -262,13 +322,44 @@ export default function AnalyticsPage() {
       .slice(0, 5);
   };
 
+  // Prepare chart data from risk history API for stacked area chart
+  const prepareRiskHistoryChartData = () => {
+    // Convert API data points to chart format
+    // API returns: { date: "2026-01-10", low: 12, medium: 8, high: 3, critical: 1 }
+    // Chart expects same structure with formatted date
+    return riskHistoryDataPoints.map((point) => {
+      const date = new Date(point.date);
+      const formattedDate = date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+      });
+      return {
+        date: formattedDate,
+        critical: point.critical,
+        high: point.high,
+        medium: point.medium,
+        low: point.low,
+      };
+    });
+  };
+
   return (
     <div className="flex flex-col">
-      {/* Header */}
+      {/* Header with Date Range Dropdown */}
       <div className="mb-6">
-        <div className="flex items-center gap-3">
-          <BarChart3 className="h-8 w-8 text-[#76B900]" />
-          <h1 className="text-page-title">Analytics</h1>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <BarChart3 className="h-8 w-8 text-[#76B900]" />
+            <h1 className="text-page-title">Analytics</h1>
+          </div>
+          <DateRangeDropdown
+            preset={dateRangePreset}
+            presetLabel={dateRangeLabel}
+            isCustom={isCustomDateRange}
+            range={dateRange}
+            setPreset={setDateRangePreset}
+            setCustomRange={setDateRangeCustom}
+          />
         </div>
         <p className="text-body-sm mt-2">
           View activity patterns and configure anomaly detection for your cameras
@@ -445,8 +536,17 @@ export default function AnalyticsPage() {
 
                 {/* Detection Trend Chart */}
                 <Card>
-                  <Title>Detection Trend (Last 7 Days)</Title>
-                  {prepareDetectionTrendData().length > 0 ? (
+                  <Title>
+                    Detection Trend ({detectionTrendsDateRange.start_date} to{' '}
+                    {detectionTrendsDateRange.end_date})
+                  </Title>
+                  {isDetectionTrendsLoading ? (
+                    <div className="mt-4">
+                      <ChartSkeleton height={288} />
+                    </div>
+                  ) : isDetectionTrendsError ? (
+                    <EmptyState message="Failed to load detection trend data" />
+                  ) : prepareDetectionTrendData().length > 0 ? (
                     <AreaChart
                       className="mt-4 h-72"
                       data={prepareDetectionTrendData()}
@@ -537,7 +637,13 @@ export default function AnalyticsPage() {
                 {/* Detections Over Time */}
                 <Card>
                   <Title>Detections Over Time</Title>
-                  {prepareDetectionTrendData().length > 0 ? (
+                  {isDetectionTrendsLoading ? (
+                    <div className="mt-4">
+                      <ChartSkeleton height={288} />
+                    </div>
+                  ) : isDetectionTrendsError ? (
+                    <EmptyState message="Failed to load detection trend data" />
+                  ) : prepareDetectionTrendData().length > 0 ? (
                     <AreaChart
                       className="mt-4 h-72"
                       data={prepareDetectionTrendData()}
@@ -666,20 +772,56 @@ export default function AnalyticsPage() {
                   )}
                 </Card>
 
-                {/* Risk Trends Over Time */}
-                <Card>
-                  <Title>Event Activity Trend</Title>
-                  {prepareDetectionTrendData().length > 0 ? (
-                    <AreaChart
-                      className="mt-4 h-72"
-                      data={prepareDetectionTrendData()}
-                      index="date"
-                      categories={['detections']}
-                      colors={['red']}
-                      valueFormatter={(value) => `${value} events`}
-                    />
+                {/* Risk History Stacked Area Chart (NEM-2704) */}
+                <Card data-testid="risk-history-chart-card">
+                  <Title>
+                    Risk Level Breakdown ({detectionTrendsDateRange.start_date} to{' '}
+                    {detectionTrendsDateRange.end_date})
+                  </Title>
+                  {isRiskHistoryLoading ? (
+                    <div className="mt-4">
+                      <ChartSkeleton height={288} />
+                    </div>
+                  ) : isRiskHistoryError ? (
+                    <EmptyState message="Failed to load risk history data" />
+                  ) : prepareRiskHistoryChartData().length > 0 ? (
+                    <>
+                      <AreaChart
+                        className="mt-4 h-72"
+                        data={prepareRiskHistoryChartData()}
+                        index="date"
+                        categories={['critical', 'high', 'medium', 'low']}
+                        colors={['red', 'orange', 'yellow', 'emerald']}
+                        stack={true}
+                        valueFormatter={(value) => `${value} events`}
+                        showAnimation={true}
+                        data-testid="risk-history-area-chart"
+                      />
+                      {/* Legend */}
+                      <div
+                        className="mt-4 flex flex-wrap items-center justify-center gap-4"
+                        data-testid="risk-history-legend"
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="h-3 w-3 rounded-full bg-red-500" />
+                          <Text className="text-sm text-gray-400">Critical (81+)</Text>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="h-3 w-3 rounded-full bg-orange-500" />
+                          <Text className="text-sm text-gray-400">High (61-80)</Text>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="h-3 w-3 rounded-full bg-yellow-500" />
+                          <Text className="text-sm text-gray-400">Medium (31-60)</Text>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="h-3 w-3 rounded-full bg-emerald-500" />
+                          <Text className="text-sm text-gray-400">Low (0-30)</Text>
+                        </div>
+                      </div>
+                    </>
                   ) : (
-                    <EmptyState message="No trend data available" />
+                    <EmptyState message="No risk history data available" />
                   )}
                 </Card>
               </div>
@@ -713,6 +855,9 @@ export default function AnalyticsPage() {
                     <EmptyState message="No camera detection data available" />
                   )}
                 </Card>
+
+                {/* Camera Uptime Card */}
+                <CameraUptimeCard dateRange={cameraUptimeDateRange} />
 
                 {/* Activity Heatmap - Camera-specific, only shown when a camera is selected */}
                 <div>

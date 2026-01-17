@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { useDateRangeState } from '../../hooks/useDateRangeState';
 import { useEventStream, type SecurityEvent } from '../../hooks/useEventStream';
 import { useRecentEventsQuery } from '../../hooks/useRecentEventsQuery';
 import { useSystemStatus } from '../../hooks/useSystemStatus';
@@ -50,6 +51,13 @@ export default function DashboardPage() {
   // Navigation hook for camera card clicks
   const navigate = useNavigate();
 
+  // Date range state for event stats filtering (defaults to 'today')
+  // URL persistence allows shareable dashboard links with date filter
+  const { apiParams: dateRangeParams } = useDateRangeState({
+    defaultPreset: 'today',
+    persistToUrl: true,
+  });
+
   // State for REST API data
   const [cameras, setCameras] = useState<Camera[]>([]);
   const [eventStats, setEventStats] = useState<EventStatsResponse | null>(null);
@@ -81,16 +89,18 @@ export default function DashboardPage() {
   });
 
   // Fetch cameras and event stats (events now handled by useRecentEventsQuery)
+  // Re-fetches when date range changes (from useDateRangeState)
   useEffect(() => {
     async function loadInitialData() {
       setCamerasLoading(true);
       setCamerasError(null);
 
       try {
-        // Calculate today's date range for stats
-        const today = new Date();
-        const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-        const startDate = startOfDay.toISOString();
+        // Use date range from useDateRangeState hook (YYYY-MM-DD format)
+        // Convert to ISO string format for API compatibility
+        const startDate = dateRangeParams.start_date
+          ? new Date(dateRangeParams.start_date + 'T00:00:00').toISOString()
+          : undefined;
 
         // Fetch cameras and event stats in parallel
         const [camerasData, statsData] = await Promise.all([
@@ -109,7 +119,7 @@ export default function DashboardPage() {
     }
 
     void loadInitialData();
-  }, []);
+  }, [dateRangeParams.start_date]);
 
   // Combined loading and error states
   // Show loading only if no errors have occurred yet
