@@ -20,6 +20,7 @@ import {
   fetchPromptHistory,
   updatePromptForModel,
   restorePromptVersion,
+  testPrompt,
   type PromptHistoryOptions,
 } from '../services/promptManagementApi';
 import { queryKeys, DEFAULT_STALE_TIME } from '../services/queryClient';
@@ -364,6 +365,119 @@ export function useRestorePromptVersion(): UseRestorePromptVersionReturn {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.ai.prompts.history(data.model),
       });
+    },
+  });
+
+  return {
+    mutate: mutation.mutate,
+    mutateAsync: mutation.mutateAsync,
+    isPending: mutation.isPending,
+    isSuccess: mutation.isSuccess,
+    isError: mutation.isError,
+    error: mutation.error,
+    data: mutation.data,
+    reset: mutation.reset,
+  };
+}
+
+// ============================================================================
+// usePromptTest - A/B test prompt configuration
+// ============================================================================
+
+/**
+ * Variables for testing prompt configuration via A/B test
+ */
+export interface PromptTestVariables {
+  /** The model to test */
+  model: AIModelEnum;
+  /** The configuration to test */
+  config: Record<string, unknown>;
+  /** Event ID to test against */
+  eventId: number;
+}
+
+/**
+ * Result of a prompt A/B test
+ */
+export interface PromptTestResultData {
+  /** Risk score computed with the test config */
+  riskScore: number;
+  /** Risk level computed with the test config */
+  riskLevel: string;
+  /** Reasoning from the AI model */
+  reasoning: string;
+  /** Summary from the AI model */
+  summary: string;
+  /** Processing time in milliseconds */
+  processingTimeMs: number;
+  /** Tokens used in the request */
+  tokensUsed: number;
+}
+
+/**
+ * Return type for the usePromptTest hook
+ */
+export interface UsePromptTestReturn {
+  /** Mutation function to run A/B test */
+  mutate: (variables: PromptTestVariables) => void;
+  /** Async mutation function to run A/B test */
+  mutateAsync: (variables: PromptTestVariables) => Promise<PromptTestResultData>;
+  /** Whether the mutation is in progress */
+  isPending: boolean;
+  /** Whether the mutation was successful */
+  isSuccess: boolean;
+  /** Whether the mutation failed */
+  isError: boolean;
+  /** Error object if the mutation failed */
+  error: Error | null;
+  /** The result data if successful */
+  data: PromptTestResultData | undefined;
+  /** Reset the mutation state */
+  reset: () => void;
+}
+
+/**
+ * Hook providing mutation for A/B testing a prompt configuration.
+ *
+ * Calls POST /api/prompts/test-prompt to run inference with a modified
+ * configuration and compare results.
+ *
+ * @returns Mutation object for A/B testing prompt config
+ *
+ * @example
+ * ```tsx
+ * const { mutateAsync, isPending, data } = usePromptTest();
+ *
+ * const handleTest = async () => {
+ *   const result = await mutateAsync({
+ *     model: AIModelEnum.NEMOTRON,
+ *     config: { system_prompt: 'New prompt...' },
+ *     eventId: 1234,
+ *   });
+ *   console.log(`Risk score: ${result.riskScore}`);
+ * };
+ * ```
+ *
+ * @see NEM-2698 - Implement prompt A/B testing UI with real inference comparison
+ */
+export function usePromptTest(): UsePromptTestReturn {
+  const mutation = useMutation({
+    mutationFn: async ({ model, config, eventId }: PromptTestVariables) => {
+      const response = await testPrompt({
+        model,
+        config,
+        event_id: eventId,
+      });
+
+      // Transform snake_case response to camelCase
+      return {
+        riskScore: response.after_score ?? 0,
+        riskLevel: response.after_response?.risk_level as string ?? 'unknown',
+        reasoning: response.after_response?.reasoning as string ?? '',
+        summary: response.after_response?.summary as string ?? '',
+        processingTimeMs: response.test_duration_ms,
+        tokensUsed: 0, // Not returned by current API
+      };
     },
   });
 

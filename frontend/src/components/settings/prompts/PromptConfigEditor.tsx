@@ -8,7 +8,7 @@
  */
 
 import { Dialog, DialogPanel, Title , Button, TextInput } from '@tremor/react';
-import { X } from 'lucide-react';
+import { X, FlaskConical } from 'lucide-react';
 import { useState, useCallback, useEffect } from 'react';
 
 import {
@@ -18,6 +18,7 @@ import {
   XClipConfigForm,
   FashionClipConfigForm,
 } from './model-forms';
+import PromptTestModal from './PromptTestModal';
 import { AIModelEnum } from '../../../types/promptManagement';
 
 import type {
@@ -84,14 +85,26 @@ export default function PromptConfigEditor({
 }: PromptConfigEditorProps) {
   const [config, setConfig] = useState<Record<string, unknown>>(initialConfig);
   const [changeDescription, setChangeDescription] = useState('');
+  const [isTestModalOpen, setIsTestModalOpen] = useState(false);
 
   // Reset state when modal opens with new config
   useEffect(() => {
     if (isOpen) {
       setConfig(initialConfig);
       setChangeDescription('');
+      setIsTestModalOpen(false);
     }
   }, [isOpen, initialConfig]);
+
+  // Handle opening test modal
+  const handleOpenTestModal = useCallback(() => {
+    setIsTestModalOpen(true);
+  }, []);
+
+  // Handle closing test modal
+  const handleCloseTestModal = useCallback(() => {
+    setIsTestModalOpen(false);
+  }, []);
 
   // Handle save
   const handleSave = useCallback(() => {
@@ -203,10 +216,26 @@ export default function PromptConfigEditor({
           <Button variant="secondary" onClick={onClose} disabled={isSaving}>
             Cancel
           </Button>
+          <Button
+            variant="secondary"
+            icon={FlaskConical}
+            onClick={handleOpenTestModal}
+            disabled={isSaving}
+          >
+            Test Changes
+          </Button>
           <Button onClick={handleSave} loading={isSaving} disabled={isSaving}>
             Save Changes
           </Button>
         </div>
+
+        {/* A/B Test Modal */}
+        <PromptTestModal
+          isOpen={isTestModalOpen}
+          onClose={handleCloseTestModal}
+          model={model}
+          modifiedConfig={config}
+        />
       </DialogPanel>
     </Dialog>
   );

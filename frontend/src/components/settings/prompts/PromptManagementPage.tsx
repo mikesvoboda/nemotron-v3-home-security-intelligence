@@ -5,17 +5,19 @@
  * - Model selector for switching between AI models
  * - Current configuration display with Edit button
  * - Version history with Restore functionality
- * - Export/Import buttons
+ * - Export/Import buttons with diff preview
  * - URL-based state management for selected model
  *
  * @see NEM-2697 - Build Prompt Management page
+ * @see NEM-2699 - Implement prompt import/export with preview diffs
  */
 
 import { Tab, TabGroup, TabList, TabPanel, TabPanels , Select, SelectItem, Button, Card, Badge, Title, Text } from '@tremor/react';
-import { Download, Upload, Clock, RotateCcw, Edit } from 'lucide-react';
+import { Clock, RotateCcw, Edit } from 'lucide-react';
 import { useState, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
+import ImportExportButtons from './ImportExportButtons';
 import PromptConfigEditor from './PromptConfigEditor';
 import {
   usePromptConfig,
@@ -23,7 +25,6 @@ import {
   useUpdatePromptConfig,
   useRestorePromptVersion,
 } from '../../../hooks/usePromptQueries';
-import { exportPrompts } from '../../../services/promptManagementApi';
 import { AIModelEnum } from '../../../types/promptManagement';
 
 // ============================================================================
@@ -121,28 +122,14 @@ export default function PromptManagementPage() {
     [restoreMutation]
   );
 
-  // Handle export
-  const handleExport = useCallback(async () => {
-    try {
-      const data = await exportPrompts();
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `prompts-export-${new Date().toISOString().split('T')[0]}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Failed to export prompts:', error);
-    }
+  // Handle import success - data automatically refreshed by TanStack Query invalidation
+  const handleImportSuccess = useCallback(() => {
+    // No additional action needed
   }, []);
 
-  // Handle import (placeholder - would open file picker)
-  const handleImport = useCallback(() => {
-    // TODO: Implement import functionality
-    // Import will be implemented in NEM-2699
+  // Handle import/export errors
+  const handleImportExportError = useCallback((error: Error) => {
+    console.error('Import/export error:', error);
   }, []);
 
   // Loading state
@@ -171,14 +158,11 @@ export default function PromptManagementPage() {
           <Title className="text-white">Prompt Management</Title>
           <Text className="text-gray-400">Configure AI model prompts and view version history</Text>
         </div>
-        <div className="flex gap-2">
-          <Button variant="secondary" icon={Download} onClick={() => void handleExport()}>
-            Export
-          </Button>
-          <Button variant="secondary" icon={Upload} onClick={handleImport}>
-            Import
-          </Button>
-        </div>
+        <ImportExportButtons
+          onImportSuccess={handleImportSuccess}
+          onExportError={handleImportExportError}
+          onImportError={handleImportExportError}
+        />
       </div>
 
       {/* Model Selector */}

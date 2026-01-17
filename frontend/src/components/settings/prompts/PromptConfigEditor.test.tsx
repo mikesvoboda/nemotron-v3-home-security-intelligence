@@ -4,12 +4,35 @@
  * @see NEM-2697 - Build Prompt Management page
  */
 
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
 
 import PromptConfigEditor from './PromptConfigEditor';
 import { AIModelEnum } from '../../../types/promptManagement';
+
+// ============================================================================
+// Test Utilities
+// ============================================================================
+
+function createTestQueryClient() {
+  return new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+        gcTime: 0,
+      },
+    },
+  });
+}
+
+function renderWithProviders(ui: React.ReactElement) {
+  const queryClient = createTestQueryClient();
+  return render(
+    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>
+  );
+}
 
 // ============================================================================
 // Test Data
@@ -46,7 +69,7 @@ const fashionClipConfig = {
 describe('PromptConfigEditor', () => {
   describe('rendering', () => {
     it('renders the modal when open', () => {
-      render(
+      renderWithProviders(
         <PromptConfigEditor
           isOpen={true}
           onClose={vi.fn()}
@@ -61,7 +84,7 @@ describe('PromptConfigEditor', () => {
     });
 
     it('does not render when closed', () => {
-      render(
+      renderWithProviders(
         <PromptConfigEditor
           isOpen={false}
           onClose={vi.fn()}
@@ -75,7 +98,7 @@ describe('PromptConfigEditor', () => {
     });
 
     it('renders change description input', () => {
-      render(
+      renderWithProviders(
         <PromptConfigEditor
           isOpen={true}
           onClose={vi.fn()}
@@ -88,8 +111,8 @@ describe('PromptConfigEditor', () => {
       expect(screen.getByLabelText(/Change Description/i)).toBeInTheDocument();
     });
 
-    it('renders Save and Cancel buttons', () => {
-      render(
+    it('renders Save, Test Changes, and Cancel buttons', () => {
+      renderWithProviders(
         <PromptConfigEditor
           isOpen={true}
           onClose={vi.fn()}
@@ -100,13 +123,14 @@ describe('PromptConfigEditor', () => {
       );
 
       expect(screen.getByRole('button', { name: /Save Changes/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Test Changes/i })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /Cancel/i })).toBeInTheDocument();
     });
   });
 
   describe('model-specific forms', () => {
     it('renders NemotronConfigForm for Nemotron model', () => {
-      render(
+      renderWithProviders(
         <PromptConfigEditor
           isOpen={true}
           onClose={vi.fn()}
@@ -120,7 +144,7 @@ describe('PromptConfigEditor', () => {
     });
 
     it('renders Florence2ConfigForm for Florence2 model', () => {
-      render(
+      renderWithProviders(
         <PromptConfigEditor
           isOpen={true}
           onClose={vi.fn()}
@@ -134,7 +158,7 @@ describe('PromptConfigEditor', () => {
     });
 
     it('renders YoloWorldConfigForm for YOLO-World model', () => {
-      render(
+      renderWithProviders(
         <PromptConfigEditor
           isOpen={true}
           onClose={vi.fn()}
@@ -148,7 +172,7 @@ describe('PromptConfigEditor', () => {
     });
 
     it('renders XClipConfigForm for X-CLIP model', () => {
-      render(
+      renderWithProviders(
         <PromptConfigEditor
           isOpen={true}
           onClose={vi.fn()}
@@ -162,7 +186,7 @@ describe('PromptConfigEditor', () => {
     });
 
     it('renders FashionClipConfigForm for Fashion-CLIP model', () => {
-      render(
+      renderWithProviders(
         <PromptConfigEditor
           isOpen={true}
           onClose={vi.fn()}
@@ -181,7 +205,7 @@ describe('PromptConfigEditor', () => {
       const handleClose = vi.fn();
       const user = userEvent.setup();
 
-      render(
+      renderWithProviders(
         <PromptConfigEditor
           isOpen={true}
           onClose={handleClose}
@@ -200,7 +224,7 @@ describe('PromptConfigEditor', () => {
       const handleClose = vi.fn();
       const user = userEvent.setup();
 
-      render(
+      renderWithProviders(
         <PromptConfigEditor
           isOpen={true}
           onClose={handleClose}
@@ -219,7 +243,7 @@ describe('PromptConfigEditor', () => {
       const handleSave = vi.fn();
       const user = userEvent.setup();
 
-      render(
+      renderWithProviders(
         <PromptConfigEditor
           isOpen={true}
           onClose={vi.fn()}
@@ -243,7 +267,7 @@ describe('PromptConfigEditor', () => {
 
   describe('saving state', () => {
     it('disables buttons when saving', () => {
-      render(
+      renderWithProviders(
         <PromptConfigEditor
           isOpen={true}
           onClose={vi.fn()}
@@ -259,7 +283,7 @@ describe('PromptConfigEditor', () => {
     });
 
     it('disables form inputs when saving', () => {
-      render(
+      renderWithProviders(
         <PromptConfigEditor
           isOpen={true}
           onClose={vi.fn()}
