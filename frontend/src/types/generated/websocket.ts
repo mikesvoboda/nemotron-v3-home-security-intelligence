@@ -10,7 +10,7 @@
  * Source schemas:
  *   backend/api/schemas/websocket.py
  *
- * Generated at: 2026-01-16T05:10:15Z
+ * Generated at: 2026-01-17T05:25:06Z
  *
  * Note: WebSocket messages are not covered by OpenAPI, so we generate these
  * types separately to ensure frontend/backend type synchronization.
@@ -36,7 +36,7 @@ export type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
 /**
  * Valid WebSocket message types.
  */
-export type WebSocketMessageType = 'ping' | 'pong' | 'subscribe' | 'unsubscribe';
+export type WebSocketMessageType = 'ping' | 'pong' | 'subscribe' | 'unsubscribe' | 'resync';
 
 /**
  * Valid service status values for WebSocket health monitoring messages.
