@@ -1,13 +1,32 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
-import ErrorBoundary, { clearErrorCache } from './ErrorBoundary';
+import ErrorBoundary, { clearErrorCache, clearBackendLoggedErrors } from './ErrorBoundary';
+import * as apiModule from '../../services/api';
 import * as sentryModule from '../../services/sentry';
 
 // Mock the Sentry module
 vi.mock('../../services/sentry', () => ({
   captureError: vi.fn(),
   isSentryEnabled: vi.fn(() => false),
+}));
+
+// Mock the API module for backend logging
+vi.mock('../../services/api', () => ({
+  logFrontendErrorNoThrow: vi.fn(() => Promise.resolve(true)),
+  createFrontendErrorPayload: vi.fn((error, options) => ({
+    level: 'ERROR',
+    message: error.message,
+    component: options?.component || 'Unknown',
+    url: 'http://localhost:5173',
+    user_agent: 'Mozilla/5.0',
+    extra: {
+      stack: error.stack,
+      source: options?.source || 'error_boundary',
+      timestamp: new Date().toISOString(),
+      componentStack: options?.componentStack,
+    },
+  })),
 }));
 
 // Component that throws an error when rendered
@@ -600,6 +619,152 @@ describe('ErrorBoundary', () => {
           },
         })
       );
+    });
+  });
+
+  describe('backend logging integration (NEM-2725)', () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+      clearBackendLoggedErrors();
+    });
+
+    it('logs error to backend via logFrontendErrorNoThrow', async () => {
+      render(
+        <ErrorBoundary componentName="TestComponent">
+          <ThrowingComponent />
+        </ErrorBoundary>
+      );
+
+      // Wait for async logging to complete
+      await vi.waitFor(() => {
+        expect(apiModule.logFrontendErrorNoThrow).toHaveBeenCalled();
+      });
+    });
+
+    it('creates payload with createFrontendErrorPayload', async () => {
+      render(
+        <ErrorBoundary componentName="DashboardComponent">
+          <ThrowingComponent />
+        </ErrorBoundary>
+      );
+
+      await vi.waitFor(() => {
+        expect(apiModule.createFrontendErrorPayload).toHaveBeenCalledWith(
+          expect.objectContaining({
+            message: 'Test error message',
+          }),
+          expect.objectContaining({
+            component: 'DashboardComponent',
+          })
+        );
+      });
+    });
+
+    it('includes component stack in payload', async () => {
+      render(
+        <ErrorBoundary componentName="HeaderComponent">
+          <ThrowingComponent />
+        </ErrorBoundary>
+      );
+
+      await vi.waitFor(() => {
+        expect(apiModule.createFrontendErrorPayload).toHaveBeenCalledWith(
+          expect.any(Error),
+          expect.objectContaining({
+            componentStack: expect.any(String),
+          })
+        );
+      });
+    });
+
+    it('deduplicates backend logging for identical errors', async () => {
+      // Clear error caches
+      clearErrorCache();
+      clearBackendLoggedErrors();
+      vi.clearAllMocks();
+
+      // Component that always throws the same error
+      const BackendDuplicateThrowingComponent = () => {
+        throw new Error('Duplicate backend error');
+      };
+
+      // Render first boundary
+      render(
+        <ErrorBoundary>
+          <BackendDuplicateThrowingComponent />
+        </ErrorBoundary>
+      );
+
+      await vi.waitFor(() => {
+        expect(apiModule.logFrontendErrorNoThrow).toHaveBeenCalledTimes(1);
+      });
+
+      // Render second boundary with same error
+      render(
+        <ErrorBoundary>
+          <BackendDuplicateThrowingComponent />
+        </ErrorBoundary>
+      );
+
+      // Wait a bit to ensure no additional calls
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      // Should still be 1 due to deduplication
+      expect(apiModule.logFrontendErrorNoThrow).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not crash app when backend logging fails', () => {
+      // Make backend logging fail
+      vi.mocked(apiModule.logFrontendErrorNoThrow).mockRejectedValueOnce(
+        new Error('Network error')
+      );
+
+      // Should not throw
+      expect(() => {
+        render(
+          <ErrorBoundary>
+            <ThrowingComponent />
+          </ErrorBoundary>
+        );
+      }).not.toThrow();
+
+      // Error boundary should still render fallback
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+    });
+
+    it('logs different errors separately', async () => {
+      clearBackendLoggedErrors();
+      vi.clearAllMocks();
+
+      // Component that throws first error
+      const ErrorComponent1 = () => {
+        throw new Error('First unique error');
+      };
+
+      // Component that throws second error
+      const ErrorComponent2 = () => {
+        throw new Error('Second unique error');
+      };
+
+      render(
+        <ErrorBoundary>
+          <ErrorComponent1 />
+        </ErrorBoundary>
+      );
+
+      await vi.waitFor(() => {
+        expect(apiModule.logFrontendErrorNoThrow).toHaveBeenCalledTimes(1);
+      });
+
+      render(
+        <ErrorBoundary>
+          <ErrorComponent2 />
+        </ErrorBoundary>
+      );
+
+      await vi.waitFor(() => {
+        expect(apiModule.logFrontendErrorNoThrow).toHaveBeenCalledTimes(2);
+      });
     });
   });
 });

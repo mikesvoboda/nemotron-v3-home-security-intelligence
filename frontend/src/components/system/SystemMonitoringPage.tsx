@@ -19,6 +19,7 @@ import CircuitBreakerPanel from './CircuitBreakerPanel';
 import CollapsibleSection from './CollapsibleSection';
 import ContainersPanel from './ContainersPanel';
 import DatabasesPanel from './DatabasesPanel';
+import DebugModeToggle from './DebugModeToggle';
 import FileOperationsPanel from './FileOperationsPanel';
 import HostSystemPanel from './HostSystemPanel';
 import InfrastructureStatusGrid from './InfrastructureStatusGrid';
@@ -789,7 +790,7 @@ export default function SystemMonitoringPage() {
   return (
     <div className="min-h-screen bg-[#121212] p-8" data-testid="system-monitoring-page">
       <div className="mx-auto max-w-[1920px]">
-        {/* Header with TimeRangeSelector */}
+        {/* Header with TimeRangeSelector and DebugModeToggle */}
         <div className="mb-8 flex items-start justify-between">
           <div>
             <div className="flex items-center gap-3">
@@ -800,11 +801,14 @@ export default function SystemMonitoringPage() {
               Real-time system metrics, service health, and pipeline performance
             </p>
           </div>
-          <TimeRangeSelector
-            selectedRange={timeRange}
-            onRangeChange={setTimeRange}
-            data-testid="system-time-range-selector"
-          />
+          <div className="flex items-center gap-3">
+            <TimeRangeSelector
+              selectedRange={timeRange}
+              onRangeChange={setTimeRange}
+              data-testid="system-time-range-selector"
+            />
+            <DebugModeToggle data-testid="system-debug-mode-toggle" />
+          </div>
         </div>
 
         {/* Grafana Monitoring Banner */}

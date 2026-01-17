@@ -2,10 +2,16 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 
 import App from './App';
+import { initializeErrorReporting } from './services/errorReporting';
 import { initRUM } from './services/rum';
 import { initSentry } from './services/sentry';
 import './styles/index.css';
 import { isSecureContext, logWebCodecsStatus } from './utils/webcodecs';
+
+// Initialize global error reporting first, before anything else (NEM-2726)
+// This captures uncaught exceptions and unhandled promise rejections
+// and reports them to the backend with rate limiting and noise filtering
+initializeErrorReporting();
 
 // Initialize Sentry error tracking early, before the app renders
 // Sentry will only be active if VITE_SENTRY_DSN is configured
