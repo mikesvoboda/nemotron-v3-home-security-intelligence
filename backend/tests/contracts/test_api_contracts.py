@@ -529,13 +529,16 @@ class TestDetectionsAPIContract:
 # =============================================================================
 
 
-class TestAIAuditAPIContract:
-    """Contract tests for the AI Audit API endpoints."""
+class TestPromptManagementAPIContract:
+    """Contract tests for the Prompt Management API endpoints.
+
+    Note: Prompt endpoints moved from /api/ai-audit/prompts to /api/prompts (NEM-2695).
+    """
 
     @pytest.mark.asyncio
     async def test_get_all_prompts_returns_valid_schema(self, client: AsyncClient):
-        """Test GET /api/ai-audit/prompts returns valid AllPromptsResponse schema."""
-        response = await client.get("/api/ai-audit/prompts")
+        """Test GET /api/prompts returns valid AllPromptsResponse schema."""
+        response = await client.get("/api/prompts")
 
         assert response.status_code == 200
         data = response.json()

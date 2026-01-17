@@ -296,7 +296,7 @@ class TestPromptServiceConcurrencyControl:
 
 
 class TestUpdateEndpointConcurrency:
-    """Tests for PUT /api/ai-audit/prompts/{model} concurrency handling."""
+    """Tests for PUT /api/prompts/{model} concurrency handling."""
 
     @pytest.fixture
     def mock_client(self):
