@@ -467,5 +467,10 @@ export type EventFeedbackResponse = components['schemas']['EventFeedbackResponse
 export type FeedbackType = components['schemas']['FeedbackType'];
 export type FeedbackStatsResponse = components['schemas']['FeedbackStatsResponse'];
 
+// Request Recording types (NEM-2721)
+export type RecordingResponse = components['schemas']['RecordingResponse'];
+export type RecordingsListResponse = components['schemas']['RecordingsListResponse'];
+export type ReplayResponse = components['schemas']['ReplayResponse'];
+
 // Import the components type for use in type aliases
 import type { components } from './api';
