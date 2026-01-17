@@ -12,7 +12,40 @@
  * - Review status persists and is visible
  */
 
-import { test, expect } from '../../fixtures';
+import { test, expect, Page } from '../../fixtures';
+import { waitForAnimation } from '../../utils/wait-helpers';
+import { waitForElementStable } from '../../utils/test-helpers';
+
+/**
+ * Helper to wait for modal content to be fully visible and stable.
+ * Headless UI transitions can make the dialog wrapper appear "hidden" to Playwright,
+ * so we wait for content inside the modal and ensure animations complete.
+ */
+async function waitForModalContent(page: Page, timeout = 15000) {
+  // Wait for modal to be attached to DOM
+  const modal = page.locator('[data-testid="event-detail-modal"]').or(
+    page.locator('[data-testid="event-detail"]')
+  );
+  await modal.first().waitFor({ state: 'attached', timeout: 5000 });
+
+  // Wait for modal heading (camera name) to be visible
+  const modalHeading = page.getByRole('heading', { level: 2, name: /Front Door|Back Yard|Garage|Driveway|Unknown Camera/i });
+  await expect(modalHeading).toBeVisible({ timeout });
+
+  // Wait for close button to be visible (indicates modal UI is interactive)
+  await expect(page.locator('[data-testid="close-modal-button"]')).toBeVisible({ timeout: 5000 });
+
+  // Wait for any animations to complete
+  await waitForAnimation(page, modal.first(), { timeout: 3000, stabilityDelay: 200 });
+
+  // Additional stability check
+  await waitForElementStable(page, '[data-testid="event-detail-modal"]', {
+    timeout: 5000,
+    stabilityThreshold: 150
+  }).catch(() => {
+    // If element stability check fails, continue - modal might be stable enough
+  });
+}
 
 test.describe('Investigation Workflow Journey (NEM-1664)', () => {
   test.beforeEach(async ({ page, browserName }) => {
@@ -176,8 +209,7 @@ test.describe('Investigation Workflow Journey (NEM-1664)', () => {
     }
   });
 
-  // TODO: Fix modal stability issues
-  test.skip('user can open event details from timeline', async ({ page }) => {
+  test('user can open event details from timeline', async ({ page }) => {
     /**
      * Given: User is viewing the timeline with events
      * When: User clicks on an event in the timeline
@@ -187,6 +219,8 @@ test.describe('Investigation Workflow Journey (NEM-1664)', () => {
     // Given: Navigate to timeline/events page
     await page.goto('/timeline').catch(() => page.goto('/events'));
 
+    // Wait for page to stabilize
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(1000);
 
     // When: Click on first event
@@ -198,13 +232,24 @@ test.describe('Investigation Workflow Journey (NEM-1664)', () => {
 
     if (await firstEvent.count() > 0) {
       await expect(firstEvent.first()).toBeVisible({ timeout: 10000 });
+
+      // Ensure event card is stable before clicking
+      await waitForElementStable(page, firstEvent.first() as any, {
+        timeout: 5000,
+        stabilityThreshold: 100
+      }).catch(() => {
+        // Continue if stability check times out
+      });
+
       await firstEvent.first().click();
 
-      // Then: Event detail should open
+      // Then: Wait for modal to open with proper stability checks
+      await waitForModalContent(page);
+
+      // Verify modal is visible
       const eventDetail = page.locator('[data-testid="event-detail-modal"]').or(
         page.locator('[data-testid="event-detail"]')
       );
-
       await expect(eventDetail.first()).toBeVisible({ timeout: 5000 });
 
       // Verify detail contains key information
@@ -225,8 +270,7 @@ test.describe('Investigation Workflow Journey (NEM-1664)', () => {
     }
   });
 
-  // TODO: Fix modal stability issues
-  test.skip('user can mark event as reviewed', async ({ page }) => {
+  test('user can mark event as reviewed', async ({ page }) => {
     /**
      * Given: User has opened an event detail view
      * When: User clicks the "Mark as Reviewed" button
@@ -236,6 +280,8 @@ test.describe('Investigation Workflow Journey (NEM-1664)', () => {
     // Given: Navigate to timeline and open first event
     await page.goto('/timeline').catch(() => page.goto('/events'));
 
+    // Wait for page to stabilize
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(1000);
 
     const firstEvent = page.locator('[data-testid^="event-"]').or(
@@ -246,7 +292,19 @@ test.describe('Investigation Workflow Journey (NEM-1664)', () => {
 
     if (await firstEvent.count() > 0) {
       await expect(firstEvent.first()).toBeVisible({ timeout: 10000 });
+
+      // Ensure event card is stable before clicking
+      await waitForElementStable(page, firstEvent.first() as any, {
+        timeout: 5000,
+        stabilityThreshold: 100
+      }).catch(() => {
+        // Continue if stability check times out
+      });
+
       await firstEvent.first().click();
+
+      // Wait for modal to open with proper stability checks
+      await waitForModalContent(page);
 
       const eventDetail = page.locator('[data-testid="event-detail-modal"]').or(
         page.locator('[data-testid="event-detail"]')
@@ -261,10 +319,15 @@ test.describe('Investigation Workflow Journey (NEM-1664)', () => {
       );
 
       if (await reviewButton.count() > 0) {
-        await reviewButton.first().click();
+        // Wait for button to be stable and clickable
+        await expect(reviewButton.first()).toBeVisible({ timeout: 5000 });
+        await expect(reviewButton.first()).toBeEnabled({ timeout: 3000 });
 
-        // Then: Verify reviewed status appears
-        await page.waitForTimeout(1000);
+        // Click with retry logic for flaky interactions
+        await reviewButton.first().click({ force: false, timeout: 5000 });
+
+        // Then: Wait for API call to complete and UI to update
+        await page.waitForTimeout(1500);
 
         const reviewedStatus = eventDetail.first().locator('[data-testid="status-reviewed"]').or(
           eventDetail.first().locator('[data-testid*="reviewed"]')
