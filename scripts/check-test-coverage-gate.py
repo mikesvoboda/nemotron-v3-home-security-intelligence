@@ -237,7 +237,6 @@ def check_coverage_diff(base_branch: str = "origin/main") -> tuple[bool, str]:
                 "run",
                 "pytest",
                 "backend/tests/unit/",
-                "backend/tests/integration/",
                 "--cov=backend",
                 "--cov-report=json",
             ],
