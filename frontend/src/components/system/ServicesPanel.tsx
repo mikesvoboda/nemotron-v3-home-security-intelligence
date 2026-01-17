@@ -12,16 +12,23 @@ import {
   Brain,
   Activity,
   Loader2,
+  Ban,
 } from 'lucide-react';
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { toast } from 'sonner';
 
+import { useServiceMutations } from '../../hooks/useServiceMutations';
 import { useServiceStatus, type ServiceName } from '../../hooks/useServiceStatus';
 import {
   fetchHealth,
-  restartService,
   type HealthResponse,
   type ServiceStatus,
 } from '../../services/api';
+
+/**
+ * Services that should NOT allow restart (dangerous operations)
+ */
+const RESTART_DISABLED_SERVICES = new Set(['postgres']);
 
 /**
  * Service category types
@@ -201,6 +208,11 @@ interface ServiceCardProps {
 }
 
 function ServiceCard({ service, onRestart, onToggle }: ServiceCardProps) {
+  // Check if restart/stop is disabled for this service (e.g., postgres)
+  const isRestartDisabled = RESTART_DISABLED_SERVICES.has(service.name);
+  const restartButtonDisabled = service.isRestarting || !service.enabled || isRestartDisabled;
+  const toggleDisabled = isRestartDisabled && service.enabled;
+
   return (
     <div
       className={clsx(
@@ -246,12 +258,16 @@ function ServiceCard({ service, onRestart, onToggle }: ServiceCardProps) {
             <Button
               size="xs"
               variant="secondary"
-              icon={service.isRestarting ? Loader2 : RefreshCw}
+              icon={service.isRestarting ? Loader2 : isRestartDisabled ? Ban : RefreshCw}
               onClick={onRestart}
-              disabled={service.isRestarting || !service.enabled}
-              className={clsx('h-6 px-2 text-xs', service.isRestarting && '[&>svg]:animate-spin')}
+              disabled={restartButtonDisabled}
+              className={clsx(
+                'h-6 px-2 text-xs',
+                service.isRestarting && '[&>svg]:animate-spin',
+                isRestartDisabled && 'cursor-not-allowed opacity-50'
+              )}
               data-testid={`service-restart-btn-${service.name}`}
-              title="Restart service"
+              title={isRestartDisabled ? 'Restart disabled (dangerous)' : 'Restart service'}
             >
               Restart
             </Button>
@@ -259,15 +275,22 @@ function ServiceCard({ service, onRestart, onToggle }: ServiceCardProps) {
             {/* Enable/Disable toggle */}
             <button
               type="button"
-              onClick={() => onToggle?.(!service.enabled)}
+              onClick={() => !toggleDisabled && onToggle?.(!service.enabled)}
+              disabled={toggleDisabled}
               className={clsx(
                 'flex items-center rounded p-1 transition-colors',
-                service.enabled
-                  ? 'text-[#76B900] hover:bg-[#76B900]/10'
-                  : 'text-gray-500 hover:bg-gray-700'
+                toggleDisabled && 'cursor-not-allowed opacity-50',
+                !toggleDisabled && service.enabled && 'text-[#76B900] hover:bg-[#76B900]/10',
+                !toggleDisabled && !service.enabled && 'text-gray-500 hover:bg-gray-700'
               )}
               data-testid={`service-toggle-btn-${service.name}`}
-              title={service.enabled ? 'Disable service' : 'Enable service'}
+              title={
+                toggleDisabled
+                  ? 'Stopping disabled (dangerous)'
+                  : service.enabled
+                    ? 'Disable service'
+                    : 'Enable service'
+              }
               aria-pressed={service.enabled}
             >
               {service.enabled ? (
@@ -342,6 +365,9 @@ export default function ServicesPanel({
 }: ServicesPanelProps) {
   // Service status from WebSocket (for rtdetr, nemotron, redis)
   const { services: wsServices, hasUnhealthy } = useServiceStatus();
+
+  // Service mutations for restart/stop/start/enable operations
+  const { restartService, stopService, enableService } = useServiceMutations();
 
   // Health status from REST API (includes all services)
   const [healthData, setHealthData] = useState<HealthResponse | null>(null);
@@ -463,7 +489,13 @@ export default function ServicesPanel({
 
   // Handle service restart
   const handleRestart = useCallback(
-    async (serviceName: string) => {
+    (serviceName: string) => {
+      // Check if restart is disabled for this service
+      if (RESTART_DISABLED_SERVICES.has(serviceName)) {
+        toast.error(`Restart is disabled for ${serviceName} (dangerous operation)`);
+        return;
+      }
+
       // Confirm before restarting
       const confirmed = window.confirm(
         `Are you sure you want to restart ${serviceName}? This will temporarily interrupt the service.`
@@ -475,36 +507,56 @@ export default function ServicesPanel({
 
       setRestartingServices((prev) => new Set(prev).add(serviceName));
 
-      try {
-        // Call restart API
-        await restartService(serviceName);
-        onRestart?.(serviceName);
+      restartService.mutate(serviceName, {
+        onSuccess: (response) => {
+          toast.success(response.message || `Service '${serviceName}' restart initiated`);
+          onRestart?.(serviceName);
 
-        // Wait for restart to complete and then refresh health data
-        await new Promise((resolve) => setTimeout(resolve, 3000));
-        await fetchHealthData();
-      } catch (err) {
-        console.error(`Failed to restart service ${serviceName}:`, err);
-        // Show error to user
-        alert(
-          `Failed to restart ${serviceName}: ${err instanceof Error ? err.message : 'Unknown error'}`
-        );
-      } finally {
-        if (isMountedRef.current) {
-          setRestartingServices((prev) => {
-            const next = new Set(prev);
-            next.delete(serviceName);
-            return next;
-          });
-        }
-      }
+          // Wait for restart to complete and then refresh health data
+          setTimeout(() => {
+            void fetchHealthData();
+          }, 3000);
+        },
+        onError: (err) => {
+          console.error(`Failed to restart service ${serviceName}:`, err);
+          toast.error(
+            `Failed to restart ${serviceName}: ${err instanceof Error ? err.message : 'Unknown error'}`
+          );
+        },
+        onSettled: () => {
+          if (isMountedRef.current) {
+            setRestartingServices((prev) => {
+              const next = new Set(prev);
+              next.delete(serviceName);
+              return next;
+            });
+          }
+        },
+      });
     },
-    [onRestart, fetchHealthData]
+    [onRestart, fetchHealthData, restartService]
   );
 
   // Handle service enable/disable toggle
   const handleToggle = useCallback(
     (serviceName: string, enabled: boolean) => {
+      // Check if this is a dangerous service to toggle
+      if (RESTART_DISABLED_SERVICES.has(serviceName) && !enabled) {
+        toast.error(`Stopping ${serviceName} is disabled (dangerous operation)`);
+        return;
+      }
+
+      // Confirm before disabling
+      if (!enabled) {
+        const confirmed = window.confirm(
+          `Are you sure you want to disable ${serviceName}? This will stop the service and prevent auto-restart.`
+        );
+        if (!confirmed) {
+          return;
+        }
+      }
+
+      // Optimistically update UI
       setEnabledServices((prev) => {
         const next = new Set(prev);
         if (enabled) {
@@ -514,9 +566,51 @@ export default function ServicesPanel({
         }
         return next;
       });
-      onToggle?.(serviceName, enabled);
+
+      // Call the appropriate mutation
+      if (enabled) {
+        enableService.mutate(serviceName, {
+          onSuccess: (response) => {
+            toast.success(response.message || `Service '${serviceName}' enabled`);
+            onToggle?.(serviceName, true);
+            void fetchHealthData();
+          },
+          onError: (err) => {
+            console.error(`Failed to enable service ${serviceName}:`, err);
+            toast.error(
+              `Failed to enable ${serviceName}: ${err instanceof Error ? err.message : 'Unknown error'}`
+            );
+            // Revert optimistic update
+            setEnabledServices((prev) => {
+              const next = new Set(prev);
+              next.delete(serviceName);
+              return next;
+            });
+          },
+        });
+      } else {
+        stopService.mutate(serviceName, {
+          onSuccess: (response) => {
+            toast.success(response.message || `Service '${serviceName}' disabled`);
+            onToggle?.(serviceName, false);
+            void fetchHealthData();
+          },
+          onError: (err) => {
+            console.error(`Failed to disable service ${serviceName}:`, err);
+            toast.error(
+              `Failed to disable ${serviceName}: ${err instanceof Error ? err.message : 'Unknown error'}`
+            );
+            // Revert optimistic update
+            setEnabledServices((prev) => {
+              const next = new Set(prev);
+              next.add(serviceName);
+              return next;
+            });
+          },
+        });
+      }
     },
-    [onToggle]
+    [onToggle, enableService, stopService, fetchHealthData]
   );
 
   // Calculate overall status

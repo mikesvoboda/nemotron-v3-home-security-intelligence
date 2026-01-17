@@ -1,6 +1,7 @@
 import { AlertOctagon, Bug, RefreshCw } from 'lucide-react';
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 
+import { createFrontendErrorPayload, logFrontendErrorNoThrow } from '../../services/api';
 import { logger } from '../../services/logger';
 import { captureError, isSentryEnabled } from '../../services/sentry';
 
@@ -71,8 +72,11 @@ function getErrorFingerprint(error: Error): string {
   return `${error.message}:${firstStackLine}`;
 }
 
-/** Set of logged error fingerprints to prevent duplicate logs */
+/** Set of logged error fingerprints to prevent duplicate console logs */
 const loggedErrors = new Set<string>();
+
+/** Set of error fingerprints that have been logged to the backend */
+const backendLoggedErrors = new Set<string>();
 
 /**
  * Clear the error fingerprint cache.
@@ -80,6 +84,15 @@ const loggedErrors = new Set<string>();
  */
 export function clearErrorCache(): void {
   loggedErrors.clear();
+}
+
+/**
+ * Clear the backend logged errors cache.
+ * Useful for testing and long-running sessions.
+ * NEM-2725: Separate cache for backend deduplication.
+ */
+export function clearBackendLoggedErrors(): void {
+  backendLoggedErrors.clear();
 }
 
 export interface ErrorBoundaryProps {
@@ -148,13 +161,13 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
    * Uses the centralized logger service to capture errors in both
    * development and production environments for debugging via source maps.
    * Implements error deduplication to prevent flooding logs with repeated errors.
-   * Also reports to Sentry if configured.
+   * Also reports to Sentry if configured and logs to backend (NEM-2725).
    */
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     // Generate fingerprint for deduplication
     const fingerprint = getErrorFingerprint(error);
 
-    // Only log if this error hasn't been logged before
+    // Only log to console if this error hasn't been logged before
     if (!loggedErrors.has(fingerprint)) {
       loggedErrors.add(fingerprint);
 
@@ -167,6 +180,24 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
         component: this.props.componentName,
         url: window.location.href,
       });
+    }
+
+    // NEM-2725: Log to backend with deduplication
+    // This is separate from console logging to allow for different deduplication windows
+    if (!backendLoggedErrors.has(fingerprint)) {
+      backendLoggedErrors.add(fingerprint);
+
+      // Create and send payload to backend asynchronously
+      // Using void to indicate we're intentionally not awaiting
+      const payload = createFrontendErrorPayload(error, {
+        component: this.props.componentName,
+        componentStack: errorInfo.componentStack ?? undefined,
+        source: 'error_boundary',
+      });
+
+      // Fire and forget - don't block error handling on logging success
+      // logFrontendErrorNoThrow handles errors internally
+      void logFrontendErrorNoThrow(payload);
     }
 
     // Report to Sentry if enabled

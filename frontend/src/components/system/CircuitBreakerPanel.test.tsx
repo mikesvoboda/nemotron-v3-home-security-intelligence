@@ -427,4 +427,217 @@ describe('CircuitBreakerPanel', () => {
       expect(resetButton).toHaveAttribute('aria-label');
     });
   });
+
+  describe('debug mode', () => {
+    const mockWebSocketStatus = {
+      event_broadcaster: {
+        connection_count: 5,
+        is_listening: true,
+        is_degraded: false,
+        circuit_state: 'CLOSED',
+        channel_name: 'events',
+      },
+      system_broadcaster: {
+        connection_count: 3,
+        is_listening: true,
+        is_degraded: false,
+        circuit_state: 'CLOSED',
+        channel_name: null,
+      },
+    };
+
+    it('does not render debug section when debugMode is false', () => {
+      render(
+        <CircuitBreakerPanel
+          data={mockAllClosed}
+          loading={false}
+          error={null}
+          onReset={mockOnReset}
+          debugMode={false}
+        />
+      );
+
+      expect(screen.queryByTestId('websocket-debug-section')).not.toBeInTheDocument();
+      expect(screen.queryByText('DEBUG')).not.toBeInTheDocument();
+    });
+
+    it('renders debug section when debugMode is true', () => {
+      render(
+        <CircuitBreakerPanel
+          data={mockAllClosed}
+          loading={false}
+          error={null}
+          onReset={mockOnReset}
+          debugMode={true}
+          webSocketStatus={mockWebSocketStatus}
+        />
+      );
+
+      expect(screen.getByTestId('websocket-debug-section')).toBeInTheDocument();
+    });
+
+    it('displays DEBUG badge when debugMode is true', () => {
+      render(
+        <CircuitBreakerPanel
+          data={mockAllClosed}
+          loading={false}
+          error={null}
+          onReset={mockOnReset}
+          debugMode={true}
+          webSocketStatus={mockWebSocketStatus}
+        />
+      );
+
+      expect(screen.getByText('DEBUG')).toBeInTheDocument();
+    });
+
+    it('renders WebSocket broadcaster status when provided', () => {
+      render(
+        <CircuitBreakerPanel
+          data={mockAllClosed}
+          loading={false}
+          error={null}
+          onReset={mockOnReset}
+          debugMode={true}
+          webSocketStatus={mockWebSocketStatus}
+        />
+      );
+
+      expect(screen.getByText('Event Broadcaster')).toBeInTheDocument();
+      expect(screen.getByText('System Broadcaster')).toBeInTheDocument();
+    });
+
+    it('displays connection counts for each broadcaster', () => {
+      render(
+        <CircuitBreakerPanel
+          data={mockAllClosed}
+          loading={false}
+          error={null}
+          onReset={mockOnReset}
+          debugMode={true}
+          webSocketStatus={mockWebSocketStatus}
+        />
+      );
+
+      // Event broadcaster has 5 connections, system has 3, total 8
+      expect(screen.getByText('5')).toBeInTheDocument();
+      expect(screen.getByText('8 connections')).toBeInTheDocument();
+    });
+
+    it('displays circuit state for each broadcaster', () => {
+      render(
+        <CircuitBreakerPanel
+          data={mockAllClosed}
+          loading={false}
+          error={null}
+          onReset={mockOnReset}
+          debugMode={true}
+          webSocketStatus={mockWebSocketStatus}
+        />
+      );
+
+      // Should show CLOSED state badges
+      const closedBadges = screen.getAllByText('CLOSED');
+      expect(closedBadges.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('shows degraded status when broadcaster is degraded', () => {
+      const degradedStatus = {
+        ...mockWebSocketStatus,
+        event_broadcaster: {
+          ...mockWebSocketStatus.event_broadcaster,
+          is_degraded: true,
+        },
+      };
+
+      render(
+        <CircuitBreakerPanel
+          data={mockAllClosed}
+          loading={false}
+          error={null}
+          onReset={mockOnReset}
+          debugMode={true}
+          webSocketStatus={degradedStatus}
+        />
+      );
+
+      expect(screen.getByText('Degraded')).toBeInTheDocument();
+    });
+
+    it('shows loading state when webSocketLoading is true', () => {
+      render(
+        <CircuitBreakerPanel
+          data={mockAllClosed}
+          loading={false}
+          error={null}
+          onReset={mockOnReset}
+          debugMode={true}
+          webSocketLoading={true}
+        />
+      );
+
+      expect(screen.getByTestId('websocket-debug-loading')).toBeInTheDocument();
+    });
+
+    it('shows error state when webSocketError is provided', () => {
+      render(
+        <CircuitBreakerPanel
+          data={mockAllClosed}
+          loading={false}
+          error={null}
+          onReset={mockOnReset}
+          debugMode={true}
+          webSocketError="Failed to fetch WebSocket status"
+        />
+      );
+
+      expect(screen.getByText('Failed to fetch WebSocket status')).toBeInTheDocument();
+    });
+
+    it('shows no status message when webSocketStatus is null', () => {
+      render(
+        <CircuitBreakerPanel
+          data={mockAllClosed}
+          loading={false}
+          error={null}
+          onReset={mockOnReset}
+          debugMode={true}
+          webSocketStatus={null}
+        />
+      );
+
+      expect(screen.getByText('No WebSocket status available')).toBeInTheDocument();
+    });
+
+    it('displays channel name when available', () => {
+      render(
+        <CircuitBreakerPanel
+          data={mockAllClosed}
+          loading={false}
+          error={null}
+          onReset={mockOnReset}
+          debugMode={true}
+          webSocketStatus={mockWebSocketStatus}
+        />
+      );
+
+      expect(screen.getByText('events')).toBeInTheDocument();
+    });
+
+    it('applies orange accent styling to debug section', () => {
+      render(
+        <CircuitBreakerPanel
+          data={mockAllClosed}
+          loading={false}
+          error={null}
+          onReset={mockOnReset}
+          debugMode={true}
+          webSocketStatus={mockWebSocketStatus}
+        />
+      );
+
+      const debugSection = screen.getByTestId('websocket-debug-section');
+      expect(debugSection.className).toContain('border-orange-500');
+    });
+  });
 });

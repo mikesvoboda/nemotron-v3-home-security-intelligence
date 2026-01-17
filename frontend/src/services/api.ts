@@ -2283,6 +2283,191 @@ export async function fetchLogs(params?: LogsQueryParams): Promise<GeneratedLogs
   return fetchApi<GeneratedLogsResponse>(endpoint);
 }
 
+// ============================================================================
+// Frontend Error Logging (NEM-2725)
+// ============================================================================
+
+/**
+ * Request payload for frontend error logging.
+ * Matches the backend FrontendLogCreate schema with error-specific extensions.
+ */
+export interface FrontendErrorLogRequest {
+  /** Log level - always 'ERROR' for error boundaries */
+  level: 'DEBUG' | 'INFO' | 'WARNING' | 'ERROR' | 'CRITICAL';
+  /** Human-readable error message */
+  message: string;
+  /** React component that caught the error */
+  component: string;
+  /** Current page URL */
+  url?: string;
+  /** Browser user agent */
+  user_agent?: string;
+  /** Additional context including stack trace */
+  extra?: {
+    /** Error stack trace */
+    stack?: string;
+    /** Source of the error (e.g., 'error_boundary') */
+    source?: string;
+    /** ISO timestamp */
+    timestamp?: string;
+    /** React component stack */
+    componentStack?: string;
+    /** Any additional context */
+    [key: string]: unknown;
+  };
+}
+
+/**
+ * Response from the frontend log endpoint.
+ */
+export interface FrontendErrorLogResponse {
+  /** Unique identifier for the log entry */
+  id: number;
+  /** Status of the log entry */
+  status: string;
+}
+
+/**
+ * Options for creating a frontend error payload.
+ */
+export interface CreateFrontendErrorPayloadOptions {
+  /** Component name that caught the error */
+  component?: string;
+  /** React component stack trace */
+  componentStack?: string;
+  /** Source of the error (defaults to 'error_boundary') */
+  source?: string;
+  /** Additional context to include */
+  context?: Record<string, unknown>;
+}
+
+/**
+ * Log a frontend error to the backend logging endpoint.
+ *
+ * Use this function when you need to handle logging failures explicitly.
+ * For ErrorBoundary usage, prefer `logFrontendErrorNoThrow` which prevents
+ * logging failures from causing additional errors.
+ *
+ * @param payload - The error log payload
+ * @returns Promise resolving to the created log entry response
+ * @throws ApiError if the request fails
+ *
+ * @example
+ * ```typescript
+ * try {
+ *   await logFrontendError({
+ *     level: 'ERROR',
+ *     message: 'Component crashed',
+ *     component: 'Dashboard',
+ *     extra: { stack: error.stack },
+ *   });
+ * } catch (e) {
+ *   console.error('Failed to log error:', e);
+ * }
+ * ```
+ */
+export async function logFrontendError(
+  payload: FrontendErrorLogRequest
+): Promise<FrontendErrorLogResponse> {
+  return fetchApi<FrontendErrorLogResponse>('/api/logs/frontend', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+/**
+ * Log a frontend error to the backend without throwing on failure.
+ *
+ * This is the preferred method for ErrorBoundary components as it ensures
+ * that logging failures don't cause additional errors or crash the app.
+ * Failures are logged to the console as a warning.
+ *
+ * @param payload - The error log payload
+ * @returns Promise resolving to true if logging succeeded, false otherwise
+ *
+ * @example
+ * ```typescript
+ * // In ErrorBoundary.componentDidCatch:
+ * const payload = createFrontendErrorPayload(error, { component: 'MyComponent' });
+ * await logFrontendErrorNoThrow(payload);
+ * // App continues running regardless of logging success
+ * ```
+ */
+export async function logFrontendErrorNoThrow(payload: FrontendErrorLogRequest): Promise<boolean> {
+  try {
+    await logFrontendError(payload);
+    return true;
+  } catch (error) {
+    // Log to console but don't throw - we don't want logging failures
+    // to cause additional errors in the error boundary
+    console.warn('Failed to log frontend error to backend:', error);
+    return false;
+  }
+}
+
+/**
+ * Create a frontend error log payload from an Error object.
+ *
+ * Extracts relevant information from the error and constructs a properly
+ * formatted payload for the backend logging endpoint.
+ *
+ * @param error - The error to log
+ * @param options - Options for creating the payload
+ * @returns FrontendErrorLogRequest ready to send to the backend
+ *
+ * @example
+ * ```typescript
+ * // In ErrorBoundary.componentDidCatch:
+ * const payload = createFrontendErrorPayload(error, {
+ *   component: 'Dashboard',
+ *   componentStack: errorInfo.componentStack,
+ * });
+ * await logFrontendErrorNoThrow(payload);
+ * ```
+ */
+export function createFrontendErrorPayload(
+  error: Error,
+  options: CreateFrontendErrorPayloadOptions = {}
+): FrontendErrorLogRequest {
+  const {
+    component = extractComponentFromStack(options.componentStack) || 'Unknown',
+    componentStack,
+    source = 'error_boundary',
+    context,
+  } = options;
+
+  return {
+    level: 'ERROR',
+    message: error.message,
+    component,
+    url: typeof window !== 'undefined' ? window.location.href : undefined,
+    user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : undefined,
+    extra: {
+      stack: error.stack || undefined,
+      source,
+      timestamp: new Date().toISOString(),
+      ...(componentStack && { componentStack }),
+      ...context,
+    },
+  };
+}
+
+/**
+ * Extract the component name from a React component stack.
+ * Returns the first component name found in the stack, or undefined if not parseable.
+ *
+ * @internal
+ */
+function extractComponentFromStack(componentStack?: string): string | undefined {
+  if (!componentStack) return undefined;
+
+  // React component stacks look like:
+  // "\n    in Dashboard\n    in App"
+  // or "\n    at Dashboard\n    at App"
+  const match = componentStack.match(/(?:in|at)\s+(\w+)/);
+  return match?.[1];
+}
+
 /**
  * Get the URL for a detection's thumbnail image (with bounding box).
  * This URL can be used directly in an img src attribute.
@@ -3753,7 +3938,35 @@ export async function resetCircuitBreaker(
 // ============================================================================
 
 /**
- * Response from restarting a service
+ * Service information from the container orchestrator
+ */
+export interface ServiceInfo {
+  name: string;
+  display_name: string;
+  category: 'infrastructure' | 'ai' | 'monitoring';
+  status: string;
+  enabled: boolean;
+  container_id?: string | null;
+  image?: string | null;
+  port: number;
+  failure_count: number;
+  restart_count: number;
+  last_restart_at?: string | null;
+  uptime_seconds?: number | null;
+}
+
+/**
+ * Response from service action endpoints (restart, start, stop, enable, disable)
+ */
+export interface ServiceActionResponse {
+  success: boolean;
+  message: string;
+  service: ServiceInfo;
+}
+
+/**
+ * @deprecated Use ServiceActionResponse instead
+ * Legacy response type kept for backward compatibility
  */
 export interface ServiceRestartResponse {
   service: string;
@@ -3770,13 +3983,73 @@ export interface ServiceRestartResponse {
  * and its status will be broadcast via WebSocket when complete.
  *
  * @param name - The name of the service to restart (e.g., 'rtdetr', 'nemotron')
- * @returns ServiceRestartResponse with restart confirmation
- * @throws ApiError 400 if service name is invalid
+ * @returns ServiceActionResponse with restart confirmation
+ * @throws ApiError 400 if service is disabled
  * @throws ApiError 404 if service not found
+ * @throws ApiError 503 if orchestrator not available
  */
-export async function restartService(name: string): Promise<ServiceRestartResponse> {
-  return fetchApi<ServiceRestartResponse>(
+export async function restartService(name: string): Promise<ServiceActionResponse> {
+  return fetchApi<ServiceActionResponse>(
     `/api/system/services/${encodeURIComponent(name)}/restart`,
+    { method: 'POST' }
+  );
+}
+
+/**
+ * Start a stopped service.
+ *
+ * Starts a service that was previously stopped. Will fail if the service
+ * is already running or is disabled (must be enabled first).
+ *
+ * @param name - The name of the service to start (e.g., 'rtdetr', 'nemotron')
+ * @returns ServiceActionResponse with start confirmation
+ * @throws ApiError 400 if service is already running or disabled
+ * @throws ApiError 404 if service not found
+ * @throws ApiError 503 if orchestrator not available
+ */
+export async function startService(name: string): Promise<ServiceActionResponse> {
+  return fetchApi<ServiceActionResponse>(
+    `/api/system/services/${encodeURIComponent(name)}/start`,
+    { method: 'POST' }
+  );
+}
+
+/**
+ * Stop/disable a running service.
+ *
+ * Disables a service, stopping it and preventing auto-restart.
+ * Use enableService to re-enable and restart the service.
+ *
+ * Note: This maps to the backend's disable endpoint as there is no
+ * explicit stop endpoint. Disabling stops the service and prevents
+ * self-healing restarts.
+ *
+ * @param name - The name of the service to stop (e.g., 'rtdetr', 'nemotron')
+ * @returns ServiceActionResponse with disable confirmation
+ * @throws ApiError 404 if service not found
+ * @throws ApiError 503 if orchestrator not available
+ */
+export async function stopService(name: string): Promise<ServiceActionResponse> {
+  return fetchApi<ServiceActionResponse>(
+    `/api/system/services/${encodeURIComponent(name)}/disable`,
+    { method: 'POST' }
+  );
+}
+
+/**
+ * Enable a disabled service.
+ *
+ * Re-enables a service that was previously disabled. The orchestrator
+ * will start the service if it's not already running.
+ *
+ * @param name - The name of the service to enable (e.g., 'rtdetr', 'nemotron')
+ * @returns ServiceActionResponse with enable confirmation
+ * @throws ApiError 404 if service not found
+ * @throws ApiError 503 if orchestrator not available
+ */
+export async function enableService(name: string): Promise<ServiceActionResponse> {
+  return fetchApi<ServiceActionResponse>(
+    `/api/system/services/${encodeURIComponent(name)}/enable`,
     { method: 'POST' }
   );
 }
@@ -5922,4 +6195,173 @@ export async function downloadProfile(): Promise<Blob> {
     throw new ApiError(response.status, `Failed to download profile: ${response.statusText}`);
   }
   return response.blob();
+}
+
+// ============================================================================
+// Debug Panel Enhancement API (NEM-2717)
+// ============================================================================
+
+/**
+ * A single pipeline error record.
+ */
+export interface PipelineError {
+  /** ISO timestamp of error */
+  timestamp: string;
+  /** Type of error (e.g., "connection_error", "timeout_error") */
+  error_type: string;
+  /** Component that generated the error (e.g., "detector", "analyzer") */
+  component: string;
+  /** Optional error message with details */
+  message: string | null;
+}
+
+/**
+ * Response from GET /api/debug/pipeline-errors
+ */
+export interface PipelineErrorsResponse {
+  /** List of recent pipeline errors */
+  errors: PipelineError[];
+  /** Total number of errors returned */
+  total: number;
+  /** Maximum errors requested */
+  limit: number;
+  /** ISO timestamp of response */
+  timestamp: string;
+}
+
+/**
+ * Fetch recent pipeline errors from the debug API.
+ *
+ * Only available when debug mode is enabled on the backend.
+ *
+ * @param limit - Maximum number of errors to return (default: 10, max: 100)
+ * @param component - Optional filter by component
+ * @param errorType - Optional filter by error type
+ * @returns Pipeline errors response
+ *
+ * @example
+ * ```typescript
+ * const errors = await fetchPipelineErrors(20, 'detector');
+ * console.log(`Found ${errors.total} errors from detector`);
+ * ```
+ */
+export async function fetchPipelineErrors(
+  limit: number = 10,
+  component?: string,
+  errorType?: string
+): Promise<PipelineErrorsResponse> {
+  const params = new URLSearchParams();
+  params.set('limit', String(limit));
+  if (component) params.set('component', component);
+  if (errorType) params.set('error_type', errorType);
+
+  return fetchApi<PipelineErrorsResponse>(`/api/debug/pipeline-errors?${params.toString()}`);
+}
+
+/**
+ * Redis info from the INFO command.
+ */
+export interface RedisInfo {
+  /** Redis server version */
+  redis_version: string;
+  /** Number of connected clients */
+  connected_clients: number;
+  /** Human-readable used memory */
+  used_memory_human: string;
+  /** Human-readable peak memory usage */
+  used_memory_peak_human: string;
+  /** Total connections received since startup */
+  total_connections_received: number;
+  /** Total commands processed since startup */
+  total_commands_processed: number;
+  /** Uptime in seconds */
+  uptime_in_seconds: number;
+}
+
+/**
+ * Pub/sub channel information.
+ */
+export interface RedisPubsubInfo {
+  /** List of active channel names */
+  channels: string[];
+  /** Subscriber counts per channel */
+  subscriber_counts: Record<string, number>;
+}
+
+/**
+ * Response from GET /api/debug/redis/info
+ */
+export interface RedisDebugInfoResponse {
+  /** Connection status: "connected", "unavailable", or "error" */
+  status: string;
+  /** Redis INFO command output (null if unavailable) */
+  info: RedisInfo | null;
+  /** Pub/sub channel information (null if unavailable) */
+  pubsub: RedisPubsubInfo | null;
+  /** ISO timestamp of response */
+  timestamp: string;
+}
+
+/**
+ * Fetch detailed Redis information from the debug API.
+ *
+ * Only available when debug mode is enabled on the backend.
+ *
+ * @returns Redis debug info response
+ *
+ * @example
+ * ```typescript
+ * const redisInfo = await fetchRedisDebugInfo();
+ * console.log(`Redis ${redisInfo.info?.redis_version} using ${redisInfo.info?.used_memory_human}`);
+ * ```
+ */
+export async function fetchRedisDebugInfo(): Promise<RedisDebugInfoResponse> {
+  return fetchApi<RedisDebugInfoResponse>('/api/debug/redis/info');
+}
+
+/**
+ * Status of a WebSocket broadcaster.
+ */
+export interface WebSocketBroadcasterStatus {
+  /** Number of active WebSocket connections */
+  connection_count: number;
+  /** Whether the broadcaster is listening for events */
+  is_listening: boolean;
+  /** Whether the broadcaster is in degraded mode */
+  is_degraded: boolean;
+  /** Circuit breaker state: "CLOSED", "OPEN", or "HALF_OPEN" */
+  circuit_state: string;
+  /** Redis channel being listened to (null for system broadcaster) */
+  channel_name: string | null;
+}
+
+/**
+ * Response from GET /api/debug/websocket/connections
+ */
+export interface WebSocketConnectionsResponse {
+  /** Event broadcaster status (security event stream) */
+  event_broadcaster: WebSocketBroadcasterStatus;
+  /** System broadcaster status (system status stream) */
+  system_broadcaster: WebSocketBroadcasterStatus;
+  /** ISO timestamp of response */
+  timestamp: string;
+}
+
+/**
+ * Fetch WebSocket connection status from the debug API.
+ *
+ * Only available when debug mode is enabled on the backend.
+ *
+ * @returns WebSocket connections response
+ *
+ * @example
+ * ```typescript
+ * const wsStatus = await fetchWebSocketConnections();
+ * const totalConnections = wsStatus.event_broadcaster.connection_count +
+ *   wsStatus.system_broadcaster.connection_count;
+ * console.log(`${totalConnections} active WebSocket connections`);
+ * ```
+ */
+export async function fetchWebSocketConnections(): Promise<WebSocketConnectionsResponse> {
+  return fetchApi<WebSocketConnectionsResponse>('/api/debug/websocket/connections');
 }

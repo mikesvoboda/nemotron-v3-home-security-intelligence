@@ -304,4 +304,114 @@ describe('DatabasesPanel', () => {
       expect(screen.getByTestId('postgresql-connections')).toHaveTextContent('27/30');
     });
   });
+
+  describe('debug mode', () => {
+    const mockRedisDebugInfo = {
+      redis_version: '7.0.0',
+      connected_clients: 5,
+      used_memory_human: '10.5MB',
+      used_memory_peak_human: '15.2MB',
+      total_connections_received: 1000,
+      total_commands_processed: 50000,
+      uptime_in_seconds: 86400,
+    };
+
+    const mockPubsubInfo = {
+      channels: ['events', 'system'],
+      subscriber_counts: { events: 3, system: 2 },
+    };
+
+    it('does not render debug section when debugMode is false', () => {
+      render(<DatabasesPanel {...defaultProps} debugMode={false} />);
+
+      expect(screen.queryByTestId('redis-debug-section')).not.toBeInTheDocument();
+      expect(screen.queryByText('DEBUG')).not.toBeInTheDocument();
+    });
+
+    it('renders debug section when debugMode is true', () => {
+      render(<DatabasesPanel {...defaultProps} debugMode={true} redisDebugInfo={mockRedisDebugInfo} />);
+
+      expect(screen.getByTestId('redis-debug-section')).toBeInTheDocument();
+    });
+
+    it('displays DEBUG badge when debugMode is true', () => {
+      render(<DatabasesPanel {...defaultProps} debugMode={true} redisDebugInfo={mockRedisDebugInfo} />);
+
+      expect(screen.getByText('DEBUG')).toBeInTheDocument();
+    });
+
+    it('renders Redis debug info when provided', () => {
+      render(
+        <DatabasesPanel
+          {...defaultProps}
+          debugMode={true}
+          redisDebugInfo={mockRedisDebugInfo}
+          pubsubInfo={mockPubsubInfo}
+        />
+      );
+
+      expect(screen.getByText('7.0.0')).toBeInTheDocument();
+      expect(screen.getByText('10.5MB')).toBeInTheDocument();
+    });
+
+    it('renders pubsub channels when provided', () => {
+      render(
+        <DatabasesPanel
+          {...defaultProps}
+          debugMode={true}
+          redisDebugInfo={mockRedisDebugInfo}
+          pubsubInfo={mockPubsubInfo}
+        />
+      );
+
+      expect(screen.getByText('events')).toBeInTheDocument();
+      expect(screen.getByText('system')).toBeInTheDocument();
+    });
+
+    it('shows loading state when redisDebugLoading is true', () => {
+      render(<DatabasesPanel {...defaultProps} debugMode={true} redisDebugLoading={true} />);
+
+      expect(screen.getByTestId('redis-debug-loading')).toBeInTheDocument();
+    });
+
+    it('shows error state when redisDebugError is provided', () => {
+      render(
+        <DatabasesPanel {...defaultProps} debugMode={true} redisDebugError="Failed to fetch Redis info" />
+      );
+
+      expect(screen.getByText('Failed to fetch Redis info')).toBeInTheDocument();
+    });
+
+    it('shows no debug info message when redisDebugInfo is null', () => {
+      render(<DatabasesPanel {...defaultProps} debugMode={true} redisDebugInfo={null} />);
+
+      expect(screen.getByText('No debug info available')).toBeInTheDocument();
+    });
+
+    it('displays subscriber counts for channels', () => {
+      render(
+        <DatabasesPanel
+          {...defaultProps}
+          debugMode={true}
+          redisDebugInfo={mockRedisDebugInfo}
+          pubsubInfo={mockPubsubInfo}
+        />
+      );
+
+      // Should show subscriber counts - use getAllByText since numbers may appear elsewhere
+      // The debug section should contain both channel names and their subscriber counts
+      const debugSection = screen.getByTestId('redis-debug-section');
+      expect(debugSection).toHaveTextContent('events');
+      expect(debugSection).toHaveTextContent('system');
+      // Verify subscriber counts are shown as badges
+      expect(screen.getAllByText('3').length).toBeGreaterThanOrEqual(1); // events subscribers
+    });
+
+    it('applies orange accent styling to debug section', () => {
+      render(<DatabasesPanel {...defaultProps} debugMode={true} redisDebugInfo={mockRedisDebugInfo} />);
+
+      const debugSection = screen.getByTestId('redis-debug-section');
+      expect(debugSection.className).toContain('border-orange-500');
+    });
+  });
 });
