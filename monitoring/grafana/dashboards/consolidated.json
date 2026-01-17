@@ -2673,7 +2673,7 @@
                 "type": "prometheus",
                 "uid": "PBFA97CFB590B2093"
               },
-              "expr": "rate(llama_tokens_predicted_total[1m])",
+              "expr": "rate(llamacpp:tokens_predicted_total[1m])",
               "legendFormat": "Tokens/sec",
               "refId": "A"
             }
@@ -2738,7 +2738,7 @@
                 "type": "prometheus",
                 "uid": "PBFA97CFB590B2093"
               },
-              "expr": "llama_kv_cache_usage_ratio",
+              "expr": "llamacpp:n_busy_slots_per_decode",
               "legendFormat": "KV Cache",
               "refId": "A"
             }
@@ -2823,7 +2823,7 @@
                 "type": "prometheus",
                 "uid": "PBFA97CFB590B2093"
               },
-              "expr": "histogram_quantile(0.50, rate(llama_prompt_eval_time_seconds_bucket[5m]))",
+              "expr": "rate(llamacpp:prompt_seconds_total[5m])",
               "legendFormat": "P50",
               "refId": "A"
             },
@@ -2832,7 +2832,7 @@
                 "type": "prometheus",
                 "uid": "PBFA97CFB590B2093"
               },
-              "expr": "histogram_quantile(0.95, rate(llama_prompt_eval_time_seconds_bucket[5m]))",
+              "expr": "rate(llamacpp:prompt_seconds_total[5m])",
               "legendFormat": "P95",
               "refId": "B"
             },
@@ -2841,7 +2841,7 @@
                 "type": "prometheus",
                 "uid": "PBFA97CFB590B2093"
               },
-              "expr": "histogram_quantile(0.99, rate(llama_prompt_eval_time_seconds_bucket[5m]))",
+              "expr": "rate(llamacpp:prompt_seconds_total[5m])",
               "legendFormat": "P99",
               "refId": "C"
             }
@@ -2926,7 +2926,7 @@
                 "type": "prometheus",
                 "uid": "PBFA97CFB590B2093"
               },
-              "expr": "histogram_quantile(0.50, rate(llama_generation_time_seconds_bucket[5m]))",
+              "expr": "rate(llamacpp:tokens_predicted_seconds_total[5m])",
               "legendFormat": "P50",
               "refId": "A"
             },
@@ -2935,7 +2935,7 @@
                 "type": "prometheus",
                 "uid": "PBFA97CFB590B2093"
               },
-              "expr": "histogram_quantile(0.95, rate(llama_generation_time_seconds_bucket[5m]))",
+              "expr": "rate(llamacpp:tokens_predicted_seconds_total[5m])",
               "legendFormat": "P95",
               "refId": "B"
             },
@@ -2944,7 +2944,7 @@
                 "type": "prometheus",
                 "uid": "PBFA97CFB590B2093"
               },
-              "expr": "histogram_quantile(0.99, rate(llama_generation_time_seconds_bucket[5m]))",
+              "expr": "rate(llamacpp:tokens_predicted_seconds_total[5m])",
               "legendFormat": "P99",
               "refId": "C"
             }
