@@ -330,6 +330,16 @@ class HealthCacheEntry:
 _health_cache: HealthCacheEntry | None = None
 
 
+def clear_health_cache() -> None:
+    """Clear the health check cache.
+
+    This is primarily for testing purposes to ensure tests don't see
+    stale cached results from previous test runs.
+    """
+    global _health_cache  # noqa: PLW0603
+    _health_cache = None
+
+
 # Global references for worker status tracking (set by main.py at startup)
 _gpu_monitor: GPUMonitor | None = None
 _cleanup_service: CleanupService | None = None

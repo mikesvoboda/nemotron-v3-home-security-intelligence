@@ -48,7 +48,7 @@ Notes:
 
 import asyncio
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from PIL import Image
@@ -131,12 +131,20 @@ def mock_redis_client():
 @pytest.fixture
 def file_watcher(temp_camera_root, mock_redis_client):
     """Create FileWatcher instance with mocked dependencies."""
-    watcher = FileWatcher(
-        camera_root=str(temp_camera_root),
-        redis_client=mock_redis_client,
-        debounce_delay=0.01,  # Very short delay for fast tests (1s timeout)
-        stability_time=0.1,  # Very short stability time for fast tests
-    )
+    with patch("backend.services.file_watcher.get_settings") as mock_settings:
+        mock_settings_instance = MagicMock()
+        mock_settings_instance.file_watcher_max_concurrent_queue = 20
+        mock_settings_instance.file_watcher_queue_delay_ms = 0  # No delay in tests
+        mock_settings_instance.file_watcher_polling = False
+        mock_settings_instance.file_watcher_polling_interval = 1.0
+        mock_settings.return_value = mock_settings_instance
+
+        watcher = FileWatcher(
+            camera_root=str(temp_camera_root),
+            redis_client=mock_redis_client,
+            debounce_delay=0.01,  # Very short delay for fast tests (1s timeout)
+            stability_time=0.1,  # Very short stability time for fast tests
+        )
     return watcher
 
 
