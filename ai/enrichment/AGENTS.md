@@ -19,8 +19,19 @@ HTTP server hosting multiple classification models for enriching RT-DETRv2 detec
 | Pet Classifier         | ~200 MB | Cat/dog classification          |
 | FashionCLIP            | ~800 MB | Clothing attributes             |
 | Depth Anything V2      | ~150 MB | Distance estimation             |
+| ViTPose+ Small         | ~100 MB | Human pose estimation           |
 
 **Note**: ViTPose+ Small is loaded on-demand via `vitpose.py` module.
+
+## Model Links
+
+| Model                      | HuggingFace URL                                                                                                                                 | Description                          |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| FashionCLIP                | [patrickjohncyh/fashion-clip](https://huggingface.co/patrickjohncyh/fashion-clip)                                                               | Zero-shot clothing classification    |
+| Vehicle Segment Classifier | [lxyuan/vit-base-patch16-224-vehicle-segment-classification](https://huggingface.co/lxyuan/vit-base-patch16-224-vehicle-segment-classification) | Vehicle type classification (ViT)    |
+| Pet Classifier (ResNet-18) | [microsoft/resnet-18](https://huggingface.co/microsoft/resnet-18)                                                                               | Cat/dog classification               |
+| Depth Anything V2 Small    | [depth-anything/Depth-Anything-V2-Small-hf](https://huggingface.co/depth-anything/Depth-Anything-V2-Small-hf)                                   | Monocular depth estimation           |
+| ViTPose+ Small             | [usyd-community/vitpose-plus-small](https://huggingface.co/usyd-community/vitpose-plus-small)                                                   | Human pose estimation (17 keypoints) |
 
 ## Directory Contents
 
@@ -43,12 +54,12 @@ FastAPI server hosting all classification models.
 
 **Classifier Classes:**
 
-| Class                | Model          | Purpose                           |
-| -------------------- | -------------- | --------------------------------- |
-| `VehicleClassifier`  | ResNet-50      | Vehicle type classification       |
-| `PetClassifier`      | ResNet-18      | Cat/dog classification            |
-| `ClothingClassifier` | FashionCLIP    | Zero-shot clothing classification |
-| `DepthEstimator`     | Depth Anything | Monocular depth estimation        |
+| Class                | Model                                  | HuggingFace                                                                                                                                     | Purpose                           |
+| -------------------- | -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
+| `VehicleClassifier`  | ViT-base-patch16-224 (vehicle segment) | [lxyuan/vit-base-patch16-224-vehicle-segment-classification](https://huggingface.co/lxyuan/vit-base-patch16-224-vehicle-segment-classification) | Vehicle type classification       |
+| `PetClassifier`      | ResNet-18                              | [microsoft/resnet-18](https://huggingface.co/microsoft/resnet-18)                                                                               | Cat/dog classification            |
+| `ClothingClassifier` | FashionCLIP                            | [patrickjohncyh/fashion-clip](https://huggingface.co/patrickjohncyh/fashion-clip)                                                               | Zero-shot clothing classification |
+| `DepthEstimator`     | Depth Anything V2 Small                | [depth-anything/Depth-Anything-V2-Small-hf](https://huggingface.co/depth-anything/Depth-Anything-V2-Small-hf)                                   | Monocular depth estimation        |
 
 **Vehicle Classes:**
 
@@ -83,6 +94,12 @@ SECURITY_CLOTHING_PROMPTS = [
 ### `vitpose.py` (Pose Analyzer)
 
 ViTPose+ Small human pose estimation module.
+
+- **Model**: ViTPose+ Small
+- **HuggingFace**: [usyd-community/vitpose-plus-small](https://huggingface.co/usyd-community/vitpose-plus-small)
+- **Purpose**: Human pose estimation with 17 COCO keypoints
+- **API Endpoint**: `/pose-analyze`
+- **VRAM**: ~100 MB (loaded on-demand)
 
 **Class: `PoseAnalyzer`**
 

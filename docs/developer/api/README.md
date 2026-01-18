@@ -162,14 +162,17 @@ Configure via `RATE_LIMIT_*` environment variables.
 
 ## API Domain Guides
 
-The API is organized into four domains:
+The API is organized into domain-specific guides:
 
-| Guide                               | Description                                             |
-| ----------------------------------- | ------------------------------------------------------- |
-| [Core Resources](core-resources.md) | Cameras, events, detections, zones, entities, analytics |
-| [AI Pipeline](ai-pipeline.md)       | Enrichment, batches, AI audit, dead letter queue        |
-| [System Operations](system-ops.md)  | Health, config, alerts, logs, notifications             |
-| [Real-time](realtime.md)            | WebSocket streams for events and system status          |
+| Guide                                     | Description                                             |
+| ----------------------------------------- | ------------------------------------------------------- |
+| [Core Resources](core-resources.md)       | Cameras, events, detections, zones, entities, analytics |
+| [AI Pipeline](ai-pipeline.md)             | Enrichment, batches, AI audit, dead letter queue        |
+| [System Operations](system-ops.md)        | Health, config, alerts, logs, notifications             |
+| [System Monitoring](system-monitoring.md) | Worker supervisor, pipeline status, Prometheus          |
+| [Real-time](realtime.md)                  | WebSocket streams for events and system status          |
+| [Calibration](calibration.md)             | User risk threshold calibration                         |
+| [Webhooks](webhooks.md)                   | External system integrations (Alertmanager)             |
 
 ## Quick Reference
 
@@ -222,3 +225,19 @@ The API is organized into four domains:
 | -------- | ------------ | --------------------- |
 | WS       | `/ws/events` | Security event stream |
 | WS       | `/ws/system` | System status stream  |
+
+### Calibration
+
+| Method | Endpoint                    | Description                    |
+| ------ | --------------------------- | ------------------------------ |
+| GET    | `/api/calibration`          | Get risk threshold calibration |
+| PUT    | `/api/calibration`          | Update calibration thresholds  |
+| PATCH  | `/api/calibration`          | Partial calibration update     |
+| POST   | `/api/calibration/reset`    | Reset to default thresholds    |
+| GET    | `/api/calibration/defaults` | Get default threshold values   |
+
+### Webhooks
+
+| Method | Endpoint               | Description                   |
+| ------ | ---------------------- | ----------------------------- |
+| POST   | `/api/webhooks/alerts` | Receive Alertmanager webhooks |

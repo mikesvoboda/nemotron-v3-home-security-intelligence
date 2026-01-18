@@ -656,12 +656,13 @@ class Settings(BaseSettings):
 
     # Nemotron context window settings (NEM-1723)
     nemotron_context_window: int = Field(
-        default=3900,
+        default=131072,
         ge=1000,
-        le=128000,
-        description="Nemotron-3-Nano context window size in tokens. "
-        "Prompts exceeding (context_window - max_output_tokens) will be truncated. "
-        "Default: 3900 tokens for Nemotron-3-Nano.",
+        le=131072,
+        description="Nemotron context window size in tokens. "
+        "Production (Nemotron-3-Nano-30B-A3B): 131,072 tokens (128K). "
+        "Development (Nemotron Mini 4B): 4,096 tokens. "
+        "Prompts exceeding (context_window - max_output_tokens) will be truncated.",
     )
     nemotron_max_output_tokens: int = Field(
         default=1536,

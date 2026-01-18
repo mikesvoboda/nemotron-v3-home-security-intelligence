@@ -170,6 +170,12 @@ test.describe('Event Timeline Page Accessibility', () => {
     await timelinePage.goto();
     await timelinePage.waitForTimelineLoad();
 
+    // Wait for LiveActivitySection to fully render with its animated elements
+    // This prevents flaky accessibility violations from timing-dependent rendering of
+    // animated badges, pulse animations, and dynamic connection status indicators
+    await page.waitForSelector('[aria-labelledby="live-activity-heading"]', { state: 'visible' });
+    await page.waitForLoadState('networkidle');
+
     const results = await runA11yCheck(page);
 
     expect(results.violations, formatViolations(results.violations)).toEqual([]);

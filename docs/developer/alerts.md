@@ -357,4 +357,4 @@ Real-time updates use WebSocket via `EventBroadcaster` for event notifications.
 
 ---
 
-[Back to Developer Hub](../developer-hub.md)
+[Back to Developer Hub](README.md)

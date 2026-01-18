@@ -189,7 +189,7 @@ curl -H "X-API-Key: your-secure-api-key-here" \
 - Keys are hashed on startup
 - **Always use header-based authentication** (`X-API-Key` header) instead of query parameters
 
-> **Security Warning:** Avoid passing API keys in URL query parameters (`?api_key=...`). Query parameters are logged in server access logs, stored in browser history, and exposed in HTTP Referer headers. See [Security: API Key Query Parameters](../SECURITY_API_KEYS.md) for detailed information.
+> **Security Warning:** Avoid passing API keys in URL query parameters (`?api_key=...`). Query parameters are logged in server access logs, stored in browser history, and exposed in HTTP Referer headers.
 
 #### Generate Secure Keys
 
@@ -735,4 +735,3 @@ grep "admin" data/logs/security.log
 - [Configuration](configuration.md) - Security-related settings
 - [Troubleshooting](troubleshooting.md) - Security error resolution
 - [Monitoring](monitoring.md) - Security monitoring
-- [API Key Query Parameters](../SECURITY_API_KEYS.md) - Security risks of passing API keys in URLs

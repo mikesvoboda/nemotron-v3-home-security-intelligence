@@ -22,6 +22,15 @@ no text overlays"
 [![Backend Coverage](https://img.shields.io/codecov/c/github/mikesvoboda/nemotron-v3-home-security-intelligence?flag=backend-unit&label=backend%20coverage)](https://codecov.io/gh/mikesvoboda/nemotron-v3-home-security-intelligence)
 [![Frontend Coverage](https://img.shields.io/codecov/c/github/mikesvoboda/nemotron-v3-home-security-intelligence?flag=frontend&label=frontend%20coverage)](https://codecov.io/gh/mikesvoboda/nemotron-v3-home-security-intelligence)
 
+## Powered by NVIDIA Nemotron
+
+This project showcases **[NVIDIA Nemotron-3-Nano-30B-A3B](https://huggingface.co/nvidia/Nemotron-3-Nano-30B-A3B-GGUF)** for intelligent security risk analysis.
+
+- **Model**: Nemotron-3-Nano-30B-A3B (Q4_K_M quantization)
+- **Context Window**: 131,072 tokens (128K)
+- **VRAM**: ~14.7 GB
+- **Purpose**: Analyzes security detections and provides nuanced risk scoring with detailed reasoning
+
 ## Why This Matters: AI on Your Hardware
 
 **Millions of people own NVIDIA GPUs that can run advanced AI models locally.** This project proves you don't need cloud APIs or data center hardware to build intelligent systems.
@@ -68,6 +77,19 @@ With 128K context, Nemotron can reason about:
 All processed locally, with your footage never leaving your network.
 
 > [!TIP] > **Don't have 24GB VRAM?** Reduce `GPU_LAYERS` to offload some layers to CPU RAM, or use a smaller quantization. The system degrades gracefully.
+
+---
+
+## AI Models
+
+| Model               | Purpose                  | HuggingFace                                                                                                   |
+| ------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| Nemotron-3-Nano-30B | Risk reasoning           | [nvidia/Nemotron-3-Nano-30B-A3B-GGUF](https://huggingface.co/nvidia/Nemotron-3-Nano-30B-A3B-GGUF)             |
+| RT-DETRv2           | Object detection         | [PekingU/rtdetr_r50vd_coco_o365](https://huggingface.co/PekingU/rtdetr_r50vd_coco_o365)                       |
+| Florence-2-Large    | Dense captioning         | [microsoft/Florence-2-large](https://huggingface.co/microsoft/Florence-2-large)                               |
+| CLIP ViT-L          | Entity re-identification | [openai/clip-vit-large-patch14](https://huggingface.co/openai/clip-vit-large-patch14)                         |
+| FashionCLIP         | Clothing analysis        | [patrickjohncyh/fashion-clip](https://huggingface.co/patrickjohncyh/fashion-clip)                             |
+| Depth Anything V2   | Depth estimation         | [depth-anything/Depth-Anything-V2-Small-hf](https://huggingface.co/depth-anything/Depth-Anything-V2-Small-hf) |
 
 ---
 
@@ -160,14 +182,14 @@ With all services running on RTX A5500 (24GB):
 
 ## Documentation (pick your path)
 
-| I want to…                   | Start here                             |
-| ---------------------------- | -------------------------------------- |
-| Run this at home             | [User Hub](docs/user-hub.md)           |
-| Deploy and maintain it       | [Operator Hub](docs/operator-hub.md)   |
-| Contribute / extend the code | [Developer Hub](docs/developer-hub.md) |
+| I want to…                   | Start here                                |
+| ---------------------------- | ----------------------------------------- |
+| Run this at home             | [User Hub](docs/user/README.md)           |
+| Deploy and maintain it       | [Operator Hub](docs/docs/operator/)       |
+| Contribute / extend the code | [Developer Hub](docs/developer/README.md) |
 
 If you just need the authoritative env/ports reference, go straight to
-[Runtime Configuration](docs/RUNTIME_CONFIG.md).
+[Environment Variable Reference](docs/reference/config/env-reference.md).
 
 ## AI services and model zoo (what's actually in this repo)
 
@@ -211,7 +233,7 @@ Runs **frontend + backend + PostgreSQL + Redis + AI services** in containers (RT
 enrichment services like Florence/CLIP/Enrichment).
 
 **Prereqs:** Linux host + NVIDIA GPU + container GPU passthrough. Model files/paths are documented in
-[AI Setup](docs/AI_SETUP.md).
+[AI Installation](docs/operator/ai-installation.md).
 
 ```bash
 # 1) Run interactive setup (generates .env and docker-compose.override.yml)
@@ -295,7 +317,7 @@ You can:
 
 ## Configuration (where to look first)
 
-**Source of truth:** [docs/RUNTIME_CONFIG.md](docs/RUNTIME_CONFIG.md)
+**Source of truth:** [Environment Variable Reference](docs/reference/config/env-reference.md)
 
 Common things you’ll configure:
 
@@ -325,8 +347,8 @@ Common things you’ll configure:
   - CLIP embeddings / re-ID support (`ai/clip/`, default port **8093**)
   - Enrichment service helper (`ai/enrichment/`, default port **8094**)
 
-See [AI Setup](docs/AI_SETUP.md) and the authoritative ports/env in
-[docs/RUNTIME_CONFIG.md](docs/RUNTIME_CONFIG.md).
+See [AI Overview](docs/operator/ai-overview.md) and the authoritative ports/env in the
+[Environment Variable Reference](docs/reference/config/env-reference.md).
 
 ## Security model (read this before exposing it)
 
@@ -342,7 +364,7 @@ Start here:
 
 ## Contributing
 
-Start with the [Developer Hub](docs/developer-hub.md).
+Start with the [Developer Hub](docs/developer/README.md).
 
 ```bash
 # Full validation (lint + typecheck + tests)

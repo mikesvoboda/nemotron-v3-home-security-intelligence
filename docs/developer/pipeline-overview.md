@@ -185,7 +185,7 @@ New events are published via Redis pub/sub to all connected WebSocket clients.
 ## Resource Usage
 
 VRAM depends on the deployed model sizes and which enrichment services are enabled. For authoritative ports/env,
-see [Runtime Configuration](../RUNTIME_CONFIG.md).
+see [Environment Variable Reference](../reference/config/env-reference.md).
 
 ---
 
@@ -206,4 +206,4 @@ see [Runtime Configuration](../RUNTIME_CONFIG.md).
 
 ---
 
-[Back to Developer Hub](../developer-hub.md)
+[Back to Developer Hub](README.md)

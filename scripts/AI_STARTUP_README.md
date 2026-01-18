@@ -154,7 +154,7 @@ tail -f /tmp/nemotron-llm.log
 
 3. **Common issues**:
    - **CUDA out of memory**: Close other GPU applications
-   - **llama-server not found**: Install llama.cpp (see docs/AI_SETUP.md)
+   - **llama-server not found**: Install llama.cpp (see docs/operator/ai-installation.md)
    - **Model not found**: Run `./ai/download_models.sh`
 
 ### Services Unhealthy
@@ -212,7 +212,7 @@ Backend services that use AI:
 
 For comprehensive setup instructions, troubleshooting, and performance tuning:
 
-**See: `docs/AI_SETUP.md`**
+**See: `docs/operator/ai-installation.md`**
 
 Topics covered:
 
@@ -241,7 +241,7 @@ For production use, consider:
 3. **Log rotation** - logrotate configuration
 4. **Health checks** - Automated monitoring
 
-See `docs/AI_SETUP.md` section "Production Deployment" for details.
+See `docs/operator/ai-installation.md` for details.
 
 ## Quick Commands Reference
 
@@ -268,7 +268,7 @@ curl http://localhost:8091/health
 
 ## Support
 
-- **Full documentation**: `docs/AI_SETUP.md`
+- **Full documentation**: `docs/operator/ai-installation.md`
 - **AI pipeline overview**: `ai/AGENTS.md`
 - **RT-DETRv2 details**: `ai/rtdetr/README.md`
 - **Nemotron details**: `ai/nemotron/AGENTS.md`

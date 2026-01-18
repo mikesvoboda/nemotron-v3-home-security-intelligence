@@ -26,9 +26,9 @@ import EventVideoPlayer from './EventVideoPlayer';
 import FeedbackForm from './FeedbackForm';
 import ReidMatchesPanel from './ReidMatchesPanel';
 import ThumbnailStrip from './ThumbnailStrip';
+import { useEventDetectionsQuery } from '../../hooks/useEventDetectionsQuery';
 import { useToast } from '../../hooks/useToast';
 import {
-  fetchEventDetections,
   getDetectionFullImageUrl,
   getDetectionImageUrl,
   getDetectionVideoThumbnailUrl,
@@ -60,11 +60,7 @@ import VideoPlayer from '../video/VideoPlayer';
 import type { DetectionThumbnail } from './ThumbnailStrip';
 import type { EntityDetail } from '../../services/api';
 import type { EnrichmentData } from '../../types/enrichment';
-import type {
-  Detection as ApiDetection,
-  FeedbackType,
-  EventFeedbackResponse,
-} from '../../types/generated';
+import type { FeedbackType, EventFeedbackResponse } from '../../types/generated';
 import type { LightboxImage } from '../common/Lightbox';
 import type { BoundingBox } from '../detection/BoundingBoxOverlay';
 
@@ -129,13 +125,8 @@ export default function EventDetailModal({
   const [isSavingNotes, setIsSavingNotes] = useState<boolean>(false);
   const [notesSaved, setNotesSaved] = useState<boolean>(false);
 
-  // State for detection sequence thumbnails
-  const [detectionSequence, setDetectionSequence] = useState<DetectionThumbnail[]>([]);
-  const [loadingDetections, setLoadingDetections] = useState<boolean>(false);
+  // State for selected detection in thumbnail strip
   const [selectedDetectionId, setSelectedDetectionId] = useState<number | undefined>();
-
-  // State for full detection data (including video metadata)
-  const [detectionsData, setDetectionsData] = useState<ApiDetection[]>([]);
 
   // State for flag event
   const [isFlagging, setIsFlagging] = useState<boolean>(false);
@@ -166,6 +157,34 @@ export default function EventDetailModal({
   // Parse event ID for API calls
   const eventIdNumber = event ? parseInt(event.id, 10) : NaN;
 
+  // Query for event detections (uses React Query for caching and deduplication)
+  const {
+    detections: detectionsData,
+    isLoading: loadingDetections,
+  } = useEventDetectionsQuery({
+    eventId: eventIdNumber,
+    limit: 100,
+    enabled: !isNaN(eventIdNumber) && isOpen,
+    staleTime: 30000, // 30 seconds
+  });
+
+  // Transform detections to thumbnail format (memoized for performance)
+  const detectionSequence = useMemo((): DetectionThumbnail[] => {
+    if (!detectionsData || detectionsData.length === 0) {
+      return [];
+    }
+    return detectionsData.map((detection) => ({
+      id: detection.id,
+      detected_at: detection.detected_at,
+      thumbnail_url:
+        detection.media_type === 'video'
+          ? getDetectionVideoThumbnailUrl(detection.id)
+          : getDetectionImageUrl(detection.id),
+      object_type: detection.object_type || undefined,
+      confidence: detection.confidence || undefined,
+    }));
+  }, [detectionsData]);
+
   // Query for existing feedback
   const { data: existingFeedback, isLoading: isLoadingFeedback } =
     useQuery<EventFeedbackResponse | null>({
@@ -189,7 +208,7 @@ export default function EventDetailModal({
     },
   });
 
-  // Initialize notes text and reset re-evaluate state when event changes
+  // Initialize notes text, reset re-evaluate state, and reset selection when event changes
   useEffect(() => {
     if (event) {
       setNotesText(event.notes || '');
@@ -197,64 +216,17 @@ export default function EventDetailModal({
       setReEvaluateError(null);
       setReEvaluateSuccess(false);
       setFeedbackFormType(null);
-    }
-  }, [event]);
-
-  // Fetch detection sequence when event changes
-  useEffect(() => {
-    if (!event || !event.id) {
-      setDetectionSequence([]);
-      setDetectionsData([]);
+      // Reset selected detection when switching events
       setSelectedDetectionId(undefined);
-      return;
     }
-
-    const loadDetections = async () => {
-      setLoadingDetections(true);
-      try {
-        // Parse event ID as number (API expects number)
-        const eventId = parseInt(event.id, 10);
-        if (isNaN(eventId)) {
-          console.error('Invalid event ID:', event.id);
-          return;
-        }
-
-        const response = await fetchEventDetections(eventId, { limit: 100 });
-
-        // Store full detection data for video metadata access
-        setDetectionsData(response.items);
-
-        // Transform API detections to thumbnail format
-        // For videos, use the video thumbnail endpoint; for images, use the image endpoint
-        const thumbnails: DetectionThumbnail[] = response.items.map((detection) => ({
-          id: detection.id,
-          detected_at: detection.detected_at,
-          thumbnail_url:
-            detection.media_type === 'video'
-              ? getDetectionVideoThumbnailUrl(detection.id)
-              : getDetectionImageUrl(detection.id),
-          object_type: detection.object_type || undefined,
-          confidence: detection.confidence || undefined,
-        }));
-
-        setDetectionSequence(thumbnails);
-
-        // Auto-select first detection if none selected
-        if (thumbnails.length > 0 && !selectedDetectionId) {
-          setSelectedDetectionId(thumbnails[0].id);
-        }
-      } catch (error) {
-        console.error('Failed to fetch detections:', error);
-        setDetectionSequence([]);
-        setDetectionsData([]);
-      } finally {
-        setLoadingDetections(false);
-      }
-    };
-
-    void loadDetections();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- selectedDetectionId excluded: changing selection should not refetch detections
   }, [event]);
+
+  // Auto-select first detection when detections load
+  useEffect(() => {
+    if (detectionSequence.length > 0 && selectedDetectionId === undefined) {
+      setSelectedDetectionId(detectionSequence[0].id);
+    }
+  }, [detectionSequence, selectedDetectionId]);
 
   // Handle notes save
   const handleSaveNotes = async () => {

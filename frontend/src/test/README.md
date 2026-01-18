@@ -565,7 +565,7 @@ expect(screen.getByText('Data loaded')).toBeInTheDocument();
 
 ## Related Documentation
 
-- [Testing Guide](/docs/TESTING_GUIDE.md) - Comprehensive testing patterns
+- [Testing Guide](/docs/development/testing.md) - Comprehensive testing patterns
 - [CLAUDE.md](/CLAUDE.md) - TDD approach and workflow
 - [MSW Documentation](https://mswjs.io/docs/) - API mocking library
 - [Testing Library](https://testing-library.com/docs/react-testing-library/intro/) - React testing utilities

@@ -150,4 +150,4 @@ AI services can run either:
 
 ---
 
-[Back to Operator Hub](../operator-hub.md)
+[Back to Operator Hub](./)

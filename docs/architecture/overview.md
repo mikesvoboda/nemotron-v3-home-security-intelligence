@@ -863,7 +863,7 @@ The `HealthMonitor` service:
 
 ## Configuration Summary
 
-See `docs/RUNTIME_CONFIG.md` for complete reference.
+See `docs/reference/config/env-reference.md` for complete reference.
 
 **Key environment variables:**
 
@@ -879,7 +879,7 @@ FLORENCE_URL=http://localhost:8092
 CLIP_URL=http://localhost:8093
 ENRICHMENT_URL=http://localhost:8094
 
-# Optional enrichment feature toggles (see docs/RUNTIME_CONFIG.md for authoritative list)
+# Optional enrichment feature toggles (see docs/reference/config/env-reference.md for authoritative list)
 VISION_EXTRACTION_ENABLED=true
 REID_ENABLED=true
 SCENE_CHANGE_ENABLED=true
@@ -901,15 +901,15 @@ RETENTION_DAYS=30
 
 ## Related Documentation
 
-| Document                    | Purpose                                 |
-| --------------------------- | --------------------------------------- |
-| `docs/RUNTIME_CONFIG.md`    | Complete environment variable reference |
-| `docs/DOCKER_DEPLOYMENT.md` | Docker deployment guide                 |
-| `docs/AI_SETUP.md`          | AI services setup and troubleshooting   |
-| `docs/ROADMAP.md`           | Post-MVP enhancement ideas              |
-| `backend/AGENTS.md`         | Backend architecture details            |
-| `frontend/AGENTS.md`        | Frontend architecture details           |
-| `ai/AGENTS.md`              | AI pipeline details                     |
+| Document                                 | Purpose                                 |
+| ---------------------------------------- | --------------------------------------- |
+| `docs/reference/config/env-reference.md` | Complete environment variable reference |
+| `docs/operator/deployment/`              | Docker deployment guide                 |
+| `docs/operator/ai-installation.md`       | AI services setup and troubleshooting   |
+| `docs/ROADMAP.md`                        | Post-MVP enhancement ideas              |
+| `backend/AGENTS.md`                      | Backend architecture details            |
+| `frontend/AGENTS.md`                     | Frontend architecture details           |
+| `ai/AGENTS.md`                           | AI pipeline details                     |
 
 ---
 

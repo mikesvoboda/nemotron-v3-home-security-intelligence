@@ -1,28 +1,28 @@
 ---
 title: Resilience Architecture
 description: Circuit breakers, retry logic, dead-letter queues, health monitoring, and graceful degradation patterns
-last_updated: 2026-01-04
+last_updated: 2026-01-18
 source_refs:
-  - backend/services/circuit_breaker.py:CircuitBreaker:127
-  - backend/services/circuit_breaker.py:CircuitBreakerConfig:47
-  - backend/services/circuit_breaker.py:CircuitBreakerRegistry:491
-  - backend/services/circuit_breaker.py:CircuitState:39
-  - backend/core/websocket_circuit_breaker.py:WebSocketCircuitBreaker:82
-  - backend/core/websocket_circuit_breaker.py:WebSocketCircuitState:34
-  - backend/core/websocket_circuit_breaker.py:WebSocketCircuitBreakerMetrics:42
-  - backend/services/system_broadcaster.py:SystemBroadcaster:62
-  - backend/services/event_broadcaster.py:EventBroadcaster:49
-  - backend/services/retry_handler.py:RetryHandler:128
-  - backend/services/retry_handler.py:RetryConfig:38
-  - backend/services/retry_handler.py:DLQStats:120
-  - backend/services/health_monitor.py:ServiceHealthMonitor:25
+  - backend/services/circuit_breaker.py:CircuitBreaker:259
+  - backend/services/circuit_breaker.py:CircuitBreakerConfig:127
+  - backend/services/circuit_breaker.py:CircuitBreakerRegistry:957
+  - backend/services/circuit_breaker.py:CircuitState:119
+  - backend/core/websocket_circuit_breaker.py:WebSocketCircuitBreaker:96
+  - backend/core/websocket_circuit_breaker.py:WebSocketCircuitState:39
+  - backend/core/websocket_circuit_breaker.py:WebSocketCircuitBreakerMetrics:47
+  - backend/services/system_broadcaster.py:SystemBroadcaster:66
+  - backend/services/event_broadcaster.py:EventBroadcaster:330
+  - backend/services/retry_handler.py:RetryHandler:184
+  - backend/services/retry_handler.py:RetryConfig:64
+  - backend/services/retry_handler.py:DLQStats:175
+  - backend/services/health_monitor.py:ServiceHealthMonitor:44
   - backend/services/degradation_manager.py:DegradationManager
   - backend/services/service_managers.py:ServiceManager
-  - frontend/src/hooks/useWebSocket.ts:useWebSocket:51
-  - frontend/src/hooks/useWebSocket.ts:WebSocketOptions:10
-  - frontend/src/hooks/useWebSocket.ts:UseWebSocketReturn:37
-  - frontend/src/hooks/webSocketManager.ts:WebSocketManager:131
-  - frontend/src/hooks/webSocketManager.ts:calculateBackoffDelay:94
+  - frontend/src/hooks/useWebSocket.ts:useWebSocket:52
+  - frontend/src/hooks/useWebSocket.ts:WebSocketOptions:11
+  - frontend/src/hooks/useWebSocket.ts:UseWebSocketReturn:38
+  - frontend/src/hooks/webSocketManager.ts:WebSocketManager:136
+  - frontend/src/hooks/webSocketManager.ts:calculateBackoffDelay:99
 ---
 
 # Resilience Architecture
@@ -116,9 +116,9 @@ flowchart TB
 
 | Component                                                        | Location                                  | Responsibility                              |
 | ---------------------------------------------------------------- | ----------------------------------------- | ------------------------------------------- |
-| [CircuitBreaker](../../backend/services/circuit_breaker.py)      | `backend/services/circuit_breaker.py:127` | Prevents cascading failures by failing fast |
-| [RetryHandler](../../backend/services/retry_handler.py)          | `backend/services/retry_handler.py:128`   | Exponential backoff with DLQ support        |
-| [ServiceHealthMonitor](../../backend/services/health_monitor.py) | `backend/services/health_monitor.py:25`   | Periodic health checks and auto-recovery    |
+| [CircuitBreaker](../../backend/services/circuit_breaker.py)      | `backend/services/circuit_breaker.py:259` | Prevents cascading failures by failing fast |
+| [RetryHandler](../../backend/services/retry_handler.py)          | `backend/services/retry_handler.py:184`   | Exponential backoff with DLQ support        |
+| [ServiceHealthMonitor](../../backend/services/health_monitor.py) | `backend/services/health_monitor.py:44`   | Periodic health checks and auto-recovery    |
 | DegradationManager                                               | `backend/services/degradation_manager.py` | Graceful degradation during outages         |
 
 ---
@@ -162,10 +162,10 @@ stateDiagram-v2
 
 ### Implementation Details
 
-The [CircuitBreaker](../../backend/services/circuit_breaker.py) class at line 127 implements the pattern:
+The [CircuitBreaker](../../backend/services/circuit_breaker.py) class at line 259 implements the pattern:
 
 ```python
-# backend/services/circuit_breaker.py:127
+# backend/services/circuit_breaker.py:259
 class CircuitBreaker:
     """Circuit breaker for protecting external service calls.
 
@@ -189,7 +189,7 @@ class CircuitBreaker:
 
 ### Circuit Breaker Configuration
 
-The [CircuitBreakerConfig](../../backend/services/circuit_breaker.py) at line 47 defines behavior:
+The [CircuitBreakerConfig](../../backend/services/circuit_breaker.py) at line 127 defines behavior:
 
 | Parameter             | Default | Description                                  |
 | --------------------- | ------- | -------------------------------------------- |
@@ -223,7 +223,7 @@ except CircuitBreakerError:
 
 ### Circuit Breaker Registry
 
-The [CircuitBreakerRegistry](../../backend/services/circuit_breaker.py) at line 491 manages multiple breakers:
+The [CircuitBreakerRegistry](../../backend/services/circuit_breaker.py) at line 957 manages multiple breakers:
 
 ![Circuit Breaker Registry](../images/resilience/circuit-breaker-registry.svg)
 
@@ -269,7 +269,7 @@ flowchart TB
 
 ## Retry Handler with Exponential Backoff
 
-The [RetryHandler](../../backend/services/retry_handler.py) at line 128 provides automatic retries with exponential backoff for transient failures.
+The [RetryHandler](../../backend/services/retry_handler.py) at line 184 provides automatic retries with exponential backoff for transient failures.
 
 ### Retry Flow
 
@@ -318,10 +318,10 @@ flowchart TB
 
 ### Exponential Backoff Algorithm
 
-The [RetryConfig](../../backend/services/retry_handler.py) at line 38 configures backoff behavior:
+The [RetryConfig](../../backend/services/retry_handler.py) at line 64 configures backoff behavior:
 
 ```python
-# backend/services/retry_handler.py:38
+# backend/services/retry_handler.py:64
 @dataclass
 class RetryConfig:
     """Configuration for retry behavior."""
@@ -441,10 +441,10 @@ Jobs in the DLQ include failure metadata:
 
 ### DLQ Statistics
 
-The [DLQStats](../../backend/services/retry_handler.py) dataclass at line 120:
+The [DLQStats](../../backend/services/retry_handler.py) dataclass at line 175:
 
 ```python
-# backend/services/retry_handler.py:120
+# backend/services/retry_handler.py:175
 @dataclass
 class DLQStats:
     """Statistics about dead-letter queues."""
@@ -467,7 +467,7 @@ class DLQStats:
 
 ## Service Health Monitoring
 
-The [ServiceHealthMonitor](../../backend/services/health_monitor.py) at line 25 continuously monitors external services and orchestrates automatic recovery.
+The [ServiceHealthMonitor](../../backend/services/health_monitor.py) at line 44 continuously monitors external services and orchestrates automatic recovery.
 
 ### Health Check Flow
 
@@ -531,7 +531,7 @@ flowchart TB
 ### Health Monitor Implementation
 
 ```python
-# backend/services/health_monitor.py:25
+# backend/services/health_monitor.py:44
 class ServiceHealthMonitor:
     """Monitors service health and orchestrates automatic recovery.
 

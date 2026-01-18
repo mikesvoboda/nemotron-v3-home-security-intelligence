@@ -382,4 +382,4 @@ gunzip -c backup_20250115.sql.gz | psql -h localhost -U security security
 
 ---
 
-[Back to Operator Hub](../../operator-hub.md)
+[Back to Operator Hub](../../operator/)

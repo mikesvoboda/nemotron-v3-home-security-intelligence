@@ -1,4 +1,5 @@
 import { render, screen, fireEvent, act } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
 import Header from './Header';
@@ -6,6 +7,15 @@ import * as useConnectionStatusModule from '../../hooks/useConnectionStatus';
 import * as useHealthStatusQueryModule from '../../hooks/useHealthStatusQuery';
 
 import type { ChannelStatus, ConnectionState } from '../../hooks/useWebSocketStatus';
+
+// Helper to render Header with Router context
+const renderHeader = (initialRoute: string = '/') => {
+  return render(
+    <MemoryRouter initialEntries={[initialRoute]}>
+      <Header />
+    </MemoryRouter>
+  );
+};
 
 // Mock the useSidebarContext hook
 const mockToggleMobileMenu = vi.fn();
@@ -101,30 +111,30 @@ describe('Header', () => {
   });
 
   it('renders without crashing', () => {
-    render(<Header />);
+    renderHeader();
     expect(screen.getByRole('banner')).toBeInTheDocument();
   });
 
   it('displays the NVIDIA logo with branding text', () => {
-    render(<Header />);
+    renderHeader();
     expect(screen.getByText('Powered by Nemotron v3 Nano')).toBeInTheDocument();
   });
 
   it('displays the Powered by text with NVIDIA green color', () => {
-    render(<Header />);
+    renderHeader();
     const text = screen.getByText('Powered by Nemotron v3 Nano');
     expect(text).toHaveClass('text-[#76B900]');
   });
 
   it('renders the NVIDIA logo', () => {
-    render(<Header />);
+    renderHeader();
     const logo = screen.getByAltText('NVIDIA');
     expect(logo).toBeInTheDocument();
     expect(logo).toHaveAttribute('src', '/images/nvidia-logo-white.svg');
   });
 
   it('displays Connecting status when disconnected', () => {
-    render(<Header />);
+    renderHeader();
     expect(screen.getByText('Connecting...')).toBeInTheDocument();
   });
 
@@ -161,7 +171,7 @@ describe('Header', () => {
       refetch: vi.fn().mockResolvedValue({}),
     });
 
-    render(<Header />);
+    renderHeader();
     expect(screen.getByText('Checking...')).toBeInTheDocument();
   });
 
@@ -206,24 +216,24 @@ describe('Header', () => {
       refetch: vi.fn().mockResolvedValue({}),
     });
 
-    render(<Header />);
+    renderHeader();
     expect(screen.getByText('LIVE MONITORING')).toBeInTheDocument();
   });
 
   it('displays GPU stats placeholder when no data', () => {
-    render(<Header />);
+    renderHeader();
     expect(screen.getByText('GPU:')).toBeInTheDocument();
     expect(screen.getByText('--')).toBeInTheDocument();
   });
 
   it('has correct header styling classes', () => {
-    render(<Header />);
+    renderHeader();
     const header = screen.getByRole('banner');
     expect(header).toHaveClass('h-16', 'bg-[#1A1A1A]', 'border-b', 'border-gray-800');
   });
 
   it('renders branding text with correct styling', () => {
-    render(<Header />);
+    renderHeader();
     const brandingText = screen.getByText('Powered by Nemotron v3 Nano');
     expect(brandingText).toHaveClass('text-[#76B900]', 'font-medium');
     // Has responsive text size classes
@@ -231,31 +241,31 @@ describe('Header', () => {
   });
 
   it('renders logo with responsive sizing', () => {
-    render(<Header />);
+    renderHeader();
     const logo = screen.getByAltText('NVIDIA');
     expect(logo).toHaveClass('h-6', 'w-auto', 'md:h-8');
   });
 
   it('has proper flex layout structure', () => {
-    render(<Header />);
+    renderHeader();
     const header = screen.getByRole('banner');
     expect(header).toHaveClass('flex', 'items-center', 'justify-between');
   });
 
   it('renders GPU stats with correct styling', () => {
-    const { container } = render(<Header />);
+    const { container } = renderHeader();
     const gpuStats = container.querySelector('.bg-gray-800.rounded-lg');
     expect(gpuStats).toBeInTheDocument();
   });
 
   it('GPU value has NVIDIA green color', () => {
-    render(<Header />);
+    renderHeader();
     const gpuValue = screen.getByText('--');
     expect(gpuValue).toHaveClass('text-[#76B900]');
   });
 
   it('contains accessibility attributes for header element', () => {
-    render(<Header />);
+    renderHeader();
     const header = screen.getByRole('banner');
     expect(header.tagName).toBe('HEADER');
   });
@@ -293,7 +303,7 @@ describe('Header', () => {
       refetch: vi.fn().mockResolvedValue({}),
     });
 
-    render(<Header />);
+    renderHeader();
     expect(screen.getByText('76% | 30.5 FPS')).toBeInTheDocument();
   });
 
@@ -330,7 +340,7 @@ describe('Header', () => {
       refetch: vi.fn().mockResolvedValue({}),
     });
 
-    render(<Header />);
+    renderHeader();
     expect(screen.getByText('66°C | 30.5 FPS')).toBeInTheDocument();
   });
 
@@ -367,7 +377,7 @@ describe('Header', () => {
       refetch: vi.fn().mockResolvedValue({}),
     });
 
-    render(<Header />);
+    renderHeader();
     expect(screen.getByText('45% | 63°C | 30.5 FPS')).toBeInTheDocument();
   });
 
@@ -404,7 +414,7 @@ describe('Header', () => {
       refetch: vi.fn().mockResolvedValue({}),
     });
 
-    render(<Header />);
+    renderHeader();
     expect(screen.getByText('System Degraded')).toBeInTheDocument();
   });
 
@@ -441,7 +451,7 @@ describe('Header', () => {
       refetch: vi.fn().mockResolvedValue({}),
     });
 
-    render(<Header />);
+    renderHeader();
     expect(screen.getByText('System Offline')).toBeInTheDocument();
   });
 
@@ -478,7 +488,7 @@ describe('Header', () => {
       refetch: vi.fn().mockResolvedValue({}),
     });
 
-    render(<Header />);
+    renderHeader();
     const statusDot = screen.getByTestId('health-dot');
     expect(statusDot).toHaveClass('bg-yellow-500');
   });
@@ -516,7 +526,7 @@ describe('Header', () => {
       refetch: vi.fn().mockResolvedValue({}),
     });
 
-    render(<Header />);
+    renderHeader();
     const statusDot = screen.getByTestId('health-dot');
     expect(statusDot).toHaveClass('bg-red-500');
   });
@@ -554,7 +564,7 @@ describe('Header', () => {
       refetch: vi.fn().mockResolvedValue({}),
     });
 
-    render(<Header />);
+    renderHeader();
     const statusDot = screen.getByTestId('health-dot');
     expect(statusDot).toHaveClass('bg-green-500');
   });
@@ -605,7 +615,7 @@ describe('Header', () => {
         refetch: vi.fn().mockResolvedValue({}),
       });
 
-      render(<Header />);
+      renderHeader();
 
       // Tooltip should not be visible initially
       expect(screen.queryByTestId('health-tooltip')).not.toBeInTheDocument();
@@ -667,7 +677,7 @@ describe('Header', () => {
         refetch: vi.fn().mockResolvedValue({}),
       });
 
-      render(<Header />);
+      renderHeader();
 
       const healthIndicator = screen.getByTestId('health-indicator');
 
@@ -725,7 +735,7 @@ describe('Header', () => {
         refetch: vi.fn().mockResolvedValue({}),
       });
 
-      render(<Header />);
+      renderHeader();
 
       const healthIndicator = screen.getByTestId('health-indicator');
       fireEvent.mouseEnter(healthIndicator);
@@ -779,7 +789,7 @@ describe('Header', () => {
         refetch: vi.fn().mockResolvedValue({}),
       });
 
-      render(<Header />);
+      renderHeader();
 
       const healthIndicator = screen.getByTestId('health-indicator');
       fireEvent.mouseEnter(healthIndicator);
@@ -829,7 +839,7 @@ describe('Header', () => {
         refetch: vi.fn().mockResolvedValue({}),
       });
 
-      render(<Header />);
+      renderHeader();
 
       const healthIndicator = screen.getByTestId('health-indicator');
       expect(healthIndicator).toHaveClass('cursor-pointer');
@@ -878,7 +888,7 @@ describe('Header', () => {
         refetch: vi.fn().mockResolvedValue({}),
       });
 
-      render(<Header />);
+      renderHeader();
 
       // Should show degraded status (from API) not healthy (from WebSocket)
       expect(screen.getByText('System Degraded')).toBeInTheDocument();
@@ -919,7 +929,7 @@ describe('Header', () => {
         refetch: vi.fn().mockResolvedValue({}),
       });
 
-      render(<Header />);
+      renderHeader();
 
       // Should fall back to WebSocket healthy status
       expect(screen.getByText('LIVE MONITORING')).toBeInTheDocument();
@@ -962,7 +972,7 @@ describe('Header', () => {
         refetch: vi.fn().mockResolvedValue({}),
       });
 
-      render(<Header />);
+      renderHeader();
 
       expect(screen.getByTestId('websocket-status')).toBeInTheDocument();
     });
@@ -1000,7 +1010,7 @@ describe('Header', () => {
         refetch: vi.fn().mockResolvedValue({}),
       });
 
-      render(<Header />);
+      renderHeader();
 
       fireEvent.mouseEnter(screen.getByTestId('websocket-status'));
 
@@ -1027,7 +1037,7 @@ describe('Header', () => {
         refetch: vi.fn().mockResolvedValue({}),
       });
 
-      render(<Header />);
+      renderHeader();
       expect(screen.getByText('Connecting...')).toBeInTheDocument();
     });
 
@@ -1064,7 +1074,7 @@ describe('Header', () => {
         refetch: vi.fn().mockResolvedValue({}),
       });
 
-      render(<Header />);
+      renderHeader();
       expect(screen.getByText('Checking...')).toBeInTheDocument();
     });
   });
@@ -1113,7 +1123,7 @@ describe('Header', () => {
         refetch: vi.fn().mockResolvedValue({}),
       });
 
-      render(<Header />);
+      renderHeader();
 
       const healthIndicator = screen.getByTestId('health-indicator');
 
@@ -1188,7 +1198,7 @@ describe('Header', () => {
         refetch: vi.fn().mockResolvedValue({}),
       });
 
-      const { unmount } = render(<Header />);
+      const { unmount } = renderHeader();
 
       const healthIndicator = screen.getByTestId('health-indicator');
 
@@ -1226,7 +1236,7 @@ describe('Header', () => {
         refetch: vi.fn().mockResolvedValue({}),
       });
 
-      render(<Header />);
+      renderHeader();
 
       expect(screen.getByText('REST Fallback')).toBeInTheDocument();
     });
@@ -1264,7 +1274,7 @@ describe('Header', () => {
         refetch: vi.fn().mockResolvedValue({}),
       });
 
-      render(<Header />);
+      renderHeader();
 
       expect(screen.queryByText('REST Fallback')).not.toBeInTheDocument();
     });
@@ -1272,20 +1282,20 @@ describe('Header', () => {
 
   describe('Mobile Hamburger Menu', () => {
     it('renders hamburger menu button', () => {
-      render(<Header />);
+      renderHeader();
       expect(screen.getByTestId('hamburger-menu')).toBeInTheDocument();
       expect(screen.getByLabelText('Open menu')).toBeInTheDocument();
     });
 
     it('calls toggleMobileMenu when hamburger button is clicked', () => {
-      render(<Header />);
+      renderHeader();
       const hamburgerButton = screen.getByTestId('hamburger-menu');
       fireEvent.click(hamburgerButton);
       expect(mockToggleMobileMenu).toHaveBeenCalled();
     });
 
     it('hamburger button has md:hidden class for mobile-only visibility', () => {
-      render(<Header />);
+      renderHeader();
       const hamburgerButton = screen.getByTestId('hamburger-menu');
       expect(hamburgerButton).toHaveClass('md:hidden');
     });
@@ -1293,19 +1303,19 @@ describe('Header', () => {
 
   describe('Branding Alignment with Sidebar', () => {
     it('branding container has width matching sidebar (w-64) on desktop', () => {
-      render(<Header />);
+      renderHeader();
       const brandingContainer = screen.getByTestId('header-branding');
       expect(brandingContainer).toHaveClass('md:w-64');
     });
 
     it('branding container has padding matching sidebar nav padding (px-4)', () => {
-      render(<Header />);
+      renderHeader();
       const brandingContainer = screen.getByTestId('header-branding');
       expect(brandingContainer).toHaveClass('px-4');
     });
 
     it('branding container includes the NVIDIA logo and branding text', () => {
-      render(<Header />);
+      renderHeader();
       const brandingContainer = screen.getByTestId('header-branding');
       expect(brandingContainer).toContainElement(screen.getByAltText('NVIDIA'));
       expect(brandingContainer).toContainElement(screen.getByText('Powered by Nemotron v3 Nano'));
@@ -1354,7 +1364,7 @@ describe('Header', () => {
         refetch: vi.fn().mockResolvedValue({}),
       });
 
-      render(<Header />);
+      renderHeader();
 
       const healthIndicator = screen.getByTestId('health-indicator');
 
@@ -1408,7 +1418,7 @@ describe('Header', () => {
         refetch: vi.fn().mockResolvedValue({}),
       });
 
-      render(<Header />);
+      renderHeader();
 
       const healthIndicator = screen.getByTestId('health-indicator');
 
@@ -1428,6 +1438,64 @@ describe('Header', () => {
       expect(screen.queryByTestId('health-tooltip')).not.toBeInTheDocument();
 
       vi.useRealTimers();
+    });
+  });
+
+  describe('PageDocsLink Integration', () => {
+    it('renders documentation link in header', () => {
+      renderHeader('/');
+
+      const docsLink = screen.getByRole('link', { name: /documentation/i });
+      expect(docsLink).toBeInTheDocument();
+    });
+
+    it('shows Dashboard Documentation on root route', () => {
+      renderHeader('/');
+
+      expect(screen.getByRole('link', { name: /dashboard documentation/i })).toBeInTheDocument();
+    });
+
+    it('shows Alerts Documentation on alerts route', () => {
+      renderHeader('/alerts');
+
+      expect(screen.getByRole('link', { name: /alerts documentation/i })).toBeInTheDocument();
+    });
+
+    it('shows Jobs Documentation on jobs route', () => {
+      renderHeader('/jobs');
+
+      expect(screen.getByRole('link', { name: /jobs documentation/i })).toBeInTheDocument();
+    });
+
+    it('does not show documentation link on unmapped routes', () => {
+      renderHeader('/dev-tools');
+
+      expect(screen.queryByRole('link', { name: /documentation/i })).not.toBeInTheDocument();
+    });
+
+    it('documentation link has NVIDIA green styling', () => {
+      renderHeader('/');
+
+      const docsLink = screen.getByRole('link', { name: /documentation/i });
+      expect(docsLink).toHaveClass('text-[#76B900]');
+    });
+
+    it('documentation link opens in new tab', () => {
+      renderHeader('/');
+
+      const docsLink = screen.getByRole('link', { name: /documentation/i });
+      expect(docsLink).toHaveAttribute('target', '_blank');
+      expect(docsLink).toHaveAttribute('rel', 'noopener noreferrer');
+    });
+
+    it('documentation link points to GitHub', () => {
+      renderHeader('/');
+
+      const docsLink = screen.getByRole('link', { name: /documentation/i });
+      expect(docsLink).toHaveAttribute(
+        'href',
+        expect.stringContaining('github.com/mikesvoboda/nemotron-v3-home-security-intelligence')
+      );
     });
   });
 });

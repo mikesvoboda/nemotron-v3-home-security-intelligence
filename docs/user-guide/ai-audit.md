@@ -225,4 +225,4 @@ Watch for these warning signs:
 
 ---
 
-[Back to User Hub](../user-hub.md)
+[Back to User Hub](../user/README.md)

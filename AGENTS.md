@@ -51,7 +51,7 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 | `E2E_COVERAGE_GAPS_IMPLEMENTATION.md` | E2E test coverage gap analysis and implementation plan |
 | `requirements-audit.txt`              | Python dependency audit results and security review    |
 
-> **Note:** Detailed Docker deployment documentation is in `docs/DOCKER_DEPLOYMENT.md`.
+> **Note:** Detailed Docker deployment documentation is in `docs/operator/deployment/`.
 
 ### Build Files
 
@@ -346,5 +346,5 @@ Before ending a session:
 
 - **Issue Tracker:** [Linear](https://linear.app/nemotron-v3-home-security/team/NEM/active) (Team: NEM)
 - **Documentation:** `docs/` directory
-- **Runtime Config:** `docs/RUNTIME_CONFIG.md` (authoritative port/env reference)
+- **Runtime Config:** `docs/reference/config/env-reference.md` (authoritative port/env reference)
 - **Coverage Reports:** `coverage/backend/index.html` and `frontend/coverage/index.html`

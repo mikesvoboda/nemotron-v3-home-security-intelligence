@@ -57,13 +57,13 @@ ai/
 
 ## Service Overview
 
-| Service    | Port | VRAM     | Framework           | Purpose                         |
-| ---------- | ---- | -------- | ------------------- | ------------------------------- |
-| RT-DETRv2  | 8090 | ~650 MiB | HuggingFace         | Object detection                |
-| Nemotron   | 8091 | ~14.7 GB | llama.cpp           | Risk reasoning                  |
-| Florence-2 | 8092 | ~1.2 GB  | HuggingFace         | Vision-language captions        |
-| CLIP       | 8093 | ~800 MB  | HuggingFace         | Entity re-identification        |
-| Enrichment | 8094 | ~6 GB    | PyTorch/HuggingFace | Vehicle/pet/clothing/depth/pose |
+| Service    | Port | Model               | HuggingFace                                                                                       | Purpose                             |
+| ---------- | ---- | ------------------- | ------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| RT-DETRv2  | 8090 | RT-DETRv2           | [PekingU/rtdetr_r50vd_coco_o365](https://huggingface.co/PekingU/rtdetr_r50vd_coco_o365)           | Object detection                    |
+| Nemotron   | 8091 | Nemotron-3-Nano-30B | [nvidia/Nemotron-3-Nano-30B-A3B-GGUF](https://huggingface.co/nvidia/Nemotron-3-Nano-30B-A3B-GGUF) | Risk reasoning                      |
+| Florence-2 | 8092 | Florence-2-Large    | [microsoft/Florence-2-large](https://huggingface.co/microsoft/Florence-2-large)                   | Dense captioning                    |
+| CLIP       | 8093 | CLIP ViT-L          | [openai/clip-vit-large-patch14](https://huggingface.co/openai/clip-vit-large-patch14)             | Entity embeddings                   |
+| Enrichment | 8094 | Multiple            | See [enrichment/AGENTS.md](enrichment/AGENTS.md)                                                  | Vehicle, pet, clothing, depth, pose |
 
 ## Quick Start
 
@@ -143,6 +143,8 @@ The backend communicates with AI services via HTTP clients:
 | `PORT`              | `8090`                                         | Server port              |
 
 ### Nemotron
+
+**Model**: [nvidia/Nemotron-3-Nano-30B-A3B-GGUF](https://huggingface.co/nvidia/Nemotron-3-Nano-30B-A3B-GGUF) - NVIDIA's 30B parameter LLM optimized for reasoning tasks, quantized to GGUF format for efficient inference via llama.cpp.
 
 | Variable     | Default                                       | Description         |
 | ------------ | --------------------------------------------- | ------------------- |

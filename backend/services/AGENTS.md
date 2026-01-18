@@ -851,13 +851,25 @@ healthy = await check_cmd_health(docker_client, "container_id", "pg_isready")
 
 ### circuit_breaker.py
 
-**Purpose:** Circuit breaker pattern for external service protection.
+**Purpose:** Circuit breaker pattern for external service protection. This is the canonical implementation - all modules should import from here rather than from `backend.core.circuit_breaker`.
 
 **States:**
 
-- CLOSED: Normal operation, calls pass through
-- OPEN: Circuit tripped, calls rejected immediately
-- HALF_OPEN: Recovery testing, limited calls allowed
+| State     | Code | Description      | Behavior                   |
+| --------- | ---- | ---------------- | -------------------------- |
+| CLOSED    | 0    | Normal operation | Calls pass through         |
+| OPEN      | 1    | Circuit tripped  | Calls rejected immediately |
+| HALF_OPEN | 2    | Recovery testing | Limited calls allowed      |
+
+**State Transitions:**
+
+```
+CLOSED ─(failures >= threshold)──> OPEN
+   ↑                                  │
+   │                                  │ (recovery_timeout elapsed)
+   │                                  ↓
+   └──(success_threshold met)── HALF_OPEN ──(any failure)──> OPEN
+```
 
 **Key Features:**
 
@@ -866,13 +878,100 @@ healthy = await check_cmd_health(docker_client, "container_id", "pg_isready")
 - Excluded exceptions that don't count as failures
 - Thread-safe async implementation
 - Registry for managing multiple circuit breakers
+- Prometheus metrics integration (both legacy and hsi\_-prefixed)
+- Protected call wrapper and async context manager
+
+**Configuration Options:**
+
+| Parameter           | Default | Description                                  |
+| ------------------- | ------- | -------------------------------------------- |
+| failure_threshold   | 5       | Failures before opening circuit              |
+| recovery_timeout    | 30.0s   | Seconds before transitioning to half-open    |
+| half_open_max_calls | 3       | Maximum calls allowed in half-open state     |
+| success_threshold   | 2       | Successes needed in half-open to close       |
+| excluded_exceptions | ()      | Exception types that don't count as failures |
+
+**Prometheus Metrics:**
+
+| Metric                            | Type    | Labels            | Description                    |
+| --------------------------------- | ------- | ----------------- | ------------------------------ |
+| `circuit_breaker_state`           | Gauge   | service           | Current state (0/1/2)          |
+| `circuit_breaker_failures_total`  | Counter | service           | Total failures recorded        |
+| `circuit_breaker_state_changes`   | Counter | service, from, to | State transitions              |
+| `circuit_breaker_calls_total`     | Counter | service, result   | Calls by result (success/fail) |
+| `circuit_breaker_rejected_total`  | Counter | service           | Calls rejected when open       |
+| `hsi_circuit_breaker_state`       | Gauge   | service           | HSI-prefixed state (Grafana)   |
+| `hsi_circuit_breaker_trips_total` | Counter | service           | Times circuit has tripped      |
 
 **Public API:**
 
-- `CircuitBreaker(name, config)`
-- `async call(operation, *args, **kwargs)` - Execute through circuit breaker
-- `get_circuit_breaker(name, config)` - Get from global registry
-- Supports async context manager: `async with breaker: ...`
+```python
+from backend.services.circuit_breaker import (
+    CircuitBreaker,
+    CircuitBreakerConfig,
+    CircuitBreakerError,
+    CircuitBreakerOpenError,
+    CircuitOpenError,
+    CircuitState,
+    CircuitBreakerRegistry,
+    get_circuit_breaker,
+    reset_circuit_breaker_registry,
+)
+
+# Method 1: Create with config
+config = CircuitBreakerConfig(
+    failure_threshold=5,
+    recovery_timeout=30.0,
+    half_open_max_calls=3,
+    success_threshold=2,
+)
+breaker = CircuitBreaker(name="ai_service", config=config)
+
+# Method 2: Use global registry
+breaker = get_circuit_breaker("ai_service", config)
+
+# Execute through circuit breaker
+try:
+    result = await breaker.call(async_operation, arg1, arg2)
+except CircuitBreakerError as e:
+    # Handle service unavailable
+    logger.warning(f"Circuit open for {e.service_name}")
+
+# Async context manager
+async with breaker:
+    result = await async_operation()
+
+# Protected call wrapper
+result = await breaker.protected_call(lambda: client.fetch_data())
+
+# Context manager with retry info
+try:
+    async with breaker.protect():
+        result = await risky_operation()
+except CircuitOpenError as e:
+    # Return 503 with Retry-After header
+    raise HTTPException(
+        status_code=503,
+        headers={"Retry-After": str(int(e.recovery_time_remaining))}
+    )
+
+# Manual control
+breaker.reset()        # Reset to CLOSED
+breaker.force_open()   # Force to OPEN (for maintenance)
+
+# Get status
+status = breaker.get_status()
+metrics = breaker.get_metrics()
+```
+
+**Troubleshooting:**
+
+| Issue                        | Check                                                   |
+| ---------------------------- | ------------------------------------------------------- |
+| Circuit stuck open           | Check `recovery_timeout` and service health             |
+| Too many failures triggering | Increase `failure_threshold` or add excluded exceptions |
+| Half-open not recovering     | Verify `success_threshold` and service stability        |
+| Metrics not showing          | Ensure Prometheus scraping `/metrics` endpoint          |
 
 ### retry_handler.py
 
@@ -1440,6 +1539,400 @@ await manager.cleanup_old_partitions()  # Remove expired partitions
 stats = await manager.get_partition_stats()  # Get partition info
 result = await manager.run_maintenance()  # Full maintenance (create + cleanup)
 ```
+
+### degradation_manager.py
+
+**Purpose:** Graceful degradation management for system resilience during partial outages.
+
+**Key Features:**
+
+- Track service health states (Redis, RT-DETRv2, Nemotron)
+- Fallback to disk-based queues when Redis is down
+- In-memory queue fallback when Redis unavailable
+- Automatic recovery detection
+- Integration with circuit breakers
+- Job queueing for later processing
+- Configurable health check timeouts
+
+**Degradation Modes:**
+
+| Mode     | Description               | Available Features        |
+| -------- | ------------------------- | ------------------------- |
+| NORMAL   | All services healthy      | Full functionality        |
+| DEGRADED | Some services unavailable | events, media (read-only) |
+| MINIMAL  | Critical services down    | media only                |
+| OFFLINE  | All services down         | Queueing only             |
+
+**Fallback Queue Hierarchy:**
+
+1. **Redis queue** - Primary storage for jobs
+2. **Disk fallback** - JSON files on disk when Redis is down
+3. **Memory queue** - In-memory deque when disk is unavailable (max 1000 items)
+
+**Redis Keys:**
+
+```
+degraded:jobs      -> LIST of queued jobs
+```
+
+**Disk Fallback Storage:**
+
+```
+~/.cache/hsi_fallback/{queue_name}/{timestamp}_{counter}.json
+```
+
+**Public API:**
+
+```python
+from backend.services.degradation_manager import (
+    DegradationManager,
+    DegradationMode,
+    DegradationServiceStatus,
+    get_degradation_manager,
+    reset_degradation_manager,
+    FallbackQueue,
+)
+
+# Get global singleton
+manager = get_degradation_manager(redis_client=redis)
+
+# Register services for monitoring
+manager.register_service(
+    name="ai_detector",
+    health_check=detector.health_check,
+    critical=True,
+)
+
+# Check service health
+if manager.is_service_healthy("rtdetr"):
+    # Proceed with AI analysis
+    pass
+
+# Queue with automatic fallback
+await manager.queue_with_fallback("detection_queue", item)
+
+# Determine if job should be queued
+if manager.should_queue_job("detection"):
+    await manager.queue_job_for_later("detection", job_data)
+else:
+    await process_job(job_data)
+
+# Drain fallback queue when recovered
+drained_count = await manager.drain_fallback_queue("detection_queue")
+
+# Get status
+status = manager.get_status()
+# Returns: {"mode": "degraded", "redis_healthy": False, "memory_queue_size": 5, ...}
+
+# Start/stop background health checks
+await manager.start()
+await manager.stop()
+```
+
+**Troubleshooting:**
+
+| Issue                    | Check                                                  |
+| ------------------------ | ------------------------------------------------------ |
+| Stuck in DEGRADED mode   | Verify service health via `manager.get_status()`       |
+| Jobs not processing      | Check `await manager.get_pending_job_count()`          |
+| Fallback queue growing   | Ensure Redis is healthy, call `drain_fallback_queue()` |
+| Health checks timing out | Adjust `health_check_timeout` in settings              |
+
+### health_service_registry.py
+
+**Purpose:** Centralized dependency injection registry for health monitoring services.
+
+**Key Features:**
+
+- Replaces global state pattern with proper dependency injection (NEM-2611)
+- Tracks background workers and health monitors
+- Circuit breaker for external health checks
+- FastAPI dependency support for route handlers
+- Worker status aggregation for health endpoints
+
+**Tracked Services:**
+
+| Service                  | Purpose                    | Critical |
+| ------------------------ | -------------------------- | -------- |
+| `gpu_monitor`            | GPU resource monitoring    | No       |
+| `cleanup_service`        | Data cleanup service       | No       |
+| `system_broadcaster`     | WebSocket system status    | No       |
+| `file_watcher`           | File system monitoring     | Yes      |
+| `pipeline_manager`       | Detection/analysis workers | Yes      |
+| `batch_aggregator`       | Batch processing           | No       |
+| `degradation_manager`    | Service degradation        | No       |
+| `service_health_monitor` | Auto-recovery monitoring   | No       |
+| `performance_collector`  | Performance metrics        | No       |
+| `health_event_emitter`   | WebSocket health events    | No       |
+
+**Circuit Breaker for Health Checks:**
+
+The registry includes a `HealthCircuitBreaker` to prevent health checks from blocking on slow services:
+
+- Failure threshold: 3 consecutive failures before opening
+- Reset timeout: 30 seconds before retrying
+- States: CLOSED (normal), OPEN (skip checks, return cached error)
+
+**Public API:**
+
+```python
+from backend.services.health_service_registry import (
+    HealthServiceRegistry,
+    WorkerStatus,
+    HealthCircuitBreaker,
+    get_health_registry,
+    get_health_registry_optional,
+)
+
+# FastAPI dependency
+@app.get("/health")
+async def get_health(
+    registry: HealthServiceRegistry = Depends(get_health_registry),
+):
+    statuses = registry.get_worker_statuses()
+    return {"workers": [s.__dict__ for s in statuses]}
+
+# Get registry from DI container
+container = get_container()
+registry = await container.get_async("health_service_registry")
+
+# Check critical workers
+if registry.are_critical_pipeline_workers_healthy():
+    # Detection and analysis workers are running
+    pass
+
+# Get pipeline status
+pipeline_status = registry.get_pipeline_status()
+
+# Register services (during startup)
+registry.register_gpu_monitor(gpu_monitor)
+registry.register_pipeline_manager(pipeline_manager)
+registry.register_degradation_manager(degradation_manager)
+
+# Get worker statuses
+statuses: list[WorkerStatus] = registry.get_worker_statuses()
+for status in statuses:
+    print(f"{status.name}: {'running' if status.running else status.message}")
+
+# Circuit breaker usage
+cb = registry.circuit_breaker
+if not cb.is_open("ai_service"):
+    try:
+        result = await check_ai_health()
+        cb.record_success("ai_service")
+    except Exception as e:
+        cb.record_failure("ai_service", str(e))
+```
+
+### health_event_emitter.py
+
+**Purpose:** WebSocket health event broadcasting with change detection.
+
+**Key Features:**
+
+- Tracks health state for each system component
+- Emits WebSocket events only on status changes (prevents spam)
+- Aggregates component health into overall system status
+- Critical components (database, redis) impact overall health more heavily
+- Thread-safe singleton pattern
+
+**Health Components Monitored:**
+
+| Component  | Check Method                | Critical |
+| ---------- | --------------------------- | -------- |
+| database   | PostgreSQL connection/query | Yes      |
+| redis      | Redis connection/memory     | Yes      |
+| ai_service | Nemotron + RT-DETRv2 health | No       |
+| gpu        | CUDA availability/memory    | No       |
+| storage    | Disk space for /export      | No       |
+
+**Health Status Values:**
+
+| Status    | Priority | Description                    |
+| --------- | -------- | ------------------------------ |
+| UNHEALTHY | 0        | Component is failing           |
+| DEGRADED  | 1        | Component is partially working |
+| UNKNOWN   | 2        | Status not yet determined      |
+| HEALTHY   | 3        | Component is working normally  |
+
+**Event Types Emitted:**
+
+- `system.health_changed` - When health status changes
+- `system.error` - When a system-level error occurs
+
+**WebSocket Payload Examples:**
+
+```json
+{
+  "type": "system.health_changed",
+  "data": {
+    "health": "degraded",
+    "previous_health": "healthy",
+    "components": {
+      "database": "healthy",
+      "redis": "healthy",
+      "ai_service": "unhealthy",
+      "gpu": "healthy"
+    },
+    "changed_component": "ai_service",
+    "component_previous_status": "healthy",
+    "component_new_status": "unhealthy",
+    "timestamp": "2026-01-18T10:30:00+00:00"
+  }
+}
+```
+
+**Public API:**
+
+```python
+from backend.services.health_event_emitter import (
+    HealthEventEmitter,
+    HealthStatus,
+    ErrorSeverity,
+    get_health_event_emitter,
+    emit_system_error,
+    reset_health_event_emitter,
+)
+
+# Get singleton emitter
+emitter = get_health_event_emitter()
+
+# Set WebSocket emitter (during startup)
+emitter.set_emitter(websocket_emitter_service)
+
+# Check and emit health changes (returns True if status changed)
+changed = await emitter.check_and_emit(
+    component="database",
+    new_status="unhealthy",
+    details={"error": "Connection refused"},
+)
+
+# Update multiple components at once
+changed_components = await emitter.update_all_components(
+    statuses={"database": "healthy", "redis": "degraded"},
+    details={"redis": {"memory_mb": 450}},
+)
+
+# Emit system error
+await emit_system_error(
+    error_code="AI_SERVICE_CRASH",
+    message="Nemotron service crashed unexpectedly",
+    severity="high",
+    details={"exit_code": 137},
+    recoverable=True,
+)
+
+# Get current status
+overall = emitter.get_overall_status()
+component_statuses = emitter.get_all_component_statuses()
+```
+
+**Overall Status Calculation:**
+
+1. If any critical component (database, redis) is UNHEALTHY -> overall is UNHEALTHY
+2. Otherwise, take the worst status across all components
+
+### orphan_cleanup_service.py
+
+**Purpose:** Periodic cleanup of orphaned files (files on disk without database records).
+
+**Key Features:**
+
+- Configurable scan interval (default: 24 hours)
+- Configurable age threshold before deletion (default: 24 hours)
+- Integration with job tracking system for progress monitoring
+- WebSocket notification on cleanup completion
+- Safe deletion with file age verification
+- Multiple file naming pattern recognition
+
+**File Extensions Scanned:**
+
+- `.mp4`, `.webm`, `.mkv`, `.avi`
+
+**Event ID Extraction Patterns:**
+
+| Pattern           | Example          | Extracted ID |
+| ----------------- | ---------------- | ------------ |
+| `event_<id>`      | `event_123.mp4`  | 123          |
+| `clip_event_<id>` | `clip_event_456` | 456          |
+| `<id>_clip`       | `789_clip.webm`  | 789          |
+| Numeric filename  | `123.mp4`        | 123          |
+
+**Orphan Detection Logic:**
+
+1. Extract event ID from filename
+2. Check if event exists in database
+3. If event exists, check if file is referenced in `clip_path`
+4. If not referenced, file is an orphan
+
+**Safety Measures:**
+
+- Files must be older than `age_threshold_hours` before deletion
+- Files without extractable event IDs are checked against all clip_paths
+- On database error, file is NOT deleted (safe default)
+
+**Public API:**
+
+```python
+from backend.services.orphan_cleanup_service import (
+    OrphanedFileCleanupService,
+    OrphanedFileCleanupStats,
+    get_orphan_cleanup_service,
+    reset_orphan_cleanup_service,
+    JOB_TYPE_ORPHAN_CLEANUP,
+)
+
+# Get singleton service
+service = get_orphan_cleanup_service(
+    scan_interval_hours=24,
+    age_threshold_hours=24,
+    clips_directory="/path/to/clips",
+    enabled=True,
+    job_tracker=job_tracker,
+    broadcast_callback=my_broadcast_fn,
+)
+
+# Start background cleanup loop
+await service.start()
+
+# Run cleanup manually
+stats = await service.run_cleanup()
+print(f"Scanned: {stats.files_scanned}")
+print(f"Orphans found: {stats.orphans_found}")
+print(f"Deleted: {stats.files_deleted}")
+print(f"Space reclaimed: {stats.space_reclaimed} bytes")
+print(f"Skipped (too young): {stats.files_skipped_young}")
+
+# Get service status
+status = service.get_status()
+# Returns: {"running": True, "enabled": True, "scan_interval_hours": 24, ...}
+
+# Stop service
+await service.stop()
+
+# Use as async context manager
+async with service:
+    # Service runs in background
+    pass  # Automatically stopped on exit
+```
+
+**Job Tracker Integration:**
+
+When `job_tracker` is provided:
+
+- Creates job with type `orphan_cleanup`
+- Updates progress as files are scanned (0-90%)
+- Completes job with cleanup statistics
+- Fails job on critical errors
+
+**Troubleshooting:**
+
+| Issue                   | Check                                                   |
+| ----------------------- | ------------------------------------------------------- |
+| Files not being deleted | Verify files are older than `age_threshold_hours`       |
+| Wrong files deleted     | Check event ID extraction patterns in logs              |
+| Service not running     | Check `enabled` setting and `service.get_status()`      |
+| High disk usage         | Decrease `age_threshold_hours` or `scan_interval_hours` |
 
 ### evaluation_queue.py
 

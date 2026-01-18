@@ -696,4 +696,4 @@ Before starting services, ensure:
 
 ---
 
-[Back to Operator Hub](../operator-hub.md)
+[Back to Operator Hub](./)

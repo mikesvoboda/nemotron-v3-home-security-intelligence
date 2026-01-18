@@ -7,7 +7,7 @@ source_refs:
 
 - backend/core/config.py:Settings:12
 - backend/services/health_monitor.py:ServiceHealthMonitor:25
-- docs/RUNTIME_CONFIG.md
+- docs/reference/config/env-reference.md
 
 ---
 
@@ -737,4 +737,4 @@ When reporting issues, include:
 
 ---
 
-Back to [Operator Hub](../operator-hub.md) | [User Hub](../user-hub.md) | [Developer Hub](../developer-hub.md)
+Back to [Operator Hub](../operator/README.md) | [User Hub](../user/README.md) | [Developer Hub](../developer/README.md)

@@ -13,6 +13,7 @@ development/
   code-quality.md        # Code quality tooling and standards
   contributing.md        # Contribution guidelines
   coverage.md            # Coverage reporting and analysis
+  docs-maintenance.md    # Documentation drift detection system
   git-workflow.md        # Git safety protocols and pre-commit rules
   git-worktree-workflow.md # Git worktree patterns for parallel development
   health-monitoring-di.md # Health monitoring dependency injection patterns
@@ -90,6 +91,23 @@ development/
 - CI integration
 
 **When to use:** Understanding coverage requirements, analyzing coverage gaps, tracking coverage trends.
+
+### docs-maintenance.md
+
+**Purpose:** Automated documentation drift detection system.
+
+**Topics Covered:**
+
+- System overview and design principles
+- Detection workflow (analysis, task creation, PR comments)
+- Rule configuration in `docs-drift-rules.yml`
+- Rule format and template variables
+- Handling generated Linear tasks
+- Manual usage and local testing
+- CI/CD integration
+- Troubleshooting common issues
+
+**When to use:** Understanding how docs drift detection works, adding new detection rules, handling documentation debt tasks.
 
 ### git-workflow.md
 

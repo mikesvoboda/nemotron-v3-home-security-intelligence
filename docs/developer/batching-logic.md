@@ -257,4 +257,4 @@ async def _close_batch(self, batch_id: str, reason: str):
 
 ---
 
-[Back to Developer Hub](../developer-hub.md)
+[Back to Developer Hub](README.md)
