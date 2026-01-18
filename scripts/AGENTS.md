@@ -41,7 +41,7 @@ scripts/
   audit-summary.sh                   # Local weekly audit runner
 
   # Database & Seeding
-  seed-mock-events.py                # Mock events and cameras seeding script
+  seed-events.py                # Mock events and cameras seeding script
   db-migrate.sh                      # Database migration script
 
   # Code Generation & Certs
@@ -440,7 +440,7 @@ python scripts/audit-test-durations.py <results-dir>
 
 ### Database Seeding
 
-#### seed-mock-events.py
+#### seed-events.py
 
 **Purpose:** Populate database with mock security events and cameras for testing.
 
@@ -1149,12 +1149,12 @@ git add -A && git commit -m "message"
 
 ```bash
 # Seed mock events and cameras
-./scripts/seed-mock-events.py
+./scripts/seed-events.py
 
 # Reset database
 rm -f data/security.db
 ./scripts/dev.sh restart
-./scripts/seed-mock-events.py
+./scripts/seed-events.py
 ```
 
 ## Related Documentation

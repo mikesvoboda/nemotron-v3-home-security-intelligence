@@ -279,7 +279,7 @@ rules:
     paths:
       exclude:
         - backend/api/routes/admin.py # Mock data generation uses non-crypto random intentionally
-        - scripts/seed-mock-events.py # Seed script generates mock data, non-crypto random is fine
+        - scripts/seed-events.py # Seed script generates mock data, non-crypto random is fine
 
   # =============================================================================
   # HARDCODED SECRETS

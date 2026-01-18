@@ -12,19 +12,19 @@ This creates real events with actual LLM analysis for comprehensive testing.
 
 Usage:
     # Default: Touch 100 images from /export/foscam and run full pipeline
-    uv run python scripts/seed-mock-events.py
+    uv run python scripts/seed-events.py
 
     # Process fewer images (faster)
-    uv run python scripts/seed-mock-events.py --images 30
+    uv run python scripts/seed-events.py --images 30
 
     # Skip supporting data (entities, alerts, logs) - only pipeline data
-    uv run python scripts/seed-mock-events.py --no-extras
+    uv run python scripts/seed-events.py --no-extras
 
     # Use mock data instead of real pipeline (for testing without AI services)
-    uv run python scripts/seed-mock-events.py --mock
+    uv run python scripts/seed-events.py --mock
 
     # Clear all data before seeding
-    uv run python scripts/seed-mock-events.py --clear
+    uv run python scripts/seed-events.py --clear
 """
 
 import asyncio
@@ -1272,22 +1272,22 @@ async def main() -> int:
         epilog="""
 Examples:
   # Default: Full pipeline + all supporting data (recommended for UI validation)
-  uv run python scripts/seed-mock-events.py
+  uv run python scripts/seed-events.py
 
   # Process more images and wait longer
-  uv run python scripts/seed-mock-events.py --images 50 --timeout 600
+  uv run python scripts/seed-events.py --images 50 --timeout 600
 
   # Clear all data first, then run full pipeline
-  uv run python scripts/seed-mock-events.py --clear
+  uv run python scripts/seed-events.py --clear
 
   # Quick run without waiting for pipeline completion
-  uv run python scripts/seed-mock-events.py --no-wait
+  uv run python scripts/seed-events.py --no-wait
 
   # Skip supporting data (entities, alerts, logs) - only pipeline data
-  uv run python scripts/seed-mock-events.py --no-extras
+  uv run python scripts/seed-events.py --no-extras
 
   # Legacy: Use mock data instead of real pipeline (for testing without AI)
-  uv run python scripts/seed-mock-events.py --mock
+  uv run python scripts/seed-events.py --mock
 
 Pipeline Flow:
   1. Touch camera images to trigger file watcher
