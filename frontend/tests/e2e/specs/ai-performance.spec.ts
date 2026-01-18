@@ -81,8 +81,8 @@ test.describe('AI Performance Grafana Integration', () => {
 
   test('grafana link has correct href format', async () => {
     const url = await aiPerformancePage.getGrafanaLinkUrl();
-    // URL should contain ai-performance dashboard path
-    expect(url).toContain('/d/ai-performance');
+    // URL should contain consolidated dashboard path (now uses hsi-consolidated)
+    expect(url).toContain('/d/hsi-consolidated');
   });
 
   test('grafana link opens in new tab', async () => {

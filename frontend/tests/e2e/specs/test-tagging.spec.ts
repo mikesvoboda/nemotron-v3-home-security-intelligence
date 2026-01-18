@@ -117,7 +117,7 @@ test.describe('Critical Tests @critical', () => {
     expect(eventCount).toBeGreaterThan(0);
   });
 
-  test('system page shows health status @critical', async ({ page }) => {
+  test('operations page shows pipeline visualization @critical', async ({ page }) => {
     await setupApiMocks(page, defaultMockConfig);
     const systemPage = new SystemPage(page);
 
@@ -125,8 +125,8 @@ test.describe('Critical Tests @critical', () => {
     await systemPage.waitForSystemLoad();
 
     await expect(systemPage.pageTitle).toBeVisible();
-    const serviceCount = await systemPage.getServiceCount();
-    expect(serviceCount).toBeGreaterThan(0);
+    // Operations page now shows pipeline visualization instead of service health
+    await expect(page.getByTestId('pipeline-flow-visualization')).toBeVisible();
   });
 
   test('error states are displayed correctly @critical', async ({ page }, testInfo) => {

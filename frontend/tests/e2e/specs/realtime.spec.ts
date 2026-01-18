@@ -36,12 +36,12 @@ test.describe('Real-time Updates', () => {
     await expect(dashboardPage.cameraGridHeading).toBeVisible();
   });
 
-  test('system page shows GPU statistics section', async ({ page }) => {
+  test('operations page shows pipeline flow visualization', async ({ page }) => {
     const systemPage = new SystemPage(page);
     await systemPage.goto();
     await systemPage.waitForSystemLoad();
-    // Look for GPU Statistics heading - this is where GPU stats are displayed
-    await expect(page.getByText(/GPU Statistics/i)).toBeVisible({ timeout: 10000 });
+    // Operations page shows pipeline flow visualization (GPU stats moved to Grafana)
+    await expect(page.getByTestId('pipeline-flow-visualization')).toBeVisible({ timeout: 10000 });
   });
 });
 
@@ -58,12 +58,12 @@ test.describe('Connection Status Indicators', () => {
     await expect(page.getByText(/System/i).first()).toBeVisible();
   });
 
-  test('system page shows service health', async ({ page }) => {
+  test('operations page shows circuit breakers section', async ({ page }) => {
     const systemPage = new SystemPage(page);
     await systemPage.goto();
     await systemPage.waitForSystemLoad();
-    const serviceCount = await systemPage.getServiceCount();
-    expect(serviceCount).toBeGreaterThan(0);
+    // Operations page shows circuit breakers (service health moved to Grafana)
+    await expect(page.getByTestId('circuit-breakers-section')).toBeVisible();
   });
 });
 
