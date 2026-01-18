@@ -22,7 +22,9 @@ import { setupApiMocks, defaultMockConfig } from '../fixtures';
 import type { Page, Route, Download } from '@playwright/test';
 
 // Skip entire file due to widespread strict mode violations - NEM-2748
-test.describe.configure({ mode: 'skip' });
+test.beforeEach(() => {
+  test.skip(true, 'Skipped due to strict mode violations in selectors - see NEM-2748');
+});
 
 /**
  * Helper function to open the export modal via Export Modal button
