@@ -308,10 +308,10 @@ Before production deployment, verify:
 
 ## Related Documentation
 
-- [Security Guide](admin-guide/security.md) - Overall security configuration
-- [Monitoring Guide](admin-guide/monitoring.md) - Monitoring setup and usage
-- [Docker Deployment](DOCKER_DEPLOYMENT.md) - Container security considerations
-- [Runtime Configuration](RUNTIME_CONFIG.md) - Environment variable reference
+- [Security Guide](../../admin-guide/security.md) - Overall security configuration
+- [Monitoring Guide](../../admin-guide/monitoring.md) - Monitoring setup and usage
+- [Docker Deployment](../deployment/) - Container security considerations
+- [Configuration Reference](../../reference/config/env-reference.md) - Environment variable reference
 
 ## References
 

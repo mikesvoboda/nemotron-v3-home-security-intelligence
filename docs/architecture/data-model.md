@@ -1,7 +1,7 @@
 ---
 title: Data Model Reference
 description: Database schema, entity relationships, Redis data structures, and data lifecycle
-last_updated: 2025-12-30
+last_updated: 2026-01-18
 source_refs:
   - backend/models/camera.py:Camera:59
   - backend/models/camera.py:Base:53
@@ -18,6 +18,11 @@ source_refs:
   - backend/models/log.py:Log
   - backend/models/api_key.py:APIKey
   - backend/models/enums.py:Severity
+  - backend/models/entity.py:Entity
+  - backend/models/prompt_config.py:PromptConfig
+  - backend/models/prompt_version.py:PromptVersion
+  - backend/models/scene_change.py:SceneChange
+  - backend/models/user_calibration.py:UserCalibration
   - backend/core/database.py:init_db
   - backend/core/redis.py:RedisClient
 ---
@@ -41,6 +46,17 @@ This document describes the complete data model for the Home Security Intelligen
    - [gpu_stats](#gpu_stats)
    - [logs](#logs)
    - [api_keys](#api_keys)
+   - [alerts](#alerts)
+   - [alert_rules](#alert_rules)
+   - [zones](#zones)
+   - [activity_baselines](#activity_baselines)
+   - [class_baselines](#class_baselines)
+   - [audit_logs](#audit_logs)
+   - [entities](#entities)
+   - [prompt_configs](#prompt_configs)
+   - [prompt_versions](#prompt_versions)
+   - [scene_changes](#scene_changes)
+   - [user_calibrations](#user_calibrations)
 4. [Key Relationships](#key-relationships)
 5. [Ephemeral vs Permanent Storage](#ephemeral-vs-permanent-storage)
 6. [Redis Data Structures](#redis-data-structures)
@@ -638,6 +654,141 @@ erDiagram
 - Records all security-sensitive operations (login, settings changes, rule modifications)
 - Supports audit trail requirements for compliance
 - Subject to same retention policy as other logs
+
+---
+
+### entities
+
+**Purpose:** Tracks unique persons/objects for re-identification across cameras.
+
+| Column                 | Type         | Nullable | Default    | Description                                             |
+| ---------------------- | ------------ | -------- | ---------- | ------------------------------------------------------- |
+| `id`                   | UUID         | NO       | uuid4()    | Primary key                                             |
+| `entity_type`          | STRING(20)   | NO       | `person`   | Type: `person`, `vehicle`, `animal`, `package`, `other` |
+| `trust_status`         | STRING(20)   | NO       | `unknown`  | Status: `trusted`, `untrusted`, `unknown`               |
+| `embedding_vector`     | JSONB        | YES      | NULL       | Feature vector for re-identification                    |
+| `first_seen_at`        | DATETIME(tz) | NO       | `utcnow()` | Timestamp of first detection                            |
+| `last_seen_at`         | DATETIME(tz) | NO       | `utcnow()` | Timestamp of most recent detection                      |
+| `detection_count`      | INTEGER      | NO       | `0`        | Total number of detections linked to this entity        |
+| `entity_metadata`      | JSONB        | YES      | NULL       | Flexible metadata (clothing color, vehicle make/model)  |
+| `primary_detection_id` | INTEGER      | YES      | NULL       | Reference to primary/best detection (no FK constraint)  |
+
+**Indexes:**
+
+- `idx_entities_entity_type` - Filter by type
+- `idx_entities_trust_status` - Filter by trust level
+- `idx_entities_first_seen_at` - Time-range queries
+- `idx_entities_last_seen_at` - Recent activity queries
+- `idx_entities_type_last_seen` - Composite type + time filter
+- `ix_entities_entity_metadata_gin` - GIN index for JSONB queries
+
+**Usage:**
+
+- Created when a new unique individual/object is detected
+- Uses embedding vectors for re-identification matching
+- Trust status affects alert handling (trusted entities may skip alerts)
+
+---
+
+### prompt_configs
+
+**Purpose:** Stores current prompt configurations for AI models.
+
+| Column          | Type         | Nullable | Default    | Description                             |
+| --------------- | ------------ | -------- | ---------- | --------------------------------------- |
+| `id`            | INTEGER      | NO       | Auto       | Primary key                             |
+| `model`         | STRING(50)   | NO       | -          | Model name (nemotron, florence-2, etc.) |
+| `system_prompt` | TEXT         | NO       | -          | Full system prompt text                 |
+| `temperature`   | FLOAT        | NO       | `0.7`      | LLM temperature (0-2)                   |
+| `max_tokens`    | INTEGER      | NO       | `2048`     | Maximum tokens in response (100-8192)   |
+| `version`       | INTEGER      | NO       | `1`        | Auto-incrementing version number        |
+| `created_at`    | DATETIME(tz) | NO       | `utcnow()` | Creation timestamp                      |
+| `updated_at`    | DATETIME(tz) | NO       | `utcnow()` | Last update timestamp                   |
+
+**Indexes:**
+
+- `idx_prompt_configs_model` - Unique index on model
+- `idx_prompt_configs_updated_at` - Time-range queries
+
+**Usage:**
+
+- Stores active prompt configuration per model
+- Version increments on each update for tracking
+
+---
+
+### prompt_versions
+
+**Purpose:** Version tracking for AI model prompt configurations with rollback support.
+
+| Column               | Type         | Nullable | Default    | Description                               |
+| -------------------- | ------------ | -------- | ---------- | ----------------------------------------- |
+| `id`                 | INTEGER      | NO       | Auto       | Primary key                               |
+| `model`              | ENUM         | NO       | -          | AI model enum (nemotron, florence2, etc.) |
+| `version`            | INTEGER      | NO       | -          | Version number                            |
+| `created_at`         | DATETIME(tz) | NO       | `utcnow()` | Creation timestamp                        |
+| `created_by`         | STRING(255)  | YES      | NULL       | User who created the version              |
+| `config_json`        | TEXT         | NO       | -          | Configuration content (JSON)              |
+| `change_description` | TEXT         | YES      | NULL       | Description of changes                    |
+| `is_active`          | BOOLEAN      | NO       | `false`    | Whether this is the active version        |
+| `row_version`        | INTEGER      | NO       | `1`        | Optimistic locking counter                |
+
+**Indexes:**
+
+- `idx_prompt_versions_model` - Filter by model
+- `idx_prompt_versions_model_version` - Combined model + version
+- `idx_prompt_versions_model_active` - Combined model + active status
+- `idx_prompt_versions_created_at` - Time-range queries
+
+**Constraints:**
+
+- Unique constraint on `(model, version)`
+
+**Usage:**
+
+- Stores historical versions for rollback capability
+- Uses optimistic locking to prevent race conditions
+
+---
+
+### scene_changes
+
+**Purpose:** Records detected scene changes for camera tamper detection.
+
+| Column        | Type         | Nullable | Default    | Description                                 |
+| ------------- | ------------ | -------- | ---------- | ------------------------------------------- |
+| `id`          | INTEGER      | NO       | Auto       | Primary key                                 |
+| `camera_id`   | STRING       | NO       | -          | Foreign key to `cameras.id`                 |
+| `change_type` | STRING       | NO       | -          | Type: `lighting`, `obstruction`, `movement` |
+| `severity`    | STRING       | NO       | -          | Severity level                              |
+| `detected_at` | DATETIME(tz) | NO       | `utcnow()` | When change was detected                    |
+| `resolved_at` | DATETIME(tz) | YES      | NULL       | When change was resolved                    |
+| `details`     | JSONB        | YES      | NULL       | Additional context                          |
+
+**Usage:**
+
+- Created when scene monitoring detects significant changes
+- Used for camera tamper detection and maintenance alerts
+
+---
+
+### user_calibrations
+
+**Purpose:** Stores user-provided calibration data for camera zones.
+
+| Column             | Type         | Nullable | Default    | Description                 |
+| ------------------ | ------------ | -------- | ---------- | --------------------------- |
+| `id`               | INTEGER      | NO       | Auto       | Primary key                 |
+| `camera_id`        | STRING       | NO       | -          | Foreign key to `cameras.id` |
+| `calibration_type` | STRING       | NO       | -          | Type of calibration         |
+| `calibration_data` | JSONB        | NO       | -          | Calibration parameters      |
+| `created_at`       | DATETIME(tz) | NO       | `utcnow()` | Creation timestamp          |
+| `updated_at`       | DATETIME(tz) | NO       | `utcnow()` | Last update timestamp       |
+
+**Usage:**
+
+- Stores user-defined calibration for camera perspectives
+- Used for zone detection and distance estimation
 
 ---
 

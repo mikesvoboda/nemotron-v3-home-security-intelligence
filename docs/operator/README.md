@@ -2,7 +2,7 @@
 
 > Deploy, configure, and maintain Home Security Intelligence.
 
-This hub is for **sysadmins, DevOps engineers, and technically savvy users** who deploy and maintain the system. For end-user documentation, see the [User Hub](../user-hub.md). For development and contribution, see the [Developer Hub](../developer-hub.md).
+This hub is for **sysadmins, DevOps engineers, and technically savvy users** who deploy and maintain the system. For end-user documentation, see the [User Hub](../user/README.md). For development and contribution, see the [Developer Hub](../developer/README.md).
 
 ---
 
@@ -152,7 +152,7 @@ fuser -k /dev/nvidia*
 
 - [Monitoring Guide](monitoring/) - Health checks, GPU metrics, DLQ
 - [Prometheus Alerting](prometheus-alerting.md) - Alert rules, Alertmanager
-- [Service Level Objectives](../slo-definitions.md) - SLIs, SLOs, error budgets
+- [Service Level Objectives](monitoring/) - SLIs, SLOs, error budgets
 
 ### Administration
 
@@ -214,7 +214,7 @@ docker compose -f docker-compose.prod.yml logs --tail=100 backend
 
 ## See Also
 
-- [User Hub](../user-hub.md) - End-user documentation
-- [Developer Hub](../developer-hub.md) - Development and contribution
-- [API Reference](../api-reference/overview.md) - REST and WebSocket APIs
+- [User Hub](../user/README.md) - End-user documentation
+- [Developer Hub](../developer/README.md) - Development and contribution
+- [API Reference](../developer/api/) - REST and WebSocket APIs
 - [Architecture Overview](../architecture/overview.md) - System design

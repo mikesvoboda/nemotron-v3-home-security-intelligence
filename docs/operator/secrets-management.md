@@ -2,7 +2,7 @@
 
 > Secure credential storage using Docker Secrets for production deployments.
 
-This guide covers Docker Secrets configuration for Home Security Intelligence. For comprehensive implementation details, see [DOCKER_SECRETS.md](../DOCKER_SECRETS.md).
+This guide covers Docker Secrets configuration for Home Security Intelligence. For comprehensive implementation details, see [Administration Guide](admin/).
 
 ---
 
@@ -418,7 +418,7 @@ mv secrets/temp.txt secrets/postgres_password.txt
 
 ## See Also
 
-- [DOCKER_SECRETS.md](../DOCKER_SECRETS.md) - Comprehensive Docker Secrets guide
+- [Administration Guide](admin/) - Comprehensive secrets and security guide
 - [Redis Setup](redis.md) - Redis authentication configuration
 - [Database Setup](database.md) - PostgreSQL configuration
 - [Configuration Reference](../admin-guide/configuration.md) - All environment variables

@@ -336,4 +336,4 @@ tail -100 /tmp/nemotron-llm.log
 
 ---
 
-[Back to Operator Hub](../operator-hub.md)
+[Back to Operator Hub](./)

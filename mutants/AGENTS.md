@@ -199,7 +199,7 @@ See `frontend/stryker.config.json` for TypeScript mutation testing configuration
 
 ## Related Documentation
 
-- `/docs/MUTATION_TESTING.md` - Comprehensive mutation testing guide
+- `/docs/developer/patterns/mutation-testing.md` - Comprehensive mutation testing guide
 - `/scripts/mutation-test.sh` - Mutation testing runner script
 - `/CLAUDE.md` - Testing requirements and TDD approach
 - `/docs/testing/` - Testing patterns and workflows

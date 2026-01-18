@@ -8,7 +8,7 @@ This directory contains focused documentation for operators (sysadmins, DevOps e
 
 ## Hub
 
-- **[Operator Hub](../operator-hub.md)** - Central navigation page linking to all operator documentation
+- **[Operator Hub](./)** - Central navigation page linking to all operator documentation
 
 ## Available Spokes
 
@@ -65,7 +65,7 @@ The documentation is being restructured into a hub-and-spoke architecture. Some 
 | Topic           | Current Location                   | Status        |
 | --------------- | ---------------------------------- | ------------- |
 | Requirements    | `getting-started/prerequisites.md` | Link from hub |
-| Container Setup | `DOCKER_DEPLOYMENT.md`             | Link from hub |
+| Container Setup | `deployment/`                      | Complete      |
 | GPU Setup       | `gpu-setup.md`                     | Complete      |
 | Installation    | `getting-started/installation.md`  | Link from hub |
 | First Run       | `getting-started/first-run.md`     | Link from hub |

@@ -154,15 +154,27 @@ Token counting uses [tiktoken](https://github.com/openai/tiktoken) for accurate 
 
 ### Context Window Configuration
 
-The Nemotron-3-Nano model has specific context window constraints:
+The Nemotron model context window varies by deployment profile:
+
+| Model Profile                               | Context Window | VRAM Required |
+| ------------------------------------------- | -------------- | ------------- |
+| **Production (Nemotron-3-Nano-30B-A3B)**    | 131,072 tokens | ~14.7 GB      |
+| **Development (Nemotron Mini 4B Instruct)** | 4,096 tokens   | ~3 GB         |
+
+**Environment Variables:**
 
 | Setting                      | Default       | Description                          |
 | ---------------------------- | ------------- | ------------------------------------ |
-| `NEMOTRON_CONTEXT_WINDOW`    | `3900`        | Total context window size (tokens)   |
+| `NEMOTRON_CONTEXT_WINDOW`    | `131072`      | Total context window size (tokens)   |
 | `NEMOTRON_MAX_OUTPUT_TOKENS` | `1536`        | Tokens reserved for LLM output       |
 | `LLM_TOKENIZER_ENCODING`     | `cl100k_base` | Tiktoken encoding (GPT-4 compatible) |
 
-**Available tokens for prompt:** `context_window - max_output_tokens` = 3900 - 1536 = **2364 tokens**
+**Note:** The `CTX_SIZE` environment variable in the AI container (`ai/nemotron/`) controls the llama.cpp server context size, while `NEMOTRON_CONTEXT_WINDOW` controls the backend's prompt validation. Both should be configured consistently.
+
+**Available tokens for prompt:** `context_window - max_output_tokens`
+
+- Production (128K): 131,072 - 1,536 = **129,536 tokens**
+- Development (4K): 4,096 - 1,536 = **2,560 tokens**
 
 ### Utilization Thresholds
 
@@ -500,9 +512,375 @@ docker compose -f docker-compose.prod.yml logs backend | grep trace_id
 
 ---
 
+## Monitoring Stack Services
+
+The monitoring stack is included by default in `docker-compose.prod.yml` and provides full observability for the Home Security Intelligence system. This section documents each monitoring service, its purpose, configuration options, and how to access and use it.
+
+### Service Overview
+
+| Service           | Port  | Purpose                               | Access URL             |
+| ----------------- | ----- | ------------------------------------- | ---------------------- |
+| Prometheus        | 9090  | Metrics collection and alerting rules | http://localhost:9090  |
+| Grafana           | 3002  | Dashboards and visualization          | http://localhost:3002  |
+| Jaeger            | 16686 | Distributed tracing UI                | http://localhost:16686 |
+| Alertmanager      | 9093  | Alert routing and delivery            | http://localhost:9093  |
+| Blackbox Exporter | 9115  | HTTP/TCP endpoint probing             | http://localhost:9115  |
+| JSON Exporter     | 7979  | JSON-to-Prometheus metric conversion  | http://localhost:7979  |
+| Redis Exporter    | 9121  | Redis metrics for Prometheus          | http://localhost:9121  |
+
+---
+
+### Jaeger (Distributed Tracing)
+
+Jaeger provides distributed tracing for cross-service request correlation. When a request flows through multiple services (frontend -> backend -> AI services -> database), Jaeger captures the complete trace to help identify latency bottlenecks and failures.
+
+**Port Mappings:**
+
+| Port  | Protocol | Purpose            |
+| ----- | -------- | ------------------ |
+| 16686 | HTTP     | Jaeger UI          |
+| 4317  | gRPC     | OTLP gRPC receiver |
+| 4318  | HTTP     | OTLP HTTP receiver |
+
+**Configuration:**
+
+```bash
+# Environment variables (docker-compose.prod.yml)
+COLLECTOR_OTLP_ENABLED=true          # Enable OTLP collector
+SPAN_STORAGE_TYPE=memory             # In-memory storage (default)
+MEMORY_MAX_TRACES=${JAEGER_MAX_TRACES:-100000}  # Max traces to store
+```
+
+**Environment Variables:**
+
+| Variable            | Default  | Description                                 |
+| ------------------- | -------- | ------------------------------------------- |
+| `JAEGER_MAX_TRACES` | `100000` | Maximum number of traces to store in memory |
+
+**Accessing Jaeger UI:**
+
+1. Open http://localhost:16686
+2. Select a service from the "Service" dropdown (e.g., `nemotron-backend`)
+3. Click "Find Traces" to view recent traces
+4. Click a trace to view the span timeline and service interactions
+
+**Connecting Backend to Jaeger:**
+
+The backend sends traces to Jaeger via OpenTelemetry. Configure in `.env`:
+
+```bash
+OTEL_ENABLED=true
+OTEL_SERVICE_NAME=nemotron-backend
+OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317
+OTEL_TRACE_SAMPLE_RATE=1.0  # 1.0 = 100% of traces
+```
+
+**Useful Queries:**
+
+```bash
+# Check Jaeger health
+curl http://localhost:16686
+
+# View services being traced
+curl http://localhost:16686/api/services | jq
+
+# Get traces for a specific service
+curl "http://localhost:16686/api/traces?service=nemotron-backend&limit=20" | jq
+```
+
+**Production Considerations:**
+
+For production deployments, consider:
+
+1. **External Storage**: Configure Elasticsearch, Cassandra, or ClickHouse for persistent trace storage
+2. **Sampling**: Reduce `OTEL_TRACE_SAMPLE_RATE` to 0.1 (10%) for high-traffic systems
+3. **Retention**: Configure trace retention policies in your storage backend
+
+---
+
+### Blackbox Exporter (Synthetic Monitoring)
+
+The blackbox exporter performs external endpoint probing to measure availability, latency, and health status. It simulates external client requests to detect issues before users report them.
+
+**Port:** 9115
+
+**Configuration File:** `monitoring/blackbox-exporter.yml`
+
+**Available Probe Modules:**
+
+| Module        | Type | Timeout | Purpose                                        |
+| ------------- | ---- | ------- | ---------------------------------------------- |
+| `http_2xx`    | HTTP | 5s      | Basic HTTP availability (200 OK)               |
+| `http_health` | HTTP | 10s     | Health endpoint with JSON body validation      |
+| `http_ready`  | HTTP | 15s     | Readiness probe (stricter, for load balancing) |
+| `http_live`   | HTTP | 5s      | Liveness probe (basic availability)            |
+| `http_api`    | HTTP | 10s     | API endpoint (200, 201, 204 status codes)      |
+| `tcp_connect` | TCP  | 5s      | TCP port connectivity                          |
+| `tcp_tls`     | TCP  | 10s     | TCP with TLS validation                        |
+| `dns_resolve` | DNS  | 5s      | DNS resolution test                            |
+| `icmp_ping`   | ICMP | 5s      | Network reachability (requires privileges)     |
+
+**How Prometheus Uses Blackbox Exporter:**
+
+Prometheus scrapes blackbox exporter with target URLs as parameters. Example scrape configs from `prometheus.yml`:
+
+```yaml
+# HTTP Health probes
+- job_name: 'blackbox-http-health'
+  metrics_path: /probe
+  params:
+    module: [http_health]
+  static_configs:
+    - targets:
+        - http://backend:8000/api/system/health
+```
+
+**Probed Endpoints (Default Configuration):**
+
+| Probe Type  | Endpoints Monitored                    |
+| ----------- | -------------------------------------- |
+| Health      | `backend:8000/api/system/health`       |
+| Readiness   | `backend:8000/api/system/health/ready` |
+| Liveness    | `backend:8000/health`, `frontend:8080` |
+| AI Services | All AI service `/health` endpoints     |
+| TCP         | `postgres:5432`, `redis:6379`          |
+
+**Key Metrics Exported:**
+
+| Metric                           | Description                          |
+| -------------------------------- | ------------------------------------ |
+| `probe_success`                  | 1 if probe succeeded, 0 if failed    |
+| `probe_duration_seconds`         | Total probe duration                 |
+| `probe_http_status_code`         | HTTP response status code            |
+| `probe_http_duration_seconds`    | HTTP request duration by phase       |
+| `probe_ssl_earliest_cert_expiry` | SSL certificate expiration timestamp |
+
+**Testing Probes Manually:**
+
+```bash
+# Test HTTP health probe
+curl "http://localhost:9115/probe?target=http://backend:8000/api/system/health&module=http_health"
+
+# Test TCP probe
+curl "http://localhost:9115/probe?target=postgres:5432&module=tcp_connect"
+
+# View blackbox exporter metrics
+curl http://localhost:9115/metrics
+```
+
+**Adding Custom Probes:**
+
+Edit `monitoring/blackbox-exporter.yml` to add custom probe modules:
+
+```yaml
+modules:
+  custom_api:
+    prober: http
+    timeout: 10s
+    http:
+      valid_status_codes: [200, 201]
+      fail_if_body_not_matches_regexp:
+        - '"success":\s*true'
+```
+
+Then add to Prometheus scrape config in `monitoring/prometheus.yml`.
+
+---
+
+### JSON Exporter (Custom Metrics)
+
+The JSON exporter converts JSON API responses into Prometheus metrics. This is useful for extracting metrics from endpoints that return JSON but do not expose native Prometheus metrics.
+
+**Port:** 7979
+
+**Configuration File:** `monitoring/json-exporter-config.yml`
+
+**Available Modules:**
+
+| Module      | Source Endpoint         | Metrics Extracted                                  |
+| ----------- | ----------------------- | -------------------------------------------------- |
+| `health`    | `/api/system/health`    | System, database, Redis, AI health status          |
+| `telemetry` | `/api/system/telemetry` | Queue depths, latencies (detect, batch, analyze)   |
+| `stats`     | `/api/system/stats`     | Camera count, event count, detection count, uptime |
+| `gpu`       | `/api/system/gpu`       | GPU utilization, memory, temperature, power        |
+
+**Metrics from Health Module:**
+
+| Metric                 | Type  | Description                                                  |
+| ---------------------- | ----- | ------------------------------------------------------------ |
+| `hsi_system_healthy`   | Gauge | Overall system health (1=healthy, 0.5=degraded, 0=unhealthy) |
+| `hsi_database_healthy` | Gauge | Database connection status                                   |
+| `hsi_redis_healthy`    | Gauge | Redis connection status                                      |
+| `hsi_ai_healthy`       | Gauge | AI services status                                           |
+
+**Metrics from Telemetry Module:**
+
+| Metric                       | Type  | Description                       |
+| ---------------------------- | ----- | --------------------------------- |
+| `hsi_detection_queue_depth`  | Gauge | Items waiting in detection queue  |
+| `hsi_analysis_queue_depth`   | Gauge | Batches waiting for LLM analysis  |
+| `hsi_detect_latency_avg_ms`  | Gauge | Average detection latency (ms)    |
+| `hsi_detect_latency_p95_ms`  | Gauge | P95 detection latency (ms)        |
+| `hsi_analyze_latency_avg_ms` | Gauge | Average LLM analysis latency (ms) |
+| `hsi_analyze_latency_p95_ms` | Gauge | P95 LLM analysis latency (ms)     |
+
+**Metrics from GPU Module:**
+
+| Metric                      | Type  | Description                        |
+| --------------------------- | ----- | ---------------------------------- |
+| `hsi_gpu_utilization`       | Gauge | GPU compute utilization (%)        |
+| `hsi_gpu_memory_used_mb`    | Gauge | GPU memory in use (MB)             |
+| `hsi_gpu_memory_total_mb`   | Gauge | Total GPU memory (MB)              |
+| `hsi_gpu_temperature`       | Gauge | GPU temperature (Celsius)          |
+| `hsi_inference_fps`         | Gauge | Inference throughput (frames/sec)  |
+| `hsi_gpu_throttle_reasons`  | Gauge | Throttle reasons bitfield (0=none) |
+| `hsi_gpu_power_limit_watts` | Gauge | GPU power limit (watts)            |
+
+**How It Works:**
+
+1. Prometheus scrapes JSON exporter with target URL as parameter
+2. JSON exporter fetches the target URL
+3. JSON exporter extracts values using JSONPath expressions
+4. Values are converted to Prometheus metrics
+
+**Testing JSON Exporter:**
+
+```bash
+# Test health metrics extraction
+curl "http://localhost:7979/probe?target=http://backend:8000/api/system/health&module=health"
+
+# Test GPU metrics extraction
+curl "http://localhost:7979/probe?target=http://backend:8000/api/system/gpu&module=gpu"
+
+# View JSON exporter own metrics
+curl http://localhost:7979/metrics
+```
+
+**Adding Custom Metrics:**
+
+Edit `monitoring/json-exporter-config.yml`:
+
+```yaml
+modules:
+  custom:
+    metrics:
+      - name: my_custom_metric
+        path: '{ .some.json.path }'
+        type: value
+        help: 'Description of the metric'
+```
+
+---
+
+### Redis Exporter
+
+The Redis exporter collects Redis metrics and exposes them in Prometheus format. This enables monitoring of Redis memory usage, connection counts, command statistics, and replication status.
+
+**Port:** 9121
+
+**Environment Variables:**
+
+| Variable         | Default              | Description                   |
+| ---------------- | -------------------- | ----------------------------- |
+| `REDIS_ADDR`     | `redis://redis:6379` | Redis server address          |
+| `REDIS_PASSWORD` | (empty)              | Redis authentication password |
+
+**Key Metrics Exported:**
+
+| Metric                           | Type    | Description                         |
+| -------------------------------- | ------- | ----------------------------------- |
+| `redis_up`                       | Gauge   | Redis server availability (1=up)    |
+| `redis_connected_clients`        | Gauge   | Number of connected clients         |
+| `redis_blocked_clients`          | Gauge   | Clients blocked on BLPOP/BRPOP      |
+| `redis_memory_used_bytes`        | Gauge   | Total memory used by Redis          |
+| `redis_memory_max_bytes`         | Gauge   | Maximum memory limit (if set)       |
+| `redis_commands_processed_total` | Counter | Total commands processed            |
+| `redis_keyspace_hits_total`      | Counter | Cache hits                          |
+| `redis_keyspace_misses_total`    | Counter | Cache misses                        |
+| `redis_expired_keys_total`       | Counter | Total expired keys                  |
+| `redis_evicted_keys_total`       | Counter | Keys evicted due to memory pressure |
+| `redis_db_keys`                  | Gauge   | Number of keys per database         |
+| `redis_connected_slaves`         | Gauge   | Connected replicas (if replication) |
+
+**Useful PromQL Queries:**
+
+```promql
+# Redis memory utilization percentage
+redis_memory_used_bytes / redis_memory_max_bytes * 100
+
+# Cache hit rate
+rate(redis_keyspace_hits_total[5m]) /
+(rate(redis_keyspace_hits_total[5m]) + rate(redis_keyspace_misses_total[5m]))
+
+# Commands per second
+rate(redis_commands_processed_total[1m])
+
+# Client connection growth
+increase(redis_connected_clients[1h])
+```
+
+**Accessing Redis Exporter:**
+
+```bash
+# View all Redis metrics
+curl http://localhost:9121/metrics
+
+# Check Redis connectivity
+curl http://localhost:9121/metrics | grep redis_up
+```
+
+**Health Check Note:**
+
+The Redis exporter container does not have wget/curl installed (minimal Go binary), so container health checks are disabled. Prometheus scraping success serves as the health indicator.
+
+**Security Configuration:**
+
+If Redis authentication is enabled, ensure the exporter has the same password:
+
+```bash
+# In .env
+REDIS_PASSWORD=your_secure_password
+```
+
+Both the Redis service and Redis exporter use this environment variable.
+
+---
+
+### Verifying Monitoring Stack
+
+After starting the stack, verify all services are healthy:
+
+```bash
+# Check all monitoring containers are running
+docker compose -f docker-compose.prod.yml ps | grep -E "(prometheus|grafana|jaeger|alertmanager|blackbox|json-exporter|redis-exporter)"
+
+# Verify Prometheus targets
+curl http://localhost:9090/api/v1/targets | jq '.data.activeTargets[] | {job: .labels.job, health: .health}'
+
+# Check for any scrape errors
+curl http://localhost:9090/api/v1/targets | jq '.data.activeTargets[] | select(.health != "up")'
+```
+
+**Expected Healthy Targets:**
+
+| Job Name               | Target                      | Expected Health |
+| ---------------------- | --------------------------- | --------------- |
+| `hsi-backend-metrics`  | `backend:8000`              | up              |
+| `redis`                | `redis-exporter:9121`       | up              |
+| `json-exporter`        | `json-exporter:7979`        | up              |
+| `blackbox-exporter`    | `blackbox-exporter:9115`    | up              |
+| `blackbox-http-health` | Backend health endpoint     | up              |
+| `blackbox-http-ready`  | Backend readiness endpoint  | up              |
+| `blackbox-http-live`   | Backend/frontend liveness   | up              |
+| `blackbox-http-2xx`    | AI service health endpoints | up              |
+| `blackbox-tcp`         | postgres:5432, redis:6379   | up              |
+
+---
+
 ## See Also
 
 - [GPU Setup Guide](gpu-setup.md) - Initial GPU configuration
 - [AI Performance](ai-performance.md) - AI service tuning
+- [Prometheus Alerting](prometheus-alerting.md) - Alert configuration and routing
 - [Configuration Reference](../admin-guide/configuration.md) - All environment variables
 - [Troubleshooting Index](../reference/troubleshooting/index.md) - Common issues

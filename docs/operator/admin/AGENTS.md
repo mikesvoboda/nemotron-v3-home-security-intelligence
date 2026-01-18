@@ -83,7 +83,7 @@ admin/
 
 ## Related Resources
 
-- **[Operator Hub](../../operator-hub.md)** - Central operator documentation navigation
+- **[Operator Hub](../)** - Central operator documentation navigation
 - **[Operator AGENTS.md](../AGENTS.md)** - Parent directory overview
 - **[Deployment Guide](../deployment/)** - Service deployment procedures
 - **[Monitoring Guide](../monitoring/)** - Health checks and metrics

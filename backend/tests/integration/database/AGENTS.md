@@ -150,5 +150,5 @@ uv run pytest backend/tests/integration/database/test_isolation_levels.py -v -n0
 - `/backend/core/database.py` - Database connection and session management
 - `/backend/tests/integration/test_database_isolation.py` - Related isolation tests
 - `/backend/tests/integration/test_transaction_rollback.py` - Transaction rollback tests
-- `/docs/TESTING_GUIDE.md` - Comprehensive testing guide
+- `/docs/development/testing.md` - Comprehensive testing guide
 - [PostgreSQL Isolation Levels](https://www.postgresql.org/docs/current/transaction-iso.html)

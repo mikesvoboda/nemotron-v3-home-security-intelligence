@@ -302,10 +302,24 @@ frontend/
 
 | Document                                          | Purpose                    |
 | ------------------------------------------------- | -------------------------- |
-| [Testing Guide](../../TESTING_GUIDE.md)           | Test patterns and fixtures |
+| [Testing Guide](../../development/testing.md)     | Test patterns and fixtures |
 | [Code Quality](../../development/code-quality.md) | Tool configuration         |
 | [Pre-commit Hooks](../../development/hooks.md)    | Hook documentation         |
 | [CLAUDE.md](../../../CLAUDE.md)                   | Project instructions       |
+
+---
+
+## Developer Tools
+
+Setup guides for AI-assisted development and debugging tools.
+
+| Document                                  | Purpose                                        |
+| ----------------------------------------- | ---------------------------------------------- |
+| [Chrome DevTools MCP](chrome-devtools.md) | Browser debugging via Chrome DevTools Protocol |
+| [GitHub Copilot Setup](copilot-setup.md)  | GitHub Copilot Free tier configuration         |
+| [GitHub Models](github-models.md)         | GitHub Models API for AI-powered workflows     |
+| [Linear Setup](linear-setup.md)           | Linear MCP server installation                 |
+| [Linear-GitHub Sync](linear-github.md)    | Synchronizing Linear and GitHub Issues         |
 
 ---
 

@@ -10,7 +10,7 @@
 
 ### Alert Rule
 
-A configurable condition that triggers notifications when events match specified criteria. Rules can filter by risk threshold, object types, cameras, time schedules, and other parameters. See [Alert API](api/alerts.md).
+A configurable condition that triggers notifications when events match specified criteria. Rules can filter by risk threshold, object types, cameras, time schedules, and other parameters. See [System Operations API](../developer/api/system-ops.md).
 
 ### Analysis Worker
 
@@ -395,8 +395,8 @@ A work distribution strategy used by pytest-xdist where test workers "steal" tes
 
 - [Codebase Tour](../developer/codebase-tour.md) - Project structure overview
 - [Pipeline Overview](../developer/pipeline-overview.md) - AI pipeline architecture
-- [User Hub](../user-hub.md) - User documentation
+- [User Hub](../user/README.md) - User documentation
 
 ---
 
-[Back to User Hub](../user-hub.md) | [Operator Hub](../operator-hub.md) | [Developer Hub](../developer-hub.md)
+[Back to User Hub](../user/README.md) | [Operator Hub](../operator/README.md) | [Developer Hub](../developer/README.md)

@@ -122,7 +122,7 @@ cd frontend && npm test
 ## Next Steps
 
 - [Codebase Tour](codebase-tour.md) - Understand the directory structure
-- [Hooks](hooks.md) - Pre-commit configuration
+- [Hooks](../development/hooks.md) - Pre-commit configuration
 - [Pipeline Overview](pipeline-overview.md) - AI processing flow
 
 ---
@@ -135,4 +135,4 @@ cd frontend && npm test
 
 ---
 
-[Back to Developer Hub](../developer-hub.md)
+[Back to Developer Hub](README.md)

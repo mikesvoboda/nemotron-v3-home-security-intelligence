@@ -54,7 +54,7 @@ All services run in containers, including GPU-accelerated AI servers.
 ### Prerequisites
 
 - NVIDIA GPU with `nvidia-container-toolkit` installed
-- AI model storage configured (see `docs/AI_SETUP.md`)
+- AI model storage configured (see `docs/operator/ai-installation.md`)
 
 ### Start Everything
 

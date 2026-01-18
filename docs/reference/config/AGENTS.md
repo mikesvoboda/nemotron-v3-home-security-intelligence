@@ -130,7 +130,7 @@ uv run python -c "from backend.core.config import get_settings; print(get_settin
 ## Related Documentation
 
 - **docs/reference/AGENTS.md:** Reference directory overview
-- **docs/RUNTIME_CONFIG.md:** Quick port reference
+- **docs/reference/config/env-reference.md:** Complete environment variable reference
 - **docs/operator/ai-configuration.md:** AI-specific configuration
 - **docs/developer/local-setup.md:** Development environment setup
 - **backend/core/config.py:** Settings implementation

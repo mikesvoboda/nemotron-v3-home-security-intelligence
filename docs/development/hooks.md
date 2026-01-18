@@ -15,29 +15,33 @@ This document provides comprehensive documentation for all pre-commit hooks conf
 
 ## Quick Reference
 
-| Hook                    | Stage      | Purpose                                | Runtime |
-| ----------------------- | ---------- | -------------------------------------- | ------- |
-| trailing-whitespace     | pre-commit | Remove trailing whitespace             | <1s     |
-| end-of-file-fixer       | pre-commit | Ensure files end with newline          | <1s     |
-| check-yaml              | pre-commit | Validate YAML syntax                   | <1s     |
-| check-json              | pre-commit | Validate JSON syntax                   | <1s     |
-| check-added-large-files | pre-commit | Prevent large files (>1MB)             | <1s     |
-| check-merge-conflict    | pre-commit | Detect merge conflict markers          | <1s     |
-| detect-private-key      | pre-commit | Prevent committing private keys        | <1s     |
-| hadolint                | pre-commit | Lint Dockerfiles                       | 1-2s    |
-| semgrep                 | pre-commit | Security scanning (Python)             | 2-5s    |
-| ruff                    | pre-commit | Python linting                         | 1-2s    |
-| ruff-format             | pre-commit | Python formatting                      | 1-2s    |
-| mypy                    | pre-commit | Python type checking                   | 3-10s   |
-| prettier                | pre-commit | Format non-frontend files              | 1-2s    |
-| prettier-frontend       | pre-commit | Format frontend files                  | 1-2s    |
-| eslint                  | pre-commit | Frontend linting                       | 2-5s    |
-| typescript-check        | pre-commit | Frontend type checking                 | 3-10s   |
-| check-test-mocks        | pre-commit | Verify integration tests mock services | <1s     |
-| check-test-timeouts     | pre-commit | Verify tests mock slow operations      | <1s     |
-| auto-rebase             | pre-push   | Rebase on origin/main                  | 2-10s   |
-| fast-test               | pre-push   | Run unit tests                         | 30-60s  |
-| api-types-contract      | pre-push   | Verify API types are current           | 5-10s   |
+| Hook                       | Stage      | Purpose                                | Runtime |
+| -------------------------- | ---------- | -------------------------------------- | ------- |
+| trailing-whitespace        | pre-commit | Remove trailing whitespace             | <1s     |
+| end-of-file-fixer          | pre-commit | Ensure files end with newline          | <1s     |
+| check-yaml                 | pre-commit | Validate YAML syntax                   | <1s     |
+| check-json                 | pre-commit | Validate JSON syntax                   | <1s     |
+| check-added-large-files    | pre-commit | Prevent large files (>1MB)             | <1s     |
+| check-merge-conflict       | pre-commit | Detect merge conflict markers          | <1s     |
+| detect-private-key         | pre-commit | Prevent committing private keys        | <1s     |
+| hadolint                   | pre-commit | Lint Dockerfiles                       | 1-2s    |
+| semgrep                    | pre-commit | Security scanning (Python)             | 2-5s    |
+| ruff                       | pre-commit | Python linting                         | 1-2s    |
+| ruff-format                | pre-commit | Python formatting                      | 1-2s    |
+| mypy                       | pre-commit | Python type checking                   | 3-10s   |
+| prettier                   | pre-commit | Format non-frontend files              | 1-2s    |
+| prettier-frontend          | pre-commit | Format frontend files                  | 1-2s    |
+| eslint                     | pre-commit | Frontend linting                       | 2-5s    |
+| typescript-check           | pre-commit | Frontend type checking                 | 3-10s   |
+| check-test-mocks           | pre-commit | Verify integration tests mock services | <1s     |
+| check-test-timeouts        | pre-commit | Verify tests mock slow operations      | <1s     |
+| check-validation-drift     | pre-commit | Detect Pydantic/Zod schema drift       | <1s     |
+| check-integration-tests    | pre-commit | Verify API/service changes have tests  | <1s     |
+| detect-secrets             | pre-commit | Detect secrets and credentials         | 1-2s    |
+| generate-openapi           | pre-commit | Auto-regenerate OpenAPI spec           | 1-2s    |
+| auto-rebase                | pre-push   | Rebase on origin/main                  | 2-10s   |
+| check-new-files-have-tests | pre-push   | Verify new source files have tests     | <1s     |
+| parallel-tests             | pre-push   | Run unit tests, E2E, and API types     | 60-180s |
 
 ## Installation
 
@@ -247,6 +251,51 @@ git reset HEAD private-key.pem
 
 # Use environment variables or secrets management
 ```
+
+---
+
+### Secret Detection
+
+#### detect-secrets
+
+**Purpose:** Prevents committing secrets and credentials to the repository.
+
+**What it checks:**
+
+- API keys and tokens
+- Passwords and secrets in code
+- Private keys and certificates
+- Database connection strings
+
+**Tool:** [detect-secrets](https://github.com/Yelp/detect-secrets)
+
+**Config:** Uses `.secrets.baseline` for known false positives
+
+**Excludes:** `package-lock.json`, `uv.lock`, `.secrets.baseline`, `mutants/`, `.tsbuildinfo`
+
+**Common failures:**
+
+```
+Potential secrets detected in file.py
+Secret Type: Secret Keyword
+Line: 42
+```
+
+**Fix:**
+
+```bash
+# If it's a false positive, add to baseline
+detect-secrets scan --baseline .secrets.baseline
+
+# Review the baseline file
+git diff .secrets.baseline
+
+# Commit the updated baseline
+git add .secrets.baseline
+git commit -m "chore: update secrets baseline"
+```
+
+**Note:** A `regenerate-secrets-baseline` hook automatically regenerates the baseline if it has merge conflicts.
 
 ---
 
@@ -662,6 +711,50 @@ npm run typecheck
 
 ---
 
+### OpenAPI Generation
+
+#### generate-openapi
+
+**Purpose:** Auto-regenerates `docs/openapi.json` when backend API changes.
+
+**What it does:**
+
+- Runs when files in `backend/api/`, `backend/models/`, or `backend/schemas/` change
+- Generates OpenAPI spec from FastAPI routes
+- Uses hash-based change detection for performance (~5-10ms skip path, ~1.5-2s regeneration)
+- Auto-stages the generated file for commit
+
+**Script:** `scripts/generate-openapi.py`
+
+**Cache file:** `.openapi-cache`
+
+**Common scenarios:**
+
+- Adding new API endpoints: spec regenerated automatically
+- Modifying schemas: spec regenerated automatically
+- No changes to API: hash comparison only, no regeneration
+
+---
+
+### Validation Alignment
+
+#### check-validation-drift
+
+**Purpose:** Detects drift between backend Pydantic and frontend Zod schemas.
+
+**What it checks:**
+
+- Warns when Pydantic schemas (`backend/api/schemas/`) are modified
+- Reminds to verify frontend Zod schemas (`frontend/src/schemas/`) are aligned
+
+**Files watched:** `backend/api/schemas/*.py`, `frontend/src/schemas/*.ts`
+
+**Behavior:** Warning-only hook - commits are not blocked
+
+**Verbose mode:** Set `VALIDATION_DRIFT_VERBOSE=1` for detailed info messages
+
+---
+
 ### Test Quality Hooks
 
 #### check-test-mocks
@@ -777,6 +870,37 @@ with patch('requests.get') as mock_get:
 
 ---
 
+#### check-integration-tests
+
+**Purpose:** Ensure API routes and services have corresponding integration tests.
+
+**What it checks:**
+
+- Files in `backend/api/routes/` must have integration tests
+- Files in `backend/services/` must have integration tests
+
+**Script:** `scripts/check-integration-tests.py`
+
+**Stages:** pre-commit and pre-push
+
+**Common failures:**
+
+```
+New/modified API routes without integration tests:
+  backend/api/routes/new_endpoint.py
+```
+
+**Fix:**
+
+```bash
+# Create integration tests for the new route
+touch backend/tests/integration/test_new_endpoint.py
+
+# Or mark as intentionally untested (not recommended)
+```
+
+---
+
 ## Pre-push Hooks (Run Before Push)
 
 ### auto-rebase
@@ -818,44 +942,33 @@ SKIP=auto-rebase git push
 
 ---
 
-### fast-test
+### parallel-tests
 
-**Purpose:** Run quick backend unit tests before push.
+**Purpose:** Run validation tests in parallel before push for faster feedback.
 
-**What it runs:**
+**What it runs (3 parallel jobs):**
 
-- Unit tests only (no integration tests)
-- Excludes slow-marked tests
-- Flushes Redis test database first
-- Fails fast on first error
+1. **Job 1:** Backend unit tests with 85% coverage (pytest) - ~2-3 min
+2. **Job 2:** E2E + Accessibility tests (Playwright Chromium) - ~30-60s
+3. **Job 3:** API types contract check (openapi-typescript) - ~10-20s
 
-**Command:** `pytest backend/tests/unit/ -m "not slow and not integration" -q --tb=no -x -n0`
+**Total time:** max(job1, job2, job3) instead of sum (~60-70% faster than sequential)
 
-**Runtime:** 30-60 seconds
+**Script:** `scripts/pre-push-tests.sh`
 
-**Why pre-push not pre-commit:** Full test suite takes ~2 minutes, too slow for every commit.
+**Runtime:** 60-180 seconds (depends on longest job)
+
+**Why pre-push not pre-commit:** Full test suite takes ~2-3 minutes, too slow for every commit.
 
 **Skip:**
 
 ```bash
-SKIP=fast-test git push
+SKIP=parallel-tests git push
 ```
 
----
+**API Types Contract Check:**
 
-### api-types-contract
-
-**Purpose:** Verify frontend TypeScript types match backend OpenAPI schema.
-
-**What it checks:**
-
-- Generates TypeScript types from FastAPI OpenAPI spec
-- Compares against committed `frontend/src/types/generated/api.ts`
-- Fails if types are out of sync
-
-**Script:** `scripts/generate-types.sh --check`
-
-**Common failures:**
+If types are out of sync:
 
 ```
 [ERROR] Generated types are out of date!
@@ -875,6 +988,35 @@ Then commit the updated types file.
 # Commit the changes
 git add frontend/src/types/generated/api.ts
 git commit -m "chore: regenerate API types"
+```
+
+---
+
+### check-new-files-have-tests
+
+**Purpose:** Verify that new source files have corresponding test files.
+
+**What it checks:**
+
+- Detects newly added source files in the commit
+- Verifies corresponding test files exist or are being added
+
+**Script:** `scripts/check-test-coverage-gate.py`
+
+**Stage:** pre-push only
+
+**Common failures:**
+
+```
+New source files without corresponding test files:
+  backend/services/new_service.py -> missing tests
+```
+
+**Fix:**
+
+```bash
+# Create test file for the new source
+touch backend/tests/unit/services/test_new_service.py
 ```
 
 ---

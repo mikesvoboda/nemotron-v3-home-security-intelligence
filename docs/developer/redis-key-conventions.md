@@ -365,4 +365,4 @@ redis-cli -a "$REDIS_PASSWORD" ttl "dedupe:abc123"
 
 ---
 
-[Back to Developer Hub](../developer-hub.md)
+[Back to Developer Hub](README.md)

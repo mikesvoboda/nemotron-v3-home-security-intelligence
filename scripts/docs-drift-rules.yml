@@ -1,0 +1,120 @@
+# Documentation drift detection rules
+# Add/modify rules without changing Python code
+#
+# Each rule defines:
+#   - id: Unique identifier for the rule
+#   - description: Human-readable description of what triggers this rule
+#   - file_patterns: Glob patterns for files to watch
+#   - content_patterns: Optional regex patterns to match within changed files
+#   - new_file_only: If true, only trigger for newly created files
+#   - priority: high, medium, or low
+#   - required_docs: List of documentation files that should exist/be updated
+#     - Use {dir} to reference the directory of the changed file
+#     - Use {file} to reference the filename (without extension)
+#
+# Priority definitions:
+#   - high: Critical documentation that affects production usage
+#   - medium: Important documentation for developer understanding
+#   - low: Nice-to-have documentation improvements
+
+rules:
+  - id: new-api-endpoint
+    description: 'New API endpoint added'
+    file_patterns:
+      - 'backend/api/routes/*.py'
+    content_patterns:
+      - "@router\\.(get|post|put|patch|delete)\\("
+    priority: high
+    required_docs:
+      - '{dir}/AGENTS.md'
+      - 'docs/developer/api/*.md'
+
+  - id: new-frontend-component
+    description: 'New frontend component'
+    file_patterns:
+      - 'frontend/src/components/**/*.tsx'
+    content_patterns:
+      - "^export (default )?function \\w+"
+      - "^export const \\w+ = "
+    new_file_only: true
+    priority: medium
+    required_docs:
+      - '{dir}/AGENTS.md'
+      - 'docs/ui/*.md'
+
+  - id: new-hook
+    description: 'New React hook'
+    file_patterns:
+      - 'frontend/src/hooks/*.ts'
+    content_patterns:
+      - "^export function use\\w+"
+      - "^export const use\\w+ = "
+    new_file_only: true
+    priority: low
+    required_docs:
+      - 'frontend/src/hooks/AGENTS.md'
+
+  - id: new-service
+    description: 'New backend service'
+    file_patterns:
+      - 'backend/services/*.py'
+    new_file_only: true
+    priority: medium
+    required_docs:
+      - 'backend/services/AGENTS.md'
+
+  - id: new-env-variable
+    description: 'New environment variable reference'
+    file_patterns:
+      - 'backend/**/*.py'
+    content_patterns:
+      - "os\\.getenv\\("
+      - "os\\.environ\\["
+      - "settings\\."
+    priority: high
+    required_docs:
+      - 'docs/reference/config/env-reference.md'
+
+  - id: schema-change
+    description: 'API schema change'
+    file_patterns:
+      - 'backend/api/schemas/*.py'
+    content_patterns:
+      - "class \\w+\\(BaseModel\\)"
+      - "class \\w+\\(BaseModel,"
+    priority: medium
+    required_docs:
+      - 'docs/developer/api/*.md'
+
+  - id: docker-compose-change
+    description: 'Docker service configuration changed'
+    file_patterns:
+      - 'docker-compose*.yml'
+      - 'docker-compose*.yaml'
+    priority: medium
+    required_docs:
+      - 'docs/operator/deployment/README.md'
+
+  - id: new-frontend-page
+    description: 'New frontend page added'
+    file_patterns:
+      - 'frontend/src/pages/*.tsx'
+    new_file_only: true
+    priority: high
+    required_docs:
+      - 'frontend/src/pages/AGENTS.md'
+      - 'docs/ui/*.md'
+      - 'docs/user-guide/*.md'
+
+# Files to always ignore
+ignore_patterns:
+  - '**/test_*.py'
+  - '**/*.test.ts'
+  - '**/*.test.tsx'
+  - '**/conftest.py'
+  - 'mutants/**'
+  - '.venv/**'
+  - '**/__pycache__/**'
+  - '**/node_modules/**'
+  - '**/*.spec.ts'
+  - '**/*.spec.tsx'

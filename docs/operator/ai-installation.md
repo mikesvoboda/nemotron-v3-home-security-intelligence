@@ -201,7 +201,7 @@ wget https://huggingface.co/bartowski/nemotron-mini-4b-instruct-GGUF/resolve/mai
 
 ### Production Model (Nano 30B)
 
-For production deployments with better reasoning quality:
+For production deployments with better reasoning quality, download from the official NVIDIA HuggingFace repository: [nvidia/Nemotron-3-Nano-30B-A3B-GGUF](https://huggingface.co/nvidia/Nemotron-3-Nano-30B-A3B-GGUF)
 
 ```bash
 # Create production model directory
@@ -209,7 +209,7 @@ mkdir -p /export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km
 
 # Download the model (large download, ~18GB)
 cd /export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km
-wget https://huggingface.co/bartowski/Nemotron-3-Nano-30B-A3B-GGUF/resolve/main/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf \
+wget https://huggingface.co/nvidia/Nemotron-3-Nano-30B-A3B-GGUF/resolve/main/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf \
   -O Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf
 ```
 
@@ -358,4 +358,4 @@ curl http://localhost:8094/health  # Enrichment
 
 ---
 
-[Back to Operator Hub](../operator-hub.md)
+[Back to Operator Hub](./)

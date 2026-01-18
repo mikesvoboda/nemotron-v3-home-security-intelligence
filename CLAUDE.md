@@ -1,131 +1,24 @@
 # Claude Code Instructions
 
-This project is an AI-powered home security monitoring dashboard.
+This project is an AI-powered home security monitoring dashboard. See `AGENTS.md` for detailed file structure, entry points, and codebase navigation.
 
-## Project Overview
+## Quick Reference
 
-- **Frontend:** React + TypeScript + Tailwind + Tremor
-- **Backend:** Python FastAPI + PostgreSQL + Redis
-- **AI:** RT-DETRv2 (object detection) + Nemotron via llama.cpp (risk reasoning)
-- **GPU:** NVIDIA RTX A5500 (24GB)
-- **Cameras:** Foscam FTP uploads to `/export/foscam/{camera_name}/`
-- **Containers:** Docker Compose files compatible with both Docker and Podman
+| Resource                    | Location                                                                                                                 |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| File structure & navigation | `AGENTS.md`                                                                                                              |
+| Issue tracking              | [Linear](https://linear.app/nemotron-v3-home-security/team/NEM/active) (Team ID: `998946a2-aa75-491b-a39d-189660131392`) |
+| Linear MCP tools            | [docs/development/linear-integration.md](docs/development/linear-integration.md)                                         |
+| Post-MVP roadmap            | `docs/ROADMAP.md` (pursue **after Phases 1-8 are operational**)                                                          |
 
-## Local Development Environment
-
-**First-time setup:** Run the interactive setup script to generate `.env` and `docker-compose.override.yml`:
+## Setup
 
 ```bash
-./setup.sh              # Quick mode - accept defaults with Enter
-./setup.sh --guided     # Guided mode - step-by-step with explanations
+./setup.sh              # First-time setup (creates .env, installs deps)
+uv sync --extra dev     # Sync Python dependencies
+cd frontend && bun install  # Sync frontend dependencies
+pre-commit install      # Install git hooks
 ```
-
-This project uses standard Docker Compose files (`docker-compose.prod.yml`) that work with both Docker and Podman:
-
-```bash
-# Using Docker Compose
-docker compose -f docker-compose.prod.yml up -d
-docker compose -f docker-compose.prod.yml logs -f
-docker compose -f docker-compose.prod.yml down
-
-# Using Podman Compose
-podman-compose -f docker-compose.prod.yml up -d
-podman-compose -f docker-compose.prod.yml logs -f
-podman-compose -f docker-compose.prod.yml down
-```
-
-For macOS with Podman, set the AI host:
-
-```bash
-export AI_HOST=host.containers.internal
-```
-
-## Deploy from CI/CD Containers
-
-Pull and redeploy using pre-built containers from GitHub Container Registry (main branch):
-
-```bash
-# Pull latest containers from GHCR
-podman pull ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/backend:latest
-podman pull ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/frontend:latest
-
-# Stop current containers
-podman-compose -f docker-compose.prod.yml down
-
-# Redeploy with latest images
-podman-compose -f docker-compose.prod.yml up -d
-
-# Verify deployment
-curl http://localhost:8000/api/system/health/ready
-```
-
-**Note:** CI/CD automatically builds and pushes images on every merge to `main`. Use `:latest` for most recent stable build or specify a commit SHA tag for specific versions.
-
-## Python Dependencies (uv)
-
-This project uses **uv** for Python dependency management (10-100x faster than pip):
-
-```bash
-# Install uv (if not already installed)
-curl -LsSf https://astral.sh/uv/install.sh | sh
-# Or with Homebrew: brew install uv
-
-# Sync dependencies (creates .venv if needed)
-uv sync --extra dev
-
-# Add a new dependency
-uv add <package>           # Production dependency
-uv add --dev <package>     # Dev dependency
-
-# Update lock file after editing pyproject.toml
-uv lock
-
-# Run a command in the virtual environment
-uv run pytest              # Run pytest
-uv run ruff check backend  # Run linter
-uv run mypy backend        # Run type checker
-
-# The venv is automatically created at .venv/
-# Dependencies are defined in pyproject.toml
-# Lock file is uv.lock (commit this file)
-```
-
-**Key files:**
-
-- `pyproject.toml` - Dependencies and tool configuration
-- `uv.lock` - Locked dependency versions (commit this)
-- `.python-version` - Python version (3.14)
-
-### UV Version Management (CI/CD)
-
-CI workflows pin **uv version `0.9.18`** for reproducibility. See workflow files for details.
-
-## Issue Tracking
-
-This project uses **Linear** for issue tracking. For detailed MCP tools, workflow state UUIDs, and usage examples, see **[Linear Integration Guide](docs/development/linear-integration.md)**.
-
-- **Workspace:** [nemotron-v3-home-security](https://linear.app/nemotron-v3-home-security)
-- **Team:** NEM
-- **Team ID:** `998946a2-aa75-491b-a39d-189660131392`
-
-## Task Execution Order
-
-Tasks are organized into 8 execution phases. **Always complete earlier phases before starting later ones.**
-
-| Phase | Focus                             | Link                                                                        |
-| ----- | --------------------------------- | --------------------------------------------------------------------------- |
-| 1     | Project Setup (P0)                | [View](https://linear.app/nemotron-v3-home-security/team/NEM/label/phase-1) |
-| 2     | Database & Layout Foundation (P1) | [View](https://linear.app/nemotron-v3-home-security/team/NEM/label/phase-2) |
-| 3     | Core APIs & Components (P2)       | [View](https://linear.app/nemotron-v3-home-security/team/NEM/label/phase-3) |
-| 4     | AI Pipeline (P3/P4)               | [View](https://linear.app/nemotron-v3-home-security/team/NEM/label/phase-4) |
-| 5     | Events & Real-time (P4)           | [View](https://linear.app/nemotron-v3-home-security/team/NEM/label/phase-5) |
-| 6     | Dashboard Components (P3)         | [View](https://linear.app/nemotron-v3-home-security/team/NEM/label/phase-6) |
-| 7     | Pages & Modals (P4)               | [View](https://linear.app/nemotron-v3-home-security/team/NEM/label/phase-7) |
-| 8     | Integration & E2E (P4)            | [View](https://linear.app/nemotron-v3-home-security/team/NEM/label/phase-8) |
-
-## Post-MVP Roadmap (After MVP is Operational)
-
-After the MVP is **fully operational end-to-end** (Phases 1-8 complete, deployment verified, and tests passing), review `docs/ROADMAP.md` to identify post-MVP enhancements and create new Linear issues accordingly.
 
 ## Testing and TDD
 

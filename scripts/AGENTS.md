@@ -973,7 +973,7 @@ git bisect run ./scripts/git-bisect-helper.sh "pytest backend/tests/unit/test_ca
 
 1. Review generated test stub
 2. Replace TODO comments with actual test cases
-3. Follow patterns from `docs/TESTING_GUIDE.md`
+3. Follow patterns from `docs/development/testing.md`
 4. Run `./scripts/validate.sh` to verify tests work
 
 #### check-integration-tests.py
@@ -1161,5 +1161,5 @@ rm -f data/security.db
 
 - `/CLAUDE.md` - Git workflow and testing requirements
 - `/README.md` - Project overview
-- `/docs/AI_SETUP.md` - AI services detailed setup
+- `/docs/operator/ai-installation.md` - AI services detailed setup
 - `/.pre-commit-config.yaml` - Pre-commit hook configuration

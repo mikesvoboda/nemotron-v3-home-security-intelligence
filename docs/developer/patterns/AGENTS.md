@@ -83,7 +83,7 @@ patterns/
 | Testing Guide    | `docs/development/testing.md`          | Test infrastructure, fixtures   |
 | Code Quality     | `docs/development/code-quality.md`     | Linting, formatting, analysis   |
 | Backend Patterns | `docs/developer/backend-patterns.md`   | Repository pattern, Result type |
-| TESTING_GUIDE.md | `docs/TESTING_GUIDE.md`                | Comprehensive testing examples  |
+| Testing Guide    | `docs/development/testing.md`          | Comprehensive testing examples  |
 
 ## Target Audience
 

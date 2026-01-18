@@ -490,4 +490,4 @@ gh run view <run-id> --log
 - [GitHub Self-Hosted Runner Docs](https://docs.github.com/en/actions/hosting-your-own-runners)
 - [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/overview.html)
 - [GitHub Actions Runner Releases](https://github.com/actions/runner/releases)
-- Project AI Setup: `/docs/AI_SETUP.md`
+- Project AI Setup: `/docs/operator/ai-installation.md`

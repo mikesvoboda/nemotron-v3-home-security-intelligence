@@ -477,10 +477,10 @@ Default preset is `fast` for balanced performance.
 
 ## See Also
 
-- [Event Timeline API](../architecture/rest-api.md) - Event endpoints
+- [Event Timeline API](api/core-resources.md) - Event endpoints
 - [Data Model](data-model.md) - Event.clip_path field
 - [Cleanup Service](../reference/config/env-reference.md) - Retention settings
 
 ---
 
-[Back to Developer Hub](../developer-hub.md)
+[Back to Developer Hub](README.md)

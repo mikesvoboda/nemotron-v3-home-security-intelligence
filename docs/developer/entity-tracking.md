@@ -591,9 +591,9 @@ Re-identification technology has privacy implications:
 ## See Also
 
 - [Enrichment Panel](../../frontend/src/components/events/EnrichmentPanel.tsx) - UI component
-- [Entities API Schema](../architecture/rest-api.md) - OpenAPI spec
+- [Entities API Schema](api/core-resources.md) - OpenAPI spec
 - [AI Overview](../operator/ai-overview.md) - CLIP model details
 
 ---
 
-[Back to Developer Hub](../developer-hub.md)
+[Back to Developer Hub](README.md)

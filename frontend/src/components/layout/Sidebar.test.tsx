@@ -40,9 +40,12 @@ describe('Sidebar', () => {
     expect(screen.getByText('Alerts')).toBeInTheDocument();
     expect(screen.getByText('Logs')).toBeInTheDocument();
     expect(screen.getByText('Audit Log')).toBeInTheDocument();
+    expect(screen.getByText('AI Audit')).toBeInTheDocument();
     expect(screen.getByText('AI Performance')).toBeInTheDocument();
+    expect(screen.getByText('Operations')).toBeInTheDocument();
     expect(screen.getByText('Trash')).toBeInTheDocument();
     expect(screen.getByText('System')).toBeInTheDocument();
+    expect(screen.getByText('Dev Tools')).toBeInTheDocument();
     expect(screen.getByText('Settings')).toBeInTheDocument();
   });
 
@@ -111,10 +114,10 @@ describe('Sidebar', () => {
     expect(settingsLink).toHaveClass('bg-[#76B900]');
   });
 
-  it('renders all 13 navigation items', () => {
+  it('renders all 15 navigation items', () => {
     renderWithRouter();
     const links = screen.getAllByRole('link');
-    expect(links).toHaveLength(13);
+    expect(links).toHaveLength(15);
   });
 
   it('jobs link has correct href', () => {

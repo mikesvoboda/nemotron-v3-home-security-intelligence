@@ -392,9 +392,9 @@ To restore or share configurations:
 
 For developers and advanced users, see:
 
-- [Prompt Management API](../api-reference/prompts.md) - REST API documentation
+- [Prompt Management API](../developer/api/ai-pipeline.md) - REST API documentation
 - [Prompt Management Developer Guide](../developer/prompt-management.md) - Architecture and implementation details
 
 ---
 
-[Back to User Hub](../user-hub.md)
+[Back to User Hub](../user/README.md)

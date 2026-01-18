@@ -263,7 +263,7 @@ database = "directory:.hypothesis"
 #   uv run mutmut results
 #   uv run mutmut show <mutant_id>
 #
-# See docs/MUTATION_TESTING.md for detailed guidance.
+# See docs/developer/patterns/mutation-testing.md for detailed guidance.
 [tool.mutmut]
 # Paths to mutate (start with well-tested, critical modules)
 paths_to_mutate = [

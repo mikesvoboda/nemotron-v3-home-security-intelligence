@@ -52,7 +52,8 @@ describe('ReidMatchesPanel', () => {
   });
 
   it('shows empty state when 404 error (no embedding)', async () => {
-    mockFetchEntityMatches.mockRejectedValueOnce(new Error('404 Not Found'));
+    // fetchEntityMatches now returns null for 404 responses (expected behavior)
+    mockFetchEntityMatches.mockResolvedValueOnce(null);
 
     render(<ReidMatchesPanel detectionId={123} />);
 

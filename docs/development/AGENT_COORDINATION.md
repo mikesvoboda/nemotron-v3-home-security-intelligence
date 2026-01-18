@@ -473,7 +473,7 @@ Multiple agents updating different documentation:
 
 ```
 Agent 1: Update API reference docs
-  Scope: docs/api-reference/
+  Scope: docs/developer/api/
 
 Agent 2: Update developer guides
   Scope: docs/development/

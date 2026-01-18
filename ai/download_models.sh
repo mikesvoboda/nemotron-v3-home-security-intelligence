@@ -13,9 +13,10 @@
 #   - CLIP-ViT-L - ~1.7GB - Entity re-identification
 #   - Model Zoo (~19GB):
 #     - Fashion-CLIP - Clothing classification
-#     - Vehicle-Segment-Classification - Vehicle types
-#     - Pet-Classifier - Cat/dog detection
+#     - Vehicle-Segment-Classification (ViT) - Vehicle types
+#     - Pet-Classifier (ResNet-18) - Cat/dog detection
 #     - Depth-Anything-V2-Small - Depth estimation
+#     - ViTPose+ Small - Pose estimation
 #
 
 set -e
@@ -209,12 +210,19 @@ echo "=========================================="
 echo ""
 
 # Vehicle classification
+# HuggingFace URL: https://huggingface.co/lxyuan/vit-base-patch16-224-vehicle-segment-classification
 VEHICLE_DIR="${AI_MODELS_PATH}/model-zoo/vehicle-segment-classification"
-clone_or_update_hf "microsoft/resnet-50" "$VEHICLE_DIR" "Vehicle-Segment-Classification (~100MB)"
+clone_or_update_hf "lxyuan/vit-base-patch16-224-vehicle-segment-classification" "$VEHICLE_DIR" "Vehicle-Segment-Classification (~350MB)"
 
 # Pet classifier
+# HuggingFace URL: https://huggingface.co/microsoft/resnet-18
 PET_DIR="${AI_MODELS_PATH}/model-zoo/pet-classifier"
-clone_or_update_hf "microsoft/resnet-50" "$PET_DIR" "Pet-Classifier (~100MB)"
+clone_or_update_hf "microsoft/resnet-18" "$PET_DIR" "Pet-Classifier (~45MB)"
+
+# Pose estimation
+# HuggingFace URL: https://huggingface.co/usyd-community/vitpose-plus-small
+VITPOSE_DIR="${AI_MODELS_PATH}/model-zoo/vitpose-plus-small"
+clone_or_update_hf "usyd-community/vitpose-plus-small" "$VITPOSE_DIR" "ViTPose+ Small (~100MB)"
 
 # Depth estimation
 DEPTH_DIR="${AI_MODELS_PATH}/model-zoo/depth-anything-v2-small"
@@ -237,6 +245,7 @@ echo "      ├── clip-vit-l/                    (Embeddings)"
 echo "      ├── fashion-clip/                  (Clothing)"
 echo "      ├── vehicle-segment-classification/ (Vehicles)"
 echo "      ├── pet-classifier/                (Pets)"
+echo "      ├── vitpose-plus-small/            (Pose)"
 echo "      └── depth-anything-v2-small/       (Depth)"
 echo ""
 echo "Next steps:"

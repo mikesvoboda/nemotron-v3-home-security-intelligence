@@ -448,4 +448,4 @@ For detailed historical metrics, click the **Open Grafana** link in the blue ban
 
 ---
 
-[Back to User Hub](../user-hub.md)
+[Back to User Hub](../user/README.md)

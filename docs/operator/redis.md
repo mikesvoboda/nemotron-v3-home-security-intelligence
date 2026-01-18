@@ -401,4 +401,4 @@ Expected output when healthy:
 
 ---
 
-[Back to Operator Hub](../operator-hub.md)
+[Back to Operator Hub](./)

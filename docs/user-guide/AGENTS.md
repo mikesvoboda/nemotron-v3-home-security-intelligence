@@ -18,10 +18,12 @@ user-guide/
   ai-enrichment.md            # Advanced AI analysis in event details
   ai-performance.md           # AI model performance and Model Zoo
   alerts-notifications.md     # Alerts and notifications guide
+  analytics.md                # Analytics dashboard - detection patterns, risk trends, camera performance
   dashboard-basics.md         # Dashboard layout, header, sidebar, quick stats
   dashboard-customization.md  # Dashboard customization and personalization
   dashboard-overview.md       # Dashboard overview
   dashboard-settings.md       # Configuration and quick reference
+  entities.md                 # Entities page - track people and vehicles across cameras
   event-investigation.md      # Video clips, entity tracking, timeline visualization
   event-timeline.md           # Event timeline guide
   getting-started.md          # Quick start guide for new users
@@ -29,7 +31,7 @@ user-guide/
   interface-guide.md          # Toast notifications, loading states, visual feedback
   keyboard-shortcuts.md       # Command palette and keyboard navigation
   logs-dashboard.md           # Logs dashboard guide
-  mobile-pwa.md               # PWA installation, push notifications, mobile features
+  mobile-pwa.md               # PWA installation, push notifications, mobile features (expanded)
   prompt-playground.md        # AI prompt testing and playground
   search.md                   # Search functionality guide
   settings.md                 # Settings page guide
@@ -37,7 +39,7 @@ user-guide/
   understanding-alerts.md     # Risk levels and alert interpretation
   using-the-dashboard.md      # Comprehensive dashboard guide
   viewing-events.md           # Activity feed, timeline, event details
-  zones.md                    # Detection zones configuration guide
+  zones.md                    # Detection zones configuration guide (with visual examples)
 ```
 
 ## Key Files
@@ -289,21 +291,62 @@ user-guide/
 
 **When to use:** Setting up detection zones, reducing false positives, focusing on entry points.
 
+### analytics.md
+
+**Purpose:** Guide to the Analytics Dashboard for understanding detection patterns and system performance.
+
+**Target Audience:** Users who want to analyze security trends and camera performance over time.
+
+**Topics Covered:**
+
+- Overview tab with key metrics and detection trends
+- Detections tab with object type distribution and frequency charts
+- Risk Analysis tab with distribution, anomaly configuration, and recent high-risk events
+- Camera Performance tab with uptime, activity heatmaps, and latency metrics
+- Baseline learning and anomaly detection configuration
+- Date range and camera filtering
+
+**When to use:** Understanding activity patterns, reviewing system performance, configuring anomaly detection.
+
+### entities.md
+
+**Purpose:** Guide to tracking and managing people and vehicles detected across cameras.
+
+**Target Audience:** Users who want to track and identify recurring individuals or vehicles.
+
+**Topics Covered:**
+
+- Understanding entities (re-identification concept)
+- Entity statistics card
+- Filtering entities (type, time range, camera, trust status)
+- Sorting options (last seen, first seen, appearances)
+- Entity detail modal with appearance timeline
+- Trust classification (trusted, suspicious, unknown)
+- Infinite scroll and auto-refresh
+- Privacy considerations
+
+**When to use:** Tracking recurring visitors, identifying suspicious individuals, managing entity classifications.
+
 ### mobile-pwa.md
 
-**Purpose:** Guide to PWA installation, push notifications, and mobile-optimized features.
+**Purpose:** Comprehensive guide to PWA installation, push notifications, and mobile-optimized features.
 
 **Target Audience:** Users who want to access the dashboard on mobile devices or receive push notifications.
 
 **Topics Covered:**
 
-- Installing as a PWA on iOS, Android, and desktop
-- Enabling and managing push notifications
-- Mobile-optimized features (bottom navigation, swipe gestures)
-- Offline capabilities and cached events
-- Troubleshooting installation and notification issues
+- What is a PWA (comparison table)
+- Step-by-step installation on iOS, Android, and desktop
+- First-time setup checklist after installation
+- Push notification configuration and risk level behavior
+- Mobile-optimized features (bottom navigation, touch gestures, safe areas)
+- Offline capabilities and cache management
+- Battery and data usage optimization
+- Comprehensive troubleshooting tables (installation, notifications, display, connection)
+- Advanced configuration (background sync, persistent notifications)
+- PWA update process
 
-**When to use:** Setting up the dashboard on mobile devices, enabling push notifications, understanding offline mode.
+**When to use:** Setting up the dashboard on mobile devices, enabling push notifications, understanding offline mode, troubleshooting mobile issues.
 
 ## Writing Style Guidelines
 

@@ -717,4 +717,4 @@ If you can't resolve an issue:
 
 ---
 
-[Back to Operator Hub](../../operator-hub.md) | [User Hub](../../user-hub.md)
+[Back to Operator Hub](../../operator/README.md) | [User Hub](../../user/README.md)

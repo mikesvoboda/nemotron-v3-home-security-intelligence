@@ -544,10 +544,10 @@ test('shows offline fallback when network is unavailable', async ({ page, contex
 
 ## Next Steps
 
-- [Frontend Hooks](hooks.md) - Complete hooks documentation
-- [WebSocket Contracts](../WEBSOCKET_CONTRACTS.md) - Real-time communication
-- [Testing Guide](../TESTING_GUIDE.md) - Testing patterns
+- [Frontend Hooks](../architecture/frontend-hooks.md) - Complete hooks documentation
+- [WebSocket Contracts](api/websocket-contracts.md) - Real-time communication
+- [Testing Guide](../development/testing.md) - Testing patterns
 
 ---
 
-[Back to Developer Hub](../developer-hub.md)
+[Back to Developer Hub](README.md)
