@@ -186,6 +186,12 @@ export type {
   UseDetectionsInfiniteQueryReturn,
 } from './useDetectionsQuery';
 
+export { useEventDetectionsQuery, eventDetectionsQueryKeys } from './useEventDetectionsQuery';
+export type {
+  UseEventDetectionsQueryOptions,
+  UseEventDetectionsQueryReturn,
+} from './useEventDetectionsQuery';
+
 export { useAlertsInfiniteQuery, alertsQueryKeys } from './useAlertsQuery';
 export type {
   AlertRiskFilter,

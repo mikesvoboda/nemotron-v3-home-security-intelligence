@@ -84,6 +84,10 @@ USER appuser
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD python -c "import os, httpx; port=os.getenv('API_PORT', '8000'); exit(0 if httpx.get(f'http://localhost:{port}/api/system/health/ready').status_code == 200 else 1)"
 
+# Use entrypoint script to run Alembic migrations before starting the server
+# The entrypoint runs migrations with retry logic, then executes CMD
+ENTRYPOINT ["/app/backend/entrypoint.sh"]
+
 # Run FastAPI with uvicorn (hot reload enabled for dev)
 CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
 
@@ -166,4 +170,9 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 # containers using: python -m backend.services.pipeline_workers
 # See: backend/services/pipeline_workers.py for standalone worker mode.
 # ============================================================================
+
+# Use entrypoint script to run Alembic migrations before starting the server
+# The entrypoint runs migrations with retry logic, then executes CMD
+ENTRYPOINT ["/app/backend/entrypoint.sh"]
+
 CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
