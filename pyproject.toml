@@ -331,6 +331,7 @@ markers = [
     "network: mark test as requiring network access (for isolation in CI)",
     "db: mark test as requiring database access",
     "redis: mark test as requiring Redis access",
+    "requires_debug_mode: mark test as validating DEBUG=false enforcement (CI security check)",
 ]
 
 [tool.coverage.run]

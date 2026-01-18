@@ -113,13 +113,58 @@ def sample_camera() -> Camera:
 class TestRequireAdminAccess:
     """Tests for the require_admin_access function.
 
-    Note: Admin access is always allowed (no auth required for local deployment).
+    SECURITY: Admin endpoints require BOTH debug=True AND admin_enabled=True.
+    This provides defense-in-depth against accidentally exposing admin endpoints.
     """
 
-    def test_admin_access_always_allowed(self) -> None:
-        """Test that admin access is always allowed (no auth required)."""
-        # Should not raise - function just passes
-        require_admin_access()
+    def test_admin_access_allowed_when_both_enabled(self) -> None:
+        """Test that admin access is allowed when both debug and admin_enabled are True."""
+        from unittest.mock import patch
+
+        with patch("backend.api.routes.admin.get_settings") as mock_settings:
+            mock_settings.return_value.debug = True
+            mock_settings.return_value.admin_enabled = True
+            # Should not raise
+            require_admin_access()
+
+    def test_admin_access_blocked_when_debug_false(self) -> None:
+        """Test that admin access is blocked when debug=False."""
+        from unittest.mock import patch
+
+        from fastapi import HTTPException
+
+        with patch("backend.api.routes.admin.get_settings") as mock_settings:
+            mock_settings.return_value.debug = False
+            mock_settings.return_value.admin_enabled = True
+            with pytest.raises(HTTPException) as exc_info:
+                require_admin_access()
+            assert exc_info.value.status_code == 403
+
+    def test_admin_access_blocked_when_admin_disabled(self) -> None:
+        """Test that admin access is blocked when admin_enabled=False."""
+        from unittest.mock import patch
+
+        from fastapi import HTTPException
+
+        with patch("backend.api.routes.admin.get_settings") as mock_settings:
+            mock_settings.return_value.debug = True
+            mock_settings.return_value.admin_enabled = False
+            with pytest.raises(HTTPException) as exc_info:
+                require_admin_access()
+            assert exc_info.value.status_code == 403
+
+    def test_admin_access_blocked_when_both_disabled(self) -> None:
+        """Test that admin access is blocked when both debug and admin_enabled are False."""
+        from unittest.mock import patch
+
+        from fastapi import HTTPException
+
+        with patch("backend.api.routes.admin.get_settings") as mock_settings:
+            mock_settings.return_value.debug = False
+            mock_settings.return_value.admin_enabled = False
+            with pytest.raises(HTTPException) as exc_info:
+                require_admin_access()
+            assert exc_info.value.status_code == 403
 
 
 # =============================================================================
