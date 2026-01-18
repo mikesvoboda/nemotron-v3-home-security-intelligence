@@ -12,6 +12,7 @@ Tests cover:
 from __future__ import annotations
 
 import uuid
+from collections.abc import Generator
 from datetime import datetime
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock
@@ -823,6 +824,19 @@ class TestAlertInstanceEndpoints:
             version_id=1,
         )
 
+    @pytest.fixture(autouse=True)
+    def reset_mock_state(self, mock_db_session: AsyncMock) -> Generator[None]:
+        """Reset mock state between tests for proper isolation under parallel execution.
+
+        This fixture ensures that mock_db_session.execute.return_value doesn't persist
+        between tests when running with pytest-xdist work-stealing distribution.
+        Without this, tests that modify alert status (e.g., test_dismiss_already_dismissed_alert)
+        can pollute the mock state for subsequent tests (e.g., test_dismiss_alert_success).
+        """
+        yield
+        # Reset the execute mock to clear any return_value set during the test
+        mock_db_session.execute.reset_mock()
+
     def test_acknowledge_alert_success(
         self, alert_client: TestClient, mock_db_session: AsyncMock, sample_alert: Alert
     ) -> None:
@@ -955,6 +969,20 @@ class TestOptimisticLocking:
             updated_at=datetime(2025, 12, 23, 10, 0, 0),
             version_id=1,
         )
+
+    @pytest.fixture(autouse=True)
+    def reset_mock_state(self, mock_db_session: AsyncMock) -> Generator[None]:
+        """Reset mock state between tests for proper isolation under parallel execution.
+
+        This fixture ensures that mock_db_session state (execute.return_value,
+        commit.side_effect, rollback calls) doesn't persist between tests when
+        running with pytest-xdist work-stealing distribution.
+        """
+        yield
+        # Reset all mocks to clear any state set during the test
+        mock_db_session.execute.reset_mock()
+        mock_db_session.commit.reset_mock()
+        mock_db_session.rollback.reset_mock()
 
     def test_acknowledge_concurrent_modification_returns_409(
         self, alert_client: TestClient, mock_db_session: AsyncMock, sample_alert: Alert

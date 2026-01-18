@@ -70,21 +70,19 @@ class TestGetDetectionIdsFromEventEdgeCases:
     """
 
     def test_get_detection_ids_empty_relationship_returns_empty(self):
-        """Test that empty relationship returns empty list (no legacy fallback)."""
+        """Test that empty relationship returns empty list."""
         mock_event = Mock(spec=Event)
         mock_event.detections = []
         mock_event.detection_id_list = []
-        mock_event.detection_ids = None  # Fallback to legacy column returns empty
 
         result = get_detection_ids_from_event(mock_event)
         assert result == []
 
     def test_get_detection_ids_none_relationship_returns_empty(self):
-        """Test that None/missing relationship returns empty list."""
+        """Test that empty relationship returns empty list."""
         mock_event = Mock(spec=Event)
         mock_event.detections = []
         mock_event.detection_id_list = []
-        mock_event.detection_ids = None  # Fallback to legacy column returns empty
 
         result = get_detection_ids_from_event(mock_event)
         assert result == []
@@ -260,10 +258,11 @@ class TestHelperFunctionIntegration:
         assert json_result == csv_result == [1, 2, 3]
 
     def test_event_detection_ids_with_empty_detections(self):
-        """Test event with empty detection relationship and empty legacy column."""
+        """Test event with empty detection relationship."""
         mock_event = Mock(spec=Event)
         mock_event.detections = []
-        mock_event.detection_ids = ""
+        # detection_id_list property returns [] when detections is empty
+        mock_event.detection_id_list = []
 
         result = get_detection_ids_from_event(mock_event)
         assert result == []
@@ -333,14 +332,10 @@ class TestEdgeCaseCombinations:
         assert result == []
 
     def test_get_detection_ids_with_empty_detections(self):
-        """Test get_detection_ids returns empty list when no detections.
-
-        Note: Legacy detection_ids column fallback is used when relationship is empty.
-        """
+        """Test get_detection_ids returns empty list when no detections."""
         mock_event = Mock(spec=Event)
         mock_event.detections = []
         mock_event.detection_id_list = []
-        mock_event.detection_ids = None  # Fallback to legacy column returns empty
 
         result = get_detection_ids_from_event(mock_event)
         assert result == []

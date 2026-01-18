@@ -8,7 +8,6 @@ These are UNIT tests using mocks - no real database connections required.
 Integration tests with real database are in backend/tests/integration/.
 """
 
-import json
 import uuid
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
@@ -388,7 +387,7 @@ class TestEventDetectionsEnrichmentData:
         mock_event.risk_score = 50
         mock_event.risk_level = "medium"
         mock_event.summary = "Test event with enrichment"
-        mock_event.detection_ids = json.dumps([detection_id])
+        mock_event.detection_id_list = [detection_id]
         mock_event.reviewed = False
 
         # Mock event query result

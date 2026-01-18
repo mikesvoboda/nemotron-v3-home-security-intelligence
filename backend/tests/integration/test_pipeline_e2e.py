@@ -28,6 +28,7 @@ from sqlalchemy import select
 from backend.core.database import get_session
 from backend.core.redis import QueueAddResult, QueueOverflowPolicy
 from backend.models import Camera, Detection, Event
+from backend.models.event_detection import EventDetection
 from backend.services.batch_aggregator import BatchAggregator
 from backend.services.detector_client import DetectorClient, DetectorUnavailableError
 from backend.services.file_watcher import FileWatcher
@@ -659,8 +660,13 @@ async def test_full_pipeline_multiple_images_same_camera(
         assert event.risk_score == 65
         assert event.risk_level == "medium"
 
-        # Verify detection_ids in event
-        stored_detection_ids = json.loads(event.detection_ids)
+        # Verify detection IDs via junction table (query within session to avoid DetachedInstanceError)
+        async with get_session() as session:
+            result = await session.execute(
+                select(EventDetection.detection_id).where(EventDetection.event_id == event.id)
+            )
+            stored_detection_ids = [row[0] for row in result.fetchall()]
+
         assert len(stored_detection_ids) == 3
         for det_id in detection_ids:
             assert det_id in stored_detection_ids
@@ -1207,9 +1213,9 @@ async def test_batch_close_to_analyze_handoff_without_redis_rehydration(
         assert stored_event.risk_score == 55
 
         # Verify detection_ids in event
-        stored_detection_ids = json.loads(stored_event.detection_ids)
+        stored_detection_ids = stored_event.detection_id_list
         assert len(stored_detection_ids) == 1
-        assert str(detection_id) in [str(d) for d in stored_detection_ids]
+        assert detection_id in stored_detection_ids
 
 
 # =============================================================================

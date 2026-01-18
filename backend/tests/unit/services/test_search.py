@@ -255,7 +255,7 @@ class TestSearchEventsService:
         mock_event.summary = "Test event"
         mock_event.reasoning = "Test reasoning"
         mock_event.reviewed = False
-        mock_event.detection_ids = "[1]"
+        mock_event.detection_id_list = [1]
         mock_event.object_types = "person"
 
         # Mock count query

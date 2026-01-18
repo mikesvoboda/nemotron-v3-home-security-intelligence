@@ -91,7 +91,6 @@ async def test_events(db_session: AsyncSession, test_camera: Camera):
             risk_level="low" if i < 10 else "medium" if i < 20 else "high",
             summary=f"Test event {i}",
             reasoning=f"Test reasoning {i}",
-            detection_ids="[]",
             reviewed=False,
         )
         db_session.add(event)

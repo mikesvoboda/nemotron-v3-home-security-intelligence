@@ -51,7 +51,7 @@ class TestListEventsEagerLoading:
             mock_event.risk_level = "medium"
             mock_event.summary = f"Test event {i + 1}"
             mock_event.reasoning = "Test reasoning"
-            mock_event.detection_ids = "[1,2,3]"
+            mock_event.detection_id_list = [1, 2, 3]
             mock_event.reviewed = False
             mock_event.object_types = "person,vehicle"
             mock_events.append(mock_event)
@@ -138,7 +138,7 @@ class TestListEventsEagerLoading:
         mock_event.risk_level = "medium"
         mock_event.summary = "Test event with cursor"
         mock_event.reasoning = "Test reasoning"
-        mock_event.detection_ids = "[1,2,3]"
+        mock_event.detection_id_list = [1, 2, 3]
         mock_event.reviewed = False
         mock_event.object_types = "person"
 
@@ -204,7 +204,7 @@ class TestListEventsEagerLoading:
         mock_event.risk_level = "high"
         mock_event.summary = "High risk event"
         mock_event.reasoning = "Test reasoning"
-        mock_event.detection_ids = "[1,2,3]"
+        mock_event.detection_id_list = [1, 2, 3]
         mock_event.reviewed = False
         mock_event.object_types = "person"
 
@@ -277,7 +277,7 @@ class TestListEventsEagerLoading:
         mock_event.risk_level = "high"
         mock_event.summary = "Test event"
         mock_event.reasoning = "Test reasoning"
-        mock_event.detection_ids = "[1,2,3]"
+        mock_event.detection_id_list = [1, 2, 3]
         mock_event.reviewed = False
         mock_event.object_types = "person"
 

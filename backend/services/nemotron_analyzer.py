@@ -844,7 +844,6 @@ class NemotronAnalyzer:
                 summary=risk_data.get("summary", "No summary available"),
                 reasoning=risk_data.get("reasoning", "No reasoning available"),
                 llm_prompt=risk_data.get("llm_prompt"),
-                detection_ids=json.dumps(int_detection_ids),
                 reviewed=False,
             )
 
@@ -1126,7 +1125,6 @@ class NemotronAnalyzer:
                 summary=risk_data.get("summary", "No summary available"),
                 reasoning=risk_data.get("reasoning", "No reasoning available"),
                 llm_prompt=risk_data.get("llm_prompt"),
-                detection_ids=json.dumps([detection_id_int]),
                 reviewed=False,
                 is_fast_path=True,
             )

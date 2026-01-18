@@ -7,6 +7,7 @@ from sqlalchemy import select, text
 
 from backend.core.database import get_engine, get_session
 from backend.models import Camera, Detection, Event
+from backend.models.event_detection import EventDetection
 from backend.tests.conftest import unique_id
 
 
@@ -22,6 +23,7 @@ async def clean_full_stack(integration_db):
         # Delete in order respecting foreign key constraints
         await conn.execute(text("DELETE FROM logs"))
         await conn.execute(text("DELETE FROM gpu_stats"))
+        await conn.execute(text("DELETE FROM event_detections"))
         await conn.execute(text("DELETE FROM detections"))
         await conn.execute(text("DELETE FROM events"))
         await conn.execute(text("DELETE FROM cameras"))
@@ -33,6 +35,7 @@ async def clean_full_stack(integration_db):
         async with get_engine().begin() as conn:
             await conn.execute(text("DELETE FROM logs"))
             await conn.execute(text("DELETE FROM gpu_stats"))
+            await conn.execute(text("DELETE FROM event_detections"))
             await conn.execute(text("DELETE FROM detections"))
             await conn.execute(text("DELETE FROM events"))
             await conn.execute(text("DELETE FROM cameras"))
@@ -124,6 +127,20 @@ async def test_create_event(integration_db, clean_full_stack):
         session.add(camera)
         await session.flush()
 
+        # Create detections first to link to the event
+        detection_ids = []
+        for i in range(3):
+            detection = Detection(
+                camera_id=camera_id,
+                file_path=f"/export/foscam/{camera_id}/img{i}.jpg",
+                detected_at=datetime.now(UTC),
+                object_type="person",
+                confidence=0.9,
+            )
+            session.add(detection)
+            await session.flush()
+            detection_ids.append(detection.id)
+
         # Create event
         event = Event(
             batch_id=batch_id,
@@ -134,10 +151,15 @@ async def test_create_event(integration_db, clean_full_stack):
             risk_level="medium",
             summary="Person detected near vehicle",
             reasoning="Multiple detections of person approaching parked car",
-            detection_ids="1,2,3",
             reviewed=False,
         )
         session.add(event)
+        await session.flush()
+
+        # Link detections to event via junction table
+        for det_id in detection_ids:
+            junction = EventDetection(event_id=event.id, detection_id=det_id)
+            session.add(junction)
         await session.flush()
 
         # Verify event was created
@@ -148,6 +170,9 @@ async def test_create_event(integration_db, clean_full_stack):
         assert saved_event.batch_id == batch_id
         assert saved_event.risk_score == 75
         assert saved_event.risk_level == "medium"
+        # Verify detections are linked
+        await session.refresh(saved_event, ["detections"])
+        assert len(saved_event.detection_id_list) == 3
 
 
 @pytest.mark.asyncio
@@ -274,7 +299,7 @@ async def test_complete_workflow_camera_to_event(integration_db, clean_full_stac
             await session.flush()
             detection_ids.append(detection.id)
 
-    # Step 3: Create event based on detections
+    # Step 3: Create event based on detections and link via junction table
     async with get_session() as session:
         event = Event(
             batch_id=batch_id,
@@ -285,10 +310,15 @@ async def test_complete_workflow_camera_to_event(integration_db, clean_full_stac
             risk_level="medium",
             summary="Multiple objects detected in sequence",
             reasoning="Pattern suggests normal activity",
-            detection_ids=",".join(map(str, detection_ids)),
             reviewed=False,
         )
         session.add(event)
+        await session.flush()
+
+        # Link detections to event via junction table
+        for det_id in detection_ids:
+            junction = EventDetection(event_id=event.id, detection_id=det_id)
+            session.add(junction)
         await session.flush()
 
     # Step 4: Query and verify complete workflow
@@ -313,6 +343,10 @@ async def test_complete_workflow_camera_to_event(integration_db, clean_full_stac
         assert event.batch_id == batch_id
         assert event.risk_score == 65
         assert event.risk_level == "medium"
+        # Verify detections are linked via junction table
+        await session.refresh(event, ["detections"])
+        assert len(event.detection_id_list) == 3
+        assert set(event.detection_id_list) == set(detection_ids)
 
 
 @pytest.mark.asyncio

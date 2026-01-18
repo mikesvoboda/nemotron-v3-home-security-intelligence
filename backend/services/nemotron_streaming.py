@@ -261,7 +261,6 @@ async def analyze_batch_streaming(  # noqa: PLR0911, PLR0912
             risk_level=risk_data.get("risk_level", "medium"),
             summary=risk_data.get("summary", "No summary"),
             reasoning=risk_data.get("reasoning", "No reasoning"),
-            detection_ids=json.dumps(int_detection_ids),
             reviewed=False,
         )
 

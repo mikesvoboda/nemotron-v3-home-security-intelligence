@@ -489,10 +489,24 @@ async def seed_events(
             risk_level=risk_level,
             summary=summary,
             reasoning=reasoning,
-            detection_ids=",".join(detection_ids),
             reviewed=random.random() < 0.3,  # noqa: S311
         )
         db.add(event)
+        await db.flush()  # Get event ID for junction table
+
+        # Link detections via junction table (NEM-1592)
+        from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+        from backend.models.event_detection import event_detections
+
+        for det_id in detection_ids:
+            stmt = (
+                pg_insert(event_detections)
+                .values(event_id=event.id, detection_id=int(det_id))
+                .on_conflict_do_nothing(index_elements=["event_id", "detection_id"])
+            )
+            await db.execute(stmt)
+
         events_created += 1
 
     await db.commit()
