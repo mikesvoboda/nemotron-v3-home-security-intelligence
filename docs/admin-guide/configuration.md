@@ -11,7 +11,7 @@ source_refs:
 
 ---
 
-> **How to configure the system.** For the authoritative list of environment variables and ports, use `docs/reference/config/env-reference.md` and `docs/RUNTIME_CONFIG.md`. Copy `.env.example` to `.env` and adjust values as needed.
+> **How to configure the system.** For the authoritative list of environment variables and ports, see `docs/reference/config/env-reference.md`. Copy `.env.example` to `.env` and adjust values as needed.
 
 <!-- Nano Banana Pro Prompt:
 "Technical illustration of server configuration files and environment settings,

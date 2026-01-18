@@ -7,7 +7,7 @@ source_refs:
 
 - backend/core/config.py:Settings:12
 - backend/services/health_monitor.py:ServiceHealthMonitor:25
-- docs/RUNTIME_CONFIG.md
+- docs/reference/config/env-reference.md
 
 ---
 

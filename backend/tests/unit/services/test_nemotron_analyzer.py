@@ -418,7 +418,7 @@ async def test_call_llm_uses_completion_endpoint(analyzer):
 
     This test ensures the Nemotron analyzer uses the llama.cpp server's
     /completion endpoint (not /v1/chat/completions or other variants).
-    See docs/RUNTIME_CONFIG.md for endpoint documentation.
+    See docs/reference/config/env-reference.md for endpoint documentation.
     """
     mock_response = {
         "content": json.dumps(

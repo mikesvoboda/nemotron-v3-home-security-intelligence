@@ -346,5 +346,5 @@ Before ending a session:
 
 - **Issue Tracker:** [Linear](https://linear.app/nemotron-v3-home-security/team/NEM/active) (Team: NEM)
 - **Documentation:** `docs/` directory
-- **Runtime Config:** `docs/RUNTIME_CONFIG.md` (authoritative port/env reference)
+- **Runtime Config:** `docs/reference/config/env-reference.md` (authoritative port/env reference)
 - **Coverage Reports:** `coverage/backend/index.html` and `frontend/coverage/index.html`

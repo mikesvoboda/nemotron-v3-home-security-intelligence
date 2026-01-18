@@ -211,8 +211,8 @@ curl http://localhost:8091/health  # Nemotron
 
 | Need | Document |
 |------|----------|
-| All environment variables | [docs/RUNTIME_CONFIG.md](docs/RUNTIME_CONFIG.md) |
-| AI model setup & downloads | [docs/AI_SETUP.md](docs/AI_SETUP.md) |
+| All environment variables | [docs/reference/config/env-reference.md](docs/reference/config/env-reference.md) |
+| AI model setup & downloads | [docs/operator/ai-installation.md](docs/operator/ai-installation.md) |
 | Container configuration | [docs/operator/deployment/](docs/operator/deployment/) |
 | Full operator guide | [docs/operator/](docs/operator/) |
 | Development setup | [CLAUDE.md](CLAUDE.md) |

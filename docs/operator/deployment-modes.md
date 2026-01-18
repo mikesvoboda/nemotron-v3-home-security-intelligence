@@ -27,7 +27,7 @@ _Decision flowchart for choosing between Production (recommended), Development, 
 | **Backend container + host AI** | You want hot-reload containers, but AI runs on the host (GPU reasons)   | **Container** (`docker-compose.yml`)      | **Host**                           | `http://host.docker.internal:8090` (Docker Desktop) or `http://<host-ip>:8090` (Linux) |
 | **Remote AI host**              | AI runs on a separate GPU box                                           | Host or container                         | **Remote host**                    | `http://<gpu-host>:8090` etc.                                                          |
 
-> For authoritative ports/env defaults, see `docs/RUNTIME_CONFIG.md`.
+> For authoritative ports/env defaults, see `docs/reference/config/env-reference.md`.
 
 ---
 

@@ -1161,5 +1161,5 @@ rm -f data/security.db
 
 - `/CLAUDE.md` - Git workflow and testing requirements
 - `/README.md` - Project overview
-- `/docs/AI_SETUP.md` - AI services detailed setup
+- `/docs/operator/ai-installation.md` - AI services detailed setup
 - `/.pre-commit-config.yaml` - Pre-commit hook configuration

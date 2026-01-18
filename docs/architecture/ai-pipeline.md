@@ -507,7 +507,7 @@ When a batch closes, it's pushed to the analysis queue:
 | **Production**  | [NVIDIA Nemotron-3-Nano-30B-A3B](https://huggingface.co/nvidia/Nemotron-3-Nano-30B-A3B-GGUF) | ~14.7 GB | 131,072 |
 | **Development** | [Nemotron Mini 4B Instruct](https://huggingface.co/bartowski/nemotron-mini-4b-instruct-GGUF) | ~3 GB    | 4,096   |
 
-See `docker-compose.prod.yml` and `docs/RUNTIME_CONFIG.md` for deployment configuration.
+See `docker-compose.prod.yml` and `docs/reference/config/env-reference.md` for deployment configuration.
 
 ### Source Files
 
@@ -888,7 +888,7 @@ flowchart TB
 
 ### VRAM Requirements
 
-VRAM varies by model choice and enabled enrichment. For “minimal dev” vs “full prod” guidance, see `docs/AI_SETUP.md`
+VRAM varies by model choice and enabled enrichment. For "minimal dev" vs "full prod" guidance, see `docs/operator/ai-installation.md`
 and `ai/AGENTS.md`.
 
 ---

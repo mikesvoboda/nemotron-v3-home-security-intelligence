@@ -189,7 +189,7 @@ With all services running on RTX A5500 (24GB):
 | Contribute / extend the code | [Developer Hub](docs/developer/README.md) |
 
 If you just need the authoritative env/ports reference, go straight to
-[Runtime Configuration](docs/RUNTIME_CONFIG.md).
+[Environment Variable Reference](docs/reference/config/env-reference.md).
 
 ## AI services and model zoo (what's actually in this repo)
 
@@ -233,7 +233,7 @@ Runs **frontend + backend + PostgreSQL + Redis + AI services** in containers (RT
 enrichment services like Florence/CLIP/Enrichment).
 
 **Prereqs:** Linux host + NVIDIA GPU + container GPU passthrough. Model files/paths are documented in
-[AI Setup](docs/AI_SETUP.md).
+[AI Installation](docs/operator/ai-installation.md).
 
 ```bash
 # 1) Run interactive setup (generates .env and docker-compose.override.yml)
@@ -317,7 +317,7 @@ You can:
 
 ## Configuration (where to look first)
 
-**Source of truth:** [docs/RUNTIME_CONFIG.md](docs/RUNTIME_CONFIG.md)
+**Source of truth:** [Environment Variable Reference](docs/reference/config/env-reference.md)
 
 Common things you’ll configure:
 
@@ -347,8 +347,8 @@ Common things you’ll configure:
   - CLIP embeddings / re-ID support (`ai/clip/`, default port **8093**)
   - Enrichment service helper (`ai/enrichment/`, default port **8094**)
 
-See [AI Setup](docs/AI_SETUP.md) and the authoritative ports/env in
-[docs/RUNTIME_CONFIG.md](docs/RUNTIME_CONFIG.md).
+See [AI Overview](docs/operator/ai-overview.md) and the authoritative ports/env in the
+[Environment Variable Reference](docs/reference/config/env-reference.md).
 
 ## Security model (read this before exposing it)
 
