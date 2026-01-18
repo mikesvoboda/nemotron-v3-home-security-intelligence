@@ -1,0 +1,64 @@
+# Lychee Configuration for Documentation Link Checking
+# Reference: https://github.com/lycheeverse/lychee
+
+# Timeout for checking external links (seconds)
+timeout = 30
+
+# Maximum number of concurrent HTTP requests
+max_concurrency = 32
+
+# User agent for HTTP requests
+user_agent = "lychee/0.14"
+
+# HTTP status codes to accept as valid
+accept = [200, 429]
+
+# Exclude patterns - URLs matching these patterns will be skipped
+exclude = [
+  # Localhost and internal URLs (application-only addresses)
+  "http://localhost",
+  "https://localhost",
+  "127.0.0.1",
+  "0.0.0.0",
+
+  # Example/placeholder domains (RFC 2606)
+  "example.com",
+  "example.org",
+  "example.net",
+
+  # Local development references
+  "file://",
+
+  # Email addresses (not URLs)
+  "mailto:",
+
+  # Anchors/fragments within same page
+  "^#",
+]
+
+# File inclusion patterns
+include = ["*.md", "*.html"]
+
+# Exclude these file paths
+exclude_path = [
+  "node_modules",
+  ".git",
+  "dist",
+  "build",
+  ".next",
+]
+
+# Wait time before checking the same domain again (seconds)
+cache_timeout = 3600
+
+# Enable verbose output
+verbose = true
+
+# Skip checking if the return status is one of these
+# This helps with rate-limiting and temporary service issues
+skip_missing = false
+
+# Allow local file paths (for internal documentation references)
+allow = [
+  "file://",
+]

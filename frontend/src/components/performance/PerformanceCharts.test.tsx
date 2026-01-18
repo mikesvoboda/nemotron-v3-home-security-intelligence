@@ -12,6 +12,9 @@ import * as usePerformanceMetricsModule from '../../hooks/usePerformanceMetrics'
 
 import type { PerformanceUpdate, TimeRange } from '../../hooks/usePerformanceMetrics';
 
+// Base time for consistent testing
+const BASE_TIME = new Date('2024-01-15T10:00:00Z').getTime();
+
 // Mock the usePerformanceMetrics hook
 vi.mock('../../hooks/usePerformanceMetrics', () => ({
   usePerformanceMetrics: vi.fn(),
@@ -24,7 +27,7 @@ function createMockPerformanceUpdate(
   overrides: Partial<PerformanceUpdate> = {}
 ): PerformanceUpdate {
   return {
-    timestamp: new Date().toISOString(),
+    timestamp: new Date(BASE_TIME).toISOString(),
     gpu: {
       name: 'NVIDIA RTX A5500',
       utilization: 45,
@@ -61,12 +64,12 @@ function createMockPerformanceUpdate(
  */
 function createMockHistory(count: number, includeData = true): PerformanceUpdate[] {
   return Array.from({ length: count }, (_, i) => {
-    const baseTime = new Date();
-    baseTime.setMinutes(baseTime.getMinutes() - (count - i - 1) * 5);
+    // Use BASE_TIME and subtract minutes for each entry
+    const entryTime = new Date(BASE_TIME - (count - i - 1) * 5 * 60 * 1000);
 
     if (!includeData) {
       return createMockPerformanceUpdate({
-        timestamp: baseTime.toISOString(),
+        timestamp: entryTime.toISOString(),
         gpu: null,
         inference: null,
         host: null,
@@ -74,27 +77,27 @@ function createMockHistory(count: number, includeData = true): PerformanceUpdate
     }
 
     return createMockPerformanceUpdate({
-      timestamp: baseTime.toISOString(),
+      timestamp: entryTime.toISOString(),
       gpu: {
         name: 'NVIDIA RTX A5500',
-        utilization: 40 + Math.random() * 30,
-        vram_used_gb: 6 + Math.random() * 6,
+        utilization: 40 + i * 3, // Deterministic values based on index
+        vram_used_gb: 6 + i * 0.5,
         vram_total_gb: 24,
-        temperature: 60 + Math.random() * 15,
-        power_watts: 100 + Math.random() * 100,
+        temperature: 60 + i * 1.5,
+        power_watts: 100 + i * 10,
       },
       inference: {
-        rtdetr_latency_ms: { avg: 20 + Math.random() * 20 },
-        nemotron_latency_ms: { avg: 4000 + Math.random() * 2000 },
-        pipeline_latency_ms: { avg: 80 + Math.random() * 50 },
+        rtdetr_latency_ms: { avg: 20 + i * 2 },
+        nemotron_latency_ms: { avg: 4000 + i * 200 },
+        pipeline_latency_ms: { avg: 80 + i * 5 },
         throughput: {},
         queues: {},
       },
       host: {
-        cpu_percent: 30 + Math.random() * 20,
-        ram_used_gb: 14 + Math.random() * 8,
+        cpu_percent: 30 + i * 2,
+        ram_used_gb: 14 + i * 0.8,
         ram_total_gb: 64,
-        disk_used_gb: 480 + Math.random() * 40,
+        disk_used_gb: 480 + i * 4,
         disk_total_gb: 1000,
       },
     });
@@ -117,6 +120,9 @@ const defaultHookReturn = {
 
 // Mock ResizeObserver for Tremor charts
 beforeEach(() => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  vi.setSystemTime(BASE_TIME);
+
   globalThis.ResizeObserver = class ResizeObserver {
     observe() {}
     unobserve() {}
@@ -130,6 +136,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.clearAllMocks();
+  vi.useRealTimers();
 });
 
 describe('PerformanceCharts', () => {

@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import { beforeEach, describe, expect, it, Mock, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, Mock, vi } from 'vitest';
 
 import SystemSummaryRow from './SystemSummaryRow';
 import { useHealthStatusQuery } from '../../hooks/useHealthStatusQuery';
@@ -7,6 +7,9 @@ import { useModelZooStatusQuery } from '../../hooks/useModelZooStatusQuery';
 import { usePerformanceMetrics } from '../../hooks/usePerformanceMetrics';
 
 import type { PerformanceUpdate } from '../../hooks/usePerformanceMetrics';
+
+// Base time for consistent testing
+const BASE_TIME = new Date('2024-01-15T10:00:00Z').getTime();
 
 // Mock the hooks
 vi.mock('../../hooks/usePerformanceMetrics');
@@ -19,7 +22,7 @@ Element.prototype.scrollIntoView = mockScrollIntoView;
 
 // Default mock data
 const defaultPerformanceData: PerformanceUpdate = {
-  timestamp: new Date().toISOString(),
+  timestamp: new Date(BASE_TIME).toISOString(),
   gpu: {
     name: 'NVIDIA RTX A5500',
     utilization: 38,
@@ -191,9 +194,15 @@ function setupMocks(overrides?: {
 
 describe('SystemSummaryRow', () => {
   beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(BASE_TIME);
     vi.clearAllMocks();
     mockScrollIntoView.mockClear();
     setupMocks();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   describe('Rendering', () => {
