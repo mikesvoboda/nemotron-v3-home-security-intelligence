@@ -13,6 +13,9 @@ set -e
 
 echo "Running Alembic migrations..."
 
+# Set PYTHONPATH so alembic can find the backend module
+export PYTHONPATH=/app:${PYTHONPATH:-}
+
 # Change to backend directory where alembic.ini is located
 cd /app/backend
 
