@@ -26,7 +26,9 @@ from typing import Any
 
 import torch
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import Response
 from PIL import Image, UnidentifiedImageError
+from prometheus_client import Counter, Gauge, Histogram, generate_latest
 from pydantic import BaseModel, Field
 
 # Suppress transformers deprecation warning for ConvNextFeatureExtractor
@@ -45,6 +47,48 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+# =============================================================================
+# Prometheus Metrics
+# =============================================================================
+# Total inference requests
+INFERENCE_REQUESTS_TOTAL = Counter(
+    "enrichment_inference_requests_total",
+    "Total number of inference requests",
+    ["endpoint", "status"],
+)
+
+# Inference latency histogram (buckets tuned for typical inference times)
+INFERENCE_LATENCY_SECONDS = Histogram(
+    "enrichment_inference_latency_seconds",
+    "Inference latency in seconds",
+    ["endpoint"],
+    buckets=[0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0],
+)
+
+# Model status gauges (1 = loaded, 0 = not loaded)
+VEHICLE_MODEL_LOADED = Gauge(
+    "enrichment_vehicle_model_loaded",
+    "Whether the vehicle classifier is loaded (1) or not (0)",
+)
+PET_MODEL_LOADED = Gauge(
+    "enrichment_pet_model_loaded",
+    "Whether the pet classifier is loaded (1) or not (0)",
+)
+CLOTHING_MODEL_LOADED = Gauge(
+    "enrichment_clothing_model_loaded",
+    "Whether the clothing classifier is loaded (1) or not (0)",
+)
+DEPTH_MODEL_LOADED = Gauge(
+    "enrichment_depth_model_loaded",
+    "Whether the depth estimator is loaded (1) or not (0)",
+)
+
+# GPU metrics gauge
+GPU_MEMORY_USED_GB = Gauge(
+    "enrichment_gpu_memory_used_gb",
+    "GPU memory used in GB",
+)
 
 # Size limits for image uploads (10MB is reasonable for security camera images)
 MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024  # 10MB
@@ -243,10 +287,10 @@ class VehicleClassifier:
         model_dir = Path(self.model_path)
 
         # Load class names if available
-        classes_file = model_dir / "classes.txt"
-        if classes_file.exists():
-            with open(classes_file) as f:
-                self.classes = f.read().splitlines()
+        classes_file = (model_dir / "classes.txt").resolve()
+        # Validate path is within model directory to prevent path traversal
+        if classes_file.exists() and str(classes_file).startswith(str(model_dir.resolve())):
+            self.classes = classes_file.read_text().splitlines()
             logger.info(f"Loaded {len(self.classes)} classes from classes.txt")
 
         # Create ResNet-50 model architecture
@@ -1319,6 +1363,36 @@ async def health_check() -> HealthResponse:
     )
 
 
+@app.get("/metrics")
+async def metrics() -> Response:
+    """Prometheus metrics endpoint.
+
+    Returns metrics in Prometheus text format for scraping.
+    Updates GPU metrics gauges before returning.
+    """
+    # Update model status gauges
+    VEHICLE_MODEL_LOADED.set(
+        1 if vehicle_classifier is not None and vehicle_classifier.model is not None else 0
+    )
+    PET_MODEL_LOADED.set(
+        1 if pet_classifier is not None and pet_classifier.model is not None else 0
+    )
+    CLOTHING_MODEL_LOADED.set(
+        1 if clothing_classifier is not None and clothing_classifier.model is not None else 0
+    )
+    DEPTH_MODEL_LOADED.set(
+        1 if depth_estimator is not None and depth_estimator.model is not None else 0
+    )
+
+    # Update GPU metrics gauges
+    if torch.cuda.is_available():
+        vram_used = get_vram_usage()
+        if vram_used is not None:
+            GPU_MEMORY_USED_GB.set(vram_used)
+
+    return Response(content=generate_latest(), media_type="text/plain; charset=utf-8")
+
+
 @app.post("/vehicle-classify", response_model=VehicleClassifyResponse)
 async def vehicle_classify(request: VehicleClassifyRequest) -> VehicleClassifyResponse:
     """Classify vehicle type and attributes from an image.
@@ -1340,6 +1414,12 @@ async def vehicle_classify(request: VehicleClassifyRequest) -> VehicleClassifyRe
 
         inference_time_ms = (time.perf_counter() - start_time) * 1000
 
+        # Record metrics
+        INFERENCE_LATENCY_SECONDS.labels(endpoint="vehicle-classify").observe(
+            inference_time_ms / 1000
+        )
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="vehicle-classify", status="success").inc()
+
         return VehicleClassifyResponse(
             vehicle_type=result["vehicle_type"],
             display_name=result["display_name"],
@@ -1350,8 +1430,10 @@ async def vehicle_classify(request: VehicleClassifyRequest) -> VehicleClassifyRe
         )
 
     except ValueError as e:
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="vehicle-classify", status="error").inc()
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="vehicle-classify", status="error").inc()
         logger.error(f"Vehicle classification failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Classification failed: {e!s}") from e
 
@@ -1377,6 +1459,10 @@ async def pet_classify(request: PetClassifyRequest) -> PetClassifyResponse:
 
         inference_time_ms = (time.perf_counter() - start_time) * 1000
 
+        # Record metrics
+        INFERENCE_LATENCY_SECONDS.labels(endpoint="pet-classify").observe(inference_time_ms / 1000)
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="pet-classify", status="success").inc()
+
         return PetClassifyResponse(
             pet_type=result["pet_type"],
             breed=result["breed"],
@@ -1386,8 +1472,10 @@ async def pet_classify(request: PetClassifyRequest) -> PetClassifyResponse:
         )
 
     except ValueError as e:
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="pet-classify", status="error").inc()
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="pet-classify", status="error").inc()
         logger.error(f"Pet classification failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Classification failed: {e!s}") from e
 
@@ -1413,6 +1501,12 @@ async def clothing_classify(request: ClothingClassifyRequest) -> ClothingClassif
 
         inference_time_ms = (time.perf_counter() - start_time) * 1000
 
+        # Record metrics
+        INFERENCE_LATENCY_SECONDS.labels(endpoint="clothing-classify").observe(
+            inference_time_ms / 1000
+        )
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="clothing-classify", status="success").inc()
+
         return ClothingClassifyResponse(
             clothing_type=result["clothing_type"],
             color=result["color"],
@@ -1426,8 +1520,10 @@ async def clothing_classify(request: ClothingClassifyRequest) -> ClothingClassif
         )
 
     except ValueError as e:
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="clothing-classify", status="error").inc()
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="clothing-classify", status="error").inc()
         logger.error(f"Clothing classification failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Classification failed: {e!s}") from e
 
@@ -1453,6 +1549,12 @@ async def depth_estimate(request: DepthEstimateRequest) -> DepthEstimateResponse
 
         inference_time_ms = (time.perf_counter() - start_time) * 1000
 
+        # Record metrics
+        INFERENCE_LATENCY_SECONDS.labels(endpoint="depth-estimate").observe(
+            inference_time_ms / 1000
+        )
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="depth-estimate", status="success").inc()
+
         return DepthEstimateResponse(
             depth_map_base64=result["depth_map_base64"],
             min_depth=result["min_depth"],
@@ -1462,8 +1564,10 @@ async def depth_estimate(request: DepthEstimateRequest) -> DepthEstimateResponse
         )
 
     except ValueError as e:
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="depth-estimate", status="error").inc()
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="depth-estimate", status="error").inc()
         logger.error(f"Depth estimation failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Depth estimation failed: {e!s}") from e
 
@@ -1501,6 +1605,12 @@ async def object_distance(request: ObjectDistanceRequest) -> ObjectDistanceRespo
 
         inference_time_ms = (time.perf_counter() - start_time) * 1000
 
+        # Record metrics
+        INFERENCE_LATENCY_SECONDS.labels(endpoint="object-distance").observe(
+            inference_time_ms / 1000
+        )
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="object-distance", status="success").inc()
+
         return ObjectDistanceResponse(
             estimated_distance_m=result["estimated_distance_m"],
             relative_depth=result["relative_depth"],
@@ -1509,8 +1619,10 @@ async def object_distance(request: ObjectDistanceRequest) -> ObjectDistanceRespo
         )
 
     except ValueError as e:
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="object-distance", status="error").inc()
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="object-distance", status="error").inc()
         logger.error(f"Object distance estimation failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Distance estimation failed: {e!s}") from e
 

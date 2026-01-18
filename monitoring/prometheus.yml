@@ -44,6 +44,108 @@ scrape_configs:
         replacement: 'home-security-intelligence'
 
   # ==========================================================================
+  # AI Service Native Prometheus Metrics
+  # ==========================================================================
+  # Nemotron (llama.cpp) exposes native Prometheus metrics when started with
+  # --metrics flag. Includes token counts, timing, and inference statistics.
+  #
+  # Key metrics:
+  # - llama_tokens_predicted_total: Total tokens generated
+  # - llama_tokens_prompt_total: Total tokens in prompts
+  # - llama_generation_time_seconds: Generation time histogram
+  # - llama_prompt_eval_time_seconds: Prompt evaluation time histogram
+  # - llama_kv_cache_usage_ratio: KV cache utilization
+  # - llama_requests_processing: Currently processing requests
+  #
+  # Calculate tokens per second: rate(llama_tokens_predicted_total[1m])
+  - job_name: 'ai-llm-metrics'
+    metrics_path: /metrics
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    static_configs:
+      - targets:
+          - 'ai-llm:8091'
+        labels:
+          service: nemotron
+          model_type: llm
+    # Handle case where container is not running
+    honor_labels: true
+
+  # RT-DETRv2 Object Detection metrics (ai-detector)
+  # Key metrics:
+  # - rtdetr_inference_requests_total: Total inference requests by endpoint/status
+  # - rtdetr_inference_latency_seconds: Inference latency histogram
+  # - rtdetr_detections_per_image: Number of detections per image
+  # - rtdetr_model_loaded: Model status (1=loaded)
+  # - rtdetr_gpu_*: GPU utilization, memory, temperature, power
+  - job_name: 'ai-detector-metrics'
+    metrics_path: /metrics
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    static_configs:
+      - targets:
+          - 'ai-detector:8090'
+        labels:
+          service: rtdetr
+          model_type: detection
+    honor_labels: true
+
+  # Florence-2 Vision-Language metrics (ai-florence)
+  # Key metrics:
+  # - florence_inference_requests_total: Total inference requests by endpoint/status
+  # - florence_inference_latency_seconds: Inference latency histogram
+  # - florence_model_loaded: Model status (1=loaded)
+  # - florence_gpu_memory_used_gb: GPU memory usage
+  - job_name: 'ai-florence-metrics'
+    metrics_path: /metrics
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    static_configs:
+      - targets:
+          - 'ai-florence:8092'
+        labels:
+          service: florence
+          model_type: vlm
+    honor_labels: true
+
+  # CLIP Embedding metrics (ai-clip)
+  # Key metrics:
+  # - clip_inference_requests_total: Total inference requests by endpoint/status
+  # - clip_inference_latency_seconds: Inference latency histogram
+  # - clip_model_loaded: Model status (1=loaded)
+  # - clip_gpu_memory_used_gb: GPU memory usage
+  - job_name: 'ai-clip-metrics'
+    metrics_path: /metrics
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    static_configs:
+      - targets:
+          - 'ai-clip:8093'
+        labels:
+          service: clip
+          model_type: embedding
+    honor_labels: true
+
+  # Enrichment Service metrics (ai-enrichment)
+  # Combined service for vehicle, pet, clothing classification and depth estimation
+  # Key metrics:
+  # - enrichment_inference_requests_total: Total requests by endpoint/status
+  # - enrichment_inference_latency_seconds: Latency histogram by endpoint
+  # - enrichment_*_model_loaded: Model status for vehicle/pet/clothing/depth
+  # - enrichment_gpu_memory_used_gb: GPU memory usage
+  - job_name: 'ai-enrichment-metrics'
+    metrics_path: /metrics
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    static_configs:
+      - targets:
+          - 'ai-enrichment:8094'
+        labels:
+          service: enrichment
+          model_type: classification
+    honor_labels: true
+
+  # ==========================================================================
   # JSON Exporter Scraped Endpoints (For non-Prometheus format data)
   # ==========================================================================
   # These endpoints return JSON data that needs conversion to Prometheus format.

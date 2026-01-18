@@ -21,3 +21,4 @@ python-dotenv>=1.0.0
 
 # Monitoring
 nvidia-ml-py>=12.560.30
+prometheus-client>=0.21.0

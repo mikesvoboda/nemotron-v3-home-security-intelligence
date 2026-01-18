@@ -599,6 +599,28 @@ async def get_latest_gpu_stats(
         "temperature": gpu_stat.temperature,
         "power_usage": gpu_stat.power_usage,
         "inference_fps": gpu_stat.inference_fps,
+        # Extended metrics
+        "fan_speed": gpu_stat.fan_speed,
+        "sm_clock": gpu_stat.sm_clock,
+        "memory_bandwidth_utilization": gpu_stat.memory_bandwidth_utilization,
+        "pstate": gpu_stat.pstate,
+        # High-value metrics
+        "throttle_reasons": gpu_stat.throttle_reasons,
+        "power_limit": gpu_stat.power_limit,
+        "sm_clock_max": gpu_stat.sm_clock_max,
+        "compute_processes_count": gpu_stat.compute_processes_count,
+        "pcie_replay_counter": gpu_stat.pcie_replay_counter,
+        "temp_slowdown_threshold": gpu_stat.temp_slowdown_threshold,
+        # Medium-value metrics
+        "memory_clock": gpu_stat.memory_clock,
+        "memory_clock_max": gpu_stat.memory_clock_max,
+        "pcie_link_gen": gpu_stat.pcie_link_gen,
+        "pcie_link_width": gpu_stat.pcie_link_width,
+        "pcie_tx_throughput": gpu_stat.pcie_tx_throughput,
+        "pcie_rx_throughput": gpu_stat.pcie_rx_throughput,
+        "encoder_utilization": gpu_stat.encoder_utilization,
+        "decoder_utilization": gpu_stat.decoder_utilization,
+        "bar1_used": gpu_stat.bar1_used,
     }
 
 
@@ -1887,6 +1909,25 @@ async def get_gpu_stats(db: AsyncSession = Depends(get_db)) -> GPUStatsResponse:
             temperature=None,
             power_usage=None,
             inference_fps=None,
+            fan_speed=None,
+            sm_clock=None,
+            memory_bandwidth_utilization=None,
+            pstate=None,
+            throttle_reasons=None,
+            power_limit=None,
+            sm_clock_max=None,
+            compute_processes_count=None,
+            pcie_replay_counter=None,
+            temp_slowdown_threshold=None,
+            memory_clock=None,
+            memory_clock_max=None,
+            pcie_link_gen=None,
+            pcie_link_width=None,
+            pcie_tx_throughput=None,
+            pcie_rx_throughput=None,
+            encoder_utilization=None,
+            decoder_utilization=None,
+            bar1_used=None,
         )
 
     return GPUStatsResponse(
@@ -1897,6 +1938,25 @@ async def get_gpu_stats(db: AsyncSession = Depends(get_db)) -> GPUStatsResponse:
         temperature=stats["temperature"],
         power_usage=stats["power_usage"],
         inference_fps=stats["inference_fps"],
+        fan_speed=stats.get("fan_speed"),
+        sm_clock=stats.get("sm_clock"),
+        memory_bandwidth_utilization=stats.get("memory_bandwidth_utilization"),
+        pstate=stats.get("pstate"),
+        throttle_reasons=stats.get("throttle_reasons"),
+        power_limit=stats.get("power_limit"),
+        sm_clock_max=stats.get("sm_clock_max"),
+        compute_processes_count=stats.get("compute_processes_count"),
+        pcie_replay_counter=stats.get("pcie_replay_counter"),
+        temp_slowdown_threshold=stats.get("temp_slowdown_threshold"),
+        memory_clock=stats.get("memory_clock"),
+        memory_clock_max=stats.get("memory_clock_max"),
+        pcie_link_gen=stats.get("pcie_link_gen"),
+        pcie_link_width=stats.get("pcie_link_width"),
+        pcie_tx_throughput=stats.get("pcie_tx_throughput"),
+        pcie_rx_throughput=stats.get("pcie_rx_throughput"),
+        encoder_utilization=stats.get("encoder_utilization"),
+        decoder_utilization=stats.get("decoder_utilization"),
+        bar1_used=stats.get("bar1_used"),
     )
 
 
@@ -1947,6 +2007,28 @@ async def get_gpu_stats_history(
             "temperature": r.temperature,
             "power_usage": r.power_usage,
             "inference_fps": r.inference_fps,
+            # Extended metrics
+            "fan_speed": r.fan_speed,
+            "sm_clock": r.sm_clock,
+            "memory_bandwidth_utilization": r.memory_bandwidth_utilization,
+            "pstate": r.pstate,
+            # High-value metrics
+            "throttle_reasons": r.throttle_reasons,
+            "power_limit": r.power_limit,
+            "sm_clock_max": r.sm_clock_max,
+            "compute_processes_count": r.compute_processes_count,
+            "pcie_replay_counter": r.pcie_replay_counter,
+            "temp_slowdown_threshold": r.temp_slowdown_threshold,
+            # Medium-value metrics
+            "memory_clock": r.memory_clock,
+            "memory_clock_max": r.memory_clock_max,
+            "pcie_link_gen": r.pcie_link_gen,
+            "pcie_link_width": r.pcie_link_width,
+            "pcie_tx_throughput": r.pcie_tx_throughput,
+            "pcie_rx_throughput": r.pcie_rx_throughput,
+            "encoder_utilization": r.encoder_utilization,
+            "decoder_utilization": r.decoder_utilization,
+            "bar1_used": r.bar1_used,
         }
         for r in rows
     ]
