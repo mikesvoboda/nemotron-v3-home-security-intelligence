@@ -253,6 +253,7 @@ def wait_for_postgres_container(
     timeout: float = 30.0,
     initial_delay: float = 0.1,
     max_delay: float = 2.0,
+    fast_mode: bool = False,
 ) -> None:
     """Wait for PostgreSQL container to be ready using polling with exponential backoff.
 
@@ -261,10 +262,15 @@ def wait_for_postgres_container(
         timeout: Maximum time to wait in seconds
         initial_delay: Initial delay between retries in seconds
         max_delay: Maximum delay between retries in seconds
+        fast_mode: If True, use faster polling for unit tests (0.01s initial, 0.05s max)
 
     Raises:
         TimeoutError: If PostgreSQL is not ready within timeout
     """
+    # Override delays for fast mode (unit tests)
+    if fast_mode:
+        initial_delay = 0.01
+        max_delay = 0.05
     import psycopg2
 
     start = time.monotonic()
@@ -310,6 +316,7 @@ def wait_for_redis_container(
     timeout: float = 30.0,
     initial_delay: float = 0.1,
     max_delay: float = 2.0,
+    fast_mode: bool = False,
 ) -> None:
     """Wait for Redis container to be ready using polling with exponential backoff.
 
@@ -318,10 +325,15 @@ def wait_for_redis_container(
         timeout: Maximum time to wait in seconds
         initial_delay: Initial delay between retries in seconds
         max_delay: Maximum delay between retries in seconds
+        fast_mode: If True, use faster polling for unit tests (0.01s initial, 0.05s max)
 
     Raises:
         TimeoutError: If Redis is not ready within timeout
     """
+    # Override delays for fast mode (unit tests)
+    if fast_mode:
+        initial_delay = 0.01
+        max_delay = 0.05
     import redis
 
     start = time.monotonic()

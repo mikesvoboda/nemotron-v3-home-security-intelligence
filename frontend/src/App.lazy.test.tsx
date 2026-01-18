@@ -8,6 +8,8 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { Suspense, lazy, ComponentType, ReactNode } from 'react';
 import { describe, expect, it, vi, afterEach } from 'vitest';
 
+import { FAST_TIMEOUT } from './test/setup';
+
 describe('App lazy loading', () => {
   afterEach(() => {
     vi.clearAllMocks();
@@ -39,10 +41,11 @@ describe('App lazy loading', () => {
         default: () => <div data-testid="loaded-content">Loaded</div>,
       });
 
-      // Wait for lazy component to render
-      await waitFor(() => {
-        expect(screen.getByTestId('loaded-content')).toBeInTheDocument();
-      });
+      // Wait for lazy component to render (fast timeout for mocked components)
+      await waitFor(
+        () => expect(screen.getByTestId('loaded-content')).toBeInTheDocument(),
+        FAST_TIMEOUT
+      );
 
       // Loading fallback should be gone
       expect(screen.queryByTestId('loading-fallback')).not.toBeInTheDocument();
@@ -70,10 +73,11 @@ describe('App lazy loading', () => {
         </Suspense>
       );
 
-      // Wait for component to load
-      await waitFor(() => {
-        expect(screen.getByText('Lazy Content')).toBeInTheDocument();
-      });
+      // Wait for component to load (fast timeout for mocked components)
+      await waitFor(
+        () => expect(screen.getByText('Lazy Content')).toBeInTheDocument(),
+        FAST_TIMEOUT
+      );
     });
   });
 
@@ -98,9 +102,7 @@ describe('App lazy loading', () => {
         </Suspense>
       );
 
-      await waitFor(() => {
-        expect(importCalled).toBe(true);
-      });
+      await waitFor(() => expect(importCalled).toBe(true), FAST_TIMEOUT);
     });
 
     it('lazy loads different routes independently', async () => {
@@ -127,9 +129,10 @@ describe('App lazy loading', () => {
         </Suspense>
       );
 
-      await waitFor(() => {
-        expect(screen.getByTestId('route1')).toBeInTheDocument();
-      });
+      await waitFor(
+        () => expect(screen.getByTestId('route1')).toBeInTheDocument(),
+        FAST_TIMEOUT
+      );
 
       // Only route1 should be imported
       expect(importedRoutes).toEqual(['route1']);
@@ -143,9 +146,10 @@ describe('App lazy loading', () => {
         </Suspense>
       );
 
-      await waitFor(() => {
-        expect(screen.getByTestId('route2')).toBeInTheDocument();
-      });
+      await waitFor(
+        () => expect(screen.getByTestId('route2')).toBeInTheDocument(),
+        FAST_TIMEOUT
+      );
 
       // Now both routes should be imported
       expect(importedRoutes).toEqual(['route1', 'route2']);
@@ -196,9 +200,10 @@ describe('App lazy loading', () => {
         </TestErrorBoundary>
       );
 
-      await waitFor(() => {
-        expect(screen.getByRole('alert')).toBeInTheDocument();
-      });
+      await waitFor(
+        () => expect(screen.getByRole('alert')).toBeInTheDocument(),
+        FAST_TIMEOUT
+      );
 
       expect(screen.getByTestId('error-boundary')).toHaveTextContent('Loading chunk failed');
 

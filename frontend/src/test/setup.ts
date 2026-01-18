@@ -6,6 +6,23 @@ import { resetCounter } from './factories';
 import { server } from '../mocks/server';
 
 /**
+ * Re-export common mock utilities for convenient importing in tests.
+ *
+ * Usage:
+ *   import { createRouterMock, FAST_TIMEOUT } from '@/test/setup';
+ *
+ * @see common-mocks.ts - Detailed documentation for each utility
+ */
+export {
+  createRouterMock,
+  createApiMock,
+  createWebSocketMock,
+  testQueryClientOptions,
+  FAST_TIMEOUT,
+  STANDARD_TIMEOUT,
+} from './common-mocks';
+
+/**
  * Fix HeadlessUI focus issue with jsdom
  * HeadlessUI tries to set HTMLElement.prototype.focus which is getter-only in jsdom.
  * We need to make it configurable before HeadlessUI loads.
