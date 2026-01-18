@@ -422,14 +422,14 @@ jobs:
           cat lychee.toml
 
       - name: Check markdown links
-        uses: lycheeverse/lychee-action@v1
+        uses: lycheeverse/lychee-action@v2.0.2
         with:
           args: --verbose --config lychee.toml './docs/**/*.md'
           fail: true
         continue-on-error: false
 
       - name: Check HTML links
-        uses: lycheeverse/lychee-action@v1
+        uses: lycheeverse/lychee-action@v2.0.2
         with:
           args: --verbose --config lychee.toml './docs-site/**/*.html'
           fail: true
