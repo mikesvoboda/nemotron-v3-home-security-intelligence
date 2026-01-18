@@ -7,7 +7,6 @@ import {
   Terminal,
   Video,
 } from 'lucide-react';
-import { Navigate } from 'react-router-dom';
 
 import ConfigInspectorPanel from './ConfigInspectorPanel';
 import LogLevelPanel from './LogLevelPanel';
@@ -21,22 +20,17 @@ import CollapsibleSection from '../system/CollapsibleSection';
 /**
  * DeveloperToolsPage - Developer debugging and tooling dashboard
  *
- * Provides access to development tools when debug mode is enabled:
+ * Provides access to development tools:
  * - Performance Profiling
  * - Request Recording/Replay
  * - Configuration Inspector
  * - Log Level Control
  * - Test Data Generation
  *
- * Access Control:
- * - Only accessible when config.debug === true
- * - Redirects to home page if debug is disabled
- * - Shows loading state while fetching config
- *
  * @see NEM-2719 - Create Developer Tools page structure and routing
  */
 export default function DeveloperToolsPage() {
-  const { debugEnabled, isLoading, error } = useSystemConfigQuery();
+  const { isLoading, error } = useSystemConfigQuery();
   const { sectionStates, toggleSection } = useDevToolsSections();
 
   // Show loading state while checking config
@@ -74,10 +68,7 @@ export default function DeveloperToolsPage() {
     );
   }
 
-  // Redirect to home if debug mode is not enabled
-  if (!debugEnabled) {
-    return <Navigate to="/" replace data-testid="developer-tools-redirect" />;
-  }
+  // Developer tools are always accessible (no debug flag required)
 
   return (
     <div className="min-h-screen bg-[#121212] p-8" data-testid="developer-tools-page">
