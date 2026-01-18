@@ -20,6 +20,33 @@ cd frontend && bun install  # Sync frontend dependencies
 pre-commit install      # Install git hooks
 ```
 
+## Container Rebuild Rules
+
+**CRITICAL: Always rebuild containers without cache and from the local worktree.**
+
+When rebuilding containers during development:
+
+1. **Always use `--no-cache`** to ensure changes are picked up (cached layers may contain stale code)
+2. **Always rebuild from your local worktree/branch**, not from `main` directly
+3. **Never use pre-built GHCR images** when testing local changes
+
+```bash
+# Correct: Rebuild without cache from local code
+podman-compose -f docker-compose.prod.yml build --no-cache frontend
+podman-compose -f docker-compose.prod.yml build --no-cache backend
+
+# Correct: Rebuild and restart
+podman-compose -f docker-compose.prod.yml up -d --build --force-recreate frontend
+
+# Wrong: Simple restart won't pick up code changes
+podman-compose -f docker-compose.prod.yml restart frontend  # DON'T DO THIS
+
+# Wrong: Rebuild with cache may use stale layers
+podman-compose -f docker-compose.prod.yml build frontend  # DON'T DO THIS
+```
+
+**Why this matters:** Docker/Podman layer caching can cause confusing bugs where your code changes aren't reflected in the running container. Always use `--no-cache` when rebuilding during development.
+
 ## Testing and TDD
 
 This project follows **Test-Driven Development (TDD)** for all feature implementation. Tests drive the design and ensure correctness from the start.
