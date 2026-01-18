@@ -82,11 +82,10 @@ class TestGetDetectionIdsFromEvent:
         assert result == [1, 2, 3]
 
     def test_get_detection_ids_empty_relationship(self):
-        """Test empty relationship returns empty list (legacy fallback returns empty)."""
+        """Test empty relationship returns empty list."""
         mock_event = Mock(spec=Event)
         mock_event.detections = []
         mock_event.detection_id_list = []
-        mock_event.detection_ids = None  # Legacy fallback returns empty
 
         result = get_detection_ids_from_event(mock_event)
         assert result == []
@@ -507,7 +506,7 @@ class TestGetEventDetectionsRoute:
         # Mock event with no detections
         mock_event = Mock(spec=Event)
         mock_event.detections = []
-        mock_event.detection_ids = None
+        mock_event.detection_id_list = []
 
         with patch("backend.api.routes.events.get_event_or_404", return_value=mock_event):
             result = await get_event_detections(event_id=1, limit=50, offset=0, db=mock_db)
@@ -530,7 +529,7 @@ class TestGetEventEnrichmentsRoute:
         mock_event = Mock(spec=Event)
         mock_event.id = 1
         mock_event.detections = []
-        mock_event.detection_ids = None
+        mock_event.detection_id_list = []
 
         with patch("backend.api.routes.events.get_event_or_404", return_value=mock_event):
             result = await get_event_enrichments(event_id=1, limit=50, offset=0, db=mock_db)
@@ -622,7 +621,7 @@ class TestGenerateEventClipRoute:
         mock_event.id = 1
         mock_event.clip_path = None
         mock_event.detections = []
-        mock_event.detection_ids = None
+        mock_event.detection_id_list = []
 
         request = ClipGenerateRequest(force=False)
 
@@ -968,7 +967,7 @@ class TestUpdateEventRouteComprehensive:
         mock_event.notes = None
         mock_event.snooze_until = None
         mock_event.detections = []
-        mock_event.detection_ids = "[1, 2]"
+        mock_event.detection_id_list = [1, 2]
 
         update_data = EventUpdate(reviewed=True, notes="Test note")
 
@@ -1010,7 +1009,7 @@ class TestUpdateEventRouteComprehensive:
         mock_event.notes = "Old note"
         mock_event.snooze_until = None
         mock_event.detections = []
-        mock_event.detection_ids = "[1]"
+        mock_event.detection_id_list = [1]
 
         update_data = EventUpdate(notes="New note")
 
@@ -1048,7 +1047,7 @@ class TestExportEventsRouteComprehensive:
         mock_event.summary = "Test"
         mock_event.reviewed = False
         mock_event.detections = []
-        mock_event.detection_ids = "[1, 2]"
+        mock_event.detection_id_list = [1, 2]
 
         mock_events_result = MagicMock()
         mock_events_result.scalars.return_value.all.return_value = [mock_event]

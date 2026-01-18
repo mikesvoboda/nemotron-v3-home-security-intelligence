@@ -40,7 +40,6 @@ def sample_event() -> Event:
         reviewed=False,
         notes=None,
         is_fast_path=False,
-        detection_ids="[1, 2, 3]",
         object_types="person",
     )
 

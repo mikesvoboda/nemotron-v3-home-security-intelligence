@@ -232,7 +232,14 @@ def check_coverage_diff(base_branch: str = "origin/main") -> tuple[bool, str]:
     try:
         # Run coverage for current branch
         subprocess.run(
-            ["uv", "run", "pytest", "backend/tests/unit/", "--cov=backend", "--cov-report=json"],
+            [
+                "uv",
+                "run",
+                "pytest",
+                "backend/tests/unit/",
+                "--cov=backend",
+                "--cov-report=json",
+            ],
             cwd=project_root,
             check=True,
             capture_output=True,

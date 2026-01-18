@@ -252,7 +252,6 @@ def create_mock_event(
     mock.reasoning = reasoning
     mock.reviewed = reviewed
     mock.notes = notes
-    mock.detection_ids = detection_ids
     mock.object_types = object_types
 
     # Mock the detections relationship for detection_id_list and detection_count properties

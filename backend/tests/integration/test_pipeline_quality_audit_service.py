@@ -13,7 +13,6 @@ Uses shared fixtures from conftest.py:
 
 from __future__ import annotations
 
-import json
 import uuid
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
@@ -100,7 +99,6 @@ async def audit_test_event(integration_db: str, audit_test_camera: Camera) -> Ev
             risk_level="medium",
             summary="Test event for audit service",
             reasoning="Testing audit service database persistence.",
-            detection_ids=json.dumps([1, 2]),
             reviewed=False,
             llm_prompt="Test prompt for audit evaluation",
         )

@@ -60,7 +60,6 @@ def sample_event():
         risk_level="high",
         summary="Person detected at front door",
         reasoning="Unknown person at entry point during night hours",
-        detection_ids="1,2,3",
         reviewed=False,
     )
 
@@ -77,7 +76,6 @@ def minimal_event():
         risk_level=None,
         summary=None,
         reasoning=None,
-        detection_ids=None,
         notes=None,
         object_types=None,
         clip_path=None,
@@ -139,7 +137,6 @@ class TestEventModelInitialization:
         assert sample_event.risk_level == "high"
         assert sample_event.summary == "Person detected at front door"
         assert sample_event.reasoning == "Unknown person at entry point during night hours"
-        assert sample_event.detection_ids == "1,2,3"
         assert sample_event.reviewed is False
 
     def test_event_optional_fields_default_to_none(self, minimal_event):
@@ -149,7 +146,6 @@ class TestEventModelInitialization:
         assert minimal_event.risk_level is None
         assert minimal_event.summary is None
         assert minimal_event.reasoning is None
-        assert minimal_event.detection_ids is None
         assert minimal_event.notes is None
         assert minimal_event.object_types is None
         assert minimal_event.clip_path is None
@@ -659,24 +655,6 @@ class TestEventProperties:
         )
         assert event.reviewed == reviewed
         assert event.is_fast_path == is_fast_path
-
-    @given(
-        detection_ids=st.lists(st.integers(min_value=1, max_value=10000), min_size=1, max_size=20)
-    )
-    @settings(max_examples=20)
-    def test_detection_ids_can_store_list_as_string(self, detection_ids: list[int]):
-        """Property: Detection IDs can be stored as comma-separated string."""
-        ids_string = ",".join(str(i) for i in detection_ids)
-        event = Event(
-            batch_id="test",
-            camera_id="cam",
-            started_at=datetime.now(UTC),
-            detection_ids=ids_string,
-        )
-        assert event.detection_ids == ids_string
-        # Can parse back to list
-        parsed = [int(x) for x in event.detection_ids.split(",")]
-        assert parsed == detection_ids
 
 
 # =============================================================================

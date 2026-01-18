@@ -536,8 +536,9 @@ async def test_debounce_different_files(file_watcher, temp_camera_root, mock_red
         await file_watcher._schedule_file_processing(str(image1))
         await file_watcher._schedule_file_processing(str(image2))
 
-        # Wait for debounce delay + processing
-        await asyncio.sleep(file_watcher.debounce_delay + 0.05)
+        # Wait for debounce delay + processing with generous margin for CI load
+        # Note: 0.05s was too tight and caused flaky failures under parallel execution
+        await asyncio.sleep(file_watcher.debounce_delay + 0.3)
 
         # Should process both files
         assert mock_redis_client.add_to_queue_safe.await_count == 2

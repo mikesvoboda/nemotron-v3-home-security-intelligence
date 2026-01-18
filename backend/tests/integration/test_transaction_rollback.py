@@ -28,6 +28,7 @@ from backend.models.alert import Alert, AlertRule, AlertSeverity, AlertStatus
 from backend.models.camera import Camera
 from backend.models.detection import Detection
 from backend.models.event import Event
+from backend.models.event_detection import EventDetection
 from backend.tests.conftest import unique_id
 
 pytestmark = pytest.mark.integration
@@ -46,6 +47,7 @@ async def clean_test_data(integration_db: str) -> None:
             # Delete in order respecting foreign key constraints
             await session.execute(text("DELETE FROM alerts"))
             await session.execute(text("DELETE FROM alert_rules"))
+            await session.execute(text("DELETE FROM event_detections"))
             await session.execute(text("DELETE FROM detections"))
             await session.execute(text("DELETE FROM events"))
             await session.execute(text("DELETE FROM cameras"))
@@ -470,7 +472,7 @@ class TestBatchTransactionBoundaries:
             )
             detection_ids = [d.id for d in result.scalars().all()]
 
-        # Create event with detection IDs atomically
+        # Create event with detection IDs atomically via junction table
         async with get_session() as session:
             event = Event(
                 batch_id=batch_id,
@@ -480,9 +482,14 @@ class TestBatchTransactionBoundaries:
                 risk_score=60,
                 risk_level="medium",
                 summary="Batch detection event",
-                detection_ids=",".join(str(id) for id in detection_ids),
             )
             session.add(event)
+            await session.flush()  # Get event.id
+
+            # Link detections via junction table
+            for det_id in detection_ids:
+                junction = EventDetection(event_id=event.id, detection_id=det_id)
+                session.add(junction)
             await session.commit()
 
         # Verify event was created with all detection IDs
@@ -490,7 +497,9 @@ class TestBatchTransactionBoundaries:
             result = await session.execute(select(Event).where(Event.batch_id == batch_id))
             saved_event = result.scalar_one()
             assert saved_event is not None
-            saved_detection_ids = saved_event.detection_ids.split(",")
+            # Refresh detections relationship to avoid lazy load issues in async context
+            await session.refresh(saved_event, ["detections"])
+            saved_detection_ids = saved_event.detection_id_list
             assert len(saved_detection_ids) == 5
 
     async def test_batch_event_rollback_on_duplicate_batch_id(

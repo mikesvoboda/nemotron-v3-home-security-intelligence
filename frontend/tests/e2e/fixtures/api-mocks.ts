@@ -12,6 +12,7 @@ import type { Page, Route } from '@playwright/test';
 import {
   allCameras,
   allEvents,
+  allDeletedEvents,
   mockGPUStats,
   mockSystemHealth,
   mockSystemStats,
@@ -34,6 +35,10 @@ import {
   mockClassBaseline,
   mockAnomalyConfig,
   mockAIMetrics,
+  allJobs,
+  mockJobDetail,
+  mockJobLogs,
+  mockJobHistory,
 } from './test-data';
 
 /**
@@ -48,6 +53,10 @@ export interface ApiMockConfig {
   events?: typeof allEvents;
   eventsError?: boolean;
   eventStats?: (typeof mockEventStats)[keyof typeof mockEventStats];
+
+  // Deleted events (Trash page)
+  deletedEvents?: typeof allDeletedEvents;
+  deletedEventsError?: boolean;
 
   // GPU data
   gpuStats?: typeof mockGPUStats.healthy;
@@ -118,6 +127,10 @@ export interface ApiMockConfig {
   }>;
   entitiesError?: boolean;
 
+  // Jobs
+  jobs?: typeof allJobs;
+  jobsError?: boolean;
+
   // WebSocket behavior
   wsConnectionFail?: boolean;
 }
@@ -129,6 +142,7 @@ export const defaultMockConfig: ApiMockConfig = {
   cameras: allCameras,
   events: allEvents,
   eventStats: mockEventStats.normal,
+  deletedEvents: allDeletedEvents,
   gpuStats: mockGPUStats.healthy,
   gpuHistory: generateGPUHistory(10),
   systemHealth: mockSystemHealth.healthy,
@@ -149,6 +163,7 @@ export const defaultMockConfig: ApiMockConfig = {
   classBaseline: mockClassBaseline.normal,
   anomalyConfig: mockAnomalyConfig.default,
   aiMetrics: mockAIMetrics.normal,
+  jobs: allJobs,
   wsConnectionFail: true, // Default to failing WS in E2E tests
 };
 
@@ -168,6 +183,7 @@ export const errorMockConfig: ApiMockConfig = {
   aiAuditError: true,
   analyticsError: true,
   aiMetricsError: true,
+  jobsError: true,
   wsConnectionFail: true,
 };
 
@@ -178,6 +194,7 @@ export const emptyMockConfig: ApiMockConfig = {
   cameras: [],
   events: [],
   eventStats: mockEventStats.empty,
+  deletedEvents: [],
   gpuStats: mockGPUStats.idle,
   gpuHistory: [],
   systemHealth: mockSystemHealth.healthy,
@@ -194,6 +211,7 @@ export const emptyMockConfig: ApiMockConfig = {
   activityBaseline: mockActivityBaseline.empty,
   classBaseline: mockClassBaseline.empty,
   anomalyConfig: mockAnomalyConfig.default,
+  jobs: [],
   wsConnectionFail: true,
 };
 
@@ -609,6 +627,104 @@ export async function setupApiMocks(
     });
   });
 
+  // Detection Stats endpoint (used by Analytics page)
+  await page.route('**/api/detections/stats*', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        total_detections: 1234,
+        average_confidence: 0.85,
+        detection_counts_by_label: {
+          person: 500,
+          car: 300,
+          dog: 200,
+          cat: 150,
+          bird: 84,
+        },
+        detection_counts_by_camera: {
+          'cam-1': 400,
+          'cam-2': 350,
+          'cam-4': 300,
+          'cam-3': 184,
+        },
+      }),
+    });
+  });
+
+  // Analytics Detection Trends endpoint (used by Analytics page charts)
+  await page.route('**/api/analytics/detection-trends*', async (route) => {
+    if (mergedConfig.analyticsError) {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Failed to fetch detection trends' }),
+      });
+    } else {
+      // Generate sample data points for the last 7 days
+      const dataPoints = [];
+      const now = new Date();
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date(now);
+        date.setDate(date.getDate() - i);
+        dataPoints.push({
+          date: date.toISOString().split('T')[0],
+          count: Math.floor(Math.random() * 100) + 50,
+          by_label: {
+            person: Math.floor(Math.random() * 50) + 20,
+            car: Math.floor(Math.random() * 30) + 10,
+            dog: Math.floor(Math.random() * 20) + 5,
+          },
+        });
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          data_points: dataPoints,
+          total_detections: dataPoints.reduce((sum, dp) => sum + dp.count, 0),
+          start_date: dataPoints[0].date,
+          end_date: dataPoints[dataPoints.length - 1].date,
+        }),
+      });
+    }
+  });
+
+  // Analytics Risk History endpoint (used by Analytics page charts)
+  await page.route('**/api/analytics/risk-history*', async (route) => {
+    if (mergedConfig.analyticsError) {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Failed to fetch risk history' }),
+      });
+    } else {
+      // Generate sample risk history for the last 7 days
+      const dataPoints = [];
+      const now = new Date();
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date(now);
+        date.setDate(date.getDate() - i);
+        dataPoints.push({
+          date: date.toISOString().split('T')[0],
+          average_risk_score: Math.floor(Math.random() * 40) + 30,
+          high_risk_count: Math.floor(Math.random() * 5),
+          medium_risk_count: Math.floor(Math.random() * 15) + 5,
+          low_risk_count: Math.floor(Math.random() * 30) + 20,
+        });
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          data_points: dataPoints,
+          start_date: dataPoints[0].date,
+          end_date: dataPoints[dataPoints.length - 1].date,
+        }),
+      });
+    }
+  });
+
   // Event Detections endpoint (BEFORE /api/events)
   // Returns detections for a specific event - used by EventDetailModal
   await page.route('**/api/events/*/detections*', async (route) => {
@@ -710,6 +826,76 @@ export async function setupApiMocks(
         0x00,
       ]),
     });
+  });
+
+  // Deleted Events endpoint (BEFORE /api/events*)
+  await page.route('**/api/events/deleted*', async (route) => {
+    if (mergedConfig.deletedEventsError) {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Failed to fetch deleted events' }),
+      });
+    } else {
+      const deletedEvents = mergedConfig.deletedEvents || [];
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          items: deletedEvents,
+          pagination: {
+            total: deletedEvents.length,
+            limit: 20,
+            offset: null,
+            has_more: false,
+          },
+        }),
+      });
+    }
+  });
+
+  // Restore event endpoint (POST /api/events/{id}/restore)
+  await page.route('**/api/events/*/restore', async (route) => {
+    if (route.request().method() === 'POST') {
+      // Extract event ID from URL
+      const url = new URL(route.request().url());
+      const pathParts = url.pathname.split('/');
+      const eventIdIndex = pathParts.indexOf('events') + 1;
+      const eventId = parseInt(pathParts[eventIdIndex], 10);
+
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: eventId,
+          message: 'Event restored successfully',
+        }),
+      });
+    } else {
+      await route.continue();
+    }
+  });
+
+  // Permanent delete endpoint (DELETE /api/events/{id}/permanent)
+  await page.route('**/api/events/*/permanent', async (route) => {
+    if (route.request().method() === 'DELETE') {
+      // Extract event ID from URL
+      const url = new URL(route.request().url());
+      const pathParts = url.pathname.split('/');
+      const eventIdIndex = pathParts.indexOf('events') + 1;
+      const eventId = parseInt(pathParts[eventIdIndex], 10);
+
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: eventId,
+          message: 'Event permanently deleted',
+        }),
+      });
+    } else {
+      await route.continue();
+    }
   });
 
   // Events endpoint
@@ -1480,6 +1666,220 @@ export async function setupApiMocks(
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify(metrics),
+      });
+    }
+  });
+
+  // Jobs endpoints
+  // Job logs endpoint (BEFORE /api/jobs/:id)
+  await page.route('**/api/jobs/*/logs*', async (route) => {
+    if (mergedConfig.jobsError) {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Failed to fetch job logs' }),
+      });
+    } else {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          items: mockJobLogs,
+          pagination: {
+            total: mockJobLogs.length,
+            limit: 100,
+            offset: 0,
+            has_more: false,
+          },
+        }),
+      });
+    }
+  });
+
+  // Job history endpoint (BEFORE /api/jobs/:id)
+  await page.route('**/api/jobs/*/history*', async (route) => {
+    if (mergedConfig.jobsError) {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Failed to fetch job history' }),
+      });
+    } else {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mockJobHistory),
+      });
+    }
+  });
+
+  // Job retry endpoint (BEFORE /api/jobs/:id)
+  await page.route('**/api/jobs/*/retry', async (route) => {
+    const method = route.request().method();
+    if (method === 'POST') {
+      if (mergedConfig.jobsError) {
+        await route.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          body: JSON.stringify({ detail: 'Failed to retry job' }),
+        });
+      } else {
+        // Extract job ID from URL and return job with running status
+        const url = route.request().url();
+        const match = url.match(/\/api\/jobs\/([^/]+)\/retry/);
+        const jobId = match?.[1] || 'job-unknown';
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            job_id: jobId,
+            job_type: 'import',
+            status: 'running',
+            progress: 0,
+            created_at: new Date().toISOString(),
+            started_at: new Date().toISOString(),
+            completed_at: null,
+            error: null,
+            result: null,
+          }),
+        });
+      }
+    } else {
+      await route.continue();
+    }
+  });
+
+  // Job cancel endpoint (BEFORE /api/jobs/:id)
+  await page.route('**/api/jobs/*/cancel', async (route) => {
+    const method = route.request().method();
+    if (method === 'POST') {
+      if (mergedConfig.jobsError) {
+        await route.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          body: JSON.stringify({ detail: 'Failed to cancel job' }),
+        });
+      } else {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ message: 'Job cancelled successfully' }),
+        });
+      }
+    } else {
+      await route.continue();
+    }
+  });
+
+  // Individual job detail endpoint: GET /api/jobs/:id
+  await page.route('**/api/jobs/*', async (route) => {
+    const method = route.request().method();
+    const url = route.request().url();
+
+    // Skip if this is logs, history, retry, cancel, or list endpoint
+    if (url.includes('/logs') || url.includes('/history') || url.includes('/retry') || url.includes('/cancel') || url.endsWith('/jobs')) {
+      await route.continue();
+      return;
+    }
+
+    if (method === 'GET') {
+      if (mergedConfig.jobsError) {
+        await route.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          body: JSON.stringify({ detail: 'Failed to fetch job details' }),
+        });
+      } else {
+        // Extract job ID from URL
+        const match = url.match(/\/api\/jobs\/([^/?]+)/);
+        const jobId = match?.[1] || '';
+        const jobs = mergedConfig.jobs || allJobs;
+        const job = jobs.find((j: { job_id: string }) => j.job_id === jobId);
+
+        if (job) {
+          await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify(job),
+          });
+        } else {
+          await route.fulfill({
+            status: 404,
+            contentType: 'application/json',
+            body: JSON.stringify({ detail: 'Job not found' }),
+          });
+        }
+      }
+    } else {
+      await route.continue();
+    }
+  });
+
+  // Jobs list endpoint: GET /api/jobs
+  await page.route('**/api/jobs', async (route) => {
+    if (mergedConfig.jobsError) {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Failed to fetch jobs' }),
+      });
+    } else {
+      const jobs = mergedConfig.jobs || allJobs;
+      // Parse query parameters for filtering
+      const url = new URL(route.request().url());
+      const status = url.searchParams.get('status');
+      const jobType = url.searchParams.get('type');
+      const query = url.searchParams.get('q');
+
+      let filteredJobs = jobs;
+
+      // Filter by status
+      if (status) {
+        filteredJobs = filteredJobs.filter((j: { status: string }) => j.status === status);
+      }
+
+      // Filter by type
+      if (jobType) {
+        filteredJobs = filteredJobs.filter((j: { job_type: string }) => j.job_type === jobType);
+      }
+
+      // Filter by search query
+      if (query) {
+        const lowerQuery = query.toLowerCase();
+        filteredJobs = filteredJobs.filter((j: { job_id: string; job_type: string }) =>
+          j.job_id.toLowerCase().includes(lowerQuery) ||
+          j.job_type.toLowerCase().includes(lowerQuery)
+        );
+      }
+
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          items: filteredJobs,
+          pagination: {
+            total: filteredJobs.length,
+            limit: 50,
+            offset: 0,
+            has_more: false,
+          },
+          aggregations: {
+            by_status: {
+              pending: jobs.filter((j: { status: string }) => j.status === 'pending').length,
+              running: jobs.filter((j: { status: string }) => j.status === 'running').length,
+              completed: jobs.filter((j: { status: string }) => j.status === 'completed').length,
+              failed: jobs.filter((j: { status: string }) => j.status === 'failed').length,
+              cancelled: jobs.filter((j: { status: string }) => j.status === 'cancelled').length,
+            },
+            by_type: {
+              cleanup: jobs.filter((j: { job_type: string }) => j.job_type === 'cleanup').length,
+              export: jobs.filter((j: { job_type: string }) => j.job_type === 'export').length,
+              backup: jobs.filter((j: { job_type: string }) => j.job_type === 'backup').length,
+              import: jobs.filter((j: { job_type: string }) => j.job_type === 'import').length,
+              analysis: jobs.filter((j: { job_type: string }) => j.job_type === 'analysis').length,
+            },
+          },
+        }),
       });
     }
   });

@@ -30,6 +30,157 @@ from backend.models.detection import Detection
 from backend.models.event import Event
 
 
+def create_mock_db_with_id_assignment() -> AsyncMock:
+    """Create a mock database session that properly assigns IDs on flush.
+
+    The seed_events endpoint relies on flush() to populate IDs for Detection
+    and Event objects before linking them via the junction table. This helper
+    creates a mock that simulates this behavior by assigning auto-incrementing
+    IDs to objects that were added via add().
+    """
+    mock_db = AsyncMock()
+
+    # Track added objects for ID assignment on flush
+    added_objects: list = []
+    id_counter = {"value": 1}
+
+    def mock_add(obj):
+        added_objects.append(obj)
+
+    async def mock_flush():
+        # Assign IDs to objects that don't have them yet
+        for obj in added_objects:
+            if hasattr(obj, "id") and obj.id is None:
+                obj.id = id_counter["value"]
+                id_counter["value"] += 1
+
+    mock_db.add = MagicMock(side_effect=mock_add)
+    mock_db.commit = AsyncMock()
+    mock_db.flush = AsyncMock(side_effect=mock_flush)
+    mock_db.execute = AsyncMock()
+
+    return mock_db
+
+
+class TestAdminSecurityControls:
+    """Tests for admin endpoint security controls.
+
+    Admin endpoints use defense-in-depth security:
+    1. DEBUG mode must be enabled
+    2. ADMIN_ENABLED must be explicitly set
+    3. Optional API key requirement with timing attack resistance
+    """
+
+    @pytest.mark.asyncio
+    async def test_seed_cameras_requires_debug_mode(self) -> None:
+        """Verify seed cameras endpoint returns 403 when DEBUG=false."""
+        from fastapi import HTTPException
+
+        from backend.api.routes.admin import require_admin_access
+
+        with patch("backend.api.routes.admin.get_settings") as mock_settings:
+            mock_settings.return_value.debug = False
+            mock_settings.return_value.admin_enabled = True
+            mock_settings.return_value.admin_api_key = None
+
+            with pytest.raises(HTTPException) as exc_info:
+                require_admin_access(x_admin_api_key=None)
+
+            assert exc_info.value.status_code == 403
+            assert "DEBUG=true" in exc_info.value.detail
+
+    @pytest.mark.asyncio
+    async def test_seed_cameras_requires_admin_enabled(self) -> None:
+        """Verify seed cameras endpoint returns 403 when ADMIN_ENABLED=false."""
+        from fastapi import HTTPException
+
+        from backend.api.routes.admin import require_admin_access
+
+        with patch("backend.api.routes.admin.get_settings") as mock_settings:
+            mock_settings.return_value.debug = True
+            mock_settings.return_value.admin_enabled = False
+            mock_settings.return_value.admin_api_key = None
+
+            with pytest.raises(HTTPException) as exc_info:
+                require_admin_access(x_admin_api_key=None)
+
+            assert exc_info.value.status_code == 403
+            assert "ADMIN_ENABLED=true" in exc_info.value.detail
+
+    @pytest.mark.asyncio
+    async def test_seed_cameras_requires_api_key_when_configured(self) -> None:
+        """Verify seed cameras endpoint returns 401 when API key is missing."""
+        from fastapi import HTTPException
+
+        from backend.api.routes.admin import require_admin_access
+
+        with patch("backend.api.routes.admin.get_settings") as mock_settings:
+            mock_settings.return_value.debug = True
+            mock_settings.return_value.admin_enabled = True
+            mock_settings.return_value.admin_api_key = "secret-key-123"  # pragma: allowlist secret
+
+            with pytest.raises(HTTPException) as exc_info:
+                require_admin_access(x_admin_api_key=None)
+
+            assert exc_info.value.status_code == 401
+            assert "Admin API key required" in exc_info.value.detail
+            assert exc_info.value.headers.get("WWW-Authenticate") == "ApiKey"
+
+    @pytest.mark.asyncio
+    async def test_seed_cameras_rejects_invalid_api_key(self) -> None:
+        """Verify seed cameras endpoint returns 401 with invalid API key."""
+        from fastapi import HTTPException
+
+        from backend.api.routes.admin import require_admin_access
+
+        with patch("backend.api.routes.admin.get_settings") as mock_settings:
+            mock_settings.return_value.debug = True
+            mock_settings.return_value.admin_enabled = True
+            mock_settings.return_value.admin_api_key = "secret-key-123"  # pragma: allowlist secret
+
+            with pytest.raises(HTTPException) as exc_info:
+                require_admin_access(x_admin_api_key="wrong-key")  # pragma: allowlist secret
+
+            assert exc_info.value.status_code == 401
+            assert "Invalid admin API key" in exc_info.value.detail
+
+    @pytest.mark.asyncio
+    async def test_admin_access_uses_constant_time_comparison(self) -> None:
+        """Verify API key comparison uses secrets.compare_digest for timing attack resistance."""
+        from backend.api.routes.admin import require_admin_access
+
+        valid_key = "secret-key-123"
+
+        with (
+            patch("backend.api.routes.admin.get_settings") as mock_settings,
+            patch("backend.api.routes.admin.secrets.compare_digest") as mock_compare,
+        ):
+            mock_settings.return_value.debug = True
+            mock_settings.return_value.admin_enabled = True
+            mock_settings.return_value.admin_api_key = valid_key
+
+            mock_compare.return_value = True
+
+            # Should not raise
+            require_admin_access(x_admin_api_key=valid_key)
+
+            # Verify secrets.compare_digest was called
+            mock_compare.assert_called_once_with(valid_key, valid_key)
+
+    @pytest.mark.asyncio
+    async def test_admin_access_allows_when_no_api_key_configured(self) -> None:
+        """Verify admin access is allowed when no API key is configured."""
+        from backend.api.routes.admin import require_admin_access
+
+        with patch("backend.api.routes.admin.get_settings") as mock_settings:
+            mock_settings.return_value.debug = True
+            mock_settings.return_value.admin_enabled = True
+            mock_settings.return_value.admin_api_key = None
+
+            # Should not raise
+            require_admin_access(x_admin_api_key=None)
+
+
 class TestSeedCamerasEndpoint:
     """Tests for POST /api/admin/seed/cameras endpoint."""
 
@@ -322,10 +473,7 @@ class TestSeedEventsEndpoint:
         """Verify seed events creates the specified number of events."""
         from backend.api.routes.admin import seed_events
 
-        mock_db = AsyncMock()
-        mock_db.add = MagicMock()
-        mock_db.commit = AsyncMock()
-        mock_db.flush = AsyncMock()
+        mock_db = create_mock_db_with_id_assignment()
 
         request = SeedEventsRequest(count=5, clear_existing=False)
 
@@ -380,10 +528,7 @@ class TestSeedEventsEndpoint:
         """Verify seed events clears existing events and detections when clear_existing=True."""
         from backend.api.routes.admin import seed_events
 
-        mock_db = AsyncMock()
-        mock_db.add = MagicMock()
-        mock_db.commit = AsyncMock()
-        mock_db.flush = AsyncMock()
+        mock_db = create_mock_db_with_id_assignment()
 
         request = SeedEventsRequest(count=2, clear_existing=True)
 
@@ -417,12 +562,18 @@ class TestSeedEventsEndpoint:
         mock_camera_scalars.all.return_value = [mock_camera]
         mock_camera_result.scalars.return_value = mock_camera_scalars
 
+        # Junction table inserts (line 553) - one per detection per event
+        # With count=2 and randint returning min value (1 detection per event), need 2 more
+        mock_junction_insert = MagicMock()
+
         mock_db.execute.side_effect = [
             mock_events_result,
             mock_detections_result,
             mock_delete_event,
             mock_delete_detection,
             mock_camera_result,
+            mock_junction_insert,  # Event 1 detection junction
+            mock_junction_insert,  # Event 2 detection junction
         ]
 
         with patch("backend.api.routes.admin.random") as mock_random:
@@ -442,10 +593,7 @@ class TestSeedEventsEndpoint:
         """Verify seed events generates events with proper risk distribution (50% low, 35% medium, 15% high)."""
         from backend.api.routes.admin import seed_events
 
-        mock_db = AsyncMock()
-        mock_db.add = MagicMock()
-        mock_db.commit = AsyncMock()
-        mock_db.flush = AsyncMock()
+        mock_db = create_mock_db_with_id_assignment()
 
         request = SeedEventsRequest(count=10, clear_existing=False)
 
@@ -461,12 +609,22 @@ class TestSeedEventsEndpoint:
         mock_db.execute.return_value = mock_camera_result
 
         risk_levels = []
+        added_objects: list = []
+        id_counter = {"value": 1}
 
         def mock_add(obj):
+            added_objects.append(obj)
             if isinstance(obj, Event):
                 risk_levels.append(obj.risk_level)
 
+        async def mock_flush():
+            for obj in added_objects:
+                if hasattr(obj, "id") and obj.id is None:
+                    obj.id = id_counter["value"]
+                    id_counter["value"] += 1
+
         mock_db.add.side_effect = mock_add
+        mock_db.flush = AsyncMock(side_effect=mock_flush)
 
         with patch("backend.api.routes.admin.random") as mock_random:
             mock_random.choice.return_value = mock_camera
@@ -498,10 +656,7 @@ class TestSeedEventsEndpoint:
         """Verify seed events creates 1-5 detections for each event."""
         from backend.api.routes.admin import seed_events
 
-        mock_db = AsyncMock()
-        mock_db.add = MagicMock()
-        mock_db.commit = AsyncMock()
-        mock_db.flush = AsyncMock()
+        mock_db = create_mock_db_with_id_assignment()
 
         request = SeedEventsRequest(count=3, clear_existing=False)
 
@@ -518,12 +673,22 @@ class TestSeedEventsEndpoint:
 
         # Mock detection to track created detections
         created_detections = []
+        added_objects: list = []
+        id_counter = {"value": 1}
 
         def mock_add(obj):
+            added_objects.append(obj)
             if isinstance(obj, Detection):
                 created_detections.append(obj)
 
+        async def mock_flush():
+            for obj in added_objects:
+                if hasattr(obj, "id") and obj.id is None:
+                    obj.id = id_counter["value"]
+                    id_counter["value"] += 1
+
         mock_db.add.side_effect = mock_add
+        mock_db.flush = AsyncMock(side_effect=mock_flush)
 
         # Track randint calls to return 3 for first 3 event counts, then various for detection generation
         randint_calls = []

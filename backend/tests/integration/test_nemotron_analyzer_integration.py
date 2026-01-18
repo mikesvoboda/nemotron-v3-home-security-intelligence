@@ -210,7 +210,7 @@ class TestAnalyzeBatchCreatesEvent:
             event = await analyzer.analyze_batch(batch_id)
 
         # Verify detection_ids are stored
-        stored_detection_ids = json.loads(event.detection_ids)
+        stored_detection_ids = event.detection_id_list
         assert sorted(stored_detection_ids) == sorted(detection_ids)
 
     async def test_analyze_batch_sets_risk_score(
@@ -412,7 +412,7 @@ class TestAnalyzeDetectionFastPath:
         assert event.ended_at == detection.detected_at
 
         # Verify detection_ids contains only the single detection
-        stored_ids = json.loads(event.detection_ids)
+        stored_ids = event.detection_id_list
         assert stored_ids == [detection.id]
 
         # Verify event persisted

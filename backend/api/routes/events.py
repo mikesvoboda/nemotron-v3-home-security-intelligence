@@ -127,11 +127,10 @@ def parse_detection_ids(detection_ids_str: str | None) -> list[int]:
 
 
 def get_detection_ids_from_event(event: Event) -> list[int]:
-    """Get detection IDs using the Event.detections relationship or fallback to legacy column.
+    """Get detection IDs using the Event.detections relationship.
 
-    This function provides a migration path from the legacy detection_ids text column
-    to the normalized event_detections junction table. It prefers the relationship
-    but falls back to parsing the legacy column if the relationship is not populated.
+    This function uses the normalized event_detections junction table to retrieve
+    detection IDs. The legacy detection_ids column has been removed from the schema.
 
     Args:
         event: Event model instance
@@ -139,12 +138,8 @@ def get_detection_ids_from_event(event: Event) -> list[int]:
     Returns:
         List of detection IDs associated with the event
     """
-    # Try the relationship first (normalized data from event_detections table)
-    if event.detections:
-        return event.detection_id_list
-
-    # Fallback to legacy column for events not yet migrated to junction table
-    return parse_detection_ids(event.detection_ids)
+    # Use the normalized event_detections junction table
+    return event.detection_id_list
 
 
 def parse_severity_filter(severity_str: str | None) -> list[str]:
@@ -1053,7 +1048,6 @@ async def bulk_create_events(
                 risk_level=item.risk_level,
                 summary=item.summary,
                 reasoning=item.reasoning,
-                detection_ids=json.dumps(item.detection_ids) if item.detection_ids else None,
             )
             db.add(event)
             await db.flush()  # Get the ID without committing
