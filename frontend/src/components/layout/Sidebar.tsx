@@ -13,6 +13,7 @@ import {
   Brain,
   ClipboardCheck,
   Trash2,
+  Terminal,
 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 
@@ -31,16 +32,18 @@ interface NavItem {
 const navItems: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: Home, path: '/' },
   { id: 'timeline', label: 'Timeline', icon: Clock, path: '/timeline', dataTour: 'timeline-link' },
-  { id: 'analytics', label: 'Analytics', icon: BarChart3, path: '/analytics' },
-  { id: 'jobs', label: 'Jobs', icon: Briefcase, path: '/jobs' },
   { id: 'entities', label: 'Entities', icon: Users, path: '/entities' },
   { id: 'alerts', label: 'Alerts', icon: Bell, path: '/alerts' },
-  { id: 'logs', label: 'Logs', icon: ScrollText, path: '/logs' },
   { id: 'audit', label: 'Audit Log', icon: Shield, path: '/audit' },
-  { id: 'ai', label: 'AI Performance', icon: Brain, path: '/ai' },
+  { id: 'analytics', label: 'Analytics', icon: BarChart3, path: '/analytics' },
+  { id: 'jobs', label: 'Jobs', icon: Briefcase, path: '/jobs' },
   { id: 'ai-audit', label: 'AI Audit', icon: ClipboardCheck, path: '/ai-audit' },
+  { id: 'ai', label: 'AI Performance', icon: Brain, path: '/ai' },
   { id: 'operations', label: 'Operations', icon: Server, path: '/operations' },
   { id: 'trash', label: 'Trash', icon: Trash2, path: '/trash' },
+  { id: 'system', label: 'System', icon: Server, path: '/system' },
+  { id: 'logs', label: 'Logs', icon: ScrollText, path: '/logs' },
+  { id: 'dev-tools', label: 'Dev Tools', icon: Terminal, path: '/dev-tools' },
   {
     id: 'settings',
     label: 'Settings',

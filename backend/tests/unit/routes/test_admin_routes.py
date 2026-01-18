@@ -11,7 +11,7 @@ from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from backend.api.routes.admin import (
@@ -39,36 +39,6 @@ def mock_settings():
     settings.debug = True
     settings.admin_enabled = True
     settings.admin_api_key = None
-    return settings
-
-
-@pytest.fixture
-def mock_settings_debug_disabled():
-    """Create mock settings with debug disabled."""
-    settings = MagicMock()
-    settings.debug = False
-    settings.admin_enabled = True
-    settings.admin_api_key = None
-    return settings
-
-
-@pytest.fixture
-def mock_settings_admin_disabled():
-    """Create mock settings with admin disabled."""
-    settings = MagicMock()
-    settings.debug = True
-    settings.admin_enabled = False
-    settings.admin_api_key = None
-    return settings
-
-
-@pytest.fixture
-def mock_settings_with_api_key():
-    """Create mock settings with API key required."""
-    settings = MagicMock()
-    settings.debug = True
-    settings.admin_enabled = True
-    settings.admin_api_key = "test-admin-key-12345"
     return settings
 
 
@@ -122,68 +92,15 @@ def sample_camera() -> Camera:
 
 
 class TestRequireAdminAccess:
-    """Tests for the require_admin_access security function."""
+    """Tests for the require_admin_access function.
 
-    def test_admin_access_allowed_when_debug_and_admin_enabled(self, mock_settings) -> None:
-        """Test that admin access is allowed when both debug and admin_enabled are True."""
-        with patch("backend.api.routes.admin.get_settings", return_value=mock_settings):
-            # Should not raise
-            require_admin_access()
+    Note: Admin access is always allowed (no auth required for local deployment).
+    """
 
-    def test_admin_access_denied_when_debug_disabled(self, mock_settings_debug_disabled) -> None:
-        """Test that admin access is denied when debug is False."""
-        with patch(
-            "backend.api.routes.admin.get_settings",
-            return_value=mock_settings_debug_disabled,
-        ):
-            with pytest.raises(HTTPException) as exc_info:
-                require_admin_access()
-            assert exc_info.value.status_code == 403
-            assert "DEBUG=true" in exc_info.value.detail
-
-    def test_admin_access_denied_when_admin_disabled(self, mock_settings_admin_disabled) -> None:
-        """Test that admin access is denied when admin_enabled is False."""
-        with patch(
-            "backend.api.routes.admin.get_settings",
-            return_value=mock_settings_admin_disabled,
-        ):
-            with pytest.raises(HTTPException) as exc_info:
-                require_admin_access()
-            assert exc_info.value.status_code == 403
-            assert "ADMIN_ENABLED=true" in exc_info.value.detail
-
-    def test_admin_access_denied_without_api_key_when_required(
-        self, mock_settings_with_api_key
-    ) -> None:
-        """Test that admin access is denied when API key is required but not provided."""
-        with patch(
-            "backend.api.routes.admin.get_settings",
-            return_value=mock_settings_with_api_key,
-        ):
-            with pytest.raises(HTTPException) as exc_info:
-                require_admin_access(x_admin_api_key=None)
-            assert exc_info.value.status_code == 401
-            assert "Admin API key required" in exc_info.value.detail
-
-    def test_admin_access_denied_with_invalid_api_key(self, mock_settings_with_api_key) -> None:
-        """Test that admin access is denied when API key is invalid."""
-        with patch(
-            "backend.api.routes.admin.get_settings",
-            return_value=mock_settings_with_api_key,
-        ):
-            with pytest.raises(HTTPException) as exc_info:
-                require_admin_access(x_admin_api_key="wrong-key")
-            assert exc_info.value.status_code == 401
-            assert "Invalid admin API key" in exc_info.value.detail
-
-    def test_admin_access_allowed_with_valid_api_key(self, mock_settings_with_api_key) -> None:
-        """Test that admin access is allowed when API key is valid."""
-        with patch(
-            "backend.api.routes.admin.get_settings",
-            return_value=mock_settings_with_api_key,
-        ):
-            # Should not raise
-            require_admin_access(x_admin_api_key="test-admin-key-12345")
+    def test_admin_access_always_allowed(self) -> None:
+        """Test that admin access is always allowed (no auth required)."""
+        # Should not raise - function just passes
+        require_admin_access()
 
 
 # =============================================================================
@@ -515,35 +432,3 @@ class TestClearDataResponseSchema:
         assert schema.cameras_cleared == 6
         assert schema.events_cleared == 15
         assert schema.detections_cleared == 50
-
-
-# =============================================================================
-# API Key Security Tests
-# =============================================================================
-
-
-class TestAdminAPIKeySecurity:
-    """Tests for admin API key security."""
-
-    def test_api_key_uses_constant_time_comparison(self, mock_settings_with_api_key) -> None:
-        """Test that API key validation uses secrets.compare_digest."""
-        with (
-            patch(
-                "backend.api.routes.admin.get_settings",
-                return_value=mock_settings_with_api_key,
-            ),
-            patch("backend.api.routes.admin.secrets.compare_digest") as mock_compare,
-        ):
-            mock_compare.return_value = True
-            require_admin_access(x_admin_api_key="test-admin-key-12345")
-            mock_compare.assert_called_once()
-
-    def test_api_key_header_name(self, mock_settings_with_api_key) -> None:
-        """Test that the API key header is X-Admin-API-Key."""
-        with patch(
-            "backend.api.routes.admin.get_settings",
-            return_value=mock_settings_with_api_key,
-        ):
-            with pytest.raises(HTTPException) as exc_info:
-                require_admin_access(x_admin_api_key=None)
-            assert "X-Admin-API-Key" in exc_info.value.detail

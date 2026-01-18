@@ -1,26 +1,26 @@
 #!/usr/bin/env python3
 """Seed the system by exercising the full AI pipeline end-to-end.
 
-This script triggers real pipeline processing by copying images to camera
+This script triggers real pipeline processing by touching images in camera
 watch folders, causing the file watcher to process them through:
-  1. File Watcher → detects new images
+  1. File Watcher → detects touched images
   2. RT-DETRv2 → object detection
   3. Batch Aggregator → groups detections into events
   4. Nemotron LLM → risk analysis with reasoning
 
-This creates real events with actual LLM prompts for comprehensive testing.
+This creates real events with actual LLM analysis for comprehensive testing.
 
 Usage:
-    # Default: Full pipeline + all supporting data (recommended for UI validation)
+    # Default: Touch 100 images from /export/foscam and run full pipeline
     uv run python scripts/seed-mock-events.py
 
-    # Process more images
-    uv run python scripts/seed-mock-events.py --images 50
+    # Process fewer images (faster)
+    uv run python scripts/seed-mock-events.py --images 30
 
     # Skip supporting data (entities, alerts, logs) - only pipeline data
     uv run python scripts/seed-mock-events.py --no-extras
 
-    # Use mock data instead of real pipeline (legacy behavior)
+    # Use mock data instead of real pipeline (for testing without AI services)
     uv run python scripts/seed-mock-events.py --mock
 
     # Clear all data before seeding
@@ -1314,8 +1314,8 @@ By default, also seeds supporting data for full UI testing:
     parser.add_argument(
         "--images",
         type=int,
-        default=30,
-        help="Number of images to process through the pipeline (default: 30)",
+        default=100,
+        help="Number of images to process through the pipeline (default: 100)",
     )
     parser.add_argument(
         "--delay",

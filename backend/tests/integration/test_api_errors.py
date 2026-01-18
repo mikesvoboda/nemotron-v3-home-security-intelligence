@@ -843,47 +843,8 @@ class TestSystem422:
 # 401 Unauthorized Tests - Protected Endpoints Without API Key
 # =============================================================================
 
-
-class TestAdmin401:
-    """Tests for 401/403 Unauthorized on admin endpoints.
-
-    Admin endpoints require:
-    1. DEBUG=true
-    2. ADMIN_ENABLED=true
-    3. Optional API key (X-Admin-API-Key header)
-
-    In default test configuration, DEBUG is typically false, so admin
-    endpoints return 403 Forbidden.
-    """
-
-    @pytest.mark.asyncio
-    async def test_seed_cameras_without_auth(self, client, mock_redis):
-        """Test seeding cameras without admin access returns 403."""
-        response = await client.post(
-            "/api/admin/seed/cameras",
-            json={"count": 3},
-        )
-        # Admin endpoints return 403 when DEBUG/ADMIN_ENABLED are not set
-        assert response.status_code == 403
-
-    @pytest.mark.asyncio
-    async def test_seed_events_without_auth(self, client, mock_redis):
-        """Test seeding events without admin access returns 403."""
-        response = await client.post(
-            "/api/admin/seed/events",
-            json={"count": 10},
-        )
-        assert response.status_code == 403
-
-    @pytest.mark.asyncio
-    async def test_clear_data_without_auth(self, client, mock_redis):
-        """Test clearing data without admin access returns 403."""
-        response = await client.request(
-            "DELETE",
-            "/api/admin/seed/clear",
-            json={"confirm": "DELETE_ALL_DATA"},
-        )
-        assert response.status_code == 403
+# NOTE: Admin endpoints (TestAdmin401) removed - admin access is always allowed
+# for local deployment without authentication requirements.
 
 
 class TestDLQ401:

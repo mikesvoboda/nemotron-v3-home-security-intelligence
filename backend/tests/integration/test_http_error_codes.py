@@ -216,31 +216,8 @@ class TestRateLimiting:
 # =============================================================================
 
 
-class TestAdminEndpointAuth:
-    """Tests for 401/403 on admin endpoints."""
-
-    @pytest.mark.asyncio
-    async def test_seed_cameras_requires_admin(self, client, mock_redis):
-        """Test seed cameras endpoint requires admin access."""
-        response = await client.post("/api/admin/seed/cameras", json={"count": 1})
-        # Should return 403 when DEBUG/ADMIN_ENABLED are not set
-        assert response.status_code == 403
-
-    @pytest.mark.asyncio
-    async def test_seed_events_requires_admin(self, client, mock_redis):
-        """Test seed events endpoint requires admin access."""
-        response = await client.post("/api/admin/seed/events", json={"count": 1})
-        assert response.status_code == 403
-
-    @pytest.mark.asyncio
-    async def test_clear_data_requires_admin(self, client, mock_redis):
-        """Test clear data endpoint requires admin access."""
-        response = await client.request(
-            "DELETE",
-            "/api/admin/seed/clear",
-            json={"confirm": "DELETE_ALL_DATA"},
-        )
-        assert response.status_code == 403
+# NOTE: TestAdminEndpointAuth removed - admin access is always allowed
+# for local deployment without authentication requirements.
 
 
 class TestDLQEndpointAuth:
@@ -576,15 +553,8 @@ class TestErrorResponseFormat:
         error_msg = get_error_message(data)
         assert error_msg
 
-    @pytest.mark.asyncio
-    async def test_403_response_has_detail(self, client, mock_redis):
-        """Test 403 responses include detail field."""
-        response = await client.post("/api/admin/seed/cameras", json={"count": 1})
-
-        assert response.status_code == 403
-        data = response.json()
-        error_msg = get_error_message(data)
-        assert error_msg
+    # NOTE: test_403_response_has_detail removed - admin endpoints no longer return 403
+    # for local deployment without authentication requirements.
 
     @pytest.mark.asyncio
     async def test_error_responses_are_json(self, client, mock_redis):
@@ -597,11 +567,11 @@ class TestErrorResponseFormat:
         content_type_404 = response_404.headers.get("content-type", "")
         assert "json" in content_type_404, f"Expected JSON content-type, got: {content_type_404}"
 
-        # 403 error
-        response_403 = await client.post("/api/admin/seed/cameras", json={"count": 1})
-        assert response_403.status_code == 403
-        content_type_403 = response_403.headers.get("content-type", "")
-        assert "json" in content_type_403, f"Expected JSON content-type, got: {content_type_403}"
+        # 422 error - use admin endpoint with invalid data
+        response_422 = await client.post("/api/admin/seed/cameras", json={"count": 0})
+        assert response_422.status_code == 422
+        content_type_422 = response_422.headers.get("content-type", "")
+        assert "json" in content_type_422, f"Expected JSON content-type, got: {content_type_422}"
 
 
 # =============================================================================
