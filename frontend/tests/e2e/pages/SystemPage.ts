@@ -1,18 +1,15 @@
 /**
- * SystemPage - Page Object for the System Monitoring page
+ * SystemPage - Page Object for the Operations page (formerly System Monitoring)
  *
  * Provides selectors and interactions for:
- * - System overview (uptime, cameras, events, detections)
- * - Service health status
- * - Pipeline queues
- * - GPU stats
- * - Latency stats
- * - AI models panel
- * - Databases panel
- * - Host system panel
- * - Containers panel
- * - Time range selector
- * - Performance alerts
+ * - Pipeline flow visualization
+ * - Circuit breakers (with reset actions)
+ * - File operations (with cleanup actions)
+ * - Debug mode toggle
+ * - Grafana link
+ *
+ * Note: Most metrics-only panels have been moved to Grafana.
+ * This page now focuses on interactive/actionable components.
  */
 
 import type { Page, Locator } from '@playwright/test';
@@ -104,9 +101,9 @@ export class SystemPage extends BasePage {
     super(page);
 
     // Page heading
-    this.pageTitle = page.getByRole('heading', { name: /System Monitoring/i });
-    this.pageSubtitle = page.getByText(/Real-time system metrics/i);
-    this.serverIcon = page.locator('svg.lucide-server').first();
+    this.pageTitle = page.getByRole('heading', { name: /Operations/i });
+    this.pageSubtitle = page.getByText(/Pipeline visualization and operational controls/i);
+    this.serverIcon = page.locator('svg.lucide-settings').first();
 
     // Time Range Selector - actual values are 5m, 15m, 60m per TimeRangeSelector component
     this.timeRangeSelector = page.locator('[data-testid="time-range-selector"]');
@@ -179,20 +176,20 @@ export class SystemPage extends BasePage {
     this.containerItems = page.locator('[data-testid="containers-panel-section"] [class*="container"]');
 
     // Loading/Error States
-    this.loadingSkeleton = page.locator('[data-testid="system-monitoring-loading"]');
-    this.errorMessage = page.locator('[data-testid="system-monitoring-error"]');
+    this.loadingSkeleton = page.locator('[data-testid="operations-loading"]');
+    this.errorMessage = page.locator('[data-testid="operations-error"]');
     this.reloadButton = page.getByRole('button', { name: /Reload Page/i });
   }
 
   /**
-   * Navigate to the System page
+   * Navigate to the Operations page
    */
   async goto(): Promise<void> {
-    await this.page.goto('/system');
+    await this.page.goto('/operations');
   }
 
   /**
-   * Wait for the system page to fully load
+   * Wait for the operations page to fully load
    */
   async waitForSystemLoad(): Promise<void> {
     await expect(this.pageTitle).toBeVisible({ timeout: this.pageLoadTimeout });

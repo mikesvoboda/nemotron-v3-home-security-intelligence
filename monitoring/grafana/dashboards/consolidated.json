@@ -3632,6 +3632,774 @@
         "x": 0,
         "y": 81
       },
+      "id": 270,
+      "panels": [
+        {
+          "datasource": {
+            "type": "marcusolsson-json-datasource",
+            "uid": "Backend-API"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisPlacement": "auto",
+                "drawStyle": "line",
+                "fillOpacity": 20,
+                "gradientMode": "opacity",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "smooth",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "max": 100,
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "#F2495C",
+                    "value": null
+                  },
+                  {
+                    "color": "#FF9830",
+                    "value": 50
+                  },
+                  {
+                    "color": "#73BF69",
+                    "value": 75
+                  }
+                ]
+              },
+              "unit": "none"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 0
+          },
+          "id": 271,
+          "options": {
+            "legend": {
+              "calcs": ["lastNotNull", "mean", "max"],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "marcusolsson-json-datasource",
+                "uid": "Backend-API"
+              },
+              "fields": [
+                {
+                  "jsonPath": "$.audits_by_day[*].date",
+                  "name": "Date",
+                  "type": "time"
+                },
+                {
+                  "jsonPath": "$.audits_by_day[*].avg_quality_score",
+                  "name": "Quality Score",
+                  "type": "number"
+                }
+              ],
+              "method": "GET",
+              "refId": "A",
+              "urlPath": "/api/ai-audit/stats?days=${audit_days}"
+            }
+          ],
+          "title": "Quality Score Trend",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "marcusolsson-json-datasource",
+            "uid": "Backend-API"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
+              "max": 100,
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "#F2495C",
+                    "value": null
+                  },
+                  {
+                    "color": "#FF9830",
+                    "value": 50
+                  },
+                  {
+                    "color": "#73BF69",
+                    "value": 75
+                  }
+                ]
+              },
+              "unit": "percent"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 4,
+            "x": 8,
+            "y": 0
+          },
+          "id": 272,
+          "options": {
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": ["lastNotNull"],
+              "fields": "",
+              "values": false
+            },
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true
+          },
+          "pluginVersion": "10.2.3",
+          "targets": [
+            {
+              "datasource": {
+                "type": "marcusolsson-json-datasource",
+                "uid": "Backend-API"
+              },
+              "fields": [
+                {
+                  "jsonPath": "$.avg_enrichment_utilization",
+                  "name": "Enrichment Utilization",
+                  "type": "number"
+                }
+              ],
+              "method": "GET",
+              "refId": "A",
+              "urlPath": "/api/ai-audit/stats?days=${audit_days}"
+            }
+          ],
+          "title": "Enrichment Utilization",
+          "transformations": [
+            {
+              "id": "calculateField",
+              "options": {
+                "alias": "Percent",
+                "binary": {
+                  "left": "Enrichment Utilization",
+                  "operator": "*",
+                  "right": "100"
+                },
+                "mode": "binary",
+                "reduce": {
+                  "reducer": "sum"
+                },
+                "replaceFields": true
+              }
+            }
+          ],
+          "type": "gauge"
+        },
+        {
+          "datasource": {
+            "type": "marcusolsson-json-datasource",
+            "uid": "Backend-API"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
+              "max": 100,
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "#F2495C",
+                    "value": null
+                  },
+                  {
+                    "color": "#FF9830",
+                    "value": 70
+                  },
+                  {
+                    "color": "#73BF69",
+                    "value": 90
+                  }
+                ]
+              },
+              "unit": "percent"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 4,
+            "x": 12,
+            "y": 0
+          },
+          "id": 273,
+          "options": {
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": ["lastNotNull"],
+              "fields": "",
+              "values": false
+            },
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true
+          },
+          "pluginVersion": "10.2.3",
+          "targets": [
+            {
+              "datasource": {
+                "type": "marcusolsson-json-datasource",
+                "uid": "Backend-API"
+              },
+              "fields": [
+                {
+                  "jsonPath": "$.avg_consistency_rate",
+                  "name": "Consistency Rate",
+                  "type": "number"
+                }
+              ],
+              "method": "GET",
+              "refId": "A",
+              "urlPath": "/api/ai-audit/stats?days=${audit_days}"
+            }
+          ],
+          "title": "Consistency Rate",
+          "transformations": [
+            {
+              "id": "calculateField",
+              "options": {
+                "alias": "Percent",
+                "binary": {
+                  "left": "Consistency Rate",
+                  "operator": "*",
+                  "right": "100"
+                },
+                "mode": "binary",
+                "reduce": {
+                  "reducer": "sum"
+                },
+                "replaceFields": true
+              }
+            }
+          ],
+          "type": "gauge"
+        },
+        {
+          "datasource": {
+            "type": "marcusolsson-json-datasource",
+            "uid": "Backend-API"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "#F2495C",
+                    "value": null
+                  },
+                  {
+                    "color": "#FF9830",
+                    "value": 50
+                  },
+                  {
+                    "color": "#73BF69",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "percent"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 4,
+            "x": 16,
+            "y": 0
+          },
+          "id": 274,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "area",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": ["lastNotNull"],
+              "fields": "",
+              "values": false
+            },
+            "textMode": "auto"
+          },
+          "pluginVersion": "10.2.3",
+          "targets": [
+            {
+              "datasource": {
+                "type": "marcusolsson-json-datasource",
+                "uid": "Backend-API"
+              },
+              "fields": [
+                {
+                  "jsonPath": "$.fully_evaluated_events",
+                  "name": "Evaluated",
+                  "type": "number"
+                },
+                {
+                  "jsonPath": "$.total_events",
+                  "name": "Total",
+                  "type": "number"
+                }
+              ],
+              "method": "GET",
+              "refId": "A",
+              "urlPath": "/api/ai-audit/stats?days=${audit_days}"
+            }
+          ],
+          "title": "Audit Coverage",
+          "transformations": [
+            {
+              "id": "calculateField",
+              "options": {
+                "alias": "Coverage",
+                "binary": {
+                  "left": "Evaluated",
+                  "operator": "/",
+                  "right": "Total"
+                },
+                "mode": "binary",
+                "reduce": {
+                  "reducer": "sum"
+                },
+                "replaceFields": false
+              }
+            },
+            {
+              "id": "calculateField",
+              "options": {
+                "alias": "Coverage %",
+                "binary": {
+                  "left": "Coverage",
+                  "operator": "*",
+                  "right": "100"
+                },
+                "mode": "binary",
+                "reduce": {
+                  "reducer": "sum"
+                },
+                "replaceFields": true
+              }
+            }
+          ],
+          "type": "stat"
+        },
+        {
+          "datasource": {
+            "type": "marcusolsson-json-datasource",
+            "uid": "Backend-API"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Model"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 150
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Contribution"
+                },
+                "properties": [
+                  {
+                    "id": "custom.cellOptions",
+                    "value": {
+                      "mode": "gradient",
+                      "type": "gauge"
+                    }
+                  },
+                  {
+                    "id": "max",
+                    "value": 100
+                  },
+                  {
+                    "id": "min",
+                    "value": 0
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 4,
+            "x": 20,
+            "y": 0
+          },
+          "id": 275,
+          "options": {
+            "cellHeight": "sm",
+            "footer": {
+              "countRows": false,
+              "fields": "",
+              "reducer": ["sum"],
+              "show": false
+            },
+            "showHeader": true
+          },
+          "pluginVersion": "10.2.3",
+          "targets": [
+            {
+              "datasource": {
+                "type": "marcusolsson-json-datasource",
+                "uid": "Backend-API"
+              },
+              "fields": [
+                {
+                  "jsonPath": "$.audits_by_day[0].model_contributions[*].model",
+                  "name": "Model",
+                  "type": "string"
+                },
+                {
+                  "jsonPath": "$.audits_by_day[0].model_contributions[*].contribution",
+                  "name": "Contribution",
+                  "type": "number"
+                }
+              ],
+              "method": "GET",
+              "refId": "A",
+              "urlPath": "/api/ai-audit/stats?days=${audit_days}"
+            }
+          ],
+          "title": "Model Contributions",
+          "type": "table"
+        },
+        {
+          "datasource": {
+            "type": "marcusolsson-json-datasource",
+            "uid": "Backend-API"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Camera"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 120
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Score"
+                },
+                "properties": [
+                  {
+                    "id": "custom.cellOptions",
+                    "value": {
+                      "mode": "gradient",
+                      "type": "gauge"
+                    }
+                  },
+                  {
+                    "id": "max",
+                    "value": 100
+                  },
+                  {
+                    "id": "min",
+                    "value": 0
+                  },
+                  {
+                    "id": "thresholds",
+                    "value": {
+                      "mode": "absolute",
+                      "steps": [
+                        {
+                          "color": "#F2495C",
+                          "value": null
+                        },
+                        {
+                          "color": "#FF9830",
+                          "value": 50
+                        },
+                        {
+                          "color": "#73BF69",
+                          "value": 75
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 8
+          },
+          "id": 276,
+          "options": {
+            "cellHeight": "sm",
+            "footer": {
+              "countRows": false,
+              "fields": "",
+              "reducer": ["sum"],
+              "show": false
+            },
+            "showHeader": true,
+            "sortBy": [
+              {
+                "desc": true,
+                "displayName": "Score"
+              }
+            ]
+          },
+          "pluginVersion": "10.2.3",
+          "targets": [
+            {
+              "datasource": {
+                "type": "marcusolsson-json-datasource",
+                "uid": "Backend-API"
+              },
+              "fields": [
+                {
+                  "jsonPath": "$[*].camera",
+                  "name": "Camera",
+                  "type": "string"
+                },
+                {
+                  "jsonPath": "$[*].correlation_score",
+                  "name": "Score",
+                  "type": "number"
+                },
+                {
+                  "jsonPath": "$[*].total_events",
+                  "name": "Events",
+                  "type": "number"
+                },
+                {
+                  "jsonPath": "$[*].high_quality_rate",
+                  "name": "Quality Rate",
+                  "type": "number"
+                }
+              ],
+              "method": "GET",
+              "refId": "A",
+              "urlPath": "/api/ai-audit/leaderboard?days=${audit_days}"
+            }
+          ],
+          "title": "Quality Correlation Leaderboard",
+          "type": "table"
+        },
+        {
+          "datasource": {
+            "type": "marcusolsson-json-datasource",
+            "uid": "Backend-API"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisPlacement": "auto",
+                "fillOpacity": 80,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineWidth": 1,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 8
+          },
+          "id": 277,
+          "options": {
+            "barRadius": 0.1,
+            "barWidth": 0.6,
+            "groupWidth": 0.7,
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "orientation": "horizontal",
+            "showValue": "auto",
+            "stacking": "none",
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            },
+            "xTickLabelRotation": 0,
+            "xTickLabelSpacing": 0
+          },
+          "pluginVersion": "10.2.3",
+          "targets": [
+            {
+              "datasource": {
+                "type": "marcusolsson-json-datasource",
+                "uid": "Backend-API"
+              },
+              "fields": [
+                {
+                  "jsonPath": "$[*].recommendation",
+                  "name": "Recommendation",
+                  "type": "string"
+                },
+                {
+                  "jsonPath": "$[*].frequency",
+                  "name": "Frequency",
+                  "type": "number"
+                }
+              ],
+              "method": "GET",
+              "refId": "A",
+              "urlPath": "/api/ai-audit/recommendations?days=${audit_days}"
+            }
+          ],
+          "title": "Recommendation Frequency",
+          "type": "barchart"
+        }
+      ],
+      "title": "AI Quality & Audit",
+      "type": "row"
+    },
+    {
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 82
+      },
       "id": 50,
       "panels": [
         {
@@ -11548,7 +12316,26 @@
   "style": "dark",
   "tags": ["home-security", "operations", "monitoring"],
   "templating": {
-    "list": []
+    "list": [
+      {
+        "current": { "selected": true, "text": "7", "value": "7" },
+        "description": "Time period for AI audit statistics",
+        "hide": 0,
+        "includeAll": false,
+        "label": "Audit Period (days)",
+        "multi": false,
+        "name": "audit_days",
+        "options": [
+          { "selected": true, "text": "7", "value": "7" },
+          { "selected": false, "text": "14", "value": "14" },
+          { "selected": false, "text": "30", "value": "30" },
+          { "selected": false, "text": "90", "value": "90" }
+        ],
+        "query": "7,14,30,90",
+        "skipUrlSync": false,
+        "type": "custom"
+      }
+    ]
   },
   "time": {
     "from": "now-15m",

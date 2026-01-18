@@ -20925,24 +20925,6 @@
       "post": {
         "description": "Manually trigger orphaned file cleanup.\n\nScans camera upload directories for files that have no corresponding\ndatabase records and optionally deletes them.\n\nSECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.\nIf ADMIN_API_KEY is set, requires X-Admin-API-Key header.\n\nSafety features:\n- dry_run=True by default (no actual deletions)\n- min_age_hours threshold prevents deleting files being processed\n- max_delete_gb limits total deletion per run\n\nArgs:\n    request: Cleanup configuration (dry_run, min_age_hours, max_delete_gb)\n    http_request: FastAPI request for audit logging\n    _admin: Admin access validation (via dependency)\n\nReturns:\n    Summary of cleanup operation with statistics",
         "operationId": "cleanup_orphans_api_admin_cleanup_orphans_post",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "x-admin-api-key",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Admin-Api-Key"
-            }
-          }
-        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -20987,24 +20969,6 @@
       "post": {
         "description": "Seed test cameras into the database.\n\nSECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.\nIf ADMIN_API_KEY is set, requires X-Admin-API-Key header.\n\nArgs:\n    request: Seed configuration (count, clear_existing, create_folders)\n    db: Database session\n    _admin: Admin access validation (via dependency)\n\nReturns:\n    Summary of seeded cameras",
         "operationId": "seed_cameras_api_admin_seed_cameras_post",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "x-admin-api-key",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Admin-Api-Key"
-            }
-          }
-        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -21049,24 +21013,6 @@
       "delete": {
         "description": "Clear all seeded data (cameras, events, detections).\n\nSECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.\nIf ADMIN_API_KEY is set, requires X-Admin-API-Key header.\nRequires JSON body confirmation to prevent accidental data deletion:\n{\"confirm\": \"DELETE_ALL_DATA\"}\n\nArgs:\n    body: Request body with confirmation string\n    request: FastAPI request for audit logging\n    db: Database session\n    _admin: Admin access validation (via dependency)\n\nReturns:\n    Summary of cleared data counts\n\nRaises:\n    HTTPException: 400 if confirmation string is incorrect",
         "operationId": "clear_seeded_data_api_admin_seed_clear_delete",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "x-admin-api-key",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Admin-Api-Key"
-            }
-          }
-        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -21121,24 +21067,6 @@
       "post": {
         "description": "Seed mock events and detections into the database.\n\nSECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.\nIf ADMIN_API_KEY is set, requires X-Admin-API-Key header.\nRequires cameras to exist first.\n\nArgs:\n    request: Seed configuration (count, clear_existing)\n    db: Database session\n    _admin: Admin access validation (via dependency)\n\nReturns:\n    Summary of seeded events and detections",
         "operationId": "seed_events_api_admin_seed_events_post",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "x-admin-api-key",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Admin-Api-Key"
-            }
-          }
-        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -21186,24 +21114,6 @@
       "post": {
         "description": "Seed the pipeline latency tracker with mock historical data.\n\nThis populates the in-memory PipelineLatencyTracker with realistic\nlatency samples for UI testing and development. Data is distributed\nacross the specified time span with realistic variance.\n\nSECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.\nIf ADMIN_API_KEY is set, requires X-Admin-API-Key header.\n\nTypical latency ranges (ms):\n- watch_to_detect: 50-200ms (file processing + RT-DETR inference)\n- detect_to_batch: 10-50ms (detection aggregation)\n- batch_to_analyze: 5000-15000ms (Nemotron LLM analysis)\n- total_pipeline: 5100-15300ms (end-to-end)\n\nArgs:\n    request: Configuration for sample generation\n    _admin: Admin access validation (via dependency)\n\nReturns:\n    Summary of seeded latency data",
         "operationId": "seed_pipeline_latency_api_admin_seed_pipeline_latency_post",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "x-admin-api-key",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Admin-Api-Key"
-            }
-          }
-        ],
         "requestBody": {
           "content": {
             "application/json": {

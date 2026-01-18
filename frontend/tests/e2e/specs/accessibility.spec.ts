@@ -396,7 +396,7 @@ test.describe('Zones Page Accessibility', () => {
   });
 });
 
-test.describe('System Monitoring Page Accessibility', () => {
+test.describe('Operations Page Accessibility', () => {
   let systemPage: SystemPage;
 
   test.beforeEach(async ({ page }) => {
@@ -404,7 +404,7 @@ test.describe('System Monitoring Page Accessibility', () => {
     systemPage = new SystemPage(page);
   });
 
-  test('system monitoring page has no accessibility violations', async ({ page }) => {
+  test('operations page has no accessibility violations', async ({ page }) => {
     await systemPage.goto();
     await systemPage.waitForSystemLoad();
 

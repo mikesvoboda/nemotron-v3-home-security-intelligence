@@ -6,13 +6,9 @@ Tests the admin-only endpoints for seeding test data and maintenance:
 - DELETE /api/admin/seed/clear - Clear all data
 - POST /api/admin/cleanup/orphans - Orphan file cleanup
 
-All admin endpoints require:
-1. DEBUG=true
-2. ADMIN_ENABLED=true
-3. Optional API key validation with timing attack resistance
+Note: Admin access is always allowed (no authentication required for local deployment).
 
 These tests follow TDD methodology with comprehensive coverage of:
-- Security layer enforcement
 - Data seeding operations
 - Clear data confirmation requirements
 - Orphan cleanup safety features

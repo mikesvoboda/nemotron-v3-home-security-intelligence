@@ -1,7 +1,7 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
 import {
   AmbientStatusProvider,
@@ -62,8 +62,8 @@ const AIAuditPage = lazy(() =>
   import('./components/ai').then((module) => ({ default: module.AIAuditPage }))
 );
 
-// System monitoring
-const SystemMonitoringPage = lazy(() =>
+// Operations (formerly System Monitoring)
+const OperationsPage = lazy(() =>
   import('./components/system').then((module) => ({ default: module.SystemMonitoringPage }))
 );
 
@@ -107,7 +107,8 @@ export default function App() {
                           <Route path="/audit" element={<AuditLogPage />} />
                           <Route path="/ai" element={<AIPerformancePage />} />
                           <Route path="/ai-audit" element={<AIAuditPage />} />
-                          <Route path="/system" element={<SystemMonitoringPage />} />
+                          <Route path="/operations" element={<OperationsPage />} />
+                          <Route path="/system" element={<Navigate to="/operations" replace />} />
                           <Route path="/settings" element={<SettingsPage />} />
                           <Route path="/trash" element={<TrashPage />} />
                           <Route path="/dev-tools" element={<DeveloperToolsPage />} />
