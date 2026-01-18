@@ -62,9 +62,9 @@ This will:
 
 ### Development Tools
 
-| Script           | Purpose                                        |
-| ---------------- | ---------------------------------------------- |
-| `dev.sh`         | Start all development services                 |
+| Script                | Purpose                                        |
+| --------------------- | ---------------------------------------------- |
+| `dev.sh`              | Start all development services                 |
 | `seed-events.py` | Populate database with mock events and cameras |
 
 ## Usage Examples
