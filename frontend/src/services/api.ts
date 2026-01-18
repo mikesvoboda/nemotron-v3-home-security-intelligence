@@ -4753,16 +4753,19 @@ export interface EntityMatchQueryParams {
  * Searches for entities similar to the specified detection across all cameras.
  * Used to show re-ID matches in the EventDetailModal.
  *
+ * Returns null if no embedding exists for the detection (404 response),
+ * which is expected behavior for detections without re-ID embeddings.
+ *
  * @param detectionId - Detection ID to find matches for
  * @param params - Query parameters for filtering
  * @param options - Fetch options including AbortSignal
- * @returns EntityMatchResponse with matching entities sorted by similarity
+ * @returns EntityMatchResponse with matching entities, or null if no embedding exists
  */
 export async function fetchEntityMatches(
   detectionId: string,
   params?: EntityMatchQueryParams,
   options?: FetchOptions
-): Promise<EntityMatchResponse> {
+): Promise<EntityMatchResponse | null> {
   const queryParams = new URLSearchParams();
 
   if (params) {
@@ -4775,7 +4778,15 @@ export async function fetchEntityMatches(
     ? `/api/entities/matches/${encodeURIComponent(detectionId)}?${queryString}`
     : `/api/entities/matches/${encodeURIComponent(detectionId)}`;
 
-  return fetchApi<EntityMatchResponse>(endpoint, options);
+  try {
+    return await fetchApi<EntityMatchResponse>(endpoint, options);
+  } catch (error) {
+    // Return null for 404 (no embedding exists) - this is expected behavior
+    if (error instanceof ApiError && error.status === 404) {
+      return null;
+    }
+    throw error;
+  }
 }
 
 /**

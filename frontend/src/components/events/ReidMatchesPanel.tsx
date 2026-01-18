@@ -92,20 +92,16 @@ export default function ReidMatchesPanel({
     setError(null);
 
     try {
+      // fetchEntityMatches returns null for 404 (no embedding exists)
       const response = await fetchEntityMatches(String(detectionId), {
         entity_type: entityType,
       });
       setData(response);
+      // null response means no embedding exists - this is expected, not an error
     } catch (err) {
-      // 404 is expected when no embedding exists for this detection
-      if (err instanceof Error && err.message.includes('404')) {
-        setData(null);
-        setError(null); // Not an error, just no data
-      } else {
-        const message = err instanceof Error ? err.message : 'Failed to load matches';
-        setError(message);
-        setData(null);
-      }
+      const message = err instanceof Error ? err.message : 'Failed to load matches';
+      setError(message);
+      setData(null);
     } finally {
       setLoading(false);
     }
