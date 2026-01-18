@@ -1,8 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import DashboardLayout, { type WidgetProps } from './DashboardLayout';
 import { DEFAULT_WIDGETS, type DashboardConfig } from '../../stores/dashboardConfig';
 import { renderWithProviders, screen, waitFor } from '../../test-utils/renderWithProviders';
+
+// Base time for consistent testing
+const BASE_TIME = new Date('2024-01-15T10:00:00Z').getTime();
 
 // Mock framer-motion to avoid animation timing issues in tests
 vi.mock('framer-motion', () => ({
@@ -51,6 +54,9 @@ vi.mock('framer-motion', () => ({
 const mockStorage: Record<string, string> = {};
 
 beforeEach(() => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  vi.setSystemTime(BASE_TIME);
+
   Object.keys(mockStorage).forEach((key) => delete mockStorage[key]);
   vi.spyOn(Storage.prototype, 'getItem').mockImplementation(
     (key: string) => mockStorage[key] ?? null
@@ -61,6 +67,10 @@ beforeEach(() => {
   vi.spyOn(Storage.prototype, 'removeItem').mockImplementation((key: string) => {
     delete mockStorage[key];
   });
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 describe('DashboardLayout', () => {
@@ -103,7 +113,7 @@ describe('DashboardLayout', () => {
       events: [
         {
           id: 'event1',
-          timestamp: new Date().toISOString(),
+          timestamp: new Date(BASE_TIME).toISOString(),
           camera_name: 'Front Door',
           risk_score: 25,
           summary: 'Motion detected',

@@ -5,6 +5,9 @@ import ErrorBoundary, { clearErrorCache, clearBackendLoggedErrors } from './Erro
 import * as apiModule from '../../services/api';
 import * as sentryModule from '../../services/sentry';
 
+// Base time for consistent testing
+const BASE_TIME = new Date('2024-01-15T10:00:00Z').getTime();
+
 // Mock the Sentry module
 vi.mock('../../services/sentry', () => ({
   captureError: vi.fn(),
@@ -23,7 +26,7 @@ vi.mock('../../services/api', () => ({
     extra: {
       stack: error.stack,
       source: options?.source || 'error_boundary',
-      timestamp: new Date().toISOString(),
+      timestamp: '2024-01-15T10:00:00.000Z', // Use deterministic timestamp
       componentStack: options?.componentStack,
     },
   })),
@@ -41,12 +44,15 @@ describe('ErrorBoundary', () => {
   // Suppress console.error during tests to avoid noise
   const originalError = console.error;
   beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(BASE_TIME);
     console.error = vi.fn();
     // Clear error cache before each test to ensure test isolation
     clearErrorCache();
   });
   afterEach(() => {
     console.error = originalError;
+    vi.useRealTimers();
   });
 
   describe('normal rendering', () => {

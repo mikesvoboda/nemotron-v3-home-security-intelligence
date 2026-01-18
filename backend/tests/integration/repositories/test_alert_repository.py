@@ -1219,3 +1219,357 @@ class TestAlertRepositoryErrorHandling:
             alerts = await repo.get_by_rule_id("nonexistent_rule")
 
             assert len(alerts) == 0
+
+
+class TestAlertRepositoryPagination:
+    """Test pagination functionality for AlertRepository query methods."""
+
+    @pytest.mark.asyncio
+    async def test_get_by_event_id_pagination(self, test_db):
+        """Test pagination for get_by_event_id method."""
+        async with test_db() as session:
+            repo = AlertRepository(session)
+
+            # Create dependencies
+            camera = Camera(
+                id=unique_id("camera"),
+                name="Test Camera",
+                folder_path=f"/export/foscam/{unique_id('path')}",
+            )
+            session.add(camera)
+
+            event = Event(
+                camera_id=camera.id,
+                risk_score=75,
+                summary="Test event",
+                occurred_at=datetime.now(UTC),
+            )
+            session.add(event)
+            await session.flush()
+
+            # Create 5 alerts for the event
+            alert_ids = []
+            for i in range(5):
+                alert = Alert(
+                    id=unique_id(f"alert{i}"),
+                    event_id=event.id,
+                    severity=AlertSeverity.HIGH,
+                    status=AlertStatus.PENDING,
+                    dedup_key=f"test-{i}",
+                )
+                await repo.create(alert)
+                alert_ids.append(alert.id)
+
+            # Test default pagination returns all (limit=100)
+            all_alerts = await repo.get_by_event_id(event.id)
+            assert len(all_alerts) == 5
+
+            # Test with limit
+            limited = await repo.get_by_event_id(event.id, limit=2)
+            assert len(limited) == 2
+
+            # Test with offset
+            offset_alerts = await repo.get_by_event_id(event.id, limit=2, offset=2)
+            assert len(offset_alerts) == 2
+
+            # Test offset beyond results
+            empty = await repo.get_by_event_id(event.id, limit=2, offset=10)
+            assert len(empty) == 0
+
+    @pytest.mark.asyncio
+    async def test_get_by_rule_id_pagination(self, test_db):
+        """Test pagination for get_by_rule_id method."""
+        async with test_db() as session:
+            alert_repo = AlertRepository(session)
+            rule_repo = AlertRuleRepository(session)
+
+            # Create dependencies
+            camera = Camera(
+                id=unique_id("camera"),
+                name="Test Camera",
+                folder_path=f"/export/foscam/{unique_id('path')}",
+            )
+            session.add(camera)
+
+            event = Event(
+                camera_id=camera.id,
+                risk_score=75,
+                summary="Test event",
+                occurred_at=datetime.now(UTC),
+            )
+            session.add(event)
+            await session.flush()
+
+            # Create rule
+            rule = AlertRule(
+                id=unique_id("rule"),
+                name="Test Rule",
+                enabled=True,
+                severity=AlertSeverity.HIGH,
+            )
+            await rule_repo.create(rule)
+
+            # Create 5 alerts for the rule
+            for i in range(5):
+                alert = Alert(
+                    id=unique_id(f"alert{i}"),
+                    event_id=event.id,
+                    rule_id=rule.id,
+                    severity=AlertSeverity.HIGH,
+                    status=AlertStatus.PENDING,
+                    dedup_key=f"test-{i}",
+                )
+                await alert_repo.create(alert)
+
+            # Test default pagination
+            all_alerts = await alert_repo.get_by_rule_id(rule.id)
+            assert len(all_alerts) == 5
+
+            # Test with limit
+            limited = await alert_repo.get_by_rule_id(rule.id, limit=3)
+            assert len(limited) == 3
+
+            # Test with offset
+            offset_alerts = await alert_repo.get_by_rule_id(rule.id, limit=2, offset=3)
+            assert len(offset_alerts) == 2
+
+    @pytest.mark.asyncio
+    async def test_get_by_status_pagination(self, test_db):
+        """Test pagination for get_by_status method."""
+        async with test_db() as session:
+            repo = AlertRepository(session)
+
+            # Create dependencies
+            camera = Camera(
+                id=unique_id("camera"),
+                name="Test Camera",
+                folder_path=f"/export/foscam/{unique_id('path')}",
+            )
+            session.add(camera)
+
+            event = Event(
+                camera_id=camera.id,
+                risk_score=75,
+                summary="Test event",
+                occurred_at=datetime.now(UTC),
+            )
+            session.add(event)
+            await session.flush()
+
+            # Create 5 pending alerts
+            for i in range(5):
+                alert = Alert(
+                    id=unique_id(f"alert{i}"),
+                    event_id=event.id,
+                    severity=AlertSeverity.HIGH,
+                    status=AlertStatus.PENDING,
+                    dedup_key=f"test-pending-{i}",
+                )
+                await repo.create(alert)
+
+            # Test default pagination
+            all_pending = await repo.get_by_status(AlertStatus.PENDING)
+            assert len(all_pending) >= 5
+
+            # Test with limit
+            limited = await repo.get_by_status(AlertStatus.PENDING, limit=3)
+            assert len(limited) == 3
+
+            # Test with offset
+            offset_alerts = await repo.get_by_status(AlertStatus.PENDING, limit=2, offset=2)
+            assert len(offset_alerts) >= 2
+
+    @pytest.mark.asyncio
+    async def test_get_by_severity_pagination(self, test_db):
+        """Test pagination for get_by_severity method."""
+        async with test_db() as session:
+            repo = AlertRepository(session)
+
+            # Create dependencies
+            camera = Camera(
+                id=unique_id("camera"),
+                name="Test Camera",
+                folder_path=f"/export/foscam/{unique_id('path')}",
+            )
+            session.add(camera)
+
+            event = Event(
+                camera_id=camera.id,
+                risk_score=75,
+                summary="Test event",
+                occurred_at=datetime.now(UTC),
+            )
+            session.add(event)
+            await session.flush()
+
+            # Create 5 critical alerts
+            for i in range(5):
+                alert = Alert(
+                    id=unique_id(f"alert{i}"),
+                    event_id=event.id,
+                    severity=AlertSeverity.CRITICAL,
+                    status=AlertStatus.PENDING,
+                    dedup_key=f"test-critical-{i}",
+                )
+                await repo.create(alert)
+
+            # Test default pagination
+            all_critical = await repo.get_by_severity(AlertSeverity.CRITICAL)
+            assert len(all_critical) >= 5
+
+            # Test with limit
+            limited = await repo.get_by_severity(AlertSeverity.CRITICAL, limit=3)
+            assert len(limited) == 3
+
+            # Test with offset
+            offset_alerts = await repo.get_by_severity(AlertSeverity.CRITICAL, limit=2, offset=2)
+            assert len(offset_alerts) >= 2
+
+    @pytest.mark.asyncio
+    async def test_get_by_dedup_key_pagination(self, test_db):
+        """Test pagination for get_by_dedup_key method."""
+        async with test_db() as session:
+            repo = AlertRepository(session)
+
+            # Create dependencies
+            camera = Camera(
+                id=unique_id("camera"),
+                name="Test Camera",
+                folder_path=f"/export/foscam/{unique_id('path')}",
+            )
+            session.add(camera)
+
+            event = Event(
+                camera_id=camera.id,
+                risk_score=75,
+                summary="Test event",
+                occurred_at=datetime.now(UTC),
+            )
+            session.add(event)
+            await session.flush()
+
+            # Create 5 alerts with the same dedup key
+            dedup_key = unique_id("dedup")
+            for i in range(5):
+                alert = Alert(
+                    id=unique_id(f"alert{i}"),
+                    event_id=event.id,
+                    severity=AlertSeverity.HIGH,
+                    status=AlertStatus.PENDING,
+                    dedup_key=dedup_key,
+                )
+                await repo.create(alert)
+
+            # Test default pagination
+            all_alerts = await repo.get_by_dedup_key(dedup_key)
+            assert len(all_alerts) == 5
+
+            # Test with limit
+            limited = await repo.get_by_dedup_key(dedup_key, limit=3)
+            assert len(limited) == 3
+
+            # Test with offset
+            offset_alerts = await repo.get_by_dedup_key(dedup_key, limit=2, offset=2)
+            assert len(offset_alerts) == 2
+
+            # Test with since and pagination
+            since = datetime.now(UTC) - timedelta(hours=1)
+            recent = await repo.get_by_dedup_key(dedup_key, since=since, limit=2)
+            assert len(recent) == 2
+
+    @pytest.mark.asyncio
+    async def test_pagination_preserves_ordering(self, test_db):
+        """Test that pagination preserves the created_at desc ordering."""
+        async with test_db() as session:
+            repo = AlertRepository(session)
+
+            # Create dependencies
+            camera = Camera(
+                id=unique_id("camera"),
+                name="Test Camera",
+                folder_path=f"/export/foscam/{unique_id('path')}",
+            )
+            session.add(camera)
+
+            event = Event(
+                camera_id=camera.id,
+                risk_score=75,
+                summary="Test event",
+                occurred_at=datetime.now(UTC),
+            )
+            session.add(event)
+            await session.flush()
+
+            # Create alerts with different timestamps
+            base_time = datetime.now(UTC)
+            alert_ids = []
+            for i in range(5):
+                alert = Alert(
+                    id=unique_id(f"alert{i}"),
+                    event_id=event.id,
+                    severity=AlertSeverity.HIGH,
+                    status=AlertStatus.PENDING,
+                    dedup_key=f"test-order-{i}",
+                    created_at=base_time - timedelta(minutes=i),
+                )
+                await repo.create(alert)
+                alert_ids.append(alert.id)
+
+            # Get first page
+            page1 = await repo.get_by_event_id(event.id, limit=2, offset=0)
+            # Get second page
+            page2 = await repo.get_by_event_id(event.id, limit=2, offset=2)
+
+            # First page should have the most recent alerts
+            assert page1[0].id == alert_ids[0]  # Most recent
+            assert page1[1].id == alert_ids[1]
+
+            # Second page should have older alerts
+            assert page2[0].id == alert_ids[2]
+            assert page2[1].id == alert_ids[3]
+
+    @pytest.mark.asyncio
+    async def test_backward_compatibility_default_values(self, test_db):
+        """Test that existing callers work without providing pagination params."""
+        async with test_db() as session:
+            repo = AlertRepository(session)
+
+            # Create dependencies
+            camera = Camera(
+                id=unique_id("camera"),
+                name="Test Camera",
+                folder_path=f"/export/foscam/{unique_id('path')}",
+            )
+            session.add(camera)
+
+            event = Event(
+                camera_id=camera.id,
+                risk_score=75,
+                summary="Test event",
+                occurred_at=datetime.now(UTC),
+            )
+            session.add(event)
+            await session.flush()
+
+            # Create alert
+            alert = Alert(
+                id=unique_id("alert"),
+                event_id=event.id,
+                severity=AlertSeverity.HIGH,
+                status=AlertStatus.PENDING,
+                dedup_key="test",
+            )
+            await repo.create(alert)
+
+            # Call methods without pagination params (backward compatible)
+            by_event = await repo.get_by_event_id(event.id)
+            assert len(by_event) == 1
+
+            by_status = await repo.get_by_status(AlertStatus.PENDING)
+            assert len(by_status) >= 1
+
+            by_severity = await repo.get_by_severity(AlertSeverity.HIGH)
+            assert len(by_severity) >= 1
+
+            by_dedup = await repo.get_by_dedup_key("test")
+            assert len(by_dedup) == 1

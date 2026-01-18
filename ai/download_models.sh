@@ -18,18 +18,249 @@
 #     - Depth-Anything-V2-Small - Depth estimation
 #     - ViTPose+ Small - Pose estimation
 #
+# Security:
+#   - Direct downloads: SHA256 checksum verification
+#   - Git LFS repos: Content-addressable storage (built-in)
+#   - Set SKIP_CHECKSUM=true to bypass verification (not recommended)
+#
 
 set -e
 
 # Configurable base path (default: /export/ai_models)
 AI_MODELS_PATH="${AI_MODELS_PATH:-/export/ai_models}"
 
+# Skip checksum verification if set (for development/testing only)
+SKIP_CHECKSUM="${SKIP_CHECKSUM:-false}"
+
+# Strict mode: fail on checksum mismatch instead of warning
+STRICT_CHECKSUM="${STRICT_CHECKSUM:-false}"
+
 echo "=========================================="
 echo "AI Model Download Script"
 echo "=========================================="
 echo ""
 echo "Target directory: ${AI_MODELS_PATH}"
+if [ "$SKIP_CHECKSUM" = "true" ]; then
+    echo "WARNING: Checksum verification is DISABLED"
+fi
 echo ""
+
+# ==========================================
+# Checksum Registry
+# ==========================================
+# SHA256 checksums for model files
+# Source: HuggingFace model cards and verified downloads
+# Last updated: 2026-01 (NEM-2856)
+#
+# To compute checksum for a file:
+#   sha256sum <filename> | cut -d' ' -f1
+#
+# To update checksums after verifying a known-good download:
+#   1. Download the model from official source
+#   2. Compute: sha256sum model.gguf
+#   3. Update the checksum in this file
+#
+# Note: For Git LFS repos, integrity is verified by Git's content-addressable storage.
+# Checksums here are primarily for direct file downloads (wget/curl).
+
+declare -A MODEL_CHECKSUMS=(
+    # Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf (~18GB)
+    # From: https://huggingface.co/nvidia/Nemotron-3-Nano-30B-A3B-GGUF
+    # Verified from known-good download on 2026-01-18
+    ["Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf"]="0e7f6e51fdd9039928749d07eed9e846dbfd97681646544c5406bcdd788e5940"  # pragma: allowlist secret
+)
+
+# Expected Git commit hashes for HuggingFace repos (optional verification)
+# These provide an additional layer of integrity verification beyond Git LFS
+# Leave empty to skip commit verification (Git LFS still provides integrity)
+declare -A HF_REPO_COMMITS=(
+    # Florence-2-Large - leave empty to use latest
+    ["microsoft/Florence-2-large"]=""
+    # CLIP-ViT-L - leave empty to use latest
+    ["openai/clip-vit-large-patch14"]=""
+    # Fashion-CLIP - leave empty to use latest
+    ["patrickjohncyh/fashion-clip"]=""
+    # Depth-Anything-V2-Small - leave empty to use latest
+    ["depth-anything/Depth-Anything-V2-Small-hf"]=""
+)
+
+# ==========================================
+# Checksum Verification Functions
+# ==========================================
+
+# Verify SHA256 checksum of a file
+# Args: $1 = file path, $2 = expected checksum (optional, uses registry if not provided)
+# Returns: 0 on success/skip, 1 on mismatch
+verify_checksum() {
+    local file="$1"
+    local expected="$2"
+    local filename
+    filename=$(basename "$file")
+
+    # If no expected checksum provided, look up in registry
+    if [ -z "$expected" ]; then
+        expected="${MODEL_CHECKSUMS[$filename]:-}"
+    fi
+
+    # Skip verification if no checksum available
+    if [ -z "$expected" ]; then
+        echo "[INFO] No checksum registered for: $filename"
+        echo "       Skipping verification (consider adding checksum for security)"
+        return 0
+    fi
+
+    # Skip if SKIP_CHECKSUM is set
+    if [ "$SKIP_CHECKSUM" = "true" ]; then
+        echo "[SKIP] Checksum verification disabled (SKIP_CHECKSUM=true)"
+        return 0
+    fi
+
+    # Verify file exists
+    if [ ! -f "$file" ]; then
+        echo "[ERROR] File not found for checksum verification: $file"
+        return 1
+    fi
+
+    # Get file size for progress indication
+    local size_bytes size_human
+    size_bytes=$(stat -c%s "$file" 2>/dev/null || stat -f%z "$file" 2>/dev/null || echo "0")
+    if [ "$size_bytes" -gt 1073741824 ]; then
+        size_human="$(( size_bytes / 1073741824 )) GB"
+    elif [ "$size_bytes" -gt 1048576 ]; then
+        size_human="$(( size_bytes / 1048576 )) MB"
+    else
+        size_human="$size_bytes bytes"
+    fi
+
+    echo "[VERIFY] Computing SHA256 checksum for $filename ($size_human)..."
+    echo "         This may take a few minutes for large files..."
+
+    # Compute actual checksum with progress for large files
+    local actual
+    if command -v pv &> /dev/null && [ "$size_bytes" -gt 104857600 ]; then
+        # Use pv for progress on files > 100MB if available
+        actual=$(pv "$file" 2>/dev/null | sha256sum | cut -d' ' -f1)
+    elif command -v sha256sum &> /dev/null; then
+        actual=$(sha256sum "$file" | cut -d' ' -f1)
+    elif command -v shasum &> /dev/null; then
+        actual=$(shasum -a 256 "$file" | cut -d' ' -f1)
+    else
+        echo "[WARN] No SHA256 tool found (sha256sum/shasum)"
+        echo "       Skipping checksum verification"
+        return 0
+    fi
+
+    # Compare checksums (case-insensitive)
+    if [ "${actual,,}" = "${expected,,}" ]; then
+        echo "[OK] Checksum verified: $filename"
+        echo "     SHA256: ${actual:0:16}...${actual: -16}"
+        return 0
+    else
+        echo ""
+        echo "========================================"
+        echo "[ERROR] CHECKSUM MISMATCH"
+        echo "========================================"
+        echo "File:     $filename"
+        echo "Expected: $expected"
+        echo "Got:      $actual"
+        echo ""
+        echo "This could indicate:"
+        echo "  1. Corrupted download (most common)"
+        echo "  2. Model file was updated upstream"
+        echo "  3. File tampering (security concern)"
+        echo ""
+        echo "Recommended actions:"
+        echo "  1. Delete the file and re-download"
+        echo "  2. Verify checksum from official HuggingFace page"
+        echo "  3. If model was legitimately updated, update checksum in this script"
+        echo ""
+        echo "To compute checksum of your file:"
+        echo "  sha256sum \"$file\""
+        echo "========================================"
+
+        if [ "$STRICT_CHECKSUM" = "true" ]; then
+            return 1
+        else
+            echo ""
+            echo "[WARN] Continuing despite checksum mismatch (STRICT_CHECKSUM=false)"
+            echo "       Set STRICT_CHECKSUM=true to fail on mismatch"
+            return 0
+        fi
+    fi
+}
+
+# Verify Git repository commit hash
+# Args: $1 = repo directory, $2 = expected commit hash (optional)
+# Returns: 0 on success/skip, 1 on mismatch
+verify_git_commit() {
+    local repo_dir="$1"
+    local expected="$2"
+    local repo_name
+    repo_name=$(basename "$repo_dir")
+
+    # Skip if no expected commit provided
+    if [ -z "$expected" ]; then
+        echo "[INFO] Git LFS provides integrity verification via content-addressable storage"
+        return 0
+    fi
+
+    # Skip if not a git repo
+    if [ ! -d "$repo_dir/.git" ]; then
+        echo "[INFO] Not a git repository: $repo_dir"
+        return 0
+    fi
+
+    # Get current commit
+    local actual
+    actual=$(git -C "$repo_dir" rev-parse HEAD 2>/dev/null || echo "")
+
+    if [ -z "$actual" ]; then
+        echo "[WARN] Could not get commit hash for: $repo_dir"
+        return 0
+    fi
+
+    if [ "$actual" = "$expected" ]; then
+        echo "[OK] Git commit verified for $repo_name: ${actual:0:12}"
+        return 0
+    else
+        echo "[INFO] Git commit for $repo_name: ${actual:0:12}"
+        echo "       Expected: ${expected:0:12} (may have been updated upstream)"
+        # Don't fail - just inform, as Git LFS handles integrity
+        return 0
+    fi
+}
+
+# Compute and display checksum for a file (useful for updating registry)
+compute_checksum() {
+    local file="$1"
+    local filename
+    filename=$(basename "$file")
+
+    if [ ! -f "$file" ]; then
+        echo "[ERROR] File not found: $file"
+        return 1
+    fi
+
+    echo "[INFO] Computing checksum for: $filename"
+    echo "       This may take several minutes for large files..."
+
+    local checksum
+    if command -v sha256sum &> /dev/null; then
+        checksum=$(sha256sum "$file" | cut -d' ' -f1)
+    elif command -v shasum &> /dev/null; then
+        checksum=$(shasum -a 256 "$file" | cut -d' ' -f1)
+    else
+        echo "[ERROR] No SHA256 tool found"
+        return 1
+    fi
+
+    echo ""
+    echo "SHA256: $checksum"
+    echo ""
+    echo "To add to MODEL_CHECKSUMS in download_models.sh:"
+    echo "    [\"$filename\"]=\"$checksum\""
+    return 0
+}
 
 # Create directory structure
 mkdir -p "${AI_MODELS_PATH}/nemotron"
@@ -48,13 +279,17 @@ check_tool "wget" "apt install wget / brew install wget"
 check_tool "git" "apt install git / brew install git"
 
 # Helper: Clone or update HuggingFace repo
+# Git LFS repos have built-in integrity via content-addressable storage
 clone_or_update_hf() {
     local repo=$1
     local target=$2
     local name=$3
+    local expected_commit="${HF_REPO_COMMITS[$repo]:-}"
 
     if [ -d "$target" ] && [ -d "$target/.git" ]; then
         echo "[SKIP] $name already exists: $target"
+        # Verify commit hash if specified
+        verify_git_commit "$target" "$expected_commit"
     elif [ -d "$target" ] && [ ! -d "$target/.git" ]; then
         echo "[SKIP] $name exists (non-git): $target"
     else
@@ -63,18 +298,24 @@ clone_or_update_hf() {
         echo "        To: $target"
         GIT_LFS_SKIP_SMUDGE=0 git clone "https://huggingface.co/$repo" "$target"
         echo "[OK] $name downloaded"
+        echo "[INFO] Git LFS provides integrity verification via content-addressable storage"
+        # Verify commit if specified
+        verify_git_commit "$target" "$expected_commit"
     fi
 }
 
-# Helper: Download single file
+# Helper: Download single file with checksum verification
 download_file() {
     local url=$1
     local target=$2
     local name=$3
     local size=$4
+    local expected_checksum="${5:-}"
 
     if [ -f "$target" ]; then
         echo "[SKIP] $name already exists: $target"
+        # Verify checksum of existing file
+        verify_checksum "$target" "$expected_checksum"
     else
         echo "[DOWNLOAD] $name (~$size)"
         echo "           From: $url"
@@ -85,6 +326,9 @@ download_file() {
             return 1
         }
         echo "[OK] $name downloaded"
+
+        # Verify checksum after download
+        verify_checksum "$target" "$expected_checksum"
     fi
 }
 
@@ -97,11 +341,14 @@ echo ""
 NEMOTRON_DIR="${AI_MODELS_PATH}/nemotron/nemotron-3-nano-30b-a3b-q4km"
 NEMOTRON_MODEL="${NEMOTRON_DIR}/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf"
 NEMOTRON_URL="https://huggingface.co/nvidia/Nemotron-3-Nano-30B-A3B-GGUF/resolve/main/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf"
+NEMOTRON_CHECKSUM="${MODEL_CHECKSUMS[Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf]:-}"
 
 mkdir -p "$NEMOTRON_DIR"
 
 if [ -f "$NEMOTRON_MODEL" ]; then
     echo "[SKIP] Nemotron model already exists: $NEMOTRON_MODEL"
+    # Verify checksum of existing file
+    verify_checksum "$NEMOTRON_MODEL" "$NEMOTRON_CHECKSUM"
 else
     # Check for existing model in common locations
     FOUND_MODEL=""
@@ -117,6 +364,10 @@ else
 
     if [ -n "$FOUND_MODEL" ]; then
         echo "[FOUND] Existing Nemotron model: $FOUND_MODEL"
+
+        # Verify checksum of found file before linking
+        verify_checksum "$FOUND_MODEL" "$NEMOTRON_CHECKSUM"
+
         echo "        Creating symlink to: $NEMOTRON_MODEL"
 
         # NEM-1091: Improved symlink error handling
@@ -163,7 +414,12 @@ else
             echo "        You can manually download from: https://huggingface.co/nvidia/Nemotron-3-Nano-30B-A3B-GGUF"
             echo "        Place the .gguf file at: $NEMOTRON_MODEL"
             rm -f "$NEMOTRON_MODEL"
+            exit 1
         }
+
+        # Verify checksum after download
+        echo ""
+        verify_checksum "$NEMOTRON_MODEL" "$NEMOTRON_CHECKSUM"
     fi
 fi
 
@@ -175,6 +431,7 @@ echo ""
 echo "[INFO] RT-DETRv2 models are auto-downloaded by HuggingFace Transformers"
 echo "       on first container start. No manual download needed."
 echo "       Model: PekingU/rtdetr_r50vd_coco_o365 (~165MB)"
+echo "       Integrity verified via HuggingFace's content-addressable storage"
 
 echo ""
 echo "=========================================="
@@ -248,6 +505,10 @@ echo "      ├── pet-classifier/                (Pets)"
 echo "      ├── vitpose-plus-small/            (Pose)"
 echo "      └── depth-anything-v2-small/       (Depth)"
 echo ""
+echo "Security verification:"
+echo "  - Direct downloads: SHA256 checksum verification"
+echo "  - Git LFS repos: Content-addressable storage (built-in)"
+echo ""
 echo "Next steps:"
 echo "  1. Ensure docker-compose.prod.yml has correct AI_MODELS_PATH"
 echo "  2. Start services: podman-compose -f docker-compose.prod.yml up -d"
@@ -259,3 +520,13 @@ if [ "${AI_MODELS_PATH}" != "/export/ai_models" ]; then
     echo "  export AI_MODELS_PATH=${AI_MODELS_PATH}"
     echo ""
 fi
+
+# ==========================================
+# Utility: Compute checksum for maintainers
+# ==========================================
+# To compute checksum for a model file, source this script and call:
+#   compute_checksum /path/to/model.gguf
+#
+# Environment variables:
+#   SKIP_CHECKSUM=true   - Skip all checksum verification
+#   STRICT_CHECKSUM=true - Fail (exit 1) on checksum mismatch

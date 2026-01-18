@@ -2,12 +2,15 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type ReactNode } from 'react';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import AuditLogPage from './AuditLogPage';
 import * as api from '../../services/api';
 
 import type { AuditLogListResponse, AuditLogStats } from '../../services/api';
+
+// Base time for consistent testing (2024-01-15T10:00:00Z)
+const BASE_TIME = new Date('2024-01-15T10:00:00Z').getTime();
 
 // Mock API module
 vi.mock('../../services/api');
@@ -105,9 +108,15 @@ describe('AuditLogPage', () => {
   };
 
   beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(BASE_TIME);
     vi.clearAllMocks();
     vi.mocked(api.fetchAuditLogs).mockResolvedValue(mockAuditResponse);
     vi.mocked(api.fetchAuditStats).mockResolvedValue(mockStats);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   describe('Rendering', () => {
@@ -320,8 +329,8 @@ describe('AuditLogPage', () => {
       expect(todayCard).toBeInTheDocument();
       await user.click(todayCard!);
 
-      // Get today's date in YYYY-MM-DD format
-      const today = new Date().toISOString().split('T')[0];
+      // Get today's date in YYYY-MM-DD format (using mocked system time)
+      const today = '2024-01-15'; // BASE_TIME date
 
       // Verify the API was called with date filters for today
       await waitFor(() => {

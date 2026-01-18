@@ -31,8 +31,10 @@ RUN apk add --no-cache wget
 # Copy package files and install ALL dependencies (including devDependencies)
 # DevDependencies are needed for: TypeScript (tsc), Vite, testing tools
 # Use --legacy-peer-deps for React 19 + Tremor (requires React 18) compatibility
+# Rebuild native modules for the current platform (required for ARM64/musl)
+# This ensures Rollup's platform-specific binaries are properly installed
 COPY package*.json ./
-RUN npm ci --legacy-peer-deps
+RUN npm ci --legacy-peer-deps && npm rebuild
 
 # =============================================================================
 # Development target: Vite dev server with hot reload
