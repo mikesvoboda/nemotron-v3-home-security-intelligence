@@ -309,7 +309,12 @@ services:
       resources:
         limits:
           cpus: '2'
-          memory: 2G
+          memory: 4G
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
 
   redis:
     image: redis:7.4-alpine3.21

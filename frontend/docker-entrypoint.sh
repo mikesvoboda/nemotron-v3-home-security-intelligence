@@ -87,11 +87,12 @@ HTTP_LOCATIONS='
 # =============================================================================
 # When SSL is enabled, HTTP traffic is redirected to HTTPS.
 # The health check endpoint is exempted (it has higher priority with exact match).
+HTTPS_REDIRECT_PORT="${FRONTEND_HTTPS_PORT:-8443}"
 HTTPS_REDIRECT='
     # Redirect all HTTP traffic to HTTPS
     # The health check endpoint (location = /health) has higher priority and is not affected
     location / {
-        return 301 https://$host:8443$request_uri;
+        return 301 https://$host:'"${HTTPS_REDIRECT_PORT}"'$request_uri;
     }
 '
 

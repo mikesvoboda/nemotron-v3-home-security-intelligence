@@ -2490,3 +2490,143 @@ class WebSocketAckMessage(BaseModel):
             }
         }
     )
+
+
+# =============================================================================
+# Infrastructure Alert Messages (Alertmanager Webhooks)
+# =============================================================================
+
+
+class WebSocketInfrastructureAlertSeverity(StrEnum):
+    """Severity levels for infrastructure alerts from Alertmanager."""
+
+    INFO = auto()
+    WARNING = auto()
+    HIGH = auto()
+    CRITICAL = auto()
+
+
+class WebSocketInfrastructureAlertStatus(StrEnum):
+    """Status of infrastructure alerts."""
+
+    FIRING = auto()
+    RESOLVED = auto()
+
+
+class WebSocketInfrastructureAlertData(BaseModel):
+    """Data payload for infrastructure alert messages.
+
+    Infrastructure alerts come from Prometheus/Alertmanager and represent
+    system health issues (GPU memory, database connections, pipeline health, etc.)
+    separate from AI-generated security alerts.
+    """
+
+    alertname: str = Field(..., description="Name of the alert (e.g., HSIGPUMemoryHigh)")
+    status: WebSocketInfrastructureAlertStatus = Field(..., description="Alert status")
+    severity: WebSocketInfrastructureAlertSeverity = Field(
+        default=WebSocketInfrastructureAlertSeverity.INFO,
+        description="Alert severity level",
+    )
+    component: str = Field(
+        default="unknown", description="Infrastructure component (gpu, database, redis)"
+    )
+    summary: str = Field(default="", description="Brief alert summary")
+    description: str = Field(default="", description="Detailed alert description")
+    started_at: str | None = Field(None, description="ISO 8601 timestamp when alert started firing")
+    fingerprint: str = Field(..., description="Unique alert fingerprint for deduplication")
+    receiver: str = Field(default="default", description="Alertmanager receiver that matched")
+
+    @field_validator("severity", mode="before")
+    @classmethod
+    def validate_severity(
+        cls, v: str | WebSocketInfrastructureAlertSeverity
+    ) -> WebSocketInfrastructureAlertSeverity:
+        """Validate and convert severity to enum."""
+        if isinstance(v, WebSocketInfrastructureAlertSeverity):
+            return v
+        if isinstance(v, str):
+            try:
+                return WebSocketInfrastructureAlertSeverity(v.lower())
+            except ValueError:
+                # Default to INFO for unknown severities
+                return WebSocketInfrastructureAlertSeverity.INFO
+        return WebSocketInfrastructureAlertSeverity.INFO
+
+    @field_validator("status", mode="before")
+    @classmethod
+    def validate_status(
+        cls, v: str | WebSocketInfrastructureAlertStatus
+    ) -> WebSocketInfrastructureAlertStatus:
+        """Validate and convert status to enum."""
+        if isinstance(v, WebSocketInfrastructureAlertStatus):
+            return v
+        if isinstance(v, str):
+            try:
+                return WebSocketInfrastructureAlertStatus(v.lower())
+            except ValueError:
+                valid_values = [s.value for s in WebSocketInfrastructureAlertStatus]
+                raise ValueError(f"Invalid status '{v}'. Must be one of: {valid_values}") from None
+        raise ValueError(f"status must be a string or enum, got {type(v)}")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "alertname": "HSIGPUMemoryHigh",
+                "status": "firing",
+                "severity": "warning",
+                "component": "gpu",
+                "summary": "GPU memory usage is high",
+                "description": "GPU memory usage is above 90% for 5 minutes",
+                "started_at": "2026-01-17T12:22:56Z",
+                "fingerprint": "abc123def456",  # pragma: allowlist secret
+                "receiver": "critical-receiver",
+            }
+        }
+    )
+
+
+class WebSocketInfrastructureAlertMessage(BaseModel):
+    """Complete infrastructure alert message envelope.
+
+    This is the format for infrastructure alerts broadcast via WebSocket,
+    originating from Prometheus Alertmanager webhooks.
+
+    Format:
+        {
+            "type": "infrastructure_alert",
+            "data": {
+                "alertname": "HSIGPUMemoryHigh",
+                "status": "firing",
+                "severity": "warning",
+                "component": "gpu",
+                ...
+            }
+        }
+    """
+
+    type: Literal["infrastructure_alert"] = Field(
+        default="infrastructure_alert",
+        description="Message type, always 'infrastructure_alert'",
+    )
+    data: WebSocketInfrastructureAlertData = Field(
+        ..., description="Infrastructure alert data payload"
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "type": "infrastructure_alert",
+                "data": {
+                    "alertname": "HSIGPUMemoryHigh",
+                    "status": "firing",
+                    "severity": "warning",
+                    "component": "gpu",
+                    "summary": "GPU memory usage is high",
+                    "description": "GPU memory usage is above 90%",
+                    "started_at": "2026-01-17T12:22:56Z",
+                    "fingerprint": "abc123def456",  # pragma: allowlist secret
+                    "receiver": "critical-receiver",
+                },
+            }
+        }
+    )

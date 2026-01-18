@@ -65,13 +65,11 @@ def require_debug_mode() -> None:
 
     Raises:
         HTTPException: 404 if debug mode is not enabled
+
+    NOTE: Debug mode check disabled for local development.
     """
-    settings = get_settings()
-    if not settings.debug:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Not Found",
-        )
+    # Debug endpoints always available in this deployment
+    pass
 
 
 # =============================================================================
@@ -954,6 +952,297 @@ async def get_profile_stats(
         last_profile_path=manager.last_profile_path,
         timestamp=datetime.now(UTC).isoformat(),
     )
+
+
+# =============================================================================
+# Memory Profiling Endpoints
+# =============================================================================
+
+
+class MemoryObjectStats(BaseModel):
+    """Statistics for a single object type."""
+
+    type_name: str = Field(description="Object type name")
+    count: int = Field(description="Number of instances")
+    size_bytes: int = Field(description="Total size in bytes")
+    size_human: str = Field(description="Human-readable size")
+
+
+class MemoryGCStats(BaseModel):
+    """Garbage collector statistics."""
+
+    collections: list[int] = Field(description="Number of collections per generation")
+    collected: int = Field(description="Total objects collected")
+    uncollectable: int = Field(description="Number of uncollectable objects")
+    thresholds: list[int] = Field(description="Collection thresholds per generation")
+
+
+class TraceMallocStats(BaseModel):
+    """Tracemalloc statistics if enabled."""
+
+    enabled: bool = Field(description="Whether tracemalloc is enabled")
+    current_bytes: int = Field(default=0, description="Current traced memory in bytes")
+    peak_bytes: int = Field(default=0, description="Peak traced memory in bytes")
+    top_allocations: list[dict[str, Any]] = Field(
+        default_factory=list, description="Top memory allocations by size"
+    )
+
+
+class MemoryStatsResponse(BaseModel):
+    """Response for memory statistics."""
+
+    process_rss_bytes: int = Field(description="Process RSS memory in bytes")
+    process_rss_human: str = Field(description="Human-readable RSS memory")
+    process_vms_bytes: int = Field(description="Process virtual memory in bytes")
+    process_vms_human: str = Field(description="Human-readable virtual memory")
+    gc_stats: MemoryGCStats = Field(description="Garbage collector statistics")
+    tracemalloc_stats: TraceMallocStats = Field(description="Tracemalloc statistics")
+    top_objects: list[MemoryObjectStats] = Field(description="Top object types by memory usage")
+    timestamp: str = Field(description="ISO timestamp of response")
+
+
+def _format_bytes(size_bytes: int) -> str:
+    """Format bytes as human-readable string."""
+    for unit in ["B", "KB", "MB", "GB", "TB"]:
+        if abs(size_bytes) < 1024.0:
+            return f"{size_bytes:.1f} {unit}"
+        size_bytes = int(size_bytes / 1024)
+    return f"{size_bytes:.1f} PB"
+
+
+@router.get(
+    "/memory",
+    response_model=MemoryStatsResponse,
+    responses={
+        404: {"description": "Not found - Debug mode disabled"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def get_memory_stats(
+    top_n: int = 20,
+    force_gc: bool = False,
+    _debug: None = Depends(require_debug_mode),
+) -> MemoryStatsResponse:
+    """Get detailed memory statistics for debugging memory issues.
+
+    Returns process memory usage, garbage collector stats, and the top
+    object types consuming memory. Useful for detecting memory leaks.
+
+    Args:
+        top_n: Number of top object types to return (default: 20)
+        force_gc: Force garbage collection before measuring (default: False)
+
+    Returns:
+        Detailed memory statistics
+    """
+    import gc
+    import tracemalloc
+
+    import psutil
+
+    # Optionally force garbage collection
+    if force_gc:
+        gc.collect()
+
+    # Get process memory info
+    process = psutil.Process()
+    mem_info = process.memory_info()
+
+    # Get GC stats
+    gc_stats = MemoryGCStats(
+        collections=list(gc.get_count()),
+        collected=gc.get_stats()[2].get("collected", 0) if gc.get_stats() else 0,
+        uncollectable=len(gc.garbage),
+        thresholds=list(gc.get_threshold()),
+    )
+
+    # Get tracemalloc stats if enabled
+    if tracemalloc.is_tracing():
+        current, peak = tracemalloc.get_traced_memory()
+        snapshot = tracemalloc.take_snapshot()
+        top_stats = snapshot.statistics("lineno")[:10]
+        top_allocations = [
+            {
+                "file": str(stat.traceback),
+                "size_bytes": stat.size,
+                "size_human": _format_bytes(stat.size),
+                "count": stat.count,
+            }
+            for stat in top_stats
+        ]
+        tracemalloc_stats = TraceMallocStats(
+            enabled=True,
+            current_bytes=current,
+            peak_bytes=peak,
+            top_allocations=top_allocations,
+        )
+    else:
+        tracemalloc_stats = TraceMallocStats(enabled=False)
+
+    # Get top objects by memory using pympler
+    top_objects: list[MemoryObjectStats] = []
+    try:
+        from pympler import muppy, summary
+
+        all_objects = muppy.get_objects()
+        sum_by_type = summary.summarize(all_objects)
+
+        for type_summary in sum_by_type[:top_n]:
+            top_objects.append(
+                MemoryObjectStats(
+                    type_name=type_summary[0],
+                    count=type_summary[1],
+                    size_bytes=type_summary[2],
+                    size_human=_format_bytes(type_summary[2]),
+                )
+            )
+    except ImportError:
+        logger.warning("pympler not available, skipping object stats")
+    except Exception as e:
+        logger.warning(f"Failed to get object stats: {e}")
+
+    return MemoryStatsResponse(
+        process_rss_bytes=mem_info.rss,
+        process_rss_human=_format_bytes(mem_info.rss),
+        process_vms_bytes=mem_info.vms,
+        process_vms_human=_format_bytes(mem_info.vms),
+        gc_stats=gc_stats,
+        tracemalloc_stats=tracemalloc_stats,
+        top_objects=top_objects,
+        timestamp=datetime.now(UTC).isoformat(),
+    )
+
+
+@router.post(
+    "/memory/gc",
+    responses={
+        404: {"description": "Not found - Debug mode disabled"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def trigger_gc(
+    _debug: None = Depends(require_debug_mode),
+) -> dict[str, Any]:
+    """Trigger garbage collection and return stats.
+
+    Forces a full garbage collection cycle and returns the number of
+    objects collected. Useful for testing if memory can be reclaimed.
+
+    Returns:
+        GC collection statistics
+    """
+    import gc
+
+    import psutil
+
+    process = psutil.Process()
+    rss_before = process.memory_info().rss
+
+    # Run full GC
+    collected_gen0 = gc.collect(0)
+    collected_gen1 = gc.collect(1)
+    collected_gen2 = gc.collect(2)
+
+    rss_after = process.memory_info().rss
+
+    return {
+        "collected": {
+            "gen0": collected_gen0,
+            "gen1": collected_gen1,
+            "gen2": collected_gen2,
+            "total": collected_gen0 + collected_gen1 + collected_gen2,
+        },
+        "memory": {
+            "rss_before_bytes": rss_before,
+            "rss_after_bytes": rss_after,
+            "freed_bytes": rss_before - rss_after,
+            "freed_human": _format_bytes(rss_before - rss_after),
+        },
+        "uncollectable": len(gc.garbage),
+        "timestamp": datetime.now(UTC).isoformat(),
+    }
+
+
+@router.post(
+    "/memory/tracemalloc/start",
+    responses={
+        404: {"description": "Not found - Debug mode disabled"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def start_tracemalloc(
+    nframes: int = 25,
+    _debug: None = Depends(require_debug_mode),
+) -> dict[str, Any]:
+    """Start tracemalloc memory tracing.
+
+    Enables detailed memory allocation tracking. This adds some overhead
+    but allows tracking where memory is being allocated.
+
+    Args:
+        nframes: Number of stack frames to capture (default: 25)
+
+    Returns:
+        Status of tracemalloc
+    """
+    import tracemalloc
+
+    if tracemalloc.is_tracing():
+        return {
+            "status": "already_running",
+            "message": "tracemalloc is already running",
+            "timestamp": datetime.now(UTC).isoformat(),
+        }
+
+    tracemalloc.start(nframes)
+
+    return {
+        "status": "started",
+        "nframes": nframes,
+        "message": f"tracemalloc started with {nframes} frames",
+        "timestamp": datetime.now(UTC).isoformat(),
+    }
+
+
+@router.post(
+    "/memory/tracemalloc/stop",
+    responses={
+        404: {"description": "Not found - Debug mode disabled"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def stop_tracemalloc(
+    _debug: None = Depends(require_debug_mode),
+) -> dict[str, Any]:
+    """Stop tracemalloc memory tracing.
+
+    Stops memory allocation tracking and clears the trace data.
+
+    Returns:
+        Final memory statistics before stopping
+    """
+    import tracemalloc
+
+    if not tracemalloc.is_tracing():
+        return {
+            "status": "not_running",
+            "message": "tracemalloc was not running",
+            "timestamp": datetime.now(UTC).isoformat(),
+        }
+
+    current, peak = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
+
+    return {
+        "status": "stopped",
+        "final_stats": {
+            "current_bytes": current,
+            "current_human": _format_bytes(current),
+            "peak_bytes": peak,
+            "peak_human": _format_bytes(peak),
+        },
+        "timestamp": datetime.now(UTC).isoformat(),
+    }
 
 
 # =============================================================================

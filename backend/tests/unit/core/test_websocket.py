@@ -40,6 +40,7 @@ class MockEventBroadcaster:
     - broadcast_scene_change(scene_change_data) -> int
     - broadcast_camera_status(camera_status_data) -> int
     - broadcast_alert(alert_data, event_type) -> int
+    - broadcast_infrastructure_alert(alert_data) -> int
     - broadcast_worker_status(worker_status_data) -> int (NEM-2461)
     - broadcast_detection_new(detection_data) -> int (NEM-2506)
     - broadcast_detection_batch(batch_data) -> int (NEM-2506)
@@ -273,6 +274,30 @@ class MockEventBroadcaster:
         message_type = type_mapping.get(str(event_type).lower().split(".")[-1], "alert")
 
         message = {"type": message_type, "data": alert_data}
+        self.messages.append(message)
+        count = 0
+        for connection in self._connections:
+            try:
+                await connection.send_json(message)
+                count += 1
+            except Exception:  # Intentionally ignore send failures
+                pass
+        return count
+
+    async def broadcast_infrastructure_alert(self, alert_data: dict[str, Any]) -> int:
+        """Broadcast an infrastructure alert to all connected WebSocket clients.
+
+        Infrastructure alerts originate from Prometheus/Alertmanager webhooks and represent
+        system health issues (GPU memory, database connections, pipeline health, etc.)
+        separate from AI-generated security alerts.
+
+        Args:
+            alert_data: Infrastructure alert data dictionary
+
+        Returns:
+            Number of clients that received the message
+        """
+        message = {"type": "infrastructure_alert", "data": alert_data}
         self.messages.append(message)
         count = 0
         for connection in self._connections:

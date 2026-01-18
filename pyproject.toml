@@ -20,10 +20,12 @@ dependencies = [
     "watchdog>=6.0.0",
     # Image processing
     "pillow>=11.0.0",
-    # GPU monitoring
-    "nvidia-ml-py>=12.560.30",
+    # GPU monitoring (official NVIDIA bindings - pynvml is deprecated)
+    "nvidia-ml-py>=12.560.30,<14.0.0",
     # Host system monitoring
     "psutil>=5.9.0",
+    # Memory profiling (runtime debugging)
+    "pympler>=1.1",
     # HTTP client (for AI services)
     "httpx>=0.28.0",
     # Utilities
