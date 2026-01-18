@@ -15581,10 +15581,13 @@
         "type": "object"
       },
       "PoseEnrichment": {
-        "description": "Pose estimation results (placeholder for future ViTPose integration).",
+        "description": "Pose estimation results from ViTPose integration.",
         "example": {
-          "action": "walking",
+          "alerts": [
+            "person_crouching"
+          ],
           "confidence": 0.82,
+          "keypoint_count": 17,
           "keypoints": [
             [
               100,
@@ -15596,20 +15599,20 @@
               160,
               0.85
             ]
+          ],
+          "posture": "standing",
+          "security_alerts": [
+            "person_crouching"
           ]
         },
         "properties": {
-          "action": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Recognized action (walking, running, etc.)",
-            "title": "Action"
+          "alerts": {
+            "description": "Pose-related security alerts",
+            "items": {
+              "type": "string"
+            },
+            "title": "Alerts",
+            "type": "array"
           },
           "confidence": {
             "anyOf": [
@@ -15622,8 +15625,21 @@
                 "type": "null"
               }
             ],
-            "description": "Action confidence",
+            "description": "Pose estimation confidence",
             "title": "Confidence"
+          },
+          "keypoint_count": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Number of detected keypoints",
+            "title": "Keypoint Count"
           },
           "keypoints": {
             "anyOf": [
@@ -15642,6 +15658,26 @@
             ],
             "description": "Body keypoints [[x, y, conf], ...]",
             "title": "Keypoints"
+          },
+          "posture": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Detected posture (standing, sitting, etc.)",
+            "title": "Posture"
+          },
+          "security_alerts": {
+            "description": "Backward compatibility alias for alerts",
+            "items": {
+              "type": "string"
+            },
+            "title": "Security Alerts",
+            "type": "array"
           }
         },
         "title": "PoseEnrichment",

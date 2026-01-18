@@ -17095,10 +17095,13 @@ export interface components {
         };
         /**
          * PoseEnrichment
-         * @description Pose estimation results (placeholder for future ViTPose integration).
+         * @description Pose estimation results from ViTPose integration.
          * @example {
-         *       "action": "walking",
+         *       "alerts": [
+         *         "person_crouching"
+         *       ],
          *       "confidence": 0.82,
+         *       "keypoint_count": 17,
          *       "keypoints": [
          *         [
          *           100,
@@ -17110,25 +17113,44 @@ export interface components {
          *           160,
          *           0.85
          *         ]
+         *       ],
+         *       "posture": "standing",
+         *       "security_alerts": [
+         *         "person_crouching"
          *       ]
          *     }
          */
         PoseEnrichment: {
             /**
-             * Action
-             * @description Recognized action (walking, running, etc.)
+             * Alerts
+             * @description Pose-related security alerts
              */
-            action?: string | null;
+            alerts?: string[];
             /**
              * Confidence
-             * @description Action confidence
+             * @description Pose estimation confidence
              */
             confidence?: number | null;
+            /**
+             * Keypoint Count
+             * @description Number of detected keypoints
+             */
+            keypoint_count?: number | null;
             /**
              * Keypoints
              * @description Body keypoints [[x, y, conf], ...]
              */
             keypoints?: number[][] | null;
+            /**
+             * Posture
+             * @description Detected posture (standing, sitting, etc.)
+             */
+            posture?: string | null;
+            /**
+             * Security Alerts
+             * @description Backward compatibility alias for alerts
+             */
+            security_alerts?: string[];
         };
         /**
          * ProfileStartResponse

@@ -121,7 +121,7 @@ export function useStorageStatsQuery(
     enabled,
     refetchInterval,
     staleTime,
-    retry: 2,
+    // Retry behavior inherited from QueryClient defaults (smart retry based on error type)
   });
 
   // Derive common metrics
@@ -174,8 +174,8 @@ export interface UseCleanupPreviewMutationReturn {
   isPending: boolean;
   /** Error from the preview operation */
   error: Error | null;
-  /** Function to trigger cleanup preview */
-  preview: () => Promise<CleanupResponse>;
+  /** Function to trigger cleanup preview (fire-and-forget, errors handled via error state) */
+  preview: () => void;
   /** Reset the mutation state */
   reset: () => void;
 }
@@ -192,17 +192,12 @@ export interface UseCleanupPreviewMutationReturn {
  * ```tsx
  * const { preview, previewData, isPending, error } = useCleanupPreviewMutation();
  *
- * const handlePreview = async () => {
- *   const result = await preview();
- *   console.log('Would delete:', result.files_deleted);
- *   console.log('Space freed:', result.bytes_freed);
- * };
- *
  * return (
  *   <div>
- *     <button onClick={handlePreview} disabled={isPending}>
+ *     <button onClick={preview} disabled={isPending}>
  *       {isPending ? 'Loading...' : 'Preview Cleanup'}
  *     </button>
+ *     {error && <p className="error">{error.message}</p>}
  *     {previewData && (
  *       <p>Would free {formatBytes(previewData.bytes_freed)}</p>
  *     )}
@@ -227,7 +222,7 @@ export function useCleanupPreviewMutation(): UseCleanupPreviewMutationReturn {
     previewData: mutation.data,
     isPending: mutation.isPending,
     error: mutation.error,
-    preview: () => mutation.mutateAsync(),
+    preview: () => mutation.mutate(),
     reset: mutation.reset,
   };
 }
