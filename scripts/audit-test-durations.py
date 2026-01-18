@@ -148,6 +148,53 @@ SLOW_TEST_PATTERNS = [
     r"test_vehicle_classifier_loader.*test_classify_vehicle_runtime_error",
     # System broadcaster degradation tests - reconnection timing
     r"test_system_broadcaster.*is_degraded.*reestablish",
+    # Enrichment client timeout/retry/error tests - use actual delays for timeout testing
+    r"test_enrichment_client.*timeout",
+    r"test_enrichment_client.*connection_error",
+    r"test_enrichment_client.*server_error",
+    r"test_enrichment_client.*asyncio_timeout",
+    r"test_enrichment_client.*retries_on",
+    r"test_enrichment_client_errors.*",
+    r"test_enrichment_client_circuit_breaker.*",
+    # Redis retry/timeout tests - use actual delays for retry logic verification
+    r"test_redis.*test_get_redis_optional_returns_none_on_timeout_error",
+    r"test_redis.*test_get_redis_optional_returns_none_on_connection_error",
+    r"test_redis.*test_with_retry_executes_with",
+    # Nemotron analyzer timeout/retry/error tests - use actual delays
+    r"test_nemotron_analyzer.*test_call_llm_timeout",
+    r"test_nemotron_analyzer.*test_call_llm_connection_error",
+    r"test_nemotron_analyzer.*test_call_llm_http_error",
+    r"test_nemotron_analyzer.*test_call_llm_asyncio_timeout",
+    r"test_nemotron_analyzer.*test_call_llm_unexpected_error",
+    r"test_nemotron_analyzer.*test_session_mock_with_helper",
+    r"test_nemotron_analyzer.*test_analyze_batch_stores_idempotency",
+    r"test_nemotron_analyzer.*test_analyze_batch_skips_enrichment",
+    # Job progress reporter tests with throttling delays
+    r"test_job_progress_reporter.*test_report_progress_throttling",
+    r"test_job_progress_reporter.*test_complete_calculates_duration",
+    # Property-based tests with Hypothesis generation overhead
+    r"test_bbox_validation.*TestBboxValidationProperties.*",
+    r"test_baseline.*TestPropertyBasedAnomalyScores.*",
+    r"test_event_feedback.*TestEventFeedbackProperties.*test_event_id_roundtrip",
+    r"test_job_transition.*TestJobTransitionProperties.*test_trigger_roundtrip",
+    r"test_zone.*TestZoneProperties.*test_zone_color_roundtrip",
+    r"test_camera.*TestCameraFromFolderNameProperties.*",
+    r"test_dedupe.*TestDedupeProperties.*",
+    r"test_prompt_parser.*TestDetectVariableStyleProperties.*",
+    # Transcode cache cleanup tests - deliberate delays for LRU testing
+    r"test_transcode_cache.*test_cache_cleanup_removes_lru_entries",
+    # Model zoo tests - model loading/unloading overhead
+    r"test_model_zoo.*TestConcurrentModelLoading.*",
+    r"test_shutdown_cleanup.*TestModelUnloading.*",
+    # Pet/vehicle classifier loader error tests - model initialization overhead
+    r"test_pet_classifier_loader.*test_classify_pet_runtime_error",
+    r"test_vehicle_classifier_loader.*test_classify_vehicle_runtime_error",
+    # Plate detector tests with image caching
+    r"test_plate_detector.*test_detect_plates_with_cached_images",
+    # Token counter tests
+    r"test_token_counter.*TestEnrichmentTokenEstimation.*",
+    # Pipeline E2E test - fast path with multi-stage processing
+    r"test_pipeline_e2e.*test_fast_path_high_priority_detection",
 ]
 
 # Benchmark patterns - tests that should be excluded from audit entirely
