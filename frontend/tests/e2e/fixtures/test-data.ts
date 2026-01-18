@@ -341,10 +341,17 @@ export const mockSystemConfig = {
 };
 
 // Event Stats Mock Data
+// events_by_camera must be an array to match the API format
+interface EventsByCamera {
+  camera_id: string;
+  camera_name: string;
+  event_count: number;
+}
+
 interface EventStats {
   total_events: number;
   events_by_risk_level: { low: number; medium: number; high: number; critical: number };
-  events_by_camera: Record<string, number>;
+  events_by_camera: EventsByCamera[];
   average_risk_score: number;
 }
 
@@ -352,19 +359,28 @@ export const mockEventStats: Record<string, EventStats> = {
   normal: {
     total_events: 150,
     events_by_risk_level: { low: 80, medium: 45, high: 20, critical: 5 },
-    events_by_camera: { 'cam-1': 50, 'cam-2': 40, 'cam-3': 30, 'cam-4': 30 },
+    events_by_camera: [
+      { camera_id: 'cam-1', camera_name: 'Front Door', event_count: 50 },
+      { camera_id: 'cam-2', camera_name: 'Back Yard', event_count: 40 },
+      { camera_id: 'cam-3', camera_name: 'Garage', event_count: 30 },
+      { camera_id: 'cam-4', camera_name: 'Driveway', event_count: 30 },
+    ],
     average_risk_score: 35,
   },
   highAlert: {
     total_events: 100,
     events_by_risk_level: { low: 20, medium: 30, high: 35, critical: 15 },
-    events_by_camera: { 'cam-1': 40, 'cam-2': 25, 'cam-4': 35 },
+    events_by_camera: [
+      { camera_id: 'cam-1', camera_name: 'Front Door', event_count: 40 },
+      { camera_id: 'cam-2', camera_name: 'Back Yard', event_count: 25 },
+      { camera_id: 'cam-4', camera_name: 'Driveway', event_count: 35 },
+    ],
     average_risk_score: 65,
   },
   empty: {
     total_events: 0,
     events_by_risk_level: { low: 0, medium: 0, high: 0, critical: 0 },
-    events_by_camera: {},
+    events_by_camera: [],
     average_risk_score: 0,
   },
 };
