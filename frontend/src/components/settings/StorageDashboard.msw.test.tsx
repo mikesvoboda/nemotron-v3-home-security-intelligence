@@ -185,9 +185,7 @@ describe('StorageDashboard (MSW)', () => {
     expect(screen.getByText('476.84 MB')).toBeInTheDocument(); // clips
   });
 
-  // TODO: Fix this test - React Query error handling with MSW needs proper configuration
-  // The component stays in loading state instead of showing error
-  it.skip('displays error state when fetch fails', async () => {
+  it('displays error state when fetch fails', async () => {
     // Override handler to return an error
     // Use 400 (Bad Request) instead of 500 because 500 triggers retry logic
     // with exponential backoff which would make the test take too long.
@@ -207,9 +205,7 @@ describe('StorageDashboard (MSW)', () => {
     expect(screen.getByText('Retry')).toBeInTheDocument();
   });
 
-  // TODO: Fix this test - needs proper error handling for React Query + MSW integration
-  // The component's error state isn't being set properly due to React Query retry behavior
-  it.skip('handles retry button click on error', async () => {
+  it('handles retry button click on error', async () => {
     // First call: return error (use 400 to avoid retry backoff)
     // Second call: return success
     let callCount = 0;
@@ -269,10 +265,7 @@ describe('StorageDashboard (MSW)', () => {
     expect(screen.getByText(/days/)).toBeInTheDocument();
   });
 
-  // TODO: Fix this test - mutateAsync throws unhandled rejection when API returns error
-  // Component uses `void previewCleanup()` which ignores Promise, causing unhandled rejection
-  // Need to either use mutate() instead of mutateAsync() or add .catch() in component
-  it.skip('handles cleanup preview error', async () => {
+  it('handles cleanup preview error', async () => {
     server.use(
       http.get('/api/system/storage', () => {
         return HttpResponse.json(mockStorageStats);

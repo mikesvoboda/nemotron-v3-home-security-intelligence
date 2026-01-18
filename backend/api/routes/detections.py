@@ -901,6 +901,20 @@ def _transform_enrichment_data(
                 "is_household_pet": pc.get("is_household_pet"),
             }
 
+    # Extract pose data from ViTPose enrichment
+    pose_response: dict[str, Any] | None = None
+    pose_data = enrichment_data.get("pose")
+    if pose_data:
+        alerts = pose_data.get("alerts", [])
+        pose_response = {
+            "posture": pose_data.get("posture"),
+            "alerts": alerts,
+            "security_alerts": alerts,  # Backward compatibility alias
+            "keypoints": pose_data.get("keypoints"),
+            "keypoint_count": pose_data.get("keypoint_count"),
+            "confidence": pose_data.get("confidence"),
+        }
+
     return {
         "detection_id": detection_id,
         "enriched_at": detected_at,
@@ -910,7 +924,7 @@ def _transform_enrichment_data(
         "clothing": _extract_clothing_from_enrichment(enrichment_data),
         "violence": violence_response,
         "weather": None,  # Placeholder - not currently in enrichment pipeline
-        "pose": None,  # Placeholder for future ViTPose
+        "pose": pose_response,
         "depth": None,  # Placeholder for future Depth Anything V2
         "image_quality": image_quality_response,
         "pet": pet_response,

@@ -228,7 +228,7 @@ export default function StorageDashboard({ className }: StorageDashboardProps) {
           <Button
             size="xs"
             variant="secondary"
-            onClick={() => void previewCleanup()}
+            onClick={() => previewCleanup()}
             disabled={previewLoading}
             className="text-gray-300 hover:text-white"
           >

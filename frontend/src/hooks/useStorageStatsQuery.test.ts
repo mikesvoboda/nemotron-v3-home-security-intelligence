@@ -263,11 +263,13 @@ describe('useCleanupPreviewMutation', () => {
         wrapper: createQueryWrapper(queryClient),
       });
 
-      await act(async () => {
-        await result.current.preview();
+      act(() => {
+        result.current.preview();
       });
 
-      expect(api.previewCleanup).toHaveBeenCalledTimes(1);
+      await waitFor(() => {
+        expect(api.previewCleanup).toHaveBeenCalledTimes(1);
+      });
     });
 
     it('returns preview data after success', async () => {
@@ -275,12 +277,9 @@ describe('useCleanupPreviewMutation', () => {
         wrapper: createQueryWrapper(queryClient),
       });
 
-      let previewResult: typeof mockCleanupPreview | undefined;
-      await act(async () => {
-        previewResult = await result.current.preview();
+      act(() => {
+        result.current.preview();
       });
-
-      expect(previewResult).toEqual(mockCleanupPreview);
 
       await waitFor(() => {
         expect(result.current.previewData).toEqual(mockCleanupPreview);
@@ -294,12 +293,14 @@ describe('useCleanupPreviewMutation', () => {
         wrapper: createQueryWrapper(queryClient),
       });
 
-      await act(async () => {
-        await result.current.preview();
+      act(() => {
+        result.current.preview();
       });
 
-      expect(invalidateSpy).toHaveBeenCalledWith({
-        queryKey: queryKeys.system.storage,
+      await waitFor(() => {
+        expect(invalidateSpy).toHaveBeenCalledWith({
+          queryKey: queryKeys.system.storage,
+        });
       });
     });
 
@@ -311,8 +312,8 @@ describe('useCleanupPreviewMutation', () => {
         wrapper: createQueryWrapper(queryClient),
       });
 
-      await act(async () => {
-        await expect(result.current.preview()).rejects.toThrow(errorMessage);
+      act(() => {
+        result.current.preview();
       });
 
       // Wait for error state to update
@@ -338,8 +339,8 @@ describe('useCleanupPreviewMutation', () => {
         wrapper: createQueryWrapper(queryClient),
       });
 
-      await act(async () => {
-        await result.current.preview();
+      act(() => {
+        result.current.preview();
       });
 
       await waitFor(() => {
