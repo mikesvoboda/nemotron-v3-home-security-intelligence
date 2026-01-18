@@ -1,16 +1,16 @@
 /**
- * System Monitoring Tests for Home Security Dashboard
+ * Operations Page Tests for Home Security Dashboard
  *
- * Comprehensive tests for the System Monitoring page including:
- * - System overview display
- * - Service health status
- * - GPU stats
- * - Pipeline queues
- * - Time range selector
- * - AI models panel
- * - Databases panel
- * - Host system panel
- * - Containers panel
+ * Comprehensive tests for the Operations page (formerly System Monitoring) including:
+ * - Page load and title
+ * - Pipeline flow visualization
+ * - Circuit breakers panel
+ * - File operations panel
+ * - Debug mode toggle
+ * - Grafana monitoring banner
+ *
+ * Note: Most metrics-only components have been moved to Grafana.
+ * This page now focuses on interactive/actionable components.
  */
 
 import { test, expect } from '@playwright/test';
@@ -22,7 +22,7 @@ import {
   highAlertMockConfig,
 } from '../fixtures';
 
-test.describe('System Page Load', () => {
+test.describe('Operations Page Load', () => {
   let systemPage: SystemPage;
 
   test.beforeEach(async ({ page }) => {
@@ -30,31 +30,31 @@ test.describe('System Page Load', () => {
     systemPage = new SystemPage(page);
   });
 
-  test('system page loads successfully', async () => {
+  test('operations page loads successfully', async () => {
     await systemPage.goto();
     await systemPage.waitForSystemLoad();
   });
 
-  test('system displays page title', async () => {
+  test('operations displays page title', async () => {
     await systemPage.goto();
     await systemPage.waitForSystemLoad();
     await expect(systemPage.pageTitle).toBeVisible();
   });
 
-  test('system displays page subtitle', async () => {
+  test('operations displays page subtitle', async () => {
     await systemPage.goto();
     await systemPage.waitForSystemLoad();
     await expect(systemPage.pageSubtitle).toBeVisible();
   });
 
-  test('system title says System Monitoring', async () => {
+  test('operations title says Operations', async () => {
     await systemPage.goto();
     await systemPage.waitForSystemLoad();
-    await expect(systemPage.pageTitle).toHaveText(/System Monitoring/i);
+    await expect(systemPage.pageTitle).toHaveText(/Operations/i);
   });
 });
 
-test.describe('System Overview Card', () => {
+test.describe('Grafana Monitoring Banner', () => {
   let systemPage: SystemPage;
 
   test.beforeEach(async ({ page }) => {
@@ -64,31 +64,26 @@ test.describe('System Overview Card', () => {
     await systemPage.waitForSystemLoad();
   });
 
-  test('system overview card is visible', async () => {
-    await expect(systemPage.systemOverviewCard).toBeVisible();
+  test('grafana banner is visible', async ({ page }) => {
+    await expect(page.getByTestId('grafana-monitoring-banner')).toBeVisible();
   });
 
-  test('shows uptime metric', async ({ page }) => {
-    await expect(page.getByText(/Uptime/i).first()).toBeVisible();
+  test('grafana link is visible', async ({ page }) => {
+    await expect(page.getByTestId('grafana-link')).toBeVisible();
   });
 
-  test('shows cameras metric', async ({ page }) => {
-    // Redesigned dashboard uses shortened labels in compact grid
-    await expect(page.getByText(/Cameras/i).first()).toBeVisible();
+  test('grafana link opens in new tab', async ({ page }) => {
+    const grafanaLink = page.getByTestId('grafana-link');
+    await expect(grafanaLink).toHaveAttribute('target', '_blank');
   });
 
-  test('shows events metric', async ({ page }) => {
-    // Redesigned dashboard uses shortened labels in compact grid
-    await expect(page.getByText(/Events/i).first()).toBeVisible();
-  });
-
-  test('shows detections metric', async ({ page }) => {
-    // Redesigned dashboard uses shortened labels in compact grid
-    await expect(page.getByText(/Detections/i).first()).toBeVisible();
+  test('grafana link has Open Grafana text', async ({ page }) => {
+    const grafanaLink = page.getByTestId('grafana-link');
+    await expect(grafanaLink).toContainText('Open Grafana');
   });
 });
 
-test.describe('Service Health Card', () => {
+test.describe('Pipeline Flow Visualization', () => {
   let systemPage: SystemPage;
 
   test.beforeEach(async ({ page }) => {
@@ -98,21 +93,12 @@ test.describe('Service Health Card', () => {
     await systemPage.waitForSystemLoad();
   });
 
-  test('service health card is visible', async () => {
-    await expect(systemPage.serviceHealthCard).toBeVisible();
-  });
-
-  test('shows overall health badge', async () => {
-    await expect(systemPage.overallHealthBadge).toBeVisible();
-  });
-
-  test('has service rows', async () => {
-    const count = await systemPage.getServiceCount();
-    expect(count).toBeGreaterThanOrEqual(0);
+  test('pipeline flow visualization is visible', async ({ page }) => {
+    await expect(page.getByTestId('pipeline-flow-visualization')).toBeVisible();
   });
 });
 
-test.describe('Time Range Selector', () => {
+test.describe('Circuit Breakers Section', () => {
   let systemPage: SystemPage;
 
   test.beforeEach(async ({ page }) => {
@@ -122,19 +108,16 @@ test.describe('Time Range Selector', () => {
     await systemPage.waitForSystemLoad();
   });
 
-  test('time range selector is visible', async () => {
-    await expect(systemPage.timeRangeSelector).toBeVisible();
+  test('circuit breakers section is visible', async ({ page }) => {
+    await expect(page.getByTestId('circuit-breakers-section')).toBeVisible();
   });
 
-  test('has time range buttons', async ({ page }) => {
-    // The actual buttons are 5m, 15m, 60m
-    const buttons = page.locator('[data-testid="time-range-selector"] button');
-    const count = await buttons.count();
-    expect(count).toBeGreaterThan(0);
+  test('circuit breakers section has title', async ({ page }) => {
+    await expect(page.getByText(/Circuit Breakers/i).first()).toBeVisible();
   });
 });
 
-test.describe('GPU Stats', () => {
+test.describe('File Operations Section', () => {
   let systemPage: SystemPage;
 
   test.beforeEach(async ({ page }) => {
@@ -144,25 +127,16 @@ test.describe('GPU Stats', () => {
     await systemPage.waitForSystemLoad();
   });
 
-  test('page displays GPU information', async ({ page }) => {
-    // Look for GPU Statistics heading in the GpuStats component
-    await expect(page.getByText(/GPU Statistics/i)).toBeVisible();
+  test('file operations section is visible', async ({ page }) => {
+    await expect(page.getByTestId('file-operations-section')).toBeVisible();
   });
 
-  test('shows utilization metric', async ({ page }) => {
-    await expect(page.getByText(/Utilization/i).first()).toBeVisible();
-  });
-
-  test('shows memory metric', async ({ page }) => {
-    await expect(page.getByText(/Memory/i).first()).toBeVisible();
-  });
-
-  test('shows temperature metric', async ({ page }) => {
-    await expect(page.getByText(/Temperature/i).first()).toBeVisible();
+  test('file operations section has title', async ({ page }) => {
+    await expect(page.getByText(/File Operations/i).first()).toBeVisible();
   });
 });
 
-test.describe('Pipeline Metrics Panel', () => {
+test.describe('Debug Mode Toggle', () => {
   let systemPage: SystemPage;
 
   test.beforeEach(async ({ page }) => {
@@ -172,23 +146,14 @@ test.describe('Pipeline Metrics Panel', () => {
     await systemPage.waitForSystemLoad();
   });
 
-  test('pipeline metrics panel is visible', async () => {
-    // Redesigned dashboard combines queues + latency + throughput into one panel
-    await expect(systemPage.pipelineMetricsPanel).toBeVisible();
-  });
-
-  test('shows queue information', async ({ page }) => {
-    // Pipeline metrics panel includes queue depths
-    await expect(page.getByText(/Queue/i).first()).toBeVisible();
-  });
-
-  test('shows latency information', async ({ page }) => {
-    // Pipeline metrics panel includes latency stats
-    await expect(page.getByText(/Latency|ms/i).first()).toBeVisible();
+  test('debug mode toggle container is in page', async ({ page }) => {
+    // DebugModeToggle only renders when backend has DEBUG=true
+    // Test that we're on the page where the toggle would appear
+    await expect(page.getByTestId('operations-page')).toBeVisible();
   });
 });
 
-test.describe('System Error State', () => {
+test.describe('Operations Error State', () => {
   let systemPage: SystemPage;
 
   test.beforeEach(async ({ page }) => {
@@ -208,7 +173,7 @@ test.describe('System Error State', () => {
   });
 });
 
-test.describe('System High Alert Mode', () => {
+test.describe('Operations High Alert Mode', () => {
   let systemPage: SystemPage;
 
   test.beforeEach(async ({ page }) => {

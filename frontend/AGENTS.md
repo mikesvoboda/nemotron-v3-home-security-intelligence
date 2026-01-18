@@ -578,7 +578,7 @@ Defined in `src/App.tsx`:
 | `/entities` | `EntitiesPage`         | Entity tracking                          |
 | `/logs`     | `LogsDashboard`        | Application logs viewer                  |
 | `/audit`    | `AuditLogPage`         | Audit log viewer                         |
-| `/system`   | `SystemMonitoringPage` | System health and metrics                |
+| `/operations` | `SystemMonitoringPage` | Operations and pipeline controls        |
 | `/settings` | `SettingsPage`         | Application settings                     |
 
 ## Entry Points for Understanding the Code
