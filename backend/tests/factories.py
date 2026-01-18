@@ -524,3 +524,79 @@ def create_detection_batch_for_camera(
         camera_id=camera_id,
         **detection_kwargs,
     )
+
+
+# =============================================================================
+# Database Bulk Insert Helpers
+# =============================================================================
+
+
+async def bulk_create_events(
+    session: Any,
+    count: int,
+    **defaults: Any,
+) -> list[Event]:
+    """Create multiple events efficiently using bulk insert.
+
+    This helper function performs a single database insert for multiple events,
+    which is much faster than individual inserts. This is particularly useful
+    for integration tests that need to set up large datasets.
+
+    Args:
+        session: The database session to use for insertion
+        count: Number of events to create
+        **defaults: Default values to use for all events (can be overridden per event)
+
+    Returns:
+        List of created Event instances
+
+    Example:
+        # Create 100 events for a camera with varying risk scores
+        events = await bulk_create_events(
+            session,
+            count=100,
+            camera_id="front_door",
+            risk_score=50,  # Will be incremented for each event
+        )
+
+        # Events will have risk_score 50, 51, 52, ..., 149
+    """
+    from datetime import UTC, datetime
+
+    from backend.models.event import Event
+
+    base_risk_score = defaults.pop("risk_score", 50)
+    base_timestamp = defaults.pop("started_at", datetime.now(UTC))
+
+    events = []
+    for i in range(count):
+        event = Event(
+            camera_id=defaults.get("camera_id", "cam-1"),
+            batch_id=defaults.get("batch_id", f"batch_{i:08d}"),
+            started_at=base_timestamp,
+            risk_score=base_risk_score + i,
+            risk_level=defaults.get("risk_level", "medium"),
+            summary=defaults.get("summary", f"Event {i}"),
+            reasoning=defaults.get("reasoning", "Bulk created event"),
+            detection_ids=defaults.get("detection_ids", f"{i}"),
+            object_types=defaults.get("object_types", "person"),
+            **{
+                k: v
+                for k, v in defaults.items()
+                if k
+                not in [
+                    "camera_id",
+                    "batch_id",
+                    "risk_level",
+                    "summary",
+                    "reasoning",
+                    "detection_ids",
+                    "object_types",
+                ]
+            },
+        )
+        events.append(event)
+
+    session.add_all(events)
+    await session.flush()
+    return events

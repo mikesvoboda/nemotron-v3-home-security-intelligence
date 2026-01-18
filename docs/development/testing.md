@@ -243,6 +243,34 @@ Timeouts are automatically assigned based on test location ([conftest.py](../../
 | Slow-marked tests | 30s     | `@pytest.mark.slow`                            |
 | CLI override      | varies  | `--timeout=N` (0 disables)                     |
 
+### Fast Feedback Loop (Excluding Slow Tests)
+
+For rapid test-driven development, you can exclude slow tests to get faster feedback:
+
+```bash
+# Run tests excluding slow tests (fast feedback)
+pytest -m "not slow"
+
+# Run only slow tests (full validation)
+pytest -m slow
+
+# Run unit tests excluding slow tests
+pytest backend/tests/unit/ -m "not slow"
+
+# Run integration tests excluding slow tests
+pytest backend/tests/integration/ -m "not slow"
+```
+
+**Slow Test Thresholds:**
+Tests are marked as `slow` when they:
+
+- Take longer than 1 second (unit tests)
+- Take longer than 5 seconds (integration tests)
+- Require external resources (network, containers)
+- Perform complex computations (AI inference, large datasets)
+
+See `scripts/audit-test-durations.py` for test duration analysis.
+
 ## Fixtures
 
 ### Shared Fixtures

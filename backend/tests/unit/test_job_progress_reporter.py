@@ -8,13 +8,13 @@ This module tests the JobProgressReporter including:
 - Context manager usage
 """
 
-import asyncio
 import time
 import uuid
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from freezegun import freeze_time
 
 from backend.core.websocket.event_types import WebSocketEventType
 from backend.services.job_progress_reporter import (
@@ -388,16 +388,17 @@ class TestJobCompletion:
     @pytest.mark.asyncio
     async def test_complete_calculates_duration(self, reporter, mock_emitter):
         """Test complete() calculates job duration."""
-        await reporter.start()
+        with freeze_time("2025-01-17 12:00:00") as frozen_time:
+            await reporter.start()
 
-        # Simulate some time passing
-        await asyncio.sleep(0.01)
+            # Advance time by 1 second instantly
+            frozen_time.move_to("2025-01-17 12:00:01")
 
-        await reporter.complete()
+            await reporter.complete()
 
-        payload = mock_emitter.emit.call_args[0][1]
-        assert payload["duration_seconds"] is not None
-        assert payload["duration_seconds"] > 0
+            payload = mock_emitter.emit.call_args[0][1]
+            assert payload["duration_seconds"] is not None
+            assert payload["duration_seconds"] > 0
 
     @pytest.mark.asyncio
     async def test_complete_before_start_raises_error(self, reporter, mock_emitter):
@@ -501,12 +502,15 @@ class TestDurationTracking:
     @pytest.mark.asyncio
     async def test_duration_after_start(self, reporter, mock_emitter):
         """Test duration_seconds after start."""
-        await reporter.start()
-        await asyncio.sleep(0.01)
+        with freeze_time("2025-01-17 12:00:00") as frozen_time:
+            await reporter.start()
 
-        duration = reporter.duration_seconds
-        assert duration is not None
-        assert duration > 0
+            # Advance time by 0.5 seconds instantly
+            frozen_time.move_to("2025-01-17 12:00:00.5")
+
+            duration = reporter.duration_seconds
+            assert duration is not None
+            assert duration > 0
 
 
 class TestContextManager:

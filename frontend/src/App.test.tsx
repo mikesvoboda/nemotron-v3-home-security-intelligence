@@ -2,6 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import App from './App';
+import { FAST_TIMEOUT } from './test/setup';
 
 // Mock the Layout component
 vi.mock('./components/layout/Layout', () => ({
@@ -33,33 +34,37 @@ vi.mock('./components/common', async (importOriginal) => {
 describe('App', () => {
   it('renders without crashing', async () => {
     render(<App />);
-    // Wait for lazy component to load
-    await waitFor(() => {
-      expect(screen.getByTestId('mock-layout')).toBeInTheDocument();
-    });
+    // Wait for lazy component to load (fast timeout for mocked components)
+    await waitFor(
+      () => expect(screen.getByTestId('mock-layout')).toBeInTheDocument(),
+      FAST_TIMEOUT
+    );
   });
 
   it('renders Layout component', async () => {
     render(<App />);
-    await waitFor(() => {
-      expect(screen.getByTestId('mock-layout')).toBeInTheDocument();
-    });
+    await waitFor(
+      () => expect(screen.getByTestId('mock-layout')).toBeInTheDocument(),
+      FAST_TIMEOUT
+    );
   });
 
   it('renders DashboardPage component inside Layout after loading', async () => {
     render(<App />);
-    // Wait for lazy-loaded DashboardPage to appear
-    await waitFor(() => {
-      expect(screen.getByTestId('mock-dashboard')).toBeInTheDocument();
-    });
+    // Wait for lazy-loaded DashboardPage to appear (fast timeout for mocked components)
+    await waitFor(
+      () => expect(screen.getByTestId('mock-dashboard')).toBeInTheDocument(),
+      FAST_TIMEOUT
+    );
     expect(screen.getByText('Dashboard Page Content')).toBeInTheDocument();
   });
 
   it('DashboardPage is a child of Layout', async () => {
     render(<App />);
-    await waitFor(() => {
-      expect(screen.getByTestId('mock-dashboard')).toBeInTheDocument();
-    });
+    await waitFor(
+      () => expect(screen.getByTestId('mock-dashboard')).toBeInTheDocument(),
+      FAST_TIMEOUT
+    );
     const layoutChildren = screen.getByTestId('layout-children');
     const dashboard = screen.getByTestId('mock-dashboard');
     expect(layoutChildren).toContainElement(dashboard);
@@ -67,9 +72,10 @@ describe('App', () => {
 
   it('has correct component hierarchy', async () => {
     const { container } = render(<App />);
-    await waitFor(() => {
-      expect(screen.getByTestId('mock-dashboard')).toBeInTheDocument();
-    });
+    await waitFor(
+      () => expect(screen.getByTestId('mock-dashboard')).toBeInTheDocument(),
+      FAST_TIMEOUT
+    );
     const layout = screen.getByTestId('mock-layout');
     const dashboard = screen.getByTestId('mock-dashboard');
 

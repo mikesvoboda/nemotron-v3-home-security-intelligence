@@ -87,6 +87,7 @@ dev = [
     "testcontainers>=4.0.0",
     "hypothesis>=6.100.0",  # Property-based testing
     "factory-boy>=3.3.0",  # Test fixture factories
+    "freezegun>=1.5.0",  # Time mocking for tests
     # CI/CD - Performance
     "pytest-benchmark>=4.0.0",
     "pytest-memray>=1.5.0",
@@ -149,6 +150,7 @@ test = [
     "testcontainers>=4.0.0",
     "hypothesis>=6.100.0",  # Property-based testing
     "factory-boy>=3.3.0",  # Test fixture factories
+    "freezegun>=1.5.0",  # Time mocking for tests
     # Video processing (needed for video service tests)
     "ffmpeg-python>=0.2.0",
     # XML parsing (secure - needed for test fixtures)
