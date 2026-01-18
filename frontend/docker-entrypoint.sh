@@ -269,7 +269,8 @@ server {
 
     # Content Security Policy - restrict resource loading
     # Note: 'unsafe-inline' for styles is required by Tailwind/Tremor
-    add_header Content-Security-Policy \"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' ws: wss:; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests;\" always;
+    # Note: frame-src allows Grafana embeds (localhost:3002 mapped from container port 3000)
+    add_header Content-Security-Policy \"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' ws: wss:; frame-src 'self' http://localhost:3002 https://localhost:3002; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests;\" always;
 
     # Permissions Policy - restrict browser features
     add_header Permissions-Policy \"accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()\" always;
