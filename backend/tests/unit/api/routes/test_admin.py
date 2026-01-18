@@ -65,120 +65,17 @@ def create_mock_db_with_id_assignment() -> AsyncMock:
 class TestAdminSecurityControls:
     """Tests for admin endpoint security controls.
 
-    Admin endpoints use defense-in-depth security:
-    1. DEBUG mode must be enabled
-    2. ADMIN_ENABLED must be explicitly set
-    3. Optional API key requirement with timing attack resistance
+    Admin endpoints are always accessible for local deployment (no authentication required).
+    The require_admin_access() function is a no-op placeholder for potential future auth.
     """
 
     @pytest.mark.asyncio
-    async def test_seed_cameras_requires_debug_mode(self) -> None:
-        """Verify seed cameras endpoint returns 403 when DEBUG=false."""
-        from fastapi import HTTPException
-
+    async def test_admin_access_always_allowed_for_local_deployment(self) -> None:
+        """Verify admin access is always allowed (no authentication for local deployment)."""
         from backend.api.routes.admin import require_admin_access
 
-        with patch("backend.api.routes.admin.get_settings") as mock_settings:
-            mock_settings.return_value.debug = False
-            mock_settings.return_value.admin_enabled = True
-            mock_settings.return_value.admin_api_key = None
-
-            with pytest.raises(HTTPException) as exc_info:
-                require_admin_access(x_admin_api_key=None)
-
-            assert exc_info.value.status_code == 403
-            assert "DEBUG=true" in exc_info.value.detail
-
-    @pytest.mark.asyncio
-    async def test_seed_cameras_requires_admin_enabled(self) -> None:
-        """Verify seed cameras endpoint returns 403 when ADMIN_ENABLED=false."""
-        from fastapi import HTTPException
-
-        from backend.api.routes.admin import require_admin_access
-
-        with patch("backend.api.routes.admin.get_settings") as mock_settings:
-            mock_settings.return_value.debug = True
-            mock_settings.return_value.admin_enabled = False
-            mock_settings.return_value.admin_api_key = None
-
-            with pytest.raises(HTTPException) as exc_info:
-                require_admin_access(x_admin_api_key=None)
-
-            assert exc_info.value.status_code == 403
-            assert "ADMIN_ENABLED=true" in exc_info.value.detail
-
-    @pytest.mark.asyncio
-    async def test_seed_cameras_requires_api_key_when_configured(self) -> None:
-        """Verify seed cameras endpoint returns 401 when API key is missing."""
-        from fastapi import HTTPException
-
-        from backend.api.routes.admin import require_admin_access
-
-        with patch("backend.api.routes.admin.get_settings") as mock_settings:
-            mock_settings.return_value.debug = True
-            mock_settings.return_value.admin_enabled = True
-            mock_settings.return_value.admin_api_key = "secret-key-123"  # pragma: allowlist secret
-
-            with pytest.raises(HTTPException) as exc_info:
-                require_admin_access(x_admin_api_key=None)
-
-            assert exc_info.value.status_code == 401
-            assert "Admin API key required" in exc_info.value.detail
-            assert exc_info.value.headers.get("WWW-Authenticate") == "ApiKey"
-
-    @pytest.mark.asyncio
-    async def test_seed_cameras_rejects_invalid_api_key(self) -> None:
-        """Verify seed cameras endpoint returns 401 with invalid API key."""
-        from fastapi import HTTPException
-
-        from backend.api.routes.admin import require_admin_access
-
-        with patch("backend.api.routes.admin.get_settings") as mock_settings:
-            mock_settings.return_value.debug = True
-            mock_settings.return_value.admin_enabled = True
-            mock_settings.return_value.admin_api_key = "secret-key-123"  # pragma: allowlist secret
-
-            with pytest.raises(HTTPException) as exc_info:
-                require_admin_access(x_admin_api_key="wrong-key")  # pragma: allowlist secret
-
-            assert exc_info.value.status_code == 401
-            assert "Invalid admin API key" in exc_info.value.detail
-
-    @pytest.mark.asyncio
-    async def test_admin_access_uses_constant_time_comparison(self) -> None:
-        """Verify API key comparison uses secrets.compare_digest for timing attack resistance."""
-        from backend.api.routes.admin import require_admin_access
-
-        valid_key = "secret-key-123"
-
-        with (
-            patch("backend.api.routes.admin.get_settings") as mock_settings,
-            patch("backend.api.routes.admin.secrets.compare_digest") as mock_compare,
-        ):
-            mock_settings.return_value.debug = True
-            mock_settings.return_value.admin_enabled = True
-            mock_settings.return_value.admin_api_key = valid_key
-
-            mock_compare.return_value = True
-
-            # Should not raise
-            require_admin_access(x_admin_api_key=valid_key)
-
-            # Verify secrets.compare_digest was called
-            mock_compare.assert_called_once_with(valid_key, valid_key)
-
-    @pytest.mark.asyncio
-    async def test_admin_access_allows_when_no_api_key_configured(self) -> None:
-        """Verify admin access is allowed when no API key is configured."""
-        from backend.api.routes.admin import require_admin_access
-
-        with patch("backend.api.routes.admin.get_settings") as mock_settings:
-            mock_settings.return_value.debug = True
-            mock_settings.return_value.admin_enabled = True
-            mock_settings.return_value.admin_api_key = None
-
-            # Should not raise
-            require_admin_access(x_admin_api_key=None)
+        # Should not raise - function is a no-op
+        require_admin_access()
 
 
 class TestSeedCamerasEndpoint:
