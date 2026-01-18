@@ -1086,7 +1086,7 @@ seed_database() {
         print_warn "uv not found - skipping database seeding"
         print_warn "Install uv and run manually:"
         echo "  uv run python scripts/seed-cameras.py --discover"
-        echo "  uv run python scripts/seed-mock-events.py --count 25"
+        echo "  uv run python scripts/seed-events.py --count 25"
         return 0
     fi
 
@@ -1100,7 +1100,7 @@ seed_database() {
 
     # Seed mock events
     print_step "Seeding mock events and detections..."
-    if uv run python scripts/seed-mock-events.py --clear --count 25 2>&1 | grep -E "(Created|Error|Warning)"; then
+    if uv run python scripts/seed-events.py --clear --count 25 2>&1 | grep -E "(Created|Error|Warning)"; then
         print_success "Mock events seeded"
     else
         print_warn "Event seeding may have failed"
