@@ -152,7 +152,7 @@ The AI Performance page relies on Grafana's built-in refresh mechanism. The dash
 ### Grafana Dashboard Shows "Failed to Load"
 
 1. Verify Grafana is running: `curl http://localhost:3002/api/health`
-2. Check the backend config endpoint returns `grafana_url`: `curl http://localhost:8000/api/config`
+2. Check the backend config endpoint returns `grafana_url`: `curl http://localhost:8000/api/system/config`
 3. Ensure network/firewall allows iframe embedding from Grafana
 4. Check browser console for CORS or content security policy errors
 

@@ -242,4 +242,4 @@ CREATE TABLE detections (
 
 ---
 
-[Back to Developer Hub](../developer-hub.md)
+[Back to Developer Hub](README.md)

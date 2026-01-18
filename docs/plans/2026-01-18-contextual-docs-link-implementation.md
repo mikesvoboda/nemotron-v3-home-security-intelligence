@@ -531,9 +531,9 @@ For developers wanting to understand the underlying systems.
 
 ### Architecture
 
-- **Event Processing**: [Event Pipeline Architecture](../architecture/event-pipeline.md)
-- **AI Risk Scoring**: [Nemotron Risk Analysis](../architecture/risk-scoring.md)
-- **Real-time Updates**: [WebSocket Implementation](../architecture/websockets.md)
+- **Event Processing**: [AI Pipeline Architecture](../architecture/ai-pipeline.md)
+- **AI Risk Scoring**: [Risk Analysis](../developer/risk-analysis.md)
+- **Real-time Updates**: [Real-time Architecture](../architecture/real-time.md)
 
 ### Related Code
 

@@ -549,7 +549,7 @@ nvidia-smi
 ## See Also
 
 - [Monitoring and Observability](monitoring.md) - GPU monitoring, token tracking, tracing
-- [SLO Definitions](../slo-definitions.md) - Service Level Objectives
+- [SLO Definitions](monitoring/slos.md) - Service Level Objectives
 - [Troubleshooting Index](../reference/troubleshooting/index.md) - Common issues
 - [Prometheus Documentation](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/)
 - [Alertmanager Documentation](https://prometheus.io/docs/alerting/latest/alertmanager/)

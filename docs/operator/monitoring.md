@@ -154,15 +154,27 @@ Token counting uses [tiktoken](https://github.com/openai/tiktoken) for accurate 
 
 ### Context Window Configuration
 
-The Nemotron-3-Nano model has specific context window constraints:
+The Nemotron model context window varies by deployment profile:
+
+| Model Profile                               | Context Window | VRAM Required |
+| ------------------------------------------- | -------------- | ------------- |
+| **Production (Nemotron-3-Nano-30B-A3B)**    | 131,072 tokens | ~14.7 GB      |
+| **Development (Nemotron Mini 4B Instruct)** | 4,096 tokens   | ~3 GB         |
+
+**Environment Variables:**
 
 | Setting                      | Default       | Description                          |
 | ---------------------------- | ------------- | ------------------------------------ |
-| `NEMOTRON_CONTEXT_WINDOW`    | `3900`        | Total context window size (tokens)   |
+| `NEMOTRON_CONTEXT_WINDOW`    | `131072`      | Total context window size (tokens)   |
 | `NEMOTRON_MAX_OUTPUT_TOKENS` | `1536`        | Tokens reserved for LLM output       |
 | `LLM_TOKENIZER_ENCODING`     | `cl100k_base` | Tiktoken encoding (GPT-4 compatible) |
 
-**Available tokens for prompt:** `context_window - max_output_tokens` = 3900 - 1536 = **2364 tokens**
+**Note:** The `CTX_SIZE` environment variable in the AI container (`ai/nemotron/`) controls the llama.cpp server context size, while `NEMOTRON_CONTEXT_WINDOW` controls the backend's prompt validation. Both should be configured consistently.
+
+**Available tokens for prompt:** `context_window - max_output_tokens`
+
+- Production (128K): 131,072 - 1,536 = **129,536 tokens**
+- Development (4K): 4,096 - 1,536 = **2,560 tokens**
 
 ### Utilization Thresholds
 

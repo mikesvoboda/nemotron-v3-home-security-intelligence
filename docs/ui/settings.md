@@ -581,27 +581,30 @@ For developers wanting to understand the underlying systems.
 
 ### Backend APIs
 
-| Endpoint                                | Purpose                        |
-| --------------------------------------- | ------------------------------ |
-| `GET /api/cameras`                      | List all cameras               |
-| `POST /api/cameras`                     | Create new camera              |
-| `PUT /api/cameras/:id`                  | Update camera                  |
-| `DELETE /api/cameras/:id`               | Delete camera                  |
-| `GET /api/alerts/rules`                 | List alert rules               |
-| `POST /api/alerts/rules`                | Create alert rule              |
-| `PUT /api/alerts/rules/:id`             | Update alert rule              |
-| `DELETE /api/alerts/rules/:id`          | Delete alert rule              |
-| `POST /api/alerts/rules/:id/test`       | Test alert rule                |
-| `GET /api/system/config`                | Fetch system configuration     |
-| `PATCH /api/system/config`              | Update system configuration    |
-| `GET /api/notifications/config`         | Get notification configuration |
-| `POST /api/notifications/test/:channel` | Test notification channel      |
-| `GET /api/system/storage`               | Get storage statistics         |
-| `POST /api/system/cleanup`              | Trigger data cleanup           |
-| `GET /api/system/cleanup/status`        | Get cleanup service status     |
-| `GET /api/prompts/:model`               | Get prompt configuration       |
-| `PUT /api/prompts/:model`               | Update prompt configuration    |
-| `GET /api/prompts/:model/history`       | Get prompt version history     |
-| `POST /api/prompts/:id/restore`         | Restore prompt version         |
-| `GET /api/calibration/thresholds`       | Get risk thresholds            |
-| `PUT /api/calibration/thresholds`       | Update risk thresholds         |
+| Endpoint                                 | Purpose                        |
+| ---------------------------------------- | ------------------------------ |
+| `GET /api/cameras`                       | List all cameras               |
+| `POST /api/cameras`                      | Create new camera              |
+| `PUT /api/cameras/:id`                   | Update camera                  |
+| `DELETE /api/cameras/:id`                | Delete camera                  |
+| `GET /api/alerts/rules`                  | List alert rules               |
+| `POST /api/alerts/rules`                 | Create alert rule              |
+| `PUT /api/alerts/rules/:id`              | Update alert rule              |
+| `DELETE /api/alerts/rules/:id`           | Delete alert rule              |
+| `POST /api/alerts/rules/:id/test`        | Test alert rule                |
+| `GET /api/system/config`                 | Fetch system configuration     |
+| `PATCH /api/system/config`               | Update system configuration    |
+| `GET /api/notification/config`           | Get notification configuration |
+| `POST /api/notification/test`            | Test notification channel      |
+| `GET /api/system/storage`                | Get storage statistics         |
+| `POST /api/system/cleanup`               | Trigger data cleanup           |
+| `GET /api/system/cleanup/status`         | Get cleanup service status     |
+| `GET /api/prompts/{model}`               | Get prompt configuration       |
+| `PUT /api/prompts/{model}`               | Update prompt configuration    |
+| `GET /api/prompts/history`               | Get prompt version history     |
+| `POST /api/prompts/history/{version_id}` | Restore prompt version         |
+| `GET /api/calibration`                   | Get risk thresholds            |
+| `PUT /api/calibration`                   | Update risk thresholds         |
+| `PATCH /api/calibration`                 | Partial update risk thresholds |
+| `POST /api/calibration/reset`            | Reset to default thresholds    |
+| `GET /api/calibration/defaults`          | Get default threshold values   |

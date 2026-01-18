@@ -64,6 +64,10 @@ flowchart TB
 | **Backend E2E Tests**         | `backend/tests/e2e/`         | 2 files    | 30s     | -               |
 | **GPU Tests**                 | `backend/tests/gpu/`         | 1 file     | -       | -               |
 | **Benchmarks**                | `backend/tests/benchmarks/`  | 3 files    | -       | -               |
+| **Chaos Tests**               | `backend/tests/chaos/`       | -          | -       | -               |
+| **Contract Tests**            | `backend/tests/contracts/`   | -          | -       | -               |
+| **Security Tests**            | `backend/tests/security/`    | -          | -       | -               |
+| **Test Utilities**            | `backend/tests/utils/`       | -          | -       | -               |
 | **Frontend Unit**             | `frontend/src/**/*.test.ts`  | -          | -       | 83%+            |
 | **Frontend E2E (Playwright)** | `frontend/tests/e2e/`        | 2358 tests | 15s     | -               |
 
@@ -180,7 +184,7 @@ Configuration details:
 
 #### Playwright Configuration
 
-See [frontend/playwright.config.ts](../../frontend/playwright.config.ts) for full configuration:
+See [`/frontend/playwright.config.ts`](../../frontend/playwright.config.ts) for full configuration:
 
 - Global test timeout: 15 seconds
 - Expect timeout: 3 seconds
@@ -215,7 +219,8 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
-addopts = "-n auto --dist=worksteal -v --strict-markers --tb=short --timeout=1"
+addopts = "-n auto --dist=worksteal -v --strict-markers --tb=short -p randomly"
+timeout = 5
 timeout_method = "thread"
 ```
 
@@ -275,18 +280,18 @@ See `scripts/audit-test-durations.py` for test duration analysis.
 
 ### Shared Fixtures
 
-All shared fixtures are defined in [backend/tests/conftest.py](../../backend/tests/conftest.py:1). **DO NOT duplicate these in subdirectory conftest files.**
+Core fixtures are defined in [backend/tests/conftest.py](../../backend/tests/conftest.py:1). Integration-specific fixtures are in [backend/tests/integration/conftest.py](../../backend/tests/integration/conftest.py:1). **DO NOT duplicate these in subdirectory conftest files.**
 
 #### Database Fixtures
 
-| Fixture           | Scope    | Description                                        |
-| ----------------- | -------- | -------------------------------------------------- |
-| `isolated_db`     | function | Function-scoped isolated PostgreSQL database       |
-| `test_db`         | function | Callable session factory for unit tests            |
-| `integration_env` | function | Sets DATABASE_URL, REDIS_URL, HSI_RUNTIME_ENV_PATH |
-| `integration_db`  | function | Initializes PostgreSQL via testcontainers or local |
-| `session`         | function | Savepoint-based transaction isolation              |
-| `db_session`      | function | Direct AsyncSession access                         |
+| Fixture           | Scope    | Location             | Description                                        |
+| ----------------- | -------- | -------------------- | -------------------------------------------------- |
+| `isolated_db`     | function | Main conftest.py     | Function-scoped isolated PostgreSQL database       |
+| `test_db`         | function | Main conftest.py     | Callable session factory for unit tests            |
+| `session`         | function | Main conftest.py     | Savepoint-based transaction isolation              |
+| `integration_env` | function | Integration conftest | Sets DATABASE_URL, REDIS_URL, HSI_RUNTIME_ENV_PATH |
+| `integration_db`  | function | Integration conftest | Initializes PostgreSQL via testcontainers or local |
+| `db_session`      | function | Integration conftest | Direct AsyncSession access for integration tests   |
 
 #### Redis Fixtures
 
@@ -585,7 +590,7 @@ Mutation testing starts with well-tested utility modules:
 | 60-79%         | Fair      | Add targeted tests       |
 | Below 60%      | Poor      | Significant test gaps    |
 
-For detailed guidance, see [Mutation Testing Guide](../MUTATION_TESTING.md).
+For detailed guidance, see [Mutation Testing Guide](../developer/patterns/mutation-testing.md).
 
 ## Related Documentation
 
@@ -593,4 +598,4 @@ For detailed guidance, see [Mutation Testing Guide](../MUTATION_TESTING.md).
 - [Contributing Guide](contributing.md) - PR process and code standards
 - [Code Patterns](patterns.md) - Testing patterns in detail
 - [backend/tests/AGENTS.md](../../backend/tests/AGENTS.md) - Test infrastructure overview
-- [Mutation Testing Guide](../MUTATION_TESTING.md) - Mutation testing with mutmut and Stryker
+- [Mutation Testing Guide](../developer/patterns/mutation-testing.md) - Mutation testing with mutmut and Stryker

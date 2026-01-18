@@ -120,14 +120,15 @@ flowchart TB
 
 ## WebSocket Channels
 
-The system exposes two WebSocket endpoints for real-time updates.
+The system exposes three WebSocket endpoints for real-time updates.
 
 ### Channel Overview
 
-| Channel    | Endpoint     | Purpose                      | Message Frequency |
-| ---------- | ------------ | ---------------------------- | ----------------- |
-| **Events** | `/ws/events` | Security event notifications | On event creation |
-| **System** | `/ws/system` | System health and GPU stats  | Every 5 seconds   |
+| Channel      | Endpoint                 | Purpose                      | Message Frequency |
+| ------------ | ------------------------ | ---------------------------- | ----------------- |
+| **Events**   | `/ws/events`             | Security event notifications | On event creation |
+| **System**   | `/ws/system`             | System health and GPU stats  | Every 5 seconds   |
+| **Job Logs** | `/ws/jobs/{job_id}/logs` | Real-time job log streaming  | On log emission   |
 
 ### Events Channel (`/ws/events`)
 
@@ -195,6 +196,39 @@ sequenceDiagram
     WS->>SB: unregister(websocket)
 ```
 -->
+
+### Job Logs Channel (`/ws/jobs/{job_id}/logs`)
+
+Streams real-time log entries for active jobs (pending or running status). This enables the Jobs page to display live log output as background tasks execute.
+
+**Authentication:**
+
+- Query parameter: `ws://host/ws/jobs/{job_id}/logs?api_key=YOUR_KEY`
+- Sec-WebSocket-Protocol header: `"api-key.YOUR_KEY"`
+- Token parameter: `ws://host/ws/jobs/{job_id}/logs?token=YOUR_TOKEN`
+
+**Message Format:**
+
+```json
+{
+  "type": "log",
+  "data": {
+    "timestamp": "2026-01-17T10:32:05Z",
+    "level": "INFO",
+    "message": "Processing batch 2/3",
+    "context": { "batch_id": "abc123" }
+  }
+}
+```
+
+**Behavior:**
+
+- Subscribes to Redis pub/sub channel `job:{job_id}:logs`
+- Logs are forwarded to the WebSocket as they are emitted by the job
+- Connection closes when the client disconnects or the idle timeout is reached
+- Server sends periodic heartbeat pings to detect disconnected clients
+
+**Source:** [backend/api/routes/websocket.py](../../backend/api/routes/websocket.py) - `websocket_job_logs` endpoint
 
 ---
 
@@ -1064,12 +1098,13 @@ Array of alerts when metrics exceed configured thresholds:
 
 ### Message Type Summary
 
-| Type                 | Source            | Trigger        | Content                                  |
-| -------------------- | ----------------- | -------------- | ---------------------------------------- |
-| `event`              | NemotronAnalyzer  | Event creation | Security event details                   |
-| `system_status`      | SystemBroadcaster | Every 5s       | GPU, queues, cameras, health             |
-| `service_status`     | HealthMonitor     | Status change  | Service name and status                  |
-| `performance_update` | SystemBroadcaster | Every 5s       | Detailed GPU, AI, database, host metrics |
+| Type                 | Source            | Trigger        | Content                                   |
+| -------------------- | ----------------- | -------------- | ----------------------------------------- |
+| `event`              | NemotronAnalyzer  | Event creation | Security event details                    |
+| `system_status`      | SystemBroadcaster | Every 5s       | GPU, queues, cameras, health              |
+| `service_status`     | HealthMonitor     | Status change  | Service name and status                   |
+| `performance_update` | SystemBroadcaster | Every 5s       | Detailed GPU, AI, database, host metrics  |
+| `log`                | JobLogEmitter     | Log emission   | Job log entry (timestamp, level, message) |
 
 ---
 
@@ -1391,13 +1426,13 @@ No text overlays
 
 ## Related Documentation
 
-| Document                                                   | Purpose                          |
-| ---------------------------------------------------------- | -------------------------------- |
-| [Overview](overview.md)                                    | High-level system architecture   |
-| [AI Pipeline](ai-pipeline.md)                              | Detection and analysis flow      |
-| [Resilience](resilience.md)                                | Error handling and recovery      |
-| [API Reference - WebSocket](../api-reference/websocket.md) | WebSocket endpoint documentation |
-| [Frontend Hooks](../../frontend/src/hooks/AGENTS.md)       | Custom hook implementation       |
+| Document                                                  | Purpose                          |
+| --------------------------------------------------------- | -------------------------------- |
+| [Overview](overview.md)                                   | High-level system architecture   |
+| [AI Pipeline](ai-pipeline.md)                             | Detection and analysis flow      |
+| [Resilience](resilience.md)                               | Error handling and recovery      |
+| [API Reference - WebSocket](../developer/api/realtime.md) | WebSocket endpoint documentation |
+| [Frontend Hooks](../../frontend/src/hooks/AGENTS.md)      | Custom hook implementation       |
 
 ---
 

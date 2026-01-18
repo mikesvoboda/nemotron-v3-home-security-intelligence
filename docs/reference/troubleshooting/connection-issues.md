@@ -400,4 +400,4 @@ ping ai-server-hostname
 
 ---
 
-[Back to Operator Hub](../../operator-hub.md)
+[Back to Operator Hub](../../operator/)

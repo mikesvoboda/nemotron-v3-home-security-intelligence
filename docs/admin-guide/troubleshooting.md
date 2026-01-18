@@ -737,4 +737,4 @@ When reporting issues, include:
 
 ---
 
-Back to [Operator Hub](../operator-hub.md) | [User Hub](../user-hub.md) | [Developer Hub](../developer-hub.md)
+Back to [Operator Hub](../operator/README.md) | [User Hub](../user/README.md) | [Developer Hub](../developer/README.md)

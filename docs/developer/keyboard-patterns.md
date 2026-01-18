@@ -494,7 +494,7 @@ test('command palette opens with keyboard', async ({ page }) => {
 
 ## Related Documentation
 
-- [Frontend Hooks](hooks.md) - Overview of all custom hooks
+- [Frontend Hooks](../architecture/frontend-hooks.md) - Overview of all custom hooks
 - [Architecture Overview](../architecture/overview.md) - System architecture
 - [User Keyboard Shortcuts](../user-guide/keyboard-shortcuts.md) - End-user documentation
 

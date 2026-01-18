@@ -1079,8 +1079,8 @@ All hooks have comprehensive test coverage using Vitest and React Testing Librar
 ## Related Documentation
 
 - [Real-time Architecture](real-time.md) - WebSocket infrastructure and message flow
-- [API Reference: WebSocket Endpoints](../api-reference/websocket.md) - Backend WebSocket API
-- [API Reference: System Endpoints](../api-reference/system.md) - REST API endpoints
+- [API Reference: WebSocket Endpoints](../developer/api/realtime.md) - Backend WebSocket API
+- [API Reference: System Endpoints](../developer/api/system-ops.md) - REST API endpoints
 - [Frontend Architecture Overview](overview.md) - Component hierarchy and data flow
 - [Testing Guide](../development/testing.md) - Frontend testing patterns
 

@@ -78,7 +78,7 @@ jobs:
               '',
               '### Resources',
               '',
-              '📚 docs/TESTING_GUIDE.md | 🧪 backend/tests/AGENTS.md | 🛠️ scripts/generate-test-stubs.py',
+              '📚 docs/development/testing.md | 🧪 backend/tests/AGENTS.md | 🛠️ scripts/generate-test-stubs.py',
             ].join('\n');
             github.rest.issues.createComment({
               issue_number: context.issue.number,

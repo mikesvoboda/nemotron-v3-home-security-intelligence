@@ -160,11 +160,11 @@ With all services running on RTX A5500 (24GB):
 
 ## Documentation (pick your path)
 
-| I want to…                   | Start here                             |
-| ---------------------------- | -------------------------------------- |
-| Run this at home             | [User Hub](docs/user-hub.md)           |
-| Deploy and maintain it       | [Operator Hub](docs/operator-hub.md)   |
-| Contribute / extend the code | [Developer Hub](docs/developer-hub.md) |
+| I want to…                   | Start here                                |
+| ---------------------------- | ----------------------------------------- |
+| Run this at home             | [User Hub](docs/user/README.md)           |
+| Deploy and maintain it       | [Operator Hub](docs/docs/operator/)       |
+| Contribute / extend the code | [Developer Hub](docs/developer/README.md) |
 
 If you just need the authoritative env/ports reference, go straight to
 [Runtime Configuration](docs/RUNTIME_CONFIG.md).
@@ -342,7 +342,7 @@ Start here:
 
 ## Contributing
 
-Start with the [Developer Hub](docs/developer-hub.md).
+Start with the [Developer Hub](docs/developer/README.md).
 
 ```bash
 # Full validation (lint + typecheck + tests)

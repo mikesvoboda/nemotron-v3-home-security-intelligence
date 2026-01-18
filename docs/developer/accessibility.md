@@ -548,7 +548,7 @@ describe('Accessibility', () => {
 ## Related Documentation
 
 - [Keyboard Patterns](keyboard-patterns.md) - Developer implementation guide
-- [Frontend Patterns](../FRONTEND_PATTERNS.md) - Component conventions
+- [Frontend Patterns](patterns/frontend.md) - Component conventions
 - [User Keyboard Shortcuts](../user-guide/keyboard-shortcuts.md) - End-user reference
 - [User Accessibility Guide](../user-guide/accessibility.md) - End-user accessibility features
 

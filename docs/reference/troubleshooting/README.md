@@ -684,4 +684,4 @@ If you can't resolve an issue:
 
 ---
 
-[Back to Reference Hub](../) | [Operator Hub](../../operator-hub.md) | [User Hub](../../user-hub.md)
+[Back to Reference Hub](../) | [Operator Hub](../../operator/README.md) | [User Hub](../../user/README.md)

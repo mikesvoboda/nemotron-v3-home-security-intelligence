@@ -271,4 +271,4 @@ AI enrichment data is stored with the detection record and follows the same rete
 
 ---
 
-[Back to User Hub](../user-hub.md)
+[Back to User Hub](../user/README.md)

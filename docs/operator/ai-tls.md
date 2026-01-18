@@ -229,4 +229,4 @@ curl --cacert ca.crt https://localhost:8090/health
 
 ---
 
-[Back to Operator Hub](../operator-hub.md)
+[Back to Operator Hub](./)

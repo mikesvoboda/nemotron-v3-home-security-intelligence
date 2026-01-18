@@ -212,4 +212,4 @@ def risk_score_to_severity(self, score: int) -> Severity:
 
 ---
 
-[Back to User Hub](../../user-hub.md) | [Operator Hub](../../operator-hub.md) | [Developer Hub](../../developer-hub.md)
+[Back to User Hub](../../user/README.md) | [Operator Hub](../../operator/README.md) | [Developer Hub](../../developer/README.md)

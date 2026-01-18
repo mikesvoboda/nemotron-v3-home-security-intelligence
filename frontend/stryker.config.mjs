@@ -13,7 +13,7 @@
  * Usage:
  *   npm run test:mutation
  *
- * For detailed documentation, see docs/MUTATION_TESTING.md
+ * For detailed documentation, see docs/developer/patterns/mutation-testing.md
  */
 
 /** @type {import('@stryker-mutator/api').PartialStrykerOptions} */

@@ -62,7 +62,7 @@ Add to `.vscode/settings.json` (user or workspace):
 ## Project-Specific Context
 
 This project includes a Copilot instructions file at:
-[.github/copilot-instructions.md](../.github/copilot-instructions.md)
+[.github/copilot-instructions.md](../../../.github/copilot-instructions.md)
 
 This file provides Copilot with:
 
@@ -150,5 +150,5 @@ If you hit the monthly limit:
 
 - [GitHub Copilot Documentation](https://docs.github.com/en/copilot)
 - [VS Code Copilot Guide](https://code.visualstudio.com/docs/copilot/overview)
-- Project instructions: [.github/copilot-instructions.md](../.github/copilot-instructions.md)
-- Code review prompt: [.github/prompts/code-review.prompt.md](../.github/prompts/code-review.prompt.md)
+- Project instructions: [.github/copilot-instructions.md](../../../.github/copilot-instructions.md)
+- Code review prompt: [.github/prompts/code-review.prompt.md](../../../.github/prompts/code-review.prompt.md)

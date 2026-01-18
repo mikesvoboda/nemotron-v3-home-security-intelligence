@@ -363,11 +363,11 @@ Read-only operations (stats, list jobs) do not require authentication.
 
 ## Related Documentation
 
-- [DLQ API Reference](../api-reference/dlq.md) - Complete API documentation
+- [DLQ API Reference](../developer/api/ai-pipeline.md) - Complete API documentation
 - [Architecture: Resilience](../architecture/resilience.md) - Retry and circuit breaker patterns
 - [AI Troubleshooting](ai-troubleshooting.md) - Diagnosing AI service issues
 - [Monitoring Guide](monitoring.md) - System health monitoring
 
 ---
 
-[Back to Operator Hub](../operator-hub.md)
+[Back to Operator Hub](./)

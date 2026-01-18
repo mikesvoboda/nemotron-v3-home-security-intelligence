@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This directory contains API governance documentation including deprecation policies, migration guides, and versioning standards. It complements the `docs/api-reference/` directory which contains endpoint-specific documentation.
+This directory contains API governance documentation including deprecation policies, migration guides, and versioning standards. It complements the `docs/developer/api/` directory which contains endpoint-specific documentation.
 
 ## Directory Structure
 
@@ -28,8 +28,8 @@ docs/api/
 
 ## Related Documentation
 
-- `docs/api-reference/` - Endpoint-specific API documentation
-- `docs/api-reference/overview.md` - API overview and conventions
+- `docs/developer/api/` - Endpoint-specific API documentation
+- `docs/developer/api/README.md` - API overview and conventions
 - `CHANGELOG.md` - Project change history (deprecation entries go here)
 
 ## Entry Points

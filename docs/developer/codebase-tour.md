@@ -35,7 +35,7 @@
 ├── docs/                 # Documentation
 │   ├── architecture/     # System design docs
 │   ├── development/      # Dev guides
-│   ├── api-reference/    # API documentation
+│   ├── developer/api/    # API documentation
 │   └── plans/            # Design documents
 │
 ├── scripts/              # Development and deployment scripts
@@ -279,7 +279,7 @@ User Action → Frontend Component → API Call → Backend Route
 
 - [Pipeline Overview](pipeline-overview.md) - Deep dive into detection flow
 - [Data Model](data-model.md) - Database schema reference
-- [Hooks](hooks.md) - Pre-commit hook configuration
+- [Hooks](../development/hooks.md) - Pre-commit hook configuration
 
 ---
 
@@ -291,4 +291,4 @@ User Action → Frontend Component → API Call → Backend Route
 
 ---
 
-[Back to Developer Hub](../developer-hub.md)
+[Back to Developer Hub](README.md)

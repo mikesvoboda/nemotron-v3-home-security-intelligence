@@ -13,7 +13,7 @@
 # Mutation testing verifies test effectiveness by making small changes (mutants)
 # to source code and checking if tests catch them.
 #
-# See docs/MUTATION_TESTING.md for detailed guidance.
+# See docs/developer/patterns/mutation-testing.md for detailed guidance.
 
 set -e
 
@@ -97,7 +97,7 @@ Mutation Score Interpretation:
     60-79%   Fair - Some test gaps exist
     <60%     Poor - Tests need improvement
 
-See docs/MUTATION_TESTING.md for detailed guidance on improving mutation scores.
+See docs/developer/patterns/mutation-testing.md for detailed guidance on improving mutation scores.
 
 EOF
     exit 0
@@ -266,4 +266,4 @@ echo "1. Review surviving mutants to identify test gaps"
 echo "2. Add targeted tests to kill surviving mutants"
 echo "3. Re-run mutation tests to verify improvements"
 echo ""
-echo "For detailed guidance, see: docs/MUTATION_TESTING.md"
+echo "For detailed guidance, see: docs/developer/patterns/mutation-testing.md"

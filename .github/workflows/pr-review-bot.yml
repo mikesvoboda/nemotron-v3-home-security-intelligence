@@ -124,7 +124,7 @@ jobs:
               }
 
               body += `### 📚 Testing Resources\n`;
-              body += `- [Testing Guide](../docs/TESTING_GUIDE.md) - Complete patterns and examples\n`;
+              body += `- [Testing Guide](../docs/development/testing.md) - Complete patterns and examples\n`;
               body += `- [Backend Tests Docs](../backend/tests/AGENTS.md) - Infrastructure and fixtures\n`;
               body += `- [TDD Approach](../CLAUDE.md) - Test-Driven Development workflow\n\n`;
 

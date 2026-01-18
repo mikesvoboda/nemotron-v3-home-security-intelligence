@@ -674,7 +674,7 @@ The existing service-level circuit breaker (`backend/services/circuit_breaker.py
 
 Implement a dedicated **WebSocket Circuit Breaker** (`backend/core/websocket_circuit_breaker.py`) specifically designed for broadcaster services with:
 
-- Lower failure threshold (3 vs 5) for faster failure detection
+- Configurable failure threshold (5 for broadcasters, matches MAX_RECOVERY_ATTEMPTS)
 - 30-second recovery timeout for gradual recovery testing
 - Single test call in half-open state to avoid overwhelming recovering services
 - Integration with `is_degraded()` method for graceful degradation signaling
@@ -693,7 +693,7 @@ Implement a dedicated **WebSocket Circuit Breaker** (`backend/core/websocket_cir
 
 **Positive:**
 
-- Fast failure detection (3 consecutive failures opens circuit)
+- Failure detection (5 consecutive failures opens circuit, matching MAX_RECOVERY_ATTEMPTS)
 - Coordinated recovery via half-open state
 - Graceful degradation signaling to clients via `is_degraded()` method
 - Metrics for monitoring circuit breaker state
@@ -710,9 +710,11 @@ Implement a dedicated **WebSocket Circuit Breaker** (`backend/core/websocket_cir
 from backend.core.websocket_circuit_breaker import WebSocketCircuitBreaker
 
 class SystemBroadcaster:
+    MAX_RECOVERY_ATTEMPTS = 5
+
     def __init__(self, ...):
         self._circuit_breaker = WebSocketCircuitBreaker(
-            failure_threshold=3,      # Open after 3 failures
+            failure_threshold=self.MAX_RECOVERY_ATTEMPTS,  # Open after 5 failures
             recovery_timeout=30.0,    # Wait 30s before testing
             half_open_max_calls=1,    # Single test call
             success_threshold=1,      # Close after 1 success
@@ -727,7 +729,7 @@ class SystemBroadcaster:
 ### Circuit Breaker States
 
 ```
-CLOSED (Normal) --[3 failures]--> OPEN (Blocking)
+CLOSED (Normal) --[5 failures]--> OPEN (Blocking)
                                     |
                                     | (30s timeout)
                                     v

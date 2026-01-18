@@ -1,7 +1,7 @@
 ---
 title: System Page Pipeline Visualization
 description: Technical documentation for the AI pipeline flow visualization component on the System page
-last_updated: 2026-01-04
+last_updated: 2026-01-18
 source_refs:
   - frontend/src/components/system/PipelineFlowVisualization.tsx
   - frontend/src/components/system/PipelineMetricsPanel.tsx

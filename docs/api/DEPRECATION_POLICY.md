@@ -2,7 +2,7 @@
 title: API Deprecation Policy
 description: Guidelines and process for deprecating API endpoints, including timelines, migration guides, and communication standards
 source_refs:
-  - docs/api-reference/overview.md
+  - docs/developer/api/README.md
   - docs/development/contributing.md
   - backend/api/routes/
 ---
@@ -56,10 +56,10 @@ Timeline:
 
 | Action                                           | Owner    | Location                   |
 | ------------------------------------------------ | -------- | -------------------------- |
-| Add deprecation notice to endpoint documentation | API Team | `docs/api-reference/*.md`  |
+| Add deprecation notice to endpoint documentation | API Team | `docs/developer/api/*.md`  |
 | Add `x-deprecation` extension to OpenAPI spec    | API Team | `backend/api/routes/*.py`  |
 | Create CHANGELOG entry                           | API Team | `CHANGELOG.md`             |
-| Document replacement API                         | API Team | `docs/api-reference/*.md`  |
+| Document replacement API                         | API Team | `docs/developer/api/*.md`  |
 | Update migration guide                           | API Team | `docs/api/migrations/*.md` |
 
 ### Phase 2: Active Warning (T-30)
@@ -567,7 +567,7 @@ async function getCamerasV2(): Promise<CameraV2[]> {
 If you encounter issues during migration:
 
 - Review this guide for common field mapping changes
-- Check the [API Reference](/docs/api-reference/cameras.md) for complete v2 documentation
+- Check the [API Reference](/docs/developer/api/core-resources.md) for complete v2 documentation
 - Open a GitHub issue with the `api-migration` label
 
 ## Timeline Reminder
@@ -673,7 +673,7 @@ Use this checklist when deprecating an endpoint:
 
 ## Related Documentation
 
-- [API Reference Overview](../api-reference/overview.md) - API documentation standards
+- [API Reference](../developer/api/README.md) - API documentation standards
 - [Contributing Guide](../development/contributing.md) - Development workflow
 - [CHANGELOG](../../CHANGELOG.md) - Project change history
 

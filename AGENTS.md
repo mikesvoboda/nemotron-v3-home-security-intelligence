@@ -51,7 +51,7 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 | `E2E_COVERAGE_GAPS_IMPLEMENTATION.md` | E2E test coverage gap analysis and implementation plan |
 | `requirements-audit.txt`              | Python dependency audit results and security review    |
 
-> **Note:** Detailed Docker deployment documentation is in `docs/DOCKER_DEPLOYMENT.md`.
+> **Note:** Detailed Docker deployment documentation is in `docs/operator/deployment/`.
 
 ### Build Files
 

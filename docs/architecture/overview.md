@@ -904,7 +904,7 @@ RETENTION_DAYS=30
 | Document                    | Purpose                                 |
 | --------------------------- | --------------------------------------- |
 | `docs/RUNTIME_CONFIG.md`    | Complete environment variable reference |
-| `docs/DOCKER_DEPLOYMENT.md` | Docker deployment guide                 |
+| `docs/operator/deployment/` | Docker deployment guide                 |
 | `docs/AI_SETUP.md`          | AI services setup and troubleshooting   |
 | `docs/ROADMAP.md`           | Post-MVP enhancement ideas              |
 | `backend/AGENTS.md`         | Backend architecture details            |

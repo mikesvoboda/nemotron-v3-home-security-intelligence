@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This directory contains developer-focused documentation for the Home Security Intelligence project. It is part of the hub-and-spoke documentation architecture, with [developer-hub.md](../developer-hub.md) as the central hub.
+This directory contains developer-focused documentation for the Home Security Intelligence project. It is part of the hub-and-spoke documentation architecture, with [developer/README.md](README.md) as the central hub.
 
 ## Target Audience
 
@@ -82,7 +82,7 @@ Most developer documentation already exists in other locations:
 
 ## Navigation
 
-Start at [Developer Hub](../developer-hub.md) for the complete developer documentation index.
+Start at [Developer Hub](README.md) for the complete developer documentation index.
 
 ## Document Standards
 
@@ -104,9 +104,9 @@ All spoke documents in this directory should follow the template:
 
 ## Next Steps
 
-- [Related Doc](../developer-hub.md)
+- [Related Doc](README.md)
 
 ---
 
-[Back to Developer Hub](../developer-hub.md)
+[Back to Developer Hub](README.md)
 ```

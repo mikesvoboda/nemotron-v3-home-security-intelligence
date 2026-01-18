@@ -885,6 +885,6 @@ The backend provides three health endpoints for different use cases:
 | Path                                | Purpose                        |
 | ----------------------------------- | ------------------------------ |
 | `/CLAUDE.md`                        | Project-wide instructions      |
-| `/docs/TESTING_GUIDE.md`            | Comprehensive testing patterns |
+| `/docs/development/testing.md`      | Comprehensive testing patterns |
 | `/docs/TEST_PERFORMANCE_METRICS.md` | Test performance baselines     |
 | `/docs/ROADMAP.md`                  | Post-MVP enhancements          |

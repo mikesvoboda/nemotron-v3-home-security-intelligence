@@ -310,4 +310,4 @@ Shows the graphics card performance powering the AI:
 
 ---
 
-[Back to User Hub](../user-hub.md)
+[Back to User Hub](../user/README.md)

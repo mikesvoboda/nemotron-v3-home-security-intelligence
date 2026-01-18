@@ -8,14 +8,14 @@
 
 ## Quick Navigation
 
-| Section                               | What You'll Find                           |
-| ------------------------------------- | ------------------------------------------ |
-| [Environment Variables](#environment) | All configuration options with defaults    |
-| [Service Ports](#service-ports)       | Port assignments for all services          |
-| [Glossary](#glossary)                 | Definitions of key terms                   |
-| [Troubleshooting](troubleshooting/)   | Symptom-based problem solving              |
-| [API Reference](api/overview.md)      | REST and WebSocket API documentation       |
-| [Risk Levels](config/risk-levels.md)  | Risk score ranges and severity definitions |
+| Section                                     | What You'll Find                           |
+| ------------------------------------------- | ------------------------------------------ |
+| [Environment Variables](#environment)       | All configuration options with defaults    |
+| [Service Ports](#service-ports)             | Port assignments for all services          |
+| [Glossary](#glossary)                       | Definitions of key terms                   |
+| [Troubleshooting](troubleshooting/)         | Symptom-based problem solving              |
+| [API Reference](../developer/api/README.md) | REST and WebSocket API documentation       |
+| [Risk Levels](config/risk-levels.md)        | Risk score ranges and severity definitions |
 
 ---
 
@@ -290,17 +290,16 @@ redis-cli ping                                   # Redis
 
 ## Subdirectories
 
-### api/
+### API Documentation
 
-REST and WebSocket API endpoint reference.
+REST and WebSocket API endpoint reference. Full API documentation is located in the [Developer API Guide](../developer/api/README.md).
 
-- [Overview](api/overview.md) - API conventions and authentication
-- [Alerts API](api/alerts.md) - Alert rules management
-- [Cameras API](api/cameras.md) - Camera operations
-- [Detections API](api/detections.md) - Detection queries
-- [Events API](api/events.md) - Event management
-- [System API](api/system.md) - Health and telemetry
-- [WebSocket API](api/websocket.md) - Real-time streaming
+- [API Overview](../developer/api/README.md) - API conventions and authentication
+- [Core Resources](../developer/api/core-resources.md) - Cameras, events, detections, zones, entities, analytics
+- [AI Pipeline](../developer/api/ai-pipeline.md) - Enrichment, batches, AI audit, dead letter queue
+- [System Operations](../developer/api/system-ops.md) - Health, config, alerts, logs, notifications
+- [Real-time](../developer/api/realtime.md) - WebSocket streams for events and system status
+- [WebSocket Contracts](../developer/api/websocket-contracts.md) - Detailed WebSocket message formats
 
 ### config/
 
@@ -323,11 +322,11 @@ Symptom-based problem-solving guides.
 
 ## Related Documentation
 
-- [Operator Hub](../operator-hub.md) - System administration guides
-- [Developer Hub](../developer-hub.md) - Development guides
-- [User Hub](../user-hub.md) - End-user documentation
+- [Operator Hub](../operator/README.md) - System administration guides
+- [Developer Hub](../developer/README.md) - Development guides
+- [User Hub](../user/README.md) - End-user documentation
 - [Architecture](../architecture/) - Technical architecture decisions
 
 ---
 
-[Back to Documentation](../AGENTS.md) | [Operator Hub](../operator-hub.md) | [Developer Hub](../developer-hub.md)
+[Back to Documentation](../AGENTS.md) | [Operator Hub](../operator/README.md) | [Developer Hub](../developer/README.md)

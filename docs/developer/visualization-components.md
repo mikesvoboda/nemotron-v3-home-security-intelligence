@@ -753,7 +753,7 @@ describe('ActivityHeatmap', () => {
 - [Dashboard AGENTS.md](../../frontend/src/components/dashboard/AGENTS.md) - Component details
 - [Analytics AGENTS.md](../../frontend/src/components/analytics/AGENTS.md) - Analytics components
 - [Frontend Hooks](../architecture/frontend-hooks.md) - Data fetching hooks
-- [API Reference](../api-reference/analytics.md) - Analytics API endpoints
+- [API Reference](api/core-resources.md) - Analytics API endpoints
 
 ---
 

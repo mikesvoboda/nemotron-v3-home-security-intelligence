@@ -45,7 +45,7 @@ The risk score is determined by the NVIDIA Nemotron LLM analyzing detected objec
 **How Nemotron Calculates Risk:**
 
 1. **Object Detection**: RT-DETRv2 identifies objects (persons, vehicles, animals) with confidence scores
-2. **Batch Aggregation**: Related detections are grouped into 30-90 second time windows
+2. **Batch Aggregation**: Related detections are grouped into up to 90-second time windows (closing after 30 seconds of idle or when max detections reached)
 3. **Context Analysis**: Nemotron evaluates:
    - Time of day (e.g., 2 AM person detection vs noon)
    - Object types and confidence levels

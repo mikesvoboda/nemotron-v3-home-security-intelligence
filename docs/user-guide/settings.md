@@ -24,7 +24,15 @@ Size: 1200x700 pixels (12:7 aspect ratio)
 Alt text: Settings page with tabbed navigation showing Cameras tab selected and camera configuration table
 -->
 
-![Settings page with tabbed navigation showing four tabs (Cameras, Processing, AI Models, Notifications) with the Cameras tab selected, displaying a camera configuration table with columns for name, folder path, status badges, last seen timestamps, and edit/delete action buttons](../images/placeholder-settings-full-overview.png)
+<!-- TODO: Capture screenshot placeholder-settings-full-overview.png
+     See docs/images/SCREENSHOT_GUIDE.md section 36 for capture instructions:
+     - Location: Settings page
+     - Size: 1200x700 pixels (12:7 aspect ratio)
+     - Shows: Four tabs (CAMERAS selected), camera configuration table
+-->
+
+> **[Screenshot Pending]** Settings page with tabbed navigation showing four tabs (Cameras, Processing, AI Models, Notifications) with the Cameras tab selected, displaying a camera configuration table with columns for name, folder path, status badges, last seen timestamps, and edit/delete action buttons.
+
 _Caption: The Settings page lets you configure cameras, processing, AI models, and notifications._
 
 ## Accessing Settings
@@ -68,7 +76,15 @@ Size: 1100x400 pixels (~2.75:1 aspect ratio)
 Alt text: Camera settings table showing configured cameras with status indicators and action buttons
 -->
 
-![Cameras settings tab detail showing the camera management table with columns for camera name, folder path for FTP uploads, status indicators (Online in green, Offline in gray, Error in red), last seen timestamps, and action buttons for editing and deleting cameras](../images/placeholder-settings-cameras-tab.png)
+<!-- TODO: Capture screenshot placeholder-settings-cameras-tab.png
+     See docs/images/SCREENSHOT_GUIDE.md section 37 for capture instructions:
+     - Location: Settings > CAMERAS tab
+     - Size: 1100x400 pixels (~2.75:1 aspect ratio)
+     - Shows: Camera table with all columns, Add Camera button at top right
+-->
+
+> **[Screenshot Pending]** Cameras settings tab detail showing the camera management table with columns for camera name, folder path for FTP uploads, status indicators (Online in green, Offline in gray, Error in red), last seen timestamps, and action buttons for editing and deleting cameras.
+
 _Caption: The Cameras tab shows all your connected cameras and lets you manage them._
 
 ### Camera List
@@ -169,7 +185,15 @@ Size: 1000x500 pixels (2:1 aspect ratio)
 Alt text: AI Models settings showing RT-DETRv2 and Nemotron model cards with status, memory, and performance metrics
 -->
 
-![AI Models settings tab showing two model status cards for RT-DETRv2 (Object Detection) and Nemotron (Risk Analysis), each displaying status badges (Loaded/Unloaded/Error), GPU memory usage in gigabytes, and inference speed metrics, with a total GPU memory usage bar at the bottom](../images/placeholder-settings-ai-models-tab.png)
+<!-- TODO: Capture screenshot placeholder-settings-ai-models-tab.png
+     See docs/images/SCREENSHOT_GUIDE.md section 38 for capture instructions:
+     - Location: Settings > AI MODELS tab
+     - Size: 1000x500 pixels (2:1 aspect ratio)
+     - Shows: RT-DETRv2 and Nemotron model cards, GPU memory usage bar
+-->
+
+> **[Screenshot Pending]** AI Models settings tab showing two model status cards for RT-DETRv2 (Object Detection) and Nemotron (Risk Analysis), each displaying status badges (Loaded/Unloaded/Error), GPU memory usage in gigabytes, and inference speed metrics, with a total GPU memory usage bar at the bottom.
+
 _Caption: The AI Models tab shows the status of your AI detection and analysis models._
 
 ### Model Cards

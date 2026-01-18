@@ -20,7 +20,15 @@ Size: 1400x900 pixels (16:9 aspect ratio)
 Alt text: Logs dashboard showing statistics cards, filter controls, and log entries table with color-coded severity levels
 -->
 
-![Logs dashboard showing four statistics cards at top (Errors Today in red, Warnings Today in yellow, Total Today in green, Most Active Component), a collapsible filter panel with log level, component, camera, and date range dropdowns, and a paginated logs table with timestamp, color-coded level badges (DEBUG, INFO, WARNING, ERROR, CRITICAL), component names, and truncated messages](../images/placeholder-logs-dashboard-full.png)
+<!-- TODO: Capture screenshot placeholder-logs-dashboard-full.png
+     See docs/images/SCREENSHOT_GUIDE.md section 41 for capture instructions:
+     - Location: Logs page
+     - Size: 1400x900 pixels (16:9 aspect ratio)
+     - Shows: Four statistics cards (Errors Today, Warnings Today, Total Today, Most Active Component), filter panel with dropdowns, logs table with timestamp, level badge, component, truncated message, pagination controls
+-->
+
+> **[Screenshot Pending]** Logs dashboard showing four statistics cards at top (Errors Today in red, Warnings Today in yellow, Total Today in green, Most Active Component), a collapsible filter panel with log level, component, camera, and date range dropdowns, and a paginated logs table with timestamp, color-coded level badges (DEBUG, INFO, WARNING, ERROR, CRITICAL), component names, and truncated messages.
+
 _Caption: The Logs Dashboard provides visibility into system operations and helps troubleshoot issues._
 
 ## Overview
@@ -193,7 +201,15 @@ Size: 700x600 pixels (~7:6 aspect ratio)
 Alt text: Log detail modal showing complete log information including metadata, message, and additional JSON data
 -->
 
-![Log detail modal popup showing the complete log entry with header containing component name, full timestamp, and color-coded level badge, followed by the full untruncated message, a metadata table with log ID, source, camera ID, event ID, detection ID, and request ID, and an Additional Data section displaying JSON with syntax highlighting](../images/placeholder-log-detail-modal.png)
+<!-- TODO: Capture screenshot placeholder-log-detail-modal.png
+     See docs/images/SCREENSHOT_GUIDE.md section 42 for capture instructions:
+     - Location: Modal after clicking log row
+     - Size: 700x600 pixels (~7:6 aspect ratio)
+     - Shows: Header (component name, timestamp, level badge, close X), full message text, Log Details metadata table, User Agent section, Additional Data section with JSON highlighting
+-->
+
+> **[Screenshot Pending]** Log detail modal popup showing the complete log entry with header containing component name, full timestamp, and color-coded level badge, followed by the full untruncated message, a metadata table with log ID, source, camera ID, event ID, detection ID, and request ID, and an Additional Data section displaying JSON with syntax highlighting.
+
 _Caption: Click any log entry to see complete details including metadata and additional data._
 
 **Header Section:**
@@ -411,6 +427,6 @@ Frontend logs are automatically sent to this endpoint when errors occur in the w
 
 - [Monitoring Guide](../admin-guide/monitoring.md) - Comprehensive system monitoring strategies
 - [Troubleshooting Guide](../admin-guide/troubleshooting.md) - Common issues and solutions
-- [System Health Endpoints](../api-reference/system.md) - API health check documentation
+- [System Health Endpoints](../developer/api/system-ops.md) - API health check documentation
 - [Dashboard Overview](./dashboard-overview.md) - Main dashboard features
 - [Understanding Alerts](./understanding-alerts.md) - Alert system documentation

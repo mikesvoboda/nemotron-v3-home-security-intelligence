@@ -655,4 +655,4 @@ Check GPU utilization and Host System panels for resource issues.
 
 ---
 
-[Back to User Hub](../user-hub.md)
+[Back to User Hub](../user/README.md)

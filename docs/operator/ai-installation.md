@@ -358,4 +358,4 @@ curl http://localhost:8094/health  # Enrichment
 
 ---
 
-[Back to Operator Hub](../operator-hub.md)
+[Back to Operator Hub](./)

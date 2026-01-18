@@ -439,7 +439,7 @@ For developers wanting to understand the underlying systems.
 | `/api/cameras/{id}/baseline/classes`                 | GET    | Camera class frequency baseline                            |
 | `/api/system/anomaly-config`                         | GET    | Get current anomaly detection configuration                |
 | `/api/system/anomaly-config`                         | PUT    | Update anomaly detection configuration                     |
-| `/api/metrics/pipeline-latency`                      | GET    | Pipeline stage latencies (watch, detect, batch, analyze)   |
-| `/api/metrics/pipeline-latency-history`              | GET    | Historical pipeline latency data                           |
+| `/api/system/pipeline-latency`                       | GET    | Pipeline stage latencies (watch, detect, batch, analyze)   |
+| `/api/system/pipeline-latency/history`               | GET    | Historical pipeline latency data                           |
 | `/api/cameras/{id}/scene-changes`                    | GET    | Scene change detections for tampering monitoring           |
 | `/api/cameras/{id}/scene-changes/{scid}/acknowledge` | POST   | Acknowledge a scene change                                 |

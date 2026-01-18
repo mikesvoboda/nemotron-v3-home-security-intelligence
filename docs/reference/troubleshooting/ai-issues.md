@@ -107,11 +107,20 @@ curl http://localhost:8094/health  # Enrichment (optional)
 
 ## Optional Enrichment Issues (Florence / CLIP / Enrichment)
 
+The optional enrichment services (Florence-2, CLIP, Enrichment) provide enhanced context for detections, including:
+
+- **Florence-2**: Visual attributes, OCR, dense captions
+- **CLIP**: Embedding generation for re-identification
+- **Enrichment**: Orchestrates and aggregates enrichment data
+
+These services are **optional** - the core detection and risk analysis pipeline works without them.
+
 ### Symptoms
 
-- Events exist, but “extra context” fields are missing (no attributes, no re-identification hints, etc.)
+- Events exist, but "extra context" fields are missing (no attributes, no re-identification hints, etc.)
 - Backend logs mention enrichment timeouts or connection errors
-- CPU spikes on the backend when enrichment is enabled (model-zoo work can be heavy)
+- CPU spikes on the backend when enrichment is enabled
+- Circuit breakers open for enrichment services
 
 ### Quick Diagnosis
 
@@ -119,17 +128,33 @@ curl http://localhost:8094/health  # Enrichment (optional)
 # Confirm the backend is configured to reach the optional services
 curl http://localhost:8000/api/system/config | jq '.florence_url, .clip_url, .enrichment_url'
 
+# Check feature toggles (are enrichment features enabled?)
+curl http://localhost:8000/api/system/config | jq '.vision_extraction_enabled, .reid_enabled, .scene_change_enabled'
+
 # Check health endpoints
 curl http://localhost:8092/health  # Florence-2
 curl http://localhost:8093/health  # CLIP
 curl http://localhost:8094/health  # Enrichment
+
+# Check circuit breaker status
+curl http://localhost:8000/api/system/circuit-breakers | jq '.florence, .clip, .enrichment'
 ```
+
+### Understanding Feature Toggles
+
+| Variable                    | Default | Effect When Disabled                             |
+| --------------------------- | ------- | ------------------------------------------------ |
+| `VISION_EXTRACTION_ENABLED` | `true`  | No Florence-2 attributes, OCR, or dense captions |
+| `REID_ENABLED`              | `true`  | No CLIP embeddings or re-identification          |
+| `SCENE_CHANGE_ENABLED`      | `true`  | No scene change detection between frames         |
 
 ### Common Causes
 
 1. **Wrong URL from backend** (container vs host networking)
-2. **GPU/VRAM pressure** (too many services competing)
+2. **GPU/VRAM pressure** (too many services competing for limited VRAM)
 3. **Timeouts** (services are up, but slow to respond under load)
+4. **Circuit breakers open** (service failures triggered protection)
+5. **Feature toggles disabled** (enrichment turned off in config)
 
 ### Solutions
 
@@ -138,13 +163,87 @@ curl http://localhost:8094/health  # Enrichment
 - **Production compose**: backend should use compose DNS names (`http://ai-florence:8092`, `http://ai-clip:8093`, `http://ai-enrichment:8094`)
 - **Host-run AI**: backend should use `localhost` (or `host.docker.internal` / `host.containers.internal` when backend is containerized)
 
-**2. Temporarily disable optional enrichment**
+**2. Disable optional enrichment temporarily**
 
-If you need the system running reliably, disable the optional features first, then re-enable one-by-one after you stabilize GPU/latency.
+If you need the system running reliably while debugging, disable the optional features:
 
-See `docs/reference/config/env-reference.md` for the feature toggles.
+```bash
+# In .env - disable all enrichment
+VISION_EXTRACTION_ENABLED=false
+REID_ENABLED=false
+SCENE_CHANGE_ENABLED=false
 
-**Restart failed service:**
+# Restart backend to apply
+docker compose -f docker-compose.prod.yml restart backend
+```
+
+Then re-enable one-by-one after stabilizing GPU/latency.
+
+**3. Adjust timeouts for slow services**
+
+If services are healthy but timing out under load:
+
+```bash
+# In .env - increase timeouts
+FLORENCE_READ_TIMEOUT=60.0   # Default: 30s
+CLIP_READ_TIMEOUT=30.0       # Default: 15s
+ENRICHMENT_READ_TIMEOUT=120.0 # Default: 60s
+```
+
+**4. Reset circuit breakers**
+
+If circuit breakers opened due to transient failures:
+
+```bash
+# Check circuit breaker status
+curl http://localhost:8000/api/system/circuit-breakers | jq
+
+# Reset specific circuit breaker (if API available)
+curl -X POST http://localhost:8000/api/system/circuit-breakers/florence/reset
+curl -X POST http://localhost:8000/api/system/circuit-breakers/clip/reset
+curl -X POST http://localhost:8000/api/system/circuit-breakers/enrichment/reset
+
+# Or restart backend to reset all circuit breakers
+docker compose -f docker-compose.prod.yml restart backend
+```
+
+**5. Check GPU/VRAM availability**
+
+Optional services compete for GPU memory. Check utilization:
+
+```bash
+nvidia-smi
+
+# Expected VRAM usage per service:
+# - RT-DETRv2: ~4GB
+# - Nemotron: ~3GB (Q4_K_M), ~14GB (30B)
+# - Florence-2: ~2-4GB
+# - CLIP: ~1-2GB
+```
+
+If GPU is overloaded, consider:
+
+- Running fewer AI services simultaneously
+- Using smaller model quantizations
+- Disabling non-essential enrichment features
+
+**6. Tune re-identification settings**
+
+If re-ID is slow or producing poor matches:
+
+```bash
+# Adjust similarity threshold (higher = stricter matching)
+REID_SIMILARITY_THRESHOLD=0.85
+
+# Reduce TTL if embeddings are stale
+REID_TTL_HOURS=12
+
+# Limit concurrent re-ID operations
+REID_MAX_CONCURRENT=2
+REID_TIMEOUT_SECONDS=10.0
+```
+
+**7. Restart failed services**
 
 ```bash
 # Just RT-DETRv2
@@ -153,8 +252,26 @@ See `docs/reference/config/env-reference.md` for the feature toggles.
 # Just Nemotron
 ./ai/start_llm.sh
 
-# Both
+# All AI services (if using docker compose)
+docker compose -f docker-compose.prod.yml restart ai-florence ai-clip ai-enrichment
+
+# Both core services
 ./scripts/start-ai.sh restart
+```
+
+### Verifying Enrichment is Working
+
+After enabling enrichment, verify data is being populated:
+
+```bash
+# Get a recent event with enrichment data
+curl -s http://localhost:8000/api/events?limit=1 | jq '.events[0].detections[0].enrichment'
+
+# Check for Florence attributes
+curl -s http://localhost:8000/api/events?limit=1 | jq '.events[0].detections[0].enrichment.attributes'
+
+# Check for CLIP embeddings (should show embedding exists, not the actual vector)
+curl -s http://localhost:8000/api/events?limit=1 | jq '.events[0].detections[0].enrichment.has_embedding'
 ```
 
 ---
@@ -430,4 +547,4 @@ Circuit opened because service repeatedly failed. Check:
 
 ---
 
-[Back to Operator Hub](../../operator-hub.md)
+[Back to Operator Hub](../../operator/)

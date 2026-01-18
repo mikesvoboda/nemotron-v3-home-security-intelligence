@@ -739,7 +739,7 @@ async def detect_objects(image_path: str):
 - [Backend Architecture](../architecture/overview.md) - System design overview
 - [Data Model Reference](data-model.md) - Database schema documentation
 - [Testing Guide](../development/testing.md) - Testing patterns and fixtures
-- [API Reference](../api-reference/) - REST API documentation
+- [API Reference](api/README.md) - REST API documentation
 
 ---
 
