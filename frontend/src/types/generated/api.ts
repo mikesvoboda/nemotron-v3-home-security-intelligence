@@ -1673,6 +1673,116 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/debug/memory": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Memory Stats
+         * @description Get detailed memory statistics for debugging memory issues.
+         *
+         *     Returns process memory usage, garbage collector stats, and the top
+         *     object types consuming memory. Useful for detecting memory leaks.
+         *
+         *     Args:
+         *         top_n: Number of top object types to return (default: 20)
+         *         force_gc: Force garbage collection before measuring (default: False)
+         *
+         *     Returns:
+         *         Detailed memory statistics
+         */
+        get: operations["get_memory_stats_api_debug_memory_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/debug/memory/gc": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Trigger Gc
+         * @description Trigger garbage collection and return stats.
+         *
+         *     Forces a full garbage collection cycle and returns the number of
+         *     objects collected. Useful for testing if memory can be reclaimed.
+         *
+         *     Returns:
+         *         GC collection statistics
+         */
+        post: operations["trigger_gc_api_debug_memory_gc_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/debug/memory/tracemalloc/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Tracemalloc
+         * @description Start tracemalloc memory tracing.
+         *
+         *     Enables detailed memory allocation tracking. This adds some overhead
+         *     but allows tracking where memory is being allocated.
+         *
+         *     Args:
+         *         nframes: Number of stack frames to capture (default: 25)
+         *
+         *     Returns:
+         *         Status of tracemalloc
+         */
+        post: operations["start_tracemalloc_api_debug_memory_tracemalloc_start_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/debug/memory/tracemalloc/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Stop Tracemalloc
+         * @description Stop tracemalloc memory tracing.
+         *
+         *     Stops memory allocation tracking and clears the trace data.
+         *
+         *     Returns:
+         *         Final memory statistics before stopping
+         */
+        post: operations["stop_tracemalloc_api_debug_memory_tracemalloc_stop_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/debug/pipeline-errors": {
         parameters: {
             query?: never;
@@ -6241,6 +6351,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/webhooks/alerts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Receive Alertmanager Webhook
+         * @description Receive webhook notifications from Alertmanager.
+         *
+         *     This endpoint receives alerts from Prometheus Alertmanager and:
+         *     1. Logs the alert for observability
+         *     2. Broadcasts to WebSocket clients for real-time frontend updates
+         *     3. Returns acknowledgment to Alertmanager
+         *
+         *     The alerts are infrastructure alerts (GPU memory, pipeline health, etc.)
+         *     which are separate from AI-generated security alerts.
+         *
+         *     Args:
+         *         payload: Alertmanager webhook payload containing alert details
+         *         background_tasks: FastAPI background tasks for async processing
+         *
+         *     Returns:
+         *         WebhookResponse with processing status
+         */
+        post: operations["receive_alertmanager_webhook_api_webhooks_alerts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -7045,6 +7190,170 @@ export interface components {
          * @enum {string}
          */
         AlertStatus: "pending" | "delivered" | "acknowledged" | "dismissed";
+        /**
+         * AlertmanagerAlert
+         * @description Schema for a single alert in Alertmanager webhook payload.
+         *
+         *     Represents one alert instance with its labels, annotations, and timing.
+         * @example {
+         *       "annotations": {
+         *         "description": "GPU memory usage is above 90% for 5 minutes",
+         *         "summary": "GPU memory usage is high"
+         *       },
+         *       "endsAt": "0001-01-01T00:00:00Z",
+         *       "fingerprint": "abc123def456",
+         *       "generatorURL": "http://prometheus:9090/graph?...",
+         *       "labels": {
+         *         "alertname": "HSIGPUMemoryHigh",
+         *         "component": "gpu",
+         *         "severity": "warning"
+         *       },
+         *       "startsAt": "2026-01-17T12:22:56.068Z",
+         *       "status": "firing"
+         *     }
+         */
+        AlertmanagerAlert: {
+            /**
+             * Annotations
+             * @description Alert annotations (summary, description)
+             */
+            annotations?: {
+                [key: string]: string;
+            };
+            /**
+             * Endsat
+             * @description When the alert was resolved
+             */
+            endsAt?: string | null;
+            /**
+             * Fingerprint
+             * @description Unique identifier for deduplication
+             */
+            fingerprint: string;
+            /**
+             * Generatorurl
+             * @description URL to the Prometheus graph
+             */
+            generatorURL?: string | null;
+            /**
+             * Labels
+             * @description Alert labels (alertname, severity, etc.)
+             */
+            labels?: {
+                [key: string]: string;
+            };
+            /**
+             * Startsat
+             * Format: date-time
+             * @description When the alert started firing
+             */
+            startsAt: string;
+            /** @description Alert status (firing or resolved) */
+            status: components["schemas"]["AlertmanagerStatus"];
+        };
+        /**
+         * AlertmanagerStatus
+         * @description Alertmanager alert status values.
+         * @enum {string}
+         */
+        AlertmanagerStatus: "firing" | "resolved";
+        /**
+         * AlertmanagerWebhookPayload
+         * @description Schema for Alertmanager webhook payload.
+         *
+         *     This is the format Alertmanager sends when configured with a webhook receiver.
+         *     See: https://prometheus.io/docs/alerting/latest/configuration/#webhook_config
+         * @example {
+         *       "alerts": [
+         *         {
+         *           "annotations": {
+         *             "description": "GPU memory at 96%"
+         *           },
+         *           "endsAt": "0001-01-01T00:00:00Z",
+         *           "fingerprint": "abc123",
+         *           "labels": {
+         *             "alertname": "HSIGPUMemoryHigh",
+         *             "severity": "warning"
+         *           },
+         *           "startsAt": "2026-01-17T12:22:56.068Z",
+         *           "status": "firing"
+         *         }
+         *       ],
+         *       "commonAnnotations": {
+         *         "summary": "GPU memory usage is high"
+         *       },
+         *       "commonLabels": {
+         *         "alertname": "HSIGPUMemoryHigh",
+         *         "severity": "warning"
+         *       },
+         *       "externalURL": "http://alertmanager:9093",
+         *       "groupKey": "{}:{alertname=\"HSIGPUMemoryHigh\"}",
+         *       "groupLabels": {
+         *         "alertname": "HSIGPUMemoryHigh"
+         *       },
+         *       "receiver": "critical-receiver",
+         *       "status": "firing",
+         *       "truncatedAlerts": 0,
+         *       "version": "4"
+         *     }
+         */
+        AlertmanagerWebhookPayload: {
+            /**
+             * Alerts
+             * @description List of alerts in this group
+             */
+            alerts: components["schemas"]["AlertmanagerAlert"][];
+            /**
+             * Commonannotations
+             * @description Annotations common to all alerts
+             */
+            commonAnnotations?: {
+                [key: string]: string;
+            };
+            /**
+             * Commonlabels
+             * @description Labels common to all alerts
+             */
+            commonLabels?: {
+                [key: string]: string;
+            };
+            /**
+             * Externalurl
+             * @description Alertmanager external URL
+             */
+            externalURL?: string | null;
+            /**
+             * Groupkey
+             * @description Key identifying the alert group
+             */
+            groupKey: string;
+            /**
+             * Grouplabels
+             * @description Labels used for grouping
+             */
+            groupLabels?: {
+                [key: string]: string;
+            };
+            /**
+             * Receiver
+             * @description Name of the receiver that matched
+             */
+            receiver: string;
+            /** @description Overall group status */
+            status: components["schemas"]["AlertmanagerStatus"];
+            /**
+             * Truncatedalerts
+             * @description Number of truncated alerts
+             * @default 0
+             */
+            truncatedAlerts: number;
+            /**
+             * Version
+             * @description Alertmanager webhook version
+             * @default 4
+             */
+            version: string;
+        };
         /**
          * AllPromptsResponse
          * @description Response containing prompts for all configurable models.
@@ -12972,16 +13281,60 @@ export interface components {
          * GPUStatsResponse
          * @description Response schema for GPU statistics endpoint.
          * @example {
+         *       "bar1_used": 256,
+         *       "compute_processes_count": 2,
+         *       "decoder_utilization": 0,
+         *       "encoder_utilization": 0,
+         *       "fan_speed": 45,
          *       "gpu_name": "NVIDIA RTX A5500",
          *       "inference_fps": 30.5,
+         *       "memory_bandwidth_utilization": 35.2,
+         *       "memory_clock": 8001,
+         *       "memory_clock_max": 8501,
          *       "memory_total": 24000,
          *       "memory_used": 12000,
+         *       "pcie_link_gen": 4,
+         *       "pcie_link_width": 16,
+         *       "pcie_replay_counter": 0,
+         *       "pcie_rx_throughput": 95000,
+         *       "pcie_tx_throughput": 120000,
+         *       "power_limit": 230,
          *       "power_usage": 150,
+         *       "pstate": 0,
+         *       "sm_clock": 1800,
+         *       "sm_clock_max": 1980,
+         *       "temp_slowdown_threshold": 83,
          *       "temperature": 65,
+         *       "throttle_reasons": 0,
          *       "utilization": 75.5
          *     }
          */
         GPUStatsResponse: {
+            /**
+             * Bar1 Used
+             * @description BAR1 memory used in MB
+             */
+            bar1_used?: number | null;
+            /**
+             * Compute Processes Count
+             * @description Number of active compute processes
+             */
+            compute_processes_count?: number | null;
+            /**
+             * Decoder Utilization
+             * @description Video decoder utilization percentage (0-100)
+             */
+            decoder_utilization?: number | null;
+            /**
+             * Encoder Utilization
+             * @description Video encoder utilization percentage (0-100)
+             */
+            encoder_utilization?: number | null;
+            /**
+             * Fan Speed
+             * @description GPU fan speed percentage (0-100)
+             */
+            fan_speed?: number | null;
             /**
              * Gpu Name
              * @description GPU device name (e.g., 'NVIDIA RTX A5500')
@@ -12993,6 +13346,21 @@ export interface components {
              */
             inference_fps?: number | null;
             /**
+             * Memory Bandwidth Utilization
+             * @description Memory controller utilization percentage (0-100)
+             */
+            memory_bandwidth_utilization?: number | null;
+            /**
+             * Memory Clock
+             * @description Current memory clock frequency in MHz
+             */
+            memory_clock?: number | null;
+            /**
+             * Memory Clock Max
+             * @description Maximum memory clock frequency in MHz
+             */
+            memory_clock_max?: number | null;
+            /**
              * Memory Total
              * @description Total GPU memory in MB
              */
@@ -13003,15 +13371,70 @@ export interface components {
              */
             memory_used?: number | null;
             /**
+             * Pcie Link Gen
+             * @description PCIe link generation (1-4)
+             */
+            pcie_link_gen?: number | null;
+            /**
+             * Pcie Link Width
+             * @description PCIe link width (1, 2, 4, 8, 16)
+             */
+            pcie_link_width?: number | null;
+            /**
+             * Pcie Replay Counter
+             * @description PCIe replay counter (error indicator, should be low)
+             */
+            pcie_replay_counter?: number | null;
+            /**
+             * Pcie Rx Throughput
+             * @description PCIe RX throughput in KB/s
+             */
+            pcie_rx_throughput?: number | null;
+            /**
+             * Pcie Tx Throughput
+             * @description PCIe TX throughput in KB/s
+             */
+            pcie_tx_throughput?: number | null;
+            /**
+             * Power Limit
+             * @description Power limit in watts
+             */
+            power_limit?: number | null;
+            /**
              * Power Usage
              * @description GPU power usage in watts
              */
             power_usage?: number | null;
             /**
+             * Pstate
+             * @description Performance state (P0=max performance, P15=idle)
+             */
+            pstate?: number | null;
+            /**
+             * Sm Clock
+             * @description Current SM clock frequency in MHz
+             */
+            sm_clock?: number | null;
+            /**
+             * Sm Clock Max
+             * @description Maximum SM clock frequency in MHz
+             */
+            sm_clock_max?: number | null;
+            /**
+             * Temp Slowdown Threshold
+             * @description Temperature threshold for slowdown in Celsius
+             */
+            temp_slowdown_threshold?: number | null;
+            /**
              * Temperature
              * @description GPU temperature in Celsius
              */
             temperature?: number | null;
+            /**
+             * Throttle Reasons
+             * @description Bitfield of current throttle reasons (0=none)
+             */
+            throttle_reasons?: number | null;
             /**
              * Utilization
              * @description GPU utilization percentage (0-100)
@@ -13024,6 +13447,31 @@ export interface components {
          */
         GPUStatsSample: {
             /**
+             * Bar1 Used
+             * @description BAR1 memory used in MB
+             */
+            bar1_used?: number | null;
+            /**
+             * Compute Processes Count
+             * @description Active compute processes
+             */
+            compute_processes_count?: number | null;
+            /**
+             * Decoder Utilization
+             * @description Decoder utilization %
+             */
+            decoder_utilization?: number | null;
+            /**
+             * Encoder Utilization
+             * @description Encoder utilization %
+             */
+            encoder_utilization?: number | null;
+            /**
+             * Fan Speed
+             * @description GPU fan speed percentage
+             */
+            fan_speed?: number | null;
+            /**
              * Gpu Name
              * @description GPU device name
              */
@@ -13033,6 +13481,21 @@ export interface components {
              * @description Inference frames per second
              */
             inference_fps?: number | null;
+            /**
+             * Memory Bandwidth Utilization
+             * @description Memory controller utilization %
+             */
+            memory_bandwidth_utilization?: number | null;
+            /**
+             * Memory Clock
+             * @description Memory clock in MHz
+             */
+            memory_clock?: number | null;
+            /**
+             * Memory Clock Max
+             * @description Max memory clock in MHz
+             */
+            memory_clock_max?: number | null;
             /**
              * Memory Total
              * @description Total GPU memory in MB
@@ -13044,10 +13507,45 @@ export interface components {
              */
             memory_used?: number | null;
             /**
+             * Pcie Link Gen
+             * @description PCIe link generation
+             */
+            pcie_link_gen?: number | null;
+            /**
+             * Pcie Link Width
+             * @description PCIe link width
+             */
+            pcie_link_width?: number | null;
+            /**
+             * Pcie Replay Counter
+             * @description PCIe replay counter
+             */
+            pcie_replay_counter?: number | null;
+            /**
+             * Pcie Rx Throughput
+             * @description PCIe RX throughput KB/s
+             */
+            pcie_rx_throughput?: number | null;
+            /**
+             * Pcie Tx Throughput
+             * @description PCIe TX throughput KB/s
+             */
+            pcie_tx_throughput?: number | null;
+            /**
+             * Power Limit
+             * @description Power limit in watts
+             */
+            power_limit?: number | null;
+            /**
              * Power Usage
              * @description GPU power usage in watts
              */
             power_usage?: number | null;
+            /**
+             * Pstate
+             * @description Performance state (P0-P15)
+             */
+            pstate?: number | null;
             /**
              * Recorded At
              * Format: date-time
@@ -13055,10 +13553,30 @@ export interface components {
              */
             recorded_at: string;
             /**
+             * Sm Clock
+             * @description Current SM clock in MHz
+             */
+            sm_clock?: number | null;
+            /**
+             * Sm Clock Max
+             * @description Max SM clock in MHz
+             */
+            sm_clock_max?: number | null;
+            /**
+             * Temp Slowdown Threshold
+             * @description Slowdown temp threshold
+             */
+            temp_slowdown_threshold?: number | null;
+            /**
              * Temperature
              * @description GPU temperature in Celsius
              */
             temperature?: number | null;
+            /**
+             * Throttle Reasons
+             * @description Throttle reasons bitfield
+             */
+            throttle_reasons?: number | null;
             /**
              * Utilization
              * @description GPU utilization percentage (0-100)
@@ -14737,6 +15255,98 @@ export interface components {
              * @description The path that was attempted to be accessed
              */
             path: string;
+        };
+        /**
+         * MemoryGCStats
+         * @description Garbage collector statistics.
+         */
+        MemoryGCStats: {
+            /**
+             * Collected
+             * @description Total objects collected
+             */
+            collected: number;
+            /**
+             * Collections
+             * @description Number of collections per generation
+             */
+            collections: number[];
+            /**
+             * Thresholds
+             * @description Collection thresholds per generation
+             */
+            thresholds: number[];
+            /**
+             * Uncollectable
+             * @description Number of uncollectable objects
+             */
+            uncollectable: number;
+        };
+        /**
+         * MemoryObjectStats
+         * @description Statistics for a single object type.
+         */
+        MemoryObjectStats: {
+            /**
+             * Count
+             * @description Number of instances
+             */
+            count: number;
+            /**
+             * Size Bytes
+             * @description Total size in bytes
+             */
+            size_bytes: number;
+            /**
+             * Size Human
+             * @description Human-readable size
+             */
+            size_human: string;
+            /**
+             * Type Name
+             * @description Object type name
+             */
+            type_name: string;
+        };
+        /**
+         * MemoryStatsResponse
+         * @description Response for memory statistics.
+         */
+        MemoryStatsResponse: {
+            /** @description Garbage collector statistics */
+            gc_stats: components["schemas"]["MemoryGCStats"];
+            /**
+             * Process Rss Bytes
+             * @description Process RSS memory in bytes
+             */
+            process_rss_bytes: number;
+            /**
+             * Process Rss Human
+             * @description Human-readable RSS memory
+             */
+            process_rss_human: string;
+            /**
+             * Process Vms Bytes
+             * @description Process virtual memory in bytes
+             */
+            process_vms_bytes: number;
+            /**
+             * Process Vms Human
+             * @description Human-readable virtual memory
+             */
+            process_vms_human: string;
+            /**
+             * Timestamp
+             * @description ISO timestamp of response
+             */
+            timestamp: string;
+            /**
+             * Top Objects
+             * @description Top object types by memory usage
+             */
+            top_objects: components["schemas"]["MemoryObjectStats"][];
+            /** @description Tracemalloc statistics */
+            tracemalloc_stats: components["schemas"]["TraceMallocStats"];
         };
         /**
          * MetricsCollectionStatus
@@ -19369,6 +19979,36 @@ export interface components {
          */
         TimeRange: "5m" | "15m" | "60m";
         /**
+         * TraceMallocStats
+         * @description Tracemalloc statistics if enabled.
+         */
+        TraceMallocStats: {
+            /**
+             * Current Bytes
+             * @description Current traced memory in bytes
+             * @default 0
+             */
+            current_bytes: number;
+            /**
+             * Enabled
+             * @description Whether tracemalloc is enabled
+             */
+            enabled: boolean;
+            /**
+             * Peak Bytes
+             * @description Peak traced memory in bytes
+             * @default 0
+             */
+            peak_bytes: number;
+            /**
+             * Top Allocations
+             * @description Top memory allocations by size
+             */
+            top_allocations?: {
+                [key: string]: unknown;
+            }[];
+        };
+        /**
          * TrustStatus
          * @description Trust classification status for entities.
          *
@@ -19757,6 +20397,38 @@ export interface components {
          * @enum {string}
          */
         WebVitalName: "LCP" | "FID" | "INP" | "CLS" | "TTFB" | "FCP" | "PAGE_LOAD_TIME";
+        /**
+         * WebhookResponse
+         * @description Schema for webhook processing response.
+         * @example {
+         *       "message": "Processed 1 alert(s)",
+         *       "processed": 1,
+         *       "received": 1,
+         *       "status": "ok"
+         *     }
+         */
+        WebhookResponse: {
+            /**
+             * Message
+             * @description Human-readable status message
+             */
+            message: string;
+            /**
+             * Processed
+             * @description Number of alerts processed
+             */
+            processed: number;
+            /**
+             * Received
+             * @description Number of alerts received
+             */
+            received: number;
+            /**
+             * Status
+             * @description Processing status (ok or error)
+             */
+            status: string;
+        };
         /**
          * WebhookTestNotificationRequest
          * @description Schema for testing notification configuration.
@@ -22416,6 +23088,171 @@ export interface operations {
             };
             /** @description Validation error */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_memory_stats_api_debug_memory_get: {
+        parameters: {
+            query?: {
+                top_n?: number;
+                force_gc?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemoryStatsResponse"];
+                };
+            };
+            /** @description Not found - Debug mode disabled */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    trigger_gc_api_debug_memory_gc_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not found - Debug mode disabled */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    start_tracemalloc_api_debug_memory_tracemalloc_start_post: {
+        parameters: {
+            query?: {
+                nframes?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not found - Debug mode disabled */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    stop_tracemalloc_api_debug_memory_tracemalloc_stop_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not found - Debug mode disabled */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -28292,6 +29129,44 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["EventRegistryResponse"];
                 };
+            };
+        };
+    };
+    receive_alertmanager_webhook_api_webhooks_alerts_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AlertmanagerWebhookPayload"];
+            };
+        };
+        responses: {
+            /** @description Webhook received and processed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhookResponse"];
+                };
+            };
+            /** @description Invalid payload format */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

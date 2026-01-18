@@ -56,6 +56,28 @@ class GPUStatsDict(TypedDict):
     temperature: float | None
     power_usage: float | None
     recorded_at: datetime
+    # Extended metrics for throttling detection and hardware health
+    fan_speed: int | None
+    sm_clock: int | None
+    memory_bandwidth_utilization: float | None
+    pstate: int | None
+    # High-value metrics for throttling detection
+    throttle_reasons: int | None  # Bitfield of current throttle reasons
+    power_limit: float | None  # Power limit in watts
+    sm_clock_max: int | None  # Max SM clock frequency in MHz
+    compute_processes_count: int | None  # Number of compute processes
+    pcie_replay_counter: int | None  # PCIe replay counter (error indicator)
+    temp_slowdown_threshold: float | None  # Temperature slowdown threshold in Celsius
+    # Medium-value metrics for hardware monitoring
+    memory_clock: int | None  # Current memory clock in MHz
+    memory_clock_max: int | None  # Max memory clock in MHz
+    pcie_link_gen: int | None  # PCIe link generation (1-4)
+    pcie_link_width: int | None  # PCIe link width (x1-x16)
+    pcie_tx_throughput: int | None  # PCIe TX throughput in KB/s
+    pcie_rx_throughput: int | None  # PCIe RX throughput in KB/s
+    encoder_utilization: int | None  # Video encoder utilization %
+    decoder_utilization: int | None  # Video decoder utilization %
+    bar1_used: int | None  # BAR1 memory used in MB
 
 
 class MemoryPressureMetrics(TypedDict):
@@ -316,6 +338,28 @@ class GPUMonitor:
                 "temperature": temperature,
                 "power_usage": power_usage,
                 "recorded_at": datetime.now(UTC),
+                # Extended metrics not available via basic nvidia-smi query
+                "fan_speed": None,
+                "sm_clock": None,
+                "memory_bandwidth_utilization": None,
+                "pstate": None,
+                # High-value metrics not available via basic nvidia-smi query
+                "throttle_reasons": None,
+                "power_limit": None,
+                "sm_clock_max": None,
+                "compute_processes_count": None,
+                "pcie_replay_counter": None,
+                "temp_slowdown_threshold": None,
+                # Medium-value metrics not available via basic nvidia-smi query
+                "memory_clock": None,
+                "memory_clock_max": None,
+                "pcie_link_gen": None,
+                "pcie_link_width": None,
+                "pcie_tx_throughput": None,
+                "pcie_rx_throughput": None,
+                "encoder_utilization": None,
+                "decoder_utilization": None,
+                "bar1_used": None,
             }
 
         except subprocess.TimeoutExpired as e:
@@ -404,12 +448,103 @@ class GPUMonitor:
                 "temperature": temperature,
                 "power_usage": power_usage,
                 "recorded_at": datetime.now(UTC),
+                # Extended metrics not available via basic nvidia-smi query
+                "fan_speed": None,
+                "sm_clock": None,
+                "memory_bandwidth_utilization": None,
+                "pstate": None,
+                # High-value metrics not available via basic nvidia-smi query
+                "throttle_reasons": None,
+                "power_limit": None,
+                "sm_clock_max": None,
+                "compute_processes_count": None,
+                "pcie_replay_counter": None,
+                "temp_slowdown_threshold": None,
+                # Medium-value metrics not available via basic nvidia-smi query
+                "memory_clock": None,
+                "memory_clock_max": None,
+                "pcie_link_gen": None,
+                "pcie_link_width": None,
+                "pcie_tx_throughput": None,
+                "pcie_rx_throughput": None,
+                "encoder_utilization": None,
+                "decoder_utilization": None,
+                "bar1_used": None,
             }
 
         except subprocess.TimeoutExpired as e:
             raise RuntimeError("nvidia-smi timed out") from e
         except Exception as e:
             raise RuntimeError(f"Failed to get GPU stats via nvidia-smi: {e}") from e
+
+    def _get_extended_metrics(self) -> dict[str, Any]:
+        """Get extended GPU metrics (high and medium value).
+
+        Returns:
+            Dictionary containing extended GPU metrics, with None for unavailable metrics.
+        """
+        import pynvml
+
+        metrics: dict[str, Any] = {}
+        handle = self._gpu_handle
+
+        # HIGH-VALUE METRICS - for throttling and error detection
+        with contextlib.suppress(pynvml.NVMLError):
+            metrics["throttle_reasons"] = int(
+                pynvml.nvmlDeviceGetCurrentClocksThrottleReasons(handle)
+            )
+        with contextlib.suppress(pynvml.NVMLError):
+            metrics["power_limit"] = float(
+                pynvml.nvmlDeviceGetPowerManagementLimit(handle) / 1000.0
+            )
+        with contextlib.suppress(pynvml.NVMLError):
+            metrics["sm_clock_max"] = int(
+                pynvml.nvmlDeviceGetMaxClockInfo(handle, pynvml.NVML_CLOCK_SM)
+            )
+        with contextlib.suppress(pynvml.NVMLError):
+            processes = pynvml.nvmlDeviceGetComputeRunningProcesses(handle)
+            metrics["compute_processes_count"] = len(processes)
+        with contextlib.suppress(pynvml.NVMLError):
+            metrics["pcie_replay_counter"] = int(pynvml.nvmlDeviceGetPcieReplayCounter(handle))
+        with contextlib.suppress(pynvml.NVMLError):
+            metrics["temp_slowdown_threshold"] = float(
+                pynvml.nvmlDeviceGetTemperatureThreshold(
+                    handle, pynvml.NVML_TEMPERATURE_THRESHOLD_SLOWDOWN
+                )
+            )
+
+        # MEDIUM-VALUE METRICS - for hardware monitoring
+        with contextlib.suppress(pynvml.NVMLError):
+            metrics["memory_clock"] = int(
+                pynvml.nvmlDeviceGetClockInfo(handle, pynvml.NVML_CLOCK_MEM)
+            )
+        with contextlib.suppress(pynvml.NVMLError):
+            metrics["memory_clock_max"] = int(
+                pynvml.nvmlDeviceGetMaxClockInfo(handle, pynvml.NVML_CLOCK_MEM)
+            )
+        with contextlib.suppress(pynvml.NVMLError):
+            metrics["pcie_link_gen"] = int(pynvml.nvmlDeviceGetCurrPcieLinkGeneration(handle))
+        with contextlib.suppress(pynvml.NVMLError):
+            metrics["pcie_link_width"] = int(pynvml.nvmlDeviceGetCurrPcieLinkWidth(handle))
+        with contextlib.suppress(pynvml.NVMLError):
+            metrics["pcie_tx_throughput"] = int(
+                pynvml.nvmlDeviceGetPcieThroughput(handle, pynvml.NVML_PCIE_UTIL_TX_BYTES)
+            )
+        with contextlib.suppress(pynvml.NVMLError):
+            metrics["pcie_rx_throughput"] = int(
+                pynvml.nvmlDeviceGetPcieThroughput(handle, pynvml.NVML_PCIE_UTIL_RX_BYTES)
+            )
+        with contextlib.suppress(pynvml.NVMLError):
+            enc_util, _ = pynvml.nvmlDeviceGetEncoderUtilization(handle)
+            metrics["encoder_utilization"] = int(enc_util)
+        with contextlib.suppress(pynvml.NVMLError):
+            dec_util, _ = pynvml.nvmlDeviceGetDecoderUtilization(handle)
+            metrics["decoder_utilization"] = int(dec_util)
+        with contextlib.suppress(pynvml.NVMLError):
+            bar1_info = pynvml.nvmlDeviceGetBAR1MemoryInfo(handle)
+            metrics["bar1_used"] = int(bar1_info.used / (1024 * 1024))  # Convert to MB
+
+        return metrics
 
     def _get_gpu_stats_real(self) -> GPUStatsDict:
         """Get real GPU statistics from pynvml.
@@ -426,37 +561,53 @@ class GPUMonitor:
         try:
             import pynvml
 
-            # Get GPU utilization
-            try:
-                utilization = pynvml.nvmlDeviceGetUtilizationRates(self._gpu_handle)
+            handle = self._gpu_handle
+
+            # Get GPU utilization and memory bandwidth utilization
+            gpu_utilization: float | None = None
+            memory_bandwidth_utilization: float | None = None
+            with contextlib.suppress(pynvml.NVMLError):
+                utilization = pynvml.nvmlDeviceGetUtilizationRates(handle)
                 gpu_utilization = float(utilization.gpu)
-            except pynvml.NVMLError:
-                gpu_utilization = None
+                memory_bandwidth_utilization = float(utilization.memory)
 
             # Get memory info
-            try:
-                memory_info = pynvml.nvmlDeviceGetMemoryInfo(self._gpu_handle)
+            memory_used: int | None = None
+            memory_total: int | None = None
+            with contextlib.suppress(pynvml.NVMLError):
+                memory_info = pynvml.nvmlDeviceGetMemoryInfo(handle)
                 memory_used = int(memory_info.used / (1024 * 1024))  # Convert to MB
                 memory_total = int(memory_info.total / (1024 * 1024))  # Convert to MB
-            except pynvml.NVMLError:
-                memory_used = None
-                memory_total = None
 
             # Get temperature
-            try:
+            temperature: float | None = None
+            with contextlib.suppress(pynvml.NVMLError):
                 temperature = float(
-                    pynvml.nvmlDeviceGetTemperature(self._gpu_handle, pynvml.NVML_TEMPERATURE_GPU)
+                    pynvml.nvmlDeviceGetTemperature(handle, pynvml.NVML_TEMPERATURE_GPU)
                 )
-            except pynvml.NVMLError:
-                temperature = None
 
             # Get power usage
-            try:
-                power_usage = float(
-                    pynvml.nvmlDeviceGetPowerUsage(self._gpu_handle) / 1000.0
-                )  # Convert to Watts
-            except pynvml.NVMLError:
-                power_usage = None
+            power_usage: float | None = None
+            with contextlib.suppress(pynvml.NVMLError):
+                power_usage = float(pynvml.nvmlDeviceGetPowerUsage(handle) / 1000.0)
+
+            # Get fan speed (percentage)
+            fan_speed: int | None = None
+            with contextlib.suppress(pynvml.NVMLError):
+                fan_speed = int(pynvml.nvmlDeviceGetFanSpeed(handle))
+
+            # Get SM clock (MHz)
+            sm_clock: int | None = None
+            with contextlib.suppress(pynvml.NVMLError):
+                sm_clock = int(pynvml.nvmlDeviceGetClockInfo(handle, pynvml.NVML_CLOCK_SM))
+
+            # Get performance state (P0 = max performance, P15 = idle)
+            pstate: int | None = None
+            with contextlib.suppress(pynvml.NVMLError):
+                pstate = int(pynvml.nvmlDeviceGetPerformanceState(handle))
+
+            # Get extended metrics from helper method
+            extended = self._get_extended_metrics()
 
             return {
                 "gpu_name": self._gpu_name,
@@ -466,6 +617,28 @@ class GPUMonitor:
                 "temperature": temperature,
                 "power_usage": power_usage,
                 "recorded_at": datetime.now(UTC),
+                # Extended metrics
+                "fan_speed": fan_speed,
+                "sm_clock": sm_clock,
+                "memory_bandwidth_utilization": memory_bandwidth_utilization,
+                "pstate": pstate,
+                # High-value metrics
+                "throttle_reasons": extended.get("throttle_reasons"),
+                "power_limit": extended.get("power_limit"),
+                "sm_clock_max": extended.get("sm_clock_max"),
+                "compute_processes_count": extended.get("compute_processes_count"),
+                "pcie_replay_counter": extended.get("pcie_replay_counter"),
+                "temp_slowdown_threshold": extended.get("temp_slowdown_threshold"),
+                # Medium-value metrics
+                "memory_clock": extended.get("memory_clock"),
+                "memory_clock_max": extended.get("memory_clock_max"),
+                "pcie_link_gen": extended.get("pcie_link_gen"),
+                "pcie_link_width": extended.get("pcie_link_width"),
+                "pcie_tx_throughput": extended.get("pcie_tx_throughput"),
+                "pcie_rx_throughput": extended.get("pcie_rx_throughput"),
+                "encoder_utilization": extended.get("encoder_utilization"),
+                "decoder_utilization": extended.get("decoder_utilization"),
+                "bar1_used": extended.get("bar1_used"),
             }
 
         except Exception as e:
@@ -528,6 +701,30 @@ class GPUMonitor:
             "temperature": temperature,
             "power_usage": power_usage,
             "recorded_at": now,
+            # Extended metrics (simulated)
+            "fan_speed": int(30 + 10 * math.sin(time_factor * 2 * math.pi)),
+            "sm_clock": int(1500 + 300 * math.sin(time_factor * 2 * math.pi)),
+            "memory_bandwidth_utilization": round(
+                15.0 + 5.0 * math.sin(time_factor * 2 * math.pi), 1
+            ),
+            "pstate": 8 if gpu_utilization < 30 else 0,  # P8 when idle, P0 when active
+            # High-value metrics (simulated)
+            "throttle_reasons": 0,  # No throttling in mock mode
+            "power_limit": 230.0,  # Typical RTX A5500 power limit
+            "sm_clock_max": 1800,  # Typical max SM clock
+            "compute_processes_count": 2,  # Simulated active processes
+            "pcie_replay_counter": 0,  # No errors
+            "temp_slowdown_threshold": 83.0,  # Typical slowdown threshold
+            # Medium-value metrics (simulated)
+            "memory_clock": int(8000 + 500 * math.sin(time_factor * 2 * math.pi)),
+            "memory_clock_max": 8501,  # Typical max memory clock
+            "pcie_link_gen": 4,  # PCIe Gen4
+            "pcie_link_width": 16,  # x16
+            "pcie_tx_throughput": int(100000 + 50000 * math.sin(time_factor * 2 * math.pi)),
+            "pcie_rx_throughput": int(80000 + 40000 * math.sin(time_factor * 2 * math.pi)),
+            "encoder_utilization": 0,  # No encoding in mock
+            "decoder_utilization": 0,  # No decoding in mock
+            "bar1_used": 256,  # Typical BAR1 usage
         }
 
     def _parse_rtdetr_response(
@@ -640,6 +837,28 @@ class GPUMonitor:
                         "temperature": temperature if temperature is not None else 0,
                         "power_usage": power_watts if power_watts is not None else 0.0,
                         "recorded_at": datetime.now(UTC),
+                        # Extended metrics not available from AI container endpoints
+                        "fan_speed": None,
+                        "sm_clock": None,
+                        "memory_bandwidth_utilization": None,
+                        "pstate": None,
+                        # High-value metrics not available from AI container endpoints
+                        "throttle_reasons": None,
+                        "power_limit": None,
+                        "sm_clock_max": None,
+                        "compute_processes_count": None,
+                        "pcie_replay_counter": None,
+                        "temp_slowdown_threshold": None,
+                        # Medium-value metrics not available from AI container endpoints
+                        "memory_clock": None,
+                        "memory_clock_max": None,
+                        "pcie_link_gen": None,
+                        "pcie_link_width": None,
+                        "pcie_tx_throughput": None,
+                        "pcie_rx_throughput": None,
+                        "encoder_utilization": None,
+                        "decoder_utilization": None,
+                        "bar1_used": None,
                     }
 
         except Exception as e:
@@ -800,6 +1019,28 @@ class GPUMonitor:
                     temperature=stats["temperature"],
                     power_usage=stats["power_usage"],
                     inference_fps=inference_fps,
+                    # Extended metrics
+                    fan_speed=stats.get("fan_speed"),
+                    sm_clock=stats.get("sm_clock"),
+                    memory_bandwidth_utilization=stats.get("memory_bandwidth_utilization"),
+                    pstate=stats.get("pstate"),
+                    # High-value metrics
+                    throttle_reasons=stats.get("throttle_reasons"),
+                    power_limit=stats.get("power_limit"),
+                    sm_clock_max=stats.get("sm_clock_max"),
+                    compute_processes_count=stats.get("compute_processes_count"),
+                    pcie_replay_counter=stats.get("pcie_replay_counter"),
+                    temp_slowdown_threshold=stats.get("temp_slowdown_threshold"),
+                    # Medium-value metrics
+                    memory_clock=stats.get("memory_clock"),
+                    memory_clock_max=stats.get("memory_clock_max"),
+                    pcie_link_gen=stats.get("pcie_link_gen"),
+                    pcie_link_width=stats.get("pcie_link_width"),
+                    pcie_tx_throughput=stats.get("pcie_tx_throughput"),
+                    pcie_rx_throughput=stats.get("pcie_rx_throughput"),
+                    encoder_utilization=stats.get("encoder_utilization"),
+                    decoder_utilization=stats.get("decoder_utilization"),
+                    bar1_used=stats.get("bar1_used"),
                 )
                 session.add(gpu_stats)
                 await session.commit()

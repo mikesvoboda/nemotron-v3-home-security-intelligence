@@ -1214,6 +1214,215 @@
         "title": "AlertStatus",
         "type": "string"
       },
+      "AlertmanagerAlert": {
+        "description": "Schema for a single alert in Alertmanager webhook payload.\n\nRepresents one alert instance with its labels, annotations, and timing.",
+        "example": {
+          "annotations": {
+            "description": "GPU memory usage is above 90% for 5 minutes",
+            "summary": "GPU memory usage is high"
+          },
+          "endsAt": "0001-01-01T00:00:00Z",
+          "fingerprint": "abc123def456",
+          "generatorURL": "http://prometheus:9090/graph?...",
+          "labels": {
+            "alertname": "HSIGPUMemoryHigh",
+            "component": "gpu",
+            "severity": "warning"
+          },
+          "startsAt": "2026-01-17T12:22:56.068Z",
+          "status": "firing"
+        },
+        "properties": {
+          "annotations": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Alert annotations (summary, description)",
+            "title": "Annotations",
+            "type": "object"
+          },
+          "endsAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the alert was resolved",
+            "title": "Endsat"
+          },
+          "fingerprint": {
+            "description": "Unique identifier for deduplication",
+            "title": "Fingerprint",
+            "type": "string"
+          },
+          "generatorURL": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "URL to the Prometheus graph",
+            "title": "Generatorurl"
+          },
+          "labels": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Alert labels (alertname, severity, etc.)",
+            "title": "Labels",
+            "type": "object"
+          },
+          "startsAt": {
+            "description": "When the alert started firing",
+            "format": "date-time",
+            "title": "Startsat",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AlertmanagerStatus",
+            "description": "Alert status (firing or resolved)"
+          }
+        },
+        "required": [
+          "status",
+          "startsAt",
+          "fingerprint"
+        ],
+        "title": "AlertmanagerAlert",
+        "type": "object"
+      },
+      "AlertmanagerStatus": {
+        "description": "Alertmanager alert status values.",
+        "enum": [
+          "firing",
+          "resolved"
+        ],
+        "title": "AlertmanagerStatus",
+        "type": "string"
+      },
+      "AlertmanagerWebhookPayload": {
+        "description": "Schema for Alertmanager webhook payload.\n\nThis is the format Alertmanager sends when configured with a webhook receiver.\nSee: https://prometheus.io/docs/alerting/latest/configuration/#webhook_config",
+        "example": {
+          "alerts": [
+            {
+              "annotations": {
+                "description": "GPU memory at 96%"
+              },
+              "endsAt": "0001-01-01T00:00:00Z",
+              "fingerprint": "abc123",
+              "labels": {
+                "alertname": "HSIGPUMemoryHigh",
+                "severity": "warning"
+              },
+              "startsAt": "2026-01-17T12:22:56.068Z",
+              "status": "firing"
+            }
+          ],
+          "commonAnnotations": {
+            "summary": "GPU memory usage is high"
+          },
+          "commonLabels": {
+            "alertname": "HSIGPUMemoryHigh",
+            "severity": "warning"
+          },
+          "externalURL": "http://alertmanager:9093",
+          "groupKey": "{}:{alertname=\"HSIGPUMemoryHigh\"}",
+          "groupLabels": {
+            "alertname": "HSIGPUMemoryHigh"
+          },
+          "receiver": "critical-receiver",
+          "status": "firing",
+          "truncatedAlerts": 0,
+          "version": "4"
+        },
+        "properties": {
+          "alerts": {
+            "description": "List of alerts in this group",
+            "items": {
+              "$ref": "#/components/schemas/AlertmanagerAlert"
+            },
+            "title": "Alerts",
+            "type": "array"
+          },
+          "commonAnnotations": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Annotations common to all alerts",
+            "title": "Commonannotations",
+            "type": "object"
+          },
+          "commonLabels": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Labels common to all alerts",
+            "title": "Commonlabels",
+            "type": "object"
+          },
+          "externalURL": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Alertmanager external URL",
+            "title": "Externalurl"
+          },
+          "groupKey": {
+            "description": "Key identifying the alert group",
+            "title": "Groupkey",
+            "type": "string"
+          },
+          "groupLabels": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Labels used for grouping",
+            "title": "Grouplabels",
+            "type": "object"
+          },
+          "receiver": {
+            "description": "Name of the receiver that matched",
+            "title": "Receiver",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AlertmanagerStatus",
+            "description": "Overall group status"
+          },
+          "truncatedAlerts": {
+            "default": 0,
+            "description": "Number of truncated alerts",
+            "title": "Truncatedalerts",
+            "type": "integer"
+          },
+          "version": {
+            "default": "4",
+            "description": "Alertmanager webhook version",
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "groupKey",
+          "status",
+          "receiver",
+          "alerts"
+        ],
+        "title": "AlertmanagerWebhookPayload",
+        "type": "object"
+      },
       "AllPromptsResponse": {
         "description": "Response containing prompts for all configurable models.",
         "example": {
@@ -9609,15 +9818,102 @@
       "GPUStatsResponse": {
         "description": "Response schema for GPU statistics endpoint.",
         "example": {
+          "bar1_used": 256,
+          "compute_processes_count": 2,
+          "decoder_utilization": 0,
+          "encoder_utilization": 0,
+          "fan_speed": 45,
           "gpu_name": "NVIDIA RTX A5500",
           "inference_fps": 30.5,
+          "memory_bandwidth_utilization": 35.2,
+          "memory_clock": 8001,
+          "memory_clock_max": 8501,
           "memory_total": 24000,
           "memory_used": 12000,
+          "pcie_link_gen": 4,
+          "pcie_link_width": 16,
+          "pcie_replay_counter": 0,
+          "pcie_rx_throughput": 95000,
+          "pcie_tx_throughput": 120000,
+          "power_limit": 230.0,
           "power_usage": 150.0,
+          "pstate": 0,
+          "sm_clock": 1800,
+          "sm_clock_max": 1980,
+          "temp_slowdown_threshold": 83.0,
           "temperature": 65.0,
+          "throttle_reasons": 0,
           "utilization": 75.5
         },
         "properties": {
+          "bar1_used": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "BAR1 memory used in MB",
+            "title": "Bar1 Used"
+          },
+          "compute_processes_count": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Number of active compute processes",
+            "title": "Compute Processes Count"
+          },
+          "decoder_utilization": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Video decoder utilization percentage (0-100)",
+            "title": "Decoder Utilization"
+          },
+          "encoder_utilization": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Video encoder utilization percentage (0-100)",
+            "title": "Encoder Utilization"
+          },
+          "fan_speed": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "GPU fan speed percentage (0-100)",
+            "title": "Fan Speed"
+          },
           "gpu_name": {
             "anyOf": [
               {
@@ -9643,6 +9939,46 @@
             "description": "Inference frames per second",
             "title": "Inference Fps"
           },
+          "memory_bandwidth_utilization": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Memory controller utilization percentage (0-100)",
+            "title": "Memory Bandwidth Utilization"
+          },
+          "memory_clock": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Current memory clock frequency in MHz",
+            "title": "Memory Clock"
+          },
+          "memory_clock_max": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Maximum memory clock frequency in MHz",
+            "title": "Memory Clock Max"
+          },
           "memory_total": {
             "anyOf": [
               {
@@ -9669,6 +10005,85 @@
             "description": "GPU memory used in MB",
             "title": "Memory Used"
           },
+          "pcie_link_gen": {
+            "anyOf": [
+              {
+                "maximum": 5.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "PCIe link generation (1-4)",
+            "title": "Pcie Link Gen"
+          },
+          "pcie_link_width": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "PCIe link width (1, 2, 4, 8, 16)",
+            "title": "Pcie Link Width"
+          },
+          "pcie_replay_counter": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "PCIe replay counter (error indicator, should be low)",
+            "title": "Pcie Replay Counter"
+          },
+          "pcie_rx_throughput": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "PCIe RX throughput in KB/s",
+            "title": "Pcie Rx Throughput"
+          },
+          "pcie_tx_throughput": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "PCIe TX throughput in KB/s",
+            "title": "Pcie Tx Throughput"
+          },
+          "power_limit": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Power limit in watts",
+            "title": "Power Limit"
+          },
           "power_usage": {
             "anyOf": [
               {
@@ -9682,6 +10097,58 @@
             "description": "GPU power usage in watts",
             "title": "Power Usage"
           },
+          "pstate": {
+            "anyOf": [
+              {
+                "maximum": 15.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Performance state (P0=max performance, P15=idle)",
+            "title": "Pstate"
+          },
+          "sm_clock": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Current SM clock frequency in MHz",
+            "title": "Sm Clock"
+          },
+          "sm_clock_max": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Maximum SM clock frequency in MHz",
+            "title": "Sm Clock Max"
+          },
+          "temp_slowdown_threshold": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Temperature threshold for slowdown in Celsius",
+            "title": "Temp Slowdown Threshold"
+          },
           "temperature": {
             "anyOf": [
               {
@@ -9693,6 +10160,19 @@
             ],
             "description": "GPU temperature in Celsius",
             "title": "Temperature"
+          },
+          "throttle_reasons": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Bitfield of current throttle reasons (0=none)",
+            "title": "Throttle Reasons"
           },
           "utilization": {
             "anyOf": [
@@ -9715,6 +10195,74 @@
       "GPUStatsSample": {
         "description": "Single time-series sample of GPU statistics.",
         "properties": {
+          "bar1_used": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "BAR1 memory used in MB",
+            "title": "Bar1 Used"
+          },
+          "compute_processes_count": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Active compute processes",
+            "title": "Compute Processes Count"
+          },
+          "decoder_utilization": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Decoder utilization %",
+            "title": "Decoder Utilization"
+          },
+          "encoder_utilization": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Encoder utilization %",
+            "title": "Encoder Utilization"
+          },
+          "fan_speed": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "GPU fan speed percentage",
+            "title": "Fan Speed"
+          },
           "gpu_name": {
             "anyOf": [
               {
@@ -9740,6 +10288,46 @@
             "description": "Inference frames per second",
             "title": "Inference Fps"
           },
+          "memory_bandwidth_utilization": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Memory controller utilization %",
+            "title": "Memory Bandwidth Utilization"
+          },
+          "memory_clock": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Memory clock in MHz",
+            "title": "Memory Clock"
+          },
+          "memory_clock_max": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Max memory clock in MHz",
+            "title": "Memory Clock Max"
+          },
           "memory_total": {
             "anyOf": [
               {
@@ -9766,6 +10354,85 @@
             "description": "GPU memory used in MB",
             "title": "Memory Used"
           },
+          "pcie_link_gen": {
+            "anyOf": [
+              {
+                "maximum": 5.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "PCIe link generation",
+            "title": "Pcie Link Gen"
+          },
+          "pcie_link_width": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "PCIe link width",
+            "title": "Pcie Link Width"
+          },
+          "pcie_replay_counter": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "PCIe replay counter",
+            "title": "Pcie Replay Counter"
+          },
+          "pcie_rx_throughput": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "PCIe RX throughput KB/s",
+            "title": "Pcie Rx Throughput"
+          },
+          "pcie_tx_throughput": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "PCIe TX throughput KB/s",
+            "title": "Pcie Tx Throughput"
+          },
+          "power_limit": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Power limit in watts",
+            "title": "Power Limit"
+          },
           "power_usage": {
             "anyOf": [
               {
@@ -9779,11 +10446,63 @@
             "description": "GPU power usage in watts",
             "title": "Power Usage"
           },
+          "pstate": {
+            "anyOf": [
+              {
+                "maximum": 15.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Performance state (P0-P15)",
+            "title": "Pstate"
+          },
           "recorded_at": {
             "description": "When the GPU sample was recorded (UTC)",
             "format": "date-time",
             "title": "Recorded At",
             "type": "string"
+          },
+          "sm_clock": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Current SM clock in MHz",
+            "title": "Sm Clock"
+          },
+          "sm_clock_max": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Max SM clock in MHz",
+            "title": "Sm Clock Max"
+          },
+          "temp_slowdown_threshold": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Slowdown temp threshold",
+            "title": "Temp Slowdown Threshold"
           },
           "temperature": {
             "anyOf": [
@@ -9796,6 +10515,19 @@
             ],
             "description": "GPU temperature in Celsius",
             "title": "Temperature"
+          },
+          "throttle_reasons": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Throttle reasons bitfield",
+            "title": "Throttle Reasons"
           },
           "utilization": {
             "anyOf": [
@@ -12201,6 +12933,136 @@
           "path"
         ],
         "title": "MediaErrorResponse",
+        "type": "object"
+      },
+      "MemoryGCStats": {
+        "description": "Garbage collector statistics.",
+        "properties": {
+          "collected": {
+            "description": "Total objects collected",
+            "title": "Collected",
+            "type": "integer"
+          },
+          "collections": {
+            "description": "Number of collections per generation",
+            "items": {
+              "type": "integer"
+            },
+            "title": "Collections",
+            "type": "array"
+          },
+          "thresholds": {
+            "description": "Collection thresholds per generation",
+            "items": {
+              "type": "integer"
+            },
+            "title": "Thresholds",
+            "type": "array"
+          },
+          "uncollectable": {
+            "description": "Number of uncollectable objects",
+            "title": "Uncollectable",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "collections",
+          "collected",
+          "uncollectable",
+          "thresholds"
+        ],
+        "title": "MemoryGCStats",
+        "type": "object"
+      },
+      "MemoryObjectStats": {
+        "description": "Statistics for a single object type.",
+        "properties": {
+          "count": {
+            "description": "Number of instances",
+            "title": "Count",
+            "type": "integer"
+          },
+          "size_bytes": {
+            "description": "Total size in bytes",
+            "title": "Size Bytes",
+            "type": "integer"
+          },
+          "size_human": {
+            "description": "Human-readable size",
+            "title": "Size Human",
+            "type": "string"
+          },
+          "type_name": {
+            "description": "Object type name",
+            "title": "Type Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type_name",
+          "count",
+          "size_bytes",
+          "size_human"
+        ],
+        "title": "MemoryObjectStats",
+        "type": "object"
+      },
+      "MemoryStatsResponse": {
+        "description": "Response for memory statistics.",
+        "properties": {
+          "gc_stats": {
+            "$ref": "#/components/schemas/MemoryGCStats",
+            "description": "Garbage collector statistics"
+          },
+          "process_rss_bytes": {
+            "description": "Process RSS memory in bytes",
+            "title": "Process Rss Bytes",
+            "type": "integer"
+          },
+          "process_rss_human": {
+            "description": "Human-readable RSS memory",
+            "title": "Process Rss Human",
+            "type": "string"
+          },
+          "process_vms_bytes": {
+            "description": "Process virtual memory in bytes",
+            "title": "Process Vms Bytes",
+            "type": "integer"
+          },
+          "process_vms_human": {
+            "description": "Human-readable virtual memory",
+            "title": "Process Vms Human",
+            "type": "string"
+          },
+          "timestamp": {
+            "description": "ISO timestamp of response",
+            "title": "Timestamp",
+            "type": "string"
+          },
+          "top_objects": {
+            "description": "Top object types by memory usage",
+            "items": {
+              "$ref": "#/components/schemas/MemoryObjectStats"
+            },
+            "title": "Top Objects",
+            "type": "array"
+          },
+          "tracemalloc_stats": {
+            "$ref": "#/components/schemas/TraceMallocStats",
+            "description": "Tracemalloc statistics"
+          }
+        },
+        "required": [
+          "process_rss_bytes",
+          "process_rss_human",
+          "process_vms_bytes",
+          "process_vms_human",
+          "gc_stats",
+          "tracemalloc_stats",
+          "top_objects",
+          "timestamp"
+        ],
+        "title": "MemoryStatsResponse",
         "type": "object"
       },
       "MetricsCollectionStatus": {
@@ -18750,6 +19612,42 @@
         "title": "TimeRange",
         "type": "string"
       },
+      "TraceMallocStats": {
+        "description": "Tracemalloc statistics if enabled.",
+        "properties": {
+          "current_bytes": {
+            "default": 0,
+            "description": "Current traced memory in bytes",
+            "title": "Current Bytes",
+            "type": "integer"
+          },
+          "enabled": {
+            "description": "Whether tracemalloc is enabled",
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "peak_bytes": {
+            "default": 0,
+            "description": "Peak traced memory in bytes",
+            "title": "Peak Bytes",
+            "type": "integer"
+          },
+          "top_allocations": {
+            "description": "Top memory allocations by size",
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Top Allocations",
+            "type": "array"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "title": "TraceMallocStats",
+        "type": "object"
+      },
       "TrustStatus": {
         "description": "Trust classification status for entities.\n\nEntities can be classified as trusted (known/safe), untrusted (unknown/suspicious),\nor unclassified (no classification assigned yet).",
         "enum": [
@@ -19360,6 +20258,45 @@
         ],
         "title": "WebVitalName",
         "type": "string"
+      },
+      "WebhookResponse": {
+        "description": "Schema for webhook processing response.",
+        "example": {
+          "message": "Processed 1 alert(s)",
+          "processed": 1,
+          "received": 1,
+          "status": "ok"
+        },
+        "properties": {
+          "message": {
+            "description": "Human-readable status message",
+            "title": "Message",
+            "type": "string"
+          },
+          "processed": {
+            "description": "Number of alerts processed",
+            "title": "Processed",
+            "type": "integer"
+          },
+          "received": {
+            "description": "Number of alerts received",
+            "title": "Received",
+            "type": "integer"
+          },
+          "status": {
+            "description": "Processing status (ok or error)",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "received",
+          "processed",
+          "message"
+        ],
+        "title": "WebhookResponse",
+        "type": "object"
       },
       "WebhookTestNotificationRequest": {
         "description": "Schema for testing notification configuration.",
@@ -22838,6 +23775,178 @@
           }
         },
         "summary": "Set Log Level",
+        "tags": [
+          "debug"
+        ]
+      }
+    },
+    "/api/debug/memory": {
+      "get": {
+        "description": "Get detailed memory statistics for debugging memory issues.\n\nReturns process memory usage, garbage collector stats, and the top\nobject types consuming memory. Useful for detecting memory leaks.\n\nArgs:\n    top_n: Number of top object types to return (default: 20)\n    force_gc: Force garbage collection before measuring (default: False)\n\nReturns:\n    Detailed memory statistics",
+        "operationId": "get_memory_stats_api_debug_memory_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "top_n",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "title": "Top N",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "force_gc",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Force Gc",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemoryStatsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Not found - Debug mode disabled"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get Memory Stats",
+        "tags": [
+          "debug"
+        ]
+      }
+    },
+    "/api/debug/memory/gc": {
+      "post": {
+        "description": "Trigger garbage collection and return stats.\n\nForces a full garbage collection cycle and returns the number of\nobjects collected. Useful for testing if memory can be reclaimed.\n\nReturns:\n    GC collection statistics",
+        "operationId": "trigger_gc_api_debug_memory_gc_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Trigger Gc Api Debug Memory Gc Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Not found - Debug mode disabled"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Trigger Gc",
+        "tags": [
+          "debug"
+        ]
+      }
+    },
+    "/api/debug/memory/tracemalloc/start": {
+      "post": {
+        "description": "Start tracemalloc memory tracing.\n\nEnables detailed memory allocation tracking. This adds some overhead\nbut allows tracking where memory is being allocated.\n\nArgs:\n    nframes: Number of stack frames to capture (default: 25)\n\nReturns:\n    Status of tracemalloc",
+        "operationId": "start_tracemalloc_api_debug_memory_tracemalloc_start_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "nframes",
+            "required": false,
+            "schema": {
+              "default": 25,
+              "title": "Nframes",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Start Tracemalloc Api Debug Memory Tracemalloc Start Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Not found - Debug mode disabled"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Start Tracemalloc",
+        "tags": [
+          "debug"
+        ]
+      }
+    },
+    "/api/debug/memory/tracemalloc/stop": {
+      "post": {
+        "description": "Stop tracemalloc memory tracing.\n\nStops memory allocation tracking and clears the trace data.\n\nReturns:\n    Final memory statistics before stopping",
+        "operationId": "stop_tracemalloc_api_debug_memory_tracemalloc_stop_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Stop Tracemalloc Api Debug Memory Tracemalloc Stop Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Not found - Debug mode disabled"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Stop Tracemalloc",
         "tags": [
           "debug"
         ]
@@ -31131,6 +32240,44 @@
         "summary": "List Websocket Event Types",
         "tags": [
           "system"
+        ]
+      }
+    },
+    "/api/webhooks/alerts": {
+      "post": {
+        "description": "Receive webhook notifications from Alertmanager.\n\nThis endpoint receives alerts from Prometheus Alertmanager and:\n1. Logs the alert for observability\n2. Broadcasts to WebSocket clients for real-time frontend updates\n3. Returns acknowledgment to Alertmanager\n\nThe alerts are infrastructure alerts (GPU memory, pipeline health, etc.)\nwhich are separate from AI-generated security alerts.\n\nArgs:\n    payload: Alertmanager webhook payload containing alert details\n    background_tasks: FastAPI background tasks for async processing\n\nReturns:\n    WebhookResponse with processing status",
+        "operationId": "receive_alertmanager_webhook_api_webhooks_alerts_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AlertmanagerWebhookPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookResponse"
+                }
+              }
+            },
+            "description": "Webhook received and processed"
+          },
+          "422": {
+            "description": "Invalid payload format"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Receive Alertmanager Webhook",
+        "tags": [
+          "webhooks"
         ]
       }
     },

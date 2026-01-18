@@ -156,3 +156,101 @@ modules:
         path: '{ .inference_fps }'
         type: value
         help: 'Inference frames per second'
+
+      # Extended metrics for throttling detection and hardware health
+      - name: hsi_gpu_fan_speed
+        path: '{ .fan_speed }'
+        type: value
+        help: 'GPU fan speed percentage (0-100)'
+
+      - name: hsi_gpu_sm_clock_mhz
+        path: '{ .sm_clock }'
+        type: value
+        help: 'Current SM clock frequency in MHz'
+
+      - name: hsi_gpu_memory_bandwidth_utilization
+        path: '{ .memory_bandwidth_utilization }'
+        type: value
+        help: 'Memory controller utilization percentage (0-100)'
+
+      - name: hsi_gpu_pstate
+        path: '{ .pstate }'
+        type: value
+        help: 'GPU performance state (P0=max, P15=idle)'
+
+      # High-value metrics for throttling and error detection
+      - name: hsi_gpu_throttle_reasons
+        path: '{ .throttle_reasons }'
+        type: value
+        help: 'GPU throttle reasons bitfield (0=none)'
+
+      - name: hsi_gpu_power_limit_watts
+        path: '{ .power_limit }'
+        type: value
+        help: 'GPU power limit in watts'
+
+      - name: hsi_gpu_sm_clock_max_mhz
+        path: '{ .sm_clock_max }'
+        type: value
+        help: 'Maximum SM clock frequency in MHz'
+
+      - name: hsi_gpu_compute_processes
+        path: '{ .compute_processes_count }'
+        type: value
+        help: 'Number of active GPU compute processes'
+
+      - name: hsi_gpu_pcie_replay_counter
+        path: '{ .pcie_replay_counter }'
+        type: value
+        help: 'PCIe replay counter (error indicator, should be low)'
+
+      - name: hsi_gpu_temp_slowdown_threshold
+        path: '{ .temp_slowdown_threshold }'
+        type: value
+        help: 'Temperature threshold for GPU slowdown in Celsius'
+
+      # Medium-value metrics for hardware monitoring
+      - name: hsi_gpu_memory_clock_mhz
+        path: '{ .memory_clock }'
+        type: value
+        help: 'Current memory clock frequency in MHz'
+
+      - name: hsi_gpu_memory_clock_max_mhz
+        path: '{ .memory_clock_max }'
+        type: value
+        help: 'Maximum memory clock frequency in MHz'
+
+      - name: hsi_gpu_pcie_link_gen
+        path: '{ .pcie_link_gen }'
+        type: value
+        help: 'PCIe link generation (1-4)'
+
+      - name: hsi_gpu_pcie_link_width
+        path: '{ .pcie_link_width }'
+        type: value
+        help: 'PCIe link width (1, 2, 4, 8, 16)'
+
+      - name: hsi_gpu_pcie_tx_throughput_kbs
+        path: '{ .pcie_tx_throughput }'
+        type: value
+        help: 'PCIe TX throughput in KB/s'
+
+      - name: hsi_gpu_pcie_rx_throughput_kbs
+        path: '{ .pcie_rx_throughput }'
+        type: value
+        help: 'PCIe RX throughput in KB/s'
+
+      - name: hsi_gpu_encoder_utilization
+        path: '{ .encoder_utilization }'
+        type: value
+        help: 'Video encoder utilization percentage (0-100)'
+
+      - name: hsi_gpu_decoder_utilization
+        path: '{ .decoder_utilization }'
+        type: value
+        help: 'Video decoder utilization percentage (0-100)'
+
+      - name: hsi_gpu_bar1_used_mb
+        path: '{ .bar1_used }'
+        type: value
+        help: 'BAR1 memory used in MB'

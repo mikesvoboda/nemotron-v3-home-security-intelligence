@@ -57,6 +57,7 @@ from backend.api.routes import (
     rum,
     services,
     system,
+    webhooks,
     websocket,
     zones,
 )
@@ -1047,6 +1048,7 @@ app.include_router(queues.router)
 app.include_router(rum.router)
 app.include_router(services.router)
 app.include_router(system.router)
+app.include_router(webhooks.router)
 app.include_router(websocket.router)
 app.include_router(zones.router)
 
